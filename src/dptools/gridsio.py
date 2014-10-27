@@ -9,7 +9,6 @@ def scalarvtk(fname, griddata, varname='var'):
         griddata (GridData): object containing grid and scalar field
         fname (filename or file handle) : destination file
         var (string): variable name
-        header (string): an header to be included in the file
     """
 
     if hasattr(fname, 'write'):
@@ -54,6 +53,56 @@ def scalarvtk(fname, griddata, varname='var'):
     # which correspond to column-major order (left index varying faster)
     for value in griddata.data.flatten(order='F'):
         fh.write('{}\n'.format(value))
+
+    if closefh:
+        fh.close()
+
+
+def cube(fname, griddata, header='dptools cube file'):
+    """Save a scalar field from a Grid Data oject as a Gaussian cube file.
+        (without any atomistic structure)
+
+    Args:
+        griddata (GridData): object containing grid and scalar field
+        fname (filename or file handle) : destination file
+        header (string): cube file header
+    """
+
+    if hasattr(fname, 'write'):
+        fh = fname
+        closefh = False
+    elif isinstance(fname, basestring):
+        fh = open(fname, 'wb')
+        closefh = True
+    else:
+        raise ValueError('Cannot open fname as file')
+
+    ndim = griddata.grid.dimension
+    if ndim != 3:
+        raise ValueError('cube output only valid for 3D systems')
+
+    # Verify constrains on basis and data (scalar field and oriented along x,y,z)
+    if len(griddata.data.shape) != 3:
+        raise ValueError('GridData object must represent a 3D scalar vector')
+    if (np.multiply(griddata.grid.basis, np.eye(3))
+            - griddata.grid.basis > grids._FLOAT_TOLERANCE).any():
+        raise ValueError('GridData Grid basis must be oriented along xyz')
+
+    fh.write('#{}\n'.format(header))
+    fh.write('#\n')
+    fh.write('{} {} {} {} \n'.format(1, griddata.grid.origin[0],
+                                     griddata.grid.origin[1],
+                                     griddata.grid.origin[2]))
+    fh.write('{} {} {} {}\n'.format(griddata.grid.shape[0],
+                                    griddata.grid.basis[0, 0], 0.0, 0.0))
+    fh.write('{} {} {} {}\n'.format(griddata.grid.shape[1],
+                                    0.0, griddata.grid.basis[1, 1], 0.0))
+    fh.write('{} {} {} {}\n'.format(griddata.grid.shape[2],
+                                    0.0, 0.0, griddata.grid.basis[2, 2]))
+    fh.write('{} {} {} {} {} \n'.format(1, 0.0, 0.0, 0.0, 0.0))
+    #Note: cube file wants z varying indexes faster, i.e. row major order
+    for value in griddata.data.flatten(order='C'):
+        fh.write('{} '.format(value))
 
     if closefh:
         fh.close()

@@ -71,9 +71,21 @@ def main():
     # which correspond to a row major order (right index changing faster)
     # in a A(x,y,z) notation
     griddata = grids.GridData(grid, vec.reshape(grid.shape, order='C'))
-    gridsio.scalarvtk(args.dest, griddata,
-                      varname=args.dest.split('.')[0])
 
+    if args.format is None:
+        if args.dest[-4:] == '.cub' or args.dest[-5:] == '.cube':
+            format = 'cube'
+        elif args.dest[-4:] == '.vtk':
+            format = 'vtk'
+
+    if format == 'vtk':
+        gridsio.scalarvtk(args.dest, griddata,
+                          varname=args.dest.split('.')[0])
+    elif format == 'cube':
+        gridsio.cube(args.dest, griddata)
+    else:
+        raise ValueError('Cannot determine output format in '
+                     'makecube:unknown file extension')
 
 if __name__ == "__main__":
     main()
