@@ -3,6 +3,7 @@
 import argparse
 import dptools.gridsio as gridsio
 import dptools.grids as grids
+import dptools.common as common
 import numpy as np
 import gzip
 
@@ -17,13 +18,13 @@ def main():
     parser = argparse.ArgumentParser(description=USAGE)
 
     helpstring = 'file containing X vector coordinates (default Xvector.dat)'
-    parser.add_argument('--xvec', default='./Xvector.dat',
+    parser.add_argument('--xvec', default='Xvector.dat',
                         help=helpstring, dest='xvec')
     helpstring = 'file containing Y vector coordinates (default Yvector.dat)'
-    parser.add_argument('--yvec', default='./Yvector.dat',
+    parser.add_argument('--yvec', default='Yvector.dat',
                         help=helpstring, dest='yvec')
     helpstring = 'file containing Z vector coordinates(default Zvector.dat)'
-    parser.add_argument('--zvec', default='./Zvector.dat',
+    parser.add_argument('--zvec', default='Zvector.dat',
                         help=helpstring, dest='zvec')
     helpstring = "Reference, If a present, the difference between the input" \
                  "file and the reference is printed"
@@ -55,16 +56,10 @@ def main():
     grid = grids.Grid(origin, basis, ranges)
 
     # Build the data object
-    if args.source[-3:] == '.gz':
-        sourcefile = gzip.open(args.source, 'r')
-    else:
-        sourcefile = open(args.source, 'r')
+    sourcefile = common.openfile(args.source)
     vec = np.array(sourcefile.read().split(), dtype=float)
     if args.reference is not None:
-        if args.reference[-3:] == '.gz':
-            referencefile = gzip.open(args.reference, 'r')
-        else:
-            referencefile = open(args.reference, 'r')
+        referencefile = common.openfile(args.reference)
         ref = np.array(referencefile.read().split(), dtype=float)
         vec -= ref
     # Note: potential.dat is stored in the order x0y0z0...x0y0zn, x0y1z0...
@@ -73,9 +68,9 @@ def main():
     griddata = grids.GridData(grid, vec.reshape(grid.shape, order='C'))
 
     if args.format is None:
-        if args.dest[-4:] == '.cub' or args.dest[-5:] == '.cube':
+        if args.dest.endswith('.cub') or args.dest.endswith('.cube'):
             format = 'cube'
-        elif args.dest[-4:] == '.vtk':
+        elif args.dest.endswith('.vtk'):
             format = 'vtk'
 
     if format == 'vtk':
