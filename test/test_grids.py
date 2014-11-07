@@ -1,6 +1,6 @@
 import numpy as np
 import dptools.grids as grids
-import pytest
+import nose.tools
 
 FLOAT_TOLERANCE = 1E-12
 
@@ -71,6 +71,7 @@ def test_grid_get_subgrid_ranges():
     assert np.all(subranges == true_subranges)
 
 
+@nose.tools.raises(ValueError)
 def test_grid_get_subgrid_ranges_incompatible_gridvecs():
     grid1 = grids.Grid(origin=[ 1.0, 2.0 ],
                        basis=[[ 1.0, 0.0 ], [ 1.0, 1.0 ]],
@@ -78,10 +79,10 @@ def test_grid_get_subgrid_ranges_incompatible_gridvecs():
     grid2 = grids.Grid(origin=[ 4.1, 3.0 ],
                        basis=[[ 1.0, 0.1 ], [ 1.0, 1.0 ]],
                        ranges=[[ -2, 2 ], [ -2, 2 ]])
-    with pytest.raises(ValueError):
-        subranges = grid1.get_subgrid_ranges(grid2)
+    subranges = grid1.get_subgrid_ranges(grid2)
 
 
+@nose.tools.raises(ValueError)
 def test_grid_get_subgrid_ranges_incompatible_origin():
     grid1 = grids.Grid(origin=[ 1.0, 2.0 ],
                        basis=[[ 1.0, 0.0 ], [ 1.0, 1.0 ]],
@@ -89,10 +90,10 @@ def test_grid_get_subgrid_ranges_incompatible_origin():
     grid2 = grids.Grid(origin=[ 4.1, 3.0 ],
                        basis=[[ 1.0, 0.0 ], [ 1.0, 1.0 ]],
                        ranges=[[ -2, 2 ], [ -2, 2 ]])
-    with pytest.raises(ValueError):
-        subranges = grid1.get_subgrid_ranges(grid2)
+    subranges = grid1.get_subgrid_ranges(grid2)
 
 
+@nose.tools.raises(ValueError)
 def test_grid_get_subgrid_ranges_subgrid_too_big():
     grid1 = grids.Grid(origin=[ 1.0, 2.0 ],
                        basis=[[ 1.0, 0.0 ], [ 1.0, 1.0 ]],
@@ -100,8 +101,7 @@ def test_grid_get_subgrid_ranges_subgrid_too_big():
     grid2 = grids.Grid(origin=[ 4.0, 3.0 ],
                        basis=[[ 1.0, 0.0 ], [ 1.0, 1.0 ]],
                        ranges=[[ -2, 3 ], [ -2, 2 ]])
-    with pytest.raises(ValueError):
-        subranges = grid1.get_subgrid_ranges(grid2)
+    subranges = grid1.get_subgrid_ranges(grid2)
 
 
 def test_grid_get_intersection_grid():
