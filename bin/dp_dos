@@ -4,12 +4,11 @@
 # Convolves band.out-like files of DFTB+ into DOS/PDOS via Gaussian broadening
 #
 ###############################################################################
-import optparse
+import argparse
 import numpy as np
 from dptools.bandout import BandOut
 
-USAGE = """usage: %prog [options] INPUT OUTPUT
-
+USAGE = """
 Reads the band structure information stored in a file INPUT created by DFTB+
 (usually band.out for DOS and region*.out for PDOS) and convolves the
 eigenlevels with gaussians to produce nice DOS/PDOS curves. The result is stored
@@ -21,65 +20,126 @@ DOS.
 
 For spin unpolarized calculations, the output contains one Y-column only. For
 spin polarized calculations the first column contains the total value, while
-the further Y-columns contain the values for each spin-channel separately."""
+the further Y-columns contain the values for each spin-channel separately.
+"""
 
-# Default values:
-DEFSIGMA = 0.1                          # broadening width
-DEFGRIDSEP = 0.01                       # grid separation
-DEFSIGMARANGE = 3.5                     # gaussian range to consider
+DEFAULT_GRID_SEPARATION = 0.01
 
+GAUSS_BROADENING = "gauss"
+FERMI_BROADENING = "fermi"
+BROADENING_FUNCTIONS = [ GAUSS_BROADENING, FERMI_BROADENING ]
+
+DEFAULT_RANGES = { GAUSS_BROADENING: 3.5,
+                   FERMI_BROADENING: 7.0,
+                   }
+DEFAULT_WIDTHS = {
+    GAUSS_BROADENING: 0.1,
+    FERMI_BROADENING: 0.1,
+}
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description=USAGE)
+
+    msg = "grid separation (default: {0:.2f})".format(DEFAULT_GRID_SEPARATION)
+    parser.add_argument("-g", "--gridres", type=float, dest="gridres",
+                        default=DEFAULT_GRID_SEPARATION, help=msg)
+
+    msg = "create pdos or occupation weighted dos"
+    parser.add_argument("-w", "--weight-occ", action="store_true",
+                        dest="occweight", default=False, help=msg)
+    
+    msg = "broadening function (default: gauss)"
+    parser.add_argument("-f", "--broadening-function", dest="broadening",
+                        choices=BROADENING_FUNCTIONS, default=GAUSS_BROADENING,
+                        help=msg)
+
+    msg = "broadening width sigma (default: gauss {:.2f}, fermi {:.2f})"\
+        .format(DEFAULT_WIDTHS[GAUSS_BROADENING], 
+                DEFAULT_WIDTHS[FERMI_BROADENING])
+    parser.add_argument("-b", "--broadening-width", type=float, metavar="WIDTH",
+                        dest="broadwidth", help=msg, default=-1.0)
+    
+    msg = "number of sigmas after which the broadening function is "\
+          "considered to be zero (default: gauss {0:.2f}, fermi {1:.2f})"\
+        .format(DEFAULT_RANGES[GAUSS_BROADENING],
+                DEFAULT_RANGES[FERMI_BROADENING])
+    parser.add_argument("-s", "--sigma-range", type=float, metavar="RANGE",
+                        dest="broadrange", default=-1.0, help=msg)
+    
+    msg = "turn on verbose operation"
+    parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
+                        default=False, help=msg)
+
+    msg = "input file name"
+    parser.add_argument("inputfile", help=msg)
+
+    msg = "output file name"
+    parser.add_argument("outputfile", help=msg)
+
+    return parser.parse_args()
+
+    
 
 def main():
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-b", "--broaden", type="float", dest="width",
-                      default=DEFSIGMA,
-                      help="broadening width sigma (default: {0:.2f})".format(
-                          DEFSIGMA))
-    parser.add_option("-g", "--gridres", type="float", dest="gridres",
-                      default=DEFGRIDSEP,
-                      help="grid separation (default: {0:.2f})".format(
-                          DEFGRIDSEP))
-    parser.add_option("-w", "--weight-occ", action="store_true",
-                      dest="occweight", default=False,
-                      help="create pdos or occupation weighted dos")
-    parser.add_option("-s", "--sigma-range", type="float", dest="sigmarange",
-                      default=DEFSIGMARANGE,
-                      help="number of sigmas after which the Gaussian is "
-                      "considered to be zero (default: {0:.2f})".format(
-                          DEFSIGMARANGE))
-    options, args = parser.parse_args()
+    args = parse_arguments()
 
-    if len(args) != 2:
-        parser.error("You must specify two arguments (input and the output "
-                     "file name)")
-    infile = args[0]
-    outfile = args[1]
+    infile = args.inputfile
+    outfile = args.outputfile
+    broadening = args.broadening
 
+    if args.broadwidth < 0.0:
+        sigma = DEFAULT_WIDTHS[broadening]
+    else:
+        sigma = args.broadwidth
+
+    if args.broadrange < 0.0:
+        sigmarange = DEFAULT_RANGES[broadening]
+    else:
+        sigmarange = args.broadrange
+    
     bandout = BandOut.fromfile(infile)
     eigvals = bandout.eigvalarray
-    if not options.occweight:
+    if not args.occweight:
         eigvals[:,:,:,1] = 1.0
 
-    sigma = options.width
-    aa = 1.0 / (sigma * np.sqrt(2.0 * np.pi))
-    bb = -0.5 / sigma**2
-    sigmarange = options.sigmarange
-    dsigma = sigmarange * sigma
-    gridres = options.gridres
+    if broadening == GAUSS_BROADENING:
+        aa = 1.0 / (sigma * np.sqrt(2.0 * np.pi))
+        bb = -0.5 / sigma**2
+        broadening_function = lambda x: np.exp(bb * x * x)
+    else:
+        aa = 0.5 / sigma
+        bb = 1.0 / sigma
+        broadening_function = lambda x: 1.0 / (1.0 + np.cosh(bb * x))
 
-    minval = np.min(eigvals[:,:,:,0])
-    maxval = np.max(eigvals[:,:,:,0])
+    dsigma = sigmarange * sigma
+    gridres = args.gridres    
+    
+    minval = np.min(eigvals[:,:,:,0]) - dsigma
+    maxval = np.max(eigvals[:,:,:,0]) + dsigma
+
+    if args.verbose:
+        if broadening == GAUSS_BROADENING:
+            print("Gaussian broadening")
+        else:
+            print("Fermi-function compatible broadening")
+        print("Broadening by {0:.2f} eV".format(sigma))
+        if args.occweight:
+            print("Weighting DOS by second column of data")
+        print("Plotting from {0:.2f} eV to {1:.2f} eV".format(minval, maxval))
+        print("Sigma window is : {0:.2f} eV with a grid resolution of {1:.2f}"
+              .format(dsigma, gridres))
 
     # First and last grid points, x-grid
-    xmin = np.floor((minval - dsigma) / gridres) * gridres
-    xmax = np.ceil((maxval + dsigma) / gridres) * gridres
+    xmin = np.floor((minval) / gridres) * gridres
+    xmax = np.ceil((maxval) / gridres) * gridres
     xvals = np.arange(xmin, xmax + gridres, gridres, dtype=float)
     nval = len(xvals)
 
     # Empty container for y-values
     yvals = np.zeros((bandout.nspin, nval), dtype=float)
 
-    # Calculate the Gauss broadened values around each state on the grid.
+    # Calculate broadened values around each state on the grid.
     for ispin in range(bandout.nspin):
         for ik in range(bandout.nkpt):
             prefac = aa * bandout.kweights[ispin, ik]
@@ -88,8 +148,8 @@ def main():
                 ilower = int(np.floor((eigval - dsigma - xmin) / gridres))
                 iupper = int(np.ceil((eigval + dsigma - xmin) / gridres))
                 dx = eigval - xvals[ilower:iupper+1]
-                yvals[ispin, ilower:iupper+1] += ((prefac * occ)
-                                                  * np.exp(bb * dx * dx))
+                yvals[ispin, ilower:iupper+1] += (
+                    (prefac * occ) * broadening_function(dx))
 
     # Write resulting DOS
     fp = open(outfile, "w")
