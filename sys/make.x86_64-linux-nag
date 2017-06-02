@@ -1,0 +1,53 @@
+# -*- makefile -*-
+############################################################################
+# nagfor 6.1, gcc 4.8
+############################################################################
+
+# Compilers
+FXX = nagfor
+CC = gcc
+
+# Compiler options
+FXXOPT = -O2 -openmp -ieee=full
+CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+
+# Preprocessor
+CPP = cpp -traditional
+CPPOPT = -DINTERNALERFC -DEXPTRAP
+
+# Fortran preprocessor (invokes CPP as defined above and process the result)
+FPP = $(ROOT)/utils/build/fpp/fpp.sh noln2
+
+# Linker
+LN = $(FXX)
+LNOPT = -openmp -Bstatic
+
+# Library options in general
+LIBOPT = 
+
+# How to link specific libraries
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(ATLASDIR) -llapack
+LIB_BLAS = -lf77blas -lcblas -latlas
+# Threaded version may work as well
+# LIB_BLAS = -lptf77blas -lptcblas -latlas
+
+# Any other libraries to be linked
+OTHERLIBS = 
+
+
+############################################################################
+# Developer settings
+############################################################################
+
+# Override options for different DEBUG modes
+ifeq ($(strip $(DEBUG)),1)
+    FXXOPT = -ieee=full -f2008 -g -gline
+    LNOPT = -Bstatic
+    CCOPT = -g -Wall -pedantic -fall-intrinsics
+endif
+ifeq ($(strip $(DEBUG)),2)
+    FXXOPT = -ieee=full -f2008 -g -gline -C=all  -nan -mtrace=all
+    LNOPT = -Bstatic
+    CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
+endif

@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2017  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+#
+############################################################################
+#
+# Processes the lower triangle real sparse matrix and print blocks in lower
+# and upper triangle.
+#
+############################################################################
+import sys
+import numpy
+import os
+from optparse import OptionParser
+
+SCRIPT_NAME = os.path.basename(sys.argv[0])
+
+parser = OptionParser("""%s SPARSEDAT
+
+Reads the sparse real lower triangle matrix (created by DFTB+) from the file
+SPARSEDAT and echoes it together with the missing upper triangle."""
+                      % SCRIPT_NAME)
+(options, args) = parser.parse_args()
+
+if len(args) != 1:
+  parser.error("incorrect number of arguments.")
+
+fname = sys.argv[1]
+fp = open(fname, "r")
+
+# Read in nr. of atoms
+line = fp.readline()
+sys.stdout.write(line)
+nAtom = int(fp.readline())
+sys.stdout.write(" %10d\n" % nAtom)
+
+# Read in nr. of neighbors and nr. of orbitals
+nNeigh = numpy.empty((nAtom,), dtype=numpy.int)
+nOrb = numpy.empty((nAtom,), dtype=numpy.int)
+line = fp.readline()
+sys.stdout.write(line)
+for ii in range(nAtom):
+  words = fp.readline().split()
+  iAt = int(words[0]) - 1
+  nNeigh[iAt] = int(words[1])
+  nOrb[iAt] = int(words[2])
+  sys.stdout.write(" %10d%10d%10d\n" % (iAt + 1, nNeigh[iAt], nOrb[iAt]))
+
+
+# Process matrix blocks
+for iAt1 in range(nAtom):
+  for iNeigh in range(nNeigh[iAt1]):
+    line1 = fp.readline()
+    tmp = numpy.fromfile(fp, numpy.int, 6, " ")
+    iAt1Real = tmp[0] - 1
+    iNeighReal = tmp[1]
+    iAt2fReal = tmp[2] - 1
+    iCell = tmp[3:6]
+    nElem = nOrb[iAt1Real] * nOrb[iAt2fReal]
+    line2 = fp.readline()
+    mtx = numpy.fromfile(fp, numpy.float64, nElem, " ")
+
+    sys.stdout.write(line1)
+    sys.stdout.write(" %10d%10d%10d%10d%10d%10d\n" % tuple(tmp))
+    sys.stdout.write(line2)
+    format = ("%24.15E" * nOrb[iAt2fReal] + "\n") * nOrb[iAt1Real]
+    sys.stdout.write(format % tuple(mtx))
+
+    # Print out corresponding blocks for every offsite block
+    if iAt1Real != iAt2fReal:
+    #if False:
+      sys.stdout.write(line1)
+      iTmp = tmp[0]
+      tmp[0] = tmp[2]
+      tmp[1] = -1
+      tmp[2] = iTmp
+      tmp[3:6] = -tmp[3:6]
+      sys.stdout.write(" %10d%10d%10d%10d%10d%10d\n" % tuple(tmp))
+      sqrMtx = mtx.reshape((nOrb[iAt1Real], nOrb[iAt2fReal])).transpose()
+      sys.stdout.write(line2)
+      format = ("%24.15E" * nOrb[iAt1Real] + "\n") * nOrb[iAt2fReal]
+      sys.stdout.write(format % tuple(sqrMtx.flatten()))
+    
+fp.close()
+
+### Local Variables:
+### mode:python
+### End:

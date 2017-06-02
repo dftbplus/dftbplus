@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+import os
+import re
+
+tags_kept = set(['mermin_energy', 'forces',
+                 'orbital_charges', 'end_coords', 'stress',
+                 'cell_volume', 'hessian_numerical',
+                 'forces_ext_charges', 'pm_localisation',
+                 'gibbs_energy', 'exc_forces', 'exc_energies_sqr',
+                 'exc_oscillator' ])
+
+tags_removed = set(['scc', 'n_spins', 'dftb+u', 'angular_momenta',
+                    'k_points', 'k_weights', 'hubbard_us',
+                    'electronic_temp', 'n_up_electrons',
+                    'n_down_electrons', 'init_coords', 'species',
+                    'n_neighbors', 'i_neighbors', 'band_energy_t0',
+                    'repulsive_energy', 'total_elec_energy',
+                    'entropy', 'dftb+u_functional', 'dispersion',
+                    'atomic_eigenvalues', 'electron_distrib_fn',
+                    'atomic_charges', 'electronic_forces',
+                    'repulsive_forces', 'scc_energy', 'spin_energy',
+                    'dftb+u_energy', 'atomic_rep_energy',
+                    'atomic_elec_energy', 'atomic_egyTotal', 'ls',
+                    'electronic_stress', 'repulsive_stress',
+                    'atomic_scc_energy', 'atomic_spin_energy',
+                    'atomic_+u_energy', 'dipole', 'pv',
+                    'kinetic_stress', 'dispersion_energy', 'ls_dual',
+                    'atomic_extfield_ener', 'atomic_ls',
+                    'exc_charges', 'sp_exc_energies',
+                    'sp_exc_oscillator', 'ls_energy',
+                    'extfield_energy', 'band_energy', 'fillings',
+                    'eigenvalues', 'total_energy'])
+
+TAG_PATTERN = re.compile(r'(?P<tag>\S+?)\s*:.*\n(?:[^:]*\n)+', re.MULTILINE)
+
+def get_files():
+    autotest_files = []
+    for root, dirs, files in os.walk(os.getcwd()):
+        fname = os.path.join(root, '_autotest.tag')
+        if os.path.exists(fname):
+            autotest_files.append(fname)
+    return autotest_files
+
+def convert_file(oldname, newname):
+    with open(oldname, 'r') as fp:
+        txt = fp.read()
+    newtxt = convert_content(txt)
+    with open(newname, 'w') as fp:
+        fp.write(newtxt)
+    
+
+def convert_content(txt):
+    converted = []
+    for match in TAG_PATTERN.finditer(txt):
+        tag = match.group('tag')
+        if tag in tags_kept:
+            converted.append(txt[match.start():match.end()])
+        elif tag not in tags_removed:
+            print("TAG '{}' IGNORED".format(tag))
+    return ''.join(converted)
+
+def main():
+    for fname in get_files():
+        print("Converting '{}'".format(fname))
+        #newname, _ = os.path.splitext(fname)
+        newname = fname
+        convert_file(fname, newname)
+    
+
+if __name__ == '__main__':
+    main()

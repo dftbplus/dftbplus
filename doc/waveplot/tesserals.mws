@@ -1,0 +1,63 @@
+{VERSION 5 0 "IBM INTEL LINUX" "5.0" }
+{USTYLETAB {CSTYLE "Maple Input" -1 0 "Courier" 0 1 255 0 0 1 0 1 0 0 
+1 0 0 0 0 1 }{CSTYLE "2D Math" -1 2 "Times" 0 1 0 0 0 0 0 0 2 0 0 0 0 
+0 0 1 }{CSTYLE "2D Output" 2 20 "" 0 1 0 0 255 1 0 0 0 0 0 0 0 0 0 1 }
+{PSTYLE "Normal" -1 0 1 {CSTYLE "" -1 -1 "" 0 1 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 }0 0 0 -1 -1 -1 0 0 0 0 0 0 -1 0 }{PSTYLE "Maple Output" 0 11 1 
+{CSTYLE "" -1 -1 "" 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 }3 3 0 -1 -1 -1 0 
+0 0 0 0 0 -1 0 }{PSTYLE "" 11 12 1 {CSTYLE "" -1 -1 "" 0 1 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 }1 0 0 -1 -1 -1 0 0 0 0 0 0 -1 0 }}
+{SECT 0 {EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 8 "restart;" }}}{EXCHG 
+{PARA 0 "> " 0 "" {MPLTEXT 1 0 13 "Digits := 16;" }}{PARA 11 "" 1 "" 
+{XPPMATH 20 "6#>%'DigitsG\"#;" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 
+0 20 "assume(theta, real);" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 
+18 "assume(phi, real);" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 318 "
+Y:= proc (l, mm, theta, phi) local m,i,num;\n  m:=abs(mm);\n  Sum(l!^2
+/(l-i)!/i!/(l-m-i)!/(m+i)!*(cos(theta)-1)^(l-m-i)*(cos(theta)+1)^i, i \+
+= 0 .. l-m);\n  simplify(value(%));\n  ((-sign(mm))^(m mod 2))*((2*l+1
+)*(l-m)!*(l+m)!)^(1/2)*(sin(theta)^m)/Pi^(1/2)/(2^(l+1))/l!*%\n    *(e
+xp(I*mm*phi));\n  simplify(%,radical);\nend;\n" }}{PARA 12 "" 1 "" 
+{XPPMATH 20 "6#>%\"YGf*6&%\"lG%#mmG%&thetaG%$phiG6%%\"mG%\"iG%$numG6\"
+F/C'>8$-%$absG6#9%-%$SumG6$*0-%*factorialG6#9$\"\"#-F<6#,&F>\"\"\"8%!
+\"\"FE-F<6#FDFE-F<6#,(F>FCF2FEFDFEFE-F<6#,&F2FCFDFCFE),&-%$cosG6#9&FCF
+CFEFJFC),&FPFCFCFCFDFC/FD;\"\"!,&F>FCF2FE-%)simplifyG6#-%&valueG6#%\"%
+G*2),$-%%signGF5FE-%$modG6$F2F?FC*(,&*&F?FCF>FCFCFCFCFC-F<6#FYFC-F<6#,
+&F>FCF2FCFC#FCF?)-%$sinGFRF2FC%#PiG#FEF?)F?,&F>FCFCFCFEF;FEFjnFC-%$exp
+G6#*(F6FC9'FC^#FCFCFC-Fen6$Fjn%(radicalGF/F/F/" }}}{EXCHG {PARA 0 "> \+
+" 0 "" {MPLTEXT 1 0 254 "Yt := proc(l, mm, theta, phi)\n  if (mm = 0) \+
+then Y(l, mm, theta, phi);\n  else\n    if (mm > 0) then\n      sqrt(2
+) * (-1)^mm* Re(Y(l, mm, theta, phi));\n    else\n      sqrt(2) * (-1)
+^mm * Im(Y(l, -mm, theta, phi));\n    fi;\n  fi;\n  simplify(%, radica
+l);\nend;" }}{PARA 12 "" 1 "" {XPPMATH 20 "6#>%#YtGf*6&%\"lG%#mmG%&the
+taG%$phiG6\"F+F+C$@%/9%\"\"!-%\"YG6&9$F/9&9'@%2F0F/*(-%%sqrtG6#\"\"#\"
+\"\")!\"\"F/F>-%#ReG6#F1F>*(F:F>F?F>-%#ImG6#-F26&F4,$F/F@F5F6F>-%)simp
+lifyG6$%\"%G%(radicalGF+F+F+" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 
+0 21 "Yt(1,-1, theta, phi);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#,$*&#\"
+\"\"\"\"#F&**\"\"$F%-%$sinG6#%'theta|irGF&%#PiG#!\"\"F'-F+6#%%phi|irGF
+&F&F&" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 228 "cartesian := proc
+(expr,r,theta,phi,x,y,z)\n  simplify(subs(sin(phi)=y/(r*sin(theta)),\n
+    cos(phi)=x/(r*sin(theta)),\n    sin(theta)=(1-cos(theta)^2)^(1/2),
+\n    cos(theta)=z/r,expand(expr, trig)));\n  subs(r^2=x^2+y^2+z^2,%);
+\nend;\n" }}{PARA 12 "" 1 "" {XPPMATH 20 "6#>%*cartesianGf*6)%%exprG%
+\"rG%&thetaG%$phiG%\"xG%\"yG%\"zG6\"F.F.C$-%)simplifyG6#-%%subsG6'/-%$
+sinG6#9'*(9)\"\"\"9%!\"\"-F86#9&F?/-%$cosGF9*(9(F=F>F?F@F?/F@*$,&F=F=*
+$)-FEFA\"\"#F=F?#F=FN/FM*&9*F=F>F?-%'expandG6$9$%%trigG-F46$/*$)F>FNF=
+,(*$)FGFNF=F=*$)F<FNF=F=*$)FRFNF=F=%\"%GF.F.F." }}}{EXCHG {PARA 0 "> \+
+" 0 "" {MPLTEXT 1 0 56 "cartesian(Yt(2, 2, theta, phi), r, theta, phi,
+ x, y, z);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#,$*,\"\"%!\"\"\"#:#\"\"
+\"\"\"#,&*$)%\"xGF*F)F)*$)%\"yGF*F)F&F)%\"rG!\"#%#PiG#F&F*F)" }}}
+{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 102 "[seq(seq([ (i, j), evalf(ca
+rtesian(Yt(i,j, theta, phi), r, theta, phi, x, y, z))], j=-i..i), i=0.
+.3)];" }}{PARA 12 "" 1 "" {TEXT -1 0 "" }}}{EXCHG {PARA 0 "> " 0 "" 
+{MPLTEXT 1 0 665 "[[0, 0, .2820947917738782], [1, -1, .488602511902919
+8/r*y], [1, 0, .4886025119029198*z/r], [1, 1, .4886025119029198/r*x], \+
+[2, -2, 1.092548430592079*x/r^2*y], [2, -1, 1.092548430592079*y/r^2*z]
+, [2, 0, -.3153915652525200*(-2.*z^2+x^2+y^2)/r^2], [2, 1, 1.092548430
+592079*x/r^2*z], [2, 2, .5462742152960395*(x^2-1.*y^2)/r^2], [3, -3, .
+5900435899266435*y*(3.*x^2-1.*y^2)/r^3], [3, -2, 2.890611442640554*x*y
+/r^3*z], [3, -1, -.4570457994644658*(-4.*z^2+x^2+y^2)/r^3*y], [3, 0, -
+.3731763325901155*z/r^3*(-2.*z^2+3.*x^2+3.*y^2)], [3, 1, -.45704579946
+44658*(-4.*z^2+x^2+y^2)/r^3*x], [3, 2, 1.445305721320277*z*(x^2-1.*y^2
+)/r^3], [3, 3, .5900435899266435*x*(x^2-3.*y^2)/r^3]]" }}}}{MARK "10 0
+ 0" 201 }{VIEWOPTS 1 1 1 1 1 1803 1 1 1 1 }{PAGENUMBERS 0 1 2 33 1 1 }
+

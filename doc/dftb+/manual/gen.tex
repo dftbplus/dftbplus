@@ -1,0 +1,42 @@
+
+\chapter{Description of the gen format}
+\label{app:gen}
+
+The general (gen) format can be used to describe clusters and
+supercells. It is based on the xyz format introduced with xmol, and
+extended to periodic structures. Unlike some earlier implementations
+of gen, the format should not include any neighbour mapping
+information.
+
+The first line of the file contains the number of atoms, $n$, followed
+by the type of geometry. \is{C} for cluster (non-periodic), \is{S} for
+supercell in Cartesian coordinates or \is{F} for supercell in
+fractions of the lattice vectors. The supercells are periodic in 3
+dimensions.
+
+The second line contains the chemical symbols of the elements present
+separated by one or more spaces.  The following $n$ lines contain a
+list of the atoms. The first number is the atom number in the
+structure (this is currently ignored by the program). The second
+number is the chemical type from the list of symbols on line 2. Then
+follow the coordinates. For \is{S} and \is{C} format, these are $x$,
+$y$, $z$ in {\AA}, but for \is{F} they are fractions of the three
+lattice vectors.
+
+If the structure is a supercell, the next line after the atomic
+coordinates contains the coordinate origin in {\AA} (this is ignored
+by the parser). The last three lines are the supercell vectors in
+{\AA}. These four lines are not present for clusters.
+
+Example: Geometry of GaAs with 2 atoms in the fractional supercell
+format
+\begin{verbatim}
+  2  F
+  Ga As
+  1 1     0.0  0.0  0.0
+  2 2     0.25 0.25 0.25
+  0.000000     0.000000     0.000000
+  2.713546     2.713546     0.      
+  0.           2.713546     2.713546
+  2.713546     0.           2.713546
+\end{verbatim}

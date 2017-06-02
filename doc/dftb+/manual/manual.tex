@@ -1,0 +1,47 @@
+\documentclass[a4paper,11pt]{report}
+
+\include{packages}
+\makeindex
+\include{newcommands}
+
+\title{\textbf{{\dftbp}\\[0.5cm]Version 17.1\\[1.5cm]
+    {U\,S\,E\,R\,\ \, M\,A\,N\,U\,A\,L}}}
+\date{}
+\author{}
+
+\begin{document}
+\maketitle
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+
+\include{introduction}
+\include{keywords}
+\include{output}
+
+\phantomsection\addcontentsline{toc}{chapter}{Appendices}
+\appendix
+\include{hsd}
+\include{unit_mod}
+
+\include{gen}
+
+\include{spin_constants}
+\include{disp_constants}
+\include{publications}
+
+\include{references}
+
+\phantomsection\addcontentsline{toc}{chapter}{Index}
+\printindex
+
+\end{document}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: t
+%%% End: 

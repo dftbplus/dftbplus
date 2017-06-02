@@ -1,0 +1,51 @@
+Geometry = GenFormat {
+    3  C
+    H
+    1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+    2    1    0.80000000000E+00   0.00000000000E+00   0.00000000000E+00
+    3    1    0.20000000000E+00   0.60000000000E+00   0.00000000000E+00
+}
+
+Driver = VelocityVerlet {
+    Steps = 500
+    TimeStep [Femtosecond] = 0.1
+    Thermostat = None {
+        InitialTemperature [Kelvin] = 273.15
+    }
+    OutputPrefix = "geom.out"
+    Masses {
+        Mass {
+            Atoms = 1
+            MassPerAtom [amu] = 2.013553212724 # D
+        }
+        Mass {
+            Atoms = 2
+            MassPerAtom [amu] = 3.0160492 # T
+        }
+    }
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    MaxAngularMomentum = {
+        H = "s"
+    }
+    Charge = 1.0
+    Filling = Fermi {
+        Temperature [Kelvin] = 273.15
+    }
+    SlaterKosterFiles = {
+        H-H = "H-H.skf"
+    }
+    ReadInitialCharges = No
+}
+
+Options = {
+    WriteAutotestTag = Yes
+    RandomSeed = 12321
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
+

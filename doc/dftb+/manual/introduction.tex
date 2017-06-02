@@ -1,0 +1,45 @@
+\chapter{Introduction}
+
+The code {\dftbp} is the Fortran 2003 successor of the old {\dftb} code, which
+implements the density functional based tight binding
+approach~\cite{frauenheim-JPCM-14-3015}. The code has been completely rewritten
+from scratch and extended with various features.
+
+The main features of {\dftbp} are:
+\begin{itemize}
+\item Non-scc and scc calculations (with an expanded range of SCC
+  accelerators)
+  \begin{itemize}
+  \item Cluster/molecular systems
+  \item Periodic systems (arbitrary $k$-point sampling, band structure
+    calculations, etc.)
+  \end{itemize}
+\item l-shell resolved calculations possible
+\item Spin polarised calculations (both collinear and non-collinear
+  spin)
+\item Geometry and lattice optimisation
+\item Geometry optimisation with constraints (in xyz-coordinates)
+\item Molecular dynamics (NVE, NPH, NVT and NPT ensembles)
+\item Numerical vibrational mode calculations
+\item Finite temperature calculations
+\item Dispersion corrections (van der Waals interactions)
+\item Ability to treat $f$-electrons
+\item Linear response excited state calculations for cluster/molecular systems
+\item Geometry optimisation and molecular dynamics in singlet and triplet
+  excited states of spin-free molecules
+\item LDA+U/pSIC extensions
+\item $L \cdot S$ coupling
+\item 3rd order on-site corrections (improved H-bonding)
+\item QM/MM coupling with external point charges (smoothing possible)
+\item OpenMP parallelisation
+\item Automatic code validation (autotest system)
+\item New user friendly, extensible input format (HSD or XML)
+\item Dynamic memory allocation
+\item Additional tool for generating cube files for charge
+  distribution, molecular orbitals, etc. (Waveplot)
+\end{itemize}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "manual"
+%%% End: 

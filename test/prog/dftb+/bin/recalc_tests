@@ -1,0 +1,94 @@
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2017  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+
+#!/bin/sh
+# -*- Mode: shell -*-
+
+SCRIPTNAME=`basename $0`
+
+#INPUT="input"
+OUTPUT="output"
+RESULTS="autotest.tag"
+
+print_help () {
+  echo "$SCRIPTNAME <dftb> <tmpdir> <testdir> [ <testdir> ... ]"
+  echo ""
+  echo "Recalculates the systems in the test directories and updates the output and the"
+  echo "tagged output files"
+  echo ""
+  echo "<dftb>    -- path to the dftb executable"
+  echo "<tmpdir>  -- directory for the calculations (if it's set to '@tmp', the"
+  echo "             program creates one in /tmp. (<tmpdir> is not cleaned or"
+  echo "             deleted on exit)"
+  echo "<testdir> -- name of the directory (relative to autotest's root) with the input"
+  echo "             for the test."
+  echo ""
+  echo "Note: The command should be executed from autotest's root directory."
+}
+
+
+deepcopydir () {
+  deepcopydir_target="$2"/"$1"
+  [ -d ${deepcopydir_target} ] ||  mkdir -p ${deepcopydir_target}
+  cp -f "$1"/[!_]* ${deepcopydir_target}
+}
+
+
+if [ $# -lt 3 -o "$1" = "-h" ]; then
+  print_help
+  exit
+fi
+
+oldpwd=`pwd`
+cd `dirname "$1"`
+dftb=`pwd`/`basename "$1"`
+cd $oldpwd
+
+if [ "$2" != "@tmp" ]; then
+  tmpdir="$2"
+else
+  tmpdir=`mktemp -p /tmp -d recalc_tests-XXXXXX`
+fi
+shift 2
+
+echo "Making calculations in the temporary directory $tmpdir"
+for testdir in $@; do
+  if [ ! -d $testdir ]; then
+    echo "Warning: $testdir is not a directory -> skipped"
+    continue
+  fi
+  name=`basename $testdir`
+  oldpwd=`pwd`
+  cd $testdir
+  testdirpwd=`pwd`
+  cd $oldpwd
+  deepcopydir $testdir $tmpdir
+  cd $tmpdir/$testdir
+  [ -n "`ls *.gz 2> /dev/null`" ] && gunzip -f *.gz
+  for file in $OUTPUT $RESULTS; do
+    [ -e $file ] && rm -f $file
+  done
+  echo "Calculating testsystem $testdir ..."  
+  if [ -e ./prerun.sh ]; then
+    ./prerun.sh & > $OUTPUT 2> /dev/null
+    sleep 2
+  else
+    rm -f $OUTPUT
+  fi
+  $dftb >> $OUTPUT
+  if [ -e ./postrun.sh ]; then
+    ./postrun.sh >> $OUTPUT 2>> /dev/null
+  fi
+  for result in $RESULTS; do
+    if [ ! -e $result ]; then
+      echo "Warning: File $result in $tmpdir/$name not found."
+    else
+      cp $result $testdirpwd/_$result
+    fi
+  done
+  cd $oldpwd
+done

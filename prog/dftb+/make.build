@@ -1,0 +1,71 @@
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2017  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+
+################################################################################
+# Building & installing
+################################################################################
+
+# target executables
+TARGETS = dftb+
+
+# Default target (declared *before* importing global makefiles).
+.PHONY: all
+all: $(TARGETS)
+
+# Include common makefile
+SRCDIRS := $(ROOT)/prog/dftb+/prg_dftb
+SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
+SRCDIRS += $(ROOT)/prog/dftb+/includes
+INCDIRS := $(ROOT)/prog/dftb+/includes
+include $(ROOT)/prog/dftb+/make.common
+
+# Target definitions (declared *after* importing necessary makefiles).
+dftb+: $(dftbplus.o)
+	$(link-target)
+
+
+install: $(TARGETS)
+	mkdir -p $(INSTALLDIR)/bin
+	chmod a+x $^
+	cp -p $^ $(INSTALLDIR)/bin
+
+################################################################################
+# Testing
+################################################################################
+TESTDIR := $(ROOT)/test/prog/dftb+
+TESTFILE := $(TESTDIR)/tests
+
+# Autotest working directory
+AUTOTEST_WORKDIR := _autotest
+
+# Program to use for running and comparing
+AUTOTEST_SCRIPT := $(TESTDIR)/bin/autotest2
+TAGDIFF_SCRIPT := $(TESTDIR)/bin/tagdiff
+
+# Complete command with options
+AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
+	        -d $(TAGDIFF_SCRIPT)
+
+# Get list of tests to execute, but only if test is specified as goal
+TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
+	$(shell $(AUTOTEST_CMD) -f $(TESTFILE) -l),)
+
+
+.PHONY: $(TESTS) test
+
+# Prepare and run individual tests, possibly in parallel.
+$(TESTS):
+	@$(AUTOTEST_CMD) -p ./dftb+ -s P,R $(AUTOTEST_FLAGS) $@
+
+# Run calculations and immediately compare (possibly in parallel),
+# then summarize.  The dependency ensures proper sequencing.
+test: AUTOTEST_FLAGS = -s C -v
+test: $(TESTS)
+	@$(AUTOTEST_CMD) -s S $(TESTS)
+
+testclean:
+	rm -rf $(AUTOTEST_WORKDIR)

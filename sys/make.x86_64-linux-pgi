@@ -1,0 +1,51 @@
+# -*- makefile -*-
+############################################################################
+# pgfortran 16.5, gcc 6.3
+# pgfortran 17.4, gcc 7.1
+############################################################################
+
+# Fortran compilers
+FXX = pgfortran
+CC = gcc
+
+# Options for the Fortran compiler 
+# Note: If you set optimisation level higher, the code eventually won't compile
+# or some autotest examples (e.g. Si_2_latconst) may fail. So be careful when
+# fiddling around with the optimisation level!
+FXXOPT = -O1 -Mallocatable=03
+CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+
+# Preprocessor
+CPP = cpp -traditional
+CPPOPT =
+
+# Fortran preprocessor (invokes CPP as defined above and process the result)
+FPP = $(ROOT)/utils/build/fpp/fpp.sh nocntln
+
+# Linker
+LN = $(FXX)
+#LNOPT = -Bstatic
+
+# Library options in general
+LIBOPT =
+
+# How to link specific libraries
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(ATLASDIR) -llapack
+LIB_BLAS = -lf77blas -lcblas -latlas
+
+# Any other libraries to be linked
+OTHERLIBS =
+
+
+############################################################################
+# Developer settings
+############################################################################
+
+# Override options for different DEBUG modes
+ifeq ($(strip $(DEBUG)),1)
+    FXXOPT = -g -traceback -Mallocatable=03
+endif
+ifeq ($(strip $(DEBUG)),2)
+    FXXOPT = -g -C -Mchkptr -traceback -Mallocatable=03
+endif

@@ -1,0 +1,5 @@
+numderivs2.o: _mod_accuracy assert.h allocate.h
+numderivs2.o = numderivs2.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+_mod_numderivs2: numderivs2.o
+_mod_numderivs2 = $(numderivs2.o)
+

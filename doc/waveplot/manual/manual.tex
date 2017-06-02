@@ -1,0 +1,544 @@
+\documentclass[a4paper,11pt]{report}
+
+\include{packages}
+\makeindex
+\include{newcommands}
+\newcommand{\waveplot}{\textsc{Waveplot}}
+
+\title{\textbf{\waveplot: An orbital visualisation tool\\\ \\Manual}}
+\date{}
+\author{Bálint Aradi}
+
+
+\begin{document}
+\maketitle
+
+\setcounter{tocdepth}{1}
+\tableofcontents
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\chapter{Introduction}
+
+The \waveplot{} program is a tool for the visualisation of molecular
+orbitals.  Based on the files created by a calculation performed by
+\dftbp{}, it is capable of producing three dimensional information
+about the charge distribution of the investigated system. The
+information is stored as cube files, which can be visualised with many
+common graphical tools (e.g. \textsc{vmd}).
+
+The user controls \waveplot{} through an input file, chosing which
+orbitals and charge distributions should be plotted for which spatial
+region. Since the information about the shape of the basis functions
+is usually not contained in the Slater-Koster files, the coefficients
+and exponents for the Slater type orbitals must be entered by the user
+as part of the input file.
+
+The \waveplot{} tool offers the following plotting capabilites:
+\begin{itemize}
+\item Total charge density.
+\item Total spin polarisation.
+\item Difference between the total charge density and the density
+  obtained by the superposition of the neutral atomic densities
+  (visualisation of the charge shift).
+\item Electron density for individual levels.
+\item Real and imaginary part of the wavefunctions for individual levels.
+\end{itemize}
+
+
+\chapter{Input for \waveplot}
+
+The input file for \waveplot{} must be named \verb|waveplot_in.hsd|
+and should be a Human-friendly Structured Data (HSD) formatted
+file.\footnote{ For details of the HSD format, please consult the
+manual of the \textsc{DFTB$^{\text{+}}$} code at
+\href{http://www.dftb-plus.info}{http://www.dftb-plus.info}.} The
+program can read the input in XML instead of HSD format if the input
+file is \verb|waveplot_in.xml|. The input file must be present in the
+working directory. To prevent ambiguity, the parser refuses to read in
+any input if both files are present.
+
+The input file for {\waveplot} must contain the properties listed in
+the tables of the following sections. The first column of each table
+specifies the name of the property. The second column indicates the
+type of the expected value for that property.  The letters ``i'',
+``r'', ``s'', ``p'', ``m'' stand for integer, real, string, property
+list and method type, respectively. An optional prepended number
+specifies how often (if more than once) this type must occur. An
+appended ``+'' indicates arbitrary occurrence greater than zero, while
+``*'' allows also for zero occurrence.  Alternative types are
+separated by ``|''.  Parentheses serve only the delimitation of
+groups.
+
+Sometimes a property is only interpreted if some conditions are met.
+If this is the case, the appropriate conditions are indicated in the
+third column. The fourth column contains the default value for the
+property.  If no default value is specified (``-''), the user is
+required to assign a value to that property.  The description of the
+properties immediately follows the table.  If there is also a more
+detailed description available for a given keyword somewhere else, the
+appropriate page number appears in the last column.
+
+Some properties are allowed to carry a modifier to alter the provided
+value (e.g. converting between units). The possible modifiers are
+listed between brackets ([]) in the detailed description of the
+property. If the modifier is a conversion factor for a physical unit,
+only the unit type is indicated (length, energy, force, time, etc.). A
+list of the allowed physical units can be found in Appendix~\ref{app:units}.
+
+\section{Main input}
+
+The table below contains the list of the properties, which must occur in the
+input file \verb|waveplot_in.hsd|:
+
+\begin{ptableh}
+  \kw{Options} & p &   & - &\pref{Options} \\
+  \kw{DetailedXML} &s &  & - &  \\
+  \kw{EigenvecBin} &s &  & - &   \\
+  \kw{GroundState} &s &  & Yes &   \\
+  \kw{Basis} & p & & - &  \pref{Basis} \\
+\end{ptableh}
+\begin{description}
+\item[\is{Options}] Contains the options for \waveplot{}. See p.~\pref{Options}.
+\item[\is{DetailedXML}] Specifies the name of the file, which contains the
+  detailed XML output of the \dftbp{} calculation (presumably
+  \is{detailed.xml}).
+\item[\is{EigenvecBin}]\label{EigenvecBin} Specifies the name of the file, which
+  contains the eigenvectors in binary format (presumably \is{eigenvec.bin}).
+\item[\is{GroundState}]\label{GroundState} Read ground or excited state
+  occupation data from the detailed XML output.
+\item[\is{Basis}] Contains the definition of the Slater-type orbitals which were
+  used as basis in the \dftbp{} calculation. At the moment, due to technical
+  reasons this information has to be entered by the user per hand. In a later
+  stage, it will be presumably read in by \waveplot{} automatically.
+  See p.~\pref{Basis}.
+\end{description}
+
+Additionally optional definitions may also be present:
+\begin{ptableh}
+  \kw{ParserOptions} & p & & \cb & \pref{ParserOptions} \\
+\end{ptableh}
+
+\htsection{Options}
+
+This property contains the options (as a list of properties), which
+the user can set, in order to influence the behaviour of \waveplot{}.
+The following properties can be specified:
+
+\begin{ptable}
+  \kw{PlottedRegion} &p|m&  & - &\pref{PlottedRegion}\\
+  \kw{NrOfPoints} & 3i & & - &  \\
+  \kw{PlottedKPoints} & i+|m & \textrm{periodic system} & - & \\
+  \kw{PlottedLevels} & i+|m &  & - & \\
+  \kw{PlottedSpins} & i+|m & & - &  \\
+  \kw{TotalChargeDensity} & l & & No &  \\
+  \kw{TotalSpinPolarisation} & l&  & No & \\
+  \kw{TotalChargeDifference} & l& & No & \\
+  \kw{TotalAtomicDensity} & l & & No &  \\
+  \kw{ChargeDensity} & l & & No &  \\
+  \kw{RealComponent} & l & & No &  \\
+  \kw{ImagComponent} & l & \textrm{complex wavefunction} & No & \\
+  \kw{FoldAtomsToUnitCell} & l & \textrm{periodic system} & No & \\
+  \kw{FillBoxWithAtoms} & l & & No & \\
+  \kw{NrOfCachedGrids} & i & & -1 &  \\
+  \kw{Verbose} & l & & No &  \\
+  \kw{RepeatBox} & 3i & & \{1 1 1\} & \\
+  \kw{ShiftGrid} & l & & Yes & \\
+  \hline
+\end{ptable}
+\begin{description}
+\item[\is{PlottedRegion}] Regulates the region which should be
+  plotted. See p.~\pref{PlottedRegion}.
+\item[\is{NrOfPoints}] Specifies the resolution of the equidistant grid on
+  which the various quantities should be calculated. The three
+  integers represent the number of points along the three vectors of
+  the parallelepiped specifying the plotted region. The number of all
+  calculated grid points is the product of the three integers.
+
+Example:
+\begin{verbatim}
+NrOfPoints = { 50 50 50 }     # 125 000 grid points
+\end{verbatim}
+
+\item[\is{PlottedKPoints}] The list of integers specified here
+  represent the k-points, in which the molecular orbitals should be
+  plotted. The first k-point in the original \dftbp{} calculation is
+  represented by "1". The order of the specified k-points does not
+  matter. You can also use the specification of the form
+  \verb|from:to| to specify ranges. (For more details on range
+  specification, see the \is{MovedAtoms} keyword in the \dftbp{}
+  manual.) The actual list of molecular orbitals to plot is obtained
+  by intersecting the specifications for \is{PlottedKPoints},
+  \is{PlottedLevels} and \is{PlottedSpins}.  The option is ignored if
+  the original calculation was not periodic.
+
+Example:
+\begin{verbatim}
+PlottedKPoints =  1 3 5      # The 1st, 3rd and 5th k-point is plotted
+\end{verbatim}
+
+\item[\is{PlottedLevels}] The list of integers specified here
+  represent the states, which should be plotted. The first (lowest
+  lying) state in the original \dftbp{} calculation is represented by
+  "1". The order of the specified states does not matter. You can also
+  use the specification of the form \verb|from:to| to specify
+  ranges. (For more details on range specification, see the
+  \is{MovedAtoms} keyword in the \dftbp{} manual.) The actual list of
+  molecular orbitals to plot is obtained by intersecting the
+  specifications for \is{PlottedKPoints}, \is{PlottedLevels} and
+  \is{PlottedSpins}.
+
+Example:
+\begin{verbatim}
+PlottedLevels = 1:-1     # All levels plotted
+\end{verbatim}
+
+\item[\is{PlottedSpins}] The list of integers specified here represent
+  the spins, for which the molecular orbitals should be plotted. The
+  first spin in the original \dftbp{} calculation is represented by
+  "1". The order of the specified spins does not matter. You can also
+  use the specification of the form \verb|from:to| to specify
+  ranges. (For more details on range specification, see the
+  \is{MovedAtoms} keyword in the \dftbp{} manual.)  The actual list of
+  molecular orbitals to plot is obtained by intersecting the
+  specifications for \is{PlottedKPoints}, \is{PlottedLevels} and
+  \is{PlottedSpins}.
+
+Example:
+\begin{verbatim}
+PlottedSpins =  1 2      # Both spin-up and spin-down plotted
+\end{verbatim}
+
+\item[\is{ChargeDensity}] If true, the absolute square of the
+  wavefunction is plotted for the selected molecular orbitals.
+
+\item[\is{RealComponent}] If true, the real component of the
+  wavefunction is plotted for the selected molecular orbitals.
+  
+\item[\is{ImagComponent}] If true, the imaginary component of the
+  wavefunction is plotted for the selected molecular orbitals. This
+  option is only parsed, if the wavefunctions in the \dftbp{}
+  calculation were complex.
+
+\item[\is{TotalChargeDensity}] If true, the total charge density of
+  the system is plotted.
+
+\item[\is{TotalSpinPolarisation}] If true, the total spin polarisation of
+  the system (difference of the spin up and spin down densities) is
+  plotted. This option is only interpreted if the processed \dftbp{}
+  calculation was spin polarised.
+
+\item[\is{TotalChargeDifference}] If true, the difference between the
+  total charge density and the charge density obtained by superposing
+  the neutral atomic densities is plotted.
+
+\item[\is{TotalAtomicDensity}] If true, the superposed neutral atomic
+  densities are plotted.
+
+\item[\is{FoldAtomsToUnitCell}] If true, the atoms are folded into the
+  parallelepiped unit cell of the crystal.
+
+\item[\is{FillBoxWithAtoms}] If true, the geometry is extended by those
+  periodic images of the original atoms, which falls in the plotted
+  region or on its borders.  It sets \is{FoldAtomsToUnitCell} to Yes.
+
+\item[\is{NrOfCachedGrids}] Specifies how many grids should be cached
+  at the same time. The value \is{-1} stands for as many as necessary
+  to be as fast as possible. Since the plotted grids could eventually
+  become quite big, you should set it to some positive non-zero value
+  if you experience memory problems.
+
+Example:
+\begin{verbatim}
+NrOfCachedGrids = 5     # Maximal 5 cached grids
+\end{verbatim}
+
+\item[\is{RepeatBox}] The three integers specify how often the plotted
+  region should be repeated in the generated cube files. Since
+  repeating the grid is not connected with any extra calculations,
+  this is a cheap way to visualise a big portion of a solid.  You want
+  probably set the \is{FillBoxWithAtoms} option to Yes to have the
+  atoms also repeated (otherwise only the plotted function is
+  repeated).  In order to obtain the correct picture, you should set
+  the plotted region to be an integer multiple of the unit cell of the
+  crystal. Please note, that the phase of the wavefunctions in the
+  repeated cells will be incorrect, except in the $\Gamma$-point.
+
+Example:
+\begin{verbatim}
+  RepeatBox = { 2 2 2 }     # Visualising a 2x2x2 supercell
+\end{verbatim}
+
+\item[\is{ShiftGrid}] Whether the grid should be shifted, so that the specified
+  origin lies in the middle of a cell and the grid fills out the specified
+  plotted region symmetrically. The default is \is{Yes}. If set to \is{No}, the
+  specified grid origin will be at the edge of a cell.
+
+\item[\is{Verbose}] If true, some extra messages are printed out
+  during the calculation. 
+
+\end{description}
+
+
+\htsubsection{PlottedRegion}
+
+Specifies the region, which should be included in the plot. You can
+specify it explicitely (as property list), or let \waveplot{} specify
+it automatically using either the \islcb{UnitCell} or the
+\islcb{OptimalCuboid} methods.
+
+\subsubsection{Explicit specification}
+\begin{ptable}
+  \kw{Origin} & 3r & & - & \\
+  \kw{Box} & 9r & & - &  \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Origin}]\modif{\modtype{length}} Specifies the xyz
+  coordinates of the origin as three real values.
+
+\item[\is{Box}]\modif{\modtype{length}} Specifies the three vectors
+  which span the parallelepiped of the plotted region. The vectors are
+  specified sequentially ($a_{1x}$ $a_{1y}$ $a_{1z}$ $a_{2x}$ $a_{2y}$
+  $a_{2z}$ $a_{3x}$ $a_{3y}$ $a_{3z}$). You are allowed to specify an
+  arbitrary parallelepiped with nonzero volume here. Please note,
+  however, that some visualisation tools only handles cube files with
+  cuboid boxes correctly.
+\end{description}
+
+Example:
+\begin{verbatim}
+  PlottedRegion = {
+    Origin = { 0.0 0.0 0.0 }
+    Box [Angstrom] = {
+      12.5   12.5  -12.5
+      12.5  -12.5   12.5
+     -12.5   12.5   12.5
+    }
+  }
+\end{verbatim}
+
+
+\htcbsubsubsection{UnitCell}
+
+For the periodic geometries, this method specifies the plotted region to be
+spanned by the three lattice vectors of the crystal. The origin is set to (0 0
+0). For cluster geometries, the smallest cuboid containing all atoms is
+constructed. For a cluster geometry the \iscb{UnitCell} object may have the
+following property:
+
+\begin{ptable}
+  \kw{MinEdgeLength} & r & & 1.0 &  \\
+\end{ptable}
+\begin{description}
+\item[\is{MinEdgeLength}]\modif{\modtype{length}} Minimal side length of
+  the cuboid, representing the plotted region.  This helps to avoid
+  cuboids with vanishing edge lengths (as it would be the case for a
+  linear molecule).
+\end{description}
+
+Example:
+\begin{verbatim}
+  PlottedRegion = UnitCell {
+    MinEdgeLength [Bohr] = 2.0
+  }
+\end{verbatim}
+
+
+\htcbsubsubsection{OptimalCuboid}
+
+Specifies the plotted region as a cuboid, which contains all the atoms and
+enough space around them, that no wavefunctions are leaking out of the cuboid.
+This object does not have any parameters.
+
+Example:
+\begin{verbatim}
+  PlottedRegion = OptimalCuboid {}
+\end{verbatim}
+
+
+\htsection{Basis}
+
+The basis definition is done by specifying the following properties:
+
+\begin{ptable}
+  \kw{Resolution} & r &  & - &  \\
+  \textit{ElementName1} & p & & - & \pref{speciesBasis} \\
+  \textit{ElementName2} & p & & - &  \pref{speciesBasis} \\
+  \hspace*{0.8cm}$\vdots$ & & & & \\
+\end{ptable}
+\begin{description}
+\item[\is{Resolution}] Specifies the grid distance used for
+  discretising the radial wavefunctions.  Setting it too small, causes
+  a long initialisation time for \waveplot{}. Setting it too high
+  causes a very coarse grid with bad mapping and inaccurate charges.
+  Values around $0.01$ seem to work fine. (Units must be in Bohr.)
+
+\item[\textit{ElementName1}] Basis for the first atom type. The name
+  of this property is the name of that atom type.
+\item[\textit{ElementName2}] Basis for the second atom type. The name of this
+  property is the name of that atom type.
+\end{description}
+
+Before describing the properties (and their sub-properties) in detail, the full
+basis definition for carbon (sp) and hydrogen (s) should be presented as
+example:
+
+
+\begin{verbatim}
+Basis = {
+  Resolution = 0.01
+  C = {                          # Basis of the C atom
+    AtomicNumber = 6
+    Orbital = {                 # 2s orbital
+      AngularMomentum = 0
+      Occupation = 2
+      Cutoff = 4.9
+      Exponents = {  6.00000     3.00000     1.50000 }
+      Coefficients = {
+         1.050334389886e+01   2.215522018905e+01   9.629635264776e+00
+        -4.827678012828e+01  -5.196013014531e+00  -2.748085126682e+01
+         3.072783267234e+01  -1.007000163584e+01   8.295975876552e-01
+      }
+    }
+    Orbital = {                 # 2p orbital
+      AngularMomentum = 1
+      Occupation = 2
+      Cutoff = 5.0
+      Exponents = {  6.00000     3.00000     1.50000  }
+      Coefficients = {
+        -2.659093036065e+00  -6.650979229497e+00  -1.092292307510e+01
+         2.190230021657e+00  -9.376762008640e+00  -5.865448605778e-01
+         8.208019468802e+00  -2.735743196612e+00   2.279582669709e-01
+      }
+    }
+  }
+  H = {                           # Basis for the H atom
+    AtomicNumber = 1
+    Orbital = {                  # 1s orbital
+      AngularMomentum = 0
+      Occupation = 1
+      Cutoff = 4.2
+      Exponents = {  2.00000     1.00000 }
+      Coefficients = {
+         1.374518455977e+01   1.151435212242e+01   2.072671588012e+00
+        -1.059020844305e+01   3.160957468828e+00  -2.382382105798e-01
+      }
+    }
+  }
+}
+\end{verbatim}
+
+
+
+
+\subsection{Basis for an atom type}
+\label{speciesBasis}
+
+The actual basis for every atom type is specified as a property with
+the name of that type:
+
+\begin{ptable}
+  \kw{AtomicNumber} &  i&  & - &  \\
+  \kw{Orbital} & p &  & - & \pref{Orbital} \\
+  \hspace*{0.8cm}$\vdots$ & & & & \\
+\end{ptable}
+\begin{description}
+\item[\is{AtomicNumber}] The atomic number of the species. This is not
+  needed in the actual calculations, but for creating proper
+  cube-files.
+\item[\is{Orbital}] Contains the parameters of the orbitals. For every
+  orbital a separate \is{Orbital} block must be created. See below.
+\end{description}
+
+
+
+
+\htsubsubsection{Orbital}
+
+For every orbital there is an orbital block which specifies the radial
+wavefunction. Thereby the following properties must be used:
+\begin{ptable}
+  \kw{AngularMomentum} & i & & - & \\
+  \kw{Occupation} & r & & - &  \\
+  \kw{Cutoff} & r& & - & \\
+  \kw{Exponents} & r+ &  & -  & \\
+  \kw{Coefficients} & r+ &  & - &\\
+\end{ptable}
+
+\begin{description}
+\item[\is{AngularMomentum}] Angular momentum of the current orbital. ($s$ -- 0,
+  $p$ -- 1, $d$ -- 2, $f$ -- 3)
+  
+\item[\is{Occupation}] Occupation of the orbital in the neutral ground state.
+  (Needed to obtain the right superposed atomic densities.)
+  
+\item[\kw{Cutoff}] Cutoff for the wave function. You should choose a value,
+  where the value of $4\pi r^2 \left|R(r)\right|^2$ drops below $10^{-4}$ or
+  $10^{-5}$.  $R(r)$ is the radial part of the wave function. If you do not have
+  the possibility to visualise the radial wave function, take the half of the
+  longest distance, for which an overlap interaction exists in the appropriate
+  homonuclear Slater-Koster file. (Value must be entered in Bohr.)
+  
+\item[\is{Exponents}] The radial wave function with angular momentum $l$ has the
+  form:
+  \begin{equation}
+    \label{eq:raddef}
+    R_l(r) = \sum_{i=1}^{n_{\text{exp}}}\,
+      \sum_{j=1}^{n_{\text{pow}}} c_{ij}\, r^{l+j-1} e^{-\alpha_i r}
+  \end{equation}
+  This property defines the multiplication factors in the exponent ($\alpha_i$).
+  
+\item[\is{Coefficients}] This property contains the coefficients $c_{ij}$ as
+  defined in equation \eqref{eq:raddef}. The sequence of the coefficients must
+  be as follows:
+
+  $c_{11}$ $c_{12}$ \dots\ $c_{1n_{\text{pow}}}$ $c_{21}$ $c_{22}$
+  \dots\ $c_{2n_{\text{pow}}}$ \dots
+  
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  ParserOptions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\htsection{ParserOptions}
+
+This block contains the options, which are effecting only the
+behaviour of the HSD/XML parser and are not passed to the main
+program.
+\begin{ptable}
+  \kw{IgnoreUnprocessedNodes} &l & & No & \\
+  \kw{StopAfterParsing} &l & & No & \\  
+\end{ptable}
+\begin{description}
+
+\item[\is{IgnoreUnprocessedNodes}] By default the code stops if it
+  detects unused or erroneous keywords in the input. This {\em
+    dangerous} flag suspends these checks. Use only for debugging
+  purposes.
+
+\item[\is{StopAfterParsing}] If set to \is{Yes}, the parser stops
+  after processing the input and written out the processed input to
+  the disc. It can be used to make sanity checks on the input without
+  starting an actual calculation.
+  
+\end{description}
+
+\appendix
+
+\include{unit_mod}
+
+%%% Reference
+
+\phantomsection\addcontentsline{toc}{chapter}{Index}
+\printindex
+
+\end{document}
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: t
+%%% End: 

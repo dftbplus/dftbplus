@@ -1,0 +1,35 @@
+Geometry = GenFormat {
+    <<< "c6h6-d6h.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-8
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 60
+        StateOfInterest = 0
+        Symmetry = Singlet
+    }
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions {
+    ParserVersion = 5
+}

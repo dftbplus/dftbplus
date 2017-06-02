@@ -1,0 +1,309 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
+!!* Routines to read/write a TGeometry type in HSD and XML format.
+module typegeometryhsd
+#include "allocate.h"  
+  use typegeometry
+  use hsdutils
+  use hsdutils2
+  use tokenreader
+  use unitconversion
+  use linkedlist
+  use charmanip
+  use simplealgebra, only : invert33, determinant33
+  use xmlf90, flib_normalize => normalize
+  use stringlist
+  implicit none
+  private
+
+  !!* Writes the content of a geometry object to a dom tree or to an xml-writer
+  interface writeTGeometryHSD
+    module procedure writeTGeometryHSD_dom
+    module procedure writeTGeometryHSD_xmlf
+  end interface
+
+  !! Types/subroutines from TypeGeometry
+  public :: TGeometry, destruct, normalize
+
+  !! Locally defined subroutines
+  public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
+
+
+contains
+
+  !!* Write the geometry in HSD format to a specified node
+  !!* @param node Node in the HSD-tree which should contain the geometry
+  !!* @param geo  The geometry
+  subroutine writeTGeometryHSD_dom(node, geo)
+    type(fnode), pointer :: node
+    type(TGeometry), intent(in) :: geo
+
+    call setChildValue(node, "TypeNames", geo%speciesNames, .false.)
+    call setChildValue(node, "TypesAndCoordinates", &
+        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, .false.)
+    call setChildValue(node, "Periodic", geo%tPeriodic, .false.)
+    if (geo%tPeriodic) then
+      call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
+    end if
+    
+  end subroutine writeTGeometryHSD_dom
+
+
+
+  !!* Write the geometry in HSD format to an xml writer
+  !!* @param node Node in the HSD-tree which should contain the geometry
+  !!* @param geo  The geometry
+  subroutine writeTGeometryHSD_xmlf(xf, geo)
+    type(xmlf_t), intent(inout) :: xf
+    type(TGeometry), intent(in) :: geo
+
+    call writeChildValue(xf, "TypeNames", geo%speciesNames)
+    call writeChildValue(xf, "TypesAndCoordinates", &
+        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
+    call writeChildValue(xf, "Periodic", geo%tPeriodic)
+    if (geo%tPeriodic) then
+      call writeChildValue(xf, "LatticeVectors", geo%latVecs)
+    end if
+    
+  end subroutine writeTGeometryHSD_xmlf
+
+
+
+  !!* Read the geometry from a node in a HSD tree.
+  !!* @param node Node in the HSD tree containing the geomery
+  !!* @param geo  Contains the geometry on exit
+  subroutine readTGeometryHSD(node, geo)
+    type(fnode), pointer :: node
+    type(TGeometry), intent(out) :: geo
+
+    type(string) :: modifier
+    integer :: ind
+    type(listString) :: stringBuffer
+    type(listRealR1) :: realBuffer
+    type(listIntR1) :: intBuffer
+    type(fnode), pointer :: child, typesAndCoords
+    integer, allocatable :: tmpInt(:,:)
+    real(dp) :: latvec(9), det
+
+    call getChildValue(node, "Periodic", geo%tPeriodic, default=.false.)
+    call init(stringBuffer)
+    call getChildValue(node, "TypeNames", stringBuffer)
+    geo%nSpecies = len(stringBuffer)
+    if (geo%nSpecies == 0) then
+      call detailedError(node, "Missing species names.")
+    end if
+    INITALLOCATE_PARR(geo%speciesNames, (geo%nSpecies))
+    call asArray(stringBuffer, geo%speciesNames)
+    call destroy(stringBuffer)
+    call init(intBuffer)
+    call init(realBuffer)
+    call getChildValue(node, "TypesAndCoordinates", 1, intBuffer, 3, &
+        &realBuffer, modifier=modifier, child=typesAndCoords)
+    geo%nAtom = len(intBuffer)
+    if (geo%nAtom == 0) then
+      call detailedError(typesAndCoords, "Missing coordinates")
+    end if
+    INITALLOCATE_PARR(geo%species, (geo%nAtom))
+    INITALLOCATE_PARR(geo%coords, (3, geo%nAtom))
+    ALLOCATE_(tmpInt, (1, geo%nAtom))
+    call asArray(intBuffer, tmpInt)
+    geo%species(:) = tmpInt(1,:)
+    DEALLOCATE_(tmpInt)
+    !! Check validity of species
+    if (any(geo%species < 1 .or. geo%species > geo%nSpecies)) then
+      call detailedError(typesAndCoords, "Type index must be between 1 and " &
+          &// i2c(geo%nSpecies) // ".")
+    end if
+    call asArray(realBuffer, geo%coords)
+    call destroy(intBuffer)
+    call destroy(realBuffer)
+    geo%tFracCoord = .false.
+    if (len(modifier) > 0) then
+      select case(tolower(char(modifier)))
+      case ("relative")
+        if (.not. geo%tPeriodic) then
+          call detailedError(typesAndCoords, "Relative coordinates are only &
+              &allowed for periodic systems")
+        end if
+        geo%tFracCoord = .true.
+      case default
+        ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
+        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%value
+        call setChildValue(typesAndCoords, "", &
+            &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
+            &replace=.true.)
+      end select
+    end if
+    if (geo%tPeriodic) then
+      INITALLOCATE_PARR(geo%latVecs, (3,3))
+      call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, &
+          &child=child)
+      geo%latVecs(:,:) = reshape(latvec, (/3, 3/))
+      if (len(modifier) > 0) then
+        ind = getModifierIndex(char(modifier), lengthUnits, child)
+        geo%latVecs = geo%latVecs(:,:) * lengthUnits(ind)%value
+        call setChildValue(child, "", geo%latVecs, .true.)
+      end if
+      if (geo%tFracCoord) then
+        geo%coords = matmul(geo%latVecs, geo%coords)
+        !call setChildValue(typesAndCoords, "", &
+        !    &reshape(geo%species, (/ 1, size(geo%species) /)), &
+        !    &geo%coords, replace=.true.)
+      end if
+      INITALLOCATE_PARR(geo%recVecs2p, (3, 3))
+      det = determinant33(geo%latVecs)
+      if (abs(det) < 1e-12_dp) then
+        call detailedError(child, "Dependent lattice vectors")
+      end if
+      call invert33(geo%recVecs2p, geo%latVecs, det)
+      geo%recVecs2p(:,:) = reshape(geo%recVecs2p, (/3, 3/), order=(/2, 1/))
+    end if
+    call unstring(modifier)
+    call normalize(geo)
+    
+  end subroutine readTGeometryHSD
+
+
+
+  !!* Reads the geometry from a node in a HSD tree in GEN format
+  !!* @param node Node containing the geometry in Gen format
+  !!* @param geo  Contains the geometry on exit
+  subroutine readTGeometryGen(node, geo)
+    type(fnode), pointer :: node
+    type(TGeometry), intent(out) :: geo
+
+    type(string) :: text
+
+    call getFirstTextChild(node, text)
+    call readTGeometryGen_help(node, geo, char(text))
+    call unstring(text)
+
+  end subroutine readTGeometryGen
+
+
+
+  !!* Helping routine for reading geometry from a HSD tree in GEN format
+  !!* @param node Node to parse (only needed to produce proper error messages)
+  !!* @param geo  Contains the geometry on exit
+  !!* @param text Text content of the node
+  subroutine readTGeometryGen_help(node, geo, text)
+    type(fnode), pointer :: node
+    type(TGeometry), intent(out) :: geo
+    character(len=*), intent(in) :: text
+
+    type(string) :: txt
+    integer :: iStart, iOldStart, iErr
+    integer :: ii, iTmp
+    real(dp) :: coords(3), rTmp, det
+    type(listString) :: speciesNames
+
+    !! Read first line of the gen file: Number of atoms, boundary conditions
+    iStart = 1
+    call getNextToken(text, geo%nAtom, iStart, iErr)
+    call checkError(node, iErr, "Bad number of atoms.")
+    call getNextToken(text, txt, iStart, iErr)
+    select case (char(txt))
+    case("S","s")
+      geo%tPeriodic = .true.
+      geo%tFracCoord = .false.
+    case("F","f")
+      geo%tPeriodic = .true.
+      geo%tFracCoord = .true.
+    case("C", "c")
+      geo%tPeriodic = .false.
+      geo%tFracCoord = .false.
+    case default
+      call detailedError(node, "Unknown boundary condition type '" &
+          &// char(txt) // "'")
+    end select
+
+    !! Reading the 2nd line of a gen file.
+    !! Since we can not rely on line breaks, we try to read in integers. If it
+    !! fails, we had a species name, so it will be read as string.
+    call init(speciesNames)
+    iErr = TOKEN_ERROR
+    iOldStart = iStart
+    call getNextToken(text, iTmp, iStart, iErr)
+    do while (iErr /= TOKEN_OK)
+      call getNextToken(text, txt, iStart, iErr)
+      if (iErr /= TOKEN_OK) then
+        call detailedError(node, "Unexpected end of geometry information.")
+      end if
+      call append(speciesNames, char(txt))
+      iOldStart = iStart
+      call getNextToken(text, iTmp, iStart, iErr)
+    end do
+    geo%nSpecies = len(speciesNames)
+    if (geo%nSpecies == 0) then
+      call detailedError(node, "Number of species equals zero.")
+    end if
+    INITALLOCATE_PARR(geo%speciesNames, (geo%nSpecies))
+    call asArray(speciesNames, geo%speciesNames)
+    call destroy(speciesNames)
+
+    !! Read in sequential and species indices.
+    INITALLOCATE_PARR(geo%species, (geo%nAtom))
+    INITALLOCATE_PARR(geo%coords, (3, geo%nAtom))
+    iStart = iOldStart
+    do ii = 1, geo%nAtom
+      call getNextToken(text, iTmp, iStart, iErr)
+      call checkError(node, iErr, "Bad sequentual number for an atom.")
+      call getNextToken(text, geo%species(ii), iStart, iErr)
+      call checkError(node, iErr, "Bad species number for an atom.")
+      call getNextToken(text, coords, iStart, iErr)
+      call checkError(node, iErr, "Bad coordinates for an atom.")
+      geo%coords(:, ii) = coords(:)
+    end do
+    if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
+      call detailedError(node, &
+          &"Nr. of species and nr. of specified elements do not match.")
+    end if
+
+    !! Read in origin an lattice vectors, if the structure is periodic
+    if (geo%tPeriodic) then
+      INITALLOCATE_PARR(geo%origin, (3))
+      INITALLOCATE_PARR(geo%latVecs, (3, 3))
+      call getNextToken(text, geo%origin, iStart, iErr)
+      call checkError(node, iErr, "Invalid origin.")
+      do ii = 1, 3
+        call getNextToken(text, geo%latVecs(:, ii), iStart, iErr)
+        call checkError(node, iErr, "Invalid lattice vectors.")
+      end do
+      geo%origin = geo%origin * AA__Bohr
+      geo%latVecs = geo%latVecs * AA__Bohr
+      if (geo%tFracCoord) then
+        if (any(abs(geo%coords) > 1.0_dp)) then
+          call detailedWarning(node, &
+              &"Fractional coordinates with absolute value greater than one.")
+        end if
+        geo%coords = matmul(geo%latVecs, geo%coords) 
+      else
+        geo%coords = geo%coords * AA__Bohr
+      end if
+      INITALLOCATE_PARR(geo%recVecs2p, (3, 3))
+      det = determinant33(geo%latVecs)
+      if (abs(det) < 1e-12_dp) then
+        call detailedError(node, "Dependent lattice vectors")
+      end if
+      call invert33(geo%recVecs2p, geo%latVecs, det)
+    else
+      geo%coords = geo%coords * AA__Bohr
+    end if
+    call getNextToken(text, rTmp, iStart, iErr)
+    if (iErr /= TOKEN_EOS) then
+      call detailedError(node, "Superfluous data found. Check if specified &
+          &number of atoms matches the number of actually entered positions.")
+    end if
+    call unstring(txt)
+    call normalize(geo)
+    
+  end subroutine readTGeometryGen_help
+
+
+
+end module typegeometryhsd

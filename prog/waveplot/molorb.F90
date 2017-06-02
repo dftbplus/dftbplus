@@ -1,0 +1,482 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
+!!* Contains routines to calculate the value of one or more molecular orbitals
+!!* composed from STOs on an equidistant grid.
+module MolecularOrbital
+# include "allocate.h"
+# include "assert.h"  
+  use accuracy
+  use TypeGeometry
+  use Slater
+  use SimpleAlgebra
+  use Periodic, only: getCellTranslations, foldCoordToUnitCell
+  implicit none
+
+  private
+  save
+
+  !!* Data type containing information about the basis for a species
+  type TSpeciesBasis
+    integer :: atomicNumber              !* Atomic number of the species
+    integer :: nOrb                      !* Nr. of orbitals
+    integer, pointer :: angMoms(:) => null() !* Angular momentum for each orb.
+    real(dp), pointer :: cutoffs(:) => null() !* Cutoff for each orbital
+    type(OSlaterOrbital), pointer :: stos(:) => null() !* STO for each orbital
+    real(dp), pointer :: occupations(:) => null() !* Occupation for each orb.
+  end type TSpeciesBasis
+
+  
+
+  !!* Data type containing information for molecular orbital calculator
+  type OMolecularOrbital
+    private
+    integer :: nAtom                         !* Nr. of atoms
+    integer :: nSpecies                       !* Nr. of species
+    integer, pointer :: species(:)           !* Species of each atom
+    integer, pointer :: iStos(:)             !* Index array for STOs
+    type(OSlaterOrbital), pointer :: stos(:) !* All STOs sequentially
+    real(dp), pointer :: cutoffs(:)          !* Cutoff for each STO
+    integer, pointer :: angMoms(:)           !* Angular mometum for each STO
+    integer :: nOrb                          !* Nr. of orbitals in the system
+    logical :: tPeriodic                     !* If sytem is periodic
+    real(dp), pointer :: latVecs(:,:)        !* Lattice vectors
+    real(dp), pointer :: recVecs2p(:,:)      !* Reciprocal vectors by 2*pi
+    real(dp), allocatable :: cellVec(:,:)        !* Cell shift vectors
+    integer :: nCell                         !* Nr. of cell shift vectors
+    real(dp), pointer :: coords(:,:,:)       !* Coordinates in all cells
+    logical :: tInitialised = .false.        !* If it is initialised
+  end type OMolecularOrbital
+
+  !!* Initialises a MolecularOrbital instance
+  interface init
+    module procedure MolecularOrbital_init
+  end interface
+
+  !!* Deinitializes a MolecularOrbital instance
+  interface destruct
+    module procedure MolecularOrbital_destruct
+    module procedure SpeciesBasis_destruct
+  end interface
+
+  !!* Returns the value of one or more molecular orbitals on a grid
+  interface getValue
+    module procedure MolecularOrbital_getValue_real
+    module procedure MolecularOrbital_getValue_cmpl
+  end interface
+
+  public :: TSpeciesBasis
+  public :: OMolecularOrbital, init, destruct, getValue
+  
+contains
+
+  !!* Initialises MolecularOrbital instance.
+  !!* @param self     MolecularOrbital instance.
+  !!* @param geometry Geometrical information.
+  !!* @param basis    Basis for each species.
+  subroutine MolecularOrbital_init(self, geometry, basis)
+    type(OMolecularOrbital), intent(out) :: self
+    type(TGeometry), intent(in) :: geometry
+    type(TSpeciesBasis), intent(in) :: basis(:)
+
+    integer :: nOrb
+    integer :: ii, jj, ind, iSp
+    real(dp) :: mCutoff
+    real(dp), allocatable :: rCellVec(:,:)
+
+    ASSERT(.not. self%tInitialised)
+    ASSERT(geometry%nSpecies == size(basis))
+        
+    self%nAtom = geometry%nAtom
+    self%nSpecies = geometry%nSpecies
+    INITALLOCATE_PARR(self%species, (self%nAtom))
+    self%species(:) = geometry%species(:)
+
+    !! Create sequential list of STOs
+    nOrb = 0
+    do ii = 1, self%nSpecies
+      nOrb = nOrb + (basis(ii)%nOrb)
+    end do
+    INITALLOCATE_PARR(self%iStos, (self%nSpecies+1))
+    INITALLOCATE_PARR(self%stos, (nOrb))
+    INITALLOCATE_PARR(self%cutoffs, (nOrb))
+    INITALLOCATE_PARR(self%angMoms, (nOrb))
+    ind = 1
+    do ii = 1, self%nSpecies
+      self%iStos(ii) = ind
+      nOrb = basis(ii)%nOrb
+      self%stos(ind:ind+nOrb-1) = basis(ii)%stos(1:nOrb)
+      self%cutoffs(ind:ind+nOrb-1) = basis(ii)%cutoffs(1:nOrb)
+      self%angMoms(ind:ind+nOrb-1) = basis(ii)%angMoms(1:nOrb)
+      ind = ind + nOrb
+    end do
+    self%iStos(ii) = ind
+
+    !! Count all orbitals (including m-dependence)
+    nOrb = 0
+    do ii = 1, self%nAtom
+      iSp = self%species(ii)
+      nOrb = nOrb + sum(2*self%angMoms(self%iStos(iSp):self%iStos(iSp+1)-1)+1)
+    end do
+    self%nOrb = nOrb
+
+    !! Get cells to look for when adding STOs from periodic images
+    self%tPeriodic = geometry%tPeriodic
+    if (self%tPeriodic) then
+      INITALLOCATE_PARR(self%latVecs, (3,3))
+      INITALLOCATE_PARR(self%recVecs2p, (3,3))
+      self%latVecs(:,:) = geometry%latVecs(:,:)
+      call invert33(self%recVecs2p, self%latVecs)
+      self%recVecs2p = reshape(self%recVecs2p, (/3, 3/), order=(/2, 1/))
+      mCutoff = maxval(self%cutoffs)
+      call getCellTranslations(self%cellVec, rCellVec, self%latVecs, &
+          &self%recVecs2p, mCutoff)
+      self%nCell = size(self%cellVec,dim=2)
+    else
+      INITALLOCATE_PARR(self%latVecs, (3,0))
+      INITALLOCATE_PARR(self%recVecs2p, (3,0))
+      allocate(self%cellVec(3, 1))
+      self%cellVec(:,:) = 0.0_dp
+      allocate(rCellVec(3, 1))
+      rCellVec(:,:) = 0.0_dp
+      self%nCell = 1
+    end if
+
+    !! Create coorinates for central cell and periodic images
+    INITALLOCATE_PARR(self%coords, (3, self%nAtom, self%nCell))
+    self%coords(:,:,1) = geometry%coords(:,:)
+    if (self%tPeriodic) then
+      call foldCoordToUnitCell(self%coords(:,:,1), self%latVecs, self%recVecs2p)
+      do ii = 2, self%nCell
+        do jj = 1, self%nAtom
+          self%coords(:,jj, ii) = self%coords(:,jj,1) + rCellVec(:,ii)
+        end do
+      end do
+    end if
+    
+    self%tInitialised = .true.
+    
+  end subroutine MolecularOrbital_init
+  
+  
+
+  !!* Returns molecular orbitals on a grid
+  !!* @param self         MolecularOrbital instance
+  !!* @param origin       Origin of the grid
+  !!* @param gridVecs     Grid vectors
+  !!* @param eigVecsReal  Summation coefficients for the STOs
+  !!* @param value        Molecular orbitals on a grid
+  !!* @param addDensities Add densities instead of wave functions
+  subroutine MolecularOrbital_getValue_real(self, origin, gridVecs, &
+      &eigVecsReal, value, addDensities)
+    type(OMolecularOrbital), intent(in) :: self
+    real(dp), intent(in) :: origin(:)
+    real(dp), intent(in) :: gridVecs(:,:)
+    real(dp), intent(in) :: eigVecsReal(:,:)
+    real(dp), intent(out) :: value(:,:,:,:)
+    logical, intent(in), optional :: addDensities
+
+    real(dp), save :: kPoints(3,0)
+    integer, save :: kIndexes(0)
+    complex(dp), save :: valueCmpl(0,0,0,0) 
+    complex(dp), save :: eigVecsCmpl(0,0)
+    logical :: tAddDensities
+
+    ASSERT(self%tInitialised)
+    ASSERT(size(origin) == 3)
+    ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
+    ASSERT(size(eigVecsReal, dim=1) == self%nOrb)
+    ASSERT(all(shape(value) > (/ 1, 1, 1, 0 /)))
+    ASSERT(size(eigVecsReal, dim=2) == size(value, dim=4))
+
+    if (present(addDensities)) then
+      tAddDensities = addDensities
+    else
+      tAddDensities = .false.
+    end if
+
+    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
+        &self%nAtom, self%nOrb, self%coords, self%species, self%cutoffs, &
+        &self%iStos, self%angMoms, self%stos, self%tPeriodic, .true., &
+        &self%latVecs, self%recVecs2p, kPoints, kIndexes, self%nCell, &
+        &self%cellVec, tAddDensities, value, valueCmpl)
+    
+  end subroutine MolecularOrbital_getValue_real
+
+
+
+  !!* Returns molecular orbitals on a grid
+  !!* @param self         MolecularOrbital instance
+  !!* @param origin       Origin of the grid
+  !!* @param gridVecs     Grid vectors
+  !!* @param eigVecsCmpl  Summation coefficients for the STOs
+  !!* @param kPoints      Array of k-points
+  !!* @param kIndexes     Index of the k-points in kPoints for every mol.orbital
+  !!* @param value        Molecular orbitals on grid on exit.
+  subroutine MolecularOrbital_getValue_cmpl(self, origin, gridVecs, &
+      &eigVecsCmpl, kPoints, kIndexes, value)
+    type(OMolecularOrbital), intent(in) :: self
+    real(dp), intent(in) :: origin(:)
+    real(dp), intent(in) :: gridVecs(:,:)
+    complex(dp), intent(in) :: eigVecsCmpl(:,:)
+    real(dp), intent(in) :: kPoints(:,:)
+    integer, intent(in) :: kIndexes(:)
+    complex(dp), intent(out) :: value(:,:,:,:)
+    
+    real(dp), save :: valueReal(0,0,0,0)
+    real(dp), save :: eigVecsReal(0,0)
+    logical, save :: tAddDensities = .false.
+
+    ASSERT(self%tInitialised)
+    ASSERT(size(origin) == 3)
+    ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
+    ASSERT(size(eigVecsCmpl, dim=1) == self%nOrb)
+    ASSERT(all(shape(value) > (/ 0, 0, 0, 0 /)))
+    ASSERT(size(eigVecsCmpl, dim=2) == size(value, dim=4))
+    ASSERT(size(kPoints, dim=1) == 3)
+    ASSERT(size(kPoints, dim=2) > 0)
+    ASSERT(size(kIndexes) == size(eigVecsCmpl, dim=2))
+    ASSERT(maxval(kIndexes) <= size(kPoints, dim=2))
+    ASSERT(minval(kIndexes) > 0)
+
+    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
+        &self%nAtom, self%nOrb, self%coords, self%species, self%cutoffs, &
+        &self%iStos, self%angMoms, self%stos, self%tPeriodic, .false., &
+        &self%latVecs, self%recVecs2p, kPoints, kIndexes, self%nCell, &
+        &self%cellVec, tAddDensities, valueReal, value)
+    
+  end subroutine MolecularOrbital_getValue_cmpl
+
+
+
+  !!* Returns the values of several molecular orbitals on grids.
+  !!* @param origin        Origin of the grid
+  !!* @param gridVecs      Grid vectors
+  !!* @param eigVecsReal   Real eigenvectors, or null-array
+  !!* @param eigVecsCmpl   Complex eigenvectors, or null-array
+  !!* @param nAtom         Nr. of atoms
+  !!* @param nOrb          Nr. of orbitals
+  !!* @param coords        Coordinates of the atoms
+  !!* @param species        Species for each atom
+  !!* @param cutoffs       Cutoff for each STO
+  !!* @param iStos         Starting position of the STOs for each species
+  !!* @param angMoms       Angular moment for each STO
+  !!* @param stos          Array containing the STOs
+  !!* @param tPeriodic     If the system is periodic
+  !!* @param tReal         If the system is real
+  !!* @param latVecs       Lattice vectors or null-array
+  !!* @param recVecs2p     Reciprocal vectors by 2pi or null-array
+  !!* @param kPoints       Kpoints or null-array
+  !!* @param kIndexes      Index of the k-points for each orbital in KPoints
+  !!* @param nCell         Nr. of cells to consider
+  !!* @param cellVec       Translation vector of the considered cells
+  !!* @param tAddDensities If densities should be added instead of wave funcs
+  !!* @param valueReal     Contains the real grid on exit
+  !!* @param valueCmpl     Contains the complex grid on exit
+  !!* @caveat The flag tPeriodic decides, if the complex or the real version
+  !!*   is read/written for the various parameters.
+  subroutine local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
+      &nAtom, nOrb, coords, species, cutoffs, iStos, angMoms, stos, tPeriodic, &
+      &tReal, latVecs, recVecs2p, kPoints, kIndexes, nCell, cellVec, &
+      &tAddDensities, valueReal, valueCmpl)
+    real(dp), intent(in) :: origin(:)
+    real(dp), intent(in) :: gridVecs(:,:)
+    real(dp), intent(in) :: eigVecsReal(:,:)
+    complex(dp), intent(in) :: eigVecsCmpl(:,:)
+    integer, intent(in) :: nAtom
+    integer, intent(in) :: nOrb
+    real(dp), intent(in) :: coords(:,:,:)
+    integer, intent(in) :: species(:)
+    real(dp), intent(in) :: cutoffs(:)
+    integer, intent(in) :: iStos(:)    
+    integer, intent(in) :: angMoms(:)
+    type(OSlaterOrbital), intent(in) :: stos(:)
+    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: tReal
+    real(dp), intent(in) :: latVecs(:,:)
+    real(dp), intent(in) :: recVecs2p(:,:)
+    real(dp), intent(in) :: kPoints(:,:)
+    integer, intent(in) :: kIndexes(:)
+    integer, intent(in) :: nCell
+    real(dp), intent(in) :: cellVec(:,:)
+    logical, intent(in) :: tAddDensities
+    real(dp), intent(out) :: valueReal(:,:,:,:)
+    complex(dp), intent(out) :: valueCmpl(:,:,:,:)
+
+    real(dp) :: curCoords(3,3), xyz(3), diff(3), frac(3)
+    real(dp) :: atomAllOrbVal(nOrb, nCell)
+    logical :: nonZeroMask(nOrb), allZero
+    integer :: nNonZero
+    integer, target :: nonZeroIndContainer(nOrb)
+    integer, pointer :: nonZeroIndices(:)
+    real(dp), allocatable ::  atomOrbValReal(:)
+    complex(dp), allocatable :: atomOrbValCmpl(:)
+    complex(dp) :: phases(nCell, size(kPoints, dim=2))
+    real(dp) :: xx, val
+    integer :: nPoints(4)
+    integer :: ind, i1, i2, i3, iEig, iAtom, iOrb, iM, iSpecies, iL, iCell
+
+
+    !! Array for the contribution of each orbital (and its periodic images)
+    if (tReal) then
+      ALLOCATE_(atomOrbValReal, (nOrb))
+      nPoints = shape(valueReal)
+    else
+      ALLOCATE_(atomOrbValCmpl, (nOrb))
+      nPoints = shape(valueCmpl)
+    end if
+
+    !! Phase factors for the periodic image cell
+    !! Note: This will be conjugated in the scalar product below. This is fine
+    !! as in contrast to what have been published, DFTB+ uses implicitely 
+    !! exp(-ikr) as phase factor, as the unpack routines assemble the lower
+    !! triangular matrix with exp(ikr) as factor.
+    phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(cellVec), kPoints))
+
+    !! Loop over all grid points
+    lpI3: do i3 = 1, nPoints(3)
+      curCoords(:, 3) = real(i3 - 1, dp) * gridVecs(:,3)
+      lpI2: do i2 = 1, nPoints(2)
+        curCoords(:, 2) =  real(i2 - 1, dp) * gridVecs(:,2)
+        lpI1: do i1 = 1, nPoints(1)
+          curCoords(:, 1) = real(i1 - 1, dp) * gridVecs(:,1)
+          xyz(:) = sum(curCoords, dim=2) + origin(:)
+          if (tPeriodic) then
+            frac(:) = matmul(xyz, recVecs2p)
+            xyz(:) = matmul(latVecs, frac - real(floor(frac), dp))
+          end if
+          !! Get contribution from every atom in every cell for current point
+          allZero = .true.
+          lpCell: do iCell = 1, nCell
+            ind = 1
+            lpAtom: do iAtom = 1, nAtom
+              iSpecies = species(iAtom)
+              diff(:) = xyz(:) - coords(:,iAtom, iCell)
+              xx = sqrt(sum(diff**2))
+              lpOrb: do iOrb = iStos(iSpecies), iStos(iSpecies+1)-1
+                iL = angMoms(iOrb)
+                !! Calculate wave function only if atom is inside the cutoff
+                if (xx <= cutoffs(iOrb)) then
+                  allZero = .false.
+                  call getValue(stos(iOrb), xx, val)
+                  do iM = -iL, iL
+                    atomAllOrbVal(ind, iCell) = val *RealTessY(iL, iM, diff, xx)
+                    ind = ind + 1
+                  end do
+                else
+                  atomAllOrbVal(ind:ind+2*iL, iCell) = 0.0_dp
+                  ind = ind + 2 * iL + 1
+                end if
+              end do lpOrb
+            end do lpAtom
+          end do lpCell
+
+          if (allZero) then
+            if (tReal) then
+              valueReal(i1, i2, i3, :) = 0.0_dp
+            else
+              valueCmpl(i1, i2, i3, :) = 0.0_dp
+            end if
+            cycle lpI1
+          end if
+
+          ! Establish mask and index of nonzero elements
+          nonZeroMask = any(atomAllOrbVal /= 0.0_dp, dim=2)
+          nNonZero = 0
+          do iOrb = 1, nOrb
+            if (nonZeroMask(iOrb)) then
+              nNonZero = nNonZero + 1
+              nonZeroIndContainer(nNonZero) = iOrb
+            end if
+          end do
+          nonZeroIndices => nonZeroIndContainer(1:nNonZero)
+
+          !! Sum the contribution from all cells and multiplicate by the
+          !! provided coefficients (usually the eigenvector)
+          if (tReal) then
+            if (tAddDensities) then
+              atomAllOrbVal = atomAllOrbVal**2
+            end if
+            atomOrbValReal(:) = sum(atomAllOrbVal, dim=2)
+            do iEig = 1, nPoints(4)
+              valueReal(i1, i2, i3, iEig) = dot_product( &
+                  & atomOrbValReal(nonZeroIndices), &
+                  & eigVecsReal(nonZeroIndices, iEig))
+            end do
+          else
+            ind = 0
+            do iEig = 1, nPoints(4)
+              if (kIndexes(iEig) /= ind) then
+                ind = kIndexes(iEig)
+                atomOrbValCmpl(nonZeroIndices) = (0.0_dp, 0.0_dp)
+                do iCell = 1, nCell
+                  atomOrbValCmpl(nonZeroIndices) = &
+                      & atomOrbValCmpl(nonZeroIndices) &
+                      & + atomAllOrbVal(nonZeroIndices, iCell) &
+                      & * phases(iCell, ind)
+                end do
+              end if
+              valueCmpl(i1, i2, i3, iEig) = dot_product( &
+                  & atomOrbValCmpl(nonZeroIndices), &
+                  & eigVecsCmpl(nonZeroIndices, iEig))
+            end do
+          end if
+        end do lpI1
+      end do lpI2
+    end do lpI3
+    
+  end subroutine local_getValue
+  
+  
+
+  !!* Destruct the MolecularOrbital instance.
+  !!* @param self Instance to deinitialise.
+  subroutine MolecularOrbital_destruct(self)
+    type(OMolecularOrbital), intent(inout) :: self
+
+    integer :: ii
+
+    ASSERT(self%tInitialised)
+
+    DEALLOCATE_PARR(self%species)
+    DEALLOCATE_PARR(self%coords)
+    DEALLOCATE_PARR(self%latVecs)
+    DEALLOCATE_PARR(self%angMoms)
+    do ii = 1, size(self%stos)
+      call destruct(self%stos(ii))
+    end do
+    DEALLOCATE_PARR(self%stos)
+    DEALLOCATE_PARR(self%iStos)
+    DEALLOCATE_PARR(self%cutoffs)
+    DEALLOCATE_PARR(self%latVecs)
+    DEALLOCATE_PARR(self%recVecs2p)
+    self%tInitialised = .false.
+    
+  end subroutine MolecularOrbital_destruct
+
+
+
+  !!* Destruct a SpeciesBasis instance
+  !!* @param self Instance to destruct.
+  subroutine SpeciesBasis_destruct(self)
+    type(TSpeciesBasis) :: self
+    
+    integer :: ii
+
+    do ii = 1, size(self%stos)
+      call destruct(self%stos(ii))
+    end do
+    DEALLOCATE_PARR(self%stos)
+    DEALLOCATE_PARR(self%occupations)
+    DEALLOCATE_PARR(self%cutoffs)
+    DEALLOCATE_PARR(self%angMoms)
+    
+  end subroutine SpeciesBasis_destruct
+
+
+  
+end module MolecularOrbital

@@ -1,0 +1,38 @@
+Geometry = GenFormat {
+    <<< "2ch3.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-10  # Very tight for test purposes only
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 1000.0
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 10
+        StateOfInterest = 0
+        Symmetry = Singlet
+    }
+}
+
+ParserOptions {
+    ParserVersion = 5
+}

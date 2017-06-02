@@ -1,0 +1,41 @@
+Geometry = GenFormat {
+3  C
+ O H
+     1    1    0.00000000000E+00  -0.10000000000E+01   0.00000000000E+00
+     2    2    0.00000000000E+00   0.00000000000E+00   0.78306400000E+00
+     3    2    0.00000000000E+00   0.00000000000E+00  -0.78306400000E+00
+}
+
+Driver = ConjugateGradient {
+  MovedAtoms = 1:-1
+  MaxForceComponent = 1.000000000000000E-008  # Extremely small!
+  MaxSteps = 100
+  OutputPrefix = "geom.out"
+}
+
+Hamiltonian = DFTB {
+  SCC = No
+  MaxAngularMomentum = {
+    O = "p"
+    H = "s"
+  }
+  Charge = 0.000000000000000E+000
+  Eigensolver = Standard {}
+  Filling = Fermi {
+    Temperature [Kelvin] = 0.0
+  }
+  SlaterKosterFiles = {
+    O-O = "O-O.skf"
+    O-H = "O-H.skf"
+    H-O = "O-H.skf"
+    H-H = "H-H.skf"
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 4
+}

@@ -1,0 +1,40 @@
+Geometry = GenFormat {
+    <<< "butadiene.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-8
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 10
+        StateOfInterest = 1
+        Symmetry = Singlet
+        WriteMulliken = Yes
+    }
+}
+
+Analysis {
+    CalculateForces = Yes
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions {
+    ParserVersion = 5
+}

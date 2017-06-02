@@ -1,0 +1,42 @@
+Geometry = GenFormat {
+2  F
+ Si
+     1 1 0.00 0.00 0.00
+     2 1 0.25 0.25 0.25
+   0.000000 0.000000 0.000000
+   0.000000 2.713546 2.713546
+   2.713546 0.000000 2.713546
+   2.713546 2.713546 0.000000
+}
+Hamiltonian = DFTB {
+  MaxAngularMomentum = {
+    Si = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 273.15
+  }
+  SlaterKosterFiles = {
+    Si-Si = "./Si-Si.skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   20 0 0
+   0 20 0
+   0 0 20 
+   0.5 0.5 0.5
+  }
+  SpinOrbit = {
+    Dual = Yes
+    Si [eV] = {0.0 0.029}
+  }
+}
+Options = {
+  CalculateForces = Yes
+  MullikenAnalysis = Yes
+  WriteAutotestTag = Yes
+  AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 4
+}
+

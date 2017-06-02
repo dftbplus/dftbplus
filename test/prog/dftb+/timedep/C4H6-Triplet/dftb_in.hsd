@@ -1,0 +1,39 @@
+Geometry = GenFormat {
+    <<< "butadiene.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-10  # Very tight for test purposes only
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    SpinConstants = {
+        C = {-0.023} # HOMO Wpp
+        H = {-0.072} # HOMO Wss
+    }
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions {
+    ParserVersion = 5
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 5
+        StateOfInterest = 0
+        Symmetry = Triplet
+    }
+}

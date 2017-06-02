@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+import sys
+import os
+import re
+import glob
+import fnmatch
+import argparse
+
+if sys.hexversion < 0x03050000:
+    sys.stderr.write('Error: this script requires Python 3.5 or newer')
+    sys.exit(1)
+
+
+DESCRIPTION = 'Replaces the copyright header in all relevant source files.'
+
+COPYRIGHT = '''DFTB+: general package for performing fast atomistic simulations
+Copyright (C) 2017  DFTB+ developers group
+
+See the LICENSE file for terms of usage and distribution.'''
+
+# File patterns to ignore
+IGNORED_FILES = [
+    '*~', '*.pyc', '*/make.deps', '*/make.extdeps'
+]
+
+# Order matters: File are processed according the first matching glob
+# and ignored in any other matching globs afterwards. If type is None,
+# the file is skipped, but for performance resons you should use the
+# IGNORED_FILES list to indicate ignored files, whenever possible.
+FILE_TYPES = [
+    ('makefile', 'makefile'),
+    ('prog/**/*.[fF]90', 'fortran'),
+    ('prog/**/*.fpp', 'fortran'),
+    ('prog/**/*.inc', 'fortran'),
+    ('prog/**/*.h', 'fortran'),
+    ('prog/**/make.*', 'makefile'),
+    ('test/prog/dftb+/bin/*', 'shell'),
+    ('tools/misc/*', 'python'),
+    ('utils/*', 'python'),
+    ('utils/build/cr_makedep/*', 'python'),
+    ('utils/build/fpp/*', 'shell'),
+]
+
+
+def main():
+    args = parse_arguments()
+    process_files(os.path.abspath(args.rootdir))
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    msg = 'Root directory of the project (default: current directory)'
+    parser.add_argument('--rootdir', default=os.getcwd(), help=msg)
+    args = parser.parse_args()
+    return args
+
+
+def process_files(rootdir):
+    processed = set()
+    for fpattern, ftype in FILE_TYPES:
+        headerpattern, newheader = HEADER_BY_TYPE[ftype]
+        paths = glob.glob(os.path.join(rootdir, fpattern), recursive=True)
+        for path in paths:
+            if os.path.isfile(path) and path not in processed:
+                processed.add(path)
+                if headerpattern is None:
+                    continue
+                for ignored in IGNORED_FILES:
+                    if fnmatch.fnmatch(path, ignored):
+                        break
+                else:
+                    print(path)
+                    replace_header(str(path), headerpattern, newheader)
+
+
+def replace_header(fname, headerpattern, header):
+    with open(fname, 'r') as fp:
+        txt = fp.read()
+    newtxt, nsub = headerpattern.subn(header, txt)
+    if nsub:
+        print("{:d} substitutions in {}".format(nsub, fname))
+    else:
+        print("HEADER ADDED in {}".format(fname))
+    if not nsub:
+        newtxt = header + '\n\n' + txt
+    with open(fname, 'w') as fp:
+        fp.write(newtxt)
+
+
+def pretty_header(txt, comment, marker, linelength):
+    headerseparator = comment + marker * (linelength - 2) + comment
+    headerlines = [headerseparator]
+    for line in txt.split('\n'):
+        line = line.strip()
+        padding = linelength - 4  - len(line)
+        headerlines.append(comment + '  ' + line + ' ' * padding + comment)
+    headerlines.append(headerseparator)
+    return '\n'.join(headerlines)
+
+
+RAWTEXT_HEADER_PATTERN = re.compile(
+    r'[ \t]*\|---+\|[ \t]*\n(?:[ \t]*\|.*\n)*?[ \t]*\|---+\|[ \t]*$',
+    re.MULTILINE)
+RAWTEXT_HEADER = pretty_header(COPYRIGHT, '!', '-', 80)
+
+FORTRAN_HEADER_PATTERN = re.compile(
+    r'[ \t]*!---+![ \t]*\n(?:[ \t]*!.*\n)*?[ \t]*!---+![ \t]*$', re.MULTILINE)
+FORTRAN_HEADER = pretty_header(COPYRIGHT, '!', '-', 100)
+
+SCRIPT_HEADER_PATTERN = re.compile(
+    r'[ \t]*#---+#[ \t]*\n(?:[ \t]*#.*\n)*?[ \t]*#---+#[ \t]*$', re.MULTILINE)
+SCRIPT_HEADER = pretty_header(COPYRIGHT, '#', '-', 80)
+
+
+HEADER_BY_TYPE = {
+    None: (None, None),
+    'fortran': (FORTRAN_HEADER_PATTERN, FORTRAN_HEADER),
+    'makefile': (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+    'python': (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+    'rawtext': (RAWTEXT_HEADER_PATTERN, RAWTEXT_HEADER),
+    'shell': (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+}
+
+
+if __name__ == '__main__':
+    main()

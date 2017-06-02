@@ -1,0 +1,46 @@
+# First interaction
+File1 = "C-H.skf"
+
+# Maximal angular momentum for first element
+MaxAngularMomentum1 = "p"
+
+# Reverse interaction.
+# (Comment it out or set it to '""' for homonuclear interactions)
+File2 = "H-C.skf"
+
+# Maximal angular momentum for second element
+# (Comment it out for homonuclear interactions)
+MaxAngularMomentum2 = "s"
+
+# Use old SK interpolation
+OldSKInterpolation = No
+
+# Hamiltonian integrals to calculate and drive to disc
+Hamiltonian = { 1 2 }
+
+# Overlap integrals to calculate and drive to disc
+Overlap = {}
+
+# Should integral value be calculated
+Value = Yes
+
+# Should first derivative be calculated
+FirstDerivative = Yes
+
+# Should second derivative be calculated
+SecondDerivative = Yes
+
+# Displacement for the derivation (atomic units)
+Displacement = 0.01
+
+# Where to start to calculate integrals
+Start = 0.02
+
+# Where to stop to calculate integrals
+End = 10.0
+
+# Distance between points, for which the integrals are calculated
+Step = 0.005
+
+# Prefix for the output files
+OutputPrefix = "derivs"

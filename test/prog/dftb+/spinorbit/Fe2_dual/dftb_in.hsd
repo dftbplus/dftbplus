@@ -1,0 +1,49 @@
+Geometry = GenFormat {
+    2  C
+ Fe
+    1 1    0.0 0.0 0.0
+    2 1    0.0 0.0 2.8
+}
+Hamiltonian = DFTB {
+  SCC = Yes
+  OrbitalResolvedSCC = Yes
+  SCCTolerance = 1.0E-10
+  MaxAngularMomentum = {
+    Fe = "d"
+  }
+  ReadInitialCharges = No
+  SpinPolarisation = nonColinear { # each atom starts with a spin of 3z
+    InitialSpins = {
+      AllAtomSpins = {
+	0.0 0.0 3.0
+	0.0 0.0 3.0
+      }
+    }
+  }
+  SpinConstants = {
+    Fe = {
+	  -0.013 -0.009 -0.003
+	  -0.009 -0.011 -0.001
+	  -0.003 -0.001 -0.015
+    }
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 50
+  }
+  SlaterKosterFiles = {
+    Fe-Fe = "./Fe-Fe.skf"
+  }
+  SpinOrbit = {
+    Dual = Yes
+    Fe [eV] = {0.0 0.0 0.058}
+  }
+}
+Options = {
+  WriteAutotestTag = Yes
+  AtomResolvedEnergies = Yes
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 4
+}

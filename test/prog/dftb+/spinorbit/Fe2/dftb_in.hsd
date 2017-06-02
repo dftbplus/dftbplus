@@ -1,0 +1,53 @@
+Geometry = GenFormat {
+    2  C
+ Fe
+    1 1      0.00000000      0.00000000      0.00000000
+    2 1      2.18194133      0.00000000      0.00000000
+}
+Driver = ConjugateGradient {
+ MovedAtoms = {2}
+}
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-10  # very small!
+  OrbitalResolvedSCC = Yes
+  MaxSCCIterations = 100
+  Mixer = Broyden {}
+  MaxAngularMomentum = {
+    Fe = "d"
+  }
+  ReadInitialCharges = No
+  SpinPolarisation = nonColinear { # each atom starts with a spin of 3x
+    InitialSpins = {
+      AllAtomSpins = {
+	3.0 0.0 0.0
+	3.0 0.0 0.0
+      }
+    }
+  }
+  SpinConstants = {
+    Fe = {
+	  -0.013 -0.009 -0.003
+	  -0.009 -0.011 -0.001
+	  -0.003 -0.001 -0.015
+    }
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 10
+  }
+  SlaterKosterFiles = {
+    Fe-Fe = "./Fe-Fe.skf"
+  }
+  SpinOrbit = {
+    Fe [eV] = {0.0 0.0 0.058}
+    Dual = No
+  }
+}
+Options = {
+  WriteAutotestTag = Yes
+  AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 3
+}

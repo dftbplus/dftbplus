@@ -1,0 +1,449 @@
+\chapter{The HSD format}
+\label{sec:hsd}
+
+The Human-friendly Structured Data (HSD) format is a structured input
+format, which can be bijectively mapped onto a subset of the
+XML-language. Its simplified structure and notation should make it a
+more convenient user interface than reading and writing XML tags. This
+section contains a brief overview of the most important aspects of
+this format.
+
+An input file in the HSD format consists basically of property
+assignments of the form
+\begin{verbatim}
+  Property = value
+\end{verbatim}
+where the value \verb|value| was assigned to the property
+\verb|Property|.  The value must be one of the following types
+(detailed description of each follows later on):
+\begin{itemize}
+\item Scalar, such as
+  \begin{itemize}
+  \item integer
+  \item real 
+  \item logical
+  \item string
+  \end{itemize}
+\item list of scalars
+\item method
+\item list of further property assignments
+\end{itemize}
+
+An unquoted hash mark (\#) is interpreted as the start of a comment,
+everything after it, up to the end of the current line, is ignored by
+the parser (hash marks inside of quotes are taken as literals not
+comments):
+\begin{verbatim}
+  # Entire line with comment
+  Prop1 = "hell#oo"  # Note, that the first hashmark is quoted!
+\end{verbatim}
+The name of the properties, the methods and the logical values are case
+insensitive, so the assignments
+\begin{verbatim}
+  Prop1 = 12
+  prOP1 = 12
+  Prop2 = Yes
+  Prop2 = YES
+\end{verbatim}
+are pairwise identical. Quoted strings (specified either as a value
+for a property or as a file name), however, are case sensitive.
+
+Due to technical issues, the maximal line length is currently limited to 1024
+characters. Lines longer than this are chopped without warning.
+
+If a property, which should only appear once, is defined more than once, the
+parser uses the \emph{first} definition and ignores all the other occurrences.
+\emph{Thus specifying a property in the input a second time, does not override
+  the first definition.} (For advanced use the HSD syntax also offers the
+possibility of conditional overriding/extending of previous definitions. For
+more details see \ref{sec:hsdext}.)
+
+
+\section{Scalars and list of scalars}
+
+The following examples demonstrate the assignments with scalar types:
+\begin{verbatim}
+  SomeInt = 1
+  SomeInt2 = -3
+  SomeRealFixedForm = 3.453
+  SomeRealExpForm = 2.12e-45
+  Logical1 = Yes
+  Logical2 = no
+  SomeString = "this is a string value"
+\end{verbatim}
+
+As showed above, real numbers can be entered in either fixed or
+exponential form. The value for logical properties can be either
+\verb|Yes| or \verb|No| (case insensitive). Strings should always be
+enclosed in quotation marks, to make sure that they are treated as one
+string and that they are not interpreted by the parser:
+\begin{verbatim}
+  String1 = "quoted string"
+  String2 = this value is actually a list of 9 strings  # list of strings!
+  String3 = "Method { ;"     # This is a string assignment
+  String4 = Method {         # This is syntactically incorrect, since
+                             # it tries to assign a method to String4
+\end{verbatim}
+
+A list of scalars is created by sequentially writing the scalars
+separated by one or more spaces:
+\begin{verbatim}
+  PlottedLevels =  1 2 3 
+  Origin =  0.0 0.0 0.0 
+  ConfirmItTwice =  Yes Yes 
+  SpeciesNames =  "Ga" "As"
+\end{verbatim}
+
+The assignments statements are usually terminated by the end of the
+line.  If the list of the assigned values goes over several lines, it
+must be entered between curly (brace) brackets. In that case, instead
+of the line end, the closing bracket will signal the end of the
+assignment.  It is allowed to put a list of scalars in curly brackets,
+even if it is only one line long.
+\begin{verbatim}
+  PlottedLevels = {
+    1 2 3
+  }
+  Origin = { 0.0
+  0.0 0.0 }
+  Short = { 1 2 3 }
+\end{verbatim}
+
+If you want to put more than one assignment in a line, you have to
+separate them with a semi-colon:
+\begin{verbatim}
+  Variable = 12; Variable2 = 3.0
+\end{verbatim}
+
+If a property should be defined as empty, either the empty list must be
+assigned to it or it must be defined as an empty assignment
+terminated by a semi-colon:
+\begin{verbatim}
+  EmptyProperty = {}
+  EmptyProperty2 = ;
+\end{verbatim}
+
+Please note, that explicitly specifying a property to be empty is not
+the same as not having specified it at all. In the latter case, the
+parser substitutes the default value for that property (if there is a
+default for it), while in the first case it interprets the property to
+be empty. If a property without default value is not specified, the
+parser stops with an appropriate error message.
+
+
+\section{Methods and property lists}
+
+Besides the scalar values and the list of scalars, the right hand side
+of an assignment may also contain a method, which itself may contain
+one or more scalar values or further property assignments as
+parameters:
+\begin{verbatim}
+  Diagonaliser = LapackDAC {}     # Method without further params
+  PlottedLevels = Range { 1 3 }   # Range needs two scalar params
+  PlottedRegion = UnitCell {      # UnitCell needs a property list
+    MinEdgeLength = 1.0           # as parameter
+    SomeOtherProperty = Yes
+  }
+\end{verbatim}
+The first assignment above is an example, where the method on the
+right hand side does not need any parameters specified. Please note,
+that even if no parameters are required, the opening and closing
+brackets after the method are mandatory. If the brackets are missing,
+the parser interprets the value as a string.
+
+In the second assignment, the method \verb|Range| needs only two
+integers as parameters, while for the method \verb|UnitCell| several
+properties must be specified. A method may contain either nothing or
+scalars or property assignments, but never scalars and property
+assignments together. So the following assignment would be invalid:
+\begin{verbatim}
+  InvalidSpecif = SomeMethod {
+    1 2 3
+    Property1 = 12
+    "Some strings here"
+  }
+\end{verbatim}
+
+Very often a value for the property is represented by a list of
+further property assignments (as above, but without naming an
+explicit method beforehand). In that case, the property assignments must
+be put between curly brackets (property list):
+\begin{verbatim}
+  Options = {
+    SubOption1 = 12
+    Suboption2 = "string"
+  }
+\end{verbatim}
+
+
+\section{Modifiers}
+
+Each property may carry a modifier, which changes the interpretation
+of the assigned value:
+\begin{verbatim}
+  LatticeConstant [Angstrom] = 12.23
+\end{verbatim}
+Here, the property \verb|LatticeConstant| possesses the \verb|Angstrom|
+modifier, so the specified value will be interpreted to be in
+\AA{}ngstr\"om instead of the default length unit. Specifying a modifier
+for a property which is not allowed to carry one leads to parsing error.
+
+The syntax of the HSD format also allows methods (used as values on the right
+hand side of an assignment) to carry modifiers, but this is usually not used in
+the current input structures.
+
+Sometimes, the assigned value to a property contains several values
+with different units, so that more than one modifiers can be
+specified. In that case, the modifiers must be separated by a comma.
+\begin{verbatim}
+  VolumeAndChargePerElement [Angstrom^3,au] = {
+     1.2   0.3   # first element
+     4.2   0.1   # second element
+  }
+\end{verbatim}
+You have to specify either no modifier or all modifiers. If you want
+specify the default units for some of the quantities, you can omit the
+name of the appropriate modifier, but you must include the separating
+comma:
+\begin{verbatim}
+  # Specifying the default unit for the charge. Note the separating comma!
+  VolumeAndChargePerElement [Angstrom^3,] = {
+     1.2   0.3   # first element
+     4.2   0.1   # second element
+  }
+\end{verbatim}
+Specifying not enough or too many modifiers leads to parser error.
+
+\section{File inclusion}
+
+It is possible to include files in an HSD-formatted input by using the
+\verb|<<<| and \verb|<<+| operators. The former includes the specified
+file as raw text without parsing it, while latter parses the included
+text:
+\begin{verbatim}
+  Geometry = GenFormat {
+    <<< "geo_start.gen"
+  }
+  Basis = {
+    <<+ "File_containing_the_property_definitons_for_the_basis"
+  }
+\end{verbatim}
+The file included with the \verb|<<+| operator must be a valid HSD
+document in itself.
+
+
+\section{Processing}
+
+After having parsed and processed the input file, the parser writes
+out the processed input to a separate file in HSD format. This file
+contains the internal representation for all properties, which can be
+specified by the user. In particular, all default values are explicitly
+set and all automatic definitions (e.g. ranges) are converted to their
+internal representations.
+
+Assuming the following example as input
+\begin{verbatim}
+  # Lattice contant specified in Angstrom.
+  # Internal representation uses Bohr, so it will be converted.
+  LatticeConstant [Angstrom] = 12.0
+                    
+  # This property is not set, as its commented out, so the 
+  # default value will be set for this (let's assume, it's Yes)
+  #DoAProperJob = No
+
+  # Plotted levels specified as a range with parameter 1:3.
+  # This will be replaced by an explicit listing of the levels
+  PlottedLevels = { 1:3 }
+\end{verbatim}
+the parsed and processed input (written to a special file) should look
+something like
+\begin{verbatim}
+  LatticeConstant = 22.676713499923075
+  DoAProperJob = Yes
+  PlottedLevels = {
+    1 2 3
+  }
+\end{verbatim}
+If you want to reproduce your calculation later, you should use this
+processed input. It should give you identical results, even if the
+default setting for some properties had been changed in the code.
+
+Since the HSD format is mapped by the parser internally to an XML
+tree, most codes using this format allow (or hopefully will allow) to
+dumping out of the processed input in the XML format as well, and to
+use that later as an input, instead of the HSD formatted input. This
+is practical for people preferring to work with XML or if the input
+should be automatically generated by a script.
+
+
+
+\section{Extended format}
+\label{sec:hsdext}
+
+As stated earlier, if a property, which should be defined only once,
+occurs more than once in the input, the parser uses per default the
+first definition and ignores all the others. Sometimes this is not the
+desired behaviour, therefore, the HSD format also offers the
+possibility to override properties that were set earlier.  This
+feature can be very useful for scripts which are generate HSD input
+based on some user provided template.  By just appending a few lines
+to the end of the user provided input the scripts can make sure that
+certain properties are set correctly. Thus, the script can modify the
+user input, without having to parse it at all.
+
+The parser builds internally an XML DOM-tree from the HSD input. For
+every property or method name an XML tag with the same name (but
+lowercased) is created, which will contain the value of the property
+or the method. If the value contains further properties or methods,
+new XML tags are created inside the original one. Shortly, the HSD
+input is mapped on a tree, whereas the assignment and the containment
+(equal sign and curly brace) are turned into a parent-child
+relationships.\footnote{In the internal tree representation of the HSD
+  input there is no difference between properties and methods, both
+  are just elements capable to contain some value or further
+  elements. The differentiation in the HSD input is artificial and is
+  only for human readability (equal sign after property names, curly
+  brace after method names),} As an example an HSD input and the
+corresponding XML-representation is given below:
+
+\begin{minipage}{1.0\linewidth}
+  \begin{center}
+    \begin{minipage}[t]{5.5cm}
+\begin{verbatim}
+  Level0Elem1 = 1
+  Level0Elem2 = { 1 2 3 }
+  Level0Elem3 = {
+    Level1Elem1 = 12
+    Level1Elem2 = Level2Elem1 {
+
+      Level3Elem1 = "abcd"
+      Level3Elem2 = {
+        Level4Elem1 = 12
+      }
+    }
+  }
+\end{verbatim}
+    \end{minipage}
+    \hspace*{1cm}
+    \begin{minipage}[t]{7.5cm}
+\begin{verbatim}
+  <level0elem1>1</level0elem1>
+  <level0elem2>1 2 3</level0elem2>
+  <level0elem3>
+     <level1elem1>12</level1elem1>
+     <level1elem2>
+        <level2elem1>
+           <level3elem1>"abcd"</level3elem1>
+           <level3elem2>
+              <level4elem1>12</level4elem1>
+           </level3elem2>
+        </level2elem1>
+     </level1elem2>
+  </level0elem3>
+\end{verbatim}    
+    \end{minipage}
+  \end{center}
+\end{minipage}
+
+By prefixing property and method names, the default behaviour of the parser can
+be overridden. Instead of creating a new tag (on the current encapsulation level)
+with the appropriate name, it will look for the \emph{first occurrence} of the
+given tag and will process that one. Depending of the prefix character, the tag
+is processed in the following ways:
+\begin{description}
+\item[+:] If the tag exists already, it's value is modified, otherwise the
+  parser stops.
+\item[?:] If the tag exists already, it's value is modified, otherwise the
+  parser ignores the prefixed HSD construct.
+\item[*:] If the tag exists already, it's value is modified, otherwise it is
+  created (and then it's value is modified).
+\item[/:] If the tag does not exist yet, it is created and modified, otherwise
+  the prefixed HSD construct is ignored.
+\item[!:] The tag is newly created and modified. If it exists already, the old
+  occurrence is deleted first.
+\end{description}
+
+The way the value of the tag is going to be modified, is ruled by the constructs
+inside the prefixed property or method name. If the parser finds non prefixed
+constructs here, the appropriate tags are just added, otherwise the behaviour is
+determined by the rules above, just acting one level deeper in the tree. The
+following examples should make this a little bit more clear.
+
+\begin{itemize}
+\item Changing the value of \is{Level0Elem1} to \is{3}. If the element does not
+  exist, it should be created with the value \is{3}.
+\begin{verbatim}
+  !Level0Elem1 = 3
+\end{verbatim}
+
+\item Changing the value of \is{Level0Elem3/Level1Elem1} to \is{21} (the slash
+  indicates the parent-child relationship). If the element does not exist, stop
+  with an error message:
+\begin{verbatim}
+  # Make sure the containing element exists. If yes, go inside, otherwise die.
+  +Level0Elem3 = {
+    # Set the value of Level1Elem1 or die, if it does not exist.
+    +Level1Elem1 = 21
+  }
+\end{verbatim}
+  Please note, that each tag in the path must be prefixed. Using the following
+  construct instead of the original one
+\begin{verbatim}
+  # Not prefixed, so it creates a new tag with empty value
+  Level0Elem3 = {
+    # The new tag doesn't contain anything, so the parser stops here
+    +Level1Elem1 = 21
+  }
+\end{verbatim}
+  would end with an error message. Since \is{Level0Elem1} is not prefixed here,
+  a tag is created for it with an empty value (no children). It does not matter,
+  whether the tag already existed before or not, a new tag is created and
+  appended as the last element (last child) to the current block. Then the
+  parser is processing its value. Due to the \is{+Level1Elem1} directive it is
+  looking for a child tag \is{<level1elem1>}. Since the tag was newly created,
+  it does not contain any children, so the parser stops with an error message.
+
+\item Create a new tag \is{Level1Elem3} inside \is{Level0Elem3} with some
+  special value. If the tag already exists, replace it.
+\begin{verbatim}
+  # Modifing the children of Level0Elem3 or dying if not present
+  +Level0Elem3 = {
+    # Replacing or if not existent creating Level1Elem3
+    !Level1Elem3 = NewBlock {
+       NewValue1 = 12
+    }
+\end{verbatim}
+  This example also shows, that the value for the new property can be any
+  arbitrary complex HSD construct.
+
+\item Provide a default value \is{"string"} for
+  \is{Level0Elem3/Level1Elem2/Level2Elem1/Level3Elem1}. If the tag is already
+  present do not change its value.
+\begin{verbatim}
+  # Modify Level0Elem3 or create it if non-existent
+  *Level0Elem3 = {
+  # Modify Level1Elem2 and Level2Elem1 or create them if non-existent
+    *Level1Elem2 = *Level2Elem1 {
+      # Create Level3Elem1 if non-existent with special value.
+      /Level3Elem1 = "string"
+    }
+  }
+\end{verbatim}
+
+\item If \is{Level0Elem3/Level1Elem2} has the value \is{Level2Elem1}, make sure
+  that \is{Level3Elem1} in it exists, and has \is{""} as value. If
+  \is{Level1Elem2} has a different value, do not change anything.
+\begin{verbatim}
+  # If Level0Elem3 is present, process it, otherwise skip this block
+  ?Level0Elem3 = {
+    # The same for the next two containers
+    ?Level1Elem2 = ?Level2Elem1 {
+      # Create or replace Level3Elem1
+      !Level3Elem1 = ""
+    }
+  }
+\end{verbatim}
+  
+\end{itemize}
+
+

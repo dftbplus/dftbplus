@@ -1,0 +1,100 @@
+
+\chapter{Unit modifiers}
+\label{app:units}
+
+The {\dftbp} code uses internally atomic units (with Hartree as the
+energy unit). The value of every numerical property in the input is
+interpreted to be in atomic units (au), unless the property carries a
+modifier.
+
+The allowed modifiers and the corresponding conversion factors are
+given below.\footnote{The conversion factors listed here were
+  calculated with double precision on i686-linux architecture.
+  Depending on your architecture, the values used there may deviate
+  slightly.}  (The modifiers are case insensitive).
+
+
+\begin{unittable}{Length}
+  \is{Angstrom}, \is{AA} (for {\AA}ngstr\"om) & 0.188972598857892E+01
+  \\
+  \is{Meter}, \is{m} &  0.188972598857892E+11 \\
+  \is{pm}            &  0.188972598857892E-01 \\
+  \is{Bohr}, \is{au} &  1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Mass}
+\is{amu}   & 0.182288848492937E+04 \\
+\is{au}    & 1.000000000000000E+00 \\
+\is{da}    & 0.182288848492937E+04 \\
+\is{dalton}& 0.182288848492937E+04 \\
+\end{unittable}
+
+
+\begin{unittable}{Volume}
+  \is{Angstrom$^{{\wedge}}$3}, \is{AA$^{{\wedge}}$3} &
+  0.674833303710415E+01 \\
+  \is{meter$^{{\wedge}}$3}, \is{m$^{{\wedge}}$3} &
+  0.674833303710415E+31 \\
+  \is{pm$^{{\wedge}}$3} &
+  0.674833303710415E-05 \\
+  \is{bohr$^{{\wedge}}$3}, \is{au} &
+  1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Energy}
+  \is{Rydberg}, \is{Ry} & 0.500000000000000E+00 \\
+  \is{Electronvolt}, \is{eV} & 0.367493245336341E-01  \\
+  \is{kcal/mol} &  0.159466838598749E-02 \\
+  \is{Kelvin}, \is{K} & 0.316681534524639E-05 \\
+  \is{cm\^{}-1} & 0.455633507361033E-05 \\
+  \is{Joule}, \is{J} &  0.229371256497309E+18\\
+  \is{Hartree}, \is{Ha}, \is{au} & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Force}
+  \is{eV/Angstrom}, \is{eV/AA} & 0.194469064593167E-01 \\
+  \is{Joule/meter}, \is{J/m} & 0.121378050512919E+08\\
+  \is{Hartree/Bohr}, \is{Ha/Bohr}, \is{au} & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Time}
+  \is{femtosecond}, \is{fs} & 0.413413733365614E+02 \\
+  \is{picosecond}, \is{ps} & 0.413413733365614E+05 \\
+  \is{second}, \is{s} & 0.413413733365614E+17 \\
+  \is{au} & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Charge}
+  \is{Coulomb}, \is{C} & 0.624150947960772E+19 \\
+  \is{au}, \is{e} & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Velocity}
+  \is{au} & 1.000000000000000E+00 \\
+  \is{m/s} & 0.457102857516272E-06 \\
+  \is{pm/fs} & 0.457102857516272E-03\\
+  \is{AA/ps} & 0.457102857516272E-04\\
+\end{unittable}
+
+\begin{unittable}{Pressure}
+  \is{Pa} & 0.339893208050290E-13 \\
+  \is{au} & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Frequency}
+\is{Hz}    & 0.241888432650500E-16 \\
+\is{THz}   & 0.241888432650500E-04 \\
+\is{cm\^{}-1} & 0.725163330219952E-06 \\
+\is{au}    & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Electric field strength}
+\is{v/m}   & 0.194469063788953E-11 \\
+\is{au}    & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Dipole moment}
+\is{CoulombMeter},\is{Cm} & 0.117947426715764E+30 \\
+\is{Debye} & 0.393430238326893E+00 \\
+\is{au}    & 1.000000000000000E+00 \\
+\end{unittable}

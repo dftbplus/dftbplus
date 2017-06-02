@@ -1,0 +1,84 @@
+
+\newcommand{\dftbp}{\textsc{DFTB$^{\text{+}}$}} %% noodle (alias dftb+)
+\newcommand{\dftb}{\textsc{DFTB}}             %% dftb
+\newcommand{\pref}[1]{\pageref{#1}}           %% pageref
+\newcommand{\cb}{\{\}}                        %% curly braces
+\newcommand{\is}[1]{\textsf{#1}}              %% input style
+\newcommand{\iscb}[1]{\is{#1\cb}}              %% input style
+\newcommand{\isl}[1]{\hyperref[#1]{\textsf{#1}}}  %% input style
+\newcommand{\islcb}[1]{\hyperref[#1]{\iscb{#1}}} %% input style
+\newcommand{\kw}[1]{\is{#1}\index{#1@\is{#1}}}   %% keyword (with index entry)
+\newcommand{\kwl}[1]{\is{#1}\index{#1@\is{#1}}\label{#1}} %% keyword (with
+%% index entry and label)
+\newcommand{\kwcb}[1]{\iscb{#1}\index{#1\cb@\iscb{#1}}} %% kword with curly braces
+
+%%% Sections, subsections etc. as hyperreference targets.
+\newcommand{\htchapter}[1]{\chapter{\kw{#1}}\label{#1}}
+\newcommand{\htsection}[1]{\section{\kw{#1}}\label{#1}}
+\newcommand{\htsubsection}[1]{\subsection{\kw{#1}}\label{#1}}
+\newcommand{\htsubsubsection}[1]{\subsubsection{\kw{#1}}\label{#1}}
+\newcommand{\htparagraph}[1]{\paragraph{\kw{#1}}\label{#1}}
+\newcommand{\htsubparagraph}[1]{\subparagraph{\kw{#1}}\label{#1}}
+\newcommand{\modif}[1]{\is{[#1]}}
+\newcommand{\modtype}[1]{{\textrm{\textit{#1}}}}
+%%\newcommand{\modtype}[1]{\textsf{[}\textit{#1}\textsf{]}\ }
+%%\newcommand{\modexpl}[1]{\textsf{[#1]}\ }
+
+
+%%% Sections, subsections etc. as hyperreference targets (if title is a 
+%%% curly braced keyword).
+\newcommand{\htcbchapter}[1]{\chapter{\kwcb{#1}}\label{#1}}
+\newcommand{\htcbsection}[1]{\section{\kwcb{#1}}\label{#1}}
+\newcommand{\htcbsubsection}[1]{\subsection{\kwcb{#1}}\label{#1}}
+\newcommand{\htcbsubsubsection}[1]{\subsubsection{\kwcb{#1}}\label{#1}}
+\newcommand{\htcbparagraph}[1]{\paragraph{\kwcb{#1}}\label{#1}}
+\newcommand{\htcbsubparagraph}[1]{\subparagraph{\kwcb{#1}}\label{#1}}
+
+%%% Table of properties
+\renewcommand{\tabularxcolumn}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newenvironment{ptable}{
+  \par
+  \begin{minipage}{\linewidth}
+    \begin{tabular*}{\linewidth}{|>{\sf}lc>{\sf}l@{\extracolsep{\fill}}>{\sf}lr|}
+      \hline
+    }
+    {
+      \hline
+    \end{tabular*}
+  \end{minipage}
+}
+
+
+
+\newenvironment{ptableh}{
+  \begin{ptable}
+    \textrm{Name} & \textrm{Type} & \textrm{Condition} &
+    \textrm{Default} & \textrm{Page} \\
+    \hline }
+  {
+  \end{ptable}
+}
+
+
+\newenvironment{unittable}[1]{
+  \par
+  \begin{minipage}{\linewidth}
+    \begin{tabular*}{\linewidth}{l@{\extracolsep{\fill}}l}
+      \multicolumn{2}{l}{\textbf{#1:}}\\
+    }
+    {
+    \end{tabular*}
+  \end{minipage}
+}
+
+
+\addtolength{\hoffset}{-1.0cm}
+\addtolength{\textwidth}{2.0cm}
+\addtolength{\voffset}{-1.0cm}
+\addtolength{\textheight}{1.5cm}
+
+\renewcommand{\ttdefault}{\sfdefault}
+
+%% Inverse parskip
+\newcommand{\invparskip}{\vspace*{-\parskip}}
+

@@ -1,0 +1,35 @@
+Geometry = GenFormat {
+    <<< "diamond.gen"
+}
+
+Driver = Socket {
+    Host = '127.0.0.1' # local host
+    Port = 21012
+    Verbosity = 0 # max verbose
+    Protocol = i-PI {} # i-PI interface
+    MaxSteps = 0 # Terminate this instance fairly quickly
+}
+
+Hamiltonian = DFTB{
+    MaxAngularMomentum = {
+        C = "p"
+    }
+    SlaterKosterFiles = Type2FileNames{
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    Filling = Fermi{
+        Temperature[K] = 300
+    }
+    KPointsAndWeights[absolute] = {
+        0.0 0.0 0.0 1.0
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
