@@ -1,67 +1,63 @@
 DPTOOLS: Processing and converting data related to the DFTB+ package
 ********************************************************************
 
-This package contains a few scripts which should make the life of DFTB+ users
-easier, by providing functions to process and convert various DFTB+ data
-formats. It contains currently the following utilities:
+This package contains a few scripts which should make the life of
+DFTB+ users easier by providing functions to process and convert
+various DFTB+ data formats. It currently contains the following
+utilities:
 
 dp_bands
-  Creates plottable band structure data from band.out
+  Creates plotable band structure data from band.out
 
 dp_dos
-  Creates plottable density of states or partial density of states data by
-  convolving the data produced by DFTB+ with gaussian broadening functions.
+  Creates plotable density of states or partial density of states data
+  by convolving the data produced by DFTB+ with (usually) gaussian
+  broadening functions.
 
 gen2cif
-  Converts a file in gen format to cif, which contains informations about
-  the periodic boundary conditions. Among others, Jmol is capable
-  to visualize cif files.
+  Converts a file in gen format to cif, which contains information
+  about the periodic boundary conditions. Among others, Jmol is
+  capable of visualising cif files.
 
 gen2xyz
-  Converts a file in gen format to xyz in order to visualize it with practically
-  all available molecular visualizers.
+  Converts a file in gen format to xyz in order to visualise it with
+  practically all available molecular visualisers.
 
 xyz2gen
   Converts an xyz file to gen file.
 
-Each script can be invoked with the option ``-h`` to obtain a short summary
-about its usage and possible options.
+Each script can be invoked with the option ``-h`` to obtain a short
+summary about its usage and possible options.
 
 
 Installation
 ============
 
-Please note, that the package needs at least **Python 2.6** or later. It should
-also work with Python 3.X. It additionally needs Numerical Python (the numpy
-module).
+Please note, that the package needs at least **Python 2.6** or
+later. It should also work with Python 3.X. It additionally needs
+Numerical Python (the numpy module).
+
+System install
+--------------
 
 You can install the script package via the standard 'python setup'
-mechanism. If you want to install it system-wide into your normal python
-installation, you simply issue::
+mechanism. If you want to install it system-wide into your normal
+python installation, you simply issue::
 
   python setup.py
 
-Alternatively, you can install it into a separate directory by specifying an
-appropriate installation path as prefix, e.g.::
+Local install
+-------------
 
-  python setup.py --prefix /home/user/dptools
+Alternatively, you can install it locally in your home space, e.g.::
 
-In latter case make sure that your environment variable ``$PYTHONPATH``
-contains the appropriate directory for the package and ``$PATH`` contains the
-path to the binaries. In bash-shell you would have to issue::
+  python setup.py install --user
 
-  export PATH=$PATH:/home/user/dptools/bin
-  export PYTHONPATH=$PYTHONPATH:/home/user/dptools/lib/pythonX.Y/site-packages
+If the local python install directory is not in your path, you should
+add this. For the bash shell you should include in .bashrc::
 
-while in tcsh shell you would have to execute::
+  export PATH=$PATH:/home/user/.local/bin
 
-  setenv PATH $PATH:/home/user/dptools/bin
-  setenv PYTHONPATH $PYTHONPATH:/home/user/dptools/lib/pythonX.Y/site-packages
+while in tcsh shell, you would have to add to your .cshrc::
 
-The letters X.Y stay for your python version (e.g. 2.6). If the last command
-fails because there is no PYTHONPATH defined in your sytem yet, issue::
-
-  setenv PYTHONPATH /home/user/dptools/lib/pythonX.Y/site-packages
-
-instead. You may put those commands in your initialization files ``.bashrc`` or
-``.cshrc`` as well, so that you do not have to enter them explicitely.
+  setenv PATH $PATH:/home/user/.local/bin
