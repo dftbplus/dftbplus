@@ -6,3 +6,5 @@ external/*/status
 _build*
 make.arch
 make.config
+__pycache__
+.idea
