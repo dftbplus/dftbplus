@@ -8,8 +8,8 @@ History
 
 The development of the DFTB+ package started 2004 at the University of Paderborn
 and was continued later as a joint project between the University of Bremen
-(Germany) and the University of Strathclyde (Glasgow, UK). Since 2017 the
-project is an open source project.
+(Germany) and the University of Strathclyde (Glasgow, UK).  Since 2017, DFTB+ is
+now an open source project.
 
 
 People
@@ -29,3 +29,7 @@ contributed to DFTB+ :
   of Matter, Germany)
 
 * Thomas Niehaus (University of Lyon, France)
+
+* Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
+
+* Gabriele Penazzi (QuantumWise A/S, Denmark)
