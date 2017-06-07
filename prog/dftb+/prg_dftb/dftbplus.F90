@@ -988,7 +988,7 @@ program dftbplus
         if (tWriteBandDat) then
           open(unit=fdBand, file=bandOut, action="write")
           do nk=1,nKPoint
-            write(fdBand,*)'KPT ',nk, ' KWEIGHT ', kweight(nk)
+            write(fdBand, *) 'KPT ',nk,' SPIN ', 1, ' KWEIGHT ', kweight(nK)
             do iEgy=1,sqrHamSize
               write(fdBand, formatEnergy) Hartree__eV*eigen(iEgy,nk,1),&
                   & filling(iEgy,nk,1)
