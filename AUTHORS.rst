@@ -32,4 +32,5 @@ contributed to DFTB+ :
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
 
-* Gabriele Penazzi (QuantumWise A/S, Denmark)
+* Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
+  QuantumWise A/S, Denmark)
