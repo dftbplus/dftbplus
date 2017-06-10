@@ -16,7 +16,7 @@ install: install_dftb+ install_modes install_waveplot
 install_misc: install_misc_skderivs install_misc_slakovalue
 
 .PHONY: test
-test: test_dftb+
+test: test_dftb+ test_dptools
 
 include make.config
 
@@ -73,6 +73,12 @@ test_dftb+:
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) test
 
 test_dftb+: dftb+
+
+
+test_dptools:
+	mkdir -p $(BUILDDIR)/test/tools/dptools
+	cd $< && $(ROOT)/test/tools/dptools/runtests.sh $(PYTHONS)
+
 
 ################################################################################
 # Install targets
