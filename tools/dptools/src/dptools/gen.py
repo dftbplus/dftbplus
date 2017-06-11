@@ -9,7 +9,7 @@
 '''Representation of the GEN format.'''
 
 import numpy as np
-from dptools.common import openfile
+from dptools.common import openfile, OpenFile
 from dptools.geometry import Geometry
 
 __all__ = ["Gen"]
@@ -44,9 +44,8 @@ class Gen:
             fobj: filename or file like object containing geometry in
                 GEN-format.
         """
-        fp = openfile(fobj, "r")
-        lines = fp.readlines()
-        fp.close()
+        with OpenFile(fobj, 'r') as fp:
+            lines = fp.readlines()
         words = lines[0].split()
         natom = int(words[0])
         flag = words[1].lower()
@@ -85,7 +84,7 @@ class Gen:
         Args:
             fobj: File name or file object where geometry should be written.
         """
-        fp = openfile(fobj, "w")
+        lines = []
         line = ["{0:d}".format(self.geometry.natom)]
         geo = self.geometry
         if geo.periodic:
@@ -100,18 +99,19 @@ class Gen:
             coords = geo.coords
 
         coords = _round_to_zero(coords, _TOLERANCE)
-        fp.write(" ".join(line) + "\n")
-        fp.write(" ".join(geo.specienames) + "\n")
+        lines.append(" ".join(line) + "\n")
+        lines.append(" ".join(geo.specienames) + "\n")
         for ii in range(geo.natom):
-            fp.write("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n".format(
-                ii + 1, geo.indexes[ii] + 1, *coords[ii]))
+            lines.append("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n"\
+                         .format(ii + 1, geo.indexes[ii] + 1, *coords[ii]))
         if geo.periodic:
             origin = _round_to_zero(geo.origin, _TOLERANCE)
-            fp.write("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*origin))
+            lines.append("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*origin))
             latvecs = _round_to_zero(geo.latvecs, _TOLERANCE)
             for vec in latvecs:
-                fp.write("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*vec))
-        fp.close()
+                lines.append("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*vec))
+        with OpenFile(fobj, 'w') as fp:
+            fp.writelines(lines)
 
 
     def equals(self, other, tolerance=_TOLERANCE):
