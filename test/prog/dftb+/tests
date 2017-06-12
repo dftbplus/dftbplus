@@ -1,9 +1,3 @@
-#
-# Tests to execute (make a separate one if you want your own custom settings)
-# If you add a new test, insert it according to its resource needs (more
-# resource intensive tests should be executed at the end).
-#
-# (Comment lines must have a '#' in the 1st column)
 derivatives/Si_2_Delta
 legacy/Si2_oldSKinterp
 legacy/Si2_polyRep
@@ -38,10 +32,12 @@ scc/C4H8_3rdfull
 scc/C4H8_3rdfull-damp
 spin/Fe4
 spin/Fe4_commonFermi
-timedep/2CH3-Temp
-timedep/2CH3-Triplet-Temp
-timedep/NO
-timedep/propadiene_OscWindow
+#ifdef WITH_ARPACK
+  timedep/2CH3-Temp
+  timedep/2CH3-Triplet-Temp
+  timedep/NO
+  timedep/propadiene_OscWindow
+#endif
 geoopt/H2O
 md/Si_8_NHC_restart
 non-scc/GaAs_2
@@ -49,11 +45,13 @@ scc/GaAs_2
 scc/GaAs_2_customU
 spinorbit/Fe2_dual
 spinorbit/Si_2
-timedep/C4H6-S1-Force
-timedep/C4H6-Singlet
-timedep/C4H6-Singlet_wfn
-timedep/C4H6-T1-Force
-timedep/C4H6-Triplet
+#ifdef WITH_ARPACK
+  timedep/C4H6-S1-Force
+  timedep/C4H6-Singlet
+  timedep/C4H6-Singlet_wfn
+  timedep/C4H6-T1-Force
+  timedep/C4H6-Triplet
+#endif
 dftb+u/Fe4
 geoopt/Cchain_lattice
 scc/H2O+CH3COOH-3rdorder
@@ -65,12 +63,14 @@ non-scc/10-0Ctube
 spin/Fe4_noncolinear
 non-scc/HBDI-neutral
 non-scc/HBDI-cationic
-timedep/cyclopentadienyl
 scc/C60
 spin/H2O
-timedep/C6H6-Sym
-timedep/C6H6-Sym_Arnoldi
-timedep/OCH2-S1-Opt
+#ifdef WITH_ARPACK
+  timedep/cyclopentadienyl
+  timedep/C6H6-Sym
+  timedep/C6H6-Sym_Arnoldi
+  timedep/OCH2-S1-Opt
+#endif
 md/Si_8_restart
 spin/GaAs_2
 spin/GaAs-spin-ext
@@ -84,7 +84,9 @@ scc/C60_Fermi
 scc/10-0Ctube-extfield
 scc/SiC_64
 md/H3
-dispersion/DNA_dftd3_zero
+#ifdef WITH_DFTD3
+  dispersion/DNA_dftd3_zero
+#endif
 sockets/diamond
 sockets/H2O
 spinorbit/GaAs_2
@@ -92,7 +94,9 @@ geoopt/Si_2_latconst
 md/SiH-surface
 geoopt/Si_2_lattice
 md/Si_8_NHC
-timedep/C66O10N4H44_Ewindow
+#ifdef WITH_ARPACK
+  timedep/C66O10N4H44_Ewindow
+#endif
 spin/Fe4_Fermi
 non-scc/Si41C23N35
 geoopt/diamond_isotropic
@@ -108,7 +112,9 @@ geoopt/GaAs_8_latconst
 md/Si_8-thermostat
 md/ptcda-xlbomdfast-ldep
 md/Si_8-tempprofile
-dispersion/DNA_dftd3_bj
+#ifdef WITH_DFTD3
+  dispersion/DNA_dftd3_bj
+#endif
 geoopt/Vsi+O-nonscc
 non-scc/Si_384
 md/DNA
@@ -116,9 +122,11 @@ md/DNA_Berendsen2
 md/ptcda-xlbomd
 md/SiC64-xlbomdfast-T0
 md/SiC64-xlbomdfast
-timedep/C66O10N4H44_OscWindow
-timedep/C60_OscWindow
-timedep/C60_EandOsc
+#ifdef WITH_ARPACK
+  timedep/C66O10N4H44_OscWindow
+  timedep/C60_OscWindow
+  timedep/C60_EandOsc
+#endif
 non-scc/Si_216
 md/ptcda-xlbomd-ldep
 geoopt/Vsi+O
