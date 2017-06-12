@@ -5,11 +5,13 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''General grid and grid data representations'''
+
 import numpy as np
 import numpy.linalg as la
 
-
-_FLOAT_TOLERANCE = 1E-12
+# Floating point tolerance for equality
+FLOAT_TOLERANCE = 1E-12
 
 
 GRID_COORD = 1
@@ -20,22 +22,22 @@ class Grid:
     """Represents parallelepiped grid with arbitrary number of dimensions.
 
     Args:
-        origin: Cartesian coordinates of the grid origin. Shape: ( ndim, )
+        origin: Cartesian coordinates of the grid origin. Shape: (ndim,)
         basis: Array of row vectors spanning the grid basis.
-            Shape: ( ndim, ndim ).
-        ranges: Ranges for the grid vector repetitions. Shape: ( ndim, 2 ).
+            Shape: (ndim, ndim).
+        ranges: Ranges for the grid vector repetitions. Shape: (ndim, 2).
 
     Attributes:
-        origin: Cartesian coordinates of the grid origin. Shape: ( ndim, )
+        origin: Cartesian coordinates of the grid origin. Shape: (ndim,)
         basis: Array of row vectors spanning the grid basis.
-            Shape: ( ndim, ndim )
+            Shape: (ndim, ndim)
         ranges: Ranges for grid vector repetitions along the axis.
-            Shape: ( ndim, 2 )
+            Shape: (ndim, 2)
         upper_bounds: Upper range bound (exclusive) for every axis.
-            Shape ( ndim, )
+            Shape (ndim,)
         lower_bounds: Lower range bound (inclusive) for every axis.
-            Shape ( ndim, )
-        shape: Nr. of grid points along each dimension. Shape: ( ndim, ).
+            Shape (ndim,)
+        shape: Nr. of grid points along each dimension. Shape: (ndim,).
         dimension: Dimension of the grid.
     """
 
@@ -46,7 +48,7 @@ class Grid:
         self.lower_bounds = self.ranges[:, 0]
         self.upper_bounds = self.ranges[:, 1]
         self.shape = self.upper_bounds - self.lower_bounds
-        self.shape.shape = ( -1, )
+        self.shape.shape = (-1,)
         self._invbasis = la.inv(basis)
         self.dimension = len(self.origin)
 
@@ -55,7 +57,7 @@ class Grid:
         """Sets a new origin for the grid.
 
         Args:
-            origin: Cartesian coordinates of the new origin. Shape ( ndim, ).
+            origin: Cartesian coordinates of the new origin. Shape (ndim,).
         """
         self.origin = np.array(origin, dtype=float)
 
@@ -64,7 +66,7 @@ class Grid:
         """Returns cartesian coordinates for given grid coordinates.
 
         Args:
-            gridcoords: Grid coordinates. Shape ( ndim, ) or ( -1, ndim ).
+            gridcoords: Grid coordinates. Shape (ndim,) or (-1, ndim).
 
         Returns:
             Corresponding cartesian coordinates.
@@ -78,7 +80,7 @@ class Grid:
         """Returns grid coordinates for given Cartesian coordinates.
 
         Args:
-            cartcoords: Cartesian coordinates. Shape ( ndim, ) or ( -1, ndim )
+            cartcoords: Cartesian coordinates. Shape (ndim,) or (-1, ndim)
 
         Returns:
             Corresponding grid coordinates.
@@ -99,16 +101,16 @@ class Grid:
             Coordinates of the 2**ndim corners of the parallelepipedon.
         """
         # Gives tuples for upper lower range indices for each dimension
-        # e.g. for 3D [[ 0, 0, 0 ], [ 0, 0, 1 ], [ 0, 1, 0 ], ..., [ 1, 1, 1 ]]
-        corner_inds = np.indices(( 2, ) * self.dimension)
-        corner_inds = corner_inds.reshape(( self.dimension, -1 )).transpose()
+        # e.g. for 3D [[0, 0, 0], [0, 0, 1], [0, 1, 0], ..., [1, 1, 1]]
+        corner_inds = np.indices((2,) * self.dimension)
+        corner_inds = corner_inds.reshape((self.dimension, -1)).transpose()
 
         # Calc. corners by taking the lower/upper range value for each dimension
         # according corner_inds
         corner_gridcoords = []
         for inds in corner_inds:
-            tmp = [ np.take(self.ranges[ii], inds[ii])
-                    for ii in range(self.dimension) ]
+            tmp = [np.take(self.ranges[ii], inds[ii])
+                   for ii in range(self.dimension)]
             corner_gridcoords.append(tmp)
         corner_gridcoords = np.vstack(corner_gridcoords)
         if coordtype == GRID_COORD:
@@ -126,9 +128,9 @@ class Grid:
                 coordinates, respectively.
 
         Returns:
-            Coordinates of all grid points. Shape ( -1, ngrid ).
+            Coordinates of all grid points. Shape (-1, ngrid).
         """
-        meshranges = [ range(*mrange) for mrange in self.ranges ]
+        meshranges = [range(*mrange) for mrange in self.ranges]
         meshgrid = np.meshgrid(*meshranges)
         gridcoords = np.transpose(meshgrid).reshape(-1, self.dimension)
         if coordtype == GRID_COORD:
@@ -151,12 +153,12 @@ class Grid:
                 fully in it.
         """
         diff = np.abs(subgrid.basis - self.basis)
-        if np.any(diff > _FLOAT_TOLERANCE):
+        if np.any(diff > FLOAT_TOLERANCE):
             raise ValueError("Incompatible gridvectors in subgrid")
         suborig_real = np.dot(subgrid.origin - self.origin, self._invbasis)
         suborig_int = np.rint(suborig_real).astype(int)
         diff = np.abs(suborig_real - suborig_int)
-        if np.any(diff > _FLOAT_TOLERANCE):
+        if np.any(diff > FLOAT_TOLERANCE):
             raise ValueError("Incompatible grid origins")
         lower_bounds = subgrid.lower_bounds + suborig_int
         upper_bounds = subgrid.upper_bounds + suborig_int
@@ -164,7 +166,7 @@ class Grid:
         contained = contained and np.all(upper_bounds <= self.upper_bounds)
         if not contained:
             raise ValueError("Subgrid not fully contained in grid.")
-        return np.transpose([ lower_bounds, upper_bounds ])
+        return np.transpose([lower_bounds, upper_bounds])
 
 
     def get_intersection_grid(self, other):
@@ -182,11 +184,11 @@ class Grid:
         other_corners_grid = self.cartesian_to_gridcoord(other_corners_cart)
         other_lower_bounds = np.min(other_corners_grid, axis=0)
         other_upper_bounds = np.max(other_corners_grid, axis=0)
-        lower_bounds = np.max([ self.lower_bounds, other_lower_bounds ], axis=0)
-        upper_bounds = np.min([ self.upper_bounds, other_upper_bounds ], axis=0)
+        lower_bounds = np.max([self.lower_bounds, other_lower_bounds], axis=0)
+        upper_bounds = np.min([self.upper_bounds, other_upper_bounds], axis=0)
         lower_bounds = np.floor(lower_bounds).astype(int)
         upper_bounds = np.ceil(upper_bounds).astype(int)
-        gridranges = np.vstack(( lower_bounds, upper_bounds )).transpose()
+        gridranges = np.vstack((lower_bounds, upper_bounds)).transpose()
         intersection_grid = Grid(self.origin.copy(), self.basis.copy(),
                                  gridranges)
         return intersection_grid
@@ -202,7 +204,7 @@ class Grid:
             True if subgrid is a true subgrid of current grid, False otherwise.
         """
         try:
-            subranges = self.get_subgrid_ranges(subgrid)
+            _ = self.get_subgrid_ranges(subgrid)
         except ValueError:
             return False
         return True
@@ -212,12 +214,12 @@ class Grid:
         """Cheks whether a given position is within the boundaries of the grid.
 
         Args:
-            gridcoord: Grid coordinates. Shape: ( -1, ndim ) or ( ndim, )
+            gridcoord: Grid coordinates. Shape: (-1, ndim) or (ndim,)
 
         Returns:
             True if the grid coordinate is within the grid region.
         """
-        gridcoords = np.reshape(gridcoord, ( -1, self.dimension ))
+        gridcoords = np.reshape(gridcoord, (-1, self.dimension))
         is_inside = np.logical_and(self.lower_bounds <= gridcoords,
                                    gridcoords < self.upper_bounds)
         is_inside = np.logical_and.reduce(is_inside, axis=1)
@@ -227,7 +229,7 @@ class Grid:
 
 class GridData:
     """Connects grid with volumetric data.
-    
+
     Args:
         grid: Volumetric grid.
         data: Volumetric data.
@@ -258,7 +260,7 @@ class GridData:
         """
         subgrid_ranges = self.grid.get_subgrid_ranges(subgrid)
         relative_ranges = subgrid_ranges - self.grid.lower_bounds[:, np.newaxis]
-        sliceobj = [ slice(*relrange) for relrange in relative_ranges ]
+        sliceobj = [slice(*relrange) for relrange in relative_ranges]
         return self.data[sliceobj]
 
 
@@ -266,7 +268,7 @@ class GridData:
         """Returns the value for a given (exact) grid position.
 
         Args:
-            gridcoords: Grid coordinates. Shape: ( -1, ndim ) or ( ndim, )
+            gridcoords: Grid coordinates. Shape: (-1, ndim) or (ndim,)
 
         Returns:
             Data value for given position.
@@ -281,22 +283,23 @@ class GridData:
         """Returns an interpolated value for an arbitrary position.
 
         Args:
-            coords: Position coordinates. Shape: ( -1, ndim ) or ( ndim, ).
-                The interpolation is done via the
-                get_interpolated_value_gridcoord() method.
+            coords: Position coordinates. Shape: (-1, ndim) or (ndim,).  The
+                interpolation is done via the get_interpolated_value_gc()
+                method.
             coordtype: Coordinate type (GRID_COORD or CARTESIAN_COORD)
 
         Returns:
             Interpolated data.
+
         """
         if coordtype == GRID_COORD:
             gridcoords = coords
         else:
             gridcoords = self.grid.cartesian_to_gridcoord(coords)
-        return self.get_interpolated_value_gridcoord(gridcoords)
+        return self.get_interpolated_value_gc(gridcoords)
 
 
-    def get_interpolated_value_gridcoord(self, gridcoords):
+    def get_interpolated_value_gc(self, gridcoords):
         """Returns an interpolated value for an arbitrary grid position.
 
         In the current implementation this is the crudest possible
@@ -305,8 +308,8 @@ class GridData:
         be returned.
 
         Args:
-            gridcoords: Positions as grid coordinates. Shape ( -1, ndim ) or
-                ( ndim, ).
+            gridcoords: Positions as grid coordinates. Shape (-1, ndim) or
+                (ndim,).
         """
         values = np.zeros(len(gridcoords), dtype=self.data.dtype)
         gridcoords = np.floor(gridcoords).astype(int)

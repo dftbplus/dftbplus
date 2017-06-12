@@ -6,9 +6,8 @@
 #------------------------------------------------------------------------------#
 #
 
-############################################################################
-# Various commonly used routines.
-############################################################################
+'''Various commonly used items of the dptools package.'''
+
 import gzip
 
 def openfile(fobj, mode=None):
@@ -32,3 +31,46 @@ def openfile(fobj, mode=None):
     else:
         fp = fobj
     return fp
+
+
+
+class OpenFile:
+    '''Represents an open file.
+
+    It can either transparently pass through an already opened file descriptor
+    (file like object) or open a file itself and close it at exit.
+    '''
+
+    def __init__(self, fobj, mode=None):
+        '''Initialises an open file.
+
+        Args:
+            fobj (str or file object): File to open. If it is a string, it
+                represents the name of the file, otherwise it should be a file
+                like object. If it is a file name and ends with '.gz' the file
+                is opened as a gzipped file.
+            mode (str): Opening mode for the file (provided fobj represents a
+                file name).
+        '''
+        self._fobj = fobj
+        self._mode = mode if mode is not None else 'r'
+        self._open = None
+        if isinstance(fobj, str):
+            if fobj.endswith(".gz"):
+                self._open = gzip.open
+            else:
+                self._open = open
+        self._fp = None
+
+
+    def __enter__(self):
+        if self._open is not None:
+            self._fp = self._open(self._fobj, self._mode)
+        else:
+            self._fp = self._fobj
+        return self._fp
+
+
+    def __exit__(self, *args):
+        if self._open is not None:
+            self._fp.close()

@@ -5,16 +5,14 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Information in CIF-files (only basic informations)'''
 
-############################################################################
-# Information in CIF-files (only basic informations)
-############################################################################
 import numpy as np
 from dptools.common import openfile
 
-__all__ = [ "CIF", ]
+__all__ = ["Cif"]
 
-class CIF:
+class Cif:
     """Representation of a CIF file.
 
     Attributes:
@@ -30,8 +28,8 @@ class CIF:
             geometry: geometry object with atom positions and lattice vectors.
         """
         self.geometry = geometry
-        self.celllengths = np.array([ np.sqrt(np.sum(vv**2))
-                                      for vv in geometry.latvecs ], dtype=float)
+        self.celllengths = np.array([np.sqrt(np.sum(vv**2))
+                                     for vv in geometry.latvecs], dtype=float)
         # cellangles in radians (alpha, beta and gamma as in crystallography)
         self.cellangles = np.empty(3, dtype=float)
         for ii in range(3):
@@ -43,6 +41,11 @@ class CIF:
             self.cellangles[ii] = np.arccos(dot)
 
     def tofile(self, fobj):
+        """Writes a CIF file.
+
+        Args:
+            fobj: File name or file object where geometry should be written.
+        """
         geo = self.geometry
         fp = openfile(fobj, "w")
         fp.write("data_global\n")

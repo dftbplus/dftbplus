@@ -5,9 +5,9 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Global imports for dptools.'''
 
-from dptools.bandout import BandOut
-from dptools.gen import Gen
-from dptools.xyz import Xyz
-from dptools.cif import Cif
+'''Common things needed by command line scripts.'''
+
+
+class ScriptError(Exception):
+    '''Exception thrown by command line scripts.'''

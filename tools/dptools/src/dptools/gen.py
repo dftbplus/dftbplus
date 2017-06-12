@@ -6,14 +6,17 @@
 #------------------------------------------------------------------------------#
 #
 
-############################################################################
-# Representation of the GEN format
-############################################################################
+'''Representation of the GEN format.'''
+
 import numpy as np
-from dptools.common import openfile
+from dptools.common import OpenFile
 from dptools.geometry import Geometry
 
-__all__ = [ "Gen", ]
+__all__ = ["Gen"]
+
+
+_TOLERANCE = 1E-10
+
 
 class Gen:
     """Representation of a GEN file.
@@ -22,13 +25,15 @@ class Gen:
         geometry: Geometry object with atom positions and lattice vectors.
     """
 
-    def __init__(self, geometry):
+    def __init__(self, geometry, fractional=False):
         """Initializes the instance.
 
         Args:
             geometry: geometry object containing the geometry information.
+            fractional: Whether fractional coordinates are preferred.
         """
         self.geometry = geometry
+        self.fractional = fractional
 
 
     @classmethod
@@ -39,9 +44,8 @@ class Gen:
             fobj: filename or file like object containing geometry in
                 GEN-format.
         """
-        fp = openfile(fobj, "r")
-        lines = fp.readlines()
-        fp.close()
+        with OpenFile(fobj, 'r') as fp:
+            lines = fp.readlines()
         words = lines[0].split()
         natom = int(words[0])
         flag = words[1].lower()
@@ -71,22 +75,20 @@ class Gen:
             latvecs = None
         geometry = Geometry(specienames, indexes, coords, latvecs, origin,
                             relative)
-        return cls(geometry)
+        return cls(geometry, relative)
 
 
-    def tofile(self, fobj, relcoords=False):
+    def tofile(self, fobj):
         """Writes a GEN file.
 
         Args:
             fobj: File name or file object where geometry should be written.
-            relcoords: If true, geometry will be outputted in relative
-                coordinates (as multiples of the lattice vectors)
         """
-        fp = openfile(fobj, "w")
-        line = [ "{0:d}".format(self.geometry.natom), ]
+        lines = []
+        line = ["{0:d}".format(self.geometry.natom)]
         geo = self.geometry
         if geo.periodic:
-            if relcoords:
+            if self.fractional:
                 line.append("F")
                 coords = geo.relcoords
             else:
@@ -95,13 +97,41 @@ class Gen:
         else:
             line.append("C")
             coords = geo.coords
-        fp.write(" ".join(line) + "\n")
-        fp.write(" ".join(geo.specienames) + "\n")
+
+        coords = _round_to_zero(coords, _TOLERANCE)
+        lines.append(" ".join(line) + "\n")
+        lines.append(" ".join(geo.specienames) + "\n")
         for ii in range(geo.natom):
-            fp.write("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n".format(
-                ii + 1, geo.indexes[ii] + 1, *coords[ii]))
+            lines.append("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n"\
+                         .format(ii + 1, geo.indexes[ii] + 1, *coords[ii]))
         if geo.periodic:
-            fp.write("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*geo.origin))
-            for vec in geo.latvecs:
-                fp.write("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*vec))
-        fp.close()
+            origin = _round_to_zero(geo.origin, _TOLERANCE)
+            lines.append("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*origin))
+            latvecs = _round_to_zero(geo.latvecs, _TOLERANCE)
+            for vec in latvecs:
+                lines.append("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*vec))
+        with OpenFile(fobj, 'w') as fp:
+            fp.writelines(lines)
+
+
+    def equals(self, other, tolerance=_TOLERANCE):
+        '''Checks whether object equals to an other one.
+
+        Args:
+            other (Gen): Other Gen object.
+            tolerance (float): Maximal allowed deviation in floating point
+                numbers (e.g. coordinates).
+        '''
+        if not self.fractional == other.fractional:
+            return False
+        if not self.geometry.equals(other.geometry, tolerance):
+            return False
+        return True
+
+
+def _round_to_zero(array, tolerance):
+    '''Rounds elements of an array to zero below given tolerance.'''
+    if tolerance is None:
+        return array
+    else:
+        return np.where(abs(array) < tolerance, 0.0, array)

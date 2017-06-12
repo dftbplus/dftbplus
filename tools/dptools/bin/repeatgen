@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
 #  Copyright (C) 2017  DFTB+ developers group                                  #
@@ -5,9 +6,15 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Global imports for dptools.'''
 
-from dptools.bandout import BandOut
-from dptools.gen import Gen
-from dptools.xyz import Xyz
-from dptools.cif import Cif
+'''Command line wrapper for repeatgen'''
+
+import sys
+from dptools.scripts.common import ScriptError
+import dptools.scripts.repeatgen as repeatgen
+
+try:
+    repeatgen.main()
+except ScriptError as exc:
+    sys.stderr.write('ScriptError: ' + str(exc) + '\n')
+    sys.exit(1)

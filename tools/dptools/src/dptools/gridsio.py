@@ -5,12 +5,15 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''I/O routines for grids.'''
+
 import numpy as np
 from . import grids
 
 
 def scalarvtk(fname, griddata, varname='var'):
-    """Save a scalar field from a Grid Data oject as a structured 3D VTK ASCII file.
+    """Save a scalar field from a GridData object as a structured 3D VTK ASCII
+    file.
 
     Args:
         griddata (GridData): object containing grid and scalar field
@@ -21,7 +24,7 @@ def scalarvtk(fname, griddata, varname='var'):
     if hasattr(fname, 'write'):
         fh = fname
         closefh = False
-    elif isinstance(fname, basestring):
+    elif isinstance(fname, str):
         fh = open(fname, 'wb')
         closefh = True
     else:
@@ -29,11 +32,11 @@ def scalarvtk(fname, griddata, varname='var'):
 
     ndim = griddata.grid.dimension
 
-    # Verify constrains on basis and data (scalar field and oriented along x,y,z)
+    # Verify constrains on basis and data (scalar field, oriented along x,y,z)
     if len(griddata.data.shape) != 3:
         raise ValueError('GridData object must represent a 3D scalar vector')
     if (np.multiply(griddata.grid.basis, np.eye(3))
-            - griddata.grid.basis > grids._FLOAT_TOLERANCE).any():
+            - griddata.grid.basis > grids.FLOAT_TOLERANCE).any():
         raise ValueError('GridData Grid basis must be oriented along xyz')
 
     fh.write('# vtk DataFile Version 3.0 \n')
@@ -78,7 +81,7 @@ def cube(fname, griddata, header='dptools cube file'):
     if hasattr(fname, 'write'):
         fh = fname
         closefh = False
-    elif isinstance(fname, basestring):
+    elif isinstance(fname, str):
         fh = open(fname, 'wb')
         closefh = True
     else:
@@ -88,11 +91,11 @@ def cube(fname, griddata, header='dptools cube file'):
     if ndim != 3:
         raise ValueError('cube output only valid for 3D systems')
 
-    # Verify constrains on basis and data (scalar field and oriented along x,y,z)
+    # Verify constrains on basis and data (scalar field, oriented along x,y,z)
     if len(griddata.data.shape) != 3:
         raise ValueError('GridData object must represent a 3D scalar vector')
     if (np.multiply(griddata.grid.basis, np.eye(3))
-            - griddata.grid.basis > grids._FLOAT_TOLERANCE).any():
+            - griddata.grid.basis > grids.FLOAT_TOLERANCE).any():
         raise ValueError('GridData Grid basis must be oriented along xyz')
 
     fh.write('#{}\n'.format(header))

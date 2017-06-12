@@ -6,21 +6,23 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Potential/charge data conversion to cube format.'''
+
 import argparse
 import dptools.gridsio as gridsio
 import dptools.grids as grids
 import dptools.common as common
 import numpy as np
-import gzip
 
-USAGE = """
-        Convert the potential or charge data file from dftb+ transport
-        calculation to a Gaussian Cube format. Data file can also be gzip
-        compressed.
-        """
+
+USAGE = """Convert the potential or charge data file from dftb+ transport
+calculation to a Gaussian Cube format.
+"""
 
 
 def main():
+    '''Main driver routine for makecube.'''
+
     parser = argparse.ArgumentParser(description=USAGE)
 
     helpstring = 'file containing X vector coordinates (default Xvector.dat)'
@@ -75,18 +77,18 @@ def main():
 
     if args.format is None:
         if args.dest.endswith('.cub') or args.dest.endswith('.cube'):
-            format = 'cube'
+            outformat = 'cube'
         elif args.dest.endswith('.vtk'):
-            format = 'vtk'
+            outformat = 'vtk'
 
-    if format == 'vtk':
+    if outformat == 'vtk':
         gridsio.scalarvtk(args.dest, griddata,
                           varname=args.dest.split('.')[0])
-    elif format == 'cube':
+    elif outformat == 'cube':
         gridsio.cube(args.dest, griddata)
     else:
         raise ValueError('Cannot determine output format in '
-                     'makecube:unknown file extension')
+                         'makecube:unknown file extension')
 
 if __name__ == "__main__":
     main()

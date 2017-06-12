@@ -6,13 +6,13 @@
 #------------------------------------------------------------------------------#
 #
 
-############################################################################
-# Representation of a geometry
-############################################################################
+'''Representation of a geometry'''
+
 import numpy as np
 import numpy.linalg as la
 
-__all__ = [ "Geometry", ]
+__all__ = ["Geometry"]
+
 
 class Geometry:
     """Atomic geometry representation.
@@ -29,7 +29,7 @@ class Geometry:
         latvecs: Lattice vectors (None for non-periodic structures).
         relcoords: Relative lattice coordinates (None if non-periodic).
     """
-  
+
     def __init__(self, specienames, indexes, coords, latvecs=None, origin=None,
                  relcoords=False):
         """Initializes a geometry object.
@@ -38,7 +38,7 @@ class Geometry:
             specienames: Names of the species occuring in the geometry.
             indexes: Species index for every atom. Shape (natom,)
             coords: Coordinates of the atoms.
-            latvecs: Lattice vectors (default: None, non-periodic modell). 
+            latvecs: Lattice vectors (default: None, non-periodic modell).
             origin: Origin of the primitive cell (default (0.0, 0.0, 0.0))
             relcoords: If set to yes, coordinates are assumed to be relative
                 coordinates specified as multiples of the lattice vectors.
@@ -68,7 +68,7 @@ class Geometry:
             self._invlatvecs = None
             self.relcoords = None
 
-    
+
     def setlattice(self, latvecs, origin=None):
         """Makes geometry periodic or changes supercell vectors.
 
@@ -84,3 +84,29 @@ class Geometry:
             self.origin = np.array(origin, dtype=float)
         self.relcoords = np.dot(self.coords - self.origin, self._invlatvecs)
         self.periodic = True
+
+
+    def equals(self, other, tolerance):
+        '''Checks whether object equals to an other one.
+
+        Args:
+            other (Geometry): Other geometry.
+            tolerance (float): Maximal allowed deviation in floating point
+                numbers (e.g. coordinates).
+        '''
+        if self.specienames != other.specienames:
+            return False
+        if np.any(self.indexes != other.indexes):
+            return False
+        if np.any(abs(self.coords - other.coords) > tolerance):
+            return False
+        if np.any(abs(self.origin - other.origin) > tolerance):
+            return False
+        if self.periodic != other.periodic:
+            return False
+        if self.periodic:
+            if np.any(abs(self.latvecs - other.latvecs) > tolerance):
+                return False
+            if np.any(abs(self.relcoords - other.relcoords) > tolerance):
+                return False
+        return True

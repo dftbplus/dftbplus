@@ -6,17 +6,13 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Converts XYZ to DFTB+ gen format'''
 
-###############################################################################
-#
-# Convert XYZ to DFTB+ gen format
-#
-###############################################################################
 import sys
 import optparse
 import numpy as np
 from dptools.gen import Gen
-from dptools.xyz import XYZ
+from dptools.xyz import Xyz
 
 USAGE = """usage: %prog [options] INPUT
 
@@ -26,6 +22,8 @@ otherwise in INPUT.gen. You can additionally specify a file with lattice
 vectors to create a periodic structure in the GEN file."""
 
 def main():
+    '''Main driver routine of xyz2gen.'''
+
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option("-l", "--lattice-file", action="store", dest="lattfile",
                       help="read lattice vectors from an external file")
@@ -42,7 +40,7 @@ def main():
         parser.error("You must specify exactly one argument (input file).")
     infile = args[0]
 
-    xyz = XYZ.fromfile(infile)
+    xyz = Xyz.fromfile(infile)
     geo = xyz.geometry
     if options.lattfile:
         fp = open(options.lattfile, "r")
@@ -50,7 +48,7 @@ def main():
         latvecs = tmp.reshape((3, 3))
         fp.close()
         geo.setlattice(latvecs)
-    gen = Gen(geo)
+    gen = Gen(geo, fractional=options.fractional)
 
     if options.output:
         if options.output == "-":
@@ -62,7 +60,7 @@ def main():
             outfile = infile[:-4] + ".gen"
         else:
             outfile = infile + ".gen"
-    gen.tofile(outfile, relcoords=options.fractional)
+    gen.tofile(outfile)
 
 if __name__ == "__main__":
     main()

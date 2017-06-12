@@ -6,17 +6,13 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Converts DFTB+ gen format to CIF.'''
 
-###############################################################################
-#
-# Converts DFTB+ gen format to CIF.
-#
-###############################################################################
 import sys
 import optparse
 import numpy as np
 from dptools.gen import Gen
-from dptools.cif import CIF
+from dptools.cif import Cif
 
 USAGE = """usage: %prog [options] INPUT
 
@@ -29,6 +25,8 @@ simple cubic.
 """
 
 def main():
+    '''Main driver for gencif.'''
+
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option("-o", "--output", action="store", dest="output",
                       help="override the name of the output file (use '-' for "
@@ -48,7 +46,7 @@ def main():
     geometry = gen.geometry
     if not geometry.periodic:
         geometry.setlattice(options.cellsize * np.eye(3))
-    cif = CIF(gen.geometry)
+    cif = Cif(gen.geometry)
 
     if options.output:
         if options.output == "-":
@@ -61,6 +59,7 @@ def main():
         else:
             outfile = infile + ".cif"
     cif.tofile(outfile)
+
 
 if __name__ == "__main__":
     main()
