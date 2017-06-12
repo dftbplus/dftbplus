@@ -42,6 +42,9 @@ TESTFILE := $(TESTDIR)/tests
 # Autotest working directory
 AUTOTEST_WORKDIR := _autotest
 
+# Where to put processed testfile
+PROCESSED_TESTFILE := _tests
+
 # Program to use for running and comparing
 AUTOTEST_SCRIPT := $(TESTDIR)/bin/autotest2
 TAGDIFF_SCRIPT := $(TESTDIR)/bin/tagdiff
@@ -51,8 +54,10 @@ AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
 	        -d $(TAGDIFF_SCRIPT)
 
 # Get list of tests to execute, but only if test is specified as goal
+CREATE_TESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
+	$(shell $(FPP) $(CPP) $(CPPOPT) $(TESTFILE) > $(PROCESSED_TESTFILE)),)
 TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
-	$(shell $(AUTOTEST_CMD) -f $(TESTFILE) -l),)
+	$(shell $(AUTOTEST_CMD) -f $(PROCESSED_TESTFILE) -l),)
 
 
 .PHONY: $(TESTS) test
