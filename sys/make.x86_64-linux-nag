@@ -8,7 +8,7 @@ FXX = nagfor
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -ieee=full
+FXXOPT = -O2 -ieee=full -openmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Preprocessor
@@ -20,14 +20,13 @@ FPP = $(ROOT)/utils/build/fpp/fpp.sh noln2
 
 # Linker
 LN = $(FXX)
-LNOPT =
+LNOPT = -openmp
 
 # NAG compiler (6.1, build 6120) produces wrong numbers on OMP vector
-# reduction as used in the time-dependent part. Openmp parallelisation
-# is only added, if compiled without ARPACK (and td-dftb).
-ifneq ($(strip $(WITH_ARPACK)),1)
-    FXXOPT += -openmp
-    LNOPT += -openmp
+# reduction as used in the time-dependent part, unless loop unrolling
+# is restricted.
+ifeq ($(strip $(WITH_ARPACK)),1)
+    FXXOPT += -Ounroll=1
 endif
 
 # Library options in general
