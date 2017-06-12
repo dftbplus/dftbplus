@@ -6,12 +6,9 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Convolves band.out-like files into DOS/PDOS via Gaussian broadening'''
 
-###############################################################################
-#
-# Convolves band.out-like files of DFTB+ into DOS/PDOS via Gaussian broadening
-#
-###############################################################################
+from __future__ import print_function
 import argparse
 import numpy as np
 from dptools.bandout import BandOut
@@ -35,11 +32,13 @@ DEFAULT_GRID_SEPARATION = 0.01
 
 GAUSS_BROADENING = "gauss"
 FERMI_BROADENING = "fermi"
-BROADENING_FUNCTIONS = [ GAUSS_BROADENING, FERMI_BROADENING ]
+BROADENING_FUNCTIONS = [GAUSS_BROADENING, FERMI_BROADENING]
 
-DEFAULT_RANGES = { GAUSS_BROADENING: 3.5,
-                   FERMI_BROADENING: 7.0,
-                   }
+DEFAULT_RANGES = {
+    GAUSS_BROADENING: 3.5,
+    FERMI_BROADENING: 7.0,
+}
+
 DEFAULT_WIDTHS = {
     GAUSS_BROADENING: 0.1,
     FERMI_BROADENING: 0.1,
@@ -47,6 +46,8 @@ DEFAULT_WIDTHS = {
 
 
 def parse_arguments():
+    '''Parses command line arguments'''
+
     parser = argparse.ArgumentParser(description=USAGE)
 
     msg = "grid separation (default: {0:.2f})".format(DEFAULT_GRID_SEPARATION)
@@ -56,25 +57,25 @@ def parse_arguments():
     msg = "create pdos or occupation weighted dos"
     parser.add_argument("-w", "--weight-occ", action="store_true",
                         dest="occweight", default=False, help=msg)
-    
+
     msg = "broadening function (default: gauss)"
     parser.add_argument("-f", "--broadening-function", dest="broadening",
                         choices=BROADENING_FUNCTIONS, default=GAUSS_BROADENING,
                         help=msg)
 
     msg = "broadening width sigma (default: gauss {:.2f}, fermi {:.2f})"\
-        .format(DEFAULT_WIDTHS[GAUSS_BROADENING], 
+        .format(DEFAULT_WIDTHS[GAUSS_BROADENING],
                 DEFAULT_WIDTHS[FERMI_BROADENING])
     parser.add_argument("-b", "--broadening-width", type=float, metavar="WIDTH",
                         dest="broadwidth", help=msg, default=-1.0)
-    
+
     msg = "number of sigmas after which the broadening function is "\
           "considered to be zero (default: gauss {0:.2f}, fermi {1:.2f})"\
         .format(DEFAULT_RANGES[GAUSS_BROADENING],
                 DEFAULT_RANGES[FERMI_BROADENING])
     parser.add_argument("-s", "--sigma-range", type=float, metavar="RANGE",
                         dest="broadrange", default=-1.0, help=msg)
-    
+
     msg = "turn on verbose operation"
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
                         default=False, help=msg)
@@ -87,9 +88,11 @@ def parse_arguments():
 
     return parser.parse_args()
 
-    
+
 
 def main():
+    '''Main driver routine for dp_dos.'''
+
     args = parse_arguments()
 
     infile = args.inputfile
@@ -105,11 +108,11 @@ def main():
         sigmarange = DEFAULT_RANGES[broadening]
     else:
         sigmarange = args.broadrange
-    
+
     bandout = BandOut.fromfile(infile)
     eigvals = bandout.eigvalarray
     if not args.occweight:
-        eigvals[:,:,:,1] = 1.0
+        eigvals[:, :, :, 1] = 1.0
 
     if broadening == GAUSS_BROADENING:
         aa = 1.0 / (sigma * np.sqrt(2.0 * np.pi))
@@ -121,10 +124,10 @@ def main():
         broadening_function = lambda x: 1.0 / (1.0 + np.cosh(bb * x))
 
     dsigma = sigmarange * sigma
-    gridres = args.gridres    
-    
-    minval = np.min(eigvals[:,:,:,0]) - dsigma
-    maxval = np.max(eigvals[:,:,:,0]) + dsigma
+    gridres = args.gridres
+
+    minval = np.min(eigvals[:, :, :, 0]) - dsigma
+    maxval = np.max(eigvals[:, :, :, 0]) + dsigma
 
     if args.verbose:
         if broadening == GAUSS_BROADENING:
@@ -167,11 +170,12 @@ def main():
     else:
         ytotal = np.sum(yvals, axis=0)
         formstr0 = "{0:18.10E} "
-        tmp = [ "{" + "{0:d}".format(ii) + ":18.10E}" for ii in
-                range(1,  bandout.nspin + 2) ]
+        tmp = ["{" + "{0:d}".format(ii) + ":18.10E}" for ii in
+               range(1, bandout.nspin + 2)]
         formstr = formstr0 + " ".join(tmp) + "\n"
-        for ii in range(len(xvals)):
-            fp.write(formstr.format(xvals[ii], ytotal[ii], *yvals[:,ii]))
+        nvals = len(xvals)
+        for ii in range(nvals):
+            fp.write(formstr.format(xvals[ii], ytotal[ii], *yvals[:, ii]))
     fp.close()
 
 

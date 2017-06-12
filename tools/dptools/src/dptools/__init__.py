@@ -5,7 +5,9 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-from dptools.bandout import *
-from dptools.gen import *
-from dptools.xyz import *
+'''Global imports for dptools.'''
 
+from dptools.bandout import BandOut
+from dptools.gen import Gen
+from dptools.xyz import Xyz
+from dptools.cif import Cif

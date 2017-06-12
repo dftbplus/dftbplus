@@ -6,17 +6,12 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Convert DFTB+ gen format to XYZ.'''
 
-###############################################################################
-#
-# Convert DFTB+ gen format to XYZ
-#
-###############################################################################
 import sys
 import optparse
-import numpy as np
 from dptools.gen import Gen
-from dptools.xyz import XYZ
+from dptools.xyz import Xyz
 
 USAGE = """usage: %prog [options] INPUT
 
@@ -26,6 +21,8 @@ otherwise in INPUT.xyz. You can additionally store lattice vectors of the GEN
 file in a separate file"""
 
 def main():
+    '''Main driver routine for gen2xyz.'''
+
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option("-l", "--lattice-file", action="store", dest="lattfile",
                       help="store lattice vectors in an external file")
@@ -43,7 +40,7 @@ def main():
     infile = args[0]
 
     gen = Gen.fromfile(infile)
-    xyz = XYZ(gen.geometry, options.comment)
+    xyz = Xyz(gen.geometry, options.comment)
     if options.output:
         if options.output == "-":
             outfile = sys.stdout

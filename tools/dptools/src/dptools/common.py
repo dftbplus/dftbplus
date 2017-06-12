@@ -40,10 +40,10 @@ class OpenFile:
     It can either transparently pass through an already opened file descriptor
     (file like object) or open a file itself and close it at exit.
     '''
-    
+
     def __init__(self, fobj, mode=None):
         '''Initialises an open file.
-        
+
         Args:
             fobj (str or file object): File to open. If it is a string, it
                 represents the name of the file, otherwise it should be a file
@@ -61,7 +61,7 @@ class OpenFile:
             else:
                 self._open = open
         self._fp = None
-        
+
 
     def __enter__(self):
         if self._open is not None:

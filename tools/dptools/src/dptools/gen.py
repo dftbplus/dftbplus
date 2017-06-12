@@ -9,7 +9,7 @@
 '''Representation of the GEN format.'''
 
 import numpy as np
-from dptools.common import openfile, OpenFile
+from dptools.common import OpenFile
 from dptools.geometry import Geometry
 
 __all__ = ["Gen"]

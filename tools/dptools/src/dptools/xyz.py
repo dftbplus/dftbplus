@@ -5,24 +5,22 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Representation of the XYZ-format'''
 
-############################################################################
-# Representation of the XYZ-format
-############################################################################
 import numpy as np
 from dptools.common import openfile
 from dptools.geometry import Geometry
 
-__all__ = [ "XYZ", ]
+__all__ = ["Xyz"]
 
-class XYZ:
+class Xyz:
     """Representation of an XYZ-file.
 
     Attributes:
         geometry: Geometry object with atom positions.
         comment: Content of the comment line in the XYZ-file.
     """
-    
+
     def __init__(self, geometry, comment=""):
         """Creates XYZ-instance.
 

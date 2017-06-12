@@ -5,23 +5,21 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
+'''Information from band.out like files'''
 
-############################################################################
-# Information from band.out like files
-############################################################################
 import re
 import numpy as np
 from dptools.common import openfile
 
-__all__ = [ "BandOut", ]
+__all__ = ["BandOut"]
 
-PAT_BLOCK = re.compile(r"""KPT\s*(?P<ikpt>\d+)\s+
-                           (?:SPIN\s*(?P<ispin>\d+)\s+)?
-                           (?:KWEIGHT\s*
-                               (?P<kweight>\d+\.\d+(?:[eE][+-]\d+)?)\s+)?
-                           (?P<vals>
-                               (?:(?:[+-]?\d+\.\d+(?:[eE][+-]\d+)?\s+){2})+)
-                           """, re.VERBOSE | re.MULTILINE)
+_PAT_BLOCK = re.compile(r"""KPT\s*(?P<ikpt>\d+)\s+
+                            (?:SPIN\s*(?P<ispin>\d+)\s+)?
+                            (?:KWEIGHT\s*
+                                (?P<kweight>\d+\.\d+(?:[eE][+-]\d+)?)\s+)?
+                            (?P<vals>
+                                (?:(?:[+-]?\d+\.\d+(?:[eE][+-]\d+)?\s+){2})+)
+                            """, re.VERBOSE | re.MULTILINE)
 
 
 class BandOut:
@@ -62,7 +60,7 @@ class BandOut:
         ispins = set()
         kweights = []
         eigvalarrays = []
-        match = PAT_BLOCK.search(txt)
+        match = _PAT_BLOCK.search(txt)
         while match:
             ispin = match.group("ispin")
             if ispin:
@@ -76,9 +74,11 @@ class BandOut:
                 kweights.append(1.0)
             tmp = np.array(match.group("vals").split(), dtype=float)
             eigvalarrays.append(tmp.reshape((-1, 2)))
-            match = PAT_BLOCK.search(txt, match.end())
+            match = _PAT_BLOCK.search(txt, match.end())
         nspin = len(ispins)
         nkpt = len(eigvalarrays) / nspin
-        eigvalspin = np.array(eigvalarrays).reshape((nspin, nkpt, -1, 2))
-        kweights = np.array(kweights).reshape((nspin, nkpt))
+        eigvalspin = np.array(eigvalarrays)
+        eigvalspin.shape = (nspin, nkpt, -1, 2)
+        kweights = np.array(kweights)
+        kweights.shape = (nspin, nkpt)
         return cls(kweights, eigvalspin)
