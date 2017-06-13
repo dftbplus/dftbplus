@@ -1,41 +1,19 @@
-\documentclass[a4paper,11pt]{report}
+\chapter{\waveplot}
 
-\include{packages}
-\makeindex
-\include{newcommands}
-\newcommand{\waveplot}{\textsc{Waveplot}}
+The \waveplot{} program is a tool for the visualisation of molecular orbitals.
+Based on the files created by a calculation performed by \dftbp{} it is capable
+of producing three dimensional information about the charge distribution. The
+information is stored as cube files, which can be visualised with many common
+graphical tools (e.g. \textsc{vmd} or \textsc{Jmol}).
 
-\title{\textbf{\waveplot: An orbital visualisation tool\\\ \\Manual}}
-\date{}
-\author{Bálint Aradi}
-
-
-\begin{document}
-\maketitle
-
-\setcounter{tocdepth}{1}
-\tableofcontents
-
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{6pt}
-
-\chapter{Introduction}
-
-The \waveplot{} program is a tool for the visualisation of molecular
-orbitals.  Based on the files created by a calculation performed by
-\dftbp{}, it is capable of producing three dimensional information
-about the charge distribution of the investigated system. The
-information is stored as cube files, which can be visualised with many
-common graphical tools (e.g. \textsc{vmd}).
-
-The user controls \waveplot{} through an input file, chosing which
+The user controls \waveplot{} through an input file, choosing which
 orbitals and charge distributions should be plotted for which spatial
 region. Since the information about the shape of the basis functions
 is usually not contained in the Slater-Koster files, the coefficients
 and exponents for the Slater type orbitals must be entered by the user
 as part of the input file.
 
-The \waveplot{} tool offers the following plotting capabilites:
+The \waveplot{} tool offers the following plotting capabilities:
 \begin{itemize}
 \item Total charge density.
 \item Total spin polarisation.
@@ -47,87 +25,56 @@ The \waveplot{} tool offers the following plotting capabilites:
 \end{itemize}
 
 
-\chapter{Input for \waveplot}
+\section{Input for \waveplot}
 
-The input file for \waveplot{} must be named \verb|waveplot_in.hsd|
-and should be a Human-friendly Structured Data (HSD) formatted
-file.\footnote{ For details of the HSD format, please consult the
-manual of the \textsc{DFTB$^{\text{+}}$} code at
-\href{http://www.dftb-plus.info}{http://www.dftb-plus.info}.} The
-program can read the input in XML instead of HSD format if the input
-file is \verb|waveplot_in.xml|. The input file must be present in the
-working directory. To prevent ambiguity, the parser refuses to read in
-any input if both files are present.
-
-The input file for {\waveplot} must contain the properties listed in
-the tables of the following sections. The first column of each table
-specifies the name of the property. The second column indicates the
-type of the expected value for that property.  The letters ``i'',
-``r'', ``s'', ``p'', ``m'' stand for integer, real, string, property
-list and method type, respectively. An optional prepended number
-specifies how often (if more than once) this type must occur. An
-appended ``+'' indicates arbitrary occurrence greater than zero, while
-``*'' allows also for zero occurrence.  Alternative types are
-separated by ``|''.  Parentheses serve only the delimitation of
-groups.
-
-Sometimes a property is only interpreted if some conditions are met.
-If this is the case, the appropriate conditions are indicated in the
-third column. The fourth column contains the default value for the
-property.  If no default value is specified (``-''), the user is
-required to assign a value to that property.  The description of the
-properties immediately follows the table.  If there is also a more
-detailed description available for a given keyword somewhere else, the
-appropriate page number appears in the last column.
-
-Some properties are allowed to carry a modifier to alter the provided
-value (e.g. converting between units). The possible modifiers are
-listed between brackets ([]) in the detailed description of the
-property. If the modifier is a conversion factor for a physical unit,
-only the unit type is indicated (length, energy, force, time, etc.). A
-list of the allowed physical units can be found in Appendix~\ref{app:units}.
-
-\section{Main input}
+The input file for \waveplot{} must be named \verb|waveplot_in.hsd| and should
+be a Human-friendly Structured Data (HSD) formatted file (see Appendix
+\ref{sec:hsd}) The program can read the input in XML instead of HSD format if
+the input file is \verb|waveplot_in.xml|. The input file must be present in the
+working directory. To prevent ambiguity, the parser refuses to read in any input
+if both files are present.
 
 The table below contains the list of the properties, which must occur in the
 input file \verb|waveplot_in.hsd|:
 
 \begin{ptableh}
-  \kw{Options} & p &   & - &\pref{Options} \\
+  \kw{Options} & p &   & - &\pref{sec:waveplot.Options} \\
   \kw{DetailedXML} &s &  & - &  \\
   \kw{EigenvecBin} &s &  & - &   \\
   \kw{GroundState} &s &  & Yes &   \\
-  \kw{Basis} & p & & - &  \pref{Basis} \\
+  \kw{Basis} & p & & - &  \pref{sec:waveplot.Basis} \\
 \end{ptableh}
 \begin{description}
-\item[\is{Options}] Contains the options for \waveplot{}. See p.~\pref{Options}.
+\item[\is{Options}] Contains the options for \waveplot{}. See
+  p.~\pref{sec:waveplot.Options}.
 \item[\is{DetailedXML}] Specifies the name of the file, which contains the
   detailed XML output of the \dftbp{} calculation (presumably
   \is{detailed.xml}).
-\item[\is{EigenvecBin}]\label{EigenvecBin} Specifies the name of the file, which
-  contains the eigenvectors in binary format (presumably \is{eigenvec.bin}).
-\item[\is{GroundState}]\label{GroundState} Read ground or excited state
-  occupation data from the detailed XML output.
+\item[\is{EigenvecBin}] Specifies the name of the file, which contains the
+  eigenvectors in binary format (presumably \is{eigenvec.bin}).
+\item[\is{GroundState}] Read ground or excited state occupation data from the
+  detailed XML output.
 \item[\is{Basis}] Contains the definition of the Slater-type orbitals which were
   used as basis in the \dftbp{} calculation. At the moment, due to technical
   reasons this information has to be entered by the user per hand. In a later
   stage, it will be presumably read in by \waveplot{} automatically.
-  See p.~\pref{Basis}.
+  See p.~\pref{sec:waveplot.Basis}.
 \end{description}
 
 Additionally optional definitions may also be present:
 \begin{ptableh}
-  \kw{ParserOptions} & p & & \cb & \pref{ParserOptions} \\
+  \kw{ParserOptions} & p & & \cb & \pref{sec:waveplot.ParserOptions} \\
 \end{ptableh}
 
-\htsection{Options}
+\subsection{Options}
+\label{sec:waveplot.Options}
 
 This property contains the options (as a list of properties), which
 the user can set, in order to influence the behaviour of \waveplot{}.
 The following properties can be specified:
 
 \begin{ptable}
-  \kw{PlottedRegion} &p|m&  & - &\pref{PlottedRegion}\\
+  \kw{PlottedRegion} &p|m&  & - &\pref{sec:waveplot.PlottedRegion}\\
   \kw{NrOfPoints} & 3i & & - &  \\
   \kw{PlottedKPoints} & i+|m & \textrm{periodic system} & - & \\
   \kw{PlottedLevels} & i+|m &  & - & \\
@@ -149,7 +96,7 @@ The following properties can be specified:
 \end{ptable}
 \begin{description}
 \item[\is{PlottedRegion}] Regulates the region which should be
-  plotted. See p.~\pref{PlottedRegion}.
+  plotted. See p.~\pref{sec:waveplot.PlottedRegion}.
 \item[\is{NrOfPoints}] Specifies the resolution of the equidistant grid on
   which the various quantities should be calculated. The three
   integers represent the number of points along the three vectors of
@@ -281,14 +228,17 @@ Example:
 \end{description}
 
 
-\htsubsection{PlottedRegion}
+\subsubsection{PlottedRegion}
+\label{sec:waveplot.PlottedRegion}
 
 Specifies the region, which should be included in the plot. You can
-specify it explicitely (as property list), or let \waveplot{} specify
-it automatically using either the \islcb{UnitCell} or the
-\islcb{OptimalCuboid} methods.
+specify it explicitly (as property list), or let \waveplot{} specify
+it automatically using either the \islcb{UnitCell}{sec:waveplot.UnitCell} or the
+\islcb{OptimalCuboid}{sec:waveplot.OptimalCuboid} methods.
 
-\subsubsection{Explicit specification}
+\paragraph{Explicit specification}
+Specifies origin and box size explicitly.
+
 \begin{ptable}
   \kw{Origin} & 3r & & - & \\
   \kw{Box} & 9r & & - &  \\
@@ -320,7 +270,8 @@ Example:
 \end{verbatim}
 
 
-\htcbsubsubsection{UnitCell}
+\paragraph{UnitCell\{\}}
+\label{sec:waveplot.UnitCell}
 
 For the periodic geometries, this method specifies the plotted region to be
 spanned by the three lattice vectors of the crystal. The origin is set to (0 0
@@ -346,7 +297,8 @@ Example:
 \end{verbatim}
 
 
-\htcbsubsubsection{OptimalCuboid}
+\paragraph{OptimalCuboid\{\}}
+\label{sec:waveplot.OptimalCuboid}
 
 Specifies the plotted region as a cuboid, which contains all the atoms and
 enough space around them, that no wavefunctions are leaking out of the cuboid.
@@ -358,14 +310,15 @@ Example:
 \end{verbatim}
 
 
-\htsection{Basis}
+\subsection{Basis}
+\label{sec:waveplot.Basis}
 
 The basis definition is done by specifying the following properties:
 
 \begin{ptable}
   \kw{Resolution} & r &  & - &  \\
-  \textit{ElementName1} & p & & - & \pref{speciesBasis} \\
-  \textit{ElementName2} & p & & - &  \pref{speciesBasis} \\
+  \textit{ElementName1} & p & & - & \pref{sec:waveplot.speciesBasis} \\
+  \textit{ElementName2} & p & & - &  \pref{sec:waveplot.speciesBasis} \\
   \hspace*{0.8cm}$\vdots$ & & & & \\
 \end{ptable}
 \begin{description}
@@ -433,15 +386,15 @@ Basis = {
 
 
 
-\subsection{Basis for an atom type}
-\label{speciesBasis}
+\subsubsection{Basis for an atom type}
+\label{sec:waveplot.speciesBasis}
 
 The actual basis for every atom type is specified as a property with
 the name of that type:
 
 \begin{ptable}
   \kw{AtomicNumber} &  i&  & - &  \\
-  \kw{Orbital} & p &  & - & \pref{Orbital} \\
+  \kw{Orbital} & p &  & - & \pref{sec:waveplot.Orbital} \\
   \hspace*{0.8cm}$\vdots$ & & & & \\
 \end{ptable}
 \begin{description}
@@ -453,9 +406,8 @@ the name of that type:
 \end{description}
 
 
-
-
-\htsubsubsection{Orbital}
+\paragraph{Orbital}
+\label{sec:waveplot.Orbital}
 
 For every orbital there is an orbital block which specifies the radial
 wavefunction. Thereby the following properties must be used:
@@ -500,10 +452,9 @@ wavefunction. Thereby the following properties must be used:
 
 \end{description}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%  ParserOptions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\htsection{ParserOptions}
+
+\subsection{ParserOptions}
+\label{sec:waveplot.ParserOptions}
 
 This block contains the options, which are effecting only the
 behaviour of the HSD/XML parser and are not passed to the main
@@ -525,20 +476,3 @@ program.
   starting an actual calculation.
   
 \end{description}
-
-\appendix
-
-\include{unit_mod}
-
-%%% Reference
-
-\phantomsection\addcontentsline{toc}{chapter}{Index}
-\printindex
-
-\end{document}
-
-
-%%% Local Variables: 
-%%% mode: latex
-%%% TeX-master: t
-%%% End: 

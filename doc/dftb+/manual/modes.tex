@@ -1,0 +1,86 @@
+\chapter{\modes{}}
+
+The \modes{} program calculates vibrational modes using data created by
+\dftbp{}.
+
+
+\section{Input for \modes}
+
+The input file for \modes{} must be named \verb|modes_in.hsd| and should be a
+Human-friendly Structured Data (HSD) formatted file (see Appendix
+\ref{sec:hsd}). The program can read the input in XML instead of HSD format if
+the input file is \verb|modes_in.xml|. The input file must be present in the
+working directory. As with {\dftbp} to prevent ambiguity, the parser refuses to
+read in any input if two types of input file are present.
+
+The table below contains the list of the properties, which must occur in the
+input file \verb|modes_in.hsd|:
+
+\begin{ptableh}
+  \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
+  \kw{Hessian} & p & & \cb & \pref{sec:modes.Hessian} \\
+  \kw{SlaterKosterFiles} &p|m&  & - &  \\
+\end{ptableh}
+
+Additionally optional definitions may be present:
+\begin{ptableh}  
+  \kw{DisplayModes} & p & & - & \pref{sec:modes.DisplayModes} \\
+  \kw{Atoms} & i+|m &  & 1:-1 & \\
+\end{ptableh}
+
+\begin{description}
+\item[\is{Geometry}] Specifies the geometry for the system to be
+  calculated.  See p.~\pref{sec:dftbp.Geometry}.
+\item[\is{Hessian}] Contains the second derivatives matrix of the
+  system energy with respect to atomic positions. See
+  p.~\pref{sec:modes.Hessian}.
+\item[\is{SlaterKosterFiles}] Name of the Slater-Koster files for every atom
+  type pair combination. See p.~\pref{sec:dftbp.SlaterKosterFiles}.
+\item[\is{DisplayModes}] Optional settings to plot the eigenmodes of the
+  vibrations. See p.~\pref{sec:modes.DisplayModes}.
+\item[\is{Atoms}] Optional list of atoms, ranges of atoms and/or the species of
+  atoms for which the Hessian has been supplied. \emph{This must be equivalent
+    to the setting you used for \is{MovedAtoms} in your \dftbp{} input when
+    generating the Hessian.}
+\end{description}
+
+
+\subsection{Hessian\{\}}
+\label{sec:modes.Hessian}
+
+Contains the second derivatives\index{Hessian} of the energy supplied by
+{\dftbp}, see p.~\pref{sec:dftbp.SecondDerivatives} for details of the options
+to generate this data. The derivatives matrix must be stored as the following
+order: For the $i$, $j$ and $k$ directions of atoms $1 \ldots n$
+as $$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
+  E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
+  \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
+\frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
+  E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial x_{kn}
+  \partial x_{kn}}$$
+
+{\em Note}: for supercell calculations, the modes are currently
+obtained at the $\mathbf{q}=0$ point, irrespective of the k-point
+sampling used.
+
+
+\subsection{DisplayModes\{\}}
+\label{sec:modes.DisplayModes}
+
+Allows the eigenvectors of the system to be plotted out if present
+
+\begin{ptable}
+\kw{PlotModes} & i+|m &  & 1:-1 & \\
+\kw{Animate} & l & & Yes &  \\
+\kw{XMakeMol} & l & & Yes &  \\
+\end{ptable}
+\begin{description}
+\item[\is{PlotModes}] Specifies list of which eigenmodes should be
+  plotted as xyz files. Remember that there are $3N$ modes for the
+  system (including translation and rotation).
+\item[\is{Animate}] Produce separate animation files for each mode or
+  a single file multiple modes where the mode vectors are marked for
+  each atom.
+\item[\is{XMakeMol}] Adapt xyz format output for XMakeMol dialect xyz
+  files.
+\end{description}
