@@ -200,14 +200,14 @@ class GridDataTests(unittest.TestCase):
         self.assertTrue(np.all(data == true_data))
 
 
-    def test_get_interpolated_value_gridcoord_coord_outside(self):
+    def test_get_interpolated_value_gc_coord_outside(self):
         grid1 = grids.Grid(origin=[1.0, 2.0],
                            basis=[[1.0, 0.0], [1.0, 1.0]],
                            ranges=[[-3, 4], [-2, 8]])
         data1 = np.arange(7 * 10).reshape((7, 10))
         griddata = grids.GridData(grid1, data1)
         gridcoords = np.array([[-3, -2], [3, 8]])
-        data = griddata.get_interpolated_value_gridcoord(gridcoords)
+        data = griddata.get_interpolated_value_gc(gridcoords)
         true_data = np.array([0, 0])
         self.assertTrue(np.all(data == true_data))
 
