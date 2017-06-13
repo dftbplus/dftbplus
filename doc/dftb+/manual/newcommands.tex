@@ -1,14 +1,17 @@
 
 \newcommand{\dftbp}{\textsc{DFTB$^{\text{+}}$}} %% noodle (alias dftb+)
 \newcommand{\dftb}{\textsc{DFTB}}             %% dftb
+\newcommand{\modes}{\textsc{modes}}
+\newcommand{\waveplot}{\textsc{Waveplot}}
+
 \newcommand{\pref}[1]{\pageref{#1}}           %% pageref
 \newcommand{\cb}{\{\}}                        %% curly braces
 \newcommand{\is}[1]{\textsf{#1}}              %% input style
 \newcommand{\iscb}[1]{\is{#1\cb}}              %% input style
-\newcommand{\isl}[1]{\hyperref[#1]{\textsf{#1}}}  %% input style
-\newcommand{\islcb}[1]{\hyperref[#1]{\iscb{#1}}} %% input style
+\newcommand{\isl}[2]{\hyperref[#2]{\textsf{#1}}}  %% input style
+\newcommand{\islcb}[2]{\hyperref[#2]{\iscb{#1}}} %% input style
 \newcommand{\kw}[1]{\is{#1}\index{#1@\is{#1}}}   %% keyword (with index entry)
-\newcommand{\kwl}[1]{\is{#1}\index{#1@\is{#1}}\label{#1}} %% keyword (with
+\newcommand{\kwl}[2]{\is{#1}\index{#1@\is{#1}}\label{#2}} %% keyword (with
 %% index entry and label)
 \newcommand{\kwcb}[1]{\iscb{#1}\index{#1\cb@\iscb{#1}}} %% kword with curly braces
 
