@@ -1,9 +1,7 @@
 \chapter{\modes{}}
 
-\section{Introduction}
-
-The \modes{} program calculates vibrational modes using data created by a
-calculation performed with \dftbp{}.
+The \modes{} program calculates vibrational modes using data created by
+\dftbp{}.
 
 
 \section{Input for \modes}
@@ -36,29 +34,30 @@ Additionally optional definitions may be present:
 \item[\is{Hessian}] Contains the second derivatives matrix of the
   system energy with respect to atomic positions. See
   p.~\pref{sec:modes.Hessian}.
-\item[\is{SlaterKosterFiles}] Name of the Slater-Koster files for
-  every atom type pair combination. See~\pref{sec:dftbp.SlaterKosterFiles}.
-\item[\is{DisplayModes}] Optional settings to plot the eigenmodes of
-  the vibrations. See~\pref{sec:modes.DisplayModes}.
-\item[\is{Atoms}] Optional list of atoms, ranges of atoms and/or the
-  species of atoms for which the Hessian has been supplied. \emph{This must be
-  equivalent to the setting you used for \is{MovedAtoms} in your \dftbp{} input
-  when generating the Hessian.}
+\item[\is{SlaterKosterFiles}] Name of the Slater-Koster files for every atom
+  type pair combination. See p.~\pref{sec:dftbp.SlaterKosterFiles}.
+\item[\is{DisplayModes}] Optional settings to plot the eigenmodes of the
+  vibrations. See p.~\pref{sec:modes.DisplayModes}.
+\item[\is{Atoms}] Optional list of atoms, ranges of atoms and/or the species of
+  atoms for which the Hessian has been supplied. \emph{This must be equivalent
+    to the setting you used for \is{MovedAtoms} in your \dftbp{} input when
+    generating the Hessian.}
 \end{description}
 
 
 \subsection{Hessian\{\}}
 \label{sec:modes.Hessian}
 
-Contains the second derivatives\index{Hessian} of the energy suplied
-by {\dftbp}. The derivatives matrix must be stored as the following
+Contains the second derivatives\index{Hessian} of the energy supplied by
+{\dftbp}, see p.~\pref{sec:dftbp.SecondDerivatives} for details of the options
+to generate this data. The derivatives matrix must be stored as the following
 order: For the $i$, $j$ and $k$ directions of atoms $1 \ldots n$
-as $$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}}
-\frac{\partial^2 E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2
-  E}{\partial x_{k1} \partial x_{i1}} \frac{\partial^2 E}{\partial
-  x_{i2} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{j2} \partial
-  x_{i1}} \frac{\partial^2 E}{\partial x_{k2} \partial x_{i1}} \ldots
-\frac{\partial^2 E}{\partial x_{kn} \partial x_{kn}}$$
+as $$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
+  E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
+  \partial x_{i1}} \frac{\partial^2 E}{\partial x_{i2} \partial x_{i1}}
+\frac{\partial^2 E}{\partial x_{j2} \partial x_{i1}} \frac{\partial^2
+  E}{\partial x_{k2} \partial x_{i1}} \ldots \frac{\partial^2 E}{\partial x_{kn}
+  \partial x_{kn}}$$
 
 {\em Note}: for supercell calculations, the modes are currently
 obtained at the $\mathbf{q}=0$ point, irrespective of the k-point

@@ -1,22 +1,19 @@
 \chapter{\waveplot}
 
-\section{Introduction}
+The \waveplot{} program is a tool for the visualisation of molecular orbitals.
+Based on the files created by a calculation performed by \dftbp{} it is capable
+of producing three dimensional information about the charge distribution. The
+information is stored as cube files, which can be visualised with many common
+graphical tools (e.g. \textsc{vmd} or \textsc{Jmol}).
 
-The \waveplot{} program is a tool for the visualisation of molecular
-orbitals.  Based on the files created by a calculation performed by
-\dftbp{}, it is capable of producing three dimensional information
-about the charge distribution of the investigated system. The
-information is stored as cube files, which can be visualised with many
-common graphical tools (e.g. \textsc{vmd}).
-
-The user controls \waveplot{} through an input file, chosing which
+The user controls \waveplot{} through an input file, choosing which
 orbitals and charge distributions should be plotted for which spatial
 region. Since the information about the shape of the basis functions
 is usually not contained in the Slater-Koster files, the coefficients
 and exponents for the Slater type orbitals must be entered by the user
 as part of the input file.
 
-The \waveplot{} tool offers the following plotting capabilites:
+The \waveplot{} tool offers the following plotting capabilities:
 \begin{itemize}
 \item Total charge density.
 \item Total spin polarisation.
@@ -235,12 +232,12 @@ Example:
 \label{sec:waveplot.PlottedRegion}
 
 Specifies the region, which should be included in the plot. You can
-specify it explicitely (as property list), or let \waveplot{} specify
+specify it explicitly (as property list), or let \waveplot{} specify
 it automatically using either the \islcb{UnitCell}{sec:waveplot.UnitCell} or the
 \islcb{OptimalCuboid}{sec:waveplot.OptimalCuboid} methods.
 
 \paragraph{Explicit specification}
-Specifies origin and box size explicitely.
+Specifies origin and box size explicitly.
 
 \begin{ptable}
   \kw{Origin} & 3r & & - & \\

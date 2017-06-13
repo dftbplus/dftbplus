@@ -19,7 +19,7 @@ into \verb|dftb_in.hsd| or \verb|dftb_pin.xml| into
 \verb|dftb_in.xml|.)  This guarantees that you will obtain the same
 results, even if the defaults for some non specified options have been
 changed. The code can also produce \verb|dftb_pin.xml| from
-\verb|dftb_in.hsd| or vice versa if required (see
+\verb|dftb_in.hsd| or {\it vice versa} if required (see
 section~\ref{sec:dftbp.ParserOptions}).
 
 The following sections list properties and options that can be set in
@@ -310,10 +310,10 @@ methods are available:
   - TS$ being printed as well (the included entropy term is only the
   contribution from the electrons, therefore this is not the full free energy).
 
-\item[\is{MaxAtomStep}] Sets the maximum possible linesearch step size
+\item[\is{MaxAtomStep}] Sets the maximum possible line search step size
   for atomic relaxation.
 
-\item[\is{MaxLatticeStep}] Sets the maximum possible linesearch step
+\item[\is{MaxLatticeStep}] Sets the maximum possible line search step
   size for lattice optimisation. For \is{FixAngles} or \is{Isotropic}
   calculations this is as a fraction of the lattice vectors or the
   volume respectively.
@@ -370,7 +370,7 @@ See previous subsection for the description of the properties.
 Specific properties for this method are:
 \begin{description}
 \item[\is{Alpha}] Initial scaling parameter to prevent the iterative
-  space becoming exhaused (this is dynamically adjusted during the run).
+  space becoming exhausted (this is dynamically adjusted during the run).
 \item[\is{Generations}] Number of generations to consider for the mixing.
 \end{description}
 See previous subsection for the description of the other
@@ -397,9 +397,9 @@ irrespective of the k-point sampling used.
 
 \textbf{Important:} In order to get accurate results for the second derivatives
 (and the resulting frequencies) you must set a smaller self-consistent
-tollerance than the default value in the
+tolerance than the default value in the
 \islcb{Hamiltonian}{sec:dftbp.Hamiltonian} section. We suggest \is{SCCTolerance
-  = 1e-7} or better. A less accurate tolerance can yield unphysical vibrational
+  = 1e-7} or better. A less accurate tolerance can yield nonphysical vibrational
 frequencies.
 
 \begin{ptable}
@@ -543,8 +543,8 @@ accumulation of data for dynamical properties.
 \item[\is{ReselectProbability}] Probability for re-selecting
   velocities from the Maxwell-Boltzmann distribution.
 \item[\is{ReselectIndividually}] If \is{Yes}, each atomic velocity is
-  reselected individually with the specified probability. Otherwise
-  all velocities are reselected simultaneously with the specified
+  re-selected individually with the specified probability. Otherwise
+  all velocities are re-selected simultaneously with the specified
   probability.
 \item[\is{AdaptFillingTemp}] If \is{Yes}, the temperature of the
   electron filling is always set to the current temperature of the
@@ -612,7 +612,7 @@ all of the atoms in the system.
   (See p.~\pref{sec:dftbp.TemperatureProfile}, but note that profiles are not
   well tested with this thermostat yet.)
 \item[\is{CouplingStrength}]\modif{\modtype{Frequency}} Frequency of
-  oscillation of the thermostatting particles (see section~2.5 of
+  oscillation of the thermostating particles (see section~2.5 of
   Ref.~\cite{martyna-mp-87-1117}). This is typically related to the
   highest vibrational mode frequency of the system.
 \item[\is{ChainLength}] Number of particles in the thermostat chain.
@@ -775,7 +775,7 @@ addition to the common XLBOMD settings above:
   Lagrangian dynamics. Once this tolerance has been achieved the SCC cycle will
   stop and the forces will be calculated. You can use this parameter to override
   the \is{SccTolerance} parameter in the \is{DFTB} block for time steps where
-  the extended Lagrangian intergrator is active (This way, you can calculate
+  the extended Lagrangian integrator is active (This way, you can calculate
   populations with tight SCC tolerance when initialising the XLBOMD integrator,
   then use a less strict SCC tolerance once the integrator is active).
 \end{description}
@@ -792,7 +792,7 @@ to the common XLBOMD settings above:
 \item[\is{TransientSteps}] Enables a smoother transition between
   Born-Oppenheimer and extended Lagrangian dynamics by carrying out intermediate
   additional steps with full SCC convergence, during which the converged
-  population and the one predicted by the extended Largrangian integrator are
+  population and the one predicted by the extended Lagrangian integrator are
   averaged.
 
 \item[\is{Scale}] Scaling factor for the predicted charge densities
@@ -881,7 +881,7 @@ from an external driver code.
 \item[\is{Host}] Name or ip address of internet host to connect to
   (``localhost'' also possible).
 \item[\is{Port}] Port of host to connect to.
-\item[\is{Verbosity}] Level of port trafic to document.
+\item[\is{Verbosity}] Level of port traffic to document.
 \item[\is{Protocol}] Choice of message protocol over the socket connection (only
   communication with \mbox{i-PI}~\cite{Ceriotti20141019} is currently
   supported).
@@ -1586,7 +1586,7 @@ listed for SlaterKosterFiles.
 \end{verbatim}
 
 For cases where \is{ShellResolvedSpin} = \is{No}, the spin constant for the the
-highest occupied orbital of each atom should be suplied: Example (GGA parameters
+highest occupied orbital of each atom should be supplied: Example (GGA parameters
 for H$_2$O):
 \begin{verbatim}
   SpinConstants = {
@@ -1677,7 +1677,7 @@ options:
   \is{FixedFermiLevel} keyword.
 \item[\is{FixedFermiLevel}]\modif{\modtype{energy}} Can be used to fix the
   Fermi-level (total chemical potential, $\mu$) of the electrons in the
-  system. For colinear spin polarization, values for up and down spin channels
+  system. For collinear spin polarisation, values for up and down spin channels
   are required. Otherwise only a single global chemical potential is
   required. If this option is present, the total charge and the total spin of
   the system are not conserved. (Settings in the options \is{Charge} and
@@ -1705,7 +1705,7 @@ Example:
 
 Produces a Fermi-like distribution but with much lower electron
 entropy~\cite{methfessel-PRB-40-3616}. This is useful for systems that require
-high electron temperatures (for example when calculating metalic systems). There
+high electron temperatures (for example when calculating metallic systems). There
 is an additional option for this type of filling:
 
 \begin{ptable}
@@ -1971,7 +1971,7 @@ of shells.
 This tag contains the specification for an external electric
 field. Electric fields can only be specified for SCC calculations. You
 can apply the electric field of point charges\footnote{Only in
-  calculations with fixed lattice constants.} and/or a homogenous
+  calculations with fixed lattice constants.} and/or a homogeneous
 external field (which may change harmonically in time). The
 \is{ElectricField} block can currently contain either one or more
 \kw{PointCharges} blocks and potentially an \kw{External} block.
@@ -2307,9 +2307,9 @@ treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
 As the DFTB energy functional is largely determined by the underlying
-parametrization (the Slater-Koster-files) and the chosen DFTB model
+parameterisation (the Slater-Koster-files) and the chosen DFTB model
 (e.g.\ non-scc, scc, 3rd order, etc.), there are no universal parameter choices
-which can be used with all settings. The dftd3-program contains optimized
+which can be used with all settings. The dftd3-program contains optimised
 parameters for the DFTB3 functional, described in section~\ref{sec:dftbp.DFTB3}. The DFTB3
 appropriate values are given for the Becke-Johnson-damping function, and are
 used as default values in the \dftbp{} parser.
@@ -2413,8 +2413,8 @@ modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
 
 \item[\is{HubbardDerivs}] Derivatives of the Hubbard U for the 3rd order
   correction (on-site or full). For every element the appropriate parameter (in
-  atomic units) must be specified. If you use orbital resolved SCC (with full
-  3rd order), you must specify a list of derivates for every element, with one
+  atomic units) must be specified. If you use shell resolved SCC (with full
+  3rd order), you must specify a list of derivatives for every element, with one
   Hubbard U derivative for each shell of the given element.
 \begin{verbatim}
 Hamiltonian = DFTB {
@@ -2437,8 +2437,8 @@ overlap and non-self-consistent Hamiltonian. This environment controls how these
 derivatives are evaluated.
 
 \textbf{Note:} In earlier DFTB+ versions (up to version 1.2), differentiation was done using finite
-difference derivatves with a step size of 0.01 atomic units. If you want to reproduce old results,
-choose the \is{FiniteDiff} method and set the step size explicitely to this value.
+difference derivatives with a step size of 0.01 atomic units. If you want to reproduce old results,
+choose the \is{FiniteDiff} method and set the step size explicitly to this value.
 
 \subsubsection{FiniteDiff\{\}}
 \label{sec:dftbp.FiniteDiff}
@@ -2626,9 +2626,10 @@ with the following options
   region. These are taken in order of increasing shell number of the
   atoms. \is{ShellResolved = Yes} is only allowed, if all the selected atoms
   are of the same type.
-\item[\is{ShellResolved}] Project onto separate atomic orbitals of the region. These are taken in
-  order of increasing shell number of the atoms. As with \is{ShellResolved}, this only allowed, if
-  all the selected atoms are of the same type.
+\item[\is{OrbitalResolved}] Project onto separate atomic orbitals of the
+  region. These are taken in order of increasing shell number of the atoms. As
+  with \is{ShellResolved}, this only allowed, if all the selected atoms are of
+  the same type.
 \item[\is{Atoms}] Specification of the atoms over which to make the
   projection.. Atoms are specified in the same way as \is{MovedAtoms}
   in section \ref{sec:dftbp.SteepestDescent}.)
@@ -2657,11 +2658,11 @@ Examples:
 to localised orbitals via a unitary transformation. Localised orbitals span the
 same states as the occupied orbitals, so are equivalent to the usual valence
 band states, but are more localised in space.  Currently only \kw{PipekMezey}
-localisation is supported (but not for non-colinear or spin-orbit calculations).
+localisation is supported (but not for non-collinear or spin-orbit calculations).
 
 Pipek-Mezey~\cite{pipek-JCP-90-4916} localisation transforms the occupied
 orbitals such that the square of the Mulliken charges for each orbital is
-maximized. The resulting localised states are output as
+maximised. The resulting localised states are output as
 \verb|localOrbs.out|\index{localOrbs.out} and
 \verb|localOrbs.bin|\index{localOrbs.bin} following the format given in
 appendix~\ref{sec:dftbp.eigenvec} for \verb|eigenvec.out| and \verb|eigenvec.bin|.
@@ -2696,10 +2697,10 @@ method which {\em may} have better scaling properties.
 \begin{description}
 \item[\is{Dense}] Selects the conventional method (\is{Yes}) using Jacobi sweeps
   over all orbital pairs or (\is{No}) uses the default sparse method.
-\item[\is{SparseTollerances}] The sparse method introduces suport regions during
-  evaluation to increase performance, and these requires a set of tollerances to
+\item[\is{SparseTollerances}] The sparse method introduces support regions during
+  evaluation to increase performance, and these requires a set of tolerances to
   determine the regions to be used (these are listed in decreasing order, i.e.,
-  with tighter tollerances as the localisation proceeds).
+  with tighter tolerances as the localisation proceeds).
 \end{description}
 
 \item[\is{WriteEigenvectors}] Specifies, if eigenvectors should be printed in
@@ -2740,13 +2741,13 @@ make use of these features (the ARPACK~\cite{Lehoucq97arpackusers} library or
 ARPACK-ng~\cite{ARPACK-ng} is required).
   
 The calculation of vertical excitation energies and the corresponding oscillator strengths as well
-as excited state geometry optimizations can be performed with these options, details of the
+as excited state geometry optimisation can be performed with these options, details of the
 resulting output files are given in appendix \ref{sec:tddftb_lr}. Linear response theory is
 currently implemented only for the SCC-DFTB level of theory and molecular
 systems.\footnote{Excitation energies can also be calculated for gamma point periodic systems, but
   will be incorrect for delocalised excitations or for charge transfer-type excited states.}
-Excitations can be calculated for fractional occupations and colinear spin-polarization, but forces
-(and hence geometry optimization or MD) are only available for spin-unpolarized systems with no
+Excitations can be calculated for fractional occupations and collinear spin-polarisation, but forces
+(and hence geometry optimisation or MD) are only available for spin-unpolarised systems with no
 fractional occupations. The specifications for this block have the following properties:
   
   \begin{ptable}
@@ -2824,7 +2825,7 @@ fractional occupations. The specifications for this block have the following pro
     contains the Mulliken transition dipole for each excited state.
 
   \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is created, which allows
-    the user to follow the progress of the Arnoldi diagonalization.
+    the user to follow the progress of the Arnoldi diagonalisation.
     
   \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is created, which gives data
     on the quality of the resulting eigenstates.
@@ -2894,7 +2895,7 @@ The files \verb|hamsqrN.dat| and \verb|oversqr.dat| contain the square
 (folded) Hamiltonian and overlap matrices. The number \verb|N| in the
 filename \verb|hamrealN.dat| indicates the spin channel. For spin
 unpolarised calculation it is 1, for spin polarised calculation it is
-1 and 2 for spin-up and spin-down, respectively while for non-colinear
+1 and 2 for spin-up and spin-down, respectively while for non-collinear
 spin it is charge, $x$, $y$ and $z$ for 1, 2, 3 and 4. Spin orbit is
 not currently supported for this option.
 
@@ -2927,7 +2928,7 @@ and \verb|overreal.dat| contain the real space Hamiltonian and overlap
 matrices. The number \verb|N| in the filename \verb|hamrealN.dat|
 indicates the spin channel. For spin unpolarised calculation it is 1,
 for spin polarised calculation it is 1 and 2 for spin-up and
-spin-down, respectively, while for non-colinear spin it is charge,
+spin-down, respectively, while for non-collinear spin it is charge,
 $x$, $y$ and $z$ for 1, 2, 3 and 4. Spin orbit is not currently
 supported for this option.
 
@@ -2984,7 +2985,7 @@ are listed, followed by the relevant value from the current eigenvector and then
 the Mulliken population for that basis function for that level\index{state
   resolved Mulliken population}. The particular eigenvector, $k$-point and spin
 channel are listed at the start of each set of eigenvector data. In the case of
-non-colinear spin, the format is generalised for spinor wavefunctions. Complex
+non-collinear spin, the format is generalised for spinor wavefunctions. Complex
 coefficients for both the up and down parts of the spinors are given (instead of
 single eigenvector coefficient) followed by four values -- total charge, then
 $(x,y,z)$ magnetisation.
@@ -3008,7 +3009,7 @@ text file (see section~\ref{kw:dftbp.WriteEigenvectors} for details).
 The file charges.bin contains the orbitally-resolved charges for each atom,
 ordered as the charges on each orbital of an atom for a given spin channel, then
 each spin channel and finally over each atom. In later versions of \dftbp{} this
-format includes a checksum for the total charge and magnetisation. In the case
+format includes a check sum for the total charge and magnetisation. In the case
 of orbital potentials (p.~\pref{sec:DFTB+U}) the file also contains extra
 population information for the occupation matrices.
 
@@ -3049,7 +3050,7 @@ documentation~\cite{Lehoucq97arpackusers} for details.
 \subsection{COEF.DAT}
 \index{COEF.DAT}
 
-Data on the projection of this specfic excited state onto the ground state
+Data on the projection of this specific excited state onto the ground state
 orbitals. For the specific exited state, the (complex) decomposition of its
 single particle states onto the ground state single particle levels, together
 with its fractional contribution to the full excited state are given.
@@ -3078,7 +3079,7 @@ imaginary projection of state 2\\
 \subsection{EXC.DAT}
 \index{EXC.DAT}
 
-Excitations data including the energies, oscilator strength, dominant Kohn-Sham
+Excitations data including the energies, oscillator strength, dominant Kohn-Sham
 transitions and the symmetry.
 
 Example first few transitions for C$_4$H$_4$:
@@ -3094,7 +3095,7 @@ Example first few transitions for C$_4$H$_4$:
 
 Two examples of singlet transitions with energies of 5.551 and 5.592~eV. The
 first is dipole allowed, the second not. In both cases they are transitions
-primarilty (weight of 1.000) to single particle state 12, and are of singlet
+primarily (weight of 1.000) to single particle state 12, and are of singlet
 character (``S'').
 
 In the case of spin-polarised calculations, an additional column of values are
@@ -3105,7 +3106,7 @@ less than 0.5 is usually considered reliable~\cite{garcia14Thesis}.
 \subsection{SPX.DAT}
 \index{SPX.DAT}
 
-Single particle excitaions (SPX) for transitions beween filled and empty single
+Single particle excitations (SPX) for transitions between filled and empty single
 particle states of the ground state. These are given in increasing single
 particle energy and show the oscillator strength and index of the Kohn-Sham-like
 states that are involved.
@@ -3144,7 +3145,7 @@ $i^\mathrm{th}$ eigen-pair, the eigenvalue deviation corresponds to the
 deviation from $\left( \langle \mathbf{x}_i | H | \mathbf{x}_i\rangle -
 \epsilon_i \right)$, The eigen-vector deviation is a measure of rotation of the
 vector under the action of the matrix: $\left| \left( H | \mathbf{x}_i\rangle -
-\epsilon_i | \mathbf{x}_i\rangle \right) \right|_2$, the normalization deviation
+\epsilon_i | \mathbf{x}_i\rangle \right) \right|_2$, the normalisation deviation
 is $\langle \mathbf{x}_i | \mathbf{x}_i\rangle - 1$ and finally largest failure
 in orthogonality to other eigenvectors is given.
 
