@@ -132,14 +132,23 @@ endif
 
 # LAPACK/BLAS
 PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
-L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
-L_LIBS += $(if $(filter _extlib_blas, $^), $(LIB_BLAS))
+L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
+L_LIBS_LAPACKBLAS += $(if $(filter _extlib_blas, $^), $(LIB_BLAS))
 
 # ARPACK
 ifeq ($(strip $(WITH_ARPACK)),1)
   PRESENT_EXTERNALS += _extlib_arpack
   CPPOPT += -DWITH_ARPACK
-  L_LIBS += $(if $(filter _extlib_arpack, $^), $(ARPACK_LIBS))
+  L_LIBS_ARPACK += $(if $(filter _extlib_arpack, $^), $(ARPACK_LIBS))
+endif
+
+# If ARPACK was built without LAPACK/BLAS routines, they should be resolved from
+# the main LAPACK/BLAS library . Otherwise link ARPACK as last to prevent its
+# BLAS/LAPACK routines to interfere with the main libary (crashes in some cases)
+ifeq ($(strip $(ARPACK_NEEDS_LAPACK)),1)
+  L_LIBS += $(L_LIBS_ARPACK) $(L_LIBS_LAPACKBLAS)
+else
+  L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
 endif
 
 
