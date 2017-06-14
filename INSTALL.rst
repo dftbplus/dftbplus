@@ -36,10 +36,11 @@ you will additionally need:
 Obtaining the source
 ====================
 
-The source code can be downloaded from the `public repository
-<https://github.com/dftbplus/dftbplus>`_. The tagged versions on the master
-branch correspond to stable releases, while the develop branch contains the
-latest developer version.
+The source code can be downloaded from the `DFTB+ homepage
+<http://www.dftbplus.org>`_ or directly from the `public git repository
+<https://github.com/dftbplus/dftbplus>`_. (The tagged revisions correspond to
+stable releases, while the master branch contains the latest development
+version.)
 
 Some optional software components (e.g. the `DftD3 library
 <https://github.com/aradi/dftd3-lib>`_) are not distributed with the DFTB+
