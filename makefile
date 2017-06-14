@@ -12,7 +12,7 @@ default: dftb+ modes waveplot
 misc: misc_skderivs misc_slakovalue
 
 .PHONY: install install_misc install_all
-install: install_dftb+ install_modes install_waveplot
+install: install_dftb+ install_modes install_waveplot install_dptools
 install_misc: install_misc_skderivs install_misc_slakovalue
 
 .PHONY: test
@@ -104,6 +104,12 @@ install_misc_skderivs install_misc_slakovalue:
 	    -f $(ROOT)/prog/misc/$(subst install_misc_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
 
+
+PYTHON := python
+.PHONY: install_dptools
+install_dptools:
+	cd $(ROOT)/tools/dptools \
+            && $(PYTHON) setup.py install --prefix $(INSTALLDIR)
 
 ################################################################################
 # Check targets
