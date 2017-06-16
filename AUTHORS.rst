@@ -34,3 +34,5 @@ contributed to DFTB+ :
 
 * Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
   QuantumWise A/S, Denmark)
+
+* Michael Sternberg (Argonne National Laboratory, USA)
