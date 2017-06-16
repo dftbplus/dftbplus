@@ -2,7 +2,7 @@
 Change Log
 **********
 
-Notable changes of the project since release 1.3.1 (2017-02-22).
+Notable project changes since release 1.3.1 (2017-02-22).
 
 
 Unreleased
@@ -20,5 +20,7 @@ Changed
 
 Fixed
 -----
-- Skip irrelevant tests giving false positives.
-- Make geometries in gen and xyz files consistent.
+
+- Skip irrelevant tests that give false positives for particular compilation
+  modes.
+- Make geometry writing in gen and xyz files consistent.
