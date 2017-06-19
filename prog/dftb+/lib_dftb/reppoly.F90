@@ -16,7 +16,7 @@ module reppoly
   private
 
   public :: powMin, powMax
-  public :: TRepPolyIn, ORepPoly, init, destruct
+  public :: TRepPolyIn, ORepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv
   
   !! Minimal and maximal power appearing in the polynomial
@@ -44,11 +44,6 @@ module reppoly
   !!* Initialises polynomial repulsive.
   interface init
     module procedure RepPoly_init
-  end interface
-
-  !!* Frees polynomial repulsive.
-  interface destruct
-    module procedure RepPoly_destruct
   end interface
 
   !!* Returns cutoff of the repulsive.
@@ -88,18 +83,6 @@ contains
 
 
   
-  !!* Frees polynomial repulsive.
-  !!* @param self polynomial repulsive.
-  subroutine RepPoly_destruct(self)
-    type(ORepPoly), intent(inout) :: self
-
-    ASSERT(self%tInit)
-    self%tInit = .false.
-    
-  end subroutine RepPoly_destruct
-
-  
-
   !!* Returns cutoff of the repulsive.
   !!* @param self Polynomial repulsive.
   !!* @return Cutoff.

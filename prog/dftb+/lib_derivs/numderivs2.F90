@@ -15,15 +15,18 @@ module numderivs2
   implicit none
   private
   
-  public :: OnumDerivs, create, destroy, next, getHessianMatrix
+  public :: OnumDerivs, create, next, getHessianMatrix
   
   !!* Contains necessary data for the derivs
   type OnumDerivs
     private
-    real(dp), pointer :: derivs(:,:) !!* Internal matrix to hold derivative and
-    !!* intermediate values for their construction
-    real(dp), pointer :: x0(:,:)     !!* Coordinates at x=0 to differentiate
-    !!* at
+    ! Internal matrix to hold derivative and
+    ! intermediate values for their construction
+    real(dp), allocatable :: derivs(:,:) 
+
+    ! Coordinates at x=0 to differentiate at
+    real(dp), allocatable :: x0(:,:)
+    
     integer           :: nDerivs     !!* How many derivates are needed
     integer           :: iAtom       !!* Which atom are we currently
     !!* differentiating with respect to?
@@ -37,11 +40,6 @@ module numderivs2
   !!* Create numerical second derivatives instance
   interface create
     module procedure derivs_create
-  end interface
-  
-  !!* Destroy derivatives instance
-  interface destroy
-    module procedure derivs_destroy
   end interface
   
   !!* Delivers the next set of coordinates for evaluation of forces
@@ -63,7 +61,7 @@ contains
   !!* @note Use pre-relaxed coordinates when starting this, as the the
   !!* truncation at second derivatives is only valid at the minimum position.
   subroutine derivs_create(self,xInit,Delta)
-    type(OnumDerivs), pointer :: self
+    type(OnumDerivs), allocatable, intent(out) :: self
     real(dp), intent(inout) :: xInit(:,:)
     real(dp), intent(in) :: Delta
     
@@ -72,10 +70,10 @@ contains
     ASSERT(size(xInit,dim=1)==3)
     nDerivs = size(xInit,dim=2)
     
-    INITALLOCATE_P(self)
-    INITALLOCATE_PARR(self%x0,(3,nDerivs))
+    allocate(self)
+    ALLOCATE_(self%x0, (3, nDerivs))
     self%x0(:,:) = xInit(:,:)
-    INITALLOCATE_PARR(self%derivs,(3*nDerivs,3*nDerivs))
+    ALLOCATE_(self%derivs,(3*nDerivs,3*nDerivs))
     self%derivs(:,:) = 0.0_dp
     self%nDerivs = nDerivs
     self%Delta = Delta
@@ -89,18 +87,6 @@ contains
     
   end subroutine derivs_create
   
-  !!* Destroys the derivatives instance
-  !!* @param self derivatives instance
-  subroutine derivs_destroy(self)
-    type(OnumDerivs), pointer :: self
-    
-    if (associated(self)) then
-      DEALLOCATE_PARR(self%x0)
-      DEALLOCATE_PARR(self%derivs)
-      DEALLOCATE_P(self)
-    end if
-    
-  end subroutine derivs_destroy
   
   !!* Takes the next step for derivatives using the central difference
   !!* formula to choose the new coordinates for differentiation of the
@@ -111,7 +97,7 @@ contains
   !!* @param tGeomEnd Has the process terminated? If so internally calculate
   !!* the Hessian matrix.
   subroutine derivs_next(self,xNew,fOld,tGeomEnd)
-    type(OnumDerivs), pointer :: self
+    type(OnumDerivs), intent(inout) :: self
     real(dp), intent(out)     :: xNew(:,:)
     real(dp), intent(in)      :: fOld(:,:)	
     logical, intent(out)      :: tGeomEnd
@@ -162,8 +148,8 @@ contains
   !!* @param self Derivatives instance including the Hessian internally
   !!* @param d Pointer to the Hessian matrix to allow retrieval
   subroutine getDerivMatrixPtr(self,d)
-    type(OnumDerivs), pointer :: self
-    real(dp), pointer         :: d(:,:)
+    type(OnumDerivs), intent(in), target :: self
+    real(dp), pointer :: d(:,:)
     
     d => self%derivs
     

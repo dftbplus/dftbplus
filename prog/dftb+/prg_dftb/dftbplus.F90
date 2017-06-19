@@ -77,9 +77,8 @@ program dftbplus
   real(dp), allocatable    :: filling(:,:,:)
   real(dp), allocatable :: Eband(:), TS(:), E0(:), Eold
 
-  type(TEnergies)          :: energy
-  type(TPotentials)        :: potential
-
+  type(TEnergies), allocatable :: energy
+  type(TPotentials), allocatable :: potential
 
   real(dp), allocatable    :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
   real(dp), allocatable    :: chrgForces(:,:)
@@ -290,10 +289,12 @@ program dftbplus
       ALLOCATE_(excitedDerivs, (3, nAtom))
     end if
   end if
-  
-  call create(energy,nAtom)
 
-  call create(potential,orb,nAtom,nSpin)
+  allocate(energy)
+  call init(energy,nAtom)
+
+  allocate(potential)
+  call init(potential, orb, nAtom, nSpin)
   ALLOCATE_(shift3rd, (nAtom))
   ALLOCATE_(orbresshift3rd, (orb%mShell,nAtom))
   
@@ -528,8 +529,8 @@ program dftbplus
       if (tImHam) then
         DEALLOCATE_(iRhoPrim)
         ALLOCATE_(iRhoPrim,(size(ham,dim=1),nSpin))
-        DEALLOCATE_PARR(iHam)
-        INITALLOCATE_PARR(iHam,(size(ham,dim=1),nSpin))
+        DEALLOCATE_(iHam)
+        ALLOCATE_(iHam,(size(ham,dim=1),nSpin))
       end if
       if (tForces) then
         DEALLOCATE_(ERhoPrim)
@@ -2448,7 +2449,7 @@ program dftbplus
           print "('>> Charges saved for restart in ',A)", fChargeIn
         end if
         if (tDerivs) then
-          call next(pDerivDriver,new3Coord,totalDeriv(:,indMovedAtom), tGeomEnd)
+          call next(derivDriver, new3Coord, totalDeriv(:,indMovedAtom), tGeomEnd)
           coord0(:,indMovedAtom) = new3Coord(:,:)
           if (tGeomEnd) exit lpGeomOpt
         elseif (tGeoOpt) then
@@ -2821,7 +2822,7 @@ program dftbplus
   end if
 
   if (tDerivs) then
-    call getHessianMatrix(pDerivDriver,pDynMatrix)
+    call getHessianMatrix(derivDriver, pDynMatrix)
     write(*,*)'Hessian matrix written to ',hessianOut
     do ii = 1, size(pDynMatrix,dim=2)
       write(fdHessian,formatHessian)pDynMatrix(:,ii)
@@ -3064,8 +3065,8 @@ program dftbplus
     DEALLOCATE_(chrgForces)
   end if
 
-  call destroy(energy)
-  call destroy(potential)
+  deallocate(energy)
+  deallocate(potential)
 
   if (tMulliken) then
     DEALLOCATE_(qOutput)
@@ -3096,7 +3097,6 @@ program dftbplus
     call destroy(pChrgMixer)
   end if
 
-  call destroyProgramVariables()
 
 contains
 

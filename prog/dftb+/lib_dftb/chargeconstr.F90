@@ -14,25 +14,21 @@ module chargeconstr
   implicit none
   private
 
-  public :: OChrgConstr, init, destruct
+  public :: OChrgConstr, init
   public :: buildShift, addShiftPerAtom, addEnergyPerAtom
 
   type OChrgConstr
     private
-    logical :: tInit
+    logical :: tInit = .false.
     integer :: nAtom
     integer :: kappa
-    real(dp), pointer :: refCharges(:) => null()
-    real(dp), pointer :: prefactors(:) => null()
-    real(dp), pointer :: shift(:) => null()
+    real(dp), allocatable :: refCharges(:)
+    real(dp), allocatable :: prefactors(:)
+    real(dp), allocatable :: shift(:)
   end type OChrgConstr
 
   interface init
     module procedure ChrgConstr_init
-  end interface
-
-  interface destruct
-    module procedure ChrgConstr_destruct
   end interface
 
   interface buildShift
@@ -64,29 +60,15 @@ contains
     ASSERT(size(inp, dim=2) == 2)
 
     sf%nAtom = size(inp, dim=1)
-    ALLOCATE_PARR(sf%refCharges, (sf%nAtom))
-    ALLOCATE_PARR(sf%prefactors, (sf%nAtom))
-    ALLOCATE_PARR(sf%shift, (sf%nAtom))
+    ALLOCATE_(sf%refCharges, (sf%nAtom))
+    ALLOCATE_(sf%prefactors, (sf%nAtom))
+    ALLOCATE_(sf%shift, (sf%nAtom))
     sf%refCharges = inp(:,1)
     sf%prefactors = inp(:,2)
     sf%kappa = kappa
     sf%tInit = .true.
     
   end subroutine ChrgConstr_init
-
-
-  
-  subroutine ChrgConstr_destruct(sf)
-    type(OChrgConstr), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-    
-    DEALLOCATE_PARR(sf%refCharges)
-    DEALLOCATE_PARR(sf%prefactors)
-    DEALLOCATE_PARR(sf%shift)
-    sf%tInit = .false.
-
-  end subroutine ChrgConstr_destruct
 
 
   

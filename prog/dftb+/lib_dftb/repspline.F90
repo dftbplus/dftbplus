@@ -15,13 +15,13 @@ module repspline
   implicit none
   private
 
-  public :: TRepSplineIn, ORepSpline, init, destruct
+  public :: TRepSplineIn, ORepSpline, init
   public :: getCutoff, getEnergy, getEnergyDeriv
 
   !!* Initialisation type for ORepSpline
   type TRepSplineIn
-    real(dp), pointer :: xStart(:) => null() !* Starting pos. for each spline
-    real(dp), pointer :: spCoeffs(:,:) => null() !* Spline coeffs (3, nSpline-1)
+    real(dp), allocatable :: xStart(:)  !* Starting pos. for each spline
+    real(dp), allocatable :: spCoeffs(:,:)  !* Spline coeffs (3, nSpline-1)
     real(dp) :: spLastCoeffs(6)         !* Coeffs. of the last spline
     real(dp) :: expCoeffs(3)            !* Coeffs for the exponential head
     real(dp) :: cutoff                  !* Cutoff for the last spline
@@ -32,8 +32,8 @@ module repspline
   type ORepSpline
     private
     integer :: nSpline                  ! Nr. of splines.
-    real(dp), pointer :: xStart(:) => null()  ! Starting point for each spline
-    real(dp), pointer :: spCoeffs(:,:) => null()  ! Spline coeffs (3, nSpline-1)
+    real(dp), allocatable :: xStart(:)  ! Starting point for each spline
+    real(dp), allocatable :: spCoeffs(:,:)  ! Spline coeffs (3, nSpline-1)
     real(dp) :: spLastCoeffs(6)         ! Coeffs of the last spline
     real(dp) :: expCoeffs(3)            ! Exponential head
     real(dp) :: cutoff                  ! Cutoff of the last spline
@@ -44,11 +44,6 @@ module repspline
   !!* Initialises spline repulsive.
   interface init
     module procedure RepSpline_init
-  end interface
-
-  !!* Frees spline repulsive.
-  interface destruct
-    module procedure RepSpline_destruct
   end interface
 
   !!* Returns cutoff of the repulsive.
@@ -84,8 +79,8 @@ contains
     ASSERT(inp%cutoff >= 0.0_dp)
 
     self%nSpline = size(inp%xStart)
-    ALLOCATE_PARR(self%xStart, (self%nSpline))
-    ALLOCATE_PARR(self%spCoeffs, (4, self%nSpline - 1))
+    ALLOCATE_(self%xStart, (self%nSpline))
+    ALLOCATE_(self%spCoeffs, (4, self%nSpline - 1))
     self%xStart(:) = inp%xStart(:)
     self%spCoeffs(:,:) = inp%spCoeffs(:,:)
     self%spLastCoeffs(:) = inp%spLastCoeffs(:)
@@ -97,19 +92,6 @@ contains
 
 
   
-  !!* Frees spline repulsive.
-  !!* @param self Spline repulsive.
-  subroutine RepSpline_destruct(self)
-    type(ORepSpline), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%xStart)
-    DEALLOCATE_PARR(self%spCoeffs)
-    self%tInit = .false.
-    
-  end subroutine RepSpline_destruct
-
-  
-
   !!* Returns cutoff of the repulsive.
   !!* @param self Spline repulsive.
   !!* @return Cutoff.

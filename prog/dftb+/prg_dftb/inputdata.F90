@@ -141,8 +141,8 @@ module inputdata_module
     ! derivative finite difference step
 
     integer                :: nKPoint       = 0
-    real(dp), pointer      :: kPoint(:,:)   => null()
-    real(dp), pointer      :: kWeight(:)    => null()
+    real(dp), allocatable :: kPoint(:,:)
+    real(dp), allocatable :: kWeight(:)
 
     real(dp)               :: pressure       = 0.0_dp ! cell presure if periodic
     logical                :: tBarostat = .false.
@@ -316,8 +316,6 @@ contains
     INIT_PARR(ctrl%conAtom)
     INIT_PARR(ctrl%conVec)
     INIT_PARR(ctrl%initialVelocities)
-    INIT_PARR(ctrl%kPoint)
-    INIT_PARR(ctrl%kWeight)    
     INIT_PARR(ctrl%indMovedAtom)
     
   end subroutine initControl
@@ -339,8 +337,6 @@ contains
     DEALLOCATE_PARR(ctrl%tempMethods)
     DEALLOCATE_PARR(ctrl%tempSteps)
     DEALLOCATE_PARR(ctrl%tempValues)
-    DEALLOCATE_PARR(ctrl%kPoint)
-    DEALLOCATE_PARR(ctrl%kWeight)
     DEALLOCATE_PARR(ctrl%UJ)
     DEALLOCATE_PARR(ctrl%iUJ)
     DEALLOCATE_PARR(ctrl%niUJ)

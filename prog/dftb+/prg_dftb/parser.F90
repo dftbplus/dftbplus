@@ -1582,8 +1582,6 @@ contains
     
     !! K-Points
     if (geo%tPeriodic) then
-      INIT_PARR(ctrl%kPoint)
-      INIT_PARR(ctrl%kWeight)
       call getChildValue(node, "KPointsAndWeights", value, child=child, &
           &modifier=modifier)
       call getNodeName(value, buffer)
@@ -1647,8 +1645,8 @@ contains
         do while (tmpI1(ii) == 0)
           ii = ii + 1
         end do
-        INITALLOCATE_PARR(ctrl%kPoint, (3, ctrl%nKPoint))
-        INITALLOCATE_PARR(ctrl%kWeight, (ctrl%nKPoint))
+        ALLOCATE_(ctrl%kPoint, (3, ctrl%nKPoint))
+        ALLOCATE_(ctrl%kWeight, (ctrl%nKPoint))
         ind = 1
         do jj = ii, size(tmpI1)
           if (tmpI1(jj) == 0) then
@@ -1709,8 +1707,8 @@ contains
                 &// "'")
           end select
         end if
-        INITALLOCATE_PARR(ctrl%kPoint, (3, ctrl%nKPoint))
-        INITALLOCATE_PARR(ctrl%kWeight, (ctrl%nKPoint))
+        ALLOCATE_(ctrl%kPoint, (3, ctrl%nKPoint))
+        ALLOCATE_(ctrl%kWeight, (ctrl%nKPoint))
         ctrl%kPoint(:,:) = kpts(1:3, :)
         ctrl%kWeight(:) = kpts(4, :)
         DEALLOCATE_(kpts)
@@ -2138,8 +2136,8 @@ contains
     type(OSlakoEqGrid), pointer :: pSlakoEqGrid1, pSlakoEqGrid2
     type(TRepSplineIn) :: repSplineIn1, repSplineIn2
     type(TRepPolyIn) :: repPolyIn1, repPolyIn2
-    type(ORepSpline), pointer :: pRepSpline
-    type(ORepPoly), pointer :: pRepPoly
+    type(ORepSpline), allocatable :: pRepSpline
+    type(ORepPoly), allocatable :: pRepPoly
 
     ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
@@ -2275,27 +2273,31 @@ contains
 
         !! Add repulsives to the containers.
         if (repPoly(iSp2, iSp1)) then
-          INITALLOCATE_P(pRepPoly)
+          allocate(pRepPoly)
           call init(pRepPoly, repPolyIn1)
           call addRepulsive(slako%repCont, pRepPoly, iSp1, iSp2)
+          deallocate(pRepPoly)
         else
-          INITALLOCATE_P(pRepSpline)
+          allocate(pRepSpline)
           call init(pRepSpline, repSplineIn1)
           call addRepulsive(slako%repCont, pRepSpline, iSp1, iSp2)
-          DEALLOCATE_PARR(repSplineIn1%xStart)
-          DEALLOCATE_PARR(repSplineIn1%spCoeffs)
+          deallocate(pRepSpline)
+          DEALLOCATE_(repSplineIn1%xStart)
+          DEALLOCATE_(repSplineIn1%spCoeffs)
         end if
         if (iSp1 /= iSp2) then
           if (repPoly(iSp1, iSp2)) then
-            INITALLOCATE_P(pRepPoly)
+            allocate(pRepPoly)
             call init(pRepPoly, repPolyIn2)
             call addRepulsive(slako%repCont, pRepPoly, iSp2, iSp1)
+            deallocate(pRepPoly)
           else
-            INITALLOCATE_P(pRepSpline)
+            allocate(pRepSpline)
             call init(pRepSpline, repSplineIn2)
             call addRepulsive(slako%repCont, pRepSpline, iSp2, iSp1)
-            DEALLOCATE_PARR(repSplineIn2%xStart)
-            DEALLOCATE_PARR(repSplineIn2%spCoeffs)
+            deallocate(pRepSpline)
+            DEALLOCATE_(repSplineIn2%xStart)
+            DEALLOCATE_(repSplineIn2%spCoeffs)
           end if
         end if
       end do lpSp2
@@ -2612,8 +2614,8 @@ contains
     integer :: iAt1, iAt2f, iSp1, iSp2, iNeigh
     integer, allocatable :: nNeighs(:)
     real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
-    real(dp), pointer :: coords(:,:)
-    integer, pointer :: img2CentCell(:), iCellVec(:)
+    real(dp), allocatable :: coords(:,:)
+    integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
     type(TNeighborList) :: neighs
 
@@ -2680,9 +2682,9 @@ contains
       else
         nAllAtom = geo%nAtom
       end if
-      INITALLOCATE_PARR(coords, (3, nAllAtom))
-      INITALLOCATE_PARR(img2CentCell, (nAllAtom))
-      INITALLOCATE_PARR(iCellVec, (nAllAtom))
+      ALLOCATE_(coords, (3, nAllAtom))
+      ALLOCATE_(img2CentCell, (nAllAtom))
+      ALLOCATE_(iCellVec, (nAllAtom))
       call updateNeighborList(coords, img2CentCell, iCellVec, neighs, &
           &nAllAtom, geo%coords, mCutoff, rCellVec)
       ALLOCATE_(nNeighs, (geo%nAtom))
@@ -2710,11 +2712,6 @@ contains
         end if
         tmpR2(3, iAt1) = tmp2R2(13, iSp1)
       end do
-      DEALLOCATE_PARR(coords)
-      DEALLOCATE_PARR(img2CentCell)
-      DEALLOCATE_PARR(iCellVec)
-      call destroy(neighs)
-      DEALLOCATE_(rCutoffs)
 
     case default
       call detailedError(value, "Invalid method for PolarRadiusCharge.")

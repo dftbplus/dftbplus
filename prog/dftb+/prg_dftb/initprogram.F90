@@ -80,16 +80,16 @@ module initprogram
 
   integer               :: nAtom           !* nr. of atoms
   integer               :: nAllAtom        !* nr. of all (image and orig) atoms
-  integer,  pointer     :: Img2CentCell(:) !* nr. of original atom in centre
+  integer, allocatable :: Img2CentCell(:) !* nr. of original atom in centre
   integer               :: nType           !* nr of different types (nAtom)
 
   type(TOrbitals), pointer :: orb
 
   integer               :: nOrb            !* nr. of orbitals in the system
   integer               :: nAllOrb         !* nr. of orbitals for all atoms
-  integer,  pointer     :: species(:)       !* types of the atoms (nAllAtom)
+  integer, allocatable :: species(:)       !* types of the atoms (nAllAtom)
   integer,  allocatable :: species0(:)      !* type of the atoms (nAtom)
-  real(dp), pointer     :: coord(:,:)      !* Coords of the atoms (3, nAllAtom)
+  real(dp), allocatable :: coord(:,:)      !* Coords of the atoms (3, nAllAtom)
   real(dp), allocatable, target :: coord0(:,:)   !* Coords (3, nAtom)
   real(dp), allocatable :: tmpCoords(:)    !* temporary array of coords
   real(dp), allocatable :: tmpWeight(:)    !* temporary weights
@@ -115,12 +115,12 @@ module initprogram
   real(dp), allocatable :: cellVec(:,:)    !* translation vecs for interacting
                                            !* image cells (3, nImgCell + 1)
   real(dp), allocatable :: rCellVec(:,:)   !* cell vectors in absolute units
-  integer,  pointer     :: iCellVec(:)     !* index in cellVec for each atom
+  integer, allocatable :: iCellVec(:)     !* index in cellVec for each atom
 
   !!* ADT for neighbor parameters
-  type(TNeighborList), save :: neighborList
+  type(TNeighborList), allocatable, save :: neighborList
   integer,  allocatable :: nNeighbor(:)    !* nr. of neighbors for SK + rep
-  integer,  pointer     :: iPair(:,:)      !* H/S indexing array
+  integer, allocatable :: iPair(:,:)      !* H/S indexing array
 
   integer,  allocatable :: iAtomStart(:)   !* atom start pos for squared H/S
 
@@ -139,10 +139,10 @@ module initprogram
   
   real(dp)              :: mCutoff        !* longest pair interaction
 
-  real(dp), pointer     :: ham(:,:)       !* Hamiltonian
-  real(dp), pointer     :: iHam(:,:)      !* imaginary part of the Hamiltonian
+  real(dp), allocatable :: ham(:,:)       !* Hamiltonian
+  real(dp), allocatable :: iHam(:,:)      !* imaginary part of the Hamiltonian
   real(dp), allocatable :: chargePerShell(:,:,:)
-  real(dp), pointer     :: over(:)        !* Overlap
+  real(dp), allocatable :: over(:)        !* Overlap
 
 
   integer               :: nKPoint        !* nr. of K-points
@@ -263,7 +263,7 @@ module initprogram
   type(OMDIntegrator), pointer :: pMDIntegrator !* MD integrator
   type(OTempProfile), pointer :: pTempProfile
 
-  type(OnumDerivs), pointer :: pDerivDriver
+  type(OnumDerivs), allocatable, target :: derivDriver
 
   !! Charge related variables
   real(dp), allocatable    :: q0(:, :, :)
@@ -675,10 +675,10 @@ contains
     else
       nAllAtom = nAtom
     end if
-    INITALLOCATE_PARR(coord, (3, nAllAtom))
-    INITALLOCATE_PARR(species, (nAllAtom))
-    INITALLOCATE_PARR(img2CentCell, (nAllAtom))
-    INITALLOCATE_PARR(iCellVec, (nAllAtom))
+    ALLOCATE_(coord, (3, nAllAtom))
+    ALLOCATE_(species, (nAllAtom))
+    ALLOCATE_(img2CentCell, (nAllAtom))
+    ALLOCATE_(iCellVec, (nAllAtom))
     ALLOCATE_(iAtomStart, (nAtom + 1))
     call buildSquaredAtomIndex(iAtomStart, orb)
 
@@ -688,10 +688,10 @@ contains
     else
        ALLOCATE_(chargePerShell,(0,0,0))
     end if
-    INITALLOCATE_PARR(ham, (0, nSpin))
-    INITALLOCATE_PARR(iHam, (0, nSpin))
-    INITALLOCATE_PARR(over, (0))
-    INITALLOCATE_PARR(iPair, (0, nAtom))
+    ALLOCATE_(ham, (0, nSpin))
+    ALLOCATE_(iHam, (0, nSpin))
+    ALLOCATE_(over, (0))
+    ALLOCATE_(iPair, (0, nAtom))
 
     !! Brillouin zone sampling
     if (tPeriodic) then
@@ -1413,8 +1413,7 @@ contains
     if (tDerivs) then
       ALLOCATE_(tmp3Coords, (3,nMovedAtom))
       tmp3Coords = coord0(:,indMovedAtom)
-      call create(pDerivDriver,tmp3Coords, &
-          & input%ctrl%deriv2ndDelta)
+      call create(derivDriver, tmp3Coords, input%ctrl%deriv2ndDelta)
       coord0(:,indMovedAtom) = tmp3Coords
       DEALLOCATE_(tmp3Coords)
       nGeoSteps = 2 * 3 * nMovedAtom - 1
@@ -1669,6 +1668,7 @@ contains
     end if
 
     !! Initialize neighborlist.
+    allocate(neighborList)
     call init(neighborList, nAtom, nInitNeighbor)
     ALLOCATE_(nNeighbor, (nAtom))
 
@@ -2199,111 +2199,5 @@ contains
     
   end subroutine initProgramVariables
 
-
-
-
-
-  !!* Destroys the program variables
-  subroutine destroyProgramVariables
-
-    integer :: iS
-
-    ASSERT(tInitialized)
-
-    tInitialized = .false.
-
-    DEALLOCATE_(latVec)
-    DEALLOCATE_(recVec)
-    DEALLOCATE_(recVec2p)
-    DEALLOCATE_(hubbU)
-    DEALLOCATE_(atomEigVal)
-    DEALLOCATE_(referenceN0)
-    DEALLOCATE_(speciesMass)
-    DEALLOCATE_(mass)
-    DEALLOCATE_PARR(Img2CentCell)
-    DEALLOCATE_(cellVec)
-    DEALLOCATE_(rCellVec)
-    DEALLOCATE_PARR(iCellVec)
-    DEALLOCATE_PARR(coord)
-    DEALLOCATE_(coord0)
-    DEALLOCATE_PARR(species)
-    DEALLOCATE_(species0)
-    DEALLOCATE_PARR(iPair)
-    DEALLOCATE_(iAtomStart)
-    DEALLOCATE_PARR(ham)
-    DEALLOCATE_PARR(iHam)
-    DEALLOCATE_PARR(over)
-    DEALLOCATE_(spinW)
-    DEALLOCATE_(chargePerShell)
-    DEALLOCATE_(UJ)
-    DEALLOCATE_(nUJ)
-    DEALLOCATE_(niUJ)
-    DEALLOCATE_(iUJ)
-    DEALLOCATE_(kPoint)
-    DEALLOCATE_(kWeight)
-    DEALLOCATE_(nEl)
-    DEALLOCATE_(speciesName)
-    DEALLOCATE_(indMovedAtom)
-    DEALLOCATE_(conAtom)
-    DEALLOCATE_(conVec)
-    DEALLOCATE_(qOutput)
-    DEALLOCATE_(qInput)
-    DEALLOCATE_(qBlockIn)
-    DEALLOCATE_(qBlockOut)
-    DEALLOCATE_(qiBlockIn)
-    DEALLOCATE_(qiBlockOut)
-    DEALLOCATE_(q0)
-    DEALLOCATE_(qDiffRed)
-    DEALLOCATE_(qInpRed)
-    DEALLOCATE_(qOutRed)
-    DEALLOCATE_(iEqOrbitals)
-    DEALLOCATE_(iEqBlockDFTBU)
-    DEALLOCATE_(iEqBlockDFTBULS)
-
-    call destruct(pRepCont)
-    call destroy(neighborList)
-    call destroy(pChrgMixer)
-    if (tCoordOpt) then
-      call destroy(pGeoCoordOpt)
-      DEALLOCATE_(tmpCoords)
-    end if
-    if (tLatOpt) then
-      call destroy(pGeoLatOpt)
-    end if
-    call destroy(pRanlux)
-    if (tMD) then
-      call destroy(pMDFrame)
-      call destroy(pMDIntegrator)
-    end if
-    if (tDerivs) then
-      call destroy(pDerivDriver)
-    end if
-
-    if (tStoreEigvecs) then
-      if (tRealHS.and.(.not.t2Component)) then
-        do iS = 1, nSpin
-          call destruct(storeEigvecsReal(iS))
-        end do
-      else
-        if (t2Component) then
-          call destruct(storeEigvecsCplx(1))
-        else
-          do iS = 1, nSpin
-            call destruct(storeEigvecsCplx(iS))
-          end do
-        end if
-      end if
-    end if
-    DEALLOCATE_(storeEigvecsReal)
-    DEALLOCATE_(storeEigvecsCplx)
-
-    if (tProjEigenvecs) then
-      call destroy(iOrbRegion)
-      call destroy(RegionLabels)
-    end if
-    
-    DEALLOCATE_(sparsePipekTols)
-    
-  end subroutine destroyProgramVariables
 
 end module initprogram

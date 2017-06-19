@@ -88,9 +88,9 @@ module scc
   logical :: tPeriodic_                          ! Is the system periodic?
 
   logical :: tChrgConstr_                       ! Shifts due charge constrains?
-  type(OChrgConstr), save :: chrgConstr_        ! Object for charge constraints
+  type(OChrgConstr), allocatable, save :: chrgConstr_        ! Object for charge constraints
   logical :: tThirdOrder_                       ! Shifts due to 3rd order
-  type(OChrgConstr), save :: thirdOrder_
+  type(OChrgConstr), allocatable, save :: thirdOrder_
   logical :: tAutoEwald_
   
 
@@ -221,10 +221,12 @@ contains
 
     tChrgConstr_ = associated(inp%chrgConstraints)
     if (tChrgConstr_) then
+      allocate(chrgConstr_)
       call init(chrgConstr_, inp%chrgConstraints, 2)
     end if
     tThirdOrder_ = associated(inp%thirdOrderOn)
     if (tThirdOrder_) then
+      allocate(thirdOrder_)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives
       call init(thirdOrder_, inp%thirdOrderOn / 6.0_dp, 3)
     end if
@@ -269,11 +271,11 @@ contains
     DEALLOCATE_(deltaQAtom_)
     DEALLOCATE_(deltaQUniqU_)
     DEALLOCATE_(tDampedShort_)
-    if (tChrgConstr_) then
-      call destruct(chrgConstr_)
+    if (allocated(chrgConstr_)) then
+      deallocate(chrgConstr_)
     end if
-    if (tThirdOrder_) then
-      call destruct(thirdOrder_)
+    if (allocated(thirdOrder_)) then
+      deallocate(thirdOrder_)
     end if
   
   end subroutine destruct_SCC

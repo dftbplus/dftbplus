@@ -198,8 +198,8 @@ contains
     call checkioerror(iostat, fname, "Error in reading nint and cutoff")
     read(fp, *, iostat=iostat) (repsplinein%expcoeffs(ii), ii = 1, 3)
     call checkioerror(iostat, fname, "Error in reading exponential coeffs")
-    INITALLOCATE_PARR(repsplinein%xstart, (nint))
-    INITALLOCATE_PARR(repsplinein%spcoeffs, (4, nint - 1))
+    ALLOCATE_(repsplinein%xstart, (nint))
+    ALLOCATE_(repsplinein%spcoeffs, (4, nint - 1))
     ALLOCATE_(xend, (nint))
 
     do jj = 1, nint - 1

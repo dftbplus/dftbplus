@@ -14,7 +14,7 @@ module potentials
   use commontypes
   implicit none
   
-  public :: TPotentials, create, destroy
+  public :: TPotentials, init
   
   private
   
@@ -25,24 +25,21 @@ module potentials
   !!* energies
   type TPotentials
     logical :: tInitialised = .false.
-    real(dp), pointer :: intAtom(:,:) ! internal atom and spin resolved pot.
-    real(dp), pointer :: intShell(:,:,:)
-    real(dp), pointer :: intBlock(:,:,:,:)
-    real(dp), pointer :: extAtom(:,:) ! external atom and spin resolved pot.
-    real(dp), pointer :: extShell(:,:,:)
-    real(dp), pointer :: extBlock(:,:,:,:)
-    real(dp), pointer :: orbitalBlock(:,:,:,:) ! pSIC/DFTB+U etc.
-    real(dp), pointer :: iorbitalBlock(:,:,:,:) ! L.S etc where these are
-                                                ! imaginary coefficients
+    real(dp), allocatable :: intAtom(:,:) ! internal atom and spin resolved pot.
+    real(dp), allocatable :: intShell(:,:,:)
+    real(dp), allocatable :: intBlock(:,:,:,:)
+    real(dp), allocatable :: extAtom(:,:) ! external atom and spin resolved pot.
+    real(dp), allocatable :: extShell(:,:,:)
+    real(dp), allocatable :: extBlock(:,:,:,:)
+    real(dp), allocatable :: orbitalBlock(:,:,:,:) ! pSIC/DFTB+U etc.
+    ! L.S etc where these are imaginary coefficients
+    real(dp), allocatable :: iorbitalBlock(:,:,:,:) 
   end type TPotentials
   
-  interface create
-    module procedure Potentials_create
+  interface init
+    module procedure Potentials_init
   end interface
-  
-  interface destroy
-    module procedure Potentials_destroy
-  end interface
+
   
 contains
   
@@ -51,7 +48,7 @@ contains
   !!* @param orb information about the orbitals and their angular momenta
   !!* @param nAtom number of atoms needed for atom resolved arrays
   !!* @param nSpin number of spins
-  subroutine Potentials_create(self,orb,nAtom,nSpin)
+  subroutine Potentials_init(self,orb,nAtom,nSpin)
     type(TPotentials), intent(out) :: self
     type(TOrbitals), pointer :: orb
     integer, intent(in) :: nAtom
@@ -63,14 +60,14 @@ contains
     ASSERT(orb%mShell > 0)
     ASSERT(orb%mOrb > 0)
     
-    INITALLOCATE_PARR(self%intAtom,(nAtom,nSpin))
-    INITALLOCATE_PARR(self%intShell,(orb%mShell,nAtom,nSpin))
-    INITALLOCATE_PARR(self%intBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    INITALLOCATE_PARR(self%extAtom,(nAtom,nSpin))
-    INITALLOCATE_PARR(self%extShell,(orb%mShell,nAtom,nSpin))
-    INITALLOCATE_PARR(self%extBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    INITALLOCATE_PARR(self%orbitalBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    INITALLOCATE_PARR(self%iorbitalBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    ALLOCATE_(self%intAtom,(nAtom,nSpin))
+    ALLOCATE_(self%intShell,(orb%mShell,nAtom,nSpin))
+    ALLOCATE_(self%intBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    ALLOCATE_(self%extAtom,(nAtom,nSpin))
+    ALLOCATE_(self%extShell,(orb%mShell,nAtom,nSpin))
+    ALLOCATE_(self%extBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    ALLOCATE_(self%orbitalBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    ALLOCATE_(self%iorbitalBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
     self%intAtom = 0.0_dp
     self%intShell = 0.0_dp
     self%intBlock = 0.0_dp
@@ -81,25 +78,7 @@ contains
     self%iorbitalBlock = 0.0_dp
     self%tInitialised = .true.
     
-  end subroutine Potentials_create
+  end subroutine Potentials_init
   
-  !!* De-allocates storage for the potential components
-  subroutine Potentials_destroy(self)
-    type(TPotentials), intent(inout) :: self
-    
-    ASSERT(self%tInitialised)
-    
-    DEALLOCATE_PARR(self%intAtom)
-    DEALLOCATE_PARR(self%intShell)
-    DEALLOCATE_PARR(self%intBlock)
-    DEALLOCATE_PARR(self%extAtom)
-    DEALLOCATE_PARR(self%extShell)    
-    DEALLOCATE_PARR(self%extBlock)
-    DEALLOCATE_PARR(self%orbitalBlock)
-    DEALLOCATE_PARR(self%iorbitalBlock)
-
-    self%tInitialised = .false.
-    
-  end subroutine Potentials_destroy
   
 end module potentials
