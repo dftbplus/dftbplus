@@ -15,7 +15,7 @@ module mdcommon
   implicit none
   private
 
-  public :: OMDCommon, create, destroy, restFrame, evalKT, rescaleToKT
+  public :: OMDCommon, init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann
 
   !!* Contains necessary data for the MD framework
@@ -25,12 +25,8 @@ module mdcommon
     logical :: tStationary       ! Always transform to rest frame
   end type OMDCommon
 
-  interface create
-    module procedure MDCommon_create
-  end interface
-
-  interface destroy
-    module procedure MDCommon_destroy
+  interface init
+    module procedure MDCommon_init
   end interface
 
   interface restFrame
@@ -53,14 +49,13 @@ contains
   !!* @param nMoverAtoms Number of moving atoms in the system
   !!* @param nAllAtom   Total number of real atoms in the system
   !!* @param tStationary  If system should be transformed to rest frame.
-  subroutine MDCommon_create(sf, nMovedAtom, nAllAtom, tStationary)
-    type(OMDCommon), pointer :: sf
+  subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, tStationary)
+    type(OMDCommon), intent(out) :: sf
     integer, intent(in) :: nMovedAtom
     integer, intent(in) :: nAllAtom
     logical             :: tStationary
 
     ASSERT(nMovedAtom <= nAllAtom)
-    INITALLOCATE_P(sf)
 
     if (nMovedAtom /= nAllAtom .or. .not. tStationary) then
       ! there are fixed atoms present, all  moving atoms have 3 degrees of fd.
@@ -71,21 +66,9 @@ contains
     end if
     sf%tStationary = tStationary
     
-  end subroutine MDCommon_create
+  end subroutine MDCommon_init
 
 
-
-  !!* Destroys MD framework.
-  !!* @param sf MD Framework instance.
-  subroutine MDCommon_destroy(sf)
-    type(OMDCommon), pointer ::sf
-
-    DEALLOCATE_P(sf)
-
-  end subroutine MDCommon_destroy
-
-  
-  
   !!* Shift velocities so the total velocity is 0
   !!* @param sf MD Framework instance.
   !!* @param velocity particle velocities

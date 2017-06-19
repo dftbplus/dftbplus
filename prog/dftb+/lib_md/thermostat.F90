@@ -17,27 +17,23 @@ module thermostat
   private
 
   public :: OThermostat
-  public :: create, destroy, getInitVelocities, updateVelocities, state
+  public :: init, getInitVelocities, updateVelocities, state
 
   !!* Data for the termostat wrapper.
   type OThermostat
     private
     integer :: thermostat
-    type(ODummyThermostat), pointer :: pDummy
-    type(OAndersenThermostat), pointer :: pAndersen
-    type(OBerendsenThermostat), pointer :: pBerendsen
-    type(ONHCThermostat), pointer :: pNHC
+    type(ODummyThermostat), allocatable :: pDummy
+    type(OAndersenThermostat), allocatable :: pAndersen
+    type(OBerendsenThermostat), allocatable :: pBerendsen
+    type(ONHCThermostat), allocatable :: pNHC
   end type OThermostat
 
-  interface create
-    module procedure Thermostat_create_Dummy
-    module procedure Thermostat_create_Andersen
-    module procedure Thermostat_create_Berendsen
-    module procedure Thermostat_create_NHC
-  end interface
-
-  interface destroy
-    module procedure Thermostat_destroy
+  interface init
+    module procedure Thermostat_init_Dummy
+    module procedure Thermostat_init_Andersen
+    module procedure Thermostat_init_Berendsen
+    module procedure Thermostat_init_NHC
   end interface
 
   interface getInitVelocities
@@ -64,85 +60,60 @@ contains
   !!* Creates a thermostat wrapper for a DummyThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a DummyThermostat.
-  subroutine Thermostat_create_Dummy(self, pThermostat)
-    type(OThermostat), pointer :: self
-    type(ODummyThermostat), pointer :: pThermostat
+  subroutine Thermostat_init_Dummy(self, pThermostat)
+    type(OThermostat), intent(out) :: self
+    type(ODummyThermostat), allocatable, intent(inout) :: pThermostat
 
-    INITALLOCATE_P(self)
     self%thermostat = dummy_
-    self%pDummy => pThermostat
+    call move_alloc(pThermostat, self%pDummy)
     
-  end subroutine Thermostat_create_Dummy
+  end subroutine Thermostat_init_Dummy
   
-
   
   !!* Creates a thermostat wrapper for an AndersenThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a AndersenThermostat.
-  subroutine Thermostat_create_Andersen(self, pThermostat)
-    type(OThermostat), pointer :: self
-    type(OAndersenThermostat), pointer :: pThermostat
+  subroutine Thermostat_init_Andersen(self, pThermostat)
+    type(OThermostat), intent(out) :: self
+    type(OAndersenThermostat), allocatable, intent(inout) :: pThermostat
 
-    INITALLOCATE_P(self)
     self%thermostat = andersen_
-    self%pAndersen => pThermostat
+    call move_alloc(pThermostat, self%pAndersen)
     
-  end subroutine Thermostat_create_Andersen
+  end subroutine Thermostat_init_Andersen
     
+
   !!* Creates a thermostat wrapper for a BerendsenThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a BerendsenThermostat.
-  subroutine Thermostat_create_Berendsen(self, pThermostat)
-    type(OThermostat), pointer :: self
-    type(OBerendsenThermostat), pointer :: pThermostat
+  subroutine Thermostat_init_Berendsen(self, pThermostat)
+    type(OThermostat), intent(out) :: self
+    type(OBerendsenThermostat), allocatable, intent(inout) :: pThermostat
 
-    INITALLOCATE_P(self)
     self%thermostat = berendsen_
-    self%pBerendsen => pThermostat
+    call move_alloc(pThermostat, self%pBerendsen)
     
-  end subroutine Thermostat_create_Berendsen
+  end subroutine Thermostat_init_Berendsen
   
+
   !!* Creates a thermostat wrapper for a NHCThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a NHCThermostat.
-  subroutine Thermostat_create_NHC(self, pThermostat)
-    type(OThermostat), pointer :: self
-    type(ONHCThermostat), pointer :: pThermostat
+  subroutine Thermostat_init_NHC(self, pThermostat)
+    type(OThermostat), intent(out) :: self
+    type(ONHCThermostat), allocatable, intent(inout) :: pThermostat
 
-    INITALLOCATE_P(self)
     self%thermostat = nhc_
-    self%pNHC => pThermostat
+    call move_alloc(pThermostat, self%pNHC)
     
-  end subroutine Thermostat_create_NHC
+  end subroutine Thermostat_init_NHC
   
-  
-  !!* Destroys the thermostat wrapper.
-  !!* @param self Wrapper instance.
-  subroutine Thermostat_destroy(self)
-    type(OThermostat), pointer :: self
-
-    if (.not. associated(self)) then
-      return
-    end if
-    select case (self%thermostat)
-    case (dummy_)
-      call destroy(self%pDummy)
-    case (andersen_)
-      call destroy(self%pAndersen)
-    case (berendsen_)
-      call destroy(self%pBerendsen) 
-    case (nhc_)
-      call destroy(self%pNHC) 
-    end select
-    DEALLOCATE_P(self)
-    
-  end subroutine Thermostat_destroy
   
   !!* Returns the initial velocities
   !!* @param self Wrapper instance.
   !!* @param velocities Velocities on exit.
   subroutine Thermostat_getInitVelocities(self, velocities)
-    type(OThermostat), pointer :: self
+    type(OThermostat), intent(inout) :: self
     real(dp), intent(out) :: velocities(:,:)
 
     select case (self%thermostat)
@@ -164,7 +135,7 @@ contains
   !!* @note The DummyThermostat has no method to update the velocities,
   !!*   so the wrapper returns without touching the velocities.
   subroutine Thermostat_updateVelocities(self, velocities)
-    type(OThermostat), pointer :: self
+    type(OThermostat), intent(inout) :: self
     real(dp), intent(inout) :: velocities(:,:)
 
     select case (self%thermostat)
@@ -184,7 +155,7 @@ contains
   !!* @param self Wrapper instance.
   !!* @param fd file handle to write state too
   subroutine Thermostat_state(self, fd)
-    type(OThermostat), pointer :: self
+    type(OThermostat), intent(in) :: self
     integer, intent(in)        :: fd
 
     select case (self%thermostat)

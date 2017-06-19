@@ -1391,8 +1391,6 @@ contains
     
     ! Point charges present
     call getChildren(child, "PointCharges", children)
-    INIT_PARR(ctrl%extChrg)
-    INIT_PARR(ctrl%extChrgBlurWidth)
     if (getLength(children) > 0) then
 
       if (.not.ctrl%tSCC) then
@@ -1454,7 +1452,7 @@ contains
         end if
       end do
       
-      INITALLOCATE_PARR(ctrl%extChrg, (4, ctrl%nExtChrg))
+      ALLOCATE_(ctrl%extChrg, (4, ctrl%nExtChrg))
       ind = 1
       call init(iterator, lCharges)
       do while (isValid(iterator))
@@ -1467,7 +1465,7 @@ contains
       call destruct(lCharges)
       
       if (.not. geo%tPeriodic) then
-        INITALLOCATE_PARR(ctrl%extChrgBlurWidth, (ctrl%nExtChrg))
+        ALLOCATE_(ctrl%extChrgBlurWidth, (ctrl%nExtChrg))
         ind = 1
         call init(iterator, lBlurs)
         do while (isValid(iterator))

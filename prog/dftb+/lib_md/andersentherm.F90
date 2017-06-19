@@ -21,28 +21,24 @@ module andersentherm
   private
 
   public :: OAndersenThermostat
-  public :: create, destroy, getInitVelocities, updateVelocities, state
+  public :: init, getInitVelocities, updateVelocities, state
 
   !!* Data for the Andersen thermostat
   type OAndersenThermostat
     private
     integer :: nAtom                    !* Nr. of atoms
     type(ORanlux), pointer :: pRanlux   !* Random number generator
-    real(dp), pointer :: mass(:)        !* Mass of the atoms
-    type(OTempProfile), pointer :: pTempProfile !* Temperature generator
+    real(dp), allocatable :: mass(:)        !* Mass of the atoms
+    type(OTempProfile), pointer :: pTempProfile  !* Temperature generator
     logical :: tRescaleIndiv            !* Rescale velocities individually?
     real(dp) :: wvScale                 !* Rescaling probability
-    type(OMDCommon), pointer :: pMDFramework  !* MD framework
+    type(OMDCommon) :: pMDFramework  !* MD framework
   end type OAndersenThermostat
 
   
-  interface create
-    module procedure AndersenThermostat_create
-  end interface
-
-  interface destroy
-    module procedure AndersenThermostat_destroy
-  end interface
+  interface init
+    module procedure AndersenThermostat_init
+  end interface init
 
   interface getInitVelocities
     module procedure AndersenThermostat_getInitVelos
@@ -65,59 +61,38 @@ contains
   !!* @param tempProfile Pointer to a temperature profile object.
   !!* @param rescaleIndiv If velocities should be rescaled per atom
   !!* @param wvScale Rescaling probability.
-  subroutine AndersenThermostat_create(self, pRanlux, masses, tempProfile, &
+  subroutine AndersenThermostat_init(self, pRanlux, masses, tempProfile, &
       &rescaleIndiv, wvScale, pMDFramework)
-    type(OAndersenThermostat), pointer :: self
-    type(ORanlux), pointer :: pRanlux
+    type(OAndersenThermostat), intent(out) :: self
+    type(ORanlux), pointer, intent(in) :: pRanlux
     real(dp), intent(in) :: masses(:)
-    type(OTempProfile), pointer :: tempProfile
+    type(OTempProfile), pointer, intent(in) :: tempProfile
     logical, intent(in) :: rescaleIndiv
     real(dp), intent(in) :: wvScale
-    type(OMDCommon), pointer :: pMDFramework
+    type(OMDCommon), intent(in) :: pMDFramework
 
-    ASSERT(associated(pRanlux))
-    
-    INITALLOCATE_P(self)
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
-    INITALLOCATE_PARR(self%mass, (self%nAtom))
+    ALLOCATE_(self%mass, (self%nAtom))
     self%mass(:) = masses(:)
     self%pTempProfile => tempProfile
     self%tRescaleIndiv = rescaleIndiv
     self%wvScale = wvScale
-    self%pMDFramework => pMDFramework
+    self%pMDFramework = pMDFramework
     
-  end subroutine AndersenThermostat_create
+  end subroutine AndersenThermostat_init
 
-
-
-  !!* Destroys an Ansersen thermostat.
-  !!* @param self AndersenThermostat instance.
-  subroutine AndersenThermostat_destroy(self)
-    type(OAndersenThermostat), pointer :: self
-
-    if (.not. associated(self)) then
-      return
-    end if
-    call destroy(self%pTempProfile)
-    DEALLOCATE_PARR(self%mass)
-    DEALLOCATE_P(self)
-    
-  end subroutine AndersenThermostat_destroy
-
-
-
+  
   !!* Returns the initial velocities.
   !!* @param self AndersenThermostat instance.
   !!* @param velocities Contains the velocities on return.
   subroutine AndersenThermostat_getInitVelos(self, velocities)
-    type(OAndersenThermostat), pointer :: self
+    type(OAndersenThermostat), intent(inout) :: self
     real(dp), intent(out) :: velocities(:,:)
 
     real(dp) :: kT
     integer :: ii
 
-    ASSERT(associated(self))
     ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
     
     call getTemperature(self%pTempProfile, kT)
@@ -135,14 +110,13 @@ contains
   !!* @param self AndersenThermostat instance.
   !!* @param velocities Updated velocities on exit.
   subroutine AndersenThermostat_updateVelos(self, velocities)
-    type(OAndersenThermostat), pointer :: self
+    type(OAndersenThermostat), intent(inout) :: self
     real(dp), intent(inout) :: velocities(:,:)
 
     real(dp) :: rescaleChance
     real(dp) :: kT
     integer :: ii
 
-    ASSERT(associated(self))
     ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     call getTemperature(self%pTempProfile, kT)
@@ -171,7 +145,7 @@ contains
   end subroutine AndersenThermostat_updateVelos
   
   subroutine AndersenThermostat_state(self, fd)
-    type(OAndersenThermostat), pointer :: self
+    type(OAndersenThermostat), intent(in) :: self
     integer,intent(in)                 :: fd
 
     ! no internal state, nothing to do

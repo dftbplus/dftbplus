@@ -18,13 +18,20 @@ module slakocont
   implicit none
   private
 
-  public :: OSlakoCont, init, destruct
+  public :: OSlakoCont, init
   public :: addTable, getMIntegrals, getCutoff, getSKIntegrals
+
+  !! Pointer to a specific Slater-Koster table implementation.
+  type PSlaKo_
+    integer :: iType = 0
+    type(OSlakoEqGrid), allocatable :: pSlakoEqGrid
+  end type PSlaKo_
+
 
   !!* Container for Slater-Koster integrals for all pair-interactions
   type OSlakoCont
     private
-    type(PSlaKo_), pointer :: slakos(:,:)
+    type(PSlaKo_), allocatable :: slakos(:,:)
     integer :: nSpecies
     integer :: mInt
     real(dp) :: cutoff
@@ -32,21 +39,10 @@ module slakocont
     logical :: tInit = .false.
   end type OSlakoCont
 
-  !! Pointer to a specific Slater-Koster table implementation.
-  type PSlaKo_
-    integer :: iType = 0
-    type(OSlakoEqGrid), pointer :: pSlakoEqGrid => null()
-  end type PSlaKo_
-
   
   !!* Initialises SlakoCont
   interface init
     module procedure SlakoCont_init
-  end interface
-
-  !!* Destroys the components of SlakoCont
-  interface destruct
-    module procedure SlakoCont_destruct
   end interface
 
   !!* Adds a Slater-Koster table for a given diatomic pair to the container.
@@ -82,7 +78,7 @@ contains
     ASSERT(.not. self%tInit)
 
     self%nSpecies = nSpecies
-    INITALLOCATE_PARR(self%slakos, (nSpecies, nSpecies))
+    ALLOCATE_(self%slakos, (nSpecies, nSpecies))
     self%mInt = 0
     self%cutoff = 0.0_dp
     self%tDataOK = .false.
@@ -91,33 +87,19 @@ contains
   end subroutine SlakoCont_init
 
   
-  
-  !!* Destroys the components of SlakoCont
-  !!* @param self SlakoCont instance
-  subroutine SlakoCont_destruct(self)
-    type(OSlakoCont), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%slakos)
-    self%tInit = .false.
-    self%tDataOK = .false.
-
-  end subroutine SlakoCont_destruct
-
-
-
   !!* Adds a Slater-Koster table for a given diatomic pair to the container.
   !!* @param self SlakoCont instance
-  !!* @param pTable Pointer to the Slater-Koster table to be added
+  !!* @param pTable Slater-Koster table to be added
   !!* @param iSp1 Index of the first interacting species
   !!* @param iSp2 Index of the second interacting species
   subroutine SlakoCont_addTableEqGrid(self, pTable, iSp1, iSp2)
     type(OSlakoCont), intent(inout) :: self
-    type(OSlakoEqGrid), pointer :: pTable
+    type(OSlakoEqGrid), intent(in) :: pTable
     integer, intent(in) :: iSp1, iSp2
 
     ASSERT(self%tInit)
     self%slakos(iSp2, iSp1)%iType = 1
-    self%slakos(iSp2, iSp1)%pSlakoEqGrid => pTable
+    self%slakos(iSp2, iSp1)%pSlakoEqGrid = pTable
     self%tDataOK = all(self%slakos(:,:)%iType /= 0)
     self%mInt = max(self%mInt, getNIntegrals(pTable))
     self%cutoff = max(self%cutoff, getCutoff(pTable))

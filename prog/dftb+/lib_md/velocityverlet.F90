@@ -17,16 +17,16 @@ module velocityverlet
   private
 
   public :: OVelocityVerlet
-  public :: create, destroy, next, rescale, state
+  public :: init, next, rescale, state
 
   !!* Data for the integrator.
   type OVelocityVerlet
     private
     integer :: nAtom                     !* Nr. of atoms
     real(dp) :: deltaT                   !* time step for the integrator
-    real(dp), pointer :: positions(:,: ) !* list of particle positions
-    real(dp), pointer :: velocities(:,:) !* list of particle velocities
-    type(OThermostat), pointer :: pThermostat !* Thermostat
+    real(dp), allocatable :: positions(:,: ) !* list of particle positions
+    real(dp), allocatable :: velocities(:,:) !* list of particle velocities
+    type(OThermostat), allocatable :: pThermostat  !* Thermostat
     logical           :: vHalfPresent = .false. !* do we have the v(t-.5)
     !* internal velocity state?
     logical  :: tBarostat                !* do we have a barostat?
@@ -35,15 +35,11 @@ module velocityverlet
     logical  :: tIsotropic = .true.      !* is the cell scaling isotropic
   end type OVelocityVerlet
 
-  interface create
+  interface init
     module procedure VelocityVerlet_themostats
     module procedure VelocityVerlet_velocities
     module procedure VV_themostats_pressure
     module procedure VV_velocities_pressure
-  end interface
-
-  interface destroy
-    module procedure VelocityVerlet_destroy
   end interface
 
   interface next
@@ -66,23 +62,22 @@ contains
   !!* @param positions Position of the atoms.
   !!* @param pThermostat Pointer to a thermostat if needed.
   subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat)
-    type(OVelocityVerlet), pointer       :: self
+    type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), pointer           :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat    
     
     ASSERT(size(positions, dim=1) == 3)
     
-    INITALLOCATE_P(self)
     self%nAtom = size(positions, dim=2)
-    INITALLOCATE_PARR(self%velocities, (3, self%nAtom))
-    INITALLOCATE_PARR(self%positions, (3, self%nAtom))
+    ALLOCATE_(self%velocities, (3, self%nAtom))
+    ALLOCATE_(self%positions, (3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
-    self%pThermostat => pThermostat
+    call move_alloc(pThermostat, self%pThermostat)
 
-    call getInitVelocities(pThermostat, self%velocities)
+    call getInitVelocities(self%pThermostat, self%velocities)
 
     self%vHalfPresent = .false. ! no we dont have the t-.5 velocities
 
@@ -101,22 +96,21 @@ contains
   !!* @param velocities list of initial velocities
   subroutine VelocityVerlet_velocities(self, deltaT, positions, pThermostat, &
       & velocities)
-    type(OVelocityVerlet), pointer       :: self
+    type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), pointer           :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat    
     real(dp), intent(in)                 :: velocities(:,:)
     
     ASSERT(size(positions, dim=1) == 3)
     
-    INITALLOCATE_P(self)
     self%nAtom = size(positions, dim=2)
-    INITALLOCATE_PARR(self%velocities, (3, self%nAtom))
-    INITALLOCATE_PARR(self%positions, (3, self%nAtom))
+    ALLOCATE_(self%velocities, (3, self%nAtom))
+    ALLOCATE_(self%positions, (3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
-    self%pThermostat => pThermostat
+    call move_alloc(pThermostat, self%pThermostat)
     
     self%velocities(:,:) = velocities(:,:)
 
@@ -140,10 +134,10 @@ contains
   !!* change?
   subroutine VV_themostats_pressure(self, deltaT, positions, pThermostat, &
       & Barostat, Pressure, tIsotropic)
-    type(OVelocityVerlet), pointer       :: self
+    type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), pointer           :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat    
     real(dp), intent(in)                 :: Barostat
     real(dp), intent(in)                 :: Pressure
     logical, intent(in)                  :: tIsotropic
@@ -152,16 +146,15 @@ contains
     
     ASSERT(size(positions, dim=1) == 3)
     
-    INITALLOCATE_P(self)
     self%nAtom = size(positions, dim=2)
-    INITALLOCATE_PARR(self%velocities, (3, self%nAtom))
-    INITALLOCATE_PARR(self%positions, (3, self%nAtom))
+    ALLOCATE_(self%velocities, (3, self%nAtom))
+    ALLOCATE_(self%positions, (3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
-    self%pThermostat => pThermostat
+    call move_alloc(pThermostat, self%pThermostat)
 
-    call getInitVelocities(pThermostat, self%velocities)
+    call getInitVelocities(self%pThermostat, self%velocities)
 
     self%vHalfPresent = .true. ! yes we have the t-.5 velocities
 
@@ -191,10 +184,10 @@ contains
   !!* change?
   subroutine VV_velocities_pressure(self, deltaT, positions, pThermostat, &
       & velocities, Barostat, Pressure, tIsotropic)
-    type(OVelocityVerlet), pointer       :: self
+    type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), pointer           :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat    
     real(dp), intent(in)                 :: velocities(:,:)
     real(dp), intent(in)                 :: Barostat
     real(dp), intent(in)                 :: Pressure
@@ -204,14 +197,13 @@ contains
     
     ASSERT(size(positions, dim=1) == 3)
     
-    INITALLOCATE_P(self)
     self%nAtom = size(positions, dim=2)
-    INITALLOCATE_PARR(self%velocities, (3, self%nAtom))
-    INITALLOCATE_PARR(self%positions, (3, self%nAtom))
+    ALLOCATE_(self%velocities, (3, self%nAtom))
+    ALLOCATE_(self%positions, (3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
-    self%pThermostat => pThermostat
+    call move_alloc(pThermostat, self%pThermostat)
     
     self%velocities(:,:) = velocities(:,:)
 
@@ -231,24 +223,6 @@ contains
   end subroutine VV_velocities_pressure
 
   
-  !!* removes an integrator example
-  !!* @param self the instance to deallocate
-  subroutine VelocityVerlet_destroy(self)
-    type(OVelocityVerlet), pointer :: self
-
-    if (.not. associated(self)) then
-      return
-    end if
-    DEALLOCATE_PARR(self%velocities)
-    DEALLOCATE_PARR(self%positions)
-    if (associated(self%pThermostat)) then
-      call destroy(self%pThermostat)
-    end if
-    DEALLOCATE_P(self)
-
-  end subroutine VelocityVerlet_destroy
-
-  
   !!* Takes a timestep for the MD integrator, optionally with a thermostat.
   !!* @param self integrator to propogate
   !!* @param accel Accelerations.
@@ -259,13 +233,11 @@ contains
   !!* so print positions, then call next and then print velocities
   !!* to get agreement between the positions and velocities.
   subroutine VelocityVerlet_next(self, accel, newCoord, newVelocity)
-    type(OVelocityVerlet), pointer :: self
+    type(OVelocityVerlet), intent(inout) :: self
     real(dp),intent(in) :: accel(:,:)
     real(dp),intent(out) :: newCoord(:,:)
     real(dp),intent(out) :: newVelocity(:,:)
     
-    ASSERT(associated(self))
-
     newCoord(:,:) = 0.0_dp
     newVelocity(:,:) = 0.0_dp
     
@@ -302,7 +274,7 @@ contains
     newCoord(:,:) = self%positions(:,:) + self%velocities(:,:) * self%deltaT
     self%positions(:,:) = newCoord(:,:)
 
-    if (associated(self%pThermostat)) then
+    if (allocated(self%pThermostat)) then
       call updateVelocities(self%pThermostat, self%velocities)
     end if
         
@@ -318,7 +290,7 @@ contains
   !!* @note the forms of the isotropic and anisotropic Beresdsen barostats in
   !!* the literature are slightly incompatible in their definitions
   subroutine VelocityVerlet_rescale(self,coord,latVecs,pressureTensor)
-    type(OVelocityVerlet), pointer :: self
+    type(OVelocityVerlet), intent(inout) :: self
     real(dp),intent(inout)         :: coord(:,:)
     real(dp),intent(inout)         :: latVecs(3,3)
     real(dp),intent(in)            :: pressureTensor(3,3)
@@ -357,10 +329,10 @@ contains
   end subroutine VelocityVerlet_rescale
 
   subroutine VelocityVerlet_state(self,fd)
-    type(OVelocityVerlet), pointer :: self
+    type(OVelocityVerlet), intent(in) :: self
     integer,intent(in)             :: fd
     
-    if (associated(self%pThermostat)) then
+    if (allocated(self%pThermostat)) then
       call state(self%pThermostat,fd)
     end if
     

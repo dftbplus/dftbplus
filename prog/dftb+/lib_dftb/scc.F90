@@ -36,16 +36,16 @@ module scc
   !!* Data necessary for initialize the SCC module
   type TSCCInit
     type(TOrbitals), pointer :: orb
-    real(dp), pointer :: hubbU(:,:) => null()
-    logical, pointer :: tDampedShort(:) => null()
+    real(dp), allocatable :: hubbU(:,:)
+    logical, allocatable :: tDampedShort(:)
     real(dp) :: dampExp = 0.0_dp
-    real(dp), pointer :: latVecs(:,:) => null()
-    real(dp), pointer :: recVecs(:,:) => null()
+    real(dp), allocatable :: latVecs(:,:)
+    real(dp), allocatable :: recVecs(:,:)
     real(dp) :: volume = 0.0_dp
-    real(dp), pointer :: extCharges(:,:) => null()
-    real(dp), pointer :: blurWidths(:) => null()
-    real(dp), pointer :: chrgConstraints(:,:) => null()
-    real(dp), pointer :: thirdOrderOn(:,:) => null()
+    real(dp), allocatable :: extCharges(:,:)
+    real(dp), allocatable :: blurWidths(:)
+    real(dp), allocatable :: chrgConstraints(:,:)
+    real(dp), allocatable :: thirdOrderOn(:,:)
     real(dp) :: ewaldAlpha = 0.0_dp    ! if > 0 -> manual setting for alpha
   end type TSCCInit
 
@@ -122,13 +122,13 @@ contains
     mOrb_ = inp%orb%mOrb
 
     ASSERT(.not. tInitialised_)
-    ASSERT(associated(inp%latVecs) .eqv. associated(inp%recVecs))
-    ASSERT(associated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
+    ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
+    ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
     ASSERT(size(inp%hubbU, dim=1) == mShell_)
     ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
     ASSERT(size(inp%tDampedShort) == nSpecies_)
-    ASSERT(associated(inp%extCharges) .or. .not. associated(inp%blurWidths))
-    ASSERT_ENV(if (associated(inp%extCharges)) then)
+    ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
+    ASSERT_ENV(if (allocated(inp%extCharges)) then)
     ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=1) == 4))
     ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=2) > 0))
     ASSERT_ENV(end if)
@@ -137,8 +137,8 @@ contains
     ALLOCATE_(shiftPerAtom_, (nAtom_))
     ALLOCATE_(shiftPerL_, (mShell_, nAtom_))
     ALLOCATE_(shortGamma_, (0, 0, 0, 0))
-    tPeriodic_ = associated(inp%latVecs)
-    tExtChrg_ = associated(inp%extCharges)
+    tPeriodic_ = allocated(inp%latVecs)
+    tExtChrg_ = allocated(inp%extCharges)
     
     !! Initialize Hubbard U's
     ALLOCATE_(uniqHubbU_, (mShell_, nSpecies_))
@@ -214,17 +214,17 @@ contains
         call init_ExtChrg(inp%extCharges, nAtom_, inp%latVecs, inp%recVecs, &
             &maxREwald_)
       else
-        ASSERT(associated(inp%blurWidths))
+        ASSERT(allocated(inp%blurWidths))
         call init_ExtChrg(inp%extCharges, nAtom_, blurWidths=inp%blurWidths)
       end if
     end if
 
-    tChrgConstr_ = associated(inp%chrgConstraints)
+    tChrgConstr_ = allocated(inp%chrgConstraints)
     if (tChrgConstr_) then
       allocate(chrgConstr_)
       call init(chrgConstr_, inp%chrgConstraints, 2)
     end if
-    tThirdOrder_ = associated(inp%thirdOrderOn)
+    tThirdOrder_ = allocated(inp%thirdOrderOn)
     if (tThirdOrder_) then
       allocate(thirdOrder_)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives

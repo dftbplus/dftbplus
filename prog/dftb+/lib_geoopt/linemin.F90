@@ -53,8 +53,8 @@ module linemin
     integer  :: state              !* State of the object
     integer  :: mIter              !* Max. nr. of iterations
     integer  :: iIter              !* Nr. of performed steps
-    real(dp), pointer :: x0(:)     !* Starting point
-    real(dp), pointer :: d0(:)     !* Direction of the line
+    real(dp), allocatable :: x0(:)     !* Starting point
+    real(dp), allocatable :: d0(:)     !* Direction of the line
     real(dp) :: xx(2)              !* Coordinate of left and right brackets
     real(dp) :: dx(2)              !* Derivatives in the left and right brackets
     real(dp) :: xCur               !* Current position along the line
@@ -67,18 +67,13 @@ module linemin
 
 
   !!* Creates a line minimizer
-  interface create
-    module procedure LineMin_create
+  interface init
+    module procedure LineMin_init
   end interface
 
   !!* Resets a line minimizer
   interface reset
     module procedure LineMin_reset
-  end interface
-
-  !!* Destroys a line minimizer
-  interface destroy
-    module procedure LineMin_destroy
   end interface
 
   !!* Gets the next point for the line minimization
@@ -107,7 +102,7 @@ module linemin
   end interface
   
   public :: OLineMin
-  public :: create, reset, destroy, next, getMinX, getMinY, getMinGrad
+  public :: init, reset, next, getMinX, getMinY, getMinGrad
   public :: getMinLambda
 
   integer, parameter :: st_1 = 1, st_2 = 2, st_3 = 3
@@ -122,8 +117,8 @@ contains
   !!* @param mIter     Nr. of maximal iterations to perform (>3)
   !!* @param tolerance Convergence criteria for the projected derivative
   !!* @param maxDisp   Maximal movement in one coordinate in one step
-  subroutine LineMin_create(self, nElem, mIter, tolerance, maxDisp)
-    type(OLineMin), pointer :: self
+  subroutine LineMin_init(self, nElem, mIter, tolerance, maxDisp)
+    type(OLineMin), intent(out) :: self
     integer,  intent(in) :: nElem
     integer,  intent(in) :: mIter
     real(dp), intent(in) :: tolerance
@@ -134,29 +129,14 @@ contains
     ASSERT(tolerance > 0.0_dp)
     ASSERT(maxDisp > 0.0_dp)
     
-    INITALLOCATE_P(self)
     self%nElem = nElem
-    INITALLOCATE_PARR(self%x0, (nElem))
-    INITALLOCATE_PARR(self%d0, (nElem))
+    ALLOCATE_(self%x0, (nElem))
+    ALLOCATE_(self%d0, (nElem))
     self%mIter = mIter
     self%tolerance = tolerance
     self%maxDisp = maxDisp
     self%tInitialized = .false.
-  end subroutine LineMin_create
-
-
-
-  !!* Destroys the line minimizer
-  !!* @param self Line minimizer instance
-  subroutine LineMin_destroy(self)
-    type(OLineMin), pointer :: self
-
-    if (associated(self)) then
-      DEALLOCATE_PARR(self%x0)
-      DEALLOCATE_PARR(self%d0)
-    end if
-    DEALLOCATE_P(self)
-  end subroutine LineMin_destroy
+  end subroutine LineMin_init
 
 
 
@@ -165,7 +145,7 @@ contains
   !!* @param x0   New starting point
   !!* @param d0   New direction
   subroutine LineMin_reset(self, x0, d0, firstStep)
-    type(OLineMin), pointer :: self
+    type(OLineMin), intent(inout) :: self
     real(dp), intent(in) :: x0(:)
     real(dp), intent(in) :: d0(:)
     real(dp), intent(in) :: firstStep
@@ -205,7 +185,7 @@ contains
   !!* @note When calling this subroutine the first time, function value and
   !!*   gradient for the starting point of the minimization should be passed.
   subroutine LineMin_next(self, fx, dx, xNew, tConverged)
-    type(OLineMin), pointer :: self
+    type(OLineMin), intent(inout) :: self
     real(dp), intent(in)  :: fx
     real(dp), intent(in)  :: dx(:)
     real(dp), intent(out) :: xNew(:)
@@ -393,7 +373,7 @@ contains
   !!* @note The passed back value is meaningless if the subroutine is called
   !!*   before the line minimizer signalizes convergence.
   subroutine LineMin_getMinX(self, minX)
-    type(OLineMin), pointer :: self
+    type(OLineMin), intent(in) :: self
     real(dp), intent(out) :: minX(:)
 
     minX(:) = self%x0(:)
@@ -408,7 +388,7 @@ contains
   !!* @note The passed back value is meaningless if the subroutine is called
   !!*   before the line minimizer signalizes convergence.
   subroutine LineMin_getMinY(self, minY)
-    type(OLineMin), pointer :: self
+    type(OLineMin), intent(in) :: self
     real(dp), intent(out) :: minY
 
     minY = self%xx(1)
@@ -423,7 +403,7 @@ contains
   !!* @note The passed back value is meaningless if the subroutine is called
   !!*   before the line minimizer signalizes convergence.
   subroutine LineMin_getMinGrad(self, minGrad)
-    type(OLineMin), pointer :: self
+    type(OLineMin), intent(in) :: self
     real(dp), intent(out) :: minGrad(:)
     
     minGrad(:) = self%d0(:)
@@ -437,7 +417,7 @@ contains
   !!* @note The passed back value is meaningless if the subroutine is called
   !!*   before the line minimizer signalizes convergence.
   subroutine LineMin_getMinLambda(self, minLambda)
-    type(OLineMin), pointer :: self
+    type(OLineMin), intent(in) :: self
     real(dp), intent(out) :: minLambda
 
     minLambda = self%xx(2)
@@ -446,4 +426,3 @@ contains
 
 
 end module linemin
-

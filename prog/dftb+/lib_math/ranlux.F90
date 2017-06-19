@@ -67,14 +67,9 @@ module ranlux
 
 
   !!* Creates a ranlux random number generator
-  interface create
-    module procedure Ranlux_create_default
-    module procedure Ranlux_create_restart
-  end interface
-
-  !!* Destroy the generator
-  interface destroy
-    module procedure Ranlux_destroy
+  interface init
+    module procedure Ranlux_init_default
+    module procedure Ranlux_init_restart
   end interface
 
   !!* Fills a vector with random numbers
@@ -90,7 +85,7 @@ module ranlux
   end interface
 
   public :: ORanlux
-  public :: create, destroy, getRandom, getState
+  public :: init, getRandom, getState
   
 
   !!* Maximal luxury level
@@ -124,8 +119,8 @@ contains
   !!* @param self     Initialized random generator on exit
   !!* @param luxlev   Luxury level. Possible values: 0, 1, 2, 3, 4. (Default: 3)
   !!* @param initSeed Initial seed value. (Default: 314159265)
-  subroutine Ranlux_create_default(self, luxlev, initSeed)
-    type(ORanlux), pointer :: self
+  subroutine Ranlux_init_default(self, luxlev, initSeed)
+    type(ORanlux), intent(out) :: self
     integer, intent(in), optional :: luxlev
     integer, intent(in), optional :: initSeed
 
@@ -138,8 +133,6 @@ contains
     ASSERT_ENV(if (present(initSeed)) then)
     ASSERT(  initSeed > 0)
     ASSERT_ENV(end if)
-
-    INITALLOCATE_P(self)
 
     !! Set luxury level
     self%luxlev = lxdflt
@@ -182,7 +175,7 @@ contains
       self%icarry = 1
     end if
     
-  end subroutine Ranlux_create_default
+  end subroutine Ranlux_init_default
 
 
 
@@ -191,15 +184,13 @@ contains
   !!* @param self   Initialized random generator instance on exit
   !!* @param isdext Contains the state of a saved generator as
   !!*   produced by Ranlux_getState.
-  subroutine Ranlux_create_restart(self, isdext)
-    type(ORanlux), pointer :: self
+  subroutine Ranlux_init_restart(self, isdext)
+    type(ORanlux), intent(out) :: self
     integer, intent(in) :: isdext(:)
 
     integer :: ii, isd
 
     ASSERT(size(isdext) == 25)
-
-    INITALLOCATE_P(self)
 
     self%twom24 = 1.0_dp
     do ii = 1, 24
@@ -231,45 +222,30 @@ contains
       self%luxlev = maxlev
     end if
 
-  end subroutine Ranlux_create_restart
-
-  
-
-  !!* Destroys the random number generator
-  !!* @param self Ranlux instance.
-  subroutine Ranlux_destroy(self)
-    type(ORanlux), pointer :: self
-
-    DEALLOCATE_P(self)
-
-  end subroutine Ranlux_destroy
-
+  end subroutine Ranlux_init_restart
 
   
   !!* Fills a given vector with random numbers.
   !!* @param self Ranlux instance
   !!* @param rvec Vector containing the random numbers on exit.
   subroutine Ranlux_getRandomVector(self, rvec)
-    type(ORanlux), pointer :: self
+    type(ORanlux), intent(inout) :: self
     real(dp), intent(out) :: rvec(:)
-
-    ASSERT(associated(self))
 
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
     
   end subroutine Ranlux_getRandomVector
   
+
   !!* Fills a given 2D array with random numbers.
   !!* @param self Ranlux instance
   !!* @param r2Darray Vector containing the random numbers on exit.
   subroutine Ranlux_getRandom2DArray(self, r2Darray)
-    type(ORanlux), pointer :: self
+    type(ORanlux), intent(inout) :: self
     real(dp), intent(out) :: r2Darray(:,:)
     
     real(dp), allocatable :: rvec(:)
-
-    ASSERT(associated(self))
 
     ALLOCATE_(rvec,(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
@@ -279,19 +255,16 @@ contains
     
   end subroutine Ranlux_getRandom2DArray
   
-
   
   !!* Returns a random number
   !!* @param self Ranlux instance
   !!* @param rnum Contains the random number on exit. 
   subroutine Ranlux_getRandomNumber(self, rnum)
-    type(ORanlux), pointer :: self
+    type(ORanlux), intent(inout) :: self
     real(dp), intent(out) :: rnum
 
     real(dp) :: rvec(1)
 
-    ASSERT(associated(self))
-    
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
     rnum = rvec(1)
@@ -376,10 +349,8 @@ contains
   !!* @param self   Ranlux instance.
   !!* @param isdext Contains the state of the generator as integer array.
   subroutine Ranlux_getState(self, isdext)
-    type(ORanlux), pointer :: self
+    type(ORanlux), intent(in) :: self
     integer, intent(out) :: isdext(:)
-
-    ASSERT(associated(self))
 
     ASSERT(size(isdext) == 25)
 

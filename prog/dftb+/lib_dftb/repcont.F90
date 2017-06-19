@@ -26,7 +26,7 @@ module repcont
   integer, parameter :: typeRepSpline = 1
   integer, parameter :: typeRepPoly = 2
 
-  !!* Contains repulsive pointers.
+  !!* Contains repulsive types.
   type PRep_
     integer :: iType = typeRepInvalid
     type(ORepSpline), allocatable :: pRepSpline

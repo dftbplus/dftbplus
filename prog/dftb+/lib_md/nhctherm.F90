@@ -23,36 +23,32 @@ module nhctherm
   private
   
   public :: ONHCThermostat
-  public :: create, destroy, getInitVelocities, updateVelocities, state
+  public :: init, getInitVelocities, updateVelocities, state
   
   !!* Data for the NHC thermostat
   type ONHCThermostat
     private
     integer :: nAtom                    !* Nr. of atoms
     type(ORanlux), pointer :: pRanlux   !* Random number generator
-    real(dp), pointer :: mass(:)        !* Mass of the atoms
+    real(dp), allocatable :: mass(:)        !* Mass of the atoms
     type(OTempProfile), pointer :: pTempProfile !* Temperature generator
     real(dp) :: couplingParameter       !* coupling strength to friction term
-    type(OMDCommon), pointer :: pMDFrame !* MD Framework.
+    type(OMDCommon) :: pMDFrame !* MD Framework.
     real(dp) :: deltaT !* MD timestep
     integer :: nyosh !* order of NHC operator - eqn 29
-    real(dp), pointer :: w(:)
+    real(dp), allocatable :: w(:)
     integer :: nresn !* times steps to expand propogator of NHC part of 
     !* evolution operator    
     integer :: nnos ! number of thermostat particles in chain
-    real(dp), pointer :: xnose(:)
-    real(dp), pointer :: vnose(:)
-    real(dp), pointer :: gnose(:)
+    real(dp), allocatable :: xnose(:)
+    real(dp), allocatable :: vnose(:)
+    real(dp), allocatable :: gnose(:)
   end type ONHCThermostat
   
-  interface create
-    module procedure NHC_create
+  interface init
+    module procedure NHC_init
   end interface
-  
-  interface destroy
-    module procedure NHC_destroy
-  end interface
-  
+
   interface getInitVelocities
     module procedure NHC_getInitVelos
   end interface
@@ -74,15 +70,15 @@ contains
   !!* @param deltaT MD time step
   !!* @param couplingParameter Coupling parameter for the thermostat
   !!* @param tempProfile Pointer to a temperature profile object.
-  subroutine NHC_create(self, pRanlux, masses, tempProfile, &
+  subroutine NHC_init(self, pRanlux, masses, tempProfile, &
       & couplingParameter, pMDFrame, deltaT, npart, nys, nc, &
       & xnose, vnose, gnose)
-    type(ONHCThermostat), pointer :: self
-    type(ORanlux), pointer :: pRanlux
+    type(ONHCThermostat), intent(out) :: self
+    type(ORanlux), pointer, intent(in) :: pRanlux
     real(dp), intent(in) :: masses(:)
-    type(OTempProfile), pointer :: tempProfile
+    type(OTempProfile), pointer, intent(in) :: tempProfile
     real(dp), intent(in) :: couplingParameter
-    type(OMDCommon), pointer :: pMDFrame
+    type(OMDCommon), intent(in) :: pMDFrame
     real(dp), intent(in) :: deltaT
     integer, intent(in) :: npart
     integer, intent(in) :: nys
@@ -99,14 +95,13 @@ contains
     ASSERT(size(xnose)==size(gnose))
     ASSERT_ENV(end if)
 
-    INITALLOCATE_P(self)
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
-    INITALLOCATE_PARR(self%mass, (self%nAtom))
+    ALLOCATE_(self%mass, (self%nAtom))
     self%mass(:) = masses(:)
     self%pTempProfile => tempProfile
     self%couplingParameter = couplingParameter
-    self%pMDFrame => pMDFrame
+    self%pMDFrame = pMDFrame
     self%deltaT = deltaT
     
     self%nresn = nc ! pg 1124 'For typical simulations, nc can be taken to be
@@ -121,7 +116,7 @@ contains
     end if
     
     self%nyosh = nys ! current choice of order
-    INITALLOCATE_PARR(self%w, (self%nyosh))
+    ALLOCATE_(self%w, (self%nyosh))
     select case (self%nyosh)
     case (3)
       self%w(1)=1.0_dp/(2.0_dp - 2.0_dp**(1.0_dp/3.0_dp))
@@ -136,9 +131,9 @@ contains
           & available, only order 3 or 5.')") self%nyosh
       call error(lcTmp)
     end select
-    INITALLOCATE_PARR(self%xnose, (self%nnos))
-    INITALLOCATE_PARR(self%vnose, (self%nnos))
-    INITALLOCATE_PARR(self%gnose, (self%nnos))
+    ALLOCATE_(self%xnose, (self%nnos))
+    ALLOCATE_(self%vnose, (self%nnos))
+    ALLOCATE_(self%gnose, (self%nnos))
 
     ! set intial thermostat positions, velocities and forces
     if (present(xnose)) then
@@ -151,37 +146,19 @@ contains
       self%gnose(1:self%nnos)=0.0_dp
     end if
     
-  end subroutine NHC_create
+  end subroutine NHC_init
   
-  !!* Destroys an NHC thermostat.
-  !!* @param self NHCThermostat instance.
-  subroutine NHC_destroy(self)
-    type(ONHCThermostat), pointer :: self
-
-    if (.not. associated(self)) then
-      return
-    end if
-    call destroy(self%pTempProfile)
-    DEALLOCATE_PARR(self%mass)
-    DEALLOCATE_PARR(self%w)
-    DEALLOCATE_PARR(self%xnose)
-    DEALLOCATE_PARR(self%vnose)
-    DEALLOCATE_PARR(self%gnose)
-    DEALLOCATE_P(self)
-
-  end subroutine NHC_destroy
 
   !!* Returns the initial velocities.
   !!* @param self NHCThermostat instance.
   !!* @param velocities Contains the velocities on return.
   subroutine NHC_getInitVelos(self, velocities)
-    type(ONHCThermostat), pointer :: self
+    type(ONHCThermostat), intent(inout) :: self
     real(dp), intent(out) :: velocities(:,:)
     
     real(dp) :: kT
     integer :: ii
     
-    ASSERT(associated(self))
     ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
     
     call getTemperature(self%pTempProfile, kT)
@@ -198,7 +175,7 @@ contains
   !!* @param velocities Updated velocities on exit.
   !!* @note routines based on NHCINT from reference
   subroutine NHC_updateVelos(self, velocities)
-    type(ONHCThermostat), pointer :: self
+    type(ONHCThermostat), intent(inout) :: self
     real(dp), intent(inout) :: velocities(:,:)
     
     integer         :: nnos1, iresn, iyosh, inos
@@ -207,7 +184,6 @@ contains
     real(dp)        :: wdti4(self%nyosh), wdti8(self%nyosh)
     real(dp)        :: scaling, gkt, gnkt, akin, aa
     
-    ASSERT(associated(self))
     ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     nnos1=self%nnos+1
@@ -273,8 +249,9 @@ contains
     
   end subroutine NHC_updateVelos
 
+
   subroutine NHC_state(self, fd)
-    type(ONHCThermostat), pointer :: self
+    type(ONHCThermostat), intent(in) :: self
     integer,intent(in)                  :: fd
 
     write(fd,*)'Nose-Hoover chain variables'

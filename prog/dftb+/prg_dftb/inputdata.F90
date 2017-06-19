@@ -169,8 +169,8 @@ module inputdata_module
     
     !! External charges
     integer :: nExtChrg = 0
-    real(dp), pointer :: extChrg(:,:) => null()
-    real(dp), pointer :: extChrgBlurWidth(:) => null()
+    real(dp), allocatable :: extChrg(:,:)
+    real(dp), allocatable :: extChrgBlurWidth(:)
 
     !! External electric field
     logical  :: tEField = .false.
@@ -341,9 +341,6 @@ contains
     DEALLOCATE_PARR(ctrl%iUJ)
     DEALLOCATE_PARR(ctrl%niUJ)
     DEALLOCATE_PARR(ctrl%nUJ)
-    
-    DEALLOCATE_PARR(ctrl%extChrg)
-    DEALLOCATE_PARR(ctrl%extChrgBlurWidth)
     
     if (associated(ctrl%xnose)) then
       DEALLOCATE_PARR(ctrl%xnose)

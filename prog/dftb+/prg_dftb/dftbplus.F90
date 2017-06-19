@@ -565,7 +565,7 @@ program dftbplus
 
     !! Adapt electron temperature to MD, if necessary
     if (tSetFillingTemp) then
-      call getTemperature(pTempProfile, tempElec)
+      call getTemperature(temperatureProfile, tempElec)
     end if
 
     if (tXlbomd) then
@@ -2486,8 +2486,8 @@ program dftbplus
         elseif(tMD) then
           movedAccel(:,:) = -totalDeriv(:,indMovedAtom) / movedMass
           call next(pMDIntegrator, movedAccel ,new3Coord, movedVelo)
-          if (associated(pTempProfile)) then
-            call next(pTempProfile)
+          if (allocated(temperatureProfile)) then
+            call next(temperatureProfile)
           end if
           call evalKE(KE, movedVelo, movedMass(1,:))
           call evalkT(pMDFrame, kT, movedVelo, movedMass(1,:))

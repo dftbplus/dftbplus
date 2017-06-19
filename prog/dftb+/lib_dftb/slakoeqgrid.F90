@@ -16,7 +16,7 @@ module slakoeqgrid
   implicit none
   private
 
-  public :: OSlakoEqGrid, init, destruct
+  public :: OSlakoEqGrid, init
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew
 
@@ -26,7 +26,7 @@ module slakoeqgrid
     integer :: nGrid
     integer :: nInteg
     real(dp) :: dist
-    real(dp), pointer :: skTab(:,:)
+    real(dp), allocatable :: skTab(:,:)
     integer :: skIntMethod
     logical :: tInit = .false.
   end type OSlakoEqGrid
@@ -34,11 +34,6 @@ module slakoeqgrid
   !!* Initialises SlakoEqGrid.
   interface init
     module procedure SlakoEqGrid_init
-  end interface
-
-  !!* Destroys the components of SlakoEqGrid
-  interface destruct
-    module procedure SlakoEqGrid_destruct
   end interface
 
   !!* Returns the integrals for a given distance.
@@ -100,7 +95,7 @@ contains
     self%dist = dist
     self%nGrid = size(table, dim=1)
     self%nInteg = size(table, dim=2)
-    INITALLOCATE_PARR(self%skTab, (self%nGrid, self%nInteg))
+    ALLOCATE_(self%skTab, (self%nGrid, self%nInteg))
     self%skTab(:,:) = table(:,:)
     self%skIntMethod = skIntMethod
     self%tInit = .true.
@@ -109,18 +104,6 @@ contains
 
 
   
-  !!* Destroys the components of SlakoEqGrid
-  !!* @param self SlakoEqGrid instance.
-  subroutine SlakoEqGrid_destruct(self)
-    type(OSlakoEqGrid), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%skTab)
-    self%tInit = .false.
-    
-  end subroutine SlakoEqGrid_destruct
-
-
-
   !!* Returns the integrals for a given distance.
   !!* @param self SlakoEqGrid instance.
   !!* @param sk Contains the interpolated integrals on exit

@@ -250,18 +250,19 @@ module initprogram
   logical            :: tInitialized = .false.
   private :: tInitialized
 
-  type(OGeoOpt), pointer :: pGeoCoordOpt  !* General geometry optimizer
-  type(OGeoOpt), pointer :: pGeoLatOpt    !* Geometry optimizer for lattice
+  type(OGeoOpt), allocatable :: pGeoCoordOpt  !* General geometry optimizer
+  type(OGeoOpt), allocatable :: pGeoLatOpt    !* Geometry optimizer for lattice
                                           !* consts
 
   type(OMixer), pointer :: pChrgMixer    !* Charge mixer
   integer               :: iMixer        !* mixer number
 
-  type(ORanlux), pointer :: pRanlux !* Random number generator
+  type(ORanlux), allocatable, target :: randomGenerator !* Random number generator
+  type(ORanlux), pointer :: pRandomGenerator
 
-  type(OMDCommon), pointer :: pMDFrame  !* MD Framework
-  type(OMDIntegrator), pointer :: pMDIntegrator !* MD integrator
-  type(OTempProfile), pointer :: pTempProfile
+  type(OMDCommon), allocatable :: pMDFrame  !* MD Framework
+  type(OMDIntegrator), allocatable :: pMDIntegrator !* MD integrator
+  type(OTempProfile), allocatable, target :: temperatureProfile
 
   type(OnumDerivs), allocatable, target :: derivDriver
 
@@ -361,20 +362,21 @@ contains
     type(ODIISMixer), pointer :: pDIISMixer
 
     !! Geometry optimizer related local variables
-    type(OConjGrad), pointer :: pConjGrad    !* Conjugate gradient driver
-    type(OSteepDesc), pointer :: pSteepDesc  !* Steepest descent driver
-    type(OConjGrad), pointer :: pConjGradLat   !* Conjugate gradient driver
-    type(OSteepDesc), pointer :: pSteepDescLat !* Steepest descent driver
-    type(ODIIS), pointer :: pDIIS    !* gradient DIIS driver
+    type(OConjGrad), allocatable :: pConjGrad    !* Conjugate gradient driver
+    type(OSteepDesc), allocatable :: pSteepDesc  !* Steepest descent driver
+    type(OConjGrad), allocatable :: pConjGradLat   !* Conjugate gradient driver
+    type(OSteepDesc), allocatable :: pSteepDescLat !* Steepest descent driver
+    type(ODIIS), allocatable :: pDIIS    !* gradient DIIS driver
     
     !! MD related local variables
-    type(OThermostat), pointer :: pThermostat
-    type(ODummyThermostat), pointer :: pDummyTherm
-    type(OAndersenThermostat), pointer :: pAndersenTherm
-    type(OBerendsenThermostat), pointer :: pBerendsenTherm
-    type(ONHCThermostat), pointer :: pNHCTherm
+    type(OThermostat), allocatable :: pThermostat
+    type(ODummyThermostat), allocatable :: pDummyTherm
+    type(OAndersenThermostat), allocatable :: pAndersenTherm
+    type(OBerendsenThermostat), allocatable :: pBerendsenTherm
+    type(ONHCThermostat), allocatable :: pNHCTherm
 
-    type(OVelocityVerlet), pointer :: pVelocityVerlet
+    type(OVelocityVerlet), allocatable :: pVelocityVerlet
+    type(OTempProfile), pointer :: pTempProfile
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
     integer :: iStart, iEnd
@@ -409,7 +411,7 @@ contains
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
 
-    type(TSCCInit), save :: sccInit
+    type(TSCCInit), allocatable :: sccInit
 
     ! Used for indexing linear response
     integer :: homoLoc(1)
@@ -585,13 +587,14 @@ contains
       end where
     end if
     if (tSCC) then
+      allocate(sccInit)
       sccInit%orb => orb
       if (tPeriodic) then
-        sccInit%latVecs => latVec
-        sccInit%recVecs => recVec
+        sccInit%latVecs = latVec
+        sccInit%recVecs = recVec
         sccInit%volume = CellVol
       end if
-      sccInit%hubbU => hubbU
+      sccInit%hubbU = hubbU
       ALLOCATE_(tDampedShort, (nType))
       if (input%ctrl%tDampH) then
         tDampedShort = (speciesMass < 3.5_dp * amu__au)
@@ -599,7 +602,7 @@ contains
       else
         tDampedShort(:) = .false.
       end if
-      sccInit%tDampedShort => tDampedShort
+      sccInit%tDampedShort = tDampedShort
       sccInit%dampExp = input%ctrl%dampExp
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
@@ -610,24 +613,27 @@ contains
         tStress = .false. ! Stress calculations not allowed
         ASSERT(size(input%ctrl%extChrg, dim=1) == 4)
         ASSERT(size(input%ctrl%extChrg, dim=2) == nExtChrg)
-        sccInit%extCharges => input%ctrl%extChrg
-        sccInit%blurWidths => input%ctrl%extChrgblurWidth
+        sccInit%extCharges = input%ctrl%extChrg
+        if (allocated(input%ctrl%extChrgBlurWidth)) then
+          sccInit%blurWidths = input%ctrl%extChrgblurWidth
+        end if
       end if
       if (associated(input%ctrl%chrgConstr)) then
         ASSERT(all(shape(input%ctrl%chrgConstr) == (/ nAtom, 2 /)))
         if (any(abs(input%ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
-          sccInit%chrgConstraints => input%ctrl%chrgConstr
+          sccInit%chrgConstraints = input%ctrl%chrgConstr
         end if
       end if
       
       if (associated(input%ctrl%thirdOrderOn)) then
         ASSERT(tSCC)
         ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
-        sccInit%thirdOrderOn => input%ctrl%thirdOrderOn
+        sccInit%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
       sccInit%ewaldAlpha = input%ctrl%ewaldAlpha
       call init_SCC(sccInit)
+      deallocate(sccInit)
       mCutoff = max(mCutoff, getSCCCutoff())
       
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
@@ -1051,7 +1057,7 @@ contains
       ALLOCATE_(indMovedAtom, (0))
     end if
     
-    INIT_P(pGeoCoordOpt)
+    allocate(pGeoCoordOpt)
     if (tCoordOpt) then
       ALLOCATE_(tmpCoords,(nMovedCoord))
       tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), &
@@ -1062,36 +1068,41 @@ contains
         tmpWeight(1:nMovedCoord) = 0.5_dp * deltaT**2 &
             & / reshape(spread(mass(indMovedAtom), 1, 3), &
             & (/nMovedCoord/))
-        call create(pSteepDesc, size(tmpCoords), input%ctrl%maxForce, &
+        allocate(pSteepDesc)
+        call init(pSteepDesc, size(tmpCoords), input%ctrl%maxForce, &
              & input%ctrl%maxAtomDisp,tmpWeight )
         DEALLOCATE_(tmpWeight)
-        call create(pGeoCoordOpt, pSteepDesc)
+        call init(pGeoCoordOpt, pSteepDesc)
       case (2)
-        call create(pConjGrad, size(tmpCoords), input%ctrl%maxForce, &
+        allocate(pConjGrad)
+        call init(pConjGrad, size(tmpCoords), input%ctrl%maxForce, &
             & input%ctrl%maxAtomDisp)
-        call create(pGeoCoordOpt, pConjGrad)
+        call init(pGeoCoordOpt, pConjGrad)
       case (3)
-        call create(pDIIS, size(tmpCoords), input%ctrl%maxForce, &
+        allocate(pDIIS)
+        call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, &
             & input%ctrl%deltaGeoOpt, input%ctrl%iGenGeoOpt)
-        call create(pGeoCoordOpt, pDIIS)
+        call init(pGeoCoordOpt, pDIIS)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
     
-    INIT_P(pGeoLatOpt)
+    allocate(pGeoLatOpt)
     if (tLatOpt) then
       select case (input%ctrl%iGeoOpt)
       case(1)
         ALLOCATE_(tmpWeight,(9))
         tmpWeight = 1.0_dp
-        call create(pSteepDescLat, 9, input%ctrl%maxForce, &
+        allocate(pSteepDescLat)
+        call init(pSteepDescLat, 9, input%ctrl%maxForce, &
             & input%ctrl%maxLatDisp, tmpWeight )
         DEALLOCATE_(tmpWeight)
-        call create(pGeoLatOpt, pSteepDescLat)
+        call init(pGeoLatOpt, pSteepDescLat)
       case(2,3) ! use CG lattice for both DIIS and CG
-        call create(pConjGradLat, 9, input%ctrl%maxForce, &
+        allocate(pConjGradLat)
+        call init(pConjGradLat, 9, input%ctrl%maxForce, &
             & input%ctrl%maxLatDisp)
-         call create(pGeoLatOpt, pConjGradLat)
+         call init(pGeoLatOpt, pConjGradLat)
       end select
       if (tLatOptIsotropic ) then ! optimization uses scaling factor
                                   ! of unit cell
@@ -1307,10 +1318,11 @@ contains
       ! Make sure seed > 0.
       iSeed = int(real(huge(iSeed) - 1, dp) * rTmp) + 1
     end if
-    call create(pRanlux, initSeed=iSeed)
-    call getRandom(pRanlux, rTmp)
+    allocate(randomGenerator)
+    call init(randomGenerator, initSeed=iSeed)
+    call getRandom(randomGenerator, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
-    call destroy(pRanlux)
+    deallocate(randomGenerator)
 
     !! Create random generator and pull off first 10
     !! random numbers to avoid disturbing the subsequent sequence.
@@ -1322,74 +1334,81 @@ contains
     if (iSeed < 1) then
       iSeed = runId     ! No seed specified, use random runId
     end if
-    call create(pRanlux, 3, iSeed)
-    call getRandom(pRanlux,random_pool(:))
+    allocate(randomGenerator)
+    call init(randomGenerator, 3, iSeed)
+    call getRandom(randomGenerator,random_pool(:))
+    pRandomGenerator => randomGenerator
 
 
     !! MD stuff
     if (tMD) then
       !! Create MD framework.
-      call create(pMDFrame, nMovedAtom, nAtom, input%ctrl%tMDstill)
+      allocate(pMDFrame)
+      call init(pMDFrame, nMovedAtom, nAtom, input%ctrl%tMDstill)
 
       !! Create temperature profile, if thermostat is not the dummy one
       if (input%ctrl%iThermostat /= 0) then
-        call create(pTempProfile, input%ctrl%tempMethods, &
-            &input%ctrl%tempSteps, input%ctrl%tempValues)
+        allocate(temperatureProfile)
+        call init(temperatureProfile, input%ctrl%tempMethods, input%ctrl%tempSteps,&
+            & input%ctrl%tempValues)
+        pTempProfile => temperatureProfile
       else
-        INIT_P(pTempProfile)
+        nullify(pTempProfile)
       end if
 
       !! Create thermostat
+      allocate(pThermostat)
       select case (input%ctrl%iThermostat)
       case (0) ! No thermostat
-        call create(pDummyTherm, tempAtom, mass(indMovedAtom), &
-            &pRanlux, pMDFrame)
-        call create(pThermostat, pDummyTherm)
+        allocate(pDummyTherm)
+        call init(pDummyTherm, tempAtom, mass(indMovedAtom), pRandomGenerator, pMDFrame)
+        call init(pThermostat, pDummyTherm)
       case (1) ! Andersen thermostat
-        call create(pAndersenTherm, pRanlux, mass(indMovedAtom), &
-            &pTempProfile, input%ctrl%tRescale, input%ctrl%wvScale, pMDFrame)
-        call create(pThermostat, pAndersenTherm)
+        allocate(pAndersenTherm)
+        call init(pAndersenTherm, pRandomGenerator, mass(indMovedAtom), pTempProfile,&
+            & input%ctrl%tRescale, input%ctrl%wvScale, pMDFrame)
+        call init(pThermostat, pAndersenTherm)
       case (2) ! Berendsen thermostat
-        call create(pBerendsenTherm, pRanlux, mass(indMovedAtom), &
-            &pTempProfile, input%ctrl%wvScale, pMDFrame)
-        call create(pThermostat, pBerendsenTherm)
+        allocate(pBerendsenTherm)
+        call init(pBerendsenTherm, pRandomGenerator, mass(indMovedAtom), pTempProfile,&
+            & input%ctrl%wvScale, pMDFrame)
+        call init(pThermostat, pBerendsenTherm)
       case (3) ! Nose-Hoover-Chain thermostat
+        allocate(pNHCTherm)
         if (input%ctrl%tInitNHC) then
-          call create(pNHCTherm, pRanlux, mass(indMovedAtom), &
+          call init(pNHCTherm, pRandomGenerator, mass(indMovedAtom), &
               & pTempProfile, input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, &
               & input%ctrl%nh_npart, input%ctrl%nh_nys, input%ctrl%nh_nc, &
               & input%ctrl%xnose, input%ctrl%vnose, input%ctrl%gnose)
         else
-          call create(pNHCTherm, pRanlux, mass(indMovedAtom), &
-              &pTempProfile, input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, &
+          call init(pNHCTherm, pRandomGenerator, mass(indMovedAtom), pTempProfile,&
+              & input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, &
               & input%ctrl%nh_npart, input%ctrl%nh_nys, input%ctrl%nh_nc)
         end if
-        call create(pThermostat, pNHCTherm)
+        call init(pThermostat, pNHCTherm)
       end select
 
       !! Create MD integrator
+      allocate(pVelocityVerlet)
       if (input%ctrl%tReadMDVelocities) then
         if (tBarostat) then
-          call create(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
+          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat,input%ctrl%initialVelocities, &
               & BarostatStrength,pressure,input%ctrl%tIsotropic)
         else
-          call create(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
+          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat,input%ctrl%initialVelocities)
         end if
       else
         if (tBarostat) then
-          call create(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
+          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat, BarostatStrength,pressure,input%ctrl%tIsotropic)
         else
-          call create(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
-              & pThermostat)
+          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat)
         end if
       end if
-
-      call create(pMDIntegrator, pVelocityVerlet)
-    else
-      INIT_P(pMDIntegrator)
+      allocate(pMDIntegrator)
+      call init(pMDIntegrator, pVelocityVerlet)
     end if
 
     ! Check for extended Born-Oppenheimer MD
