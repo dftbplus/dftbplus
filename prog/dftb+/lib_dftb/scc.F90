@@ -731,7 +731,7 @@ contains
   end subroutine addSTGammaPrime_
 
 
-  !!* Calculates the contribution of the charge consitent part to the energy
+  !!* Calculates the contribution of the charge consistent part to the energy
   !!* per atom.
   !!* @param eSCC         The SCC contribution to the energy
   !!* @param species       Species for each atom.
