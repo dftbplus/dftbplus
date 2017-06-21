@@ -21,35 +21,36 @@
     list%length = 0
     list%elemShape = (/ 0 /)
     list%tUnishaped = .true.
-    INIT_P(list%pFirst)
-    INIT_P(list%pLast)
+    nullify(list%pFirst)
+    nullify(list%pLast)
     list%iCache = 0
-    INIT_P(list%pCache)
+    nullify(list%pCache)
     list%tInitialized = .true.
 
   end subroutine initIntR1
 
   
 
-  !!* Destroys a list containing rank 1 arrays
-  !!* @param list The list to destroy.
-  subroutine destroyIntR1(list)
+  !!* Destructs a list containing rank 1 arrays
+  !!* @param list The list to destruct.
+  subroutine destructIntR1(list)
     type(listIntR1), intent(inout) :: list
 
     type(nodeIntR1), pointer :: pCur, pNext
 
-    ASSERT(list%tInitialized)
+    if (.not. list%tInitialized) then
+      return
+    end if
 
     pCur => list%pFirst
     do while(associated(pCur))
-      DEALLOCATE_PARR(pCur%pValue)
       pNext => pCur%pNext
-      DEALLOCATE_P(pCur)
+      deallocate(pCur)
       pCur => pNext
     end do
     list%tInitialized = .false.
 
-  end subroutine destroyIntR1
+  end subroutine destructIntR1
 
 
   
@@ -83,9 +84,8 @@
     list%length = list%length + 1
 
     !! initialize node
-    INIT_P(list%pLast%pNext)
-    INIT_PARR(list%pLast%pValue)
-    ALLOCATE_PARR(list%pLast%pValue, (valshape(1)))
+    nullify(list%pLast%pNext)
+    ALLOCATE_(list%pLast%pValue, (valshape(1)))
     list%pLast%pValue(:) = value(:)
         
   end subroutine appendIntR1

@@ -152,8 +152,5 @@ program modes
     
   end if
 
-  deallocate(eigenValues)
-  
-  call destructProgramVariables()
   
 end program modes

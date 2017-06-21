@@ -1443,7 +1443,6 @@ contains
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-    call destroy(li)
     call unstring(buffer)
 
   contains
@@ -1550,7 +1549,6 @@ contains
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-    call destroy(li)
     call unstring(buffer)
     
   contains

@@ -58,7 +58,7 @@ program dftbplus
   character(len=*), parameter :: RELEASE_VERSION = '17.1'
   integer, parameter :: RELEASE_YEAR = 2017
 
-  type(inputData)          :: input             ! Contains the parsed input
+  type(inputData), allocatable  :: input             ! Contains the parsed input
 
   integer                  :: nk, iEgy, nSpin2, nK2, iSpin2, iK2
   complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
@@ -214,11 +214,12 @@ program dftbplus
   !! Parse input and set the variables in the local scope according the input.
   !! These variables are defined in the initprogram module.
 
+  allocate(input)
   call parseHSDInput(input)
   write (*,"(/A)") "Starting initialization..."
   write (*,"(A80)") repeat("-", 80)
   call initProgramVariables(input)
-  call destroy(input)
+  deallocate(input)
   write (*,*)
 
   elecStress = 0.0_dp
@@ -3094,7 +3095,6 @@ program dftbplus
 
   if (tSCC) then
     call destruct_SCC()
-    call destroy(pChrgMixer)
   end if
 
 

@@ -29,8 +29,8 @@ module oldskdata
     real(dp) :: skHubbU(4)                    !* Hubbard Us
     real(dp) :: skOcc(4)                      !* Occupations
     real(dp) :: mass                          !* Mass of the atom
-    real(dp), pointer :: skHam(:,:)           !* Table for H
-    real(dp), pointer :: skOver(:,:)          !* Table for S
+    real(dp), allocatable :: skHam(:,:)           !* Table for H
+    real(dp), allocatable :: skOver(:,:)          !* Table for S
   end type TOldSKData
 
 
@@ -129,8 +129,8 @@ contains
       repPolyIn%cutoff = polyCutoff
     end if
 
-    INITALLOCATE_PARR(skData%skHam, (skData%nGrid, nSKInter))
-    INITALLOCATE_PARR(skData%skOver, (skData%nGrid, nSKInter))
+    ALLOCATE_(skData%skHam, (skData%nGrid, nSKInter))
+    ALLOCATE_(skData%skOver, (skData%nGrid, nSKInter))
     skData%skHam(:,:) = 0.0_dp
     skData%skOver(:,:) = 0.0_dp
     do iGrid = 1, skData%nGrid

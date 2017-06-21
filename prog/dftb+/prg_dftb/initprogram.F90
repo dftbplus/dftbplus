@@ -254,8 +254,7 @@ module initprogram
   type(OGeoOpt), allocatable :: pGeoLatOpt    !* Geometry optimizer for lattice
                                           !* consts
 
-  type(OMixer), pointer :: pChrgMixer    !* Charge mixer
-  integer               :: iMixer        !* mixer number
+  type(OMixer), allocatable :: pChrgMixer    !* Charge mixer
 
   type(ORanlux), allocatable, target :: randomGenerator !* Random number generator
   type(ORanlux), pointer :: pRandomGenerator
@@ -356,10 +355,11 @@ contains
     !! Mixer related local variables
     integer  :: nGeneration
     real(dp) :: mixParam
-    type(OSimpleMixer), pointer :: pSimpleMixer
-    type(OAndersonMixer), pointer :: pAndersonMixer
-    type(OBroydenMixer), pointer :: pBroydenMixer
-    type(ODIISMixer), pointer :: pDIISMixer
+    integer :: iMixer        !* mixer number
+    type(OSimpleMixer), allocatable :: pSimpleMixer
+    type(OAndersonMixer), allocatable :: pAndersonMixer
+    type(OBroydenMixer), allocatable :: pBroydenMixer
+    type(ODIISMixer), allocatable :: pDIISMixer
 
     !! Geometry optimizer related local variables
     type(OConjGrad), allocatable :: pConjGrad    !* Conjugate gradient driver
@@ -829,37 +829,40 @@ contains
     !! (at the moment, the mixer does not need to know about the size of the
     !! vector to mix.)
     if (tSCC) then
+      allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
       select case (iMixer)
       case (1)
-        call create(pSimpleMixer, mixParam)
-        call create(pChrgMixer, pSimpleMixer)
+        allocate(pSimplemixer)
+        call init(pSimpleMixer, mixParam)
+        call init(pChrgMixer, pSimpleMixer)
       case (2)
+        allocate(pAndersonMixer)
         if (input%ctrl%andersonNrDynMix > 0) then
-          call create(pAndersonMixer, nGeneration, mixParam, &
+          call init(pAndersonMixer, nGeneration, mixParam, &
               &input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams, &
               &input%ctrl%andersonOmega0)
         else
-          call create(pAndersonMixer, nGeneration, mixParam, &
+          call init(pAndersonMixer, nGeneration, mixParam, &
               &input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
         end if
-        call create(pChrgMixer, pAndersonMixer)
+        call init(pChrgMixer, pAndersonMixer)
       case (3)
-        call create(pBroydenMixer, nSCCIter, mixParam, &
+        allocate(pBroydenMixer)
+        call init(pBroydenMixer, nSCCIter, mixParam, &
             &input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, &
             &input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac, &
             &nGeneration)
-        call create(pChrgMixer, pBroydenMixer)
+        call init(pChrgMixer, pBroydenMixer)
       case(4)
-        call create(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
-        call create(pChrgMixer, pDIISMixer)
+        allocate(pDIISMixer)
+        call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
+        call init(pChrgMixer, pDIISMixer)
       case default
         call error("Unknown charge mixer type.")
       end select
-    else
-      INIT_P(pChrgMixer)
     end if
     
     !! initialise in cases where atoms move

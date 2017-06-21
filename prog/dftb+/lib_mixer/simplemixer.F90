@@ -22,13 +22,8 @@ module simplemixer
 
 
   !!* Creates a SimpleMixer instance
-  interface create
-    module procedure SimpleMixer_create
-  end interface
-
-  !!* Destroys a SimpleMixer instance
-  interface destroy
-    module procedure SimpleMixer_destroy
+  interface init
+    module procedure SimpleMixer_init
   end interface
 
   !!* Resets a SimpleMixer
@@ -43,7 +38,7 @@ module simplemixer
 
 
   public :: OSimpleMixer
-  public :: create, destroy, reset, mix
+  public :: init, reset, mix
 
 
 contains
@@ -51,33 +46,20 @@ contains
   !!* Creates a simple mixer
   !!* @param self     Simple mixer instance on exit
   !!* @param mixParam Mixing parameter
-  subroutine SimpleMixer_create(self, mixParam)
-    type(OSimpleMixer), pointer :: self
+  subroutine SimpleMixer_init(self, mixParam)
+    type(OSimpleMixer), intent(out) :: self
     real(dp), intent(in) :: mixParam
 
-    INITALLOCATE_P(self)
     self%mixParam = mixParam
 
-  end subroutine SimpleMixer_create
-
-
-
-  !!* Destroys the simple mixer
-  !!* @param self Simple mixer to destroy.
-  subroutine SimpleMixer_destroy(self)
-    type(OSimpleMixer), pointer :: self
-
-    DEALLOCATE_P(self)
-
-  end subroutine SimpleMixer_destroy
-
+  end subroutine SimpleMixer_init
 
 
   !!* Resets the mixer
   !!* @param self Simple mixer instance
   !!* @param nElem Length of the vectors to mix
   subroutine SimpleMixer_reset(self, nElem)
-    type(OSimpleMixer), pointer :: self
+    type(OSimpleMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
     ASSERT(nElem > 0)
@@ -93,21 +75,13 @@ contains
   !!* @param qInpResult Input charge on entry, mixed charge on exit
   !!* @param qDiff      Charge difference
   subroutine SimpleMixer_mix(self, qInpResult, qDiff)
-    type(OSimpleMixer), pointer :: self
+    type(OSimpleMixer), intent(inout) :: self
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
 
     ASSERT(size(qInpResult) == size(qDiff))
 
-    !print *, "SIMPLE MIXER:"
-    !print *, "QINPRESULT:"
-    !print *, qInpResult
-    !print *, "QDIFF:"
-    !print *, qDiff
     qInpResult(:) = qInpResult(:) + self%mixParam * qDiff(:)
-    !print *, "MIXED CHARGES:"
-    !print *, qInpResult
-    
 
   end subroutine SimpleMixer_mix
 

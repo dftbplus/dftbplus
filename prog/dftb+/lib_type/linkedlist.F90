@@ -15,7 +15,7 @@ module linkedList
   private
 
   public :: listReal, listRealR1, listCharMc, listCharLc, listInt, listIntR1
-  public :: init, destroy
+  public :: init
   public :: append, len, find, hasElement, elemShape, isUnishaped
   public :: get, set, asArray, asVector, intoArray
   public :: charMc, charLc
@@ -29,6 +29,8 @@ module linkedList
     integer                   :: iCache
     type(nodeReal),   pointer :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructReal
   end type listReal
 
   type listRealR1
@@ -41,6 +43,8 @@ module linkedList
     integer                   :: iCache
     type(nodeRealR1), pointer :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructRealR1
   end type listRealR1
 
   type listCharMc
@@ -52,6 +56,8 @@ module linkedList
     integer                   :: iCache
     type(nodeCharMc), pointer :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructCharMc
   end type listCharMc
   
   type listCharLc
@@ -63,6 +69,8 @@ module linkedList
     integer                   :: iCache
     type(nodeCharLc), pointer :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructCharLc
   end type listCharLc
   
   type listInt
@@ -74,6 +82,8 @@ module linkedList
     integer                   :: iCache
     type(nodeInt),    pointer :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructInt
   end type listInt
 
   type listIntR1
@@ -86,6 +96,8 @@ module linkedList
     integer                   :: iCache
     type(nodeIntR1), pointer  :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructIntR1
   end type listIntR1
 
   !!* Generic interface for initializing lists
@@ -96,16 +108,6 @@ module linkedList
     module procedure initCharLc    
     module procedure initInt
     module procedure initIntR1
-  end interface
-
-  !!* Generic interface for destroying lists
-  interface destroy
-    module procedure destroyReal
-    module procedure destroyRealR1
-    module procedure destroyCharMc
-    module procedure destroyCharLc
-    module procedure destroyInt
-    module procedure destroyIntR1
   end interface
 
   !!* Generic interface for appending elements to a list
@@ -214,7 +216,7 @@ module linkedList
   end type nodeReal
 
   type nodeRealR1
-    real(dp),         pointer :: pValue(:)                    ! type specific
+    real(dp), allocatable :: pValue(:)                    ! type specific
     type(nodeRealR1), pointer :: pNext
   end type nodeRealR1
 
@@ -234,7 +236,7 @@ module linkedList
   end type nodeInt
 
   type nodeIntR1
-    integer, pointer         :: pValue(:)
+    integer, allocatable :: pValue(:)
     type(nodeIntR1), pointer :: pNext
   end type nodeIntR1
 

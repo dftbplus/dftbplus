@@ -35,23 +35,18 @@ module broydenmixer
     real(dp) :: minWeight                  !!* Minimal weight
     real(dp) :: maxWeight                  !!* Maximal weight
     real(dp) :: weightFac                  !!* Weighting factor (numerator)
-    real(dp), pointer :: ww(:)             !!* Weights for prev. iterations
-    real(dp), pointer :: qDiffLast(:)      !!* Charge difference in last iter.
-    real(dp), pointer :: qInpLast(:)       !!* Input charge in last iteration
-    real(dp), pointer :: aa(:,:)           !!* Storage for the "a" matrix
-    type(OFifoRealR1), pointer :: fifoDF   !!* Fifo for prev. DF vectors
-    type(OFifoRealR1), pointer :: fifoUU   !!* Previous U vectors.
+    real(dp), allocatable :: ww(:)             !!* Weights for prev. iterations
+    real(dp), allocatable :: qDiffLast(:)      !!* Charge difference in last iter.
+    real(dp), allocatable :: qInpLast(:)       !!* Input charge in last iteration
+    real(dp), allocatable :: aa(:,:)           !!* Storage for the "a" matrix
+    type(OFifoRealR1) :: fifoDF   !!* Fifo for prev. DF vectors
+    type(OFifoRealR1) :: fifoUU   !!* Previous U vectors.
   end type OBroydenMixer
 
 
   !!* Creates Broyden mixer
-  interface create
-    module procedure BroydenMixer_create
-  end interface
-
-  !!* Destroys Broyden mixer
-  interface destroy
-    module procedure BroydenMixer_destroy
+  interface init
+    module procedure BroydenMixer_init
   end interface
 
   !!* Resets Broyden mixer
@@ -70,7 +65,7 @@ module broydenmixer
   end interface getInverseJacobian
 
   public :: OBroydenMixer
-  public :: create, destroy, reset, mix, getInverseJacobian
+  public :: init, reset, mix, getInverseJacobian
 
 
   character(*), parameter :: tmpPrefix1 = "tmp-broyden1."   !* Temp. file name
@@ -93,9 +88,9 @@ contains
   !!*   where ww is the Euclidian norm of the charge difference vector. If
   !!*   the calculated weigth is outside of the [minWeight,maxWeight] region
   !!*   it is replaced with the appropriate boundary value.
-  subroutine BroydenMixer_create(self, mIter, mixParam, omega0, minWeight, &
+  subroutine BroydenMixer_init(self, mIter, mixParam, omega0, minWeight, &
       &maxWeight, weightFac, nKeep)
-    type(OBroydenMixer), pointer :: self
+    type(OBroydenMixer), intent(out) :: self
     integer, intent(in) :: mIter
     real(dp), intent(in) :: mixParam
     real(dp), intent(in) :: omega0
@@ -109,7 +104,6 @@ contains
     ASSERT(omega0 > 0.0_dp)
     ASSERT(nKeep >= 0)
 
-    INITALLOCATE_P(self)
     self%nElem = 0
     self%mIter = mIter
     self%alpha = mixParam
@@ -117,17 +111,15 @@ contains
     self%minWeight = minWeight
     self%maxWeight = maxWeight
     self%weightFac = weightFac
-    INITALLOCATE_P(self%fifoDF)
-    INITALLOCATE_P(self%fifoUU)
     call init(self%fifoDF, nKeep, tmpPrefix1)
     call init(self%fifoUU, nKeep, tmpPrefix2)
 
-    INITALLOCATE_PARR(self%ww, (mIter-1))
-    INITALLOCATE_PARR(self%qInpLast, (self%nElem))
-    INITALLOCATE_PARR(self%qDiffLast, (self%nElem))
-    INITALLOCATE_PARR(self%aa, (mIter-1, mIter-1))
+    ALLOCATE_(self%ww, (mIter-1))
+    ALLOCATE_(self%qInpLast, (self%nElem))
+    ALLOCATE_(self%qDiffLast, (self%nElem))
+    ALLOCATE_(self%aa, (mIter-1, mIter-1))
 
-  end subroutine BroydenMixer_create
+  end subroutine BroydenMixer_init
 
 
 
@@ -135,17 +127,17 @@ contains
   !!* @param self  Broyden mixer instance
   !!* @param nElem Length of the vectors to mix
   subroutine BroydenMixer_reset(self, nElem)
-    type(OBroydenMixer), pointer :: self
+    type(OBroydenMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
     ASSERT(nElem > 0)
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
-      DEALLOCATE_PARR(self%qInpLast)
-      DEALLOCATE_PARR(self%qDiffLast)
-      ALLOCATE_PARR(self%qInpLast, (self%nElem))
-      ALLOCATE_PARR(self%qDiffLast, (self%nElem))
+      DEALLOCATE_(self%qInpLast)
+      DEALLOCATE_(self%qDiffLast)
+      ALLOCATE_(self%qInpLast, (self%nElem))
+      ALLOCATE_(self%qDiffLast, (self%nElem))
     end if
     self%iIter = 0
     self%ww(:) = 0.0_dp
@@ -156,34 +148,12 @@ contains
   end subroutine BroydenMixer_reset
 
 
-
-  !!* Destroys the Broyden mixer
-  !!* @param self Broyden mixer instance.
-  subroutine BroydenMixer_destroy(self)
-    type(OBroydenMixer), pointer :: self
-
-    if (associated(self)) then
-      call destruct(self%fifoDF)
-      call destruct(self%fifoUU)
-      DEALLOCATE_P(self%fifoDF)
-      DEALLOCATE_P(self%fifoUU)
-      DEALLOCATE_PARR(self%ww)
-      DEALLOCATE_PARR(self%qDiffLast)
-      DEALLOCATE_PARR(self%qInpLast)
-      DEALLOCATE_PARR(self%aa)
-    end if
-    DEALLOCATE_P(self)
-    
-  end subroutine BroydenMixer_destroy
-
-  
-
   !!* Mixes charges according to the modified Broyden method
   !!* @param self       Pointer to the Broyden mixer
   !!* @param qInpResult Input charges on entry, mixed charges on exit.
   !!* @param qDiff      Charge difference
   subroutine BroydenMixer_mix(self, qInpResult, qDiff)
-    type(OBroydenMixer), pointer :: self
+    type(OBroydenMixer), intent(inout) :: self
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
 
@@ -230,8 +200,8 @@ contains
     real(dp), intent(in) :: maxWeight
     real(dp), intent(in) :: weightFac
     integer, intent(in) :: nElem
-    type(OFifoRealR1), pointer :: fifoDF
-    type(OFifoRealR1), pointer :: fifoUU
+    type(OFifoRealR1), intent(inout) :: fifoDF
+    type(OFifoRealR1), intent(inout) :: fifoUU
 
     real(dp), allocatable :: beta(:,:), cc(:,:), gamma(:,:)
     real(dp), allocatable :: dF_uu(:)      !! Current DF or U-vector
@@ -321,12 +291,6 @@ contains
 
     !! Save |u(m-1)>
     call push(fifoUU, dF_uu)
-
-    DEALLOCATE_(beta)
-    DEALLOCATE_(cc)
-    DEALLOCATE_(gamma)
-    DEALLOCATE_(dF_uu)
-    DEALLOCATE_(buffer)
 
   end subroutine modifiedBroydenMixing
 

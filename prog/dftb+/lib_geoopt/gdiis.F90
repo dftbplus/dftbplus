@@ -18,7 +18,7 @@ module gdiis
   !!* Contains data for the DIIS mimimizer
   type ODIIS
     private
-    type(ODIISMixer), pointer :: pDIIS
+    type(ODIISMixer) :: pDIIS
     real(dp), allocatable :: x(:)
     integer  :: nElem
     real(dp) :: tolerance    !* Tolerance criteria for convergence
@@ -41,7 +41,7 @@ module gdiis
   end interface
 
   public :: ODIIS
-  public :: init, reset, destroy, next
+  public :: init, reset, next
   
   
 contains
@@ -56,7 +56,7 @@ contains
     self%nElem = nElem
     self%tolerance = tol
     ALLOCATE_(self%x, (self%nElem))
-    call create(self%pDIIS,nGens,alpha,.true.,alpha)
+    call init(self%pDIIS,nGens,alpha,.true.,alpha)
     self%tInitialized = .true.
     
   end subroutine gDIIS_init

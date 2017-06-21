@@ -263,6 +263,8 @@ module inputdata_module
     type(TGeometry) :: geom
     type(slater)   :: slako
     logical        :: tInitialized = .false.
+  contains
+    final :: inputData_destruct
   end type inputData
 
 
@@ -272,16 +274,11 @@ module inputdata_module
   end interface
   
   
-  interface destroy
-    module procedure InputData_destroy
-  end interface
-
   public :: control, TGeometry, slater, inputData, XLBOMDInp
-  public :: init, destroy
+  public :: init
 
   
 contains
-
 
   subroutine InputData_init(self)
     type(inputData), intent(out) :: self
@@ -294,17 +291,18 @@ contains
 
 
 
-  subroutine InputData_destroy(self)
+  subroutine InputData_destruct(self)
     type(inputData), intent(inout) :: self
-    
-    ASSERT(self%tInitialized)
+
+    if (.not. self%tInitialized) then
+      return
+    end if
     
     call destroyControl(self%ctrl)
-    call destruct(self%geom)
     call destroySlater(self%slako)
     self%tInitialized = .false.
 
-  end subroutine InputData_destroy
+  end subroutine InputData_destruct
 
 
 
@@ -349,7 +347,6 @@ contains
     end if
 
     if (associated(ctrl%tShellResInRegion)) then
-      call destroy(ctrl%iAtInRegion)
       DEALLOCATE_PARR(ctrl%tShellResInRegion)
       DEALLOCATE_PARR(ctrl%RegionLabel)
     end if

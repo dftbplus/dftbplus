@@ -33,7 +33,7 @@ module andersonmixer
     private
     real(dp) :: mixParam                    !!* General mixing parameter
     real(dp) :: initMixParam                !!* Initial mixing parameter
-    real(dp), pointer :: convMixParam(:,:)  !!* Convergence dependent mixing
+    real(dp), allocatable :: convMixParam(:,:)  !!* Convergence dependent mixing
                                             !!* parameters
     real(dp) :: omega02                     !!* Symmetry breaking parameter
     logical :: tBreakSym                    !!* Should symmetry be broken?
@@ -42,21 +42,15 @@ module andersonmixer
     integer :: mPrevVector                  !!* Max. nr. of stored prev. vectors
     integer :: nPrevVector                  !!* Nr. of stored previous vectors
     integer :: nElem                        !!* Nr. of elements in the vectors
-    integer, pointer :: indx(:)             !!* Index array for the storage
-    real(dp), pointer :: prevQInput(:,:)    !!* Stored previous input charges
-    real(dp), pointer :: prevQDiff(:,:)     !!* Stored prev. charge differences
-
+    integer, allocatable :: indx(:)             !!* Index array for the storage
+    real(dp), allocatable :: prevQInput(:,:)    !!* Stored previous input charges
+    real(dp), allocatable :: prevQDiff(:,:)     !!* Stored prev. charge differences
   end type OAndersonMixer
   
 
   !!* Creates an AndersonMixer instance
-  interface create
-    module procedure AndersonMixer_create
-  end interface
-
-  !!* Destroys an AndersonMixer instance
-  interface destroy
-    module procedure AndersonMixer_destroy
+  interface init
+    module procedure AndersonMixer_init
   end interface
 
   !!* Resets the mixer
@@ -71,12 +65,12 @@ module andersonmixer
   
 
   public :: OAndersonMixer
-  public :: create, destroy, reset, mix
+  public :: init, reset, mix
 
 contains
 
   !!* Creates an Andersom mixer instance.
-  !!* @param self         Pointer to an initialized Anderson mixer on exit
+  !!* @param self         Initialized Anderson mixer on exit
   !!* @param nGeneration  Nr. of generations (including actual) to consider
   !!* @param mixParam     Mixing parameter for the general case
   !!* @param initMixParam Mixing parameter for the first nGeneration-1 cycles
@@ -87,9 +81,9 @@ contains
   !!*   mixParam or initMixParam.
   !!* @param omega0       Symmetry breaking parameter. Diagonal elements of the
   !!*   system of linear equations are multiplied by (1.0+omega0**2).
-  subroutine AndersonMixer_create(self, nGeneration, mixParam, initMixParam, &
+  subroutine AndersonMixer_init(self, nGeneration, mixParam, initMixParam, &
       &convMixParam, omega0)
-    type(OAndersonMixer), pointer :: self
+    type(OAndersonMixer), intent(out) :: self
     integer, intent(in) :: nGeneration
     real(dp), intent(in) :: mixParam
     real(dp), intent(in) :: initMixParam
@@ -98,24 +92,22 @@ contains
 
     ASSERT(nGeneration >= 2)
 
-    INITALLOCATE_P(self)
     self%nElem = 0
     self%mPrevVector = nGeneration - 1
 
-    INITALLOCATE_PARR(self%prevQInput, (self%nElem, self%mPrevVector))
-    INITALLOCATE_PARR(self%prevQDiff, (self%nElem, self%mPrevVector))
-    INITALLOCATE_PARR(self%indx, (self%mPrevVector))
+    ALLOCATE_(self%prevQInput, (self%nElem, self%mPrevVector))
+    ALLOCATE_(self%prevQDiff, (self%nElem, self%mPrevVector))
+    ALLOCATE_(self%indx, (self%mPrevVector))
 
     self%mixParam = mixParam
     self%initMixParam = initMixParam
     if (present(convMixParam)) then
       ASSERT(size(convMixParam, dim=1) == 2)
       self%nConvMixParam = size(convMixParam, dim=2)
-      INITALLOCATE_PARR(self%convMixParam, (2, self%nConvMixParam))
+      ALLOCATE_(self%convMixParam, (2, self%nConvMixParam))
       self%convMixParam(:,:) = convMixParam(:,:)
     else
       self%nConvMixParam = 0
-      INIT_PARR(self%convMixParam)
     end if
     if (present(omega0)) then
       self%omega02 = omega0**2
@@ -125,7 +117,7 @@ contains
       self%tBreakSym = .false.
     end if
 
-  end subroutine AndersonMixer_create
+  end subroutine AndersonMixer_init
 
 
 
@@ -133,7 +125,7 @@ contains
   !!* @param self  Anderson mixer instance
   !!* @param nElem Nr. of elements in the vectors to mix
   subroutine AndersonMixer_reset(self, nElem)
-    type(OAndersonMixer), pointer :: self
+    type(OAndersonMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
     integer :: ii
@@ -142,10 +134,10 @@ contains
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
-      DEALLOCATE_PARR(self%prevQInput)
-      DEALLOCATE_PARR(self%prevQDiff)
-      ALLOCATE_PARR(self%prevQInput, (self%nElem, self%mPrevVector))
-      ALLOCATE_PARR(self%prevQDiff, (self%nElem, self%mPrevVector))
+      DEALLOCATE_(self%prevQInput)
+      DEALLOCATE_(self%prevQDiff)
+      ALLOCATE_(self%prevQInput, (self%nElem, self%mPrevVector))
+      ALLOCATE_(self%prevQDiff, (self%nElem, self%mPrevVector))
     end if
     self%nPrevVector = -1
     !! Create index array for accessing elements in the LIFO way
@@ -156,30 +148,12 @@ contains
   end subroutine AndersonMixer_reset
 
 
-
-  !!* Destroys the Anderson mixer
-  !!* @param self Andersom mixer instance.
-  subroutine AndersonMixer_destroy(self)
-    type(OAndersonMixer), pointer :: self
-
-    if (associated(self)) then
-      DEALLOCATE_PARR(self%prevQInput)
-      DEALLOCATE_PARR(self%prevQDiff)
-      DEALLOCATE_PARR(self%indx)
-      DEALLOCATE_PARR(self%convMixParam)
-    end if
-    DEALLOCATE_P(self)
-    
-  end subroutine AndersonMixer_destroy
-
-  
-
   !!* Mixes charges according to the Anderson method
-  !!* @param self       Pointer to the anderson mixer
+  !!* @param self       Anderson mixer
   !!* @param qInpResult Input charges on entry, mixed charges on exit.
   !!* @param qDiff      Charge difference
   subroutine AndersonMixer_mix(self, qInpResult, qDiff)
-    type(OAndersonMixer), pointer :: self
+    type(OAndersonMixer), intent(inout) :: self
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
     
@@ -229,9 +203,6 @@ contains
 
     !! Mix averaged input charge and average charge difference
     qInpResult(:) = qInpMiddle(:) + mixParam * qDiffMiddle(:)
-
-    DEALLOCATE_(qInpMiddle)
-    DEALLOCATE_(qDiffMiddle)
 
   end subroutine AndersonMixer_mix
 
@@ -322,10 +293,6 @@ contains
       qInpMiddle(:) = qInpMiddle(:) + bb(ii,1) * prevQInp(:,indx(ii))
     end do
     qInpMiddle(:) = qInpMiddle(:) + (1.0_dp - sum(bb(:,1))) * qInput(:)
-
-    DEALLOCATE_(aa)
-    DEALLOCATE_(bb)
-    DEALLOCATE_(tmp1)
 
   end subroutine calcAndersonAverages
 

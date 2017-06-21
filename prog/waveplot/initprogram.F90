@@ -393,7 +393,6 @@ contains
     end if
     ALLOCATE_(levelIndex, (3, len(indexBuffer)))
     call asArray(indexBuffer, levelIndex)
-    call destroy(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
     if (nCached < 1 .and. nCached /= -1) then
@@ -561,7 +560,7 @@ contains
 
     type(fnode), pointer :: tmpNode, child
     type(fnodeList), pointer :: children
-    type(listReal) :: bufferExps, bufferCoeffs
+    type(listReal), allocatable :: bufferExps, bufferCoeffs
     real(dp), allocatable :: coeffs(:), exps(:)
     integer :: ii
     
@@ -580,12 +579,14 @@ contains
       call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
       call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
       call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
+      allocate(bufferExps)
       call init(bufferExps)
       
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
       if (len(bufferExps) == 0) then
         call detailedError(child, "Missing exponents")
       end if
+      allocate(bufferCoeffs)
       call init(bufferCoeffs)
       call getChildValue(tmpNode, "Coefficients", bufferCoeffs, child=child)
       if (len(bufferCoeffs) == 0) then
@@ -597,10 +598,10 @@ contains
       end if
       ALLOCATE_(exps, (len(bufferExps)))
       call asArray(bufferExps, exps)
-      call destroy(bufferExps)
+      deallocate(bufferExps)
       ALLOCATE_(coeffs, (len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
-      call destroy(bufferCoeffs)
+      deallocate(bufferCoeffs)
       call init(spBasis%stos(ii), &
           &reshape(coeffs, (/ size(coeffs)/size(exps), size(exps) /)), &
           &exps, ii - 1, basisResolution, spBasis%cutoffs(ii))

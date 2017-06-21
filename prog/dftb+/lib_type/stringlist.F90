@@ -15,7 +15,6 @@
 !!*   to compile.
 module stringlist
 #include "assert.h"
-#include "allocate.h"  
   use xmlf90
   implicit none
 
@@ -38,17 +37,14 @@ module stringlist
     integer                   :: iCache
     type(nodeString), pointer :: pCache
     logical                   :: tInitialized = .false.
+  contains
+    final :: destructString
   end type listString
   
 
   !!* Generic interface for initializing lists
   interface init
     module procedure initString
-  end interface
-
-  !!* Generic interface for destroying lists
-  interface destroy
-    module procedure destroyString
   end interface
 
   !!* Generic interface for appending elements to a list
@@ -88,7 +84,7 @@ module stringlist
 
 
   public :: listString
-  public :: init, destroy, append, len, find, hasElement, get, isUnishaped
+  public :: init, append, len, find, hasElement, get, isUnishaped
   public :: asArray
 
 
@@ -104,35 +100,37 @@ contains
 
     list%length = 0
     list%tUnishaped = .true.
-    INIT_P(list%pFirst)
-    INIT_P(list%pLast)
+    nullify(list%pFirst)
+    nullify(list%pLast)
     list%iCache = 0
-    INIT_P(list%pCache)
+    nullify(list%pCache)
     list%tInitialized = .true.
 
   end subroutine initString
 
 
 
-  !!* Destroys a list containing characters
-  !!* @param list The list to destroy.
-  subroutine destroyString(list)
+  !!* Destructs a list containing characters
+  !!* @param list The list to destruct.
+  subroutine destructString(list)
     type(listString), intent(inout) :: list
 
     type(nodeString), pointer :: pCur, pNext
 
-    ASSERT(list%tInitialized)
+    if (.not. list%tInitialized) then
+      return
+    end if
 
     pCur => list%pFirst
     do while(associated(pCur))
       call unstring(pCur%value)
       pNext => pCur%pNext
-      DEALLOCATE_P(pCur)
+      deallocate(pCur)
       pCur => pNext
     end do
     list%tInitialized = .false.
 
-  end subroutine destroyString
+  end subroutine destructString
 
 
 
@@ -147,16 +145,16 @@ contains
 
     !! List contains already elements -> append to the end otherwise as first
     if(associated(list%pLast)) then
-      INITALLOCATE_P(list%pLast%pNext)
+      allocate(list%pLast%pNext)
       list%pLast => list%pLast%pNext
     else
-      INITALLOCATE_P(list%pFirst)
+      allocate(list%pFirst)
       list%pLast => list%pFirst
     end if
     list%length = list%length + 1
 
     !! initialize node
-    INIT_P(list%pLast%pNext)
+    nullify(list%pLast%pNext)
     list%pLast%value = value
 
   end subroutine appendString

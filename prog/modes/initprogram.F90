@@ -72,7 +72,7 @@ contains
     type(string) :: strBuffer
     type(listRealR1) :: realBuffer
     type(string) :: buffer, buffer2
-    type(listString) :: lStr
+    type(listString), allocatable :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
     logical :: tHSD
@@ -176,6 +176,7 @@ contains
       do iSp1 = 1, geo%nSpecies
         strTmp = trim(geo%speciesNames(iSp1)) // "-" &
             &// trim(geo%speciesNames(iSp1))
+        allocate(lStr)
         call init(lStr)
         call getChildValue(child, trim(strTmp), lStr, child=child2)
         ! We can't handle selected shells here (also not needed I guess)
@@ -192,7 +193,7 @@ contains
           end if
           call append(skFiles(iSp1), strTmp)
         end do
-        call destroy(lStr)
+        deallocate(lStr)
       end do
     end select
 
@@ -203,10 +204,6 @@ contains
       deallocate(skData%skHam)
       deallocate(skData%skOver)
       speciesMass(iSp1) = skData%mass      
-    end do
-    
-    do iSp1 = 1, geo%nSpecies
-      call destroy(skFiles(iSp1))
     end do
     deallocate(skFiles)
 
@@ -225,7 +222,6 @@ contains
             & // i2c(nDerivs) // " required.")
       end if
       call asArray(realBuffer, dynMatrix)
-      call destroy(realBuffer)
     end if
 
     call getChildValue(root, "WriteHSDInput", tWriteHSD, .true.)
@@ -265,10 +261,6 @@ contains
   !!* Destroy the program variables created in initProgramVariables
   subroutine destructProgramVariables()
     
-    call destruct(geo)
-    deallocate(atomicMasses)
-    deallocate(dynMatrix)
-    deallocate(modesToPlot)
     write (*, "(/,A)") repeat("=", 80)
     
   end subroutine destructProgramVariables

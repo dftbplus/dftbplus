@@ -946,7 +946,6 @@ contains
     call asArray(lr1, allKPoints)
     allKPoints = modulo(allKPoints, 1.0_dp)
     allKWeights = 1.0_dp / real(nAllKPoint, dp)
-    call destroy(lr1)
 
     ! Reduce by inversion if needed
     if (tReduce) then

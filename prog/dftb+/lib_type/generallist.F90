@@ -13,13 +13,13 @@ module generallist
   private
   
   public :: OList, OListIterator, listData
-  public :: init, destruct, length, append, getItem, index, isValid, next
+  public :: init, length, append, getItem, index, isValid, next
 
   !!* List node (private).
   type OListNode
     private
     type(OListNode), pointer :: next => null()
-    character, pointer :: data(:) => null()
+    character, allocatable :: data(:)
   end type OListNode
   
   !!* General purpose linked list.
@@ -29,6 +29,8 @@ module generallist
     type(OListNode), pointer :: last => null()
     integer :: size = 0
     integer :: dataSize
+  contains
+    final :: OList_destruct
   end type OList
   
   !!* Iterator for iterating through the elements of a list.
@@ -45,12 +47,6 @@ module generallist
   interface init
     module procedure OList_init
     module procedure OListIterator_init
-  end interface
-
-  !!* Destruction of the various derived types.
-  interface destruct
-    module procedure OList_destruct
-    module procedure OListIterator_destruct
   end interface
 
   !!* Returns the length of the list.
@@ -113,12 +109,8 @@ contains
     do while (associated(node))
       curNode => node
       node => node%next
-      DEALLOCATE_PARR(curNode%data)
-      DEALLOCATE_P(curNode)
+      deallocate(curNode)
     end do
-    sf%first => null()
-    sf%last => null()
-    sf%size = 0
     
   end subroutine OList_destruct
 
@@ -145,8 +137,8 @@ contains
 
     ASSERT(size(data) == sf%dataSize)
 
-    INITALLOCATE_P(node)
-    INITALLOCATE_PARR(node%data, (sf%dataSize))
+    allocate(node)
+    ALLOCATE_(node%data, (sf%dataSize))
     node%data = data
     
     if (sf%size == 0) then
@@ -227,16 +219,6 @@ contains
   end subroutine OListIterator_init
 
   
-  !!* Destroys the iterator.
-  !!* @param sf Iterator instance (self).  
-  subroutine OListIterator_destruct(sf)
-    type(OListIterator), intent(inout) :: sf
-
-    continue
-
-  end subroutine OListIterator_destruct
-
-
   !!* Returns the validity of the iterator.
   !!* @param sf Iterator instance (self).
   !!* @return True, if iterator is valid (pointing to an existing element in

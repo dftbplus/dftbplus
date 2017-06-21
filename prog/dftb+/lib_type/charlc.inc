@@ -20,34 +20,36 @@
 
     list%length = 0
     list%tUnishaped = .true.
-    INIT_P(list%pFirst)
-    INIT_P(list%pLast)
+    nullify(list%pFirst)
+    nullify(list%pLast)
     list%iCache = 0
-    INIT_P(list%pCache)
+    nullify(list%pCache)
     list%tInitialized = .true.
 
   end subroutine initCharLc
 
   
 
-  !!* Destroys a list containing characters
-  !!* @param list The list to destroy.
-  subroutine destroyCharLc(list)
+  !!* Destructs a list containing characters
+  !!* @param list The list to destruct.
+  subroutine destructCharLc(list)
     type(listCharLc), intent(inout) :: list
 
     type(nodeCharLc), pointer :: pCur, pNext
 
-    ASSERT(list%tInitialized)
+    if (.not. list%tInitialized) then
+      return
+    end if
 
     pCur => list%pFirst
     do while(associated(pCur))
       pNext => pCur%pNext
-      DEALLOCATE_P(pCur)
+      deallocate(pCur)
       pCur => pNext
     end do
     list%tInitialized = .false.
 
-  end subroutine destroyCharLc
+  end subroutine destructCharLc
 
 
   
@@ -62,10 +64,10 @@
 
     !! List contains already elements -> append to the end otherwise as first
     if(associated(list%pLast)) then
-      ALLOCATE_P(list%pLast%pNext)
+      allocate(list%pLast%pNext)
       list%pLast => list%pLast%pNext
     else
-      ALLOCATE_P(list%pFirst)
+      allocate(list%pFirst)
       list%pLast => list%pFirst
     end if
     list%length = list%length + 1

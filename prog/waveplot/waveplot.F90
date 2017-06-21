@@ -194,8 +194,6 @@ program waveplot
     ALLOCATE_PARR(geo%species, (geo%nAtom))
     call asArray(coordList, geo%coords)
     call asArray(speciesList, geo%species)
-    call destroy(coordList)
-    call destroy(speciesList)
     deallocate(cellVec)
     deallocate(rCellVec)
   end if

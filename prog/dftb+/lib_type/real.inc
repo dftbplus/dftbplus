@@ -20,34 +20,36 @@
 
     list%length = 0
     list%tUnishaped = .true.
-    INIT_P(list%pFirst)
-    INIT_P(list%pLast)
+    nullify(list%pFirst)
+    nullify(list%pLast)
     list%iCache = 0
-    INIT_P(list%pCache)
+    nullify(list%pCache)
     list%tInitialized = .true.
 
   end subroutine initReal
 
   
 
-  !!* Destroys the list.
-  !!* @param list The list to destroy.
-  subroutine destroyReal(list)
+  !!* Destructs the list.
+  !!* @param list The list to destruct.
+  subroutine destructReal(list)
     type(listReal), intent(inout) :: list
 
     type(nodeReal), pointer :: pCur, pNext
 
-    ASSERT(list%tInitialized)
+    if (.not. list%tInitialized) then
+      return
+    end if
 
     pCur => list%pFirst
     do while(associated(pCur))
       pNext => pCur%pNext
-      DEALLOCATE_P(pCur)
+      deallocate(pCur)
       pCur => pNext
     end do
     list%tInitialized = .false.
 
-  end subroutine destroyReal
+  end subroutine destructReal
 
 
   
@@ -62,16 +64,16 @@
 
     !! List contains already elements -> append to the end otherwise as first
     if(associated(list%pLast)) then
-      ALLOCATE_P(list%pLast%pNext)
+      allocate(list%pLast%pNext)
       list%pLast => list%pLast%pNext
     else
-      ALLOCATE_P(list%pFirst)
+      allocate(list%pFirst)
       list%pLast => list%pFirst
     end if
     list%length = list%length + 1
 
     !! initialize node
-    INIT_P(list%pLast%pNext)
+    nullify(list%pLast%pNext)
     list%pLast%value = value
         
   end subroutine appendReal
