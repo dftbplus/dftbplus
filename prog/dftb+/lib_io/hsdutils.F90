@@ -194,13 +194,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr)
       call checkError(child2, iErr, "Invalid logical value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       value = default
@@ -257,13 +255,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr, nReadItem)
       call checkError(child2, iErr, "Invalid logical value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(value)) then
@@ -326,7 +322,6 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       if (tMultiple) then
         value = unquote(trim(adjustl(char(text))))
@@ -349,7 +344,6 @@ contains
     if (present(child)) then
       child => child2
     end if
-    call unstring(text)
       
   end subroutine getChVal_string
 
@@ -384,13 +378,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr)
       call checkError(child2, iErr, "Invalid real value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       value = default
@@ -450,13 +442,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr, nReadItem)
       call checkError(child2, iErr, "Invalid real value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(value)) then
@@ -533,7 +523,6 @@ contains
     elseif (len(modif) > 0) then
       call detailedError(child2, MSG_NOMODIFIER)
     end if
-    call unstring(modif)
     value(:,:) = reshape(buffer, shape(value))
     if (present(child)) then
       child => child2
@@ -572,13 +561,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr)
       call checkError(child2, iErr, "Invalid integer value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       value = default
@@ -637,13 +624,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr, nReadItem)
       call checkError(child2, iErr, "Invalid integer value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(value)) then
@@ -718,7 +703,6 @@ contains
     elseif (len(modif) > 0) then
       call detailedError(child2, MSG_NOMODIFIER)
     end if
-    call unstring(modif)
     value(:,:) = reshape(buffer, shape(value))
     if (present(child)) then
       child => child2
@@ -758,10 +742,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lString_h(char(text), value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -792,7 +774,6 @@ contains
       call append(value, trim(unquote(char(token))))
       call getNextToken(text, token, iStart, iErr)
     end do
-    call unstring(token)
     if (iErr == TOKEN_ERROR) then
       call detailedError(node, "Invalid string")
     end if
@@ -832,10 +813,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lReal_h(char(text), value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -908,10 +887,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lRealR1_h(char(text), dim, value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -985,10 +962,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lInt_h(char(text), value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -1060,10 +1035,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lIntR1_h(char(text), dim, value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -1147,11 +1120,9 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lIntR1RealR1_h(char(text), dimInt, valueInt, &
           &dimReal, valueReal, child2)
-      call unstring(text)
       if (len(valueInt) /= len(valueReal)) then
         call detailedError(node, "Unexpected end of data")
       end if
@@ -1251,11 +1222,9 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lStringIntR1RealR1_h(char(text), valueStr, &
           &dimInt, valueInt, dimReal, valueReal, child2)
-      call unstring(text)
       if (len(valueStr) /= len(valueInt) &
           &.or. len(valueInt) /= len(valueReal)) then
         call detailedError(node, "Unexpected end of data")
@@ -1311,7 +1280,6 @@ contains
       call checkError(node, iErr, "Invalid real")
       call append(valueReal, bufferReal)
     end do
-    call unstring(bufferStr)
 
   end subroutine getChVal_lStringIntR1RealR1_h
 
@@ -1380,7 +1348,6 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       value => getFirstChild(child2)
       if ((.not. associated(value)) .and. (.not. tAllowEmptyVal)) then
         call detailedError(child2, "Missing value")
@@ -1425,7 +1392,7 @@ contains
     character(len=*), intent(in) :: speciesNames(:)
     integer, intent(in) :: species(:)
     type(fnode), pointer :: node
-    integer, pointer :: val(:)
+    integer, allocatable, intent(out) :: val(:)
 
     type(string) :: buffer
     type(ListInt) :: li
@@ -1439,11 +1406,10 @@ contains
       call process(char(buffer), speciesNames, species, nAtom, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
-    INITALLOCATE_PARR(val, (len(li)))
+    ALLOCATE_(val, (len(li)))
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-    call unstring(buffer)
 
   contains
 
@@ -1531,7 +1497,7 @@ contains
   subroutine convRangeToInt(str, node, val, nMax)
     character(len=*), intent(in) :: str
     type(fnode), pointer :: node
-    integer, pointer :: val(:)
+    integer, allocatable, intent(out) :: val(:)
     integer, intent(in) :: nMax
     
     type(string) :: buffer
@@ -1545,11 +1511,10 @@ contains
       call process(char(buffer), nMax, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
-    INITALLOCATE_PARR(val, (len(li)))
+    ALLOCATE_(val, (len(li)))
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-    call unstring(buffer)
     
   contains
 
@@ -1644,7 +1609,6 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call setAttribute(child, attrProcessed, "")
     elseif (tRequested) then
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -1708,7 +1672,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -1747,7 +1710,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -1772,7 +1734,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_logical
 
@@ -1789,7 +1750,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_logicalR1
   
@@ -1873,7 +1833,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -1898,7 +1857,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_real
 
@@ -1949,7 +1907,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -1974,7 +1931,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_realR1
 
@@ -2043,7 +1999,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2068,7 +2023,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_realR2
 
@@ -2127,7 +2081,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2152,7 +2105,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_int
 
@@ -2202,7 +2154,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2227,7 +2178,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_intR1
 
@@ -2295,7 +2245,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2320,7 +2269,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_intR2
 
@@ -2426,7 +2374,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2451,7 +2398,6 @@ contains
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_charR1
 
@@ -2514,7 +2460,6 @@ contains
     call getAsString(intValue, realValue, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2540,7 +2485,6 @@ contains
 
     call getAsString(intValue, realValue, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_intR2RealR2
 
@@ -2615,7 +2559,6 @@ contains
     call getAsString(charValue, intValue, realValue, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2643,7 +2586,6 @@ contains
 
     call getAsString(charValue, intValue, realValue, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
     
   end subroutine writeChVal_charR1IntR2RealR2
 
@@ -2812,8 +2754,6 @@ contains
       dummy => appendChild(child, text)
     end if
 
-    call unstring(newName)
-    
   end subroutine createChild_local
 
 
@@ -2962,7 +2902,6 @@ contains
     str = msg
     call appendPathAndLine(node, str)
     call error(char(str) // newline)
-    call unstring(str)
 
   end subroutine detailedError
 
@@ -2980,7 +2919,6 @@ contains
     str = msg
     call appendPathAndLine(node, str)
     call warning(char(str) // newline)
-    call unstring(str)
 
   end subroutine detailedWarning
 
@@ -3014,8 +2952,6 @@ contains
       call append_to_string(str, str2)
       call append_to_string(str, ")")
     end if
-    call unstring(str2)
-    call unstring(str3)
 
   end subroutine appendPathAndLine
 

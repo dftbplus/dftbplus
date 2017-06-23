@@ -1,5 +1,5 @@
-commontypes.o: _mod_accuracy allocate.h
-commontypes.o = commontypes.o $(_mod_accuracy) $(allocate.h)
+commontypes.o: _mod_accuracy
+commontypes.o = commontypes.o $(_mod_accuracy)
 _mod_commontypes: commontypes.o
 _mod_commontypes = $(commontypes.o)
 
@@ -8,13 +8,8 @@ fifo.o = fifo.o $(_mod_accuracy) $(_mod_fileid) $(assert.h) $(allocate.h)
 _mod_fifo: fifo.o
 _mod_fifo = $(fifo.o)
 
-generallist.o: assert.h allocate.h
-generallist.o = generallist.o $(assert.h) $(allocate.h)
-_mod_generallist: generallist.o
-_mod_generallist = $(generallist.o)
-
-linkedlist.o: charmc.inc allocate.h intr1.inc assert.h real.inc realr1.inc int.inc charlc.inc _mod_accuracy
-linkedlist.o = linkedlist.o $(charmc.inc) $(allocate.h) $(intr1.inc) $(assert.h) $(real.inc) $(realr1.inc) $(int.inc) $(charlc.inc) $(_mod_accuracy)
+linkedlist.o: charmc.inc allocate.h intr1.inc realr2.inc real.inc realr1.inc int.inc charlc.inc _mod_accuracy assert.h
+linkedlist.o = linkedlist.o $(charmc.inc) $(allocate.h) $(intr1.inc) $(realr2.inc) $(real.inc) $(realr1.inc) $(int.inc) $(charlc.inc) $(_mod_accuracy) $(assert.h)
 _mod_linkedlist: linkedlist.o
 _mod_linkedlist = $(linkedlist.o)
 
@@ -23,8 +18,8 @@ oldskdata.o = oldskdata.o $(_mod_fileid) $(allocate.h) $(_mod_reppoly) $(_mod_re
 _mod_oldskdata: oldskdata.o
 _mod_oldskdata = $(oldskdata.o)
 
-stringlist.o: _mod_xmlf90 assert.h allocate.h
-stringlist.o = stringlist.o $(_mod_xmlf90) $(assert.h) $(allocate.h)
+stringlist.o: _mod_xmlf90 assert.h
+stringlist.o = stringlist.o $(_mod_xmlf90) $(assert.h)
 _mod_stringlist: stringlist.o
 _mod_stringlist = $(stringlist.o)
 
@@ -37,9 +32,4 @@ typegeometryhsd.o: _mod_tokenreader allocate.h _mod_charmanip _mod_stringlist _m
 typegeometryhsd.o = typegeometryhsd.o $(_mod_tokenreader) $(allocate.h) $(_mod_charmanip) $(_mod_stringlist) $(_mod_simplealgebra) $(_mod_hsdutils) $(_mod_linkedlist) $(_mod_hsdutils2) $(_mod_xmlf90) $(_mod_typegeometry) $(_mod_unitconversion)
 _mod_typegeometryhsd: typegeometryhsd.o
 _mod_typegeometryhsd = $(typegeometryhsd.o)
-
-wrappedpointers.o: _mod_accuracy
-wrappedpointers.o = wrappedpointers.o $(_mod_accuracy)
-_mod_wrappedpointers: wrappedpointers.o
-_mod_wrappedpointers = $(wrappedpointers.o)
 

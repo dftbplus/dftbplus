@@ -20,9 +20,9 @@ module Slater
     integer :: nPow
     integer :: nAlpha
     integer :: ll
-    real(dp), pointer :: aa(:,:) => null()
-    real(dp), pointer :: alpha(:) => null()
-    real(dp), pointer :: gridValue(:) => null()
+    real(dp), allocatable :: aa(:,:)
+    real(dp), allocatable :: alpha(:)
+    real(dp), allocatable :: gridValue(:)
     real(dp) :: gridDist
     integer :: nGrid
   end type OSlaterOrbital
@@ -30,11 +30,6 @@ module Slater
   !!* Initialises a SlaterOrbital
   interface init
     module procedure SlaterOrbital_init
-  end interface
-
-  !!* Destructs a SlaterOrbital
-  interface destruct
-    module procedure SlaterOrbital_destruct
   end interface
 
   !!* Returns the value of a Slater orbital in a given point
@@ -49,7 +44,7 @@ module Slater
 
 
   public :: RealTessY
-  public :: OSlaterOrbital, init, destruct, getValue, assignment(=)
+  public :: OSlaterOrbital, init, getValue, assignment(=)
   
 
 contains
@@ -186,8 +181,8 @@ contains
     ASSERT(cutoff > 0.0_dp)
     ASSERT(resolution > 0.0_dp)
     
-    INITALLOCATE_PARR(self%aa, (nPow, nAlpha))
-    INITALLOCATE_PARR(self%alpha, (nAlpha))
+    ALLOCATE_(self%aa, (nPow, nAlpha))
+    ALLOCATE_(self%alpha, (nAlpha))
 
     !! Storing parameter. (This is theoretically superflous now, since
     !! the function is calculated only once at initialisation time and stored
@@ -201,7 +196,7 @@ contains
     !! Obtain STO on a grid
     self%nGrid = floor(cutoff / resolution) + 2
     self%gridDist = resolution
-    INITALLOCATE_PARR(self%gridValue, (self%nGrid))
+    ALLOCATE_(self%gridValue, (self%nGrid))
     do iGrid = 1, self%nGrid
       rr = real(iGrid - 1, dp) * resolution
       call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, self%alpha, &
@@ -209,20 +204,6 @@ contains
     end do
     
   end subroutine SlaterOrbital_init
-
-
-
-  !!* Desctruct SlaterOrbital
-  !!* @param self SlaterOrbital instance.
-  subroutine SlaterOrbital_destruct(self)
-    type(OSlaterOrbital), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%aa)
-    DEALLOCATE_PARR(self%alpha)
-    DEALLOCATE_PARR(self%gridValue)
-    
-  end subroutine SlaterOrbital_destruct
-
 
 
   !!* Retunrns the value of the SlaterOrbital in a given point
@@ -308,7 +289,7 @@ contains
     type(OSlaterOrbital), intent(inout) :: left
     type(OSlaterOrbital), intent(in) :: right
 
-    if (associated(left%aa)) then
+    if (allocated(left%aa)) then
       deallocate(left%aa)
       deallocate(left%alpha)
     end if

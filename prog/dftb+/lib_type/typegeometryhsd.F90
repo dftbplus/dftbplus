@@ -160,7 +160,6 @@ contains
       call invert33(geo%recVecs2p, geo%latVecs, det)
       geo%recVecs2p(:,:) = reshape(geo%recVecs2p, (/3, 3/), order=(/2, 1/))
     end if
-    call unstring(modifier)
     call normalize(geo)
     
   end subroutine readTGeometryHSD
@@ -178,7 +177,6 @@ contains
 
     call getFirstTextChild(node, text)
     call readTGeometryGen_help(node, geo, char(text))
-    call unstring(text)
 
   end subroutine readTGeometryGen
 
@@ -295,7 +293,6 @@ contains
       call detailedError(node, "Superfluous data found. Check if specified &
           &number of atoms matches the number of actually entered positions.")
     end if
-    call unstring(txt)
     call normalize(geo)
     
   end subroutine readTGeometryGen_help

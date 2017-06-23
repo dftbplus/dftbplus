@@ -94,15 +94,15 @@ contains
   !!* @param iSp2 Index of the second interacting species
   subroutine SlakoCont_addTableEqGrid(self, pTable, iSp1, iSp2)
     type(OSlakoCont), intent(inout) :: self
-    type(OSlakoEqGrid), intent(in) :: pTable
+    type(OSlakoEqGrid), allocatable, intent(inout) :: pTable
     integer, intent(in) :: iSp1, iSp2
 
     ASSERT(self%tInit)
-    self%slakos(iSp2, iSp1)%iType = 1
-    self%slakos(iSp2, iSp1)%pSlakoEqGrid = pTable
-    self%tDataOK = all(self%slakos(:,:)%iType /= 0)
     self%mInt = max(self%mInt, getNIntegrals(pTable))
     self%cutoff = max(self%cutoff, getCutoff(pTable))
+    self%slakos(iSp2, iSp1)%iType = 1
+    call move_alloc(pTable, self%slakos(iSp2, iSp1)%pSlakoEqGrid)
+    self%tDataOK = all(self%slakos(:,:)%iType /= 0)
 
   end subroutine SlakoCont_addTableEqGrid
 

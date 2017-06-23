@@ -24,10 +24,10 @@ module MolecularOrbital
   type TSpeciesBasis
     integer :: atomicNumber              !* Atomic number of the species
     integer :: nOrb                      !* Nr. of orbitals
-    integer, pointer :: angMoms(:) => null() !* Angular momentum for each orb.
-    real(dp), pointer :: cutoffs(:) => null() !* Cutoff for each orbital
-    type(OSlaterOrbital), pointer :: stos(:) => null() !* STO for each orbital
-    real(dp), pointer :: occupations(:) => null() !* Occupation for each orb.
+    integer, allocatable :: angMoms(:)  !* Angular momentum for each orb.
+    real(dp), allocatable :: cutoffs(:)  !* Cutoff for each orbital
+    type(OSlaterOrbital), allocatable :: stos(:)  !* STO for each orbital
+    real(dp), allocatable :: occupations(:)  !* Occupation for each orb.
   end type TSpeciesBasis
 
   
@@ -36,31 +36,25 @@ module MolecularOrbital
   type OMolecularOrbital
     private
     integer :: nAtom                         !* Nr. of atoms
-    integer :: nSpecies                       !* Nr. of species
-    integer, pointer :: species(:)           !* Species of each atom
-    integer, pointer :: iStos(:)             !* Index array for STOs
-    type(OSlaterOrbital), pointer :: stos(:) !* All STOs sequentially
-    real(dp), pointer :: cutoffs(:)          !* Cutoff for each STO
-    integer, pointer :: angMoms(:)           !* Angular mometum for each STO
+    integer :: nSpecies                      !* Nr. of species
+    integer, allocatable :: species(:)       !* Species of each atom
+    integer, allocatable :: iStos(:)         !* Index array for STOs
+    type(OSlaterOrbital), allocatable :: stos(:)  !* All STOs sequentially
+    real(dp), allocatable :: cutoffs(:)      !* Cutoff for each STO
+    integer, allocatable :: angMoms(:)       !* Angular mometum for each STO
     integer :: nOrb                          !* Nr. of orbitals in the system
     logical :: tPeriodic                     !* If sytem is periodic
-    real(dp), pointer :: latVecs(:,:)        !* Lattice vectors
-    real(dp), pointer :: recVecs2p(:,:)      !* Reciprocal vectors by 2*pi
-    real(dp), allocatable :: cellVec(:,:)        !* Cell shift vectors
+    real(dp), allocatable :: latVecs(:,:)    !* Lattice vectors
+    real(dp), allocatable :: recVecs2p(:,:)  !* Reciprocal vectors by 2*pi
+    real(dp), allocatable :: cellVec(:,:)    !* Cell shift vectors
     integer :: nCell                         !* Nr. of cell shift vectors
-    real(dp), pointer :: coords(:,:,:)       !* Coordinates in all cells
+    real(dp), allocatable :: coords(:,:,:)   !* Coordinates in all cells
     logical :: tInitialised = .false.        !* If it is initialised
   end type OMolecularOrbital
 
   !!* Initialises a MolecularOrbital instance
   interface init
     module procedure MolecularOrbital_init
-  end interface
-
-  !!* Deinitializes a MolecularOrbital instance
-  interface destruct
-    module procedure MolecularOrbital_destruct
-    module procedure SpeciesBasis_destruct
   end interface
 
   !!* Returns the value of one or more molecular orbitals on a grid
@@ -70,7 +64,7 @@ module MolecularOrbital
   end interface
 
   public :: TSpeciesBasis
-  public :: OMolecularOrbital, init, destruct, getValue
+  public :: OMolecularOrbital, init, getValue
   
 contains
 
@@ -93,7 +87,7 @@ contains
         
     self%nAtom = geometry%nAtom
     self%nSpecies = geometry%nSpecies
-    INITALLOCATE_PARR(self%species, (self%nAtom))
+    ALLOCATE_(self%species, (self%nAtom))
     self%species(:) = geometry%species(:)
 
     !! Create sequential list of STOs
@@ -101,10 +95,10 @@ contains
     do ii = 1, self%nSpecies
       nOrb = nOrb + (basis(ii)%nOrb)
     end do
-    INITALLOCATE_PARR(self%iStos, (self%nSpecies+1))
-    INITALLOCATE_PARR(self%stos, (nOrb))
-    INITALLOCATE_PARR(self%cutoffs, (nOrb))
-    INITALLOCATE_PARR(self%angMoms, (nOrb))
+    ALLOCATE_(self%iStos, (self%nSpecies+1))
+    ALLOCATE_(self%stos, (nOrb))
+    ALLOCATE_(self%cutoffs, (nOrb))
+    ALLOCATE_(self%angMoms, (nOrb))
     ind = 1
     do ii = 1, self%nSpecies
       self%iStos(ii) = ind
@@ -127,8 +121,8 @@ contains
     !! Get cells to look for when adding STOs from periodic images
     self%tPeriodic = geometry%tPeriodic
     if (self%tPeriodic) then
-      INITALLOCATE_PARR(self%latVecs, (3,3))
-      INITALLOCATE_PARR(self%recVecs2p, (3,3))
+      ALLOCATE_(self%latVecs, (3,3))
+      ALLOCATE_(self%recVecs2p, (3,3))
       self%latVecs(:,:) = geometry%latVecs(:,:)
       call invert33(self%recVecs2p, self%latVecs)
       self%recVecs2p = reshape(self%recVecs2p, (/3, 3/), order=(/2, 1/))
@@ -137,8 +131,8 @@ contains
           &self%recVecs2p, mCutoff)
       self%nCell = size(self%cellVec,dim=2)
     else
-      INITALLOCATE_PARR(self%latVecs, (3,0))
-      INITALLOCATE_PARR(self%recVecs2p, (3,0))
+      ALLOCATE_(self%latVecs, (3,0))
+      ALLOCATE_(self%recVecs2p, (3,0))
       allocate(self%cellVec(3, 1))
       self%cellVec(:,:) = 0.0_dp
       allocate(rCellVec(3, 1))
@@ -147,7 +141,7 @@ contains
     end if
 
     !! Create coorinates for central cell and periodic images
-    INITALLOCATE_PARR(self%coords, (3, self%nAtom, self%nCell))
+    ALLOCATE_(self%coords, (3, self%nAtom, self%nCell))
     self%coords(:,:,1) = geometry%coords(:,:)
     if (self%tPeriodic) then
       call foldCoordToUnitCell(self%coords(:,:,1), self%latVecs, self%recVecs2p)
@@ -431,52 +425,5 @@ contains
     
   end subroutine local_getValue
   
-  
 
-  !!* Destruct the MolecularOrbital instance.
-  !!* @param self Instance to deinitialise.
-  subroutine MolecularOrbital_destruct(self)
-    type(OMolecularOrbital), intent(inout) :: self
-
-    integer :: ii
-
-    ASSERT(self%tInitialised)
-
-    DEALLOCATE_PARR(self%species)
-    DEALLOCATE_PARR(self%coords)
-    DEALLOCATE_PARR(self%latVecs)
-    DEALLOCATE_PARR(self%angMoms)
-    do ii = 1, size(self%stos)
-      call destruct(self%stos(ii))
-    end do
-    DEALLOCATE_PARR(self%stos)
-    DEALLOCATE_PARR(self%iStos)
-    DEALLOCATE_PARR(self%cutoffs)
-    DEALLOCATE_PARR(self%latVecs)
-    DEALLOCATE_PARR(self%recVecs2p)
-    self%tInitialised = .false.
-    
-  end subroutine MolecularOrbital_destruct
-
-
-
-  !!* Destruct a SpeciesBasis instance
-  !!* @param self Instance to destruct.
-  subroutine SpeciesBasis_destruct(self)
-    type(TSpeciesBasis) :: self
-    
-    integer :: ii
-
-    do ii = 1, size(self%stos)
-      call destruct(self%stos(ii))
-    end do
-    DEALLOCATE_PARR(self%stos)
-    DEALLOCATE_PARR(self%occupations)
-    DEALLOCATE_PARR(self%cutoffs)
-    DEALLOCATE_PARR(self%angMoms)
-    
-  end subroutine SpeciesBasis_destruct
-
-
-  
 end module MolecularOrbital

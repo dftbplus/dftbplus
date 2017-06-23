@@ -497,8 +497,6 @@ contains
       end if
     end if
 
-    call unstring(buffer)
-
   end function parse_recursive
 
 
@@ -724,9 +722,6 @@ contains
       end do
       call xml_EndElement(xf, char(txt))
     end if
-    call unstring(txt)
-    call unstring(name)
-    call unstring(value)
 
   end subroutine dumpHSDAsXML_recursive
 
@@ -808,7 +803,6 @@ contains
       call dumpHSD_recursive(child, 0, fd, .false., buffer)
       child => getNextSibling(child)
     end do
-    call unstring(buffer)
     
   end subroutine dumpHSD_opened
 
@@ -957,7 +951,6 @@ contains
     elseif (.not. inclRoot) then
       path = ""
     end if
-    call unstring(buffer)
     
   end subroutine getHSDPath
   
@@ -967,7 +960,7 @@ contains
   !!* @param node     Node to look for
   !!* @param path     String containing the path until now
   !!* @param inclRoot If document root should be included
-  !!* @param buffer   Buffer for strings (to avoid unstring at every call)
+  !!* @param buffer   Buffer for strings (to avoid destruction at every call)
   recursive subroutine getHSDPath_recursive(node, path, inclRoot, buffer)
     type(fnode), pointer :: node
     type(string), intent(inout) :: path

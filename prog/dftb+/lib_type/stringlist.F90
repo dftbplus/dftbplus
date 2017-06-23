@@ -123,7 +123,6 @@ contains
 
     pCur => list%pFirst
     do while(associated(pCur))
-      call unstring(pCur%value)
       pNext => pCur%pNext
       deallocate(pCur)
       pCur => pNext

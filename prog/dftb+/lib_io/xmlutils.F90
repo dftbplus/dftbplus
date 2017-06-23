@@ -47,7 +47,6 @@ contains
         child => getNextSibling(child)
       end do
     end if
-    call unstring(buffer)
 
   end function getFirstChildByName
     
@@ -80,7 +79,6 @@ contains
         child => getPreviousSibling(child)
       end do
     end if
-    call unstring(buffer)
 
   end function getLastChildByName
 
@@ -113,7 +111,6 @@ contains
       end if
       child => getNextSibling(child)
     end do
-    call unstring(buffer)
 
   end function getChildrenByName
 
@@ -144,7 +141,6 @@ contains
       end if
       child => child2
     end do
-    call unstring(buffer)
 
   end subroutine removeSpace
 

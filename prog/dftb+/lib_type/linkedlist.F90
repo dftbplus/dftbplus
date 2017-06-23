@@ -14,7 +14,7 @@ module linkedList
   implicit none
   private
 
-  public :: listReal, listRealR1, listCharMc, listCharLc, listInt, listIntR1
+  public :: listReal, listRealR1, listRealR2, listCharMc, listCharLc, listInt, listIntR1
   public :: init
   public :: append, len, find, hasElement, elemShape, isUnishaped
   public :: get, set, asArray, asVector, intoArray
@@ -46,6 +46,20 @@ module linkedList
   contains
     final :: destructRealR1
   end type listRealR1
+
+  type listRealR2
+    private
+    integer                   :: length
+    integer                   :: elemShape(2)
+    logical                   :: tUnishaped
+    type(nodeRealR2), pointer :: pFirst
+    type(nodeRealR2), pointer :: pLast
+    integer                   :: iCache
+    type(nodeRealR2), pointer :: pCache
+    logical                   :: tInitialized = .false.
+  contains
+    final :: destructRealR2
+  end type listRealR2
 
   type listCharMc
     private
@@ -104,6 +118,7 @@ module linkedList
   interface init
     module procedure initReal
     module procedure initRealR1
+    module procedure initRealR2
     module procedure initCharMc
     module procedure initCharLc    
     module procedure initInt
@@ -114,6 +129,7 @@ module linkedList
   interface append
     module procedure appendReal
     module procedure appendRealR1
+    module procedure appendRealR2
     module procedure appendCharMc
     module procedure appendCharLc
     module procedure appendInt
@@ -124,6 +140,7 @@ module linkedList
   interface len
     module procedure lenReal
     module procedure lenRealR1
+    module procedure lenRealR2
     module procedure lenCharMc
     module procedure lenCharLc
     module procedure lenInt
@@ -134,6 +151,7 @@ module linkedList
   interface find
     module procedure findReal
     module procedure findRealR1
+    module procedure findRealR2
     module procedure findCharMc
     module procedure findCharLc
     module procedure findInt
@@ -144,6 +162,7 @@ module linkedList
   interface hasElement
     module procedure hasElementReal
     module procedure hasElementRealR1
+    module procedure hasElementRealR2
     module procedure hasElementCharMc
     module procedure hasElementCharLc
     module procedure hasElementInt
@@ -154,6 +173,7 @@ module linkedList
   interface get
     module procedure getReal
     module procedure getRealR1
+    module procedure getRealR2
     module procedure getCharMc
     module procedure getCharLc
     module procedure getInt
@@ -164,6 +184,7 @@ module linkedList
   interface set
     module procedure setReal
     module procedure setRealR1
+    module procedure setRealR2
     module procedure setCharMc
     module procedure setCharLc
     module procedure setInt
@@ -174,6 +195,7 @@ module linkedList
   interface isUnishaped
     module procedure isUnishapedReal
     module procedure isUnishapedRealR1
+    module procedure isUnishapedRealR2
     module procedure isUnishapedCharMc
     module procedure isUnishapedCharLc
     module procedure isUnishapedInt
@@ -184,6 +206,7 @@ module linkedList
   interface asArray
     module procedure asArrayReal
     module procedure asArrayRealR1
+    module procedure asArrayRealR2    
     module procedure asArrayCharMc
     module procedure asArrayCharLc
     module procedure asArrayInt
@@ -200,6 +223,7 @@ module linkedList
   !!* Generic interface for getting the shape of the array
   interface elemShape
     module procedure getElemShapeRealR1
+    module procedure getElemShapeRealR2
     module procedure getElemShapeIntR1
   end interface
 
@@ -207,6 +231,7 @@ module linkedList
   interface intoArray
     module procedure intoArrayIntR1
     module procedure intoArrayRealR1
+    module procedure intoArrayRealR2
   end interface
   
 
@@ -216,9 +241,14 @@ module linkedList
   end type nodeReal
 
   type nodeRealR1
-    real(dp), allocatable :: pValue(:)                    ! type specific
+    real(dp), allocatable :: pValue(:)
     type(nodeRealR1), pointer :: pNext
   end type nodeRealR1
+
+  type nodeRealR2
+    real(dp), allocatable :: pValue(:,:)
+    type(nodeRealR2), pointer :: pNext
+  end type nodeRealR2
 
   type nodeCharMc
     character(mc) :: value
@@ -245,6 +275,7 @@ contains
 
 #include "real.inc"
 #include "realr1.inc"
+#include "realr2.inc"  
 #include "charmc.inc"
 #include "charlc.inc"  
 #include "int.inc"

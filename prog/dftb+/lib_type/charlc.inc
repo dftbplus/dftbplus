@@ -73,7 +73,7 @@
     list%length = list%length + 1
 
     !! initialize node
-    INIT_P(list%pLast%pNext)
+    nullify(list%pLast%pNext)
     list%pLast%value = value
         
   end subroutine appendCharLc

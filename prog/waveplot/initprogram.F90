@@ -38,7 +38,7 @@ module InitProgram
   character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml" 
   integer, parameter :: parserVersion = 3
 
-  public :: initProgramVariables, destructProgramVariables
+  public :: initProgramVariables
 
 
   !! Variables from detailed.xml
@@ -63,9 +63,9 @@ module InitProgram
   logical, public :: tPlotChrgDiff     ! If chrg difference for orbs. to be pl.
   logical, public :: tPlotReal         ! If real part of the wfcs to plot.
   logical, public :: tPlotImag         ! If imaginary part of the wfcs to plot
-  integer, pointer, public :: plottedLevels(:) => null()   ! Levels to plot
-  integer, pointer, public :: plottedKPoints(:) => null()  ! K-points to plot
-  integer, pointer, public :: plottedSpins(:) => null()    ! Spins to plot
+  integer, allocatable, public :: plottedLevels(:)   ! Levels to plot
+  integer, allocatable, public :: plottedKPoints(:)  ! K-points to plot
+  integer, allocatable, public :: plottedSpins(:)    ! Spins to plot
   integer  :: nCached                  ! Nr. of cached grids
   real(dp), public :: boxVecs(3, 3)    ! Box vectors for the plotted region
   real(dp), public :: origin(3)        ! Origin of the box
@@ -88,8 +88,8 @@ module InitProgram
   integer, allocatable, public :: atomicNumbers(:)  ! species-atomic nr. corresp.
 
   !! Locally created variables
-  type(OMolecularOrbital), public, target :: molOrb    ! Molecular orbital
-  type(OMOlecularOrbital), pointer :: pMolOrb
+  type(OMolecularOrbital), allocatable, target, public :: molOrb    ! Molecular orbital
+  type(OMolecularOrbital), pointer :: pMolOrb
   type(OGridCache), public :: grid                     ! Grid cache
   real(dp), public :: gridVec(3, 3)                    ! grid vectors
   integer, allocatable :: levelIndex(:,:)              ! List of levels to plot
@@ -179,8 +179,9 @@ contains
     write (*, "(A)") "Doing initialisation"
 
     !! Initialize necessary objects
-    call init(molOrb, geo, basis)
+    allocate(molOrb)
     pMolOrb => molOrb
+    call init(molOrb, geo, basis)
     
     call init(grid, levelIndex=levelIndex, &
         &nOrb=nOrb, nAllLevel=nState, nAllKPoint=nKPoint, nAllSpin=nSpin, &
@@ -189,32 +190,6 @@ contains
         &kPointCoords=kPointsWeights(1:3,:), tReal=tRealHam,molorb=pMolOrb)
     
   end subroutine initProgramVariables
-
-
-
-  !!* Destroy the program variables created in initProgramVariables
-  subroutine destructProgramVariables()
-
-    integer :: ii
-    
-    call destruct(geo)
-    DEALLOCATE_(kPointsWeights)
-    DEALLOCATE_(occupations)
-    DEALLOCATE_(atomicNumbers)
-    DEALLOCATE_PARR(plottedLevels)
-    DEALLOCATE_PARR(plottedKPoints)
-    DEALLOCATE_PARR(plottedSpins)
-    do ii = 1, size(basis)
-      call destruct(basis(ii))
-    end do
-    DEALLOCATE_(basis)
-    call destruct(grid)
-    DEALLOCATE_(atomicNumbers)
-    DEALLOCATE_(levelIndex)
-    write (*, "(/,A)") repeat("=", 80)
-    
-  end subroutine destructProgramVariables
-
 
 
   !!* Interpret the information stored in detailed.xml
@@ -364,7 +339,7 @@ contains
           &multiple=.true.)
       call convRangeToInt(char(buffer), node, plottedKPoints, nKPoint)
     else
-      ALLOCATE_PARR(plottedKPoints, (1))
+      ALLOCATE_(plottedKPoints, (1))
       plottedKPoints(1) = 1
     end if
     call getChildValue(node, "PlottedSpins", buffer, child=field, &
@@ -570,10 +545,10 @@ contains
     if (spBasis%nOrb < 1) then
       call detailedError(node, "Missing orbital definitions")
     end if
-    ALLOCATE_PARR(spBasis%angMoms, (spBasis%nOrb))
-    ALLOCATE_PARR(spBasis%occupations, (spBasis%nOrb))
-    ALLOCATE_PARR(spBasis%stos, (spBasis%nOrb))
-    ALLOCATE_PARR(spBasis%cutoffs, (spBasis%nOrb))
+    ALLOCATE_(spBasis%angMoms, (spBasis%nOrb))
+    ALLOCATE_(spBasis%occupations, (spBasis%nOrb))
+    ALLOCATE_(spBasis%stos, (spBasis%nOrb))
+    ALLOCATE_(spBasis%cutoffs, (spBasis%nOrb))
     do ii = 1, spBasis%nOrb
       call getItem1(children, ii, tmpNode)
       call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))

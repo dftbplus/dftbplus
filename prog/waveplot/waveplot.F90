@@ -71,10 +71,10 @@ program waveplot
       ALLOCATE_(species, (size(geo%species)))
       coords(:,:) = geo%coords(:,:)
       species(:) = geo%species(:)
-      DEALLOCATE_PARR(geo%coords)
-      DEALLOCATE_PARR(geo%species)
-      ALLOCATE_PARR(geo%coords, (3, nBox * geo%nAtom))
-      ALLOCATE_PARR(geo%species, (nBox * geo%nAtom))
+      DEALLOCATE_(geo%coords)
+      DEALLOCATE_(geo%species)
+      ALLOCATE_(geo%coords, (3, nBox * geo%nAtom))
+      ALLOCATE_(geo%species, (nBox * geo%nAtom))
       ind = 0
       do i1 = 0, repeatBox(1) - 1
         do i2 = 0, repeatBox(2) - 1 
@@ -187,11 +187,11 @@ program waveplot
         end if
       end do
     end do
-    DEALLOCATE_PARR(geo%coords)
-    DEALLOCATE_PARR(geo%species)
+    DEALLOCATE_(geo%coords)
+    DEALLOCATE_(geo%species)
     geo%nAtom = len(coordList)
-    ALLOCATE_PARR(geo%coords, (3, geo%nAtom))
-    ALLOCATE_PARR(geo%species, (geo%nAtom))
+    ALLOCATE_(geo%coords, (3, geo%nAtom))
+    ALLOCATE_(geo%species, (geo%nAtom))
     call asArray(coordList, geo%coords)
     call asArray(speciesList, geo%species)
     deallocate(cellVec)
@@ -332,12 +332,6 @@ program waveplot
     write (*, "(A)") "File '" // trim(fileName) // "' written"
   end if
   
-  !! Deallocate resources
-  DEALLOCATE_(buffer)
-  DEALLOCATE_(totChrg)
-  DEALLOCATE_(spinUp)
-  
-  call destructProgramVariables()
 
 contains
 

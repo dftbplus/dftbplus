@@ -13,13 +13,13 @@
 
   !!* Initializes a list containing rank 1 real arrays(e.g. coords).
   !!* @param list       The list to initialize.
-  subroutine initRealR1(list)
-    type(listRealR1), intent(inout) :: list
+  subroutine initRealR2(list)
+    type(listRealR2), intent(inout) :: list
 
     ASSERT(.not. list%tInitialized)
     
     list%length = 0
-    list%elemShape = (/ 0 /)
+    list%elemShape = (/ 0, 0 /)
     list%tUnishaped = .true.
     nullify(list%pFirst)
     nullify(list%pLast)
@@ -27,16 +27,16 @@
     nullify(list%pCache)
     list%tInitialized = .true.
 
-  end subroutine initRealR1
+  end subroutine initRealR2
 
   
 
   !!* Destructs a list containing rank 1 real arrays(e.g. coords).
   !!* @param list The list to destruct.
-  subroutine destructRealR1(list)
-    type(listRealR1), intent(inout) :: list
+  subroutine destructRealR2(list)
+    type(listRealR2), intent(inout) :: list
 
-    type(nodeRealR1), pointer :: pCur, pNext
+    type(nodeRealR2), pointer :: pCur, pNext
  
     if (.not. list%tInitialized) then
       return
@@ -50,18 +50,18 @@
     end do
     list%tInitialized = .false.
 
-  end subroutine destructRealR1
+  end subroutine destructRealR2
 
 
   
   !!* Appends an element to the list.
   !!* @param list  The list to extend.
   !!* @param value The value to add.
-  subroutine appendRealR1(list, value)
-    type(listRealR1), intent(inout) :: list
-    real(dp),         intent(in)    :: value(:)              ! type specific
+  subroutine appendRealR2(list, value)
+    type(listRealR2), intent(inout) :: list
+    real(dp),         intent(in)    :: value(:,:)            ! type specific
 
-    integer :: valshape(1)                                   ! type specific
+    integer :: valshape(2)                                   ! type specific
     
     ASSERT(list%tInitialized)
 
@@ -85,21 +85,21 @@
 
     !! initialize node
     nullify(list%pLast%pNext)
-    ALLOCATE_(list%pLast%pValue, (valshape(1)))
-    list%pLast%pValue(:) = value(:)
-        
-  end subroutine appendRealR1
+    ALLOCATE_(list%pLast%pValue, (valshape(1), valshape(2)))
+    list%pLast%pValue(:,:) = value
+    
+  end subroutine appendRealR2
 
   
 
   !!* Returns the length(nr. of elements) of the list
   !!* @param list The list to get the length of.
   !!* @return     Nr. of elements in the list.
-  integer function lenRealR1(list) result(len)
-    type(listRealR1), intent(in) :: list
+  integer function lenRealR2(list) result(len)
+    type(listRealR2), intent(in) :: list
     ASSERT(list%tInitialized)
     len = list%length
-  end function lenRealR1
+  end function lenRealR2
 
 
 
@@ -107,13 +107,13 @@
   !!* @param list  The list object.
   !!* @param value The value to look for.
   !!* @return      Index of the element or zero if not found
-  integer function findRealR1(list, value)
-    type(listRealR1), intent(inout) :: list
-    real(dp),         intent(in)    :: value(:)
+  integer function findRealR2(list, value)
+    type(listRealR2), intent(inout) :: list
+    real(dp),         intent(in)    :: value(:,:)
 
-    type(nodeRealR1), pointer :: pCur
+    type(nodeRealR2), pointer :: pCur
     integer                   :: ii
-    integer                   :: valshape(1)
+    integer                   :: valshape(2)
 
     ASSERT(list%tInitialized)
 
@@ -122,7 +122,7 @@
     ii = 1
     do while(associated(pCur))
       if (all(shape(pCur%pValue) == valshape)) then
-        if (all(pCur%pValue(:) == value(:))) then
+        if (all(pCur%pValue == value)) then
           exit
         end if
       end if
@@ -131,14 +131,14 @@
     end do
 
     if (associated(pCur)) then
-      findRealR1 = ii
+      findRealR2 = ii
       list%iCache = ii
       list%pCache => pCur
     else
-      findRealR1 = 0
+      findRealR2 = 0
     endif
 
-  end function findRealR1
+  end function findRealR2
 
 
 
@@ -146,9 +146,9 @@
   !!* @param list   The list object
   !!* @param value  Element to look for
   !!* @return       True if element had been found, false otherwise
-  logical function hasElementRealR1(list, value) result(hasElement)
-    type(listRealR1), intent(inout) :: list
-    real(dp),         intent(in)    :: value(:)
+  logical function hasElementRealR2(list, value) result(hasElement)
+    type(listRealR2), intent(inout) :: list
+    real(dp),         intent(in)    :: value(:,:)
 
     ASSERT(list%tInitialized)
 
@@ -158,32 +158,32 @@
       hasElement = .true.
     end if
 
-  end function hasElementRealR1
+  end function hasElementRealR2
 
   
   
   !!* Get the shape of the elements in the list
   !!* @param list     The list object
   !!* @param valshape contains the shape at return
-  subroutine getElemShapeRealR1(list, valshape, index)
-    type(listRealR1), intent(inout) :: list
+  subroutine getElemShapeRealR2(list, valshape, index)
+    type(listRealR2), intent(inout) :: list
     integer,          intent(out)   :: valshape(:)
     integer,          intent(in)    :: index
 
-    type(nodeRealR1), pointer :: pCur
+    type(nodeRealR2), pointer :: pCur
 
     ASSERT(list%tInitialized)
     ASSERT(index > 0 .and. index <= list%length)
-    ASSERT(size(valshape, dim=1) == 1)
+    ASSERT(size(valshape, dim=1) == 2)
 
     if (list%tUnishaped) then
       valshape(:) = list%elemShape(:)
     else
-      pCur => getNodeRealR1(list, index)
+      pCur => getNodeRealR2(list, index)
       valshape(:) = shape(pCur%pValue)
     end if
 
-  end subroutine getElemShapeRealR1
+  end subroutine getElemShapeRealR2
 
 
 
@@ -191,21 +191,21 @@
   !!* @param list  The list object.
   !!* @param value The variable to put the element in.
   !!* @param index Index of the element (0 < index < length of the list)
-  subroutine getRealR1(list, value, index)
-    type(listRealR1), intent(inout) :: list
-    real(dp),         intent(out)   :: value(:)
+  subroutine getRealR2(list, value, index)
+    type(listRealR2), intent(inout) :: list
+    real(dp),         intent(out)   :: value(:,:)
     integer,          intent(in)    :: index
 
-    type(nodeRealR1), pointer :: pCur
+    type(nodeRealR2), pointer :: pCur
 
     ASSERT(list%tInitialized)
     ASSERT(index > 0 .and. index <= list%length)
 
-    pCur => getNodeRealR1(list, index)
+    pCur => getNodeRealR2(list, index)
     ASSERT(all(shape(pCur%pValue) == shape(value)))
-    value(:) = pCur%pValue(:)
+    value(:,:) = pCur%pValue
 
-  end subroutine getRealR1
+  end subroutine getRealR2
 
 
 
@@ -213,35 +213,35 @@
   !!* @param list  The list object.
   !!* @param value The variable to put the element in.
   !!* @param index Index of the element (0 < index < length of the list)
-  subroutine setRealR1(list, value, index)
-    type(listRealR1), intent(inout) :: list
-    real(dp),         intent(in)    :: value(:)
+  subroutine setRealR2(list, value, index)
+    type(listRealR2), intent(inout) :: list
+    real(dp),         intent(in)    :: value(:,:)
     integer,          intent(in)    :: index
 
-    type(nodeRealR1), pointer :: pCur
+    type(nodeRealR2), pointer :: pCur
 
     ASSERT(list%tInitialized)
     ASSERT(index > 0 .and. index <= list%length)
 
-    pCur => getNodeRealR1(list, index)
+    pCur => getNodeRealR2(list, index)
     ASSERT(all(shape(pCur%pValue) == shape(value)))
-    pCur%pValue(:) = value(:)
+    pCur%pValue(:,:) = value
 
-  end subroutine setRealR1
+  end subroutine setRealR2
 
 
   
   !!* Checks if list contains members with equal shaped
   !!* @param list The list object.
   !!* @return     True, if elements have equals shaped, False otherwise.
-  logical function isUnishapedRealR1(list) result(isUnishaped)
-    type(listRealR1), intent(in) :: list
+  logical function isUnishapedRealR2(list) result(isUnishaped)
+    type(listRealR2), intent(in) :: list
 
     ASSERT(list%tInitialized)
 
     isUnishaped = list%tUnishaped
 
-  end function isUnishapedRealR1
+  end function isUnishapedRealR2
 
   
 
@@ -257,17 +257,17 @@
   !!* @assert Array has the shape(:, :, :, ..., :, <length of the list>)
   !!*         and the dimensions before the last one are compatible with the
   !!*         shape of the elements in the list.
-  subroutine asArrayRealR1(list, val, optPad)
-    type(listRealR1), intent(in)           :: list
-    real(dp),         intent(out)          :: val(:, :)      ! type specific
+  subroutine asArrayRealR2(list, val, optPad)
+    type(listRealR2), intent(in)           :: list
+    real(dp),         intent(out)          :: val(:,:,:)
     real(dp),         intent(in), optional :: optPad
 
-    type(nodeRealR1), pointer :: pCur
+    type(nodeRealR2), pointer :: pCur
     integer                   :: lenVal
     real(dp)                  :: pad
     integer                   :: ii
 
-    ASSERT_ENV(integer        :: shapeVal(2))
+    ASSERT_ENV(integer        :: shapeVal(3))
 
     lenVal = size(val, dim=size(shape(val)))
 
@@ -286,66 +286,15 @@
     pCur => list%pFirst
     ii = 1
     do while(associated(pCur))
-      val(:, ii) = pCur%pValue(:)                              ! type specific
+      val(:, :, ii) = pCur%pValue
       ii = ii + 1
       pCur => pCur%pNext
     end do
     if (ii <= lenVal) then
-      val(:,ii:lenVal) = pad
+      val(:,:,ii:lenVal) = pad
     end if
 
-  end subroutine asArrayRealR1
-
-
-
-  !!* Returns the list as a vector (rank 1 array).
-  !!* @param list The list to get the elements from.
-  !!* @param val  Array which will be filled with the elements of the list.
-  !!* @note
-  !!*   The passed array has to have the rank of the list elements + 1.
-  !!*   According to Fortran traditions, the last index of the array addresses
-  !!*   the list elements, the indexes before address the elements inside
-  !!*   the list elements.
-  !!* @note Only unishaped lists can be converted to array!
-  !!* @assert Array has the shape(:, :, :, ..., :, <length of the list>)
-  !!*         and the dimensions before the last one are compatible with the
-  !!*         shape of the elements in the list.
-  subroutine asVectorRealR1(list, val, optPad)
-    type(listRealR1), intent(in)           :: list
-    real(dp),         intent(out)          :: val(:)      ! type specific
-    real(dp),         intent(in), optional :: optPad
-
-    type(nodeRealR1), pointer :: pCur
-    integer                   :: lenVal, lenElem
-    real(dp)                  :: pad
-    integer                   :: ii
-
-    lenVal = size(val)
-    lenElem = product(list%elemShape)
-
-    ASSERT(list%tInitialized)
-    ASSERT(list%tUnishaped)
-    ASSERT(lenVal >= list%length * lenElem)
-
-    if (present(optPad)) then
-      pad = optPad
-    else
-      pad = 0.0_dp
-    end if
-    
-    pCur => list%pFirst
-    ii = 1
-    do while(associated(pCur))
-      val(ii:ii+lenElem-1) = pCur%pValue(:)    ! type specific
-      ii = ii + lenElem
-      pCur => pCur%pNext
-    end do
-    if (ii <= lenVal) then
-      val(ii:) = pad
-    end if
-    
-  end subroutine asVectorRealR1
-
+  end subroutine asArrayRealR2
 
 
   !!* Fills a variable with the speciefied element of the list
@@ -353,33 +302,32 @@
   !!* @param value The variable to put the element in.
   !!* @param nElem number of elements returned in value
   !!* @param index Index of the element (0 < index < length of the list)
-  subroutine intoArrayRealR1(list, value, nElem, index)
-    type(listRealR1), intent(inout) :: list
-    real(dp), intent(inout) :: value(:)
+  subroutine intoArrayRealR2(list, value, nElem, index)
+    type(listRealR2), intent(inout) :: list
+    real(dp), intent(inout) :: value(:,:)
     integer, intent(out) :: nElem
     integer, intent(in) :: index
 
-    type(nodeRealR1), pointer :: pCur
+    type(nodeRealR2), pointer :: pCur
 
     ASSERT(list%tInitialized)
     ASSERT(index > 0 .and. index <= list%length)
 
-    pCur => getNodeRealR1(list, index)
-    nElem = size(pCur%pValue)
+    pCur => getNodeRealR2(list, index)
+    nElem = size(pCur%pValue, dim=2)
     ASSERT(size(value) >= nElem)
-    value(:nElem) = pCur%pValue(:)
+    value(:, 1:nElem) = pCur%pValue
 
-  end subroutine intoArrayRealR1
-
+  end subroutine intoArrayRealR2
 
 
   !!* Returns a pointer to a node with a given index
   !!* @param list  The list object.
   !!* @param pNode Pointer to set to the wanted node.
   !!* @param index Index of the wanted node.
-  function getNodeRealR1(list, index) result(getNode)
-    type(nodeRealR1), pointer                :: getNode
-    type(listRealR1),          intent(inout) :: list
+  function getNodeRealR2(list, index) result(getNode)
+    type(nodeRealR2), pointer                :: getNode
+    type(listRealR2),          intent(inout) :: list
     integer,                   intent(in)    :: index
 
     integer :: ii, iStart
@@ -405,6 +353,6 @@
     list%pCache => getNode
     list%iCache = index
 
-   end function getNodeRealR1
+  end function getNodeRealR2
    
   

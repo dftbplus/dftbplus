@@ -70,14 +70,14 @@
     !! List contains already elements -> append to the end otherwise as first
     !! check or set unishapeness
     if(associated(list%pLast)) then
-      ALLOCATE_P(list%pLast%pNext)
+      allocate(list%pLast%pNext)
       list%pLast => list%pLast%pNext
       if (list%tUnishaped .and. &
           &(.not. all(valshape(:) == list%elemShape(:)))) then
         list%tUnishaped = .false.
       end if
     else
-      ALLOCATE_P(list%pFirst)
+      allocate(list%pFirst)
       list%pLast => list%pFirst
       list%elemShape(:) = valshape(:)
     end if

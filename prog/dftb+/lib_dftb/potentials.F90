@@ -50,7 +50,7 @@ contains
   !!* @param nSpin number of spins
   subroutine Potentials_init(self,orb,nAtom,nSpin)
     type(TPotentials), intent(out) :: self
-    type(TOrbitals), pointer :: orb
+    type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nAtom
     integer, intent(in) :: nSpin
     

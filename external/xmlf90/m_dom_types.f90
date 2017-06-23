@@ -142,7 +142,6 @@ CONTAINS
     if (.not. associated(nodemap)) return
     nnp => nodemap%head
     do while (associated(nnp))
-       call unstring(nnp%name)
        ghost => nnp%node
        nnp2 => nnp%next
        if (tDestroyNodes) then
@@ -184,8 +183,6 @@ CONTAINS
         if (associated(np%attributes)) then
           call destroyNamedNodeMap(np%attributes, destroyNodes=.true.)
         end if
-       call unstring(np%nodeName)
-       call unstring(np%nodeValue)
        if (associated(np%previousSibling)) then
          np%previousSibling%nextSibling => np%nextSibling
        end if

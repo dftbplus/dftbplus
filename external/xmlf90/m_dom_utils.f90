@@ -29,7 +29,6 @@ CONTAINS
 
     indent_level = 0
     call dump2(startNode)
-    call unstring(s)
 
   contains
 
@@ -66,9 +65,6 @@ CONTAINS
     call xml_OpenFile(fname,xf)
     call dump_xml(startNode)
     call xml_Close(xf)
-    call unstring(s)
-    call unstring(sv)
-    call unstring(sn)
 
   contains
 

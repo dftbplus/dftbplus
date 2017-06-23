@@ -83,7 +83,7 @@ module initprogram
   integer, allocatable :: Img2CentCell(:) !* nr. of original atom in centre
   integer               :: nType           !* nr of different types (nAtom)
 
-  type(TOrbitals), pointer :: orb
+  type(TOrbitals), target :: orb
 
   integer               :: nOrb            !* nr. of orbitals in the system
   integer               :: nAllOrb         !* nr. of orbitals for all atoms
@@ -131,9 +131,9 @@ module initprogram
   real(dp), allocatable :: mass(:)         !* list of atomic masses
   real(dp), allocatable :: speciesMass(:)  !* list of atomic masses for each species
   
-  type(OSlakoCont), pointer :: skHamCont
-  type(OSlakoCont), pointer :: skOverCont
-  type(ORepCont), pointer :: pRepCont
+  type(OSlakoCont)  :: skHamCont
+  type(OSlakoCont) :: skOverCont
+  type(ORepCont) :: pRepCont
   real(dp) :: skCutoff
   real(dp) :: skRepCutoff
   
@@ -480,12 +480,12 @@ contains
       recCellVol = 0.0_dp
     end if
 
-    orb => input%slako%orb
+    orb = input%slako%orb
 
     !! Slater-Koster tables
-    skHamCont => input%slako%skHamCont
-    skOverCont => input%slako%skOverCont
-    pRepCont => input%slako%repCont
+    skHamCont = input%slako%skHamCont
+    skOverCont = input%slako%skOverCont
+    pRepCont = input%slako%repCont
     
     ALLOCATE_(atomEigVal, (orb%mShell, nType))
     ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
@@ -618,14 +618,14 @@ contains
           sccInit%blurWidths = input%ctrl%extChrgblurWidth
         end if
       end if
-      if (associated(input%ctrl%chrgConstr)) then
+      if (allocated(input%ctrl%chrgConstr)) then
         ASSERT(all(shape(input%ctrl%chrgConstr) == (/ nAtom, 2 /)))
         if (any(abs(input%ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
           sccInit%chrgConstraints = input%ctrl%chrgConstr
         end if
       end if
       
-      if (associated(input%ctrl%thirdOrderOn)) then
+      if (allocated(input%ctrl%thirdOrderOn)) then
         ASSERT(tSCC)
         ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
         sccInit%thirdOrderOn = input%ctrl%thirdOrderOn
@@ -1573,7 +1573,7 @@ contains
           end if
         end if
       else
-        if (associated(input%ctrl%initialCharges)) then
+        if (allocated(input%ctrl%initialCharges)) then
           if (abs(sum(input%ctrl%initialCharges) - input%ctrl%nrChrg) &
               &> 1e-4_dp) then
             write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges&
@@ -1596,7 +1596,7 @@ contains
         case (1)
           ! nothing to do
         case (2)
-          if (associated(input%ctrl%initialSpins)) then
+          if (allocated(input%ctrl%initialSpins)) then
             do ii = 1, nAtom
               !! does not actually matter if additional spin polarization pushes
               !! charges to <0 as the initial charges are not mixed in to later
@@ -1615,7 +1615,7 @@ contains
           end if
         case (4)
           if (tSpin) then
-            if (.not.associated(input%ctrl%initialSpins)) then
+            if (.not. allocated(input%ctrl%initialSpins)) then
               call error("Missing initial spins!")
             end if
             if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then

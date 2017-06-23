@@ -27,9 +27,9 @@ module GridCache
     type(OMolecularOrbital), pointer :: molorb  !* Molecular orbital calculator
     real(dp) :: gridVec(3,3)                    !* Grid vectors
     real(dp) :: origin(3)                       !* Origin of the grid
-    real(dp), pointer :: eigenvecReal(:,:)      !* Real eigenvectors
-    complex(dp), pointer :: eigenvecCmpl(:,:)   !* Complex eigenvectors
-    integer, pointer :: levelIndex(:,:)         !* Parameters of the levels
+    real(dp), allocatable :: eigenvecReal(:,:)      !* Real eigenvectors
+    complex(dp), allocatable :: eigenvecCmpl(:,:)   !* Complex eigenvectors
+    integer, allocatable :: levelIndex(:,:)         !* Parameters of the levels
     integer :: nReadEigVec                      !* Eigenvectors read so far
     integer :: iGrid                            !* Grids processed so far
     integer :: nGrid                            !* Nr. of grids to process
@@ -42,9 +42,9 @@ module GridCache
     integer :: nAllSpin                         !* Spins in the eigenvec. file
     logical :: tVerbose                         !* Verbose?
     integer :: nCached                          !* Nr. of cached grids
-    real(dp), pointer :: gridCacheReal(:,:,:,:) !* Cache for real grids
-    complex(dp), pointer :: gridCacheCmpl(:,:,:,:) !* Cache for complex grids
-    real(dp), pointer :: kPoints(:,:)              !* KPoints
+    real(dp), allocatable :: gridCacheReal(:,:,:,:) !* Cache for real grids
+    complex(dp), allocatable :: gridCacheCmpl(:,:,:,:) !* Cache for complex grids
+    real(dp), allocatable :: kPoints(:,:)              !* KPoints
     logical :: tReal                            !* Are eigenvectors real
     logical :: tInitialised = .false.           !* Initialised?
   end type OGridCache
@@ -54,11 +54,6 @@ module GridCache
     module procedure GridCache_init
   end interface
 
-  !!* Deinitialises a GridCache instance.
-  interface destruct
-    module procedure GridCache_destruct
-  end interface
-
   !!* Delivers the next molecular orbital grid from the cache
   interface next
     module procedure GridCache_next_real
@@ -66,7 +61,7 @@ module GridCache
   end interface
 
   public :: OGridCache
-  public :: init, destruct, next
+  public :: init, next
 
   
 contains
@@ -107,7 +102,7 @@ contains
     real(dp), intent(in) :: origin(:)
     real(dp), intent(in) :: kPointCoords(:,:)
     logical, intent(in)  :: tReal
-    type(OMolecularOrbital), pointer :: molorb
+    type(OMolecularOrbital), pointer, intent(in) :: molorb
 
     integer ::nAll
     integer :: iSpin, iKPoint, iLevel, ind, ii, iostat
@@ -135,26 +130,20 @@ contains
     sf%nAllKPoint = nAllKPoint
     sf%nAllSpin = nAllSpin
     sf%tVerbose = tVerbose
-    ALLOCATE_PARR(sf%kPoints, (3, nAllKPoint))
+    ALLOCATE_(sf%kPoints, (3, nAllKPoint))
     sf%kPoints(:,:) = 2.0_dp * pi * kPointCoords(:,:)
     sf%nCached = nCached
     sf%tReal = tReal
     if (sf%tReal) then
-      ALLOCATE_PARR(sf%gridCacheReal, (nPoints(1), nPoints(2), nPoints(3), \
-          nCached))
-      ALLOCATE_PARR(sf%eigenvecReal, (sf%nOrb, sf%nCached))
-      sf%gridCacheCmpl => null()
-      sf%eigenvecCmpl => null()
+      ALLOCATE_(sf%gridCacheReal, (nPoints(1), nPoints(2), nPoints(3), nCached))
+      ALLOCATE_(sf%eigenvecReal, (sf%nOrb, sf%nCached))
     else
-      sf%gridCacheReal => null()
-      sf%eigenvecReal => null()
-      ALLOCATE_PARR(sf%gridCacheCmpl, (nPoints(1), nPoints(2), nPoints(3), \
-          nCached))
-      ALLOCATE_PARR(sf%eigenvecCmpl, (sf%nOrb, sf%nCached))
+      ALLOCATE_(sf%gridCacheCmpl, (nPoints(1), nPoints(2), nPoints(3), nCached))
+      ALLOCATE_(sf%eigenvecCmpl, (sf%nOrb, sf%nCached))
     end if
     
     nAll = size(levelIndex, dim=2)
-    ALLOCATE_PARR(sf%levelIndex, (3, nAll))
+    ALLOCATE_(sf%levelIndex, (3, nAll))
     !! Make sure, entries are correctly sorted in the list
     ind = 1
     do iSpin = 1, nAllSpin
@@ -317,24 +306,6 @@ contains
     tFinished = sf%tFinished
     
   end subroutine local_next
-
-  
-
-  !!* Deinitialises a GridCache instance
-  !!* @param sf GridCache instance
-  subroutine GridCache_destruct(sf)
-    type(OGridCache), intent(inout) :: sf
-
-    call destruct(sf%molorb)
-    DEALLOCATE_PARR(sf%eigenvecReal)
-    DEALLOCATE_PARR(sf%eigenvecCmpl)
-    DEALLOCATE_PARR(sf%levelIndex)
-    DEALLOCATE_PARR(sf%gridCacheReal)
-    DEALLOCATE_PARR(sf%gridCacheCmpl)
-    DEALLOCATE_PARR(sf%kPoints)
-    
-  end subroutine GridCache_destruct
-
 
   
 end module GridCache

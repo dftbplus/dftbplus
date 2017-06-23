@@ -145,7 +145,6 @@ contains
         call append_to_string(msg, newline)
       end do
       call warning(char(msg))
-      call unstring(msg)
     end if
     if (present(nodeList)) then
       nodeList => list
@@ -276,7 +275,6 @@ contains
       call setAttribute(node, attrName, name)
     end if
     call setTagName(node, tolower(name))
-    call unstring(buffer)
     
   end subroutine setNodeName
 

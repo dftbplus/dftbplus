@@ -53,7 +53,7 @@ module inputdata_module
     logical       :: tLocalise   = .false.
     logical       :: tPipekMezey = .false.
     logical       :: tPipekDense = .false.
-    real(dp), pointer :: sparsePipekTols(:) => null()
+    real(dp), allocatable :: sparsePipekTols(:)
     real(dp)      :: PipekTol
     integer       :: PipekMaxIter = 100 ! cycles to localise charges
     logical       :: tAtomicEnergy = .false. !
@@ -81,8 +81,8 @@ module inputdata_module
     logical                :: tSpinOrbit    = .false.
     logical                :: tDualSpinOrbit = .false.
     logical                :: t2Component   = .false.
-    real(dp), pointer      :: initialSpins(:,:) => null() !initial spin pattern
-    real(dp), pointer      :: initialCharges(:) => null() 
+    real(dp), allocatable  :: initialSpins(:,:)   !initial spin pattern
+    real(dp), allocatable  :: initialCharges(:)
     logical                :: tDFTBU        = .false.
     integer                :: iSolver       = 0
     integer                :: iMixSwitch    = 0
@@ -96,32 +96,32 @@ module inputdata_module
     real(dp)               :: broydenWeightFac = 1.0e-2_dp
     real(dp)               :: andersonInitMixing = 0.01_dp
     integer                :: andersonNrDynMix = 0
-    real(dp), pointer      :: andersonDynMixParams(:,:) => null()
+    real(dp), allocatable  :: andersonDynMixParams(:,:)
     real(dp)               :: andersonOmega0 = 1.0e-2_dp
     integer                :: nrMoved       = 0
-    integer, pointer       :: indMovedAtom(:)  => null()
+    integer, allocatable   :: indMovedAtom(:)
     integer                :: nrConstr      = 0
-    integer, pointer       :: conAtom(:)    => null()
-    real(dp), pointer      :: conVec(:,:)   => null()
+    integer, allocatable   :: conAtom(:)
+    real(dp), allocatable  :: conVec(:,:)
     character(lc)          :: outFile       = ''
     logical                :: tReadMDVelocities = .false. ! do we have MD velocities
-    real(dp), pointer      :: initialVelocities(:,:) => null() ! initial MD velocities
+    real(dp), allocatable  :: initialVelocities(:,:) ! initial MD velocities
     real(dp)               :: deltaT        = 0.0_dp
 
     real(dp)               :: tempAtom      = 0.0_dp
     integer                :: iThermostat   = 0
     logical                :: tInitNHC = .false. ! whether to initialize
     !  internal state of the Nose-Hoover thermostat from input
-    real(dp), pointer      :: xnose(:) => null()
-    real(dp), pointer      :: vnose(:) => null()
-    real(dp), pointer      :: gnose(:) => null()
+    real(dp), allocatable :: xnose(:)
+    real(dp), allocatable :: vnose(:)
+    real(dp), allocatable :: gnose(:)
     
     logical                :: tMDstill ! whether to shift to a co-moving
     ! frame for MD
     logical                :: tRescale = .false.
-    integer, pointer       :: tempMethods(:) => null()
-    integer, pointer       :: tempSteps(:)  => null()
-    real(dp), pointer      :: tempValues(:) => null()
+    integer, allocatable   :: tempMethods(:)
+    integer, allocatable   :: tempSteps(:)
+    real(dp), allocatable  :: tempValues(:)
     logical                :: tSetFillingTemp = .false.
     
     real(dp)               :: tempElec      = 0.0_dp
@@ -159,12 +159,12 @@ module inputdata_module
     
     integer                :: DFTBUfunc     = 0 ! choice of the DFTB+U
     ! functional
-    real(dp), pointer      :: UJ(:,:)       => null() ! list of U-J for species
-    integer,  pointer      :: nUJ(:)        => null() ! How many U-J for each
+    real(dp), allocatable :: UJ(:,:)     ! list of U-J for species
+    integer,  allocatable :: nUJ(:)      ! How many U-J for each
     ! species
-    integer,  pointer      :: niUJ(:,:)     => null() ! number of l-values of
+    integer,  allocatable :: niUJ(:,:)   ! number of l-values of
     ! U-J for each block    
-    integer,  pointer      :: iUJ(:,:,:)    => null() ! l-values of U-J for each
+    integer,  allocatable :: iUJ(:,:,:)  ! l-values of U-J for each
     ! block
     
     !! External charges
@@ -182,9 +182,9 @@ module inputdata_module
 
     !! Projection of eigenvectors
     type(listIntR1) :: iAtInRegion
-    logical, pointer :: tShellResInRegion(:) => null()
-    logical, pointer :: tOrbResInRegion(:) => null()
-    character(lc), pointer :: RegionLabel(:) => null()
+    logical, allocatable :: tShellResInRegion(:)
+    logical, allocatable :: tOrbResInRegion(:)
+    character(lc), allocatable :: RegionLabel(:)
     
     !! H short range damping
     logical :: tDampH = .false.
@@ -215,8 +215,8 @@ module inputdata_module
     type(DispersionInp), allocatable :: dispInp
 
     !! Local potentials
-    real(dp), pointer :: chrgConstr(:,:) => null()
-    real(dp), pointer :: thirdOrderOn(:,:) => null()
+    real(dp), allocatable :: chrgConstr(:,:)
+    real(dp), allocatable :: thirdOrderOn(:,:)
 
     !! 3rd order
     real(dp), allocatable :: hubDerivs(:,:)
@@ -236,25 +236,25 @@ module inputdata_module
     integer           :: nrAtoms         = 0
     logical           :: tPeriodic       = .false.
     logical           :: tFracCoord      = .false.
-    integer,  pointer :: types(:)        => null()
-    real(dp), pointer :: coords(:, :)    => null()
+    integer,  allocatable :: types(:)
+    real(dp), allocatable :: coords(:, :)
     integer           :: nrTypes         = 0
-    real(dp), pointer :: origo(:)        => null()
-    real(dp), pointer :: latVecs(:, :)   => null()
-    character(mc), pointer :: speciesName(:) => null()
+    real(dp), allocatable :: origo(:)
+    real(dp), allocatable :: latVecs(:, :)
+    character(mc), allocatable :: speciesName(:)
   end type geometry
 
   
   type slater
-    real(dp), pointer :: skSelf(:, :)          => null()
-    real(dp), pointer :: skHubbU(:, :)         => null()
-    real(dp), pointer :: skOcc(:, :)           => null()
-    real(dp), pointer :: mass(:)               => null()
+    real(dp), allocatable :: skSelf(:, :)
+    real(dp), allocatable :: skHubbU(:, :)
+    real(dp), allocatable :: skOcc(:, :)
+    real(dp), allocatable :: mass(:) 
 
-    type(OSlakoCont), pointer :: skHamCont
-    type(OSlakoCont), pointer :: skOverCont
-    type(ORepCont), pointer :: repCont
-    type(TOrbitals), pointer :: orb
+    type(OSlakoCont), allocatable :: skHamCont
+    type(OSlakoCont), allocatable :: skOverCont
+    type(ORepCont), allocatable :: repCont
+    type(TOrbitals), allocatable :: orb
   end type slater
 
 
@@ -283,108 +283,20 @@ contains
   subroutine InputData_init(self)
     type(inputData), intent(out) :: self
 
-    call initControl(self%ctrl)
-    call initSlater(self%slako)
     self%tInitialized = .true.
 
   end subroutine InputData_init
 
 
-
+  ! Workaround: GNU Fortran 7.1: dummy destructor needed to prevent ICE.
   subroutine InputData_destruct(self)
     type(inputData), intent(inout) :: self
 
     if (.not. self%tInitialized) then
       return
     end if
-    
-    call destroyControl(self%ctrl)
-    call destroySlater(self%slako)
-    self%tInitialized = .false.
 
   end subroutine InputData_destruct
 
-
-
-  !!* Initializes control data.
-  !!* @param ctrl Holds control data.
-  subroutine initControl(ctrl)
-    type(control), intent(inout) :: ctrl
-    
-    INIT_PARR(ctrl%conAtom)
-    INIT_PARR(ctrl%conVec)
-    INIT_PARR(ctrl%initialVelocities)
-    INIT_PARR(ctrl%indMovedAtom)
-    
-  end subroutine initControl
-  
-  
-  
-  !!* Destroys control data.
-  !!* @param ctrl Holds control data.
-  subroutine destroyControl(ctrl)
-    type(control), intent(inout) :: ctrl
-
-    DEALLOCATE_PARR(ctrl%initialSpins)
-    DEALLOCATE_PARR(ctrl%initialCharges)
-    DEALLOCATE_PARR(ctrl%andersonDynMixParams)
-    DEALLOCATE_PARR(ctrl%indMovedAtom)
-    DEALLOCATE_PARR(ctrl%conAtom)
-    DEALLOCATE_PARR(ctrl%conVec)
-    DEALLOCATE_PARR(ctrl%initialVelocities)
-    DEALLOCATE_PARR(ctrl%tempMethods)
-    DEALLOCATE_PARR(ctrl%tempSteps)
-    DEALLOCATE_PARR(ctrl%tempValues)
-    DEALLOCATE_PARR(ctrl%UJ)
-    DEALLOCATE_PARR(ctrl%iUJ)
-    DEALLOCATE_PARR(ctrl%niUJ)
-    DEALLOCATE_PARR(ctrl%nUJ)
-    
-    if (associated(ctrl%xnose)) then
-      DEALLOCATE_PARR(ctrl%xnose)
-      DEALLOCATE_PARR(ctrl%vnose)
-      DEALLOCATE_PARR(ctrl%gnose)
-    end if
-
-    if (associated(ctrl%tShellResInRegion)) then
-      DEALLOCATE_PARR(ctrl%tShellResInRegion)
-      DEALLOCATE_PARR(ctrl%RegionLabel)
-    end if
-    
-    DEALLOCATE_PARR(ctrl%chrgConstr)
-    DEALLOCATE_PARR(ctrl%thirdOrderOn)
-
-    
-    
-  end subroutine destroyControl
-
-
-
-  !!* Initalizes Slater-Koster data.
-  !!* @param slako Holds Slater-Koster data.
-  subroutine initSlater(slako)
-    type(slater), intent(inout) :: slako
-
-    INIT_PARR(slako%skSelf)
-    INIT_PARR(slako%skHubbU)
-    INIT_PARR(slako%skOcc)
-    INIT_PARR(slako%mass)
-
-
-  end subroutine initSlater
-
-
-
-  !!* Initalizes Slater-Koster data.
-  !!* @param slako Holds Slater-Koster data.
-  subroutine destroySlater(slako)
-    type(slater), intent(inout) :: slako
-
-    DEALLOCATE_PARR(slako%skSelf)
-    DEALLOCATE_PARR(slako%skHubbU)
-    DEALLOCATE_PARR(slako%skOcc)
-    DEALLOCATE_PARR(slako%mass)
-
-  end subroutine destroySlater
 
 end module inputdata_module

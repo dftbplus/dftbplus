@@ -52,12 +52,12 @@ module InitProgram
   logical, public :: tPlotModes
   logical, public :: tAnimateModes
   logical, public :: tXmakeMol
-  integer, pointer, public :: modesToPlot(:)  => null()
+  integer, allocatable, public :: modesToPlot(:)
   integer, public :: nModesToPlot
   integer, public :: nCycles
   integer, public, parameter :: nSteps = 10
   integer, public :: nMovedAtom  ! Number of atoms which should be moved.
-  integer, pointer, public :: iMovedAtoms(:) => null()
+  integer, allocatable, public :: iMovedAtoms(:)
   
   !! Locally created variables
 
@@ -109,14 +109,12 @@ contains
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
 
-    nullify(iMovedAtoms)
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
     call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
         &child, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
-    nullify(modesToPlot)
     call getChild(root, "DisplayModes",child=node,requested=.false.)
     if (associated(node)) then
       tPlotModes = .true.
