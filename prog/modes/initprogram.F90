@@ -110,7 +110,7 @@ contains
     call readGeometry(tmp, geo)
 
     nullify(iMovedAtoms)
-    call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
+    call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
     call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
         &child, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
