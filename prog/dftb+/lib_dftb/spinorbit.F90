@@ -83,8 +83,6 @@ contains
             & = 0.5_dp*xi(jj,ii)*Lplus(1:2*kk+1,1:2*kk+1)
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     Eatom = 0.0_dp
 
@@ -120,10 +118,6 @@ contains
           & dp)
 
     end do
-
-    DEALLOCATE_(tmpBlock)
-    DEALLOCATE_(SpeciesZ)
-    DEALLOCATE_(SpeciesPlus)
 
   end subroutine onsite
 
@@ -178,9 +172,7 @@ contains
             & = 0.5_dp*xi(jj,ii)*aimag(Lz(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
-    
+
     ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
     
     Eatom = 0.0_dp
@@ -208,9 +200,6 @@ contains
           & * (i * SpeciesL(:,:,1,iSp) + SpeciesL(:,:,2,iSp) )))
       
     end do
-    
-    DEALLOCATE_(SpeciesL)
-    DEALLOCATE_(tmpBlock)
     
   end subroutine dual
 
@@ -263,8 +252,6 @@ contains
             & = -0.5_dp*xi(jj,ii)*real(Lplus(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     shift(:,:,:,:) = 0.0_dp
     do iSpin = 2, 4
@@ -272,8 +259,6 @@ contains
         shift(:,:,ii,iSpin) = tmpShift(:,:,species(ii),iSpin)
       end do
     end do
-
-    DEALLOCATE_(tmpShift)
 
   end subroutine shiftLS
 

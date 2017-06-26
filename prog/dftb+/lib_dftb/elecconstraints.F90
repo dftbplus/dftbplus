@@ -159,8 +159,6 @@ contains
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
         & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
         & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
     
     ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
     
@@ -192,10 +190,6 @@ contains
           & iShift(iStart:iEnd,iStart:iEnd,conAt,1) &
           & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
     end do
-    
-    DEALLOCATE_(tmpBlock)
-    
-    DEALLOCATE_(SpeciesL)
     
   end subroutine constrainL_
 
@@ -246,8 +240,6 @@ contains
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
         & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
         & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
     
     ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
     
@@ -293,9 +285,6 @@ contains
       end do
     end do
     
-    DEALLOCATE_(tmpBlock)
-    
-    DEALLOCATE_(SpeciesL)
     
   end subroutine constrainJ_
 
@@ -345,8 +334,6 @@ contains
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
         & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
         & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
     
     ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
     
@@ -384,10 +371,6 @@ contains
             & + w * vecNorm(iSpin-1)
       end do
     end do
-    
-    DEALLOCATE_(tmpBlock)
-    
-    DEALLOCATE_(SpeciesL)
     
   end subroutine constrainMj_
   

@@ -310,7 +310,6 @@ contains
     
     allocate(work((n+1)/2))
     call mergeSort(array,n,work)
-    deallocate(work)
     
   end subroutine merge_sort_int
   
@@ -407,9 +406,7 @@ contains
     end do
     allocate(work((n+1)/2,2))
     call mergeSort(tmp,n,work)
-    deallocate(work)
     indx = tmp(:,1)
-    deallocate(tmp)
     
   end subroutine merge_sort_indx_int
   
@@ -503,7 +500,6 @@ contains
     
     allocate(work((n+1)/2))
     call mergeSort(array,n,work)
-    deallocate(work)
     
   end subroutine merge_sort_real
   
@@ -602,9 +598,7 @@ contains
     end do
     allocate(work((n+1)/2,2))
     call mergeSort(tmp,n,work,tol)
-    deallocate(work)
     indx = nint(tmp(:,1))
-    deallocate(tmp)
     
   end subroutine merge_sort_indx_real
   

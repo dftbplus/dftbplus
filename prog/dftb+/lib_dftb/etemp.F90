@@ -246,8 +246,6 @@ contains
           end do
         end do
       end do
-      deallocate(A)
-      deallocate(hermites)
     else
       do ispin = 1, size(eigenvals,dim=3)
         do i = 1, size(kWeight)
@@ -412,8 +410,6 @@ contains
           end do
         end do
       end do
-      deallocate(A)
-      deallocate(hermites)
       TS = TS * kT
       E0(:) = (real(MPorder + 1,dp) * (Eband - TS) + Eband) / real(MPorder + 2, dp)
     else

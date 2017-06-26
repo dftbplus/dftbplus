@@ -454,9 +454,9 @@ contains
     end if
     
     ! Remove some un-used memory
-    DEALLOCATE(snglPartTransDip)
-    DEALLOCATE(transitionDipoles)
-    DEALLOCATE(sposz)
+    deallocate(snglPartTransDip)
+    deallocate(transitionDipoles)
+    deallocate(sposz)
 
     omega = sqrt(eval(nstat))
 
@@ -687,8 +687,6 @@ contains
             & max(maxval(orthnorm(:iState-1,iState)), &
             & maxval(orthnorm(iState+1:,iState)))
       end do
-      DEALLOCATE(Hv)
-      DEALLOCATE(orthnorm)
       close(fdArnoldiDiagnosis)
     end if
 

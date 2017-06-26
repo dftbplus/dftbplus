@@ -349,7 +349,6 @@ contains
     write(fd, "(A1,A)") "#", " MATRIX"
     write(fd, strForm) square
     close(fd)
-    DEALLOCATE_(square)
 
   end subroutine writeSparseAsSquare_real
 
@@ -401,7 +400,6 @@ contains
       write(fd, strForm) square
     end do
     close(fd)
-    DEALLOCATE_(square)
 
   end subroutine writeSparseAsSquare_cplx
 

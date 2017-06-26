@@ -122,7 +122,6 @@ program waveplot
     end do
     call getValue(molorb, gridOrigin, gridVec, orbitalOcc, atomicChrg, &
         &addDensities=.true.)
-    DEALLOCATE_(orbitalOcc)
     sumAtomicChrg = sum(atomicChrg) * gridVol
 
     if (tVerbose) then

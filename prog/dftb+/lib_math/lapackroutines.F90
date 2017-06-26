@@ -175,7 +175,6 @@ contains
     info = 0
     ALLOCATE_(ipiv, (nn))
     call sgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-    DEALLOCATE_(ipiv)
     
     if (info < 0) then
 99000 format ('Failure in linear equation solver sgesv,', &
@@ -229,7 +228,6 @@ contains
     info = 0
     ALLOCATE_(ipiv, (nn))
     call dgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-    DEALLOCATE_(ipiv)
     
     if (info < 0) then
 99020 format ('Failure in linear equation solver dgesv,', &
@@ -372,7 +370,6 @@ contains
 
     ALLOCATE_(work, (lwork))
     call sgetri(nn, aa, lda, ipiv, work, lwork, info)
-    DEALLOCATE_(work)
 
     if (info < 0) then
 99080 format ('Failure in LU factorisation (sgetri),', &
@@ -420,7 +417,6 @@ contains
 
     ALLOCATE_(work, (lwork))
     call dgetri(nn, aa, lda, ipiv, work, lwork, info)
-    DEALLOCATE_(work)
 
     if (info < 0) then
 99100 format ('Failure in LU factorisation (dgetri), illegal argument at&
@@ -467,7 +463,6 @@ contains
     if (info == 0) then
       call getri(aa, ipiv, nRow=nn, iError=info)
     end if
-    DEALLOCATE_(ipiv)
 
     if (present(iError)) then
       iError = info
@@ -500,7 +495,6 @@ contains
     if (info0 == 0) then
       call sytri(aa, ipiv, uplo, info0)
     end if
-    DEALLOCATE_(ipiv)
 
     if (present(info)) then
       info = info0
@@ -532,7 +526,6 @@ contains
     if (info0 == 0) then
       call hetri(aa, ipiv, uplo, info0)
     end if
-    DEALLOCATE_(ipiv)
 
     if (present(info)) then
       info = info0
@@ -912,15 +905,12 @@ contains
     if (info == 0) then
       ALLOCATE_(work, (lwork))
       call ssytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
-      DEALLOCATE_(work)
     end if
 
     if (info == 0) then
        call ssytrs(iUplo, nn, nrhs, A, lda, ipiv, B, ldb, info)
      end if
      
-    DEALLOCATE_(ipiv)
-    
     if (present(iError)) then
        iError = info
     elseif (info /= 0) then
@@ -975,15 +965,12 @@ contains
     if (info == 0) then
       ALLOCATE_(work, (lwork))
       call dsytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
-      DEALLOCATE_(work)
     end if
 
     if (info == 0) then
        call dsytrs(iUplo, nn, nrhs, A, lda, ipiv, B, ldb, info)
      end if
      
-    DEALLOCATE_(ipiv)
-    
     if (present(iError)) then
        iError = info
     elseif (info /= 0) then

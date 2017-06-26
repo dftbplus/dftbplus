@@ -408,9 +408,6 @@ contains
 !$OMP  END PARALLEL DO
     end do
 
-    DEALLOCATE_(inCellNeighbor)
-    DEALLOCATE_(nInCellNeighbor)
-    DEALLOCATE_(tmpEigen)
   end subroutine sp_density_matrix_real
 
 
@@ -498,9 +495,6 @@ contains
 !$OMP  END PARALLEL DO
     end do
 
-    DEALLOCATE_(inCellNeighbor)
-    DEALLOCATE_(nInCellNeighbor)
-    DEALLOCATE_(tmpEigen)
   end subroutine sp_density_matrix_cmplx
 
 
@@ -591,9 +585,6 @@ contains
 !$OMP  END PARALLEL DO
     end do
 
-    DEALLOCATE_(inCellNeighbor)
-    DEALLOCATE_(nInCellNeighbor)
-    DEALLOCATE_(tmpEigen)
   end subroutine sp_energy_density_matrix_real
 
 
@@ -682,9 +673,6 @@ contains
 !$OMP  END PARALLEL DO
     end do
 
-    DEALLOCATE_(inCellNeighbor)
-    DEALLOCATE_(nInCellNeighbor)
-    DEALLOCATE_(tmpEigen)
   end subroutine sp_energy_density_matrix_cmplx
 
 

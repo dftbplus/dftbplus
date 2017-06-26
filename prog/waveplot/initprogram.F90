@@ -163,7 +163,6 @@ contains
     write (*, "(A)") repeat("-", 80)
     write (*,*)
     call destroyNode(input)
-    call unstring(strBuffer)
 
     !! Create grid vectors, shift them if necessary
     do ii = 1, 3
@@ -262,7 +261,6 @@ contains
     case default
       call readTGeometryHSD(geonode, geo)
     end select
-    call unstring(buffer)
     
   end subroutine readGeometry
 
@@ -487,8 +485,6 @@ contains
       call detailedError(field, "Indexes must be greater than zero")
     end if
     call getChildValue(node, "Verbose", tVerbose, .false.)
-    call unstring(buffer)
-    call unstring(modifier)
     
   end subroutine readOptions
 

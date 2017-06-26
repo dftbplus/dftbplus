@@ -84,9 +84,6 @@ contains
       end do
     end do
     
-    DEALLOCATE_(mask)
-    DEALLOCATE_(tmpMask)
-    
   end subroutine OrbitalEquiv_merge
 
   !!* Reduces passed orbital property by summing up on equivalent orbitals.
@@ -167,8 +164,6 @@ contains
       end do
     end do
 
-    DEALLOCATE_(mask)
-    
   end subroutine OrbitalEquiv_expand
 
   

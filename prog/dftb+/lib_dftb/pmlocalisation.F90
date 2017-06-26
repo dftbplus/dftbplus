@@ -151,11 +151,6 @@ contains
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
     
-    DEALLOCATE_(Sci1)
-    DEALLOCATE_(Sci2)
-    DEALLOCATE_(ciTmp1)
-    DEALLOCATE_(ciTmp2)
-    
   end subroutine PipekMezeyOld_real
   
   !> performs Pipek-Mezey localisation for a molecule given the square overlap
@@ -469,18 +464,6 @@ contains
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
     
-    DEALLOCATE_(Sci1)
-    DEALLOCATE_(Sci2)
-    DEALLOCATE_(ciTmp1)
-    DEALLOCATE_(ciTmp2)
-    DEALLOCATE_(LevAtAtom)
-    DEALLOCATE_(nLevAtAtom)
-    DEALLOCATE_(SitesLev)
-    DEALLOCATE_(nSitesLev)
-    DEALLOCATE_(LevPairs)
-    DEALLOCATE_(oldSites)
-    DEALLOCATE_(union)
-    
   end subroutine PipekMezeySuprtRegion_real
   
   !!* Localisation value of square of Mulliken charges summed over all levels
@@ -513,8 +496,6 @@ contains
       PipekMezyLocality = PipekMezyLocality &
           & + sum(sum(Sci(iOrbStart:iOrbEnd,1:nLev),dim=1)**2)
     end do
-    
-    DEALLOCATE_(Sci)
     
   end function PipekMezyLocality_real
   
@@ -590,9 +571,6 @@ contains
       PipekMezyLocality(iKpt) = sum(tmp**2)
       
     end do
-    
-    DEALLOCATE_(Sci)
-    DEALLOCATE_(tmp)
     
   end function PipekMezyLocality_kpoints
   
@@ -783,11 +761,6 @@ contains
       end do
       
     end do lpKpoints2
-    
-    DEALLOCATE_(Sci1)
-    DEALLOCATE_(Sci2)
-    DEALLOCATE_(ciTmp1)
-    DEALLOCATE_(ciTmp2)
     
   end subroutine PipekMezeyOld_kpoints
   

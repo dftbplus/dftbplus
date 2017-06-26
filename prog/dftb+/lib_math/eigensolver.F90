@@ -174,7 +174,7 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
+
   End Subroutine real_ssyev
 
   !!* Double precision eigensolver for a symmetric matrix
@@ -215,7 +215,7 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
+
   End Subroutine dble_dsyev
 
   !!* Complex eigensolver for a Hermitian matrix
@@ -258,8 +258,7 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
+
   End Subroutine cmplx_cheev
 
   !!* Double complex eigensolver for a Hermitian matrix
@@ -302,215 +301,9 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
+
   End Subroutine dblecmplx_zheev
 
-!  Subroutine real_sgeev(a,w,vr,vl)
-!#include "allocate.h"
-!#include "assert.h"    
-!    Implicit None
-!    ! Real symmetric matrices
-!    Real(rsp), Intent(InOut) :: a(:,:)
-!    Real(rsp), Intent(Out) :: vr(:,:), vl(:,:)
-!    ! Eigenvalues
-!    Complex(rsp), Intent(Out) :: w(:)
-!    Real(rsp), Allocatable :: wl(:), wr(:)
-!    Real(rsp), Allocatable :: work(:)
-!    Integer n, lda, info
-!    Integer shapea(2), shapew(1)
-!    Integer :: int_idealwork
-!    Real(rsp) :: idealwork(1)
-!    shapea=shape(a)
-!    shapew=shape(w)
-!    ASSERT(shapea(1)==shapea(2))
-!    ASSERT(shapew(1)==shapea(1))
-!    ASSERT(all(shape(vr)==shape(a)))
-!    ASSERT(all(shape(vl)==shape(a)))
-!    n=shapea(1)
-!    ASSERT(n>0)
-!    lda=shapea(1)
-!    ALLOCATE_(wr,(n))
-!    ALLOCATE_(wl,(n))
-!    call SGEEV('V', 'V', n, a, lda, wr, wl, vr, n, vl, n, idealwork, -1, info)
-!    if (info/=0) then
-!       call error("Failue in SGEEV to determine optimum workspace")
-!    endif
-!    int_idealwork=Int(idealwork(1))
-!    ALLOCATE_(work, (int_idealwork))
-!    call SGEEV('V', 'V', n, a, lda, wr, wl, vr, n, vl, n, work, int_idealwork, info)
-!    
-!    if (info/=0) then
-!       if (info<0) then
-!99080 format ('Failure in diagonalisation routine sgeev,', &
-!		& ' illegal argument at position ',I6)
-!          write(error_string, 99080) info
-!          call error(error_string)
-!       else
-!99090 format ('Failure in diagonalisation routine sgeev,', &
-!		& ' diagonal element ',I6,' did not converge to zero.')
-!          write(error_string, 99090) info
-!          call error(error_string)
-!       endif
-!    endif
-!    DEALLOCATE_(work)
-!    w=cmplx(wr,wl)
-!    DEALLOCATE_(wr)
-!    DEALLOCATE_(wl)
-!  End Subroutine real_sgeev
-!
-!  Subroutine dble_dgeev(a,w,vr,vl)
-!#include "allocate.h"
-!#include "assert.h"    
-!    Implicit None
-!    ! Real symmetric matrices
-!    Real(rdp), Intent(InOut) :: a(:,:)
-!    Real(rdp), Intent(Out) :: vr(:,:), vl(:,:)
-!    ! Eigenvalues
-!    Complex(rdp), Intent(Out) :: w(:)
-!    Real(rdp), Allocatable :: wl(:), wr(:)
-!    Real(rdp), Allocatable :: work(:)
-!    Integer n, lda, info
-!    Integer shapea(2), shapew(1)
-!    Integer :: int_idealwork
-!    Real(rdp) :: idealwork(1)
-!    shapea=shape(a)
-!    shapew=shape(w)
-!    ASSERT(shapea(1)==shapea(2))
-!    ASSERT(shapew(1)==shapea(1))
-!    ASSERT(all(shape(vr)==shape(a)))
-!    ASSERT(all(shape(vl)==shape(a)))
-!    n=shapea(1)
-!    ASSERT(n>0)
-!    lda=shapea(1)
-!    ALLOCATE_(wr,(n))
-!    ALLOCATE_(wl,(n))
-!    call DGEEV('V', 'V', n, a, lda, wr, wl, vr, n, vl, n, idealwork, -1, info)
-!    if (info/=0) then
-!       call error("Failue in DGEEV to determine optimum workspace")
-!    endif
-!    int_idealwork=Int(idealwork(1))
-!    ALLOCATE_(work, (int_idealwork))
-!    call DGEEV('V', 'V', n, a, lda, wr, wl, vr, n, vl, n, work, int_idealwork, info)
-!    
-!    if (info/=0) then
-!       if (info<0) then
-!99100 format ('Failure in diagonalisation routine dgeev,', &
-!		& ' illegal argument at position ',I6)
-!          write(error_string, 99100) info
-!          call error(error_string)
-!       else
-!99110 format ('Failure in diagonalisation routine dgeev,', &
-!		& ' diagonal element ',I6,' did not converge to zero.')
-!          write(error_string, 99110) info
-!          call error(error_string)
-!       endif
-!    endif
-!    DEALLOCATE_(work)
-!    w=cmplx(wr,wl)
-!    DEALLOCATE_(wr)
-!    DEALLOCATE_(wl)
-!  End Subroutine dble_dgeev
-!
-!  Subroutine cmplx_cgeev(a,w,vr,vl)
-!#include "allocate.h"
-!#include "assert.h"    
-!    Implicit None
-!    ! Real symmetric matrices
-!    Complex(rsp), Intent(InOut) :: a(:,:)
-!    Complex(rsp), Intent(Out) :: vr(:,:), vl(:,:)
-!    ! Eigenvalues
-!    Complex(rsp), Intent(Out) :: w(:)
-!    Complex(rsp), Allocatable :: work(:)
-!    Real(rsp), Allocatable :: rwork(:)
-!    Integer n, lda, info
-!    Integer shapea(2), shapew(1)
-!    Integer :: int_idealwork
-!    Complex(rsp) :: idealwork(1)
-!    shapea=shape(a)
-!    shapew=shape(w)
-!    ASSERT(shapea(1)==shapea(2))
-!    ASSERT(shapew(1)==shapea(1))
-!    ASSERT(all(shape(vr)==shape(a)))
-!    ASSERT(all(shape(vl)==shape(a)))
-!    n=shapea(1)
-!    ASSERT(n>0)
-!    lda=shapea(1)
-!    ALLOCATE_(rwork,(2*n))
-!    call CGEEV('V', 'V', n, a, lda, w, vr, n, vl, n, idealwork, -1, rwork, info)
-!    if (info/=0) then
-!       call error("Failue in CGEEV to determine optimum workspace")
-!    endif
-!    int_idealwork=Int(idealwork(1))
-!    ALLOCATE_(work, (int_idealwork))
-!    call CGEEV('V', 'V', n, a, lda, w, vr, n, vl, n, work, int_idealwork, rwork, info)
-!    
-!    if (info/=0) then
-!       if (info<0) then
-!99120 format ('Failure in diagonalisation routine cgeev,', &
-!		& ' illegal argument at position ',I6)
-!          write(error_string, 99120) info
-!          call error(error_string)
-!       else
-!99130 format ('Failure in diagonalisation routine cgeev,', &
-!		& ' diagonal element ',I6,' did not converge to zero.')
-!          write(error_string, 99130) info
-!          call error(error_string)
-!       endif
-!    endif
-!    DEALLOCATE_(work)
-!    DEALLOCATE_(rwork)
-!  End Subroutine cmplx_cgeev
-!
-!  Subroutine dblecmplx_zgeev(a,w,vr,vl)
-!#include "allocate.h"
-!#include "assert.h"    
-!    Implicit None
-!    ! Real symmetric matrices
-!    Complex(rdp), Intent(InOut) :: a(:,:)
-!    Complex(rdp), Intent(Out) :: vr(:,:), vl(:,:)
-!    ! Eigenvalues
-!    Complex(rdp), Intent(Out) :: w(:)
-!    Complex(rdp), Allocatable :: work(:)
-!    Real(rdp), Allocatable :: rwork(:)
-!    Integer n, lda, info
-!    Integer shapea(2), shapew(1)
-!    Integer :: int_idealwork
-!    Complex(rdp) :: idealwork(1)
-!    shapea=shape(a)
-!    shapew=shape(w)
-!    ASSERT(shapea(1)==shapea(2))
-!    ASSERT(shapew(1)==shapea(1))
-!    ASSERT(all(shape(vr)==shape(a)))
-!    ASSERT(all(shape(vl)==shape(a)))
-!    n=shapea(1)
-!    ASSERT(n>0)
-!    lda=shapea(1)
-!    ALLOCATE_(rwork, (2*n))
-!    call ZGEEV('V', 'V', n, a, lda, w, vr, n, vl, n, idealwork, -1, rwork, info)
-!    if (info/=0) then
-!       call error("Failue in ZGEEV to determine optimum workspace")
-!    endif
-!    int_idealwork=Int(idealwork(1))
-!    ALLOCATE_(work, (int_idealwork))
-!    call ZGEEV('V', 'V', n, a, lda, w, vr, n, vl, n, work, int_idealwork, rwork, info)
-!    
-!    if (info/=0) then
-!       if (info<0) then
-!99140 format ('Failure in diagonalisation routine zgeev,', &
-!		& ' illegal argument at position ',I6)
-!          write(error_string, 99140) info
-!          call error(error_string)
-!       else
-!99150 format ('Failure in diagonalisation routine zgeev,', &
-!		& ' diagonal element ',I6,' did not converge to zero.')
-!          write(error_string, 99150) info
-!          call error(error_string)
-!       endif
-!    endif
-!    DEALLOCATE_(rwork)
-!    DEALLOCATE_(work)
-!  End Subroutine dblecmplx_zgeev
 
   !!* Real eigensolver for generalized symmetric matrix problem
   Subroutine real_ssygv(a,b,w,uplo,jobz,itype)
@@ -564,7 +357,7 @@ contains
           call error(error_string)
        endif
     endif
-    DEALLOCATE_(work)
+
   End Subroutine real_ssygv
 
   !!* Double precision eigensolver for generalized symmetric matrix problem
@@ -619,7 +412,7 @@ contains
           call error(error_string)
        endif
     endif
-    DEALLOCATE_(work)    
+
   End Subroutine dble_dsygv
 
   !!* Complex eigensolver for generalized Hermitian matrix problem
@@ -697,8 +490,7 @@ contains
           call error(error_string)
        endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
+
   End Subroutine cmplx_chegv
 
   !!* Double complex eigensolver for generalized Hermitian matrix problem
@@ -776,8 +568,7 @@ contains
           call error(error_string)
        endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
+
   End Subroutine dblecmplx_zhegv
 
   !!* Real eigensolver for generalized symmetric matrix problem - divide and
@@ -837,8 +628,7 @@ contains
           call error(error_string)
        endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(iwork)
+
   End Subroutine real_ssygvd
 
   !!* Double precision eigensolver for generalized symmetric matrix problem
@@ -898,8 +688,7 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(iwork)
+
   End Subroutine dble_dsygvd
 
   !!* Complex eigensolver for generalized Hermitian matrix problem divide and
@@ -963,8 +752,7 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
+
   End Subroutine cmplx_chegvd
 
   !!* Double complex eigensolver for generalized Hermitian matrix problem
@@ -1028,8 +816,7 @@ contains
         call error(error_string)
       endif
     endif
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
+
   End Subroutine dblecmplx_zhegvd
 
   !!* Real eigensolver for generalized symmetric matrix problem -
@@ -1229,11 +1016,6 @@ contains
       a( 1:n, m+1:n ) = 0.0 
     end if
     
-    DEALLOCATE_(tmpChole)
-    DEALLOCATE_(work)
-    DEALLOCATE_(iwork)
-    DEALLOCATE_(isuppz)
-    
   end subroutine real_ssygvr
 
   !!* Double precision  eigensolver for generalized symmetric matrix problem -
@@ -1432,11 +1214,6 @@ contains
       end do
       a( 1:n, m+1:n ) = 0.0d0 
     end if
-    
-    DEALLOCATE_(tmpChole)
-    DEALLOCATE_(work)
-    DEALLOCATE_(iwork)
-    DEALLOCATE_(isuppz)
     
   end subroutine dble_dsygvr
 
@@ -1641,12 +1418,6 @@ contains
       a( 1:n, m+1:n ) = cmplx(0.0,0.0,rsp) 
     end if
     
-    DEALLOCATE_(tmpChole)
-    DEALLOCATE_(work)
-    DEALLOCATE_(iwork)
-    DEALLOCATE_(rwork)
-    DEALLOCATE_(isuppz)
-    
   end subroutine cmplx_chegvr
 
   !!* Double complex eigensolver for generalized symmetric matrix problem -
@@ -1850,12 +1621,6 @@ contains
       a( 1:n, m+1:n ) = cmplx(0.0,0.0,rdp) 
     end if
     
-    DEALLOCATE_(tmpChole)
-    DEALLOCATE_(work)
-    DEALLOCATE_(iwork)
-    DEALLOCATE_(rwork)
-    DEALLOCATE_(isuppz)
-    
   end subroutine dblecmplx_zhegvr
 
 
@@ -1928,8 +1693,6 @@ contains
        endif
     endif
 
-    DEALLOCATE_(work)
-    
   end subroutine real_ssbgv
 
   !!* Simple double precision banded matrix eigen solver
@@ -2000,8 +1763,6 @@ contains
        endif
     endif
 
-    DEALLOCATE_(work)
-    
   end subroutine dble_dsbgv
 
   !!* Simple complex precision banded matrix eigen solver
@@ -2075,9 +1836,6 @@ contains
        endif
     endif
 
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
-    
   end subroutine cmplx_chbgv
 
   !!* Simple double complex precision banded matrix eigen solver
@@ -2151,9 +1909,6 @@ contains
        endif
     endif
 
-    DEALLOCATE_(work)
-    DEALLOCATE_(rwork)
-    
   end subroutine dblecmplx_zhbgv
 
 end module eigensolver

@@ -503,7 +503,6 @@ contains
       neigh%iNeighbor(1:nn1, iAtom1) = neigh%iNeighbor(indx(:nn1), iAtom1)
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
-    DEALLOCATE_(indx)
     coord(:,nAllAtom+1:size(coord, dim=2)) = 0.0_dp
     
   end subroutine updateNeighborList

@@ -47,8 +47,6 @@ contains
     sposz = sposz(tmpIndx)
     transd(:,:) = transd(tmpIndx,:)
 
-    deallocate(tmpIndx)
-    
   end subroutine dipsort
 
   !> find (possibly degenerate) transitions with stronger dipole

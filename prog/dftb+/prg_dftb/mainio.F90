@@ -158,7 +158,6 @@ contains
           end do
         end do
       end do
-      DEALLOCATE_(rVecTemp)
       
       close(fdEigvec)
     end if
@@ -312,8 +311,6 @@ contains
             end do
           end do
         end do
-        DEALLOCATE_(work)
-        
         
       else ! normal spin block structure
         
@@ -356,7 +353,6 @@ contains
         end do
       end if
       
-      DEALLOCATE_(cVecTemp)
       close(fdEigvec)
       
     end if
@@ -435,9 +431,9 @@ contains
           ALLOCATE_(iOrbs, (valshape(1)))
           call intoArray(iOrbRegion, iOrbs, dummy, ii)
           qState = sum(rVecTemp(iOrbs))
+          DEALLOCATE_(iOrbs)
           write(fdProjEig(ii), "(f13.6,f10.6)")Hartree__eV*ei(iLev,1,iSpin),&
               & qState
-          DEALLOCATE(iOrbs)
         end do
       end do
       if (iSpin < nSpin) then
@@ -450,8 +446,6 @@ contains
     do ii = 1, nReg
       close(fdProjEig(ii))
     end do
-    
-    DEALLOCATE_(rVecTemp)
     
   end subroutine writeProjRealEigvecs
   
@@ -607,15 +601,11 @@ contains
         
       end do
       
-      DEALLOCATE_(work)
-      
     end if
     
     do ii = 1, nReg
       close(fdProjEig(ii))
     end do
-    
-    DEALLOCATE_(cVecTemp)
     
   end subroutine writeProjCplxEigvecs
 

@@ -199,11 +199,8 @@ contains
     do iSp1 = 1, geo%nSpecies
       call get(skFiles(iSp1), fileName, 1)
       call readFromFile(skData, fileName, .true.)
-      deallocate(skData%skHam)
-      deallocate(skData%skOver)
       speciesMass(iSp1) = skData%mass      
     end do
-    deallocate(skFiles)
 
     allocate(dynMatrix(nDerivs,nDerivs))
     call getChildValue(root, "Hessian", value, "", child=child, &
@@ -244,15 +241,11 @@ contains
     write (*,*)
     call destroyNode(input)
 
-    call unstring(strBuffer)
-
 
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
     end do
-    
-    deallocate(speciesMass)
     
   end subroutine initProgramVariables
 
@@ -283,7 +276,6 @@ contains
     case default
       call readTGeometryHSD(geonode, geo)
     end select
-    call unstring(buffer)
     
   end subroutine readGeometry
 

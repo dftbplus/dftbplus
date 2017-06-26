@@ -150,8 +150,6 @@ contains
             & = aimag(Lz(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     do ii = 1, nAtom
       iSp = species(ii)
@@ -167,8 +165,6 @@ contains
         end do
       end do
     end do
-    
-    DEALLOCATE_(SpeciesL)
     
   end subroutine shiftB_
   

@@ -191,12 +191,6 @@ contains
       end do lpNonZero
     end do lpAt1
 
-    DEALLOCATE_(nColAtom)
-    DEALLOCATE_(zero)
-    DEALLOCATE_(nCols)
-    DEALLOCATE_(tmpCol)
-    DEALLOCATE_(iNonZero)
-    
   end subroutine foldToCSR_real
 
 
@@ -265,8 +259,6 @@ contains
       end do
     end do
 
-    DEALLOCATE_(tmpCol)
-    
   end subroutine unfoldFromCSR_real
     
 

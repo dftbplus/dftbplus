@@ -233,7 +233,6 @@ contains
       ALLOCATE_(chargesPerShell, (this%mShellsReal, this%nAtoms))
       call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom, dQShell=chargesPerShell)
       this%chargesPerShell(1,:) = sum(chargesPerShell, dim=1)
-      DEALLOCATE_(chargesPerShell)
     end if
 
     this%shift1(:,:) = 0.0_dp
@@ -375,7 +374,6 @@ contains
       ALLOCATE_(qOutShellTmp, (this%mShellsReal, this%nAtoms))
       call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
-      DEALLOCATE_(qOutShellTmp)
     end if
     energyPerAtom(:) = sum(this%shift1 * qOutShell, dim=1)&
         & + sum(this%shift2 * (qOutShell - this%chargesPerShell), dim=1)&
@@ -493,7 +491,6 @@ contains
       ALLOCATE_(qOutShellTmp, (this%mShellsReal, this%nAtoms))
       call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
-      DEALLOCATE_(qOutShellTmp)
     end if
 
     qDiffAtom(:) = qOutAtom - this%chargesPerAtom

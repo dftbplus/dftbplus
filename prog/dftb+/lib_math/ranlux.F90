@@ -251,8 +251,7 @@ contains
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
     r2Darray = reshape(rvec,shape(r2Darray))
-    DEALLOCATE_(rvec)
-    
+
   end subroutine Ranlux_getRandom2DArray
   
   

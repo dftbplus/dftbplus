@@ -78,8 +78,6 @@ contains
     call unitary(Lz,u)
     call unitary(Lplus,u)
     
-    DEALLOCATE_(u)
-    
   end subroutine operators
   
   !!* Calculates the on-site orbital angular momentum
@@ -136,8 +134,6 @@ contains
             & L(iStart:iEnd,iStart:iEnd,1:3)
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(L)
 
     Lshell = 0.0_dp
 
@@ -165,9 +161,6 @@ contains
       end do
       
     end do
-    
-    DEALLOCATE_(tmpBlock)
-    DEALLOCATE_(SpeciesL)
     
   end subroutine onsite
 
@@ -216,8 +209,6 @@ contains
             & = aimag(Lz(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
 
@@ -237,9 +228,6 @@ contains
         end do
       end do
     end do
-    
-    DEALLOCATE_(SpeciesL)
-    DEALLOCATE_(tmpBlock)
     
   end subroutine dual
   

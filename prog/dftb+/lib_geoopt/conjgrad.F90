@@ -211,7 +211,6 @@ contains
             call reset(pLinMin, uu, hh, rTmp)
           end if
         end if
-        DEALLOCATE_(xi)
       end if
     end do
 

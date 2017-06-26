@@ -3052,52 +3052,6 @@ program dftbplus
     call xml_Close(xf)
   end if
 
-  DEALLOCATE_(orbitalL)
-  DEALLOCATE_(orbitalLPart)
-  DEALLOCATE_(new3Coord)
-  DEALLOCATE_(tmpDerivs)
-
-  !! Deallocate arrays
-  DEALLOCATE_(filling)
-
-  if (tForces) then
-    DEALLOCATE_(derivs)
-    DEALLOCATE_(repulsiveDerivs)
-    DEALLOCATE_(chrgForces)
-  end if
-
-  deallocate(energy)
-  deallocate(potential)
-
-  if (tMulliken) then
-    DEALLOCATE_(qOutput)
-    DEALLOCATE_(qInput)
-    DEALLOCATE_(q0)
-  end if
-  DEALLOCATE_(rhoPrim)
-  DEALLOCATE_(iRhoPrim)
-  if (tForces) then
-    DEALLOCATE_(ERhoPrim)
-  end if
-
-  if (tMD) then
-    DEALLOCATE_(velocities)
-    DEALLOCATE_(movedVelo)
-    DEALLOCATE_(movedAccel)
-    DEALLOCATE_(movedMass)
-  end if
-
-  DEALLOCATE_(HSqrCplx)
-  DEALLOCATE_(SSqrCplx)
-  DEALLOCATE_(HSqrReal)
-  DEALLOCATE_(SSqrReal)
-  DEALLOCATE_(eigen)
-
-  if (tSCC) then
-    call destruct_SCC()
-  end if
-
-
 contains
 
   ! Invokes the writing routines for the Hamiltonian and overlap matrices.

@@ -25,7 +25,7 @@ module scc
 
   private
 
-  public :: TSCCInit, init_SCC, destruct_SCC
+  public :: TSCCInit, init_SCC
   public :: updateCoords_SCC, updateLatVecs_SCC, updateCharges_SCC
   public :: getSCCCutoff, getEnergyPerAtom_SCC, getEnergyPerAtom_SCC_Xlbomd
   public :: addForceDCSCC, getShiftPerAtom, getShiftPerL, getSCCEwaldPar
@@ -247,39 +247,6 @@ contains
     tChrgUp_ = .false.
 
   end subroutine init_SCC
-
-  
-  
-  !!* Deallocates the arrays in the SCC module
-  subroutine destruct_SCC()
-
-    ASSERT(tInitialised_)
-    
-    DEALLOCATE_(invRMat_)
-    DEALLOCATE_(shiftPerAtom_)
-    DEALLOCATE_(shiftPerL_)
-    DEALLOCATE_(shortGamma_)
-    DEALLOCATE_(shortCutoff_)
-    DEALLOCATE_(gLatPoint_)
-    DEALLOCATE_(nNeighShort_)
-    DEALLOCATE_(nNeighEwald_)
-    DEALLOCATE_(uniqHubbU_)
-    DEALLOCATE_(nHubbU_)
-    DEALLOCATE_(iHubbU_)
-    DEALLOCATE_(deltaQ_)
-    DEALLOCATE_(deltaQPerLShell_)
-    DEALLOCATE_(deltaQAtom_)
-    DEALLOCATE_(deltaQUniqU_)
-    DEALLOCATE_(tDampedShort_)
-    if (allocated(chrgConstr_)) then
-      deallocate(chrgConstr_)
-    end if
-    if (allocated(thirdOrder_)) then
-      deallocate(thirdOrder_)
-    end if
-  
-  end subroutine destruct_SCC
-
 
 
   !!* Returns a minimal cutoff for the neighborlist, which must be passed
