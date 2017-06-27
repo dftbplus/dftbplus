@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Interfaces for the ARPACK routines needed in DFTB+ (currently for
 !> the linear response excited state calculations).
 module arpack
@@ -15,7 +17,7 @@ module arpack
   public :: withArpack
 
   
-#ifdef WITH_ARPACK
+#:if WITH_ARPACK
 
   public :: saupd, seupd
 
@@ -126,11 +128,11 @@ module arpack
     end subroutine dseupd
   end interface seupd
     
-#else
+#:else
   
   ! Whether code was built with Arpack support
   logical, parameter :: withArpack = .false.
   
-#endif
+#:endif
   
 end module arpack

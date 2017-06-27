@@ -1,7 +1,0 @@
-#if DEBUG > 0
-assert.h: _mod_assert
-assert.h = $(_mod_assert)
-#else
-assert.h =
-#endif
-

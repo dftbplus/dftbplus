@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains Types and subroutine to build up and query a Slater-Koster table
 !!* where the integrals are specified on an equidistant grid.
 module slakoeqgrid
-#include "assert.h"
+  use assert
   use accuracy
   use interpolation
   use message
@@ -87,9 +89,9 @@ contains
     real(dp), intent(in) :: table(:,:)
     integer, intent(in) :: skintMethod
 
-    ASSERT(.not. self%tInit)
-    ASSERT(dist >= 0.0_dp)
-    ASSERT(skIntMethod == skEqGridOld .or. skIntMethod == skEqGridNew)
+    @:ASSERT(.not. self%tInit)
+    @:ASSERT(dist >= 0.0_dp)
+    @:ASSERT(skIntMethod == skEqGridOld .or. skIntMethod == skEqGridNew)
 
     self%dist = dist
     self%nGrid = size(table, dim=1)
@@ -112,9 +114,9 @@ contains
     real(dp), intent(out) :: sk(:)
     real(dp), intent(in) :: dist
 
-    ASSERT(self%tInit)
-    ASSERT(size(sk) >= self%nInteg)
-    ASSERT(dist >= 0.0_dp)
+    @:ASSERT(self%tInit)
+    @:ASSERT(size(sk) >= self%nInteg)
+    @:ASSERT(dist >= 0.0_dp)
 
     if (self%skIntMethod == skEqGridOld) then
       call SlakoEqGrid_interOld_(self, sk, dist)

@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Andersen thermostat
 !!* Two versions of the Andersen thermostat are implemented, either the global
 !!* re-select or per atom reselect of velocities from the Maxwell-Boltzmann
 !!* distribution
 !!* @ref Andersen J. Chem. Phys. 72. 2384 (1980)
 module andersentherm
-#include "assert.h"
+  use assert
   use accuracy
   use mdcommon
   use ranlux
@@ -92,7 +94,7 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
     
     call getTemperature(self%pTempProfile, kT)
     do ii = 1, self%nAtom
@@ -116,7 +118,7 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     call getTemperature(self%pTempProfile, kT)
     if (self%tRescaleIndiv) then

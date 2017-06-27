@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Implements a repulsive potential between two atoms represented by cubic 
 !!* splines.
 module repspline
-#include "assert.h"
+  use assert
   use Accuracy
   use Bisect
   implicit none
@@ -71,11 +73,11 @@ contains
     type(TRepSplineIn), intent(in) :: inp
 
 
-    ASSERT(.not. self%tInit)
-    ASSERT(size(inp%xStart) > 0)
-    ASSERT(size(inp%spCoeffs, dim=1) == 4)
-    ASSERT(size(inp%spCoeffs, dim=2) == size(inp%xStart) - 1)
-    ASSERT(inp%cutoff >= 0.0_dp)
+    @:ASSERT(.not. self%tInit)
+    @:ASSERT(size(inp%xStart) > 0)
+    @:ASSERT(size(inp%spCoeffs, dim=1) == 4)
+    @:ASSERT(size(inp%spCoeffs, dim=2) == size(inp%xStart) - 1)
+    @:ASSERT(inp%cutoff >= 0.0_dp)
 
     self%nSpline = size(inp%xStart)
     allocate(self%xStart(self%nSpline))

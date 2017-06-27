@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
-#include "assert.h"
+  use assert
   use accuracy
   use constants
   use inputdata_module
@@ -2073,9 +2075,9 @@ contains
     type(ORepSpline), allocatable :: pRepSpline
     type(ORepPoly), allocatable :: pRepPoly
 
-    ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
-    ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
-    ASSERT(all(shape(repPoly) == shape(skFiles)))
+    @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
+    @:ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
+    @:ASSERT(all(shape(repPoly) == shape(skFiles)))
 
     allocate(slako%skSelf(orb%mShell, nSpecies))
     allocate(slako%skHubbU(orb%mShell, nSpecies))
@@ -2261,8 +2263,8 @@ contains
     nSK1 = size(skData12, dim=2)
     nSK2 = size(skData12, dim=1)
 
-    ASSERT(size(skData21, dim=1) == nSK1)
-    ASSERT(size(skData21, dim=2) == nSK2)
+    @:ASSERT(size(skData21, dim=1) == nSK1)
+    @:ASSERT(size(skData21, dim=2) == nSK2)
 
     nGrid = skData12(1,1)%nGrid
     dist = skData12(1,1)%dist
@@ -2440,9 +2442,9 @@ contains
             end if
             do mm = 0, lMin
               !! Safety check, if array size are appropriate
-              ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
-              ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
-              ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
+              @:ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
+              @:ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
+              @:ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
               skHam(:,ind) = pHam(:,skMap(mm,lMax,lMin))
               skOver(:,ind) = pOver(:,skMap(mm,lMax,lMin))
               ind = ind + 1
@@ -2514,12 +2516,12 @@ contains
       allocate(input%uff)
       call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
-#ifdef WITH_DFTD3      
+    #:if WITH_DFTD3      
       allocate(input%dftd3)
       call readDispDFTD3(dispModel, input%dftd3)
-#else
+    #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
-#endif      
+    #:endif      
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -2701,7 +2703,7 @@ contains
   end subroutine readDispVdWUFF
 
 
-#ifdef WITH_DFTD3  
+#:if WITH_DFTD3  
 
   !!* Reads in initialization data for the DFTD3 dispersion module.
   !!* @param node Node to process.
@@ -2751,7 +2753,7 @@ contains
     
   end subroutine readDispDFTD3
 
-#endif
+#:endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Temperature and temperature profile
@@ -2859,14 +2861,14 @@ contains
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-#ifndef WITH_ARPACK
+  #:if not WITH_ARPACK
 
     if (associated(child)) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
 
-#else
+  #:else
 
     if (associated(child)) then
       
@@ -2938,7 +2940,7 @@ contains
       
     end if
     
-#endif
+  #:endif
     
   end subroutine readExcited
   

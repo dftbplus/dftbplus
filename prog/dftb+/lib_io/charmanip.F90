@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains character manipulation routines
 module charmanip
-#include "assert.h"  
+  use assert
   implicit none
 
   private
@@ -211,7 +213,7 @@ contains
 
     nSubstr = size(substrs)
 
-    ASSERT(size(masks) == nSubstr)
+    @:ASSERT(size(masks) == nSubstr)
     
     !! Get first occurance of a separator
     iSubstr = 0

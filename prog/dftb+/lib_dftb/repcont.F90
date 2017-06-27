@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Container module for the repulsive data
 !!* @desc This module contains the repulsive functions. It decides, which
 !!* one to call for which type pairs. It can be easily extended to contain
 !!* different repulsive schemes for different pairs. At the moment,
 !!* it handles only repulsive with spline interpolation.
 module repcont
-#include "assert.h"  
+  use assert
   use accuracy
   use repspline
   use reppoly
@@ -80,7 +82,7 @@ contains
     type(ORepCont), intent(out) :: self
     integer, intent(in) :: nSpecies
 
-    ASSERT(.not. self%tInit)
+    @:ASSERT(.not. self%tInit)
 
     self%nSpecies = nSpecies
     allocate(self%repulsives(nSpecies, nSpecies))
@@ -102,7 +104,7 @@ contains
     type(ORepSpline), intent(in) :: pRep
     integer, intent(in) :: iSp1, iSp2
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
     self%repulsives(iSp2, iSp1)%iType = typeRepSpline
     self%repulsives(iSp2, iSp1)%pRepSpline = pRep
     self%tDataOK = all(self%repulsives(:,:)%iType /= typeRepInvalid)
@@ -123,7 +125,7 @@ contains
     type(ORepPoly), intent(in) :: pRep
     integer, intent(in) :: iSp1, iSp2
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
     self%repulsives(iSp2, iSp1)%iType = typeRepPoly
     self%repulsives(iSp2, iSp1)%pRepPoly = pRep
     self%tDataOK = all(self%repulsives(:,:)%iType /= typeRepInvalid)
@@ -140,7 +142,7 @@ contains
     type(ORepCont), intent(in) :: self
     real(dp) :: cutoff
 
-    ASSERT(self%tInit .and. self%tDataOK)
+    @:ASSERT(self%tInit .and. self%tDataOK)
     cutoff = self%cutoff
 
   end function RepCont_getCutoff
@@ -159,7 +161,7 @@ contains
     real(dp), intent(in) :: rr
     integer, intent(in) :: sp1, sp2
 
-    ASSERT(self%tInit .and. self%tDataOK)
+    @:ASSERT(self%tInit .and. self%tDataOK)
 
     select case (self%repulsives(sp2, sp1)%iType)
     case(typeRepSpline)
@@ -184,9 +186,9 @@ contains
     real(dp), intent(in) :: xx(:)
     integer, intent(in) :: sp1, sp2
 
-    ASSERT(self%tInit .and. self%tDataOK)
-    ASSERT(size(res) == 3)
-    ASSERT(size(xx) == 3)
+    @:ASSERT(self%tInit .and. self%tDataOK)
+    @:ASSERT(size(res) == 3)
+    @:ASSERT(size(xx) == 3)
 
     select case (self%repulsives(sp2, sp1)%iType)
     case(typeRepSpline)

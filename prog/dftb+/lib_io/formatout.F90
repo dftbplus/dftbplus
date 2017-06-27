@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains subroutines for formatted output of data
 module formatout
-#include "assert.h"
+  use assert
   use accuracy
   use fileid
   use constants
@@ -83,8 +85,7 @@ contains
     
     integer, save :: fd = -1
     
-    ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) \
-        .or.(present(latVec)))
+    @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
     if (fd == -1) then
       fd = getFileId()
@@ -127,14 +128,15 @@ contains
     nAtom = size(coord, dim=2)
     nSpecies = maxval(species)
 
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(species) == nAtom)
-    ASSERT(size(speciesName) == nSpecies)
-    ASSERT_ENV(if (present(latVec)) then)
-    ASSERT_ENV(  ASSERT(all(shape(latVec) == (/3, 3 /))))
-    ASSERT_ENV(end if)
-    ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) \
-        .or.(present(latVec)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesName) == nSpecies)
+  #:call ASSERT_CODE
+    if (present(latVec)) then
+      @:ASSERT(all(shape(latVec) == (/3, 3 /)))
+    end if
+  #:endcall ASSERT_CODE
+    @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
     
     tFractional = .false.
     if (present(latVec)) then
@@ -235,15 +237,17 @@ contains
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
 
-    ASSERT(size(coords, dim=1) == 3)
-    ASSERT(size(species) == nAtom)
-    ASSERT(size(speciesNames) == nSpecies)
-    ASSERT_ENV(if (present(charges)) then)
-    ASSERT_ENV(  ASSERT(size(charges) == nAtom))
-    ASSERT_ENV(end if)
-    ASSERT_ENV(if (present(velocities)) then)
-    ASSERT_ENV(  ASSERT(all(shape(velocities) == (/ 3, nAtom /))))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(coords, dim=1) == 3)
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesNames) == nSpecies)
+  #:call ASSERT_CODE
+    if (present(charges)) then
+      @:ASSERT(size(charges) == nAtom)
+    end if
+    if (present(velocities)) then
+      @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
+    end if
+  #:endcall ASSERT_CODE
 
     write(fd, 200) nAtom
     if (present(comment)) then

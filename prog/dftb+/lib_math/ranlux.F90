@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* High quality pseudo random generator for "luxury pseudorandom numbers".
 !!* @desc
 !!* <p>
@@ -44,7 +46,7 @@
 !!* @see M. Luscher, Computer Physics Communications  79 (1994) 100
 !!* @see F. James, Computer Physics Communications 79 (1994) 111
 module ranlux
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
 
@@ -126,12 +128,14 @@ contains
     integer :: jseed
     integer :: ii, kk
 
-    ASSERT_ENV(if (present(luxlev)) then)
-    ASSERT(  luxlev >= 0 .and. luxlev <= maxlev)
-    ASSERT_ENV(end if)
-    ASSERT_ENV(if (present(initSeed)) then)
-    ASSERT(  initSeed > 0)
-    ASSERT_ENV(end if)
+  #:call ASSERT_CODE
+    if (present(luxlev)) then
+      @:ASSERT(luxlev >= 0 .and. luxlev <= maxlev)
+    end if
+    if (present(initSeed)) then
+      @:ASSERT(initSeed > 0)
+    end if
+  #:endcall ASSERT_CODE
 
     !! Set luxury level
     self%luxlev = lxdflt
@@ -189,7 +193,7 @@ contains
 
     integer :: ii, isd
 
-    ASSERT(size(isdext) == 25)
+    @:ASSERT(size(isdext) == 25)
 
     self%twom24 = 1.0_dp
     do ii = 1, 24
@@ -297,8 +301,8 @@ contains
     real(dp) :: uni
     integer :: isk
 
-    ASSERT(size(iseeds) == 24)
-    ASSERT(size(next) == 24)
+    @:ASSERT(size(iseeds) == 24)
+    @:ASSERT(size(next) == 24)
 
     lenv = size(rvec)
     do ivec = 1, lenv
@@ -350,7 +354,7 @@ contains
     type(ORanlux), intent(in) :: self
     integer, intent(out) :: isdext(:)
 
-    ASSERT(size(isdext) == 25)
+    @:ASSERT(size(isdext) == 25)
 
     isdext(1:24) = self%iseeds(1:24)
     isdext(25) = self%i24 + 100 * self%j24 + 10000 * self%in24 &

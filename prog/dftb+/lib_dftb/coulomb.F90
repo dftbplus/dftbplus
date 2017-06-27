@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to calculate the coulombic interaction in non periodic
 !!* and periodic systems.
 module coulomb
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use errorfunction
@@ -67,9 +69,9 @@ contains
     integer :: ii, jj
     real(dp) :: dist, vect(3)
 
-    ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
 
     invRMat(:,:) = 0.0_dp
     do ii = 1, nAtom
@@ -106,15 +108,17 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp
 
-    ASSERT(size(invRVec) == nAtom0)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(charges1) == nAtom1)
-    ASSERT_ENV(if (present(blurWidths1)) then)
-    ASSERT_ENV(  ASSERT(size(blurWidths1) == nAtom1))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(invRVec) == nAtom0)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(charges1) == nAtom1)
+  #:call ASSERT_CODE
+    if (present(blurWidths1)) then
+      @:ASSERT(size(blurWidths1) == nAtom1)
+    end if
+  #:endcall ASSERT_CODE
 
     !! Doing blurring and non blurring case separately in order to avoid
     !! the if branch deep in the loop
@@ -183,12 +187,12 @@ contains
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
 
-    ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(volume > 0.0_dp)
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
 
     !! Real space part of the Ewald sum.
     invRMat(:,:) = 0.0_dp
@@ -248,15 +252,15 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
     
-    ASSERT(size(invRVec) == nAtom0)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(charges1) == nAtom1)
-    ASSERT(size(rLat, dim=1) == 3)
-    ASSERT(size(gLat, dim=1) == 3)    
-    ASSERT(volume > 0.0_dp)
+    @:ASSERT(size(invRVec) == nAtom0)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(charges1) == nAtom1)
+    @:ASSERT(size(rLat, dim=1) == 3)
+    @:ASSERT(size(gLat, dim=1) == 3)    
+    @:ASSERT(volume > 0.0_dp)
 
     invRVec(:) = 0.0_dp
     do iAt0 = 1, nAtom0
@@ -286,11 +290,11 @@ contains
     integer :: ii, jj
     real(dp) :: dist, vect(3), fTmp
 
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(deltaQAtom) == nAtom)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(deltaQAtom) == nAtom)
     
     do ii = 1, nAtom
       do jj = ii + 1, nAtom
@@ -317,12 +321,12 @@ contains
     integer :: iAt1, iAt2
     real(dp) :: dist, vect(3), fTmp, prefac
 
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(dQInAtom) == nAtom)
-    ASSERT(size(dQOutAtom) == nAtom)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(dQInAtom) == nAtom)
+    @:ASSERT(size(dQOutAtom) == nAtom)
     
     do iAt1 = 1, nAtom
       do iAt2 = iAt1 + 1, nAtom
@@ -368,19 +372,21 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
 
-    ASSERT(size(deriv0, dim=1) == 3)
-    ASSERT(size(deriv0, dim=2) >= nAtom0)
-    ASSERT(size(deriv1, dim=1) == 3)
-    ASSERT(size(deriv1, dim=2) >= nAtom1)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(charge0) == nAtom0)
-    ASSERT(size(charge1) == nAtom1)
-    ASSERT_ENV(if (present(blurWidths1)) then)
-    ASSERT_ENV(  ASSERT(size(blurWidths1) == nAtom1))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(deriv0, dim=1) == 3)
+    @:ASSERT(size(deriv0, dim=2) >= nAtom0)
+    @:ASSERT(size(deriv1, dim=1) == 3)
+    @:ASSERT(size(deriv1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(charge0) == nAtom0)
+    @:ASSERT(size(charge1) == nAtom1)
+  #:call ASSERT_CODE
+    if (present(blurWidths1)) then
+      @:ASSERT(size(blurWidths1) == nAtom1)
+    end if
+  #:endcall ASSERT_CODE
 
     !! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
@@ -457,14 +463,14 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
     real(dp) :: r(3)
     
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(volume > 0.0_dp)
-    ASSERT(size(deltaQAtom) == nAtom)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
+    @:ASSERT(size(deltaQAtom) == nAtom)
 
     do iAtom1 = 1, nAtom
       
@@ -514,15 +520,15 @@ contains
     integer :: iAt1, iAt2, iAt2f, iNeigh
     real(dp) :: rr(3), contrib(3), prefac
     
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(volume > 0.0_dp)
-    ASSERT(size(dQOutAtom) == nAtom)
-    ASSERT(size(dQInAtom) == nAtom)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
+    @:ASSERT(size(dQOutAtom) == nAtom)
+    @:ASSERT(size(dQInAtom) == nAtom)
 
     do iAt1 = 1, nAtom
       ! real space
@@ -591,19 +597,19 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
     
-    ASSERT(size(deriv0, dim=1) == 3)
-    ASSERT(size(deriv0, dim=2) == nAtom0)
-    ASSERT(size(deriv1, dim=1) == 3)
-    ASSERT(size(deriv1, dim=2) >= nAtom1)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(charge0) == nAtom0)
-    ASSERT(size(charge1) == nAtom1)
-    ASSERT(size(rVec, dim=1) == 3)
-    ASSERT(size(gVec, dim=1) == 3)
-    ASSERT(vol > 0.0_dp)
+    @:ASSERT(size(deriv0, dim=1) == 3)
+    @:ASSERT(size(deriv0, dim=2) == nAtom0)
+    @:ASSERT(size(deriv1, dim=1) == 3)
+    @:ASSERT(size(deriv1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(charge0) == nAtom0)
+    @:ASSERT(size(charge1) == nAtom1)
+    @:ASSERT(size(rVec, dim=1) == 3)
+    @:ASSERT(size(gVec, dim=1) == 3)
+    @:ASSERT(vol > 0.0_dp)
 
     do iAt0 = 1, nAtom0
       do iAt1 = 1, nAtom1
@@ -648,10 +654,10 @@ contains
     integer  :: iIter
     integer  :: iError
 
-    ASSERT(all(shape(latVec) == (/3, 3/)))
-    ASSERT(all(shape(recVec) == (/3, 3/)))
-    ASSERT(volume > 0.0_dp)
-    ASSERT(tolerance > 0.0_dp)
+    @:ASSERT(all(shape(latVec) == (/3, 3/)))
+    @:ASSERT(all(shape(recVec) == (/3, 3/)))
+    @:ASSERT(volume > 0.0_dp)
+    @:ASSERT(tolerance > 0.0_dp)
 
     minG = sqrt(minval(sum(recVec(:,:)**2, dim=1)))
     minR = sqrt(minval(sum(latVec(:,:)**2, dim=1)))
@@ -875,9 +881,9 @@ contains
     real(dp) :: gg(3), g2
     integer  :: iG
 
-    ASSERT(size(gVec, dim=1) == 3)
-    ASSERT(size(rr) == 3)
-    ASSERT(vol > 0.0_dp)
+    @:ASSERT(size(gVec, dim=1) == 3)
+    @:ASSERT(size(rr) == 3)
+    @:ASSERT(vol > 0.0_dp)
 
     recSum = 0.0_dp
     do iG = 1, size(gVec, dim=2)
@@ -908,9 +914,9 @@ contains
     real(dp) :: gg(3), g2
     integer  :: iG
     
-    ASSERT(size(gVec, dim=1) == 3)
-    ASSERT(size(rr) == 3)
-    ASSERT(vol > 0.0_dp)
+    @:ASSERT(size(gVec, dim=1) == 3)
+    @:ASSERT(size(rr) == 3)
+    @:ASSERT(vol > 0.0_dp)
     
     recSum(:) = 0.0_dp
     do iG = 1, size(gVec, dim=2)
@@ -940,8 +946,8 @@ contains
     integer  :: iR
 
 
-    ASSERT(size(rVec, dim=1) == 3)
-    ASSERT(size(rr) == 3)
+    @:ASSERT(size(rVec, dim=1) == 3)
+    @:ASSERT(size(rr) == 3)
 
     realSum = 0.0_dp;
     do iR = 1, size(rVec, dim=2)
@@ -970,8 +976,8 @@ contains
     real(dp) :: rr
     integer  :: iR
 
-    ASSERT(size(rVec, dim=1) == 3)
-    ASSERT(size(rdiff) == 3)
+    @:ASSERT(size(rVec, dim=1) == 3)
+    @:ASSERT(size(rdiff) == 3)
 
     dewr = 0.0_dp;
     do iR = 1, size(rVec, dim=2)
@@ -1005,7 +1011,7 @@ contains
     real(dp), intent(in) :: volume
     real(dp) :: diff
 
-    ASSERT(volume > 0.0_dp)
+    @:ASSERT(volume > 0.0_dp)
 
     diff = ((gTerm(4.0_dp*minG, alpha, volume) &
         &- gTerm(5.0_dp*minG, alpha, volume))) &
@@ -1041,7 +1047,7 @@ contains
     real(dp), intent(in) :: alpha
     real(dp) :: rTerm
 
-    ASSERT(rr >= epsilon(1.0_dp))
+    @:ASSERT(rr >= epsilon(1.0_dp))
 
     rTerm = erfcwrap(alpha*rr)/rr
 
@@ -1060,7 +1066,7 @@ contains
     real(dp) :: rr
     rr = sqrt(sum(r(:)**2))
     
-    ASSERT(rr >= epsilon(1.0_dp))
+    @:ASSERT(rr >= epsilon(1.0_dp))
  
     derivRTerm (:) = r(:)*(-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* &
         & alpha*rr - erfcwrap(alpha*rr))/(rr*rr*rr)
@@ -1100,13 +1106,13 @@ contains
     real(dp) :: r(3), f(3), g(3), g2, intermed, intermed2
     real(dp) :: stressTmp(3,3)
  
-    ASSERT(all(shape(stress)==(/3,3/)))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(size(q) == nAtom)
-    ASSERT(volume > 0.0_dp)
+    @:ASSERT(all(shape(stress)==(/3,3/)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(size(q) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
  
     stress(:,:) = 0.0_dp
     

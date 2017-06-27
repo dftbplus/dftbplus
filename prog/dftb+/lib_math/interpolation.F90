@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines for interpolation and extrapolation
 module interpolation
-#include "assert.h"
+  use assert
   use accuracy
   use message
   implicit none
@@ -80,7 +82,7 @@ contains
 
     real(dp) :: aa, bb, cc, dd, dx1
 
-    ASSERT(present(yp) .eqv. present(ypp))
+    @:ASSERT(present(yp) .eqv. present(ypp))
 
     aa = y0
     bb = y0p
@@ -121,8 +123,8 @@ contains
 
     nn = size(xp)
 
-    ASSERT(nn > 1)
-    ASSERT(size(yp) == nn)
+    @:ASSERT(nn > 1)
+    @:ASSERT(size(yp) == nn)
 
     cc(:) = yp(:)
     dd(:) = yp(:)

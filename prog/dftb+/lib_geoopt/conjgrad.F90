@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Function minimization with the standard conjugate gradient technique.
 !!* @see Numerical Recipes
 module conjgrad
-#include "assert.h"
+  use assert
   use accuracy
   use linemin
   implicit none
@@ -83,9 +85,9 @@ contains
     real(dp), intent(in) :: tol
     real(dp), intent(in) :: maxDisp
 
-    ASSERT(nElem > 0)
-    ASSERT(tol > 0.0_dp)
-    ASSERT(maxDisp > 0.0_dp)
+    @:ASSERT(nElem > 0)
+    @:ASSERT(tol > 0.0_dp)
+    @:ASSERT(maxDisp > 0.0_dp)
     
     self%nElem = nElem
     self%tolerance = tol
@@ -109,7 +111,7 @@ contains
     type(OConjGrad), intent(inout) :: self
     real(dp), intent(in) :: x0(:)
 
-    ASSERT(size(x0) == self%nElem)
+    @:ASSERT(size(x0) == self%nElem)
 
     self%uu(:) = x0(:)
     self%state = st_1
@@ -136,9 +138,9 @@ contains
     real(dp), intent(out) :: xNew(:)
     logical,  intent(out) :: tConverged
 
-    ASSERT(self%tInitialized)
-    ASSERT(size(xNew) == self%nElem)
-    ASSERT(size(dx) == self%nElem)
+    @:ASSERT(self%tInitialized)
+    @:ASSERT(size(xNew) == self%nElem)
+    @:ASSERT(size(dx) == self%nElem)
 
     if (.not. self%tConverged) then
       call next_local(self%state, self%gg, self%hh, self%uu, self%tConverged, &
@@ -233,8 +235,8 @@ contains
     type(OConjGrad), intent(in) :: self
     real(dp), intent(out) :: minX(:)
 
-    ASSERT(self%tInitialized .and. self%tConverged)
-    ASSERT(size(minX) == self%nElem)
+    @:ASSERT(self%tInitialized .and. self%tConverged)
+    @:ASSERT(size(minX) == self%nElem)
     call getMinX(self%pLinMin, minX)
     
   end subroutine ConjGrad_getMinX
@@ -250,7 +252,7 @@ contains
     type(OConjGrad), intent(in) :: self
     real(dp), intent(out) :: minY
     
-    ASSERT(self%tInitialized .and. self%tConverged)
+    @:ASSERT(self%tInitialized .and. self%tConverged)
     call getMinY(self%pLinMin, minY)
     
   end subroutine ConjGrad_getMinY
@@ -266,8 +268,8 @@ contains
     type(OConjGrad), intent(in) :: self
     real(dp), intent(out) :: minGrad(:)
 
-    ASSERT(self%tInitialized .and. self%tConverged)
-    ASSERT(size(minGrad) == self%nElem)
+    @:ASSERT(self%tInitialized .and. self%tConverged)
+    @:ASSERT(size(minGrad) == self%nElem)
     call getMinGrad(self%pLinMin, minGrad)
 
   end subroutine ConjGrad_getMinGrad

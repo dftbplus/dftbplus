@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Nose-Hoover Chain thermostat
 !!* @ref based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
 module nhctherm
-#include "assert.h"
+  use assert
   use accuracy
   use mdcommon
   use ranlux
@@ -86,13 +88,15 @@ contains
     real(dp), intent(in), optional :: vnose(:)
     real(dp), intent(in), optional :: gnose(:)
     
-    ASSERT(associated(pRanlux))
-    ASSERT(present(xnose).eqv.present(vnose))
-    ASSERT(present(xnose).eqv.present(gnose))
-    ASSERT_ENV(if (present(xnose)) then)
-    ASSERT(size(xnose)==size(vnose))
-    ASSERT(size(xnose)==size(gnose))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(pRanlux))
+    @:ASSERT(present(xnose).eqv.present(vnose))
+    @:ASSERT(present(xnose).eqv.present(gnose))
+  #:call ASSERT_CODE
+    if (present(xnose)) then
+      @:ASSERT(size(xnose)==size(vnose))
+      @:ASSERT(size(xnose)==size(gnose))
+    end if
+  #:endcall ASSERT_CODE
 
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
@@ -158,7 +162,7 @@ contains
     real(dp) :: kT
     integer :: ii
     
-    ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
     
     call getTemperature(self%pTempProfile, kT)
     do ii = 1, self%nAtom
@@ -183,7 +187,7 @@ contains
     real(dp)        :: wdti4(self%nyosh), wdti8(self%nyosh)
     real(dp)        :: scaling, gkt, gnkt, akin, aa
     
-    ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     nnos1=self%nnos+1
     

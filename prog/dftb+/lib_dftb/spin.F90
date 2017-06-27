@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module containing various routines for spin polarised calculations
 !!* Intended to be used with SCC switched on !
 module spin
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use commontypes
@@ -58,11 +60,11 @@ contains
     integer  :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
     
     nAtom = size(chargePerShell,dim=2)
-    ASSERT(nAtom > 0)
-    ASSERT(size(shift,dim=2)==nAtom)
-    ASSERT(all(shape(chargePerShell)==shape(shift)))
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(shift,dim=2)==nAtom)
+    @:ASSERT(all(shape(chargePerShell)==shape(shift)))
     nSpin = size(chargePerShell,dim=3) - 1 ! counts from 0
-    ASSERT(nSpin == 1 .or. nSpin == 3)
+    @:ASSERT(nSpin == 1 .or. nSpin == 3)
     
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
@@ -88,8 +90,8 @@ contains
     real(dp), intent(in)  :: chargePerShell(:,:,:)
     real(dp), intent(in)  :: shiftPerShell(:,:,:)
     
-    ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
-    ASSERT(size(chargePerShell,dim=3)>1 .and. size(chargePerShell,dim=3)<5)
+    @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
+    @:ASSERT(size(chargePerShell,dim=3)>1 .and. size(chargePerShell,dim=3)<5)
     
     ! safe as the shift for the spin=0 component is 0 at the moment
     rslt = sum(chargePerShell(:,:,:)*shiftPerShell(:,:,:))
@@ -105,9 +107,9 @@ contains
     real(dp), intent(in)  :: chargePerShell(:,:,:)
     real(dp), intent(in)  :: shiftPerShell(:,:,:)
     
-    ASSERT(size(rslt)==size(chargePerShell,dim=2))
-    ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
-    ASSERT(size(chargePerShell,dim=3)>1 .and. size(chargePerShell,dim=3)<5)
+    @:ASSERT(size(rslt)==size(chargePerShell,dim=2))
+    @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
+    @:ASSERT(size(chargePerShell,dim=3)>1 .and. size(chargePerShell,dim=3)<5)
     
     ! safe as the shift for the spin=0 component is 0 at the moment
     rslt(:) = sum(sum(chargePerShell(:,:,:)*shiftPerShell(:,:,:),dim=3),dim=1)
@@ -133,9 +135,9 @@ contains
     nAtom = size(equiv, dim=2)
     nSpin = size(equiv, dim=3)
     
-    ASSERT(size(equiv, dim=1) == orb%mOrb)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(nAtom > 0)
+    @:ASSERT(size(equiv, dim=1) == orb%mOrb)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nAtom > 0)
     
     equiv(:,:,:) = 0
     ind = 1
@@ -164,7 +166,7 @@ contains
     
     nElements = size(x,dim=1)
     nSpin = size(x,dim=2)
-    ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
     
     select case(nSpin)
     case (1)
@@ -191,7 +193,7 @@ contains
     nElements(1) = size(x,dim=1)
     nElements(2) = size(x,dim=2)
     nSpin = size(x,dim=3)
-    ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     select case(nSpin)
     case (1)
@@ -221,7 +223,7 @@ contains
     nElements(2) = size(x,dim=2)
     nElements(3) = size(x,dim=3)
     nSpin = size(x,dim=4)
-    ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     select case(nSpin)
     case (1)
@@ -250,7 +252,7 @@ contains
     
     nElements = size(x,dim=1)
     nSpin = size(x,dim=2)
-    ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     select case(nSpin)
     case (1)
@@ -277,7 +279,7 @@ contains
     nElements(1) = size(x,dim=1)
     nElements(2) = size(x,dim=2)
     nSpin = size(x,dim=3)
-    ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
     
     select case(nSpin)
     case (1)
@@ -307,7 +309,7 @@ contains
     nElements(2) = size(x,dim=2)
     nElements(3) = size(x,dim=3)
     nSpin = size(x,dim=4)
-    ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     select case(nSpin)
     case (1)

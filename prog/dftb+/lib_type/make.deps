@@ -3,23 +3,23 @@ commontypes.o = commontypes.o $(_mod_accuracy)
 _mod_commontypes: commontypes.o
 _mod_commontypes = $(commontypes.o)
 
-fifo.o: _mod_accuracy assert.h _mod_fileid
-fifo.o = fifo.o $(_mod_accuracy) $(assert.h) $(_mod_fileid)
+fifo.o: _mod_accuracy common.fypp _mod_assert _mod_fileid
+fifo.o = fifo.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_fileid)
 _mod_fifo: fifo.o
 _mod_fifo = $(fifo.o)
 
-linkedlist.o: charmc.inc intr1.inc realr2.inc real.inc realr1.inc int.inc charlc.inc _mod_accuracy assert.h
-linkedlist.o = linkedlist.o $(charmc.inc) $(intr1.inc) $(realr2.inc) $(real.inc) $(realr1.inc) $(int.inc) $(charlc.inc) $(_mod_accuracy) $(assert.h)
+linkedlist.o: common.fypp charmc.inc intr1.inc realr2.inc real.inc realr1.inc _mod_assert int.inc charlc.inc _mod_accuracy
+linkedlist.o = linkedlist.o $(common.fypp) $(charmc.inc) $(intr1.inc) $(realr2.inc) $(real.inc) $(realr1.inc) $(_mod_assert) $(int.inc) $(charlc.inc) $(_mod_accuracy)
 _mod_linkedlist: linkedlist.o
 _mod_linkedlist = $(linkedlist.o)
 
-oldskdata.o: _mod_repspline _mod_fileid _mod_constants _mod_reppoly assert.h _mod_message _mod_accuracy
-oldskdata.o = oldskdata.o $(_mod_repspline) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(assert.h) $(_mod_message) $(_mod_accuracy)
+oldskdata.o: common.fypp _mod_fileid _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
+oldskdata.o = oldskdata.o $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
 _mod_oldskdata: oldskdata.o
 _mod_oldskdata = $(oldskdata.o)
 
-stringlist.o: _mod_xmlf90 assert.h
-stringlist.o = stringlist.o $(_mod_xmlf90) $(assert.h)
+stringlist.o: _mod_xmlf90 common.fypp _mod_assert
+stringlist.o = stringlist.o $(_mod_xmlf90) $(common.fypp) $(_mod_assert)
 _mod_stringlist: stringlist.o
 _mod_stringlist = $(stringlist.o)
 

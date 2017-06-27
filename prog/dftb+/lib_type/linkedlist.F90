@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains types and functions and subroutines for manipulating linked lists.
 !!* Every list must be initialized with init, and destroyed with destroy.
 module linkedList
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
   private
@@ -272,13 +274,13 @@ module linkedList
 
 contains
 
-#include "real.inc"
-#include "realr1.inc"
-#include "realr2.inc"  
-#include "charmc.inc"
-#include "charlc.inc"  
-#include "int.inc"
-#include "intr1.inc"
+#:include "real.inc"
+#:include "realr1.inc"
+#:include "realr2.inc"  
+#:include "charmc.inc"
+#:include "charlc.inc"  
+#:include "int.inc"
+#:include "intr1.inc"
 
 
   character(mc) function charMc(string)

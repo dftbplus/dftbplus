@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Routines to calculate a Slater type orbital (STO)
 module Slater
-# include "assert.h"
+  use assert
   use accuracy
   implicit none
 
@@ -70,10 +72,10 @@ contains
       rr = sqrt(sum(coord**2))
     end if
 
-    ASSERT(ll >= 0 .and. ll <= 3)
-    ASSERT(abs(mm) <= ll)
-    ASSERT(size(coord) == 3)
-    ASSERT(rr >= 0.0_dp)
+    @:ASSERT(ll >= 0 .and. ll <= 3)
+    @:ASSERT(abs(mm) <= ll)
+    @:ASSERT(size(coord) == 3)
+    @:ASSERT(rr >= 0.0_dp)
     
     xx = coord(1)
     yy = coord(2)
@@ -176,9 +178,9 @@ contains
     nAlpha = size(alpha)
     nPow = size(aa, dim=1)
 
-    ASSERT(size(aa, dim=2) == nAlpha)
-    ASSERT(cutoff > 0.0_dp)
-    ASSERT(resolution > 0.0_dp)
+    @:ASSERT(size(aa, dim=2) == nAlpha)
+    @:ASSERT(cutoff > 0.0_dp)
+    @:ASSERT(resolution > 0.0_dp)
     
     allocate(self%aa(nPow, nAlpha))
     allocate(self%alpha(nAlpha))
@@ -217,7 +219,7 @@ contains
     integer :: ind
     real(dp) :: frac
 
-    ASSERT(rr >= 0.0_dp)
+    @:ASSERT(rr >= 0.0_dp)
 
     ! ind = 1 means zero distance as rr = (ind - 1) * gridDist
     ind = floor(rr / self%gridDist) + 1

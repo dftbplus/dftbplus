@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Program for calculating system normal modes from a Hessian
 program modes
-# include "assert.h"
+  use assert
   use InitProgram
   use accuracy, only : dp, lc
   use constants, only : Hartree__cm, Bohr__AA, pi

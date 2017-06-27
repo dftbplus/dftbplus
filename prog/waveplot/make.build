@@ -19,8 +19,8 @@ all: $(TARGETS)
 # Include common makefile
 SRCDIRS := $(ROOT)/prog/waveplot
 SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
-SRCDIRS += $(ROOT)/prog/dftb+/includes
-INCDIRS := $(ROOT)/prog/dftb+/includes
+SRCDIRS += $(ROOT)/prog/dftb+/include
+INCDIRS := $(ROOT)/prog/dftb+/include
 include $(ROOT)/prog/dftb+/make.common
 
 # Target definitions (declared *after* importing necessary makefiles).

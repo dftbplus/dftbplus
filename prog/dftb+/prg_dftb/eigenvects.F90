@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module to wrap around the process of converting from a Hamiltonian and
 !!* overlap in sparse form into eigenvectors
 module eigenvects
-#include "assert.h"
+  use assert
   use accuracy
   use eigensolver
   use sparse2dense
@@ -65,12 +67,12 @@ contains
 
     integer :: nOrb
 
-    ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
-    ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
-    ASSERT(size(HSqrReal, dim=1) == size(eigen))
-    ASSERT(size(over) == size(ham))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
+    @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
+    @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
+    @:ASSERT(size(over) == size(ham))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     
     call unpackHS(HSqrReal,ham,iNeighbor,nNeighbor,iAtomStart,iPair, &
         &img2CentCell)
@@ -138,12 +140,12 @@ contains
     character, intent(in)    :: jobz
 
     integer :: nOrb
-    ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
-    ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
-    ASSERT(size(HSqrCplx, dim=1) == size(eigen))
-    ASSERT(size(over) == size(ham))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(size(over) == size(ham))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     
     call unpackHS(HSqrCplx, ham, kPoint, iNeighbor, nNeighbor, iCellVec, &
         &cellVec, iAtomStart, iPair, img2CentCell)
@@ -218,15 +220,15 @@ contains
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
     
-    ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
-    ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx))) ! for the moment
-    ASSERT(size(HSqrCplx, dim=1) == size(eigen))
-    ASSERT(size(over,dim=1) == size(ham,dim=1))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')    
-    ASSERT(present(xi) .eqv. present(orb))
-    ASSERT(present(xi) .eqv. present(species))
-    ASSERT(.not.(present(xi).and.present(iHam)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(size(over,dim=1) == size(ham,dim=1))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')    
+    @:ASSERT(present(xi) .eqv. present(orb))
+    @:ASSERT(present(xi) .eqv. present(species))
+    @:ASSERT(.not.(present(xi).and.present(iHam)))
     
     nAtom = size(nNeighbor)
     nSpin = size(ham,dim=2)
@@ -234,8 +236,8 @@ contains
 
     tSpinOrb = present(xi)
     
-    ASSERT(nSpin == 4)
-    ASSERT(mod(nOrb,2)==0)
+    @:ASSERT(nSpin == 4)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
     ! for the moment, but will use S as workspace in the future
     allocate(work(nOrb,nOrb))
@@ -438,15 +440,15 @@ contains
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
     
-    ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
-    ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx))) ! for the moment
-    ASSERT(size(HSqrCplx, dim=1) == size(eigen))
-    ASSERT(size(over,dim=1) == size(ham,dim=1))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(present(xi) .eqv. present(orb))
-    ASSERT(present(xi) .eqv. present(species))
-    ASSERT(.not.(present(xi).and.present(iHam)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(size(over,dim=1) == size(ham,dim=1))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(present(xi) .eqv. present(orb))
+    @:ASSERT(present(xi) .eqv. present(species))
+    @:ASSERT(.not.(present(xi).and.present(iHam)))
     
     nAtom = size(nNeighbor)
     nSpin = size(ham,dim=2)
@@ -454,8 +456,8 @@ contains
     
     tSpinOrb = present(xi)
     
-    ASSERT(nSpin == 4)
-    ASSERT(mod(nOrb,2)==0)
+    @:ASSERT(nSpin == 4)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
      ! for the moment, but will use S as workspace in the future
     allocate(work(nOrb,nOrb))

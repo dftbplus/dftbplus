@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to calculate the value of one or more molecular orbitals
 !!* composed from STOs on an equidistant grid.
 module MolecularOrbital
-# include "assert.h"  
+  use assert
   use accuracy
   use TypeGeometry
   use Slater
@@ -81,8 +83,8 @@ contains
     real(dp) :: mCutoff
     real(dp), allocatable :: rCellVec(:,:)
 
-    ASSERT(.not. self%tInitialised)
-    ASSERT(geometry%nSpecies == size(basis))
+    @:ASSERT(.not. self%tInitialised)
+    @:ASSERT(geometry%nSpecies == size(basis))
         
     self%nAtom = geometry%nAtom
     self%nSpecies = geometry%nSpecies
@@ -179,12 +181,12 @@ contains
     complex(dp), save :: eigVecsCmpl(0,0)
     logical :: tAddDensities
 
-    ASSERT(self%tInitialised)
-    ASSERT(size(origin) == 3)
-    ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
-    ASSERT(size(eigVecsReal, dim=1) == self%nOrb)
-    ASSERT(all(shape(value) > (/ 1, 1, 1, 0 /)))
-    ASSERT(size(eigVecsReal, dim=2) == size(value, dim=4))
+    @:ASSERT(self%tInitialised)
+    @:ASSERT(size(origin) == 3)
+    @:ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
+    @:ASSERT(size(eigVecsReal, dim=1) == self%nOrb)
+    @:ASSERT(all(shape(value) > (/ 1, 1, 1, 0 /)))
+    @:ASSERT(size(eigVecsReal, dim=2) == size(value, dim=4))
 
     if (present(addDensities)) then
       tAddDensities = addDensities
@@ -224,17 +226,17 @@ contains
     real(dp), save :: eigVecsReal(0,0)
     logical, save :: tAddDensities = .false.
 
-    ASSERT(self%tInitialised)
-    ASSERT(size(origin) == 3)
-    ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
-    ASSERT(size(eigVecsCmpl, dim=1) == self%nOrb)
-    ASSERT(all(shape(value) > (/ 0, 0, 0, 0 /)))
-    ASSERT(size(eigVecsCmpl, dim=2) == size(value, dim=4))
-    ASSERT(size(kPoints, dim=1) == 3)
-    ASSERT(size(kPoints, dim=2) > 0)
-    ASSERT(size(kIndexes) == size(eigVecsCmpl, dim=2))
-    ASSERT(maxval(kIndexes) <= size(kPoints, dim=2))
-    ASSERT(minval(kIndexes) > 0)
+    @:ASSERT(self%tInitialised)
+    @:ASSERT(size(origin) == 3)
+    @:ASSERT(all(shape(gridVecs) == (/ 3, 3 /)))
+    @:ASSERT(size(eigVecsCmpl, dim=1) == self%nOrb)
+    @:ASSERT(all(shape(value) > (/ 0, 0, 0, 0 /)))
+    @:ASSERT(size(eigVecsCmpl, dim=2) == size(value, dim=4))
+    @:ASSERT(size(kPoints, dim=1) == 3)
+    @:ASSERT(size(kPoints, dim=2) > 0)
+    @:ASSERT(size(kIndexes) == size(eigVecsCmpl, dim=2))
+    @:ASSERT(maxval(kIndexes) <= size(kPoints, dim=2))
+    @:ASSERT(minval(kIndexes) > 0)
 
     call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, &
         &self%nAtom, self%nOrb, self%coords, self%species, self%cutoffs, &

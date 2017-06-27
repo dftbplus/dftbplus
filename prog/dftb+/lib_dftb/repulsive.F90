@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains subroutines to calculate repulsive pair contributions to energy
 !!* and forces
 module repulsive
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use repcont
   implicit none
@@ -87,7 +89,7 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), dist, intermed
     
-    ASSERT(size(reslt) == size(nNeighbors))
+    @:ASSERT(size(reslt) == size(nNeighbors))
 
     reslt(:) = 0.0_dp
     do iAt1 = 1, size(nNeighbors)
@@ -130,7 +132,7 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), intermed(3)
 
-    ASSERT(size(reslt,dim=1) == 3)
+    @:ASSERT(size(reslt,dim=1) == 3)
         
     reslt(:,:) = 0.0_dp
     do iAt1 = 1, size(nNeighbors)

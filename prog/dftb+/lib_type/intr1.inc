@@ -16,7 +16,7 @@
   subroutine initIntR1(list)
     type(listIntR1), intent(inout) :: list
 
-    ASSERT(.not. list%tInitialized)
+    @:ASSERT(.not. list%tInitialized)
 
     list%length = 0
     list%elemShape = (/ 0 /)
@@ -63,7 +63,7 @@
 
     integer :: valshape(1)                                   ! type specific
     
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     valshape = shape(value)
 
@@ -97,7 +97,7 @@
   !!* @return     Nr. of elements in the list.
   integer function lenIntR1(list) result(len)
     type(listIntR1), intent(in) :: list
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
     len = list%length
   end function lenIntR1
 
@@ -115,7 +115,7 @@
     integer                  :: ii
     integer                  :: valshape(1)
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     valshape = shape(value)
     pCur => list%pFirst
@@ -150,7 +150,7 @@
     type(listIntR1), intent(inout) :: list
     integer,         intent(in)    :: value(:)
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     if (find(list, value) == 0) then
       hasElement = .false.
@@ -172,9 +172,9 @@
 
     type(nodeIntR1), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
-    ASSERT(size(valshape, dim=1) == 1)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(size(valshape, dim=1) == 1)
 
     if (list%tUnishaped) then
       valshape(:) = list%elemShape(:)
@@ -198,11 +198,11 @@
 
     type(nodeIntR1), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeIntR1(list, index)
-    ASSERT(all(shape(pCur%pValue) == shape(value)))
+    @:ASSERT(all(shape(pCur%pValue) == shape(value)))
     value(:) = pCur%pValue(:)
 
   end subroutine getIntR1
@@ -220,11 +220,11 @@
 
     type(nodeIntR1), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeIntR1(list, index)
-    ASSERT(all(shape(pCur%pValue) == shape(value)))
+    @:ASSERT(all(shape(pCur%pValue) == shape(value)))
     pCur%pValue(:) = value(:)
 
   end subroutine setIntR1
@@ -237,7 +237,7 @@
   logical function isUnishapedIntR1(list) result(isUnishaped)
     type(listIntR1), intent(in) :: list
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     isUnishaped = list%tUnishaped
 
@@ -267,15 +267,19 @@
     integer                  :: pad
     integer                  :: ii
 
-    ASSERT_ENV(integer       :: shapeVal(2))
+  #:call ASSERT_CODE
+    integer :: shapeVal(2)
+  #:endcall ASSERT_CODE
 
     lenVal = size(val, dim=size(shape(val)))
 
-    ASSERT(list%tInitialized)
-    ASSERT(list%tUnishaped)
-    ASSERT(lenVal >= list%length)
-    ASSERT_ENV(shapeVal = shape(val))
-    ASSERT(all(shapeVal(1:size(shapeVal)-1) == list%elemShape(:)))
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(list%tUnishaped)
+    @:ASSERT(lenVal >= list%length)
+  #:call ASSERT_CODE
+    shapeVal = shape(val)
+  #:endcall ASSERT_CODE
+    @:ASSERT(all(shapeVal(1:size(shapeVal)-1) == list%elemShape(:)))
 
     if (present(optPad)) then
       pad = optPad
@@ -323,9 +327,9 @@
     lenVal = size(val)
     lenElem = product(list%elemShape)
 
-    ASSERT(list%tInitialized)
-    ASSERT(list%tUnishaped)
-    ASSERT(lenVal >= list%length * lenElem)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(list%tUnishaped)
+    @:ASSERT(lenVal >= list%length * lenElem)
 
     if (present(optPad)) then
       pad = optPad
@@ -361,12 +365,12 @@
 
     type(nodeIntR1), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeIntR1(list, index)
     nElem = size(pCur%pValue)
-    ASSERT(size(value) >= nElem)
+    @:ASSERT(size(value) >= nElem)
     value(:nElem) = pCur%pValue(:)
 
   end subroutine intoArrayIntR1
@@ -384,7 +388,7 @@
 
     integer :: ii, iStart
     
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     if (list%iCache == index) then
       getNode => list%pCache

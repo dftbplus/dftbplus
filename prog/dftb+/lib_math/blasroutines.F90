@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains F90 wrapper functions for some commonly used blas calls needed
 !!* in the code. The interface of all BLAS calls must be defined in the module
 !!* blas.
 module blasroutines
-#include "assert.h"
+  use assert
   use accuracy
   use blas
   implicit none
@@ -184,15 +186,15 @@ contains
 
     integer   :: n
     character :: iUplo
-    ASSERT(size(a,dim=1) == size(a,dim=2)) ! square matrix
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
 
     if (present(uplo)) then
        iuplo = uplo
     else
        iuplo = 'l'
     end if
-    ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
+    @:ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
     n = size(x)
     call ssyr(iuplo,n,alpha,x,1,a,n)
   end subroutine her_real
@@ -206,15 +208,15 @@ contains
 
     integer :: n
     character :: iuplo
-    ASSERT(size(a,dim=1) == size(a,dim=2)) ! square matrix
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
 
     if (present(uplo)) then
        iuplo = uplo
     else
        iuplo = 'l'
     end if
-    ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
+    @:ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
     n = size(x)
     call cher(iuplo,n,alpha,x,1,a,n)
   end subroutine her_cmplx
@@ -228,14 +230,14 @@ contains
 
     character :: iuplo
     integer :: n
-    ASSERT(size(a,dim=1) == size(a,dim=2)) ! square matrix
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
     if (present(uplo)) then
        iuplo = uplo
     else
        iuplo = 'l'
     end if
-    ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
+    @:ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
     n = size(x)
     call dsyr(iuplo,n,alpha,x,1,a,n)
   end subroutine her_dble
@@ -249,14 +251,14 @@ contains
 
     integer :: n
     character :: iuplo
-    ASSERT(size(a,dim=1) == size(a,dim=2)) ! square matrix
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
     if (present(uplo)) then
        iuplo = uplo
     else
        iuplo = 'l'
     end if
-    ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
+    @:ASSERT(iuplo == 'u' .or. iuplo == 'U' .or. iuplo == 'l' .or. iuplo == 'L')
     n = size(x)
     call zher(iuplo,n,alpha,x,1,a,n)
   end subroutine her_dblecmplx
@@ -269,8 +271,8 @@ contains
     real(rsp), intent(in)    :: y(:)
 
     integer   :: n, m
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
-    ASSERT(size(a,dim=2) == size(y))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
     n = size(y)
     call sger(m,n,alpha,x,1,y,1,a,m)
@@ -284,8 +286,8 @@ contains
     complex(rsp), intent(in)    :: y(:)
 
     integer   :: n, m
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
-    ASSERT(size(a,dim=2) == size(y))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
     n = size(y)
     call cgerc(m,n,alpha,x,1,y,1,a,m)
@@ -299,8 +301,8 @@ contains
     real(rdp), intent(in)    :: y(:)
 
     integer   :: n, m
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
-    ASSERT(size(a,dim=2) == size(y))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
     n = size(y)
     call dger(m,n,alpha,x,1,y,1,a,m)
@@ -314,8 +316,8 @@ contains
     complex(rdp), intent(in)    :: y(:)
 
     integer   :: n, m
-    ASSERT(size(a,dim=1) == size(x))       ! right number of elements
-    ASSERT(size(a,dim=2) == size(y))       ! right number of elements
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
     n = size(y)
     call zgerc(m,n,alpha,x,1,y,1,a,m)
@@ -350,10 +352,10 @@ contains
        iBeta = 0.0_rsp
     end if
 
-    ASSERT(size(y) == size(x))
-    ASSERT(size(a,dim=1) == size(a,dim=2))
-    ASSERT(size(a,dim=1) == size(x))
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(size(y) == size(x))
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call ssymv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
     
@@ -388,10 +390,10 @@ contains
        iBeta = 0.0_rdp
     end if
 
-    ASSERT(size(y) == size(x))
-    ASSERT(size(a,dim=1) == size(a,dim=2))
-    ASSERT(size(a,dim=1) == size(x))
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(size(y) == size(x))
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call dsymv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
     
@@ -426,10 +428,10 @@ contains
        iBeta = cmplx(0.0,0.0,rsp)
     end if
 
-    ASSERT(size(y) == size(x))
-    ASSERT(size(a,dim=1) == size(a,dim=2))
-    ASSERT(size(a,dim=1) == size(x))
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(size(y) == size(x))
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call chemv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
     
@@ -464,10 +466,10 @@ contains
        iBeta = cmplx(0.0,0.0,rdp)
     end if
 
-    ASSERT(size(y) == size(x))
-    ASSERT(size(a,dim=1) == size(a,dim=2))
-    ASSERT(size(a,dim=1) == size(x))
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(size(y) == size(x))
+    @:ASSERT(size(a,dim=1) == size(a,dim=2))
+    @:ASSERT(size(a,dim=1) == size(x))
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call zhemv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
     
@@ -502,9 +504,9 @@ contains
        iBeta = 0.0_rsp
     end if
 
-    ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -542,9 +544,9 @@ contains
        iBeta = 0.0_rdp
     end if
 
-    ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -585,10 +587,10 @@ contains
        iBeta = 0.0_rsp
     end if
 
-    ASSERT(size(y) == size(x))
-    ASSERT(size(ba,dim=1) > 0)
-    ASSERT(size(ba,dim=2) == size(x))
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(size(y) == size(x))
+    @:ASSERT(size(ba,dim=1) > 0)
+    @:ASSERT(size(ba,dim=2) == size(x))
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call ssbmv( iUplo, n, k, iAlpha, ba, k+1, x, 1, iBeta, y, 1 )
   end subroutine sbmv_real
@@ -625,10 +627,10 @@ contains
        iBeta = 0.0_rdp
     end if
 
-    ASSERT(size(y) == size(x))
-    ASSERT(size(ba,dim=1) > 0)
-    ASSERT(size(ba,dim=2) == size(x))
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(size(y) == size(x))
+    @:ASSERT(size(ba,dim=1) > 0)
+    @:ASSERT(size(ba,dim=2) == size(x))
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call dsbmv( iUplo, n, k, iAlpha, ba, k+1, x, 1, iBeta, y, 1 )
   end subroutine sbmv_dble
@@ -669,8 +671,8 @@ contains
     ldb = size(b,dim=1)
     ldc = size(c,dim=1)
 
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-    ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
 
     if (present(n)) then
       in = n
@@ -688,14 +690,14 @@ contains
       ka = in
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
-    ASSERT(size(a,dim=2)>=ka)
-    ASSERT(ldb>=im)
-    ASSERT(ldc>=im)
-    ASSERT(size(B,dim=2)>=in)
-    ASSERT(size(C,dim=2)>=in)
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
+    @:ASSERT(size(a,dim=2)>=ka)
+    @:ASSERT(ldb>=im)
+    @:ASSERT(ldc>=im)
+    @:ASSERT(size(B,dim=2)>=in)
+    @:ASSERT(size(C,dim=2)>=in)
 
     call ssymm ( side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 
@@ -737,8 +739,8 @@ contains
     ldb = size(b,dim=1)
     ldc = size(c,dim=1)
 
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-    ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
 
     if (present(n)) then
       in = n
@@ -756,14 +758,14 @@ contains
       ka = in
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
-    ASSERT(size(a,dim=2)>=ka)
-    ASSERT(ldb>=im)
-    ASSERT(ldc>=im)
-    ASSERT(size(B,dim=2)>=in)
-    ASSERT(size(C,dim=2)>=in)
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
+    @:ASSERT(size(a,dim=2)>=ka)
+    @:ASSERT(ldb>=im)
+    @:ASSERT(ldc>=im)
+    @:ASSERT(size(B,dim=2)>=in)
+    @:ASSERT(size(C,dim=2)>=in)
 
     call dsymm ( side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 
@@ -798,10 +800,10 @@ contains
       iTransB = 'n'
     end if
 
-    ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't' .or. iTransA \
-        == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
-    ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't' .or. iTransB \
-        == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
+    @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+        & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+    @:ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't'&
+        & .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -842,19 +844,19 @@ contains
       end if
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (size(a,dim=2)>=im))
-    ASSERT(ldc>=im)
-    ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (ldb>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (lda>=ik))
-    ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (size(b,dim=2)>=ik))
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (size(a,dim=2)>=im))
+    @:ASSERT(ldc>=im)
+    @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (ldb>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (lda>=ik))
+    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (size(b,dim=2)>=ik))
 
     call sgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
 
@@ -889,10 +891,10 @@ contains
       iTransB = 'n'
     end if
 
-    ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't' \
-        .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
-    ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't' \
-        .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
+    @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+        & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+    @:ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't'&
+        & .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -933,19 +935,19 @@ contains
       end if
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (size(a,dim=2)>=im))
-    ASSERT(ldc>=im)
-    ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (ldb>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (lda>=ik))
-    ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (size(b,dim=2)>=ik))
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (size(a,dim=2)>=im))
+    @:ASSERT(ldc>=im)
+    @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (ldb>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (lda>=ik))
+    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (size(b,dim=2)>=ik))
 
     call dgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
 
@@ -981,10 +983,10 @@ contains
       iTransB = 'n'
     end if
 
-    ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't' \
-        .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
-    ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't' \
-        .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
+    @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+        & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+    @:ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't'&
+        & .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -1025,19 +1027,19 @@ contains
       end if
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))  \
-        .or. (size(a,dim=2)>=im))
-    ASSERT(ldc>=im)
-    ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (ldb>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (lda>=ik))
-    ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (size(b,dim=2)>=ik))
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (size(a,dim=2)>=im))
+    @:ASSERT(ldc>=im)
+    @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (ldb>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (lda>=ik))
+    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (size(b,dim=2)>=ik))
 
     call cgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
 
@@ -1072,10 +1074,10 @@ contains
       iTransB = 'n'
     end if
 
-    ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't' \
-        .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
-    ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't' \
-        .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
+    @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+        & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+    @:ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't'&
+        & .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -1116,19 +1118,19 @@ contains
       end if
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (size(a,dim=2)>=im))
-    ASSERT(ldc>=im)
-    ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (ldb>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N')) \
-        .or. (lda>=ik))
-    ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N')) \
-        .or. (size(b,dim=2)>=ik))
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (size(a,dim=2)>=im))
+    @:ASSERT(ldc>=im)
+    @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (ldb>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
+        & .or. (lda>=ik))
+    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (size(b,dim=2)>=ik))
 
     call zgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
 
@@ -1155,7 +1157,7 @@ contains
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
     if (present(trans)) then
       iTrans = trans
@@ -1163,8 +1165,8 @@ contains
       iTrans = 'n'
     end if
 
-    ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' \
-        .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't'&
+        & .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -1195,13 +1197,13 @@ contains
       end if
     end if
 
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=ik))
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N'))&
+        & .or. (lda>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N'))&
+        & .or. (lda>=ik))
 
     call ssyrk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
 
@@ -1228,7 +1230,7 @@ contains
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
     if (present(trans)) then
       iTrans = trans
@@ -1236,8 +1238,8 @@ contains
       iTrans = 'n'
     end if
 
-    ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' \
-        .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't'&
+        & .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -1268,13 +1270,13 @@ contains
       end if
     end if
 
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=ik))
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N'))&
+        & .or. (lda>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N'))&
+        & .or. (lda>=ik))
 
     call dsyrk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
 
@@ -1301,7 +1303,7 @@ contains
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
     if (present(trans)) then
       iTrans = trans
@@ -1309,8 +1311,7 @@ contains
       iTrans = 'n'
     end if
 
-    ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' \
-       .or. iTrans  == 'T')
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans  == 'T')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -1341,13 +1342,11 @@ contains
       end if
     end if
 
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=ik))
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=ik))
 
     call cherk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
 
@@ -1374,7 +1373,7 @@ contains
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
     if (present(trans)) then
       iTrans = trans
@@ -1382,8 +1381,7 @@ contains
       iTrans = 'n'
     end if
 
-    ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' \
-        .or. iTrans == 'T')
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T')
 
     if (present(alpha)) then
       iAlpha = alpha
@@ -1414,13 +1412,11 @@ contains
       end if
     end if
 
-    ASSERT(in>0)
-    ASSERT(ik>0)
-    ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=in))
-    ASSERT(size(c,dim=2)>=in)
-    ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) \
-        .or. (lda>=ik))
+    @:ASSERT(in>0)
+    @:ASSERT(ik>0)
+    @:ASSERT(((size(a,dim=2)>=in).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=in))
+    @:ASSERT(size(c,dim=2)>=in)
+    @:ASSERT(((size(a,dim=2)>=ik).and.(iTrans == 'n' .or. iTrans == 'N')) .or. (lda>=ik))
 
     call zherk(iUplo, iTrans, in, ik, iAlpha, A, lda, iBeta, C, ldc )
 
@@ -1466,8 +1462,8 @@ contains
     ldb = size(b,dim=1)
     ldc = size(c,dim=1)
 
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-    ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
 
     if (present(n)) then
       in = n
@@ -1485,14 +1481,14 @@ contains
       ka = in
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
-    ASSERT(size(a,dim=2)>=ka)
-    ASSERT(ldb>=im)
-    ASSERT(ldc>=im)
-    ASSERT(size(B,dim=2)>=in)
-    ASSERT(size(C,dim=2)>=in)
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
+    @:ASSERT(size(a,dim=2)>=ka)
+    @:ASSERT(ldb>=im)
+    @:ASSERT(ldc>=im)
+    @:ASSERT(size(B,dim=2)>=in)
+    @:ASSERT(size(C,dim=2)>=in)
 
     call chemm(side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc)
 
@@ -1535,8 +1531,8 @@ contains
     ldb = size(b,dim=1)
     ldc = size(c,dim=1)
 
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
-    ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
 
     if (present(n)) then
       in = n
@@ -1554,14 +1550,14 @@ contains
       ka = in
     end if
 
-    ASSERT(im>0)
-    ASSERT(in>0)
-    ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
-    ASSERT(size(a,dim=2)>=ka)
-    ASSERT(ldb>=im)
-    ASSERT(ldc>=im)
-    ASSERT(size(B,dim=2)>=in)
-    ASSERT(size(C,dim=2)>=in)
+    @:ASSERT(im>0)
+    @:ASSERT(in>0)
+    @:ASSERT((lda>=im).and.(iUplo=='l'.or.iUplo=='L').or.(lda>=in))
+    @:ASSERT(size(a,dim=2)>=ka)
+    @:ASSERT(ldb>=im)
+    @:ASSERT(ldc>=im)
+    @:ASSERT(size(B,dim=2)>=in)
+    @:ASSERT(size(C,dim=2)>=in)
 
     call zhemm(side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc)
 

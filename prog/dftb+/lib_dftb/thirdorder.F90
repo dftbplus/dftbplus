@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Routines implementing the full 3rd order DFTB.
 module thirdorder_module
-#include "assert.h"
+  use assert
   use accuracy
   use commontypes, only : TOrbitals
   use shortgamma, only : expGammaCutoff
@@ -220,9 +222,9 @@ contains
     real(dp), allocatable :: chargesPerShell(:,:)
     integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh
 
-    ASSERT(size(species) == this%nAtoms)
-    ASSERT(size(qq, dim=2) == this%nAtoms)
-    ASSERT(size(q0, dim=2) == this%nAtoms)
+    @:ASSERT(size(species) == this%nAtoms)
+    @:ASSERT(size(qq, dim=2) == this%nAtoms)
+    @:ASSERT(size(q0, dim=2) == this%nAtoms)
 
     if (this%shellResolved) then
       call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
@@ -286,7 +288,7 @@ contains
     !> Shift per atom.
     real(dp), intent(out) :: shift(:)
 
-    ASSERT(size(shift) == this%nAtoms)
+    @:ASSERT(size(shift) == this%nAtoms)
 
     if (this%shellResolved) then
       shift(:) = this%shift3
@@ -307,8 +309,8 @@ contains
     !> Shift per shell.
     real(dp), intent(out) :: shift(:,:)
 
-    ASSERT(size(shift, dim=1) == this%mShellsReal)
-    ASSERT(size(shift, dim=2) == this%nAtoms)
+    @:ASSERT(size(shift, dim=1) == this%mShellsReal)
+    @:ASSERT(size(shift, dim=2) == this%nAtoms)
 
     if (this%shellResolved) then
       shift(:,:) = this%shift1 + this%shift2
@@ -325,7 +327,7 @@ contains
     class(ThirdOrder), intent(inout) :: this
     real(dp), intent(out) :: energyPerAtom(:)
 
-    ASSERT(size(energyPerAtom) == this%nAtoms)
+    @:ASSERT(size(energyPerAtom) == this%nAtoms)
 
     energyPerAtom(:) = (1.0_dp / 3.0_dp) * (&
         & sum((this%shift1 + this%shift2) * this%chargesPerShell, dim=1)&

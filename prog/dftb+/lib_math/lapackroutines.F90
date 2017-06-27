@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains F90 wrapper functions for some commonly used lapack calls needed
 !!* in the code. The interface of all LAPACK calls must be defined in the module
 !!* lapack.
 module lapackroutines
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use lapack
@@ -156,18 +158,18 @@ contains
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
-      ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
       nn = nEquation
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
 
     ldb = size(bb, dim=1)
-    ASSERT(ldb >= nn)
+    @:ASSERT(ldb >= nn)
     nrhs = size(bb, dim=2)
     if (present(nSolution)) then
-      ASSERT(nSolution <= nrhs)
+      @:ASSERT(nSolution <= nrhs)
       nrhs = nSolution
     end if
     
@@ -209,18 +211,18 @@ contains
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
-      ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
       nn = nEquation
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
 
     ldb = size(bb, dim=1)
-    ASSERT(ldb >= nn)
+    @:ASSERT(ldb >= nn)
     nrhs = size(bb, dim=2)
     if (present(nSolution)) then
-      ASSERT(nSolution <= nrhs)
+      @:ASSERT(nSolution <= nrhs)
       nrhs = nSolution
     end if
     
@@ -264,16 +266,16 @@ contains
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       mm = nRow
     else
       mm = lda
     end if
     if (present(nColumn)) then
-      ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
       nn = nColumn
     end if
-    ASSERT(size(ipiv) == min(mm, nn))
+    @:ASSERT(size(ipiv) == min(mm, nn))
 
     call sgetrf(mm, nn, aa, lda, ipiv, info)
 
@@ -310,16 +312,16 @@ contains
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       mm = nRow
     else
       mm = lda
     end if
     if (present(nColumn)) then
-      ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
       nn = nColumn
     end if
-    ASSERT(size(ipiv) == min(mm, nn))
+    @:ASSERT(size(ipiv) == min(mm, nn))
 
     call dgetrf(mm, nn, aa, lda, ipiv, info)
 
@@ -355,13 +357,13 @@ contains
     
     lda = size(aa, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
-    ASSERT(size(ipiv) == nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(ipiv) == nn)
 
     lwork = -1
     call sgetri(nn, aa, lda, ipiv, work2, lwork, info)
@@ -402,13 +404,13 @@ contains
     
     lda = size(aa, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
-    ASSERT(size(ipiv) == nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(ipiv) == nn)
 
     lwork = -1
     call dgetri(nn, aa, lda, ipiv, work2, lwork, info)
@@ -452,10 +454,10 @@ contains
 
     nn = size(aa, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= nn)
+      @:ASSERT(nRow >= 1 .and. nRow <= nn)
       nn = nRow
     end if
-    ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
     
     allocate(ipiv(nn))
     call getrf(aa, ipiv, nRow=nn, nColumn=nn, iError=info)
@@ -877,23 +879,23 @@ contains
 
     lda = size(A, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
     
     ldb = size(b, dim=1)
-    ASSERT(ldb >= nn)
+    @:ASSERT(ldb >= nn)
     
     if (present(uplo)) then
        iUplo = uplo
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
-    ASSERT(size(A, dim=2) >= nn)
+    @:ASSERT(size(A, dim=2) >= nn)
     nrhs = size(B, dim=2)
     
     allocate(ipiv(nn))
@@ -937,23 +939,23 @@ contains
 
     lda = size(A, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
     
     ldb = size(b, dim=1)
-    ASSERT(ldb >= nn)
+    @:ASSERT(ldb >= nn)
     
     if (present(uplo)) then
        iUplo = uplo
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
-    ASSERT(size(A, dim=2) >= nn)
+    @:ASSERT(size(A, dim=2) >= nn)
     nrhs = size(B, dim=2)
     
     allocate(ipiv(nn))
@@ -989,12 +991,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)    
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)    
     n = size(x)
     x(:) = 0.0
     call SLARNV( iDist, iSeed, n, x )
@@ -1008,12 +1010,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)    
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)    
     n = size(x)
     x(:) = 0.0d0
     call DLARNV( iDist, iSeed, n, x )
@@ -1027,12 +1029,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)    
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)    
     n = size(x)
     x(:) = 0.0
     call CLARNV( iDist, iSeed, n, x )
@@ -1046,12 +1048,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)
     n = size(x)
     x(:) = 0.0d0
     call ZLARNV( iDist, iSeed, n, x )

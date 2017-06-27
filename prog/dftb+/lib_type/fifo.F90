@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Storage of integer vectors in a FIFO (first in first out) way and wrappers 
 !!* for different data types and matrix ranks.
 !!* additional
@@ -13,7 +15,7 @@
 !!*   kept in the memory, if there are more, they are written to disc.
 !!* @note In order to use the FIFO you have create and reset it.
 module fifo
-#include "assert.h"
+  use assert
   use accuracy
   use fileid
   implicit none
@@ -143,8 +145,8 @@ contains
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(bufferSize >= 0)
-    ASSERT(len(fileName) > 0)
+    @:ASSERT(bufferSize >= 0)
+    @:ASSERT(len(fileName) > 0)
     
     sf%nElem = 0
     sf%bufferSize = bufferSize
@@ -171,8 +173,8 @@ contains
 
     logical :: tOpened, tRealloc
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     tRealloc = (nElem /= sf%nElem)
     if (present(bufferSize)) then
@@ -250,8 +252,8 @@ contains
     integer :: ii
     logical :: tOpened
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     !! Change to write mode if necessary
     if (sf%iMode /= modeWrite) then
@@ -307,9 +309,9 @@ contains
 
     integer :: ind, ii
     
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
-    ASSERT(sf%nStored > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%nStored > 0)
 
     if (sf%iMode /= modeRead) then
       call restart(sf)
@@ -377,7 +379,7 @@ contains
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
@@ -400,8 +402,8 @@ contains
     real(dp), allocatable :: buffer(:)
     integer :: equiv(1)
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
       deallocate(sf%convBuffer)
@@ -427,8 +429,8 @@ contains
     type(OFifoRealR1), intent(inout) :: sf
     real(dp), intent(in) :: vector(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     sf%convBuffer = transfer(vector, sf%convBuffer, sf%equivIntSize)
     call push(sf%fifoIntR1, sf%convBuffer)
@@ -450,8 +452,8 @@ contains
     type(OFifoRealR1), intent(inout) :: sf
     real(dp), intent(out) :: vector(:)
     
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     call get(sf%fifoIntR1, sf%convBuffer)
     vector(:) = transfer(sf%convBuffer, vector, sf%nElem)
@@ -484,7 +486,7 @@ contains
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     sf%shape(:) = 0
     sf%bufferSize = bufferSize    
@@ -502,9 +504,9 @@ contains
     type(OFifoRealR2), intent(inout) :: sf
     integer, intent(in) :: newShape(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(newShape) == 2)
-    ASSERT(all(newShape > 0))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(newShape) == 2)
+    @:ASSERT(all(newShape > 0))
 
     sf%shape(:) = newShape(:)
     call reset(sf%fifoRealR1, sf%shape(1), bufferSize=sf%bufferSize*sf%shape(2))
@@ -521,8 +523,8 @@ contains
 
     integer :: ii
 
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call push(sf%fifoRealR1, data(:,ii))
@@ -547,8 +549,8 @@ contains
 
     integer :: ii
     
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call get(sf%fifoRealR1, data(:,ii))
@@ -582,7 +584,7 @@ contains
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
@@ -605,8 +607,8 @@ contains
     complex(dp), allocatable :: buffer(:)
     integer :: equiv(1)
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
       deallocate(sf%convBuffer)
@@ -632,8 +634,8 @@ contains
     type(OFifoCplxR1), intent(inout) :: sf
     complex(dp), intent(in) :: vector(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     sf%convBuffer = transfer(vector, sf%convBuffer, sf%equivIntSize)
     call push(sf%fifoIntR1, sf%convBuffer)
@@ -655,8 +657,8 @@ contains
     type(OFifoCplxR1), intent(inout) :: sf
     complex(dp), intent(out) :: vector(:)
     
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     call get(sf%fifoIntR1, sf%convBuffer)
     vector(:) = transfer(sf%convBuffer, vector, sf%nElem)
@@ -690,7 +692,7 @@ contains
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     sf%shape(:) = 0
     sf%bufferSize = bufferSize
@@ -708,9 +710,9 @@ contains
     type(OFifoCplxR2), intent(inout) :: sf
     integer, intent(in) :: newShape(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(newShape) == 2)
-    ASSERT(all(newShape > 0))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(newShape) == 2)
+    @:ASSERT(all(newShape > 0))
 
     sf%shape(:) = newShape(:)
     call reset(sf%fifoCplxR1, sf%shape(1), bufferSize=sf%bufferSize*sf%shape(2))
@@ -727,8 +729,8 @@ contains
 
     integer :: ii
 
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call push(sf%fifoCplxR1, data(:,ii))
@@ -753,8 +755,8 @@ contains
 
     integer :: ii
     
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call get(sf%fifoCplxR1, data(:,ii))

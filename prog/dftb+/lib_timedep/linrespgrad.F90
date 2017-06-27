@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Linear response excitations and gradients with respect to atomic coordinates
 module linrespgrad
-#include "assert.h"
+  use assert
   use arpack
   use linrespcommon
   use commontypes
@@ -200,7 +202,7 @@ contains
     endif
     !! End of ARPACK communication
 
-    ASSERT(fdExc > 0)
+    @:ASSERT(fdExc > 0)
 
     ! work out which data files are required, based on whether they
     ! have valid file IDs (>0)
@@ -208,23 +210,23 @@ contains
     tCoeffs = (fdCoeffs > 0)
     tTradip = (fdTradip > 0)
 
-    ASSERT(fdArnoldi > 0)
+    @:ASSERT(fdArnoldi > 0)
     if (tArnoldi) then
       open(fdArnoldi, file=arpackOut, position="rewind", status="replace")
     end if
 
     nSpin = size(grndEigVal, dim=2)
-    ASSERT(nSpin > 0 .and. nSpin <=2)
+    @:ASSERT(nSpin > 0 .and. nSpin <=2)
 
     norb = orb%nOrb
 
-    ASSERT(present(excgrad) .eqv. present(shift))
-    ASSERT(present(shift) .eqv. present(skHamCont))
-    ASSERT(present(excgrad) .eqv. present(rhoSqr))
-    ASSERT(present(skHamCont) .eqv. present(skOverCont))
-    ASSERT(present(excgrad) .eqv. present(derivator))
+    @:ASSERT(present(excgrad) .eqv. present(shift))
+    @:ASSERT(present(shift) .eqv. present(skHamCont))
+    @:ASSERT(present(excgrad) .eqv. present(rhoSqr))
+    @:ASSERT(present(skHamCont) .eqv. present(skOverCont))
+    @:ASSERT(present(excgrad) .eqv. present(derivator))
 
-    ASSERT(present(occNatural) .eqv. present(naturalOrbs))
+    @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
 
     ! count initial number of transitions from occupied to empty states
     nxov_ud = 0
@@ -591,7 +593,7 @@ contains
 
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
-    ASSERT(all(shape(evec) == [ nxov, nexc ]))
+    @:ASSERT(all(shape(evec) == [ nxov, nexc ]))
 
     ! Three times more Lanczos vectors than desired eigenstates
     ncv = min(3 * nexc, nxov)
@@ -1269,7 +1271,7 @@ contains
     real(dp) :: tmp(size(pc,dim=1))
     integer :: iAt1
 
-    ASSERT(all(shape(pc)==shape(s)))
+    @:ASSERT(all(shape(pc)==shape(s)))
 
     tmp = sum(pc * s,dim=2)
     dqex(:) = 0.0_dp
@@ -1298,8 +1300,8 @@ contains
 
     natom = size(dq)
 
-    ASSERT(size(dq) == size(dqex))
-    ASSERT(all(shape(coord0) == [3,nAtom]))
+    @:ASSERT(size(dq) == size(dqex))
+    @:ASSERT(all(shape(coord0) == [3,nAtom]))
 
     ! Output of excited state Mulliken charges
     open(fdMulliken, file=excitedQOut,position="rewind", status="replace")
@@ -1750,7 +1752,7 @@ contains
     logical :: updwn, tSpin
     character :: sign
 
-    ASSERT(fdExc > 0)
+    @:ASSERT(fdExc > 0)
 
     tSpin = present(Ssq)
     nmat = size(wij)
@@ -1968,7 +1970,7 @@ contains
     logical :: updwn
     character :: sign
 
-    ASSERT(size(sposz)>=nxov)
+    @:ASSERT(size(sposz)>=nxov)
 
 
     if (fdSPTrans > 0) then

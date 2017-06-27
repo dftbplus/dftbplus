@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Routines to calculate contributions to the stress tensor
 module stress
-#include "assert.h"
+  use assert
   use accuracy
   use nonscc, only : NonSccDiff
   use scc
@@ -45,7 +47,7 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii
     real(dp) :: vect(3), intermed(3), prefac
     
-    ASSERT(all(shape(st)==(/ 3, 3/)))
+    @:ASSERT(all(shape(st)==(/ 3, 3/)))
     
     st(:,:) = 0.0_dp
         
@@ -87,9 +89,9 @@ contains
     integer :: ii, jj, iAtom, nAtom
     
     nAtom = size(species)
-    ASSERT(all(shape(st) == (/3, 3/)))
-    ASSERT(all(shape(velo) == (/3, nAtom/)))
-    ASSERT(size(mass) == nAtom)
+    @:ASSERT(all(shape(st) == (/3, 3/)))
+    @:ASSERT(all(shape(velo) == (/3, nAtom/)))
+    @:ASSERT(size(mass) == nAtom)
 
     st(:,:) = 0.0_dp
 
@@ -145,8 +147,8 @@ contains
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp)  :: vect(3), intermed(3)
     
-    ASSERT(all(shape(st)==(/3,3/)))
-    ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+    @:ASSERT(all(shape(st)==(/3,3/)))
+    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
     
     nAtom = size(orb%nOrbAtom)
     st(:,:) = 0.0_dp
@@ -247,13 +249,13 @@ contains
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(all(shape(st)==(/3,3/)))
-    ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
-    ASSERT(size(shift,dim=3)==nAtom)
-    ASSERT(size(DM,dim=2)==nSpin)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(all(shape(st)==(/3,3/)))
+    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=3)==nAtom)
+    @:ASSERT(size(DM,dim=2)==nSpin)
     
     st(:,:) = 0.0_dp
     
@@ -374,13 +376,13 @@ contains
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(all(shape(st)==(/3,3/)))
-    ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
-    ASSERT(size(shift,dim=3)==nAtom)
-    ASSERT(size(DM,dim=2)==nSpin)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(all(shape(st)==(/3,3/)))
+    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=3)==nAtom)
+    @:ASSERT(size(DM,dim=2)==nSpin)
     
     st(:,:) = 0.0_dp
     

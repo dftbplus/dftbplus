@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to write out various data structures in a comprehensive
 !!* tagged format.
 module taggedoutput
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
   private
@@ -186,7 +188,7 @@ contains
 
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -211,7 +213,7 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -236,7 +238,7 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -263,7 +265,7 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -291,7 +293,7 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -321,7 +323,7 @@ contains
 
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -346,7 +348,7 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -370,7 +372,7 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -397,7 +399,7 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -425,7 +427,7 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -454,7 +456,7 @@ contains
     
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -479,7 +481,7 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -503,7 +505,7 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -530,7 +532,7 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -558,7 +560,7 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -587,7 +589,7 @@ contains
     
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -612,7 +614,7 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -636,7 +638,7 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -663,7 +665,7 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -691,7 +693,7 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -717,7 +719,7 @@ contains
 
     integer :: lentrim
     
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     lentrim = len_trim(tag)
     if (lentrim >= lenLabel) then

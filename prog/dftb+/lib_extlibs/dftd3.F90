@@ -17,14 +17,14 @@ module dftd3_module
   public :: get_atomic_number
   public :: withDftD3
 
-#ifdef WITH_DFTD3
+#:if WITH_DFTD3
 
   logical, parameter :: withDftD3 = .true.
 
-#else
+#:else
 
   logical, parameter :: withDftD3 = .false.
 
-#endif
+#:endif
 
 end module dftd3_module

@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to manipulate orbital equivalency relations.
 !!* @desc An orbital equivalency relation is a mapping, which maps the orbitals
 !!* of the atoms onto a one dimensional vector, where equivalent orbitals are 
@@ -16,7 +18,7 @@
 !!* iOrb on atom iAtom for spin iSpin. Values must be positive integers and
 !!* continuous. Zeros in the mapping vector stand for non-existent orbitals.
 module orbitalequiv
-#include "assert.h"
+  use assert
   use accuracy
   use commontypes
   implicit none
@@ -47,10 +49,10 @@ contains
     nAtom = size(equiv1, dim=2)
     nSpin = size(equiv1, dim=3)
 
-    ASSERT(all(shape(equiv1) == shape(equiv2)))
-    ASSERT(all(shape(equiv1) == shape(equivNew)))
-    ASSERT(size(equiv1, dim=1) >= orb%mOrb)
-    ASSERT(all((equiv1 /= 0) .eqv. (equiv2 /=0)))
+    @:ASSERT(all(shape(equiv1) == shape(equiv2)))
+    @:ASSERT(all(shape(equiv1) == shape(equivNew)))
+    @:ASSERT(size(equiv1, dim=1) >= orb%mOrb)
+    @:ASSERT(all((equiv1 /= 0) .eqv. (equiv2 /=0)))
 
     allocate(mask(size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
     allocate(tmpMask(size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
@@ -101,9 +103,9 @@ contains
     nAtom = size(input, dim=2)
     nSpin = size(input, dim=3)
 
-    ASSERT(size(input, dim=1) == orb%mOrb)
-    ASSERT(all(shape(equiv) == (/ orb%mOrb, nAtom, nSpin /)))
-    ASSERT(size(output) == maxval(equiv))
+    @:ASSERT(size(input, dim=1) == orb%mOrb)
+    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, nAtom, nSpin /)))
+    @:ASSERT(size(output) == maxval(equiv))
 
     output(:) = 0.0_dp
     do iS = 1, nSpin
@@ -141,8 +143,8 @@ contains
     nSpin = size(output, dim=3)
     nAtom = size(output, dim=2)
 
-    ASSERT(all(shape(equiv) == shape(output)))
-    ASSERT(maxval(equiv) == size(input))
+    @:ASSERT(all(shape(equiv) == shape(output)))
+    @:ASSERT(maxval(equiv) == size(input))
 
     allocate(mask(0:size(input)))
 

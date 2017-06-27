@@ -5,8 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 module elecconstraints
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use commontypes, only : TOrbitals
   use angmomentum, only : Loperators

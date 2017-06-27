@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Calculates various types of charge populations
 !!* @todo extend to other populations than Mulliken
 !!* @author Ben Hourahine
 module populations
-#include "assert.h"
+  use assert
   use accuracy
   use constants
   use periodic
@@ -63,8 +65,8 @@ contains
     integer :: nAtom
 
     nAtom = size(orb%nOrbAtom)
-    ASSERT(size(qq) == nAtom)
-    ASSERT(size(over) == size(rho))
+    @:ASSERT(size(qq) == nAtom)
+    @:ASSERT(size(over) == size(rho))
     
     allocate(qPerOrbital(orb%mOrb, nAtom))
     qPerOrbital(:,:) = 0.0_dp
@@ -116,8 +118,8 @@ contains
 
     nAtom = size(orb%nOrbAtom)
     
-    ASSERT(all(shape(qq) == (/orb%mOrb, nAtom/)))
-    ASSERT(size(over) == size(rho))
+    @:ASSERT(all(shape(qq) == (/orb%mOrb, nAtom/)))
+    @:ASSERT(size(over) == size(rho))
     
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -179,8 +181,8 @@ contains
     
     nAtom = size(orb%nOrbAtom)
     
-    ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
-    ASSERT(size(over) == size(rho))
+    @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
+    @:ASSERT(size(over) == size(rho))
 
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -246,8 +248,8 @@ contains
     
     nAtom = size(orb%nOrbAtom)
     
-    ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
-    ASSERT(size(over) == size(rho))
+    @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
+    @:ASSERT(size(over) == size(rho))
 
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)

@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Calculates the first and second derivatives of matrix elements
 program skderivs
-#include "assert.h"  
+  use assert
   use Accuracy
   use Constants
   use Message
@@ -324,9 +326,9 @@ contains
             end if
             do mm = 0, lMin
               !! Safety check, if array size are appropriate
-              ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
-              ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
-              ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
+              @:ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
+              @:ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
+              @:ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
               skHam(:,ind) = pHam(:,skMap(mm,lMax,lMin))
               skOver(:,ind) = pOver(:,skMap(mm,lMax,lMin))
               ind = ind + 1

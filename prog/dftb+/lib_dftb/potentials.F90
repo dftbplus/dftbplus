@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module to wrap around the different shift contributions in the DFTB 
 !!* energy expressions
 module potentials
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use commontypes
   implicit none
@@ -53,11 +55,11 @@ contains
     integer, intent(in) :: nAtom
     integer, intent(in) :: nSpin
     
-    ASSERT(.not. self%tInitialised)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(nAtom > 0)
-    ASSERT(orb%mShell > 0)
-    ASSERT(orb%mOrb > 0)
+    @:ASSERT(.not. self%tInitialised)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(orb%mShell > 0)
+    @:ASSERT(orb%mOrb > 0)
     
     allocate(self%intAtom(nAtom,nSpin))
     allocate(self%intShell(orb%mShell,nAtom,nSpin))

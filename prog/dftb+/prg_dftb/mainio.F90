@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Various I/O routines for the main program.
 module mainio
-#include "assert.h"
+  use assert
   use accuracy
   use constants
   use periodic
@@ -95,7 +97,7 @@ contains
     integer :: ii, jj
     real(dp), allocatable :: rVecTemp(:)
     
-    ASSERT(nSpin == 1 .or. nSpin == 2)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2)
     
     close(fdEigvec) ! just to be on the safe side
     ! Write eigenvalues in binary form
@@ -400,10 +402,10 @@ contains
 
     
     nReg = len(iOrbRegion)
-    ASSERT(len(filenames) == nReg)
+    @:ASSERT(len(filenames) == nReg)
     
-    ASSERT(size(fdProjEig) == nReg)
-    ASSERT(all(fdProjEig > 0))
+    @:ASSERT(size(fdProjEig) == nReg)
+    @:ASSERT(all(fdProjEig > 0))
     
     do ii = 1, nReg
       call get(filenames, tmpStr, ii)
@@ -498,11 +500,11 @@ contains
     
     nK = size(kPoint, dim=2)
     nReg = len(iOrbRegion)
-    ASSERT(len(filenames) == nReg)
-    ASSERT(size(kweight) == nK)
+    @:ASSERT(len(filenames) == nReg)
+    @:ASSERT(size(kweight) == nK)
     
-    ASSERT(size(fdProjEig) == nReg)
-    ASSERT(all(fdProjEig > 0))
+    @:ASSERT(size(fdProjEig) == nReg)
+    @:ASSERT(all(fdProjEig > 0))
     
     do ii = 1, nReg
       call get(filenames, tmpStr, ii)

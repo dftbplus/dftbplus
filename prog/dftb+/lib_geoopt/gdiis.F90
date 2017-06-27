@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains a geometry DIIS optimizer interface.
 module gdiis
-# include "assert.h"  
+  use assert
   use accuracy
   use diismixer
   implicit none
@@ -77,9 +79,9 @@ contains
     real(dp), intent(out) :: xNew(:)
     logical,  intent(out) :: tConverged
 
-    ASSERT(self%tInitialized)
-    ASSERT(size(xNew) == self%nElem)
-    ASSERT(size(dx) == self%nElem)
+    @:ASSERT(self%tInitialized)
+    @:ASSERT(size(xNew) == self%nElem)
+    @:ASSERT(size(dx) == self%nElem)
 
     xNew = self%x
     call mix(self%pDIIS,self%x,dx)

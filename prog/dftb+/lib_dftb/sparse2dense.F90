@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains subroutines for packing/unpacking Hamiltonian-like matrices
 !!* between the square and 1-dimensional representations
 module sparse2dense
-#include "assert.h"
+  use assert
   use accuracy
   use constants, only : pi
   use commontypes
@@ -108,12 +110,12 @@ contains
 
     nAtom = size(iNeighbor, dim=2)
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    ASSERT(all(shape(kPoint) == (/ 3 /)))
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
+    @:ASSERT(all(shape(kPoint) == (/ 3 /)))
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     square(:,:) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
@@ -127,7 +129,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
@@ -184,12 +186,12 @@ contains
 
     nAtom = size(iNeighbor, dim=2)
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) -1)
-    ASSERT(all(shape(kPoint) == (/ 3 /)))
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) -1)
+    @:ASSERT(all(shape(kPoint) == (/ 3 /)))
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     square(:,:) = 0.0_dp
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
@@ -203,7 +205,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
@@ -248,11 +250,11 @@ contains
 
     nAtom = size(iNeighbor, dim=2)
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     square(:,:) = 0.0_dp
 
@@ -264,7 +266,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = &
             & square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) &
@@ -312,18 +314,22 @@ contains
     integer     :: nOrb1, nOrb2
     real(dp)    :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    ASSERT_ENV(sizePrim = size(primitive))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    ASSERT(all(shape(kPoint) == (/ 3 /)))
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(kWeight > 0.0_dp)
-    ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
+    @:ASSERT(all(shape(kPoint) == (/ 3 /)))
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(kWeight > 0.0_dp)
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
@@ -336,7 +342,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
@@ -353,7 +359,7 @@ contains
           end do
         end if
 
-        ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+        @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
             & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
             &+ kWeight &
@@ -394,15 +400,19 @@ contains
     integer     :: iAtom1, iAtom2, iAtom2f
     integer     :: nOrb1, nOrb2
     real(dp)    :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    ASSERT_ENV(sizePrim = size(primitive))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
 
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
@@ -412,7 +422,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
 
@@ -423,7 +433,7 @@ contains
           end do
         end if
 
-        ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+        @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
             &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
             &+ reshape(tmpSqr(1:nOrb2,1:nOrb1), (/nOrb1*nOrb2/))
@@ -461,20 +471,24 @@ contains
     integer     :: iAtom1, iAtom2, iAtom2f
     integer     :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE  
 
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
                                      ! spin block
 
-    ASSERT_ENV(sizePrim = size(primitive,dim=1))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive,dim=1)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == 2 * nOrb )
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
-    ASSERT(size(primitive,dim=2)==4)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == 2 * nOrb )
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(size(primitive,dim=2)==4)
 
 
     do iBlock = 0, 1
@@ -486,7 +500,7 @@ contains
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
-          ASSERT(jj >= ii)
+          @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f+1) - jj
           tmpSqr(1:nOrb2, 1:nOrb1) = &
               & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
@@ -498,7 +512,7 @@ contains
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
-          ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) = &
               &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) &
               &+ 0.5_dp*reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
@@ -518,7 +532,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         ! take the Hermitian part of the block
         tmpSqr(1:nOrb2, 1:nOrb1) = &
@@ -526,7 +540,7 @@ contains
             & ii:ii+nOrb1-1) &
             & + transpose(square(nOrb+ii:nOrb+ii+nOrb1-1, &
             & jj:jj+nOrb2-1)))
-        ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+        @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) = &
             &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) &
             &+ reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
@@ -574,22 +588,26 @@ contains
     integer     :: nOrb1, nOrb2, nOrb
     real(dp)    :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
-
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
+      
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
                                      ! spin block
 
-    ASSERT_ENV(sizePrim = size(primitive,dim=1))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive,dim=1)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == 2 * nOrb )
-    ASSERT(all(shape(kPoint) == (/ 3 /)))
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
-    ASSERT(kWeight > 0.0_dp)
-    ASSERT(size(primitive,dim=2)==4)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == 2 * nOrb )
+    @:ASSERT(all(shape(kPoint) == (/ 3 /)))
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(kWeight > 0.0_dp)
+    @:ASSERT(size(primitive,dim=2)==4)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
 
@@ -605,7 +623,7 @@ contains
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
-          ASSERT(jj >= ii)
+          @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f+1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
@@ -623,7 +641,7 @@ contains
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
-          ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) = &
               & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) &
               &+ kWeight * 0.5_dp*reshape(real(phase* &
@@ -648,7 +666,7 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
@@ -656,7 +674,7 @@ contains
               &* dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+        @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         ! take the Pauli part of the block
 
         tmpSqr(1:nOrb2, 1:nOrb1) = &
@@ -720,20 +738,24 @@ contains
     integer     :: iAtom1, iAtom2, iAtom2f
     integer     :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
                                      ! spin block
 
-    ASSERT_ENV(sizePrim = size(primitive,dim=1))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive,dim=1)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == 2 * nOrb )
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
-    ASSERT(size(primitive,dim=2)==4)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == 2 * nOrb )
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(size(primitive,dim=2)==4)
 
 
     do iBlock = 0, 1
@@ -745,7 +767,7 @@ contains
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
-          ASSERT(jj >= ii)
+          @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f+1) - jj
           tmpSqr(1:nOrb2, 1:nOrb1) = &
               & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
@@ -757,7 +779,7 @@ contains
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
-          ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) = &
               &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) &
               &+ 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
@@ -777,13 +799,13 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         ! take the anti-Hermitian part of the block
         tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( &
             & square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1) &
             & - transpose(square(nOrb+ii:nOrb+ii+nOrb1-1,jj:jj+nOrb2-1)))
-        ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+        @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         ! sigma_x : i * 1 = i use + imaginary part of block
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) = &
             & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) &
@@ -837,22 +859,26 @@ contains
     integer     :: nOrb1, nOrb2, nOrb
     real(dp)    :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
                                      ! spin block
 
-    ASSERT_ENV(sizePrim = size(primitive,dim=1))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive,dim=1)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == 2 * nOrb )
-    ASSERT(all(shape(kPoint) == (/ 3 /)))
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
-    ASSERT(kWeight > 0.0_dp)
-    ASSERT(size(primitive,dim=2)==4)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == 2 * nOrb )
+    @:ASSERT(all(shape(kPoint) == (/ 3 /)))
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(kWeight > 0.0_dp)
+    @:ASSERT(size(primitive,dim=2)==4)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
 
@@ -868,7 +894,7 @@ contains
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
-          ASSERT(jj >= ii)
+          @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f+1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
@@ -887,7 +913,7 @@ contains
             end do
           end if
           tmpSqr = phase*kWeight*tmpSqr
-          ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) = &
               &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) &
               &+ 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
@@ -910,14 +936,14 @@ contains
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
-        ASSERT(jj >= ii)
+        @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp(cmplx(0,-1,dp)*dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+        @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
 
         ! take the anti-Hermitian part of the block
         tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( &
@@ -975,18 +1001,22 @@ contains
     integer     :: iAtom1, iAtom2, iAtom2f
     integer     :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular spin block
 
-    ASSERT_ENV(sizePrim = size(primitive,dim=1))
+  #:call ASSERT_CODE
+    sizePrim = size(primitive,dim=1)
+  #:endcall ASSERT_CODE
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == 2 * nOrb )
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == 2 * nOrb )
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     do iBlock = 0, 1
       do iAtom1 = 1, nAtom
@@ -997,7 +1027,7 @@ contains
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
-          ASSERT(jj >= ii)
+          @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f+1) - jj
           tmpSqr(1:nOrb2, 1:nOrb1) = &
               & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
@@ -1009,7 +1039,7 @@ contains
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
-          ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
               &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
               & + reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
@@ -1056,21 +1086,24 @@ contains
     integer     :: nOrb1, nOrb2, nOrb
     real(dp)    :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
-    ASSERT_ENV(integer :: sizePrim)
+  #:call ASSERT_CODE
+    integer :: sizePrim
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
                                      ! spin block
-
-    ASSERT_ENV(sizePrim = size(primitive,dim=1))
-
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == 2 * nOrb )
-    ASSERT(all(shape(kPoint) == (/ 3 /)))
-    ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
-    ASSERT(size(iAtomStart) == nAtom + 1)
-    ASSERT(kWeight > 0.0_dp)
+  #:call ASSERT_CODE
+    sizePrim = size(primitive,dim=1)
+  #:endcall ASSERT_CODE
+    
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == 2 * nOrb )
+    @:ASSERT(all(shape(kPoint) == (/ 3 /)))
+    @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(kWeight > 0.0_dp)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
 
@@ -1085,7 +1118,7 @@ contains
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
-          ASSERT(jj >= ii)
+          @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f+1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
@@ -1103,7 +1136,7 @@ contains
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
-          ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
+          @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
               & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) + kWeight * &
               & reshape(real(phase*tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
@@ -1126,10 +1159,10 @@ contains
     nAtom = size(iAtomStart, dim=1) - 1
     mOrb = iAtomStart(nAtom+1) - 1
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
-    ASSERT(size(square, dim=1) == mOrb)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
+    @:ASSERT(size(square, dim=1) == mOrb)
 
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
@@ -1154,10 +1187,10 @@ contains
     nAtom = size(iAtomStart, dim=1) - 1
     mOrb = iAtomStart(nAtom+1) - 1
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
-    ASSERT(size(square, dim=1) == mOrb)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
+    @:ASSERT(size(square, dim=1) == mOrb)
 
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
@@ -1181,9 +1214,9 @@ contains
     nAtom = size(iAtomStart) - 1
     mOrb = iAtomStart(nAtom+1) - 1
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == mOrb)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == mOrb)
 
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
@@ -1208,9 +1241,9 @@ contains
     nAtom = size(iAtomStart) - 1
     mOrb = iAtomStart(nAtom+1) - 1
 
-    ASSERT(nAtom > 0)
-    ASSERT(size(square, dim=1) == size(square, dim=2))
-    ASSERT(size(square, dim=1) == mOrb)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == mOrb)
 
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)

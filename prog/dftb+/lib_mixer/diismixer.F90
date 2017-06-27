@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains an DIIS mixer
 !!* @description
 !!*   The DIIS mixing is done by building a weighted combination over the
@@ -15,7 +17,7 @@
 !!* @note In order to use the mixer you have to create and reset it.
 !!* @ref Kovalenko et al. J. Comput. Chem., 20: 928–936 1999
 module diismixer
-#include "assert.h"  
+  use assert
   use accuracy
   use lapackroutines, only : gesv
   implicit none
@@ -76,7 +78,7 @@ contains
     logical, intent(in), optional  :: tFromStart
     real(dp), intent(in), optional :: alpha
     
-    ASSERT(nGeneration >= 2)
+    @:ASSERT(nGeneration >= 2)
     
     self%nElem = 0
     self%mPrevVector = nGeneration
@@ -115,7 +117,7 @@ contains
     integer, intent(in) :: nElem
     
 
-    ASSERT(nElem > 0)
+    @:ASSERT(nElem > 0)
     
     if (nElem /= self%nElem) then
       self%nElem = nElem
@@ -147,8 +149,8 @@ contains
     real(dp), allocatable :: aa(:,:), bb(:,:)
     integer :: ii, jj
     
-    ASSERT(size(qInpResult) == self%nElem)
-    ASSERT(size(qDiff) == self%nElem)
+    @:ASSERT(size(qInpResult) == self%nElem)
+    @:ASSERT(size(qDiff) == self%nElem)
     
     if (self%iPrevVector < self%mPrevVector) then
       self%iPrevVector = self%iPrevVector + 1

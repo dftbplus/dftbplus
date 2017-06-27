@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module for initializing SCC part of the calculation
 module sccinit
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use fileid
@@ -49,13 +51,13 @@ contains
 
     nAtom = size(orb%nOrbAtom)
 
-    ASSERT(size(fOrb, dim=1) == orb%mOrb)
-    ASSERT(size(fOrb, dim=2) == nAtom)
-    ASSERT(size(fOrb, dim=3) >= 1)
-    ASSERT(size(fRefShell, dim=1) >= orb%mShell)
-    ASSERT(size(fRefShell, dim=2) == size(orb%nShell))
-    ASSERT(size(species) == nAtom)
-    ASSERT(size(speciesNames) == size(orb%nShell))
+    @:ASSERT(size(fOrb, dim=1) == orb%mOrb)
+    @:ASSERT(size(fOrb, dim=2) == nAtom)
+    @:ASSERT(size(fOrb, dim=3) >= 1)
+    @:ASSERT(size(fRefShell, dim=1) >= orb%mShell)
+    @:ASSERT(size(fRefShell, dim=2) == size(orb%nShell))
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesNames) == size(orb%nShell))
 
     fOrb = 0.0_dp
     !! fill degenerately over m for each shell l
@@ -102,12 +104,12 @@ contains
 
     nAtom = size(orb%nOrbAtom)
 
-    ASSERT(size(qq, dim=1) == orb%mOrb)
-    ASSERT(size(qq, dim=2) == nAtom)
-    ASSERT(size(qq, dim=3) >= 1)
-    ASSERT(size(qShell, dim=1) == orb%mShell)
-    ASSERT(size(qShell, dim=2) == size(orb%angShell, dim=2))
-    ASSERT(size(species) == nAtom)
+    @:ASSERT(size(qq, dim=1) == orb%mOrb)
+    @:ASSERT(size(qq, dim=2) == nAtom)
+    @:ASSERT(size(qq, dim=3) >= 1)
+    @:ASSERT(size(qShell, dim=1) == orb%mShell)
+    @:ASSERT(size(qShell, dim=2) == size(orb%angShell, dim=2))
+    @:ASSERT(size(species) == nAtom)
 
     qq(:,:,:) = 0.0_dp
     !! fill degenerately over m for each shell l
@@ -163,20 +165,22 @@ contains
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
 
-    ASSERT(size(qq, dim=1) == orb%mOrb)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT_ENV(if (present(magnetisation)) then)
-    ASSERT_ENV(ASSERT(nSpin==2))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(qq, dim=1) == orb%mOrb)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+  #:call ASSERT_CODE
+    if (present(magnetisation)) then
+      @:ASSERT(nSpin==2)
+    end if
     
-    ASSERT_ENV(if (present(qBlock)) then)
-    ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
-    ASSERT_ENV(end if)
+    if (present(qBlock)) then
+      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+    end if
 
-    ASSERT_ENV(if (present(qiBlock)) then)
-    ASSERT(present(qBlock))
-    ASSERT(all(shape(qiBlock) == shape(qBlock)))
-    ASSERT_ENV(end if)
+    if (present(qiBlock)) then
+      @:ASSERT(present(qBlock))
+      @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
+    end if
+  #:endcall ASSERT_CODE    
     
     if (file == -1) then
       file = getFileId()
@@ -334,20 +338,22 @@ contains
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    ASSERT(size(qq, dim=1) >= orb%mOrb)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
+    @:ASSERT(size(qq, dim=1) >= orb%mOrb)
 
     tqBlock = present(qBlock)
     tqiBlock = present(qiBlock)
-    
-    ASSERT_ENV(if (tqBlock) then)
-    ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
-    ASSERT_ENV(end if)
 
-    ASSERT_ENV(if (present(qiBlock)) then)
-    ASSERT(present(qBlock))
-    ASSERT(all(shape(qiBlock) == shape(qBlock)))
-    ASSERT_ENV(end if)
+  #:call ASSERT_CODE
+    if (tqBlock) then
+      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+    end if
+
+    if (present(qiBlock)) then
+      @:ASSERT(present(qBlock))
+      @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
+    end if
+  #:endcall ASSERT_CODE
     
     if (file == -1) then
       file = getFileId()

@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains high level functions for converting the values in a XML/HSD 
 !!* DOM-tree to Fortran intrinsic types.
 !!* @todo Some more routines for complex numbers?
 module hsdutils
-#include "assert.h"
+  use assert
   use xmlf90
   use tokenreader
   use hsdparser
@@ -183,7 +185,7 @@ contains
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -238,10 +240,12 @@ contains
     integer :: iStart, iErr, nReadItem
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -305,7 +309,7 @@ contains
     type(fnode), pointer :: child2
     logical :: tMultiple
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (present(multiple)) then
       tMultiple = multiple
@@ -367,7 +371,7 @@ contains
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -425,10 +429,12 @@ contains
     integer :: iStart, iErr, nReadItem
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
     
     if (present(nItem)) then
       nItem = 0
@@ -498,10 +504,12 @@ contains
     type(string) :: modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     nReadItem = 0
     value = 0.0_dp
@@ -550,7 +558,7 @@ contains
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -607,10 +615,12 @@ contains
     integer :: iStart, iErr, nReadItem
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -679,10 +689,12 @@ contains
     type(string) :: modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     nReadItem = 0
     if (present(default)) then
@@ -732,7 +744,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
       call getAttribute(child2, attrModifier, modif)
@@ -802,7 +814,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -876,7 +888,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -951,7 +963,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1024,7 +1036,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1107,9 +1119,9 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT(dimInt > 0)
-    ASSERT(dimReal > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(dimInt > 0)
+    @:ASSERT(dimReal > 0)
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1209,9 +1221,9 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT(dimInt > 0)
-    ASSERT(dimReal > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(dimInt > 0)
+    @:ASSERT(dimReal > 0)
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1315,13 +1327,15 @@ contains
     type(fnode), pointer :: child2
     logical :: tList, tAllowEmptyVal, tDummyValue
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(  if (len(default) == 0) then)
-    ASSERT_ENV(    ASSERT(present(allowEmptyValue)))
-    ASSERT_ENV(    ASSERT(allowEmptyValue))
-    ASSERT_ENV(  end if)
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      if (len(default) == 0) then
+        @:ASSERT(present(allowEmptyValue))
+        @:ASSERT(allowEmptyValue)
+      end if
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(list)) then
       tList = list
@@ -1592,7 +1606,7 @@ contains
     logical :: tRequested
     type(string) :: modif
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (present(requested)) then
       tRequested = requested
@@ -2503,7 +2517,7 @@ contains
     integer :: ii, jj
     
     nRow = size(intValue, dim=2)
-    ASSERT(size(realValue, dim=2) == nRow)
+    @:ASSERT(size(realValue, dim=2) == nRow)
     
     nCol1 = size(intValue, dim=1)
     nCol2 = size(realValue, dim=1)
@@ -2607,8 +2621,8 @@ contains
     integer :: ii, jj
     
     nRow = size(charValue)
-    ASSERT(size(intValue, dim=2) == nRow)
-    ASSERT(size(realValue, dim=2) == nRow)
+    @:ASSERT(size(intValue, dim=2) == nRow)
+    @:ASSERT(size(realValue, dim=2) == nRow)
     
     nCol1 = size(intValue, dim=1)
     nCol2 = size(realValue, dim=1)

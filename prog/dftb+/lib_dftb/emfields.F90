@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module for external electromagnetic fields - currently scalar magnetic field
 module emfields
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use constants
   use angmomentum, only : Loperators

@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module containing routines for numerical second derivs of energy using
 !!* central finite difference.
 !!* @todo Add option to restart the calculation
 module numderivs2
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
   private
@@ -66,7 +68,7 @@ contains
     
     integer :: nDerivs
     
-    ASSERT(size(xInit,dim=1)==3)
+    @:ASSERT(size(xInit,dim=1)==3)
     nDerivs = size(xInit,dim=2)
     
     allocate(self)
@@ -103,8 +105,8 @@ contains
     
     integer :: ii, jj
     
-    ASSERT(all(shape(xNew)==shape(fOld)))
-    ASSERT(all(shape(xNew)==(/3,self%nDerivs/)))
+    @:ASSERT(all(shape(xNew)==shape(fOld)))
+    @:ASSERT(all(shape(xNew)==(/3,self%nDerivs/)))
     
     if (self%iAtom==self%nDerivs .and. self%iComponent == 3 .and. &
         & self%iDelta > 0.0_dp) then

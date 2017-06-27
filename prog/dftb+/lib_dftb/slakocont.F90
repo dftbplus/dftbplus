@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Container module for the Slater-Koster data
 !!* @desc This module contains the Slater-Koster tables. It decides, which
 !!* one to call for which species. It can be easily extended to contain
 !!* different Slater-Koster schemes for different species. At the moment,
 !!* it handles only Slater-Koster data tabulated on an equidistant grid.
 module slakocont
-#include "assert.h"  
+  use assert
   use accuracy
   use slakoeqgrid
   implicit none
@@ -74,7 +76,7 @@ contains
     type(OSlakoCont), intent(out) :: self
     integer, intent(in) :: nSpecies
 
-    ASSERT(.not. self%tInit)
+    @:ASSERT(.not. self%tInit)
 
     self%nSpecies = nSpecies
     allocate(self%slakos(nSpecies, nSpecies))
@@ -96,7 +98,7 @@ contains
     type(OSlakoEqGrid), allocatable, intent(inout) :: pTable
     integer, intent(in) :: iSp1, iSp2
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
     self%mInt = max(self%mInt, getNIntegrals(pTable))
     self%cutoff = max(self%cutoff, getCutoff(pTable))
     self%slakos(iSp2, iSp1)%iType = 1
@@ -133,7 +135,7 @@ contains
     type(OSlakoCont), intent(in) :: self
     real(dp) :: cutoff
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
     cutoff = self%cutoff
 
   end function SlakoCont_getCutoff
@@ -152,7 +154,7 @@ contains
     real(dp), intent(in) :: dist
     integer, intent(in) :: sp1, sp2
 
-    ASSERT(self%tInit .and. self%tDataOK)
+    @:ASSERT(self%tInit .and. self%tDataOK)
     call getSKIntegrals(self%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
 
   end subroutine SlakoCont_getSKIntegrals

@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* contains some miscellaneous QM related bits and pieces.
 module qm
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   
   implicit none
@@ -36,9 +38,9 @@ contains
     complex(dp), intent(in)  :: A(:,:)
     complex(dp), intent(in)  :: B(:,:)
 
-    ASSERT(all(shape(C)==shape(A)))
-    ASSERT(all(shape(C)==shape(B)))
-    ASSERT(size(C,dim=1)==size(C,dim=2))
+    @:ASSERT(all(shape(C)==shape(A)))
+    @:ASSERT(all(shape(C)==shape(B)))
+    @:ASSERT(size(C,dim=1)==size(C,dim=2))
     
     C = matmul(A,B) - matmul(B,A)
     
@@ -54,8 +56,8 @@ contains
     
     complex(dp) :: work(size(xx,dim=1),size(xx,dim=2))
     
-    ASSERT(all(shape(xx) == shape(uu)))
-    ASSERT(size(xx, dim=1) == size(xx, dim=2))
+    @:ASSERT(all(shape(xx) == shape(uu)))
+    @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
     
     work = matmul(xx, transpose(conjg(uu)))
     xx = matmul(uu, work)
@@ -72,8 +74,8 @@ contains
     
     real(dp) :: work(size(xx,dim=1),size(xx,dim=2))
     
-    ASSERT(all(shape(xx) == shape(uu)))
-    ASSERT(size(xx, dim=1) == size(xx, dim=2))
+    @:ASSERT(all(shape(xx) == shape(uu)))
+    @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
     
     work = matmul(xx, transpose(uu))
     xx = matmul(uu, work)

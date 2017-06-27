@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains the routines for initialising modes.
 module InitProgram
-#include "assert.h"
+  use assert
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
   use HSDUtils

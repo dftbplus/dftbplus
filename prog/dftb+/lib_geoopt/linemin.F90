@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Line minimization iterator for arbitary function using its gradient.
 !!* @desc
 !!*   The line minimization algorithm is working in the following way:
@@ -37,7 +39,7 @@
 !!*     </li>
 !!*   </ol>
 module linemin
-#include "assert.h"
+  use assert
   use accuracy
   use constants, only : goldenMeanP1
   implicit none
@@ -123,10 +125,10 @@ contains
     real(dp), intent(in) :: tolerance
     real(dp), intent(in) :: maxDisp
 
-    ASSERT(nElem > 0)
-    ASSERT(mIter > 3)
-    ASSERT(tolerance > 0.0_dp)
-    ASSERT(maxDisp > 0.0_dp)
+    @:ASSERT(nElem > 0)
+    @:ASSERT(mIter > 3)
+    @:ASSERT(tolerance > 0.0_dp)
+    @:ASSERT(maxDisp > 0.0_dp)
     
     self%nElem = nElem
     allocate(self%x0(nElem))
@@ -151,8 +153,8 @@ contains
 
     real(dp) :: tmp
     
-    ASSERT(size(x0) == self%nElem)
-    ASSERT(size(d0) == self%nElem)
+    @:ASSERT(size(x0) == self%nElem)
+    @:ASSERT(size(d0) == self%nElem)
 
     self%state = st_1
     self%iIter = 0
@@ -190,9 +192,9 @@ contains
     real(dp), intent(out) :: xNew(:)
     logical,  intent(out) :: tConverged
     
-    ASSERT(self%tInitialized)
-    ASSERT(size(xNew) == self%nElem)
-    ASSERT(size(dx) == self%nElem)
+    @:ASSERT(self%tInitialized)
+    @:ASSERT(size(xNew) == self%nElem)
+    @:ASSERT(size(dx) == self%nElem)
 
     if (.not. self%tConverged) then
       call next_local(self%state, self%mIter, self%iIter, self%xCur, &
@@ -245,11 +247,11 @@ contains
     logical  :: tDone
     integer  :: nextState
 
-    ASSERT(size(uu) == size(x0))
-    ASSERT(size(uu) == size(d0))
-    ASSERT(size(uu) == size(du))
-    ASSERT(size(xx) == 2)
-    ASSERT(size(dx) == 2)
+    @:ASSERT(size(uu) == size(x0))
+    @:ASSERT(size(uu) == size(d0))
+    @:ASSERT(size(uu) == size(du))
+    @:ASSERT(size(xx) == 2)
+    @:ASSERT(size(dx) == 2)
 
     iIter = iIter + 1
     !! Projected derivative

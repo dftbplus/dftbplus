@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Calculate either the whole single particle density matrix and energy
 !!* weighted density matrix or only the elements dictated by a neighbor map.
 !!* Calculation of the whole matrix scales as O(N**3), the sparse form as 
@@ -14,7 +16,7 @@
 !!* @caveat The routines create the transposed and complex conjugated of
 !!*   the density matrices! (cc* instead of the conventional c*c)
 module densitymatrix
-#include "assert.h"
+  use assert
   use accuracy
   use blasroutines
   use sorting
@@ -59,9 +61,9 @@ contains
     integer  :: ii, nLevels
     real(dp) :: shift
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
 
     dm(:,:) = 0.0_dp
         do ii =  size(filling), 1, -1
@@ -125,9 +127,9 @@ contains
     integer :: ii, nLevels
     real(dp) :: shift
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
     
     dm(:,:) = cmplx(0.0_dp,0.0_dp,dp)
 
@@ -194,10 +196,10 @@ contains
     real(dp) :: shift
     real(dp) :: fillProduct(size(filling))
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
-    ASSERT(size(eigen) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(size(eigen) == size(filling))
 
     dm(:,:) = 0.0_dp
     do ii =  size(filling), 1, -1
@@ -269,10 +271,10 @@ contains
     real(dp) :: shift
     real(dp) :: fillProduct(size(filling))
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
-    ASSERT(size(eigen) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(size(eigen) == size(filling))
 
     dm(:,:) = cmplx(0.0_dp,0.0_dp,dp)
 
@@ -354,9 +356,9 @@ contains
     integer, allocatable     :: nInCellNeighbor(:)
     real(dp), allocatable    :: tmpEigen(:,:)
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
 
     allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
     allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
@@ -439,9 +441,9 @@ contains
     integer, allocatable     :: nInCellNeighbor(:)
     complex(dp), allocatable :: tmpEigen(:,:)
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
 
     allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
     allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
@@ -529,10 +531,10 @@ contains
     real(dp), allocatable    :: tmpEigen(:,:)
 
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
-    ASSERT(size(eigen) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(size(eigen) == size(filling))
 
     allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
     allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
@@ -617,10 +619,10 @@ contains
     integer, allocatable     :: nInCellNeighbor(:)
     complex(dp), allocatable :: tmpEigen(:,:)
 
-    ASSERT(all(shape(eigenvecs) == shape(dm)))
-    ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
-    ASSERT(size(eigenvecs,dim=1) == size(filling))
-    ASSERT(size(eigen) == size(filling))
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
+    @:ASSERT(size(eigenvecs,dim=1) == size(filling))
+    @:ASSERT(size(eigen) == size(filling))
 
     allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
     allocate(nInCellNeighbor(size(iNeighbor,dim=2)))

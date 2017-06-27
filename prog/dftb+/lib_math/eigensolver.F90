@@ -5,11 +5,14 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains F90 wrapper functions for some commonly used lapack calls needed
 !!* in the code
 !!* @caveat contains some fixes for lapack 3.0 bugs, if this gets corrected in
 !!* lapack 4.x they should be removed
 module eigensolver
+  use assert
   use message
   use accuracy, only : rsp, rdp
   use blas
@@ -138,8 +141,6 @@ contains
 
   !!* Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
-#include "assert.h"    
-    implicit none
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(out) :: w(:)
     real(rsp), allocatable :: work(:)
@@ -148,11 +149,11 @@ contains
     integer n, info
     integer :: int_idealwork
     real(rsp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     call ssyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
     if (info/=0) then
       call error("Failue in SSYEV to determine optimum workspace")
@@ -178,8 +179,6 @@ contains
 
   !!* Double precision eigensolver for a symmetric matrix
   Subroutine dble_dsyev(a,w,uplo,jobz)
-#include "assert.h"    
-    implicit none
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(out) :: w(:)
     real(rdp), allocatable :: work(:)
@@ -188,11 +187,11 @@ contains
     integer n, info
     integer :: int_idealwork
     real(rdp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     call dsyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
     if (info/=0) then
       call error("Failue in DSYEV to determine optimum workspace")
@@ -218,8 +217,6 @@ contains
 
   !!* Complex eigensolver for a Hermitian matrix
   Subroutine cmplx_cheev(a,w,uplo,jobz)
-#include "assert.h"
-    implicit none
     complex(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(out) :: w(:)
     character, intent(in) :: uplo
@@ -229,11 +226,11 @@ contains
     integer n, info
     integer :: int_idealwork
     complex(rsp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     allocate(rwork(3*n-2))
     call CHEEV(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
@@ -260,8 +257,6 @@ contains
 
   !!* Double complex eigensolver for a Hermitian matrix
   Subroutine dblecmplx_zheev(a,w,uplo,jobz)
-#include "assert.h"
-    implicit none
     complex(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(out) :: w(:)
     character, intent(in) :: uplo
@@ -271,11 +266,11 @@ contains
     integer n, info
     integer :: int_idealwork
     complex(rdp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     allocate(rwork(3*n-2))
     call ZHEEV(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
@@ -303,8 +298,6 @@ contains
 
   !!* Real eigensolver for generalized symmetric matrix problem
   Subroutine real_ssygv(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    implicit none
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
     real(rsp), intent(out) :: w(:)
@@ -315,18 +308,18 @@ contains
     integer n, info, iitype
     integer :: int_idealwork
     real(rsp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call SSYGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
        call error("Failue in SSYGV to determine optimum workspace")
@@ -357,8 +350,6 @@ contains
 
   !!* Double precision eigensolver for generalized symmetric matrix problem
   Subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    implicit none
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(inout) :: b(:,:)
     real(rdp), intent(out) :: w(:)
@@ -369,18 +360,18 @@ contains
     integer n, info, iitype
     integer :: int_idealwork
     real(rdp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call DSYGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
        call error("Failue in DSYGV to determine optimum workspace")
@@ -411,8 +402,6 @@ contains
 
   !!* Complex eigensolver for generalized Hermitian matrix problem
   Subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    implicit none
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
     real(rsp), intent(out) :: w(:)
@@ -424,18 +413,18 @@ contains
     integer n, info, iitype
     integer ::  NB, LWKOPT
 
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     allocate(rwork(3*n-2))
 !   Bugfix for fault in allocation query in zhegv. Should be removed if
 !   lapack gets fixed
@@ -488,8 +477,6 @@ contains
 
   !!* Double complex eigensolver for generalized Hermitian matrix problem
   Subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    implicit none
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
     real(rdp), intent(out) :: w(:)
@@ -501,18 +488,18 @@ contains
     integer n, info, iitype
     integer ::  NB, LWKOPT
 
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     allocate(rwork(3*n-2))
 !   Bugfix for fault in allocation query in zhegv. Should be removed if
 !   lapack gets fixed
@@ -566,8 +553,6 @@ contains
   !!* Real eigensolver for generalized symmetric matrix problem - divide and
   !!* conquer  
   Subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    implicit none
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
     real(rsp), intent(out) :: w(:)
@@ -579,18 +564,18 @@ contains
     integer :: int_idealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     real(rsp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call SSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
          & iidealwork, -1, info)
     if (info/=0) then
@@ -625,8 +610,6 @@ contains
   !!* Double precision eigensolver for generalized symmetric matrix problem
   !!* divide and conquer
   Subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    implicit none
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(inout) ::  b(:,:)
     real(rdp), intent(out) :: w(:)
@@ -638,18 +621,18 @@ contains
     integer :: int_idealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     real(rdp) :: idealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call DSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & iidealwork, -1, info)
     if (info/=0) then
@@ -684,8 +667,6 @@ contains
   !!* Complex eigensolver for generalized Hermitian matrix problem divide and
   !!* conquer  
   Subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    Implicit None
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
     real(rsp), intent(out) :: w(:)
@@ -699,18 +680,18 @@ contains
     integer, allocatable :: iwork(:)
     complex(rsp) :: idealwork(1)
     real(rsp) :: ridealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call CHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
@@ -747,8 +728,6 @@ contains
   !!* Double complex eigensolver for generalized Hermitian matrix problem
   !!* divide and conquer
   Subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
-#include "assert.h"    
-    Implicit None
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
     real(rdp), intent(out) :: w(:)
@@ -762,18 +741,18 @@ contains
     integer, allocatable :: iwork(:)
     complex(rdp) :: idealwork(1)
     real(rdp) :: ridealwork(1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(all(shape(a)==size(w,dim=1)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
-    ASSERT(n>0)
+    @:ASSERT(n>0)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call ZHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
@@ -815,8 +794,6 @@ contains
   !!* allocation that was in the previous version)
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
   subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "assert.h"
-    implicit none
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
     real(rsp), intent(out) :: w(:)
@@ -847,19 +824,19 @@ contains
 
     n = size(a, dim=1)
 
-    ASSERT(n > 0)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(present(ilIn) .eqv. present(iuIn))
+    @:ASSERT(n > 0)
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(present(ilIn) .eqv. present(iuIn))
     
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
-        ASSERT(ilIn <= iuIn)
-        ASSERT(ilIn > 0)
-        ASSERT(n >= iuIn)
-        ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
+        @:ASSERT(ilIn <= iuIn)
+        @:ASSERT(ilIn > 0)
+        @:ASSERT(n >= iuIn)
+        @:ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
         il = ilIn
         iu = iuIn
       else
@@ -868,7 +845,7 @@ contains
       end if
     else
       if (present(ilIn)) then
-        ASSERT(ilIn == 1 .and. iuIn == n)
+        @:ASSERT(ilIn == 1 .and. iuIn == n)
       end if
       il = 1
       iu = n
@@ -879,7 +856,7 @@ contains
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     
     allocate(isuppz(2*n))
 
@@ -1013,8 +990,6 @@ contains
   !!* allocation that was in the previous version)
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "assert.h"
-    implicit none
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(inout) :: b(:,:)
     real(rdp), intent(out) :: w(:)
@@ -1045,19 +1020,19 @@ contains
 
     n = size(a, dim=1)
 
-    ASSERT(n > 0)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(present(ilIn) .eqv. present(iuIn))
+    @:ASSERT(n > 0)
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(present(ilIn) .eqv. present(iuIn))
 
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
-        ASSERT(ilIn <= iuIn)
-        ASSERT(ilIn > 0)
-        ASSERT(n >= iuIn)
-        ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
+        @:ASSERT(ilIn <= iuIn)
+        @:ASSERT(ilIn > 0)
+        @:ASSERT(n >= iuIn)
+        @:ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
         il = ilIn
         iu = iuIn
       else
@@ -1066,7 +1041,7 @@ contains
       end if
     else
       if (present(ilIn)) then
-        ASSERT(ilIn == 1 .and. iuIn == n)
+        @:ASSERT(ilIn == 1 .and. iuIn == n)
       end if
       il = 1
       iu = n
@@ -1077,7 +1052,7 @@ contains
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     
     allocate(isuppz(2*n))
 
@@ -1209,8 +1184,6 @@ contains
   !!* eigenvalues/eigenvectors are found
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
   subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "assert.h"
-    implicit none
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
     real(rsp), intent(out) :: w(:)
@@ -1243,19 +1216,19 @@ contains
     character :: uplo_new
 
     n = size(a, dim=1)
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
 
-    ASSERT(present(ilIn) .eqv. present(iuIn))
+    @:ASSERT(present(ilIn) .eqv. present(iuIn))
     
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
-        ASSERT(ilIn <= iuIn)
-        ASSERT(ilIn > 0)
-        ASSERT(n >= iuIn)
-        ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
+        @:ASSERT(ilIn <= iuIn)
+        @:ASSERT(ilIn > 0)
+        @:ASSERT(n >= iuIn)
+        @:ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
         il = ilIn
         iu = iuIn
       else
@@ -1264,7 +1237,7 @@ contains
       end if
     else
       if (present(ilIn)) then
-        ASSERT(ilIn == 1 .and. iuIn == n)
+        @:ASSERT(ilIn == 1 .and. iuIn == n)
       end if
       il = 1
       iu = n
@@ -1275,7 +1248,7 @@ contains
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     
     allocate(isuppz(2*n))
 
@@ -1411,8 +1384,6 @@ contains
   !!* eigenvalues/eigenvectors are found
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
   subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "assert.h"
-    implicit none
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
     real(rdp), intent(out) :: w(:)
@@ -1446,18 +1417,18 @@ contains
 
     n = size(a, dim=1)
     
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(a)==shape(b)))
-    ASSERT(present(ilIn) .eqv. present(iuIn))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(present(ilIn) .eqv. present(iuIn))
     
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
-        ASSERT(ilIn <= iuIn)
-        ASSERT(ilIn > 0)
-        ASSERT(n >= iuIn)
-        ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
+        @:ASSERT(ilIn <= iuIn)
+        @:ASSERT(ilIn > 0)
+        @:ASSERT(n >= iuIn)
+        @:ASSERT(size(w,dim=1) == (iuIn - ilIn + 1))
         il = ilIn
         iu = iuIn
       else
@@ -1466,7 +1437,7 @@ contains
       end if
     else
       if (present(ilIn)) then
-        ASSERT(ilIn == 1 .and. iuIn == n)
+        @:ASSERT(ilIn == 1 .and. iuIn == n)
       end if
       il = 1
       iu = n
@@ -1477,7 +1448,7 @@ contains
     else
       iitype = 1
     end if
-    ASSERT(iitype >= 1 .and. iitype <= 3 )
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     
     allocate(isuppz(2*n))
 
@@ -1610,9 +1581,7 @@ contains
 
 
     !!* simple single precision banded matrix eigensolver
-    subroutine real_ssbgv(ab, bb, w, uplo, z)
-#include "assert.h"
-    implicit none
+  subroutine real_ssbgv(ab, bb, w, uplo, z)
     real(rsp), intent(inout) :: ab(:,:)
     real(rsp), intent(inout) :: bb(:,:)
     real(rsp), intent(out) :: w(:)    
@@ -1630,9 +1599,9 @@ contains
       jobz = 'n'
     end if
     
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(ab)==shape(bb)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
     
@@ -1640,8 +1609,8 @@ contains
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
-    ASSERT(ka >= 0)
-    ASSERT(kb >= 0)
+    @:ASSERT(ka >= 0)
+    @:ASSERT(kb >= 0)
     
     if (present(z)) then
       ldz = n
@@ -1680,8 +1649,6 @@ contains
 
   !!* Simple double precision banded matrix eigen solver
   subroutine dble_dsbgv(ab, bb, w, uplo, z)
-#include "assert.h"
-    implicit none
     real(rdp), intent(inout) :: ab(:,:)
     real(rdp), intent(inout) :: bb(:,:)
     real(rdp), intent(out) :: w(:)    
@@ -1699,9 +1666,9 @@ contains
       jobz = 'n'
     end if
     
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(ab)==shape(bb)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
     
@@ -1709,8 +1676,8 @@ contains
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
-    ASSERT(ka >= 0)
-    ASSERT(kb >= 0)
+    @:ASSERT(ka >= 0)
+    @:ASSERT(kb >= 0)
     
     if (present(z)) then
       ldz = n
@@ -1749,8 +1716,6 @@ contains
 
   !!* Simple complex precision banded matrix eigen solver
   subroutine cmplx_chbgv(ab, bb, w, uplo, z)
-#include "assert.h"
-    implicit none
     complex(rsp), intent(inout) :: ab(:,:)
     complex(rsp), intent(inout) :: bb(:,:)
     real(rsp), intent(out) :: w(:)    
@@ -1769,9 +1734,9 @@ contains
       jobz = 'n'
     end if
     
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(ab)==shape(bb)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
     
@@ -1779,8 +1744,8 @@ contains
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
-    ASSERT(ka >= 0)
-    ASSERT(kb >= 0)
+    @:ASSERT(ka >= 0)
+    @:ASSERT(kb >= 0)
     
     if (present(z)) then
       ldz = n
@@ -1821,8 +1786,6 @@ contains
 
   !!* Simple double complex precision banded matrix eigen solver
   subroutine dblecmplx_zhbgv(ab, bb, w, uplo, z)
-#include "assert.h"
-    implicit none
     complex(rdp), intent(inout) :: ab(:,:)
     complex(rdp), intent(inout) :: bb(:,:)
     real(rdp), intent(out) :: w(:)    
@@ -1841,9 +1804,9 @@ contains
       jobz = 'n'
     end if
     
-    ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(all(shape(ab)==shape(bb)))
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
     
@@ -1851,8 +1814,8 @@ contains
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
-    ASSERT(ka >= 0)
-    ASSERT(kb >= 0)
+    @:ASSERT(ka >= 0)
+    @:ASSERT(kb >= 0)
     
     if (present(z)) then
       ldz = n

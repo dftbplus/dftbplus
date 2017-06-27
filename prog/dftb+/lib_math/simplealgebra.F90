@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Simple algebraic stuff for simple cases, where LAPACK would be an overkill
 module simplealgebra
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
   private
@@ -41,7 +43,7 @@ contains
 
     real(dp) :: tmp
 
-    ASSERT(all(shape(matrix) == (/3, 3/)))
+    @:ASSERT(all(shape(matrix) == (/3, 3/)))
 
     tmp = matrix(1, 1) &
         &* (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))
@@ -90,8 +92,8 @@ contains
 
     real(dp) :: det
 
-    ASSERT(all(shape(inverted) == (/3, 3/)))
-    ASSERT(all(shape(orig) == (/3, 3/)))
+    @:ASSERT(all(shape(inverted) == (/3, 3/)))
+    @:ASSERT(all(shape(orig) == (/3, 3/)))
 
     if (present(optDet)) then
       det = optDet

@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Implements the Extended Lagrangian Born-Oppenheimer MD.
 !!
 !! \see Aradi et al. Extended lagrangian density functional
@@ -12,7 +14,7 @@
 !!  solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 !!
 module xlbomd_module
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use extlagrangian_module
@@ -104,10 +106,10 @@ contains
 
     type(ExtLagrangianInp) :: extLagrInp
 
-    ASSERT(input%scale >= 0.0_dp)
-    ASSERT(input%minSccIter >= 1)
-    ASSERT(input%maxSccIter >= 1 .and. input%maxSccIter >= input%minSccIter)
-    ASSERT(input%sccTol > 0.0_dp)
+    @:ASSERT(input%scale >= 0.0_dp)
+    @:ASSERT(input%minSccIter >= 1)
+    @:ASSERT(input%maxSccIter >= 1 .and. input%maxSccIter >= input%minSccIter)
+    @:ASSERT(input%sccTol > 0.0_dp)
 
     extLagrInp%nTimeSteps = input%nKappa
     extLagrInp%nElems = nElems

@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains type for representing the data stored in the old SK-file format and
 !!* subroutines to read that data from file.
 module oldskdata
-#include "assert.h"  
+  use assert
   use accuracy
   use constants
   use repspline, only : TRepSplineIn
@@ -80,8 +82,8 @@ contains
     real(dp) :: coeffs(2:9), polyCutoff
     integer :: iostat
 
-    ASSERT(present(repSplineIn) .eqv. present(iSp1))
-    ASSERT(present(iSp1) .eqv. present(iSp2))
+    @:ASSERT(present(repSplineIn) .eqv. present(iSp1))
+    @:ASSERT(present(iSp1) .eqv. present(iSp2))
 
     if (file == -1) then
       file = getFileId()

@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains functions for transforming between the compressed sparse format
 !!* and the internal sparse matrix format.
 module csrmatrix
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
   private
@@ -233,7 +235,7 @@ contains
     nOrb(:) = (mAngAtom(:)+1)**2
     nAtom = size(mAngAtom)
 
-    ASSERT(csr%nRow == iAtomStart(nAtom) + nOrb(nAtom) - 1)
+    @:ASSERT(csr%nRow == iAtomStart(nAtom) + nOrb(nAtom) - 1)
     allocate(tmpCol(csr%nRow, (mmAng+1)**2))
 
     do iAt1 = 1, nAtom

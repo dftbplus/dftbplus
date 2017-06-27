@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Common routines for MD calculations
 module mdcommon
-#include "assert.h"
+  use assert
   use accuracy
   use constants
   use ranlux
@@ -54,7 +56,7 @@ contains
     integer, intent(in) :: nAllAtom
     logical             :: tStationary
 
-    ASSERT(nMovedAtom <= nAllAtom)
+    @:ASSERT(nMovedAtom <= nAllAtom)
 
     if (nMovedAtom /= nAllAtom .or. .not. tStationary) then
       ! there are fixed atoms present, all  moving atoms have 3 degrees of fd.
@@ -107,8 +109,8 @@ contains
     
     real(dp) :: kinE
     
-    ASSERT(size(velocity,dim=2)==size(mass))
-    ASSERT(size(velocity,dim=1)==3)
+    @:ASSERT(size(velocity,dim=2)==size(mass))
+    @:ASSERT(size(velocity,dim=1)==3)
     
     call evalKE(kinE, velocity, mass)
     
@@ -131,8 +133,8 @@ contains
     
     real(dp) :: currentkT
     
-    ASSERT(size(velocity,dim=2) == size(mass))
-    ASSERT(size(velocity,dim=1) == 3)
+    @:ASSERT(size(velocity,dim=2) == size(mass))
+    @:ASSERT(size(velocity,dim=1) == 3)
     
     call evalkT(sf, currentkT, velocity, mass)
     velocity(:,:) = velocity(:,:) * sqrt(kTtarget/currentkT)
@@ -150,8 +152,8 @@ contains
     real(dp), intent(in) :: velocity(:,:)
     real(dp), intent(in) :: mass(:)
     
-    ASSERT(size(velocity,dim=2) == size(mass))
-    ASSERT(size(velocity,dim=1) == 3)
+    @:ASSERT(size(velocity,dim=2) == size(mass))
+    @:ASSERT(size(velocity,dim=1) == 3)
     
     kinE = 0.5_dp * sum(spread(mass(:),1,3) * velocity(:,:)**2)
     
@@ -196,7 +198,7 @@ contains
     real(dp) :: ranvals(7)
     real(dp) :: junk
     
-    ASSERT(size(velocity)==3)
+    @:ASSERT(size(velocity)==3)
     
     ! use the uniform distribution to get a normal (Gaussian) distribution
     ! and then scale to get a Maxwell-Boltzmann

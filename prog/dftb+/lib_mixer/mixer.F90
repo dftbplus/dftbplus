@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains a general mixer which calls the desired real mixers.
 module mixer
-#include "assert.h"
+  use assert
   use accuracy
   use simplemixer
   use andersonmixer

@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains data type representing the input data for DFTB
 !!* @todo
 !!*   Has to be replaced by a more general approach, which should be
 !!*   a kind of database (quite similar to Thomas' global library, but !'
 !!*   with a dynamical approach).
 module inputdata_module
-#include "assert.h"
+  use assert
   use accuracy
   use typegeometry
   use message

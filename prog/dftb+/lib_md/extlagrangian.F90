@@ -5,8 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 module extlagrangian_module
-#include "assert.h"  
+  use assert
   use accuracy, only : dp
   use message
   implicit none
@@ -278,10 +280,11 @@ contains
     !! Default: identity matrix.
     real(dp), intent(in), optional :: precondMtx(:,:)
 
-
-    ASSERT_ENV(if (present(precondMtx)) then)
-    ASSERT(all(shape(precondMtx) == [this%nElems, this%nElems]))
-    ASSERT_ENV(end if)
+  #:call ASSERT_CODE
+    if (present(precondMtx)) then
+      @:ASSERT(all(shape(precondMtx) == [this%nElems, this%nElems]))
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(scale)) then
       this%scale = scale

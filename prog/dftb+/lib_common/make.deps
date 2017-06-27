@@ -3,13 +3,8 @@ accuracy.o = accuracy.o
 _mod_accuracy: accuracy.o
 _mod_accuracy = $(accuracy.o)
 
-allocate.o: assert.h
-allocate.o = allocate.o $(assert.h)
-_mod_allocation: allocate.o
-_mod_allocation = $(allocate.o)
-
-assert.o:
-assert.o = assert.o
+assert.o: common.fypp
+assert.o = assert.o $(common.fypp)
 _mod_assert: assert.o
 _mod_assert = $(assert.o)
 

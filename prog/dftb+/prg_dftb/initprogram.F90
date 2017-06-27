@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Global variables and initialization for the main program
 !!* @todo Assignment (copy) operator for TNeighbors!!!
 module initprogram
-#include "assert.h"
+  use assert
   use inputdata_module
   use constants
   use periodic
@@ -383,9 +385,9 @@ contains
     !! Dispersion
     type(DispSlaKirk), allocatable :: slaKirk
     type(DispUFF), allocatable :: uff
-#ifdef WITH_DFTD3    
+  #:if WITH_DFTD3    
     type(DispDftD3), allocatable :: dftd3
-#endif    
+  #:endif    
 
     character(lc) :: strTmp, strTmp2
     logical :: tFirst ! flag to check for first cycle through a loop
@@ -415,7 +417,7 @@ contains
     ! Used for indexing linear response
     integer :: homoLoc(1)
     
-    ASSERT(input%tInitialized)
+    @:ASSERT(input%tInitialized)
 
     !! Basic variables
     tSCC = input%ctrl%tScc
@@ -461,7 +463,7 @@ contains
 
     if (tPeriodic) then
       allocate(latVec(3, 3))
-      ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
+      @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
       allocate(recVec(3, 3))
       allocate(recVec2p(3, 3))
@@ -487,14 +489,14 @@ contains
     pRepCont = input%slako%repCont
     
     allocate(atomEigVal(orb%mShell, nType))
-    ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
-    ASSERT(size(input%slako%skSelf, dim=2) == size(atomEigVal, dim=2))
+    @:ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
+    @:ASSERT(size(input%slako%skSelf, dim=2) == size(atomEigVal, dim=2))
     atomEigVal(:,:) = input%slako%skSelf(1:orb%mShell, :)
 
-    ASSERT(size(input%slako%skOcc, dim=1) >= orb%mShell)
+    @:ASSERT(size(input%slako%skOcc, dim=1) >= orb%mShell)
     allocate(referenceN0(orb%mShell, nType))
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
-    ASSERT(size(input%slako%mass) == nType)
+    @:ASSERT(size(input%slako%mass) == nType)
     allocate(speciesMass(nType))
     speciesMass(:) = input%slako%mass(:)
     
@@ -577,8 +579,8 @@ contains
     !! artifical, since the copy for the main program is only used for dumping
     !! into the tagged format for autotest)
     allocate(hubbU(orb%mShell, nType))
-    ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
-    ASSERT(size(input%slako%skHubbU, dim=2) == nType)
+    @:ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
+    @:ASSERT(size(input%slako%skHubbU, dim=2) == nType)
     hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     if (allocated(input%ctrl%hubbU)) then
       where (input%ctrl%hubbU > 0.0_dp)
@@ -610,23 +612,23 @@ contains
           call error("External charges can only be used in an SCC calculation")
         end if
         tStress = .false. ! Stress calculations not allowed
-        ASSERT(size(input%ctrl%extChrg, dim=1) == 4)
-        ASSERT(size(input%ctrl%extChrg, dim=2) == nExtChrg)
+        @:ASSERT(size(input%ctrl%extChrg, dim=1) == 4)
+        @:ASSERT(size(input%ctrl%extChrg, dim=2) == nExtChrg)
         sccInit%extCharges = input%ctrl%extChrg
         if (allocated(input%ctrl%extChrgBlurWidth)) then
           sccInit%blurWidths = input%ctrl%extChrgblurWidth
         end if
       end if
       if (allocated(input%ctrl%chrgConstr)) then
-        ASSERT(all(shape(input%ctrl%chrgConstr) == (/ nAtom, 2 /)))
+        @:ASSERT(all(shape(input%ctrl%chrgConstr) == (/ nAtom, 2 /)))
         if (any(abs(input%ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
           sccInit%chrgConstraints = input%ctrl%chrgConstr
         end if
       end if
       
       if (allocated(input%ctrl%thirdOrderOn)) then
-        ASSERT(tSCC)
-        ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
+        @:ASSERT(tSCC)
+        @:ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
         sccInit%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
@@ -644,7 +646,7 @@ contains
       t3rd = input%ctrl%t3rd
       t3rdFull = input%ctrl%t3rdFull
       if (t3rdFull) then
-        ASSERT(tSCC)
+        @:ASSERT(tSCC)
         thirdInp%orb => orb
         thirdInp%hubbUs = hubbU
         thirdInp%hubbUDerivs = input%ctrl%hubDerivs
@@ -659,16 +661,16 @@ contains
 
     !! Initial coordinates
     allocate(coord0(3, nAtom))
-    ASSERT(all(shape(coord0) == shape(input%geom%coords)))
+    @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
     allocate(species0(nAtom))
-    ASSERT(all(shape(species0) == shape(input%geom%species)))
+    @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
     
     allocate(mass(nAtom))
     mass = speciesMass(species0)
     if (allocated(input%ctrl%masses)) then
-      ASSERT(size(input%ctrl%masses) == nAtom)
+      @:ASSERT(size(input%ctrl%masses) == nAtom)
       where (input%ctrl%masses >= 0.0_dp)
         mass = input%ctrl%masses
       end where
@@ -703,8 +705,8 @@ contains
       nKPoint = input%ctrl%nKPoint
       allocate(kPoint(3, nKPoint))
       allocate(kWeight(nKPoint))
-      ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
-      ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
+      @:ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
+      @:ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
       kPoint(:,:) = input%ctrl%KPoint(:,:)
       if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
         call error("Sum of k-point weights should be greater than zero!")
@@ -931,7 +933,7 @@ contains
           
           if (input%ctrl%tOrbResInRegion(iReg)) then
             iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
-            ASSERT(all(species0(iAtomRegion) == iSp))
+            @:ASSERT(all(species0(iAtomRegion) == iSp))
             nOrbRegion = nAtomRegion
             ! Create orbital index.
             allocate(tmpir1(nOrbRegion))
@@ -954,7 +956,7 @@ contains
           
           if (input%ctrl%tShellResInRegion(iReg)) then
             iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
-            ASSERT(all(species0(iAtomRegion) == iSp))
+            @:ASSERT(all(species0(iAtomRegion) == iSp))
             ! Create a separate region for each shell. It will contain
             ! the orbitals of that given shell for each atom in the region.
             do iSh = 1, orb%nShell(iSp)
@@ -1128,8 +1130,8 @@ contains
     if (nGeoConstr > 0) then
       allocate(conAtom(input%ctrl%nrConstr))
       allocate(conVec(3, input%ctrl%nrConstr))
-      ASSERT(all(shape(conAtom) == shape(input%ctrl%conAtom)))
-      ASSERT(all(shape(conVec) == shape(input%ctrl%conVec)))
+      @:ASSERT(all(shape(conAtom) == shape(input%ctrl%conAtom)))
+      @:ASSERT(all(shape(conVec) == shape(input%ctrl%conVec)))
       conAtom(:) = input%ctrl%conAtom(:)
       conVec(:,:) = input%ctrl%conVec(:,:)
       do ii = 1, nGeoConstr
@@ -1172,7 +1174,7 @@ contains
         end if
         call move_alloc(uff, dispersion)
 
-#ifdef WITH_DFTD3
+    #:if WITH_DFTD3
       elseif (allocated(input%ctrl%dispInp%dftd3)) then
         allocate(dftd3)
         if (tPeriodic) then
@@ -1183,7 +1185,7 @@ contains
               & species0, speciesName)
         end if
         call move_alloc(dftd3, dispersion)
-#endif        
+    #:endif        
       end if
       mCutoff = max(mCutoff, dispersion%getRCutoff())
       
@@ -1224,9 +1226,9 @@ contains
     if (tLinResp) then
       
       ! input sanity checking
-#ifndef WITH_ARPACK
+    #:if not WITH_ARPACK
       call error("This binary has been compiled without support for linear response calculations.")
-#endif
+    #:endif
       if (.not. tSCC) then
         call error("Linear response excitation requires SCC=Yes")
       end if
@@ -1450,7 +1452,7 @@ contains
         call error ("Time dependent electric fields only possible for MD!")
       end if
       ! parser should catch all of these:
-      ASSERT(.not.tTDEfield .or. tMD)
+      @:ASSERT(.not.tTDEfield .or. tMD)
     else
       tEField = .false.
       EFieldStrength = 0.0_dp
@@ -1998,10 +2000,10 @@ contains
         write(*,"(A)") "Using Slater-Kirkwood dispersion corrections"
       type is (DispUff)
         write(*,"(A)") "Using Lennard-Jones dispersion corrections"
-#ifdef WITH_DFTD3
+    #:if WITH_DFTD3
       type is (DispDftD3)
         write(*,"(A)") "Using DFT-D3 dispersion corrections"
-#endif        
+    #:endif        
       class default
         call error("Unknown dispersion model - this should not happen!")
       end select

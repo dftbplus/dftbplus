@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains the routines for initialising waveplot.
 module InitProgram
-#include "assert.h"
+  use assert
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
   use HSDUtils
@@ -503,7 +505,7 @@ contains
 
     nSpecies = size(speciesNames)
 
-    ASSERT(nSpecies > 0)
+    @:ASSERT(nSpecies > 0)
 
     call getChildValue(node, "Resolution", basisResolution)
     allocate(basis(nSpecies))
@@ -617,7 +619,7 @@ contains
 
     real(dp) :: tmp
 
-    ASSERT(all(shape(matrix) == (/3, 3/)))
+    @:ASSERT(all(shape(matrix) == (/3, 3/)))
 
     tmp = matrix(1, 1) &
         &* (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))

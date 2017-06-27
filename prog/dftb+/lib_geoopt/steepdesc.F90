@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Function minimization with steepest descent algorithm
 module steepdesc
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
 
@@ -63,10 +65,10 @@ contains
     real(dp), intent(in) :: maxDisp
     real(dp), intent(in) :: weight(:)
 
-    ASSERT(nElem > 0)
-    ASSERT(tol > 0.0_dp)
-    ASSERT(maxDisp > 0.0_dp)
-    ASSERT(size(weight) == nElem)
+    @:ASSERT(nElem > 0)
+    @:ASSERT(tol > 0.0_dp)
+    @:ASSERT(maxDisp > 0.0_dp)
+    @:ASSERT(size(weight) == nElem)
     
     self%nElem = nElem
     self%tolerance = tol
@@ -86,7 +88,7 @@ contains
     type(OSteepDesc), intent(inout) :: self
     real(dp), intent(in) :: x0(:)
 
-    ASSERT(size(x0) == self%nElem)
+    @:ASSERT(size(x0) == self%nElem)
 
     self%xOld(:) = x0(:)
     self%tConverged = .false.
@@ -111,9 +113,9 @@ contains
     real(dp), intent(out) :: xNew(:)
     logical,  intent(out) :: tConverged
 
-    ASSERT(self%tInitialized)
-    ASSERT(size(xNew) == self%nElem)
-    ASSERT(size(dx) == self%nElem)
+    @:ASSERT(self%tInitialized)
+    @:ASSERT(size(xNew) == self%nElem)
+    @:ASSERT(size(dx) == self%nElem)
 
     if (.not. self%tConverged) then
       call next_local(xNew, self%xOld, dx, self%weight, self%maxDisp, &
@@ -145,10 +147,10 @@ contains
 
     real(dp) :: maxX
 
-    ASSERT(size(xNew) == size(xOld))
-    ASSERT(size(xNew) == size(xOld))
-    ASSERT(size(xNew) == size(xOld))
-    ASSERT(maxDisp > 0.0_dp)
+    @:ASSERT(size(xNew) == size(xOld))
+    @:ASSERT(size(xNew) == size(xOld))
+    @:ASSERT(size(xNew) == size(xOld))
+    @:ASSERT(maxDisp > 0.0_dp)
 
     if (maxval(abs(grad)) < tolerance) then
       tConverged = .true.

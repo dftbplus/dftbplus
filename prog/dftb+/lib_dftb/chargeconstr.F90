@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines for the additional local potential, which should enforce
 !!* charge constraints.
 module chargeconstr
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
   private
@@ -54,9 +56,9 @@ contains
     real(dp), intent(in) :: inp(:,:)
     integer, intent(in) :: kappa
     
-    ASSERT(.not. sf%tInit)
-    ASSERT(size(inp, dim=1) > 0)
-    ASSERT(size(inp, dim=2) == 2)
+    @:ASSERT(.not. sf%tInit)
+    @:ASSERT(size(inp, dim=1) > 0)
+    @:ASSERT(size(inp, dim=2) == 2)
 
     sf%nAtom = size(inp, dim=1)
     allocate(sf%refCharges(sf%nAtom))
@@ -75,8 +77,8 @@ contains
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(in) :: chargesPerAtom(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(chargesPerAtom) == size(sf%shift))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(chargesPerAtom) == size(sf%shift))
 
     sf%shift = real(sf%kappa, dp) * sf%prefactors &
         &* (chargesPerAtom - sf%refCharges)**(sf%kappa - 1)
@@ -89,8 +91,8 @@ contains
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(inout) :: shiftPerAtom(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(shiftPerAtom) == sf%nAtom)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(shiftPerAtom) == sf%nAtom)
 
     shiftPerAtom = shiftPerAtom + sf%shift
 
@@ -103,9 +105,9 @@ contains
     real(dp), intent(inout) :: energyPerAtom(:)
     real(dp), intent(in) :: chargesPerAtom(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(energyPerAtom) == sf%nAtom)
-    ASSERT(size(energyPerAtom) == sf%nAtom)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(energyPerAtom) == sf%nAtom)
+    @:ASSERT(size(energyPerAtom) == sf%nAtom)
 
     energyPerAtom = energyPerAtom &
         &+ sf%shift * (chargesPerAtom - sf%refCharges) / real(sf%kappa, dp)

@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> DFT-D3 dispersion model.
 !!
 module dispdftd3_module
-#include "assert.h"
+  use assert
   use accuracy
   use dispiface
   use dftd3_module
@@ -71,7 +73,7 @@ contains
     type(dftd3_input) :: d3inp
     integer :: iAt
 
-    ASSERT(.not. allocated(this%calculator))
+    @:ASSERT(.not. allocated(this%calculator))
 
     this%tPeriodic = present(latVecs)
     if (this%tPeriodic) then
@@ -117,7 +119,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) ::  species0(:)
     
-    ASSERT(allocated(this%calculator))
+    @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
       ! dftd3 calculates the periodic images by itself -> only coords in
@@ -141,7 +143,7 @@ contains
     class(DispDftD3), intent(inout) :: this
     real(dp), intent(in) :: latVecs(:,:)
 
-    ASSERT(all(shape(latvecs) == shape(this%latvecs)))
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
 
     this%latVecs(:,:) = latVecs
     this%tCoordsUpdated = .false.
@@ -157,9 +159,9 @@ contains
     class(DispDftD3), intent(inout) :: this
     real(dp), intent(out) :: energies(:)
 
-    ASSERT(allocated(this%calculator))
-    ASSERT(this%tCoordsUpdated)
-    ASSERT(size(energies) == this%nAtom)
+    @:ASSERT(allocated(this%calculator))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
 
     ! DftD3 only delivers total energy, so we distribute it evenly over all
     ! atoms.
@@ -176,9 +178,9 @@ contains
     class(DispDftD3), intent(inout) :: this
     real(dp), intent(inout) :: gradients(:,:)
 
-    ASSERT(allocated(this%calculator))
-    ASSERT(this%tCoordsUpdated)
-    ASSERT(all(shape(gradients) == [3, this%nAtom]))
+    @:ASSERT(allocated(this%calculator))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
     
     gradients(:,:) = gradients + this%gradients
     
@@ -193,9 +195,9 @@ contains
     class(DispDftD3), intent(inout) :: this
     real(dp), intent(out) :: stress(:,:)
 
-    ASSERT(allocated(this%calculator))
-    ASSERT(this%tCoordsUpdated)
-    ASSERT(all(shape(stress) == [3, 3]))
+    @:ASSERT(allocated(this%calculator))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
     
     stress(:,:) = this%stress
 

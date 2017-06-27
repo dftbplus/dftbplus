@@ -5,8 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 module xmlutils
-#include "assert.h"  
+  use assert
   use charmanip
   use xmlf90
   implicit none
@@ -33,7 +35,7 @@ contains
 
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (len(name) == 0) then
       child => node
@@ -65,7 +67,7 @@ contains
 
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (len(name) == 0) then
       child => node
@@ -96,7 +98,7 @@ contains
     type(fnode), pointer :: child
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     nullify(childList)
     if (len(name) == 0) then
@@ -125,7 +127,7 @@ contains
     type(fnode), pointer :: child, child2, dummy
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child => getFirstChild(node)
     do while (associated(child))
@@ -159,8 +161,8 @@ contains
     
     logical :: tRootOnly
 
-    ASSERT(associated(node))
-    ASSERT(len(name) > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(len(name) > 0)
     
     if (present(rootOnly)) then
       tRootOnly = rootOnly
@@ -188,8 +190,8 @@ contains
     
     type(fnode), pointer :: attr, child
 
-    ASSERT(associated(node))
-    ASSERT(len(name) > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(len(name) > 0)
 
     attr => getAttributeNode(node, name)
     if (.not. associated(attr)) then
@@ -217,7 +219,7 @@ contains
 
     type(fnode), pointer :: child, child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child => getFirstChild(node)
     do while (associated(child))

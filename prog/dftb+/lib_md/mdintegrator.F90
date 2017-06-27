@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* General purpose wrapper for MD integrators.
 !!* @note Currently only velocity Verlet is wrapped.
 module mdintegrator
-#include "assert.h"
+  use assert
   use Accuracy
   use VelocityVerlet
   !use VelocityOmelyan

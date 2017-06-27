@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* The main dftb+ program
 program dftbplus
-#include "assert.h"
+  use assert
   use constants
   use initprogram
   use inputdata_module
@@ -1691,13 +1693,13 @@ program dftbplus
     energy%Eexcited = 0.0_dp
     excitedDerivs = 0.0_dp
     if (tLinResp) then
-      ASSERT(.not. t3rd .and. tRealHS)
+      @:ASSERT(.not. t3rd .and. tRealHS)
       dqAtom = sum( qOutput(:,:,1) - q0(:,:,1) , dim=1)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor,&
           & iAtomStart, iPair, img2CentCell)
       call blockSymmetrizeHS(SSqrReal, iAtomStart)
       if (tForces) then
-        ASSERT(.not. tPeriodic)
+        @:ASSERT(.not. tPeriodic)
         do iSpin = 1, nSpin
           call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), iAtomStart)
         end do
@@ -1900,7 +1902,8 @@ program dftbplus
         dipoleMoment(:) = dipoleMoment(:) &
             & + sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * coord(:,iAtom)
       end do
-#if DEBUG >= 1
+
+    #:call DEBUG_CODE
       ! extra test for the potential in the code, does the dipole from
       ! charge positions match the derivative of energy wrt an external E field?
       allocate(hprime(size(h0),1))
@@ -1928,7 +1931,7 @@ program dftbplus
       deallocate(potentialDerivative)
       deallocate(hprime)
       deallocate(dipoleTmp)
-#endif
+    #:endcall DEBUG_CODE
     else
       dipoleMoment(:) = 0.0_dp
     end if

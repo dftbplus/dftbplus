@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Linear response formulation of TD-DFTB as developed by Niehaus et al.
 !!
 !! \note The functionality of the module has some limitation:
@@ -16,7 +18,7 @@
 !!   o Onsite corrections are not included in this version
 !!
 module linresp_module
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use commontypes
@@ -24,10 +26,10 @@ module linresp_module
   use fileid
   use scc, only : getShiftPerAtom, getShiftPerL
   use nonscc, only : NonSccDiff
-#ifdef WITH_ARPACK
+#:if WITH_ARPACK
   ! code is compiled with arpack available
   use linrespgrad
-#endif
+#:endif
   implicit none
   private
   
@@ -128,7 +130,7 @@ contains
     real(dp), intent(in) :: nEl
     type(TOrbitals), intent(in) :: orb
     
-#ifdef WITH_ARPACK
+  #:if WITH_ARPACK
     self%nExc = ini%nExc
     self%tEnergyWindow = ini%tEnergyWindow
     self%energyWindow = ini%energyWindow
@@ -195,10 +197,10 @@ contains
     call move_alloc(ini%spinW, self%spinW)
     call move_alloc(ini%hubbardU, self%HubbardU)
     self%tinit = .true.
-#else
+  #:else
     self%tinit = .false.
     call error('Internal error: Illegal routine call to LinResp_init.')
-#endif
+  #:endif
     
   end subroutine LinResp_init
   
@@ -237,9 +239,9 @@ contains
     integer, intent(in) :: fdTagged
     real(dp), intent(out) :: excEnergy
     
-#ifdef WITH_ARPACK
-    ASSERT(self%tInit)
-    ASSERT(size(orb%nOrbAtom) == self%nAtom)
+  #:if WITH_ARPACK
+    @:ASSERT(self%tInit)
+    @:ASSERT(size(orb%nOrbAtom) == self%nAtom)
     call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec,&
         & eigVal, dqAt, coords0, self%nExc, self%nStat, self%symmetry,&
         & SSqrReal, filling, species0, self%HubbardU, self%spinW, self%nEl, iNeighbor, &
@@ -249,10 +251,10 @@ contains
         & self%fdArnoldiDiagnosis, self%fdExc, self%tEnergyWindow, self%energyWindow, &
         & self%tOscillatorWindow, self%oscillatorWindow, excEnergy, .false.)
     
-#else
+  #:else
     call error('Internal error: Illegal routine call to &
         &LinResp_calcExcitations')
-#endif
+  #:endif
     
   end subroutine LinResp_calcExcitations
   
@@ -306,11 +308,11 @@ contains
     real(dp), intent(out), optional :: occNatural(:)
     real(dp), intent(out), optional :: naturalOrbs(:,:)
     
-#ifdef WITH_ARPACK
+  #:if WITH_ARPACK
     
     real(dp), allocatable :: shiftPerAtom(:,:), shiftPerL(:,:,:)
-    ASSERT(self%tInit)
-    ASSERT(self%nAtom == size(orb%nOrbAtom))
+    @:ASSERT(self%tInit)
+    @:ASSERT(self%nAtom == size(orb%nOrbAtom))
     ! BA: SCC is currently ugly, it gives back an array with an additional
     ! dimension (spin), however, fills always the first channel only!
     ALLOCATE(shiftPerAtom(self%nAtom, 1))
@@ -330,9 +332,9 @@ contains
         & skHamCont, skOverCont, excgradient, derivator, rhoSqr, &
         & occNatural, naturalOrbs)
     
-#else
+  #:else
     call error('Internal error: Illegal routine call to LinResp_addGradients.')
-#endif
+  #:endif
     
   end subroutine LinResp_addGradients
   

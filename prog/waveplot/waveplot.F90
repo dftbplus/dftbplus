@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Program for plotting molecular orbitals as cube files.
 program waveplot
-# include "assert.h"  
+  use assert
   use InitProgram
   use accuracy
   use CharManip
@@ -362,17 +364,19 @@ contains
     integer, save :: fd = -1
     integer :: ii, i1, i2, i3, ir1, ir2, ir3
 
-    ASSERT(size(atomicNumbers) == size(geo%speciesNames))
-    ASSERT(all(shape(gridVecs) == (/3, 3/)))
-    ASSERT(size(origin) == 3)
-    ASSERT(all(shape(gridVal) >= (/ 0, 0, 0 /)))
-    ASSERT_ENV(if (present(comments)) then)
-    ASSERT_ENV(ASSERT(size(comments) == 2))
-    ASSERT_ENV(end if)
-    ASSERT_ENV(if (present(repeatBox)) then)
-    ASSERT_ENV(ASSERT(size(repeatBox) == 3))
-    ASSERT_ENV(ASSERT(all(repeatBox > 0)))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(atomicNumbers) == size(geo%speciesNames))
+    @:ASSERT(all(shape(gridVecs) == (/3, 3/)))
+    @:ASSERT(size(origin) == 3)
+    @:ASSERT(all(shape(gridVal) >= (/ 0, 0, 0 /)))
+  #:call ASSERT_CODE
+    if (present(comments)) then
+      @:ASSERT(size(comments) == 2)
+    end if
+    if (present(repeatBox)) then
+      @:ASSERT(size(repeatBox) == 3)
+      @:ASSERT(all(repeatBox > 0))
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(repeatBox)) then
       rep(:) = repeatBox(:)

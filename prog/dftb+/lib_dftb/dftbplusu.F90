@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module containing various routines for DFTB+U calculations
 !!* Intended to be used with SCC switched on !
 module dftbplusu
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use fileid
@@ -64,14 +66,14 @@ contains
     integer     :: iStart1, iEnd1, iStart2, iEnd2
     integer     :: ii, jj, kk, ll, ik
     
-    ASSERT(all(shape(shift)==shape(qBlock)))
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(all(shape(shift)==shape(qBlock)))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
     
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     if (present(functional)) then
       iFunctional = functional
@@ -79,7 +81,7 @@ contains
       iFunctional = 1
     end if
     
-    ASSERT(iFunctional==1 .or. iFunctional==2)
+    @:ASSERT(iFunctional==1 .or. iFunctional==2)
 
     if (iFunctional == 1) then
       do iAt = 1, nAtom
@@ -161,16 +163,16 @@ contains
     integer     :: iStart1, iEnd1, iStart2, iEnd2
     integer     :: ii, jj, kk, ll, ik
     
-    ASSERT(all(shape(shiftR)==shape(qBlockR)))
-    ASSERT(all(shape(shiftI)==shape(qBlockI)))
-    ASSERT(all(shape(shiftR)==shape(shiftI)))
-    ASSERT(size(shiftR,dim=1)==orb%mOrb)
-    ASSERT(size(shiftR,dim=2)==orb%mOrb)
+    @:ASSERT(all(shape(shiftR)==shape(qBlockR)))
+    @:ASSERT(all(shape(shiftI)==shape(qBlockI)))
+    @:ASSERT(all(shape(shiftR)==shape(shiftI)))
+    @:ASSERT(size(shiftR,dim=1)==orb%mOrb)
+    @:ASSERT(size(shiftR,dim=2)==orb%mOrb)
     
     nAtom = size(shiftR,dim=3)
     nSpin = size(shiftR,dim=4)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     if (present(functional)) then
       iFunctional = functional
@@ -178,7 +180,7 @@ contains
       iFunctional = 1
     end if
     
-    ASSERT(iFunctional==1 .or. iFunctional==2)
+    @:ASSERT(iFunctional==1 .or. iFunctional==2)
 
     if (iFunctional == 1) then
       do iAt = 1, nAtom
@@ -255,19 +257,21 @@ contains
     integer     :: ii, jj, kk, ll, ik
     real(dp)    :: blockTmp(orb%mOrb,orb%mOrb)
     
-    ASSERT(size(qBlock,dim=1)==orb%mOrb)
-    ASSERT(size(qBlock,dim=2)==orb%mOrb)
+    @:ASSERT(size(qBlock,dim=1)==orb%mOrb)
+    @:ASSERT(size(qBlock,dim=2)==orb%mOrb)
 
     nAtom = size(qBlock,dim=3)
     nSpin = size(qBlock,dim=4)
+
+  #:call ASSERT_CODE
+    if (present(qiBlock)) then
+      @:ASSERT(all(shape(qiBlock)==shape(qBlock)))
+      @:ASSERT(nSpin == 4)
+    end if
+  #:endcall ASSERT_CODE
     
-    ASSERT_ENV(if (present(qiBlock)) then)
-    ASSERT_ENV( ASSERT(all(shape(qiBlock)==shape(qBlock))) )
-    ASSERT_ENV( ASSERT(nSpin == 4) )
-    ASSERT_ENV(end if)
-    
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(size(egy)==nAtom)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(egy)==nAtom)
     
     if (present(functional)) then
       iFunctional = functional
@@ -275,7 +279,7 @@ contains
       iFunctional = 1
     end if
     
-    ASSERT(iFunctional==1 .or. iFunctional==2)
+    @:ASSERT(iFunctional==1 .or. iFunctional==2)
   
     do iSp = 1, nSpin
       do iAt = 1, nAtom
@@ -378,15 +382,15 @@ contains
     nAtom = size(equiv, dim=2)
     nSpin = size(equiv, dim=3)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(size(equiv, dim=1) == orb%mOrb)
-    ASSERT(size(nUJ) == maxval(species))
-    ASSERT(all(nUJ <= orb%mShell))
-    ASSERT(size(niUJ,dim=2) == maxval(species))
-    ASSERT(all(niUJ <= orb%mShell))
-    ASSERT(size(iUJ,dim=3) == maxval(species))
-    ASSERT(size(iUJ,dim=1) <= orb%mShell)
-    ASSERT(all(iUJ <= orb%mShell))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(equiv, dim=1) == orb%mOrb)
+    @:ASSERT(size(nUJ) == maxval(species))
+    @:ASSERT(all(nUJ <= orb%mShell))
+    @:ASSERT(size(niUJ,dim=2) == maxval(species))
+    @:ASSERT(all(niUJ <= orb%mShell))
+    @:ASSERT(size(iUJ,dim=3) == maxval(species))
+    @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
+    @:ASSERT(all(iUJ <= orb%mShell))
 
 
     equiv(:,:,:) = 0
@@ -445,17 +449,17 @@ contains
     
     nAtom = size(iEqBlockDFTBU, dim=3)
     nSpin = size(iEqBlockDFTBU, dim=4)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
-    ASSERT(size(iEqBlockDFTBU, dim=1) == orb%mOrb)
-    ASSERT(size(iEqBlockDFTBU, dim=2) == orb%mOrb)
-    ASSERT(size(nUJ) == maxval(species))
-    ASSERT(all(nUJ <= orb%mShell))
-    ASSERT(size(niUJ,dim=2) == maxval(species))
-    ASSERT(all(niUJ <= orb%mShell))
-    ASSERT(size(iUJ,dim=3) == maxval(species))
-    ASSERT(size(iUJ,dim=1) <= orb%mShell)
-    ASSERT(all(iUJ <= orb%mShell))
+    @:ASSERT(size(iEqBlockDFTBU, dim=1) == orb%mOrb)
+    @:ASSERT(size(iEqBlockDFTBU, dim=2) == orb%mOrb)
+    @:ASSERT(size(nUJ) == maxval(species))
+    @:ASSERT(all(nUJ <= orb%mShell))
+    @:ASSERT(size(niUJ,dim=2) == maxval(species))
+    @:ASSERT(all(niUJ <= orb%mShell))
+    @:ASSERT(size(iUJ,dim=3) == maxval(species))
+    @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
+    @:ASSERT(all(iUJ <= orb%mShell))
 
     
     iEqBlockDFTBU(:,:,:,:) = 0
@@ -501,10 +505,10 @@ contains
     
     nAtom = size(input, dim=3)
     nSpin = size(input, dim=4)
-    ASSERT(size(input, dim=1) == orb%mOrb)
-    ASSERT(size(input, dim=2) == orb%mOrb)
-    ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(input, dim=1) == orb%mOrb)
+    @:ASSERT(size(input, dim=2) == orb%mOrb)
+    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
     if (present(skew)) then
       iSkew = skew
@@ -564,15 +568,15 @@ contains
       iSkew = .false.
     end if
     
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(size(output, dim=1) == orb%mOrb)
-    ASSERT(size(output, dim=2) == orb%mOrb)
-
-    ASSERT_ENV( if (present(orbEquiv)) then)
-    ASSERT_ENV(  ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /))))
-    ASSERT_ENV( end if)
-    
-    ASSERT(all(shape(blockEquiv) == shape(output)))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(output, dim=1) == orb%mOrb)
+    @:ASSERT(size(output, dim=2) == orb%mOrb)
+  #:call ASSERT_CODE
+    if (present(orbEquiv)) then
+      @:ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /)))
+    end if
+  #:endcall ASSERT_CODE
+    @:ASSERT(all(shape(blockEquiv) == shape(output)))
     
     output = 0.0_dp
     

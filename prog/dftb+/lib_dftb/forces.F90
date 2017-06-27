@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Code to calculate forces for several different types of calculation
 !!* (non-scc, scc, sDFTB etc)
 module forces
-#include "assert.h"
+  use assert
   use accuracy
   use nonscc, only : NonSccDiff
   use scc
@@ -71,7 +73,7 @@ contains
     real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     
-    ASSERT(size(deriv,dim=1) == 3)
+    @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
@@ -174,14 +176,14 @@ contains
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    ASSERT(size(deriv,dim=1) == 3)
-    ASSERT(size(deriv,dim=2)==nAtom)
-    ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
-    ASSERT(size(shift,dim=3)==nAtom)
-    ASSERT(size(DM,dim=2)==nSpin)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
+    @:ASSERT(size(deriv,dim=1) == 3)
+    @:ASSERT(size(deriv,dim=2)==nAtom)
+    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=3)==nAtom)
+    @:ASSERT(size(DM,dim=2)==nSpin)
 
     deriv(:,:) = 0.0_dp
     
@@ -298,16 +300,16 @@ contains
     
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    ASSERT(size(deriv,dim=1) == 3)
-    ASSERT(size(deriv,dim=2)==nAtom)
-    ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    ASSERT(size(DM,dim=2)==nSpin)
-    ASSERT(all(shape(iDM)==shape(DM)))
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
-    ASSERT(size(shift,dim=3)==nAtom)
-    ASSERT(all(shape(iShift)==shape(shift)))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
+    @:ASSERT(size(deriv,dim=1) == 3)
+    @:ASSERT(size(deriv,dim=2)==nAtom)
+    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+    @:ASSERT(size(DM,dim=2)==nSpin)
+    @:ASSERT(all(shape(iDM)==shape(DM)))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=3)==nAtom)
+    @:ASSERT(all(shape(iShift)==shape(shift)))
     
     deriv(:,:) = 0.0_dp
     

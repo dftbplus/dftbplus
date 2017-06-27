@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !! Common routines for the dispersion modules.
 !!
 !! Periodic summation from the following references:
@@ -12,7 +14,7 @@
 !! \ref Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 !!
 module dispcommon
-#include "assert.h"  
+  use assert
   use accuracy
   use constants, only : pi
   use message
@@ -69,9 +71,9 @@ contains
     real(dp) :: aam2, bb, bbm2, rTmp, rTmp2, rTmp3, rc, r3c, gc, g3c, ddp
     real(dp) :: etam3, rTmp33, gsum33(3,3)
 
-    ASSERT(size(energies) == nAtom)
-    ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
-    ASSERT(all(shape(stress) == (/ 3, 3 /)))
+    @:ASSERT(size(energies) == nAtom)
+    @:ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
+    @:ASSERT(all(shape(stress) == (/ 3, 3 /)))
 
     etam3 = eta**(-3)
     rc = 0.5_dp * etam3 * etam3
@@ -187,9 +189,9 @@ contains
     real(dp) :: aam2, bb, bbm2, rTmp, rTmp2, rTmp3, rc, r3c, gc, g3c, ddp, etam3
     real(dp) :: rTmp33
     
-    ASSERT(size(energies) == nAtom)
-    ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
-    ASSERT(all(shape(stress) == (/ 3, 3 /)))
+    @:ASSERT(size(energies) == nAtom)
+    @:ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
+    @:ASSERT(all(shape(stress) == (/ 3, 3 /)))
     
     etam3 = eta**(-3)
     rc = 0.5_dp * etam3 * etam3

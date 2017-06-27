@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains the low level utilities for parsing xml-data into intrinsic Fortran
 !!* types.
 !!* @desc This module contains the utilities which can parse a strings into
 !!*   Fortran intrinsic types. Tokens are assumed being separated by space,
 !!*   therefore strings with spaces inside can not be handled yet.
 module tokenreader
-#include "assert.h"  
+  use assert
   use charmanip
   use message, only : error
   use accuracy, only : dp
@@ -386,7 +388,7 @@ contains
     integer :: lenStr
     logical :: tIgnoreQuotation
 
-    ASSERT(start > 0)
+    @:ASSERT(start > 0)
 
     if (present(ignoreQuotation)) then
       tIgnoreQuotation = ignoreQuotation

@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains subroutines for the periodic boundary conditions and neighbour
 !!* data
 module periodic
-#include "assert.h"
+  use assert
   use accuracy
   use constants, only : pi
   use message
@@ -70,9 +72,9 @@ contains
     integer,             intent(in)  :: nAtom
     integer,             intent(in)  :: nInitNeighbor
 
-    ASSERT(.not. neighborList%initialized)
-    ASSERT(nAtom > 0)
-    ASSERT(nInitNeighbor > 0)
+    @:ASSERT(.not. neighborList%initialized)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(nInitNeighbor > 0)
 
     allocate(neighborList%nNeighbor(nAtom))
     allocate(neighborList%iNeighbor(0:nInitNeighbor, nAtom))
@@ -103,9 +105,9 @@ contains
 
     integer  :: ii
     
-    ASSERT(all(shape(latVec) == [3, 3]))
-    ASSERT(all(shape(recVec2p) == [3, 3]))
-    ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(all(shape(latVec) == [3, 3]))
+    @:ASSERT(all(shape(recVec2p) == [3, 3]))
+    @:ASSERT(cutoff >= 0.0_dp)
     
     call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, &
         &negExtension=1)
@@ -127,9 +129,9 @@ contains
 
     integer :: ii, iTmp
 
-    ASSERT(all(shape(imgRange) == (/ 2, 3 /)))
-    ASSERT(dist >= 0.0_dp)
-    ASSERT(all(shape(recVec2p) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(imgRange) == (/ 2, 3 /)))
+    @:ASSERT(dist >= 0.0_dp)
+    @:ASSERT(all(shape(recVec2p) == (/ 3, 3 /)))
     
     do ii = 1, 3
       iTmp = floor(dist * sqrt(sum(recVec2p(:, ii)**2)))
@@ -176,9 +178,9 @@ contains
     logical  :: tAll, tOrig, tNoInv
     real(dp), allocatable :: tmpLatPoint(:,:)
 
-    ASSERT(all(shape(latVec) == (/3, 3/)))
-    ASSERT(all(shape(recVec2p) == (/3, 3/)))
-    ASSERT(dist >= 0.0_dp)
+    @:ASSERT(all(shape(latVec) == (/3, 3/)))
+    @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
+    @:ASSERT(dist >= 0.0_dp)
 
     if (present(negExtension)) then
       negExt = negExtension
@@ -292,12 +294,14 @@ contains
 
     nAtom = size(coord, dim=2)
 
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(all(shape(latVec) == (/3, 3/)))
-    ASSERT(all(shape(recVec2p) == (/3, 3/)))
-    ASSERT_ENV(if (present(invShift)) then)
-    ASSERT_ENV(  ASSERT(all(shape(invShift) == shape(coord))))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(all(shape(latVec) == (/3, 3/)))
+    @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
+  #:call ASSERT_CODE
+    if (present(invShift)) then
+      ASSERT(all(shape(invShift) == shape(coord)))
+    end if
+  #:endcall ASSERT_CODE
 
     vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
     do ii = 1, nAtom
@@ -405,17 +409,17 @@ contains
     maxNeighbor = ubound(neigh%iNeighbor, dim=1)
     nCellVec = size(rCellVec, dim=2)
 
-    ASSERT(nAtom <= mAtom)
-    ASSERT(allocated(coord))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(allocated(img2CentCell))
-    ASSERT(size(img2CentCell) == mAtom)
-    ASSERT(allocated(iCellVec))
-    ASSERT(size(iCellVec) == mAtom)
-    ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
-    ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
-    ASSERT((size(rCellVec, dim=1) == 3))
-    ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(nAtom <= mAtom)
+    @:ASSERT(allocated(coord))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(allocated(img2CentCell))
+    @:ASSERT(size(img2CentCell) == mAtom)
+    @:ASSERT(allocated(iCellVec))
+    @:ASSERT(size(iCellVec) == mAtom)
+    @:ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
+    @:ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
+    @:ASSERT((size(rCellVec, dim=1) == 3))
+    @:ASSERT(cutoff >= 0.0_dp)
 
     neigh%cutoff = cutoff
     cutoff2 = cutoff**2
@@ -521,11 +525,11 @@ contains
 
     nAtom = size(nNeighbor)
 
-    ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
-    ASSERT(size(neigh%nNeighbor) == nAtom)
-    ASSERT(maxval(neigh%nNeighbor) <= size(neigh%iNeighbor, dim=1))
-    ASSERT(all(shape(neigh%neighDist2) == shape(neigh%iNeighbor)))
-    ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
+    @:ASSERT(size(neigh%nNeighbor) == nAtom)
+    @:ASSERT(maxval(neigh%nNeighbor) <= size(neigh%iNeighbor, dim=1))
+    @:ASSERT(all(shape(neigh%neighDist2) == shape(neigh%iNeighbor)))
+    @:ASSERT(cutoff >= 0.0_dp)
 
     !! Get last interacting neighbor for given cutoff
     do iAtom = 1, nAtom
@@ -549,8 +553,8 @@ contains
 
     character(len=100) :: strError
 
-    ASSERT(cutoff >= 0.0_dp)
-    ASSERT(iAtom <= size(neigh%nNeighbor))
+    @:ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(iAtom <= size(neigh%nNeighbor))
 
     !! Issue warning, if cutoff is bigger as used for the neighborlist.
     if (cutoff > neigh%cutoff) then
@@ -584,9 +588,9 @@ contains
 
     mAtom = size(img2CentCell)
 
-    ASSERT(size(iCellVec) == mAtom)
-    ASSERT(all(shape(coord) == (/ 3, mAtom /)))
-    ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
+    @:ASSERT(size(iCellVec) == mAtom)
+    @:ASSERT(all(shape(coord) == (/ 3, mAtom /)))
+    @:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
 
     call move_alloc(img2CentCell, tmpIntR1)
     allocate(img2CentCell(mNewAtom))
@@ -619,8 +623,8 @@ contains
     mNeighbor = ubound(iNeighbor, dim=1)
     mAtom = size(iNeighbor, dim=2)
 
-    ASSERT(mNewNeighbor > 0 .and. mNewNeighbor > mNeighbor)
-    ASSERT(all(shape(neighDist2) == shape(iNeighbor)))
+    @:ASSERT(mNewNeighbor > 0 .and. mNewNeighbor > mNeighbor)
+    @:ASSERT(all(shape(neighDist2) == shape(iNeighbor)))
 
     call move_alloc(iNeighbor, tmpIntR2)
     allocate(iNeighbor(0:mNewNeighbor, mAtom))
@@ -666,11 +670,11 @@ contains
     mNeighbor = size(iNeighbor, dim=1)
     nOldElem = size(ham, dim=1)
 
-    ASSERT(allocated(ham))
-    ASSERT(allocated(over))
-    ASSERT(size(over) == nOldElem)
-    ASSERT(allocated(iPair))
-    ASSERT(size(iPair, dim=2) == nAtom)
+    @:ASSERT(allocated(ham))
+    @:ASSERT(allocated(over))
+    @:ASSERT(size(over) == nOldElem)
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
       deallocate(iPair)
@@ -733,11 +737,11 @@ contains
     nSpin = size(ham, dim=2)
     nOldElem = size(ham, dim=1)
 
-    ASSERT(allocated(ham))
-    ASSERT(allocated(over))
-    ASSERT(size(over) == nOldElem)
-    ASSERT(allocated(iPair))
-    ASSERT(size(iPair, dim=2) == nAtom)
+    @:ASSERT(allocated(ham))
+    @:ASSERT(allocated(over))
+    @:ASSERT(size(over) == nOldElem)
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
       deallocate(iPair)
@@ -794,9 +798,9 @@ contains
     mNeighbor = size(iNeighbor, dim=1)
     nOldElem = size(ham, dim=1)
 
-    ASSERT(allocated(ham))
-    ASSERT(allocated(iPair))
-    ASSERT(size(iPair, dim=2) == nAtom)
+    @:ASSERT(allocated(ham))
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
       deallocate(iPair)
@@ -835,7 +839,7 @@ contains
 
     nAtom = size(orb%nOrbAtom)
 
-    ASSERT(all(shape(iAtomStart) == (/ nAtom + 1 /)))
+    @:ASSERT(all(shape(iAtomStart) == (/ nAtom + 1 /)))
 
     ind = 1
     do iAt1 = 1, nAtom
@@ -886,12 +890,12 @@ contains
     real(dp), parameter :: tol = 1e-4_dp
     real(dp), parameter :: minLim = -tol, maxLim = 1.0_dp - tol
 
-    ASSERT(all(shape(coeffs) == (/ 3, 3 /)))
-    ASSERT(all(coeffs - nint(coeffs) < epsilon(1.0_dp))) ! check they are
-    !  integers
-    ASSERT(size(shifts) == 3)
-    ASSERT(all(shape(latVecs) == (/ 3, 3 /)))
-    ASSERT(all(shape(recVecs2p) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(coeffs) == (/ 3, 3 /)))
+    ! check they are integers
+    @:ASSERT(all(coeffs - nint(coeffs) < epsilon(1.0_dp)))
+    @:ASSERT(size(shifts) == 3)
+    @:ASSERT(all(shape(latVecs) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(recVecs2p) == (/ 3, 3 /)))
 
     if (present(reduceByInversion)) then
       tReduce = reduceByInversion
@@ -991,7 +995,7 @@ contains
     real(dp), intent(inout) :: cartCoords(:,:)
     real(dp), intent(in)  :: latvecs(3,3)
         
-    ASSERT(size(cartCoords,dim=1) == 3)
+    @:ASSERT(size(cartCoords,dim=1) == 3)
 
     cartCoords = matmul(latvecs,cartCoords)
     
@@ -1004,7 +1008,7 @@ contains
     real(dp) :: invLatVecs(3,3)
     
     
-    ASSERT(size(cartCoords,dim=1) == 3)
+    @:ASSERT(size(cartCoords,dim=1) == 3)
     
     call invert33(invLatVecs, latvecs)
     cartCoords = matmul(invLatvecs, cartCoords)

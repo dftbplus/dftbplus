@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Simple mixer for mixing charges
 module simplemixer
-#include "assert.h"  
+  use assert
   use accuracy
   implicit none
   
@@ -61,7 +63,7 @@ contains
     type(OSimpleMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
-    ASSERT(nElem > 0)
+    @:ASSERT(nElem > 0)
 
     continue
     
@@ -78,7 +80,7 @@ contains
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
 
-    ASSERT(size(qInpResult) == size(qDiff))
+    @:ASSERT(size(qInpResult) == size(qDiff))
 
     qInpResult(:) = qInpResult(:) + self%mixParam * qDiff(:)
 

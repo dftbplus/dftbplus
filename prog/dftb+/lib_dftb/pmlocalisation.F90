@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Construct Pipek-Mezey localised orbitals, either for
 !! molecules/gamma point periodic, or for each k-point separately
 !! \note for the k-point case these are NOT localised Wannier functions
 module pmlocalisation
-# include "assert.h"
+  use assert
   use accuracy, only : dp
   use blasroutines
   use sparse2dense, only :unpackHS
@@ -60,15 +62,15 @@ contains
     real(dp) :: alphalast = 1.0_dp
     logical  :: tConverged = .false.
     
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
-    ASSERT(size(ci,dim=1)==size(S,dim=1))
-    ASSERT(size(S,dim=1)==size(S,dim=2))
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+    @:ASSERT(size(ci,dim=1)==size(S,dim=1))
+    @:ASSERT(size(S,dim=1)==size(S,dim=2))
     
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nAtom = size(iAtomStart) -1
     
-    ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
+    @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
     
     if (present(mIter)) then
       nIter = mIter
@@ -199,15 +201,15 @@ contains
     Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
     write(*,*)'Initial', Localisation
     
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
-    ASSERT(size(ci,dim=1)==size(S,dim=1))
-    ASSERT(size(S,dim=1)==size(S,dim=2))
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+    @:ASSERT(size(ci,dim=1)==size(S,dim=1))
+    @:ASSERT(size(S,dim=1)==size(S,dim=2))
     
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nAtom = size(iAtomStart) -1
     
-    ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
+    @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
     
     if (present(mIter)) then
       nIter = mIter
@@ -533,16 +535,16 @@ contains
     real(dp), allocatable :: tmp(:,:)
     integer :: nAtom, iAtom, iKpt, nKpt, iOrbStart, iOrbEnd, nOrb, iLev, nLev
     
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     
     nAtom = size(iAtomStart) -1
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nKpt = size(ci,dim=3)
     
-    ASSERT(all(shape(kpoints) == [3,nKpt]))
-    ASSERT(size(kweights) == nKpt)
-    ASSERT(all(shape(S) == [nOrb,nOrb]))
+    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
+    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(S) == [nOrb,nOrb]))
     
     allocate(Sci(nOrb,nLev))
     allocate(tmp(nAtom,nLev))
@@ -624,7 +626,7 @@ contains
     real(dp) :: alphalast = 1.0_dp
     logical  :: tConverged(size(kweights))
     
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     
     tConverged = .false.
 
@@ -633,10 +635,10 @@ contains
     nAtom = size(iAtomStart) -1
     nKpt = size(ci,dim=3)
     
-    ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
-    ASSERT(all(shape(kpoints) == [3,nKpt]))
-    ASSERT(size(kweights) == nKpt)
-    ASSERT(all(shape(S) == [nOrb,nOrb]))
+    @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
+    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
+    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(S) == [nOrb,nOrb]))
     
     if (present(mIter)) then
       nIter = mIter

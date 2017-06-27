@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Functions and local variables for the SCC calculation.
 module scc
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use coulomb
@@ -120,17 +122,19 @@ contains
     mShell_ = inp%orb%mShell
     mOrb_ = inp%orb%mOrb
 
-    ASSERT(.not. tInitialised_)
-    ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
-    ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
-    ASSERT(size(inp%hubbU, dim=1) == mShell_)
-    ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
-    ASSERT(size(inp%tDampedShort) == nSpecies_)
-    ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
-    ASSERT_ENV(if (allocated(inp%extCharges)) then)
-    ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=1) == 4))
-    ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=2) > 0))
-    ASSERT_ENV(end if)
+    @:ASSERT(.not. tInitialised_)
+    @:ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
+    @:ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
+    @:ASSERT(size(inp%hubbU, dim=1) == mShell_)
+    @:ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
+    @:ASSERT(size(inp%tDampedShort) == nSpecies_)
+    @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
+  #:call ASSERT_CODE    
+    if (allocated(inp%extCharges)) then
+      @:ASSERT(size(inp%extCharges, dim=1) == 4)
+      @:ASSERT(size(inp%extCharges, dim=2) > 0)
+    end if
+  #:endcall ASSERT_CODE    
     
     allocate(invRMat_(nAtom_, nAtom_))
     allocate(shiftPerAtom_(nAtom_))
@@ -213,7 +217,7 @@ contains
         call init_ExtChrg(inp%extCharges, nAtom_, inp%latVecs, inp%recVecs, &
             &maxREwald_)
       else
-        ASSERT(allocated(inp%blurWidths))
+        @:ASSERT(allocated(inp%blurWidths))
         call init_ExtChrg(inp%extCharges, nAtom_, blurWidths=inp%blurWidths)
       end if
     end if
@@ -255,7 +259,7 @@ contains
   function getSCCCutoff() result(cutoff)
     real(dp) :: cutoff
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
     cutoff = cutoff_
     
   end function getSCCCutoff
@@ -266,7 +270,7 @@ contains
   function getSCCEwaldPar() result(alpha)
     real(dp) :: alpha
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
     alpha = alpha_
 
   end function getSCCEwaldPar
@@ -314,7 +318,7 @@ contains
     type(TNeighborList), intent(in) :: neighList
     integer,  intent(in) :: img2CentCell(:)
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
 
     call updateNNeigh_(species, neighList)
     if (tPeriodic_) then
@@ -349,8 +353,8 @@ contains
 
     real(dp) :: maxGEwald
 
-    ASSERT(tInitialised_)
-    ASSERT(tPeriodic_)
+    @:ASSERT(tInitialised_)
+    @:ASSERT(tPeriodic_)
     
     volume_ = vol
     if (tAutoEwald_) then
@@ -391,8 +395,8 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
     integer, intent(in) :: img2CentCell(:)
 
-    ASSERT(tInitialised_)
-    ASSERT(tCoordUp_)
+    @:ASSERT(tInitialised_)
+    @:ASSERT(tCoordUp_)
 
     call getNetCharges_(species, orb, qOrbital, q0, deltaQ_, deltaQAtom_, &
         & deltaQPerLShell_, deltaQUniqU_)
@@ -551,10 +555,10 @@ contains
     
     integer :: iAt1, iAt2, iAt2f, iNeigh
     
-    ASSERT(tInitialised_)
-    ASSERT(tCoordUp_)
-    ASSERT(all(shape(gammamat) == [ nAtom_, nAtom_ ]))
-    ASSERT(all(nHubbU_ == 1))
+    @:ASSERT(tInitialised_)
+    @:ASSERT(tCoordUp_)
+    @:ASSERT(all(shape(gammamat) == [ nAtom_, nAtom_ ]))
+    @:ASSERT(all(nHubbU_ == 1))
     
     gammamat(:,:) = invRMat_
     do iAt1 = 1, nAtom_
@@ -586,8 +590,8 @@ contains
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
     
-    ASSERT(size(force,dim=1) == 3)
-    ASSERT(size(force,dim=2) == nAtom_)
+    @:ASSERT(size(force,dim=1) == 3)
+    @:ASSERT(size(force,dim=2) == nAtom_)
     
     ! some additional symmetry not used
     do iAt1 = 1, nAtom_
@@ -644,7 +648,7 @@ contains
     real(dp) :: rab, tmpGammaPrime, u1, u2
     real(dp) :: intermed(3), vect(3)
 
-    ASSERT(all(shape(st)==(/3,3/)))
+    @:ASSERT(all(shape(st)==(/3,3/)))
     
     st(:,:) = 0.0_dp
     ! some additional symmetry not used
@@ -708,8 +712,8 @@ contains
   subroutine getEnergyPerAtom_SCC(eSCC)
     real(dp), intent(out) :: eSCC(:)
 
-    ASSERT(tInitialised_)
-    ASSERT(size(eSCC) == nAtom_)
+    @:ASSERT(tInitialised_)
+    @:ASSERT(size(eSCC) == nAtom_)
 
     eSCC(:) = 0.5_dp * (shiftPerAtom_ * deltaQAtom_ &
         & + sum(shiftPerL_ * deltaQPerLShell_, dim=1))
@@ -742,8 +746,8 @@ contains
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:), dQOutShell(:,:)
   
-    ASSERT(tInitialised_)
-    ASSERT(size(eSCC) == nAtom_)
+    @:ASSERT(tInitialised_)
+    @:ASSERT(size(eSCC) == nAtom_)
   
     allocate(dQOut(orb%mOrb, nAtom_))
     allocate(dQOutAtom(nAtom_))
@@ -793,9 +797,9 @@ contains
     real(dp), intent(inout), optional :: chrgForce(:,:)
     
 
-    ASSERT(size(force,dim=1) == 3)
-    ASSERT(size(force,dim=2) == nAtom_)
-    ASSERT(present(chrgForce) .eqv. tExtChrg_)
+    @:ASSERT(size(force,dim=1) == 3)
+    @:ASSERT(size(force,dim=2) == nAtom_)
+    @:ASSERT(present(chrgForce) .eqv. tExtChrg_)
     
     ! Short-range part of gamma contribution
     call addGammaPrime_(force,coord,species,iNeighbor,img2CentCell)
@@ -838,8 +842,8 @@ contains
     
     real(dp) :: stTmp(3,3)
         
-    ASSERT(tPeriodic_)
-    ASSERT(all(shape(st)==(/3,3/)))
+    @:ASSERT(tPeriodic_)
+    @:ASSERT(all(shape(st)==(/3,3/)))
     
     stTmp = 0.0_dp
     
@@ -887,7 +891,7 @@ contains
 
     integer :: iAt1, iSp1, iSh1, iU1, iNeigh, iAt2f, iSp2, iSh2, iU2
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
     
     !! 1/R contribution [shiftAtom(A) = \sum_B 1/R_AB * (Q_B - Q0_B)]
     shiftAtom(:) = 0.0_dp
@@ -926,7 +930,7 @@ contains
   subroutine getShiftPerAtom(shift)
     real(dp), intent(out) :: shift(:,:)
 
-    ASSERT(size(shift,dim=1) == size(shiftPerAtom_,dim=1))
+    @:ASSERT(size(shift,dim=1) == size(shiftPerAtom_,dim=1))
 
     shift(:,:) = 0.0_dp
     shift(:,1) = shiftPerAtom_
@@ -949,9 +953,9 @@ contains
   subroutine getShiftPerL(shift)
     real(dp), intent(out) :: shift(:,:,:)
 
-    ASSERT(size(shift,dim=1) == size(shiftPerL_,dim=1))
-    ASSERT(size(shift,dim=2) == size(shiftPerL_,dim=2))
-    ASSERT(size(shift,dim=3) > 0)
+    @:ASSERT(size(shift,dim=1) == size(shiftPerL_,dim=1))
+    @:ASSERT(size(shift,dim=2) == size(shiftPerL_,dim=2))
+    @:ASSERT(size(shift,dim=3) > 0)
     shift(:,:,:) = 0.0_dp
     shift(:,:,1) = shiftPerL_(:,:)
 
@@ -973,10 +977,10 @@ contains
 
     nSpin = size(equiv, dim=3)
 
-    ASSERT(tInitialised_)
-    ASSERT(size(species) == nAtom_)
-    ASSERT(size(equiv, dim=1) == orb%mOrb)
-    ASSERT(all(shape(equiv) == (/ orb%mOrb, nAtom_, nSpin /)))
+    @:ASSERT(tInitialised_)
+    @:ASSERT(size(species) == nAtom_)
+    @:ASSERT(size(equiv, dim=1) == orb%mOrb)
+    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, nAtom_, nSpin /)))
 
     equiv(:,:,:) = 0
     shift = 0
@@ -1063,8 +1067,8 @@ contains
     real(dp) :: rab, tmpGammaPrime, u1, u2, prefac
     real(dp) :: contrib(3)
     
-    ASSERT(size(force,dim=1) == 3)
-    ASSERT(size(force,dim=2) == nAtom_)
+    @:ASSERT(size(force,dim=1) == 3)
+    @:ASSERT(size(force,dim=2) == nAtom_)
     
     do iAt1 = 1, nAtom_
       iSp1 = species(iAt1)

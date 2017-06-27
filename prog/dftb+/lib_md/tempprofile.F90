@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains simple temperature profiles for molecular dynamics.
 module tempprofile
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
   private
@@ -66,13 +68,12 @@ contains
 
     integer :: ii, iTmp
 
-    ASSERT(all(tempMethods == constProf .or. tempMethods == linProf \
-      .or. tempMethods == expProf))
-    ASSERT(size(tempInts) > 0)
-    ASSERT(size(tempInts) == size(tempValues) .and. \
-      size(tempInts) == size(tempMethods))
-    ASSERT(all(tempInts >= 0))
-    ASSERT(all(tempValues >= 0.0_dp))
+    @:ASSERT(all(tempMethods == constProf .or. tempMethods == linProf&
+        & .or. tempMethods == expProf))
+    @:ASSERT(size(tempInts) > 0)
+    @:ASSERT(size(tempInts) == size(tempValues) .and. size(tempInts) == size(tempMethods))
+    @:ASSERT(all(tempInts >= 0))
+    @:ASSERT(all(tempValues >= 0.0_dp))
 
     self%nInt = size(tempInts)
     allocate(self%tempInts(0:self%nInt))

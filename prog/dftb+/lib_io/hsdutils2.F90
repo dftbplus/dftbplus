@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains more high level functions for converting the values in a XML/HSD 
 !!* DOM-tree to Fortran intrinsic types.
 module hsdutils2
-#include "assert.h"
+  use assert
   use accuracy
   use hsdutils
   use hsdparser
@@ -267,7 +269,7 @@ contains
 
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     call getAttribute(node, attrName, buffer)
     if (len(buffer) > 0) then

@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module to wrap around the different energy components in the DFTB
 !!* total energy expression
 module energies
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
 
@@ -62,7 +64,7 @@ contains
     type(TEnergies), intent(out) :: self
     integer, intent(in) :: nAtom
 
-    ASSERT(.not. self%tInitialised)
+    @:ASSERT(.not. self%tInitialised)
 
     allocate(self%atomRep(nAtom))
     allocate(self%atomNonSCC(nAtom))

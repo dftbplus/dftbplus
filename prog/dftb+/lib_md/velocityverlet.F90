@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Velocity Verlet intergrator.
 module velocityverlet
-#include "assert.h"
+  use assert
   use accuracy
   use thermostat
   use fileid
@@ -66,7 +68,7 @@ contains
     real(dp), intent(in)                 :: positions(:,:)
     type(OThermostat), allocatable, intent(inout) :: pThermostat    
     
-    ASSERT(size(positions, dim=1) == 3)
+    @:ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
@@ -101,7 +103,7 @@ contains
     type(OThermostat), allocatable, intent(inout) :: pThermostat    
     real(dp), intent(in)                 :: velocities(:,:)
     
-    ASSERT(size(positions, dim=1) == 3)
+    @:ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
@@ -143,7 +145,7 @@ contains
     
     integer :: ii
     
-    ASSERT(size(positions, dim=1) == 3)
+    @:ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
@@ -194,7 +196,7 @@ contains
     
     integer :: ii
     
-    ASSERT(size(positions, dim=1) == 3)
+    @:ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
@@ -298,7 +300,7 @@ contains
     real(dp) :: scaleIso, Pext, P
     integer  :: ii
     
-    ASSERT(self%tBarostat)
+    @:ASSERT(self%tBarostat)
 
     if (self%tIsotropic) then ! isotropic Berendsen, not quite consistent
       ! with anisotropic but its in the literature...

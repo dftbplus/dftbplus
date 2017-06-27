@@ -15,7 +15,7 @@
 #
 #  The code builds a binary tree for each source file in the directories
 #  passed as argument (or in ./ if no argument passed). The tree structure
-#  is based on the #if, #ifdef, #else and #endif directives in the file.
+#  is based on the #:if, #:else and #:endif directives in the file.
 #  It can be printed out in a format appropriate for the DFTB+ make system.
 #  One dependency list is printed for every possible combination of the
 #  branching blocks.
@@ -29,14 +29,14 @@ import copy
 # prefix for printing module dependencies
 MODULE_PREFIX = "_mod_"
 
-# Patterns for branch constructs: #if*, #else, #endif
-PAT_IF = re.compile(r"^[ \t]*#[ \t]*if(?P<cond>(?:n?def)?[ \t]+.*)$",
+# Patterns for branch constructs: #:if, #:else, #:endif
+PAT_IF = re.compile(r"^[ \t]*#:if[ \t]+(?P<cond>.*)$",
                     re.MULTILINE)
-PAT_ELSE = re.compile(r"^[ \t]*#[ \t]*else[ \t]*$", re.MULTILINE)
-PAT_ENDIF = re.compile(r"^[ \t]*#[ \t]*endif\s*$", re.MULTILINE)
+PAT_ELSE = re.compile(r"^[ \t]*#:else[ \t]*$", re.MULTILINE)
+PAT_ENDIF = re.compile(r"^[ \t]*#:endif\s*$", re.MULTILINE)
 
 # Patterns for other constructs: #include, use, module
-PAT_INCLUDE = re.compile(r"""^[ \t]*\#[ \t]*include\s+
+PAT_INCLUDE = re.compile(r"""^[ \t]*\#:include\s+
                              (?:'(?P<name1>[^']+)'
                              |\"(?P<name2>[^\"]+)\")
                              """, re.MULTILINE | re.VERBOSE)
@@ -166,13 +166,13 @@ class BranchBlock(object):
 
     if self._hasBranch:
       # We have a branch point, dive into the true and false branch
-      print >>fp, "#if%s" % self._condition
+      print >>fp, "#:if %s" % self._condition
       self._trueChild._printTreeRecursive(fp, newDeps, newDfns, fbase, fext,
                                           fsrc)
-      print >>fp, "#else"
+      print >>fp, "#:else"
       self._falseChild._printTreeRecursive(fp, newDeps, newDfns, fbase, fext,
                                            fsrc)
-      print >>fp, "#endif"
+      print >>fp, "#:endif"
     else:
       # No further branch points: print all dependencies in the right order
       filedeps = []
@@ -233,7 +233,7 @@ def nextMatch(txt, matches, starts, iType):
   # starts by replacing the entries for iType with the next occurance.
 
   if matches[iType] == None:
-    raise "Invalid nesting of blocks (probably unclosed #if* block)"
+    raise "Invalid nesting of blocks (probably unclosed #:if* block)"
   match = PATTERNS[iType].search(txt, matches[iType].end())
   matches[iType] = match
   if match:
@@ -264,25 +264,25 @@ def buildDependencyRecursive(txt, matches, starts):
     match = matches[iType]
 
     if iType == 0:
-      # Branch opening (#ifdef)
+      # Branch opening (#:if)
       condition = match.group("cond")
       nextMatch(txt, matches, starts, iType)
       (iType, ifBranch) = buildDependencyRecursive(txt, matches, starts)
       if iType == 1:
-        # If branch ended with #else -> parse the else branch as well
+        # If branch ended with #:else -> parse the else branch as well
         nextMatch(txt, matches, starts, iType)
         (iType, elseBranch) = buildDependencyRecursive(txt, matches, starts)
       else:
         elseBranch = None
-      # Sanity check: #if must be closed by #endif
+      # Sanity check: #:if must be closed by #:endif
       if iType != 2:
-        raise "ERROR, #else must be terminted by #endif"
+        raise "ERROR, #:else must be terminted by #:endif"
       # if any of the two branches contains usefull info, add the branch to
       # the current block
       if ifBranch or elseBranch:
         block.addBranch(condition, ifBranch, elseBranch)
     elif iType == 1 or iType == 2:
-      # block closing #else or #endif found -> escape to higher level
+      # block closing #:else or #:endif found -> escape to higher level
       break
     elif iType == 3:
       # #include found

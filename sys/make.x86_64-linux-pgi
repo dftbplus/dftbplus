@@ -16,11 +16,8 @@ FXXOPT = -O1 -Mallocatable=03
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Preprocessor
-CPP = cpp -traditional
-CPPOPT =
-
-# Fortran preprocessor (invokes CPP as defined above and process the result)
-FPP = $(ROOT)/utils/build/fpp/fpp.sh nocntln
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT =
 
 # Linker
 LN = $(FXX)

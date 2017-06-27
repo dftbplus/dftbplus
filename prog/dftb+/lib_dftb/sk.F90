@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains code to perform the sk rotations of matrix elements from the 
 !!* parameterization orientation along $\langle 0,0,1 \rangle$ to the one
 !!* needed in the calculation.
@@ -16,7 +18,7 @@
 !!* @caveat Only angular momenta up to $f$ are currently allowed
 !!* @author B. Hourahine, B. Aradi
 module sk
-#include "assert.h"
+  use assert
   use accuracy
   use commontypes
   implicit none
@@ -56,8 +58,8 @@ contains
     real(dp), pointer :: pSK(:)
     real(dp) :: tmpH(2*mAngRot_+1,2*mAngRot_+1)
 
-    ASSERT(maxval(orb%angShell) <=  mAngRot_)
-    ASSERT(all(shape(hh) >= (/ orb%nOrbSpecies(iSp1), orb%nOrbSpecies(iSp2) /)))
+    @:ASSERT(maxval(orb%angShell) <=  mAngRot_)
+    @:ASSERT(all(shape(hh) >= (/ orb%nOrbSpecies(iSp1), orb%nOrbSpecies(iSp2) /)))
 
     hh(:,:) = 0.0_dp
     ind = 1
@@ -69,7 +71,7 @@ contains
       do iSh2 = 1, orb%nShell(iSp2)
         ang2 = orb%angShell(iSh2, iSp2)
         nOrb2 = 2 * ang2 + 1
-        ASSERT(size(skIntegs) >= ind + min(ang1,ang2))
+        @:ASSERT(size(skIntegs) >= ind + min(ang1,ang2))
         pSK => skIntegs(ind:ind+min(ang1,ang2))
         select case (ang1)
         case (0)
@@ -144,8 +146,8 @@ contains
     real(dp), intent(inout) :: hh(:,:)
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 1)
-    ASSERT(all(shape(hh) >= (/ 1, 1 /)))
+    @:ASSERT(size(sk) == 1)
+    @:ASSERT(all(shape(hh) >= (/ 1, 1 /)))
 
     hh(1,1) = sk(1)
 
@@ -164,8 +166,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 1)
-    ASSERT(all(shape(hh) >= (/ 3, 1 /)))
+    @:ASSERT(size(sk) == 1)
+    @:ASSERT(all(shape(hh) >= (/ 3, 1 /)))
 
     hh(1,1) = mm*sk(1)
     hh(2,1) = nn*sk(1)
@@ -186,8 +188,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 1)
-    ASSERT(all(shape(hh) >= (/ 5, 1 /)))
+    @:ASSERT(size(sk) == 1)
+    @:ASSERT(all(shape(hh) >= (/ 5, 1 /)))
 
     hh(1,1) = ll*mm*sqrt(3.0_dp)*sk(1)
     hh(2,1) = mm*sqrt(3.0_dp)*nn*sk(1)
@@ -210,8 +212,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 1)
-    ASSERT(all(shape(hh) >= (/ 1, 7 /)))
+    @:ASSERT(size(sk) == 1)
+    @:ASSERT(all(shape(hh) >= (/ 1, 7 /)))
 
     hh(1,1) = sqrt(2.0_dp)*mm*(4.0_dp*ll**2-1.0_dp+nn**2)*sqrt(5.0_dp)&
         &*sk(1)/ 4.0_dp
@@ -240,8 +242,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 2)
-    ASSERT(all(shape(hh) >= (/ 3, 3 /)))
+    @:ASSERT(size(sk) == 2)
+    @:ASSERT(all(shape(hh) >= (/ 3, 3 /)))
 
     hh(1,1) = (1.0_dp-nn**2-ll**2)*sk(1)+(nn**2+ll**2)*sk(2)
     hh(2,1) = nn*mm*sk(1)-nn*mm*sk(2)
@@ -268,8 +270,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 2)
-    ASSERT(all(shape(hh) >= (/ 3, 5 /)))
+    @:ASSERT(size(sk) == 2)
+    @:ASSERT(all(shape(hh) >= (/ 3, 5 /)))
 
     hh(1,1) = -(-1.0_dp+nn**2+ll**2)*ll*sqrt(3.0_dp)&
         &*sk(1)+((2.0_dp*nn**2+2.0_dp*ll**2-1.0_dp)*ll*sk(2))
@@ -314,8 +316,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 2)
-    ASSERT(all(shape(hh) >= (/ 3, 7 /)))
+    @:ASSERT(size(sk) == 2)
+    @:ASSERT(all(shape(hh) >= (/ 3, 7 /)))
 
     hh(1,1) = -(-1.0_dp+nn**2+ll**2)*(4.0_dp*ll**2-1.0_dp+nn**2)*sqrt(2.0_dp)&
         &*sqrt(5.0_dp)*sk(1)/4.0_dp+sqrt(15.0_dp)&
@@ -392,8 +394,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 3)
-    ASSERT(all(shape(hh) >= (/ 5, 5 /)))
+    @:ASSERT(size(sk) == 3)
+    @:ASSERT(all(shape(hh) >= (/ 5, 5 /)))
 
     hh(1,1) = -3.0_dp*ll**2*(-1.0_dp+nn**2+ll**2)*sk(1)&
         &+(4.0_dp*ll**2*nn**2-nn**2+4.0_dp*ll**4-4.0_dp*ll**2+1.0_dp)*sk(2)&
@@ -465,8 +467,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 3)
-    ASSERT(all(shape(hh) >= (/ 5, 7 /)))
+    @:ASSERT(size(sk) == 3)
+    @:ASSERT(all(shape(hh) >= (/ 5, 7 /)))
 
     hh(1,1) = -ll*(-1.0_dp+nn**2+ll**2)*(4.0_dp*ll**2-1.0_dp+nn**2)&
         &*sqrt(6.0_dp)*sqrt(5.0_dp)*sk(1)/4.0_dp&
@@ -646,8 +648,8 @@ contains
     real(dp), intent(in) :: ll, mm, nn
     real(dp), intent(in) :: sk(:)
 
-    ASSERT(size(sk) == 4)
-    ASSERT(all(shape(hh) >= (/ 7, 7 /)))
+    @:ASSERT(size(sk) == 4)
+    @:ASSERT(all(shape(hh) >= (/ 7, 7 /)))
 
     
     hh(1,1) = - 5.0_dp/ 8.0_dp*(-1.0_dp+nn**2+ll**2)*((4.0_dp*ll**2-1.0_dp&

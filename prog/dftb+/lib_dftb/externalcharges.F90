@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Routines for calculating the interaction with external charges
 module ExternalCharges
-#include "assert.h"  
+  use assert
   use accuracy
   use blasroutines
   use coulomb
@@ -75,15 +77,17 @@ contains
 
     nChrg_ = size(coordsAndCharges, dim=2)
 
-    ASSERT(size(coordsAndCharges, dim=1) == 4)
-    ASSERT(nChrg_ > 0)
-    ASSERT(present(latVecs) .eqv. present(recVecs))
+    @:ASSERT(size(coordsAndCharges, dim=1) == 4)
+    @:ASSERT(nChrg_ > 0)
+    @:ASSERT(present(latVecs) .eqv. present(recVecs))
     print *, present(latVecs), present(ewaldCutoff)
-    ASSERT(present(latVecs) .eqv. present(ewaldCutoff))
-    ASSERT(present(latVecs) .neqv. present(blurWidths))
-    ASSERT_ENV(if (present(blurWidths)) then)
-    ASSERT_ENV(  ASSERT(size(blurWidths) == nChrg_))
-    ASSERT_ENV(end if)
+    @:ASSERT(present(latVecs) .eqv. present(ewaldCutoff))
+    @:ASSERT(present(latVecs) .neqv. present(blurWidths))
+  #:call ASSERT_CODE
+    if (present(blurWidths)) then
+      @:ASSERT(size(blurWidths) == nChrg_)
+    end if
+  #:endcall ASSERT_CODE
 
     nAtom_ = nAtom
     allocate(coords_(3, nChrg_))
@@ -130,7 +134,7 @@ contains
 
     real(dp), allocatable :: dummy(:,:)
 
-    ASSERT(tInitialized_ .and. tPeriodic_)
+    @:ASSERT(tInitialized_ .and. tPeriodic_)
 
     !! Fold charges back to unit cell
     call foldCoordToUnitCell(coords_, latVecs, recVecs / (2.0_dp * pi))
@@ -145,10 +149,10 @@ contains
   subroutine updateCoords_ExtChrg_cluster(atomCoords)
     real(dp), intent(in) :: atomCoords(:,:)
 
-    ASSERT(tInitialized_)
-    ASSERT(.not. tPeriodic_)
-    ASSERT(size(atomCoords, dim=1) == 3)
-    ASSERT(size(atomCoords, dim=2) >= nAtom_)
+    @:ASSERT(tInitialized_)
+    @:ASSERT(.not. tPeriodic_)
+    @:ASSERT(size(atomCoords, dim=1) == 3)
+    @:ASSERT(size(atomCoords, dim=2) >= nAtom_)
 
     if (tBlur_) then
       call sumInvR(invRVec_, nAtom_, nChrg_, atomCoords, coords_, charges_, &
@@ -172,11 +176,11 @@ contains
     real(dp), intent(in) :: alpha
     real(dp), intent(in) :: volume
 
-    ASSERT(tInitialized_)
-    ASSERT(tPeriodic_)
-    ASSERT(size(atomCoords, dim=1) == 3)
-    ASSERT(size(atomCoords, dim=2) >= nAtom_)
-    ASSERT(size(gLat, dim=1) == 3)
+    @:ASSERT(tInitialized_)
+    @:ASSERT(tPeriodic_)
+    @:ASSERT(size(atomCoords, dim=1) == 3)
+    @:ASSERT(size(atomCoords, dim=2) >= nAtom_)
+    @:ASSERT(size(gLat, dim=1) == 3)
 
     call sumInvR(invRVec_, nAtom_, nChrg_, atomCoords, coords_, charges_, &
         &rCellVec_, gLat, alpha, volume)
@@ -192,8 +196,8 @@ contains
   subroutine addShift1(shift)
     real(dp), intent(inout) :: shift(:)
     
-    ASSERT(tInitialized_ .and. tUpdated_)
-    ASSERT(size(shift) == nAtom_)
+    @:ASSERT(tInitialized_ .and. tUpdated_)
+    @:ASSERT(size(shift) == nAtom_)
     
     shift(:) = shift(:) + invRVec_(:)
     
@@ -204,8 +208,8 @@ contains
   subroutine addShift2(shift)
     real(dp), intent(inout) :: shift(:,:)
     
-    ASSERT(tInitialized_ .and. tUpdated_)
-    ASSERT(size(shift) == nAtom_)
+    @:ASSERT(tInitialized_ .and. tUpdated_)
+    @:ASSERT(size(shift) == nAtom_)
     
     shift(:,1) = shift(:,1) + invRVec_(:)
     
@@ -220,9 +224,9 @@ contains
     real(dp), intent(in) :: atomCharges(:)
     real(dp), intent(inout) :: energy(:)
 
-    ASSERT(tInitialized_ .and. tUpdated_)
-    ASSERT(size(atomCharges) == nAtom_)
-    ASSERT(size(energy) == nAtom_)
+    @:ASSERT(tInitialized_ .and. tUpdated_)
+    @:ASSERT(size(atomCharges) == nAtom_)
+    @:ASSERT(size(energy) == nAtom_)
 
     energy(:) = energy(:) + invRVec_(:) * atomCharges(:)
     
@@ -243,10 +247,10 @@ contains
     real(dp), intent(in) :: atomCoords(:,:)
     real(dp), intent(in) :: atomCharges(:)
 
-    ASSERT(size(atomForces, dim=1) == 3)
-    ASSERT(size(atomForces, dim=2) == nAtom_)
-    ASSERT(size(atomCoords, dim=1) == 3)
-    ASSERT(size(atomCoords, dim=2) == nAtom_)
+    @:ASSERT(size(atomForces, dim=1) == 3)
+    @:ASSERT(size(atomForces, dim=2) == nAtom_)
+    @:ASSERT(size(atomCoords, dim=1) == 3)
+    @:ASSERT(size(atomCoords, dim=2) == nAtom_)
 
     if (tBlur_) then
       call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, atomCoords, &
@@ -279,10 +283,10 @@ contains
     real(dp), intent(in) :: alpha
     real(dp), intent(in) :: vol
 
-    ASSERT(size(atomForces, dim=1) == 3)
-    ASSERT(size(atomForces, dim=2) == nAtom_)
-    ASSERT(size(atomCoords, dim=1) == 3)
-    ASSERT(size(atomCoords, dim=2) >= nAtom_)
+    @:ASSERT(size(atomForces, dim=1) == 3)
+    @:ASSERT(size(atomForces, dim=2) == nAtom_)
+    @:ASSERT(size(atomCoords, dim=1) == 3)
+    @:ASSERT(size(atomCoords, dim=2) >= nAtom_)
 
     call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, &
         &atomCoords, coords_, atomCharges, charges_, rCellVec_, gVec, alpha, &

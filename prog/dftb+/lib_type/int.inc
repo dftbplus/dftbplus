@@ -16,7 +16,7 @@
   subroutine initInt(list)
     type(listInt), intent(inout) :: list
 
-    ASSERT(.not. list%tInitialized)
+    @:ASSERT(.not. list%tInitialized)
 
     list%length = 0
     list%tUnishaped = .true.
@@ -60,7 +60,7 @@
     type(listInt), intent(inout) :: list
     integer,       intent(in)    :: value                ! type specific
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     !! List contains already elements -> append to the end otherwise as first
     if(associated(list%pLast)) then
@@ -85,7 +85,7 @@
   !!* @return     Nr. of elements in the list.
   integer function lenInt(list) result(len)
     type(listInt), intent(in) :: list
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
     len = list%length
   end function lenInt
 
@@ -102,7 +102,7 @@
     type(nodeInt), pointer :: pCur
     integer                   :: ii
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     pCur => list%pFirst
     ii = 1
@@ -134,7 +134,7 @@
     type(listInt), intent(inout) :: list
     integer,    intent(in)    :: value
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     if (find(list, value) == 0) then
       hasElement = .false.
@@ -157,8 +157,8 @@
 
     type(nodeInt), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeInt(list, index)
     value = pCur%value
@@ -178,8 +178,8 @@
 
     type(nodeInt), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeInt(list, index)
     pCur%value = value
@@ -193,7 +193,7 @@
   !!* @return     True, if elements have equals shaped, False otherwise.
   logical function isUnishapedInt(list) result(isUnishaped)
     type(listInt), intent(in) :: list
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
     isUnishaped = list%tUnishaped
   end function isUnishapedInt
 
@@ -223,8 +223,8 @@
 
     lenVal = size(val, dim=size(shape(val)))
     
-    ASSERT(list%tInitialized)
-    ASSERT(lenVal >= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(lenVal >= list%length)
 
     if (present(optPad)) then
       pad = optPad
@@ -258,7 +258,7 @@
 
     integer :: ii, iStart
     
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     if (list%iCache == index) then
       getNode => list%pCache

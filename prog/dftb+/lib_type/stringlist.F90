@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains a linked list for string types.
 !!* @desc The linked list for strings takes character variables with arbitary
 !!*   length and stores those in a linked list. The elements of the lists
@@ -14,7 +16,7 @@
 !!*   since it depends on the string module, which not all compiler are able
 !!*   to compile.
 module stringlist
-#include "assert.h"
+  use assert
   use xmlf90
   implicit none
 
@@ -96,7 +98,7 @@ contains
   subroutine initString(list)
     type(listString), intent(inout) :: list
 
-    ASSERT(.not. list%tInitialized)
+    @:ASSERT(.not. list%tInitialized)
 
     list%length = 0
     list%tUnishaped = .true.
@@ -140,7 +142,7 @@ contains
     type(listString), intent(inout) :: list
     character(len=*), intent(in)    :: value                ! type specific
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     !! List contains already elements -> append to the end otherwise as first
     if(associated(list%pLast)) then
@@ -165,7 +167,7 @@ contains
   !!* @return     Nr. of elements in the list.
   integer function lenString(list) result(len)
     type(listString), intent(in) :: list
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
     len = list%length
   end function lenString
 
@@ -182,7 +184,7 @@ contains
     type(nodeString), pointer :: pCur
     integer                   :: ii
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     pCur => list%pFirst
     ii = 1
@@ -214,7 +216,7 @@ contains
     type(listString), intent(inout) :: list
     character(len=*), intent(in)    :: value
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     if (find(list, value) == 0) then
       hasElement = .false.
@@ -239,8 +241,8 @@ contains
 
     type(nodeString), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeString(list, index)
     value = pCur%value
@@ -253,7 +255,7 @@ contains
   !!* @return     True, if elements have equals shaped, False otherwise.
   logical function isUnishapedString(list) result(isUnishaped)
     type(listString), intent(in) :: list
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
     isUnishaped = list%tUnishaped
   end function isUnishapedString
 
@@ -282,8 +284,8 @@ contains
 
     lenVal = size(val, dim=size(shape(val)))
 
-    ASSERT(list%tInitialized)
-    ASSERT(lenVal >= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(lenVal >= list%length)
 
     pCur => list%pFirst
     ii = 1
@@ -315,7 +317,7 @@ contains
 
     integer :: ii, iStart
 
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     if (list%iCache == index) then
       getNode => list%pCache

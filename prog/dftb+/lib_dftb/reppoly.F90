@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Implements a repulsive potential between two atoms represented by
 !!* a polynomial of 9th degree
 module reppoly
-#include "assert.h"
+  use assert
   use accuracy
   use bisect
   implicit none
@@ -71,8 +73,8 @@ contains
     type(TRepPolyIn), intent(in) :: inp
 
     
-    ASSERT(.not. self%tInit)
-    ASSERT(inp%cutoff >= 0.0_dp)
+    @:ASSERT(.not. self%tInit)
+    @:ASSERT(inp%cutoff >= 0.0_dp)
 
     self%polyCoeffs(:) = inp%polyCoeffs(:)
     self%cutoff = inp%cutoff
@@ -89,7 +91,7 @@ contains
     type(ORepPoly), intent(in) :: self
     real(dp) :: cutoff
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
     cutoff = self%cutoff
 
   end function RepPoly_getCutoff
@@ -107,7 +109,7 @@ contains
     real(dp) :: rrr
     integer :: ii
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
 
     if (rr >= self%cutoff) then
       res = 0.0_dp
@@ -139,7 +141,7 @@ contains
     integer :: ii
     real(dp) :: rr, rrr, xh
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
 
     res(:) = 0.0_dp
     if (present(d2)) then

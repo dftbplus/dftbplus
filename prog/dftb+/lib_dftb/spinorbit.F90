@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Routines for spin orbit coupling
 module spinorbit
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use angmomentum, only : Loperators
   use commontypes, only : TOrbitals
@@ -53,13 +55,13 @@ contains
     nSpecies = maxval(species(1:nAtom))
     nOrb = size(rho,dim=1)
 
-    ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    ASSERT(size(iAtomStart) == nAtom+1)
-    ASSERT(size(xi,dim=2) == nSpecies)
-    ASSERT(size(xi,dim=1) == orb%mShell)
-    ASSERT(mod(nOrb,2)==0)
+    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
+    @:ASSERT(size(iAtomStart) == nAtom+1)
+    @:ASSERT(size(xi,dim=2) == nSpecies)
+    @:ASSERT(size(xi,dim=1) == orb%mShell)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-    ASSERT(iAtomStart(nAtom+1)==nOrb+1)
+    @:ASSERT(iAtomStart(nAtom+1)==nOrb+1)
 
     allocate(SpeciesZ(orb%mOrb,orb%mOrb,nSpecies))
     SpeciesZ = 0.0_dp
@@ -147,8 +149,8 @@ contains
 
     nAtom = size(Eatom,dim=1)
     nSpecies = maxval(species(1:nAtom))
-    ASSERT(size(xi,dim=2) == nSpecies)
-    ASSERT(size(xi,dim=1) == orb%mShell)
+    @:ASSERT(size(xi,dim=2) == nSpecies)
+    @:ASSERT(size(xi,dim=1) == orb%mShell)
 
     allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
@@ -219,14 +221,14 @@ contains
     complex(dp), allocatable :: Lplus(:,:)
     real(dp), allocatable    :: tmpShift(:,:,:,:)
 
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
     nAtom = size(shift,dim=3)
-    ASSERT(size(shift,dim=4)==4)
+    @:ASSERT(size(shift,dim=4)==4)
     nSpecies = maxval(species(1:nAtom))
-    ASSERT(size(species)>=nAtom)
-    ASSERT(size(xi,dim=2) == nSpecies)
-    ASSERT(size(xi,dim=1) == orb%mShell)
+    @:ASSERT(size(species)>=nAtom)
+    @:ASSERT(size(xi,dim=2) == nSpecies)
+    @:ASSERT(size(xi,dim=1) == orb%mShell)
 
     allocate(tmpShift(orb%mOrb,orb%mOrb,nSpecies,4))
     allocate(Lz(orb%mOrb,orb%mOrb))

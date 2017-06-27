@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains an Anderson mixer
 !!* @description
 !!*   The Anderson mixing is done by building a special average over the
@@ -14,7 +16,7 @@
 !!*   considered.
 !!* @note In order to use the mixer you have to create and reset it.
 module andersonmixer
-#include "assert.h"  
+  use assert
   use accuracy
   use lapackroutines, only : gesv
   implicit none
@@ -89,7 +91,7 @@ contains
     real(dp), intent(in), optional :: convMixParam(:,:)
     real(dp), intent(in), optional :: omega0
 
-    ASSERT(nGeneration >= 2)
+    @:ASSERT(nGeneration >= 2)
 
     self%nElem = 0
     self%mPrevVector = nGeneration - 1
@@ -101,7 +103,7 @@ contains
     self%mixParam = mixParam
     self%initMixParam = initMixParam
     if (present(convMixParam)) then
-      ASSERT(size(convMixParam, dim=1) == 2)
+      @:ASSERT(size(convMixParam, dim=1) == 2)
       self%nConvMixParam = size(convMixParam, dim=2)
       allocate(self%convMixParam(2, self%nConvMixParam))
       self%convMixParam(:,:) = convMixParam(:,:)
@@ -129,7 +131,7 @@ contains
 
     integer :: ii
 
-    ASSERT(nElem > 0)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
@@ -161,8 +163,8 @@ contains
     real(dp) :: rTmp
     integer :: ii
 
-    ASSERT(size(qInpResult) == self%nElem)
-    ASSERT(size(qDiff) == self%nElem)
+    @:ASSERT(size(qInpResult) == self%nElem)
+    @:ASSERT(size(qDiff) == self%nElem)
 
     if (self%nPrevVector < self%mPrevVector) then
       self%nPrevVector = self%nPrevVector + 1
@@ -242,15 +244,15 @@ contains
     real(dp) :: tmp2
     integer :: ii, jj
 
-    ASSERT(size(qInpMiddle) == nElem)
-    ASSERT(size(qDiffMiddle) == nElem)
-    ASSERT(size(qInput) == nElem)
-    ASSERT(size(qDiff) == nElem)
-    ASSERT(size(prevQInp, dim=1) == nElem)
-    ASSERT(size(prevQInp, dim=2) >= nPrevVector)
-    ASSERT(size(prevQDiff, dim=1) == nElem)
-    ASSERT(size(prevQDiff, dim=2) >= nPrevVector)
-    ASSERT(size(indx) >= nPrevVector)
+    @:ASSERT(size(qInpMiddle) == nElem)
+    @:ASSERT(size(qDiffMiddle) == nElem)
+    @:ASSERT(size(qInput) == nElem)
+    @:ASSERT(size(qDiff) == nElem)
+    @:ASSERT(size(prevQInp, dim=1) == nElem)
+    @:ASSERT(size(prevQInp, dim=2) >= nPrevVector)
+    @:ASSERT(size(prevQDiff, dim=1) == nElem)
+    @:ASSERT(size(prevQDiff, dim=2) >= nPrevVector)
+    @:ASSERT(size(indx) >= nPrevVector)
 
     allocate(aa(nPrevVector, nPrevVector))
     allocate(bb(nPrevVector, 1))

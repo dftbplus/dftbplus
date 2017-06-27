@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Dummy thermostat, delivers only initial velocities according to the
 !!* Maxwell-Boltzmann statistics.
 module dummytherm
-#include "assert.h"
+  use assert
   use accuracy
   use mdcommon
   use ranlux
@@ -72,7 +74,7 @@ contains
 
     integer :: ii
 
-    ASSERT(all(shape(velocities) >= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) >= (/ 3, self%nAtom /)))
 
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), self%kT, &

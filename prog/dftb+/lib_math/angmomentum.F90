@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Angular momentum related routines
 module angmomentum
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use qm, only : unitary
   use commontypes, only : TOrbitals
@@ -45,10 +47,10 @@ contains
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
     complex(dp), allocatable :: u(:,:)
     
-    ASSERT(l >= 0)
-    ASSERT(all(shape(Lplus)==shape(Lz)))
-    ASSERT(size(Lplus,dim=1)==2*l+1)
-    ASSERT(size(Lplus,dim=2)==2*l+1)
+    @:ASSERT(l >= 0)
+    @:ASSERT(all(shape(Lplus)==shape(Lz)))
+    @:ASSERT(size(Lplus,dim=1)==2*l+1)
+    @:ASSERT(size(Lplus,dim=2)==2*l+1)
     
     ! Lz in usual spherical harmonic basis
     Lz = 0.0_dp
@@ -104,9 +106,9 @@ contains
     nSpecies = maxval(species(1:nAtom))    
     nOrb = size(rho,dim=1)
     
-    ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    ASSERT(size(iAtomStart) == nAtom+1)
-    ASSERT(mod(nOrb,2)==0)
+    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
+    @:ASSERT(size(iAtomStart) == nAtom+1)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
     
     allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))

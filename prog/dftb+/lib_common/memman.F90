@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !!* Contains various constants for memory management
-module memman	
+module memman
   use accuracy
   
   implicit none

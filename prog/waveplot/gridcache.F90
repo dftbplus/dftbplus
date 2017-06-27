@@ -5,12 +5,14 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* A cache for calculating molecule orbitals on a grid.
 !!* @desc This object is responsible for reading in the eigenvectors from a
 !!* specified file and passing the appropriate eigenvectors to the molecule
 !!* orbital calculator.
 module GridCache
-# include "assert.h"
+  use assert
   use Constants
   use Accuracy
   use FileId
@@ -108,18 +110,18 @@ contains
     integer :: curVec(3)
     logical :: tFound
 
-    ASSERT(.not. sf%tInitialised)
-    ASSERT(size(levelIndex, dim=1) == 3)
-    ASSERT(size(levelIndex, dim=2) > 0)
-    ASSERT(minval(levelIndex) > 0)
-    ASSERT(maxval(levelIndex(1,:)) <= nAllLevel)
-    ASSERT(maxval(levelIndex(2,:)) <= nAllKPoint)
-    ASSERT(maxval(levelIndex(3,:)) <= nAllSpin)
-    ASSERT(associated(molorb))
-    ASSERT(all(shape(gridVec) == (/3, 3/)))
-    ASSERT(size(origin) == 3)
-    ASSERT(size(nPoints) == 3)
-    ASSERT(all(shape(kPointCoords) == (/ 3, nAllKPoint /)))
+    @:ASSERT(.not. sf%tInitialised)
+    @:ASSERT(size(levelIndex, dim=1) == 3)
+    @:ASSERT(size(levelIndex, dim=2) > 0)
+    @:ASSERT(minval(levelIndex) > 0)
+    @:ASSERT(maxval(levelIndex(1,:)) <= nAllLevel)
+    @:ASSERT(maxval(levelIndex(2,:)) <= nAllKPoint)
+    @:ASSERT(maxval(levelIndex(3,:)) <= nAllSpin)
+    @:ASSERT(associated(molorb))
+    @:ASSERT(all(shape(gridVec) == (/3, 3/)))
+    @:ASSERT(size(origin) == 3)
+    @:ASSERT(size(nPoints) == 3)
+    @:ASSERT(all(shape(kPointCoords) == (/ 3, nAllKPoint /)))
 
     sf%molorb => molorb
     sf%gridVec(:,:) = gridVec(:,:)
@@ -163,7 +165,7 @@ contains
         end do
       end do
     end do
-    ASSERT(ind == nAll + 1)
+    @:ASSERT(ind == nAll + 1)
     sf%nGrid = nAll
     sf%iGrid = 1
     sf%cachePos = 1
@@ -238,8 +240,8 @@ contains
     real(dp), pointer :: eigReal(:,:)
     complex(dp), pointer :: eigCmpl(:,:)
 
-    ASSERT(sf%tInitialised)
-    ASSERT(.not. sf%tFinished)
+    @:ASSERT(sf%tInitialised)
+    @:ASSERT(.not. sf%tFinished)
 
     !! We passed back everything from the cache, fill it with new grids
     if (mod(sf%cachePos - 1, sf%nCached) == 0) then

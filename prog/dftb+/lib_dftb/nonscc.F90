@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Contains code to calculate the H0 Hamiltonian and overlap matrix and their
 !! derivatives.
 !!
 module nonscc
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use sk
   use slakocont
@@ -347,7 +349,7 @@ contains
     integer :: sp1, sp2
     real(dp) :: tmp(size(deriv,dim=1), size(deriv,dim=2),2,3)
     
-    ASSERT(size(deriv, dim=3) == 3)
+    @:ASSERT(size(deriv, dim=3) == 3)
     
     deriv(:,:,:) = 0.0_dp
     
@@ -400,7 +402,7 @@ contains
     real(dp) :: hh
     integer  :: ii, iCart, kk, ll, mm, nk
     
-    ASSERT(size(deriv, dim=3) == 3)
+    @:ASSERT(size(deriv, dim=3) == 3)
     
     deriv(:,:,:) = 0.0_dp
     
@@ -506,8 +508,8 @@ contains
     ! second derivative weights for d2 F /dx2
     real(dp), parameter :: stencil(-1:1) = [1.0_dp, -2.0_dp, 1.0_dp]
     
-    ASSERT(size(deriv, dim=3) == 3)
-    ASSERT(size(deriv, dim=4) == 3)
+    @:ASSERT(size(deriv, dim=3) == 3)
+    @:ASSERT(size(deriv, dim=4) == 3)
     
     deriv(:,:,:,:) = 0.0_dp
     

@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains a modified Broyden mixer.
 !!* @desc
 !!*   The modified Broyden mixer implemented here is practicaly the same as
@@ -13,7 +15,7 @@
 !!* @see D.D. Johnson, PRB 38, 12807 (1988)
 !!* @note In order to use the mixer you have to create and reset it.
 module broydenmixer
-#include "assert.h"  
+  use assert
   use accuracy
   use message
   use fifo
@@ -98,10 +100,10 @@ contains
     real(dp), intent(in) :: weightFac
     integer, intent(in) :: nKeep
     
-    ASSERT(mIter > 0)
-    ASSERT(mixParam > 0.0_dp)
-    ASSERT(omega0 > 0.0_dp)
-    ASSERT(nKeep >= 0)
+    @:ASSERT(mIter > 0)
+    @:ASSERT(mixParam > 0.0_dp)
+    @:ASSERT(omega0 > 0.0_dp)
+    @:ASSERT(nKeep >= 0)
 
     self%nElem = 0
     self%mIter = mIter
@@ -129,7 +131,7 @@ contains
     type(OBroydenMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
-    ASSERT(nElem > 0)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
@@ -211,13 +213,13 @@ contains
 
     nn_1 = nn - 1
 
-    ASSERT(nn > 0)
-    ASSERT(size(qInpResult) == nElem)
-    ASSERT(size(qInpLast) == nElem)
-    ASSERT(size(qDiffLast) == nElem)
-    ASSERT(size(qDiff) == nElem)
-    ASSERT(all(shape(aa) >= (/ nn_1, nn_1 /)))
-    ASSERT(size(ww) >= nn_1)
+    @:ASSERT(nn > 0)
+    @:ASSERT(size(qInpResult) == nElem)
+    @:ASSERT(size(qInpLast) == nElem)
+    @:ASSERT(size(qDiffLast) == nElem)
+    @:ASSERT(size(qDiff) == nElem)
+    @:ASSERT(all(shape(aa) >= (/ nn_1, nn_1 /)))
+    @:ASSERT(size(ww) >= nn_1)
 
     !! First iteration: simple mix and storage of qInp and qDiff
     if (nn == 1) then
@@ -302,7 +304,7 @@ contains
     integer :: ii, jj, kk, mm, nn
     real(dp), allocatable :: beta(:,:), zeta(:), dF(:), uu(:)
 
-    ASSERT(all(shape(invJac) == [ self%nElem, self%nElem ]))
+    @:ASSERT(all(shape(invJac) == [ self%nElem, self%nElem ]))
 
     mm = self%iIter - 1
     allocate(beta(mm, mm))

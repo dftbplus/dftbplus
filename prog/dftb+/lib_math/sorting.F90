@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Various types of sorting routines, and related stuff
 !! \todo add other algorithms, radix? definitely not quicksort though,
 !! but adaptive heap sorts?
 module sorting
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
   private
@@ -186,7 +188,7 @@ contains
     integer :: indxTmp
     real(dp) :: arrayTmp, tol
 
-    ASSERT(size(array)==size(indx))
+    @:ASSERT(size(array)==size(indx))
 
     if (present(tolerance)) then
       tol = tolerance
@@ -251,7 +253,7 @@ contains
     integer :: n, ir, ij, il, ii, ik
     integer :: indxTmp, arrayTmp
 
-    ASSERT(size(array)==size(indx))
+    @:ASSERT(size(array)==size(indx))
 
     do ii=1,size(indx)
       indx(ii) = ii
@@ -330,7 +332,7 @@ contains
     
     integer :: I, J, K
     
-    ASSERT((na+nb)==nc)
+    @:ASSERT((na+nb)==nc)
     
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
@@ -396,7 +398,7 @@ contains
     integer, allocatable :: work(:,:), tmp(:,:)
     integer :: ii, n
     
-    ASSERT(size(indx)==size(array))
+    @:ASSERT(size(indx)==size(array))
     
     n = size(array)
     allocate(tmp(n,2))
@@ -428,7 +430,7 @@ contains
     
     integer :: I, J, K
     
-    ASSERT((na+nb)==nc)
+    @:ASSERT((na+nb)==nc)
     
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
@@ -461,8 +463,8 @@ contains
     
     integer :: NA, NB, V(2)
     
-    ASSERT(size(A,dim=2) == 2)
-    ASSERT(size(T,dim=2) == 2)
+    @:ASSERT(size(A,dim=2) == 2)
+    @:ASSERT(size(T,dim=2) == 2)
     
     if (N < 2) return
     
@@ -520,7 +522,7 @@ contains
     
     integer  :: I, J, K
     
-    ASSERT((na+nb)==nc)
+    @:ASSERT((na+nb)==nc)
     
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
@@ -588,7 +590,7 @@ contains
     real(dp), allocatable :: work(:,:), tmp(:,:)
     integer :: ii, n
     
-    ASSERT(size(indx)==size(array))
+    @:ASSERT(size(indx)==size(array))
     
     n = size(array)
     allocate(tmp(n,2))
@@ -621,7 +623,7 @@ contains
     
     integer :: I, J, K
     
-    ASSERT((na+nb)==nc)
+    @:ASSERT((na+nb)==nc)
     
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
@@ -656,8 +658,8 @@ contains
     integer :: NA, NB
     real(dp) :: V(2)
     
-    ASSERT(size(A,dim=2) == 2)
-    ASSERT(size(T,dim=2) == 2)
+    @:ASSERT(size(A,dim=2) == 2)
+    @:ASSERT(size(T,dim=2) == 2)
     
     if (N < 2) return
     
@@ -704,9 +706,9 @@ contains
       nn = size(array)
     end if
 
-    ASSERT(nn >= 1 )
-    ASSERT(nn <= size(array))
-    ASSERT(all(array(:nn) > 0))
+    @:ASSERT(nn >= 1 )
+    @:ASSERT(nn <= size(array))
+    @:ASSERT(all(array(:nn) > 0))
     
     ii = 1
     do ij = 2, nn

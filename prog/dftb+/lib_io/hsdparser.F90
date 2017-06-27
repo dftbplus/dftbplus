@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains the HSD (Human readable Structured Data) parser.
 !!* @desc 
 !!* <p>
@@ -19,7 +21,7 @@
 !!*   For the specification of the HSD format see the sample input
 !!* </p>
 module hsdparser
-#include "assert.h"  
+  use assert
   use message
   use fileid
   use charmanip

@@ -5,8 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 module charges
-#include "assert.h"
+  use assert
   use accuracy
   use commontypes, only : TOrbitals
   implicit none
@@ -52,7 +54,7 @@ contains
     real(dp), pointer :: dQWork(:,:), dQShellWork(:,:)
     integer :: nAtom
 
-    ASSERT(present(iHubbU) .eqv. present(dQUniqU))
+    @:ASSERT(present(iHubbU) .eqv. present(dQUniqU))
 
     nAtom = size(orb%nOrbAtom)
     if (present(dQ)) then

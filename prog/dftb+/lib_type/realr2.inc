@@ -16,7 +16,7 @@
   subroutine initRealR2(list)
     type(listRealR2), intent(inout) :: list
 
-    ASSERT(.not. list%tInitialized)
+    @:ASSERT(.not. list%tInitialized)
     
     list%length = 0
     list%elemShape = (/ 0, 0 /)
@@ -63,7 +63,7 @@
 
     integer :: valshape(2)                                   ! type specific
     
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     valshape = shape(value)
 
@@ -97,7 +97,7 @@
   !!* @return     Nr. of elements in the list.
   integer function lenRealR2(list) result(len)
     type(listRealR2), intent(in) :: list
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
     len = list%length
   end function lenRealR2
 
@@ -115,7 +115,7 @@
     integer                   :: ii
     integer                   :: valshape(2)
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     valshape = shape(value)
     pCur => list%pFirst
@@ -150,7 +150,7 @@
     type(listRealR2), intent(inout) :: list
     real(dp),         intent(in)    :: value(:,:)
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     if (find(list, value) == 0) then
       hasElement = .false.
@@ -172,9 +172,9 @@
 
     type(nodeRealR2), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
-    ASSERT(size(valshape, dim=1) == 2)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(size(valshape, dim=1) == 2)
 
     if (list%tUnishaped) then
       valshape(:) = list%elemShape(:)
@@ -198,11 +198,11 @@
 
     type(nodeRealR2), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeRealR2(list, index)
-    ASSERT(all(shape(pCur%pValue) == shape(value)))
+    @:ASSERT(all(shape(pCur%pValue) == shape(value)))
     value(:,:) = pCur%pValue
 
   end subroutine getRealR2
@@ -220,11 +220,11 @@
 
     type(nodeRealR2), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeRealR2(list, index)
-    ASSERT(all(shape(pCur%pValue) == shape(value)))
+    @:ASSERT(all(shape(pCur%pValue) == shape(value)))
     pCur%pValue(:,:) = value
 
   end subroutine setRealR2
@@ -237,7 +237,7 @@
   logical function isUnishapedRealR2(list) result(isUnishaped)
     type(listRealR2), intent(in) :: list
 
-    ASSERT(list%tInitialized)
+    @:ASSERT(list%tInitialized)
 
     isUnishaped = list%tUnishaped
 
@@ -267,15 +267,19 @@
     real(dp)                  :: pad
     integer                   :: ii
 
-    ASSERT_ENV(integer        :: shapeVal(3))
+  #:call ASSERT_CODE
+    integer :: shapeVal(3)
+  #:endcall ASSERT_CODE    
 
     lenVal = size(val, dim=size(shape(val)))
 
-    ASSERT(list%tInitialized)
-    ASSERT(list%tUnishaped)
-    ASSERT(lenVal >= list%length)
-    ASSERT_ENV(shapeVal = shape(val))
-    ASSERT(all(shapeVal(1:size(shapeVal)-1) == list%elemShape(:)))
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(list%tUnishaped)
+    @:ASSERT(lenVal >= list%length)
+  #:call ASSERT_CODE
+    shapeVal = shape(val)
+  #:endcall ASSERT_CODE    
+    @:ASSERT(all(shapeVal(1:size(shapeVal)-1) == list%elemShape(:)))
 
     if (present(optPad)) then
       pad = optPad
@@ -310,12 +314,12 @@
 
     type(nodeRealR2), pointer :: pCur
 
-    ASSERT(list%tInitialized)
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNodeRealR2(list, index)
     nElem = size(pCur%pValue, dim=2)
-    ASSERT(size(value) >= nElem)
+    @:ASSERT(size(value) >= nElem)
     value(:, 1:nElem) = pCur%pValue
 
   end subroutine intoArrayRealR2
@@ -332,7 +336,7 @@
 
     integer :: ii, iStart
     
-    ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(index > 0 .and. index <= list%length)
 
     if (list%iCache == index) then
       getNode => list%pCache

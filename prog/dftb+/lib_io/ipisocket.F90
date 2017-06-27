@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Routines to make socket contact with an external code and
 !! communicate data back and forward from DFTB+ to the external code.
 module ipisocket
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use fsockets
@@ -93,9 +95,9 @@ contains
     logical :: tUnix
     character(lc) :: msg
     
-    ASSERT(.not. this%tInit)
-    ASSERT(input%natom > 0)
-    ASSERT(input%verbosity >= 0)
+    @:ASSERT(.not. this%tInit)
+    @:ASSERT(input%natom > 0)
+    @:ASSERT(input%verbosity >= 0)
     
     this%nAtom = input%nAtom
     this%logger = LogWriter(input%verbosity)
@@ -167,8 +169,8 @@ contains
     real(rdp), allocatable :: commsBuffer1(:)
     real(rdp) :: commsBuffer2(9)
     
-    ASSERT(this%tInit)
-    ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(this%tInit)
+    @:ASSERT(size(coord, dim=1) == 3)
     
     nAtom = size(coord, dim=2)
     if (nAtom /= this%nAtom) then
@@ -256,8 +258,8 @@ contains
     character(lc) :: msg
     integer :: nAtom
     
-    ASSERT(this%tInit)
-    ASSERT(size(forces, dim=1) == 3)
+    @:ASSERT(this%tInit)
+    @:ASSERT(size(forces, dim=1) == 3)
     
     nAtom = size(forces, dim=2)
     if (nAtom /= this%nAtom) then

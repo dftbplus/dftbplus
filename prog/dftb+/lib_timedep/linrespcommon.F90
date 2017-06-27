@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Helper routines for the linear response modules.
 module linrespcommon
-#include "assert.h"
+  use assert
   use accuracy
   use blasroutines
   use sorting
@@ -36,9 +38,9 @@ contains
     
     allocate(tmpIndx(size(win)))
     
-    ASSERT(size(wij) == size(sposz))
-    ASSERT(size(wij) == size(win))    
-    ASSERT(size(wij) == size(transd,dim=1))
+    @:ASSERT(size(wij) == size(sposz))
+    @:ASSERT(size(wij) == size(win))    
+    @:ASSERT(size(wij) == size(transd,dim=1))
     
     call index_heap_sort(tmpIndx, sposz)
     tmpIndx = tmpIndx(size(win):1:-1)
@@ -66,12 +68,12 @@ contains
     real(dp) :: eOcc, eExc, mu
     
     nxov = size(wij)
-    ASSERT(nxov == size(sposz))
-    ASSERT(nxov == size(win))
-    ASSERT(all(shape(transd) == [nxov,3]))
-    ASSERT(size(getij,dim=1) >= nxov)
-    ASSERT(size(getij,dim=2) == 2)
-    ASSERT(threshold >= 0.0_dp)
+    @:ASSERT(nxov == size(sposz))
+    @:ASSERT(nxov == size(win))
+    @:ASSERT(all(shape(transd) == [nxov,3]))
+    @:ASSERT(size(getij,dim=1) >= nxov)
+    @:ASSERT(size(getij,dim=2) == 2)
+    @:ASSERT(threshold >= 0.0_dp)
     
     call indxov(win, 1, getij, iOcc, iVrt)
     eOcc = grndEigVal(iOcc,1)
@@ -189,7 +191,7 @@ contains
     
     real(dp) :: re
     
-    ASSERT(indx > 0)
+    @:ASSERT(indx > 0)
     
     ! solve a quadratic for the row of a matrix between occupied and
     ! virtual states, given the number of the element in the matrix
@@ -198,8 +200,8 @@ contains
     ii  = floor(re) + 1 + nocc ! actual row
     jj  = indx - ((ii - 1 - nocc) * (ii - nocc)) / 2 + nocc ! column
     
-    ASSERT(ii > 0)
-    ASSERT(jj > 0)
+    @:ASSERT(ii > 0)
+    @:ASSERT(jj > 0)
     
   end subroutine indxvv
   
@@ -231,7 +233,7 @@ contains
     
     integer :: ia
     
-    ASSERT(size(getij,dim=2) == 2)
+    @:ASSERT(size(getij,dim=2) == 2)
     
     ! Store reverse indices.
     ! BA: If wij would not be sorted, it would be a trivial transformation.
@@ -262,7 +264,7 @@ contains
     integer :: kk, aa, bb, ss
     real(dp) :: qTmp(size(stimc,dim=1))
     
-    ASSERT(all(shape(stimc) == shape(grndEigVecs)))
+    @:ASSERT(all(shape(stimc) == shape(grndEigVecs)))
     
     ss = 1
     if (.not. updwn) ss = 2
@@ -287,8 +289,8 @@ contains
     real(dp), intent(in) :: stimc(:,:,:), grndEigVecs(:,:,:)
     real(dp):: S_pq
     
-    ASSERT(all(shape(grndEigVecs) == shape(stimc)))
-    ASSERT(size(grndEigVecs, dim=3) == 2)
+    @:ASSERT(all(shape(grndEigVecs) == shape(stimc)))
+    @:ASSERT(size(grndEigVecs, dim=3) == 2)
     
     S_pq = sum(grndEigVecs(:,pp,1)*stimc(:,qq,2))
     
@@ -370,7 +372,7 @@ contains
     real(dp) :: wnij(size(wij))
     logical :: updwn
     
-    ASSERT(size(vin) == size(vout))
+    @:ASSERT(size(vin) == size(vout))
     
     nmat = size(vin)
     natom = size(gamma, dim=1)
@@ -505,7 +507,7 @@ contains
     real(dp) :: tmp(natom), gtmp(natom), qij(natom)
     logical :: updwn
     
-    ASSERT(size(rkm1) == nmat)
+    @:ASSERT(size(rkm1) == nmat)
     
     tmp(:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
@@ -551,7 +553,7 @@ contains
     integer :: ind, ii, jj
     integer :: norb, iSpin, nSpin
     
-    ASSERT(all(shape(grndEigVal)==shape(filling)))
+    @:ASSERT(all(shape(grndEigVal)==shape(filling)))
     
     norb = size(grndEigVal, dim=1)
     nSpin = size(grndEigVal, dim=2)
@@ -626,8 +628,8 @@ contains
     real(dp) :: nxov_ud(nSpin)
     integer :: ii, jj, iSpin
     
-    ASSERT(size(filling,dim=1)==nOrb)
-    ASSERT(size(filling,dim=2)==nSpin)
+    @:ASSERT(size(filling,dim=1)==nOrb)
+    @:ASSERT(size(filling,dim=2)==nSpin)
     
     nxov_ud = 0
     do iSpin = 1, nSpin
