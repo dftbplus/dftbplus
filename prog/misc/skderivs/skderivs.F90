@@ -26,7 +26,7 @@ program skderivs
   !! Contains the data necessary for the main program
   type TInputData
     type(OSlakoEqGrid), pointer :: skHam, skOver
-    integer, pointer :: iHam(:) => null(), iOver(:) => null()
+    integer, allocatable :: iHam(:), iOver(:)
     real(dp) :: from, to, step
     logical :: value, first, second
     real(dp) :: displ
@@ -137,12 +137,6 @@ contains
     do jj = 1, size(inp%iOver)
       close(fpOver(jj))
     end do
-    DEALLOCATE_(sk)
-    DEALLOCATE_(ham)
-    DEALLOCATE_(over)
-    DEALLOCATE_(fpHam)
-    DEALLOCATE_(fpOver)
-    call InputData_destruct(inp)
 
   end subroutine main
   
@@ -160,7 +154,7 @@ contains
     type(string) :: buffer
     integer :: angShellOrdered(size(orbitalNames))
     type(listIntR1) :: angShells(2)
-    type(listInt) :: lIntTmp
+    type(listInt), allocatable :: lIntTmp
     real(dp), allocatable :: skHam(:,:), skOver(:,:)
     integer :: skInterMeth, nInt, nSpecies
     integer :: ii, jj
@@ -238,12 +232,10 @@ contains
       call getFullTable(skHam, skOver, skData21, skData21, angShells(1), &
           &angShells(2))
     end if
-    INITALLOCATE_P(inp%skHam)
-    INITALLOCATE_P(inp%skOver)
+    allocate(inp%skHam)
+    allocate(inp%skOver)
     call init(inp%skHam, skData12(1,1)%dist, skHam, skInterMeth)
     call init(inp%skOver, skData12(1,1)%dist, skOver, skInterMeth)
-    DEALLOCATE_(skHam)
-    DEALLOCATE_(skOver)
     
     call getChildValue(root, "Start", inp%from)
     call getChildValue(root, "End", inp%to)
@@ -255,25 +247,25 @@ contains
     call getChildValue(root, "OutputPrefix", buffer)
     inp%output = unquote(char(buffer))
 
+    allocate(lIntTmp)
     call init(lIntTmp)
     call getChildValue(root, "Hamiltonian", lIntTmp, child=child)
-    ALLOCATE_PARR(inp%iHam, (len(lIntTmp)))
+    ALLOCATE_(inp%iHam, (len(lIntTmp)))
     call asArray(lIntTmp, inp%iHam)
     if (any(inp%iHam < 1) .or. any(inp%iHam > nInt)) then
       call detailedError(child, "Integral index must be between 1 and " &
           &// i2c(nInt))
     end if
-    call destroy(lIntTmp)
+    deallocate(lIntTmp)
+    allocate(lIntTmp)
     call init(lIntTmp)
     call getChildValue(root, "Overlap", lIntTmp)
-    ALLOCATE_PARR(inp%iOver, (len(lIntTmp)))
+    ALLOCATE_(inp%iOver, (len(lIntTmp)))
     call asArray(lIntTmp, inp%iOver)
     if (any(inp%iOver < 1) .or. any(inp%iover > nInt)) then
       call detailedError(child, "Integral index must be between 1 and " &
           &// i2c(nInt))
     end if
-    call destroy(lIntTmp)
-    call unstring(buffer)
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root)
@@ -282,20 +274,6 @@ contains
     
   end subroutine parseHSDInput
 
-
-
-  !!* Destructs InputData
-  subroutine InputData_destruct(sf)
-    type(TInputData), intent(inout) :: sf
-
-    DEALLOCATE_PARR(sf%iHam)
-    DEALLOCATE_PARR(sf%iOver)
-    call destruct(sf%skHam)
-    call destruct(sf%skOver)
-
-  end subroutine InputData_destruct
-
-  
 
   !!* Creates from the columns of the Slater-Koster files for A-B and B-A
   !!* a full table for A-B, containing all integrals.
@@ -308,7 +286,7 @@ contains
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
       &angShells2)
     real(dp), intent(out) :: skHam(:,:), skOver(:,:)
-    type(TOldSKData), intent(in) :: skData12(:,:), skData21(:,:)
+    type(TOldSKData), intent(in), target :: skData12(:,:), skData21(:,:)
     type(listIntR1), intent(inout) :: angShells1, angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm

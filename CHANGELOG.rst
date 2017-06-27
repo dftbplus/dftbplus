@@ -11,8 +11,12 @@ Unreleased
 Added
 -----
 
+
 Changed
 -------
+
+- Using allocatables instead of pointers whenever possible.
+
 
 Fixed
 -----
@@ -24,16 +28,24 @@ Fixed
 
 Added
 -----
+
 - Add dptools toolkit.
+
 
 Changed
 -------
+
 - Convert to LGPL 3 license.
+
 - Restructure source tree.
+
 - Streamline autotest suite and build system.
+
 
 Fixed
 -----
+
 - Skip irrelevant tests that give false positives for particular compilation
   modes.
+
 - Make geometry writing in gen and xyz files consistent.
