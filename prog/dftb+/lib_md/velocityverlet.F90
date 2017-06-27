@@ -8,7 +8,6 @@
 !!* Velocity Verlet intergrator.
 module velocityverlet
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use thermostat
   use fileid
@@ -70,8 +69,8 @@ contains
     ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
-    ALLOCATE_(self%velocities, (3, self%nAtom))
-    ALLOCATE_(self%positions, (3, self%nAtom))
+    allocate(self%velocities(3, self%nAtom))
+    allocate(self%positions(3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
@@ -105,8 +104,8 @@ contains
     ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
-    ALLOCATE_(self%velocities, (3, self%nAtom))
-    ALLOCATE_(self%positions, (3, self%nAtom))
+    allocate(self%velocities(3, self%nAtom))
+    allocate(self%positions(3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
@@ -147,8 +146,8 @@ contains
     ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
-    ALLOCATE_(self%velocities, (3, self%nAtom))
-    ALLOCATE_(self%positions, (3, self%nAtom))
+    allocate(self%velocities(3, self%nAtom))
+    allocate(self%positions(3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
@@ -198,8 +197,8 @@ contains
     ASSERT(size(positions, dim=1) == 3)
     
     self%nAtom = size(positions, dim=2)
-    ALLOCATE_(self%velocities, (3, self%nAtom))
-    ALLOCATE_(self%positions, (3, self%nAtom))
+    allocate(self%velocities(3, self%nAtom))
+    allocate(self%positions(3, self%nAtom))
     
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)

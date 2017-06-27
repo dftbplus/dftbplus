@@ -8,7 +8,6 @@
 !!* Module for external electromagnetic fields - currently scalar magnetic field
 module emfields
 #include "assert.h"
-#include "allocate.h"
   use accuracy, only : dp
   use constants
   use angmomentum, only : Loperators
@@ -129,10 +128,10 @@ contains
 
     ! Orbital Zeeman part
     
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3,nSpecies))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp

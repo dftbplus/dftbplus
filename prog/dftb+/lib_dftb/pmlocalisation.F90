@@ -10,7 +10,6 @@
 !! \note for the k-point case these are NOT localised Wannier functions
 module pmlocalisation
 # include "assert.h"
-# include "allocate.h"
   use accuracy, only : dp
   use blasroutines
   use sparse2dense, only :unpackHS
@@ -77,11 +76,11 @@ contains
       nIter = 20
     end if
     
-    ALLOCATE_(Sci1,(nOrb))
-    ALLOCATE_(Sci2,(nOrb,2:nLev))
+    allocate(Sci1(nOrb))
+    allocate(Sci2(nOrb,2:nLev))
     
-    ALLOCATE_(ciTmp1,(nOrb))
-    ALLOCATE_(ciTmp2,(nOrb))
+    allocate(ciTmp1(nOrb))
+    allocate(ciTmp2(nOrb))
     
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
@@ -216,26 +215,26 @@ contains
       nIter = 20
     end if
     
-    ALLOCATE_(Sci1,(nOrb,2))
-    ALLOCATE_(Sci2,(nOrb,nLev))
+    allocate(Sci1(nOrb,2))
+    allocate(Sci2(nOrb,nLev))
     
-    ALLOCATE_(ciTmp1,(nOrb))
-    ALLOCATE_(ciTmp2,(nOrb))
+    allocate(ciTmp1(nOrb))
+    allocate(ciTmp2(nOrb))
     
-    ALLOCATE_(oldSites,(nAtom,2))
+    allocate(oldSites(nAtom,2))
     
-    ALLOCATE_(LevAtAtom,(nLev,nAtom))
-    ALLOCATE_(nLevAtAtom,(nAtom))
+    allocate(LevAtAtom(nLev,nAtom))
+    allocate(nLevAtAtom(nAtom))
     LevAtAtom = 0
     nLevAtAtom = 0
-    ALLOCATE_(SitesLev,(nAtom,nLev))
-    ALLOCATE_(nSitesLev,(nLev))
+    allocate(SitesLev(nAtom,nLev))
+    allocate(nSitesLev(nLev))
     SitesLev = 0
     nSitesLev = 0
-    ALLOCATE_(LevPairs,(nLev))
+    allocate(LevPairs(nLev))
     LevPairs = 0
     
-    ALLOCATE_(union,(2*nAtom))
+    allocate(union(2*nAtom))
     
     ! make Mulliken charges for each level
     call symm(Sci2,'L',S,ci(:,1:nLev),'L')
@@ -483,7 +482,7 @@ contains
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     
-    ALLOCATE_(Sci,(nOrb,nLev))
+    allocate(Sci(nOrb,nLev))
     
     PipekMezyLocality = 0.0_dp
     
@@ -545,8 +544,8 @@ contains
     ASSERT(size(kweights) == nKpt)
     ASSERT(all(shape(S) == [nOrb,nOrb]))
     
-    ALLOCATE_(Sci,(nOrb,nLev))
-    ALLOCATE_(tmp,(nAtom,nLev))
+    allocate(Sci(nOrb,nLev))
+    allocate(tmp(nAtom,nLev))
     
     PipekMezyLocality = 0.0_dp
     
@@ -645,11 +644,11 @@ contains
       nIter = 20
     end if
     
-    ALLOCATE_(Sci1,(nOrb))
-    ALLOCATE_(Sci2,(nOrb,nLev))
+    allocate(Sci1(nOrb))
+    allocate(Sci2(nOrb,nLev))
     
-    ALLOCATE_(ciTmp1,(nOrb))
-    ALLOCATE_(ciTmp2,(nOrb))
+    allocate(ciTmp1(nOrb))
+    allocate(ciTmp2(nOrb))
     
     lpLocalise: do iIter = 1, nIter
       

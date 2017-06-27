@@ -9,7 +9,6 @@
 !!* splines.
 module repspline
 #include "assert.h"
-#include "allocate.h"  
   use Accuracy
   use Bisect
   implicit none
@@ -79,8 +78,8 @@ contains
     ASSERT(inp%cutoff >= 0.0_dp)
 
     self%nSpline = size(inp%xStart)
-    ALLOCATE_(self%xStart, (self%nSpline))
-    ALLOCATE_(self%spCoeffs, (4, self%nSpline - 1))
+    allocate(self%xStart(self%nSpline))
+    allocate(self%spCoeffs(4, self%nSpline - 1))
     self%xStart(:) = inp%xStart(:)
     self%spCoeffs(:,:) = inp%spCoeffs(:,:)
     self%spLastCoeffs(:) = inp%spLastCoeffs(:)

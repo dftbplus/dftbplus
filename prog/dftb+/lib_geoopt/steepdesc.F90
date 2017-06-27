@@ -7,7 +7,6 @@
 
 !!* Function minimization with steepest descent algorithm
 module steepdesc
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   implicit none
@@ -72,9 +71,9 @@ contains
     self%nElem = nElem
     self%tolerance = tol
     self%maxDisp = maxDisp
-    ALLOCATE_(self%weight, (nElem))
+    allocate(self%weight(nElem))
     self%weight(:) = weight(:)
-    ALLOCATE_(self%xOld, (nElem))
+    allocate(self%xOld(nElem))
     self%tInitialized = .false.
 
   end subroutine SteepDesc_init

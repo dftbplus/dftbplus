@@ -9,7 +9,6 @@
 !!* between the square and 1-dimensional representations
 module sparse2dense
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use constants, only : pi
   use commontypes

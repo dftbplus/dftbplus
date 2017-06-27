@@ -10,7 +10,6 @@
 !!* @todo Some more routines for complex numbers?
 module hsdutils
 #include "assert.h"
-#include "allocate.h"  
   use xmlf90
   use tokenreader
   use hsdparser
@@ -1406,7 +1405,7 @@ contains
       call process(char(buffer), speciesNames, species, nAtom, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
-    ALLOCATE_(val, (len(li)))
+    allocate(val(len(li)))
     if (len(li) > 0) then
       call asArray(li, val)
     end if
@@ -1511,7 +1510,7 @@ contains
       call process(char(buffer), nMax, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
-    ALLOCATE_(val, (len(li)))
+    allocate(val(len(li)))
     if (len(li) > 0) then
       call asArray(li, val)
     end if

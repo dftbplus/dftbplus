@@ -10,7 +10,6 @@
 !!* @todo Add option to restart the calculation
 module numderivs2
 #include "assert.h"
-#include "allocate.h"
   use accuracy, only : dp
   implicit none
   private
@@ -71,9 +70,9 @@ contains
     nDerivs = size(xInit,dim=2)
     
     allocate(self)
-    ALLOCATE_(self%x0, (3, nDerivs))
+    allocate(self%x0(3, nDerivs))
     self%x0(:,:) = xInit(:,:)
-    ALLOCATE_(self%derivs,(3*nDerivs,3*nDerivs))
+    allocate(self%derivs(3*nDerivs,3*nDerivs))
     self%derivs(:,:) = 0.0_dp
     self%nDerivs = nDerivs
     self%Delta = Delta

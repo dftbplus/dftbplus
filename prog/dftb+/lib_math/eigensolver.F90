@@ -138,7 +138,6 @@ contains
 
   !!* Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     real(rsp), intent(inout) :: a(:,:)
@@ -159,7 +158,7 @@ contains
       call error("Failue in SSYEV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
-    ALLOCATE_(work, (int_idealwork))
+    allocate(work(int_idealwork))
     call SSYEV(jobz, uplo, n, a, n, w, work, int_idealwork, info)
     if (info/=0) then
       if (info<0) then
@@ -179,7 +178,6 @@ contains
 
   !!* Double precision eigensolver for a symmetric matrix
   Subroutine dble_dsyev(a,w,uplo,jobz)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     real(rdp), intent(inout) :: a(:,:)
@@ -200,7 +198,7 @@ contains
       call error("Failue in DSYEV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
-    ALLOCATE_(work, (int_idealwork))
+    allocate(work(int_idealwork))
     call DSYEV(jobz, uplo, n, a, n, w, work, int_idealwork, info)
     if (info/=0) then
       if (info<0) then
@@ -220,7 +218,6 @@ contains
 
   !!* Complex eigensolver for a Hermitian matrix
   Subroutine cmplx_cheev(a,w,uplo,jobz)
-#include "allocate.h"
 #include "assert.h"
     implicit none
     complex(rsp), intent(inout) :: a(:,:)
@@ -237,13 +234,13 @@ contains
     ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
     ASSERT(n>0)
-    ALLOCATE_(rwork,(3*n-2))
+    allocate(rwork(3*n-2))
     call CHEEV(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
       call error("Failue in CHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
-    ALLOCATE_(work, (int_idealwork))
+    allocate(work(int_idealwork))
     call CHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)    
     if (info/=0) then
       if (info<0) then
@@ -263,7 +260,6 @@ contains
 
   !!* Double complex eigensolver for a Hermitian matrix
   Subroutine dblecmplx_zheev(a,w,uplo,jobz)
-#include "allocate.h"
 #include "assert.h"
     implicit none
     complex(rdp), intent(inout) :: a(:,:)
@@ -280,13 +276,13 @@ contains
     ASSERT(all(shape(a)==size(w,dim=1)))
     n=size(a,dim=1)
     ASSERT(n>0)
-    ALLOCATE_(rwork,(3*n-2))
+    allocate(rwork(3*n-2))
     call ZHEEV(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
       call error("Failue in ZHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
-    ALLOCATE_(work, (int_idealwork))
+    allocate(work(int_idealwork))
     call ZHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)    
     if (info/=0) then
       if (info<0) then
@@ -307,7 +303,6 @@ contains
 
   !!* Real eigensolver for generalized symmetric matrix problem
   Subroutine real_ssygv(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     real(rsp), intent(inout) :: a(:,:)
@@ -337,7 +332,7 @@ contains
        call error("Failue in SSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
-    ALLOCATE_(work, (int_idealwork))
+    allocate(work(int_idealwork))
     call SSYGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
     if (info/=0) then
        if (info<0) then
@@ -362,7 +357,6 @@ contains
 
   !!* Double precision eigensolver for generalized symmetric matrix problem
   Subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     real(rdp), intent(inout) :: a(:,:)
@@ -392,7 +386,7 @@ contains
        call error("Failue in DSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
-    ALLOCATE_(work, (int_idealwork))
+    allocate(work(int_idealwork))
     call DSYGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
     if (info/=0) then
        if (info<0) then
@@ -417,7 +411,6 @@ contains
 
   !!* Complex eigensolver for generalized Hermitian matrix problem
   Subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     complex(rsp), intent(inout) :: a(:,:)
@@ -443,7 +436,7 @@ contains
       iitype = 1
     end if
     ASSERT(iitype >= 1 .and. iitype <= 3 )
-    ALLOCATE_(rwork,(3*n-2))
+    allocate(rwork(3*n-2))
 !   Bugfix for fault in allocation query in zhegv. Should be removed if
 !   lapack gets fixed
 !   
@@ -469,7 +462,7 @@ contains
     NB = ILAENV( 1, 'CHETRD', UPLO, N, -1, -1, -1 )
     LWKOPT = ( NB+1 )*N
 !   end bug fix    
-    ALLOCATE_(work, (LWKOPT))
+    allocate(work(LWKOPT))
     ! A*x = (lambda)*B*x upper triangles to be used
     call CHEGV(iitype, 'V', 'L', n, a, n, b, n, w, work, LWKOPT, rwork, info)
     if (info/=0) then
@@ -495,7 +488,6 @@ contains
 
   !!* Double complex eigensolver for generalized Hermitian matrix problem
   Subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     complex(rdp), intent(inout) :: a(:,:)
@@ -521,7 +513,7 @@ contains
       iitype = 1
     end if
     ASSERT(iitype >= 1 .and. iitype <= 3 )
-    ALLOCATE_(rwork,(3*n-2))
+    allocate(rwork(3*n-2))
 !   Bugfix for fault in allocation query in zhegv. Should be removed if
 !   lapack gets fixed
 !   
@@ -547,7 +539,7 @@ contains
     NB = ILAENV( 1, 'CHETRD', UPLO, N, -1, -1, -1 )
     LWKOPT = ( NB+1 )*N
 !   end bug fix 
-    ALLOCATE_(work, (LWKOPT))
+    allocate(work(LWKOPT))
     ! A*x = (lambda)*B*x upper triangles to be used
     call ZHEGV(iitype, 'V', 'L', n, a, n, b, n, w, work, LWKOPT, rwork, info)
     if (info/=0) then
@@ -574,7 +566,6 @@ contains
   !!* Real eigensolver for generalized symmetric matrix problem - divide and
   !!* conquer  
   Subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     real(rsp), intent(inout) :: a(:,:)
@@ -606,8 +597,8 @@ contains
        call error("Failue in SSYGVD to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
-    ALLOCATE_(work, (int_idealwork))
-    ALLOCATE_(iwork,(iidealwork(1)))
+    allocate(work(int_idealwork))
+    allocate(iwork(iidealwork(1)))
     call SSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
          & iwork, iidealwork(1), info)    
     if (info/=0) then
@@ -634,7 +625,6 @@ contains
   !!* Double precision eigensolver for generalized symmetric matrix problem
   !!* divide and conquer
   Subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     implicit none
     real(rdp), intent(inout) :: a(:,:)
@@ -666,8 +656,8 @@ contains
       call error("Failue in DSYGVD to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
-    ALLOCATE_(work, (int_idealwork))
-    ALLOCATE_(iwork,(iidealwork(1)))
+    allocate(work(int_idealwork))
+    allocate(iwork(iidealwork(1)))
     call DSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
         & iwork, iidealwork(1), info)
     if (info/=0) then
@@ -694,7 +684,6 @@ contains
   !!* Complex eigensolver for generalized Hermitian matrix problem divide and
   !!* conquer  
   Subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     Implicit None
     complex(rsp), intent(inout) :: a(:,:)
@@ -729,9 +718,9 @@ contains
     endif
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
-    ALLOCATE_(work, (int_idealwork))
-    ALLOCATE_(rwork, (int_ridealwork))
-    ALLOCATE_(iwork,(iidealwork(1)))
+    allocate(work(int_idealwork))
+    allocate(rwork(int_ridealwork))
+    allocate(iwork(iidealwork(1)))
     call CHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork,&
         & rwork, int_ridealwork, iwork, iidealwork(1), info)
     if (info/=0) then
@@ -758,7 +747,6 @@ contains
   !!* Double complex eigensolver for generalized Hermitian matrix problem
   !!* divide and conquer
   Subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
-#include "allocate.h"
 #include "assert.h"    
     Implicit None
     complex(rdp), intent(inout) :: a(:,:)
@@ -793,9 +781,9 @@ contains
     endif
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
-    ALLOCATE_(work, (int_idealwork))
-    ALLOCATE_(rwork, (int_ridealwork))
-    ALLOCATE_(iwork,(iidealwork(1)))
+    allocate(work(int_idealwork))
+    allocate(rwork(int_ridealwork))
+    allocate(iwork(iidealwork(1)))
     call ZHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
         & rwork, int_ridealwork, iwork, iidealwork(1), info)    
     if (info/=0) then
@@ -827,7 +815,6 @@ contains
   !!* allocation that was in the previous version)
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
   subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "allocate.h"
 #include "assert.h"
     implicit none
     real(rsp), intent(inout) :: a(:,:)
@@ -894,9 +881,9 @@ contains
     end if
     ASSERT(iitype >= 1 .and. iitype <= 3 )
     
-    ALLOCATE_(isuppz,(2*n))
+    allocate(isuppz(2*n))
 
-    ALLOCATE_(tmpChole,(size(a,dim=1)))
+    allocate(tmpChole(size(a,dim=1)))
     
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
@@ -917,8 +904,8 @@ contains
     endif
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
-    ALLOCATE_(work,(lwork))
-    ALLOCATE_(iwork,(liwork))
+    allocate(work(lwork))
+    allocate(iwork(liwork))
     
     ! Form a Cholesky factorization of B.
     call SPOTRF( uplo, n, b, n, info )
@@ -1026,7 +1013,6 @@ contains
   !!* allocation that was in the previous version)
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "allocate.h"
 #include "assert.h"
     implicit none
     real(rdp), intent(inout) :: a(:,:)
@@ -1093,9 +1079,9 @@ contains
     end if
     ASSERT(iitype >= 1 .and. iitype <= 3 )
     
-    ALLOCATE_(isuppz,(2*n))
+    allocate(isuppz(2*n))
 
-    ALLOCATE_(tmpChole,(size(a,dim=1)))
+    allocate(tmpChole(size(a,dim=1)))
     
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
@@ -1116,8 +1102,8 @@ contains
     endif
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
-    ALLOCATE_(work,(lwork))
-    ALLOCATE_(iwork,(liwork))
+    allocate(work(lwork))
+    allocate(iwork(liwork))
     
     ! Form a Cholesky factorization of B.
     call DPOTRF( uplo, n, b, n, info )
@@ -1223,7 +1209,6 @@ contains
   !!* eigenvalues/eigenvectors are found
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
   subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "allocate.h"
 #include "assert.h"
     implicit none
     complex(rsp), intent(inout) :: a(:,:)
@@ -1292,9 +1277,9 @@ contains
     end if
     ASSERT(iitype >= 1 .and. iitype <= 3 )
     
-    ALLOCATE_(isuppz,(2*n))
+    allocate(isuppz(2*n))
 
-    ALLOCATE_(tmpChole,(size(a,dim=1)))
+    allocate(tmpChole(size(a,dim=1)))
     
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
@@ -1316,9 +1301,9 @@ contains
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
     lrwork = floor(tmpRwork(1))
-    ALLOCATE_(work,(lwork))
-    ALLOCATE_(iwork,(liwork))
-    ALLOCATE_(rwork,(lrwork))
+    allocate(work(lwork))
+    allocate(iwork(liwork))
+    allocate(rwork(lrwork))
     
     ! Form a Cholesky factorization of B.
     call CPOTRF( uplo, n, b, n, info )
@@ -1426,7 +1411,6 @@ contains
   !!* eigenvalues/eigenvectors are found
   !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
   subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
-#include "allocate.h"
 #include "assert.h"
     implicit none
     complex(rdp), intent(inout) :: a(:,:)
@@ -1495,9 +1479,9 @@ contains
     end if
     ASSERT(iitype >= 1 .and. iitype <= 3 )
     
-    ALLOCATE_(isuppz,(2*n))
+    allocate(isuppz(2*n))
 
-    ALLOCATE_(tmpChole,(size(a,dim=1)))
+    allocate(tmpChole(size(a,dim=1)))
     
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
@@ -1519,9 +1503,9 @@ contains
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
     lrwork = floor(tmpRwork(1))
-    ALLOCATE_(work,(lwork))
-    ALLOCATE_(iwork,(liwork))
-    ALLOCATE_(rwork,(lrwork))
+    allocate(work(lwork))
+    allocate(iwork(liwork))
+    allocate(rwork(lrwork))
     
     ! Form a Cholesky factorization of B.
     call ZPOTRF( uplo, n, b, n, info )
@@ -1628,7 +1612,6 @@ contains
     !!* simple single precision banded matrix eigensolver
     subroutine real_ssbgv(ab, bb, w, uplo, z)
 #include "assert.h"
-#include "allocate.h"
     implicit none
     real(rsp), intent(inout) :: ab(:,:)
     real(rsp), intent(inout) :: bb(:,:)
@@ -1666,7 +1649,7 @@ contains
       ldz = 1
     end if
         
-    ALLOCATE_(work,(3*n))
+    allocate(work(3*n))
     
     if (present(z)) then
       call SSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
@@ -1698,7 +1681,6 @@ contains
   !!* Simple double precision banded matrix eigen solver
   subroutine dble_dsbgv(ab, bb, w, uplo, z)
 #include "assert.h"
-#include "allocate.h"
     implicit none
     real(rdp), intent(inout) :: ab(:,:)
     real(rdp), intent(inout) :: bb(:,:)
@@ -1736,7 +1718,7 @@ contains
       ldz = 1
     end if
         
-    ALLOCATE_(work,(3*n))
+    allocate(work(3*n))
     
     if (present(z)) then
       call DSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
@@ -1768,7 +1750,6 @@ contains
   !!* Simple complex precision banded matrix eigen solver
   subroutine cmplx_chbgv(ab, bb, w, uplo, z)
 #include "assert.h"
-#include "allocate.h"
     implicit none
     complex(rsp), intent(inout) :: ab(:,:)
     complex(rsp), intent(inout) :: bb(:,:)
@@ -1807,8 +1788,8 @@ contains
       ldz = 1
     end if
     
-    ALLOCATE_(work,(n))    
-    ALLOCATE_(rwork,(3*n))
+    allocate(work(n))
+    allocate(rwork(3*n))
     
     if (present(z)) then
       call CHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
@@ -1841,7 +1822,6 @@ contains
   !!* Simple double complex precision banded matrix eigen solver
   subroutine dblecmplx_zhbgv(ab, bb, w, uplo, z)
 #include "assert.h"
-#include "allocate.h"
     implicit none
     complex(rdp), intent(inout) :: ab(:,:)
     complex(rdp), intent(inout) :: bb(:,:)
@@ -1880,8 +1860,8 @@ contains
       ldz = 1
     end if
     
-    ALLOCATE_(work,(n))    
-    ALLOCATE_(rwork,(3*n))
+    allocate(work(n))
+    allocate(rwork(3*n))
     
     if (present(z)) then
       call ZHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )

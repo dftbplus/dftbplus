@@ -45,7 +45,6 @@
 !!* @see F. James, Computer Physics Communications 79 (1994) 111
 module ranlux
 #include "assert.h"
-#include "allocate.h"
   use accuracy, only : dp
   implicit none
 
@@ -247,7 +246,7 @@ contains
     
     real(dp), allocatable :: rvec(:)
 
-    ALLOCATE_(rvec,(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
+    allocate(rvec(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
     r2Darray = reshape(rvec,shape(r2Darray))

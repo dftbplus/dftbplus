@@ -7,7 +7,6 @@
 
 !!* General interface for the optimization algorithms
 module geoopt
-#include "allocate.h"
   use accuracy
   use conjgrad
   use steepdesc

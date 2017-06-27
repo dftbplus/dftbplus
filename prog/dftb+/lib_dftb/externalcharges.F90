@@ -7,7 +7,6 @@
 
 !!* Routines for calculating the interaction with external charges
 module ExternalCharges
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use blasroutines
@@ -87,11 +86,11 @@ contains
     ASSERT_ENV(end if)
 
     nAtom_ = nAtom
-    ALLOCATE_(coords_, (3, nChrg_))
+    allocate(coords_(3, nChrg_))
     coords_ = coordsAndCharges(1:3,:)
-    ALLOCATE_(charges_, (nChrg_))
+    allocate(charges_(nChrg_))
     charges_ = -1.0_dp * coordsAndCharges(4,:)
-    ALLOCATE_(invRVec_, (nAtom))
+    allocate(invRVec_(nAtom))
     tPeriodic_ = present(latVecs)
     if (tPeriodic_) then
       !! Fold charges back to unit cell
@@ -110,7 +109,7 @@ contains
         tBlur_ = .false.
       end if
       if (tBlur_) then
-        ALLOCATE_(blurWidths_, (nChrg_))
+        allocate(blurWidths_(nChrg_))
         blurWidths_ = blurWidths
       end if
     end if

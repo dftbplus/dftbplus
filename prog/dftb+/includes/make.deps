@@ -1,6 +1,3 @@
-allocate.h: _mod_allocation
-allocate.h = $(_mod_allocation)
-
 #if DEBUG > 0
 assert.h: _mod_assert
 assert.h = $(_mod_assert)

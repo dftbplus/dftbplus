@@ -12,7 +12,6 @@
 !!*   with a dynamical approach).
 module inputdata_module
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use typegeometry
   use message

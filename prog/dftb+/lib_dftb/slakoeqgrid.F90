@@ -9,7 +9,6 @@
 !!* where the integrals are specified on an equidistant grid.
 module slakoeqgrid
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use interpolation
   use message
@@ -95,7 +94,7 @@ contains
     self%dist = dist
     self%nGrid = size(table, dim=1)
     self%nInteg = size(table, dim=2)
-    ALLOCATE_(self%skTab, (self%nGrid, self%nInteg))
+    allocate(self%skTab(self%nGrid, self%nInteg))
     self%skTab(:,:) = table(:,:)
     self%skIntMethod = skIntMethod
     self%tInit = .true.

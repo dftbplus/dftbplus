@@ -8,7 +8,6 @@
 !!* Module to wrap around the different energy components in the DFTB
 !!* total energy expression
 module energies
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   implicit none
@@ -65,18 +64,17 @@ contains
 
     ASSERT(.not. self%tInitialised)
 
-    ALLOCATE_(self%atomRep,(nAtom))
-    ALLOCATE_(self%atomNonSCC,(nAtom))
-    ALLOCATE_(self%atomSCC,(nAtom))
-    ALLOCATE_(self%atomSpin,(nAtom))
-    ALLOCATE_(self%atomLS,(nAtom))
-    ALLOCATE_(self%atomDftbu,(nAtom))
-    ALLOCATE_(self%atomExt,(nAtom))
-!    ALLOCATE_(self%atomExtB,(nAtom))
-    ALLOCATE_(self%atomElec,(nAtom))
-    ALLOCATE_(self%atomDisp, (nAtom))
-    ALLOCATE_(self%atom3rd, (nAtom))
-    ALLOCATE_(self%atomTotal,(nAtom))
+    allocate(self%atomRep(nAtom))
+    allocate(self%atomNonSCC(nAtom))
+    allocate(self%atomSCC(nAtom))
+    allocate(self%atomSpin(nAtom))
+    allocate(self%atomLS(nAtom))
+    allocate(self%atomDftbu(nAtom))
+    allocate(self%atomExt(nAtom))
+    allocate(self%atomElec(nAtom))
+    allocate(self%atomDisp(nAtom))
+    allocate(self%atom3rd(nAtom))
+    allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
     self%atomNonSCC(:) = 0.0_dp
     self%atomSCC(:) = 0.0_dp

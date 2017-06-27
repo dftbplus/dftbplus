@@ -8,7 +8,6 @@
 !!* Routines for spin orbit coupling
 module spinorbit
 #include "assert.h"
-#include "allocate.h"
   use accuracy, only : dp
   use angmomentum, only : Loperators
   use commontypes, only : TOrbitals
@@ -62,13 +61,13 @@ contains
     nOrb = nOrb / 2
     ASSERT(iAtomStart(nAtom+1)==nOrb+1)
 
-    ALLOCATE_(SpeciesZ,(orb%mOrb,orb%mOrb,nSpecies))
+    allocate(SpeciesZ(orb%mOrb,orb%mOrb,nSpecies))
     SpeciesZ = 0.0_dp
-    ALLOCATE_(SpeciesPlus,(orb%mOrb,orb%mOrb,nSpecies))
+    allocate(SpeciesPlus(orb%mOrb,orb%mOrb,nSpecies))
     SpeciesPlus = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp
@@ -151,10 +150,10 @@ contains
     ASSERT(size(xi,dim=2) == nSpecies)
     ASSERT(size(xi,dim=1) == orb%mShell)
 
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3,nSpecies))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp
@@ -173,7 +172,7 @@ contains
       end do
     end do
 
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     
     Eatom = 0.0_dp
     
@@ -229,9 +228,9 @@ contains
     ASSERT(size(xi,dim=2) == nSpecies)
     ASSERT(size(xi,dim=1) == orb%mShell)
 
-    ALLOCATE_(tmpShift,(orb%mOrb,orb%mOrb,nSpecies,4))
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(tmpShift(orb%mOrb,orb%mOrb,nSpecies,4))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
 
     tmpShift(:,:,:,:) = 0.0_dp
 

@@ -12,7 +12,6 @@
 !!* @ref Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
 module berendsentherm
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use mdcommon
   use ranlux
@@ -69,7 +68,7 @@ contains
     
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
-    ALLOCATE_(self%mass, (self%nAtom))
+    allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)
     self%pTempProfile => tempProfile
     self%couplingParameter = couplingParameter

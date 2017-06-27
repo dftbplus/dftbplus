@@ -8,7 +8,6 @@
 !!* Routines to calculate a Slater type orbital (STO)
 module Slater
 # include "assert.h"
-# include "allocate.h"
   use accuracy
   implicit none
 
@@ -181,8 +180,8 @@ contains
     ASSERT(cutoff > 0.0_dp)
     ASSERT(resolution > 0.0_dp)
     
-    ALLOCATE_(self%aa, (nPow, nAlpha))
-    ALLOCATE_(self%alpha, (nAlpha))
+    allocate(self%aa(nPow, nAlpha))
+    allocate(self%alpha(nAlpha))
 
     !! Storing parameter. (This is theoretically superflous now, since
     !! the function is calculated only once at initialisation time and stored
@@ -196,7 +195,7 @@ contains
     !! Obtain STO on a grid
     self%nGrid = floor(cutoff / resolution) + 2
     self%gridDist = resolution
-    ALLOCATE_(self%gridValue, (self%nGrid))
+    allocate(self%gridValue(self%nGrid))
     do iGrid = 1, self%nGrid
       rr = real(iGrid - 1, dp) * resolution
       call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, self%alpha, &

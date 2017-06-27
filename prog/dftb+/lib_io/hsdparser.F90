@@ -19,7 +19,6 @@
 !!*   For the specification of the HSD format see the sample input
 !!* </p>
 module hsdparser
-#include "allocate.h"
 #include "assert.h"  
   use message
   use fileid

@@ -9,7 +9,6 @@
 !!* @note Currently only velocity Verlet is wrapped.
 module mdintegrator
 #include "assert.h"
-#include "allocate.h"  
   use Accuracy
   use VelocityVerlet
   !use VelocityOmelyan

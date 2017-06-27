@@ -9,7 +9,6 @@
 !!* and the internal sparse matrix format.
 module csrmatrix
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   implicit none
   private
@@ -81,8 +80,8 @@ contains
     nAtom = size(mAngAtom)
 
     !! Count nr. of nonzero columns in the square (folded) form for each atom
-    ALLOCATE_(nColAtom, (nAtom))
-    ALLOCATE_(zero, (nAtom))
+    allocate(nColAtom(nAtom))
+    allocate(zero(nAtom))
     nColAtom(:) = 0
     do iAt1 = 1, nAtom
       zero(:) = .true.
@@ -101,7 +100,7 @@ contains
 
     csr%nRow = iAtomStart(nAtom) + nOrb(nAtom) - 1
     csr%nCol = csr%nRow
-    ALLOCATE_(csr%rowpnt, (csr%nRow + 1))
+    allocate(csr%rowpnt(csr%nRow + 1))
 
     !! Calculate CSR row pointers
     csr%rowpnt(1) = 1
@@ -115,14 +114,18 @@ contains
     end do
 
     csr%nnz = csr%rowpnt(csr%nRow + 1) - 1
-    ALLOCATE_(csr%nzval, (csr%nnz))
-    ALLOCATE_(csr%colind, (csr%nnz))
+    allocate(csr%nzval(csr%nnz))
+    allocate(csr%colind(csr%nnz))
     
     !! Initialize auxiliary arrays
-    ALLOCATE_(nCols, (csr%nRow))           ! Nr. of CSR columns already filled
+
+    ! Nr. of CSR columns already filled
+    allocate(nCols(csr%nRow))
     nCols(:) = 0
-    ALLOCATE_(tmpCol, (csr%nRow, (mmAng+1)**2))  ! One block column of the mtx
-    ALLOCATE_(iNonZero, (nAtom))           ! Index of the nonzero blocks
+    ! One block column of the mtx
+    allocate(tmpCol(csr%nRow, (mmAng+1)**2))
+    ! Index of the nonzero blocks
+    allocate(iNonZero(nAtom))
     
     !! Loop over all atoms (over all block columns in the rectangular picture)
     lpAt1: do iAt1 = 1, nAtom
@@ -231,7 +234,7 @@ contains
     nAtom = size(mAngAtom)
 
     ASSERT(csr%nRow == iAtomStart(nAtom) + nOrb(nAtom) - 1)
-    ALLOCATE_(tmpCol, (csr%nRow, (mmAng+1)**2))
+    allocate(tmpCol(csr%nRow, (mmAng+1)**2))
 
     do iAt1 = 1, nAtom
       !! Put the rows belonging to a certain atom into the appropriate column

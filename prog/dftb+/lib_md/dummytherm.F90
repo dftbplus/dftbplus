@@ -9,7 +9,6 @@
 !!* Maxwell-Boltzmann statistics.
 module dummytherm
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use mdcommon
   use ranlux
@@ -56,7 +55,7 @@ contains
 
     self%kT = kT
     self%nAtom = size(mass)
-    ALLOCATE_(self%mass, (self%nAtom))
+    allocate(self%mass(self%nAtom))
     self%mass = mass(:)
     self%pRanlux => pRanlux
     self%pMDFrame = pMDFrame

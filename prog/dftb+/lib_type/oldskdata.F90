@@ -8,7 +8,6 @@
 !!* Contains type for representing the data stored in the old SK-file format and
 !!* subroutines to read that data from file.
 module oldskdata
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use constants
@@ -129,8 +128,8 @@ contains
       repPolyIn%cutoff = polyCutoff
     end if
 
-    ALLOCATE_(skData%skHam, (skData%nGrid, nSKInter))
-    ALLOCATE_(skData%skOver, (skData%nGrid, nSKInter))
+    allocate(skData%skHam(skData%nGrid, nSKInter))
+    allocate(skData%skOver(skData%nGrid, nSKInter))
     skData%skHam(:,:) = 0.0_dp
     skData%skOver(:,:) = 0.0_dp
     do iGrid = 1, skData%nGrid
@@ -198,9 +197,9 @@ contains
     call checkioerror(iostat, fname, "Error in reading nint and cutoff")
     read(fp, *, iostat=iostat) (repsplinein%expcoeffs(ii), ii = 1, 3)
     call checkioerror(iostat, fname, "Error in reading exponential coeffs")
-    ALLOCATE_(repsplinein%xstart, (nint))
-    ALLOCATE_(repsplinein%spcoeffs, (4, nint - 1))
-    ALLOCATE_(xend, (nint))
+    allocate(repsplinein%xstart(nint))
+    allocate(repsplinein%spcoeffs(4, nint - 1))
+    allocate(xend(nint))
 
     do jj = 1, nint - 1
       read(fp, *, iostat=iostat) repsplinein%xstart(jj), xend(jj),&

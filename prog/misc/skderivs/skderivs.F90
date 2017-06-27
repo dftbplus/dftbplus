@@ -7,7 +7,6 @@
 
 !!* Calculates the first and second derivatives of matrix elements
 program skderivs
-#include "allocate.h"
 #include "assert.h"  
   use Accuracy
   use Constants
@@ -55,11 +54,11 @@ contains
     real(dp) :: rr
     
     nGrid = floor((inp%to - inp%from) / inp%step) + 1
-    ALLOCATE_(sk, (getNIntegrals(inp%skHam), -1:1))
-    ALLOCATE_(ham, (getNIntegrals(inp%skHam), 0:2))
-    ALLOCATE_(over, (getNIntegrals(inp%skOver), 0:2))
-    ALLOCATE_(fpHam, (size(inp%iHam)))
-    ALLOCATE_(fpOver, (size(inp%iOver)))
+    allocate(sk(getNIntegrals(inp%skHam), -1:1))
+    allocate(ham(getNIntegrals(inp%skHam), 0:2))
+    allocate(over(getNIntegrals(inp%skOver), 0:2))
+    allocate(fpHam(size(inp%iHam)))
+    allocate(fpOver(size(inp%iOver)))
 
     write (*, "(A)") ""
     write (*, "(A)") "Following files will be created:"
@@ -223,8 +222,8 @@ contains
 
     !! Create Slako tables
     nInt = getNSKIntegrals(angShells(1), angShells(nSpecies))
-    ALLOCATE_(skHam, (size(skData12(1,1)%skHam, dim=1), nInt))
-    ALLOCATE_(skOver, (size(skData12(1,1)%skOver, dim=1), nInt))
+    allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
+    allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
     if (nSpecies == 1) then
       call getFullTable(skHam, skOver, skData12, skData12, angShells(1), &
           &angShells(1))
@@ -250,7 +249,7 @@ contains
     allocate(lIntTmp)
     call init(lIntTmp)
     call getChildValue(root, "Hamiltonian", lIntTmp, child=child)
-    ALLOCATE_(inp%iHam, (len(lIntTmp)))
+    allocate(inp%iHam(len(lIntTmp)))
     call asArray(lIntTmp, inp%iHam)
     if (any(inp%iHam < 1) .or. any(inp%iHam > nInt)) then
       call detailedError(child, "Integral index must be between 1 and " &
@@ -260,7 +259,7 @@ contains
     allocate(lIntTmp)
     call init(lIntTmp)
     call getChildValue(root, "Overlap", lIntTmp)
-    ALLOCATE_(inp%iOver, (len(lIntTmp)))
+    allocate(inp%iOver(len(lIntTmp)))
     call asArray(lIntTmp, inp%iOver)
     if (any(inp%iOver < 1) .or. any(inp%iover > nInt)) then
       call detailedError(child, "Integral index must be between 1 and " &

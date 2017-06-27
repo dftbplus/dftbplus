@@ -7,7 +7,6 @@
 
 !!* Various I/O routines for the main program.
 module mainio
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   use constants
@@ -127,7 +126,7 @@ contains
         open(fdEigvec, file=eigvecOut, action="write", status="replace", &
             &position="rewind")
       end if
-      ALLOCATE_(rVecTemp, (size(HSqrReal, dim=1)))
+      allocate(rVecTemp(size(HSqrReal, dim=1)))
       call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, &
           &iAtomStart, iPair, img2CentCell)
       do iSpin = 1, nSpin
@@ -252,9 +251,9 @@ contains
       if (nSpin == 4) then
         write(fdEigvec,"(A/)")"   Atom   Orb  up spin coefficients        &
             &down spin coefficients         charge      x           y           z"
-        ALLOCATE_(cVecTemp,(size(HSqrCplx, dim=1)))
+        allocate(cVecTemp(size(HSqrCplx, dim=1)))
         nOrb = size(HSqrCplx, dim=1) / 2
-        ALLOCATE_(work,(nOrb,nOrb))
+        allocate(work(nOrb,nOrb))
         do iK = 1, nK
           call getH(1, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
           SSqrCplx = 0.0_dp
@@ -314,7 +313,7 @@ contains
         
       else ! normal spin block structure
         
-        ALLOCATE_(cVecTemp,(size(HSqrCplx, dim=1)))
+        allocate(cVecTemp(size(HSqrCplx, dim=1)))
         do iSpin = 1, nSpin
           do iK = 1, nK
             call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
@@ -411,7 +410,7 @@ contains
       open(fdProjEig(ii), file=tmpStr, action="write", status="replace")
     end do
     
-    ALLOCATE_(rVecTemp, (size(HSqrReal, dim=1)))
+    allocate(rVecTemp(size(HSqrReal, dim=1)))
     call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, &
         &iAtomStart, iPair, img2CentCell)
     do iSpin = 1, nSpin
@@ -428,10 +427,10 @@ contains
         rVecTemp = rVecTemp * HSqrReal(:,iLev,iSpin2)
         do ii = 1, nReg
           call elemShape(iOrbRegion, valshape, ii)
-          ALLOCATE_(iOrbs, (valshape(1)))
+          allocate(iOrbs(valshape(1)))
           call intoArray(iOrbRegion, iOrbs, dummy, ii)
           qState = sum(rVecTemp(iOrbs))
-          DEALLOCATE_(iOrbs)
+          deallocate(iOrbs)
           write(fdProjEig(ii), "(f13.6,f10.6)")Hartree__eV*ei(iLev,1,iSpin),&
               & qState
         end do
@@ -510,7 +509,7 @@ contains
       open(fdProjEig(ii), file=tmpStr, action="write", status="replace")
     end do
     
-    ALLOCATE_(cVecTemp,(size(HSqrCplx, dim=1)))
+    allocate(cVecTemp(size(HSqrCplx, dim=1)))
     
     if (nSpin <= 2) then
       
@@ -530,12 +529,12 @@ contains
             cVecTemp = conjg(HSqrCplx(:,iLev,iK2,iSpin2)) * cVecTemp
             do ii = 1, nReg
               call elemShape(iOrbRegion, valshape, ii)
-              ALLOCATE_(iOrbs, (valshape(1)))
+              allocate(iOrbs(valshape(1)))
               call intoArray(iOrbRegion, iOrbs, dummy, ii)
               qState = real(sum(cVecTemp(iOrbs)), dp)
               write(fdProjEig(ii), "(f13.6,f10.6)") &
                   & Hartree__eV * ei(iLev,iK,iSpin), qState
-              DEALLOCATE_(iOrbs)
+              deallocate(iOrbs)
             end do
           end do
           if (iK < nK .or. iSpin < nSpin) then
@@ -550,7 +549,7 @@ contains
       
       iSpin = 1
       nOrb = orb%nOrb
-      ALLOCATE_(work,(nOrb,nOrb))
+      allocate(work(nOrb,nOrb))
       
       do iK = 1, nK
         
@@ -568,7 +567,7 @@ contains
           call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,iLev,iK2,iSpin2))
           do ii = 1, nReg
             call elemShape(iOrbRegion, valshape, ii)
-            ALLOCATE_(iOrbs, (valshape(1)))
+            allocate(iOrbs(valshape(1)))
             call intoArray(iOrbRegion, iOrbs, dummy, ii)
             !qState = real(sum(cVecTemp(iOrbs)), dp) &
             !    & + real(sum(cVecTemp(iOrbs+nOrb)), dp)
@@ -590,7 +589,7 @@ contains
                 & * cVecTemp(iOrbs) - &
                 & conjg(HSqrCplx(iOrbs+nOrb, iLev, iK2, iSpin2)) &
                 & * cVecTemp(iOrbs+nOrb) ))
-            DEALLOCATE_(iOrbs)
+            deallocate(iOrbs)
           end do
         end do
         if (iK < nK) then

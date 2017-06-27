@@ -9,7 +9,6 @@
 !!* (non-scc, scc, sDFTB etc)
 module forces
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use nonscc, only : NonSccDiff
   use scc

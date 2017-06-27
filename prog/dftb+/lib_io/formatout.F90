@@ -8,7 +8,6 @@
 !!* Contains subroutines for formatted output of data
 module formatout
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use fileid
   use constants
@@ -334,7 +333,7 @@ contains
 
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
 
-    ALLOCATE_(square, (nOrb, nOrb))
+    allocate(square(nOrb, nOrb))
     fd = getFileId()
     open(fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
@@ -383,7 +382,7 @@ contains
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
     nKPoint = size(kPoints, dim =2)
 
-    ALLOCATE_(square, (nOrb, nOrb))
+    allocate(square(nOrb, nOrb))
     fd = getFileId()
     open(fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"

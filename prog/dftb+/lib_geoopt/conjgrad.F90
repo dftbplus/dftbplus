@@ -8,7 +8,6 @@
 !!* Function minimization with the standard conjugate gradient technique.
 !!* @see Numerical Recipes
 module conjgrad
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   use linemin
@@ -91,9 +90,9 @@ contains
     self%nElem = nElem
     self%tolerance = tol
     self%maxDisp = maxDisp
-    ALLOCATE_(self%gg, (nElem))
-    ALLOCATE_(self%hh, (nElem))
-    ALLOCATE_(self%uu, (nElem))
+    allocate(self%gg(nElem))
+    allocate(self%hh(nElem))
+    allocate(self%uu(nElem))
     !! Line minimizer is created with an extrem big tolerance: it just brackets
     !! the minimum and returns an approximative minimum between them. Seems
     !! to give in most cases better results as making many line min. steps.
@@ -194,7 +193,7 @@ contains
     do while ((.not. tConverged) .and. tConvLine)
       call next(pLinMin, fu, du, uu, tConvLine)
       if (tConvLine) then
-        ALLOCATE_(xi, (size(gg)))
+        allocate(xi(size(gg)))
         call getMinGrad(pLinMin, xi)
         if (maxval(abs(xi)) < tolerance) then
           tConverged = .true.

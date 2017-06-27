@@ -8,7 +8,6 @@
 !!* Common routines for MD calculations
 module mdcommon
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use constants
   use ranlux

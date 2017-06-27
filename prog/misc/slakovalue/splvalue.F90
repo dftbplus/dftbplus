@@ -8,7 +8,6 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program splvalue
-#include "allocate.h"  
   use accuracy
   use repspline
   use oldskdata, only : readsplinerep

@@ -9,7 +9,6 @@
 !!* data
 module periodic
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use constants, only : pi
   use message
@@ -75,9 +74,9 @@ contains
     ASSERT(nAtom > 0)
     ASSERT(nInitNeighbor > 0)
 
-    ALLOCATE_(neighborList%nNeighbor, (nAtom))
-    ALLOCATE_(neighborList%iNeighbor, (0:nInitNeighbor, nAtom))
-    ALLOCATE_(neighborList%neighDist2, (0:nInitNeighbor, nAtom))
+    allocate(neighborList%nNeighbor(nAtom))
+    allocate(neighborList%iNeighbor(0:nInitNeighbor, nAtom))
+    allocate(neighborList%neighDist2(0:nInitNeighbor, nAtom))
 
     neighborList%cutoff = -1.0_dp
     neighborList%initialized = .true.
@@ -346,8 +345,8 @@ contains
     call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
     if (size(species) < nAllAtom) then
-      DEALLOCATE_(species)
-      ALLOCATE_(species, (nAllAtom))
+      deallocate(species)
+      allocate(species(nAllAtom))
     end if
     species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
 
@@ -495,7 +494,7 @@ contains
     end do lpCellVec
 
     !! Sort neighbors for all atom by distance
-    ALLOCATE_(indx, (maxNeighbor))
+    allocate(indx(maxNeighbor))
     do iAtom1 = 1, nAtom
       nn1 = neigh%nNeighbor(iAtom1)
       call index_heap_sort(indx(1:nn1), neigh%neighDist2(1:nn1, iAtom1),&
@@ -590,17 +589,17 @@ contains
     ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
 
     call move_alloc(img2CentCell, tmpIntR1)
-    ALLOCATE_(img2CentCell, (mNewAtom))
+    allocate(img2CentCell(mNewAtom))
     img2CentCell(:) = 0
     img2CentCell(:mAtom) = tmpIntR1(:mAtom)
     
     tmpIntR1(:) = iCellVec(:)
-    DEALLOCATE_(iCellVec)
-    ALLOCATE_(iCellVec, (mNewAtom))
+    deallocate(iCellVec)
+    allocate(iCellVec(mNewAtom))
     iCellVec(:mAtom) = tmpIntR1(:mAtom)
 
     call move_alloc(coord, tmpRealR2)
-    ALLOCATE_(coord, (3, mNewAtom))
+    allocate(coord(3, mNewAtom))
     coord(:, :mAtom) = tmpRealR2
 
   end subroutine reallocateArrays1
@@ -624,12 +623,12 @@ contains
     ASSERT(all(shape(neighDist2) == shape(iNeighbor)))
 
     call move_alloc(iNeighbor, tmpIntR2)
-    ALLOCATE_(iNeighbor, (0:mNewNeighbor, mAtom))
+    allocate(iNeighbor(0:mNewNeighbor, mAtom))
     iNeighbor(:,:) = 0
     iNeighbor(:mNeighbor, :mAtom) = tmpIntR2
 
     call move_alloc(neighDist2, tmpRealR2)
-    ALLOCATE_(neighDist2, (0:mNewNeighbor, mAtom))
+    allocate(neighDist2(0:mNewNeighbor, mAtom))
     neighDist2(:,:) = 0.0_dp
     neighDist2(:mNeighbor, :mAtom) = tmpRealR2
 
@@ -674,8 +673,8 @@ contains
     ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
-      DEALLOCATE_(iPair)
-      ALLOCATE_(iPair, (0:mNeighbor-1, nAtom))
+      deallocate(iPair)
+      allocate(iPair(0:mNeighbor-1, nAtom))
       iPair(:,:) = 0
     end if
     nElem = 0
@@ -689,10 +688,10 @@ contains
     end do
     nElem = ind
     if (nElem > nOldElem) then
-      DEALLOCATE_(ham)
-      DEALLOCATE_(over)
-      ALLOCATE_(ham, (nElem))
-      ALLOCATE_(over, (nElem))
+      deallocate(ham)
+      deallocate(over)
+      allocate(ham(nElem))
+      allocate(over(nElem))
       ham(:) = 0.0_dp
       over(:) = 0.0_dp
     end if
@@ -741,8 +740,8 @@ contains
     ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
-      DEALLOCATE_(iPair)
-      ALLOCATE_(iPair, (0:mNeighbor-1, nAtom))
+      deallocate(iPair)
+      allocate(iPair(0:mNeighbor-1, nAtom))
       iPair(:,:) = 0
     end if
     nElem = 0
@@ -756,10 +755,10 @@ contains
     end do
     nElem = ind
     if (nElem > nOldElem) then
-      DEALLOCATE_(ham)
-      DEALLOCATE_(over)
-      ALLOCATE_(ham, (nElem, nSpin))
-      ALLOCATE_(over, (nElem))
+      deallocate(ham)
+      deallocate(over)
+      allocate(ham(nElem, nSpin))
+      allocate(over(nElem))
       ham(:,:) = 0.0_dp
       over(:) = 0.0_dp
     end if
@@ -800,8 +799,8 @@ contains
     ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
-      DEALLOCATE_(iPair)
-      ALLOCATE_(iPair, (0:mNeighbor-1, nAtom))
+      deallocate(iPair)
+      allocate(iPair(0:mNeighbor-1, nAtom))
       iPair(:,:) = 0
     end if
     nElem = 0
@@ -815,8 +814,8 @@ contains
     end do
     nElem = ind
     if (nElem > nOldElem) then
-      DEALLOCATE_(ham)
-      ALLOCATE_(ham, (nElem))
+      deallocate(ham)
+      allocate(ham(nElem))
       ham(:) = 0.0_dp
     end if
 
@@ -940,15 +939,15 @@ contains
       call error("Monkhorst-Pack routine failed to find all K-points.")
     end if
     
-    ALLOCATE_(allKPoints, (3, nAllKPoint))
-    ALLOCATE_(allKWeights, (nAllKPoint))
+    allocate(allKPoints(3, nAllKPoint))
+    allocate(allKWeights(nAllKPoint))
     call asArray(lr1, allKPoints)
     allKPoints = modulo(allKPoints, 1.0_dp)
     allKWeights = 1.0_dp / real(nAllKPoint, dp)
 
     ! Reduce by inversion if needed
     if (tReduce) then
-      ALLOCATE_(irreducible, (nAllKPoint))
+      allocate(irreducible(nAllKPoint))
       irreducible(:) = .true.
       do i1 = 1, nAllKPoint
         if (.not. irreducible(i1)) then
@@ -966,8 +965,8 @@ contains
         end do
       end do
       nKPoint = count(irreducible)
-      ALLOCATE_(kPoints, (3, nKPoint))
-      ALLOCATE_(kWeights, (nKPoint))
+      allocate(kPoints(3, nKPoint))
+      allocate(kWeights(nKPoint))
       i1 = 1
       i2 = 1
       do while (i2 <= nKpoint)
@@ -979,8 +978,8 @@ contains
         i1 = i1 + 1
       end do
     else
-      ALLOCATE_(kPoints, (3, nAllKPoint))
-      ALLOCATE_(kWeights, (nAllKPoint))
+      allocate(kPoints(3, nAllKPoint))
+      allocate(kWeights(nAllKPoint))
       kPoints(:,:) = allKPoints
       kWeights(:) = allKWeights
     end if

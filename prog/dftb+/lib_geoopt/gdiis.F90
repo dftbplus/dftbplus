@@ -7,7 +7,6 @@
 
 !!* Contains a geometry DIIS optimizer interface.
 module gdiis
-# include "allocate.h"
 # include "assert.h"  
   use accuracy
   use diismixer
@@ -55,7 +54,7 @@ contains
 
     self%nElem = nElem
     self%tolerance = tol
-    ALLOCATE_(self%x, (self%nElem))
+    allocate(self%x(self%nElem))
     call init(self%pDIIS,nGens,alpha,.true.,alpha)
     self%tInitialized = .true.
     

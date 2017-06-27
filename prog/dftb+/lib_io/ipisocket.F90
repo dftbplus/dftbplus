@@ -8,7 +8,6 @@
 !> Routines to make socket contact with an external code and
 !! communicate data back and forward from DFTB+ to the external code.
 module ipisocket
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   use message
@@ -178,7 +177,7 @@ contains
       call error(msg)
     end if
     
-    ALLOCATE_(commsBuffer1, (this%nAtom * 3))
+    allocate(commsBuffer1(this%nAtom * 3))
     call this%logger%write('socketRetrieve: Retrieving data from socket... ', 1)
     
     ! wait for anything other than 'STATUS' state from the interface,

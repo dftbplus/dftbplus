@@ -11,7 +11,6 @@
 !!* different Slater-Koster schemes for different species. At the moment,
 !!* it handles only Slater-Koster data tabulated on an equidistant grid.
 module slakocont
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use slakoeqgrid
@@ -78,7 +77,7 @@ contains
     ASSERT(.not. self%tInit)
 
     self%nSpecies = nSpecies
-    ALLOCATE_(self%slakos, (nSpecies, nSpecies))
+    allocate(self%slakos(nSpecies, nSpecies))
     self%mInt = 0
     self%cutoff = 0.0_dp
     self%tDataOK = .false.

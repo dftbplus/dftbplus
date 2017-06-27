@@ -7,7 +7,6 @@
 
 !!* Routines to read/write a TGeometry type in HSD and XML format.
 module typegeometryhsd
-#include "allocate.h"  
   use typegeometry
   use hsdutils
   use hsdutils2
@@ -97,7 +96,7 @@ contains
     if (geo%nSpecies == 0) then
       call detailedError(node, "Missing species names.")
     end if
-    ALLOCATE_(geo%speciesNames, (geo%nSpecies))
+    allocate(geo%speciesNames(geo%nSpecies))
     call asArray(stringBuffer, geo%speciesNames)
     call init(intBuffer)
     call init(realBuffer)
@@ -107,12 +106,12 @@ contains
     if (geo%nAtom == 0) then
       call detailedError(typesAndCoords, "Missing coordinates")
     end if
-    ALLOCATE_(geo%species, (geo%nAtom))
-    ALLOCATE_(geo%coords, (3, geo%nAtom))
-    ALLOCATE_(tmpInt, (1, geo%nAtom))
+    allocate(geo%species(geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom))
+    allocate(tmpInt(1, geo%nAtom))
     call asArray(intBuffer, tmpInt)
     geo%species(:) = tmpInt(1,:)
-    DEALLOCATE_(tmpInt)
+    deallocate(tmpInt)
     !! Check validity of species
     if (any(geo%species < 1 .or. geo%species > geo%nSpecies)) then
       call detailedError(typesAndCoords, "Type index must be between 1 and " &
@@ -137,7 +136,7 @@ contains
       end select
     end if
     if (geo%tPeriodic) then
-      ALLOCATE_(geo%latVecs, (3,3))
+      allocate(geo%latVecs(3,3))
       call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, &
           &child=child)
       geo%latVecs(:,:) = reshape(latvec, (/3, 3/))
@@ -152,7 +151,7 @@ contains
         !    &reshape(geo%species, (/ 1, size(geo%species) /)), &
         !    &geo%coords, replace=.true.)
       end if
-      ALLOCATE_(geo%recVecs2p, (3, 3))
+      allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
       if (abs(det) < 1e-12_dp) then
         call detailedError(child, "Dependent lattice vectors")
@@ -237,12 +236,12 @@ contains
     if (geo%nSpecies == 0) then
       call detailedError(node, "Number of species equals zero.")
     end if
-    ALLOCATE_(geo%speciesNames, (geo%nSpecies))
+    allocate(geo%speciesNames(geo%nSpecies))
     call asArray(speciesNames, geo%speciesNames)
 
     !! Read in sequential and species indices.
-    ALLOCATE_(geo%species, (geo%nAtom))
-    ALLOCATE_(geo%coords, (3, geo%nAtom))
+    allocate(geo%species(geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom))
     iStart = iOldStart
     do ii = 1, geo%nAtom
       call getNextToken(text, iTmp, iStart, iErr)
@@ -260,8 +259,8 @@ contains
 
     !! Read in origin an lattice vectors, if the structure is periodic
     if (geo%tPeriodic) then
-      ALLOCATE_(geo%origin, (3))
-      ALLOCATE_(geo%latVecs, (3, 3))
+      allocate(geo%origin(3))
+      allocate(geo%latVecs(3, 3))
       call getNextToken(text, geo%origin, iStart, iErr)
       call checkError(node, iErr, "Invalid origin.")
       do ii = 1, 3
@@ -279,7 +278,7 @@ contains
       else
         geo%coords = geo%coords * AA__Bohr
       end if
-      ALLOCATE_(geo%recVecs2p, (3, 3))
+      allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
       if (abs(det) < 1e-12_dp) then
         call detailedError(node, "Dependent lattice vectors")

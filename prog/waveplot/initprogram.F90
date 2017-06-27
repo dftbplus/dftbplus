@@ -7,7 +7,6 @@
 
 !!* Contains the routines for initialising waveplot.
 module InitProgram
-#include "allocate.h"
 #include "assert.h"
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
@@ -209,9 +208,9 @@ contains
     call getChildValue(detailed, "NrOfSpins", nSpin)
     call getChildValue(detailed, "NrOfStates", nState)
     call getChildValue(detailed, "NrOfOrbitals", nOrb)
-    ALLOCATE_(kPointsWeights, (4, nKPoint))
+    allocate(kPointsWeights(4, nKPoint))
     call getChildValue(detailed, "KPointsAndWeights", kPointsWeights)
-    ALLOCATE_(occupations, (nState, nKPoint, nSpin))
+    allocate(occupations(nState, nKPoint, nSpin))
 
     if (tGroundState) then
       call getChild(detailed, "Occupations", occ)
@@ -337,7 +336,7 @@ contains
           &multiple=.true.)
       call convRangeToInt(char(buffer), node, plottedKPoints, nKPoint)
     else
-      ALLOCATE_(plottedKPoints, (1))
+      allocate(plottedKPoints(1))
       plottedKPoints(1) = 1
     end if
     call getChildValue(node, "PlottedSpins", buffer, child=field, &
@@ -364,7 +363,7 @@ contains
     if (len(indexBuffer) == 0) then
       call error("No levels specified for plotting")
     end if
-    ALLOCATE_(levelIndex, (3, len(indexBuffer)))
+    allocate(levelIndex(3, len(indexBuffer)))
     call asArray(indexBuffer, levelIndex)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
@@ -413,7 +412,7 @@ contains
       if (minEdge < 0.0_dp) then
         call detailedError(field, "Minimal edge length must be positive")
       end if
-      ALLOCATE_(mcutoffs, (geo%nSpecies))
+      allocate(mcutoffs(geo%nSpecies))
       do iSpecies = 1 , geo%nSpecies
         mcutoffs(iSpecies) = maxval(basis(iSpecies)%cutoffs)
       end do
@@ -507,8 +506,8 @@ contains
     ASSERT(nSpecies > 0)
 
     call getChildValue(node, "Resolution", basisResolution)
-    ALLOCATE_(basis, (nSpecies))
-    ALLOCATE_(atomicNumbers, (nSpecies))
+    allocate(basis(nSpecies))
+    allocate(atomicNumbers(nSpecies))
     do ii = 1, nSpecies
       speciesName = speciesNames(ii)
       call getChild(node, speciesName, speciesNode)
@@ -541,10 +540,10 @@ contains
     if (spBasis%nOrb < 1) then
       call detailedError(node, "Missing orbital definitions")
     end if
-    ALLOCATE_(spBasis%angMoms, (spBasis%nOrb))
-    ALLOCATE_(spBasis%occupations, (spBasis%nOrb))
-    ALLOCATE_(spBasis%stos, (spBasis%nOrb))
-    ALLOCATE_(spBasis%cutoffs, (spBasis%nOrb))
+    allocate(spBasis%angMoms(spBasis%nOrb))
+    allocate(spBasis%occupations(spBasis%nOrb))
+    allocate(spBasis%stos(spBasis%nOrb))
+    allocate(spBasis%cutoffs(spBasis%nOrb))
     do ii = 1, spBasis%nOrb
       call getItem1(children, ii, tmpNode)
       call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
@@ -567,17 +566,17 @@ contains
         call detailedError(child, "Number of coefficients incompatible with &
             &number of exponents")
       end if
-      ALLOCATE_(exps, (len(bufferExps)))
+      allocate(exps(len(bufferExps)))
       call asArray(bufferExps, exps)
       deallocate(bufferExps)
-      ALLOCATE_(coeffs, (len(bufferCoeffs)))
+      allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
       deallocate(bufferCoeffs)
       call init(spBasis%stos(ii), &
           &reshape(coeffs, (/ size(coeffs)/size(exps), size(exps) /)), &
           &exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
-      DEALLOCATE_(exps)
-      DEALLOCATE_(coeffs)
+      deallocate(exps)
+      deallocate(coeffs)
     end do
     
   end subroutine readSpeciesBasis

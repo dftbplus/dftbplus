@@ -9,7 +9,6 @@
 !!* @todo Assignment (copy) operator for TNeighbors!!!
 module initprogram
 #include "assert.h"
-#include "allocate.h"
   use inputdata_module
   use constants
   use periodic
@@ -461,11 +460,11 @@ contains
     end if
 
     if (tPeriodic) then
-      ALLOCATE_(latVec, (3, 3))
+      allocate(latVec(3, 3))
       ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
-      ALLOCATE_(recVec, (3, 3))
-      ALLOCATE_(recVec2p, (3, 3))
+      allocate(recVec(3, 3))
+      allocate(recVec2p(3, 3))
       recVec2p = latVec(:,:)
       call matinv(recVec2p)
       recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
@@ -473,9 +472,9 @@ contains
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else
-      ALLOCATE_(latVec, (0, 0))
-      ALLOCATE_(recVec, (0, 0))
-      ALLOCATE_(recVec2p, (0, 0))
+      allocate(latVec(0, 0))
+      allocate(recVec(0, 0))
+      allocate(recVec2p(0, 0))
       CellVol = 0.0_dp
       recCellVol = 0.0_dp
     end if
@@ -487,21 +486,21 @@ contains
     skOverCont = input%slako%skOverCont
     pRepCont = input%slako%repCont
     
-    ALLOCATE_(atomEigVal, (orb%mShell, nType))
+    allocate(atomEigVal(orb%mShell, nType))
     ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
     ASSERT(size(input%slako%skSelf, dim=2) == size(atomEigVal, dim=2))
     atomEigVal(:,:) = input%slako%skSelf(1:orb%mShell, :)
 
     ASSERT(size(input%slako%skOcc, dim=1) >= orb%mShell)
-    ALLOCATE_(referenceN0,(orb%mShell, nType))
+    allocate(referenceN0(orb%mShell, nType))
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     ASSERT(size(input%slako%mass) == nType)
-    ALLOCATE_(speciesMass,(nType))
+    allocate(speciesMass(nType))
     speciesMass(:) = input%slako%mass(:)
     
     ! Spin W's !'
     if (allocated(input%ctrl%spinW)) then
-      ALLOCATE_(spinW, (orb%mShell, orb%mShell, nType))
+      allocate(spinW(orb%mShell, orb%mShell, nType))
       spinW(:,:,:) = 0.0_dp
       do iSp = 1, nType
         do jj = 1, orb%nShell(iSp)
@@ -511,11 +510,11 @@ contains
         end do
       end do
     else
-      ALLOCATE_(spinW,(0,0,0))
+      allocate(spinW(0,0,0))
     end if
     
     if (tSpinOrbit) then
-      ALLOCATE_(xi,(orb%mShell,nType))
+      allocate(xi(orb%mShell,nType))
       xi(:,:) = 0.0_dp
       do iSp=1,nType
         do jj=1, orb%nShell(iSp)
@@ -523,17 +522,17 @@ contains
         end do
       end do
     else
-      ALLOCATE_(xi,(0,0))
+      allocate(xi(0,0))
     end if
 
     ! DFTB+U parameters
     if (tDFTBU) then
       nDFTBUfunc = input%ctrl%DFTBUfunc
-      ALLOCATE_(UJ,(size(input%ctrl%UJ,dim=1),size(input%ctrl%UJ,dim=2)))
-      ALLOCATE_(nUJ,(size(input%ctrl%nUJ)))
-      ALLOCATE_(niUJ,(size(input%ctrl%niUJ,dim=1),size(input%ctrl%niUJ,dim=2)))
-      ALLOCATE_(iUJ, (size(input%ctrl%iUJ,dim=1), \
-        size(input%ctrl%iUJ,dim=2),size(input%ctrl%iUJ,dim=3)))
+      allocate(UJ(size(input%ctrl%UJ,dim=1),size(input%ctrl%UJ,dim=2)))
+      allocate(nUJ(size(input%ctrl%nUJ)))
+      allocate(niUJ(size(input%ctrl%niUJ,dim=1),size(input%ctrl%niUJ,dim=2)))
+      allocate(iUJ(size(input%ctrl%iUJ,dim=1), size(input%ctrl%iUJ,dim=2),&
+          & size(input%ctrl%iUJ,dim=3)))
 
       UJ(:,:) = input%ctrl%UJ(:,:)
       nUJ(:) = input%ctrl%nUJ(:)
@@ -547,10 +546,10 @@ contains
         end do
       end do
     else
-      ALLOCATE_(UJ,(0,0))
-      ALLOCATE_(nUJ,(0))
-      ALLOCATE_(niUJ,(0,0))
-      ALLOCATE_(iUJ,(0,0,0))
+      allocate(UJ(0,0))
+      allocate(nUJ(0))
+      allocate(niUJ(0,0))
+      allocate(iUJ(0,0,0))
     end if
 
     !! Cutoffs from SlaKo and repulsive
@@ -560,7 +559,7 @@ contains
 
     !! Get species names and output file
     geoOutFile = input%ctrl%outFile
-    ALLOCATE_(speciesName, (size(input%geom%speciesNames)))
+    allocate(speciesName(size(input%geom%speciesNames)))
     speciesName(:) = input%geom%speciesNames(:)
 
     do iSp = 1, nType
@@ -577,7 +576,7 @@ contains
     !! Initialise the SCC module (the two copies of the Hubbard Us are rather
     !! artifical, since the copy for the main program is only used for dumping
     !! into the tagged format for autotest)
-    ALLOCATE_(hubbU, (orb%mShell, nType))
+    allocate(hubbU(orb%mShell, nType))
     ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
     ASSERT(size(input%slako%skHubbU, dim=2) == nType)
     hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
@@ -595,7 +594,7 @@ contains
         sccInit%volume = CellVol
       end if
       sccInit%hubbU = hubbU
-      ALLOCATE_(tDampedShort, (nType))
+      allocate(tDampedShort(nType))
       if (input%ctrl%tDampH) then
         tDampedShort = (speciesMass < 3.5_dp * amu__au)
         !tDampedShort(:) = (speciesName == "H" .or. speciesName == "h")
@@ -649,7 +648,7 @@ contains
         thirdInp%orb => orb
         thirdInp%hubbUs = hubbU
         thirdInp%hubbUDerivs = input%ctrl%hubDerivs
-        ALLOCATE_(thirdInp%damped, (nType))
+        allocate(thirdInp%damped(nType))
         thirdInp%damped(:) = tDampedShort
         thirdInp%dampExp = input%ctrl%dampExp
         thirdInp%shellResolved = input%ctrl%tOrbResolved
@@ -659,14 +658,14 @@ contains
     end if
 
     !! Initial coordinates
-    ALLOCATE_(coord0, (3, nAtom))
+    allocate(coord0(3, nAtom))
     ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
-    ALLOCATE_(species0, (nAtom))
+    allocate(species0(nAtom))
     ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
     
-    ALLOCATE_(mass,(nAtom))
+    allocate(mass(nAtom))
     mass = speciesMass(species0)
     if (allocated(input%ctrl%masses)) then
       ASSERT(size(input%ctrl%masses) == nAtom)
@@ -681,29 +680,29 @@ contains
     else
       nAllAtom = nAtom
     end if
-    ALLOCATE_(coord, (3, nAllAtom))
-    ALLOCATE_(species, (nAllAtom))
-    ALLOCATE_(img2CentCell, (nAllAtom))
-    ALLOCATE_(iCellVec, (nAllAtom))
-    ALLOCATE_(iAtomStart, (nAtom + 1))
+    allocate(coord(3, nAllAtom))
+    allocate(species(nAllAtom))
+    allocate(img2CentCell(nAllAtom))
+    allocate(iCellVec(nAllAtom))
+    allocate(iAtomStart(nAtom + 1))
     call buildSquaredAtomIndex(iAtomStart, orb)
 
     !! Intialize Hamilton and overlap
     if (tSCC) then
-      ALLOCATE_(chargePerShell,(orb%mShell,nAtom,nSpin))
+      allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
-       ALLOCATE_(chargePerShell,(0,0,0))
+       allocate(chargePerShell(0,0,0))
     end if
-    ALLOCATE_(ham, (0, nSpin))
-    ALLOCATE_(iHam, (0, nSpin))
-    ALLOCATE_(over, (0))
-    ALLOCATE_(iPair, (0, nAtom))
+    allocate(ham(0, nSpin))
+    allocate(iHam(0, nSpin))
+    allocate(over(0))
+    allocate(iPair(0, nAtom))
 
     !! Brillouin zone sampling
     if (tPeriodic) then
       nKPoint = input%ctrl%nKPoint
-      ALLOCATE_(kPoint, (3, nKPoint))
-      ALLOCATE_(kWeight, (nKPoint))
+      allocate(kPoint(3, nKPoint))
+      allocate(kWeight(nKPoint))
       ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
       ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
       kPoint(:,:) = input%ctrl%KPoint(:,:)
@@ -713,8 +712,8 @@ contains
       kWeight(:) = input%ctrl%kWeight(:) / sum(input%ctrl%kWeight(:))
     else
       nKPoint = 1
-      ALLOCATE_(kPoint, (3, nKPoint))
-      ALLOCATE_(kWeight, (nKpoint))
+      allocate(kPoint(3, nKPoint))
+      allocate(kWeight(nKpoint))
       kPoint(:,1) = 0.0_dp
       kWeight(1) = 1.0_dp
     end if
@@ -730,9 +729,9 @@ contains
     nOrb = orb%nOrb
 
     if (nSpin == 4) then
-      ALLOCATE_(nEl,(1))
+      allocate(nEl(1))
     else
-      ALLOCATE_(nEl,(nSpin))
+      allocate(nEl(nSpin))
     end if
 
     nEl0 = 0.0_dp
@@ -775,30 +774,30 @@ contains
     
     !! Create equivalency relations
     if (tSCC) then
-      ALLOCATE_(iEqOrbitals, (orb%mOrb, nAtom, nSpin))
-      ALLOCATE_(iEqOrbSCC, (orb%mOrb, nAtom, nSpin))
+      allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
+      allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
       call SCC_getOrbitalEquiv(orb, species0, iEqOrbSCC)
       if (nSpin == 1) then
         iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
       else
-        ALLOCATE_(iEqOrbSpin, (orb%mOrb, nAtom, nSpin))
+        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
         call Spin_getOrbitalEquiv(orb, species0, iEqOrbSpin)
         call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, orb, iEqOrbitals)
-        DEALLOCATE_(iEqOrbSpin)
+        deallocate(iEqOrbSpin)
       end if
-      DEALLOCATE_(iEqOrbSCC)
+      deallocate(iEqOrbSCC)
       nIneqOrb = maxval(iEqOrbitals)
       nMixElements = nIneqOrb
       if (tDFTBU) then
-        ALLOCATE_(iEqOrbSpin, (orb%mOrb, nAtom, nSpin))
-        ALLOCATE_(iEqOrbDFTBU, (orb%mOrb, nAtom, nSpin))
+        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
         call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,orb, species0, nUJ, niUJ, iUJ)
         call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
         iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
         nIneqOrb = maxval(iEqOrbitals)
-        DEALLOCATE_(iEqOrbSpin)
-        DEALLOCATE_(iEqOrbDFTBU)
-        ALLOCATE_(iEqBlockDFTBU,(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        deallocate(iEqOrbSpin)
+        deallocate(iEqOrbDFTBU)
+        allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
         call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, &
             & nUJ, niUJ, iUJ)
         nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
@@ -806,7 +805,7 @@ contains
         !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
         !  return 0
         if (tImHam) then
-          ALLOCATE_(iEqBlockDFTBULS,(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
           call DFTBU_blockIndx(iEqBlockDFTBULS,nMixElements , orb, species0, &
             & nUJ, niUJ, iUJ)
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
@@ -818,10 +817,10 @@ contains
     end if
 
     if (.not.tDFTBU) then
-      ALLOCATE_(iEqBlockDFTBU,(0, 0, 0, 0))
+      allocate(iEqBlockDFTBU(0, 0, 0, 0))
     end if
     if (.not.(tDFTBU.and.tImHam)) then
-      ALLOCATE_(iEqBlockDFTBULS,(0, 0, 0, 0))
+      allocate(iEqBlockDFTBULS(0, 0, 0, 0))
     end if
     
     
@@ -926,7 +925,7 @@ contains
       do iReg = 1, size(input%ctrl%tShellResInRegion)
         call elemShape(input%ctrl%iAtInRegion, valshape, iReg)
         nAtomRegion = valshape(1)
-        ALLOCATE_(iAtomRegion, (nAtomRegion))
+        allocate(iAtomRegion(nAtomRegion))
         call intoArray(input%ctrl%iAtInRegion, iAtomRegion, iTmp, iReg)
         if (input%ctrl%tOrbResInRegion(iReg) .or. input%ctrl%tShellResInRegion(iReg)) then
           
@@ -935,7 +934,7 @@ contains
             ASSERT(all(species0(iAtomRegion) == iSp))
             nOrbRegion = nAtomRegion
             ! Create orbital index.
-            ALLOCATE_(tmpir1, (nOrbRegion))
+            allocate(tmpir1(nOrbRegion))
             do iOrb = 1, orb%nOrbSpecies(iSp)
               tmpir1 = 0
               ind = 1
@@ -950,7 +949,7 @@ contains
                   & -orb%angShell(orb%iShellOrb(iOrb,iSp),iSp)
               call append(regionLabels, tmpStr)
             end do
-            DEALLOCATE_(tmpir1)
+            deallocate(tmpir1)
           end if
           
           if (input%ctrl%tShellResInRegion(iReg)) then
@@ -963,7 +962,7 @@ contains
                   &* (orb%posShell(iSh + 1, iSp) - orb%posShell(iSh, iSp))
               ind = 1
               ! Create orbital index.
-              ALLOCATE_(tmpir1, (nOrbRegion))
+              allocate(tmpir1(nOrbRegion))
               do ii = 1, nAtomRegion
                 iAt = iAtomRegion(ii)
                 do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
@@ -972,7 +971,7 @@ contains
                 end do
               end do
               call append(iOrbRegion, tmpir1)
-              DEALLOCATE_(tmpir1)
+              deallocate(tmpir1)
               write(tmpStr, "(A,'.',I0,'.out')") &
                   &trim(input%ctrl%RegionLabel(iReg)), iSh
               call append(regionLabels, tmpStr)
@@ -986,7 +985,7 @@ contains
             nOrbRegion = nOrbRegion + orb%nOrbAtom(iAtomRegion(ii))
           end do
           ind = 1
-          ALLOCATE_(tmpir1, (nOrbRegion))
+          allocate(tmpir1(nOrbRegion))
           ! Create an index of the orbitals
           do ii = 1, nAtomRegion
             iAt = iAtomRegion(ii)
@@ -996,11 +995,11 @@ contains
             end do
           end do
           call append(iOrbRegion, tmpir1)
-          DEALLOCATE_(tmpir1)
+          deallocate(tmpir1)
           write(tmpStr, "(A,'.out')") trim(input%ctrl%RegionLabel(iReg))
           call append(regionLabels, tmpStr)
         end if
-        DEALLOCATE_(iAtomRegion)
+        deallocate(iAtomRegion)
       end do
 
       allocate(fdProjEig(len(iOrbRegion)))
@@ -1054,27 +1053,27 @@ contains
     end if
     
     if (nMovedAtom > 0) then
-      ALLOCATE_(indMovedAtom, (size(input%ctrl%indMovedAtom)))
+      allocate(indMovedAtom(size(input%ctrl%indMovedAtom)))
       indMovedAtom(:) = input%ctrl%indMovedAtom(:)
     else
-      ALLOCATE_(indMovedAtom, (0))
+      allocate(indMovedAtom(0))
     end if
     
     allocate(pGeoCoordOpt)
     if (tCoordOpt) then
-      ALLOCATE_(tmpCoords,(nMovedCoord))
+      allocate(tmpCoords(nMovedCoord))
       tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), &
           & (/ nMovedCoord /))
       select case (input%ctrl%iGeoOpt)
       case(1)
-        ALLOCATE_(tmpWeight,(nMovedCoord))
+        allocate(tmpWeight(nMovedCoord))
         tmpWeight(1:nMovedCoord) = 0.5_dp * deltaT**2 &
             & / reshape(spread(mass(indMovedAtom), 1, 3), &
             & (/nMovedCoord/))
         allocate(pSteepDesc)
         call init(pSteepDesc, size(tmpCoords), input%ctrl%maxForce, &
              & input%ctrl%maxAtomDisp,tmpWeight )
-        DEALLOCATE_(tmpWeight)
+        deallocate(tmpWeight)
         call init(pGeoCoordOpt, pSteepDesc)
       case (2)
         allocate(pConjGrad)
@@ -1094,12 +1093,12 @@ contains
     if (tLatOpt) then
       select case (input%ctrl%iGeoOpt)
       case(1)
-        ALLOCATE_(tmpWeight,(9))
+        allocate(tmpWeight(9))
         tmpWeight = 1.0_dp
         allocate(pSteepDescLat)
         call init(pSteepDescLat, 9, input%ctrl%maxForce, &
             & input%ctrl%maxLatDisp, tmpWeight )
-        DEALLOCATE_(tmpWeight)
+        deallocate(tmpWeight)
         call init(pGeoLatOpt, pSteepDescLat)
       case(2,3) ! use CG lattice for both DIIS and CG
         allocate(pConjGradLat)
@@ -1127,8 +1126,8 @@ contains
     !! Initialize constraints
     nGeoConstr = input%ctrl%nrConstr
     if (nGeoConstr > 0) then
-      ALLOCATE_(conAtom, (input%ctrl%nrConstr))
-      ALLOCATE_(conVec, (3, input%ctrl%nrConstr))
+      allocate(conAtom(input%ctrl%nrConstr))
+      allocate(conVec(3, input%ctrl%nrConstr))
       ASSERT(all(shape(conAtom) == shape(input%ctrl%conAtom)))
       ASSERT(all(shape(conVec) == shape(input%ctrl%conVec)))
       conAtom(:) = input%ctrl%conAtom(:)
@@ -1137,8 +1136,8 @@ contains
         conVec(:,ii) = conVec(:,ii) / sqrt(sum(conVec(:,ii)**2))
       end do
     else
-      ALLOCATE_(conAtom, (0))
-      ALLOCATE_(conVec, (3, 0))
+      allocate(conAtom(0))
+      allocate(conVec(3, 0))
     end if
     
     !! Dispersion
@@ -1210,13 +1209,13 @@ contains
     PipekMaxIter =  input%ctrl%PipekMaxIter
     tPipekDense = input%ctrl%tPipekDense
     if (.not.tPipekDense.and.tPipekMezey) then
-      ALLOCATE_(sparsePipekTols,(size(input%ctrl%sparsePipekTols)))
+      allocate(sparsePipekTols(size(input%ctrl%sparsePipekTols)))
       sparsePipekTols(:) = input%ctrl%sparsePipekTols(:)
       if (any(sparsePipekTols < epsilon(0.0_dp))) then
         call error('Tollerances for sparse Pipek-Mezey localisation too small.')
       end if
     else
-      ALLOCATE_(sparsePipekTols,(0))
+      allocate(sparsePipekTols(0))
     end if
     
     ! Linear response
@@ -1267,8 +1266,8 @@ contains
       end if
       
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
-      ALLOCATE_(input%ctrl%lrespini%HubbardU, (nType))
-      ALLOCATE_(input%ctrl%lrespini%spinW, (nType))
+      allocate(input%ctrl%lrespini%HubbardU(nType))
+      allocate(input%ctrl%lrespini%spinW(nType))
       input%ctrl%lrespini%HubbardU = 0.0_dp
       input%ctrl%lrespini%spinW = 0.0_dp
                   
@@ -1433,11 +1432,11 @@ contains
     end if
 
     if (tDerivs) then
-      ALLOCATE_(tmp3Coords, (3,nMovedAtom))
+      allocate(tmp3Coords(3,nMovedAtom))
       tmp3Coords = coord0(:,indMovedAtom)
       call create(derivDriver, tmp3Coords, input%ctrl%deriv2ndDelta)
       coord0(:,indMovedAtom) = tmp3Coords
-      DEALLOCATE_(tmp3Coords)
+      deallocate(tmp3Coords)
       nGeoSteps = 2 * 3 * nMovedAtom - 1
     end if
     
@@ -1463,51 +1462,51 @@ contains
     
     !! Allocate charge arrays
     if (tMulliken) then ! automatically true if tSCC
-      ALLOCATE_(q0, (orb%mOrb, nAtom, nSpin))
+      allocate(q0(orb%mOrb, nAtom, nSpin))
       q0(:,:,:) = 0.0_dp
 
-      ALLOCATE_(qShell0, (orb%mShell, nAtom))
+      allocate(qShell0(orb%mShell, nAtom))
       qShell0(:,:) = 0.0_dp
     else
-      ALLOCATE_(q0, (0,0,0))
-      ALLOCATE_(qShell0, (0,0))
+      allocate(q0(0,0,0))
+      allocate(qShell0(0,0))
     end if
 
-    ALLOCATE_(qInput, (orb%mOrb, nAtom, nSpin))
-    ALLOCATE_(qOutput, (orb%mOrb, nAtom, nSpin))
+    allocate(qInput(orb%mOrb, nAtom, nSpin))
+    allocate(qOutput(orb%mOrb, nAtom, nSpin))
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
     
     if (tDFTBU) then
-      ALLOCATE_(qBlockIn, (orb%mOrb, orb%mOrb, nAtom, nSpin))
-      ALLOCATE_(qBlockOut, (orb%mOrb, orb%mOrb, nAtom, nSpin))
+      allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+      allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
       qBlockIn = 0.0_dp
       qBlockOut = 0.0_dp
       if (tImHam) then
-        ALLOCATE_(qiBlockIn, (orb%mOrb, orb%mOrb, nAtom, nSpin))
+        allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
         qiBlockIn = 0.0_dp
       else
-        ALLOCATE_(qiBlockIn, (0, 0, 0, 0))
+        allocate(qiBlockIn(0, 0, 0, 0))
         qiBlockIn = 0.0_dp
       end if
     else
-      ALLOCATE_(qBlockIn, (0, 0, 0, 0))
-      ALLOCATE_(qBlockOut, (0, 0, 0, 0))
-      ALLOCATE_(qiBlockIn, (0, 0, 0, 0))
+      allocate(qBlockIn(0, 0, 0, 0))
+      allocate(qBlockOut(0, 0, 0, 0))
+      allocate(qiBlockIn(0, 0, 0, 0))
       qiBlockIn = 0.0_dp
       qBlockIn = 0.0_dp
       qBlockOut = 0.0_dp
     end if
     
     if (tImHam) then
-      ALLOCATE_(qiBlockOut, (orb%mOrb, orb%mOrb, nAtom, nSpin))
+      allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
       qiBlockOut = 0.0_dp
     end if
     
     if (tSCC) then
-      ALLOCATE_(qDiffRed, (nMixElements))
-      ALLOCATE_(qInpRed, (nMixElements))
-      ALLOCATE_(qOutRed, (nMixElements))
+      allocate(qDiffRed(nMixElements))
+      allocate(qInpRed(nMixElements))
+      allocate(qOutRed(nMixElements))
       qDiffRed = 0.0_dp
       qInpRed = 0.0_dp
       qOutRed = 0.0_dp
@@ -1692,7 +1691,7 @@ contains
     !! Initialize neighborlist.
     allocate(neighborList)
     call init(neighborList, nAtom, nInitNeighbor)
-    ALLOCATE_(nNeighbor, (nAtom))
+    allocate(nNeighbor(nAtom))
 
 
     !! Set various options
@@ -1709,27 +1708,27 @@ contains
     tStoreEigvecs = tMinMemory .and. (nKPoint > 1 .or. nSpin == 2 )
     if (tStoreEigvecs) then      
       if (tRealHS.and.(.not.t2Component)) then
-        ALLOCATE_(storeEigvecsReal, (nSpin))
-        ALLOCATE_(storeEigvecsCplx,(0))
+        allocate(storeEigvecsReal(nSpin))
+        allocate(storeEigvecsCplx(0))
         do iS = 1, nSpin
           call init(storeEigvecsReal(iS), 0, "tmp_eigvr_")
         end do
       else
         if (t2Component) then
-          ALLOCATE_(storeEigvecsCplx, (1))
-          ALLOCATE_(storeEigvecsReal,(0))
+          allocate(storeEigvecsCplx(1))
+          allocate(storeEigvecsReal(0))
           call init(storeEigvecsCplx(1), 0, "tmp_eigvc_")
         else
-          ALLOCATE_(storeEigvecsCplx, (nSpin))
-          ALLOCATE_(storeEigvecsReal,(0))
+          allocate(storeEigvecsCplx(nSpin))
+          allocate(storeEigvecsReal(0))
           do iS = 1, nSpin
             call init(storeEigvecsCplx(iS), 0, "tmp_eigvc_")
           end do
         end if
       end if
     else
-      ALLOCATE_(storeEigvecsReal,(0))
-      ALLOCATE_(storeEigvecsCplx,(0))
+      allocate(storeEigvecsReal(0))
+      allocate(storeEigvecsCplx(0))
     end if
     
     !! Check if stopfiles already exist and quit if yes
@@ -2096,7 +2095,7 @@ contains
         ii = count(tDampedShort)
         write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
         write(*, strTmp) "Damped species(s):", pack(speciesName, tDampedShort)
-        DEALLOCATE_(tDampedShort)
+        deallocate(tDampedShort)
       end if
     end if
 

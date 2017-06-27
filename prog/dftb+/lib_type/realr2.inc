@@ -85,7 +85,7 @@
 
     !! initialize node
     nullify(list%pLast%pNext)
-    ALLOCATE_(list%pLast%pValue, (valshape(1), valshape(2)))
+    allocate(list%pLast%pValue(valshape(1), valshape(2)))
     list%pLast%pValue(:,:) = value
     
   end subroutine appendRealR2

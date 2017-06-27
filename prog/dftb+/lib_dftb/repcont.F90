@@ -11,7 +11,6 @@
 !!* different repulsive schemes for different pairs. At the moment,
 !!* it handles only repulsive with spline interpolation.
 module repcont
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use repspline
@@ -84,7 +83,7 @@ contains
     ASSERT(.not. self%tInit)
 
     self%nSpecies = nSpecies
-    ALLOCATE_(self%repulsives, (nSpecies, nSpecies))
+    allocate(self%repulsives(nSpecies, nSpecies))
     self%cutoff = 0.0_dp
     self%tDataOK = .false.
     self%tInit = .true.

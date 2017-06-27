@@ -37,7 +37,6 @@
 !!*     </li>
 !!*   </ol>
 module linemin
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   use constants, only : goldenMeanP1
@@ -130,8 +129,8 @@ contains
     ASSERT(maxDisp > 0.0_dp)
     
     self%nElem = nElem
-    ALLOCATE_(self%x0, (nElem))
-    ALLOCATE_(self%d0, (nElem))
+    allocate(self%x0(nElem))
+    allocate(self%d0(nElem))
     self%mIter = mIter
     self%tolerance = tolerance
     self%maxDisp = maxDisp

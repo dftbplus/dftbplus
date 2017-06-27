@@ -15,7 +15,6 @@
 !!* @note In order to use the mixer you have to create and reset it.
 !!* @ref Kovalenko et al. J. Comput. Chem., 20: 928–936 1999
 module diismixer
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use lapackroutines, only : gesv
@@ -82,8 +81,8 @@ contains
     self%nElem = 0
     self%mPrevVector = nGeneration
     
-    ALLOCATE_(self%prevQInput, (self%nElem, self%mPrevVector))
-    ALLOCATE_(self%prevQDiff, (self%nElem, self%mPrevVector))
+    allocate(self%prevQInput(self%nElem, self%mPrevVector))
+    allocate(self%prevQDiff(self%nElem, self%mPrevVector))
     
     self%initMixParam = initMixParam
     
@@ -96,11 +95,11 @@ contains
     if (present(alpha)) then
       self%tAddIntrpGradient = .true.
       self%alpha = alpha
-      ALLOCATE_(self%deltaR, (self%nElem))
+      allocate(self%deltaR(self%nElem))
     else
       self%tAddIntrpGradient = .false.
       self%alpha = 0.0_dp
-      ALLOCATE_(self%deltaR, (0))
+      allocate(self%deltaR(0))
     end if
 
     self%deltaR = 0.0_dp
@@ -120,13 +119,13 @@ contains
     
     if (nElem /= self%nElem) then
       self%nElem = nElem
-      DEALLOCATE_(self%prevQInput)
-      DEALLOCATE_(self%prevQDiff)
-      ALLOCATE_(self%prevQInput, (self%nElem, self%mPrevVector))
-      ALLOCATE_(self%prevQDiff, (self%nElem, self%mPrevVector))
+      deallocate(self%prevQInput)
+      deallocate(self%prevQDiff)
+      allocate(self%prevQInput(self%nElem, self%mPrevVector))
+      allocate(self%prevQDiff(self%nElem, self%mPrevVector))
       if (self%tAddIntrpGradient) then
-        DEALLOCATE_(self%deltaR)
-        ALLOCATE_(self%deltaR,(self%nElem))
+        deallocate(self%deltaR)
+        allocate(self%deltaR(self%nElem))
         self%deltaR = 0.0_dp
       end if
     end if
@@ -172,8 +171,8 @@ contains
         ! write(*,*)'Alpha ',self%alpha
       end if
       
-      ALLOCATE_(aa, (self%iPrevVector+1, self%iPrevVector+1))
-      ALLOCATE_(bb, (self%iPrevVector+1, 1))
+      allocate(aa(self%iPrevVector+1, self%iPrevVector+1))
+      allocate(bb(self%iPrevVector+1, 1))
       
       aa(:,:) = 0.0_dp
       bb(:,:) = 0.0_dp

@@ -14,7 +14,6 @@
 !!*   considered.
 !!* @note In order to use the mixer you have to create and reset it.
 module andersonmixer
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use lapackroutines, only : gesv
@@ -95,16 +94,16 @@ contains
     self%nElem = 0
     self%mPrevVector = nGeneration - 1
 
-    ALLOCATE_(self%prevQInput, (self%nElem, self%mPrevVector))
-    ALLOCATE_(self%prevQDiff, (self%nElem, self%mPrevVector))
-    ALLOCATE_(self%indx, (self%mPrevVector))
+    allocate(self%prevQInput(self%nElem, self%mPrevVector))
+    allocate(self%prevQDiff(self%nElem, self%mPrevVector))
+    allocate(self%indx(self%mPrevVector))
 
     self%mixParam = mixParam
     self%initMixParam = initMixParam
     if (present(convMixParam)) then
       ASSERT(size(convMixParam, dim=1) == 2)
       self%nConvMixParam = size(convMixParam, dim=2)
-      ALLOCATE_(self%convMixParam, (2, self%nConvMixParam))
+      allocate(self%convMixParam(2, self%nConvMixParam))
       self%convMixParam(:,:) = convMixParam(:,:)
     else
       self%nConvMixParam = 0
@@ -134,10 +133,10 @@ contains
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
-      DEALLOCATE_(self%prevQInput)
-      DEALLOCATE_(self%prevQDiff)
-      ALLOCATE_(self%prevQInput, (self%nElem, self%mPrevVector))
-      ALLOCATE_(self%prevQDiff, (self%nElem, self%mPrevVector))
+      deallocate(self%prevQInput)
+      deallocate(self%prevQDiff)
+      allocate(self%prevQInput(self%nElem, self%mPrevVector))
+      allocate(self%prevQDiff(self%nElem, self%mPrevVector))
     end if
     self%nPrevVector = -1
     !! Create index array for accessing elements in the LIFO way
@@ -189,8 +188,8 @@ contains
       return
     end if
 
-    ALLOCATE_(qInpMiddle, (self%nElem))
-    ALLOCATE_(qDiffMiddle, (self%nElem))
+    allocate(qInpMiddle(self%nElem))
+    allocate(qDiffMiddle(self%nElem))
 
     !! Calculate average input charges and average charge differences
     call calcAndersonAverages(qInpMiddle, qDiffMiddle, qInpResult, &
@@ -253,9 +252,9 @@ contains
     ASSERT(size(prevQDiff, dim=2) >= nPrevVector)
     ASSERT(size(indx) >= nPrevVector)
 
-    ALLOCATE_(aa, (nPrevVector, nPrevVector))
-    ALLOCATE_(bb, (nPrevVector, 1))
-    ALLOCATE_(tmp1, (nElem))
+    allocate(aa(nPrevVector, nPrevVector))
+    allocate(bb(nPrevVector, 1))
+    allocate(tmp1(nElem))
     
     !! Build the system of linear equations
     !! a(i,j) = <F(m)|F(m)-F(m-i)> - <F(m-j)|F(m)-F(m-i)>  (F ~ qDiff)

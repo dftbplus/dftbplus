@@ -9,7 +9,6 @@
 !!* a polynomial of 9th degree
 module reppoly
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use bisect
   implicit none

@@ -7,7 +7,6 @@
 
 module elecconstraints
 #include "assert.h"
-#include "allocate.h"
   use accuracy, only : dp
   use commontypes, only : TOrbitals
   use angmomentum, only : Loperators
@@ -140,10 +139,10 @@ contains
     
     vecNorm = vec / sqrt(sum(vec**2))
     
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     
     iSp = species(conAt)
     Lz = 0.0_dp
@@ -160,7 +159,7 @@ contains
         & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
         & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
     
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     
     Lshell = 0.0_dp
     
@@ -221,10 +220,10 @@ contains
     
     vecNorm = vec / sqrt(sum(vec**2))
     
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     
     iSp = species(conAt)
     Lz = 0.0_dp
@@ -241,7 +240,7 @@ contains
         & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
         & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
     
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     
     Lshell = 0.0_dp
     
@@ -315,10 +314,10 @@ contains
     
     vecNorm = vec / sqrt(sum(vec**2))
     
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     
     iSp = species(conAt)
     Lz = 0.0_dp
@@ -335,7 +334,7 @@ contains
         & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
         & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
     
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     
     Lshell = 0.0_dp
     

@@ -7,7 +7,6 @@
 
 !!* The main dftb+ program
 program dftbplus
-#include "allocate.h"
 #include "assert.h"
   use constants
   use initprogram
@@ -267,27 +266,27 @@ program dftbplus
     open(fdMD, file=mdOut, position="rewind", status="replace")
   end if
 
-  ALLOCATE_(rhoPrim, (0, nSpin))
-  ALLOCATE_(h0, (0))
-  ALLOCATE_(iRhoPrim, (0, nSpin))
+  allocate(rhoPrim(0, nSpin))
+  allocate(h0(0))
+  allocate(iRhoPrim(0, nSpin))
 
-  ALLOCATE_(excitedDerivs, (0, 0))
+  allocate(excitedDerivs(0, 0))
 
   if (tForces) then
-    ALLOCATE_(ERhoPrim, (0))
-    ALLOCATE_(ERhoPrim2, (0))
+    allocate(ERhoPrim(0))
+    allocate(ERhoPrim2(0))
   end if
 
   if (tForces) then
-    ALLOCATE_(derivs,(3,nAtom))
-    ALLOCATE_(repulsiveDerivs,(3,nAtom))
-    ALLOCATE_(totalDeriv, (3,nAtom))
+    allocate(derivs(3,nAtom))
+    allocate(repulsiveDerivs(3,nAtom))
+    allocate(totalDeriv(3,nAtom))
     if (tExtChrg) then
-      ALLOCATE_(chrgForces, (3, nExtChrg))
+      allocate(chrgForces(3, nExtChrg))
     end if
     if (tLinResp) then
-      DEALLOCATE_(excitedDerivs)
-      ALLOCATE_(excitedDerivs, (3, nAtom))
+      deallocate(excitedDerivs)
+      allocate(excitedDerivs(3, nAtom))
     end if
   end if
 
@@ -296,8 +295,8 @@ program dftbplus
 
   allocate(potential)
   call init(potential, orb, nAtom, nSpin)
-  ALLOCATE_(shift3rd, (nAtom))
-  ALLOCATE_(orbresshift3rd, (orb%mShell,nAtom))
+  allocate(shift3rd(nAtom))
+  allocate(orbresshift3rd(orb%mShell,nAtom))
   
   ! Nr. of independent spin Hamiltonians
   select case (nSpin)
@@ -312,14 +311,14 @@ program dftbplus
     sqrHamSize = 2 * nOrb
   end select
 
-  ALLOCATE_(TS, (nSpinHams))
-  ALLOCATE_(E0, (nSpinHams))
-  ALLOCATE_(Eband, (nSpinHams))
-  ALLOCATE_(eigen, (sqrHamSize, nKPoint, nSpinHams))
-  ALLOCATE_(eigen2, (sqrHamSize, nKPoint, nSpinHams))
-  ALLOCATE_(filling,(sqrHamSize, nKpoint, nSpinHams))
+  allocate(TS(nSpinHams))
+  allocate(E0(nSpinHams))
+  allocate(Eband(nSpinHams))
+  allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
+  allocate(eigen2(sqrHamSize, nKPoint, nSpinHams))
+  allocate(filling(sqrHamSize, nKpoint, nSpinHams))
 
-  ALLOCATE_(coord0Fold, (3, nAtom))
+  allocate(coord0Fold(3, nAtom))
   if (tShowFoldedCoord) then
     pCoord0Out => coord0Fold
   else
@@ -328,27 +327,27 @@ program dftbplus
 
 
   if (tMD.or.tDerivs) then
-    ALLOCATE_(new3Coord, (3, nMovedAtom))
+    allocate(new3Coord(3, nMovedAtom))
   end if
 
   if (tCoordOpt) then
-    ALLOCATE_(tmpDerivs,(size(tmpCoords)))
+    allocate(tmpDerivs(size(tmpCoords)))
   else
-    ALLOCATE_(tmpDerivs,(0))
+    allocate(tmpDerivs(0))
   end if
 
   if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
-    ALLOCATE_(orbitalL,(3,orb%mShell,nAtom))
+    allocate(orbitalL(3,orb%mShell,nAtom))
     orbitalL = 0.0_dp
   else
-    ALLOCATE_(orbitalL,(0,0,0))
+    allocate(orbitalL(0,0,0))
   end if
 
   if ((tMulliken .and. tSpinOrbit) .and. .not.  tDualSpinOrbit) then
-    ALLOCATE_(orbitalLPart,(3,orb%mShell,nAtom))
+    allocate(orbitalLPart(3,orb%mShell,nAtom))
     orbitalLPart = 0.0_dp
   else
-    ALLOCATE_(orbitalLPart,(0,0,0))
+    allocate(orbitalLPart(0,0,0))
   end if
   eigen(:,:,:) = 0.0_dp
   eigen2(:,:,:) = 0.0_dp
@@ -364,31 +363,31 @@ program dftbplus
   ! If only H/S should be printed, no allocation for square HS is needed
   if (.not. (tWriteRealHS .or. tWriteHS)) then
     if (t2Component) then
-      ALLOCATE_(HSqrCplx, (sqrHamSize, sqrHamSize, nK2, 1))
-      ALLOCATE_(SSqrCplx, (sqrHamSize, sqrHamSize))
+      allocate(HSqrCplx(sqrHamSize, sqrHamSize, nK2, 1))
+      allocate(SSqrCplx(sqrHamSize, sqrHamSize))
     elseif (tRealHS) then
-      ALLOCATE_(HSqrReal, (sqrHamSize, sqrHamSize, nSpin2))
+      allocate(HSqrReal(sqrHamSize, sqrHamSize, nSpin2))
       if (any(forceType == [ 1, 2, 3 ])) then
-        ALLOCATE_(HSqrReal2, (sqrHamSize, sqrHamSize))
+        allocate(HSqrReal2(sqrHamSize, sqrHamSize))
       end if
-      ALLOCATE_(SSqrReal, (sqrHamSize, sqrHamSize))
+      allocate(SSqrReal(sqrHamSize, sqrHamSize))
     else
-      ALLOCATE_(HSqrCplx, (sqrHamSize, sqrHamSize, nK2, nSpin2))
+      allocate(HSqrCplx(sqrHamSize, sqrHamSize, nK2, nSpin2))
       if (any(forceType == [ 1, 2, 3 ])) then
-        ALLOCATE_(HSqrCplx2, (sqrHamSize, sqrHamSize))
+        allocate(HSqrCplx2(sqrHamSize, sqrHamSize))
       end if
-      ALLOCATE_(SSqrCplx, (sqrHamSize, sqrHamSize))
+      allocate(SSqrCplx(sqrHamSize, sqrHamSize))
     end if
   end if
 
-  ALLOCATE_(rhoSqrReal, (0,0,0))
-  ALLOCATE_(dqAtom, (0))
+  allocate(rhoSqrReal(0,0,0))
+  allocate(dqAtom(0))
   if (tLinResp) then
-    DEALLOCATE_(dqAtom)
-    ALLOCATE_(dqAtom, (nAtom))
+    deallocate(dqAtom)
+    allocate(dqAtom(nAtom))
     if (tLinRespZVect) then
-      DEALLOCATE_(rhoSqrReal)
-      ALLOCATE_(rhoSqrReal, (sqrHamSize, sqrHamSize, nSpin))
+      deallocate(rhoSqrReal)
+      allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
     end if    
   end if
   
@@ -403,10 +402,10 @@ program dftbplus
   occNatural = 0.0_dp
   
   if (tMD) then
-    ALLOCATE_(velocities,(3,nAtom))
-    ALLOCATE_(movedVelo, (3, nMovedAtom))
-    ALLOCATE_(movedAccel, (3, nMovedAtom))
-    ALLOCATE_(movedMass, (3, nMovedAtom))
+    allocate(velocities(3,nAtom))
+    allocate(movedVelo(3, nMovedAtom))
+    allocate(movedAccel(3, nMovedAtom))
+    allocate(movedMass(3, nMovedAtom))
     movedMass(:,:) = spread(mass(indMovedAtom),1,3)
     velocities(:,:) = 0.0_dp
   end if
@@ -523,21 +522,21 @@ program dftbplus
 
     !! Reallocate density matrixes if necessary
     if (size(ham, dim=1) > size(rhoPrim, dim=1)) then
-      DEALLOCATE_(H0)
-      ALLOCATE_(H0,(size(ham,dim=1)))
-      DEALLOCATE_(rhoPrim)
-      ALLOCATE_(rhoPrim,(size(ham,dim=1),nSpin))
+      deallocate(H0)
+      allocate(H0(size(ham,dim=1)))
+      deallocate(rhoPrim)
+      allocate(rhoPrim(size(ham,dim=1),nSpin))
       if (tImHam) then
-        DEALLOCATE_(iRhoPrim)
-        ALLOCATE_(iRhoPrim,(size(ham,dim=1),nSpin))
-        DEALLOCATE_(iHam)
-        ALLOCATE_(iHam,(size(ham,dim=1),nSpin))
+        deallocate(iRhoPrim)
+        allocate(iRhoPrim(size(ham,dim=1),nSpin))
+        deallocate(iHam)
+        allocate(iHam(size(ham,dim=1),nSpin))
       end if
       if (tForces) then
-        DEALLOCATE_(ERhoPrim)
-        ALLOCATE_(ERhoPrim,(size(ham,dim=1)))
-        DEALLOCATE_(ERhoPrim2)
-        ALLOCATE_(ERhoPrim2, (size(ham, dim=1)))
+        deallocate(ERhoPrim)
+        allocate(ERhoPrim(size(ham,dim=1)))
+        deallocate(ERhoPrim2)
+        allocate(ERhoPrim2(size(ham, dim=1)))
       end if
     end if
 
@@ -929,7 +928,7 @@ program dftbplus
         if (tSpinOrbit) then
           energy%atomLS = 0.0_dp
           if (.not.tDualSpinOrbit) then
-            ALLOCATE_(rVecTemp,(nAtom))
+            allocate(rVecTemp(nAtom))
           end if
         end if
         if (tImHam .and. tMulliken) then
@@ -982,7 +981,7 @@ program dftbplus
 
         end do nkLoop4
         if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-          DEALLOCATE_(rVecTemp)
+          deallocate(rVecTemp)
           energy%ELS = sum(energy%atomLS(:))
         end if
         filling(:,1:nKPoint,1) = 0.5_dp * filling(:,1:nKPoint,1)
@@ -1746,10 +1745,10 @@ program dftbplus
     if (tXlbomd) then
       if (xlbomdIntegrator%needsInverseJacobian()) then
         write(*, "(A)") ">> Updating XLBOMD Inverse Jacobian"
-        ALLOCATE_(invJacobian, (nIneqOrb, nIneqOrb))
+        allocate(invJacobian(nIneqOrb, nIneqOrb))
         call getInverseJacobian(pChrgMixer, invJacobian)
         call xlbomdIntegrator%setInverseJacobian(invJacobian)
-        DEALLOCATE_(invJacobian)
+        deallocate(invJacobian)
       end if
 
       call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), &
@@ -1866,7 +1865,7 @@ program dftbplus
       
       if (tPrintMulliken) then
         if (nSpin == 4) then
-          ALLOCATE_(tmpMatrix,(3,nAtom))
+          allocate(tmpMatrix(3,nAtom))
           do jj = 1, nAtom
             do ii = 1, 3
               tmpMatrix(ii,jj) = sum(qOutput(:,jj,ii+1))
@@ -1877,7 +1876,7 @@ program dftbplus
           call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
               &charges=sum(qOutput(:,:,1),dim=1), velocities = tmpMatrix, &
               & comment=trim(tmpStr))
-          DEALLOCATE_(tmpMatrix)
+          deallocate(tmpMatrix)
         else
           call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
               &charges=sum(qOutput(:,:,1),dim=1),comment=trim(tmpStr))
@@ -1904,9 +1903,9 @@ program dftbplus
 #if DEBUG >= 1
       ! extra test for the potential in the code, does the dipole from
       ! charge positions match the derivative of energy wrt an external E field?
-      ALLOCATE_(hprime,(size(h0),1))
-      ALLOCATE_(dipoleTmp,(size(qOutput,dim=1),nAtom))
-      ALLOCATE_(potentialDerivative,(nAtom,1))
+      allocate(hprime(size(h0),1))
+      allocate(dipoleTmp(size(qOutput,dim=1),nAtom))
+      allocate(potentialDerivative(nAtom,1))
       write(*,"(A)",advance='no')'Hellmann Feynman dipole:'
       do ii = 1, 3 ! loop over directions
         potentialDerivative = 0.0_dp
@@ -1926,9 +1925,9 @@ program dftbplus
         write(*,"(f12.8)",advance='no')sum(dipoleTmp)
       end do
       write(*,*)" au"
-      DEALLOCATE_(potentialDerivative)
-      DEALLOCATE_(hprime)
-      DEALLOCATE_(dipoleTmp)
+      deallocate(potentialDerivative)
+      deallocate(hprime)
+      deallocate(dipoleTmp)
 #endif
     else
       dipoleMoment(:) = 0.0_dp
@@ -3026,11 +3025,11 @@ program dftbplus
     call writeChildValue(xf, "nrofspins", nSpin)
     call writeChildValue(xf, "nrofstates", size(eigen, dim=1))
     call writeChildValue(xf, "nroforbitals", nOrb)
-    ALLOCATE_(bufferRealR2, (4, nKPoint))
+    allocate(bufferRealR2(4, nKPoint))
     bufferRealR2(1:3, :) = kPoint(:,:)
     bufferRealR2(4, :) = kWeight(:)
     call writeChildValue(xf, "kpointsandweights", bufferRealR2)
-    DEALLOCATE_(bufferRealR2)
+    deallocate(bufferRealR2)
     call xml_NewElement(xf, "occupations")
     do ii = 1, nSpin
       call xml_NewElement(xf, "spin" // i2c(ii))

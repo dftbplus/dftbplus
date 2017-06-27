@@ -7,7 +7,6 @@
 
 !!* Contains wrapper for all thermostats.
 module thermostat
-#include "allocate.h"  
   use accuracy
   use dummytherm
   use andersentherm

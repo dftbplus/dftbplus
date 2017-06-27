@@ -9,7 +9,6 @@
 !!* overlap in sparse form into eigenvectors
 module eigenvects
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use eigensolver
   use sparse2dense
@@ -238,8 +237,8 @@ contains
     ASSERT(nSpin == 4)
     ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-    ALLOCATE_(work,(nOrb,nOrb)) ! for the moment, but will use S as workspace
-    ! in the future
+    ! for the moment, but will use S as workspace in the future
+    allocate(work(nOrb,nOrb))
 
     SSqrCplx(:,:) = 0.0_dp
     HSqrCplx(:,:) = 0.0_dp
@@ -325,12 +324,12 @@ contains
     
     if (tSpinOrb) then
       nSpecies = maxval(species(1:nAtom))
-      ALLOCATE_(AtomZ,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomZ(orb%mOrb,orb%mOrb,nSpecies))
       AtomZ = 0.0_dp
-      ALLOCATE_(AtomPlus,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomPlus(orb%mOrb,orb%mOrb,nSpecies))
       AtomPlus = 0.0_dp
-      ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-      ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+      allocate(Lz(orb%mOrb,orb%mOrb))
+      allocate(Lplus(orb%mOrb,orb%mOrb))
       do ii = 1, nSpecies
         do jj = 1, orb%nShell(ii)
           Lz = 0.0_dp
@@ -345,8 +344,8 @@ contains
               & = 0.5_dp*xi(jj,ii)*Lplus(1:2*kk+1,1:2*kk+1)
         end do
       end do
-      DEALLOCATE_(Lplus)
-      DEALLOCATE_(Lz)
+      deallocate(Lplus)
+      deallocate(Lz)
       do ii = 1, nAtom
         jj = species(ii)
         HSqrCplx(iAtomStart(ii):iAtomStart(ii+1)-1, &
@@ -365,8 +364,8 @@ contains
             & iAtomStart(ii):iAtomStart(ii+1)-1) &
             & + AtomPlus(1:orb%nOrbSpecies(jj),1:orb%nOrbSpecies(jj),jj)
       end do
-      DEALLOCATE_(AtomZ)
-      DEALLOCATE_(AtomPlus)
+      deallocate(AtomZ)
+      deallocate(AtomPlus)
     end if
     
     select case(iSolver)
@@ -380,7 +379,7 @@ contains
       call error('Unknown eigensolver')
     end select
 
-    DEALLOCATE_(work)
+    deallocate(work)
     
   end subroutine cmplx2Cmpnt
 
@@ -458,9 +457,8 @@ contains
     ASSERT(nSpin == 4)
     ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-    ALLOCATE_(work,(nOrb,nOrb)) ! for the moment, but will use S as workspace
-    ! in the future
-    
+     ! for the moment, but will use S as workspace in the future
+    allocate(work(nOrb,nOrb))
     SSqrCplx(:,:) = 0.0_dp
     HSqrCplx(:,:) = 0.0_dp
     
@@ -561,12 +559,12 @@ contains
     
     if (tSpinOrb) then
       nSpecies = maxval(species(1:nAtom))
-      ALLOCATE_(AtomZ,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomZ(orb%mOrb,orb%mOrb,nSpecies))
       AtomZ = 0.0_dp
-      ALLOCATE_(AtomPlus,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomPlus(orb%mOrb,orb%mOrb,nSpecies))
       AtomPlus = 0.0_dp
-      ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-      ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+      allocate(Lz(orb%mOrb,orb%mOrb))
+      allocate(Lplus(orb%mOrb,orb%mOrb))
       do ii = 1, nSpecies
         do jj = 1, orb%nShell(ii)
           Lz = 0.0_dp
@@ -581,8 +579,8 @@ contains
               & = 0.5_dp*xi(jj,ii)*Lplus(1:2*kk+1,1:2*kk+1)
         end do
       end do
-      DEALLOCATE_(Lplus)
-      DEALLOCATE_(Lz)
+      deallocate(Lplus)
+      deallocate(Lz)
       do ii = 1, nAtom
         jj = species(ii)
         HSqrCplx(iAtomStart(ii):iAtomStart(ii+1)-1, &
@@ -601,8 +599,8 @@ contains
             & iAtomStart(ii):iAtomStart(ii+1)-1) &
             & + AtomPlus(1:orb%nOrbSpecies(jj),1:orb%nOrbSpecies(jj),jj)
       end do
-      DEALLOCATE_(AtomZ)
-      DEALLOCATE_(AtomPlus)
+      deallocate(AtomZ)
+      deallocate(AtomPlus)
     end if
     
     select case(iSolver)
@@ -616,7 +614,7 @@ contains
       call error('Unknown eigensolver')
     end select
     
-    DEALLOCATE_(work)
+    deallocate(work)
     
   end subroutine cmplx2CmpntKpts
   

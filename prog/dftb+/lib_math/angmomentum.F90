@@ -8,7 +8,6 @@
 !!* Angular momentum related routines
 module angmomentum
 #include "assert.h"
-#include "allocate.h"
   use accuracy, only : dp
   use qm, only : unitary
   use commontypes, only : TOrbitals
@@ -63,7 +62,7 @@ contains
       Lplus(l+m+1,l+m) = sqrt(real(l*(l+1)-m*(m+1),dp))
     end do
 
-    ALLOCATE_(u,(0:2*l,0:2*l))
+    allocate(u(0:2*l,0:2*l))
     
     ! unitary transformation from $Y_{lm}$ to $\overline{Y}_{lm}$
     u(:,:) = 0.0_dp
@@ -110,11 +109,11 @@ contains
     ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
     
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3,nSpecies))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
-    ALLOCATE_(L,(orb%mOrb,orb%mOrb,3))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(L(orb%mOrb,orb%mOrb,3))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     do iSp = 1, nSpecies
       do jj = 1, orb%nShell(iSp)
         L = 0.0_dp
@@ -188,10 +187,10 @@ contains
     nAtom = size(LShell,dim=3)
     nSpecies = maxval(species(1:nAtom))
     
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3,nSpecies))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp
@@ -210,7 +209,7 @@ contains
       end do
     end do
 
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
 
     Lshell = 0.0_dp
     do ii = 1, nAtom

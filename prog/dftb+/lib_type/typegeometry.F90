@@ -6,7 +6,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 module typegeometry
-#include "allocate.h"
   use accuracy
   implicit none
   private
@@ -46,7 +45,7 @@ contains
     character(mc), allocatable :: oldSpeciesNames(:)
     integer :: ind, iSp
 
-    ALLOCATE_(inUse, (sf%nSpecies)) 
+    allocate(inUse(sf%nSpecies))
     do iSp = 1, sf%nSpecies
       inUse(iSp) = any(sf%species == iSp)
     end do
@@ -54,8 +53,8 @@ contains
       call move_alloc(sf%species, oldSpecies)
       call move_alloc(sf%speciesNames, oldSpeciesNames)
       sf%nSpecies = count(inUse)
-      ALLOCATE_(sf%species, (size(oldSpecies)))
-      ALLOCATE_(sf%speciesNames, (sf%nSpecies))
+      allocate(sf%species(size(oldSpecies)))
+      allocate(sf%speciesNames(sf%nSpecies))
       ind = 1
       do iSp = 1, size(oldSpeciesNames)
         if (.not. inUse(iSp)) then

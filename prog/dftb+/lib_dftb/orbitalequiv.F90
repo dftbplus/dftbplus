@@ -17,7 +17,6 @@
 !!* continuous. Zeros in the mapping vector stand for non-existent orbitals.
 module orbitalequiv
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use commontypes
   implicit none
@@ -53,10 +52,8 @@ contains
     ASSERT(size(equiv1, dim=1) >= orb%mOrb)
     ASSERT(all((equiv1 /= 0) .eqv. (equiv2 /=0)))
 
-    ALLOCATE_(mask, \
-        (size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
-    ALLOCATE_(tmpMask, \
-        (size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
+    allocate(mask(size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
+    allocate(tmpMask(size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
 
     mask(:,:,:) = (equiv1 > 0 .and. equiv2 > 0) ! True for the elements to be
     !  processed    
@@ -147,7 +144,7 @@ contains
     ASSERT(all(shape(equiv) == shape(output)))
     ASSERT(maxval(equiv) == size(input))
 
-    ALLOCATE_(mask, (0:size(input)))
+    allocate(mask(0:size(input)))
 
     mask(:) = .true.
     output(:,:,:) = 0.0_dp

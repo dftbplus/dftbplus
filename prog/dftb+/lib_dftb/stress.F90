@@ -8,7 +8,6 @@
 !!* Routines to calculate contributions to the stress tensor
 module stress
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use nonscc, only : NonSccDiff
   use scc

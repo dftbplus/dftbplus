@@ -10,7 +10,6 @@
 !!* specified file and passing the appropriate eigenvectors to the molecule
 !!* orbital calculator.
 module GridCache
-# include "allocate.h"
 # include "assert.h"
   use Constants
   use Accuracy
@@ -130,20 +129,20 @@ contains
     sf%nAllKPoint = nAllKPoint
     sf%nAllSpin = nAllSpin
     sf%tVerbose = tVerbose
-    ALLOCATE_(sf%kPoints, (3, nAllKPoint))
+    allocate(sf%kPoints(3, nAllKPoint))
     sf%kPoints(:,:) = 2.0_dp * pi * kPointCoords(:,:)
     sf%nCached = nCached
     sf%tReal = tReal
     if (sf%tReal) then
-      ALLOCATE_(sf%gridCacheReal, (nPoints(1), nPoints(2), nPoints(3), nCached))
-      ALLOCATE_(sf%eigenvecReal, (sf%nOrb, sf%nCached))
+      allocate(sf%gridCacheReal(nPoints(1), nPoints(2), nPoints(3), nCached))
+      allocate(sf%eigenvecReal(sf%nOrb, sf%nCached))
     else
-      ALLOCATE_(sf%gridCacheCmpl, (nPoints(1), nPoints(2), nPoints(3), nCached))
-      ALLOCATE_(sf%eigenvecCmpl, (sf%nOrb, sf%nCached))
+      allocate(sf%gridCacheCmpl(nPoints(1), nPoints(2), nPoints(3), nCached))
+      allocate(sf%eigenvecCmpl(sf%nOrb, sf%nCached))
     end if
     
     nAll = size(levelIndex, dim=2)
-    ALLOCATE_(sf%levelIndex, (3, nAll))
+    allocate(sf%levelIndex(3, nAll))
     !! Make sure, entries are correctly sorted in the list
     ind = 1
     do iSpin = 1, nAllSpin

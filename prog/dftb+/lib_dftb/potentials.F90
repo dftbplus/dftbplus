@@ -8,7 +8,6 @@
 !!* Module to wrap around the different shift contributions in the DFTB 
 !!* energy expressions
 module potentials
-#include "allocate.h"
 #include "assert.h"
   use accuracy, only : dp
   use commontypes
@@ -60,14 +59,14 @@ contains
     ASSERT(orb%mShell > 0)
     ASSERT(orb%mOrb > 0)
     
-    ALLOCATE_(self%intAtom,(nAtom,nSpin))
-    ALLOCATE_(self%intShell,(orb%mShell,nAtom,nSpin))
-    ALLOCATE_(self%intBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    ALLOCATE_(self%extAtom,(nAtom,nSpin))
-    ALLOCATE_(self%extShell,(orb%mShell,nAtom,nSpin))
-    ALLOCATE_(self%extBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    ALLOCATE_(self%orbitalBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    ALLOCATE_(self%iorbitalBlock,(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    allocate(self%intAtom(nAtom,nSpin))
+    allocate(self%intShell(orb%mShell,nAtom,nSpin))
+    allocate(self%intBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    allocate(self%extAtom(nAtom,nSpin))
+    allocate(self%extShell(orb%mShell,nAtom,nSpin))
+    allocate(self%extBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    allocate(self%orbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    allocate(self%iorbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     self%intAtom = 0.0_dp
     self%intShell = 0.0_dp
     self%intBlock = 0.0_dp

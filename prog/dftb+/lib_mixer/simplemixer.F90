@@ -8,7 +8,6 @@
 !!* Simple mixer for mixing charges
 module simplemixer
 #include "assert.h"  
-#include "allocate.h"  
   use accuracy
   implicit none
   

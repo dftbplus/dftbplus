@@ -10,7 +10,6 @@
 !!* @author Ben Hourahine
 module populations
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use constants
   use periodic
@@ -67,14 +66,14 @@ contains
     ASSERT(size(qq) == nAtom)
     ASSERT(size(over) == size(rho))
     
-    ALLOCATE_(qPerOrbital,(orb%mOrb, nAtom))
+    allocate(qPerOrbital(orb%mOrb, nAtom))
     qPerOrbital(:,:) = 0.0_dp
     
     call mullikenPerOrbital( qPerOrbital,over,rho,orb,iNeighbor,nNeighbor, &
         &img2CentCell,iPair )
 
     qq(:) = qq(:) + sum(qPerOrbital, dim=1)
-    DEALLOCATE_(qPerOrbital)
+    deallocate(qPerOrbital)
 
   end subroutine mullikenPerAtom
 

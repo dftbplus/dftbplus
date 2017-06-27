@@ -8,7 +8,6 @@
 !!* Contains routines to calculate the value of one or more molecular orbitals
 !!* composed from STOs on an equidistant grid.
 module MolecularOrbital
-# include "allocate.h"
 # include "assert.h"  
   use accuracy
   use TypeGeometry
@@ -87,7 +86,7 @@ contains
         
     self%nAtom = geometry%nAtom
     self%nSpecies = geometry%nSpecies
-    ALLOCATE_(self%species, (self%nAtom))
+    allocate(self%species(self%nAtom))
     self%species(:) = geometry%species(:)
 
     !! Create sequential list of STOs
@@ -95,10 +94,10 @@ contains
     do ii = 1, self%nSpecies
       nOrb = nOrb + (basis(ii)%nOrb)
     end do
-    ALLOCATE_(self%iStos, (self%nSpecies+1))
-    ALLOCATE_(self%stos, (nOrb))
-    ALLOCATE_(self%cutoffs, (nOrb))
-    ALLOCATE_(self%angMoms, (nOrb))
+    allocate(self%iStos(self%nSpecies+1))
+    allocate(self%stos(nOrb))
+    allocate(self%cutoffs(nOrb))
+    allocate(self%angMoms(nOrb))
     ind = 1
     do ii = 1, self%nSpecies
       self%iStos(ii) = ind
@@ -121,8 +120,8 @@ contains
     !! Get cells to look for when adding STOs from periodic images
     self%tPeriodic = geometry%tPeriodic
     if (self%tPeriodic) then
-      ALLOCATE_(self%latVecs, (3,3))
-      ALLOCATE_(self%recVecs2p, (3,3))
+      allocate(self%latVecs(3,3))
+      allocate(self%recVecs2p(3,3))
       self%latVecs(:,:) = geometry%latVecs(:,:)
       call invert33(self%recVecs2p, self%latVecs)
       self%recVecs2p = reshape(self%recVecs2p, (/3, 3/), order=(/2, 1/))
@@ -131,8 +130,8 @@ contains
           &self%recVecs2p, mCutoff)
       self%nCell = size(self%cellVec,dim=2)
     else
-      ALLOCATE_(self%latVecs, (3,0))
-      ALLOCATE_(self%recVecs2p, (3,0))
+      allocate(self%latVecs(3,0))
+      allocate(self%recVecs2p(3,0))
       allocate(self%cellVec(3, 1))
       self%cellVec(:,:) = 0.0_dp
       allocate(rCellVec(3, 1))
@@ -141,7 +140,7 @@ contains
     end if
 
     !! Create coorinates for central cell and periodic images
-    ALLOCATE_(self%coords, (3, self%nAtom, self%nCell))
+    allocate(self%coords(3, self%nAtom, self%nCell))
     self%coords(:,:,1) = geometry%coords(:,:)
     if (self%tPeriodic) then
       call foldCoordToUnitCell(self%coords(:,:,1), self%latVecs, self%recVecs2p)
@@ -317,10 +316,10 @@ contains
 
     !! Array for the contribution of each orbital (and its periodic images)
     if (tReal) then
-      ALLOCATE_(atomOrbValReal, (nOrb))
+      allocate(atomOrbValReal(nOrb))
       nPoints = shape(valueReal)
     else
-      ALLOCATE_(atomOrbValCmpl, (nOrb))
+      allocate(atomOrbValCmpl(nOrb))
       nPoints = shape(valueCmpl)
     end if
 

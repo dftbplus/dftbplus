@@ -9,7 +9,6 @@
 !!* @ref based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
 module nhctherm
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use mdcommon
   use ranlux
@@ -97,7 +96,7 @@ contains
 
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
-    ALLOCATE_(self%mass, (self%nAtom))
+    allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)
     self%pTempProfile => tempProfile
     self%couplingParameter = couplingParameter
@@ -116,7 +115,7 @@ contains
     end if
     
     self%nyosh = nys ! current choice of order
-    ALLOCATE_(self%w, (self%nyosh))
+    allocate(self%w(self%nyosh))
     select case (self%nyosh)
     case (3)
       self%w(1)=1.0_dp/(2.0_dp - 2.0_dp**(1.0_dp/3.0_dp))
@@ -131,9 +130,9 @@ contains
           & available, only order 3 or 5.')") self%nyosh
       call error(lcTmp)
     end select
-    ALLOCATE_(self%xnose, (self%nnos))
-    ALLOCATE_(self%vnose, (self%nnos))
-    ALLOCATE_(self%gnose, (self%nnos))
+    allocate(self%xnose(self%nnos))
+    allocate(self%vnose(self%nnos))
+    allocate(self%gnose(self%nnos))
 
     ! set intial thermostat positions, velocities and forces
     if (present(xnose)) then

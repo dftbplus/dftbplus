@@ -10,7 +10,6 @@
 !!* lapack.
 module lapackroutines
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use message
   use lapack
@@ -173,7 +172,7 @@ contains
     end if
     
     info = 0
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call sgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
     
     if (info < 0) then
@@ -226,7 +225,7 @@ contains
     end if
     
     info = 0
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call dgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
     
     if (info < 0) then
@@ -368,7 +367,7 @@ contains
     call sgetri(nn, aa, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
 
-    ALLOCATE_(work, (lwork))
+    allocate(work(lwork))
     call sgetri(nn, aa, lda, ipiv, work, lwork, info)
 
     if (info < 0) then
@@ -415,7 +414,7 @@ contains
     call dgetri(nn, aa, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
 
-    ALLOCATE_(work, (lwork))
+    allocate(work(lwork))
     call dgetri(nn, aa, lda, ipiv, work, lwork, info)
 
     if (info < 0) then
@@ -458,7 +457,7 @@ contains
     end if
     ASSERT(size(aa, dim=2) >= nn)
     
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call getrf(aa, ipiv, nRow=nn, nColumn=nn, iError=info)
     if (info == 0) then
       call getri(aa, ipiv, nRow=nn, iError=info)
@@ -490,7 +489,7 @@ contains
     integer, allocatable :: ipiv(:)
 
     nn = size(aa, dim=1)
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call sytrf(aa, ipiv, uplo, info0)
     if (info0 == 0) then
       call sytri(aa, ipiv, uplo, info0)
@@ -521,7 +520,7 @@ contains
     integer, allocatable :: ipiv(:)
 
     nn = size(aa, dim=1)
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call hetrf(aa, ipiv, uplo, info0)
     if (info0 == 0) then
       call hetri(aa, ipiv, uplo, info0)
@@ -571,7 +570,7 @@ contains
     call ssytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call ssytrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
     
@@ -613,7 +612,7 @@ contains
     call dsytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call dsytrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
     
@@ -659,7 +658,7 @@ contains
     call chetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call chetrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
     
@@ -701,7 +700,7 @@ contains
     call zhetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call zhetrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
     
@@ -740,7 +739,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call ssytri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -774,7 +773,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call dsytri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -812,7 +811,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call chetri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -846,7 +845,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call zhetri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -897,13 +896,13 @@ contains
     ASSERT(size(A, dim=2) >= nn)
     nrhs = size(B, dim=2)
     
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     
     lwork = -1
     call ssytrf(iUplo, nn, A, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
     if (info == 0) then
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call ssytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
     end if
 
@@ -957,13 +956,13 @@ contains
     ASSERT(size(A, dim=2) >= nn)
     nrhs = size(B, dim=2)
     
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     
     lwork = -1
     call dsytrf(iUplo, nn, A, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
     if (info == 0) then
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call dsytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
     end if
 

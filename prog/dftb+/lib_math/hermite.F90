@@ -8,7 +8,6 @@
 !!* Contains routines relating to Hermite polynomials
 !!* @todo Proper documentation, and trap overflow and underflows
 module hermite
-#include "allocate.h"
 #include "assert.h"
   use accuracy, only : dp
   implicit none

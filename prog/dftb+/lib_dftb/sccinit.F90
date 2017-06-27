@@ -8,7 +8,6 @@
 !!* Module for initializing SCC part of the calculation
 module sccinit
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use message
   use fileid

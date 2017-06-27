@@ -9,7 +9,6 @@
 !!* charge constraints.
 module chargeconstr
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   implicit none
   private
@@ -60,9 +59,9 @@ contains
     ASSERT(size(inp, dim=2) == 2)
 
     sf%nAtom = size(inp, dim=1)
-    ALLOCATE_(sf%refCharges, (sf%nAtom))
-    ALLOCATE_(sf%prefactors, (sf%nAtom))
-    ALLOCATE_(sf%shift, (sf%nAtom))
+    allocate(sf%refCharges(sf%nAtom))
+    allocate(sf%prefactors(sf%nAtom))
+    allocate(sf%shift(sf%nAtom))
     sf%refCharges = inp(:,1)
     sf%prefactors = inp(:,2)
     sf%kappa = kappa

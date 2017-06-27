@@ -15,7 +15,6 @@
 !!*   the density matrices! (cc* instead of the conventional c*c)
 module densitymatrix
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use blasroutines
   use sorting
@@ -359,8 +358,8 @@ contains
     ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     ASSERT(size(eigenvecs,dim=1) == size(filling))
 
-    ALLOCATE_(inCellNeighbor, (0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
-    ALLOCATE_(nInCellNeighbor, (size(iNeighbor,dim=2)))
+    allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
+    allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
 
     nAtom = size(orb%nOrbAtom)
     dm(:,:) = 0.0_dp
@@ -375,7 +374,7 @@ contains
       end if
     end do
 
-    ALLOCATE_(tmpEigen, (nLevels,orb%mOrb))
+    allocate(tmpEigen(nLevels,orb%mOrb))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
@@ -444,8 +443,8 @@ contains
     ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     ASSERT(size(eigenvecs,dim=1) == size(filling))
 
-    ALLOCATE_(inCellNeighbor, (0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
-    ALLOCATE_(nInCellNeighbor, (size(iNeighbor,dim=2)))
+    allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
+    allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
 
     nAtom = size(orb%nOrbAtom)
 
@@ -460,7 +459,7 @@ contains
       end if
     end do
 
-    ALLOCATE_(tmpEigen,(nLevels, orb%mOrb))
+    allocate(tmpEigen(nLevels, orb%mOrb))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
@@ -535,8 +534,8 @@ contains
     ASSERT(size(eigenvecs,dim=1) == size(filling))
     ASSERT(size(eigen) == size(filling))
 
-    ALLOCATE_(inCellNeighbor, (0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
-    ALLOCATE_(nInCellNeighbor, (size(iNeighbor,dim=2)))
+    allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
+    allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
 
     nAtom = size(orb%nOrbAtom)
     dm(:,:) = 0.0_dp
@@ -551,7 +550,7 @@ contains
       end if
     end do
 
-    ALLOCATE_(tmpEigen,(nLevels,orb%mOrb))
+    allocate(tmpEigen(nLevels,orb%mOrb))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
@@ -623,8 +622,8 @@ contains
     ASSERT(size(eigenvecs,dim=1) == size(filling))
     ASSERT(size(eigen) == size(filling))
 
-    ALLOCATE_(inCellNeighbor,(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
-    ALLOCATE_(nInCellNeighbor,(size(iNeighbor,dim=2)))
+    allocate(inCellNeighbor(0:size(iNeighbor,dim=1),size(iNeighbor,dim=2)))
+    allocate(nInCellNeighbor(size(iNeighbor,dim=2)))
 
     nAtom = size(orb%nOrbAtom)
     dm(:,:) = cmplx(0.0_dp,0.0_dp,dp)
@@ -639,7 +638,7 @@ contains
       end if
     end do
 
-    ALLOCATE_(tmpEigen, (nLevels, orb%mOrb))
+    allocate(tmpEigen(nLevels, orb%mOrb))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &

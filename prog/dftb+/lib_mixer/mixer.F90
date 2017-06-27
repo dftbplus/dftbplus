@@ -7,7 +7,6 @@
 
 !!* Contains a general mixer which calls the desired real mixers.
 module mixer
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   use simplemixer

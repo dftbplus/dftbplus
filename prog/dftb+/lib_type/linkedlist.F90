@@ -9,7 +9,6 @@
 !!* Every list must be initialized with init, and destroyed with destroy.
 module linkedList
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   implicit none
   private

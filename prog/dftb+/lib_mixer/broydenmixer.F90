@@ -13,7 +13,6 @@
 !!* @see D.D. Johnson, PRB 38, 12807 (1988)
 !!* @note In order to use the mixer you have to create and reset it.
 module broydenmixer
-#include "allocate.h"
 #include "assert.h"  
   use accuracy
   use message
@@ -114,10 +113,10 @@ contains
     call init(self%fifoDF, nKeep, tmpPrefix1)
     call init(self%fifoUU, nKeep, tmpPrefix2)
 
-    ALLOCATE_(self%ww, (mIter-1))
-    ALLOCATE_(self%qInpLast, (self%nElem))
-    ALLOCATE_(self%qDiffLast, (self%nElem))
-    ALLOCATE_(self%aa, (mIter-1, mIter-1))
+    allocate(self%ww(mIter-1))
+    allocate(self%qInpLast(self%nElem))
+    allocate(self%qDiffLast(self%nElem))
+    allocate(self%aa(mIter-1, mIter-1))
 
   end subroutine BroydenMixer_init
 
@@ -134,10 +133,10 @@ contains
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
-      DEALLOCATE_(self%qInpLast)
-      DEALLOCATE_(self%qDiffLast)
-      ALLOCATE_(self%qInpLast, (self%nElem))
-      ALLOCATE_(self%qDiffLast, (self%nElem))
+      deallocate(self%qInpLast)
+      deallocate(self%qDiffLast)
+      allocate(self%qInpLast(self%nElem))
+      allocate(self%qDiffLast(self%nElem))
     end if
     self%iIter = 0
     self%ww(:) = 0.0_dp
@@ -228,11 +227,11 @@ contains
       return
     end if
 
-    ALLOCATE_(beta, (nn_1, nn_1))
-    ALLOCATE_(cc, (1, nn_1))
-    ALLOCATE_(gamma, (1, nn_1))
-    ALLOCATE_(dF_uu, (nElem))
-    ALLOCATE_(buffer, (nElem))
+    allocate(beta(nn_1, nn_1))
+    allocate(cc(1, nn_1))
+    allocate(gamma(1, nn_1))
+    allocate(dF_uu(nElem))
+    allocate(buffer(nElem))
 
     !! Create weight factor omega for current iteration
     ww(nn_1) = sqrt(dot_product(qDiff, qDiff))
@@ -306,10 +305,10 @@ contains
     ASSERT(all(shape(invJac) == [ self%nElem, self%nElem ]))
 
     mm = self%iIter - 1
-    ALLOCATE_(beta, (mm, mm))
-    ALLOCATE_(zeta, (self%nElem))
-    ALLOCATE_(dF, (self%nElem))
-    ALLOCATE_(uu, (self%nElem))
+    allocate(beta(mm, mm))
+    allocate(zeta(self%nElem))
+    allocate(dF(self%nElem))
+    allocate(uu(self%nElem))
 
     ! Calculating G according to eq (14) in Johnsons paper.
     ! NOTE: The equation in the paper is incorrect, as instead of beta_ij

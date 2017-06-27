@@ -8,7 +8,6 @@
 !!* Contains simple temperature profiles for molecular dynamics.
 module tempprofile
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   implicit none
   private
@@ -76,9 +75,9 @@ contains
     ASSERT(all(tempValues >= 0.0_dp))
 
     self%nInt = size(tempInts)
-    ALLOCATE_(self%tempInts, (0:self%nInt))
-    ALLOCATE_(self%tempValues, (0:self%nInt))
-    ALLOCATE_(self%tempMethods, (self%nInt))
+    allocate(self%tempInts(0:self%nInt))
+    allocate(self%tempValues(0:self%nInt))
+    allocate(self%tempMethods(self%nInt))
     self%tempInts(0) = 0
     self%tempInts(1:) = tempInts(:)
     self%tempValues(0) = startingTemp_

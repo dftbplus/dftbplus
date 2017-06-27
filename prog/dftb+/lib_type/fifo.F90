@@ -14,7 +14,6 @@
 !!* @note In order to use the FIFO you have create and reset it.
 module fifo
 #include "assert.h"
-#include "allocate.h"
   use accuracy
   use fileid
   implicit none
@@ -152,7 +151,7 @@ contains
     sf%fileId = getFileId()
     write(sf%fileName, "(A,I5.5)") &
         &fileName(1:min(len_trim(fileName),len(sf%fileName)-5)), sf%fileId
-    ALLOCATE_(sf%buffer, (sf%nElem, sf%bufferSize))
+    allocate(sf%buffer(sf%nElem, sf%bufferSize))
     open(sf%fileId, file=sf%fileName, status="replace", form="unformatted",&
         &action="write")
     close(sf%fileId)
@@ -186,8 +185,8 @@ contains
     !! Reallocate buffer if nr. of elements changed
     if (tRealloc) then
       sf%nElem = nElem
-      DEALLOCATE_(sf%buffer)
-      ALLOCATE_(sf%buffer, (sf%nElem, sf%bufferSize))
+      deallocate(sf%buffer)
+      allocate(sf%buffer(sf%nElem, sf%bufferSize))
     end if
     
     !! is there data left in the file on disc?
@@ -383,7 +382,7 @@ contains
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
     sf%equivIntSize = 0
-    ALLOCATE_(sf%convBuffer, (sf%equivIntSize))
+    allocate(sf%convBuffer(sf%equivIntSize))
     sf%tInit = .true.
     
   end subroutine FifoRealR1_init
@@ -405,12 +404,12 @@ contains
     ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
-      DEALLOCATE_(sf%convBuffer)
+      deallocate(sf%convBuffer)
       sf%nElem = nElem
-      ALLOCATE_(buffer, (nElem))
+      allocate(buffer(nElem))
       sf%equivIntSize = size(transfer(buffer, equiv))
-      DEALLOCATE_(buffer)
-      ALLOCATE_(sf%convBuffer, (sf%equivIntSize))
+      deallocate(buffer)
+      allocate(sf%convBuffer(sf%equivIntSize))
     end if
     if (present(bufferSize)) then
       call reset(sf%fifoIntR1, sf%equivIntSize, bufferSize)
@@ -588,7 +587,7 @@ contains
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
     sf%equivIntSize = 0
-    ALLOCATE_(sf%convBuffer, (sf%equivIntSize))
+    allocate(sf%convBuffer(sf%equivIntSize))
     sf%tInit = .true.
     
   end subroutine FifoCplxR1_init
@@ -610,12 +609,12 @@ contains
     ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
-      DEALLOCATE_(sf%convBuffer)
+      deallocate(sf%convBuffer)
       sf%nElem = nElem
-      ALLOCATE_(buffer, (nElem))
+      allocate(buffer(nElem))
       sf%equivIntSize = size(transfer(buffer, equiv))
-      DEALLOCATE_(buffer)
-      ALLOCATE_(sf%convBuffer, (sf%equivIntSize))
+      deallocate(buffer)
+      allocate(sf%convBuffer(sf%equivIntSize))
     end if
     if (present(bufferSize)) then
       call reset(sf%fifoIntR1, sf%equivIntSize, bufferSize)

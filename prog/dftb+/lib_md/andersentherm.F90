@@ -12,7 +12,6 @@
 !!* @ref Andersen J. Chem. Phys. 72. 2384 (1980)
 module andersentherm
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use mdcommon
   use ranlux
@@ -73,7 +72,7 @@ contains
 
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
-    ALLOCATE_(self%mass, (self%nAtom))
+    allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)
     self%pTempProfile => tempProfile
     self%tRescaleIndiv = rescaleIndiv

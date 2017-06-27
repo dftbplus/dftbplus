@@ -9,7 +9,6 @@
 !!* and periodic systems.
 module coulomb
 #include "assert.h"
-#include "allocate.h"  
   use accuracy
   use message
   use errorfunction

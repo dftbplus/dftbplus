@@ -1,5 +1,5 @@
-chargeconstr.o: _mod_accuracy assert.h allocate.h
-chargeconstr.o = chargeconstr.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+chargeconstr.o: _mod_accuracy assert.h
+chargeconstr.o = chargeconstr.o $(_mod_accuracy) $(assert.h)
 _mod_chargeconstr: chargeconstr.o
 _mod_chargeconstr = $(chargeconstr.o)
 
@@ -8,13 +8,13 @@ charges.o = charges.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h)
 _mod_charges: charges.o
 _mod_charges = $(charges.o)
 
-coulomb.o: _mod_constants assert.h _mod_message _mod_errorfunction _mod_accuracy allocate.h
-coulomb.o = coulomb.o $(_mod_constants) $(assert.h) $(_mod_message) $(_mod_errorfunction) $(_mod_accuracy) $(allocate.h)
+coulomb.o: _mod_errorfunction _mod_accuracy assert.h _mod_constants _mod_message
+coulomb.o = coulomb.o $(_mod_errorfunction) $(_mod_accuracy) $(assert.h) $(_mod_constants) $(_mod_message)
 _mod_coulomb: coulomb.o
 _mod_coulomb = $(coulomb.o)
 
-densitymatrix.o: _mod_commontypes allocate.h _mod_sorting assert.h _mod_blasroutines _mod_accuracy
-densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(allocate.h) $(_mod_sorting) $(assert.h) $(_mod_blasroutines) $(_mod_accuracy)
+densitymatrix.o: _mod_sorting _mod_accuracy _mod_commontypes assert.h _mod_blasroutines
+densitymatrix.o = densitymatrix.o $(_mod_sorting) $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(_mod_blasroutines)
 _mod_densitymatrix: densitymatrix.o
 _mod_densitymatrix = $(densitymatrix.o)
 
@@ -65,18 +65,18 @@ dispuffdata.o = dispuffdata.o $(_mod_message) $(_mod_accuracy) $(_mod_constants)
 _mod_dispuffdata: dispuffdata.o
 _mod_dispuffdata = $(dispuffdata.o)
 
-elecconstraints.o: _mod_accuracy _mod_commontypes assert.h allocate.h _mod_angmomentum
-elecconstraints.o = elecconstraints.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(allocate.h) $(_mod_angmomentum)
+elecconstraints.o: _mod_accuracy _mod_commontypes assert.h _mod_angmomentum
+elecconstraints.o = elecconstraints.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(_mod_angmomentum)
 _mod_elecconstraints: elecconstraints.o
 _mod_elecconstraints = $(elecconstraints.o)
 
-emfields.o: _mod_commontypes allocate.h assert.h _mod_angmomentum _mod_simplealgebra _mod_accuracy _mod_constants
-emfields.o = emfields.o $(_mod_commontypes) $(allocate.h) $(assert.h) $(_mod_angmomentum) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_constants)
+emfields.o: _mod_commontypes _mod_constants assert.h _mod_angmomentum _mod_simplealgebra _mod_accuracy
+emfields.o = emfields.o $(_mod_commontypes) $(_mod_constants) $(assert.h) $(_mod_angmomentum) $(_mod_simplealgebra) $(_mod_accuracy)
 _mod_emfields: emfields.o
 _mod_emfields = $(emfields.o)
 
-energies.o: _mod_accuracy assert.h allocate.h
-energies.o = energies.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+energies.o: _mod_accuracy assert.h
+energies.o = energies.o $(_mod_accuracy) $(assert.h)
 _mod_energies: energies.o
 _mod_energies = $(energies.o)
 
@@ -85,13 +85,13 @@ etemp.o = etemp.o $(_mod_hermite) $(_mod_constants) $(_mod_sorting) $(assert.h) 
 _mod_etemp: etemp.o
 _mod_etemp = $(etemp.o)
 
-externalcharges.o: _mod_constants assert.h _mod_coulomb _mod_blasroutines _mod_periodic _mod_accuracy allocate.h
-externalcharges.o = externalcharges.o $(_mod_constants) $(assert.h) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_periodic) $(_mod_accuracy) $(allocate.h)
+externalcharges.o: _mod_constants assert.h _mod_coulomb _mod_blasroutines _mod_periodic _mod_accuracy
+externalcharges.o = externalcharges.o $(_mod_constants) $(assert.h) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_periodic) $(_mod_accuracy)
 _mod_externalcharges: externalcharges.o
 _mod_externalcharges = $(externalcharges.o)
 
-forces.o: _mod_commontypes allocate.h assert.h _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-forces.o = forces.o $(_mod_commontypes) $(allocate.h) $(assert.h) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
+forces.o: _mod_commontypes assert.h _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
+forces.o = forces.o $(_mod_commontypes) $(assert.h) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_forces: forces.o
 _mod_forces = $(forces.o)
 
@@ -100,43 +100,43 @@ nonscc.o = nonscc.o $(_mod_commontypes) $(assert.h) $(_mod_sk) $(_mod_message) $
 _mod_nonscc: nonscc.o
 _mod_nonscc = $(nonscc.o)
 
-orbitalequiv.o: _mod_accuracy _mod_commontypes assert.h allocate.h
-orbitalequiv.o = orbitalequiv.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(allocate.h)
+orbitalequiv.o: _mod_accuracy _mod_commontypes assert.h
+orbitalequiv.o = orbitalequiv.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h)
 _mod_orbitalequiv: orbitalequiv.o
 _mod_orbitalequiv = $(orbitalequiv.o)
 
-periodic.o: _mod_commontypes _mod_memman allocate.h _mod_sorting _mod_message _mod_bisect _mod_linkedlist _mod_simplealgebra _mod_accuracy assert.h _mod_constants
-periodic.o = periodic.o $(_mod_commontypes) $(_mod_memman) $(allocate.h) $(_mod_sorting) $(_mod_message) $(_mod_bisect) $(_mod_linkedlist) $(_mod_simplealgebra) $(_mod_accuracy) $(assert.h) $(_mod_constants)
+periodic.o: _mod_commontypes _mod_memman _mod_constants _mod_sorting assert.h _mod_bisect _mod_linkedlist _mod_message _mod_simplealgebra _mod_accuracy
+periodic.o = periodic.o $(_mod_commontypes) $(_mod_memman) $(_mod_constants) $(_mod_sorting) $(assert.h) $(_mod_bisect) $(_mod_linkedlist) $(_mod_message) $(_mod_simplealgebra) $(_mod_accuracy)
 _mod_periodic: periodic.o
 _mod_periodic = $(periodic.o)
 
-pmlocalisation.o: _mod_sparse2dense allocate.h _mod_sorting assert.h _mod_blasroutines _mod_message _mod_accuracy
-pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(allocate.h) $(_mod_sorting) $(assert.h) $(_mod_blasroutines) $(_mod_message) $(_mod_accuracy)
+pmlocalisation.o: _mod_sparse2dense _mod_sorting assert.h _mod_blasroutines _mod_message _mod_accuracy
+pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(_mod_sorting) $(assert.h) $(_mod_blasroutines) $(_mod_message) $(_mod_accuracy)
 _mod_pmlocalisation: pmlocalisation.o
 _mod_pmlocalisation = $(pmlocalisation.o)
 
-populations.o: _mod_commontypes allocate.h assert.h _mod_periodic _mod_accuracy _mod_constants
-populations.o = populations.o $(_mod_commontypes) $(allocate.h) $(assert.h) $(_mod_periodic) $(_mod_accuracy) $(_mod_constants)
+populations.o: _mod_periodic _mod_accuracy _mod_commontypes assert.h _mod_constants
+populations.o = populations.o $(_mod_periodic) $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(_mod_constants)
 _mod_populations: populations.o
 _mod_populations = $(populations.o)
 
-potentials.o: _mod_accuracy _mod_commontypes assert.h allocate.h
-potentials.o = potentials.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(allocate.h)
+potentials.o: _mod_accuracy _mod_commontypes assert.h
+potentials.o = potentials.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h)
 _mod_potentials: potentials.o
 _mod_potentials = $(potentials.o)
 
-repcont.o: _mod_accuracy _mod_reppoly assert.h allocate.h _mod_repspline
-repcont.o = repcont.o $(_mod_accuracy) $(_mod_reppoly) $(assert.h) $(allocate.h) $(_mod_repspline)
+repcont.o: _mod_accuracy assert.h _mod_repspline _mod_reppoly
+repcont.o = repcont.o $(_mod_accuracy) $(assert.h) $(_mod_repspline) $(_mod_reppoly)
 _mod_repcont: repcont.o
 _mod_repcont = $(repcont.o)
 
-reppoly.o: _mod_accuracy _mod_bisect assert.h allocate.h
-reppoly.o = reppoly.o $(_mod_accuracy) $(_mod_bisect) $(assert.h) $(allocate.h)
+reppoly.o: _mod_accuracy _mod_bisect assert.h
+reppoly.o = reppoly.o $(_mod_accuracy) $(_mod_bisect) $(assert.h)
 _mod_reppoly: reppoly.o
 _mod_reppoly = $(reppoly.o)
 
-repspline.o: _mod_accuracy _mod_bisect assert.h allocate.h
-repspline.o = repspline.o $(_mod_accuracy) $(_mod_bisect) $(assert.h) $(allocate.h)
+repspline.o: _mod_accuracy _mod_bisect assert.h
+repspline.o = repspline.o $(_mod_accuracy) $(_mod_bisect) $(assert.h)
 _mod_repspline: repspline.o
 _mod_repspline = $(repspline.o)
 
@@ -145,13 +145,13 @@ repulsive.o = repulsive.o $(_mod_accuracy) $(assert.h) $(_mod_repcont)
 _mod_repulsive: repulsive.o
 _mod_repulsive = $(repulsive.o)
 
-scc.o: _mod_commontypes _mod_fileid allocate.h assert.h _mod_chargeconstr _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_message _mod_shortgamma _mod_shift _mod_accuracy _mod_constants
-scc.o = scc.o $(_mod_commontypes) $(_mod_fileid) $(allocate.h) $(assert.h) $(_mod_chargeconstr) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_message) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_constants)
+scc.o: _mod_commontypes _mod_constants _mod_fileid _mod_chargeconstr _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_message _mod_shortgamma _mod_shift _mod_accuracy assert.h
+scc.o = scc.o $(_mod_commontypes) $(_mod_constants) $(_mod_fileid) $(_mod_chargeconstr) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_message) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(assert.h)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 
-sccinit.o: _mod_commontypes _mod_charmanip allocate.h _mod_fileid _mod_message _mod_accuracy assert.h
-sccinit.o = sccinit.o $(_mod_commontypes) $(_mod_charmanip) $(allocate.h) $(_mod_fileid) $(_mod_message) $(_mod_accuracy) $(assert.h)
+sccinit.o: _mod_commontypes _mod_fileid _mod_charmanip _mod_message _mod_accuracy assert.h
+sccinit.o = sccinit.o $(_mod_commontypes) $(_mod_fileid) $(_mod_charmanip) $(_mod_message) $(_mod_accuracy) $(assert.h)
 _mod_sccinit: sccinit.o
 _mod_sccinit = $(sccinit.o)
 
@@ -170,18 +170,18 @@ sk.o = sk.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h)
 _mod_sk: sk.o
 _mod_sk = $(sk.o)
 
-slakocont.o: _mod_accuracy _mod_slakoeqgrid assert.h allocate.h
-slakocont.o = slakocont.o $(_mod_accuracy) $(_mod_slakoeqgrid) $(assert.h) $(allocate.h)
+slakocont.o: _mod_accuracy _mod_slakoeqgrid assert.h
+slakocont.o = slakocont.o $(_mod_accuracy) $(_mod_slakoeqgrid) $(assert.h)
 _mod_slakocont: slakocont.o
 _mod_slakocont = $(slakocont.o)
 
-slakoeqgrid.o: _mod_accuracy _mod_message assert.h allocate.h _mod_interpolation
-slakoeqgrid.o = slakoeqgrid.o $(_mod_accuracy) $(_mod_message) $(assert.h) $(allocate.h) $(_mod_interpolation)
+slakoeqgrid.o: _mod_accuracy _mod_message assert.h _mod_interpolation
+slakoeqgrid.o = slakoeqgrid.o $(_mod_accuracy) $(_mod_message) $(assert.h) $(_mod_interpolation)
 _mod_slakoeqgrid: slakoeqgrid.o
 _mod_slakoeqgrid = $(slakoeqgrid.o)
 
-sparse2dense.o: _mod_commontypes _mod_memman allocate.h assert.h _mod_periodic _mod_accuracy _mod_constants
-sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(_mod_memman) $(allocate.h) $(assert.h) $(_mod_periodic) $(_mod_accuracy) $(_mod_constants)
+sparse2dense.o: _mod_commontypes _mod_memman _mod_constants assert.h _mod_periodic _mod_accuracy
+sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(_mod_memman) $(_mod_constants) $(assert.h) $(_mod_periodic) $(_mod_accuracy)
 _mod_sparse2dense: sparse2dense.o
 _mod_sparse2dense = $(sparse2dense.o)
 
@@ -190,18 +190,18 @@ spin.o = spin.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(_mod_shift) $
 _mod_spin: spin.o
 _mod_spin = $(spin.o)
 
-spinorbit.o: _mod_accuracy _mod_commontypes assert.h allocate.h _mod_angmomentum
-spinorbit.o = spinorbit.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(allocate.h) $(_mod_angmomentum)
+spinorbit.o: _mod_accuracy _mod_commontypes assert.h _mod_angmomentum
+spinorbit.o = spinorbit.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(_mod_angmomentum)
 _mod_spinorbit: spinorbit.o
 _mod_spinorbit = $(spinorbit.o)
 
-stress.o: _mod_commontypes allocate.h assert.h _mod_repcont _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-stress.o = stress.o $(_mod_commontypes) $(allocate.h) $(assert.h) $(_mod_repcont) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
+stress.o: _mod_commontypes assert.h _mod_repcont _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
+stress.o = stress.o $(_mod_commontypes) $(assert.h) $(_mod_repcont) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_stress: stress.o
 _mod_stress = $(stress.o)
 
-thirdorder.o: _mod_commontypes allocate.h assert.h _mod_charges _mod_periodic _mod_shortgamma _mod_accuracy
-thirdorder.o = thirdorder.o $(_mod_commontypes) $(allocate.h) $(assert.h) $(_mod_charges) $(_mod_periodic) $(_mod_shortgamma) $(_mod_accuracy)
+thirdorder.o: _mod_commontypes assert.h _mod_charges _mod_periodic _mod_shortgamma _mod_accuracy
+thirdorder.o = thirdorder.o $(_mod_commontypes) $(assert.h) $(_mod_charges) $(_mod_periodic) $(_mod_shortgamma) $(_mod_accuracy)
 _mod_thirdorder_module: thirdorder.o
 _mod_thirdorder_module = $(thirdorder.o)
 

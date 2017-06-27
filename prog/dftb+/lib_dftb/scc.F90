@@ -7,7 +7,6 @@
 
 !!* Functions and local variables for the SCC calculation.
 module scc
-#include "allocate.h"
 #include "assert.h"
   use accuracy
   use message
@@ -133,17 +132,17 @@ contains
     ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=2) > 0))
     ASSERT_ENV(end if)
     
-    ALLOCATE_(invRMat_, (nAtom_, nAtom_))
-    ALLOCATE_(shiftPerAtom_, (nAtom_))
-    ALLOCATE_(shiftPerL_, (mShell_, nAtom_))
-    ALLOCATE_(shortGamma_, (0, 0, 0, 0))
+    allocate(invRMat_(nAtom_, nAtom_))
+    allocate(shiftPerAtom_(nAtom_))
+    allocate(shiftPerL_(mShell_, nAtom_))
+    allocate(shortGamma_(0, 0, 0, 0))
     tPeriodic_ = allocated(inp%latVecs)
     tExtChrg_ = allocated(inp%extCharges)
     
     !! Initialize Hubbard U's
-    ALLOCATE_(uniqHubbU_, (mShell_, nSpecies_))
-    ALLOCATE_(nHubbU_, (nSpecies_))
-    ALLOCATE_(iHubbU_, (mShell_, nSpecies_))
+    allocate(uniqHubbU_(mShell_, nSpecies_))
+    allocate(nHubbU_(nSpecies_))
+    allocate(iHubbU_(mShell_, nSpecies_))
     iHubbU_(:,:) = 0
     iHubbU_(1,:) = 1
     nHubbU_(:) = 1
@@ -167,7 +166,7 @@ contains
     mHubbU_ = maxval(nHubbU_)
     
     !! Get cutoff for short range coulomb
-    ALLOCATE_(shortCutoff_, (mHubbU_, mHubbU_, nSpecies_, nSpecies_))
+    allocate(shortCutoff_(mHubbU_, mHubbU_, nSpecies_, nSpecies_))
     shortCutoff_(:,:,:,:) = 0.0_dp
     do iSp1 = 1, nSpecies_
       do iSp2 = iSp1, nSpecies_
@@ -203,9 +202,9 @@ contains
     end if
 
     !! Number of neighbors for short range cutoff and real part of Ewald
-    ALLOCATE_(nNeighShort_, (mHubbU_, mHubbU_, nSpecies_, nAtom_))
+    allocate(nNeighShort_(mHubbU_, mHubbU_, nSpecies_, nAtom_))
     if (tPeriodic_) then
-      ALLOCATE_(nNeighEwald_, (nAtom_))
+      allocate(nNeighEwald_(nAtom_))
     end if
 
     !! Initialise external charges
@@ -232,13 +231,13 @@ contains
     end if
       
     !! Initialise arrays for charge differences
-    ALLOCATE_(deltaQ_, (mOrb_, nAtom_))
-    ALLOCATE_(deltaQPerLShell_, (mShell_, nAtom_))
-    ALLOCATE_(deltaQAtom_, (nAtom_))
-    ALLOCATE_(deltaQUniqU_, (mHubbU_, nAtom_))
+    allocate(deltaQ_(mOrb_, nAtom_))
+    allocate(deltaQPerLShell_(mShell_, nAtom_))
+    allocate(deltaQAtom_(nAtom_))
+    allocate(deltaQUniqU_(mHubbU_, nAtom_))
     
     !! Initialise short range damping
-    ALLOCATE_(tDampedShort_, (nSpecies_))
+    allocate(tDampedShort_(nSpecies_))
     tDampedShort_(:) = inp%tDampedShort(:)
     dampExp_ = inp%dampExp
     
@@ -510,8 +509,8 @@ contains
 
     ! Reallocate shortGamma, if it does not contain enough neighbors
     if (size(shortGamma_, dim=3) < maxval(nNeighShort_)+1) then
-      DEALLOCATE_(shortGamma_)
-      ALLOCATE_(shortGamma_, (mHubbU_, mHubbU_, 0:maxval(nNeighShort_), nAtom_))
+      deallocate(shortGamma_)
+      allocate(shortGamma_(mHubbU_, mHubbU_, 0:maxval(nNeighShort_), nAtom_))
     end if
     shortGamma_(:,:,:,:) = 0.0_dp
 
@@ -746,9 +745,9 @@ contains
     ASSERT(tInitialised_)
     ASSERT(size(eSCC) == nAtom_)
   
-    ALLOCATE_(dQOut, (orb%mOrb, nAtom_))
-    ALLOCATE_(dQOutAtom, (nAtom_))
-    ALLOCATE_(dQOutShell, (mShell_, nAtom_))
+    allocate(dQOut(orb%mOrb, nAtom_))
+    allocate(dQOutAtom(nAtom_))
+    allocate(dQOutShell(mShell_, nAtom_))
 
     call getNetCharges_(species, orb, qOut, q0, dQOut, dQOutAtom, dQOutShell)
 
@@ -1017,10 +1016,10 @@ contains
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
     real(dp), allocatable :: dQOutLShell(:,:), dQOutUniqU(:,:)
 
-    ALLOCATE_(dQOut, (mOrb_, nAtom_))
-    ALLOCATE_(dQOutAtom, (nAtom_))
-    ALLOCATE_(dQOutLShell, (mShell_, nAtom_))
-    ALLOCATE_(dQOutUniqU, (mHubbU_, nAtom_))
+    allocate(dQOut(mOrb_, nAtom_))
+    allocate(dQOutAtom(nAtom_))
+    allocate(dQOutLShell(mShell_, nAtom_))
+    allocate(dQOutUniqU(mHubbU_, nAtom_))
 
     call getNetCharges_(species, orb, qOrbitalOut, q0, dQOut, dQOutAtom, &
         & dQOutLShell, dQOutUniqU)
