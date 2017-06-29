@@ -81,7 +81,7 @@ contains
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
     integer :: nDerivs
-    
+    logical :: tWriteXML, tWriteHSD ! XML or HSD output?
     
     !! Write header
     write (*, "(A)") repeat("=", 80)
@@ -228,17 +228,24 @@ contains
       call destroy(realBuffer)
     end if
 
+    call getChildValue(root, "WriteHSDInput", tWriteHSD, .true.)
+    call getChildValue(root, "WriteXMLInput", tWriteXML, .false.)
+
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root,.true.)
 
     !! Finish parsing, dump parsed and processed input
-    call dumpHSD(input, hsdParsedInput)
-    
-    write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
-        &//"'"
-    call dumpHSDAsXML(input, xmlParsedInput)
-    write (*, "(A)") "Processed input written as XML to '" // xmlParsedInput &
-        &//"'"
+    if (tWriteHSD) then
+      call dumpHSD(input, hsdParsedInput)
+      
+      write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
+          &//"'"
+    end if
+    if (tWriteXML) then
+      call dumpHSDAsXML(input, xmlParsedInput)
+      write (*, "(A)") "Processed input written as XML to '" // xmlParsedInput &
+          &//"'"
+    end if
     write (*, "(A)") repeat("-", 80)
     write (*,*)
     call destroyNode(input)

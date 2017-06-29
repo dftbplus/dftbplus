@@ -26,6 +26,8 @@ Additionally optional definitions may be present:
 \begin{ptableh}  
   \kw{DisplayModes} & p & & - & \pref{sec:modes.DisplayModes} \\
   \kw{Atoms} & i+|m &  & 1:-1 & \\
+  \kw{WriteHSDInput} & l & & Yes & \\
+  \kw{WriteXMLInput} & l & & No & \\
 \end{ptableh}
 
 \begin{description}
@@ -42,6 +44,10 @@ Additionally optional definitions may be present:
   atoms for which the Hessian has been supplied. \emph{This must be equivalent
     to the setting you used for \is{MovedAtoms} in your \dftbp{} input when
     generating the Hessian.}
+\item[\is{WriteHSDInput}] Specifies, if the processed input should be written
+  out in HSD format. (You shouldn't turn it off without good reason.)
+\item[\is{WriteXMLInput}] Specifies, if the processed input should be written
+  out in XML format.
 \end{description}
 
 
