@@ -19,7 +19,6 @@ module hsdutils
   use charmanip
   use message
   use linkedlist
-  use stringlist
   use accuracy
   implicit none
   private

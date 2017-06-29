@@ -16,7 +16,6 @@ module typegeometryhsd
   use charmanip
   use simplealgebra, only : invert33, determinant33
   use xmlf90, flib_normalize => normalize
-  use stringlist
   implicit none
   private
 

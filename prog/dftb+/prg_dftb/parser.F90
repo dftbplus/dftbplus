@@ -20,7 +20,6 @@ module parser
   use charmanip
   use message
   use linkedlist
-  use stringlist
   use fileid
   use unitconversion
   use oldcompat
@@ -1417,7 +1416,6 @@ contains
         end select
         call convertByMul(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
         call append(lCharges, tmpR2)
-        deallocate(tmpR2)
         if (.not. geo%tPeriodic) then
           call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
               &modifier=modifier, child=child3)
@@ -1431,6 +1429,7 @@ contains
           call append(lBlurs, tmpR1)
           deallocate(tmpR1)
         end if
+        deallocate(tmpR2)
       end do
       
       allocate(ctrl%extChrg(4, ctrl%nExtChrg))

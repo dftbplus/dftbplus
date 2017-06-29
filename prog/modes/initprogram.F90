@@ -23,7 +23,7 @@ module InitProgram
   use Message
   use FileId
   use UnitConversion
-  use StringList
+  use linkedlist
   use OldSKData
   implicit none
 

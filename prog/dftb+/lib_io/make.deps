@@ -18,8 +18,8 @@ hsdparser.o = hsdparser.o $(common.fypp) $(_mod_xmlutils) $(_mod_message) $(_mod
 _mod_hsdparser: hsdparser.o
 _mod_hsdparser = $(hsdparser.o)
 
-hsdutils.o: _mod_tokenreader common.fypp _mod_xmlutils _mod_charmanip _mod_hsdparser _mod_stringlist _mod_assert _mod_linkedlist _mod_message _mod_xmlf90 _mod_accuracy
-hsdutils.o = hsdutils.o $(_mod_tokenreader) $(common.fypp) $(_mod_xmlutils) $(_mod_charmanip) $(_mod_hsdparser) $(_mod_stringlist) $(_mod_assert) $(_mod_linkedlist) $(_mod_message) $(_mod_xmlf90) $(_mod_accuracy)
+hsdutils.o: _mod_tokenreader common.fypp _mod_xmlutils _mod_charmanip _mod_hsdparser _mod_assert _mod_linkedlist _mod_message _mod_xmlf90 _mod_accuracy
+hsdutils.o = hsdutils.o $(_mod_tokenreader) $(common.fypp) $(_mod_xmlutils) $(_mod_charmanip) $(_mod_hsdparser) $(_mod_assert) $(_mod_linkedlist) $(_mod_message) $(_mod_xmlf90) $(_mod_accuracy)
 _mod_hsdutils: hsdutils.o
 _mod_hsdutils = $(hsdutils.o)
 
