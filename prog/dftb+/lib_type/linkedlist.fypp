@@ -25,7 +25,7 @@
   #:endmute
 
   public :: ${TYPE_NAME}$
-  public :: init
+  public :: init, destruct
   public :: append, len, find, hasElement, isUnishaped
   public :: get, set, asArray
 #:if ITEM_RANK > 0
@@ -54,14 +54,16 @@
     integer :: iCache
     type(node), pointer :: pCache
     logical :: tInitialized = .false.
-  contains
-    final :: destruct
   end type ${TYPE_NAME}$
 
 
   interface init
     module procedure ${TYPE_NAME}$_init
   end interface init
+
+  interface destruct
+    module procedure ${TYPE_NAME}$_destruct
+  end interface destruct
 
   interface append
     module procedure ${TYPE_NAME}$_append
@@ -137,7 +139,7 @@ contains
   
   !!* Destructs the list.
   !!* @param list The list to destruct.
-  subroutine destruct(list)
+  subroutine ${TYPE_NAME}$_destruct(list)
     type(${TYPE_NAME}$), intent(inout) :: list
 
     type(node), pointer :: pCur, pNext
@@ -154,7 +156,7 @@ contains
     end do
     list%tInitialized = .false.
 
-  end subroutine destruct
+  end subroutine ${TYPE_NAME}$_destruct
 
 
   !!* Appends an element to the list.

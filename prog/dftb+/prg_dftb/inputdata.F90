@@ -264,19 +264,21 @@ module inputdata_module
     type(TGeometry) :: geom
     type(slater)   :: slako
     logical        :: tInitialized = .false.
-  contains
-    final :: inputData_destruct
   end type inputData
 
 
   
   interface init
     module procedure InputData_init
-  end interface
+  end interface init
+
+  interface destruct
+    module procedure InputData_destruct
+  end interface destruct
   
   
   public :: control, TGeometry, slater, inputData, XLBOMDInp
-  public :: init
+  public :: init, destruct
 
   
 contains
@@ -289,15 +291,23 @@ contains
   end subroutine InputData_init
 
 
-  ! Workaround: GNU Fortran 7.1: dummy destructor needed to prevent ICE.
   subroutine InputData_destruct(self)
     type(inputData), intent(inout) :: self
 
-    if (.not. self%tInitialized) then
-      return
-    end if
+    call Control_destruct(self%ctrl)
 
   end subroutine InputData_destruct
+
+
+  subroutine Control_destruct(self)
+    type(control), intent(inout) :: self
+
+    if (allocated(self%tShellResInRegion)) then
+      call destruct(self%iAtInRegion)
+    end if
+
+  end subroutine Control_destruct
+    
 
 
 end module inputdata_module

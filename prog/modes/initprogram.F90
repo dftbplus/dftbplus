@@ -15,7 +15,7 @@ module InitProgram
   use HSDUtils
   use HSDUtils2
   use flib_dom
-  use LinkedList
+  use linkedlist
   use CharManip
   use Accuracy
   use Constants
@@ -23,7 +23,6 @@ module InitProgram
   use Message
   use FileId
   use UnitConversion
-  use linkedlist
   use OldSKData
   implicit none
 
@@ -74,7 +73,7 @@ contains
     type(string) :: strBuffer
     type(listRealR1) :: realBuffer
     type(string) :: buffer, buffer2
-    type(listString), allocatable :: lStr
+    type(listString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
     logical :: tHSD
@@ -176,7 +175,6 @@ contains
       do iSp1 = 1, geo%nSpecies
         strTmp = trim(geo%speciesNames(iSp1)) // "-" &
             &// trim(geo%speciesNames(iSp1))
-        allocate(lStr)
         call init(lStr)
         call getChildValue(child, trim(strTmp), lStr, child=child2)
         ! We can't handle selected shells here (also not needed I guess)
@@ -193,7 +191,7 @@ contains
           end if
           call append(skFiles(iSp1), strTmp)
         end do
-        deallocate(lStr)
+        call destruct(lStr)
       end do
     end select
 
@@ -201,7 +199,8 @@ contains
     do iSp1 = 1, geo%nSpecies
       call get(skFiles(iSp1), fileName, 1)
       call readFromFile(skData, fileName, .true.)
-      speciesMass(iSp1) = skData%mass      
+      speciesMass(iSp1) = skData%mass
+      call destruct(skFiles(iSp1))
     end do
 
     allocate(dynMatrix(nDerivs,nDerivs))
@@ -219,6 +218,7 @@ contains
             & // i2c(nDerivs) // " required.")
       end if
       call asArray(realBuffer, dynMatrix)
+      call destruct(realBuffer)
     end if
 
     call getChildValue(root, "WriteHSDInput", tWriteHSD, .true.)

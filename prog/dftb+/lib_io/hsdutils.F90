@@ -1422,7 +1422,8 @@ contains
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-
+    call destruct(li)
+    
   contains
 
     ! Helper routine.
@@ -1527,6 +1528,7 @@ contains
     if (len(li) > 0) then
       call asArray(li, val)
     end if
+    call destruct(li)
     
   contains
 

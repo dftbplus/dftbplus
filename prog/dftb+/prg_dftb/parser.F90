@@ -821,6 +821,8 @@ contains
         call detailedError(node,"Non-existent atom specified in constraint")
       end if
       call asArray(realBuffer, ctrl%conVec)
+      call destruct(intBuffer)
+      call destruct(realBuffer)
     end if
 
   end subroutine readGeoConstraints
@@ -862,6 +864,7 @@ contains
         call convertByMul(char(modifier), VelocityUnits, child, &
             & tmpVelocities)
       end if
+      call destruct(realBuffer)
       allocate(ctrl%initialVelocities(3, ctrl%nrMoved))
       ctrl%initialVelocities(:,:) = tmpVelocities(:,ctrl%indMovedAtom(:))
       ctrl%tReadMDVelocities = .true.
@@ -954,17 +957,17 @@ contains
     type(fnode), pointer :: value, value2, child, child2, child3, field
     type(fnodeList), pointer :: children
     type(string) :: buffer, buffer2, modifier
-    type(listInt), allocatable :: li
-    type(listIntR1), allocatable :: li1
-    type(listRealR1), allocatable :: lr1
+    type(listInt) :: li
+    type(listIntR1) :: li1
+    type(listRealR1) :: lr1
     type(listInt), allocatable :: liN(:)
     type(listIntR1), allocatable :: li1N(:)
     type(listReal), allocatable :: lrN(:)
     type(listCharLc), allocatable :: skFiles(:,:)
-    type(listString), allocatable :: lStr
+    type(listString) :: lStr
     type(listIntR1), allocatable :: angShells(:)
-    type(listRealR2), allocatable :: lCharges
-    type(listRealR1), allocatable :: lBlurs
+    type(listRealR2) :: lCharges
+    type(listRealR1) :: lBlurs
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
@@ -998,7 +1001,6 @@ contains
       call getNodeName(value, buffer)
       select case(char(buffer))
       case("selectedshells")
-        allocate(lStr)
         call init(lStr)
         call getChildValue(value, "", lStr)
         do ii = 1, len(lStr)
@@ -1033,7 +1035,7 @@ contains
           end do
           call append(angShells(iSp1), angShell(1:nShell))
         end do
-        deallocate(lStr)
+        call destruct(lStr)
 
       case(textNodeName)
         call getChildValue(child2, "", buffer)
@@ -1147,7 +1149,6 @@ contains
         do iSp2 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" &
               &// trim(geo%speciesNames(iSp2))
-          allocate(lStr)
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
@@ -1163,7 +1164,7 @@ contains
             end if
             call append(skFiles(iSp2, iSp1), strTmp)
           end do
-          deallocate(lStr)
+          call destruct(lStr)
         end do
       end do
     end select
@@ -1203,6 +1204,12 @@ contains
     call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, &
         &angShells, ctrl%tOrbResolved, skInterMeth, repPoly)
 
+    do iSp1 = 1, geo%nSpecies
+      call destruct(angShells(iSp1))
+      do iSp2 = 1, geo%nSpecies
+        call destruct(skFiles(iSp2, iSp1))
+      end do
+    end do
     deallocate(angShells)
     deallocate(skFiles)
     deallocate(repPoly)
@@ -1250,7 +1257,6 @@ contains
         if (char(buffer2) == "") then
           ctrl%andersonNrDynMix = 0
         else
-          allocate(lr1)
           call init(lr1)
           call getChildValue(child, "", 2, lr1, child=child2)
           if (len(lr1) < 1) then
@@ -1260,7 +1266,7 @@ contains
           ctrl%andersonNrDynMix = len(lr1)
           allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
           call asArray(lr1, ctrl%andersonDynMixParams)
-          deallocate(lr1)
+          call destruct(lr1)
         end if
         call getChildValue(value, "DiagonalRescaling", ctrl%andersonOmega0, &
             &1.0e-2_dp)
@@ -1372,10 +1378,8 @@ contains
       if (.not.ctrl%tSCC) then
         call error("External charges can only be used in an SCC calculation")
       end if
-      allocate(lCharges)
       call init(lCharges)
       if (.not. geo%tPeriodic) then
-        allocate(lBlurs)
         call init(lBlurs)
       end if
       fp = getFileId()
@@ -1387,13 +1391,12 @@ contains
         call getNodeName(value, buffer)
         select case(char(buffer))
         case (textNodeName)
-          allocate(lr1)
           call init(lr1)
           call getChildValue(child3, "", 4, lr1, modifier=modifier)
           allocate(tmpR2(4, len(lr1)))
           call asArray(lr1, tmpR2)
           ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
-          deallocate(lr1)
+          call destruct(lr1)
         case ("directread")
           call getChildValue(value, "Records", ind)
           call getChildValue(value, "File", buffer2)
@@ -1438,7 +1441,7 @@ contains
         call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
         ind = ind + nElem
       end do
-      deallocate(lCharges)
+      call destruct(lCharges)
       
       if (.not. geo%tPeriodic) then
         allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
@@ -1447,7 +1450,7 @@ contains
           call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
           ind = ind + nElem
         end do
-        deallocate(lBlurs)
+        call destruct(lBlurs)
       end if
     else
       ctrl%nExtChrg = 0
@@ -1589,9 +1592,7 @@ contains
       case ("klines")
         ! probably unable to integrate charge for SCC
         tBadIntegratingKPoints = .true.
-        allocate(li1)
         call init(li1)
-        allocate(lr1)
         call init(lr1)
         call getChildValue(value, "", 1, li1, 3, lr1)
         if (len(li1) < 1) then
@@ -1602,8 +1603,8 @@ contains
         call asVector(li1, tmpI1)
         call asArray(lr1, kpts(:,1:len(lr1)))
         kpts(:,0) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
-        deallocate(li1)
-        deallocate(lr1)
+        call destruct(li1)
+        call destruct(lr1)
         if (any(tmpI1 < 0)) then
           call detailedError(value, "Interval steps must be greater equal to &
               &zero.")
@@ -1659,7 +1660,6 @@ contains
         ! no idea, but assume user knows what they are doing
         tBadIntegratingKPoints = .false.
 
-        allocate(lr1)
         call init(lr1)
         call getChildValue(child, "", 4, lr1, modifier=modifier)
         if (len(lr1) < 1) then
@@ -1668,7 +1668,7 @@ contains
         ctrl%nKPoint = len(lr1)
         allocate(kpts(4, ctrl%nKPoint))
         call asArray(lr1, kpts)
-        deallocate(lr1)
+        call destruct(lr1)
         if (len(modifier) > 0) then
           select case (tolower(char(modifier)))
           case ("relative")
@@ -1736,7 +1736,6 @@ contains
           call getItem1(children, ii, child2)
           !call getChildValue(child2,"Shells",li1N(iSp1))
 
-          allocate(li)
           call init(li)
           call getChildValue(child2,"Shells",li)
           allocate(pTmpI1(len(li)))
@@ -1744,7 +1743,7 @@ contains
           call append(li1N(iSp1),pTmpI1)
           call append(liN(iSp1),size(pTmpI1))
           deallocate(pTmpI1)
-          deallocate(li)
+          call destruct(li)
 
           call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
               & child=child3)
@@ -1775,6 +1774,8 @@ contains
         call asArray(liN(iSp1),iTmpN)
         ctrl%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
         deallocate(iTmpN)
+        call destruct(lrN(iSp1))
+        call destruct(liN(iSp1))
       end do
       allocate(ctrl%iUJ(maxval(ctrl%niUJ),maxval(ctrl%nUJ),geo%nSpecies))
       ctrl%iUJ = 0
@@ -1785,6 +1786,7 @@ contains
           ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
           deallocate(iTmpN)
         end do
+        call destruct(li1N(iSp1))
       end do
 
       deallocate(li1N)
@@ -2811,6 +2813,9 @@ contains
     call asArray(ls, tmpC1)
     call asVector(li1, ctrl%tempSteps)
     call asVector(lr1, ctrl%tempValues)
+    call destruct(ls)
+    call destruct(li1)
+    call destruct(lr1)
     allocate(ctrl%tempMethods(size(tmpC1)))
     lp2: do ii = 1, size(tmpC1)
       do jj = 1, size(tempMethodNames)
@@ -3029,6 +3034,7 @@ contains
               ctrl%sparsePipekTols = (/0.1_dp,0.01_dp,1.0E-6_dp,1.0E-12_dp/)
               call setChildValue(child2, "Tollerances", ctrl%sparsePipekTols)
             end if
+            call destruct(lr1)
           end if
         end if
       end if

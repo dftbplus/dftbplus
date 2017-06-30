@@ -97,6 +97,7 @@ contains
     end if
     allocate(geo%speciesNames(geo%nSpecies))
     call asArray(stringBuffer, geo%speciesNames)
+    call destruct(stringBuffer)
     call init(intBuffer)
     call init(realBuffer)
     call getChildValue(node, "TypesAndCoordinates", 1, intBuffer, 3, &
@@ -109,6 +110,7 @@ contains
     allocate(geo%coords(3, geo%nAtom))
     allocate(tmpInt(1, geo%nAtom))
     call asArray(intBuffer, tmpInt)
+    call destruct(intBuffer)
     geo%species(:) = tmpInt(1,:)
     deallocate(tmpInt)
     !! Check validity of species
@@ -117,6 +119,7 @@ contains
           &// i2c(geo%nSpecies) // ".")
     end if
     call asArray(realBuffer, geo%coords)
+    call destruct(realBuffer)
     geo%tFracCoord = .false.
     if (len(modifier) > 0) then
       select case(tolower(char(modifier)))
@@ -237,6 +240,7 @@ contains
     end if
     allocate(geo%speciesNames(geo%nSpecies))
     call asArray(speciesNames, geo%speciesNames)
+    call destruct(speciesNames)
 
     !! Read in sequential and species indices.
     allocate(geo%species(geo%nAtom))

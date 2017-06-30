@@ -25,7 +25,7 @@ module linkedList
 
   public :: listReal, listRealR1, listRealR2, listCharMc, listCharLc, listInt, listIntR1
   public :: listString
-  public :: init
+  public :: init, destruct
   public :: append, len, find, hasElement, elemShape, isUnishaped
   public :: get, set, asArray, asVector, intoArray
   public :: charMc, charLc

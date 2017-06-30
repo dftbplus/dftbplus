@@ -2223,4 +2223,15 @@ contains
   end subroutine initProgramVariables
 
 
+
+  subroutine destructProgramVariables()
+    
+    if (tProjEigenvecs) then
+      call destruct(iOrbRegion)
+      call destruct(RegionLabels)
+    end if
+ 
+  end subroutine destructProgramVariables
+
+
 end module initprogram

@@ -946,6 +946,7 @@ contains
     allocate(allKPoints(3, nAllKPoint))
     allocate(allKWeights(nAllKPoint))
     call asArray(lr1, allKPoints)
+    call destruct(lr1)
     allKPoints = modulo(allKPoints, 1.0_dp)
     allKWeights = 1.0_dp / real(nAllKPoint, dp)
 

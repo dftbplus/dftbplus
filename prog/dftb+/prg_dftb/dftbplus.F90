@@ -3054,6 +3054,8 @@ program dftbplus
     call xml_Close(xf)
   end if
 
+  call destructProgramVariables()
+
 contains
 
   ! Invokes the writing routines for the Hamiltonian and overlap matrices.

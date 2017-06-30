@@ -94,7 +94,6 @@ module InitProgram
   type(OGridCache), public :: grid                     ! Grid cache
   real(dp), public :: gridVec(3, 3)                    ! grid vectors
   integer, allocatable :: levelIndex(:,:)              ! List of levels to plot
-  type(ListIntR1) :: indexBuffer                       ! Temporary storage
   real(dp), public :: gridVol                          ! Volume of the grid
 
 contains
@@ -291,6 +290,7 @@ contains
     
     type(fnode), pointer :: subnode, field, value
     type(string) :: buffer, modifier
+    type(ListIntR1) :: indexBuffer
     integer :: curId
     integer :: ind, ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     logical :: tFound
@@ -367,6 +367,7 @@ contains
     end if
     allocate(levelIndex(3, len(indexBuffer)))
     call asArray(indexBuffer, levelIndex)
+    call destruct(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
     if (nCached < 1 .and. nCached /= -1) then
@@ -532,7 +533,7 @@ contains
 
     type(fnode), pointer :: tmpNode, child
     type(fnodeList), pointer :: children
-    type(listReal), allocatable :: bufferExps, bufferCoeffs
+    type(listReal) :: bufferExps, bufferCoeffs
     real(dp), allocatable :: coeffs(:), exps(:)
     integer :: ii
     
@@ -551,14 +552,12 @@ contains
       call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
       call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
       call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
-      allocate(bufferExps)
       call init(bufferExps)
       
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
       if (len(bufferExps) == 0) then
         call detailedError(child, "Missing exponents")
       end if
-      allocate(bufferCoeffs)
       call init(bufferCoeffs)
       call getChildValue(tmpNode, "Coefficients", bufferCoeffs, child=child)
       if (len(bufferCoeffs) == 0) then
@@ -570,10 +569,10 @@ contains
       end if
       allocate(exps(len(bufferExps)))
       call asArray(bufferExps, exps)
-      deallocate(bufferExps)
+      call destruct(bufferExps)
       allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
-      deallocate(bufferCoeffs)
+      call destruct(bufferCoeffs)
       call init(spBasis%stos(ii), &
           &reshape(coeffs, (/ size(coeffs)/size(exps), size(exps) /)), &
           &exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
