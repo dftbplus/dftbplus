@@ -22,7 +22,7 @@ module fifo
   private
 
   public :: OFifoIntR1, OFifoRealR1, OFifoRealR2, OFifoCplxR1, OFifoCplxR2
-  public :: init, reset, get, push, restart
+  public :: init, destruct, reset, get, push, restart
   
 
   type OFifoIntR1
@@ -38,8 +38,6 @@ module fifo
     logical :: tBufferFull              !* Buffer full, open swap file
     integer, allocatable :: buffer(:,:)     !* The buffer itself.
     logical :: tInit = .false.          !* Is the buffer initialised?
-  contains
-    final :: FifoIntR1_destruct
   end type OFifoIntR1
 
   
@@ -81,15 +79,24 @@ module fifo
   end type OFifoCplxR2
 
 
-  !!* Creates a fifo
+  !!* Initialises a fifo
   interface init
     module procedure FifoIntR1_init
     module procedure FifoRealR1_init
     module procedure FifoRealR2_init
     module procedure FifoCplxR1_init
     module procedure FifoCplxR2_init
-  end interface
+  end interface init
 
+  !!* Destructs a fifo
+  interface destruct
+    module procedure FifoIntR1_destruct
+    module procedure FifoRealR1_destruct
+    module procedure FifoRealR2_destruct
+    module procedure FifoCplxR1_destruct
+    module procedure FifoCplxR2_destruct
+  end interface destruct
+  
   !!* Resets the fifo
   interface reset
     module procedure FifoIntR1_reset
@@ -162,6 +169,28 @@ contains
   end subroutine FifoIntR1_init
 
 
+  !!* Destruct FifoIntR1 object.
+  !!* @param sf  FifoIntR1 instance.
+  subroutine FifoIntR1_destruct(sf)
+    type(OFifoIntR1), intent(inout) :: sf
+
+    logical :: tOpened
+
+    if (.not. sf%tInit) then
+      return
+    end if
+
+    if (sf%tBufferFull) then
+      inquire(sf%fileId, opened=tOpened)
+      if (tOpened) then
+        close(sf%fileId)
+      end if
+    end if
+    open(sf%fileId, file=sf%fileName)
+    close(sf%fileId, status="delete")
+    
+  end subroutine FifoIntR1_destruct
+  
 
   !!* Resets FifoIntR1
   !!* @param sf  FifoIntR1 instance.
@@ -215,30 +244,6 @@ contains
     sf%iMode = modeUndefined
     
   end subroutine FifoIntR1_reset
-
-  
-
-  !!* Destroys FifoIntR1 nobject.
-  !!* @param sf  FifoIntR1 instance.
-  subroutine FifoIntR1_destruct(sf)
-    type(OFifoIntR1), intent(inout) :: sf
-
-    logical :: tOpened
-
-    if (.not. sf%tInit) then
-      return
-    end if
-
-    if (sf%tBufferFull) then
-      inquire(sf%fileId, opened=tOpened)
-      if (tOpened) then
-        close(sf%fileId)
-      end if
-    end if
-    open(sf%fileId, file=sf%fileName)
-    close(sf%fileId, status="delete")
-    
-  end subroutine FifoIntR1_destruct
 
   
 
@@ -390,6 +395,15 @@ contains
   end subroutine FifoRealR1_init
 
 
+  !!* Destruct FifoRealR1 object.
+  !!* @param sf  FifoRealR1 instance.
+  subroutine FifoRealR1_destruct(sf)
+    type(OFifoRealR1), intent(inout) :: sf
+
+    call destruct(sf%fifoIntR1)
+    
+  end subroutine FifoRealR1_destruct
+
 
   !!* Resets FifoRealR1
   !!* @param sf  FifoRealR1 instance.
@@ -496,6 +510,15 @@ contains
   end subroutine FifoRealR2_init
 
 
+  !!* Destruct FifoRealR2 object.
+  !!* @param sf  FifoRealR2 instance.
+  subroutine FifoRealR2_destruct(sf)
+    type(OFifoRealR2), intent(inout) :: sf
+
+    call destruct(sf%fifoRealR1)
+    
+  end subroutine FifoRealR2_destruct
+
 
   !!* Resets FifoRealR2
   !!* @param sf  FifoRealR2 instance.
@@ -594,6 +617,15 @@ contains
     
   end subroutine FifoCplxR1_init
 
+
+  !!* Destruct FifoCplxR1 object.
+  !!* @param sf  FifoCplxR1 instance.
+  subroutine FifoCplxR1_destruct(sf)
+    type(OFifoCplxR1), intent(inout) :: sf
+
+    call destruct(sf%fifoIntR1)
+    
+  end subroutine FifoCplxR1_destruct
 
 
   !!* Resets FifoCplxR1
@@ -701,6 +733,15 @@ contains
     
   end subroutine FifoCplxR2_init
 
+
+  !!* Destruct FifoCplxR2 object.
+  !!* @param sf  FifoCplxR2 instance.
+  subroutine FifoCplxR2_destruct(sf)
+    type(OFifoCplxR2), intent(inout) :: sf
+
+    call destruct(sf%fifoCplxR1)
+    
+  end subroutine FifoCplxR2_destruct
 
 
   !!* Resets FifoCplxR2

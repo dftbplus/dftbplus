@@ -2223,11 +2223,19 @@ contains
 
 
   subroutine destructProgramVariables()
+
+    integer :: ii
     
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
+    do ii = 1, size(storeEigvecsReal)
+      call destruct(storeEigvecsReal(ii))
+    end do
+    do ii = 1, size(storeEigvecsCplx)
+      call destruct(storeEigvecsCplx(ii))
+    end do
  
   end subroutine destructProgramVariables
 
