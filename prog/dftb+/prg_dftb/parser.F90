@@ -1229,13 +1229,6 @@ contains
       case ("broyden")
         ctrl%iMixSwitch = 3
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.2_dp)
-        call getChildValue(value, "CachedIterations", ctrl%iGenerations, -1, &
-            &child=child)
-        if (ctrl%iGenerations == -1) then
-          ctrl%iGenerations = ctrl%maxIter
-        elseif (ctrl%iGenerations < 1) then
-          call detailedError(child, "Invalid nr. of cached iterations")
-        end if
         call getChildValue(value, "InverseJacobiWeight", ctrl%broydenOmega0, &
             &0.01_dp)
         call getChildValue(value, "MinimalWeight", ctrl%broydenMinWeight, &

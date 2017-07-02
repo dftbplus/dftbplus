@@ -1254,7 +1254,6 @@ $c$ being a constant coefficient \cite{johnson-PRB-38-12807}.
 The \iscb{Broyden} method can be configured using following properties:
 \begin{ptable}
   \kw{MixingParameter} & r& & 0.2 & \\
-  \kw{CachedIterations} & i & & -1 & \\
   \kw{InverseJacobiWeight} & r & & 0.01 & \\
   \kw{MinimalWeight} & r & & 1.0 & \\
   \kw{MaximalWeight} & r & & 1e5 & \\
@@ -1262,11 +1261,6 @@ The \iscb{Broyden} method can be configured using following properties:
 \end{ptable}
 \begin{description}
 \item[\is{MixingParameter}] Mixing parameter.
-\item[\is{CachedIterations}] Number of charge vectors of previous
-  iterations which should be kept in the memory. Older charge vectors
-  are written to disc. If set to \is{-1}, all charge vectors will be
-  kept in the memory. (You should only change its value if you are
-  really short on memory.)
 \item[\is{InverseJacobiWeight}] Weight for the difference of the
   inverse Jacobians ($\omega_0$).
 \item[\is{MinimalWeight}] Minimal allowed value for the weighting
@@ -1275,6 +1269,12 @@ The \iscb{Broyden} method can be configured using following properties:
 \item[\is{WeightFactor}] Weighting factor $c$ for the calculation of
   the weighting factors $\omega_m$ in \eqref{eq:omega_m}.
 \end{description}
+
+Note: As the Broyden-mixer stores a copy of the mixed quantity for each SCC
+iteration at a given geometry, you may consider to choose a different mixer with
+lower memory requirements, if your system needs density matrix mixing (e.g.\
+DFTB+U), is large and needs a high number of SCC-iterations
+(\is{MaxSCCIteration}).
 
 
 \subsubsection{Anderson\{\}}

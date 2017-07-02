@@ -21,7 +21,6 @@ Hamiltonian = DFTB {
   MaxSCCIterations = 1000
   Mixer = Broyden {
     MixingParameter = 5.000000000000000E-002
-    CachedIterations = 8
   }
   MaxAngularMomentum = {
     H = "s"

@@ -852,10 +852,8 @@ contains
         call init(pChrgMixer, pAndersonMixer)
       case (3)
         allocate(pBroydenMixer)
-        call init(pBroydenMixer, nSCCIter, mixParam, &
-            &input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, &
-            &input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac, &
-            &nGeneration)
+        call init(pBroydenMixer, nSCCIter, mixParam, input%ctrl%broydenOmega0,&
+            & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
       case(4)
         allocate(pDIISMixer)

@@ -18,7 +18,6 @@ module broydenmixer
   use assert
   use accuracy
   use message
-  use fifo
   use blasroutines, only : ger
   use lapackroutines, only : matinv
   implicit none
@@ -40,8 +39,8 @@ module broydenmixer
     real(dp), allocatable :: qDiffLast(:)      !!* Charge difference in last iter.
     real(dp), allocatable :: qInpLast(:)       !!* Input charge in last iteration
     real(dp), allocatable :: aa(:,:)           !!* Storage for the "a" matrix
-    type(OFifoRealR1) :: fifoDF   !!* Fifo for prev. DF vectors
-    type(OFifoRealR1) :: fifoUU   !!* Previous U vectors.
+    real(dp), allocatable :: dF (:,:)          !!* DF vectors
+    real(dp), allocatable :: uu(:,:)           !!* uu vectors
   end type OBroydenMixer
 
 
@@ -69,10 +68,6 @@ module broydenmixer
   public :: init, reset, mix, getInverseJacobian
 
 
-  character(*), parameter :: tmpPrefix1 = "tmp-broyden1."   !* Temp. file name
-  character(*), parameter :: tmpPrefix2 = "tmp-broyden2."   !* Temp. file name
-    
-
 contains
 
   !!* Creates a Broyden mixer instance.
@@ -83,14 +78,13 @@ contains
   !!* @param minWeight Minimal weigth allowed
   !!* @param maxWeight Maximal weigth allowed
   !!* @param weightFac Nominator of the weight
-  !!* @param nKeep     Nr. of generations to keep in memory (instead on disc)
   !!* @desc
   !!*   The weigth associated with an iteration is calculated as weigthFac/ww
   !!*   where ww is the Euclidian norm of the charge difference vector. If
   !!*   the calculated weigth is outside of the [minWeight,maxWeight] region
   !!*   it is replaced with the appropriate boundary value.
   subroutine BroydenMixer_init(self, mIter, mixParam, omega0, minWeight, &
-      &maxWeight, weightFac, nKeep)
+      &maxWeight, weightFac)
     type(OBroydenMixer), intent(out) :: self
     integer, intent(in) :: mIter
     real(dp), intent(in) :: mixParam
@@ -98,12 +92,10 @@ contains
     real(dp), intent(in) :: minWeight
     real(dp), intent(in) :: maxWeight
     real(dp), intent(in) :: weightFac
-    integer, intent(in) :: nKeep
     
     @:ASSERT(mIter > 0)
     @:ASSERT(mixParam > 0.0_dp)
     @:ASSERT(omega0 > 0.0_dp)
-    @:ASSERT(nKeep >= 0)
 
     self%nElem = 0
     self%mIter = mIter
@@ -112,13 +104,12 @@ contains
     self%minWeight = minWeight
     self%maxWeight = maxWeight
     self%weightFac = weightFac
-    call init(self%fifoDF, nKeep, tmpPrefix1)
-    call init(self%fifoUU, nKeep, tmpPrefix2)
-
     allocate(self%ww(mIter-1))
     allocate(self%qInpLast(self%nElem))
     allocate(self%qDiffLast(self%nElem))
     allocate(self%aa(mIter-1, mIter-1))
+    allocate(self%dF(self%nElem, mIter - 1))
+    allocate(self%uu(self%nElem, mIter - 1))
 
   end subroutine BroydenMixer_init
 
@@ -139,12 +130,14 @@ contains
       deallocate(self%qDiffLast)
       allocate(self%qInpLast(self%nElem))
       allocate(self%qDiffLast(self%nElem))
+      deallocate(self%dF)
+      allocate(self%dF(self%nElem, self%mIter - 1))
+      deallocate(self%uu)
+      allocate(self%uu(self%nElem, self%mIter - 1))
     end if
     self%iIter = 0
     self%ww(:) = 0.0_dp
     self%aa(:,:) = 0.0_dp
-    call reset(self%fifoDF, nElem)
-    call reset(self%fifoUU, nElem)
 
   end subroutine BroydenMixer_reset
 
@@ -166,7 +159,7 @@ contains
     call modifiedBroydenMixing(qInpResult, self%qInpLast, self%qDiffLast, &
         &self%aa, self%ww, self%iIter, qDiff, self%alpha, self%omega0, &
         &self%minWeight, self%maxWeight, self%weightFac, self%nElem, &
-        &self%fifoDF, self%fifoUU)
+        &self%dF, self%uu)
 
   end subroutine BroydenMixer_mix
 
@@ -183,11 +176,11 @@ contains
   !!* @param alpha      Mixing parameter
   !!* @param omega0     Parameter omega0.
   !!* @param nElem      Nr. of elements in the vectors
-  !!* @param fifoDF     Rank one real FIFO instance containing prev. DFs
-  !!* @param fifoUU     Rank one real FIFO instance containing prev. U vectors
+  !!* @param dF     Prev. DFs.
+  !!* @param uu     Prev. U vectors
   subroutine modifiedBroydenMixing(qInpResult, qInpLast, qDiffLast, aa, ww, &
       &nn, qDiff, alpha, omega0, minWeight, maxWeight, weightFac, nElem, &
-      &fifoDF, fifoUU)
+      &dF, uu)
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(inout) :: qInpLast(:)
     real(dp), intent(inout) :: qDiffLast(:)
@@ -201,12 +194,11 @@ contains
     real(dp), intent(in) :: maxWeight
     real(dp), intent(in) :: weightFac
     integer, intent(in) :: nElem
-    type(OFifoRealR1), intent(inout) :: fifoDF
-    type(OFifoRealR1), intent(inout) :: fifoUU
+    real(dp), intent(inout) :: dF(:,:)
+    real(dp), intent(inout) :: uu(:,:)
 
     real(dp), allocatable :: beta(:,:), cc(:,:), gamma(:,:)
     real(dp), allocatable :: dF_uu(:)      !! Current DF or U-vector
-    real(dp), allocatable :: buffer(:)     !! One of the prev. DF or U -s
     real(dp) :: invNorm
     integer :: nn_1
     integer :: ii
@@ -233,7 +225,6 @@ contains
     allocate(cc(1, nn_1))
     allocate(gamma(1, nn_1))
     allocate(dF_uu(nElem))
-    allocate(buffer(nElem))
 
     !! Create weight factor omega for current iteration
     ww(nn_1) = sqrt(dot_product(qDiff, qDiff))
@@ -256,10 +247,9 @@ contains
 
     !! Build a, beta, c, and gamma
     do ii = 1, nn - 2
-      call get(fifoDF, buffer)
-      aa(ii, nn_1) = dot_product(buffer, dF_uu)
+      aa(ii, nn_1) = dot_product(dF(:,ii), dF_uu)
       aa(nn_1, ii) = aa(ii, nn_1)
-      cc(1, ii) = ww(ii) * dot_product(buffer, qDiff)
+      cc(1, ii) = ww(ii) * dot_product(dF(:,ii), qDiff)
     end do
     aa(nn_1, nn_1) = 1.0_dp
     cc(1, nn_1) = ww(nn_1) * dot_product(dF_uu, qDiff)
@@ -273,7 +263,7 @@ contains
     gamma = matmul(cc, beta)
 
     !! Store |dF(m-1)>
-    call push(fifoDF, dF_uu)
+    dF(:, nn_1) = dF_uu
 
     !! Create |u(m-1)>
     dF_uu(:) = alpha * dF_uu(:) + invNorm * (qInpResult(:) - qInpLast(:))
@@ -285,13 +275,12 @@ contains
     !! Build new vector
     qInpResult(:) = qInpResult + alpha * qDiff(:)
     do ii = 1, nn-2
-      call get(fifoUU, buffer)
-      qInpResult(:) = qInpResult(:) - ww(ii) * gamma(1,ii) * buffer(:)
+      qInpResult(:) = qInpResult - ww(ii) * gamma(1,ii) * uu(:,ii)
     end do
-    qInpResult(:) = qInpResult(:) - ww(nn_1) * gamma(1,nn_1) * dF_uu(:)
+    qInpResult(:) = qInpResult - ww(nn_1) * gamma(1,nn_1) * dF_uu
 
     !! Save |u(m-1)>
-    call push(fifoUU, dF_uu)
+    uu(:, nn_1) = dF_uu
 
   end subroutine modifiedBroydenMixing
 
@@ -302,15 +291,13 @@ contains
     real(dp), intent(out) :: invJac(:,:)
 
     integer :: ii, jj, kk, mm, nn
-    real(dp), allocatable :: beta(:,:), zeta(:), dF(:), uu(:)
+    real(dp), allocatable :: beta(:,:), zeta(:)
 
     @:ASSERT(all(shape(invJac) == [ self%nElem, self%nElem ]))
 
     mm = self%iIter - 1
     allocate(beta(mm, mm))
     allocate(zeta(self%nElem))
-    allocate(dF(self%nElem))
-    allocate(uu(self%nElem))
 
     ! Calculating G according to eq (14) in Johnsons paper.
     ! NOTE: The equation in the paper is incorrect, as instead of beta_ij
@@ -334,16 +321,12 @@ contains
     end do
 
     ! ... + sum_{k=1}^m |Z_k> <dF^(k)| with |Z_k> = sum_{n}^m beta_{kn} |u(n)>
-    call restart(self%fifoDF)
     do kk = 1, mm
-      call get(self%fifoDF, dF)
       zeta(:) = 0.0_dp
-      call restart(self%fifoUU)
       do nn = 1, mm
-        call get(self%fifoUU, uu)
-        zeta(:) = zeta + beta(kk, nn) * uu
+        zeta(:) = zeta + beta(kk, nn) * self%uu(:, nn)
       end do
-      call ger(invJac, 1.0_dp, zeta, dF)
+      call ger(invJac, 1.0_dp, zeta, self%dF(:,kk))
     end do
 
     ! Normalize inverse Jacobian
