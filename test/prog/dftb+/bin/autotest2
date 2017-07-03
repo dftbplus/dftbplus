@@ -74,6 +74,8 @@ Usage: ${SCRIPTNAME} [options] [test1 test2 .. ]
 Options (default value in paranthesis):
     -r templateroot	path to root of test template directories (SCRIPTDIR/..)
     -w workdir		workdir to run the tests (./)
+    -P prerun           command to use before executing binary
+    -Q postrun          command on line after binary
     -p program		application program generating tagged output
     -d tagdiff		path to the tagdiff program (SCRIPTDIR/tagdiff)
     -f testspec		file containing test names -- cumulative
@@ -147,6 +149,8 @@ do
 	-r)	templateroot=$2; shift 2 ;;
 	-w)	workroot=$2; shift 2 ;;
 
+        -P)     app_prerun=$2; shift 2;;
+        -Q)     app_postrun=$2; shift 2;;
 	-p)	app_cmd=$2; shift 2 ;;
         -d)	tagdiff_cmd=$2; shift 2 ;;
 
@@ -328,7 +332,7 @@ do
 	    ./prerun.sh >> $APP_STDOUT 2>> $APP_STDERR
 	fi
 	test -n "$verbose" && echo_n " running .."
-	$TIME_CMD $app_cmd  >> $APP_STDOUT 2>> $APP_STDERR
+	$TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
 	if [ -e ./postrun.sh ]; then
 	    ./postrun.sh >> $APP_STDOUT 2>> $APP_STDERR
 	fi
