@@ -153,7 +153,7 @@ contains
       return
     end if
 
-    call readSplineRep(file, fileName, repSplineIn)
+    call readSplineRep(file, fileName, repSplineIn, iSp1, iSp2)
     close(file)
 
   end subroutine OldSKData_readFromFile

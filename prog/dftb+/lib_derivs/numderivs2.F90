@@ -100,7 +100,7 @@ contains
   subroutine derivs_next(self,xNew,fOld,tGeomEnd)
     type(OnumDerivs), intent(inout) :: self
     real(dp), intent(out)     :: xNew(:,:)
-    real(dp), intent(in)      :: fOld(:,:)	
+    real(dp), intent(in)      :: fOld(:,:)
     logical, intent(out)      :: tGeomEnd
     
     integer :: ii, jj
