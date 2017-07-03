@@ -35,7 +35,7 @@ module mdintegrator
   interface next
     module procedure MDIntegrator_next
   end interface
-  
+
   interface rescale
     module procedure MDIntegrator_rescale
   end interface
@@ -43,10 +43,10 @@ module mdintegrator
   interface state
     module procedure MDIntegrator_state
   end interface
-  
+
   !! Type of the integrator
   integer, parameter :: velocityVerlet_ = 1
-  
+
 contains
 
   !!* Create integrator wrapper for velocity Verlet.
@@ -58,9 +58,9 @@ contains
 
     self%integrator = velocityVerlet_
     call move_alloc(pIntegrator, self%pVelocityVerlet)
-    
+
   end subroutine MDIntegrator_init_VVerlet
-  
+
 
   !!* Delivers the next velocities
   !!* @param self Integrator wrapper instance on exit.
@@ -77,18 +77,18 @@ contains
     case (velocityVerlet_)
       call next(self%pVelocityVerlet, accel, newCoord, newVelocity)
     end select
-    
+
   end subroutine MDIntegrator_next
-  
+
 
   subroutine MDIntegrator_rescale(self,coord,latVecs,stress)
     type(OMDIntegrator), intent(inout) :: self
     real(dp),intent(inout)       :: coord(:,:)
     real(dp),intent(inout)       :: latVecs(3,3)
     real(dp),intent(in)          :: stress(3,3)
-    
+
     call rescale(self%pVelocityVerlet,coord,latVecs,stress)
-    
+
   end subroutine MDIntegrator_rescale
 
 
@@ -96,9 +96,9 @@ contains
   subroutine MDIntegrator_state(self,fd)
     type(OMDIntegrator), intent(in) :: self
     integer,intent(in)           :: fd
-    
+
     call state(self%pVelocityVerlet,fd)
-    
+
   end subroutine MDIntegrator_state
-  
+
 end module mdintegrator

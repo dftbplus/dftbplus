@@ -21,7 +21,7 @@ module oldskdata
   private
 
   public :: TOldSKData, readFromFile, readSplineRep
-  
+
   !!* Represents the Slater-Koster data in an SK file.
   type TOldSKData
     real(dp) :: dist                          !* Grid separation
@@ -61,7 +61,7 @@ contains
   !!* @param fileName Name of the file to read the data from
   !!* @param homo Is it a homonuclear SK-file?
   !!* @param iSp1 Index of 1st interacting species (for error messages only)
-  !!* @param iSp1 Index of 2nd interacting species (for error messages only)  
+  !!* @param iSp1 Index of 2nd interacting species (for error messages only)
   !!* @param repSplineIn Repulsive spline part of the SK-file.
   !!* @param repPolyIn Repulsive polynomial part of the SK-file.
   subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, &
@@ -91,7 +91,7 @@ contains
     open(file, file=fileName, status="old", action="read", iostat=iostat)
     call checkIoError(iostat, fileName, "Unable to open file")
     rewind(file)
-    
+
     read (file, '(A1)', iostat=iostat) chDummy
     call checkIoError(iostat, fileName, "Unable to read 1st line")
     if (chDummy == '@') then
@@ -188,7 +188,7 @@ contains
         exit
       end if
     end do
-    
+
     if (.not. hasspline) then
       write(chdummy, "(A,A,A)") "No spline repulsive found in file '",&
           & trim(fname), "'"
@@ -227,7 +227,7 @@ contains
 
   end subroutine OldSKData_readsplinerep
 
-  
+
   !> Checks for IO errors and prints message.
   !! \param iostat  Flag of the IO operation.
   !! \param fname  Name of the file.
@@ -235,11 +235,11 @@ contains
   subroutine checkIOError(iostat, fname, msg)
     integer, intent(in) :: iostat
     character(*), intent(in) :: fname, msg
-    
+
     if (iostat /= 0) then
       call error("IO error in file '" // trim(fname) // "': " // trim(msg))
     end if
-    
+
   end subroutine checkIOError
 
 

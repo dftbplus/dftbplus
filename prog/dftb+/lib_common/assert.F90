@@ -16,22 +16,22 @@ module assert
   public :: assertError
 #:endcall ASSERT_CODE
 
-contains  
+contains
 
 #:call ASSERT_CODE
-  
+
   !!* Prints assertion error and abort program execution.
   !!* @param fileName Name of the file in which the error occured.
   !!* @param lineNr   Nr. of the line at which the error occured.
   subroutine assertError(fileName, lineNr)
     character(*), intent(in) :: fileName
     integer,      intent(in) :: lineNr
-    
+
     write (*, '(A)') "!!! UNFULLFILLED ASSERTION"
     write (*, '(A,A)') "!!! FILE:      ", fileName
     write (*, '(A,I0)') "!!! LINE NR.:  ", lineNr
     stop
-    
+
   end subroutine assertError
 
 #:endcall ASSERT_CODE

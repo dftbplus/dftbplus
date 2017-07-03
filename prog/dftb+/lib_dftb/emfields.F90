@@ -77,7 +77,7 @@ contains
 !  end subroutine MagField
 
 
-  !!* Constructs shift potential for scalar potential part of megnetic field 
+  !!* Constructs shift potential for scalar potential part of megnetic field
   !!* @param shift block shift from the potential
   !!* @param iShift imaginary block shift from the potential
   !!* @param BFieldStrength magnetic field strength - atomi CGS units
@@ -91,17 +91,17 @@ contains
     real(dp), intent(in)        :: BfieldVector(3)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in)         :: species(:)
-    
+
     integer :: iAt, nAtom, iSpin, nSpin, iSp, iSh, iOrb, nSpecies
     integer :: ii, jj, kk, ll, mm, iStart, iEnd
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
     real(dp), allocatable :: SpeciesL(:,:,:,:)
-    
+
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
     nSpecies = maxval(species(1:nAtom))
-    
+
     ! spin Zeeman part
     select case(nSpin)
     case(2) ! z aligned electron spins
@@ -129,7 +129,7 @@ contains
     end select
 
     ! Orbital Zeeman part
-    
+
     allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
     allocate(Lz(orb%mOrb,orb%mOrb))
@@ -154,7 +154,7 @@ contains
 
     do ii = 1, nAtom
       iSp = species(ii)
-      mm = orb%nOrbSpecies(iSp)      
+      mm = orb%nOrbSpecies(iSp)
       do jj = 1, orb%nShell(iSp)
         iStart = orb%posShell(jj,iSp)
         iEnd = orb%posShell(jj+1,iSp)-1
@@ -166,7 +166,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine shiftB_
-  
+
 end module emfields

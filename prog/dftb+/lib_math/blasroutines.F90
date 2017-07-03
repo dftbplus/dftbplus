@@ -16,7 +16,7 @@ module blasroutines
   use blas
   implicit none
 
-  !!* Rank 1 update of a matrix A := alpha*x*x' + A	!'
+  !!* Rank 1 update of a matrix A := alpha*x*x' + A     !'
   !!* @param a contains the matrix for the update
   !!* @param alpha scaling value for the update contribution
   !!* @param x vector of values for the update
@@ -31,7 +31,7 @@ module blasroutines
     module procedure her_dblecmplx
   end interface her
 
-  !!* Rank 1 update of a matrix A := alpha*x*y' + A	!'
+  !!* Rank 1 update of a matrix A := alpha*x*y' + A     !'
   !!* @param a contains the matrix for the update
   !!* @param alpha scaling value for the update contribution
   !!* @param x vector of values for the update
@@ -46,7 +46,7 @@ module blasroutines
     module procedure ger_dblecmplx
   end interface ger
 
-  !!* Rank k update of a matrix C := alpha*A*A' + beta C	!'
+  !!* Rank k update of a matrix C := alpha*A*A' + beta C     !'
   !!* @param C contains the matrix to be updated
   !!* @param A contains the matrix to update
   !!* @param alpha scaling value for the update contribution, defaults to 1
@@ -131,7 +131,7 @@ module blasroutines
      module procedure symm_real
      module procedure symm_dble
   end interface symm
-  
+
   !!* Interface to HEMM routines
   !!* @param C general matrix output
   !!* @param side symmetric matrix on 'l'eft or 'r'ight , where A is symmetric
@@ -150,7 +150,7 @@ module blasroutines
      module procedure hemm_cmplx
      module procedure hemm_dblecmplx
   end interface
-  
+
   !!* Interface to GEMM routines
   !!* evaluates C := alpha*op( A )*op( B ) + beta*C,
   !!* where  op( X ) is one of op( X ) = X   or   op( X ) = X'
@@ -358,7 +358,7 @@ contains
     @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call ssymv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
-    
+
   end subroutine symv_real
 
   !!* real symmetric matrix*vector product
@@ -396,7 +396,7 @@ contains
     @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call dsymv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
-    
+
   end subroutine symv_dble
 
   !!* complex hermitian matrix*vector product
@@ -434,7 +434,7 @@ contains
     @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call chemv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
-    
+
   end subroutine hemv_cmplx
 
   !!* double complex hermitian matrix*vector product
@@ -472,9 +472,9 @@ contains
     @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
     n = size(y)
     call zhemv( iUplo, n, iAlpha, a, n, x, 1, iBeta, y, 1 )
-    
+
   end subroutine hemv_dblecmplx
-  
+
   !!* real matrix*vector product
   subroutine gemv_real(y,a,x,alpha,beta,trans)
     real(rsp), intent(inout)           :: y(:)
@@ -770,7 +770,7 @@ contains
     call dsymm ( side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 
   end subroutine symm_dble
-  
+
   !!* real matrix*matrix product
   subroutine gemm_real(C,A,B,alpha,beta,transA,transB,n,m,k)
     real(rsp), intent(inout)           :: C(:,:)
@@ -1494,7 +1494,7 @@ contains
 
   end subroutine hemm_cmplx
 
-  
+
   !!* double precision hermitian matrix * general matrix multiply
   subroutine hemm_dblecmplx(C, side, A, B, uplo, alpha, beta, m, n)
     complex(rdp), intent(inout) :: C(:,:)

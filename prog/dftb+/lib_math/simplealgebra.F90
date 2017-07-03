@@ -51,7 +51,7 @@ contains
         &* (matrix(2, 1) * matrix(3, 3) - matrix(3, 1) * matrix(2, 3))
     tmp = tmp + matrix(1, 3) &
         &* (matrix(2, 1) * matrix(3, 2) - matrix(3, 1) * matrix(2, 2))
-    
+
 !    determinant33 = abs(tmp) -- should be a signed determinant
     determinant33 = tmp
 
@@ -63,7 +63,7 @@ contains
   subroutine  derivDeterminant33(deriv,matrix)
     real(dp), intent(out) :: deriv(3, 3)
     real(dp), intent(in)  :: matrix(3, 3)
-    
+
     deriv(1,1) = matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3)
     deriv(1,2) = matrix(2, 3) * matrix(3, 1) - matrix(3, 3) * matrix(2, 1)
     deriv(1,3) = matrix(2, 1) * matrix(3, 2) - matrix(3, 1) * matrix(2, 2)
@@ -73,10 +73,10 @@ contains
     deriv(3,1) = matrix(1, 2) * matrix(2, 3) - matrix(1, 3) * matrix(2, 2)
     deriv(3,2) = matrix(1, 3) * matrix(2, 1) - matrix(1, 1) * matrix(2, 3)
     deriv(3,3) = matrix(1, 1) * matrix(2, 2) - matrix(1, 2) * matrix(2, 1)
-    
+
 !    deriv = abs(deriv)
     deriv = deriv * sign(1.0_dp,determinant33(matrix))
-    
+
   end subroutine derivDeterminant33
 
 

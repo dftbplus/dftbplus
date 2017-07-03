@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains code to perform the sk rotations of matrix elements from the 
+!!* Contains code to perform the sk rotations of matrix elements from the
 !!* parameterization orientation along $\langle 0,0,1 \rangle$ to the one
 !!* needed in the calculation.
 !!* @todo Proper documentation
@@ -33,7 +33,7 @@ module sk
 contains
 
 
-  !!* Driver for making the non-SCC hhamiltonian or overlap matrices 
+  !!* Driver for making the non-SCC hhamiltonian or overlap matrices
   !!* for a given diatomic block
   !!* @param hh the rectangular matrix containing the resulting diatomic
   !!* matrix elements
@@ -44,15 +44,15 @@ contains
   !!* @param iSp1 Chemical species of atom i
   !!* @param iSp2 chemical species of atom j
   !!* @param orb Information about the orbitals of chemical species in the
-  !!* system.  
-  !!* @caveat Only angular momenta up to $f$ are currently allowed 
+  !!* system.
+  !!* @caveat Only angular momenta up to $f$ are currently allowed
   subroutine rotateH0(hh, skIntegs, ll, mm, nn, iSp1, iSp2, orb)
     real(dp), intent(out) :: hh(:,:)
     real(dp), intent(in), target :: skIntegs(:)
     real(dp), intent(in) :: ll, mm, nn
     integer, intent(in) :: iSp1, iSp2
     type(TOrbitals), intent(in) :: orb
-    
+
     integer :: iCol, iRow, ind, iSh1, iSh2
     integer :: ang1, ang2, nOrb1, nOrb2
     real(dp), pointer :: pSK(:)
@@ -651,7 +651,7 @@ contains
     @:ASSERT(size(sk) == 4)
     @:ASSERT(all(shape(hh) >= (/ 7, 7 /)))
 
-    
+
     hh(1,1) = - 5.0_dp/ 8.0_dp*(-1.0_dp+nn**2+ll**2)*((4.0_dp*ll**2-1.0_dp&
         &+nn**2)**2)*sk(1)+(15.0_dp/16.0_dp*(nn**6)- 15.0_dp&
         &/8.0_dp*(nn**4)+135.0_dp/ 16.0_dp*(nn**4)*(ll**2)-135.0_dp/8.0_dp&

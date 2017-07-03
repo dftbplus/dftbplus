@@ -38,7 +38,7 @@ program splvalue
         & "are given in atomic units with Hartree as energy unit."
     stop
   end if
-  
+
   fp = getfileid()
   open(fp, file=arg, action="read", status="old", iostat=iostat)
   if (iostat /= 0) then
@@ -46,7 +46,7 @@ program splvalue
   end if
   call readsplinerep(fp, fname, repsplinein)
   close(fp)
-  
+
   call init(prepspline, repsplinein)
   npoint = floor((repsplinein%cutoff - rstart) / dr) + 1
   rr(:) = 0.0_dp

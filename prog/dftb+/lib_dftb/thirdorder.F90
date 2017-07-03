@@ -102,7 +102,7 @@ contains
       this%UU = inp%hubbUs(1:1, :)
       this%dUdQ = inp%hubbUDerivs(1:1, :)
     end if
-    
+
     allocate(this%cutoffs(this%nSpecies, this%nSpecies))
     call calcCutoffs(this%UU, this%nShells, this%cutoffs)
     this%maxCutoff = maxval(this%cutoffs)

@@ -40,7 +40,7 @@ module conjgrad
     module procedure ConjGrad_init
   end interface
 
-  !!* Resets CG 
+  !!* Resets CG
   interface reset
     module procedure ConjGrad_reset
   end interface
@@ -66,10 +66,10 @@ module conjgrad
     module procedure ConjGrad_getMinGrad
   end interface
 
-  
+
   public :: OConjGrad
   public :: init, reset, next, getMinX, getMinY, getMinGrad
-  
+
   integer, parameter  :: st_1 = 1, st_2 = 2
 
 contains
@@ -88,7 +88,7 @@ contains
     @:ASSERT(nElem > 0)
     @:ASSERT(tol > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
-    
+
     self%nElem = nElem
     self%tolerance = tol
     self%maxDisp = maxDisp
@@ -117,7 +117,7 @@ contains
     self%state = st_1
     self%tConverged = .false.
     self%tInitialized = .true.
-    
+
   end subroutine ConjGrad_reset
 
 
@@ -149,8 +149,8 @@ contains
     xNew(:) = self%uu(:)
     tConverged = self%tConverged
   end subroutine ConjGrad_next
-  
-  
+
+
 
   !!* Working horse for the CG minimizer
   !!* @param fu Function value in the last point
@@ -169,13 +169,13 @@ contains
     type(OLineMin), intent(inout) :: pLinMin
     real(dp), intent(in) :: fu
     real(dp), intent(in) :: du(:)
-    
+
     real(dp) :: ggAbs, dgAbs, rTmp
     logical :: tConvLine
     real(dp), allocatable  :: xi(:)
 
     if (state == st_1) then
-      !! If first gradient converged: Reuse internal variables to store results 
+      !! If first gradient converged: Reuse internal variables to store results
       if (maxval(abs(du)) < tolerance) then
         tConverged = .true.
         gg(:) = du(:)
@@ -238,7 +238,7 @@ contains
     @:ASSERT(self%tInitialized .and. self%tConverged)
     @:ASSERT(size(minX) == self%nElem)
     call getMinX(self%pLinMin, minX)
-    
+
   end subroutine ConjGrad_getMinX
 
 
@@ -251,10 +251,10 @@ contains
   subroutine ConjGrad_getMinY(self, minY)
     type(OConjGrad), intent(in) :: self
     real(dp), intent(out) :: minY
-    
+
     @:ASSERT(self%tInitialized .and. self%tConverged)
     call getMinY(self%pLinMin, minY)
-    
+
   end subroutine ConjGrad_getMinY
 
 
@@ -273,6 +273,6 @@ contains
     call getMinGrad(self%pLinMin, minGrad)
 
   end subroutine ConjGrad_getMinGrad
-  
+
 
 end module conjgrad

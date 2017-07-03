@@ -31,7 +31,7 @@ module MolecularOrbital
     real(dp), allocatable :: occupations(:)  !* Occupation for each orb.
   end type TSpeciesBasis
 
-  
+
 
   !!* Data type containing information for molecular orbital calculator
   type OMolecularOrbital
@@ -66,7 +66,7 @@ module MolecularOrbital
 
   public :: TSpeciesBasis
   public :: OMolecularOrbital, init, getValue
-  
+
 contains
 
   !!* Initialises MolecularOrbital instance.
@@ -85,7 +85,7 @@ contains
 
     @:ASSERT(.not. self%tInitialised)
     @:ASSERT(geometry%nSpecies == size(basis))
-        
+
     self%nAtom = geometry%nAtom
     self%nSpecies = geometry%nSpecies
     allocate(self%species(self%nAtom))
@@ -152,12 +152,12 @@ contains
         end do
       end do
     end if
-    
+
     self%tInitialised = .true.
-    
+
   end subroutine MolecularOrbital_init
-  
-  
+
+
 
   !!* Returns molecular orbitals on a grid
   !!* @param self         MolecularOrbital instance
@@ -177,7 +177,7 @@ contains
 
     real(dp), save :: kPoints(3,0)
     integer, save :: kIndexes(0)
-    complex(dp), save :: valueCmpl(0,0,0,0) 
+    complex(dp), save :: valueCmpl(0,0,0,0)
     complex(dp), save :: eigVecsCmpl(0,0)
     logical :: tAddDensities
 
@@ -199,7 +199,7 @@ contains
         &self%iStos, self%angMoms, self%stos, self%tPeriodic, .true., &
         &self%latVecs, self%recVecs2p, kPoints, kIndexes, self%nCell, &
         &self%cellVec, tAddDensities, value, valueCmpl)
-    
+
   end subroutine MolecularOrbital_getValue_real
 
 
@@ -221,7 +221,7 @@ contains
     real(dp), intent(in) :: kPoints(:,:)
     integer, intent(in) :: kIndexes(:)
     complex(dp), intent(out) :: value(:,:,:,:)
-    
+
     real(dp), save :: valueReal(0,0,0,0)
     real(dp), save :: eigVecsReal(0,0)
     logical, save :: tAddDensities = .false.
@@ -243,7 +243,7 @@ contains
         &self%iStos, self%angMoms, self%stos, self%tPeriodic, .false., &
         &self%latVecs, self%recVecs2p, kPoints, kIndexes, self%nCell, &
         &self%cellVec, tAddDensities, valueReal, value)
-    
+
   end subroutine MolecularOrbital_getValue_cmpl
 
 
@@ -287,7 +287,7 @@ contains
     real(dp), intent(in) :: coords(:,:,:)
     integer, intent(in) :: species(:)
     real(dp), intent(in) :: cutoffs(:)
-    integer, intent(in) :: iStos(:)    
+    integer, intent(in) :: iStos(:)
     integer, intent(in) :: angMoms(:)
     type(OSlaterOrbital), intent(in) :: stos(:)
     logical, intent(in) :: tPeriodic
@@ -327,7 +327,7 @@ contains
 
     !! Phase factors for the periodic image cell
     !! Note: This will be conjugated in the scalar product below. This is fine
-    !! as in contrast to what have been published, DFTB+ uses implicitely 
+    !! as in contrast to what have been published, DFTB+ uses implicitely
     !! exp(-ikr) as phase factor, as the unpack routines assemble the lower
     !! triangular matrix with exp(ikr) as factor.
     phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(cellVec), kPoints))
@@ -423,8 +423,8 @@ contains
         end do lpI1
       end do lpI2
     end do lpI3
-    
+
   end subroutine local_getValue
-  
+
 
 end module MolecularOrbital

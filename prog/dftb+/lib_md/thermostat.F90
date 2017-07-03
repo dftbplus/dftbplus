@@ -42,11 +42,11 @@ module thermostat
   interface updateVelocities
     module procedure Thermostat_updateVelocities
   end interface
-  
+
   interface state
     module procedure Thermostat_state
   end interface
-  
+
   !! Thermostat types
   integer, parameter :: dummy_ = 0
   integer, parameter :: andersen_ = 1
@@ -65,10 +65,10 @@ contains
 
     self%thermostat = dummy_
     call move_alloc(pThermostat, self%pDummy)
-    
+
   end subroutine Thermostat_init_Dummy
-  
-  
+
+
   !!* Creates a thermostat wrapper for an AndersenThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a AndersenThermostat.
@@ -78,9 +78,9 @@ contains
 
     self%thermostat = andersen_
     call move_alloc(pThermostat, self%pAndersen)
-    
+
   end subroutine Thermostat_init_Andersen
-    
+
 
   !!* Creates a thermostat wrapper for a BerendsenThermostat.
   !!* @param self Wrapper instance on exit.
@@ -91,9 +91,9 @@ contains
 
     self%thermostat = berendsen_
     call move_alloc(pThermostat, self%pBerendsen)
-    
+
   end subroutine Thermostat_init_Berendsen
-  
+
 
   !!* Creates a thermostat wrapper for a NHCThermostat.
   !!* @param self Wrapper instance on exit.
@@ -104,10 +104,10 @@ contains
 
     self%thermostat = nhc_
     call move_alloc(pThermostat, self%pNHC)
-    
+
   end subroutine Thermostat_init_NHC
-  
-  
+
+
   !!* Returns the initial velocities
   !!* @param self Wrapper instance.
   !!* @param velocities Velocities on exit.
@@ -121,9 +121,9 @@ contains
     case(andersen_)
       call getInitVelocities(self%pAndersen, velocities)
     case(berendsen_)
-      call getInitVelocities(self%pBerendsen, velocities)  
+      call getInitVelocities(self%pBerendsen, velocities)
     case(nhc_)
-      call getInitVelocities(self%pNHC, velocities)  
+      call getInitVelocities(self%pNHC, velocities)
     end select
 
   end subroutine Thermostat_getInitVelocities
@@ -171,5 +171,5 @@ contains
   end subroutine Thermostat_state
 
 
-  
+
 end module thermostat

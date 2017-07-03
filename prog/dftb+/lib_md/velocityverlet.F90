@@ -54,7 +54,7 @@ module velocityverlet
   interface state
     module procedure VelocityVerlet_state
   end interface
-  
+
 contains
 
   !!* Creates a VelocityVerlet object from the thermostat settings
@@ -66,14 +66,14 @@ contains
     type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), allocatable, intent(inout) :: pThermostat    
-    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat
+
     @:ASSERT(size(positions, dim=1) == 3)
-    
+
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
     allocate(self%positions(3, self%nAtom))
-    
+
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
     call move_alloc(pThermostat, self%pThermostat)
@@ -83,7 +83,7 @@ contains
     self%vHalfPresent = .false. ! no we dont have the t-.5 velocities
 
     self%tBarostat = .false.
-    
+
   end subroutine VelocityVerlet_themostats
 
 
@@ -100,29 +100,29 @@ contains
     type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), allocatable, intent(inout) :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat
     real(dp), intent(in)                 :: velocities(:,:)
-    
+
     @:ASSERT(size(positions, dim=1) == 3)
-    
+
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
     allocate(self%positions(3, self%nAtom))
-    
+
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
     call move_alloc(pThermostat, self%pThermostat)
-    
+
     self%velocities(:,:) = velocities(:,:)
 
     self%vHalfPresent = .false. ! assumes the V read in corresponds to the
     ! current coordinates, so we should reconstruct the t+.5 velocities when
     ! possible once forces are available for the coordinates
-    
+
     self%tBarostat = .false.
-    
+
   end subroutine VelocityVerlet_velocities
-  
+
   !!* Creates a VelocityVerlet object from the thermostat settings and
   !!* isotropic pressure
   !!* @param self Pointer to the initialised object on exit.
@@ -138,19 +138,19 @@ contains
     type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), allocatable, intent(inout) :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat
     real(dp), intent(in)                 :: Barostat
     real(dp), intent(in)                 :: Pressure
     logical, intent(in)                  :: tIsotropic
-    
+
     integer :: ii
-    
+
     @:ASSERT(size(positions, dim=1) == 3)
-    
+
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
     allocate(self%positions(3, self%nAtom))
-    
+
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
     call move_alloc(pThermostat, self%pThermostat)
@@ -165,9 +165,9 @@ contains
     do ii = 1, 3
       self%Pressure(ii,ii) = pressure
     end do
-    
+
     self%tIsotropic = tIsotropic
-    
+
   end subroutine VV_themostats_pressure
 
 
@@ -188,24 +188,24 @@ contains
     type(OVelocityVerlet), intent(out) :: self
     real(dp), intent(in)                 :: deltaT
     real(dp), intent(in)                 :: positions(:,:)
-    type(OThermostat), allocatable, intent(inout) :: pThermostat    
+    type(OThermostat), allocatable, intent(inout) :: pThermostat
     real(dp), intent(in)                 :: velocities(:,:)
     real(dp), intent(in)                 :: Barostat
     real(dp), intent(in)                 :: Pressure
     logical, intent(in)                  :: tIsotropic
-    
+
     integer :: ii
-    
+
     @:ASSERT(size(positions, dim=1) == 3)
-    
+
     self%nAtom = size(positions, dim=2)
     allocate(self%velocities(3, self%nAtom))
     allocate(self%positions(3, self%nAtom))
-    
+
     self%deltaT = deltaT
     self%positions(:,:) = positions(:,:)
     call move_alloc(pThermostat, self%pThermostat)
-    
+
     self%velocities(:,:) = velocities(:,:)
 
     self%vHalfPresent = .false. ! assumes the V read in corresponds to the
@@ -220,17 +220,17 @@ contains
       self%Pressure(ii,ii) = pressure
     end do
     self%tIsotropic = tIsotropic
-    
+
   end subroutine VV_velocities_pressure
 
-  
+
   !!* Takes a timestep for the MD integrator, optionally with a thermostat.
   !!* @param self integrator to propogate
   !!* @param accel Accelerations.
   !!* @param newCoord displaced coordinates
   !!* @param newVelocity velocity of displaced coords
   !!* @caveat Due to the way the velocity Verlet is split, the returned
-  !!* velocity is for 1 complete MD step behind the returned positions 
+  !!* velocity is for 1 complete MD step behind the returned positions
   !!* so print positions, then call next and then print velocities
   !!* to get agreement between the positions and velocities.
   subroutine VelocityVerlet_next(self, accel, newCoord, newVelocity)
@@ -238,17 +238,17 @@ contains
     real(dp),intent(in) :: accel(:,:)
     real(dp),intent(out) :: newCoord(:,:)
     real(dp),intent(out) :: newVelocity(:,:)
-    
+
     newCoord(:,:) = 0.0_dp
     newVelocity(:,:) = 0.0_dp
-    
+
     ! start from the usual ordering of velocity verlet method (two cycles
     ! shown):
     ! a.1 v(t+.5dt) = v(t)        + .5*a(t)*dt -- a(t) external
     ! a.2 r(t + dt) = r(t)        + v(t+.5dt)*dt
     ! a.3 v(t + dt) = v(t+.5dt)   + .5*a(t+dt)*dt -- a(t+dt) external call
     ! b.1 v(t+1.5dt) = v(t+dt)    + .5*a(t+dt)*dt -- a(t+dt) external
-    ! b.2 r(t + 2dt) = r(t+dt)    + v(t+1.5dt)*dt 
+    ! b.2 r(t + 2dt) = r(t+dt)    + v(t+1.5dt)*dt
     ! b.3 v(t + 2dt) = v(t+1.5dt) + .5*a(t+2dt)*dt -- a(t+2dt) external call
     !
     ! and cut out a.3 b.1 b.2 as the cycle :
@@ -270,7 +270,7 @@ contains
       newVelocity(:,:) = self%velocities(:,:)
       self%vHalfPresent=.true.
     end if
-    
+
     self%velocities(:,:) = newVelocity(:,:) + 0.5_dp * accel(:,:) * self%deltaT
     newCoord(:,:) = self%positions(:,:) + self%velocities(:,:) * self%deltaT
     self%positions(:,:) = newCoord(:,:)
@@ -278,7 +278,7 @@ contains
     if (allocated(self%pThermostat)) then
       call updateVelocities(self%pThermostat, self%velocities)
     end if
-        
+
   end subroutine VelocityVerlet_next
 
   !!* Rescale the cell parameters and coordinates according to the tensorial
@@ -295,11 +295,11 @@ contains
     real(dp),intent(inout)         :: coord(:,:)
     real(dp),intent(inout)         :: latVecs(3,3)
     real(dp),intent(in)            :: pressureTensor(3,3)
-    
+
     real(dp) :: scale(3,3)
     real(dp) :: scaleIso, Pext, P
     integer  :: ii
-    
+
     @:ASSERT(self%tBarostat)
 
     if (self%tIsotropic) then ! isotropic Berendsen, not quite consistent
@@ -308,14 +308,14 @@ contains
       P = 0.0_dp
       do ii = 1, 3
         Pext = self%Pressure(ii,ii) / 3.0_dp
-        P = P + pressureTensor(ii,ii) / 3.0_dp      
+        P = P + pressureTensor(ii,ii) / 3.0_dp
       end do
       scaleIso = (1.0_dp - self%BarostatStrength*(Pext - P))**(1.0_dp/3.0_dp)
       self%positions(:,:) = self%positions(:,:) * scaleIso
       coord(:,:) = coord(:,:) * scaleIso
       latVecs(:,:) = latVecs(:,:) * scaleIso
-    else      
-      scale = 0.0_dp    
+    else
+      scale = 0.0_dp
       do ii = 1, 3
         scale(ii,ii) = 1.0_dp
       end do
@@ -326,17 +326,17 @@ contains
       end do
       latVecs(:,:) = matmul(latVecs(:,:),scale)
     end if
-    
+
   end subroutine VelocityVerlet_rescale
 
   subroutine VelocityVerlet_state(self,fd)
     type(OVelocityVerlet), intent(in) :: self
     integer,intent(in)             :: fd
-    
+
     if (allocated(self%pThermostat)) then
       call state(self%pThermostat,fd)
     end if
-    
+
   end subroutine VelocityVerlet_state
-  
+
 end module velocityverlet

@@ -175,22 +175,22 @@ contains
     end do
 
     allocate(tmpBlock(orb%mOrb,orb%mOrb))
-    
+
     Eatom = 0.0_dp
-    
+
     do ii = 1, nAtom
-      
+
       iSp = species(ii)
       jj = orb%nOrbSpecies(iSp)
-      
+
       ! Lz.Sz
       tmpBlock(:,:) = 0.0_dp
       tmpBlock(1:jj,1:jj) = qBlockSkew(1:jj,1:jj,ii,4)
-      
+
       total = 0.0_dp
       Eatom(ii) = Eatom(ii)&
           & - real(sum(transpose(tmpBlock) * SpeciesL(:,:,3,iSp)))
-      
+
       ! (Lx.Sx + Ly.Sy).
       tmpBlock(:,:) = 0.0_dp
       tmpBlock(1:jj,1:jj) = (qBlockSkew(1:jj,1:jj,ii,3) &
@@ -199,9 +199,9 @@ contains
       Eatom(ii) = Eatom(ii)&
           & - real(sum(transpose(tmpBlock)&
           & * (i * SpeciesL(:,:,1,iSp) + SpeciesL(:,:,2,iSp) )))
-      
+
     end do
-    
+
   end subroutine dual
 
   !!* Constructs shift potential for spin-orbit

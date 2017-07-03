@@ -40,7 +40,7 @@ module slakocont
     logical :: tInit = .false.
   end type OSlakoCont
 
-  
+
   !!* Initialises SlakoCont
   interface init
     module procedure SlakoCont_init
@@ -66,7 +66,7 @@ module slakocont
   interface getSKIntegrals
     module procedure SlakoCont_getSKIntegrals
   end interface
-  
+
 contains
 
   !!* Initialises SlakoCont
@@ -87,7 +87,7 @@ contains
 
   end subroutine SlakoCont_init
 
-  
+
   !!* Adds a Slater-Koster table for a given diatomic pair to the container.
   !!* @param self SlakoCont instance
   !!* @param pTable Slater-Koster table to be added
@@ -107,8 +107,8 @@ contains
 
   end subroutine SlakoCont_addTableEqGrid
 
-  
-  
+
+
   !!* Returns the maximal number of integrals needed for describing any of the
   !!* interactions in the container
   !!* @param self SlakoCont instance
@@ -126,8 +126,8 @@ contains
 
   end function SlakoCont_getMIntegrals
 
-  
-  
+
+
   !!* Returns the cutoff for all interactions
   !!* @param self SlakoCont instance
   !!* @return Cutoff.
@@ -159,6 +159,6 @@ contains
 
   end subroutine SlakoCont_getSKIntegrals
 
-  
-  
+
+
 end module slakocont

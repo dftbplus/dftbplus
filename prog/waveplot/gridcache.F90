@@ -49,7 +49,7 @@ module GridCache
     logical :: tReal                            !* Are eigenvectors real
     logical :: tInitialised = .false.           !* Initialised?
   end type OGridCache
-  
+
   !!* Initialises a GridCache instance.
   interface init
     module procedure GridCache_init
@@ -64,7 +64,7 @@ module GridCache
   public :: OGridCache
   public :: init, next
 
-  
+
 contains
 
   !!* Initialises a GridCache instance
@@ -142,7 +142,7 @@ contains
       allocate(sf%gridCacheCmpl(nPoints(1), nPoints(2), nPoints(3), nCached))
       allocate(sf%eigenvecCmpl(sf%nOrb, sf%nCached))
     end if
-    
+
     nAll = size(levelIndex, dim=2)
     allocate(sf%levelIndex(3, nAll))
     !! Make sure, entries are correctly sorted in the list
@@ -179,10 +179,10 @@ contains
     end if
     read (sf%fdEigVec) ii
     sf%tInitialised = .true.
-    
+
   end subroutine GridCache_init
 
-  
+
 
   !!* Returns the next entry from the cache
   !!* @param sf          Gridcache instance
@@ -201,7 +201,7 @@ contains
 
   end subroutine GridCache_next_real
 
-  
+
 
   !!* Returns the next entry from the cache
   !!* @param sf          Gridcache instance
@@ -219,8 +219,8 @@ contains
     call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine GridCache_next_cmpl
-  
-  
+
+
 
   !!* Working subroutine for the GridCache_next_* subroutines
   !!* @param sf          Gridcache instance
@@ -234,7 +234,7 @@ contains
     complex(dp), pointer :: gridValCmpl(:,:,:)
     integer, intent(out) :: levelIndex(:)
     logical, intent(out) :: tFinished
-    
+
     integer :: iEnd, iStartAbs, iEndAbs, iLevel, iKPoint, iSpin
     integer :: ind, tmp
     real(dp), pointer :: eigReal(:,:)
@@ -256,7 +256,7 @@ contains
           read (sf%fdEigVec) sf%eigenvecReal(:,ind)
         else
           read (sf%fdEigVec) sf%eigenvecCmpl(:,ind)
-        end if        
+        end if
         sf%nReadEigVec = sf%nReadEigVec + 1
 
         !! If eigenvec belongs to a level which must be plotted, keep it
@@ -296,7 +296,7 @@ contains
       gridValCmpl => sf%gridCacheCmpl(:,:,:,sf%cachePos)
     end if
     levelIndex(:) = sf%levelIndex(:,sf%iGrid)
-    
+
     !! Increase cache and grid counters
     sf%iGrid = sf%iGrid + 1
     sf%cachePos = sf%cachePos + 1
@@ -305,8 +305,8 @@ contains
       close(sf%fdEigVec)
     end if
     tFinished = sf%tFinished
-    
+
   end subroutine local_next
 
-  
+
 end module GridCache

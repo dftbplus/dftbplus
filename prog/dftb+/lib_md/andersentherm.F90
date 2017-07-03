@@ -36,7 +36,7 @@ module andersentherm
     type(OMDCommon) :: pMDFramework  !* MD framework
   end type OAndersenThermostat
 
-  
+
   interface init
     module procedure AndersenThermostat_init
   end interface init
@@ -80,10 +80,10 @@ contains
     self%tRescaleIndiv = rescaleIndiv
     self%wvScale = wvScale
     self%pMDFramework = pMDFramework
-    
+
   end subroutine AndersenThermostat_init
 
-  
+
   !!* Returns the initial velocities.
   !!* @param self AndersenThermostat instance.
   !!* @param velocities Contains the velocities on return.
@@ -95,7 +95,7 @@ contains
     integer :: ii
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
-    
+
     call getTemperature(self%pTempProfile, kT)
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
@@ -105,7 +105,7 @@ contains
 
   end subroutine AndersenThermostat_getInitVelos
 
-  
+
 
   !!* Updates the provided velocities according the current temperature.
   !!* @param self AndersenThermostat instance.
@@ -144,13 +144,13 @@ contains
     end if
 
   end subroutine AndersenThermostat_updateVelos
-  
+
   subroutine AndersenThermostat_state(self, fd)
     type(OAndersenThermostat), intent(in) :: self
     integer,intent(in)                 :: fd
 
     ! no internal state, nothing to do
-    
+
   end subroutine AndersenThermostat_state
-    
+
 end module andersentherm

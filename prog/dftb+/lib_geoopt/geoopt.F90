@@ -49,7 +49,7 @@ module geoopt
   integer, parameter :: iConjGrad = 1
   integer, parameter :: iSteepDesc = 2
   integer, parameter :: iDIIS = 3
-  
+
 contains
 
   !!* Creates a general geometry optimizier with a conjugate gradient instance
@@ -64,7 +64,7 @@ contains
 
   end subroutine GeoOpt_initConjGrad
 
-  
+
 
   !!* Creates a general geometry optimizier with a steepest descent instance
   !!* @param self       GeoOpt instance
@@ -97,7 +97,7 @@ contains
   subroutine GeoOpt_reset(self, x0)
     type(OGeoOpt), intent(inout) :: self
     real(dp), intent(in) :: x0(:)
-    
+
     select case (self%iGeoOpt)
     case(iConjGrad)
       call reset(self%pConjGrad, x0)
@@ -106,7 +106,7 @@ contains
     case(iDIIS)
       call reset(self%pDIIS, x0)
     end select
-    
+
   end subroutine GeoOpt_reset
 
 
@@ -134,6 +134,6 @@ contains
     end select
 
   end subroutine GeoOpt_next
-    
-  
+
+
 end module geoopt

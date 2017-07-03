@@ -11,7 +11,7 @@ module typegeometry
   private
 
   public :: TGeometry, normalize
-  
+
   !!* Type for containing geometrical information
   type TGeometry
     integer           :: nAtom
@@ -67,8 +67,8 @@ contains
         ind = ind + 1
       end do
     end if
-    
+
   end subroutine Geometry_normalize
- 
+
 
 end module typegeometry

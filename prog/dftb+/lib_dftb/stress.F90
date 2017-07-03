@@ -18,10 +18,10 @@ module stress
   use repcont
   implicit none
   private
-  
+
   public :: getRepulsiveStress, getKineticStress, getNonSCCStress,&
       & getBlockStress, getBlockiStress
-  
+
 contains
 
   !!* The stress tensor contribution from the repulsive energy term
@@ -46,11 +46,11 @@ contains
 
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii
     real(dp) :: vect(3), intermed(3), prefac
-    
+
     @:ASSERT(all(shape(st)==(/ 3, 3/)))
-    
+
     st(:,:) = 0.0_dp
-        
+
     do iAt1 = 1, size(nNeighbors)
       do iNeigh = 1, nNeighbors(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
@@ -69,7 +69,7 @@ contains
       end do
     end do
     st = st / cellVol
-    
+
   end subroutine getRepulsiveStress
 
 
@@ -85,9 +85,9 @@ contains
     integer, intent(in)   :: species(:)
     real(dp), intent(in)  :: velo(:,:)
     real(dp), intent(in)  :: cellVol
-    
+
     integer :: ii, jj, iAtom, nAtom
-    
+
     nAtom = size(species)
     @:ASSERT(all(shape(st) == (/3, 3/)))
     @:ASSERT(all(shape(velo) == (/3, nAtom/)))
@@ -103,12 +103,12 @@ contains
         end do
       end do
     end do
-    
+
     st(:,:) = st(:,:) / cellVol
-    
+
   end subroutine getKineticStress
 
-  
+
   !!* The stress tensor contributions from the non-SCC energy
   !!* @param st stress tensor
   !!* @param DM density matrix in packed format
@@ -139,20 +139,20 @@ contains
     integer, intent(in) :: iPair(0:,:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in)  :: cellVol
-    
+
     integer   :: iOrig, ii, jj
     integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
     integer   :: nOrb1, nOrb2
     real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp)  :: vect(3), intermed(3)
-    
+
     @:ASSERT(all(shape(st)==(/3,3/)))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    
+
     nAtom = size(orb%nOrbAtom)
     st(:,:) = 0.0_dp
-    
+
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
@@ -200,7 +200,7 @@ contains
     end do
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
-    
+
   end subroutine getNonSCCStress
 
 
@@ -237,7 +237,7 @@ contains
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: shift(:,:,:,:)
     real(dp), intent(in)  :: cellVol
-    
+
     integer   :: iOrig, iSpin, nSpin, ii, jj
     integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
     integer   :: nOrb1, nOrb2, iSp1, iSp2
@@ -245,7 +245,7 @@ contains
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp)  :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp)  :: vect(3), intermed(3)
-    
+
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
 
@@ -256,9 +256,9 @@ contains
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
     @:ASSERT(size(DM,dim=2)==nSpin)
-    
+
     st(:,:) = 0.0_dp
-    
+
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -286,10 +286,10 @@ contains
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
                 &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
-          
+
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( & 
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
                   & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
@@ -301,7 +301,7 @@ contains
                   & ) )
             end do
           end do
-          
+
           vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
           if (iAtom1/=iAtom2f) then
             do ii = 1, 3
@@ -318,11 +318,11 @@ contains
               end do
             end do
           end if
-          
+
         end if
       enddo
     enddo
-    
+
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
   end subroutine getBlockStress
@@ -364,7 +364,7 @@ contains
     real(dp), intent(in) :: shift(:,:,:,:)
     real(dp), intent(in) :: iShift(:,:,:,:)
     real(dp), intent(in)  :: cellVol
-    
+
     integer   :: iOrig, iSpin, nSpin, ii, jj
     integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
     integer   :: nOrb1, nOrb2, iSp1, iSp2
@@ -372,7 +372,7 @@ contains
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp)  :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp)  :: vect(3), intermed(3)
-    
+
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
 
@@ -383,9 +383,9 @@ contains
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
     @:ASSERT(size(DM,dim=2)==nSpin)
-    
+
     st(:,:) = 0.0_dp
-    
+
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -413,10 +413,10 @@ contains
                 &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii))&
                 & )
           end do
-          
+
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( & 
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
                   & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
@@ -431,7 +431,7 @@ contains
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( & 
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
                   & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
@@ -461,10 +461,10 @@ contains
         end if
       enddo
     enddo
-    
+
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
   end subroutine getBlockiStress
 
-    
+
 end module stress

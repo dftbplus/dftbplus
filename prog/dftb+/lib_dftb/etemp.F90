@@ -80,7 +80,7 @@ contains
     real(dp) :: nElec
     real(dp) :: nElecMax, nElecMin, maxEig, minEig
     real(dp) :: EfOld
-    
+
     @:ASSERT(all(shape(filling) == shape(eigenvals)))
     @:ASSERT(size(eigenvals, dim=3) == size(Ebs))
     @:ASSERT(size(eigenvals, dim=3) == size(TS))
@@ -113,7 +113,7 @@ contains
         return
       end if
     end if
-         
+
     ! find maximum and minimum possible value of Fermi Energy
     minEig = minval(eigenvals(1,:,:))
     maxEig = maxval(eigenvals(size(eigenvals, dim=1),:,:))
@@ -181,7 +181,7 @@ contains
         end if
       end if
     end if
-    
+
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
     call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight)
 
@@ -482,8 +482,8 @@ contains
     integer :: size1, size2
     integer :: ind, iLev, iOrb, iKpt, iSpin, jOrb, jKpt, jSpin
     real(dp) :: nElec
-    
-    allocate(tmpIndx(size(eigenvals)))      
+
+    allocate(tmpIndx(size(eigenvals)))
     call index_heap_sort(tmpIndx, reshape(eigenvals, [size(eigenvals)]))
     size1 = size(eigenvals, dim=1)
     size2 = size(eigenvals, dim=2)

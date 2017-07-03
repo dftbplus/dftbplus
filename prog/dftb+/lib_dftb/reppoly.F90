@@ -19,7 +19,7 @@ module reppoly
   public :: powMin, powMax
   public :: TRepPolyIn, ORepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv
-  
+
   !! Minimal and maximal power appearing in the polynomial
   integer, parameter :: powMin = 2
   integer, parameter :: powMax = 9
@@ -62,7 +62,7 @@ module reppoly
     module procedure RepPoly_getEnergyDeriv
   end interface
 
-  
+
 contains
 
   !!* Initialises polynomial repulsive.
@@ -72,18 +72,18 @@ contains
     type(ORepPoly), intent(out) :: self
     type(TRepPolyIn), intent(in) :: inp
 
-    
+
     @:ASSERT(.not. self%tInit)
     @:ASSERT(inp%cutoff >= 0.0_dp)
 
     self%polyCoeffs(:) = inp%polyCoeffs(:)
     self%cutoff = inp%cutoff
     self%tInit = .true.
-    
+
   end subroutine RepPoly_init
 
 
-  
+
   !!* Returns cutoff of the repulsive.
   !!* @param self Polynomial repulsive.
   !!* @return Cutoff.
@@ -123,7 +123,7 @@ contains
         res = res * rrr
       end do
     end if
-    
+
   end subroutine RepPoly_getEnergy
 
 
@@ -179,5 +179,5 @@ contains
 
   end subroutine RepPoly_getEnergyDeriv
 
-  
+
 end module reppoly

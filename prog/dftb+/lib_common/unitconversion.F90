@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !!* Contains names of various units and their conversion factors to the
-!!* corresponding unit used internal in the code (atomic units). 
+!!* corresponding unit used internal in the code (atomic units).
 module unitconversion
   use constants
   implicit none
@@ -36,7 +36,7 @@ module unitconversion
       &unit("au                  ", 1.0_dp) &
       /)
 
-  
+
   !!* Number of energy units
   integer, parameter :: nEnergyUnit = 13
 
@@ -75,7 +75,7 @@ module unitconversion
 
   !!* Number of time units
   integer, parameter :: nTimeUnit = 7
-  
+
   !!* Time units
   type(unit), parameter :: timeUnits(nTimeUnit) = (/ &
       &unit("femtosecond         ", fs__au), &
@@ -85,22 +85,22 @@ module unitconversion
       &unit("second              ", 1e15_dp * fs__au), &
       &unit("s                   ", 1e15_dp * fs__au), &
       &unit("au                  ", 1.0_dp) &
-      &/)  
+      &/)
 
   !!* Number of frequency units
   integer, parameter :: nFreqUnit = 4
-  
+
   !!* Frequency units
   type(unit), parameter :: freqUnits(nFreqUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("hz                  ", 1e-15_dp * au__fs), &
       &unit("thz                 ", 1e-3_dp * au__fs), &
       &unit("cm^-1               ", 1e-8_dp * Bohr__AA * c) &
-      &/)  
-  
+      &/)
+
   !!* Number of volume units
   integer, parameter :: nVolumeUnit = 8
-  
+
   !!* Volume units
   type(unit), parameter :: volumeUnits(nVolumeUnit) = (/ &
       &unit("angstrom^3          ", AA__Bohr**3), &
@@ -112,11 +112,11 @@ module unitconversion
       &unit("bohr^3              ", 1.0_dp), &
       &unit("au                  ", 1.0_dp) &
       &/)
-  
-  
+
+
   !!* Number of charge units
   integer, parameter :: nChargeUnit = 4
-  
+
   !!* Volume units
   type(unit), parameter :: chargeUnits(nChargeUnit) = (/ &
       &unit("coulomb             ", Coulomb__au), &
@@ -127,16 +127,16 @@ module unitconversion
 
   !!* Number of electric field units
   integer, parameter :: nEFieldUnit = 2
-  
+
   !!* Electric field units
   type(unit), parameter :: EFieldUnits(nEFieldUnit) = (/ &
       &unit("v/m                 ", V_m__au), &
       &unit("au                  ", 1.0_dp) &
       &/)
-  
+
   !!* Number of magnetic field units
   integer, parameter :: nBFieldUnit = 5
-  
+
   !!* Magnetic field units (Atomic "Gaussian" CGS unit system!)
   type(unit), parameter :: BFieldUnits(nBFieldUnit) = (/ &
       &unit("t                 ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
@@ -145,19 +145,19 @@ module unitconversion
       &unit("g                 ", 1.0E+20_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
       &unit("au                  ", 1.0_dp) &
       &/)
-  
+
   !!* Number of pressure units
   integer, parameter :: nPressureUnit = 2
-  
+
   !!* Pressure units
   type(unit), parameter :: pressureUnits(nPressureUnit) = (/ &
       &unit("pa                  ", pascal__au),&
       &unit("au                  ", 1.0_dp) &
       &/)
-  
+
   !!* Number of velocity units
   integer, parameter :: nVelocityUnit = 4
-  
+
   !!* Velocity units
   type(unit), parameter :: velocityUnits(nVelocityUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
@@ -168,10 +168,10 @@ module unitconversion
 
   !!* Number of mass units
   integer, parameter :: nMassUnit = 4
-  
+
   !!* Number of dipole units
   integer, parameter :: nDipoleUnit = 4
-  
+
   !!* Dipole units
   type(unit), parameter :: dipoleUnits(nDipoleUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
@@ -179,7 +179,7 @@ module unitconversion
       &unit("cm                  ", Coulomb__au*1.0e10_dp*AA__Bohr ), &
       &unit("coulombmeter        ", Coulomb__au*1.0e10_dp*AA__Bohr ) &
       &/)
-  
+
   !!* Mass units
   type(unit), parameter :: MassUnits(nMassUnit) = (/ &
       &unit("au                  ", 1.0_dp), &

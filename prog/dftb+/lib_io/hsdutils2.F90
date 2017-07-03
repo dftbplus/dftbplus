@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains more high level functions for converting the values in a XML/HSD 
+!!* Contains more high level functions for converting the values in a XML/HSD
 !!* DOM-tree to Fortran intrinsic types.
 module hsdutils2
   use assert
@@ -42,19 +42,19 @@ module hsdutils2
     module procedure convertByMul_realR1
     module procedure convertByMul_realR2
   end interface
-  
+
 
   !!* Separator for modifiers
   character, parameter :: sepModifier = ","
 
-  
+
   character(len=*), parameter :: MSG_INVALID_MODIFIER = "Invalid modifier: "
 
 
-  
+
 contains
-  
-  
+
+
   !!* Removes the processed flag from node
   !!* @param node The node to process
   subroutine setUnprocessed(node)
@@ -63,11 +63,11 @@ contains
     if (associated(node)) then
       call removeAttribute(node, attrProcessed)
     end if
-    
+
   end subroutine setUnprocessed
 
 
-  
+
   !!* Gets the index of a modifier from an array of possible modifier names.
   !!* @param modifier  String containing the parsed modifier
   !!* @param modifiers Array containing the names of the possible modifiers
@@ -99,7 +99,7 @@ contains
         exit
       end if
     end do
-    
+
     if (ind == 0 .and. mandatory) then
       call detailedError(node, MSG_INVALID_MODIFIER // modifier)
     end if
@@ -116,7 +116,7 @@ contains
     type(fnodeList), pointer :: nodeList
 
     nodeList => getTagsWithoutAttribute(node, attrProcessed)
-    
+
   end subroutine getUnprocessedNodes
 
 
@@ -127,7 +127,7 @@ contains
     type(fnode), pointer               :: node
     logical, intent(in), optional      :: tIgnoreUnprocessed
     type(fnodeList), pointer, optional :: nodeList
-    
+
 
     type(fnodeList), pointer :: list
     type(fnode), pointer     :: child
@@ -163,11 +163,11 @@ contains
     if (.not. tIgnoreUnprocessed .and. (ll > 0)) then
       call error("Code halting due to the presence of errors in dftb_in file.")
     end if
-    
-  end subroutine warnUnprocessedNodes
-  
 
-  
+  end subroutine warnUnprocessedNodes
+
+
+
   !!* Reads a HSD tree from an xml-file
   !!* @param fileName file to read
   !!* @return Pointer to the tree
@@ -236,7 +236,7 @@ contains
     if (present(hsdInput)) then
       hsdInput = tHSD
     end if
-    
+
   end subroutine readHSDOrXML
 
 
@@ -248,7 +248,7 @@ contains
   subroutine getNodeName2(node, nodeName)
     type(fnode), pointer :: node
     type(string), intent(inout)  :: nodeName
-    
+
     if (.not. associated(node)) then
       nodeName = ""
     else
@@ -257,7 +257,7 @@ contains
 
   end subroutine getNodeName2
 
-  
+
 
   !!* Changes the name of a given node.
   !!* @param node Node to change.
@@ -277,10 +277,10 @@ contains
       call setAttribute(node, attrName, name)
     end if
     call setTagName(node, tolower(name))
-    
+
   end subroutine setNodeName
 
-  
+
 
   !!* Removes the modifier attribute from a given node.
   !!* @param node The node to process.
@@ -290,10 +290,10 @@ contains
     if (associated(node)) then
       call removeAttribute(node, attrModifier)
     end if
-    
+
   end subroutine removeModifier
 
-  
+
 
   !!* Splits a modifier containing coma separated list of modifiers into
   !!* components.
@@ -327,14 +327,14 @@ contains
           &more than " // i2c(nModif) // ").")
     end if
     modifiers(nModif) = trim(adjustl(modifier(iStart:)))
-    
+
   end subroutine splitModifier
 
 
-  
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! convertByMul
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
   !!* Implementation of convertByMul for real scalar.
@@ -354,7 +354,7 @@ contains
     else
       tReplace = .false.
     end if
-    
+
     if (len(modifier) > 0) then
       tChanged = .true.
       ind = getModifierIndex(modifier, units, child)
@@ -372,7 +372,7 @@ contains
 
   end subroutine convertByMul_real
 
-  
+
 
   !!* Implementation of convertByMul for real rank one array.
   subroutine convertByMul_realR1(modifier, units, child, value, &
@@ -392,7 +392,7 @@ contains
     else
       tReplace = .false.
     end if
-    
+
     if (len(modifier) > 0) then
       tChanged = .true.
       ind = getModifierIndex(modifier, units, child)
@@ -428,7 +428,7 @@ contains
     else
       tReplace = .false.
     end if
-    
+
     if (len(modifier) > 0) then
       tChanged = .true.
       ind = getModifierIndex(modifier, units, child)
@@ -445,12 +445,12 @@ contains
     end if
 
   end subroutine convertByMul_realR2
-  
+
 
 
   !!* Returns a descendant of a given node.
   !!* @param root Node to seek the descendants of
-  !!* @param path Path to the descendant. Parents are separated by "/" from 
+  !!* @param path Path to the descendant. Parents are separated by "/" from
   !!*   their children (e.g. node1/node2/node3)
   !!* @param child Pointer to the child on return or null pointer if not found
   !!* @param requested Should the program stop, if specified descendant is
@@ -512,10 +512,10 @@ contains
     if (present(parent)) then
       parent => par
     end if
-    
+
   end subroutine getDescendant
 
-  
+
 
 end module hsdutils2
-  
+

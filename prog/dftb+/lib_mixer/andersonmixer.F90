@@ -20,7 +20,7 @@ module andersonmixer
   use accuracy
   use lapackroutines, only : gesv
   implicit none
-  
+
   private
 
   !!* Contains the necessary data for an Anderson mixer
@@ -47,7 +47,7 @@ module andersonmixer
     real(dp), allocatable :: prevQInput(:,:)    !!* Stored previous input charges
     real(dp), allocatable :: prevQDiff(:,:)     !!* Stored prev. charge differences
   end type OAndersonMixer
-  
+
 
   !!* Creates an AndersonMixer instance
   interface init
@@ -63,7 +63,7 @@ module andersonmixer
   interface mix
     module procedure AndersonMixer_mix
   end interface
-  
+
 
   public :: OAndersonMixer
   public :: init, reset, mix
@@ -157,7 +157,7 @@ contains
     type(OAndersonMixer), intent(inout) :: self
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
-    
+
     real(dp), allocatable :: qInpMiddle(:), qDiffMiddle(:)
     real(dp) :: mixParam
     real(dp) :: rTmp
@@ -197,7 +197,7 @@ contains
     call calcAndersonAverages(qInpMiddle, qDiffMiddle, qInpResult, &
         &qDiff, self%prevQInput, self%prevQDiff, self%nElem, self%nPrevVector, &
         &self%indx, self%tBreakSym, self%omega02)
-    
+
     !! Store vectors before overwriting qInpResult
     call storeVectors(self%prevQInput, self%prevQDiff, self%indx, &
         &qInpResult, qDiff, self%mPrevVector)
@@ -257,7 +257,7 @@ contains
     allocate(aa(nPrevVector, nPrevVector))
     allocate(bb(nPrevVector, 1))
     allocate(tmp1(nElem))
-    
+
     !! Build the system of linear equations
     !! a(i,j) = <F(m)|F(m)-F(m-i)> - <F(m-j)|F(m)-F(m-i)>  (F ~ qDiff)
     !! b(i)   = <F(m)|F(m)-F(m-i)>                         (m ~ current iter.)
@@ -281,10 +281,10 @@ contains
 
     !! Solve system of linear equations
     call gesv(aa, bb)
-    
+
     !! Build averages with calculated coefficients
     qDiffMiddle(:) = 0.0_dp
-    do ii = 1, nPrevVector 
+    do ii = 1, nPrevVector
       qDiffMiddle(:) = qDiffMiddle(:) + bb(ii,1) * prevQDiff(:,indx(ii))
     end do
     qDiffMiddle(:) = qDiffMiddle(:) + (1.0_dp - sum(bb(:,1))) * qDiff(:)
@@ -317,7 +317,7 @@ contains
     integer, intent(in) :: mPrevVector
 
     integer :: tmp
-    
+
     tmp = indx(mPrevVector)
     indx(2:mPrevVector) = indx(1:mPrevVector-1)
     indx(1) = tmp

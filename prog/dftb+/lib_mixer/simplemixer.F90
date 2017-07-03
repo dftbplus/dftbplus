@@ -12,7 +12,7 @@ module simplemixer
   use assert
   use accuracy
   implicit none
-  
+
   private
 
   !!* Contains data for a simple mixer
@@ -66,10 +66,10 @@ contains
     @:ASSERT(nElem > 0)
 
     continue
-    
+
   end subroutine SimpleMixer_reset
 
-  
+
 
   !!* Does the actual mixing
   !!* @param self       SimpleMixer instance

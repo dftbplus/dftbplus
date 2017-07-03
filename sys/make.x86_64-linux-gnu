@@ -1,6 +1,6 @@
 # -*- makefile -*-
 ############################################################################
-# gfortran/gcc 7.1
+# gfortran/gcc 5.4 - 7.1
 ############################################################################
 
 # Compilers
@@ -8,7 +8,7 @@ FXX = gfortran
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops -fopenmp 
+FXXOPT = -O2 -funroll-all-loops -fopenmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Preprocessor

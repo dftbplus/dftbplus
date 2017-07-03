@@ -21,7 +21,7 @@ module broydenmixer
   use blasroutines, only : ger
   use lapackroutines, only : matinv
   implicit none
-  
+
   private
 
   !!* Contains the necessary data for a Broyden mixer.
@@ -92,7 +92,7 @@ contains
     real(dp), intent(in) :: minWeight
     real(dp), intent(in) :: maxWeight
     real(dp), intent(in) :: weightFac
-    
+
     @:ASSERT(mIter > 0)
     @:ASSERT(mixParam > 0.0_dp)
     @:ASSERT(omega0 > 0.0_dp)
@@ -236,7 +236,7 @@ contains
     if (ww(nn_1) < minWeight) then
       ww(nn_1) = minWeight
     end if
-    
+
     !! Build |DF(m-1)> and  (m is the current iteration number)
     dF_uu(:) = qDiff(:) - qDiffLast(:)
     invNorm = sqrt(dot_product(dF_uu, dF_uu))
@@ -259,7 +259,7 @@ contains
       beta(ii, ii) = beta(ii, ii) + omega0**2
     end do
     call matinv(beta)
-    
+
     gamma = matmul(cc, beta)
 
     !! Store |dF(m-1)>
@@ -335,6 +335,6 @@ contains
     end do
 
   end subroutine BroydenMixer_getInverseJacobian
-  
-    
+
+
 end module broydenmixer

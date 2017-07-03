@@ -29,13 +29,13 @@
 !!*     still defective</td></tr>
 !!*   <tr><td>3</td><td>223</td><td>DEFAULT VALUE. Any theoretically possible
 !!*     correlations have very small chance of being observed.</td></tr>
-!!*   <tr><td>4</td><td>389</td><td>Highest possible luxury, all 24 bits 
+!!*   <tr><td>4</td><td>389</td><td>Highest possible luxury, all 24 bits
 !!*     chaotic.</td></tr>
 !!*   </table>
 !!* </p>
 !!* <p>
 !!*   The validation was made by obtaining the difference between the F90
-!!*   version of the original code and the current module for 1e5 calls 
+!!*   version of the original code and the current module for 1e5 calls
 !!*   each filling a vector with 1e6 random numbers. (i686-linux-ifort81,
 !!*   DEBUG=0) Luxury level was 3, the initial seed 123456. Since the original
 !!*   code uses single precision, while the current code uses double precision,
@@ -87,7 +87,7 @@ module ranlux
 
   public :: ORanlux
   public :: init, getRandom, getState
-  
+
 
   !!* Maximal luxury level
   integer, parameter :: maxlev = 4
@@ -168,7 +168,7 @@ contains
       self%iseeds(ii) = mod(jseed,itwo24)
       self%next(ii) = ii - 1
     end do
-    
+
     self%twom12 = self%twom24 * 4096.0_dp
     self%next(1) = 24
     self%i24 = 24
@@ -177,7 +177,7 @@ contains
     if (iand(self%iseeds(24), maskhi) /= 0) then
       self%icarry = 1
     end if
-    
+
   end subroutine Ranlux_init_default
 
 
@@ -227,7 +227,7 @@ contains
 
   end subroutine Ranlux_init_restart
 
-  
+
   !!* Fills a given vector with random numbers.
   !!* @param self Ranlux instance
   !!* @param rvec Vector containing the random numbers on exit.
@@ -237,9 +237,9 @@ contains
 
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
-    
+
   end subroutine Ranlux_getRandomVector
-  
+
 
   !!* Fills a given 2D array with random numbers.
   !!* @param self Ranlux instance
@@ -247,7 +247,7 @@ contains
   subroutine Ranlux_getRandom2DArray(self, r2Darray)
     type(ORanlux), intent(inout) :: self
     real(dp), intent(out) :: r2Darray(:,:)
-    
+
     real(dp), allocatable :: rvec(:)
 
     allocate(rvec(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
@@ -256,11 +256,11 @@ contains
     r2Darray = reshape(rvec,shape(r2Darray))
 
   end subroutine Ranlux_getRandom2DArray
-  
-  
+
+
   !!* Returns a random number
   !!* @param self Ranlux instance
-  !!* @param rnum Contains the random number on exit. 
+  !!* @param rnum Contains the random number on exit.
   subroutine Ranlux_getRandomNumber(self, rnum)
     type(ORanlux), intent(inout) :: self
     real(dp), intent(out) :: rnum
@@ -362,8 +362,8 @@ contains
     if (self%icarry /= 0) then
       isdext(25) = -isdext(25)
     end if
-    
+
   end subroutine Ranlux_getState
 
-  
+
 end module ranlux

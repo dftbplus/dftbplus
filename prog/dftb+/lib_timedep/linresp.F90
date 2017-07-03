@@ -32,10 +32,10 @@ module linresp_module
 #:endif
   implicit none
   private
-  
+
   public :: linresp, linrespini
   public :: init, calcExcitations, addGradients
-  
+
   !> Data type for initial values for linear response calculations
   type :: linrespini
     integer :: nExc ! number of excitations to be found
@@ -43,13 +43,13 @@ module linresp_module
     real(dp) :: energyWindow ! energies to include above nExc
     real(dp) :: oscillatorWindow ! single particle transitions to be
                                  ! included above the energy window if
-                                 ! they are brighter than this   
+                                 ! they are brighter than this
     ! state of interest (warning - this is also used as a signaling variable)
     integer :: nStat
-    
+
     ! symmetry of states being calculated
     character :: sym
-    ! homo- and hetero-spin Hubbard U derivatives as W    
+    ! homo- and hetero-spin Hubbard U derivatives as W
     real(dp), allocatable :: HubbardU(:)
     real(dp), allocatable :: spinW(:)
     ! print excited state mulliken populations
@@ -67,13 +67,13 @@ module linresp_module
     ! transitions to excited states
     logical :: tTrans
     ! dipole strengths to excited states
-    logical :: tTradip 
+    logical :: tTradip
     ! print state and diagnose output of Arnoldi solver
     logical :: tArnoldi, tDiagnoseArnoldi
     ! Initialised data structure?
     logical :: tInit = .false.
   end type linrespini
-  
+
   !> Data type for linear response internal settings
   type :: linresp
     integer   :: nExc, nStat
@@ -102,21 +102,21 @@ module linresp_module
     logical   :: tPrintEigVecs
     logical   :: tInit = .false.
   end type linresp
-  
+
   interface init
     module procedure LinResp_init
   end interface
-  
+
   interface calcExcitations
     module procedure LinResp_calcExcitations
   end interface
-  
+
   interface addGradients
     module procedure LinResp_addGradients
   end interface
-  
+
 contains
-  
+
   !> Initialize an internal data type for linear response excitations
   !! \param self data structure for linear response
   !! \param ini initial values for setting parameters
@@ -129,7 +129,7 @@ contains
     integer, intent(in) :: nAtom
     real(dp), intent(in) :: nEl
     type(TOrbitals), intent(in) :: orb
-    
+
   #:if WITH_ARPACK
     self%nExc = ini%nExc
     self%tEnergyWindow = ini%tEnergyWindow
@@ -145,12 +145,12 @@ contains
     if (self%tEnergyWindow .and. self%energyWindow <= 0.0_dp) then
       call error("Excited energy window should be non-zero if used")
     end if
-        
+
     if (ini%tMulliken) then
       self%fdMulliken = getFileId()
     else
       self%fdMulliken = -1
-    end if    
+    end if
     if (ini%tCoeffs) then
       self%fdCoeffs = getFileId()
     else
@@ -182,18 +182,18 @@ contains
     else
       self%fdTradip = -1
     end if
-    
+
     self%tArnoldi = ini%tArnoldi
     self%fdArnoldi = getFileId()
     self%nAtom = nAtom
     self%nEl = nEl
     self%nOcc = ceiling(nEl / 2.0_dp)
-    self%nVir = orb%nOrb - self%nOcc    
+    self%nVir = orb%nOrb - self%nOcc
     self%fdExc = getFileId() ! file for excitations
-    
+
     ! Write to disc
     self%tPrintEigVecs = ini%tPrintEigVecs
-    
+
     call move_alloc(ini%spinW, self%spinW)
     call move_alloc(ini%hubbardU, self%HubbardU)
     self%tinit = .true.
@@ -201,9 +201,9 @@ contains
     self%tinit = .false.
     call error('Internal error: Illegal routine call to LinResp_init.')
   #:endif
-    
+
   end subroutine LinResp_init
-  
+
   !> Wrapper to call the actual linear response routine for excitation energies
   !! \param tSpin is this a spin-polarized calculation
   !! \param self data structure with additional linear response values
@@ -221,7 +221,7 @@ contains
   !! \param tWriteTagged print tag information
   !! \param fdTagged file id for tagging information
   !! \param excEnergy excitation energy (only when nStat /=0, othewise
-  !! set numerically 0)  
+  !! set numerically 0)
   subroutine LinResp_calcExcitations(tSpin, self, iAtomStart, eigVec, eigVal, SSqrReal, filling, &
       & coords0, dqAt, species0, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, excEnergy)
     logical, intent(in) :: tSpin
@@ -238,7 +238,7 @@ contains
     logical, intent(in) :: tWriteTagged
     integer, intent(in) :: fdTagged
     real(dp), intent(out) :: excEnergy
-    
+
   #:if WITH_ARPACK
     @:ASSERT(self%tInit)
     @:ASSERT(size(orb%nOrbAtom) == self%nAtom)
@@ -250,15 +250,15 @@ contains
         & self%fdTradip, self%tArnoldi, self%fdArnoldi, &
         & self%fdArnoldiDiagnosis, self%fdExc, self%tEnergyWindow, self%energyWindow, &
         & self%tOscillatorWindow, self%oscillatorWindow, excEnergy, .false.)
-    
+
   #:else
     call error('Internal error: Illegal routine call to &
         &LinResp_calcExcitations')
   #:endif
-    
+
   end subroutine LinResp_calcExcitations
-  
-  
+
+
   !> Wrapper to call linear response calculations of excitations
   !! and forces in excited states
   !! \param tSpin is this a spin-polarized calculation
@@ -307,9 +307,9 @@ contains
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
     real(dp), intent(out), optional :: occNatural(:)
     real(dp), intent(out), optional :: naturalOrbs(:,:)
-    
+
   #:if WITH_ARPACK
-    
+
     real(dp), allocatable :: shiftPerAtom(:,:), shiftPerL(:,:,:)
     @:ASSERT(self%tInit)
     @:ASSERT(self%nAtom == size(orb%nOrbAtom))
@@ -320,7 +320,7 @@ contains
     call getShiftPerAtom(shiftPerAtom)
     call getShiftPerL(shiftPerL)
     shiftPerAtom = shiftPerAtom + shiftPerL(1,:,:)
-    
+
     call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec,&
         & eigVal, dqAt, coords0, self%nExc, self%nStat, self%symmetry,&
         & SSqrReal, filling, species0, self%HubbardU, self%spinW, self%nEl, iNeighbor, &
@@ -331,11 +331,11 @@ contains
         & self%tOscillatorWindow, self%oscillatorWindow, excEnergy, tForces, shiftPerAtom(:,1), &
         & skHamCont, skOverCont, excgradient, derivator, rhoSqr, &
         & occNatural, naturalOrbs)
-    
+
   #:else
     call error('Internal error: Illegal routine call to LinResp_addGradients.')
   #:endif
-    
+
   end subroutine LinResp_addGradients
-  
+
 end module linresp_module

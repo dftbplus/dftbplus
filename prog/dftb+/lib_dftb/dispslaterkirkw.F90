@@ -297,7 +297,7 @@ contains
 
   end subroutine getStress
 
-  
+
   !> Estimates the real space cutoff of the dispersion interaction.
   !!
   !! \return Cutoff

@@ -38,7 +38,7 @@ contains
   function erfwrap(xx) result(res)
     real(dp), intent(in) :: xx
     real(dp) :: res
-    
+
     res = erf(xx)
 
   end function erfwrap
@@ -52,7 +52,7 @@ contains
     real(dp) :: res
 
     res = erfc(xx)
-    
+
   end function erfcwrap
-  
+
 end module errorfunction

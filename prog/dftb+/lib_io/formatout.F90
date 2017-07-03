@@ -47,26 +47,26 @@ module formatout
   end interface
 
 
-  
+
 contains
-  
+
   !!* Clears contents of file
   !!* @param fileName name of the file which should be cleared
   subroutine clearFile_fname(fileName)
     character(len=*), intent(in)   :: fileName
-    
+
     integer, save :: fd = -1
-    
+
     if (fd == -1) then
       fd = getFileId()
     end if
     open(fd, file=fileName, status="replace", position="rewind")
     close(fd)
-    
+
   end subroutine clearFile_fname
 
-  
-  
+
+
   !!* A wrapper around writeGenFormat_fid.
   !!* @param fileName    File name of the file which should be created
   !!* @param coord       Coordinates in atomic units
@@ -82,9 +82,9 @@ contains
     character(mc),    intent(in)   :: speciesName(:)
     real(dp), intent(in), optional :: latVec(3,3)
     logical, intent(in), optional  :: tFracCoord
-    
+
     integer, save :: fd = -1
-    
+
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
     if (fd == -1) then
@@ -93,11 +93,11 @@ contains
     open(fd, file=fileName, position="append")
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
-    
+
   end subroutine writeGenFormat_fname
 
-  
-  
+
+
   !!* Writes coordinates in the famous GEN format to a file
   !!* @param fd          File id of an open file where output should be written
   !!* @param coord       Coordinates in atomic units
@@ -137,7 +137,7 @@ contains
     end if
   #:endcall ASSERT_CODE
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
-    
+
     tFractional = .false.
     if (present(latVec)) then
       if (present(tFracCoord) ) then
@@ -174,7 +174,7 @@ contains
   end subroutine writeGenFormat_fid
 
 
-  
+
   !!* Writes coordinates in the XYZ format
   !!* @param fileName    File name of a file to be created
   !!* @param coord       Coordinates in atomic units
@@ -194,7 +194,7 @@ contains
     character(len=*), intent(in), optional :: comment
 
     integer, save :: fd = -1
-    
+
     if (fd == -1) then
        fd = getFileId()
     end if
@@ -206,7 +206,7 @@ contains
   end subroutine writeXYZFormat_fname
 
 
-  
+
   !!* Writes coordinates in the XYZ format with additional charges and vectors
   !!* @param fd          File id of an open file where output should be written
   !!* @param coord       Coordinates in atomic units
@@ -274,11 +274,11 @@ contains
       write(fd, 201) (trim(speciesNames(species(ii))), &
           & (coords(jj, ii) * Bohr__AA, jj = 1, 3), ii = 1, nAtom)
     end if
-    
+
   end subroutine writeXYZFormat_fid
 
 
-  
+
   !!* Writes the greeting message of dftb+ on stdout
   !!* @param revision Revision string from svn
   !!* @param headURL URL of the head (from svn)
@@ -314,7 +314,7 @@ contains
 
   end subroutine printDFTBHeader
 
-  
+
   !!* Converts a sparse matrix to its square form and writes to a file.
   !!* @param fname Name of the file to write the matrix to.
   !!* @param sparse Sparse matrix.
@@ -406,8 +406,8 @@ contains
 
   end subroutine writeSparseAsSquare_cplx
 
-  
-  
+
+
   !!* Writes a sparse matrix to a file.
   !!* @param fname Name of the file to write the matrix to.
   !!* @param sparse Sparse matrix.
@@ -460,10 +460,10 @@ contains
       end do
     end do
     close(fd)
-    
+
   end subroutine writeSparse
 
-  
+
 
 end module formatout
 

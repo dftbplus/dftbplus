@@ -51,7 +51,7 @@ contains
     end if
 
   end function getFirstChildByName
-    
+
 
 
   !!* Returns last child with a certain name.
@@ -85,7 +85,7 @@ contains
   end function getLastChildByName
 
 
-  
+
   !!* Returns a list of children with a specific node name.
   !!* @param node      Parent node to investigate.
   !!* @param name      Name of the children to look for.
@@ -116,7 +116,7 @@ contains
 
   end function getChildrenByName
 
-    
+
 
 
   !!* Remove text nodes with only whitespace characters from node and children.
@@ -158,12 +158,12 @@ contains
     character(len=*), intent(in) :: name
     logical, intent(in), optional :: rootOnly
     type(fnodeList), pointer :: nodeList
-    
+
     logical :: tRootOnly
 
     @:ASSERT(associated(node))
     @:ASSERT(len(name) > 0)
-    
+
     if (present(rootOnly)) then
       tRootOnly = rootOnly
     else
@@ -179,7 +179,7 @@ contains
   !!* Recursive working subroutine for the getTagsWithoutAttribute routine
   !!* @param node     Tree to investigate
   !!* @param name     Name of the attribute to look for
-  !!* @param rootOnly Should children of a found attributeless node be ignored? 
+  !!* @param rootOnly Should children of a found attributeless node be ignored?
   !!* @param nodeList List of the nodes without the specified attribute
   recursive subroutine getTagsWithoutAttr_recursive(node, name, rootOnly, &
       &nodeList)
@@ -187,7 +187,7 @@ contains
     character(len=*), intent(in) :: name
     logical, intent(in) :: rootOnly
     type(fnodeList), pointer :: nodeList
-    
+
     type(fnode), pointer :: attr, child
 
     @:ASSERT(associated(node))
@@ -207,10 +207,10 @@ contains
       end if
       child => getNextSibling(child)
     end do
-    
+
   end subroutine getTagsWithoutAttr_recursive
 
-  
+
 
   !!* Remove and destroy all children of a node.
   !!* @param node Node to process
@@ -228,7 +228,7 @@ contains
       call destroyNode(child)
       child => child2
     end do
-    
+
   end subroutine removeChildNodes
 
 
@@ -241,13 +241,13 @@ contains
 
     type(fnode), pointer :: child
     integer :: ii
-    
+
     do ii = 0, getLength(nodeList) - 1
       child => item(nodeList, ii)
       child => removeChild(getParentNode(child), child)
       call destroyNode(child)
     end do
-    
+
   end subroutine removeNodes
 
 

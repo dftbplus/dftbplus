@@ -99,7 +99,7 @@ contains
     if (tPeriodic_) then
       !! Fold charges back to unit cell
       call foldCoordToUnitCell(coords_, latVecs, recVecs / (2.0_dp * pi))
-      
+
       !! Creating the real lattice for the Ewald summation (no neighbor list)
       !! The reciprocal part will be passed from the SCC module, since it is
       !! also needed there.
@@ -120,7 +120,7 @@ contains
 
     tUpdated_ = .false.
     tInitialized_ = .true.
-    
+
   end subroutine init_ExtChrg
 
 
@@ -140,7 +140,7 @@ contains
     call foldCoordToUnitCell(coords_, latVecs, recVecs / (2.0_dp * pi))
     call getCellTranslations(dummy, rCellVec_, latVecs, &
         & recVecs / (2.0_dp * pi), ewaldCutoff)
-    
+
   end subroutine updateLatVecs_ExtChrg
 
 
@@ -166,7 +166,7 @@ contains
   end subroutine updateCoords_ExtChrg_cluster
 
 
-  
+
   !!* Builds the new shift vectors for new atom coordinates
   !!* @param atomCoords Coordinates of the atoms (not the point charges!)
   subroutine updateCoords_ExtChrg_periodic(atomCoords, gLat, alpha, &
@@ -184,38 +184,38 @@ contains
 
     call sumInvR(invRVec_, nAtom_, nChrg_, atomCoords, coords_, charges_, &
         &rCellVec_, gLat, alpha, volume)
-    
+
     tUpdated_ = .true.
 
   end subroutine updateCoords_ExtChrg_periodic
-  
+
 
 
   !!* Adds the contribution of the external charges to the shift vector
   !!* @param shift Shift vector to add the contribution to.
   subroutine addShift1(shift)
     real(dp), intent(inout) :: shift(:)
-    
+
     @:ASSERT(tInitialized_ .and. tUpdated_)
     @:ASSERT(size(shift) == nAtom_)
-    
+
     shift(:) = shift(:) + invRVec_(:)
-    
+
   end subroutine addShift1
 
   !!* Adds the contribution of the external charges to the shift vector
   !!* @param shift Shift vector to add the contribution to.
   subroutine addShift2(shift)
     real(dp), intent(inout) :: shift(:,:)
-    
+
     @:ASSERT(tInitialized_ .and. tUpdated_)
     @:ASSERT(size(shift) == nAtom_)
-    
+
     shift(:,1) = shift(:,1) + invRVec_(:)
-    
+
   end subroutine addShift2
 
-  
+
 
   !!* Adds the atomic energy contribution do to the external charges.
   !!* @param atomCharges Charge of the atoms
@@ -229,7 +229,7 @@ contains
     @:ASSERT(size(energy) == nAtom_)
 
     energy(:) = energy(:) + invRVec_(:) * atomCharges(:)
-    
+
   end subroutine addEnergyPerAtom_ExtChrg
 
 
@@ -259,9 +259,9 @@ contains
       call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, atomCoords, &
           &coords_, atomCharges, charges_)
     end if
-    
+
   end subroutine addForceDCSCC_ExtChrg_cluster
-  
+
 
 
   !!* Adds that part of force contribution due to the external charges, which is
@@ -291,8 +291,8 @@ contains
     call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, &
         &atomCoords, coords_, atomCharges, charges_, rCellVec_, gVec, alpha, &
         &vol)
-    
+
   end subroutine addForceDCSCC_ExtChrg_periodic
 
-  
+
 end module ExternalCharges

@@ -25,7 +25,7 @@ module xlbomd_module
 
 
   character(*), parameter :: JacobianKernelFile = "neginvjac.dat"
-  
+
 
   !> Input for the Xlbomd driver.
   !!
@@ -138,7 +138,7 @@ contains
         this%invJacobian(:,:) = 0.0_dp
       end if
     end if
- 
+
   end subroutine Xlbomd_init
 
 
@@ -200,7 +200,7 @@ contains
     isActive = this%extLagr%needsConvergedValues()
 
   end function isActive
-    
+
 
   !> Returns the Scc parameters to be used when the integrator is active.
   !!
@@ -265,7 +265,7 @@ contains
 
     real(dp) :: coeffOld, coeffNew, normFactor
     integer :: nn
-    
+
     if (this%needsInverseJacobian()) then
       nn = this%iStep - this%nPreSteps
       normFactor = 1.0_dp / sum(invJacobian(:,1))
@@ -275,7 +275,7 @@ contains
           & + normFactor * invJacobian * coeffNew
       call this%extLagr%setPreconditioner(precondMtx=this%invJacobian)
     end if
-    
+
   end subroutine setInverseJacobian
 
 
@@ -288,8 +288,8 @@ contains
     this%invJacobian = transpose(this%invJacobian)
     write(*, "(A,A,A)") "Negative inverse Jacobian read from '", &
         & JacobianKernelFile, "'"
-    
+
   end subroutine readJacobianKernel
 
- 
+
 end module xlbomd_module

@@ -23,7 +23,7 @@ module accuracy
 
   integer, parameter :: rdp = kind(0.0d0) !* Real double precision - do not edit
   integer, parameter :: rsp = kind(0.0)   !* Real single precision - do not edit
-  
+
   !! Program technical constants
 
   !!* Length of the tail after the SK table at which point elements = 0
@@ -33,7 +33,7 @@ module accuracy
   real(dp), parameter :: distFudgeOld = 0.3_dp
 
   !!* Desired tolerance for number of total electrons when finding Ef
-  !!* @desc Fermi level is searched to give the number of electrons 
+  !!* @desc Fermi level is searched to give the number of electrons
   !!*   as accurate as elecTol. If bisection ends and difference between
   !!*   nr. of electrons calculated/theoretical is bigger than elecTolMax,
   !!*   the program stops.
@@ -66,7 +66,7 @@ module accuracy
 
   !!* Cut-off value to calculate the short-range part of Ewald sum
   real(dp), parameter :: minShortEwald = 1.0e-10_dp
-  
+
   !!* Tolerance for error in cut-off of short-range part of $\gamma_{ab}$
   real(dp), parameter :: tolShortGamma = 1.0e-10_dp
 
@@ -75,15 +75,15 @@ module accuracy
 
   !!* Minimum value for alpha in Ewald sum
   real(dp), parameter :: tolMinAlpha = 1.0e-4_dp
-  
+
   !!* Tolerance for minimum possible value of an atomic Hubbard U
-  real(dp), parameter :: MinHubTol = 1.0e-6_dp 
+  real(dp), parameter :: MinHubTol = 1.0e-6_dp
 
   !!* Tolerance for minimum possible difference in values of Hubbard U
   real(dp), parameter :: MinHubDiff = 0.3125_dp*1.0e-5_dp
 
   !!* Nr. of max. bisection steps
-  integer, parameter :: nSearchIter = 30 
+  integer, parameter :: nSearchIter = 30
 
   !!* Exponential function treated as infinity with arguments higher than this
   !!* (=-int(log(epsilon(1.0_8)))).
@@ -94,5 +94,5 @@ module accuracy
 
   !!* Tolerance for the dispersion damping function being considered 1
   real(dp), parameter :: tolDispDamp = 1.0e-10_dp
-  
+
 end module accuracy

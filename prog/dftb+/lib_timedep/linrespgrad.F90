@@ -100,7 +100,7 @@ contains
   !! \param fdArnoldi file unit for Arnoldi write out
   !! \param fdArnoldiDiagnosis file unit for Arnoldi solver tests, if
   !! this is < 1 no tests are performed
-  !! \param tEnergyWindow is an energy window specified 
+  !! \param tEnergyWindow is an energy window specified
   !! \param energyWindow window for transitions above nstat0 (if nstat0 > 0)
   !! \param tOscillatorWindow is an oscillator window window specified
   !! \param oscillatorWindow window for transitions above nstat0 (if nstat0 > 0)
@@ -341,42 +341,42 @@ contains
     end if
 
     if (tOscillatorWindow .or. tEnergyWindow) then
-      
+
       if (.not. tEnergyWindow) then
-        
+
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
         call dipselect(wij, sposz, win, snglPartTransDip,nxov_rd, &
             & oscillatorWindow, grndEigVal, getij)
-        
+
       else
-        
+
         energyThreshold = wij(nexc) + energyWindow
         nxov_r = count(wij <= energyThreshold)
-        
+
         nxov_d = 0
         if (tOscillatorWindow) then
-          
+
           ! find transitions that are strongly dipole allowed (> oscillatorWindow)
           call dipselect(wij(nxov_r+1:), sposz(nxov_r+1:), win(nxov_r+1:), &
               & snglPartTransDip(nxov_r+1:,:),nxov_d, oscillatorWindow, &
               & grndEigVal, getij)
-          
+
         end if
-        
+
         nxov_rd = nxov_r + nxov_d
-      
+
       end if
     else
-      
+
       nxov_rd = nxov
-      
+
     end if
-    
+
     ! just in case energy/dipole windows add no extra states, and is due to an
     ! arpack solver requirement combined with the need to get at least nexc
     ! states
     nxov_rd = max(nxov_rd,min(nexc+1,nxov))
-    
+
     if (fdXplusY >  0) then
       open(fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
@@ -444,17 +444,17 @@ contains
     if (tArnoldi) then
       close(fdArnoldi)
     end if
-    
+
     if (fdTrans > 0) close(fdTrans)
     if (fdXplusY > 0) close(fdXplusY)
     if (fdExc > 0) close(fdExc)
     if (fdTradip > 0) close(fdTradip)
-    
+
     if (nstat == 0) then
       omega = 0.0_dp
       return
     end if
-    
+
     ! Remove some un-used memory
     deallocate(snglPartTransDip)
     deallocate(transitionDipoles)
@@ -476,10 +476,10 @@ contains
         call error("Fractional fillings not currently possible for excited &
             &state property calculations")
       end if
-      
+
       ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
       nocc = int(rnel) / 2
-      
+
       ! count virtual and occupied states
       call getNorb_r(nxov_rd, win, getij, nocc, nocc_r, nvir_r)
 
@@ -983,7 +983,7 @@ contains
       call transq(i, a, iAtomStart, updwn, stimc, c, qij)
       xpyq(:) = xpyq + xpy(ia) * qij
     end do
-    
+
     ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
     if (sym == "S") then
       call hemv(gamxpyq, gammaMat,  xpyq)
@@ -999,7 +999,7 @@ contains
         qgamxpyq(ab) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
     end if
-    
+
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
     do ia = 1, nxov
       call indxov(win, ia, getij, i, a)
@@ -1013,25 +1013,25 @@ contains
         end if
       end do
     end do
-    
+
     ! -rhs = -rhs - sum_j (X + Y)_ja H + _ij[X + Y]
     ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
     if (sym == "S") then
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
         call indxoo(homo, nocc, ij, i, j)
-        call transq(i, j, iAtomStart, updwn, stimc, c, qij)        
+        call transq(i, j, iAtomStart, updwn, stimc, c, qij)
         qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
       end do
-    else      
+    else
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
         call indxoo(homo, nocc, ij, i, j)
-        call transq(i, j, iAtomStart, updwn, stimc, c, qij)        
+        call transq(i, j, iAtomStart, updwn, stimc, c, qij)
         qgamxpyq(ij) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
     end if
-    
+
     ! rhs(ia) += Qai = sum_j (X+Y)_ja qgamxpyq(ij)
     ! add Qai to Wia as well.
     do ia = 1, nxov

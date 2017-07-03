@@ -13,19 +13,19 @@
 module factorial
   use assert
   use accuracy, only : dp
-  
+
   implicit none
 
   !!* Calculate factorals up to a given order
   !!* @param nbang factorials
-  !!* @param n calculate factorials from 0 to n 
+  !!* @param n calculate factorials from 0 to n
   interface fact
      module procedure int_fact
      module procedure real_fact
   end interface fact
-  
+
 contains
-  
+
   subroutine int_fact(nbang,n)
     integer, intent(inout) :: nbang(0:)
     integer, intent(in) :: n

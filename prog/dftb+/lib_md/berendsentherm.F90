@@ -20,10 +20,10 @@ module berendsentherm
   use tempprofile
   implicit none
   private
-  
+
   public :: OBerendsenThermostat
   public :: init, getInitVelocities, updateVelocities, state
-  
+
   !!* Data for the Berendsen thermostat
   type OBerendsenThermostat
     private
@@ -33,16 +33,16 @@ module berendsentherm
     type(OTempProfile), pointer :: pTempProfile  !* Temperature generator
     real(dp) :: couplingParameter       !* coupling strength to friction term
     type(OMDCommon) :: pMDFrame !* MD Framework.
-  end type OBerendsenThermostat  
-  
+  end type OBerendsenThermostat
+
   interface init
     module procedure Berendsen_init
   end interface
-  
+
   interface getInitVelocities
     module procedure Berendsen_getInitVelos
   end interface
-  
+
   interface updateVelocities
     module procedure Berendsen_updateVelos
   end interface
@@ -50,9 +50,9 @@ module berendsentherm
   interface state
     module procedure Berendsen_state
   end interface
-  
+
 contains
-  
+
   !!* Creates an Berendsen thermostat instance.
   !!* @param self Initialised instance on exit.
   !!* @param pRanlux Pointer to the random generator.
@@ -67,7 +67,7 @@ contains
     type(OTempProfile), pointer, intent(in) :: tempProfile
     real(dp), intent(in) :: couplingParameter
     type(OMDCommon) :: pMDFrame
-    
+
     self%pRanlux => pRanlux
     self%nAtom = size(masses)
     allocate(self%mass(self%nAtom))
@@ -75,33 +75,33 @@ contains
     self%pTempProfile => tempProfile
     self%couplingParameter = couplingParameter
     self%pMDFrame = pMDFrame
-    
+
   end subroutine Berendsen_init
-  
-  
+
+
   !!* Returns the initial velocities.
   !!* @param self BerendsenThermostat instance.
   !!* @param velocities Contains the velocities on return.
   subroutine Berendsen_getInitVelos(self, velocities)
     type(OBerendsenThermostat), intent(inout) :: self
     real(dp), intent(out) :: velocities(:,:)
-    
+
     real(dp) :: kT
     integer :: ii
-    
+
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
-    
+
     call getTemperature(self%pTempProfile, kT)
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
     end do
     call restFrame(self%pMDFrame, velocities, self%mass)
     call rescaleTokT(self%pMDFrame, velocities, self%mass, kT)
-    
+
   end subroutine Berendsen_getInitVelos
 
 
-  
+
   !!* Updates the provided velocities according the current temperature.
   !!* @param self BerendsenThermostat instance.
   !!* @param velocities Updated velocities on exit.
@@ -110,25 +110,25 @@ contains
   subroutine Berendsen_updateVelos(self, velocities)
     type(OBerendsenThermostat), intent(inout) :: self
     real(dp), intent(inout) :: velocities(:,:)
-    
+
     real(dp) :: kTCurrent, kTTarget, scaling
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
-    
+
     call getTemperature(self%pTempProfile, kTTarget)
     call evalkT(self%pMDFrame, kTCurrent,velocities,self%mass)
     scaling = sqrt(1.0_dp + self%couplingParameter*(kTTarget/kTCurrent-1.0_dp))
     velocities(:,:) = scaling * velocities(:,:)
     call restFrame(self%pMDFrame, velocities, self%mass)
-    
+
   end subroutine Berendsen_updateVelos
 
   subroutine Berendsen_state(self, fd)
     type(OBerendsenThermostat), intent(in) :: self
     integer,intent(in)                  :: fd
-    
+
     ! no internal state, nothing to do
-    
+
   end subroutine Berendsen_state
-  
+
 end module berendsentherm

@@ -29,13 +29,13 @@ module linkedList
   public :: append, len, find, hasElement, elemShape, isUnishaped
   public :: get, set, asArray, asVector, intoArray
   public :: charMc, charLc
-  
+
 contains
 
 
   character(mc) function charMc(string)
     character(*), intent(in) :: string
-    
+
     charMc = string(1:min(mc, len(string)))
 
   end function charMc
@@ -43,10 +43,10 @@ contains
 
   character(lc) function charLc(string)
     character(*), intent(in) :: string
-    
+
     charLc = string(1:min(lc, len(string)))
 
   end function charLc
 
-  
+
 end module linkedList

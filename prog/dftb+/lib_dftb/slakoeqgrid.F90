@@ -65,16 +65,16 @@ module slakoeqgrid
   !! Nr. of grid points on the right of the interpolated point
   !! For odd nr. of intervals, nr. of right points should be bigger than
   !! nr. of left points, to remain compatible with the old code.
-  
+
   !! value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
-  integer, parameter :: nRightInterOld_ = 2 
+  integer, parameter :: nRightInterOld_ = 2
   !! value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterNew_ = 4
 
   !! Displacement for deriving interpolated polynomials
   real(dp), parameter :: deltaR_ = 1e-5_dp
 
-  
+
 
 contains
 
@@ -100,11 +100,11 @@ contains
     self%skTab(:,:) = table(:,:)
     self%skIntMethod = skIntMethod
     self%tInit = .true.
-    
+
   end subroutine SlakoEqGrid_init
 
 
-  
+
   !!* Returns the integrals for a given distance.
   !!* @param self SlakoEqGrid instance.
   !!* @param sk Contains the interpolated integrals on exit
@@ -126,7 +126,7 @@ contains
 
   end subroutine SlakoEqGrid_getSKIntegrals
 
-  
+
 
   !!* Returns the number of intgrals the table contains
   !!* @param self SlakoEqGrid instance.
@@ -158,7 +158,7 @@ contains
   end function SlakoEqGrid_getCutoff
 
 
-  
+
   !!* Inter- and extrapolation for SK-tables, new method.
   !!* @param self SlakoEqGrid table on equiv. grid
   !!* @param dd Output table of interpolated values.
@@ -178,7 +178,7 @@ contains
     incr = self%dist
     rMax = real(leng, dp) * incr + distFudge
     ind = floor(rr / incr)
-    
+
     !! Sanity check, if SK-table contains enough entries
     if (leng < nInterNew_ + 1) then
       call error("SlakoEqGrid: Not enough points in the SK-table for &
@@ -251,7 +251,7 @@ contains
     incr = self%dist
     mInd = leng + floor(distFudgeOld/incr)
     ind = floor(rr / incr)
-    
+
     !! Sanity check, if SK-table contains enough entries
     if (leng < nInterOld_ + 1) then
       call error("skspar: Not enough points in the SK-table for interpolation!")
@@ -299,6 +299,6 @@ contains
     end if
 
   end subroutine SlakoEqGrid_interOld_
-  
-  
+
+
 end module slakoeqgrid

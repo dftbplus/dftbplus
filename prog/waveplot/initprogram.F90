@@ -36,7 +36,7 @@ module InitProgram
   character(len=*), parameter :: hsdInput = "waveplot_in.hsd"
   character(len=*), parameter :: hsdParsedInput = "waveplot_pin.hsd"
   character(len=*), parameter :: xmlInput = "waveplot_in.xml"
-  character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml" 
+  character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml"
   integer, parameter :: parserVersion = 3
 
   public :: initProgramVariables
@@ -100,18 +100,18 @@ contains
 
   !!* Initialise program variables
   subroutine initProgramVariables()
-    
+
     type(fnode), pointer :: input, root, tmp, detailed
     type(string) :: strBuffer
     integer :: inputVersion
     integer :: ii
     logical :: tHSD, tGroundState
-    
+
     !! Write header
     write (*, "(A)") repeat("=", 80)
     write (*, "(A)") "     WAVEPLOT  " // version
     write (*, "(A,/)") repeat("=", 80)
-    
+
     !! Read in input file as HSD or XML.
     call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
     if (tHSD) then
@@ -121,38 +121,38 @@ contains
     end if
     write (*, "(A)") repeat("-", 80)
     call getChild(input, rootTag, root)
-    
+
     !! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
     if (inputVersion /= parserVersion) then
       call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
           &// i2c(parserVersion) // ") do not match")
     end if
-    
+
     call getChildValue(root, "GroundState", tGroundState, .true.)
-    
+
     !! Read data from detailed.xml
     call getChildValue(root, "DetailedXML", strBuffer)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
     call getChild(tmp, "detailedout", detailed)
     call readDetailed(detailed, tGroundState)
     call destroyNode(tmp)
-    
+
     !! Read basis
     call getChild(root, "Basis", tmp)
     call readBasis(tmp, geo%speciesNames)
     call getChildValue(root, "EigenvecBin", strBuffer)
     eigVecBin = unquote(char(strBuffer))
     call checkEigenvecs(eigVecBin, identity)
-    
+
     !! Read options
     call getChild(root, "Options", tmp)
     call readOptions(tmp, identity, nState, nKPoint, nSpin, occupations, &
         &tRealHam, geo%tPeriodic, basis)
-    
+
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
-    
+
     !! Finish parsing, dump parsed and processed input
     call dumpHSD(input, hsdParsedInput)
     write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
@@ -173,7 +173,7 @@ contains
     else
       gridOrigin(:) = origin(:)
     end if
-    gridVol = determinant(gridVec)    
+    gridVol = determinant(gridVec)
 
     write (*, "(A)") "Doing initialisation"
 
@@ -181,13 +181,13 @@ contains
     allocate(molOrb)
     pMolOrb => molOrb
     call init(molOrb, geo, basis)
-    
+
     call init(grid, levelIndex=levelIndex, &
         &nOrb=nOrb, nAllLevel=nState, nAllKPoint=nKPoint, nAllSpin=nSpin, &
         &nCached=nCached, nPoints=nPoints, tVerbose=tVerbose, &
         &eigVecBin=eigVecBin, gridVec=gridVec, origin=gridOrigin, &
         &kPointCoords=kPointsWeights(1:3,:), tReal=tRealHam,molorb=pMolOrb)
-    
+
   end subroutine initProgramVariables
 
 
@@ -236,11 +236,11 @@ contains
         occupations(:, iK, :) = occupations(:, iK, :) * kPointsWeights(4, iK)
       end do
     end if
-    
+
   end subroutine readDetailed
 
-  
-  
+
+
   !!* Read in the geometry stored as xml in internal or gen format.
   !!* @param geonode Node containing the geometry
   !!* @param geo     Contains the geometry information on exit
@@ -261,7 +261,7 @@ contains
     case default
       call readTGeometryHSD(geonode, geo)
     end select
-    
+
   end subroutine readGeometry
 
 
@@ -287,7 +287,7 @@ contains
     logical, intent(in) :: tRealHam
     logical, intent(in) :: tPeriodic
     type(TSpeciesBasis), intent(in) :: basis(:)
-    
+
     type(fnode), pointer :: subnode, field, value
     type(string) :: buffer, modifier
     type(ListIntR1) :: indexBuffer
@@ -407,7 +407,7 @@ contains
           boxVecs(ii, ii) = tmpvec(ii)
         end do
       end if
-      
+
     case ("optimalcuboid")
       !! Determine optimal cuboid, so that no basis function leaks out
       call getChildValue(value, "MinEdgeLength", minEdge, child=field, &
@@ -438,7 +438,7 @@ contains
       do ii = 1, 3
         boxVecs(ii, ii) = tmpvec(ii)
       end do
-      
+
     case ("origin","box")
       !! Those nodes are part of an explicit specification -> explitic specif
       call getChildValue(subnode, "Box", boxVecs, modifier=modifier, &
@@ -456,7 +456,7 @@ contains
         ind = getModifierIndex(char(modifier), lengthUnits, field)
         origin(:) = origin(:) * lengthUnits(ind)%value
       end if
-      
+
     case default
       !! Object with unknown name passed
       call detailedError(value, "Invalid element name")
@@ -487,7 +487,7 @@ contains
       call detailedError(field, "Indexes must be greater than zero")
     end if
     call getChildValue(node, "Verbose", tVerbose, .false.)
-    
+
   end subroutine readOptions
 
 
@@ -536,7 +536,7 @@ contains
     type(listReal) :: bufferExps, bufferCoeffs
     real(dp), allocatable :: coeffs(:), exps(:)
     integer :: ii
-    
+
     call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
     call getChildren(node, "Orbital", children)
     spBasis%nOrb = getLength(children)
@@ -553,7 +553,7 @@ contains
       call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
       call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
       call init(bufferExps)
-      
+
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
       if (len(bufferExps) == 0) then
         call detailedError(child, "Missing exponents")
@@ -579,7 +579,7 @@ contains
       deallocate(exps)
       deallocate(coeffs)
     end do
-    
+
   end subroutine readSpeciesBasis
 
 
@@ -607,9 +607,9 @@ contains
     close(fd)
 
   end subroutine checkEigenvecs
-  
 
-  
+
+
   !!* Determinant of a 3x3 matrix (Only temporary!)
   !!* @param matrix The matrix to calculate the determinant from.
   !!* @return       Determinant of the matrix.

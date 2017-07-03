@@ -78,7 +78,7 @@ program waveplot
       allocate(geo%species(nBox * geo%nAtom))
       ind = 0
       do i1 = 0, repeatBox(1) - 1
-        do i2 = 0, repeatBox(2) - 1 
+        do i2 = 0, repeatBox(2) - 1
           do i3 = 0, repeatBox(3) - 1
             shift(:) = matmul(boxVecs, real((/ i1, i2, i3/), dp))
             do iAtom = 1, geo%nAtom
@@ -106,7 +106,7 @@ program waveplot
   write (*, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(gridVec**2, dim=1))
   write (*,*)
 
-  !! Create density superposition of the atomic orbitals. Occupation is 
+  !! Create density superposition of the atomic orbitals. Occupation is
   !! distributed equally on orbitals with the same angular momentum.
   if (tCalcAtomDens) then
     allocate(atomicChrg(nPoints(1), nPoints(2), nPoints(3), 1))
@@ -198,7 +198,7 @@ program waveplot
     deallocate(rCellVec)
   end if
 
-  
+
   !! Calculate the molecular orbitals and write them to the disc
   iSpinOld = 1
   tFinished = .false.
@@ -331,7 +331,7 @@ program waveplot
         &fileName, comments, repeatBox)
     write (*, "(A)") "File '" // trim(fileName) // "' written"
   end if
-  
+
 
 contains
 
@@ -387,7 +387,7 @@ contains
     if (fd == -1) then
       fd = getFileId()
     end if
-    
+
     open(fd, file=fileName, action="write", status="replace")
     if (present(comments)) then
       write (fd, "(A)") trim(comments(1))
@@ -426,9 +426,9 @@ contains
       end do
     end do
     close(fd)
-        
+
   end subroutine writeCubeFile
 
 
-    
+
 end program waveplot

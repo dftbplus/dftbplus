@@ -34,7 +34,7 @@ module InitProgram
   character(len=*), parameter :: hsdInput = "modes_in.hsd"
   character(len=*), parameter :: hsdParsedInput = "modes_pin.hsd"
   character(len=*), parameter :: xmlInput = "modes_in.xml"
-  character(len=*), parameter :: xmlParsedInput = "modes_pin.xml" 
+  character(len=*), parameter :: xmlParsedInput = "modes_pin.xml"
   integer, parameter :: parserVersion = 3
 
   public :: initProgramVariables, destructProgramVariables
@@ -49,7 +49,7 @@ module InitProgram
 
   real(dp), allocatable, public :: atomicMasses(:)
   real(dp), allocatable, public :: dynMatrix(:,:)
-  
+
   logical, public :: tPlotModes
   logical, public :: tAnimateModes
   logical, public :: tXmakeMol
@@ -59,7 +59,7 @@ module InitProgram
   integer, public, parameter :: nSteps = 10
   integer, public :: nMovedAtom  ! Number of atoms which should be moved.
   integer, allocatable, public :: iMovedAtoms(:)
-  
+
   !! Locally created variables
 
 contains
@@ -83,7 +83,7 @@ contains
     logical :: tLower, tExist
     integer :: nDerivs
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
-    
+
     !! Write header
     write (*, "(A)") repeat("=", 80)
     write (*, "(A)") "     MODES  " // version
@@ -106,7 +106,7 @@ contains
           &// i2c(parserVersion) // ") do not match")
     end if
 
-    
+
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
 
@@ -137,7 +137,7 @@ contains
     else
       nCycles = 3
     end if
-    
+
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
@@ -230,7 +230,7 @@ contains
     !! Finish parsing, dump parsed and processed input
     if (tWriteHSD) then
       call dumpHSD(input, hsdParsedInput)
-      
+
       write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
           &//"'"
     end if
@@ -248,14 +248,14 @@ contains
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
     end do
-    
+
   end subroutine initProgramVariables
 
   !!* Destroy the program variables created in initProgramVariables
   subroutine destructProgramVariables()
-    
+
     write (*, "(/,A)") repeat("=", 80)
-    
+
   end subroutine destructProgramVariables
 
   !!* Read in the geometry stored as xml in internal or gen format.
@@ -278,7 +278,7 @@ contains
     case default
       call readTGeometryHSD(geonode, geo)
     end select
-    
+
   end subroutine readGeometry
 
 end module InitProgram

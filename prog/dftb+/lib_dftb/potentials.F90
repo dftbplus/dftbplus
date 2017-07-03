@@ -7,18 +7,18 @@
 
 #:include 'common.fypp'
 
-!!* Module to wrap around the different shift contributions in the DFTB 
+!!* Module to wrap around the different shift contributions in the DFTB
 !!* energy expressions
 module potentials
   use assert
   use accuracy, only : dp
   use commontypes
   implicit none
-  
+
   public :: TPotentials, init
-  
+
   private
-  
+
   !!* data type to store components of the internal and external potential as
   !!* named variables - makes extending expressions easier.
   !!* @note the reason for splitting internal and external potentials is that
@@ -34,16 +34,16 @@ module potentials
     real(dp), allocatable :: extBlock(:,:,:,:)
     real(dp), allocatable :: orbitalBlock(:,:,:,:) ! pSIC/DFTB+U etc.
     ! L.S etc where these are imaginary coefficients
-    real(dp), allocatable :: iorbitalBlock(:,:,:,:) 
+    real(dp), allocatable :: iorbitalBlock(:,:,:,:)
   end type TPotentials
-  
+
   interface init
     module procedure Potentials_init
   end interface
 
-  
+
 contains
-  
+
   !!* Allocates storage for the potential components
   !!* @param self data structure to allocate
   !!* @param orb information about the orbitals and their angular momenta
@@ -54,13 +54,13 @@ contains
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nAtom
     integer, intent(in) :: nSpin
-    
+
     @:ASSERT(.not. self%tInitialised)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(nAtom > 0)
     @:ASSERT(orb%mShell > 0)
     @:ASSERT(orb%mOrb > 0)
-    
+
     allocate(self%intAtom(nAtom,nSpin))
     allocate(self%intShell(orb%mShell,nAtom,nSpin))
     allocate(self%intBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
@@ -74,12 +74,12 @@ contains
     self%intBlock = 0.0_dp
     self%extAtom = 0.0_dp
     self%extShell = 0.0_dp
-    self%extBlock = 0.0_dp    
+    self%extBlock = 0.0_dp
     self%orbitalBlock = 0.0_dp
     self%iorbitalBlock = 0.0_dp
     self%tInitialised = .true.
-    
+
   end subroutine Potentials_init
-  
-  
+
+
 end module potentials

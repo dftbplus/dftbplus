@@ -61,7 +61,7 @@ contains
     self%mass = mass(:)
     self%pRanlux => pRanlux
     self%pMDFrame = pMDFrame
-    
+
   end subroutine DummyThermostat_init
 
 
@@ -84,13 +84,13 @@ contains
     call rescaleTokT(self%pMDFrame, velocities(:,:), self%mass, self%kT)
 
   end subroutine DummyThermostat_getInitVelos
-  
+
   subroutine DummyThermostat_state(self, fd)
     type(ODummyThermostat), intent(in) :: self
     integer,intent(in)                  :: fd
-    
+
     ! no internal state, nothing to do
-    
+
   end subroutine DummyThermostat_state
-  
+
 end module dummytherm

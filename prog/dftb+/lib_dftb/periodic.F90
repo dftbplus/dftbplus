@@ -31,7 +31,7 @@ module periodic
   public :: getNrOfNeighbors, getNrOfNeighborsForAll
   public :: getImgRange, getSuperSampling
   public :: frac2cart, cart2frac
-  
+
   interface reallocateHS
     module procedure reallocateHS_1
     module procedure reallocateHS_2
@@ -46,11 +46,11 @@ module periodic
   interface frac2cart
     module procedure fractionalCartesian
   end interface
-  
+
   interface cart2frac
     module procedure cartesianFractional
   end interface
-  
+
   !!* Contains essential data for the neighborlist
   type TNeighborList
     integer, allocatable :: iNeighbor(:,:)  !* index of neighbor atoms
@@ -104,18 +104,18 @@ contains
     real(dp), intent(in) :: cutoff
 
     integer  :: ii
-    
+
     @:ASSERT(all(shape(latVec) == [3, 3]))
     @:ASSERT(all(shape(recVec2p) == [3, 3]))
     @:ASSERT(cutoff >= 0.0_dp)
-    
+
     call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, &
         &negExtension=1)
     allocate(rCellVec(3, size(cellVec, dim=2)))
     do ii = 1, size(rCellVec, dim=2)
       rCellVec(:,ii) = matmul(latVec, cellVec(:,ii))
     end do
-    
+
   end subroutine getCellTranslations
 
 
@@ -132,7 +132,7 @@ contains
     @:ASSERT(all(shape(imgRange) == (/ 2, 3 /)))
     @:ASSERT(dist >= 0.0_dp)
     @:ASSERT(all(shape(recVec2p) == (/ 3, 3 /)))
-    
+
     do ii = 1, 3
       iTmp = floor(dist * sqrt(sum(recVec2p(:, ii)**2)))
       imgRange(1, ii) = -(iTmp + negExt)
@@ -142,7 +142,7 @@ contains
   end subroutine getImgRange
 
 
-  
+
   !!* Returns a set which definitely contains all the points of a 3D grid
   !!* which are nearer to the origin as a given distance.
   !!* @param latPoint     Returns grid points in relative coords.
@@ -211,7 +211,7 @@ contains
     call getImgRange(imgRange, dist, recVec2p, posExt, negExt)
 
     allocate(tmpLatPoint(3, product(sum(abs(imgRange), dim=1) + 1)))
-    
+
     dist2 = dist**2
     if (tOrig) then
       tmpLatPoint(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
@@ -344,7 +344,7 @@ contains
     integer,  intent(in)               :: species0(:)
     real(dp), intent(in)               :: cutoff
     real(dp), intent(in)               :: rCellVec(:,:)
-    
+
 
     call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
@@ -355,7 +355,7 @@ contains
     species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
 
   end subroutine updateNeighborListAndSpecies
-  
+
 
 
   !!* Updates the neighbor list according a given geometry.
@@ -507,10 +507,10 @@ contains
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
     coord(:,nAllAtom+1:size(coord, dim=2)) = 0.0_dp
-    
+
   end subroutine updateNeighborList
 
-  
+
 
   !!* Returns the nr. of neighbors for a given cutoff for all atoms.
   !!* @param nNeighbor Contains the nr. of neighbors for each atom on exit.
@@ -535,7 +535,7 @@ contains
     do iAtom = 1, nAtom
       nNeighbor(iAtom) = getNrOfNeighbors(neigh, cutoff, iAtom)
     end do
-     
+
   end subroutine getNrOfNeighborsForAll
 
 
@@ -568,7 +568,7 @@ contains
     call bisection(nNeighbor, &
         &neigh%neighDist2(1:neigh%nNeighbor(iAtom), iAtom), cutoff**2, &
         &tolSameDist2)
-    
+
   end function getNrOfNeighbors
 
 
@@ -596,7 +596,7 @@ contains
     allocate(img2CentCell(mNewAtom))
     img2CentCell(:) = 0
     img2CentCell(:mAtom) = tmpIntR1(:mAtom)
-    
+
     tmpIntR1(:) = iCellVec(:)
     deallocate(iCellVec)
     allocate(iCellVec(mNewAtom))
@@ -609,7 +609,7 @@ contains
   end subroutine reallocateArrays1
 
 
-  
+
   !!* Reallocate array which depends on the maximal nr. of neighbors.
   subroutine reallocateArrays3(iNeighbor, neighDist2, mNewNeighbor)
     integer, allocatable, intent(inout) :: iNeighbor(:, :)
@@ -703,7 +703,7 @@ contains
   end subroutine reallocateHS_1
 
 
-  
+
   !!* Allocate (reallocate) space for the sparse hamiltonian and overlap
   !!* matrix.
   !!* @param ham       Hamiltonian.
@@ -768,7 +768,7 @@ contains
     end if
 
   end subroutine reallocateHS_2
-  
+
   !!* Allocate (reallocate) space for the sparse hamiltonian and overlap
   !!* matrix.
   !!* @param ham       Hamiltonian.
@@ -826,7 +826,7 @@ contains
   end subroutine reallocateHS_Single
 
 
-  
+
   !!* Builds an atom offset array for the squared hamiltonain/overlap.
   !!* @param iAtomStart  Returns the offset array for each atom.
   !!* @param orb Information about the orbitals in the system.
@@ -849,10 +849,10 @@ contains
     iAtomStart(nAtom+1) = ind
 
   end subroutine buildSquaredAtomIndex
-  
+
   !!* Creates a K-points sampling, equivalent to folding of a reciprocal point
   !!*   of a super lattice.
-  !!* @param coeffs Coefficients of the lattice vectors in the linear 
+  !!* @param coeffs Coefficients of the lattice vectors in the linear
   !!*   combination for the super lattice vectors (should be integer values)
   !!* @param shifts Shift of the grid along the three small reciprocal lattice
   !!*   vectors (between 0.0 and 1.0)
@@ -924,7 +924,7 @@ contains
     call invert33(invCoeffs, coeffs)
     invCoeffs = transpose(invCoeffs)
     call init(lr1)
-    
+
     do i1 = imgRange(1, 1), imgRange(2, 1)
       do i2 = imgRange(1, 2), imgRange(2, 2)
         do i3 = imgRange(1, 3), imgRange(2, 3)
@@ -942,7 +942,7 @@ contains
     if (abs(real(nAllKPoint,dp) - abs(determinant33(coeffs))) > tol) then
       call error("Monkhorst-Pack routine failed to find all K-points.")
     end if
-    
+
     allocate(allKPoints(3, nAllKPoint))
     allocate(allKWeights(nAllKPoint))
     call asArray(lr1, allKPoints)
@@ -988,32 +988,32 @@ contains
       kPoints(:,:) = allKPoints
       kWeights(:) = allKWeights
     end if
-    
+
   end subroutine getSuperSampling
 
 
   subroutine fractionalCartesian(cartCoords,latvecs)
     real(dp), intent(inout) :: cartCoords(:,:)
     real(dp), intent(in)  :: latvecs(3,3)
-        
+
     @:ASSERT(size(cartCoords,dim=1) == 3)
 
     cartCoords = matmul(latvecs,cartCoords)
-    
+
   end subroutine fractionalCartesian
 
   subroutine cartesianFractional(cartCoords,latvecs)
     real(dp), intent(inout) :: cartCoords(:,:)
     real(dp), intent(in)  :: latvecs(3,3)
-    
+
     real(dp) :: invLatVecs(3,3)
-    
-    
+
+
     @:ASSERT(size(cartCoords,dim=1) == 3)
-    
+
     call invert33(invLatVecs, latvecs)
     cartCoords = matmul(invLatvecs, cartCoords)
-        
+
   end subroutine cartesianFractional
-  
+
 end module periodic

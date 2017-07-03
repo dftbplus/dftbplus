@@ -28,7 +28,7 @@ module inputdata_module
   implicit none
   private
   save
-  
+
   type control
     integer       :: iSeed       = 0
     real(dp)      :: maxForce    = 0.0_dp
@@ -116,7 +116,7 @@ module inputdata_module
     real(dp), allocatable :: xnose(:)
     real(dp), allocatable :: vnose(:)
     real(dp), allocatable :: gnose(:)
-    
+
     logical                :: tMDstill ! whether to shift to a co-moving
     ! frame for MD
     logical                :: tRescale = .false.
@@ -124,7 +124,7 @@ module inputdata_module
     integer, allocatable   :: tempSteps(:)
     real(dp), allocatable  :: tempValues(:)
     logical                :: tSetFillingTemp = .false.
-    
+
     real(dp)               :: tempElec      = 0.0_dp
     logical                :: tFixEf        = .false.
     real(dp)               :: Ef(2)         = 0.0_dp
@@ -135,9 +135,9 @@ module inputdata_module
     integer                :: nh_nys        = 3 ! order of integration
     integer                :: nh_nc         = 1 ! multiple time steps for N-H
     !  propagation
-    
+
     integer                :: maxRun        = -2
-    
+
     real(dp)               :: deriv2ndDelta    = 0.0_dp ! second
     ! derivative finite difference step
 
@@ -150,24 +150,24 @@ module inputdata_module
     logical                :: tIsotropic = .true. ! use isotropic scaling if
     !  barostatting
     real(dp)               :: BarostatStrength = 0.0_dp
-    
+
     ! read atomic masses from the input not the SK data
     real(dp), allocatable :: masses(:)
-        
+
     real(dp), allocatable :: spinW(:,:,:)  ! spin constants
-    real(dp), allocatable :: hubbU(:,:)    ! customised Hubbard U values    
+    real(dp), allocatable :: hubbU(:,:)    ! customised Hubbard U values
     real(dp), allocatable :: xi(:,:)       ! spin-orbit constants
-    
+
     integer                :: DFTBUfunc     = 0 ! choice of the DFTB+U
     ! functional
     real(dp), allocatable :: UJ(:,:)     ! list of U-J for species
     integer,  allocatable :: nUJ(:)      ! How many U-J for each
     ! species
     integer,  allocatable :: niUJ(:,:)   ! number of l-values of
-    ! U-J for each block    
+    ! U-J for each block
     integer,  allocatable :: iUJ(:,:,:)  ! l-values of U-J for each
     ! block
-    
+
     !! External charges
     integer :: nExtChrg = 0
     real(dp), allocatable :: extChrg(:,:)
@@ -186,17 +186,17 @@ module inputdata_module
     logical, allocatable :: tShellResInRegion(:)
     logical, allocatable :: tOrbResInRegion(:)
     character(lc), allocatable :: RegionLabel(:)
-    
+
     !! H short range damping
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
 
     !! Old repulsive
     logical :: useBuggyRepSum
-    
+
     !! Old kinetic energy stress contribution in MD
     logical :: useBuggyKEStress = .false.
-    
+
     !! Ewald alpha
     real(dp) :: ewaldAlpha = 0.0_dp
 
@@ -225,14 +225,14 @@ module inputdata_module
 
     !! XLBOMD
     type(XLBOMDInp), allocatable :: xlbomd
-    
+
     type(linrespini) :: lrespini
 
     !! socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
   end type control
-  
-  
+
+
   type geometry
     integer           :: nrAtoms         = 0
     logical           :: tPeriodic       = .false.
@@ -245,12 +245,12 @@ module inputdata_module
     character(mc), allocatable :: speciesName(:)
   end type geometry
 
-  
+
   type slater
     real(dp), allocatable :: skSelf(:, :)
     real(dp), allocatable :: skHubbU(:, :)
     real(dp), allocatable :: skOcc(:, :)
-    real(dp), allocatable :: mass(:) 
+    real(dp), allocatable :: mass(:)
 
     type(OSlakoCont), allocatable :: skHamCont
     type(OSlakoCont), allocatable :: skOverCont
@@ -267,7 +267,7 @@ module inputdata_module
   end type inputData
 
 
-  
+
   interface init
     module procedure InputData_init
   end interface init
@@ -275,12 +275,12 @@ module inputdata_module
   interface destruct
     module procedure InputData_destruct
   end interface destruct
-  
-  
+
+
   public :: control, TGeometry, slater, inputData, XLBOMDInp
   public :: init, destruct
 
-  
+
 contains
 
   subroutine InputData_init(self)
@@ -307,7 +307,7 @@ contains
     end if
 
   end subroutine Control_destruct
-    
+
 
 
 end module inputdata_module

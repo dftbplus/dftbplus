@@ -30,7 +30,7 @@ module tokenreader
 
   !!* Flag for signalising reading error
   integer, parameter :: TOKEN_ERROR = -2
-  
+
 
   !!* Contains procedures which read the next token from a string
   interface getNextToken
@@ -42,7 +42,7 @@ module tokenreader
     module procedure getNextToken_logical
     module procedure getNextToken_logicalR1
   end interface
-  
+
   !!* Character representation of the logical true value
   character(len=*), parameter :: LOGICAL_TRUE = "Yes"
 
@@ -58,7 +58,7 @@ module tokenreader
 
   public :: getNextToken, TOKEN_OK, TOKEN_EOS, TOKEN_ERROR
   public :: LOGICAL_TRUE, LOGICAL_FALSE, LOGICAL_TRUE_LO, LOGICAL_FALSE_LO
-    
+
 
 contains
 
@@ -177,11 +177,11 @@ contains
       iError = TOKEN_OK
       value = str(tokStart:tokEnd)
     end if
-    
+
     if (present(iostat)) then
       iostat = iError
     end if
-    
+
   end subroutine getNextToken_string
 
 
@@ -254,24 +254,24 @@ contains
       end if
       value(ii) = tmp
     end do
-    
+
     if (iError == TOKEN_OK) then
       start = iStart
       nReadItem = size(value)
     else
       nReadItem = ii - 1
     end if
-    
+
     if (present(nItem)) then
       nItem = nReadItem
     end if
-    
+
     if (present(iostat)) then
       iostat = iError
     elseif (iError /= TOKEN_OK) then
       call error("Real reading error")
     end if
-    
+
   end subroutine getNextToken_realR1
 
 
@@ -308,7 +308,7 @@ contains
       end if
     end if
     start = iStart
-        
+
     if (present(iostat)) then
       iostat = iError
     else
@@ -337,7 +337,7 @@ contains
     integer :: iStart, iError, nReadItem
     integer :: ii
     logical :: tmp
-    
+
     value = .false.
     iStart = start
     iError = TOKEN_OK
@@ -348,24 +348,24 @@ contains
       end if
       value(ii) = tmp
     end do
-    
+
     if (iError == TOKEN_OK) then
       start = iStart
       nReadItem = size(value)
     else
       nReadItem = ii - 1
     end if
-    
+
     if (present(nItem)) then
       nItem = nReadItem
     end if
-    
+
     if (present(iostat)) then
       iostat = iError
     elseif (iError /= TOKEN_OK) then
       call error("Logical reading error")
     end if
-    
+
   end subroutine getNextToken_logicalR1
 
   !!* Returns the next token from the provided string
@@ -422,5 +422,5 @@ contains
 
   end subroutine getNextToken_local
 
-  
+
 end module tokenreader

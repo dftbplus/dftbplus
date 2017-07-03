@@ -22,9 +22,9 @@ module repulsive
      module procedure getERep_total
      module procedure getERep_atoms
   end interface
-  
+
 contains
- 
+
   !!* Subroutine for calculating total energy contribution of the repulsives.
   !!* @param reslt Total energy contribution.
   !!* @param coords coordinates (x,y,z, all atoms including possible images)
@@ -43,10 +43,10 @@ contains
     integer, intent(in) :: species(:)
     integer, intent(in) :: img2CentCell(:)
     type(ORepCont), intent(in) :: repCont
-    
+
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), dist, intermed
-    
+
     reslt = 0.0_dp
     do iAt1 = 1, size(nNeighbors)
       do iNeigh = 1, nNeighbors(iAt1)
@@ -62,10 +62,10 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine getERep_total
 
-  
+
 
   !!* Subroutine for repulsive energy contributions for each atom
   !!* @param reslt Energy for each atom.
@@ -85,10 +85,10 @@ contains
     integer, intent(in)   :: species(:)
     type(ORepCont), intent(in) :: repCont
     integer, intent(in) :: img2CentCell(:)
-    
+
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), dist, intermed
-    
+
     @:ASSERT(size(reslt) == size(nNeighbors))
 
     reslt(:) = 0.0_dp
@@ -105,11 +105,11 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine getERep_atoms
 
 
-  
+
   !!* Subroutine for force contributions of the repulsives.
   !!* @param reslt Energy for each atom.
   !!* @param coords coordinates (x,y,z, all atoms including possible images)
@@ -133,7 +133,7 @@ contains
     real(dp) :: vect(3), intermed(3)
 
     @:ASSERT(size(reslt,dim=1) == 3)
-        
+
     reslt(:,:) = 0.0_dp
     do iAt1 = 1, size(nNeighbors)
       lpNeigh: do iNeigh = 1, nNeighbors(iAt1)
@@ -149,8 +149,8 @@ contains
         reslt(:,iAt2f) = reslt(:,iAt2f) - intermed(:)
       end do lpNeigh
     end do
-    
+
   end subroutine getERepDeriv
 
-  
+
 end module repulsive

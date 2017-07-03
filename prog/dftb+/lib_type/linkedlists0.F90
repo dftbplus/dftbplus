@@ -6,7 +6,7 @@ module linkedlists0
   implicit none
   private
 
-  
+
 
   $:define_list(&
       & TYPE_NAME='listString',&

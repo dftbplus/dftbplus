@@ -34,12 +34,12 @@ program skderivs
     character(lc) :: output
   end type TInputData
 
- 
+
   type(TInputData) :: inp
 
   call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in.xml", "skderivs_in")
   call main(inp)
-  
+
 
 contains
 
@@ -54,7 +54,7 @@ contains
     integer :: nGridform1, form2
     integer :: ii, jj, nGrid
     real(dp) :: rr
-    
+
     nGrid = floor((inp%to - inp%from) / inp%step) + 1
     allocate(sk(getNIntegrals(inp%skHam), -1:1))
     allocate(ham(getNIntegrals(inp%skHam), 0:2))
@@ -77,7 +77,7 @@ contains
       open(fpOver(ii), file=strTmp, status="replace", position="rewind")
       write (*, "(2X,A)") trim(strTmp)
     end do
-    
+
     do ii = 1, nGrid
       !! Calculate and write value, first and second derivatives
       rr = inp%from + real(ii-1, dp) * inp%step
@@ -140,7 +140,7 @@ contains
     end do
 
   end subroutine main
-  
+
 
 
   !!* Parses the HSD input
@@ -165,7 +165,7 @@ contains
     if (inputMissing) then
       call error("No input file found.")
     end if
-    
+
     write (*, "(A)") repeat("-", 80)
     if (isHSD) then
       write (*, "(A)") "Interpreting input file '" // hsdInputName // "'"
@@ -237,7 +237,7 @@ contains
     allocate(inp%skOver)
     call init(inp%skHam, skData12(1,1)%dist, skHam, skInterMeth)
     call init(inp%skOver, skData12(1,1)%dist, skOver, skInterMeth)
-    
+
     call getChildValue(root, "Start", inp%from)
     call getChildValue(root, "End", inp%to)
     call getChildValue(root, "Step", inp%step)
@@ -272,7 +272,7 @@ contains
     call warnUnprocessedNodes(root)
     write (*, "(A)") "Done."
     write (*, "(A)") repeat("-", 80)
-    
+
   end subroutine parseHSDInput
 
 
@@ -337,11 +337,11 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine getFullTable
 
 
-  
+
   !!* Returns the nr. of Slater-Koster integrals necessary to describe the
   !!* interactions between two species.
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
@@ -361,8 +361,8 @@ contains
         nInt = nInt + min(ang1, ang2) + 1
       end do
     end do
-    
+
   end function getNSKIntegrals
 
-  
+
 end program skderivs

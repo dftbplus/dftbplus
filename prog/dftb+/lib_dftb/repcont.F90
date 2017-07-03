@@ -72,7 +72,7 @@ module repcont
     module procedure RepCont_getEnergyDeriv
   end interface
 
-  
+
 contains
 
   !!* Initialises the repulsive container.
@@ -92,8 +92,8 @@ contains
 
   end subroutine RepCont_init
 
-  
-  !!* Adds a spline repulsive function to the container for a given species 
+
+  !!* Adds a spline repulsive function to the container for a given species
   !!* pair.
   !!* @param self Repulsive container.
   !!* @param pRep Repulsive function to add.
@@ -112,8 +112,8 @@ contains
 
   end subroutine RepCont_addRepSpline
 
-  
-  
+
+
   !!* Adds a polynomial repulsive function to the container for a given species
   !!* pair.
   !!* @param self Repulsive container.
@@ -133,8 +133,8 @@ contains
 
   end subroutine RepCont_addRepPoly
 
-  
-  
+
+
   !!* Returns a global cutoff for all repulive functions.
   !!* @param self Repulsive container.
   !!* @return Global cutoff.
@@ -172,7 +172,7 @@ contains
 
   end subroutine RepCont_getEnergy
 
-  
+
 
   !!* Returns the repulsive gradient for a given distance and species pair.
   !!* @param self Repulsive container.
@@ -199,5 +199,5 @@ contains
 
   end subroutine RepCont_getEnergyDeriv
 
-  
+
 end module repcont

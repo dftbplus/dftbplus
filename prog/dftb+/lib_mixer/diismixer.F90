@@ -10,7 +10,7 @@
 !!* Contains an DIIS mixer
 !!* @description
 !!*   The DIIS mixing is done by building a weighted combination over the
-!!*   previous input charges to minimise the residue of the error.  Only 
+!!*   previous input charges to minimise the residue of the error.  Only
 !!*   a specified number of previous charge vectors are considered.
 !!* The modification based on from Kovalenko et al. and Patrick Briddon to add
 !!* a contribution from the gradient vector as well is also used
@@ -21,9 +21,9 @@ module diismixer
   use accuracy
   use lapackroutines, only : gesv
   implicit none
-  
+
   private
-  
+
   !!* Contains the necessary data for an DIIS mixer
   type ODIISMixer
     private
@@ -43,29 +43,29 @@ module diismixer
                                             !!* older iterations for downhill
                                             !!* direction
   end type ODIISMixer
-  
-  
+
+
   !!* Creates an DIISMixer instance
   interface init
     module procedure DIISMixer_init
   end interface
-  
+
   !!* Resets the mixer
   interface reset
     module procedure DIISMixer_reset
   end interface
-  
+
   !!* Does the mixing
   interface mix
     module procedure DIISMixer_mix
   end interface
-  
-  
+
+
   public :: ODIISMixer
   public :: init, reset, mix
-  
+
 contains
-  
+
   !!* Creates an DIIS mixer instance.
   !!* @param self         Pointer to an initialized DIIS mixer on exit
   !!* @param nGeneration  Nr. of generations (including actual) to consider
@@ -77,17 +77,17 @@ contains
     real(dp), intent(in)           :: initMixParam
     logical, intent(in), optional  :: tFromStart
     real(dp), intent(in), optional :: alpha
-    
+
     @:ASSERT(nGeneration >= 2)
-    
+
     self%nElem = 0
     self%mPrevVector = nGeneration
-    
+
     allocate(self%prevQInput(self%nElem, self%mPrevVector))
     allocate(self%prevQDiff(self%nElem, self%mPrevVector))
-    
+
     self%initMixParam = initMixParam
-    
+
     if (present(tFromStart)) then
       self%tFromStart = tFromStart
     else
@@ -105,9 +105,9 @@ contains
     end if
 
     self%deltaR = 0.0_dp
-    
+
   end subroutine DIISMixer_init
-  
+
 
   !!* Makes the mixer ready for a new SCC cycle
   !!* @param self  DIIS mixer instance
@@ -115,10 +115,10 @@ contains
   subroutine DIISMixer_reset(self, nElem)
     type(ODIISMixer), intent(inout) :: self
     integer, intent(in) :: nElem
-    
+
 
     @:ASSERT(nElem > 0)
-    
+
     if (nElem /= self%nElem) then
       self%nElem = nElem
       deallocate(self%prevQInput)
@@ -133,9 +133,9 @@ contains
     end if
     self%iPrevVector = 0
     self%indx = 0
-    
+
   end subroutine DIISMixer_reset
-  
+
 
   !!* Mixes charges according to the DIIS method
   !!* @param self       Pointer to the diis mixer
@@ -145,20 +145,20 @@ contains
     type(ODIISMixer), intent(inout) :: self
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
-    
+
     real(dp), allocatable :: aa(:,:), bb(:,:)
     integer :: ii, jj
-    
+
     @:ASSERT(size(qInpResult) == self%nElem)
     @:ASSERT(size(qDiff) == self%nElem)
-    
+
     if (self%iPrevVector < self%mPrevVector) then
       self%iPrevVector = self%iPrevVector + 1
     end if
-    
+
     call storeVectors(self%prevQInput, self%prevQDiff, self%indx, &
         &qInpResult, qDiff, self%mPrevVector)
-    
+
     if (self%tFromStart .or. self%iPrevVector == self%mPrevVector) then
 
       if (self%tAddIntrpGradient) then
@@ -172,13 +172,13 @@ contains
         end if
         ! write(*,*)'Alpha ',self%alpha
       end if
-      
+
       allocate(aa(self%iPrevVector+1, self%iPrevVector+1))
       allocate(bb(self%iPrevVector+1, 1))
-      
+
       aa(:,:) = 0.0_dp
       bb(:,:) = 0.0_dp
-      
+
       do ii = 1, self%iPrevVector
         do jj = 1, self%iPrevVector
           aa(ii, jj) = dot_product( self%prevQDiff(:, ii), &
@@ -187,12 +187,12 @@ contains
       end do
       aa(self%iPrevVector+1, 1:self%iPrevVector) = -1.0_dp
       aa(1:self%iPrevVector, self%iPrevVector+1) = -1.0_dp
-      
+
       bb(self%iPrevVector+1,1) = -1.0_dp
-      
+
       !! Solve system of linear equations
       call gesv(aa, bb)
-      
+
       qInpResult(:) = 0.0_dp
       do ii = 1, self%iPrevVector
         qInpResult(:) = qInpResult(:) + bb(ii,1) * ( &
@@ -205,18 +205,18 @@ contains
         do ii = 1, self%iPrevVector
           self%deltaR(:) = self%deltaR(:) + bb(ii,1) * self%prevQDiff(:,ii)
         end do
-        qInpResult(:) = qInpResult(:) - self%alpha * self%deltaR(:)        
+        qInpResult(:) = qInpResult(:) - self%alpha * self%deltaR(:)
       end if
-      
+
     end if
-    
+
     if (self%iPrevVector < self%mPrevVector) then
       !! First few iterations return simple mixed vector
       qInpResult(:) = qInpResult(:) + self%initMixParam * qDiff(:)
     end if
-    
+
   end subroutine DIISMixer_mix
-  
+
   !!* Stores a vector pair in a limited storage. If the stack is full, oldest
   !!* vector pair is overwritten.
   !!* @param prevQInp    Contains previous vectors of the first type
@@ -233,11 +233,11 @@ contains
     real(dp), intent(in) :: qInput(:)
     real(dp), intent(in) :: qDiff(:)
     integer, intent(in) :: mPrevVector
-    
+
     indx = mod(indx, mPrevVector) + 1
     prevQInp(:,indx) = qInput(:)
     prevQDiff(:,indx) = qDiff(:)
-    
+
   end subroutine storeVectors
-  
+
 end module diismixer

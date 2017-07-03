@@ -15,7 +15,7 @@ module Slater
 
   private
   save
-  
+
   type OSlaterOrbital
     private
     integer :: nPow
@@ -46,7 +46,7 @@ module Slater
 
   public :: RealTessY
   public :: OSlaterOrbital, init, getValue, assignment(=)
-  
+
 
 contains
 
@@ -76,7 +76,7 @@ contains
     @:ASSERT(abs(mm) <= ll)
     @:ASSERT(size(coord) == 3)
     @:ASSERT(rr >= 0.0_dp)
-    
+
     xx = coord(1)
     yy = coord(2)
     zz = coord(3)
@@ -85,7 +85,7 @@ contains
       rty = 0.0_dp
       return
     end if
-    
+
     select case (ll)
     case(0)
       rty = 0.2820947917738782_dp
@@ -181,7 +181,7 @@ contains
     @:ASSERT(size(aa, dim=2) == nAlpha)
     @:ASSERT(cutoff > 0.0_dp)
     @:ASSERT(resolution > 0.0_dp)
-    
+
     allocate(self%aa(nPow, nAlpha))
     allocate(self%alpha(nAlpha))
 
@@ -203,7 +203,7 @@ contains
       call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, self%alpha, &
           &rr, self%gridValue(iGrid))
     end do
-    
+
   end subroutine SlaterOrbital_init
 
 
@@ -230,7 +230,7 @@ contains
     else
       sto = 0.0_dp
     end if
-    
+
   end subroutine SlaterOrbital_getValue
 
 
@@ -275,7 +275,7 @@ contains
       end do
       sto = sto + rTmp * exp(alpha(ii)*rr)
     end do
-    
+
   end subroutine SlaterOrbital_getValue_explicit
 
 
@@ -284,7 +284,7 @@ contains
   !!* @param left  Left value of the assignment
   !!* @param right Right value of the assignment
   !!* @note This subroutine must be elemental, so the usuall macros for the
-  !!*   allocation/deallocation can not be used, since they contain 
+  !!*   allocation/deallocation can not be used, since they contain
   !!*   io-statements.
   elemental subroutine SlaterOrbital_assign(left, right)
     type(OSlaterOrbital), intent(inout) :: left

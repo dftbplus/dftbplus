@@ -14,19 +14,19 @@ module dispersions
   use dispuff_module
   use dispuffdata
   use dispslaterkirkw
-#:if WITH_DFTD3  
+#:if WITH_DFTD3
   use dispdftd3_module
-#:endif  
+#:endif
   implicit none
   public
 
-  
+
   type :: DispersionInp
     type(DispUffInp), allocatable :: uff
     type(DispSlaKirkInp), allocatable :: slakirk
-  #:if WITH_DFTD3    
+  #:if WITH_DFTD3
     type(DispDftD3Inp), allocatable :: dftd3
-  #:endif    
+  #:endif
   end type DispersionInp
-  
+
 end module dispersions

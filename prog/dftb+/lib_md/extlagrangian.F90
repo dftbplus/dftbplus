@@ -29,7 +29,7 @@ module extlagrangian_module
     integer :: nElems
 
   end type ExtLagrangianInp
-  
+
 
   !> Represents an extended Lagrangian integrator.
   !!
@@ -84,7 +84,7 @@ module extlagrangian_module
       & -1.0_dp]
   real(dp), parameter :: alpha7 = 1.6e-3
   real(dp), parameter :: kappa7 = 1.86_dp
-  
+
 
 contains
 
@@ -160,7 +160,7 @@ contains
     this%iStep = 1
     this%nSteps = this%nTimeSteps + 1
     this%nTransientSteps = nTransientSteps0
-    
+
   end subroutine turnOn
 
 
@@ -217,14 +217,14 @@ contains
         diff(:) = matmul(this%precondMtx, diff)
       end if
       inNext(:) = inNext + this%kappa * this%scale * diff
-      
+
       ! Add dissipation
       do ii = 0, this%nTimeSteps
         ind = modIndex(ind0 - ii)
         inNext(:) = inNext&
             & + this%alpha * this%auxCoeffs(ii) * this%auxVectors(:,ind)
       end do
-      
+
       ! Store predicted vector in the database
       this%ind = modIndex(this%ind + 1)
       this%auxVectors(:,this%ind) = inNext
@@ -272,7 +272,7 @@ contains
     !> Instance variable.
     class(ExtLagrangian), intent(inout) :: this
 
-    !> Scaling factor for the difference vector (e.g. scaling factor for 
+    !> Scaling factor for the difference vector (e.g. scaling factor for
     !! SCF-free XLBOMD). Default: 1.0.
     real(dp), intent(in), optional :: scale
 
@@ -320,9 +320,9 @@ contains
     if (this%phase == phases%interpolating .and. this%iStep > this%nSteps) then
       this%phase = phases%on
     end if
-    
+
   end subroutine updatePhaseAndSteps
-    
+
 
 
 end module extlagrangian_module

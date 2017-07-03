@@ -31,7 +31,7 @@ module initprogram
   use conjgrad
   use steepdesc
   use gdiis
-  
+
   use ranlux
   use mdcommon
   use mdintegrator
@@ -52,7 +52,7 @@ module initprogram
   use repcont
 
   use fileid
-  
+
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
 
@@ -104,7 +104,7 @@ module initprogram
 
   real(dp), allocatable, target :: latVec(:,:)  !* lattice vectors as columns
   real(dp), allocatable, target :: recVec(:,:)  !* reciprocal vecs as columns
-  
+
   !* original lattice vectors used for optimizing
   real(dp)              :: origLatVec(3,3)
   ! normalized vectors in those directions
@@ -131,13 +131,13 @@ module initprogram
                                            !* atom
   real(dp), allocatable :: mass(:)         !* list of atomic masses
   real(dp), allocatable :: speciesMass(:)  !* list of atomic masses for each species
-  
+
   type(OSlakoCont)  :: skHamCont
   type(OSlakoCont) :: skOverCont
   type(ORepCont) :: pRepCont
   real(dp) :: skCutoff
   real(dp) :: skRepCutoff
-  
+
   real(dp)              :: mCutoff        !* longest pair interaction
 
   real(dp), allocatable :: ham(:,:)       !* Hamiltonian
@@ -194,7 +194,7 @@ module initprogram
   !* calculation (spin orbit or non-collinear spin)
 
   logical :: tSpinSharedEf ! Common Fermi level accross spin channels
-  
+
   real(dp) :: almix
 
   logical               :: tGeoOpt          !* Geometry optimization needed?
@@ -247,7 +247,7 @@ module initprogram
 
   real(dp)              :: random_pool(10)   !* pool of initial random numbers
   ! for future use. See comment in code at create(pRanlux, in this routine.
-  
+
   logical            :: tInitialized = .false.
   private :: tInitialized
 
@@ -301,16 +301,16 @@ module initprogram
   type(listIntR1), save :: iOrbRegion
   type(listCharLc), save :: regionLabels
   integer, allocatable, save :: fdProjEig(:) ! file units for results
-  
+
   !! Third order
   logical :: t3rd, t3rdFull
   type(ThirdOrder) :: thirdOrd
-  
+
   !! Linear response
   logical :: tLinResp, tLinRespZVect
   logical :: tPrintExcitedEigVecs = .false.
   type(linresp), save :: lresp
-  
+
   !! Other stuff
   logical :: tReadChrg    !* If initial charges/dens mtx. from external file.
   logical :: tWriteTagged !* produce tagged output?
@@ -320,8 +320,8 @@ module initprogram
   logical :: tWriteBandDat !* Produce band.dat
   logical :: tWriteHS, tWriteRealHS  !* Should HS (square and real) be printed?
   logical :: tMinMemory, tStoreEigvecs
-  
-  
+
+
   integer :: runId !* Program run id
 
   integer :: restartFreq    !* Frequency for saving restart info
@@ -368,7 +368,7 @@ contains
     type(OConjGrad), allocatable :: pConjGradLat   !* Conjugate gradient driver
     type(OSteepDesc), allocatable :: pSteepDescLat !* Steepest descent driver
     type(ODIIS), allocatable :: pDIIS    !* gradient DIIS driver
-    
+
     !! MD related local variables
     type(OThermostat), allocatable :: pThermostat
     type(ODummyThermostat), allocatable :: pDummyTherm
@@ -385,9 +385,9 @@ contains
     !! Dispersion
     type(DispSlaKirk), allocatable :: slaKirk
     type(DispUFF), allocatable :: uff
-  #:if WITH_DFTD3    
+  #:if WITH_DFTD3
     type(DispDftD3), allocatable :: dftd3
-  #:endif    
+  #:endif
 
     character(lc) :: strTmp, strTmp2
     logical :: tFirst ! flag to check for first cycle through a loop
@@ -404,7 +404,7 @@ contains
     !! Damped interactions
     logical, allocatable, target :: tDampedShort(:)
     type(ThirdOrderInp) :: thirdInp
-    
+
     !! PDOS stuff
     integer :: iReg, nAtomRegion, nOrbRegion, iTmp
     integer, allocatable :: iAtomRegion(:)
@@ -416,7 +416,7 @@ contains
 
     ! Used for indexing linear response
     integer :: homoLoc(1)
-    
+
     @:ASSERT(input%tInitialized)
 
     !! Basic variables
@@ -428,22 +428,22 @@ contains
     else
       nSpin = 1
     end if
-    tSpinSharedEf = input%ctrl%tSpinSharedEf    
+    tSpinSharedEf = input%ctrl%tSpinSharedEf
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
 
-    
+
     if (t2Component) then
       nSpin = 4
     end if
-    
+
     if (nSpin /= 2 .and. tSpinSharedEf) then
       call error("Colinear spin polarization required for shared Ef over spin&
           & channels")
     end if
-    
-    
+
+
     sccTol = input%ctrl%sccTol
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
@@ -487,7 +487,7 @@ contains
     skHamCont = input%slako%skHamCont
     skOverCont = input%slako%skOverCont
     pRepCont = input%slako%repCont
-    
+
     allocate(atomEigVal(orb%mShell, nType))
     @:ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
     @:ASSERT(size(input%slako%skSelf, dim=2) == size(atomEigVal, dim=2))
@@ -499,7 +499,7 @@ contains
     @:ASSERT(size(input%slako%mass) == nType)
     allocate(speciesMass(nType))
     speciesMass(:) = input%slako%mass(:)
-    
+
     ! Spin W's !'
     if (allocated(input%ctrl%spinW)) then
       allocate(spinW(orb%mShell, orb%mShell, nType))
@@ -514,7 +514,7 @@ contains
     else
       allocate(spinW(0,0,0))
     end if
-    
+
     if (tSpinOrbit) then
       allocate(xi(orb%mShell,nType))
       xi(:,:) = 0.0_dp
@@ -573,8 +573,8 @@ contains
         end if
       end do
     end do
-    
-    
+
+
     !! Initialise the SCC module (the two copies of the Hubbard Us are rather
     !! artifical, since the copy for the main program is only used for dumping
     !! into the tagged format for autotest)
@@ -625,7 +625,7 @@ contains
           sccInit%chrgConstraints = input%ctrl%chrgConstr
         end if
       end if
-      
+
       if (allocated(input%ctrl%thirdOrderOn)) then
         @:ASSERT(tSCC)
         @:ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
@@ -636,12 +636,12 @@ contains
       call init_SCC(sccInit)
       deallocate(sccInit)
       mCutoff = max(mCutoff, getSCCCutoff())
-      
+
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
         call error("Onsite third order DFTB only compatible with orbital non&
             & resolved SCC")
       end if
-      
+
       ! Initialize full 3rd order module
       t3rd = input%ctrl%t3rd
       t3rdFull = input%ctrl%t3rdFull
@@ -666,7 +666,7 @@ contains
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
-    
+
     allocate(mass(nAtom))
     mass = speciesMass(species0)
     if (allocated(input%ctrl%masses)) then
@@ -675,7 +675,7 @@ contains
         mass = input%ctrl%masses
       end where
     end if
-    
+
     if (tPeriodic) then
       !! Make some guess for the nr. of all interacting atoms
       nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
@@ -771,9 +771,9 @@ contains
     tFillKSep = input%ctrl%tFillKSep
     tempAtom = input%ctrl%tempAtom
     deltaT = input%ctrl%deltaT
-    
+
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
-    
+
     !! Create equivalency relations
     if (tSCC) then
       allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
@@ -824,8 +824,8 @@ contains
     if (.not.(tDFTBU.and.tImHam)) then
       allocate(iEqBlockDFTBULS(0, 0, 0, 0))
     end if
-    
-    
+
+
     !! Initialize mixer
     !! (at the moment, the mixer does not need to know about the size of the
     !! vector to mix.)
@@ -863,7 +863,7 @@ contains
         call error("Unknown charge mixer type.")
       end select
     end if
-    
+
     !! initialise in cases where atoms move
     tGeoOpt = input%ctrl%tGeoOpt
     tCoordOpt = input%ctrl%tCoordOpt
@@ -891,7 +891,7 @@ contains
     pressure = input%ctrl%pressure
     tBarostat = input%ctrl%tBarostat
     BarostatStrength = input%ctrl%BarostatStrength
-    
+
     tSocket = allocated(input%ctrl%socketInput)
     if (tSocket) then
       write(*,*) "Initialising for socket communication to host ", &
@@ -902,7 +902,7 @@ contains
       tGeoOpt = .false.
       tMD = .false.
     end if
-    
+
     tAppendGeo = input%ctrl%tAppendGeo
     tConvrgForces = (input%ctrl%tConvrgForces .and. tSCC) ! no point if not SCC
     tMD = input%ctrl%tMD
@@ -912,11 +912,11 @@ contains
     tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
-    
+
     ! false if not set anywhere else
     call SetEigVecsTxtOutput(input%ctrl%tPrintEigVecsTxt &
         & .or. input%ctrl%tPipekMezey)
-    
+
     ! Projection of eigenstates onto specific regions of the system
     tProjEigenvecs = input%ctrl%tProjEigenvecs
     if (tProjEigenvecs) then
@@ -928,7 +928,7 @@ contains
         allocate(iAtomRegion(nAtomRegion))
         call intoArray(input%ctrl%iAtInRegion, iAtomRegion, iTmp, iReg)
         if (input%ctrl%tOrbResInRegion(iReg) .or. input%ctrl%tShellResInRegion(iReg)) then
-          
+
           if (input%ctrl%tOrbResInRegion(iReg)) then
             iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
             @:ASSERT(all(species0(iAtomRegion) == iSp))
@@ -951,7 +951,7 @@ contains
             end do
             deallocate(tmpir1)
           end if
-          
+
           if (input%ctrl%tShellResInRegion(iReg)) then
             iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
             @:ASSERT(all(species0(iAtomRegion) == iSp))
@@ -977,7 +977,7 @@ contains
               call append(regionLabels, tmpStr)
             end do
           end if
-          
+
         else
           ! We take all orbitals from all atoms.
           nOrbRegion = 0
@@ -1009,7 +1009,7 @@ contains
     else
       allocate(fdProjEig(0))
     end if
-    
+
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
     if (tSCC) then
@@ -1038,27 +1038,27 @@ contains
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
     end if
-    
+
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = ((tPeriodic .and. tForces).and.tStress) 
-    
+    tStress = ((tPeriodic .and. tForces).and.tStress)
+
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
-    
+
     if (input%ctrl%maxRun == -1) then
       nGeoSteps = huge(1)
     else
       nGeoSteps = input%ctrl%maxRun
     end if
-    
+
     if (nMovedAtom > 0) then
       allocate(indMovedAtom(size(input%ctrl%indMovedAtom)))
       indMovedAtom(:) = input%ctrl%indMovedAtom(:)
     else
       allocate(indMovedAtom(0))
     end if
-    
+
     allocate(pGeoCoordOpt)
     if (tCoordOpt) then
       allocate(tmpCoords(nMovedCoord))
@@ -1088,7 +1088,7 @@ contains
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
-    
+
     allocate(pGeoLatOpt)
     if (tLatOpt) then
       select case (input%ctrl%iGeoOpt)
@@ -1118,11 +1118,11 @@ contains
         call reset( pGeoLatOpt, reshape(latVec, (/ 9 /)) )
       end if
     end if
-    
+
     if (.not.(tGeoOpt.or.tMD.or.tSocket)) then
       nGeoSteps = 0
     end if
-    
+
     !! Initialize constraints
     nGeoConstr = input%ctrl%nrConstr
     if (nGeoConstr > 0) then
@@ -1139,7 +1139,7 @@ contains
       allocate(conAtom(0))
       allocate(conVec(3, 0))
     end if
-    
+
     !! Dispersion
     tDispersion = allocated(input%ctrl%dispInp)
     if (tDispersion) then
@@ -1183,10 +1183,10 @@ contains
               & species0, speciesName)
         end if
         call move_alloc(dftd3, dispersion)
-    #:endif        
+    #:endif
       end if
       mCutoff = max(mCutoff, dispersion%getRCutoff())
-      
+
     end if
 
     if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
@@ -1217,12 +1217,12 @@ contains
     else
       allocate(sparsePipekTols(0))
     end if
-    
+
     ! Linear response
     tLinResp = input%ctrl%lrespini%tInit
-    
+
     if (tLinResp) then
-      
+
       ! input sanity checking
     #:if not WITH_ARPACK
       call error("This binary has been compiled without support for linear response calculations.")
@@ -1249,7 +1249,7 @@ contains
             & occupations, kT=", tempElec/Boltzmann,"K"
         call warning(tmpStr)
       end if
-      
+
       if (input%ctrl%lrespini%nstat == 0) then
         if (input%ctrl%lrespini%tMulliken) then
           call error("Muliken analysis only available for StateOfInterest non zero.")
@@ -1264,13 +1264,13 @@ contains
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
         call error("Negative energy window for excitations")
       end if
-      
+
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(nType))
       allocate(input%ctrl%lrespini%spinW(nType))
       input%ctrl%lrespini%HubbardU = 0.0_dp
       input%ctrl%lrespini%spinW = 0.0_dp
-                  
+
       ! calculate linear response Gamma values from HOAO shell Hubbard U (non
       ! shell resolved)
       do iSp = 1, nType
@@ -1278,7 +1278,7 @@ contains
             & mask=input%slako%skOcc(:orb%nShell(iSp), iSp) > 0.0_dp)
         input%ctrl%lrespini%HubbardU(iSp) = hubbU(homoLoc(1), iSp)
       end do
-            
+
       ! and atomic HOAO spin W value if needed
       input%ctrl%lrespini%spinW(:) = 0.0_dp
       select case(input%ctrl%lrespini%sym)
@@ -1294,15 +1294,15 @@ contains
       case default
         call error("Unknown excitation type requested")
       end select
-      
+
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tForces &
           & .or. input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
-      
+
       call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb)
-      
+
     end if
-    
+
     !! Generate a random id for the run. Seed with system time if possible.
     call system_clock(iSeed)
     !! Try date_and_time if system_clock does not work properly.
@@ -1439,7 +1439,7 @@ contains
       deallocate(tmp3Coords)
       nGeoSteps = 2 * 3 * nMovedAtom - 1
     end if
-    
+
     if (tEField) then
       EFieldStrength = input%ctrl%EFieldStrength
       EfieldVector(:) = input%ctrl%EfieldVector(:)
@@ -1459,7 +1459,7 @@ contains
       EfieldOmega = 0.0_dp
       EfieldPhase = 0
     end if
-    
+
     !! Allocate charge arrays
     if (tMulliken) then ! automatically true if tSCC
       allocate(q0(orb%mOrb, nAtom, nSpin))
@@ -1476,7 +1476,7 @@ contains
     allocate(qOutput(orb%mOrb, nAtom, nSpin))
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
-    
+
     if (tDFTBU) then
       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
@@ -1497,12 +1497,12 @@ contains
       qBlockIn = 0.0_dp
       qBlockOut = 0.0_dp
     end if
-    
+
     if (tImHam) then
       allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
       qiBlockOut = 0.0_dp
     end if
-    
+
     if (tSCC) then
       allocate(qDiffRed(nMixElements))
       allocate(qInpRed(nMixElements))
@@ -1706,7 +1706,7 @@ contains
     !! Minimize memory usage?
     tMinMemory = input%ctrl%tMinMemory
     tStoreEigvecs = tMinMemory .and. (nKPoint > 1 .or. nSpin == 2 )
-    if (tStoreEigvecs) then      
+    if (tStoreEigvecs) then
       if (tRealHS.and.(.not.t2Component)) then
         allocate(storeEigvecsReal(nSpin))
         allocate(storeEigvecsCplx(0))
@@ -1730,7 +1730,7 @@ contains
       allocate(storeEigvecsReal(0))
       allocate(storeEigvecsCplx(0))
     end if
-    
+
     !! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
     if (tExist) then
@@ -1744,7 +1744,7 @@ contains
     restartFreq = input%ctrl%restartFreq
 
     tInitialized = .true.
-    
+
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
@@ -1787,7 +1787,7 @@ contains
               & "MD with scaling of velocities according to", &
               & "Nose-Hoover-Chain thermostat"
         end if
-        
+
       case default
         call error("Unknown thermostat mode")
       end select
@@ -1961,7 +1961,7 @@ contains
       end if
       write (*, "(A,':',T30,A)") "Initial charges", trim(strTmp)
     end if
-    
+
     do iSp = 1, nType
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
@@ -1979,7 +1979,7 @@ contains
       write (*, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), &
           &trim(strTmp2)
     end do
-    
+
     if (tPeriodic) then
       do ii = 1, nKPoint
         if (ii == 1) then
@@ -2001,12 +2001,12 @@ contains
     #:if WITH_DFTD3
       type is (DispDftD3)
         write(*,"(A)") "Using DFT-D3 dispersion corrections"
-    #:endif        
+    #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
       end select
     end if
-    
+
     if (tSCC) then
       ! Have the SK values of U been replaced?
       if (allocated(input%ctrl%hubbU)) then
@@ -2029,7 +2029,7 @@ contains
         end do
       end if
     end if
-    
+
     tFirst = .true.
     if (tSpin) then
       do iSp = 1, nType
@@ -2127,7 +2127,7 @@ contains
             &- make sure there is a vacuum region!")
       end if
     end if
-    
+
     if (tDFTBU) then
       do iSp = 1, nType
         if (nUJ(iSp)>0) then
@@ -2142,7 +2142,7 @@ contains
       end do
 
     end if
-    
+
     if (tSpinOrbit) then
       if (tDualSpinOrbit) then
         if ( (tEField .or. tExtChrg) .and. tForces) then
@@ -2151,7 +2151,7 @@ contains
         end if
       end if
     end if
-    
+
     select case (forceType)
     case(0)
       write(*, "(A,T30,A)") "Force type", "original"
@@ -2163,12 +2163,12 @@ contains
     case(3)
       write(*, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
-      
+
     if ((tSpinOrbit .and. tDFTBU) .and. tForces)  then
       call error("Currently there is a force bug for dual DFTB+U with spin &
           &orbit coupling")
     end if
-    
+
     if (.not.tStress) then
       if (tBarostat) then
         call error("Sorry, MD with a barostat requires stress evaluation")
@@ -2178,29 +2178,29 @@ contains
             & evaluation")
       end if
     end if
-    
+
     if (tSpinOrbit .and. (tWriteHS .or.(tWriteRealHS.and..not.tDualSpinOrbit)))&
         & then
       call error("Writing of Hamiltonian currently not possible with spin orbit&
           & coupling enabled.")
     end if
-    
+
     if (tLinResp) then
       if (tMinMemory) then
         call error("Linear response is not compatible with MinimiseMemoryUsage&
             & yet")
       end if
-      
+
       if (tDFTBU) then
         call error("Linear response is not compatible with Orbitally dependant&
             & functionals yet")
       end if
-      
+
       if (tForces .and. nSpin > 1) then
         call error("Linear response is not available for spin polarised forces&
             & yet")
       end if
-      
+
       if (t2Component) then
         call error("Linear response is not compatibile with this spinor&
             & Hamiltonian")
@@ -2209,15 +2209,15 @@ contains
       if (tStress) then
         call error("Excited state stresses not implemented")
       end if
-      
+
       if (.not.tRealHS) then
         call error("Linear response does not support k-points")
       end if
-        
+
     end if
-    
+
     tInitialized = .true.
-    
+
   end subroutine initProgramVariables
 
 
@@ -2225,7 +2225,7 @@ contains
   subroutine destructProgramVariables()
 
     integer :: ii
-    
+
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
@@ -2236,7 +2236,7 @@ contains
     do ii = 1, size(storeEigvecsCplx)
       call destruct(storeEigvecsCplx(ii))
     end do
- 
+
   end subroutine destructProgramVariables
 
 

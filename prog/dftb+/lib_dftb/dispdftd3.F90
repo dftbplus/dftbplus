@@ -52,7 +52,7 @@ module dispdftd3_module
 
 
 contains
-  
+
   !> Inits a DispDftD3 instance.
   !!
   !! \param this  Initialised instance at return.
@@ -80,12 +80,12 @@ contains
       this%latVecs(:,:) = latVecs
     end if
     this%nAtom = nAtom
-    
+
     d3inp%threebody = inp%threebody
     d3inp%numgrad = inp%numgrad
     d3inp%cutoff = inp%cutoff
     d3inp%cutoff_cn = inp%cutoffCN
-    
+
     allocate(this%calculator)
     call dftd3_init(this%calculator, d3inp)
     if (inp%tBeckeJohnson) then
@@ -95,16 +95,16 @@ contains
       call dftd3_set_params(this%calculator, [inp%s6, inp%sr6, inp%s8, &
           & inp%sr8, inp%alpha6], 3)
     end if
-    
+
     allocate(this%izp(nAtom))
     do iAt = 1, this%nAtom
       this%izp(iAt) =  get_atomic_number(speciesNames(species0(iAt)))
     end do
     allocate(this%gradients(3, nAtom))
-    
+
   end subroutine DispDftD3_init
 
-  
+
   !> Notifies the objects about changed coordinates.
   !!
   !! \param neigh  Updated neighbor list.
@@ -118,7 +118,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) ::  species0(:)
-    
+
     @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
@@ -131,7 +131,7 @@ contains
           & this%gradients)
     end if
     this%tCoordsUpdated = .true.
-    
+
   end subroutine updateCoords
 
 
@@ -147,10 +147,10 @@ contains
 
     this%latVecs(:,:) = latVecs
     this%tCoordsUpdated = .false.
-    
+
   end subroutine updateLatVecs
 
-  
+
   !> Returns the atomic resolved energies due to the dispersion.
   !!
   !! \param energies  Contains the atomic energy contributions on exit.
@@ -169,7 +169,7 @@ contains
 
   end subroutine getEnergies
 
-  
+
   !> Adds the atomic gradients to the provided vector.
   !!
   !! \param gradients  The vector to increase by the gradients.
@@ -181,12 +181,12 @@ contains
     @:ASSERT(allocated(this%calculator))
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
-    
+
     gradients(:,:) = gradients + this%gradients
-    
+
   end subroutine addGradients
 
-  
+
   !> Returns the stress tensor.
   !!
   !! \param stress tensor from the dispersion
@@ -198,12 +198,12 @@ contains
     @:ASSERT(allocated(this%calculator))
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
-    
+
     stress(:,:) = this%stress
 
   end subroutine getStress
 
-  
+
   !> Estimates the real space cutoff of the dispersion interaction.
   !!
   !! \return Cutoff
@@ -218,5 +218,5 @@ contains
 
   end function getRCutoff
 
-  
+
 end module dispdftd3_module

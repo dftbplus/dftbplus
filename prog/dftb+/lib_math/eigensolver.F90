@@ -21,7 +21,7 @@ module eigensolver
   private
 
   public :: heev, hegv, hegvd, gvr, bgv
-  
+
   character(len=100) :: error_string !* Used to return runtime diagnostics
 
   !!* Simple eigensolver for a symmetric/Hermitian matrix
@@ -40,10 +40,10 @@ module eigensolver
 
 !  !!* Simple eigensolver for a general matrix
 !  !!* @param a contains the matrix for the solver, returns eigenvalues if
-!  !!* requested  
+!  !!* requested
 !  !!* @param w eigenvalues
-!  !!* @param vr 
-!  !!* @param vl 
+!  !!* @param vr
+!  !!* @param vl
 !  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
 !  !!* @caveat the matrix a is overwritten
 !  interface geev
@@ -55,7 +55,7 @@ module eigensolver
 
   !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
   !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested  
+  !!* requested
   !!* @param b contains the second matrix for the solver
   !!* @param w eigenvalues
   !!* @param uplo upper or lower triangle of the matrix
@@ -65,7 +65,7 @@ module eigensolver
   !!* default is 1
   !!* @caveat the matrix a is overwritten
   !!* @caveat the matrix b is overwritted with Cholesky factorization if
-  !!* eigenvalues are computed  
+  !!* eigenvalues are computed
   interface hegv
     module procedure real_ssygv
     module procedure dble_dsygv
@@ -76,17 +76,17 @@ module eigensolver
   !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
   !!* using divide and conquer
   !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested  
+  !!* requested
   !!* @param b contains the second matrix for the solver
   !!* @param w eigenvalues
   !!* @param uplo upper or lower triangle of the matrix
   !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved 
+  !!* @param itype optional specifies the problem type to be solved
   !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
   !!* default is 1
   !!* @caveat the matrix a is overwritten
   !!* @caveat the matrix b is overwritted with Cholesky factorization if
-  !!* eigenvalues are computed  
+  !!* eigenvalues are computed
   interface hegvd
     module procedure real_ssygvd
     module procedure dble_dsygvd
@@ -106,7 +106,7 @@ module eigensolver
   !!* @param w eigenvalues
   !!* @param uplo upper or lower triangle of the matrix
   !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved 
+  !!* @param itype optional specifies the problem type to be solved
   !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
   !!* default is 1
   !!* @param il optional lower range
@@ -118,12 +118,12 @@ module eigensolver
     module procedure dble_dsygvr
     module procedure cmplx_chegvr
     module procedure dblecmplx_zhegvr
-  end interface  
-  
+  end interface
+
   !!* Simple eigensolver for a symmetric/Hermitian banded generalized matrix
   !!* problem of the form A*x=(lambda)*B*x
   !!* @param ab contains the matrix for the solver, returns eigenvalues if
-  !!* requested  
+  !!* requested
   !!* @param bb contains the second matrix for the solver
   !!* @param w eigenvalues
   !!* @param uplo upper or lower triangle of the matrix
@@ -238,7 +238,7 @@ contains
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
-    call CHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)    
+    call CHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
       if (info<0) then
 99040 format ('Failure in diagonalisation routine cheev,', &
@@ -278,7 +278,7 @@ contains
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
-    call ZHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)    
+    call ZHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
       if (info<0) then
 99060 format ('Failure in diagonalisation routine zheev,', &
@@ -428,29 +428,29 @@ contains
     allocate(rwork(3*n-2))
 !   Bugfix for fault in allocation query in zhegv. Should be removed if
 !   lapack gets fixed
-!   
+!
 !   In zhegv/chegv the reference lapack reads :
-!   
+!
 !         IF( INFO.NE.0 ) THEN
 !            CALL XERBLA( 'ZHEGV ', -INFO )
 !            RETURN
 !         END IF
-!   
+!
 !   But in dsygv/ssygv instead the test reads :
-!   
+!
 !         IF( INFO.NE.0 ) THEN
 !            CALL XERBLA( 'DSYGV ', -INFO )
 !            RETURN
 !         ELSE IF( LQUERY ) THEN
 !            RETURN
 !         END IF
-!   
-!   
+!
+!
 !   Hence the complex routines attempt to solve the eigenproblem even when
 !   called as a workspace query.
     NB = ILAENV( 1, 'CHETRD', UPLO, N, -1, -1, -1 )
     LWKOPT = ( NB+1 )*N
-!   end bug fix    
+!   end bug fix
     allocate(work(LWKOPT))
     ! A*x = (lambda)*B*x upper triangles to be used
     call CHEGV(iitype, 'V', 'L', n, a, n, b, n, w, work, LWKOPT, rwork, info)
@@ -503,29 +503,29 @@ contains
     allocate(rwork(3*n-2))
 !   Bugfix for fault in allocation query in zhegv. Should be removed if
 !   lapack gets fixed
-!   
+!
 !   In zhegv/zhegv the reference lapack reads :
-!   
+!
 !         IF( INFO.NE.0 ) THEN
 !            CALL XERBLA( 'ZHEGV ', -INFO )
 !            RETURN
 !         END IF
-!   
+!
 !   But in dsygv/ssygv instead the test reads :
-!   
+!
 !         IF( INFO.NE.0 ) THEN
 !            CALL XERBLA( 'DSYGV ', -INFO )
 !            RETURN
 !         ELSE IF( LQUERY ) THEN
 !            RETURN
 !         END IF
-!   
-!   
+!
+!
 !   Hence the complex routines attempt to solve the eigenproblem even when
 !   called as a workspace query.
     NB = ILAENV( 1, 'CHETRD', UPLO, N, -1, -1, -1 )
     LWKOPT = ( NB+1 )*N
-!   end bug fix 
+!   end bug fix
     allocate(work(LWKOPT))
     ! A*x = (lambda)*B*x upper triangles to be used
     call ZHEGV(iitype, 'V', 'L', n, a, n, b, n, w, work, LWKOPT, rwork, info)
@@ -543,7 +543,7 @@ contains
        else
 99270 format ('Failure in diagonalisation routine zhegv,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-          write(error_string, 99270) info - n 
+          write(error_string, 99270) info - n
           call error(error_string)
        endif
     endif
@@ -551,7 +551,7 @@ contains
   End Subroutine dblecmplx_zhegv
 
   !!* Real eigensolver for generalized symmetric matrix problem - divide and
-  !!* conquer  
+  !!* conquer
   Subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
@@ -585,7 +585,7 @@ contains
     allocate(work(int_idealwork))
     allocate(iwork(iidealwork(1)))
     call SSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
-         & iwork, iidealwork(1), info)    
+         & iwork, iidealwork(1), info)
     if (info/=0) then
        if (info<0) then
 99280 format ('Failure in diagonalisation routine ssygvd,', &
@@ -665,7 +665,7 @@ contains
   End Subroutine dble_dsygvd
 
   !!* Complex eigensolver for generalized Hermitian matrix problem divide and
-  !!* conquer  
+  !!* conquer
   Subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
@@ -764,7 +764,7 @@ contains
     allocate(rwork(int_ridealwork))
     allocate(iwork(iidealwork(1)))
     call ZHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
-        & rwork, int_ridealwork, iwork, iidealwork(1), info)    
+        & rwork, int_ridealwork, iwork, iidealwork(1), info)
     if (info/=0) then
       if (info<0) then
 99370 format ('Failure in diagonalisation routine zhegvd,', &
@@ -788,11 +788,11 @@ contains
 
   !!* Real eigensolver for generalized symmetric matrix problem -
   !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n 
+  !!* is smaller than the  size of a and b, then only the first n
   !!* eigenvalues/eigenvectors are found
   !!* This version re-uses a triangle of a matrix (saving an additional
   !!* allocation that was in the previous version)
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
+  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
@@ -802,7 +802,7 @@ contains
     integer, optional, intent(in) :: itype
     integer, optional, intent(in) :: ilIn
     integer, optional, intent(in) :: iuIn
-    
+
     real(rsp), allocatable :: work(:)
     real(rsp) :: tmpWork(1)
     real(rsp), allocatable :: tmpChole(:)
@@ -829,7 +829,7 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
     @:ASSERT(present(ilIn) .eqv. present(iuIn))
-    
+
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
@@ -857,15 +857,15 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    
+
     allocate(isuppz(2*n))
 
     allocate(tmpChole(size(a,dim=1)))
-    
+
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = slamch( 'Safe minimum' )
-    
+
     info = 0
 
     if (subspace) then
@@ -875,7 +875,7 @@ contains
       call SSYEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
     end if
-    
+
     if (info/=0) then
       call error("Failue in SSYGVR to determine optimum workspace")
     endif
@@ -883,7 +883,7 @@ contains
     liwork = floor(real(tmpIWork(1)))
     allocate(work(lwork))
     allocate(iwork(liwork))
-    
+
     ! Form a Cholesky factorization of B.
     call SPOTRF( uplo, n, b, n, info )
     if( info /= 0 ) then
@@ -900,7 +900,7 @@ contains
       write(error_string, *)'Failure in SSYGVR to transform to standard',info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Save Cholesky factor in the other triangle of H and tmpChole
       do ii = 1, n
@@ -920,14 +920,14 @@ contains
         end do
       end if
     end if
-    
+
     if (subspace) then
       call ssyevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
           & liwork, info )
     else
       call ssyevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
           & liwork, info )
     end if
     if( info /= 0 ) then
@@ -935,10 +935,10 @@ contains
       write(error_string, 99410) info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Backtransform eigenvectors to the original problem.
-      
+
       do ii = 1, n
         a(ii,ii) = tmpChole(ii)
       end do
@@ -950,14 +950,14 @@ contains
         uplo_new = 'U'
         upper = .true.
       end if
-      
+
       neig = n
       if( info > 0 ) then
         neig = info - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
-        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y		!'
+        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y          !'
         if( upper ) then
           trans = 'N'
         else
@@ -966,7 +966,7 @@ contains
         call strsm('Left',uplo_new,trans,'Non-unit',n,neig,1.0,A,n, B,n)
       else if( iitype == 3 ) then
         ! For B*A*x=(lambda)*x;
-        ! backtransform eigenvectors: x = L*y or U'*y			!'
+        ! backtransform eigenvectors: x = L*y or U'*y     !'
         if( upper ) then
           trans = 'T'
         else
@@ -977,14 +977,14 @@ contains
       do ii = 1,m
         a( 1:n, ii) = b( 1:n, ii )
       end do
-      a( 1:n, m+1:n ) = 0.0 
+      a( 1:n, m+1:n ) = 0.0
     end if
-    
+
   end subroutine real_ssygvr
 
   !!* Double precision  eigensolver for generalized symmetric matrix problem -
   !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n 
+  !!* is smaller than the  size of a and b, then only the first n
   !!* eigenvalues/eigenvectors are found
   !!* This version re-uses a triangle of a matrix (saving an additional
   !!* allocation that was in the previous version)
@@ -998,7 +998,7 @@ contains
     integer, optional, intent(in) :: itype
     integer, optional, intent(in) :: ilIn
     integer, optional, intent(in) :: iuIn
-    
+
     real(rdp), allocatable :: work(:)
     real(rdp) :: tmpWork(1)
     real(rdp), allocatable :: tmpChole(:)
@@ -1053,15 +1053,15 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    
+
     allocate(isuppz(2*n))
 
     allocate(tmpChole(size(a,dim=1)))
-    
+
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = dlamch( 'Safe minimum' )
-    
+
     info = 0
 
     if (subspace) then
@@ -1071,7 +1071,7 @@ contains
       call DSYEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
     end if
-    
+
     if (info/=0) then
       call error("Failue in DSYGVR to determine optimum workspace")
     endif
@@ -1079,7 +1079,7 @@ contains
     liwork = floor(real(tmpIWork(1)))
     allocate(work(lwork))
     allocate(iwork(liwork))
-    
+
     ! Form a Cholesky factorization of B.
     call DPOTRF( uplo, n, b, n, info )
     if( info /= 0 ) then
@@ -1096,7 +1096,7 @@ contains
       write(error_string, *)'Failure in DSYGVR to transform to standard',info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Save Cholesky factor in the other triangle of H and tmpChole
       do ii = 1, n
@@ -1116,14 +1116,14 @@ contains
         end do
       end if
     end if
-    
+
     if (subspace) then
       call dsyevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
           & liwork, info )
     else
       call dsyevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
           & liwork, info )
     end if
     if( info /= 0 ) then
@@ -1131,10 +1131,10 @@ contains
       write(error_string, 99410) info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Backtransform eigenvectors to the original problem.
-      
+
       do ii = 1, n
         a(ii,ii) = tmpChole(ii)
       end do
@@ -1146,14 +1146,14 @@ contains
         uplo_new = 'U'
         upper = .true.
       end if
-      
+
       neig = n
       if( info > 0 ) then
         neig = info - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
-        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y		!'
+        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y          !'
         if( upper ) then
           trans = 'N'
         else
@@ -1162,7 +1162,7 @@ contains
         call dtrsm('Left',uplo_new,trans,'Non-unit',n,neig,1.0d0,A,n, B,n)
       else if( iitype == 3 ) then
         ! For B*A*x=(lambda)*x;
-        ! backtransform eigenvectors: x = L*y or U'*y			!'
+        ! backtransform eigenvectors: x = L*y or U'*y               !'
         if( upper ) then
           trans = 'T'
         else
@@ -1173,16 +1173,16 @@ contains
       do ii = 1,m
         a( 1:n, ii) = b( 1:n, ii )
       end do
-      a( 1:n, m+1:n ) = 0.0d0 
+      a( 1:n, m+1:n ) = 0.0d0
     end if
-    
+
   end subroutine dble_dsygvr
 
   !!* Complex eigensolver for generalized symmetric matrix problem -
   !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n 
+  !!* is smaller than the  size of a and b, then only the first n
   !!* eigenvalues/eigenvectors are found
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
+  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
@@ -1192,9 +1192,9 @@ contains
     integer, optional, intent(in) :: itype
     integer, optional, intent(in) :: ilIn
     integer, optional, intent(in) :: iuIn
-    
+
     complex(rsp), allocatable :: work(:)
-    complex(rsp) :: tmpWork(1)    
+    complex(rsp) :: tmpWork(1)
     real(rsp), allocatable :: rWork(:)
     real(rsp) :: tmpRWork(1)
     complex(rsp), allocatable :: tmpChole(:)
@@ -1221,7 +1221,7 @@ contains
     @:ASSERT(all(shape(a)==shape(b)))
 
     @:ASSERT(present(ilIn) .eqv. present(iuIn))
-    
+
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
@@ -1249,15 +1249,15 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    
+
     allocate(isuppz(2*n))
 
     allocate(tmpChole(size(a,dim=1)))
-    
+
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = SLAMCH( 'Safe minimum' )
-    
+
     info = 0
 
     if (subspace) then
@@ -1267,7 +1267,7 @@ contains
       call CHEEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
     end if
-    
+
     if (info/=0) then
       call error("Failue in CHEEVR to determine optimum workspace")
     endif
@@ -1277,7 +1277,7 @@ contains
     allocate(work(lwork))
     allocate(iwork(liwork))
     allocate(rwork(lrwork))
-    
+
     ! Form a Cholesky factorization of B.
     call CPOTRF( uplo, n, b, n, info )
     if( info /= 0 ) then
@@ -1294,7 +1294,7 @@ contains
       write(error_string, *)'Failure in CHEGST to transform to standard',info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Save Cholesky factor in the other triangle of H and tmpChole
       do ii = 1, n
@@ -1314,14 +1314,14 @@ contains
         end do
       end if
     end if
-    
+
     if (subspace) then
       call CHEEVR( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     else
       call CHEEVR( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     end if
     if( info /= 0 ) then
@@ -1329,10 +1329,10 @@ contains
       write(error_string, 99410) info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Backtransform eigenvectors to the original problem.
-      
+
       do ii = 1, n
         a(ii,ii) = tmpChole(ii)
       end do
@@ -1344,14 +1344,14 @@ contains
         uplo_new = 'U'
         upper = .true.
       end if
-      
+
       neig = n
       if( info > 0 ) then
         neig = info - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
-        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y		!'
+        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y          !'
         if( upper ) then
           trans = 'N'
         else
@@ -1361,7 +1361,7 @@ contains
             & cmplx(1.0,0.0,rsp),A,n, B,n)
       else if( iitype == 3 ) then
         ! For B*A*x=(lambda)*x;
-        ! backtransform eigenvectors: x = L*y or U'*y			!'
+        ! backtransform eigenvectors: x = L*y or U'*y               !'
         if( upper ) then
           trans = 'C'
         else
@@ -1373,16 +1373,16 @@ contains
       do ii = 1,m
         a( 1:n, ii) = b( 1:n, ii )
       end do
-      a( 1:n, m+1:n ) = cmplx(0.0,0.0,rsp) 
+      a( 1:n, m+1:n ) = cmplx(0.0,0.0,rsp)
     end if
-    
+
   end subroutine cmplx_chegvr
 
   !!* Double complex eigensolver for generalized symmetric matrix problem -
   !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n 
+  !!* is smaller than the  size of a and b, then only the first n
   !!* eigenvalues/eigenvectors are found
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine  
+  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
@@ -1392,9 +1392,9 @@ contains
     integer, optional, intent(in) :: itype
     integer, optional, intent(in) :: ilIn
     integer, optional, intent(in) :: iuIn
-    
+
     complex(rdp), allocatable :: work(:)
-    complex(rdp) :: tmpWork(1)    
+    complex(rdp) :: tmpWork(1)
     real(rdp), allocatable :: rWork(:)
     real(rdp) :: tmpRWork(1)
     complex(rdp), allocatable :: tmpChole(:)
@@ -1416,12 +1416,12 @@ contains
     character :: uplo_new
 
     n = size(a, dim=1)
-    
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
     @:ASSERT(present(ilIn) .eqv. present(iuIn))
-    
+
     subspace = (size(w) < n)
     if (subspace) then
       if (present(ilIn)) then
@@ -1449,15 +1449,15 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    
+
     allocate(isuppz(2*n))
 
     allocate(tmpChole(size(a,dim=1)))
-    
+
     wantz = ( jobz == 'V' .or. jobz == 'v' )
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = DLAMCH( 'Safe minimum' )
-    
+
     info = 0
 
     if (subspace) then
@@ -1467,7 +1467,7 @@ contains
       call ZHEEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
     end if
-    
+
     if (info/=0) then
       call error("Failue in ZHEEVR to determine optimum workspace")
     endif
@@ -1477,7 +1477,7 @@ contains
     allocate(work(lwork))
     allocate(iwork(liwork))
     allocate(rwork(lrwork))
-    
+
     ! Form a Cholesky factorization of B.
     call ZPOTRF( uplo, n, b, n, info )
     if( info /= 0 ) then
@@ -1494,7 +1494,7 @@ contains
       write(error_string, *)'Failure in ZHEGST to transform to standard',info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Save Cholesky factor in the other triangle of H and tmpChole
       do ii = 1, n
@@ -1514,14 +1514,14 @@ contains
         end do
       end if
     end if
-    
+
     if (subspace) then
       call ZHEEVR( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     else
       call ZHEEVR( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
-          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, & 
+          & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     end if
     if( info /= 0 ) then
@@ -1529,10 +1529,10 @@ contains
       write(error_string, 99410) info
       call error(error_string)
     end if
-    
+
     if ( wantz ) then
       ! Backtransform eigenvectors to the original problem.
-      
+
       do ii = 1, n
         a(ii,ii) = tmpChole(ii)
       end do
@@ -1544,14 +1544,14 @@ contains
         uplo_new = 'U'
         upper = .true.
       end if
-      
+
       neig = n
       if( info > 0 ) then
         neig = info - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
-        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y		!'
+        ! backtransform eigenvectors: x = inv(L)'*y or inv(U)*y          !'
         if( upper ) then
           trans = 'N'
         else
@@ -1561,7 +1561,7 @@ contains
             & cmplx(1.0,0.0,rdp),A,n, B,n)
       else if( iitype == 3 ) then
         ! For B*A*x=(lambda)*x;
-        ! backtransform eigenvectors: x = L*y or U'*y			!'
+        ! backtransform eigenvectors: x = L*y or U'*y               !'
         if( upper ) then
           trans = 'C'
         else
@@ -1573,9 +1573,9 @@ contains
       do ii = 1,m
         a( 1:n, ii) = b( 1:n, ii )
       end do
-      a( 1:n, m+1:n ) = cmplx(0.0,0.0,rdp) 
+      a( 1:n, m+1:n ) = cmplx(0.0,0.0,rdp)
     end if
-    
+
   end subroutine dblecmplx_zhegvr
 
 
@@ -1584,7 +1584,7 @@ contains
   subroutine real_ssbgv(ab, bb, w, uplo, z)
     real(rsp), intent(inout) :: ab(:,:)
     real(rsp), intent(inout) :: bb(:,:)
-    real(rsp), intent(out) :: w(:)    
+    real(rsp), intent(out) :: w(:)
     character, intent(in) :: uplo
     real(rsp), optional, intent(out) :: z(:,:)
 
@@ -1592,40 +1592,40 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     real(rsp) :: zTmp(1,1)
-    
+
     if (present(z)) then
       jobz = 'v'
     else
       jobz = 'n'
     end if
-    
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
-    
+
     ldab = size(ab,dim=1)
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
     @:ASSERT(ka >= 0)
     @:ASSERT(kb >= 0)
-    
+
     if (present(z)) then
       ldz = n
     else
       ldz = 1
     end if
-        
+
     allocate(work(3*n))
-    
+
     if (present(z)) then
       call SSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
     else
       call SSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,info )
     end if
-      
+
     if (info/=0) then
       if (info<0) then
 99440 format ('Failure in diagonalisation routine ssbgv,', &
@@ -1651,7 +1651,7 @@ contains
   subroutine dble_dsbgv(ab, bb, w, uplo, z)
     real(rdp), intent(inout) :: ab(:,:)
     real(rdp), intent(inout) :: bb(:,:)
-    real(rdp), intent(out) :: w(:)    
+    real(rdp), intent(out) :: w(:)
     character, intent(in) :: uplo
     real(rdp), optional, intent(out) :: z(:,:)
 
@@ -1659,40 +1659,40 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     real(rdp) :: zTmp(1,1)
-    
+
     if (present(z)) then
       jobz = 'v'
     else
       jobz = 'n'
     end if
-    
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
-    
+
     ldab = size(ab,dim=1)
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
     @:ASSERT(ka >= 0)
     @:ASSERT(kb >= 0)
-    
+
     if (present(z)) then
       ldz = n
     else
       ldz = 1
     end if
-        
+
     allocate(work(3*n))
-    
+
     if (present(z)) then
       call DSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
     else
       call DSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,info )
     end if
-      
+
     if (info/=0) then
       if (info<0) then
 99470 format ('Failure in diagonalisation routine dsbgv,', &
@@ -1718,7 +1718,7 @@ contains
   subroutine cmplx_chbgv(ab, bb, w, uplo, z)
     complex(rsp), intent(inout) :: ab(:,:)
     complex(rsp), intent(inout) :: bb(:,:)
-    real(rsp), intent(out) :: w(:)    
+    real(rsp), intent(out) :: w(:)
     character, intent(in) :: uplo
     complex(rsp), optional, intent(out) :: z(:,:)
 
@@ -1727,42 +1727,42 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     complex(rsp) :: zTmp(1,1)
-    
+
     if (present(z)) then
       jobz = 'v'
     else
       jobz = 'n'
     end if
-    
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
-    
+
     ldab = size(ab,dim=1)
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
     @:ASSERT(ka >= 0)
     @:ASSERT(kb >= 0)
-    
+
     if (present(z)) then
       ldz = n
     else
       ldz = 1
     end if
-    
+
     allocate(work(n))
     allocate(rwork(3*n))
-    
+
     if (present(z)) then
       call CHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
     else
       call CHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,rwork, &
           & info )
     end if
-      
+
     if (info/=0) then
       if (info<0) then
 99500 format ('Failure in diagonalisation routine chbgv,', &
@@ -1788,7 +1788,7 @@ contains
   subroutine dblecmplx_zhbgv(ab, bb, w, uplo, z)
     complex(rdp), intent(inout) :: ab(:,:)
     complex(rdp), intent(inout) :: bb(:,:)
-    real(rdp), intent(out) :: w(:)    
+    real(rdp), intent(out) :: w(:)
     character, intent(in) :: uplo
     complex(rdp), optional, intent(out) :: z(:,:)
 
@@ -1797,42 +1797,42 @@ contains
     integer :: n, ka, kb, ldab, ldbb, ldz, info
     character :: jobz
     complex(rdp) :: zTmp(1,1)
-    
+
     if (present(z)) then
       jobz = 'v'
     else
       jobz = 'n'
     end if
-    
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(ab)==shape(bb)))
 
     n = size(ab,dim=2)
-    
+
     ldab = size(ab,dim=1)
     ldbb = size(bb,dim=1)
     ka = ldab - 1
     kb = ldbb - 1
     @:ASSERT(ka >= 0)
     @:ASSERT(kb >= 0)
-    
+
     if (present(z)) then
       ldz = n
     else
       ldz = 1
     end if
-    
+
     allocate(work(n))
     allocate(rwork(3*n))
-    
+
     if (present(z)) then
       call ZHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
     else
       call ZHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,rwork, &
           & info )
     end if
-      
+
     if (info/=0) then
       if (info<0) then
 99530 format ('Failure in diagonalisation routine zhbgv,', &

@@ -16,18 +16,18 @@ module csrmatrix
   private
 
   public :: r_CSR, foldToCSR, unfoldFromCSR
-  
+
 
   type r_CSR
     integer :: nnz
     integer :: nrow
     integer :: ncol
     real(dp), allocatable :: nzval(:)
-    integer, allocatable :: colind(:) 
-    integer, allocatable :: rowpnt(:) 
+    integer, allocatable :: colind(:)
+    integer, allocatable :: rowpnt(:)
   end type r_CSR
 
-  
+
   interface foldToCSR
     module procedure foldToCSR_real
   end interface
@@ -37,7 +37,7 @@ module csrmatrix
     module procedure unfoldFromCSR_real
   end interface
 
-  
+
 contains
 
 
@@ -118,7 +118,7 @@ contains
     csr%nnz = csr%rowpnt(csr%nRow + 1) - 1
     allocate(csr%nzval(csr%nnz))
     allocate(csr%colind(csr%nnz))
-    
+
     !! Initialize auxiliary arrays
 
     ! Nr. of CSR columns already filled
@@ -128,7 +128,7 @@ contains
     allocate(tmpCol(csr%nRow, (mmAng+1)**2))
     ! Index of the nonzero blocks
     allocate(iNonZero(nAtom))
-    
+
     !! Loop over all atoms (over all block columns in the rectangular picture)
     lpAt1: do iAt1 = 1, nAtom
       iCol = iAtomStart(iAt1)
@@ -265,7 +265,7 @@ contains
     end do
 
   end subroutine unfoldFromCSR_real
-    
 
-  
+
+
 end module csrmatrix

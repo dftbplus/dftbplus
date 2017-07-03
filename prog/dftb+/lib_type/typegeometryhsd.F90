@@ -48,7 +48,7 @@ contains
     if (geo%tPeriodic) then
       call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
     end if
-    
+
   end subroutine writeTGeometryHSD_dom
 
 
@@ -67,7 +67,7 @@ contains
     if (geo%tPeriodic) then
       call writeChildValue(xf, "LatticeVectors", geo%latVecs)
     end if
-    
+
   end subroutine writeTGeometryHSD_xmlf
 
 
@@ -162,7 +162,7 @@ contains
       geo%recVecs2p(:,:) = reshape(geo%recVecs2p, (/3, 3/), order=(/2, 1/))
     end if
     call normalize(geo)
-    
+
   end subroutine readTGeometryHSD
 
 
@@ -277,7 +277,7 @@ contains
           call detailedWarning(node, &
               &"Fractional coordinates with absolute value greater than one.")
         end if
-        geo%coords = matmul(geo%latVecs, geo%coords) 
+        geo%coords = matmul(geo%latVecs, geo%coords)
       else
         geo%coords = geo%coords * AA__Bohr
       end if
@@ -296,7 +296,7 @@ contains
           &number of atoms matches the number of actually entered positions.")
     end if
     call normalize(geo)
-    
+
   end subroutine readTGeometryGen_help
 
 

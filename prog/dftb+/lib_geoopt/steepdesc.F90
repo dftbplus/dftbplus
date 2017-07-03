@@ -45,10 +45,10 @@ module steepdesc
     module procedure SteepDesc_next
   end interface
 
-  
+
   public :: OSteepDesc
   public :: init, reset, next
-  
+
 
 contains
 
@@ -69,7 +69,7 @@ contains
     @:ASSERT(tol > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
     @:ASSERT(size(weight) == nElem)
-    
+
     self%nElem = nElem
     self%tolerance = tol
     self%maxDisp = maxDisp
@@ -93,7 +93,7 @@ contains
     self%xOld(:) = x0(:)
     self%tConverged = .false.
     self%tInitialized = .true.
-    
+
   end subroutine SteepDesc_reset
 
 
@@ -124,10 +124,10 @@ contains
       xNew(:) = self%xOld(:)
     end if
     tConverged = self%tConverged
-    
+
   end subroutine SteepDesc_next
-  
-  
+
+
 
   !!* Working horse for the SD minimizer
   !!* @param xNew    Coordinates of the new point on exit
@@ -161,7 +161,7 @@ contains
     end if
 
     xNew(:) = -1.0_dp * weight(:) * grad(:)
-    
+
     maxX = maxval(abs(xNew))
     if (maxX <= maxDisp) then
       xNew(:) = xOld(:) + xNew(:)
@@ -169,8 +169,8 @@ contains
       xNew(:) = xOld(:) + (maxDisp / maxX) * xNew(:)
     end if
     xOld(:) = xNew(:)
-    
+
   end subroutine next_local
-  
+
 
 end module steepdesc

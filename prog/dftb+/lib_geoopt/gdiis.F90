@@ -25,7 +25,7 @@ module gdiis
     real(dp) :: tolerance    !* Tolerance criteria for convergence
     logical  :: tInitialized !* If object is initialized
   end type ODIIS
-  
+
   !!* Creates gDIIS instance
   interface init
     module procedure gDIIS_init
@@ -43,14 +43,14 @@ module gdiis
 
   public :: ODIIS
   public :: init, reset, next
-  
-  
+
+
 contains
-  
+
   subroutine gDIIS_init(self, nElem, tol, alpha, nGens)
     type(ODIIS), intent(out) :: self
     integer, intent(in)  :: nElem
-    real(dp), intent(in) :: tol    
+    real(dp), intent(in) :: tol
     real(dp), intent(in) :: alpha
     integer, intent(in)  :: nGens
 
@@ -59,17 +59,17 @@ contains
     allocate(self%x(self%nElem))
     call init(self%pDIIS,nGens,alpha,.true.,alpha)
     self%tInitialized = .true.
-    
+
   end subroutine gDIIS_init
 
 
   subroutine gDIIS_reset(self,x)
     type(ODIIS), intent(inout) :: self
     real(dp) :: x(:)
-    
+
     call reset(self%pDIIS, self%nElem)
     self%x(:) = x(:)
-    
+
   end subroutine gDIIS_reset
 
 
@@ -92,7 +92,7 @@ contains
       tConverged = .false.
     end if
     xNew = self%x
-    
+
   end subroutine gDIIS_next
-  
+
 end module gdiis

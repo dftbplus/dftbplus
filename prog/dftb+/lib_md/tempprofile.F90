@@ -48,7 +48,7 @@ module tempprofile
 
   !! Default starting temperature
   real(dp), parameter :: startingTemp_ = minTemp
-    
+
 
 contains
 
@@ -96,7 +96,7 @@ contains
       self%iInt = self%iInt + 1
     end do
     self%curTemp = self%tempValues(self%iInt)
-    
+
   end subroutine TempProfile_init
 
 
@@ -120,10 +120,10 @@ contains
       tChanged = .true.
     end do
     sup = self%tempInts(self%iInt)
-    sub = self%tempInts(self%iInt-1)    
+    sub = self%tempInts(self%iInt-1)
     supVal = self%tempValues(self%iInt)
     subVal = self%tempValues(self%iInt-1)
-    
+
     select case (self%tempMethods(self%iInt))
     case (constProf)
       self%curTemp = self%tempValues(self%iInt)
@@ -142,8 +142,8 @@ contains
     end select
 
   end subroutine TempProfile_next
-      
-  
+
+
 
   !!* Returns the current temperature.
   !!* @param self Pointer to the TempProfile object.
@@ -153,8 +153,8 @@ contains
     real(dp), intent(out) :: temp
 
     temp = self%curTemp
-    
+
   end subroutine TempProfile_getTemperature
-  
-  
+
+
 end module tempprofile

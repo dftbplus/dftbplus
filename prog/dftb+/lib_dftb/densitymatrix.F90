@@ -9,7 +9,7 @@
 
 !!* Calculate either the whole single particle density matrix and energy
 !!* weighted density matrix or only the elements dictated by a neighbor map.
-!!* Calculation of the whole matrix scales as O(N**3), the sparse form as 
+!!* Calculation of the whole matrix scales as O(N**3), the sparse form as
 !!* O(N**2) but with a larger pre-factor.
 !!* @author Ben Hourahine
 !!* @note Dense code based on implementation by Thomas Heine
@@ -25,8 +25,8 @@ module densitymatrix
   private
 
   public :: makeDensityMatrix
-  
-   
+
+
   !!* Provides an interface to calculate the two types of dm - regular and
   !!* weighted and put them into packed storage
   interface makeDensityMatrix
@@ -51,7 +51,7 @@ contains
   !!* @param dm the resulting nOrb*nOrb density matrix
   !!* @param eigenvecs the eigenvectors of the system
   !!* @param filling the occupation numbers of the orbitals
-  !!* @note In order to save memory, the eigenvectors (which should be 
+  !!* @note In order to save memory, the eigenvectors (which should be
   !!* intent(in) parameters) are overwritten and then restored again
   subroutine fullDensityMatrix_real(dm, eigenvecs, filling)
     real(dp), intent(out) :: dm(:,:)
@@ -75,7 +75,7 @@ contains
     shift = minval(filling(1:nLevels))
     if (shift > epsilon(1.0_dp)) then
       ! all fillings are definitely positive
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = sqrt(filling(ii)) * eigenvecs(:,ii)
@@ -90,8 +90,8 @@ contains
 !$OMP  END PARALLEL DO
 
     else
-      
-      ! shift matrix so that filling operations are positive      
+
+      ! shift matrix so that filling operations are positive
       call herk(dm, eigenvecs(:,1:nLevels))
       shift = shift - arbitraryConstant
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
@@ -117,7 +117,7 @@ contains
   !!* @param dm the resulting nOrb*nOrb density matrix
   !!* @param eigenvecs the eigenvectors of the system
   !!* @param filling the occupation numbers of the orbitals
-  !!* @note In order to save memory, the eigenvectors (which should be 
+  !!* @note In order to save memory, the eigenvectors (which should be
   !!* intent(in) parameters) are overwritten and then restored again
   subroutine fullDensityMatrix_cmplx(dm, eigenvecs, filling)
     complex(dp), intent(out) :: dm(:,:)
@@ -130,7 +130,7 @@ contains
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
-    
+
     dm(:,:) = cmplx(0.0_dp,0.0_dp,dp)
 
     do ii =  size(filling), 1, -1
@@ -140,7 +140,7 @@ contains
       end if
     end do
     shift = minval(filling(1:nLevels))
-    if (shift > epsilon(1.0_dp)) then      
+    if (shift > epsilon(1.0_dp)) then
       ! all fillings are definitely positive
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
@@ -155,7 +155,7 @@ contains
       end do
 !$OMP  END PARALLEL DO
 
-    else      
+    else
       ! shift matrix so that filling operations are positive
       call herk(dm, eigenvecs(:,1:nLevels))
       shift = shift - arbitraryConstant
@@ -184,7 +184,7 @@ contains
   !!* @param eigenvecs the eigenvectors of the system
   !!* @param filling the occupation numbers of the orbitals
   !!* @param eigen eigenvalues of the system
-  !!* @note In order to save memory, the eigenvectors (which should be 
+  !!* @note In order to save memory, the eigenvectors (which should be
   !!* intent(in) parameters) are overwritten and then restored again
   subroutine fullEnergyDensityMatrix_real(dm, eigenvecs, filling, eigen)
     real(dp), intent(out) :: dm(:,:)
@@ -214,7 +214,7 @@ contains
         &.and. abs(minval(fillProduct(1:nLevels))) > epsilon(1.0_dp) &
         &.and. abs(maxval(fillProduct(1:nLevels))) > epsilon(1.0_dp)) then
       ! all fillings the same sign, and fairly large
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = sqrt(abs(fillProduct(ii)))*eigenvecs(:,ii)
@@ -230,7 +230,7 @@ contains
 !$OMP  END PARALLEL DO
 
     else
-      
+
       ! shift matrix so that filling operations are positive
       call herk(dm, eigenvecs(:,1:nLevels))
       shift = minval(fillProduct(1:nLevels)) - arbitraryConstant
@@ -259,7 +259,7 @@ contains
   !!* @param eigenvecs the eigenvectors of the system
   !!* @param filling the occupation numbers of the orbitals
   !!* @param eigen eigenvalues of the system
-  !!* @note In order to save memory, the eigenvectors (which should be 
+  !!* @note In order to save memory, the eigenvectors (which should be
   !!* intent(in) parameters) are overwritten and then restored again
   subroutine fullEnergyDensityMatrix_cmplx(dm, eigenvecs, filling, eigen)
     complex(dp), intent(out) :: dm(:,:)
@@ -306,7 +306,7 @@ contains
 !$OMP  END PARALLEL DO
 
     else
-      
+
       ! shift matrix so that filling operations are positive
       call herk(dm, eigenvecs(:,1:nLevels))
       shift = minval(fillProduct(1:nLevels)) - arbitraryConstant
@@ -477,13 +477,13 @@ contains
       start1 = iAtomStart(iAt1)
       tmpEigen(1:nLevels,1:nOrb1) = &
           &transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
         tmpEigen(jj,1:nOrb1) = filling(jj)*conjg(tmpEigen(jj,1:nOrb1))
       end do
 !$OMP  END PARALLEL DO
-     
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) &
 !$OMP& SCHEDULE(RUNTIME)
       do iNeigh1 = 0, nInCellNeighbor(iAt1)
@@ -568,7 +568,7 @@ contains
       start1 = iAtomStart(iAt1)
       tmpEigen(1:nLevels,1:nOrb1) = &
           & transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
         tmpEigen(jj,1:nOrb1) = filling(jj)*eigen(jj)*tmpEigen(jj,1:nOrb1)
@@ -656,7 +656,7 @@ contains
       start1 = iAtomStart(iAt1)
       tmpEigen(1:nLevels,1:nOrb1) = &
           & transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
         tmpEigen(jj,1:nOrb1) = filling(jj)*eigen(jj)*conjg(tmpEigen(jj,1:nOrb1))

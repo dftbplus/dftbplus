@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Interface wrapper for the blas routines. 
+!> Interface wrapper for the blas routines.
 !!
 !! All BLAS routines must be included here, which are called from the main code.
 module blas
@@ -245,7 +245,7 @@ module blas
       integer, intent(in) :: ldc
       real(rdp), intent(inout) :: cc(ldc, *)
     end subroutine dsymm
-    
+
     subroutine chemm(side, uplo, mm, nn, alpha, aa, lda, bb, ldb, beta, cc, ldc)
       import rsp
       character, intent(in) :: side, uplo
@@ -273,7 +273,7 @@ module blas
       integer, intent(in) :: ldc
       complex(rdp), intent(inout) :: cc(ldc, *)
     end subroutine zhemm
-    
+
     subroutine sgemm(transa, transb, mm, nn, kk, alpha, aa, lda, bb, ldb, beta,&
         & cc, ldc)
       import rsp
@@ -436,7 +436,7 @@ module blas
       integer, intent(in) :: ldb
       real(rsp), intent(inout) :: bb(ldb, *)
     end subroutine strmm
- 
+
     subroutine dtrmm(side, uplo, transa, diag, mm, nn, alpha, aa, lda, bb, ldb)
       import rdp
       character, intent(in) :: side, uplo, transa, diag
@@ -447,7 +447,7 @@ module blas
       integer, intent(in) :: ldb
       real(rdp), intent(inout) :: bb(ldb, *)
     end subroutine dtrmm
- 
+
     subroutine ctrmm(side, uplo, transa, diag, mm, nn, alpha, aa, lda, bb, ldb)
       import rsp
       character, intent(in) :: side, uplo, transa, diag
@@ -458,7 +458,7 @@ module blas
       integer, intent(in) :: ldb
       complex(rsp), intent(inout) :: bb(ldb, *)
     end subroutine ctrmm
- 
+
     subroutine ztrmm(side, uplo, transa, diag, mm, nn, alpha, aa, lda, bb, ldb)
       import rdp
       character, intent(in) :: side, uplo, transa, diag
@@ -469,7 +469,7 @@ module blas
       integer, intent(in) :: ldb
       complex(rdp), intent(inout) :: bb(ldb, *)
     end subroutine ztrmm
- 
+
   end interface
-    
+
 end module blas

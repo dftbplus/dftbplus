@@ -35,7 +35,7 @@ module chargeconstr
   interface buildShift
     module procedure ChrgConstr_buildShift
   end interface
-  
+
   interface addShiftPerAtom
     module procedure ChrgConstr_addShiftPerAtom
   end interface
@@ -55,7 +55,7 @@ contains
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(in) :: inp(:,:)
     integer, intent(in) :: kappa
-    
+
     @:ASSERT(.not. sf%tInit)
     @:ASSERT(size(inp, dim=1) > 0)
     @:ASSERT(size(inp, dim=2) == 2)
@@ -68,11 +68,11 @@ contains
     sf%prefactors = inp(:,2)
     sf%kappa = kappa
     sf%tInit = .true.
-    
+
   end subroutine ChrgConstr_init
 
 
-  
+
   subroutine ChrgConstr_buildShift(sf, chargesPerAtom)
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(in) :: chargesPerAtom(:)
@@ -82,10 +82,10 @@ contains
 
     sf%shift = real(sf%kappa, dp) * sf%prefactors &
         &* (chargesPerAtom - sf%refCharges)**(sf%kappa - 1)
-    
+
   end subroutine ChrgConstr_buildShift
 
-  
+
 
   subroutine ChrgConstr_addShiftPerAtom(sf, shiftPerAtom)
     type(OChrgConstr), intent(inout) :: sf
@@ -99,7 +99,7 @@ contains
   end subroutine ChrgConstr_addShiftPerAtom
 
 
-  
+
   subroutine ChrgConstr_addEnergyPerAtom(sf, energyPerAtom, chargesPerAtom)
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(inout) :: energyPerAtom(:)

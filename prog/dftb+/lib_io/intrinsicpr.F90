@@ -11,8 +11,8 @@ module intrinsicpr
   private
 
   public :: printContent
-  
-  
+
+
   interface printContent
     module procedure printArrayRealR1
     module procedure printArrayRealR2
@@ -25,7 +25,7 @@ module intrinsicpr
     module procedure printArrayIntR1
     module procedure printArrayIntR2
     module procedure printArrayIntR3
-    module procedure printArrayIntR4    
+    module procedure printArrayIntR4
     module procedure printArrayCharR1
     module procedure printArrayCharR2
   end interface
@@ -73,7 +73,7 @@ contains
   subroutine printArrayRealR3(array, omitHeader)
     real(dp), intent(in)           :: array(:, :, :)
     logical,  intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -91,7 +91,7 @@ contains
   subroutine printArrayRealR4(array, omitHeader)
     real(dp), intent(in)           :: array(:, :, :, :)
     logical,  intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -146,7 +146,7 @@ contains
   subroutine printArrayComplexR3(array, omitHeader)
     complex(dp), intent(in)        :: array(:, :, :)
     logical,  intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -164,7 +164,7 @@ contains
   subroutine printArrayComplexR4(array, omitHeader)
     complex(dp), intent(in)        :: array(:, :, :, :)
     logical,  intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -219,7 +219,7 @@ contains
   subroutine printArrayIntR3(array, omitHeader)
     integer, intent(in)           :: array(:, :, :)
     logical, intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -237,7 +237,7 @@ contains
   subroutine printArrayIntR4(array, omitHeader)
     integer, intent(in)           :: array(:, :, :, :)
     logical, intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -261,7 +261,7 @@ contains
     logical,       intent(in), optional :: omitHeader
 
     integer :: ii
-    
+
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
@@ -274,7 +274,7 @@ contains
   subroutine printArrayCharR2(array, omitHeader)
     character(lc), intent(in)           :: array(:, :)
     logical,       intent(in), optional :: omitHeader
-    
+
     integer :: ii
 
     if (.not. present(omitHeader)) then
@@ -287,6 +287,6 @@ contains
 
   end subroutine printArrayCharR2
 
-      
+
 end module intrinsicpr
 

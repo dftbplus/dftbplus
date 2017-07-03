@@ -18,8 +18,8 @@
 !!*       is negative.)</li>
 !!*     <li>One point between the brackets is estimated by the secant method
 !!*       or by bisection (see below).</li>
-!!*     <li>If the derivative in the new point is not below the tolerance: 
-!!*       A new point is searched between the two bracketing 
+!!*     <li>If the derivative in the new point is not below the tolerance:
+!!*       A new point is searched between the two bracketing
 !!*       points and the intermediate point between the brackets with the
 !!*       following methods in a fallback way.
 !!*       <ol>
@@ -101,7 +101,7 @@ module linemin
   interface getMinLambda
     module procedure LineMin_getMinLambda
   end interface
-  
+
   public :: OLineMin
   public :: init, reset, next, getMinX, getMinY, getMinGrad
   public :: getMinLambda
@@ -129,7 +129,7 @@ contains
     @:ASSERT(mIter > 3)
     @:ASSERT(tolerance > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
-    
+
     self%nElem = nElem
     allocate(self%x0(nElem))
     allocate(self%d0(nElem))
@@ -152,7 +152,7 @@ contains
     real(dp), intent(in) :: firstStep
 
     real(dp) :: tmp
-    
+
     @:ASSERT(size(x0) == self%nElem)
     @:ASSERT(size(d0) == self%nElem)
 
@@ -168,7 +168,7 @@ contains
     self%maxX = self%maxDisp / maxval(abs(self%d0))
     self%tConverged = .false.
     self%tInitialized = .true.
-    
+
   end subroutine LineMin_reset
 
 
@@ -191,7 +191,7 @@ contains
     real(dp), intent(in)  :: dx(:)
     real(dp), intent(out) :: xNew(:)
     logical,  intent(out) :: tConverged
-    
+
     @:ASSERT(self%tInitialized)
     @:ASSERT(size(xNew) == self%nElem)
     @:ASSERT(size(dx) == self%nElem)
@@ -241,7 +241,7 @@ contains
     real(dp), intent(in)    :: fu
     real(dp), intent(in)    :: du(:)
     real(dp), intent(out)   :: uu(:)
-    
+
     real(dp) :: dCur, xNew
     real(dp) :: tmp, qq, aa, bb, cc
     logical  :: tDone
@@ -292,11 +292,11 @@ contains
         state = st_3
       endif
     end if
-    
+
     if (state == st_3) then
       tDone = .false.
       nextState = st_3
-      
+
       !! Do quadratic interpolation if there are enough points
       if (iIter > 2 .and. abs(xx(1)-xx(2)) > epsilon(0.0_dp)) then
         qq = (xCur - xx(1)) / (xx(1) - xx(2))
@@ -329,7 +329,7 @@ contains
           end if
         end if
       end if
-      
+
       !! If quadratic interpolation failed or not available, do linear interp.
       if (.not. tDone) then
         if (dCur < 0.0_dp) then
@@ -353,7 +353,7 @@ contains
         xNew = 0.5_dp * (xx(1) + xx(2))
       end if
     end if
-    
+
     !! If proposed displacement is too large: scale it down.
     tmp = xNew - xCur
     if (abs(tmp) <= maxX) then
@@ -363,7 +363,7 @@ contains
     end if
     uu = x0(:) + xCur * d0(:)
     state = nextState
-    
+
   end subroutine next_local
 
 
@@ -406,7 +406,7 @@ contains
   subroutine LineMin_getMinGrad(self, minGrad)
     type(OLineMin), intent(in) :: self
     real(dp), intent(out) :: minGrad(:)
-    
+
     minGrad(:) = self%d0(:)
 
   end subroutine LineMin_getMinGrad

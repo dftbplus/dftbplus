@@ -17,20 +17,20 @@ module forces
   use commontypes
   use slakocont
   implicit none
-  
+
   private
-  
+
   public :: derivative_nonSCC, derivative_shift
-  
+
   interface derivative_shift
     module procedure derivative_nonSCC !* derivatives without any shift
     module procedure derivative_block  !* derivatives with shift
     module procedure derivative_iBlock !* derivatives with complex shift
-    
+
   end interface
-  
+
 contains
-  
+
   !!* The non-SCC electronic force contribution for all atoms, calculated from
   !!* $F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial
   !!* R_\alpha} - \rho^E_{\mu\xonu}\frac{S_{\mu\nu}}{\partial R_\alpha}$
@@ -66,18 +66,18 @@ contains
     integer, intent(in) :: img2CentCell(:)
     integer, intent(in) :: iPair(0:,:)
     type(TOrbitals), intent(in) :: orb
-    
+
     integer   :: iOrig, ii
     integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
     integer   :: nOrb1, nOrb2
     real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    
+
     @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
-    
+
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
@@ -121,7 +121,7 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine derivative_nonSCC
 
 
@@ -164,11 +164,11 @@ contains
     integer, intent(in) :: iPair(0:,:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: shift(:,:,:,:)
-    
+
     integer  :: iOrig, iSpin, ii, nSpin, nAtom
     integer  :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
     integer  :: nOrb1, nOrb2
-    
+
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
@@ -186,7 +186,7 @@ contains
     @:ASSERT(size(DM,dim=2)==nSpin)
 
     deriv(:,:) = 0.0_dp
-    
+
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -214,10 +214,10 @@ contains
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
                 &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
-          
+
           do iSpin = 1, nSpin
-            do ii = 1, 3              
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( & 
+            do ii = 1, 3
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( &
                   & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
@@ -238,10 +238,10 @@ contains
         end if
       enddo
     enddo
-    
+
   end subroutine derivative_block
 
-  
+
   !!* The SCC and spin electronic force contribution for all atoms, calculated
   !!* from
   !!* $F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial
@@ -286,18 +286,18 @@ contains
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: shift(:,:,:,:)
     real(dp), intent(in) :: iShift(:,:,:,:)
-    
+
     integer  :: iOrig, iSpin, ii, nSpin, nAtom
     integer  :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
     integer  :: nOrb1, nOrb2
-    
+
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb)
     real(dp)    :: sqrEDMTmp(orb%mOrb,orb%mOrb)
     complex(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp)    :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp)    :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
-    
+
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
@@ -310,9 +310,9 @@ contains
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
     @:ASSERT(all(shape(iShift)==shape(shift)))
-    
+
     deriv(:,:) = 0.0_dp
-    
+
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -340,10 +340,10 @@ contains
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
                 &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
-          
+
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( & 
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( &
                   & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
@@ -355,10 +355,10 @@ contains
                   & (/nOrb2,nOrb1/)))) )
             end do
           end do
-          
+
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( & 
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
                   & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & ishift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(ishift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
@@ -369,14 +369,14 @@ contains
                   & (/nOrb2,nOrb1/))))
             end do
           end do
-          
+
           deriv(:,iAtom1) = deriv(:,iAtom1) + derivTmp(:)
           deriv(:,iAtom2f) = deriv(:,iAtom2f) - derivTmp(:)
 
         end if
       enddo
     enddo
-    
+
   end subroutine derivative_iBlock
-  
+
 end module forces

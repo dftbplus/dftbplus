@@ -94,7 +94,7 @@ program dftbplus
   real(dp) :: dispLatDeriv(3,3), totalLatDeriv(3,3)
   ! derivative of cell volume wrt to lattice vectors, needed for pV term
   real(dp) :: derivCellVol(3,3)
-  
+
   real(dp) :: dipoleMoment(3)
   real(dp) :: angularMomentum(3) ! hold total angular momentum vector
 
@@ -192,14 +192,14 @@ program dftbplus
 
   real(dp), allocatable :: shift3rd(:)
   real(dp), allocatable :: orbresshift3rd(:,:)
-  
-  real(dp), allocatable :: dqAtom(:) ! net charge on each atom  
-  
+
+  real(dp), allocatable :: dqAtom(:) ! net charge on each atom
+
   real(dp), allocatable :: rhoSqrReal(:,:,:) ! density matrix
 
   ! Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
-  
+
   real(dp), allocatable :: invJacobian(:,:)
 
   real(dp) :: localisation ! locality measure for the wavefunction
@@ -299,7 +299,7 @@ program dftbplus
   call init(potential, orb, nAtom, nSpin)
   allocate(shift3rd(nAtom))
   allocate(orbresshift3rd(orb%mShell,nAtom))
-  
+
   ! Nr. of independent spin Hamiltonians
   select case (nSpin)
   case (1)
@@ -390,9 +390,9 @@ program dftbplus
     if (tLinRespZVect) then
       deallocate(rhoSqrReal)
       allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
-    end if    
+    end if
   end if
-  
+
   if (tLinResp .and. tPrintExcitedEigVecs) then
     ALLOCATE(naturalOrbs(nOrb,nOrb,1))
     ALLOCATE(occNatural(nOrb,1))
@@ -402,7 +402,7 @@ program dftbplus
   end if
   naturalOrbs = 0.0_dp
   occNatural = 0.0_dp
-  
+
   if (tMD) then
     allocate(velocities(3,nAtom))
     allocate(movedVelo(3, nMovedAtom))
@@ -448,7 +448,7 @@ program dftbplus
   end if
 
   lpGeomOpt: do while (iGeoStep <= nGeoSteps)
-        
+
     if (tSocket) then
       call socket%receive(coord0, latvec)
       cellVol = determinant33(latVec)
@@ -489,19 +489,19 @@ program dftbplus
     else
       write (*, "(/,'***  Geometry step: ',I0,/)") iGeoStep
     end if
-    
-    
+
+
     if (tPeriodic) then
       invLatVec = transpose(latVec)
       call matinv(invLatVec)
       CellVol = abs(determinant33(latVec))
-      
+
       ! derivative of pV term in Gibbs energy
       if (tStress.and.pressure/=0.0_dp) then
         call derivDeterminant33(derivCellVol,latVec)
         derivCellVol(:,:) = pressure * derivCellVol(:,:)
       end if
-      
+
     end if
 
     !! Save old coordinates and fold coords to unit cell
@@ -816,11 +816,11 @@ program dftbplus
             else
               call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), filling(:,1,iSpin))
             end if
-            
+
             if (tLinResp .and. tLinRespZVect) then
               rhoSqrReal(:,:,iSpin) = SSqrReal
             end if
-            
+
             call packHS(rhoPrim(:,iSpin), SSqrReal, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
                   & iAtomStart, iPair, img2CentCell)
 
@@ -1707,10 +1707,10 @@ program dftbplus
       if (tWriteTagged) then
         open(fdTagged, file=taggedOut, position="append")
       end if
-      
+
       if (tLinRespZVect) then
         if (tPrintExcitedEigVecs) then
-          
+
           call addGradients(tSpin, lresp, iAtomStart, &
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
@@ -1718,12 +1718,12 @@ program dftbplus
               & fdTagged, energy%Eexcited, tForces, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal, occNatural=occNatural(:,1), &
               & naturalOrbs=naturalOrbs(:,:,1))
-          
+
           call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
               & nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, &
               & speciesName, over, naturalOrbs(:,:,1:1), SSqrReal, &
               & fileName="excitedOrbs")
-          
+
         else
           call addGradients(tSpin, lresp, iAtomStart, &
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
@@ -1841,7 +1841,7 @@ program dftbplus
         end if
       end if
     end if
-    
+
     if (tGeoOpt .or. tMD) then
       if (iGeoStep == 0) then
         write (lcTmp, "(A,A)") trim(geoOutFile), ".gen"
@@ -1851,8 +1851,8 @@ program dftbplus
       end if
       write (lcTmp, "(A,A)") trim(geoOutFile), ".xyz"
     end if
-    
-    if (tGeoOpt) then      
+
+    if (tGeoOpt) then
       if (.not. tAppendGeo) then
         call clearFile(trim(lcTmp))
       end if
@@ -1864,7 +1864,7 @@ program dftbplus
       end if
       ! save geometry in gen format
       call writeGenGeometry()
-      
+
       if (tPrintMulliken) then
         if (nSpin == 4) then
           allocate(tmpMatrix(3,nAtom))
@@ -2229,7 +2229,7 @@ program dftbplus
 
           call addStressDCSCC(elecStress,species,neighborList%iNeighbor, &
               & img2CentCell,coord)
-          
+
         else
           if (tImHam) then
             call getBlockiStress(elecStress, nonSccDeriv, rhoPrim, iRhoPrim,&
@@ -2248,7 +2248,7 @@ program dftbplus
           call dispersion%getStress(dispStress)
           dispLatDeriv = -CellVol * matmul(dispStress,invLatVec)
         end if
-        
+
         if (tEField) then
           elecLatDeriv = 0.0_dp
           call cart2frac(coord0,latVec)
@@ -2265,22 +2265,22 @@ program dftbplus
           elecStress = elecStress &
               & -matmul(elecLatDeriv,transpose(latVec))/CellVol
         end if
-        
-        totalStress = repulsiveStress + elecStress + dispStress 
-        
+
+        totalStress = repulsiveStress + elecStress + dispStress
+
         cellPressure = ( totalStress(1,1) + totalStress(2,2) &
             & + totalStress(3,3) )/3.0_dp
-        
+
         repulsiveLatDeriv = -CellVol * matmul(repulsiveStress,invLatVec)
-        elecLatDeriv = -CellVol * matmul(elecStress,invLatVec)        
+        elecLatDeriv = -CellVol * matmul(elecStress,invLatVec)
         totalLatDeriv = repulsiveLatDeriv + elecLatDeriv + dispLatDeriv
 
         write(*,format2Ue)'Volume',CellVol,'au^3',(Bohr__AA**3)*CellVol,'A^3'
-        
+
       end if
-      
+
     end if
-    
+
     ! MD case includes atomic kinetic energy contribution, so print that later
     if (tStress .and. .not. tMD) then
       write(*,format2Ue)'Pressure',cellPressure,'au',&
@@ -2509,22 +2509,22 @@ program dftbplus
                   &comment=trim(tmpStr))
             end if
           end if
-          
+
           if (tStress) then
 
             ! contribution from kinetic energy in MD, now that velocities for
             ! this geometry step are available
             call getKineticStress(kineticStress, mass, species0, velocities, &
                 & CellVol)
-            
+
             totalStress = totalStress + kineticStress
             cellPressure = ( totalStress(1,1) + totalStress(2,2) &
                 & + totalStress(3,3) )/3.0_dp
-            
+
             totalLatDeriv = -CellVol * matmul(totalStress,invLatVec)
-            
+
           end if
-          
+
           if (tStress .and. tWriteDetailedOut .and. tPrintForces) then
             write(fdUser,*)'Total stress tensor'
             do ii = 1, 3
@@ -3235,5 +3235,5 @@ contains
       end if
     end if
   end subroutine writeGenGeometry
-  
+
 end program dftbplus

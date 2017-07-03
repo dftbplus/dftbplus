@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !!* Contains the HSD (Human readable Structured Data) parser.
-!!* @desc 
+!!* @desc
 !!* <p>
 !!*   The HSD format is a more or less user friendly input format, which can
 !!*   be easily converted to a simplified XML format. The parser returns a
@@ -43,7 +43,7 @@ module hsdparser
     module procedure dumpHSD_file
     module procedure dumpHSD_opened
   end interface
-  
+
 
   !! Main token separator characters
   integer, parameter :: nSeparator = 7
@@ -114,7 +114,7 @@ module hsdparser
   public :: getNodeHSDName, getHSDPath
   public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
 
-  
+
 contains
 
   !!* Parses HSD format from stdandard input
@@ -125,7 +125,7 @@ contains
     type(fnode), pointer :: xmlDoc
 
     call parseHSD_opened(initRootName, fdStdin, stdin, xmlDoc)
-    
+
   end subroutine parseHSD_stdin
 
 
@@ -195,10 +195,10 @@ contains
         &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
     xmlDoc => myDoc
     myDoc => null()
-    
+
   end subroutine parseHSD_opened
-    
-    
+
+
 
   !!* Recursive parsing function for the HSD parser making the actual work
   !!* @param curNode     Node which should contain parsed input
@@ -214,7 +214,7 @@ contains
   recursive function parse_recursive(curNode, depth, residual, tRightValue, &
       &fd, curFile, fileDepth, curLine, parsedTypes, tNew) result (tFinished)
     type(fnode), pointer             :: curNode
-    integer, intent(in)              :: depth   
+    integer, intent(in)              :: depth
     character(len=lc), intent(inout) :: residual
     logical, intent(in)              :: tRightValue
     integer, intent(in)              :: fd
@@ -325,7 +325,7 @@ contains
       if (.not. (iType == 1 .or. iType == 2 .or. iType == 3)) then
         call checkForbiddenChars(strLine, curFile, curLine)
       end if
-      
+
       !! Process non-closing separators
       select case (iType)
       case(0)
@@ -369,7 +369,7 @@ contains
                 &operator.", curFile, curLine)
           end if
         end if
-        
+
 
       case(2, 3)
         !! File inclusion operator -> append content of new file to current node
@@ -384,7 +384,7 @@ contains
           else
             word = adjustl(strLine(len(sIncludeUnparsed)+1:len_trim(strLine)))
           end if
-          
+
           if (len_trim(word) == 0) then
             call parsingError("No file name specified after the inclusion &
                 &operator.", curFile, curLine)
@@ -481,7 +481,7 @@ contains
             &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
         nodetype = 1
-        
+
       end select
 
       tTagClosed = tTagClosed .or. tRightValue
@@ -515,13 +515,13 @@ contains
     integer, intent(in)           :: curLine
     character(len=lc), intent(in) :: file
     type(fnode), pointer          :: newChild
-    
+
     type(fnode), pointer :: dummy, sameChild
     character(len=lc) :: lowerName, truncName, modifier
     logical :: tModifier, tCreate
     integer :: pos1, pos2, iType
     integer :: ii
-    
+
     truncName = childName
     lowerName = tolower(childName)
 
@@ -607,7 +607,7 @@ contains
       newChild => createElement(trim(lowerName))
       dummy => appendChild(parentNode, newChild)
     end if
-    
+
     !! Set useful attributes
     call setAttribute(newChild, attrStart, i2c(curLine))
     call setAttribute(newChild, attrName, trim(truncName))
@@ -615,9 +615,9 @@ contains
     if (tModifier) then
       call setAttribute(newChild, attrModifier, trim(modifier))
     end if
-    
+
   end function createChildNode
-  
+
 
 
   !!* Checks for forbidden characters and issue error message, if any found.
@@ -658,7 +658,7 @@ contains
     end if
     write (msgArray(2), "(A)") trim(message(:min(lc, len(message))))
     call error(msgArray)
-    
+
   end subroutine parsingError
 
 
@@ -751,10 +751,10 @@ contains
       myDoc => newDoc
       curNode => rootNode
     end if
-    
+
   end subroutine replaceTreeFromFile
-    
-  
+
+
 
   !!* Dumps a HSD tree in a file.
   !!* @param myDoc The DOM tree
@@ -804,7 +804,7 @@ contains
       call dumpHSD_recursive(child, 0, fd, .false., buffer)
       child => getNextSibling(child)
     end do
-    
+
   end subroutine dumpHSD_opened
 
 
@@ -845,7 +845,7 @@ contains
       call getNodeName(node, buffer)
     end if
     write (fd, "(A)", advance="no") char(buffer)
-    
+
     !! Get and print modifier
     attr => getAttributeNode(node, attrModifier)
     if (associated(attr)) then
@@ -855,7 +855,7 @@ contains
             &char(buffer), trim(sModifierClose)
       end if
     end if
-    
+
     child => getFirstChild(node)
     if (tRightValue) then
       if (associated(child)) then
@@ -890,7 +890,7 @@ contains
         return
       end if
     end if
-    
+
     !! Process children
     do while (associated(child))
       if (tOpenBlock) then
@@ -908,9 +908,9 @@ contains
     end if
 
   end subroutine dumpHSD_recursive
-  
-  
-  
+
+
+
   !!* Returns the name of a node, if present in pretty printing format.
   !!* @param node Node to investigate.
   subroutine getNodeHSDName(node, name)
@@ -921,11 +921,11 @@ contains
     if (len(name) == 0) then
       call getNodeName(node, name)
     end if
-    
+
   end subroutine getNodeHSDName
-  
-  
-  
+
+
+
   !!* Returns the path of a node, if possible in pretty printing format.
   !!* @param node        Node to investigate
   !!* @param path        String containing the path on return
@@ -944,7 +944,7 @@ contains
     else
       inclRoot = .true.
     end if
-    
+
     call getNodeHSDName(node, path)
     parent => getParentNode(node)
     if (associated(parent)) then
@@ -952,11 +952,11 @@ contains
     elseif (.not. inclRoot) then
       path = ""
     end if
-    
+
   end subroutine getHSDPath
-  
-  
-  
+
+
+
   !!* Working horse for the getHSDPath routine
   !!* @param node     Node to look for
   !!* @param path     String containing the path until now
@@ -979,7 +979,7 @@ contains
         call getHSDPath_recursive(parent, path, inclRoot, buffer)
       end if
     end if
-      
+
   end subroutine getHSDPath_recursive
 
 

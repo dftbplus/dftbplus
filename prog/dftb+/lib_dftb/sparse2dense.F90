@@ -473,7 +473,7 @@ contains
     complex(dp) :: tmpSqr(mOrb,mOrb)
   #:call ASSERT_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE  
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
@@ -591,7 +591,7 @@ contains
   #:call ASSERT_CODE
     integer :: sizePrim
   #:endcall ASSERT_CODE
-      
+
     nAtom = size(iNeighbor, dim=2)
     nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
                                      ! spin block
@@ -1096,7 +1096,7 @@ contains
   #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
   #:endcall ASSERT_CODE
-    
+
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )

@@ -20,7 +20,7 @@ module interpolation
 
 contains
 
-  
+
   !!* Returns the value of a polynomial of 5th degree at x.
   !!* @param y0 Value of the polynom at x = dx.
   !!* @param y0p Value of the 1st derivative at x = dx.
@@ -52,7 +52,7 @@ contains
 
   end function poly5ToZero
 
-  
+
 
   !!* Returns the value of a free spline at a certain point.
   !!* @param y0 Function value at x = 0.
@@ -96,10 +96,10 @@ contains
       yp = (3.0_dp*dd*xx + 2.0_dp*cc)*xx + bb
       ypp = 6.0_dp * dd * xx + 2.0_dp * cc
     end if
-    
+
   end subroutine freeCubicSpline
 
-  
+
 
   !!* Polynomial interpolation through given points
   !!* @param xa x-coordinates of the fit points
@@ -161,9 +161,9 @@ contains
     if (present(dy)) then
       dy = dyy
     end if
-    
-  end function polyInter
-      
 
-  
+  end function polyInter
+
+
+
 end module interpolation

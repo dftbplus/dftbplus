@@ -14,5 +14,5 @@ module xmlf90
   public
 
   public :: xmlf_t
-  
+
 end module xmlf90

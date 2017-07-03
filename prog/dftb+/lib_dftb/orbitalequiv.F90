@@ -9,11 +9,11 @@
 
 !!* Contains routines to manipulate orbital equivalency relations.
 !!* @desc An orbital equivalency relation is a mapping, which maps the orbitals
-!!* of the atoms onto a one dimensional vector, where equivalent orbitals are 
+!!* of the atoms onto a one dimensional vector, where equivalent orbitals are
 !!* mapped on the same element in the vector. Two orbitals are equivalent, if
-!!* charge can be transferred between the orbitals, without changing the 
+!!* charge can be transferred between the orbitals, without changing the
 !!* resulting Hamiltonian or the total energy. The mapping is an
-!!* (mmAng, nAtom, nSpin) shaped integer array, where the integer for 
+!!* (mmAng, nAtom, nSpin) shaped integer array, where the integer for
 !!* (iOrb, iAtom, iSpin) specifies the position in the 1D vector for orbital
 !!* iOrb on atom iAtom for spin iSpin. Values must be positive integers and
 !!* continuous. Zeros in the mapping vector stand for non-existent orbitals.
@@ -25,7 +25,7 @@ module orbitalequiv
   private
 
   public :: OrbitalEquiv_merge, OrbitalEquiv_reduce, OrbitalEquiv_expand
-  
+
 contains
 
   !!* Merges two equivalency arrays by finding the intersection in the
@@ -58,7 +58,7 @@ contains
     allocate(tmpMask(size(equiv1, dim=1), size(equiv1, dim=2), size(equiv1, dim=3)))
 
     mask(:,:,:) = (equiv1 > 0 .and. equiv2 > 0) ! True for the elements to be
-    !  processed    
+    !  processed
     equivNew(:,:,:) = 0
     newInd = 1                          ! Position in the reduced vector
     do iS = 1, nSpin
@@ -82,7 +82,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine OrbitalEquiv_merge
 
   !!* Reduces passed orbital property by summing up on equivalent orbitals.
@@ -99,7 +99,7 @@ contains
 
     integer :: nAtom, nSpin
     integer :: iS, iOrb, iAt
-    
+
     nAtom = size(input, dim=2)
     nSpin = size(input, dim=3)
 
@@ -118,7 +118,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine OrbitalEquiv_reduce
 
 
@@ -139,7 +139,7 @@ contains
     integer :: nSpin, nAtom
     integer ::iS, iAt, iOrb
     logical, allocatable :: mask(:)
-    
+
     nSpin = size(output, dim=3)
     nAtom = size(output, dim=2)
 
@@ -153,7 +153,7 @@ contains
     do iS = 1, nSpin
       do iAt = 1, nAtom
         do iOrb = 1, orb%nOrbAtom(iAt)
-          if (mask(equiv(iOrb, iAt, iS))) then            
+          if (mask(equiv(iOrb, iAt, iS))) then
             if (equiv(iOrb, iAt, iS) > 0) then
               output(iOrb, iAt, iS) = input(equiv(iOrb, iAt, iS))
               mask(equiv(iOrb, iAt, iS)) = .false.
@@ -165,5 +165,5 @@ contains
 
   end subroutine OrbitalEquiv_expand
 
-  
+
 end module orbitalequiv

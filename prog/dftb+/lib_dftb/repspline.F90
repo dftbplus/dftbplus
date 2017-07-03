@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Implements a repulsive potential between two atoms represented by cubic 
+!!* Implements a repulsive potential between two atoms represented by cubic
 !!* splines.
 module repspline
   use assert
@@ -88,11 +88,11 @@ contains
     self%expCoeffs(:) = inp%expCoeffs
     self%cutoff = inp%cutoff
     self%tInit = .true.
-    
+
   end subroutine RepSpline_init
 
 
-  
+
   !!* Returns cutoff of the repulsive.
   !!* @param self Spline repulsive.
   !!* @return Cutoff.
@@ -113,7 +113,7 @@ contains
     type(ORepSpline), intent(in) :: self
     real(dp), intent(out) :: res
     real(dp), intent(in) :: rr
-    
+
     integer :: imatch, ii
     real(dp) :: xh, xv
 
@@ -128,7 +128,7 @@ contains
     else
       !* find the point in the table to use
       call bisection(imatch, self%xStart, rr)
-      
+
       xv = rr - self%xStart(imatch)
       xh = xv
       if (imatch < self%nSpline) then
@@ -145,7 +145,7 @@ contains
         end do
       end if
     end if
-    
+
   end subroutine RepSpline_getEnergy
 
 
@@ -160,7 +160,7 @@ contains
     real(dp), intent(out) :: grad(3)
     real(dp), intent(in) :: xx(3)
     real(dp), intent(out), optional :: d2
-    
+
     integer :: imatch, ii
     real(dp) :: rr, xh, xv, d1
 
@@ -217,5 +217,5 @@ contains
 
   end subroutine RepSpline_getEnergyDeriv
 
-  
+
 end module repspline
