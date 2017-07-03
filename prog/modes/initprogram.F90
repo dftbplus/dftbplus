@@ -70,7 +70,6 @@ contains
     type(TOldSKData) :: skData
     type(fnode), pointer :: input, root, node, tmp
     type(fnode), pointer :: value, child, child2
-    type(string) :: strBuffer
     type(listRealR1) :: realBuffer
     type(string) :: buffer, buffer2
     type(listString) :: lStr

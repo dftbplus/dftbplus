@@ -1570,15 +1570,11 @@ contains
               &must be integers.")
         end if
         if (.not.ctrl%tSpinOrbit) then
-          call getSuperSampling(coeffsAndShifts(:,1:3), &
-              &modulo(coeffsAndShifts(:,4), 1.0_dp), geo%latVecs, &
-              & geo%recVecs2p, ctrl%kPoint, ctrl%kWeight, &
-              & reduceByInversion=.true.)
+          call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+              & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.true.)
         else
-          call getSuperSampling(coeffsAndShifts(:,1:3), &
-              &modulo(coeffsAndShifts(:,4), 1.0_dp), geo%latVecs, &
-              & geo%recVecs2p, ctrl%kPoint, ctrl%kWeight, &
-              & reduceByInversion=.false.)
+          call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+              & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.false.)
         end if
         ctrl%nKPoint = size(ctrl%kPoint, dim=2)
 

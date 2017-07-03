@@ -65,7 +65,8 @@ TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 
 # Prepare and run individual tests, possibly in parallel.
 $(TESTS):
-	@$(AUTOTEST_CMD) -p ./dftb+ -s P,R $(AUTOTEST_FLAGS) $@
+	@$(AUTOTEST_CMD) -P "$(PRERUN)" -p ./dftb+ -Q "$(POSTRUN)" -s P,R \
+            $(AUTOTEST_FLAGS) $@
 
 # Run calculations and immediately compare (possibly in parallel),
 # then summarize.  The dependency ensures proper sequencing.

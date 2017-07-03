@@ -868,12 +868,9 @@ contains
   !!*   where B(i) are the reciprocal lattice vectors of the super lattice.
   !!*   Finally, points equivalent by inversion are reduced, unless specified
   !!*   otherwise.
-  subroutine getSuperSampling(coeffs, shifts, latVecs, recVecs2p, kPoints, &
-      &kWeights, reduceByInversion)
+  subroutine getSuperSampling(coeffs, shifts, kPoints, kWeights, reduceByInversion)
     real(dp), intent(in) :: coeffs(:,:)
     real(dp), intent(in) :: shifts(:)
-    real(dp), intent(in) :: latVecs(:,:)
-    real(dp), intent(in) :: recVecs2p(:,:)
     real(dp), allocatable, intent(out) :: kPoints(:,:)
     real(dp), allocatable, intent(out) :: kWeights(:)
     logical, intent(in), optional :: reduceByInversion
@@ -894,8 +891,6 @@ contains
     ! check they are integers
     @:ASSERT(all(coeffs - nint(coeffs) < epsilon(1.0_dp)))
     @:ASSERT(size(shifts) == 3)
-    @:ASSERT(all(shape(latVecs) == (/ 3, 3 /)))
-    @:ASSERT(all(shape(recVecs2p) == (/ 3, 3 /)))
 
     if (present(reduceByInversion)) then
       tReduce = reduceByInversion
