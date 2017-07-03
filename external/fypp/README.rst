@@ -1,6 +1,9 @@
-=============================================
+*********************************************
 Fypp — Python powered Fortran metaprogramming
-=============================================
+*********************************************
+
+.. image:: https://travis-ci.org/aradi/fypp.svg?branch=develop
+           :target: https://travis-ci.org/aradi/fypp
 
 Fypp is a Python powered preprocessor. It can be used for any programming
 languages but its primary aim is to offer a Fortran preprocessor, which helps to
@@ -10,7 +13,7 @@ expressions in its preprocessor directives, offering the consistency and
 versatility of Python when formulating metaprogramming tasks. It puts strong
 emphasis on robustness and on neat integration into developing toolchains.
 
-The project is `hosted on bitbucket <http://bitbucket.org/aradi/fypp>`_.
+The project is `hosted on github <https://github.com/aradi/fypp>`_.
 
 `Detailed DOCUMENTATION <http://fypp.readthedocs.org>`_ is available on
 `readthedocs.org <http://fypp.readthedocs.org>`_.
@@ -187,25 +190,16 @@ Fypp directly from within your Python scripts.
 Manual install
 --------------
 
-For a manual install, you can download the source code from the `Fypp project
-website <http://bitbucket.org/aradi/fypp>`_ ::
+For a manual install, you can download the source code of the **stable**
+releases from the `Fypp project website
+<https://github.com/aradi/fypp/releases>`_.
 
-  git clone https://aradi@bitbucket.org/aradi/fypp.git
+If you wish to obtain the latest **development** version, clone the projects
+repository::
 
-The project follows `Vincent Driessens git workflow
-<http://nvie.com/posts/a-successful-git-branching-model/>`_, so in order to
-obtain
+  git clone https://github.com/aradi/fypp.git
 
-* the latest **stable** version, check out the `master` branch::
-
-    cd fypp
-    git co master
-
-* the latest **development** snapshot, check out the `develop` branch::
-
-    cd fypp
-    git co develop
-
+and check out the `master` branch.
 
 The command line tool is a single stand-alone script. You can run it directly
 from the source folder ::

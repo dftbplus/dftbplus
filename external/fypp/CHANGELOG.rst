@@ -3,6 +3,21 @@ Change Log
 ==========
 
 
+2.1
+===
+
+Fixed
+-----
+
+* Variable definition without value.
+
+
+Changed
+-------
+
+* Hosting site and branch names (develop -> master, master -> release).
+
+
 2.0.1
 =====
 
