@@ -193,7 +193,12 @@ contains
   #:if ITEM_RANK == 0
     list%pLast%data = data
   #:else
-    allocate(list%pLast%data, source=data)
+    ! WORKAROUND: GFortran 5.3 can not cope with source allocation
+    !allocate(list%pLast%data, source=data)
+    #:set allocstr = ','.join(['size(data, dim=%d)' % (ii + 1) for ii in range(ITEM_RANK)])
+    #:set shapestr = ','.join([':' for ii in range(ITEM_RANK)])
+    allocate(list%pLast%data(${allocstr}$))
+    list%pLast%data(${shapestr}$) = data
   #:endif
 
   end subroutine ${TYPE_NAME}$_append
