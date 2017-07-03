@@ -5,12 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains high level functions for converting the values in a XML/HSD 
+#:include 'common.fypp'
+
+!!* Contains high level functions for converting the values in a XML/HSD
 !!* DOM-tree to Fortran intrinsic types.
 !!* @todo Some more routines for complex numbers?
 module hsdutils
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use xmlf90
   use tokenreader
   use hsdparser
@@ -18,7 +19,6 @@ module hsdutils
   use charmanip
   use message
   use linkedlist
-  use stringlist
   use accuracy
   implicit none
   private
@@ -29,7 +29,7 @@ module hsdutils
   public :: convAtomRangeToInt, convRangeToInt, appendPathAndLine
   public :: getChild, getChildren, setChild
   public :: attrProcessed
-  
+
   !!* Returns the value (the child) of a child node identified by its name.
   !!* @desc
   !!*   These routines investigate the provided node and look for a child with
@@ -78,7 +78,7 @@ module hsdutils
   !!*   text node (or a normal node, if the provided value is of type node)
   !!*   containing the provided value. It must be indicated, if the
   !!*   created child is allowed to have only one single further child. If a
-  !!*   child with the specified name already exists, the program raises an 
+  !!*   child with the specified name already exists, the program raises an
   !!*   error, unless replacement flag is set on .true.. In that case, the
   !!*   the existing child is replaced. If the name of the child is the empty
   !!*   string, the current node is treated as if it would be the child, which
@@ -164,7 +164,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! getChildValue and getNode routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
   !!* Returns the value (the child) of a child node as logical.
   !!* @param node     The node to investigate.
   !!* @param name     Name of the child to look for
@@ -184,7 +184,7 @@ contains
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -194,13 +194,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr)
       call checkError(child2, iErr, "Invalid logical value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       value = default
@@ -214,7 +212,7 @@ contains
     if (present(child)) then
       child => child2
     end if
-    
+
   end subroutine getChVal_logical
 
   !!* Returns the value (the child) of a child node as logical.
@@ -241,10 +239,12 @@ contains
     integer :: iStart, iErr, nReadItem
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -257,13 +257,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr, nReadItem)
       call checkError(child2, iErr, "Invalid logical value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(value)) then
@@ -283,7 +281,7 @@ contains
     if (present(child)) then
       child => child2
     end if
-    
+
   end subroutine getChVal_logicalR1
 
   !!* Returns the value (the child) of a child node as string.
@@ -310,14 +308,14 @@ contains
     type(fnode), pointer :: child2
     logical :: tMultiple
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (present(multiple)) then
       tMultiple = multiple
     else
       tMultiple = .false.
     end if
-    
+
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
       call getAttribute(child2, attrModifier, modif)
@@ -326,7 +324,6 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       if (tMultiple) then
         value = unquote(trim(adjustl(char(text))))
@@ -349,8 +346,7 @@ contains
     if (present(child)) then
       child => child2
     end if
-    call unstring(text)
-      
+
   end subroutine getChVal_string
 
 
@@ -374,7 +370,7 @@ contains
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -384,13 +380,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr)
       call checkError(child2, iErr, "Invalid real value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       value = default
@@ -434,11 +428,13 @@ contains
     integer :: iStart, iErr, nReadItem
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
-    
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
+
     if (present(nItem)) then
       nItem = 0
     end if
@@ -450,13 +446,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr, nReadItem)
       call checkError(child2, iErr, "Invalid real value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(value)) then
@@ -509,10 +503,12 @@ contains
     type(string) :: modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     nReadItem = 0
     value = 0.0_dp
@@ -533,7 +529,6 @@ contains
     elseif (len(modif) > 0) then
       call detailedError(child2, MSG_NOMODIFIER)
     end if
-    call unstring(modif)
     value(:,:) = reshape(buffer, shape(value))
     if (present(child)) then
       child => child2
@@ -562,7 +557,7 @@ contains
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -572,13 +567,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr)
       call checkError(child2, iErr, "Invalid integer value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       value = default
@@ -621,10 +614,12 @@ contains
     integer :: iStart, iErr, nReadItem
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -637,13 +632,11 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       iStart = 1
       call getFirstTextChild(child2, text)
       call getNextToken(char(text), value, iStart, iErr, nReadItem)
       call checkError(child2, iErr, "Invalid integer value")
       call checkNoData(child2, char(text), iStart)
-      call unstring(text)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(value)) then
@@ -666,7 +659,7 @@ contains
   end subroutine getChVal_intR1
 
 
-  
+
   !!* Returns the value (the child) of a child node as a rank two integer array.
   !!* @param node     The node to investigate.
   !!* @param name     Name of the child to look for
@@ -695,10 +688,12 @@ contains
     type(string) :: modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(ASSERT(all(shape(default) == shape(value))))
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(value)))
+    end if
+  #:endcall ASSERT_CODE
 
     nReadItem = 0
     if (present(default)) then
@@ -718,7 +713,6 @@ contains
     elseif (len(modif) > 0) then
       call detailedError(child2, MSG_NOMODIFIER)
     end if
-    call unstring(modif)
     value(:,:) = reshape(buffer, shape(value))
     if (present(child)) then
       child => child2
@@ -749,7 +743,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
       call getAttribute(child2, attrModifier, modif)
@@ -758,10 +752,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lString_h(char(text), value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -785,14 +777,13 @@ contains
 
     integer :: iStart, iErr
     type(string) :: token
-    
+
     iStart = 1
     call getNextToken(text, token, iStart, iErr)
     do while (iErr == TOKEN_OK)
       call append(value, trim(unquote(char(token))))
       call getNextToken(text, token, iStart, iErr)
     end do
-    call unstring(token)
     if (iErr == TOKEN_ERROR) then
       call detailedError(node, "Invalid string")
     end if
@@ -822,7 +813,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -832,10 +823,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lReal_h(char(text), value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -856,10 +845,10 @@ contains
     character(len=*), intent(in) :: text
     type(listReal), intent(inout) :: value
     type(fnode), pointer :: node
-    
+
     integer :: iStart, iErr
     real(dp) :: buffer
-    
+
     iStart = 1
     call getNextToken(text, buffer, iStart, iErr)
     do while (iErr == TOKEN_OK)
@@ -878,7 +867,7 @@ contains
   !!* real arrays.
   !!* @param node     The node to investigate.
   !!* @param name     Name of the child to look for
-  !!* @param dim      Dimension of the arrays    
+  !!* @param dim      Dimension of the arrays
   !!* @param value    Value on return
   !!* @param modifier Modifier of the child on return
   !!* @param child    Pointer to the child node (with the spec. name) on return
@@ -898,7 +887,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -908,10 +897,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lRealR1_h(char(text), dim, value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -933,11 +920,11 @@ contains
     integer, intent(in) :: dim
     type(listRealR1), intent(inout) :: value
     type(fnode), pointer :: node
-    
+
     integer :: iStart, iErr
     real(dp) :: buffer(dim)
     integer :: nItem
-    
+
     iStart = 1
     call getNextToken(text, buffer, iStart, iErr, nItem)
     do while (iErr == TOKEN_OK)
@@ -975,7 +962,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -985,10 +972,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lInt_h(char(text), value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -1009,10 +994,10 @@ contains
     character(len=*), intent(in) :: text
     type(listInt), intent(inout) :: value
     type(fnode), pointer :: node
-    
+
     integer :: iStart, iErr
     integer :: buffer
-    
+
     iStart = 1
     call getNextToken(text, buffer, iStart, iErr)
     do while (iErr == TOKEN_OK)
@@ -1050,7 +1035,7 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1060,10 +1045,8 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lIntR1_h(char(text), dim, value, child2)
-      call unstring(text)
       call setAttribute(child2, attrProcessed, "")
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -1085,11 +1068,11 @@ contains
     integer, intent(in) :: dim
     type(listIntR1), intent(inout) :: value
     type(fnode), pointer :: node
-    
+
     integer :: iStart, iErr
     integer :: buffer(dim)
     integer :: nItem
-    
+
     iStart = 1
     call getNextToken(text, buffer, iStart, iErr, nItem)
     do while (iErr == TOKEN_OK)
@@ -1135,9 +1118,9 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT(dimInt > 0)
-    ASSERT(dimReal > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(dimInt > 0)
+    @:ASSERT(dimReal > 0)
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1147,11 +1130,9 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lIntR1RealR1_h(char(text), dimInt, valueInt, &
           &dimReal, valueReal, child2)
-      call unstring(text)
       if (len(valueInt) /= len(valueReal)) then
         call detailedError(node, "Unexpected end of data")
       end if
@@ -1179,7 +1160,7 @@ contains
     integer, intent(in) :: dimReal
     type(listRealR1), intent(inout) :: valueReal
     type(fnode), pointer :: node
-    
+
     integer :: iStart, iErr
     real(dp) :: bufferReal(dimReal)
     integer :: bufferInt(dimInt)
@@ -1239,9 +1220,9 @@ contains
     type(string) :: text, modif
     type(fnode), pointer :: child2
 
-    ASSERT(associated(node))
-    ASSERT(dimInt > 0)
-    ASSERT(dimReal > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(dimInt > 0)
+    @:ASSERT(dimReal > 0)
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -1251,11 +1232,9 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call getFirstTextChild(child2, text)
       call getChVal_lStringIntR1RealR1_h(char(text), valueStr, &
           &dimInt, valueInt, dimReal, valueReal, child2)
-      call unstring(text)
       if (len(valueStr) /= len(valueInt) &
           &.or. len(valueInt) /= len(valueReal)) then
         call detailedError(node, "Unexpected end of data")
@@ -1285,7 +1264,7 @@ contains
     integer, intent(in) :: dimReal
     type(listRealR1), intent(inout) :: valueReal
     type(fnode), pointer :: node
-    
+
     integer :: iStart, iErr
     real(dp) :: bufferReal(dimReal)
     integer :: bufferInt(dimInt)
@@ -1302,16 +1281,15 @@ contains
         exit
       end if
       call append(valueStr, char(bufferStr))
-      
+
       call getNextToken(text, bufferInt, iStart, iErr, nItem)
       call checkError(node, iErr, "Invalid integer")
       call append(valueInt, bufferInt)
-      
+
       call getNextToken(text, bufferReal, iStart, iErr, nItem)
       call checkError(node, iErr, "Invalid real")
       call append(valueReal, bufferReal)
     end do
-    call unstring(bufferStr)
 
   end subroutine getChVal_lStringIntR1RealR1_h
 
@@ -1348,13 +1326,15 @@ contains
     type(fnode), pointer :: child2
     logical :: tList, tAllowEmptyVal, tDummyValue
 
-    ASSERT(associated(node))
-    ASSERT_ENV(if (present(default)) then)
-    ASSERT_ENV(  if (len(default) == 0) then)
-    ASSERT_ENV(    ASSERT(present(allowEmptyValue)))
-    ASSERT_ENV(    ASSERT(allowEmptyValue))
-    ASSERT_ENV(  end if)
-    ASSERT_ENV(end if)
+    @:ASSERT(associated(node))
+  #:call ASSERT_CODE
+    if (present(default)) then
+      if (len(default) == 0) then
+        @:ASSERT(present(allowEmptyValue))
+        @:ASSERT(allowEmptyValue)
+      end if
+    end if
+  #:endcall ASSERT_CODE
 
     if (present(list)) then
       tList = list
@@ -1380,7 +1360,6 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child2, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       value => getFirstChild(child2)
       if ((.not. associated(value)) .and. (.not. tAllowEmptyVal)) then
         call detailedError(child2, "Missing value")
@@ -1409,10 +1388,10 @@ contains
     if (present(child)) then
       child => child2
     end if
-    
+
   end subroutine getChVal_node
 
-  
+
   !!* Converts a string containing atom indices, ranges and species names to
   !!* a list of atom indeces.
   !!* @param str  String to convert
@@ -1425,7 +1404,7 @@ contains
     character(len=*), intent(in) :: speciesNames(:)
     integer, intent(in) :: species(:)
     type(fnode), pointer :: node
-    integer, pointer :: val(:)
+    integer, allocatable, intent(out) :: val(:)
 
     type(string) :: buffer
     type(ListInt) :: li
@@ -1439,12 +1418,11 @@ contains
       call process(char(buffer), speciesNames, species, nAtom, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
-    INITALLOCATE_PARR(val, (len(li)))
+    allocate(val(len(li)))
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-    call destroy(li)
-    call unstring(buffer)
+    call destruct(li)
 
   contains
 
@@ -1520,10 +1498,10 @@ contains
       end if
 
     end subroutine process
-    
+
   end subroutine convAtomRangeToInt
-  
-  
+
+
   !!* Converts a string containing indices and ranges to a list of indices.
   !!* @param str  String to convert
   !!* @param node  Master node for detailed errors.
@@ -1532,9 +1510,9 @@ contains
   subroutine convRangeToInt(str, node, val, nMax)
     character(len=*), intent(in) :: str
     type(fnode), pointer :: node
-    integer, pointer :: val(:)
+    integer, allocatable, intent(out) :: val(:)
     integer, intent(in) :: nMax
-    
+
     type(string) :: buffer
     type(ListInt) :: li
     integer :: iStart, iostat
@@ -1546,18 +1524,17 @@ contains
       call process(char(buffer), nMax, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
-    INITALLOCATE_PARR(val, (len(li)))
+    allocate(val(len(li)))
     if (len(li) > 0) then
       call asArray(li, val)
     end if
-    call destroy(li)
-    call unstring(buffer)
-    
+    call destruct(li)
+
   contains
 
     ! Helper routine.
     subroutine process(cbuffer, nMax, node, li)
-      character(len=*), intent(in) :: cbuffer      
+      character(len=*), intent(in) :: cbuffer
       integer, intent(in) :: nMax
       type(fnode), pointer :: node
       type(ListInt), intent(inout) :: li
@@ -1603,17 +1580,17 @@ contains
           end if
           call append(li, ii)
         end if
-      else        
+      else
         call detailedError(node, "Invalid range '" // trim(cbuffer) // "'")
       end if
-      
+
     end subroutine process
-    
+
   end subroutine convRangeToInt
-  
-  
-  
-  
+
+
+
+
   !!* Returns a child node with a specified name
   !!* @param node      Node to investigate
   !!* @param name      Name of the child node to look for
@@ -1630,7 +1607,7 @@ contains
     logical :: tRequested
     type(string) :: modif
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (present(requested)) then
       tRequested = requested
@@ -1646,15 +1623,14 @@ contains
       elseif (len(modif) > 0) then
         call detailedError(child, MSG_NOMODIFIER)
       end if
-      call unstring(modif)
       call setAttribute(child, attrProcessed, "")
     elseif (tRequested) then
       call detailedError(node, MSG_MISSING_FIELD // name)
     end if
-    
+
   end subroutine getChild
 
-  
+
 
   !!* Returns a list of children with the specified name.
   !!* @param node     Parent node to investigate
@@ -1673,7 +1649,7 @@ contains
       call getItem1(children, ii, child)
       call setAttribute(child, attrProcessed, "")
     end do
-    
+
   end subroutine getChildren
 
 
@@ -1706,18 +1682,17 @@ contains
     else
       tReplace = .false.
     end if
-    
+
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_logical
 
 
@@ -1745,22 +1720,21 @@ contains
     else
       tReplace = .false.
     end if
-    
+
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_logicalR1
 
 
-  
+
   !!* Writes the text representation of a node and its value to an xmlwriter.
   !!* @param xf    Xmlwriter stream
   !!* @param name  Name of the node
@@ -1769,12 +1743,11 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     logical, intent(in) :: value
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_logical
 
@@ -1786,15 +1759,14 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     logical, intent(in) :: value(:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_logicalR1
-  
+
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
   !!* @param strBuffer Text representation on exit
@@ -1840,11 +1812,11 @@ contains
         call append_to_string(strBuffer, space // trim(buffer))
       end if
     end do
-    
+
   end subroutine getAsString_logicalR1
 
-  
-  
+
+
   !!* Sets the value (child) of a child with given name.
   !!* @param node    The node to investigate
   !!* @param name    Name of the child to look for
@@ -1875,14 +1847,13 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_real
 
 
@@ -1895,16 +1866,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     real(dp), intent(in) :: value
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_real
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -1914,7 +1884,7 @@ contains
     type(string), intent(inout) :: strBuffer
 
     character(len=nCharReal) :: buffer
-    
+
     write (buffer, *) value
     strBuffer = trim(adjustl(buffer))
 
@@ -1951,18 +1921,17 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_realR1
 
 
-  
+
   !!* Writes the text representation of a node and its value to an xmlwriter.
   !!* @param xf    Xmlwriter stream
   !!* @param name  Name of the node
@@ -1971,16 +1940,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     real(dp), intent(in) :: value(:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_realR1
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -2045,18 +2013,17 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_realR2
 
 
-  
+
   !!* Writes the text representation of a node and its value to an xmlwriter.
   !!* @param xf    Xmlwriter stream
   !!* @param name  Name of the node
@@ -2065,16 +2032,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     real(dp), intent(in) :: value(:,:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_realR2
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -2129,7 +2095,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .false., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2149,16 +2114,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     integer, intent(in) :: value
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_int
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -2171,7 +2135,7 @@ contains
 
     write (buffer, *) value
     strBuffer = trim(adjustl(buffer))
-    
+
   end subroutine getAsString_int
 
 
@@ -2204,7 +2168,6 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
@@ -2224,16 +2187,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     integer, intent(in) :: value(:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_intR1
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -2260,7 +2222,7 @@ contains
         call append_to_string(strBuffer, space // trim(buffer))
       end if
     end do
-    
+
   end subroutine getAsString_intR1
 
 
@@ -2297,14 +2259,13 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_intR2
 
 
@@ -2317,16 +2278,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     integer, intent(in) :: value(:,:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_intR2
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -2337,7 +2297,7 @@ contains
 
     character(len=nCharInt) :: buffer
     integer :: ii, jj
-    
+
     call resize_string(strBuffer, preAllocSize)
     do ii = 1, size(value, dim=2)
       do jj = 1, size(value, dim=1)
@@ -2389,14 +2349,14 @@ contains
     else
       call createChild_local(node, name, .false., tReplace, child2, value=value)
     end if
-    
+
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_char
 
 
@@ -2428,14 +2388,13 @@ contains
     call getAsString(value, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_charR1
 
 
@@ -2448,16 +2407,15 @@ contains
     type(xmlf_t), intent(inout) :: xf
     character(len=*), intent(in) :: name
     character(len=*), intent(in) :: value(:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(value, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_charR1
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param value     Value to represent
@@ -2465,7 +2423,7 @@ contains
   subroutine getAsString_charR1(value, strBuffer)
     character(len=*), intent(in) :: value(:)
     type(string), intent(inout) :: strBuffer
-    
+
     integer :: buffLen, len
     integer :: ii
 
@@ -2507,7 +2465,7 @@ contains
     type(fnode), pointer :: child2
     type(string) :: strBuffer
     logical :: tReplace
-        
+
     if (present(replace)) then
       tReplace = replace
     else
@@ -2516,14 +2474,13 @@ contains
     call getAsString(intValue, realValue, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_intR2RealR2
 
 
@@ -2537,16 +2494,15 @@ contains
     character(len=*), intent(in) :: name
     integer, intent(in) :: intValue(:,:)
     real(dp), intent(in) :: realValue(:,:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(intValue, realValue, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
 
   end subroutine writeChVal_intR2RealR2
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param intValue
@@ -2560,10 +2516,10 @@ contains
     character(len=100) :: buffer
     integer :: nRow, nCol1, nCol2
     integer :: ii, jj
-    
+
     nRow = size(intValue, dim=2)
-    ASSERT(size(realValue, dim=2) == nRow)
-    
+    @:ASSERT(size(realValue, dim=2) == nRow)
+
     nCol1 = size(intValue, dim=1)
     nCol2 = size(realValue, dim=1)
     call resize_string(strBuffer, preAllocSize)
@@ -2608,7 +2564,7 @@ contains
     type(fnode), pointer :: child2
     type(string) :: strBuffer
     logical :: tReplace
-        
+
     if (present(replace)) then
       tReplace = replace
     else
@@ -2617,14 +2573,13 @@ contains
     call getAsString(charValue, intValue, realValue, strBuffer)
     call createChild_local(node, name, .true., tReplace, child2, &
         &value=char(strBuffer))
-    call unstring(strBuffer)
     if (present(child)) then
       child => child2
     end if
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_charR1IntR2RealR2
 
 
@@ -2640,16 +2595,15 @@ contains
     character(len=*), intent(in) :: charValue(:)
     integer, intent(in) :: intValue(:,:)
     real(dp), intent(in) :: realValue(:,:)
-    
+
     type(string) :: strBuffer
 
     call getAsString(charValue, intValue, realValue, strBuffer)
     call writeChild_local(xf, name, char(strBuffer))
-    call unstring(strBuffer)
-    
+
   end subroutine writeChVal_charR1IntR2RealR2
 
-  
+
 
   !!* Returns the text representation of the passed object
   !!* @param charValue
@@ -2666,11 +2620,11 @@ contains
     character(len=100) :: buffer
     integer :: nRow, nCol1, nCol2
     integer :: ii, jj
-    
+
     nRow = size(charValue)
-    ASSERT(size(intValue, dim=2) == nRow)
-    ASSERT(size(realValue, dim=2) == nRow)
-    
+    @:ASSERT(size(intValue, dim=2) == nRow)
+    @:ASSERT(size(realValue, dim=2) == nRow)
+
     nCol1 = size(intValue, dim=1)
     nCol2 = size(realValue, dim=1)
     call resize_string(strBuffer, preAllocSize)
@@ -2734,7 +2688,7 @@ contains
     if (present(modifier)) then
       call setAttribute(child2, attrModifier, modifier)
     end if
-    
+
   end subroutine setChVal_node
 
 
@@ -2757,7 +2711,7 @@ contains
     logical, intent(in) :: replace
     type(fnode), pointer :: child
     character(len=*), intent(in), optional :: value
-    
+
     type(fnode), pointer :: parent, oldChild, child2, text, dummy
     character(len=len(name)) :: loName
     type(string) :: newName, parentname
@@ -2792,7 +2746,7 @@ contains
             & // trim(dummy%nodeValue) // "'")
       end if
     end if
-    
+
     if (associated(oldChild)) then
       dummy => replaceChild(parent, child2, oldChild)
       call destroyNode(oldChild)
@@ -2806,7 +2760,7 @@ contains
     if (list) then
       call setAttribute(child2, attrList, "")
     end if
-      
+
     child => child2
     call setAttribute(child, attrProcessed, "")
     if (present(value)) then
@@ -2814,8 +2768,6 @@ contains
       dummy => appendChild(child, text)
     end if
 
-    call unstring(newName)
-    
   end subroutine createChild_local
 
 
@@ -2828,7 +2780,7 @@ contains
     call xml_NewElement(xf, name)
     call xml_AddPCData(xf, value)
     call xml_EndElement(xf, name)
-    
+
   end subroutine writeChild_local
 
 
@@ -2851,7 +2803,7 @@ contains
 
     logical :: tReplace, tList
     type(fnode), pointer :: dummy
-    
+
     if (present(replace)) then
       tReplace = replace
     else
@@ -2882,7 +2834,7 @@ contains
     if (present(modifier)) then
       call setAttribute(child, attrModifier, modifier)
     end if
-    
+
   end subroutine setChild
 
 
@@ -2914,7 +2866,7 @@ contains
   end subroutine getFirstTextChild
 
 
-  
+
   !!* Checks if error flag signalizes an error. If yes, raises error.
   !!* @param node Node which the error flag was set for
   !!* @param iErr Content of the error flag.
@@ -2933,7 +2885,7 @@ contains
   end subroutine checkError
 
 
-  !!* Issues an error, if the string from a given position contains 
+  !!* Issues an error, if the string from a given position contains
   !!* non-whitespace characters.
   !!* @param node  Node which is being processed (for error message)
   !!* @param str String content of the child.
@@ -2950,7 +2902,7 @@ contains
 
   end subroutine checkNoData
 
-  
+
 
   !!* Prints detailed error, including line number and path
   !!* @param node Node where the error occured.
@@ -2964,7 +2916,6 @@ contains
     str = msg
     call appendPathAndLine(node, str)
     call error(char(str) // newline)
-    call unstring(str)
 
   end subroutine detailedError
 
@@ -2982,7 +2933,6 @@ contains
     str = msg
     call appendPathAndLine(node, str)
     call warning(char(str) // newline)
-    call unstring(str)
 
   end subroutine detailedWarning
 
@@ -3016,8 +2966,6 @@ contains
       call append_to_string(str, str2)
       call append_to_string(str, ")")
     end if
-    call unstring(str2)
-    call unstring(str3)
 
   end subroutine appendPathAndLine
 

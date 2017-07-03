@@ -5,28 +5,29 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains functions for transforming between the compressed sparse format
 !!* and the internal sparse matrix format.
 module csrmatrix
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   implicit none
   private
 
   public :: r_CSR, foldToCSR, unfoldFromCSR
-  
+
 
   type r_CSR
     integer :: nnz
     integer :: nrow
     integer :: ncol
     real(dp), allocatable :: nzval(:)
-    integer, allocatable :: colind(:) 
-    integer, allocatable :: rowpnt(:) 
+    integer, allocatable :: colind(:)
+    integer, allocatable :: rowpnt(:)
   end type r_CSR
 
-  
+
   interface foldToCSR
     module procedure foldToCSR_real
   end interface
@@ -36,7 +37,7 @@ module csrmatrix
     module procedure unfoldFromCSR_real
   end interface
 
-  
+
 contains
 
 
@@ -81,8 +82,8 @@ contains
     nAtom = size(mAngAtom)
 
     !! Count nr. of nonzero columns in the square (folded) form for each atom
-    ALLOCATE_(nColAtom, (nAtom))
-    ALLOCATE_(zero, (nAtom))
+    allocate(nColAtom(nAtom))
+    allocate(zero(nAtom))
     nColAtom(:) = 0
     do iAt1 = 1, nAtom
       zero(:) = .true.
@@ -101,7 +102,7 @@ contains
 
     csr%nRow = iAtomStart(nAtom) + nOrb(nAtom) - 1
     csr%nCol = csr%nRow
-    ALLOCATE_(csr%rowpnt, (csr%nRow + 1))
+    allocate(csr%rowpnt(csr%nRow + 1))
 
     !! Calculate CSR row pointers
     csr%rowpnt(1) = 1
@@ -115,15 +116,19 @@ contains
     end do
 
     csr%nnz = csr%rowpnt(csr%nRow + 1) - 1
-    ALLOCATE_(csr%nzval, (csr%nnz))
-    ALLOCATE_(csr%colind, (csr%nnz))
-    
+    allocate(csr%nzval(csr%nnz))
+    allocate(csr%colind(csr%nnz))
+
     !! Initialize auxiliary arrays
-    ALLOCATE_(nCols, (csr%nRow))           ! Nr. of CSR columns already filled
+
+    ! Nr. of CSR columns already filled
+    allocate(nCols(csr%nRow))
     nCols(:) = 0
-    ALLOCATE_(tmpCol, (csr%nRow, (mmAng+1)**2))  ! One block column of the mtx
-    ALLOCATE_(iNonZero, (nAtom))           ! Index of the nonzero blocks
-    
+    ! One block column of the mtx
+    allocate(tmpCol(csr%nRow, (mmAng+1)**2))
+    ! Index of the nonzero blocks
+    allocate(iNonZero(nAtom))
+
     !! Loop over all atoms (over all block columns in the rectangular picture)
     lpAt1: do iAt1 = 1, nAtom
       iCol = iAtomStart(iAt1)
@@ -191,12 +196,6 @@ contains
       end do lpNonZero
     end do lpAt1
 
-    DEALLOCATE_(nColAtom)
-    DEALLOCATE_(zero)
-    DEALLOCATE_(nCols)
-    DEALLOCATE_(tmpCol)
-    DEALLOCATE_(iNonZero)
-    
   end subroutine foldToCSR_real
 
 
@@ -236,8 +235,8 @@ contains
     nOrb(:) = (mAngAtom(:)+1)**2
     nAtom = size(mAngAtom)
 
-    ASSERT(csr%nRow == iAtomStart(nAtom) + nOrb(nAtom) - 1)
-    ALLOCATE_(tmpCol, (csr%nRow, (mmAng+1)**2))
+    @:ASSERT(csr%nRow == iAtomStart(nAtom) + nOrb(nAtom) - 1)
+    allocate(tmpCol(csr%nRow, (mmAng+1)**2))
 
     do iAt1 = 1, nAtom
       !! Put the rows belonging to a certain atom into the appropriate column
@@ -265,10 +264,8 @@ contains
       end do
     end do
 
-    DEALLOCATE_(tmpCol)
-    
   end subroutine unfoldFromCSR_real
-    
 
-  
+
+
 end module csrmatrix

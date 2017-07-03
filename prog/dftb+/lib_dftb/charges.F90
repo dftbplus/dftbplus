@@ -5,8 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 module charges
-#include "assert.h"
+  use assert
   use accuracy
   use commontypes, only : TOrbitals
   implicit none
@@ -52,7 +54,7 @@ contains
     real(dp), pointer :: dQWork(:,:), dQShellWork(:,:)
     integer :: nAtom
 
-    ASSERT(present(iHubbU) .eqv. present(dQUniqU))
+    @:ASSERT(present(iHubbU) .eqv. present(dQUniqU))
 
     nAtom = size(orb%nOrbAtom)
     if (present(dQ)) then
@@ -87,11 +89,11 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
   subroutine getNetChargesPerOrbital(qOrbital, q0, deltaQ)
     real(dp), intent(in) :: qOrbital(:,:), q0(:,:)
     real(dp), intent(out) :: deltaQ(:,:)
-    
+
     deltaQ(:,:) = qOrbital - q0
 
   end subroutine getNetChargesPerOrbital
@@ -105,7 +107,7 @@ contains
 
   end subroutine getNetChargesPerAtom
 
-  
+
   subroutine getNetChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
     integer, intent(in) :: species(:)
     type(TOrbitals), intent(in) :: orb
@@ -113,7 +115,7 @@ contains
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
     integer :: iAt, iSp, iSh, iStart, iend
-    
+
     deltaQPerLShell(:,:) = 0.0_dp
     do iAt = 1, size(orb%nOrbAtom)
       iSp = species(iAt)
@@ -123,10 +125,10 @@ contains
         deltaQPerLShell(iSh, iAt) = sum(deltaQ(iStart:iEnd, iAt))
       end do
     end do
-    
+
   end subroutine getNetChargesPerLShell
 
-  
+
   subroutine getNetChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU,&
       & deltaQUniqU)
     integer, intent(in) :: species(:)
@@ -134,7 +136,7 @@ contains
     real(dp), intent(in) :: deltaQPerLShell(:,:)
     integer, intent(in) :: iHubbU(:,:)
     real(dp), intent(out) :: deltaQUniqU(:,:)
-    
+
     integer :: iAt, iSp, iSh
 
     deltaQUniqU(:,:) = 0.0_dp
@@ -146,7 +148,7 @@ contains
             &+ deltaQPerLShell(iSh, iAt)
       end do
     end do
-    
+
   end subroutine getNetChargesPerUniqU
 
 

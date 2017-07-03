@@ -12,11 +12,8 @@ FXXOPT = -O2 -ieee=full -openmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Preprocessor
-CPP = cpp -traditional
-CPPOPT = -DINTERNALERFC -DEXPTRAP
-
-# Fortran preprocessor (invokes CPP as defined above and process the result)
-FPP = $(ROOT)/utils/build/fpp/fpp.sh noln2
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT = -DINTERNAL_ERFC -DEXP_TRAP
 
 # Linker
 LN = $(FXX)

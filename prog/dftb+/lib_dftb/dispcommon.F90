@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !! Common routines for the dispersion modules.
 !!
 !! Periodic summation from the following references:
@@ -12,7 +14,7 @@
 !! \ref Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
 !!
 module dispcommon
-#include "assert.h"  
+  use assert
   use accuracy
   use constants, only : pi
   use message
@@ -69,9 +71,9 @@ contains
     real(dp) :: aam2, bb, bbm2, rTmp, rTmp2, rTmp3, rc, r3c, gc, g3c, ddp
     real(dp) :: etam3, rTmp33, gsum33(3,3)
 
-    ASSERT(size(energies) == nAtom)
-    ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
-    ASSERT(all(shape(stress) == (/ 3, 3 /)))
+    @:ASSERT(size(energies) == nAtom)
+    @:ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
+    @:ASSERT(all(shape(stress) == (/ 3, 3 /)))
 
     etam3 = eta**(-3)
     rc = 0.5_dp * etam3 * etam3
@@ -103,7 +105,7 @@ contains
           end do
         end if
       end do
-      
+
       gSum = 0.0_dp
       gSum3(:) = 0.0_dp
       gSum33(:,:) = 0.0_dp
@@ -121,7 +123,7 @@ contains
         end do
         rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb &
             &* exp(-1.0_dp / bbm2)
-        rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb 
+        rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
         gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
         do ii = 1, 3
@@ -133,7 +135,7 @@ contains
       gSum33 = gSum33 * gc
       energies(iAt1) = energies(iAt1) - gSum &
           &+ (c6(iAt1,iAt1)/12.0_dp * etam3 &
-          &- pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3 
+          &- pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
         stress(ii,ii) = stress(ii,ii) - gSum/vol &
             &-(pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol*vol)) * etam3
@@ -144,7 +146,7 @@ contains
 
   end subroutine addDispEGr_per_atom
 
-  
+
   !> Adds the energy per atom and the gradients for periodic 1/r^6 summation.
   !!
   !! \param nAtom Nr. of atoms (without periodic images)
@@ -181,16 +183,16 @@ contains
     real(dp), intent(inout) :: energies(:)
     real(dp), intent(inout) :: gradients(:,:)
     real(dp), intent(inout) :: stress(:,:)
-    
+
     integer :: iAt1, iNeigh, iAt2, iAt2f, iG, iSp1, iSp2, ii
     real(dp) :: rSum, rSum3(3), gSum, gSum3(3),gsum33(3,3),gg(3), ggAbs, vec(3)
     real(dp) :: aam2, bb, bbm2, rTmp, rTmp2, rTmp3, rc, r3c, gc, g3c, ddp, etam3
     real(dp) :: rTmp33
-    
-    ASSERT(size(energies) == nAtom)
-    ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
-    ASSERT(all(shape(stress) == (/ 3, 3 /)))
-    
+
+    @:ASSERT(size(energies) == nAtom)
+    @:ASSERT(all(shape(gradients) == (/ 3, nAtom /)))
+    @:ASSERT(all(shape(stress) == (/ 3, 3 /)))
+
     etam3 = eta**(-3)
     rc = 0.5_dp * etam3 * etam3
     r3c = 2.0_dp * rc / (eta * eta)
@@ -223,7 +225,7 @@ contains
           end do
         end if
       end do
-      
+
       gSum = 0.0_dp
       gSum3(:) = 0.0_dp
       gSum33(:,:) = 0.0_dp
@@ -242,7 +244,7 @@ contains
         end do
         rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb &
             &* exp(-1.0_dp / bbm2)
-        rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb 
+        rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
         gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
         do ii = 1, 3
@@ -286,7 +288,7 @@ contains
 
   end function getOptimalEta
 
-    
+
 
   !! Returns the longest real space vector needed to achive a given accuracy
   !! in the Ewald summation for the dispersion.
@@ -354,7 +356,7 @@ contains
 
 
 
-  !! Returns the longest reciprocal space vector needed to achive a given 
+  !! Returns the longest reciprocal space vector needed to achive a given
   !! accuracy in the Ewald summation for the dispersion.
   !! \param eta Parameter of the ewald summation.
   !! \param c6sum Sum of the absolute values of the c6 coeffs for every atom
@@ -422,7 +424,7 @@ contains
 !!! Private functions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
+
   !! Returns the error of the real space summation for a certain cutoff
   !! \param rr Cutoff radius
   !! \param c6sum VdW coefficient sum.
@@ -436,10 +438,10 @@ contains
     err = (pi**1.5_dp * c6sum / vol) * eta * (1.0_dp/rr**4 &
         &+ 1.0_dp/(rr**2 * eta**2) + 1.0_dp / (2.0_dp * eta**4)) &
         &* erfcwrap(rr/eta)
-    
+
   end function getDispRealError
 
-  
+
   !! Returns the error of the reciprocal space summation for a certain cutoff
   !! \param gg Cutoff radius
   !! \param c6sum VdW coefficient sum.
@@ -452,7 +454,7 @@ contains
     err = c6sum/(6.0_dp * sqrt(pi)) * (1.0_dp / eta**6) &
         &*(gg * eta * exp(-1.0_dp * (0.5_dp*gg*eta)**2) &
         &+ sqrt(pi) * erfcwrap(0.5_dp * gg * eta))
-    
+
   end function getDispReciprocalError
 
 end module dispcommon

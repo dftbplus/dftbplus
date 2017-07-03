@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Routines for spin orbit coupling
 module spinorbit
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy, only : dp
   use angmomentum, only : Loperators
   use commontypes, only : TOrbitals
@@ -54,21 +55,21 @@ contains
     nSpecies = maxval(species(1:nAtom))
     nOrb = size(rho,dim=1)
 
-    ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    ASSERT(size(iAtomStart) == nAtom+1)
-    ASSERT(size(xi,dim=2) == nSpecies)
-    ASSERT(size(xi,dim=1) == orb%mShell)
-    ASSERT(mod(nOrb,2)==0)
+    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
+    @:ASSERT(size(iAtomStart) == nAtom+1)
+    @:ASSERT(size(xi,dim=2) == nSpecies)
+    @:ASSERT(size(xi,dim=1) == orb%mShell)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-    ASSERT(iAtomStart(nAtom+1)==nOrb+1)
+    @:ASSERT(iAtomStart(nAtom+1)==nOrb+1)
 
-    ALLOCATE_(SpeciesZ,(orb%mOrb,orb%mOrb,nSpecies))
+    allocate(SpeciesZ(orb%mOrb,orb%mOrb,nSpecies))
     SpeciesZ = 0.0_dp
-    ALLOCATE_(SpeciesPlus,(orb%mOrb,orb%mOrb,nSpecies))
+    allocate(SpeciesPlus(orb%mOrb,orb%mOrb,nSpecies))
     SpeciesPlus = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp
@@ -83,8 +84,6 @@ contains
             & = 0.5_dp*xi(jj,ii)*Lplus(1:2*kk+1,1:2*kk+1)
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     Eatom = 0.0_dp
 
@@ -121,10 +120,6 @@ contains
 
     end do
 
-    DEALLOCATE_(tmpBlock)
-    DEALLOCATE_(SpeciesZ)
-    DEALLOCATE_(SpeciesPlus)
-
   end subroutine onsite
 
   !!* Calculates the spin orbit energy and angular momentum for dual L.S
@@ -154,13 +149,13 @@ contains
 
     nAtom = size(Eatom,dim=1)
     nSpecies = maxval(species(1:nAtom))
-    ASSERT(size(xi,dim=2) == nSpecies)
-    ASSERT(size(xi,dim=1) == orb%mShell)
+    @:ASSERT(size(xi,dim=2) == nSpecies)
+    @:ASSERT(size(xi,dim=1) == orb%mShell)
 
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3,nSpecies))
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp
@@ -178,26 +173,24 @@ contains
             & = 0.5_dp*xi(jj,ii)*aimag(Lz(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
-    
-    ALLOCATE_(tmpBlock,(orb%mOrb,orb%mOrb))
-    
+
+    allocate(tmpBlock(orb%mOrb,orb%mOrb))
+
     Eatom = 0.0_dp
-    
+
     do ii = 1, nAtom
-      
+
       iSp = species(ii)
       jj = orb%nOrbSpecies(iSp)
-      
+
       ! Lz.Sz
       tmpBlock(:,:) = 0.0_dp
       tmpBlock(1:jj,1:jj) = qBlockSkew(1:jj,1:jj,ii,4)
-      
+
       total = 0.0_dp
       Eatom(ii) = Eatom(ii)&
           & - real(sum(transpose(tmpBlock) * SpeciesL(:,:,3,iSp)))
-      
+
       ! (Lx.Sx + Ly.Sy).
       tmpBlock(:,:) = 0.0_dp
       tmpBlock(1:jj,1:jj) = (qBlockSkew(1:jj,1:jj,ii,3) &
@@ -206,12 +199,9 @@ contains
       Eatom(ii) = Eatom(ii)&
           & - real(sum(transpose(tmpBlock)&
           & * (i * SpeciesL(:,:,1,iSp) + SpeciesL(:,:,2,iSp) )))
-      
+
     end do
-    
-    DEALLOCATE_(SpeciesL)
-    DEALLOCATE_(tmpBlock)
-    
+
   end subroutine dual
 
   !!* Constructs shift potential for spin-orbit
@@ -231,18 +221,18 @@ contains
     complex(dp), allocatable :: Lplus(:,:)
     real(dp), allocatable    :: tmpShift(:,:,:,:)
 
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
     nAtom = size(shift,dim=3)
-    ASSERT(size(shift,dim=4)==4)
+    @:ASSERT(size(shift,dim=4)==4)
     nSpecies = maxval(species(1:nAtom))
-    ASSERT(size(species)>=nAtom)
-    ASSERT(size(xi,dim=2) == nSpecies)
-    ASSERT(size(xi,dim=1) == orb%mShell)
+    @:ASSERT(size(species)>=nAtom)
+    @:ASSERT(size(xi,dim=2) == nSpecies)
+    @:ASSERT(size(xi,dim=1) == orb%mShell)
 
-    ALLOCATE_(tmpShift,(orb%mOrb,orb%mOrb,nSpecies,4))
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(tmpShift(orb%mOrb,orb%mOrb,nSpecies,4))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
 
     tmpShift(:,:,:,:) = 0.0_dp
 
@@ -263,8 +253,6 @@ contains
             & = -0.5_dp*xi(jj,ii)*real(Lplus(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     shift(:,:,:,:) = 0.0_dp
     do iSpin = 2, 4
@@ -272,8 +260,6 @@ contains
         shift(:,:,ii,iSpin) = tmpShift(:,:,species(ii),iSpin)
       end do
     end do
-
-    DEALLOCATE_(tmpShift)
 
   end subroutine shiftLS
 

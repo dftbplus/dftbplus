@@ -8,5 +8,5 @@
 module fsockets
   use f90sockets
   implicit none
-  
+
 end module fsockets

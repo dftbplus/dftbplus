@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Calculates the first and second derivatives of matrix elements
 program skderivs
-#include "allocate.h"
-#include "assert.h"  
+  use assert
   use Accuracy
   use Constants
   use Message
@@ -26,19 +27,19 @@ program skderivs
   !! Contains the data necessary for the main program
   type TInputData
     type(OSlakoEqGrid), pointer :: skHam, skOver
-    integer, pointer :: iHam(:) => null(), iOver(:) => null()
+    integer, allocatable :: iHam(:), iOver(:)
     real(dp) :: from, to, step
     logical :: value, first, second
     real(dp) :: displ
     character(lc) :: output
   end type TInputData
 
- 
+
   type(TInputData) :: inp
 
   call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in.xml", "skderivs_in")
   call main(inp)
-  
+
 
 contains
 
@@ -53,13 +54,13 @@ contains
     integer :: nGridform1, form2
     integer :: ii, jj, nGrid
     real(dp) :: rr
-    
+
     nGrid = floor((inp%to - inp%from) / inp%step) + 1
-    ALLOCATE_(sk, (getNIntegrals(inp%skHam), -1:1))
-    ALLOCATE_(ham, (getNIntegrals(inp%skHam), 0:2))
-    ALLOCATE_(over, (getNIntegrals(inp%skOver), 0:2))
-    ALLOCATE_(fpHam, (size(inp%iHam)))
-    ALLOCATE_(fpOver, (size(inp%iOver)))
+    allocate(sk(getNIntegrals(inp%skHam), -1:1))
+    allocate(ham(getNIntegrals(inp%skHam), 0:2))
+    allocate(over(getNIntegrals(inp%skOver), 0:2))
+    allocate(fpHam(size(inp%iHam)))
+    allocate(fpOver(size(inp%iOver)))
 
     write (*, "(A)") ""
     write (*, "(A)") "Following files will be created:"
@@ -76,7 +77,7 @@ contains
       open(fpOver(ii), file=strTmp, status="replace", position="rewind")
       write (*, "(2X,A)") trim(strTmp)
     end do
-    
+
     do ii = 1, nGrid
       !! Calculate and write value, first and second derivatives
       rr = inp%from + real(ii-1, dp) * inp%step
@@ -137,15 +138,9 @@ contains
     do jj = 1, size(inp%iOver)
       close(fpOver(jj))
     end do
-    DEALLOCATE_(sk)
-    DEALLOCATE_(ham)
-    DEALLOCATE_(over)
-    DEALLOCATE_(fpHam)
-    DEALLOCATE_(fpOver)
-    call InputData_destruct(inp)
 
   end subroutine main
-  
+
 
 
   !!* Parses the HSD input
@@ -160,7 +155,7 @@ contains
     type(string) :: buffer
     integer :: angShellOrdered(size(orbitalNames))
     type(listIntR1) :: angShells(2)
-    type(listInt) :: lIntTmp
+    type(listInt), allocatable :: lIntTmp
     real(dp), allocatable :: skHam(:,:), skOver(:,:)
     integer :: skInterMeth, nInt, nSpecies
     integer :: ii, jj
@@ -170,7 +165,7 @@ contains
     if (inputMissing) then
       call error("No input file found.")
     end if
-    
+
     write (*, "(A)") repeat("-", 80)
     if (isHSD) then
       write (*, "(A)") "Interpreting input file '" // hsdInputName // "'"
@@ -229,8 +224,8 @@ contains
 
     !! Create Slako tables
     nInt = getNSKIntegrals(angShells(1), angShells(nSpecies))
-    ALLOCATE_(skHam, (size(skData12(1,1)%skHam, dim=1), nInt))
-    ALLOCATE_(skOver, (size(skData12(1,1)%skOver, dim=1), nInt))
+    allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
+    allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
     if (nSpecies == 1) then
       call getFullTable(skHam, skOver, skData12, skData12, angShells(1), &
           &angShells(1))
@@ -238,13 +233,11 @@ contains
       call getFullTable(skHam, skOver, skData21, skData21, angShells(1), &
           &angShells(2))
     end if
-    INITALLOCATE_P(inp%skHam)
-    INITALLOCATE_P(inp%skOver)
+    allocate(inp%skHam)
+    allocate(inp%skOver)
     call init(inp%skHam, skData12(1,1)%dist, skHam, skInterMeth)
     call init(inp%skOver, skData12(1,1)%dist, skOver, skInterMeth)
-    DEALLOCATE_(skHam)
-    DEALLOCATE_(skOver)
-    
+
     call getChildValue(root, "Start", inp%from)
     call getChildValue(root, "End", inp%to)
     call getChildValue(root, "Step", inp%step)
@@ -255,47 +248,33 @@ contains
     call getChildValue(root, "OutputPrefix", buffer)
     inp%output = unquote(char(buffer))
 
+    allocate(lIntTmp)
     call init(lIntTmp)
     call getChildValue(root, "Hamiltonian", lIntTmp, child=child)
-    ALLOCATE_PARR(inp%iHam, (len(lIntTmp)))
+    allocate(inp%iHam(len(lIntTmp)))
     call asArray(lIntTmp, inp%iHam)
     if (any(inp%iHam < 1) .or. any(inp%iHam > nInt)) then
       call detailedError(child, "Integral index must be between 1 and " &
           &// i2c(nInt))
     end if
-    call destroy(lIntTmp)
+    deallocate(lIntTmp)
+    allocate(lIntTmp)
     call init(lIntTmp)
     call getChildValue(root, "Overlap", lIntTmp)
-    ALLOCATE_PARR(inp%iOver, (len(lIntTmp)))
+    allocate(inp%iOver(len(lIntTmp)))
     call asArray(lIntTmp, inp%iOver)
     if (any(inp%iOver < 1) .or. any(inp%iover > nInt)) then
       call detailedError(child, "Integral index must be between 1 and " &
           &// i2c(nInt))
     end if
-    call destroy(lIntTmp)
-    call unstring(buffer)
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root)
     write (*, "(A)") "Done."
     write (*, "(A)") repeat("-", 80)
-    
+
   end subroutine parseHSDInput
 
-
-
-  !!* Destructs InputData
-  subroutine InputData_destruct(sf)
-    type(TInputData), intent(inout) :: sf
-
-    DEALLOCATE_PARR(sf%iHam)
-    DEALLOCATE_PARR(sf%iOver)
-    call destruct(sf%skHam)
-    call destruct(sf%skOver)
-
-  end subroutine InputData_destruct
-
-  
 
   !!* Creates from the columns of the Slater-Koster files for A-B and B-A
   !!* a full table for A-B, containing all integrals.
@@ -308,7 +287,7 @@ contains
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
       &angShells2)
     real(dp), intent(out) :: skHam(:,:), skOver(:,:)
-    type(TOldSKData), intent(in) :: skData12(:,:), skData21(:,:)
+    type(TOldSKData), intent(in), target :: skData12(:,:), skData21(:,:)
     type(listIntR1), intent(inout) :: angShells1, angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
@@ -347,9 +326,9 @@ contains
             end if
             do mm = 0, lMin
               !! Safety check, if array size are appropriate
-              ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
-              ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
-              ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
+              @:ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
+              @:ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
+              @:ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
               skHam(:,ind) = pHam(:,skMap(mm,lMax,lMin))
               skOver(:,ind) = pOver(:,skMap(mm,lMax,lMin))
               ind = ind + 1
@@ -358,11 +337,11 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine getFullTable
 
 
-  
+
   !!* Returns the nr. of Slater-Koster integrals necessary to describe the
   !!* interactions between two species.
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
@@ -382,8 +361,8 @@ contains
         nInt = nInt + min(ang1, ang2) + 1
       end do
     end do
-    
+
   end function getNSKIntegrals
 
-  
+
 end program skderivs

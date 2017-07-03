@@ -5,11 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains type for representing the data stored in the old SK-file format and
 !!* subroutines to read that data from file.
 module oldskdata
-#include "allocate.h"
-#include "assert.h"  
+  use assert
   use accuracy
   use constants
   use repspline, only : TRepSplineIn
@@ -20,7 +21,7 @@ module oldskdata
   private
 
   public :: TOldSKData, readFromFile, readSplineRep
-  
+
   !!* Represents the Slater-Koster data in an SK file.
   type TOldSKData
     real(dp) :: dist                          !* Grid separation
@@ -29,8 +30,8 @@ module oldskdata
     real(dp) :: skHubbU(4)                    !* Hubbard Us
     real(dp) :: skOcc(4)                      !* Occupations
     real(dp) :: mass                          !* Mass of the atom
-    real(dp), pointer :: skHam(:,:)           !* Table for H
-    real(dp), pointer :: skOver(:,:)          !* Table for S
+    real(dp), allocatable :: skHam(:,:)           !* Table for H
+    real(dp), allocatable :: skOver(:,:)          !* Table for S
   end type TOldSKData
 
 
@@ -60,7 +61,7 @@ contains
   !!* @param fileName Name of the file to read the data from
   !!* @param homo Is it a homonuclear SK-file?
   !!* @param iSp1 Index of 1st interacting species (for error messages only)
-  !!* @param iSp1 Index of 2nd interacting species (for error messages only)  
+  !!* @param iSp1 Index of 2nd interacting species (for error messages only)
   !!* @param repSplineIn Repulsive spline part of the SK-file.
   !!* @param repPolyIn Repulsive polynomial part of the SK-file.
   subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, &
@@ -81,8 +82,8 @@ contains
     real(dp) :: coeffs(2:9), polyCutoff
     integer :: iostat
 
-    ASSERT(present(repSplineIn) .eqv. present(iSp1))
-    ASSERT(present(iSp1) .eqv. present(iSp2))
+    @:ASSERT(present(repSplineIn) .eqv. present(iSp1))
+    @:ASSERT(present(iSp1) .eqv. present(iSp2))
 
     if (file == -1) then
       file = getFileId()
@@ -90,7 +91,7 @@ contains
     open(file, file=fileName, status="old", action="read", iostat=iostat)
     call checkIoError(iostat, fileName, "Unable to open file")
     rewind(file)
-    
+
     read (file, '(A1)', iostat=iostat) chDummy
     call checkIoError(iostat, fileName, "Unable to read 1st line")
     if (chDummy == '@') then
@@ -129,8 +130,8 @@ contains
       repPolyIn%cutoff = polyCutoff
     end if
 
-    INITALLOCATE_PARR(skData%skHam, (skData%nGrid, nSKInter))
-    INITALLOCATE_PARR(skData%skOver, (skData%nGrid, nSKInter))
+    allocate(skData%skHam(skData%nGrid, nSKInter))
+    allocate(skData%skOver(skData%nGrid, nSKInter))
     skData%skHam(:,:) = 0.0_dp
     skData%skOver(:,:) = 0.0_dp
     do iGrid = 1, skData%nGrid
@@ -187,7 +188,7 @@ contains
         exit
       end if
     end do
-    
+
     if (.not. hasspline) then
       write(chdummy, "(A,A,A)") "No spline repulsive found in file '",&
           & trim(fname), "'"
@@ -198,9 +199,9 @@ contains
     call checkioerror(iostat, fname, "Error in reading nint and cutoff")
     read(fp, *, iostat=iostat) (repsplinein%expcoeffs(ii), ii = 1, 3)
     call checkioerror(iostat, fname, "Error in reading exponential coeffs")
-    INITALLOCATE_PARR(repsplinein%xstart, (nint))
-    INITALLOCATE_PARR(repsplinein%spcoeffs, (4, nint - 1))
-    ALLOCATE_(xend, (nint))
+    allocate(repsplinein%xstart(nint))
+    allocate(repsplinein%spcoeffs(4, nint - 1))
+    allocate(xend(nint))
 
     do jj = 1, nint - 1
       read(fp, *, iostat=iostat) repsplinein%xstart(jj), xend(jj),&
@@ -226,7 +227,7 @@ contains
 
   end subroutine OldSKData_readsplinerep
 
-  
+
   !> Checks for IO errors and prints message.
   !! \param iostat  Flag of the IO operation.
   !! \param fname  Name of the file.
@@ -234,11 +235,11 @@ contains
   subroutine checkIOError(iostat, fname, msg)
     integer, intent(in) :: iostat
     character(*), intent(in) :: fname, msg
-    
+
     if (iostat /= 0) then
       call error("IO error in file '" // trim(fname) // "': " // trim(msg))
     end if
-    
+
   end subroutine checkIOError
 
 

@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Functions and local variables for the SCC calculation.
 module scc
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use coulomb
@@ -25,7 +26,7 @@ module scc
 
   private
 
-  public :: TSCCInit, init_SCC, destruct_SCC
+  public :: TSCCInit, init_SCC
   public :: updateCoords_SCC, updateLatVecs_SCC, updateCharges_SCC
   public :: getSCCCutoff, getEnergyPerAtom_SCC, getEnergyPerAtom_SCC_Xlbomd
   public :: addForceDCSCC, getShiftPerAtom, getShiftPerL, getSCCEwaldPar
@@ -36,26 +37,26 @@ module scc
   !!* Data necessary for initialize the SCC module
   type TSCCInit
     type(TOrbitals), pointer :: orb
-    real(dp), pointer :: hubbU(:,:) => null()
-    logical, pointer :: tDampedShort(:) => null()
+    real(dp), allocatable :: hubbU(:,:)
+    logical, allocatable :: tDampedShort(:)
     real(dp) :: dampExp = 0.0_dp
-    real(dp), pointer :: latVecs(:,:) => null()
-    real(dp), pointer :: recVecs(:,:) => null()
+    real(dp), allocatable :: latVecs(:,:)
+    real(dp), allocatable :: recVecs(:,:)
     real(dp) :: volume = 0.0_dp
-    real(dp), pointer :: extCharges(:,:) => null()
-    real(dp), pointer :: blurWidths(:) => null()
-    real(dp), pointer :: chrgConstraints(:,:) => null()
-    real(dp), pointer :: thirdOrderOn(:,:) => null()
+    real(dp), allocatable :: extCharges(:,:)
+    real(dp), allocatable :: blurWidths(:)
+    real(dp), allocatable :: chrgConstraints(:,:)
+    real(dp), allocatable :: thirdOrderOn(:,:)
     real(dp) :: ewaldAlpha = 0.0_dp    ! if > 0 -> manual setting for alpha
   end type TSCCInit
 
   real(dp), parameter :: tolEwald = 1.0e-9_dp !* tolerance for Ewald
 
-  
+
   !! Private module variables (suffixed with "_" for clarity)
   logical :: tInitialised_ = .false.      ! If module is initialised
   logical :: tCoordUp_                    ! If coordinates updated at least once
-  logical :: tChrgUp_                     ! If charges updated at least once   
+  logical :: tChrgUp_                     ! If charges updated at least once
   integer :: nAtom_, nSpecies_             ! Nr. of atoms and species
   integer :: mOrb_, mShell_       ! Max nr. of orbitals/shells per atom
   integer :: mHubbU_    ! Maximal number of unique U values
@@ -88,11 +89,11 @@ module scc
   logical :: tPeriodic_                          ! Is the system periodic?
 
   logical :: tChrgConstr_                       ! Shifts due charge constrains?
-  type(OChrgConstr), save :: chrgConstr_        ! Object for charge constraints
+  type(OChrgConstr), allocatable, save :: chrgConstr_        ! Object for charge constraints
   logical :: tThirdOrder_                       ! Shifts due to 3rd order
-  type(OChrgConstr), save :: thirdOrder_
+  type(OChrgConstr), allocatable, save :: thirdOrder_
   logical :: tAutoEwald_
-  
+
 
 contains
 
@@ -109,7 +110,7 @@ contains
   !!* @param volume Volume of the supercell (if the system is periodic)
   !!* @param extCharges Coordinate and charge of external point charges.
   !!* @param blurWidths widths of Gaussian blurring on charges (non-periodic
-  !!* only)  
+  !!* only)
   subroutine init_SCC(inp)
     type(TSCCInit), intent(inout) :: inp
 
@@ -121,29 +122,31 @@ contains
     mShell_ = inp%orb%mShell
     mOrb_ = inp%orb%mOrb
 
-    ASSERT(.not. tInitialised_)
-    ASSERT(associated(inp%latVecs) .eqv. associated(inp%recVecs))
-    ASSERT(associated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
-    ASSERT(size(inp%hubbU, dim=1) == mShell_)
-    ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
-    ASSERT(size(inp%tDampedShort) == nSpecies_)
-    ASSERT(associated(inp%extCharges) .or. .not. associated(inp%blurWidths))
-    ASSERT_ENV(if (associated(inp%extCharges)) then)
-    ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=1) == 4))
-    ASSERT_ENV(  ASSERT(size(inp%extCharges, dim=2) > 0))
-    ASSERT_ENV(end if)
-    
-    ALLOCATE_(invRMat_, (nAtom_, nAtom_))
-    ALLOCATE_(shiftPerAtom_, (nAtom_))
-    ALLOCATE_(shiftPerL_, (mShell_, nAtom_))
-    ALLOCATE_(shortGamma_, (0, 0, 0, 0))
-    tPeriodic_ = associated(inp%latVecs)
-    tExtChrg_ = associated(inp%extCharges)
-    
+    @:ASSERT(.not. tInitialised_)
+    @:ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
+    @:ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
+    @:ASSERT(size(inp%hubbU, dim=1) == mShell_)
+    @:ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
+    @:ASSERT(size(inp%tDampedShort) == nSpecies_)
+    @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
+  #:call ASSERT_CODE
+    if (allocated(inp%extCharges)) then
+      @:ASSERT(size(inp%extCharges, dim=1) == 4)
+      @:ASSERT(size(inp%extCharges, dim=2) > 0)
+    end if
+  #:endcall ASSERT_CODE
+
+    allocate(invRMat_(nAtom_, nAtom_))
+    allocate(shiftPerAtom_(nAtom_))
+    allocate(shiftPerL_(mShell_, nAtom_))
+    allocate(shortGamma_(0, 0, 0, 0))
+    tPeriodic_ = allocated(inp%latVecs)
+    tExtChrg_ = allocated(inp%extCharges)
+
     !! Initialize Hubbard U's
-    ALLOCATE_(uniqHubbU_, (mShell_, nSpecies_))
-    ALLOCATE_(nHubbU_, (nSpecies_))
-    ALLOCATE_(iHubbU_, (mShell_, nSpecies_))
+    allocate(uniqHubbU_(mShell_, nSpecies_))
+    allocate(nHubbU_(nSpecies_))
+    allocate(iHubbU_(mShell_, nSpecies_))
     iHubbU_(:,:) = 0
     iHubbU_(1,:) = 1
     nHubbU_(:) = 1
@@ -165,9 +168,9 @@ contains
       end do
     end do
     mHubbU_ = maxval(nHubbU_)
-    
+
     !! Get cutoff for short range coulomb
-    ALLOCATE_(shortCutoff_, (mHubbU_, mHubbU_, nSpecies_, nSpecies_))
+    allocate(shortCutoff_(mHubbU_, mHubbU_, nSpecies_, nSpecies_))
     shortCutoff_(:,:,:,:) = 0.0_dp
     do iSp1 = 1, nSpecies_
       do iSp2 = iSp1, nSpecies_
@@ -203,9 +206,9 @@ contains
     end if
 
     !! Number of neighbors for short range cutoff and real part of Ewald
-    ALLOCATE_(nNeighShort_, (mHubbU_, mHubbU_, nSpecies_, nAtom_))
+    allocate(nNeighShort_(mHubbU_, mHubbU_, nSpecies_, nAtom_))
     if (tPeriodic_) then
-      ALLOCATE_(nNeighEwald_, (nAtom_))
+      allocate(nNeighEwald_(nAtom_))
     end if
 
     !! Initialise external charges
@@ -214,70 +217,39 @@ contains
         call init_ExtChrg(inp%extCharges, nAtom_, inp%latVecs, inp%recVecs, &
             &maxREwald_)
       else
-        ASSERT(associated(inp%blurWidths))
+        @:ASSERT(allocated(inp%blurWidths))
         call init_ExtChrg(inp%extCharges, nAtom_, blurWidths=inp%blurWidths)
       end if
     end if
 
-    tChrgConstr_ = associated(inp%chrgConstraints)
+    tChrgConstr_ = allocated(inp%chrgConstraints)
     if (tChrgConstr_) then
+      allocate(chrgConstr_)
       call init(chrgConstr_, inp%chrgConstraints, 2)
     end if
-    tThirdOrder_ = associated(inp%thirdOrderOn)
+    tThirdOrder_ = allocated(inp%thirdOrderOn)
     if (tThirdOrder_) then
+      allocate(thirdOrder_)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives
       call init(thirdOrder_, inp%thirdOrderOn / 6.0_dp, 3)
     end if
-      
+
     !! Initialise arrays for charge differences
-    ALLOCATE_(deltaQ_, (mOrb_, nAtom_))
-    ALLOCATE_(deltaQPerLShell_, (mShell_, nAtom_))
-    ALLOCATE_(deltaQAtom_, (nAtom_))
-    ALLOCATE_(deltaQUniqU_, (mHubbU_, nAtom_))
-    
+    allocate(deltaQ_(mOrb_, nAtom_))
+    allocate(deltaQPerLShell_(mShell_, nAtom_))
+    allocate(deltaQAtom_(nAtom_))
+    allocate(deltaQUniqU_(mHubbU_, nAtom_))
+
     !! Initialise short range damping
-    ALLOCATE_(tDampedShort_, (nSpecies_))
+    allocate(tDampedShort_(nSpecies_))
     tDampedShort_(:) = inp%tDampedShort(:)
     dampExp_ = inp%dampExp
-    
+
     tInitialised_ = .true.
     tCoordUp_ = .false.
     tChrgUp_ = .false.
 
   end subroutine init_SCC
-
-  
-  
-  !!* Deallocates the arrays in the SCC module
-  subroutine destruct_SCC()
-
-    ASSERT(tInitialised_)
-    
-    DEALLOCATE_(invRMat_)
-    DEALLOCATE_(shiftPerAtom_)
-    DEALLOCATE_(shiftPerL_)
-    DEALLOCATE_(shortGamma_)
-    DEALLOCATE_(shortCutoff_)
-    DEALLOCATE_(gLatPoint_)
-    DEALLOCATE_(nNeighShort_)
-    DEALLOCATE_(nNeighEwald_)
-    DEALLOCATE_(uniqHubbU_)
-    DEALLOCATE_(nHubbU_)
-    DEALLOCATE_(iHubbU_)
-    DEALLOCATE_(deltaQ_)
-    DEALLOCATE_(deltaQPerLShell_)
-    DEALLOCATE_(deltaQAtom_)
-    DEALLOCATE_(deltaQUniqU_)
-    DEALLOCATE_(tDampedShort_)
-    if (tChrgConstr_) then
-      call destruct(chrgConstr_)
-    end if
-    if (tThirdOrder_) then
-      call destruct(thirdOrder_)
-    end if
-  
-  end subroutine destruct_SCC
-
 
 
   !!* Returns a minimal cutoff for the neighborlist, which must be passed
@@ -287,9 +259,9 @@ contains
   function getSCCCutoff() result(cutoff)
     real(dp) :: cutoff
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
     cutoff = cutoff_
-    
+
   end function getSCCCutoff
 
 
@@ -298,11 +270,11 @@ contains
   function getSCCEwaldPar() result(alpha)
     real(dp) :: alpha
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
     alpha = alpha_
 
   end function getSCCEwaldPar
-  
+
 
   !!* Updates the number of neighbors for the SCC module (local).
   !!* @param species Species for each atom
@@ -312,7 +284,7 @@ contains
     type(TNeighborList), intent(in) :: neighList
 
     integer :: iAt1, iSp2, iU1, iU2
-    
+
     nNeighShort_(:,:,:,:) = 0
     do iAt1 = 1, nAtom_
       do iSp2 = 1, nSpecies_
@@ -328,9 +300,9 @@ contains
     if (tPeriodic_) then
       call getNrOfNeighborsForAll(nNeighEwald_, neighList, maxREwald_)
     end if
-    
+
   end subroutine updateNNeigh_
-  
+
 
 
   !!* Updates the atom coordinates for the SCC module.
@@ -346,7 +318,7 @@ contains
     type(TNeighborList), intent(in) :: neighList
     integer,  intent(in) :: img2CentCell(:)
 
-    ASSERT(tInitialised_)
+    @:ASSERT(tInitialised_)
 
     call updateNNeigh_(species, neighList)
     if (tPeriodic_) then
@@ -381,9 +353,9 @@ contains
 
     real(dp) :: maxGEwald
 
-    ASSERT(tInitialised_)
-    ASSERT(tPeriodic_)
-    
+    @:ASSERT(tInitialised_)
+    @:ASSERT(tPeriodic_)
+
     volume_ = vol
     if (tAutoEwald_) then
       alpha_ = getOptimalAlphaEwald(latVec, recVec, volume_, tolEwald)
@@ -423,8 +395,8 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
     integer, intent(in) :: img2CentCell(:)
 
-    ASSERT(tInitialised_)
-    ASSERT(tCoordUp_)
+    @:ASSERT(tInitialised_)
+    @:ASSERT(tCoordUp_)
 
     call getNetCharges_(species, orb, qOrbital, q0, deltaQ_, deltaQAtom_, &
         & deltaQPerLShell_, deltaQUniqU_)
@@ -450,7 +422,7 @@ contains
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: qOrbital(:,:,:), q0(:,:,:)
     real(dp), intent(out) :: dQ(:,:), dQAtom(:), dQShell(:,:)
-    real(dp), intent(out), optional :: dQUniqU(:,:) 
+    real(dp), intent(out), optional :: dQUniqU(:,:)
 
     call getNetChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
     call getNetChargesPerAtom_(dQ, dQAtom)
@@ -461,18 +433,18 @@ contains
 
   end subroutine getNetCharges_
 
-  
+
 
   subroutine getNetChargesPerOrbital_(qOrbital, q0, deltaQ)
     real(dp), intent(in) :: qOrbital(:,:), q0(:,:)
     real(dp), intent(out) :: deltaQ(:,:)
-    
+
     deltaQ(:,:) = qOrbital(:,:) - q0(:,:)
 
   end subroutine getNetChargesPerOrbital_
 
 
-  
+
   subroutine getNetChargesPerAtom_(deltaQ, deltaQAtom)
     real(dp), intent(in) :: deltaQ(:,:)
     real(dp), intent(out) :: deltaQAtom(:)
@@ -481,7 +453,7 @@ contains
 
   end subroutine getNetChargesPerAtom_
 
-  
+
 
   subroutine getNetChargesPerLShell_(species, orb, deltaQ, deltaQPerLShell)
     integer, intent(in) :: species(:)
@@ -490,7 +462,7 @@ contains
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
     integer :: iAt, iSp, iSh, iStart, iend
-    
+
     deltaQPerLShell(:,:) = 0.0_dp
     do iAt = 1, nAtom_
       iSp = species(iAt)
@@ -500,17 +472,17 @@ contains
         deltaQPerLShell(iSh, iAt) = sum(deltaQ(iStart:iEnd, iAt))
       end do
     end do
-    
+
   end subroutine getNetChargesPerLShell_
 
 
-  
+
   subroutine getNetChargesPerUniqU_(species, orb, deltaQPerLShell, deltaQUniqU)
     integer, intent(in) :: species(:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: deltaQPerLShell(:,:)
     real(dp), intent(out) :: deltaQUniqU(:,:)
-    
+
     integer :: iAt, iSp, iSh
 
     deltaQUniqU(:,:) = 0.0_dp
@@ -522,7 +494,7 @@ contains
             &+ deltaQPerLShell(iSh, iAt)
       end do
     end do
-    
+
   end subroutine getNetChargesPerUniqU_
 
 
@@ -535,14 +507,14 @@ contains
     real(dp), intent(in) :: coord(:,:)
     integer,  intent(in) :: species(:)
     integer,  intent(in) :: iNeighbor(0:,:)
-    
+
     integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, u1, u2
 
     ! Reallocate shortGamma, if it does not contain enough neighbors
     if (size(shortGamma_, dim=3) < maxval(nNeighShort_)+1) then
-      DEALLOCATE_(shortGamma_)
-      ALLOCATE_(shortGamma_, (mHubbU_, mHubbU_, 0:maxval(nNeighShort_), nAtom_))
+      deallocate(shortGamma_)
+      allocate(shortGamma_(mHubbU_, mHubbU_, 0:maxval(nNeighShort_), nAtom_))
     end if
     shortGamma_(:,:,:,:) = 0.0_dp
 
@@ -570,9 +542,9 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine initGamma_
-  
+
   !!* Routine for lower triangle of atomic resolved gamma as a matrix
   !!* @param gammamat Atom resolved gamma
   !!* @param iNeighbor neighbours of atoms
@@ -580,14 +552,14 @@ contains
   subroutine getAtomicGammaMatrix(gammamat, iNeighbor, img2CentCell)
     real(dp), intent(out) :: gammamat(:,:)
     integer, intent(in) :: iNeighbor(0:,:), img2CentCell(:)
-    
+
     integer :: iAt1, iAt2, iAt2f, iNeigh
-    
-    ASSERT(tInitialised_)
-    ASSERT(tCoordUp_)
-    ASSERT(all(shape(gammamat) == [ nAtom_, nAtom_ ]))
-    ASSERT(all(nHubbU_ == 1))
-    
+
+    @:ASSERT(tInitialised_)
+    @:ASSERT(tCoordUp_)
+    @:ASSERT(all(shape(gammamat) == [ nAtom_, nAtom_ ]))
+    @:ASSERT(all(nHubbU_ == 1))
+
     gammamat(:,:) = invRMat_
     do iAt1 = 1, nAtom_
       do iNeigh = 0, maxval(nNeighShort_(:,:,:, iAt1))
@@ -597,13 +569,13 @@ contains
             & - shortGamma_(1, 1, iNeigh, iAt1)
       end do
     end do
-    
+
   end subroutine getAtomicGammaMatrix
 
-  
+
   !!* Calculate  the derivative of the short range part of Gamma.
   !!* @param force        force vector to add the short-range part of gamma
-  !!* contribution  
+  !!* contribution
   !!* @param coord        list of coordinates
   !!* @param species       List of the species for each atom.
   !!* @param iNeighbor    Index of neighboring atoms for each atom.
@@ -614,13 +586,13 @@ contains
     integer,  intent(in)    :: species(:)
     integer,  intent(in)    :: iNeighbor(0:,:)
     integer,  intent(in)    :: img2CentCell(:)
-    
+
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
-    
-    ASSERT(size(force,dim=1) == 3)
-    ASSERT(size(force,dim=2) == nAtom_)
-    
+
+    @:ASSERT(size(force,dim=1) == 3)
+    @:ASSERT(size(force,dim=2) == nAtom_)
+
     ! some additional symmetry not used
     do iAt1 = 1, nAtom_
       iSp1 = species(iAt1)
@@ -640,7 +612,7 @@ contains
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
               do ii = 1,3
-                force(ii,iAt1) = force(ii,iAt1) - & 
+                force(ii,iAt1) = force(ii,iAt1) - &
                     & deltaQUniqU_(iU1,iAt1) * &
                     & deltaQUniqU_(iU2,iAt2f) &
                     & *tmpGammaPrime*(coord(ii,iAt1) - coord(ii,iAt2))/rab
@@ -654,7 +626,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine addGammaPrime_
 
 
@@ -671,13 +643,13 @@ contains
     integer,  intent(in)    :: species(:)
     integer,  intent(in)    :: iNeighbor(0:,:)
     integer,  intent(in)    :: img2CentCell(:)
-    
+
     integer  :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
     real(dp) :: intermed(3), vect(3)
 
-    ASSERT(all(shape(st)==(/3,3/)))
-    
+    @:ASSERT(all(shape(st)==(/3,3/)))
+
     st(:,:) = 0.0_dp
     ! some additional symmetry not used
     do iAt1 = 1, nAtom_
@@ -700,7 +672,7 @@ contains
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
               do ii = 1,3
-                intermed(ii) = intermed(ii) - & 
+                intermed(ii) = intermed(ii) - &
                     & deltaQUniqU_(iU1,iAt1) * &
                     & deltaQUniqU_(iU2,iAt2f) &
                     & *tmpGammaPrime*vect(ii)/rab
@@ -727,7 +699,7 @@ contains
     end do
 
     st(:,:) = st(:,:) / volume_
-    
+
   end subroutine addSTGammaPrime_
 
 
@@ -740,8 +712,8 @@ contains
   subroutine getEnergyPerAtom_SCC(eSCC)
     real(dp), intent(out) :: eSCC(:)
 
-    ASSERT(tInitialised_)
-    ASSERT(size(eSCC) == nAtom_)
+    @:ASSERT(tInitialised_)
+    @:ASSERT(size(eSCC) == nAtom_)
 
     eSCC(:) = 0.5_dp * (shiftPerAtom_ * deltaQAtom_ &
         & + sum(shiftPerL_ * deltaQPerLShell_, dim=1))
@@ -773,13 +745,13 @@ contains
     real(dp), intent(out) :: eSCC(:)
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:), dQOutShell(:,:)
-  
-    ASSERT(tInitialised_)
-    ASSERT(size(eSCC) == nAtom_)
-  
-    ALLOCATE_(dQOut, (orb%mOrb, nAtom_))
-    ALLOCATE_(dQOutAtom, (nAtom_))
-    ALLOCATE_(dQOutShell, (mShell_, nAtom_))
+
+    @:ASSERT(tInitialised_)
+    @:ASSERT(size(eSCC) == nAtom_)
+
+    allocate(dQOut(orb%mOrb, nAtom_))
+    allocate(dQOutAtom(nAtom_))
+    allocate(dQOutShell(mShell_, nAtom_))
 
     call getNetCharges_(species, orb, qOut, q0, dQOut, dQOutAtom, dQOutShell)
 
@@ -799,11 +771,11 @@ contains
       call error("XLBOMD not working with third order yet")
       call addEnergyPerAtom(thirdOrder_, eSCC, deltaQAtom_)
     end if
-  
+
   end subroutine getEnergyPerAtom_SCC_Xlbomd
 
 
-  
+
   !!* Calculates the contribution of the charge consitent part to the forces
   !!* for molecules/clusters, which is not covered in the term with the shift
   !!* vectors.
@@ -823,15 +795,15 @@ contains
     integer,  intent(in)    :: img2CentCell(:)
     real(dp), intent(in)    :: coord(:,:)
     real(dp), intent(inout), optional :: chrgForce(:,:)
-    
 
-    ASSERT(size(force,dim=1) == 3)
-    ASSERT(size(force,dim=2) == nAtom_)
-    ASSERT(present(chrgForce) .eqv. tExtChrg_)
-    
+
+    @:ASSERT(size(force,dim=1) == 3)
+    @:ASSERT(size(force,dim=2) == nAtom_)
+    @:ASSERT(present(chrgForce) .eqv. tExtChrg_)
+
     ! Short-range part of gamma contribution
     call addGammaPrime_(force,coord,species,iNeighbor,img2CentCell)
-    
+
     ! 1/R contribution
     if (tPeriodic_) then
       call addInvRPrime(force, nAtom_, coord, nNeighEwald_, iNeighbor, &
@@ -867,19 +839,19 @@ contains
     integer,  intent(in)    :: iNeighbor(0:,:)
     integer,  intent(in)    :: img2CentCell(:)
     real(dp), intent(in)    :: coord(:,:)
-    
+
     real(dp) :: stTmp(3,3)
-        
-    ASSERT(tPeriodic_)
-    ASSERT(all(shape(st)==(/3,3/)))
-    
+
+    @:ASSERT(tPeriodic_)
+    @:ASSERT(all(shape(st)==(/3,3/)))
+
     stTmp = 0.0_dp
-    
+
     ! Short-range part of gamma contribution
     call addSTGammaPrime_(stTmp,coord,species,iNeighbor,img2CentCell)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
-    
+
     ! 1/R contribution
     ! call invRstress
 
@@ -889,14 +861,14 @@ contains
         & alpha_, volume_, deltaQAtom_)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
-    
+
     ! if (tExtChrg_) then
     ! ????
     ! end if
-    
+
   end subroutine addStressDCSCC
 
-  
+
   !> Constructs the shift vectors for the SCC contributions
   !! \param orb  Contains information about the atomic orbitals in the system
   !! \param species  List of the species for each atom.
@@ -919,12 +891,12 @@ contains
 
     integer :: iAt1, iSp1, iSh1, iU1, iNeigh, iAt2f, iSp2, iSh2, iU2
 
-    ASSERT(tInitialised_)
-    
+    @:ASSERT(tInitialised_)
+
     !! 1/R contribution [shiftAtom(A) = \sum_B 1/R_AB * (Q_B - Q0_B)]
     shiftAtom(:) = 0.0_dp
     call hemv(shiftAtom, invRMat_, dQAtom,'L')
-    
+
     !! Contribution of the short range part of gamma to the shift
     !! sgamma'_{A,l} = sum_B sum_{u\in B} S(U(A,l),u)*q_u
     shiftShell(:,:) = 0.0_dp
@@ -958,7 +930,7 @@ contains
   subroutine getShiftPerAtom(shift)
     real(dp), intent(out) :: shift(:,:)
 
-    ASSERT(size(shift,dim=1) == size(shiftPerAtom_,dim=1))
+    @:ASSERT(size(shift,dim=1) == size(shiftPerAtom_,dim=1))
 
     shift(:,:) = 0.0_dp
     shift(:,1) = shiftPerAtom_
@@ -971,25 +943,25 @@ contains
     if (tThirdOrder_) then
       call addShiftPerAtom(thirdOrder_, shift(:,1))
     end if
-    
+
   end subroutine getShiftPerAtom
 
-  
-  
+
+
   !!* Returns the shift per L contribution of the SCC. (with a spin index)
   !!* @param shift Contains the shift on exit.
   subroutine getShiftPerL(shift)
     real(dp), intent(out) :: shift(:,:,:)
 
-    ASSERT(size(shift,dim=1) == size(shiftPerL_,dim=1))
-    ASSERT(size(shift,dim=2) == size(shiftPerL_,dim=2))
-    ASSERT(size(shift,dim=3) > 0)
+    @:ASSERT(size(shift,dim=1) == size(shiftPerL_,dim=1))
+    @:ASSERT(size(shift,dim=2) == size(shiftPerL_,dim=2))
+    @:ASSERT(size(shift,dim=3) > 0)
     shift(:,:,:) = 0.0_dp
     shift(:,:,1) = shiftPerL_(:,:)
 
   end subroutine getShiftPerL
 
-  
+
 
   !!* Returns the equivalency relations between the orbitals of the atoms.
   !!* @param orb Contains information about the atomic orbitals in the system
@@ -1005,10 +977,10 @@ contains
 
     nSpin = size(equiv, dim=3)
 
-    ASSERT(tInitialised_)
-    ASSERT(size(species) == nAtom_)
-    ASSERT(size(equiv, dim=1) == orb%mOrb)
-    ASSERT(all(shape(equiv) == (/ orb%mOrb, nAtom_, nSpin /)))
+    @:ASSERT(tInitialised_)
+    @:ASSERT(size(species) == nAtom_)
+    @:ASSERT(size(equiv, dim=1) == orb%mOrb)
+    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, nAtom_, nSpin /)))
 
     equiv(:,:,:) = 0
     shift = 0
@@ -1025,7 +997,7 @@ contains
 
   end subroutine SCC_getOrbitalEquiv
 
-  
+
   !> Calculate the "double counting" force term using linearized XLBOMD form.
   !!
   !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated
@@ -1048,18 +1020,18 @@ contains
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
     real(dp), allocatable :: dQOutLShell(:,:), dQOutUniqU(:,:)
 
-    ALLOCATE_(dQOut, (mOrb_, nAtom_))
-    ALLOCATE_(dQOutAtom, (nAtom_))
-    ALLOCATE_(dQOutLShell, (mShell_, nAtom_))
-    ALLOCATE_(dQOutUniqU, (mHubbU_, nAtom_))
+    allocate(dQOut(mOrb_, nAtom_))
+    allocate(dQOutAtom(nAtom_))
+    allocate(dQOutLShell(mShell_, nAtom_))
+    allocate(dQOutUniqU(mHubbU_, nAtom_))
 
     call getNetCharges_(species, orb, qOrbitalOut, q0, dQOut, dQOutAtom, &
         & dQOutLShell, dQOutUniqU)
-    
+
     ! Short-range part of gamma contribution
     call addGammaPrimeXlbomd_(deltaQUniqU_, dQOutUniqU, coord, species, &
         & iNeighbor, img2CentCell, force)
-    
+
     ! 1/R contribution
     if (tPeriodic_) then
       call addInvRPrimeXlbomd(nAtom_, coord, nNeighEwald_, iNeighbor, &
@@ -1077,27 +1049,27 @@ contains
         !call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_)
       end if
     end if
-    
+
   end subroutine addForceDCSCC_Xlbomd
 
-  
+
   !> Calculate  the derivative of the short range using the
   !! linearized XLBOMD formulation with auxiliary charges.
   !!
   subroutine addGammaPrimeXlbomd_(dQInUniqU, dQOutUniqU, coord, species, &
       & iNeighbor, img2CentCell, force)
-    real(dp), intent(in) :: dQInUniqU(:,:), dQOutUniqU(:,:) 
+    real(dp), intent(in) :: dQInUniqU(:,:), dQOutUniqU(:,:)
     real(dp), intent(in) :: coord(:,:)
     integer,  intent(in) :: species(:), iNeighbor(0:,:), img2CentCell(:)
     real(dp), intent(inout) :: force(:,:)
-    
+
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2, prefac
     real(dp) :: contrib(3)
-    
-    ASSERT(size(force,dim=1) == 3)
-    ASSERT(size(force,dim=2) == nAtom_)
-    
+
+    @:ASSERT(size(force,dim=1) == 3)
+    @:ASSERT(size(force,dim=2) == nAtom_)
+
     do iAt1 = 1, nAtom_
       iSp1 = species(iAt1)
       do iNeigh = 1, maxval(nNeighShort_(:,:,:, iAt1))
@@ -1127,7 +1099,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine addGammaPrimeXlbomd_
 
 

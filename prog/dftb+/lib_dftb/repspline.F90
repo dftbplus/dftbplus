@@ -5,23 +5,24 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Implements a repulsive potential between two atoms represented by cubic 
+#:include 'common.fypp'
+
+!!* Implements a repulsive potential between two atoms represented by cubic
 !!* splines.
 module repspline
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use Accuracy
   use Bisect
   implicit none
   private
 
-  public :: TRepSplineIn, ORepSpline, init, destruct
+  public :: TRepSplineIn, ORepSpline, init
   public :: getCutoff, getEnergy, getEnergyDeriv
 
   !!* Initialisation type for ORepSpline
   type TRepSplineIn
-    real(dp), pointer :: xStart(:) => null() !* Starting pos. for each spline
-    real(dp), pointer :: spCoeffs(:,:) => null() !* Spline coeffs (3, nSpline-1)
+    real(dp), allocatable :: xStart(:)  !* Starting pos. for each spline
+    real(dp), allocatable :: spCoeffs(:,:)  !* Spline coeffs (3, nSpline-1)
     real(dp) :: spLastCoeffs(6)         !* Coeffs. of the last spline
     real(dp) :: expCoeffs(3)            !* Coeffs for the exponential head
     real(dp) :: cutoff                  !* Cutoff for the last spline
@@ -32,8 +33,8 @@ module repspline
   type ORepSpline
     private
     integer :: nSpline                  ! Nr. of splines.
-    real(dp), pointer :: xStart(:) => null()  ! Starting point for each spline
-    real(dp), pointer :: spCoeffs(:,:) => null()  ! Spline coeffs (3, nSpline-1)
+    real(dp), allocatable :: xStart(:)  ! Starting point for each spline
+    real(dp), allocatable :: spCoeffs(:,:)  ! Spline coeffs (3, nSpline-1)
     real(dp) :: spLastCoeffs(6)         ! Coeffs of the last spline
     real(dp) :: expCoeffs(3)            ! Exponential head
     real(dp) :: cutoff                  ! Cutoff of the last spline
@@ -44,11 +45,6 @@ module repspline
   !!* Initialises spline repulsive.
   interface init
     module procedure RepSpline_init
-  end interface
-
-  !!* Frees spline repulsive.
-  interface destruct
-    module procedure RepSpline_destruct
   end interface
 
   !!* Returns cutoff of the repulsive.
@@ -77,38 +73,25 @@ contains
     type(TRepSplineIn), intent(in) :: inp
 
 
-    ASSERT(.not. self%tInit)
-    ASSERT(size(inp%xStart) > 0)
-    ASSERT(size(inp%spCoeffs, dim=1) == 4)
-    ASSERT(size(inp%spCoeffs, dim=2) == size(inp%xStart) - 1)
-    ASSERT(inp%cutoff >= 0.0_dp)
+    @:ASSERT(.not. self%tInit)
+    @:ASSERT(size(inp%xStart) > 0)
+    @:ASSERT(size(inp%spCoeffs, dim=1) == 4)
+    @:ASSERT(size(inp%spCoeffs, dim=2) == size(inp%xStart) - 1)
+    @:ASSERT(inp%cutoff >= 0.0_dp)
 
     self%nSpline = size(inp%xStart)
-    ALLOCATE_PARR(self%xStart, (self%nSpline))
-    ALLOCATE_PARR(self%spCoeffs, (4, self%nSpline - 1))
+    allocate(self%xStart(self%nSpline))
+    allocate(self%spCoeffs(4, self%nSpline - 1))
     self%xStart(:) = inp%xStart(:)
     self%spCoeffs(:,:) = inp%spCoeffs(:,:)
     self%spLastCoeffs(:) = inp%spLastCoeffs(:)
     self%expCoeffs(:) = inp%expCoeffs
     self%cutoff = inp%cutoff
     self%tInit = .true.
-    
+
   end subroutine RepSpline_init
 
 
-  
-  !!* Frees spline repulsive.
-  !!* @param self Spline repulsive.
-  subroutine RepSpline_destruct(self)
-    type(ORepSpline), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%xStart)
-    DEALLOCATE_PARR(self%spCoeffs)
-    self%tInit = .false.
-    
-  end subroutine RepSpline_destruct
-
-  
 
   !!* Returns cutoff of the repulsive.
   !!* @param self Spline repulsive.
@@ -130,7 +113,7 @@ contains
     type(ORepSpline), intent(in) :: self
     real(dp), intent(out) :: res
     real(dp), intent(in) :: rr
-    
+
     integer :: imatch, ii
     real(dp) :: xh, xv
 
@@ -145,7 +128,7 @@ contains
     else
       !* find the point in the table to use
       call bisection(imatch, self%xStart, rr)
-      
+
       xv = rr - self%xStart(imatch)
       xh = xv
       if (imatch < self%nSpline) then
@@ -162,7 +145,7 @@ contains
         end do
       end if
     end if
-    
+
   end subroutine RepSpline_getEnergy
 
 
@@ -177,7 +160,7 @@ contains
     real(dp), intent(out) :: grad(3)
     real(dp), intent(in) :: xx(3)
     real(dp), intent(out), optional :: d2
-    
+
     integer :: imatch, ii
     real(dp) :: rr, xh, xv, d1
 
@@ -234,5 +217,5 @@ contains
 
   end subroutine RepSpline_getEnergyDeriv
 
-  
+
 end module repspline

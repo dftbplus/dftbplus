@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to calculate contributions to typical DFTB Hamiltonian
 !!* parts using various generalisations of H_mu,nu = 0.5*S_mu,nu*(V_mu + V_nu)
 module shift
-#include "assert.h"
+  use assert
   use accuracy
   use commontypes
 
@@ -29,7 +31,7 @@ module shift
     module procedure addatom_shell
     module procedure addshell_block
   end interface
-  
+
 contains
 
   !!* Regular atomic shift (potential is only dependent on number of atom)
@@ -58,18 +60,18 @@ contains
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iNeigh, iSpin, nSpin
 
-    ASSERT(size(ham,dim=1)==size(over))
-    ASSERT(size(ham,dim=2)==size(shift,dim=2))
-    ASSERT(size(nNeighbour)==nAtom)
-    ASSERT(size(iNeighbour,dim=2)==nAtom)
-    ASSERT(size(species)>=maxval(iNeighbour))
-    ASSERT(size(species)<=size(img2CentCell))
-    ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
-    ASSERT(size(iPair,dim=2)==nAtom)
-    ASSERT(size(shift,dim=1)==nAtom)
+    @:ASSERT(size(ham,dim=1)==size(over))
+    @:ASSERT(size(ham,dim=2)==size(shift,dim=2))
+    @:ASSERT(size(nNeighbour)==nAtom)
+    @:ASSERT(size(iNeighbour,dim=2)==nAtom)
+    @:ASSERT(size(species)>=maxval(iNeighbour))
+    @:ASSERT(size(species)<=size(img2CentCell))
+    @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
+    @:ASSERT(size(iPair,dim=2)==nAtom)
+    @:ASSERT(size(shift,dim=1)==nAtom)
 
     nSpin = size(shift,dim=2)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
     do iSpin = 1, nSpin
       do iAt1 = 1, nAtom
@@ -88,7 +90,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine add_shift_atom
 
   !!* l-dependent shift (potential is dependent on number of atom and l-shell)
@@ -119,16 +121,16 @@ contains
     integer  :: iSh1, iSh2, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), rTmp
 
-    ASSERT(size(ham,dim=1)==size(over))
-    ASSERT(size(nNeighbour)==nAtom)
-    ASSERT(size(iNeighbour,dim=2)==nAtom)
-    ASSERT(size(species)>=maxval(iNeighbour))
-    ASSERT(size(species)<=size(img2CentCell))
-    ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
-    ASSERT(size(iPair,dim=2)==nAtom)
-    ASSERT(size(shift,dim=1)==orb%mShell)
-    ASSERT(size(shift,dim=2)==nAtom)
-    ASSERT(size(ham,dim=2)==size(shift,dim=3))
+    @:ASSERT(size(ham,dim=1)==size(over))
+    @:ASSERT(size(nNeighbour)==nAtom)
+    @:ASSERT(size(iNeighbour,dim=2)==nAtom)
+    @:ASSERT(size(species)>=maxval(iNeighbour))
+    @:ASSERT(size(species)<=size(img2CentCell))
+    @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
+    @:ASSERT(size(iPair,dim=2)==nAtom)
+    @:ASSERT(size(shift,dim=1)==orb%mShell)
+    @:ASSERT(size(shift,dim=2)==nAtom)
+    @:ASSERT(size(ham,dim=2)==size(shift,dim=3))
 
     nSpin = size(shift,dim=3)
 
@@ -156,7 +158,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine add_shift_lshell
 
   !!* shift depending on occupation-matrix like potentials. To use this for
@@ -187,18 +189,18 @@ contains
     integer  :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), tmpS(orb%mOrb,orb%mOrb)
-    
-    ASSERT(size(ham,dim=1)==size(over))
-    ASSERT(size(nNeighbour)==nAtom)
-    ASSERT(size(iNeighbour,dim=2)==nAtom)
-    ASSERT(size(species)>=maxval(iNeighbour))
-    ASSERT(size(species)<=size(img2CentCell))
-    ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
-    ASSERT(size(iPair,dim=2)==nAtom)
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
-    ASSERT(size(shift,dim=3)==nAtom)    
-    ASSERT(size(ham,dim=2)==size(shift,dim=4))
+
+    @:ASSERT(size(ham,dim=1)==size(over))
+    @:ASSERT(size(nNeighbour)==nAtom)
+    @:ASSERT(size(iNeighbour,dim=2)==nAtom)
+    @:ASSERT(size(species)>=maxval(iNeighbour))
+    @:ASSERT(size(species)<=size(img2CentCell))
+    @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
+    @:ASSERT(size(iPair,dim=2)==nAtom)
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=3)==nAtom)
+    @:ASSERT(size(ham,dim=2)==size(shift,dim=4))
 
     nSpin = size(shift,dim=4)
 
@@ -225,7 +227,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine add_shift_block
 
 
@@ -239,11 +241,11 @@ contains
 
     nAtom = size(atom, dim=1)
     nSpin = size(atom, dim=2)
-    
-    ASSERT(size(shiftshell, dim=1) == orb%mShell)
-    ASSERT(size(shiftshell, dim=2) == nAtom)
-    ASSERT(size(shiftshell, dim=3) == nSpin)
-    ASSERT(size(species) >= nAtom)
+
+    @:ASSERT(size(shiftshell, dim=1) == orb%mShell)
+    @:ASSERT(size(shiftshell, dim=2) == nAtom)
+    @:ASSERT(size(shiftshell, dim=3) == nSpin)
+    @:ASSERT(size(species) >= nAtom)
 
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
@@ -252,10 +254,10 @@ contains
             & + atom(iAtom,iSpin)
       end do
     end do
-    
+
   end subroutine addatom_shell
 
-  
+
   subroutine addshell_block(shiftblock, shell, orb, species)
     real(dp), intent(inout) :: shiftblock(:,:,:,:)
     real(dp), intent(in) :: shell(:,:,:)
@@ -266,13 +268,13 @@ contains
 
     nAtom = size(shiftblock, dim=3)
     nSpin = size(shiftblock, dim=4)
-    
-    ASSERT(size(shiftblock, dim=1) == orb%mOrb)
-    ASSERT(size(shiftblock, dim=2) == orb%mOrb)
-    ASSERT(size(shell, dim=1) == orb%mShell)
-    ASSERT(size(shell, dim=2) == nAtom)
-    ASSERT(size(shell, dim=3) == nSpin)
-    ASSERT(size(species) >= nAtom)
+
+    @:ASSERT(size(shiftblock, dim=1) == orb%mOrb)
+    @:ASSERT(size(shiftblock, dim=2) == orb%mOrb)
+    @:ASSERT(size(shell, dim=1) == orb%mShell)
+    @:ASSERT(size(shell, dim=2) == nAtom)
+    @:ASSERT(size(shell, dim=3) == nSpin)
+    @:ASSERT(size(species) >= nAtom)
 
     do iSpin = 1, nSpin
       do iAt = 1, nAtom
@@ -285,8 +287,8 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine addshell_block
 
-  
+
 end module shift

@@ -15,7 +15,7 @@ module m_strings
     private
     integer                 :: len = 0
     integer                 :: size = 0
-    character, pointer      :: chars(:) => null()
+    character, allocatable  :: chars(:)
   end type string
 
   character, parameter :: blank = ' '
@@ -78,17 +78,9 @@ module m_strings
   end interface
 
 
-  !! Unstring interface
-  interface unstring
-    module procedure unstring_string
-    !module procedure unstring_array
-  end interface
-
-
-
   !---- Publically accessible entities
   public :: string
-  public :: assignment(=),unstring
+  public :: assignment(=)
   public :: char, len, len_trim, trim
   public :: prepend_to_string,append_to_string
   public :: operator(==),operator(/=)
@@ -166,24 +158,17 @@ contains
     type(string), intent(inout)  :: var
     type(string), intent(in)   :: expr
 
-    if (associated(var%chars,expr%chars)) then
-      !Identity assignment: nothing to be done
-      continue
-    else
-      if (associated(var%chars)) then
-        if (var%size < expr%len) then
-          deallocate(var%chars)
-        end if
+    if (allocated(var%chars)) then
+      if (var%size < expr%len) then
+        deallocate(var%chars)
       end if
-      if (.not. associated(var%chars)) then
-        allocate(var%chars(1:expr%len))
-        var%size = expr%len
-      end if
-
-      var%len = expr%len
-      var%chars(1:var%len) = expr%chars(1:var%len)
-
-    endif
+    end if
+    if (.not. allocated(var%chars)) then
+      allocate(var%chars(1:expr%len))
+      var%size = expr%len
+    end if
+    var%len = expr%len
+    var%chars(1:var%len) = expr%chars(1:var%len)
 
   end subroutine assign_s_to_s
 
@@ -224,12 +209,12 @@ contains
     integer                    :: i,lc
 
     lc = len(expr)
-    if (associated(var%chars)) then
+    if (allocated(var%chars)) then
       if (var%size < lc) then
         deallocate(var%chars)
       end if
     end if
-    if (.not. associated(var%chars)) then
+    if (.not. allocated(var%chars)) then
       allocate(var%chars(1:lc))
       var%size = lc
     end if
@@ -253,7 +238,7 @@ contains
     type(string), intent(in)     :: s2
 
     integer                      :: i,ls1,ls2
-    character, pointer           :: ss(:)
+    character, allocatable :: ss(:)
 
     ls1 = len(s1)
     ls2 = len(s2)
@@ -266,10 +251,7 @@ contains
       do i=1,ls1
         ss(ls2+i) = s1%chars(i)
       enddo
-      deallocate(s1%chars)
-      
-
-      s1%chars => ss
+      call move_alloc(ss, s1%chars)
 
       s1%len = ls1 + ls2
       s1%size = s1%len
@@ -294,7 +276,7 @@ contains
     character(*), intent(in)     :: c
 
     integer                      :: i,ls,lc
-    character, pointer           :: ss(:)
+    character, allocatable       :: ss(:)
 
     ls = len(s)
     lc = len(c)
@@ -308,10 +290,8 @@ contains
       do i=1,ls
         ss(lc+i) = s%chars(i)
       enddo
-      
-      deallocate(s%chars)
 
-      s%chars => ss
+      call move_alloc(ss, s%chars)
 
       s%len = ls + lc
       s%size = s%len
@@ -338,7 +318,7 @@ contains
     type(string), intent(in)     :: s2
     integer                      :: i,ls1,ls2
 
-    character, pointer           :: ss(:)
+    character, allocatable       :: ss(:)
 
     ls1 = len(s1)
     ls2 = len(s2)
@@ -353,9 +333,7 @@ contains
         ss(i) = s2%chars(i-ls1)
       enddo
 
-      deallocate(s1%chars)
-      
-      s1%chars => ss
+      call move_alloc(ss, s1%chars)
 
       s1%len = ls1 + ls2
       s1%size = s1%len
@@ -377,7 +355,7 @@ contains
     character(*), intent(in)     :: c
 
     integer                      :: i,ls,lc
-    character, pointer           :: ss(:)
+    character, allocatable       :: ss(:)
 
     ls = len(s)
     lc = len(c)
@@ -392,9 +370,7 @@ contains
         ss(i) = c(i-ls:i-ls)
       enddo
 
-      deallocate(s%chars)
-
-      s%chars => ss
+      call move_alloc(ss, s%chars)
 
       s%len = ls + lc
       s%size = s%len
@@ -406,42 +382,6 @@ contains
     endif
 
   end subroutine append_to_string_c
-
-
-
-  !*****************************************************************************
-  !     UNSTRING procedure
-  !*****************************************************************************
-  !     Deallocate the chars in the string to avoid leaking of memory
-  !     Use this in functions and subroutines on locally declared variables
-  !     of type string after their use. (I.e. garbage collecting).
-
-  elemental subroutine unstring_string(s)
-    type(string), intent(inout)  :: s
-    
-    if (associated(s%chars)) then
-      deallocate(s%chars)
-    end if
-    nullify(s%chars)
-    
-    s%size = 0
-    s%len = 0
-
-  end subroutine unstring_string
-
-
-
-  !!subroutine unstring_array(s)
-  !!  type(string), intent(inout) :: s(:)
-  !!
-  !!  integer :: ii
-  !!
-  !!  do ii = 1, size(s)
-  !!    call unstring(s(ii))
-  !!  end do
-  !!
-  !!end subroutine unstring_array
-  
 
 
 
@@ -666,17 +606,16 @@ contains
     type(string), intent(inout)     :: s
     integer, intent(in)             :: newsize
 
-    character, pointer              :: c(:)
+    character, allocatable          :: c(:)
     integer                         :: i
 
     if (newsize <= 0) return
 
-    if (associated(s%chars)) then
+    if (allocated(s%chars)) then
       allocate(c(newsize))
       i = min(newsize,s%len)
       c(1:i) = s%chars(1:i)
-      deallocate(s%chars)
-      s%chars => c
+      call move_alloc(c, s%chars)
       s%len = i
       s%size = newsize
     else

@@ -5,10 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module containing various routines for DFTB+U calculations
 !!* Intended to be used with SCC switched on !
 module dftbplusu
-#include "assert.h"
+  use assert
   use accuracy
   use message
   use fileid
@@ -19,7 +21,7 @@ module dftbplusu
 
   public :: shift_DFTBU, AppendBlock_reduce, Block_expand
   public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
-  
+
   interface shift_DFTBU
     module procedure shift_U
     module procedure shift_iU
@@ -58,28 +60,28 @@ contains
     integer, intent(in)            :: nUJ(:)
     integer, intent(in)            :: niUJ(:,:)
     integer, intent(in)            :: iUJ(:,:,:)
-    
+
     integer     :: nAtom, nSpin, iAt, iSp, iSpecies
     integer     :: iFunctional
     integer     :: iStart1, iEnd1, iStart2, iEnd2
     integer     :: ii, jj, kk, ll, ik
-    
-    ASSERT(all(shape(shift)==shape(qBlock)))
-    ASSERT(size(shift,dim=1)==orb%mOrb)
-    ASSERT(size(shift,dim=2)==orb%mOrb)
-    
+
+    @:ASSERT(all(shape(shift)==shape(qBlock)))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+
     if (present(functional)) then
       iFunctional = functional
     else
       iFunctional = 1
     end if
-    
-    ASSERT(iFunctional==1 .or. iFunctional==2)
+
+    @:ASSERT(iFunctional==1 .or. iFunctional==2)
 
     if (iFunctional == 1) then
       do iAt = 1, nAtom
@@ -96,7 +98,7 @@ contains
         end do
       end do
     end if
-       
+
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
@@ -119,7 +121,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine Shift_U
 
   !!* Construct the Orbital contribution to the Hamiltonian
@@ -155,30 +157,30 @@ contains
     integer, intent(in)            :: nUJ(:)
     integer, intent(in)            :: niUJ(:,:)
     integer, intent(in)            :: iUJ(:,:,:)
-    
+
     integer     :: nAtom, nSpin, iAt, iSp, iSpecies
     integer     :: iFunctional
     integer     :: iStart1, iEnd1, iStart2, iEnd2
     integer     :: ii, jj, kk, ll, ik
-    
-    ASSERT(all(shape(shiftR)==shape(qBlockR)))
-    ASSERT(all(shape(shiftI)==shape(qBlockI)))
-    ASSERT(all(shape(shiftR)==shape(shiftI)))
-    ASSERT(size(shiftR,dim=1)==orb%mOrb)
-    ASSERT(size(shiftR,dim=2)==orb%mOrb)
-    
+
+    @:ASSERT(all(shape(shiftR)==shape(qBlockR)))
+    @:ASSERT(all(shape(shiftI)==shape(qBlockI)))
+    @:ASSERT(all(shape(shiftR)==shape(shiftI)))
+    @:ASSERT(size(shiftR,dim=1)==orb%mOrb)
+    @:ASSERT(size(shiftR,dim=2)==orb%mOrb)
+
     nAtom = size(shiftR,dim=3)
     nSpin = size(shiftR,dim=4)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+
     if (present(functional)) then
       iFunctional = functional
     else
       iFunctional = 1
     end if
-    
-    ASSERT(iFunctional==1 .or. iFunctional==2)
+
+    @:ASSERT(iFunctional==1 .or. iFunctional==2)
 
     if (iFunctional == 1) then
       do iAt = 1, nAtom
@@ -195,7 +197,7 @@ contains
         end do
       end do
     end if
-       
+
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
@@ -220,9 +222,9 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine Shift_iU
-  
+
   !!* Calculates the energy contribution for the DFTB+U type functionals
   !!* @param egy energy contribution
   !!* @param qBlock charge block populations
@@ -248,35 +250,37 @@ contains
     integer, intent(in)            :: niUJ(:,:)
     integer, intent(in)            :: iUJ(:,:,:)
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
-    
+
     integer     :: nAtom, nSpin, iAt, iSp, iSpecies
     integer     :: iFunctional
     integer     :: iStart1, iEnd1, iStart2, iEnd2
     integer     :: ii, jj, kk, ll, ik
     real(dp)    :: blockTmp(orb%mOrb,orb%mOrb)
-    
-    ASSERT(size(qBlock,dim=1)==orb%mOrb)
-    ASSERT(size(qBlock,dim=2)==orb%mOrb)
+
+    @:ASSERT(size(qBlock,dim=1)==orb%mOrb)
+    @:ASSERT(size(qBlock,dim=2)==orb%mOrb)
 
     nAtom = size(qBlock,dim=3)
     nSpin = size(qBlock,dim=4)
-    
-    ASSERT_ENV(if (present(qiBlock)) then)
-    ASSERT_ENV( ASSERT(all(shape(qiBlock)==shape(qBlock))) )
-    ASSERT_ENV( ASSERT(nSpin == 4) )
-    ASSERT_ENV(end if)
-    
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(size(egy)==nAtom)
-    
+
+  #:call ASSERT_CODE
+    if (present(qiBlock)) then
+      @:ASSERT(all(shape(qiBlock)==shape(qBlock)))
+      @:ASSERT(nSpin == 4)
+    end if
+  #:endcall ASSERT_CODE
+
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(egy)==nAtom)
+
     if (present(functional)) then
       iFunctional = functional
     else
       iFunctional = 1
     end if
-    
-    ASSERT(iFunctional==1 .or. iFunctional==2)
-  
+
+    @:ASSERT(iFunctional==1 .or. iFunctional==2)
+
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
@@ -300,7 +304,7 @@ contains
         end do
       end do
     end do
-    
+
     if (present(qiBlock)) then
       do iSp = 1, nSpin
         do iAt = 1, nAtom
@@ -352,8 +356,8 @@ contains
         end do
       end do
     end if
-    
-    
+
+
   end subroutine E_dftbU
 
 
@@ -378,15 +382,15 @@ contains
     nAtom = size(equiv, dim=2)
     nSpin = size(equiv, dim=3)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(size(equiv, dim=1) == orb%mOrb)
-    ASSERT(size(nUJ) == maxval(species))
-    ASSERT(all(nUJ <= orb%mShell))
-    ASSERT(size(niUJ,dim=2) == maxval(species))
-    ASSERT(all(niUJ <= orb%mShell))
-    ASSERT(size(iUJ,dim=3) == maxval(species))
-    ASSERT(size(iUJ,dim=1) <= orb%mShell)
-    ASSERT(all(iUJ <= orb%mShell))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(equiv, dim=1) == orb%mOrb)
+    @:ASSERT(size(nUJ) == maxval(species))
+    @:ASSERT(all(nUJ <= orb%mShell))
+    @:ASSERT(size(niUJ,dim=2) == maxval(species))
+    @:ASSERT(all(niUJ <= orb%mShell))
+    @:ASSERT(size(iUJ,dim=3) == maxval(species))
+    @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
+    @:ASSERT(all(iUJ <= orb%mShell))
 
 
     equiv(:,:,:) = 0
@@ -398,7 +402,7 @@ contains
         equiv(1:orb%nOrbSpecies(iSp), iAt, iSpin) = iAt + (iSpin-1)*nAtom
       end do
     end do
-    
+
     iCount = nSpin*nAtom
     ! set LDA+U blocks to be full of unique orbitals
     do iSpin = 1, nSpin
@@ -416,7 +420,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine DFTBplsU_getOrbitalEquiv
 
   !!* Returns the index for packing the relevant parts of DFTB+U atomic blocks
@@ -442,22 +446,22 @@ contains
     integer :: iAt, iSp, iSpecies
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
-    
+
     nAtom = size(iEqBlockDFTBU, dim=3)
     nSpin = size(iEqBlockDFTBU, dim=4)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
-    ASSERT(size(iEqBlockDFTBU, dim=1) == orb%mOrb)
-    ASSERT(size(iEqBlockDFTBU, dim=2) == orb%mOrb)
-    ASSERT(size(nUJ) == maxval(species))
-    ASSERT(all(nUJ <= orb%mShell))
-    ASSERT(size(niUJ,dim=2) == maxval(species))
-    ASSERT(all(niUJ <= orb%mShell))
-    ASSERT(size(iUJ,dim=3) == maxval(species))
-    ASSERT(size(iUJ,dim=1) <= orb%mShell)
-    ASSERT(all(iUJ <= orb%mShell))
+    @:ASSERT(size(iEqBlockDFTBU, dim=1) == orb%mOrb)
+    @:ASSERT(size(iEqBlockDFTBU, dim=2) == orb%mOrb)
+    @:ASSERT(size(nUJ) == maxval(species))
+    @:ASSERT(all(nUJ <= orb%mShell))
+    @:ASSERT(size(niUJ,dim=2) == maxval(species))
+    @:ASSERT(all(niUJ <= orb%mShell))
+    @:ASSERT(size(iUJ,dim=3) == maxval(species))
+    @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
+    @:ASSERT(all(iUJ <= orb%mShell))
 
-    
+
     iEqBlockDFTBU(:,:,:,:) = 0
 
     iCount = count
@@ -484,7 +488,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine DFTBU_blockIndx
 
   !!* Adds DFTB+U blocks onto end of a 1D vector
@@ -498,20 +502,20 @@ contains
     integer :: nAtom, nSpin
     integer :: iS, iOrb1, iOrb2, iAt
     logical :: iSkew
-    
+
     nAtom = size(input, dim=3)
     nSpin = size(input, dim=4)
-    ASSERT(size(input, dim=1) == orb%mOrb)
-    ASSERT(size(input, dim=2) == orb%mOrb)
-    ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    
+    @:ASSERT(size(input, dim=1) == orb%mOrb)
+    @:ASSERT(size(input, dim=2) == orb%mOrb)
+    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+
     if (present(skew)) then
       iSkew = skew
     else
       iSkew = .false.
     end if
-    
+
     do iS = 1, nSpin
       do iAt = 1, nAtom
         do iOrb1 = 1, orb%nOrbAtom(iAt)
@@ -531,7 +535,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine AppendBlock_reduce
 
   subroutine Block_expand(input, blockEquiv, orb, output, &
@@ -546,15 +550,15 @@ contains
     integer, intent(in)         :: iUJ(:,:,:)
     integer, intent(in),optional :: orbEquiv(:,:,:)
     logical, optional, intent(in) :: skew
-    
+
     integer :: nAtom, nSpin
     integer :: iAt, iSp, iSpecies
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
     logical :: iSkew
 
-    
-    
+
+
     nAtom = size(output, dim=3)
     nSpin = size(output, dim=4)
 
@@ -563,19 +567,19 @@ contains
     else
       iSkew = .false.
     end if
-    
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT(size(output, dim=1) == orb%mOrb)
-    ASSERT(size(output, dim=2) == orb%mOrb)
 
-    ASSERT_ENV( if (present(orbEquiv)) then)
-    ASSERT_ENV(  ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /))))
-    ASSERT_ENV( end if)
-    
-    ASSERT(all(shape(blockEquiv) == shape(output)))
-    
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(output, dim=1) == orb%mOrb)
+    @:ASSERT(size(output, dim=2) == orb%mOrb)
+  #:call ASSERT_CODE
+    if (present(orbEquiv)) then
+      @:ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /)))
+    end if
+  #:endcall ASSERT_CODE
+    @:ASSERT(all(shape(blockEquiv) == shape(output)))
+
     output = 0.0_dp
-    
+
     do iSp = 1, nSpin
       do iAt = 1, nAtom
         iSpecies = species(iAt)
@@ -606,7 +610,7 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine Block_expand
-  
+
 end module dftbplusu

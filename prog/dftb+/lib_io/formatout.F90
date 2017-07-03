@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains subroutines for formatted output of data
 module formatout
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use fileid
   use constants
@@ -46,26 +47,26 @@ module formatout
   end interface
 
 
-  
+
 contains
-  
+
   !!* Clears contents of file
   !!* @param fileName name of the file which should be cleared
   subroutine clearFile_fname(fileName)
     character(len=*), intent(in)   :: fileName
-    
+
     integer, save :: fd = -1
-    
+
     if (fd == -1) then
       fd = getFileId()
     end if
     open(fd, file=fileName, status="replace", position="rewind")
     close(fd)
-    
+
   end subroutine clearFile_fname
 
-  
-  
+
+
   !!* A wrapper around writeGenFormat_fid.
   !!* @param fileName    File name of the file which should be created
   !!* @param coord       Coordinates in atomic units
@@ -81,11 +82,10 @@ contains
     character(mc),    intent(in)   :: speciesName(:)
     real(dp), intent(in), optional :: latVec(3,3)
     logical, intent(in), optional  :: tFracCoord
-    
+
     integer, save :: fd = -1
-    
-    ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) \
-        .or.(present(latVec)))
+
+    @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
     if (fd == -1) then
       fd = getFileId()
@@ -93,11 +93,11 @@ contains
     open(fd, file=fileName, position="append")
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
-    
+
   end subroutine writeGenFormat_fname
 
-  
-  
+
+
   !!* Writes coordinates in the famous GEN format to a file
   !!* @param fd          File id of an open file where output should be written
   !!* @param coord       Coordinates in atomic units
@@ -128,15 +128,16 @@ contains
     nAtom = size(coord, dim=2)
     nSpecies = maxval(species)
 
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(species) == nAtom)
-    ASSERT(size(speciesName) == nSpecies)
-    ASSERT_ENV(if (present(latVec)) then)
-    ASSERT_ENV(  ASSERT(all(shape(latVec) == (/3, 3 /))))
-    ASSERT_ENV(end if)
-    ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) \
-        .or.(present(latVec)))
-    
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesName) == nSpecies)
+  #:call ASSERT_CODE
+    if (present(latVec)) then
+      @:ASSERT(all(shape(latVec) == (/3, 3 /)))
+    end if
+  #:endcall ASSERT_CODE
+    @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
+
     tFractional = .false.
     if (present(latVec)) then
       if (present(tFracCoord) ) then
@@ -173,7 +174,7 @@ contains
   end subroutine writeGenFormat_fid
 
 
-  
+
   !!* Writes coordinates in the XYZ format
   !!* @param fileName    File name of a file to be created
   !!* @param coord       Coordinates in atomic units
@@ -193,7 +194,7 @@ contains
     character(len=*), intent(in), optional :: comment
 
     integer, save :: fd = -1
-    
+
     if (fd == -1) then
        fd = getFileId()
     end if
@@ -205,7 +206,7 @@ contains
   end subroutine writeXYZFormat_fname
 
 
-  
+
   !!* Writes coordinates in the XYZ format with additional charges and vectors
   !!* @param fd          File id of an open file where output should be written
   !!* @param coord       Coordinates in atomic units
@@ -236,15 +237,17 @@ contains
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
 
-    ASSERT(size(coords, dim=1) == 3)
-    ASSERT(size(species) == nAtom)
-    ASSERT(size(speciesNames) == nSpecies)
-    ASSERT_ENV(if (present(charges)) then)
-    ASSERT_ENV(  ASSERT(size(charges) == nAtom))
-    ASSERT_ENV(end if)
-    ASSERT_ENV(if (present(velocities)) then)
-    ASSERT_ENV(  ASSERT(all(shape(velocities) == (/ 3, nAtom /))))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(coords, dim=1) == 3)
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesNames) == nSpecies)
+  #:call ASSERT_CODE
+    if (present(charges)) then
+      @:ASSERT(size(charges) == nAtom)
+    end if
+    if (present(velocities)) then
+      @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
+    end if
+  #:endcall ASSERT_CODE
 
     write(fd, 200) nAtom
     if (present(comment)) then
@@ -271,11 +274,11 @@ contains
       write(fd, 201) (trim(speciesNames(species(ii))), &
           & (coords(jj, ii) * Bohr__AA, jj = 1, 3), ii = 1, nAtom)
     end if
-    
+
   end subroutine writeXYZFormat_fid
 
 
-  
+
   !!* Writes the greeting message of dftb+ on stdout
   !!* @param revision Revision string from svn
   !!* @param headURL URL of the head (from svn)
@@ -311,7 +314,7 @@ contains
 
   end subroutine printDFTBHeader
 
-  
+
   !!* Converts a sparse matrix to its square form and writes to a file.
   !!* @param fname Name of the file to write the matrix to.
   !!* @param sparse Sparse matrix.
@@ -334,7 +337,7 @@ contains
 
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
 
-    ALLOCATE_(square, (nOrb, nOrb))
+    allocate(square(nOrb, nOrb))
     fd = getFileId()
     open(fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
@@ -349,7 +352,6 @@ contains
     write(fd, "(A1,A)") "#", " MATRIX"
     write(fd, strForm) square
     close(fd)
-    DEALLOCATE_(square)
 
   end subroutine writeSparseAsSquare_real
 
@@ -384,7 +386,7 @@ contains
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
     nKPoint = size(kPoints, dim =2)
 
-    ALLOCATE_(square, (nOrb, nOrb))
+    allocate(square(nOrb, nOrb))
     fd = getFileId()
     open(fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
@@ -401,12 +403,11 @@ contains
       write(fd, strForm) square
     end do
     close(fd)
-    DEALLOCATE_(square)
 
   end subroutine writeSparseAsSquare_cplx
 
-  
-  
+
+
   !!* Writes a sparse matrix to a file.
   !!* @param fname Name of the file to write the matrix to.
   !!* @param sparse Sparse matrix.
@@ -459,10 +460,10 @@ contains
       end do
     end do
     close(fd)
-    
+
   end subroutine writeSparse
 
-  
+
 
 end module formatout
 

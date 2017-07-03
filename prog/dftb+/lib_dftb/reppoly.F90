@@ -5,20 +5,21 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Implements a repulsive potential between two atoms represented by
 !!* a polynomial of 9th degree
 module reppoly
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use bisect
   implicit none
   private
 
   public :: powMin, powMax
-  public :: TRepPolyIn, ORepPoly, init, destruct
+  public :: TRepPolyIn, ORepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv
-  
+
   !! Minimal and maximal power appearing in the polynomial
   integer, parameter :: powMin = 2
   integer, parameter :: powMax = 9
@@ -46,11 +47,6 @@ module reppoly
     module procedure RepPoly_init
   end interface
 
-  !!* Frees polynomial repulsive.
-  interface destruct
-    module procedure RepPoly_destruct
-  end interface
-
   !!* Returns cutoff of the repulsive.
   interface getCutoff
     module procedure RepPoly_getCutoff
@@ -66,7 +62,7 @@ module reppoly
     module procedure RepPoly_getEnergyDeriv
   end interface
 
-  
+
 contains
 
   !!* Initialises polynomial repulsive.
@@ -76,29 +72,17 @@ contains
     type(ORepPoly), intent(out) :: self
     type(TRepPolyIn), intent(in) :: inp
 
-    
-    ASSERT(.not. self%tInit)
-    ASSERT(inp%cutoff >= 0.0_dp)
+
+    @:ASSERT(.not. self%tInit)
+    @:ASSERT(inp%cutoff >= 0.0_dp)
 
     self%polyCoeffs(:) = inp%polyCoeffs(:)
     self%cutoff = inp%cutoff
     self%tInit = .true.
-    
+
   end subroutine RepPoly_init
 
 
-  
-  !!* Frees polynomial repulsive.
-  !!* @param self polynomial repulsive.
-  subroutine RepPoly_destruct(self)
-    type(ORepPoly), intent(inout) :: self
-
-    ASSERT(self%tInit)
-    self%tInit = .false.
-    
-  end subroutine RepPoly_destruct
-
-  
 
   !!* Returns cutoff of the repulsive.
   !!* @param self Polynomial repulsive.
@@ -107,7 +91,7 @@ contains
     type(ORepPoly), intent(in) :: self
     real(dp) :: cutoff
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
     cutoff = self%cutoff
 
   end function RepPoly_getCutoff
@@ -125,7 +109,7 @@ contains
     real(dp) :: rrr
     integer :: ii
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
 
     if (rr >= self%cutoff) then
       res = 0.0_dp
@@ -139,7 +123,7 @@ contains
         res = res * rrr
       end do
     end if
-    
+
   end subroutine RepPoly_getEnergy
 
 
@@ -157,7 +141,7 @@ contains
     integer :: ii
     real(dp) :: rr, rrr, xh
 
-    ASSERT(self%tInit)
+    @:ASSERT(self%tInit)
 
     res(:) = 0.0_dp
     if (present(d2)) then
@@ -195,5 +179,5 @@ contains
 
   end subroutine RepPoly_getEnergyDeriv
 
-  
+
 end module reppoly

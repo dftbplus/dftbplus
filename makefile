@@ -10,6 +10,7 @@ ROOT := $(PWD)
 .PHONY: default misc all
 default: dftb+ modes waveplot
 misc: misc_skderivs misc_slakovalue
+all: default misc
 
 .PHONY: install install_misc install_all
 install: install_dftb+ install_modes install_waveplot install_dptools

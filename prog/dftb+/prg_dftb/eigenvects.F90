@@ -5,11 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module to wrap around the process of converting from a Hamiltonian and
 !!* overlap in sparse form into eigenvectors
 module eigenvects
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use eigensolver
   use sparse2dense
@@ -17,7 +18,7 @@ module eigenvects
   use commontypes, only : TOrbitals
   use angmomentum
   implicit none
-  
+
   public :: diagonalize
   private
 
@@ -66,20 +67,20 @@ contains
 
     integer :: nOrb
 
-    ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
-    ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
-    ASSERT(size(HSqrReal, dim=1) == size(eigen))
-    ASSERT(size(over) == size(ham))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    
+    @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
+    @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
+    @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
+    @:ASSERT(size(over) == size(ham))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
     call unpackHS(HSqrReal,ham,iNeighbor,nNeighbor,iAtomStart,iPair, &
         &img2CentCell)
     !print *, "HSQRREAL:"
     !print *, HSqrReal
     call unpackHS(SSqrReal,over,iNeighbor,nNeighbor,iAtomStart,iPair, &
         & img2CentCell)
-    
+
     select case(iSolver)
     case(1)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
@@ -139,13 +140,13 @@ contains
     character, intent(in)    :: jobz
 
     integer :: nOrb
-    ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
-    ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
-    ASSERT(size(HSqrCplx, dim=1) == size(eigen))
-    ASSERT(size(over) == size(ham))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(size(over) == size(ham))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
     call unpackHS(HSqrCplx, ham, kPoint, iNeighbor, nNeighbor, iCellVec, &
         &cellVec, iAtomStart, iPair, img2CentCell)
     call unpackHS(SSqrCplx, over, kPoint, iNeighbor, nNeighbor, iCellVec, &
@@ -192,7 +193,7 @@ contains
   subroutine cmplx2Cmpnt(HSqrCplx, SSqrCplx, eigen, ham, over, iNeighbor, &
       & nNeighbor, iAtomStart, iPair, img2CentCell, iSolver, jobz,xi,orb, &
       & species, iHam)
-    
+
     complex(dp), intent(out) :: HSqrCplx(:,:)
     complex(dp), intent(out) :: SSqrCplx(:,:)
     real(dp), intent(out)    :: eigen(:)
@@ -209,7 +210,7 @@ contains
     type(TOrbitals), intent(in), optional :: orb
     integer, intent(in), optional         :: species(:)
     real(dp), intent(in), optional        :: iHam(:,:)
-    
+
     integer :: nOrb, nSpin, ii, jj, kk
     real(dp), allocatable :: work(:,:)
     logical :: tSpinOrb
@@ -218,28 +219,28 @@ contains
     complex(dp), allocatable :: AtomPlus(:,:,:)
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
-    
-    ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
-    ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx))) ! for the moment
-    ASSERT(size(HSqrCplx, dim=1) == size(eigen))
-    ASSERT(size(over,dim=1) == size(ham,dim=1))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')    
-    ASSERT(present(xi) .eqv. present(orb))
-    ASSERT(present(xi) .eqv. present(species))
-    ASSERT(.not.(present(xi).and.present(iHam)))
-    
+
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(size(over,dim=1) == size(ham,dim=1))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(present(xi) .eqv. present(orb))
+    @:ASSERT(present(xi) .eqv. present(species))
+    @:ASSERT(.not.(present(xi).and.present(iHam)))
+
     nAtom = size(nNeighbor)
     nSpin = size(ham,dim=2)
     nOrb = size(eigen)
 
     tSpinOrb = present(xi)
-    
-    ASSERT(nSpin == 4)
-    ASSERT(mod(nOrb,2)==0)
+
+    @:ASSERT(nSpin == 4)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-    ALLOCATE_(work,(nOrb,nOrb)) ! for the moment, but will use S as workspace
-    ! in the future
+    ! for the moment, but will use S as workspace in the future
+    allocate(work(nOrb,nOrb))
 
     SSqrCplx(:,:) = 0.0_dp
     HSqrCplx(:,:) = 0.0_dp
@@ -267,7 +268,7 @@ contains
           & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
           & + 0.5_dp*cmplx(0,1,dp)*work(1:nOrb,1:nOrb)
     end if
-    
+
     ! 0 1 x part
     ! 1 0
     work(:,:) = 0.0_dp
@@ -284,7 +285,7 @@ contains
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
     end if
-    
+
     ! 0 -i y part
     ! i  0
     work(:,:) = 0.0_dp
@@ -301,7 +302,7 @@ contains
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & - 0.5_dp * work(1:nOrb,1:nOrb)
     end if
-    
+
     ! 1  0 z part
     ! 0 -1
     work(:,:) = 0.0_dp
@@ -322,15 +323,15 @@ contains
           & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
           & - 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
     end if
-    
+
     if (tSpinOrb) then
       nSpecies = maxval(species(1:nAtom))
-      ALLOCATE_(AtomZ,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomZ(orb%mOrb,orb%mOrb,nSpecies))
       AtomZ = 0.0_dp
-      ALLOCATE_(AtomPlus,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomPlus(orb%mOrb,orb%mOrb,nSpecies))
       AtomPlus = 0.0_dp
-      ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-      ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+      allocate(Lz(orb%mOrb,orb%mOrb))
+      allocate(Lplus(orb%mOrb,orb%mOrb))
       do ii = 1, nSpecies
         do jj = 1, orb%nShell(ii)
           Lz = 0.0_dp
@@ -345,8 +346,8 @@ contains
               & = 0.5_dp*xi(jj,ii)*Lplus(1:2*kk+1,1:2*kk+1)
         end do
       end do
-      DEALLOCATE_(Lplus)
-      DEALLOCATE_(Lz)
+      deallocate(Lplus)
+      deallocate(Lz)
       do ii = 1, nAtom
         jj = species(ii)
         HSqrCplx(iAtomStart(ii):iAtomStart(ii+1)-1, &
@@ -365,10 +366,10 @@ contains
             & iAtomStart(ii):iAtomStart(ii+1)-1) &
             & + AtomPlus(1:orb%nOrbSpecies(jj),1:orb%nOrbSpecies(jj),jj)
       end do
-      DEALLOCATE_(AtomZ)
-      DEALLOCATE_(AtomPlus)
+      deallocate(AtomZ)
+      deallocate(AtomPlus)
     end if
-    
+
     select case(iSolver)
     case(1)
       call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
@@ -380,8 +381,8 @@ contains
       call error('Unknown eigensolver')
     end select
 
-    DEALLOCATE_(work)
-    
+    deallocate(work)
+
   end subroutine cmplx2Cmpnt
 
   !!* Diagonalizes a sparse represented Hamiltonian and overlap to give
@@ -429,7 +430,7 @@ contains
     type(TOrbitals), intent(in), optional :: orb
     integer, intent(in), optional         :: species(:)
     real(dp), intent(in), optional        :: iHam(:,:)
-    
+
     integer :: nOrb, nSpin, ii, jj, kk
     complex(dp), allocatable :: work(:,:)
     logical :: tSpinOrb
@@ -438,38 +439,37 @@ contains
     complex(dp), allocatable :: AtomPlus(:,:,:)
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
-    
-    ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
-    ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx))) ! for the moment
-    ASSERT(size(HSqrCplx, dim=1) == size(eigen))
-    ASSERT(size(over,dim=1) == size(ham,dim=1))
-    ASSERT(size(img2CentCell) >= maxval(iNeighbor))
-    ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    ASSERT(present(xi) .eqv. present(orb))
-    ASSERT(present(xi) .eqv. present(species))
-    ASSERT(.not.(present(xi).and.present(iHam)))
-    
+
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(size(over,dim=1) == size(ham,dim=1))
+    @:ASSERT(size(img2CentCell) >= maxval(iNeighbor))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(present(xi) .eqv. present(orb))
+    @:ASSERT(present(xi) .eqv. present(species))
+    @:ASSERT(.not.(present(xi).and.present(iHam)))
+
     nAtom = size(nNeighbor)
     nSpin = size(ham,dim=2)
     nOrb = size(eigen)
-    
+
     tSpinOrb = present(xi)
-    
-    ASSERT(nSpin == 4)
-    ASSERT(mod(nOrb,2)==0)
+
+    @:ASSERT(nSpin == 4)
+    @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-    ALLOCATE_(work,(nOrb,nOrb)) ! for the moment, but will use S as workspace
-    ! in the future
-    
+     ! for the moment, but will use S as workspace in the future
+    allocate(work(nOrb,nOrb))
     SSqrCplx(:,:) = 0.0_dp
     HSqrCplx(:,:) = 0.0_dp
-    
+
     work(:,:) = 0.0_dp
     call unpackHS(work,over,kPoint, iNeighbor,nNeighbor,iCellVec, &
         & cellVec, iAtomStart,iPair, img2CentCell)
     SSqrCplx(1:nOrb,1:nOrb) = work(1:nOrb,1:nOrb)
     SSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = work(1:nOrb,1:nOrb)
-    
+
     ! 1 0 charge part
     ! 0 1
     work(:,:) = 0.0_dp
@@ -487,14 +487,14 @@ contains
           & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
           & + 0.5_dp*cmplx(0,1,dp)*work(1:nOrb,1:nOrb)
     end if
-    
+
     ! 0 1 x part
     ! 1 0
     work(:,:) = 0.0_dp
     call unpackHS(work,ham(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
         & cellVec,iAtomStart,iPair, img2CentCell)
     do ii = 1, nOrb
-      work(ii,ii+1:) = conjg(work(ii+1:,ii))        
+      work(ii,ii+1:) = conjg(work(ii+1:,ii))
     end do
 
     HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
@@ -504,22 +504,22 @@ contains
       call unpackHS(work,iHam(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
          & cellVec,iAtomStart,iPair, img2CentCell)
       do ii = 1, nOrb
-        work(ii,ii+1:) = -conjg(work(ii+1:,ii))        
+        work(ii,ii+1:) = -conjg(work(ii+1:,ii))
       end do
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
-    end if        
-    
-    
+    end if
+
+
     ! 0 -i y part
     ! i  0
     work(:,:) = 0.0_dp
     call unpackHS(work,ham(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
         & cellVec,iAtomStart,iPair, img2CentCell)
     do ii = 1, nOrb
-      work(ii,ii+1:) = conjg(work(ii+1:,ii))        
+      work(ii,ii+1:) = conjg(work(ii+1:,ii))
     end do
-    
+
     HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
         & + cmplx(0.0,0.5,dp) * work(1:nOrb,1:nOrb)
     if (present(iHam)) then
@@ -527,17 +527,17 @@ contains
       call unpackHS(work,iHam(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
           & cellVec,iAtomStart,iPair, img2CentCell)
       do ii = 1, nOrb
-        work(ii,ii+1:) = -conjg(work(ii+1:,ii))        
+        work(ii,ii+1:) = -conjg(work(ii+1:,ii))
       end do
       do ii = 1, nOrb
-        work(ii+1:,ii) = -conjg(work(ii,ii+1:))        
+        work(ii+1:,ii) = -conjg(work(ii,ii+1:))
       end do
-      
+
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & - 0.5_dp * work(1:nOrb,1:nOrb)
     end if
-    
-    
+
+
     ! 1  0 z part
     ! 0 -1
     work(:,:) = 0.0_dp
@@ -558,15 +558,15 @@ contains
           & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
           & - 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
     end if
-    
+
     if (tSpinOrb) then
       nSpecies = maxval(species(1:nAtom))
-      ALLOCATE_(AtomZ,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomZ(orb%mOrb,orb%mOrb,nSpecies))
       AtomZ = 0.0_dp
-      ALLOCATE_(AtomPlus,(orb%mOrb,orb%mOrb,nSpecies))
+      allocate(AtomPlus(orb%mOrb,orb%mOrb,nSpecies))
       AtomPlus = 0.0_dp
-      ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-      ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+      allocate(Lz(orb%mOrb,orb%mOrb))
+      allocate(Lplus(orb%mOrb,orb%mOrb))
       do ii = 1, nSpecies
         do jj = 1, orb%nShell(ii)
           Lz = 0.0_dp
@@ -581,8 +581,8 @@ contains
               & = 0.5_dp*xi(jj,ii)*Lplus(1:2*kk+1,1:2*kk+1)
         end do
       end do
-      DEALLOCATE_(Lplus)
-      DEALLOCATE_(Lz)
+      deallocate(Lplus)
+      deallocate(Lz)
       do ii = 1, nAtom
         jj = species(ii)
         HSqrCplx(iAtomStart(ii):iAtomStart(ii+1)-1, &
@@ -601,10 +601,10 @@ contains
             & iAtomStart(ii):iAtomStart(ii+1)-1) &
             & + AtomPlus(1:orb%nOrbSpecies(jj),1:orb%nOrbSpecies(jj),jj)
       end do
-      DEALLOCATE_(AtomZ)
-      DEALLOCATE_(AtomPlus)
+      deallocate(AtomZ)
+      deallocate(AtomPlus)
     end if
-    
+
     select case(iSolver)
     case(1)
       call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
@@ -615,9 +615,9 @@ contains
     case default
       call error('Unknown eigensolver')
     end select
-    
-    DEALLOCATE_(work)
-    
+
+    deallocate(work)
+
   end subroutine cmplx2CmpntKpts
-  
+
 end module eigenvects

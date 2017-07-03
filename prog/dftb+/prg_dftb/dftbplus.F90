@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* The main dftb+ program
 program dftbplus
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use constants
   use initprogram
   use inputdata_module
@@ -58,7 +59,7 @@ program dftbplus
   character(len=*), parameter :: RELEASE_VERSION = '17.1'
   integer, parameter :: RELEASE_YEAR = 2017
 
-  type(inputData)          :: input             ! Contains the parsed input
+  type(inputData), allocatable  :: input             ! Contains the parsed input
 
   integer                  :: nk, iEgy, nSpin2, nK2, iSpin2, iK2
   complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
@@ -77,9 +78,8 @@ program dftbplus
   real(dp), allocatable    :: filling(:,:,:)
   real(dp), allocatable :: Eband(:), TS(:), E0(:), Eold
 
-  type(TEnergies)          :: energy
-  type(TPotentials)        :: potential
-
+  type(TEnergies), allocatable :: energy
+  type(TPotentials), allocatable :: potential
 
   real(dp), allocatable    :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
   real(dp), allocatable    :: chrgForces(:,:)
@@ -94,7 +94,7 @@ program dftbplus
   real(dp) :: dispLatDeriv(3,3), totalLatDeriv(3,3)
   ! derivative of cell volume wrt to lattice vectors, needed for pV term
   real(dp) :: derivCellVol(3,3)
-  
+
   real(dp) :: dipoleMoment(3)
   real(dp) :: angularMomentum(3) ! hold total angular momentum vector
 
@@ -192,14 +192,14 @@ program dftbplus
 
   real(dp), allocatable :: shift3rd(:)
   real(dp), allocatable :: orbresshift3rd(:,:)
-  
-  real(dp), allocatable :: dqAtom(:) ! net charge on each atom  
-  
+
+  real(dp), allocatable :: dqAtom(:) ! net charge on each atom
+
   real(dp), allocatable :: rhoSqrReal(:,:,:) ! density matrix
 
   ! Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
-  
+
   real(dp), allocatable :: invJacobian(:,:)
 
   real(dp) :: localisation ! locality measure for the wavefunction
@@ -215,11 +215,12 @@ program dftbplus
   !! Parse input and set the variables in the local scope according the input.
   !! These variables are defined in the initprogram module.
 
+  allocate(input)
   call parseHSDInput(input)
   write (*,"(/A)") "Starting initialization..."
   write (*,"(A80)") repeat("-", 80)
   call initProgramVariables(input)
-  call destroy(input)
+  deallocate(input)
   write (*,*)
 
   elecStress = 0.0_dp
@@ -267,36 +268,38 @@ program dftbplus
     open(fdMD, file=mdOut, position="rewind", status="replace")
   end if
 
-  ALLOCATE_(rhoPrim, (0, nSpin))
-  ALLOCATE_(h0, (0))
-  ALLOCATE_(iRhoPrim, (0, nSpin))
+  allocate(rhoPrim(0, nSpin))
+  allocate(h0(0))
+  allocate(iRhoPrim(0, nSpin))
 
-  ALLOCATE_(excitedDerivs, (0, 0))
+  allocate(excitedDerivs(0, 0))
 
   if (tForces) then
-    ALLOCATE_(ERhoPrim, (0))
-    ALLOCATE_(ERhoPrim2, (0))
+    allocate(ERhoPrim(0))
+    allocate(ERhoPrim2(0))
   end if
 
   if (tForces) then
-    ALLOCATE_(derivs,(3,nAtom))
-    ALLOCATE_(repulsiveDerivs,(3,nAtom))
-    ALLOCATE_(totalDeriv, (3,nAtom))
+    allocate(derivs(3,nAtom))
+    allocate(repulsiveDerivs(3,nAtom))
+    allocate(totalDeriv(3,nAtom))
     if (tExtChrg) then
-      ALLOCATE_(chrgForces, (3, nExtChrg))
+      allocate(chrgForces(3, nExtChrg))
     end if
     if (tLinResp) then
-      DEALLOCATE_(excitedDerivs)
-      ALLOCATE_(excitedDerivs, (3, nAtom))
+      deallocate(excitedDerivs)
+      allocate(excitedDerivs(3, nAtom))
     end if
   end if
-  
-  call create(energy,nAtom)
 
-  call create(potential,orb,nAtom,nSpin)
-  ALLOCATE_(shift3rd, (nAtom))
-  ALLOCATE_(orbresshift3rd, (orb%mShell,nAtom))
-  
+  allocate(energy)
+  call init(energy,nAtom)
+
+  allocate(potential)
+  call init(potential, orb, nAtom, nSpin)
+  allocate(shift3rd(nAtom))
+  allocate(orbresshift3rd(orb%mShell,nAtom))
+
   ! Nr. of independent spin Hamiltonians
   select case (nSpin)
   case (1)
@@ -310,14 +313,14 @@ program dftbplus
     sqrHamSize = 2 * nOrb
   end select
 
-  ALLOCATE_(TS, (nSpinHams))
-  ALLOCATE_(E0, (nSpinHams))
-  ALLOCATE_(Eband, (nSpinHams))
-  ALLOCATE_(eigen, (sqrHamSize, nKPoint, nSpinHams))
-  ALLOCATE_(eigen2, (sqrHamSize, nKPoint, nSpinHams))
-  ALLOCATE_(filling,(sqrHamSize, nKpoint, nSpinHams))
+  allocate(TS(nSpinHams))
+  allocate(E0(nSpinHams))
+  allocate(Eband(nSpinHams))
+  allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
+  allocate(eigen2(sqrHamSize, nKPoint, nSpinHams))
+  allocate(filling(sqrHamSize, nKpoint, nSpinHams))
 
-  ALLOCATE_(coord0Fold, (3, nAtom))
+  allocate(coord0Fold(3, nAtom))
   if (tShowFoldedCoord) then
     pCoord0Out => coord0Fold
   else
@@ -326,27 +329,27 @@ program dftbplus
 
 
   if (tMD.or.tDerivs) then
-    ALLOCATE_(new3Coord, (3, nMovedAtom))
+    allocate(new3Coord(3, nMovedAtom))
   end if
 
   if (tCoordOpt) then
-    ALLOCATE_(tmpDerivs,(size(tmpCoords)))
+    allocate(tmpDerivs(size(tmpCoords)))
   else
-    ALLOCATE_(tmpDerivs,(0))
+    allocate(tmpDerivs(0))
   end if
 
   if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
-    ALLOCATE_(orbitalL,(3,orb%mShell,nAtom))
+    allocate(orbitalL(3,orb%mShell,nAtom))
     orbitalL = 0.0_dp
   else
-    ALLOCATE_(orbitalL,(0,0,0))
+    allocate(orbitalL(0,0,0))
   end if
 
   if ((tMulliken .and. tSpinOrbit) .and. .not.  tDualSpinOrbit) then
-    ALLOCATE_(orbitalLPart,(3,orb%mShell,nAtom))
+    allocate(orbitalLPart(3,orb%mShell,nAtom))
     orbitalLPart = 0.0_dp
   else
-    ALLOCATE_(orbitalLPart,(0,0,0))
+    allocate(orbitalLPart(0,0,0))
   end if
   eigen(:,:,:) = 0.0_dp
   eigen2(:,:,:) = 0.0_dp
@@ -362,34 +365,34 @@ program dftbplus
   ! If only H/S should be printed, no allocation for square HS is needed
   if (.not. (tWriteRealHS .or. tWriteHS)) then
     if (t2Component) then
-      ALLOCATE_(HSqrCplx, (sqrHamSize, sqrHamSize, nK2, 1))
-      ALLOCATE_(SSqrCplx, (sqrHamSize, sqrHamSize))
+      allocate(HSqrCplx(sqrHamSize, sqrHamSize, nK2, 1))
+      allocate(SSqrCplx(sqrHamSize, sqrHamSize))
     elseif (tRealHS) then
-      ALLOCATE_(HSqrReal, (sqrHamSize, sqrHamSize, nSpin2))
+      allocate(HSqrReal(sqrHamSize, sqrHamSize, nSpin2))
       if (any(forceType == [ 1, 2, 3 ])) then
-        ALLOCATE_(HSqrReal2, (sqrHamSize, sqrHamSize))
+        allocate(HSqrReal2(sqrHamSize, sqrHamSize))
       end if
-      ALLOCATE_(SSqrReal, (sqrHamSize, sqrHamSize))
+      allocate(SSqrReal(sqrHamSize, sqrHamSize))
     else
-      ALLOCATE_(HSqrCplx, (sqrHamSize, sqrHamSize, nK2, nSpin2))
+      allocate(HSqrCplx(sqrHamSize, sqrHamSize, nK2, nSpin2))
       if (any(forceType == [ 1, 2, 3 ])) then
-        ALLOCATE_(HSqrCplx2, (sqrHamSize, sqrHamSize))
+        allocate(HSqrCplx2(sqrHamSize, sqrHamSize))
       end if
-      ALLOCATE_(SSqrCplx, (sqrHamSize, sqrHamSize))
+      allocate(SSqrCplx(sqrHamSize, sqrHamSize))
     end if
   end if
 
-  ALLOCATE_(rhoSqrReal, (0,0,0))
-  ALLOCATE_(dqAtom, (0))
+  allocate(rhoSqrReal(0,0,0))
+  allocate(dqAtom(0))
   if (tLinResp) then
-    DEALLOCATE_(dqAtom)
-    ALLOCATE_(dqAtom, (nAtom))
+    deallocate(dqAtom)
+    allocate(dqAtom(nAtom))
     if (tLinRespZVect) then
-      DEALLOCATE_(rhoSqrReal)
-      ALLOCATE_(rhoSqrReal, (sqrHamSize, sqrHamSize, nSpin))
-    end if    
+      deallocate(rhoSqrReal)
+      allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
+    end if
   end if
-  
+
   if (tLinResp .and. tPrintExcitedEigVecs) then
     ALLOCATE(naturalOrbs(nOrb,nOrb,1))
     ALLOCATE(occNatural(nOrb,1))
@@ -399,12 +402,12 @@ program dftbplus
   end if
   naturalOrbs = 0.0_dp
   occNatural = 0.0_dp
-  
+
   if (tMD) then
-    ALLOCATE_(velocities,(3,nAtom))
-    ALLOCATE_(movedVelo, (3, nMovedAtom))
-    ALLOCATE_(movedAccel, (3, nMovedAtom))
-    ALLOCATE_(movedMass, (3, nMovedAtom))
+    allocate(velocities(3,nAtom))
+    allocate(movedVelo(3, nMovedAtom))
+    allocate(movedAccel(3, nMovedAtom))
+    allocate(movedMass(3, nMovedAtom))
     movedMass(:,:) = spread(mass(indMovedAtom),1,3)
     velocities(:,:) = 0.0_dp
   end if
@@ -445,7 +448,7 @@ program dftbplus
   end if
 
   lpGeomOpt: do while (iGeoStep <= nGeoSteps)
-        
+
     if (tSocket) then
       call socket%receive(coord0, latvec)
       cellVol = determinant33(latVec)
@@ -486,19 +489,19 @@ program dftbplus
     else
       write (*, "(/,'***  Geometry step: ',I0,/)") iGeoStep
     end if
-    
-    
+
+
     if (tPeriodic) then
       invLatVec = transpose(latVec)
       call matinv(invLatVec)
       CellVol = abs(determinant33(latVec))
-      
+
       ! derivative of pV term in Gibbs energy
       if (tStress.and.pressure/=0.0_dp) then
         call derivDeterminant33(derivCellVol,latVec)
         derivCellVol(:,:) = pressure * derivCellVol(:,:)
       end if
-      
+
     end if
 
     !! Save old coordinates and fold coords to unit cell
@@ -521,21 +524,21 @@ program dftbplus
 
     !! Reallocate density matrixes if necessary
     if (size(ham, dim=1) > size(rhoPrim, dim=1)) then
-      DEALLOCATE_(H0)
-      ALLOCATE_(H0,(size(ham,dim=1)))
-      DEALLOCATE_(rhoPrim)
-      ALLOCATE_(rhoPrim,(size(ham,dim=1),nSpin))
+      deallocate(H0)
+      allocate(H0(size(ham,dim=1)))
+      deallocate(rhoPrim)
+      allocate(rhoPrim(size(ham,dim=1),nSpin))
       if (tImHam) then
-        DEALLOCATE_(iRhoPrim)
-        ALLOCATE_(iRhoPrim,(size(ham,dim=1),nSpin))
-        DEALLOCATE_PARR(iHam)
-        INITALLOCATE_PARR(iHam,(size(ham,dim=1),nSpin))
+        deallocate(iRhoPrim)
+        allocate(iRhoPrim(size(ham,dim=1),nSpin))
+        deallocate(iHam)
+        allocate(iHam(size(ham,dim=1),nSpin))
       end if
       if (tForces) then
-        DEALLOCATE_(ERhoPrim)
-        ALLOCATE_(ERhoPrim,(size(ham,dim=1)))
-        DEALLOCATE_(ERhoPrim2)
-        ALLOCATE_(ERhoPrim2, (size(ham, dim=1)))
+        deallocate(ERhoPrim)
+        allocate(ERhoPrim(size(ham,dim=1)))
+        deallocate(ERhoPrim2)
+        allocate(ERhoPrim2(size(ham, dim=1)))
       end if
     end if
 
@@ -564,7 +567,7 @@ program dftbplus
 
     !! Adapt electron temperature to MD, if necessary
     if (tSetFillingTemp) then
-      call getTemperature(pTempProfile, tempElec)
+      call getTemperature(temperatureProfile, tempElec)
     end if
 
     if (tXlbomd) then
@@ -813,11 +816,11 @@ program dftbplus
             else
               call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), filling(:,1,iSpin))
             end if
-            
+
             if (tLinResp .and. tLinRespZVect) then
               rhoSqrReal(:,:,iSpin) = SSqrReal
             end if
-            
+
             call packHS(rhoPrim(:,iSpin), SSqrReal, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
                   & iAtomStart, iPair, img2CentCell)
 
@@ -927,7 +930,7 @@ program dftbplus
         if (tSpinOrbit) then
           energy%atomLS = 0.0_dp
           if (.not.tDualSpinOrbit) then
-            ALLOCATE_(rVecTemp,(nAtom))
+            allocate(rVecTemp(nAtom))
           end if
         end if
         if (tImHam .and. tMulliken) then
@@ -980,7 +983,7 @@ program dftbplus
 
         end do nkLoop4
         if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-          DEALLOCATE_(rVecTemp)
+          deallocate(rVecTemp)
           energy%ELS = sum(energy%atomLS(:))
         end if
         filling(:,1:nKPoint,1) = 0.5_dp * filling(:,1:nKPoint,1)
@@ -1690,13 +1693,13 @@ program dftbplus
     energy%Eexcited = 0.0_dp
     excitedDerivs = 0.0_dp
     if (tLinResp) then
-      ASSERT(.not. t3rd .and. tRealHS)
+      @:ASSERT(.not. t3rd .and. tRealHS)
       dqAtom = sum( qOutput(:,:,1) - q0(:,:,1) , dim=1)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor,&
           & iAtomStart, iPair, img2CentCell)
       call blockSymmetrizeHS(SSqrReal, iAtomStart)
       if (tForces) then
-        ASSERT(.not. tPeriodic)
+        @:ASSERT(.not. tPeriodic)
         do iSpin = 1, nSpin
           call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), iAtomStart)
         end do
@@ -1704,10 +1707,10 @@ program dftbplus
       if (tWriteTagged) then
         open(fdTagged, file=taggedOut, position="append")
       end if
-      
+
       if (tLinRespZVect) then
         if (tPrintExcitedEigVecs) then
-          
+
           call addGradients(tSpin, lresp, iAtomStart, &
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
@@ -1715,12 +1718,12 @@ program dftbplus
               & fdTagged, energy%Eexcited, tForces, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal, occNatural=occNatural(:,1), &
               & naturalOrbs=naturalOrbs(:,:,1))
-          
+
           call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
               & nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, &
               & speciesName, over, naturalOrbs(:,:,1:1), SSqrReal, &
               & fileName="excitedOrbs")
-          
+
         else
           call addGradients(tSpin, lresp, iAtomStart, &
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
@@ -1744,10 +1747,10 @@ program dftbplus
     if (tXlbomd) then
       if (xlbomdIntegrator%needsInverseJacobian()) then
         write(*, "(A)") ">> Updating XLBOMD Inverse Jacobian"
-        ALLOCATE_(invJacobian, (nIneqOrb, nIneqOrb))
+        allocate(invJacobian(nIneqOrb, nIneqOrb))
         call getInverseJacobian(pChrgMixer, invJacobian)
         call xlbomdIntegrator%setInverseJacobian(invJacobian)
-        DEALLOCATE_(invJacobian)
+        deallocate(invJacobian)
       end if
 
       call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), &
@@ -1838,7 +1841,7 @@ program dftbplus
         end if
       end if
     end if
-    
+
     if (tGeoOpt .or. tMD) then
       if (iGeoStep == 0) then
         write (lcTmp, "(A,A)") trim(geoOutFile), ".gen"
@@ -1848,8 +1851,8 @@ program dftbplus
       end if
       write (lcTmp, "(A,A)") trim(geoOutFile), ".xyz"
     end if
-    
-    if (tGeoOpt) then      
+
+    if (tGeoOpt) then
       if (.not. tAppendGeo) then
         call clearFile(trim(lcTmp))
       end if
@@ -1861,10 +1864,10 @@ program dftbplus
       end if
       ! save geometry in gen format
       call writeGenGeometry()
-      
+
       if (tPrintMulliken) then
         if (nSpin == 4) then
-          ALLOCATE_(tmpMatrix,(3,nAtom))
+          allocate(tmpMatrix(3,nAtom))
           do jj = 1, nAtom
             do ii = 1, 3
               tmpMatrix(ii,jj) = sum(qOutput(:,jj,ii+1))
@@ -1875,7 +1878,7 @@ program dftbplus
           call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
               &charges=sum(qOutput(:,:,1),dim=1), velocities = tmpMatrix, &
               & comment=trim(tmpStr))
-          DEALLOCATE_(tmpMatrix)
+          deallocate(tmpMatrix)
         else
           call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
               &charges=sum(qOutput(:,:,1),dim=1),comment=trim(tmpStr))
@@ -1899,12 +1902,13 @@ program dftbplus
         dipoleMoment(:) = dipoleMoment(:) &
             & + sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * coord(:,iAtom)
       end do
-#if DEBUG >= 1
+
+    #:call DEBUG_CODE
       ! extra test for the potential in the code, does the dipole from
       ! charge positions match the derivative of energy wrt an external E field?
-      ALLOCATE_(hprime,(size(h0),1))
-      ALLOCATE_(dipoleTmp,(size(qOutput,dim=1),nAtom))
-      ALLOCATE_(potentialDerivative,(nAtom,1))
+      allocate(hprime(size(h0),1))
+      allocate(dipoleTmp(size(qOutput,dim=1),nAtom))
+      allocate(potentialDerivative(nAtom,1))
       write(*,"(A)",advance='no')'Hellmann Feynman dipole:'
       do ii = 1, 3 ! loop over directions
         potentialDerivative = 0.0_dp
@@ -1924,10 +1928,10 @@ program dftbplus
         write(*,"(f12.8)",advance='no')sum(dipoleTmp)
       end do
       write(*,*)" au"
-      DEALLOCATE_(potentialDerivative)
-      DEALLOCATE_(hprime)
-      DEALLOCATE_(dipoleTmp)
-#endif
+      deallocate(potentialDerivative)
+      deallocate(hprime)
+      deallocate(dipoleTmp)
+    #:endcall DEBUG_CODE
     else
       dipoleMoment(:) = 0.0_dp
     end if
@@ -2225,7 +2229,7 @@ program dftbplus
 
           call addStressDCSCC(elecStress,species,neighborList%iNeighbor, &
               & img2CentCell,coord)
-          
+
         else
           if (tImHam) then
             call getBlockiStress(elecStress, nonSccDeriv, rhoPrim, iRhoPrim,&
@@ -2244,7 +2248,7 @@ program dftbplus
           call dispersion%getStress(dispStress)
           dispLatDeriv = -CellVol * matmul(dispStress,invLatVec)
         end if
-        
+
         if (tEField) then
           elecLatDeriv = 0.0_dp
           call cart2frac(coord0,latVec)
@@ -2261,22 +2265,22 @@ program dftbplus
           elecStress = elecStress &
               & -matmul(elecLatDeriv,transpose(latVec))/CellVol
         end if
-        
-        totalStress = repulsiveStress + elecStress + dispStress 
-        
+
+        totalStress = repulsiveStress + elecStress + dispStress
+
         cellPressure = ( totalStress(1,1) + totalStress(2,2) &
             & + totalStress(3,3) )/3.0_dp
-        
+
         repulsiveLatDeriv = -CellVol * matmul(repulsiveStress,invLatVec)
-        elecLatDeriv = -CellVol * matmul(elecStress,invLatVec)        
+        elecLatDeriv = -CellVol * matmul(elecStress,invLatVec)
         totalLatDeriv = repulsiveLatDeriv + elecLatDeriv + dispLatDeriv
 
         write(*,format2Ue)'Volume',CellVol,'au^3',(Bohr__AA**3)*CellVol,'A^3'
-        
+
       end if
-      
+
     end if
-    
+
     ! MD case includes atomic kinetic energy contribution, so print that later
     if (tStress .and. .not. tMD) then
       write(*,format2Ue)'Pressure',cellPressure,'au',&
@@ -2448,7 +2452,7 @@ program dftbplus
           print "('>> Charges saved for restart in ',A)", fChargeIn
         end if
         if (tDerivs) then
-          call next(pDerivDriver,new3Coord,totalDeriv(:,indMovedAtom), tGeomEnd)
+          call next(derivDriver, new3Coord, totalDeriv(:,indMovedAtom), tGeomEnd)
           coord0(:,indMovedAtom) = new3Coord(:,:)
           if (tGeomEnd) exit lpGeomOpt
         elseif (tGeoOpt) then
@@ -2485,8 +2489,8 @@ program dftbplus
         elseif(tMD) then
           movedAccel(:,:) = -totalDeriv(:,indMovedAtom) / movedMass
           call next(pMDIntegrator, movedAccel ,new3Coord, movedVelo)
-          if (associated(pTempProfile)) then
-            call next(pTempProfile)
+          if (allocated(temperatureProfile)) then
+            call next(temperatureProfile)
           end if
           call evalKE(KE, movedVelo, movedMass(1,:))
           call evalkT(pMDFrame, kT, movedVelo, movedMass(1,:))
@@ -2505,22 +2509,22 @@ program dftbplus
                   &comment=trim(tmpStr))
             end if
           end if
-          
+
           if (tStress) then
 
             ! contribution from kinetic energy in MD, now that velocities for
             ! this geometry step are available
             call getKineticStress(kineticStress, mass, species0, velocities, &
                 & CellVol)
-            
+
             totalStress = totalStress + kineticStress
             cellPressure = ( totalStress(1,1) + totalStress(2,2) &
                 & + totalStress(3,3) )/3.0_dp
-            
+
             totalLatDeriv = -CellVol * matmul(totalStress,invLatVec)
-            
+
           end if
-          
+
           if (tStress .and. tWriteDetailedOut .and. tPrintForces) then
             write(fdUser,*)'Total stress tensor'
             do ii = 1, 3
@@ -2821,7 +2825,7 @@ program dftbplus
   end if
 
   if (tDerivs) then
-    call getHessianMatrix(pDerivDriver,pDynMatrix)
+    call getHessianMatrix(derivDriver, pDynMatrix)
     write(*,*)'Hessian matrix written to ',hessianOut
     do ii = 1, size(pDynMatrix,dim=2)
       write(fdHessian,formatHessian)pDynMatrix(:,ii)
@@ -3024,11 +3028,11 @@ program dftbplus
     call writeChildValue(xf, "nrofspins", nSpin)
     call writeChildValue(xf, "nrofstates", size(eigen, dim=1))
     call writeChildValue(xf, "nroforbitals", nOrb)
-    ALLOCATE_(bufferRealR2, (4, nKPoint))
+    allocate(bufferRealR2(4, nKPoint))
     bufferRealR2(1:3, :) = kPoint(:,:)
     bufferRealR2(4, :) = kWeight(:)
     call writeChildValue(xf, "kpointsandweights", bufferRealR2)
-    DEALLOCATE_(bufferRealR2)
+    deallocate(bufferRealR2)
     call xml_NewElement(xf, "occupations")
     do ii = 1, nSpin
       call xml_NewElement(xf, "spin" // i2c(ii))
@@ -3050,53 +3054,7 @@ program dftbplus
     call xml_Close(xf)
   end if
 
-  DEALLOCATE_(orbitalL)
-  DEALLOCATE_(orbitalLPart)
-  DEALLOCATE_(new3Coord)
-  DEALLOCATE_(tmpDerivs)
-
-  !! Deallocate arrays
-  DEALLOCATE_(filling)
-
-  if (tForces) then
-    DEALLOCATE_(derivs)
-    DEALLOCATE_(repulsiveDerivs)
-    DEALLOCATE_(chrgForces)
-  end if
-
-  call destroy(energy)
-  call destroy(potential)
-
-  if (tMulliken) then
-    DEALLOCATE_(qOutput)
-    DEALLOCATE_(qInput)
-    DEALLOCATE_(q0)
-  end if
-  DEALLOCATE_(rhoPrim)
-  DEALLOCATE_(iRhoPrim)
-  if (tForces) then
-    DEALLOCATE_(ERhoPrim)
-  end if
-
-  if (tMD) then
-    DEALLOCATE_(velocities)
-    DEALLOCATE_(movedVelo)
-    DEALLOCATE_(movedAccel)
-    DEALLOCATE_(movedMass)
-  end if
-
-  DEALLOCATE_(HSqrCplx)
-  DEALLOCATE_(SSqrCplx)
-  DEALLOCATE_(HSqrReal)
-  DEALLOCATE_(SSqrReal)
-  DEALLOCATE_(eigen)
-
-  if (tSCC) then
-    call destruct_SCC()
-    call destroy(pChrgMixer)
-  end if
-
-  call destroyProgramVariables()
+  call destructProgramVariables()
 
 contains
 
@@ -3277,5 +3235,5 @@ contains
       end if
     end if
   end subroutine writeGenGeometry
-  
+
 end program dftbplus

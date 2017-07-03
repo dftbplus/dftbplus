@@ -5,11 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to calculate the coulombic interaction in non periodic
 !!* and periodic systems.
 module coulomb
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use message
   use errorfunction
@@ -43,7 +44,7 @@ module coulomb
     module procedure addInvRPrimeXlbomd_cluster
     module procedure addInvRPrimeXlbomd_periodic
   end interface addInvRPrimeXlbomd
-  
+
   character(len=100) :: error_string     !* Used to return runtime diagnostics
   character(len=*), parameter :: ftTooClose = &
       &"('The objects with the following indexes are too close to each other',&
@@ -52,7 +53,7 @@ module coulomb
   !! Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
-  
+
 contains
 
 
@@ -68,9 +69,9 @@ contains
     integer :: ii, jj
     real(dp) :: dist, vect(3)
 
-    ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
 
     invRMat(:,:) = 0.0_dp
     do ii = 1, nAtom
@@ -107,15 +108,17 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp
 
-    ASSERT(size(invRVec) == nAtom0)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(charges1) == nAtom1)
-    ASSERT_ENV(if (present(blurWidths1)) then)
-    ASSERT_ENV(  ASSERT(size(blurWidths1) == nAtom1))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(invRVec) == nAtom0)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(charges1) == nAtom1)
+  #:call ASSERT_CODE
+    if (present(blurWidths1)) then
+      @:ASSERT(size(blurWidths1) == nAtom1)
+    end if
+  #:endcall ASSERT_CODE
 
     !! Doing blurring and non blurring case separately in order to avoid
     !! the if branch deep in the loop
@@ -151,9 +154,9 @@ contains
         end do
       end do
     end if
-    
+
   end subroutine sumInvR_cluster_asymm
-  
+
 
 
   !!* Calculates the 1/R Matrix for all atoms for the periodic case.
@@ -184,12 +187,12 @@ contains
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
 
-    ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(volume > 0.0_dp)
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
 
     !! Real space part of the Ewald sum.
     invRMat(:,:) = 0.0_dp
@@ -237,7 +240,7 @@ contains
       &coord1, charges1, rLat, gLat, alpha, volume)
     real(dp), intent(out) :: invRVec(:)
     integer, intent(in) :: nAtom0
-    integer, intent(in) :: nAtom1    
+    integer, intent(in) :: nAtom1
     real(dp), intent(in)  :: coord0(:,:)
     real(dp), intent(in)  :: coord1(:,:)
     real(dp), intent(in)  :: charges1(:)
@@ -248,16 +251,16 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
-    
-    ASSERT(size(invRVec) == nAtom0)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(charges1) == nAtom1)
-    ASSERT(size(rLat, dim=1) == 3)
-    ASSERT(size(gLat, dim=1) == 3)    
-    ASSERT(volume > 0.0_dp)
+
+    @:ASSERT(size(invRVec) == nAtom0)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(charges1) == nAtom1)
+    @:ASSERT(size(rLat, dim=1) == 3)
+    @:ASSERT(size(gLat, dim=1) == 3)
+    @:ASSERT(volume > 0.0_dp)
 
     invRVec(:) = 0.0_dp
     do iAt0 = 1, nAtom0
@@ -271,8 +274,8 @@ contains
   end subroutine sumInvR_periodic_asymm
 
 
-  
-  !!* Calculates the -1/R**2 deriv contribution for all atoms for the 
+
+  !!* Calculates the -1/R**2 deriv contribution for all atoms for the
   !!* non-periodic case, without storing anything.
   !!* @param deriv Contains the derivative on exit.
   !!* @param nAtom Number of atoms
@@ -283,16 +286,16 @@ contains
     integer, intent(in) :: nAtom
     real(dp), intent(in)  :: coord(:,:)
     real(dp), intent(in)  :: deltaQAtom(:)
-    
+
     integer :: ii, jj
     real(dp) :: dist, vect(3), fTmp
 
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(deltaQAtom) == nAtom)
-    
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(deltaQAtom) == nAtom)
+
     do ii = 1, nAtom
       do jj = ii + 1, nAtom
         vect(:) = coord(:,ii) - coord(:,jj)
@@ -304,27 +307,27 @@ contains
         deriv(:,jj) = deriv(:,jj) - vect(:)*fTmp
       end do
     end do
-    
+
   end subroutine addInvRPrime_cluster
 
-  
+
 
   subroutine addInvRPrimeXlbomd_cluster(nAtom, coord, dQInAtom, dQOutAtom, &
       & deriv)
     integer, intent(in) :: nAtom
     real(dp), intent(in) :: coord(:,:), dQInAtom(:), dQOutAtom(:)
     real(dp), intent(inout) :: deriv(:,:)
-    
+
     integer :: iAt1, iAt2
     real(dp) :: dist, vect(3), fTmp, prefac
 
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(dQInAtom) == nAtom)
-    ASSERT(size(dQOutAtom) == nAtom)
-    
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(dQInAtom) == nAtom)
+    @:ASSERT(size(dQOutAtom) == nAtom)
+
     do iAt1 = 1, nAtom
       do iAt2 = iAt1 + 1, nAtom
         vect(:) = coord(:,iAt1) - coord(:,iAt2)
@@ -338,12 +341,12 @@ contains
         deriv(:,iAt2) = deriv(:,iAt2) - vect *fTmp
       end do
     end do
-    
+
   end subroutine addInvRPrimeXlbomd_cluster
 
 
 
-  !!* Calculates the -1/R**2 deriv contribution for charged atoms interacting 
+  !!* Calculates the -1/R**2 deriv contribution for charged atoms interacting
   !!* with a group of charged objects (like point charges) for the non-periodic
   !!* case, without storing anything.
   !!* @param deriv0 Contains the derivative for the first group
@@ -359,29 +362,31 @@ contains
     real(dp), intent(inout) :: deriv0(:,:)
     real(dp), intent(inout) :: deriv1(:,:)
     integer, intent(in) :: nAtom0
-    integer, intent(in) :: nAtom1    
+    integer, intent(in) :: nAtom1
     real(dp), intent(in)  :: coord0(:,:)
     real(dp), intent(in)  :: coord1(:,:)
     real(dp), intent(in)  :: charge0(:)
     real(dp), intent(in)  :: charge1(:)
     real(dp), intent(in), optional  :: blurWidths1(:)
-    
+
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
 
-    ASSERT(size(deriv0, dim=1) == 3)
-    ASSERT(size(deriv0, dim=2) >= nAtom0)
-    ASSERT(size(deriv1, dim=1) == 3)
-    ASSERT(size(deriv1, dim=2) >= nAtom1)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(charge0) == nAtom0)
-    ASSERT(size(charge1) == nAtom1)
-    ASSERT_ENV(if (present(blurWidths1)) then)
-    ASSERT_ENV(  ASSERT(size(blurWidths1) == nAtom1))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(deriv0, dim=1) == 3)
+    @:ASSERT(size(deriv0, dim=2) >= nAtom0)
+    @:ASSERT(size(deriv1, dim=1) == 3)
+    @:ASSERT(size(deriv1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(charge0) == nAtom0)
+    @:ASSERT(size(charge1) == nAtom1)
+  #:call ASSERT_CODE
+    if (present(blurWidths1)) then
+      @:ASSERT(size(blurWidths1) == nAtom1)
+    end if
+  #:endcall ASSERT_CODE
 
     !! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
@@ -422,11 +427,11 @@ contains
         end do
       end do
     end if
-    
+
   end subroutine addInvRPrime_cluster_asymm
 
 
-  
+
   !!* Calculates the -1/R**2 deriv contribution for the periodic case, without
   !!* storing anything.
   !!* @param deriv          Derivative on exit
@@ -454,22 +459,22 @@ contains
     real(dp), intent(in)    :: alpha
     real(dp), intent(in)    :: volume
     real(dp), intent(in)    :: deltaQAtom(:)
-    
+
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
     real(dp) :: r(3)
-    
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(volume > 0.0_dp)
-    ASSERT(size(deltaQAtom) == nAtom)
+
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
+    @:ASSERT(size(deltaQAtom) == nAtom)
 
     do iAtom1 = 1, nAtom
-      
-      ! d(1/R)/dr real space      
+
+      ! d(1/R)/dr real space
       do iNeigh = 1, nNeighborEwald(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
@@ -483,7 +488,7 @@ contains
             & deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
         end if
       end do
-      
+
       ! d(1/R)/dr reciprocal space
       do iAtom2 = iAtom1+1, nAtom
         r(:) = coord(:,iAtom1)-coord(:,iAtom2)
@@ -494,7 +499,7 @@ contains
             & - derivEwaldReciprocal(r, recPoint, &
             & alpha, volume) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2)
       end do
-      
+
     end do
 
   end subroutine addInvRPrime_periodic
@@ -511,19 +516,19 @@ contains
     real(dp), intent(in) :: alpha, volume
     real(dp), intent(in) :: dQInAtom(:), dQOutAtom(:)
     real(dp), intent(inout) :: deriv(:,:)
-    
+
     integer :: iAt1, iAt2, iAt2f, iNeigh
     real(dp) :: rr(3), contrib(3), prefac
-    
-    ASSERT(size(deriv, dim=1) == 3)
-    ASSERT(size(deriv, dim=2) >= nAtom)
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(volume > 0.0_dp)
-    ASSERT(size(dQOutAtom) == nAtom)
-    ASSERT(size(dQInAtom) == nAtom)
+
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) >= nAtom)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
+    @:ASSERT(size(dQOutAtom) == nAtom)
+    @:ASSERT(size(dQInAtom) == nAtom)
 
     do iAt1 = 1, nAtom
       ! real space
@@ -541,7 +546,7 @@ contains
         deriv(:,iAt1) = deriv(:,iAt1) + contrib
         deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
       end do
-      
+
       ! reciprocal space
       do iAt2 = iAt1 + 1, nAtom
         rr(:) = coord(:,iAt1) - coord(:,iAt2)
@@ -556,9 +561,9 @@ contains
 
   end subroutine addInvRPrimeXlbomd_periodic
 
-  
 
-  !!* Calculates the -1/R**2 deriv contribution for charged atoms interacting 
+
+  !!* Calculates the -1/R**2 deriv contribution for charged atoms interacting
   !!* with a group of charged objects (like point charges) for the periodic
   !!* case, without storing anything.
   !!* @param deriv0 Contains the derivative for the first group on exit
@@ -588,23 +593,23 @@ contains
     real(dp), intent(in)    :: gVec(:,:)
     real(dp), intent(in)    :: alpha
     real(dp), intent(in)    :: vol
-    
+
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
-    
-    ASSERT(size(deriv0, dim=1) == 3)
-    ASSERT(size(deriv0, dim=2) == nAtom0)
-    ASSERT(size(deriv1, dim=1) == 3)
-    ASSERT(size(deriv1, dim=2) >= nAtom1)
-    ASSERT(size(coord0, dim=1) == 3)
-    ASSERT(size(coord0, dim=2) >= nAtom0)
-    ASSERT(size(coord1, dim=1) == 3)
-    ASSERT(size(coord1, dim=2) >= nAtom1)
-    ASSERT(size(charge0) == nAtom0)
-    ASSERT(size(charge1) == nAtom1)
-    ASSERT(size(rVec, dim=1) == 3)
-    ASSERT(size(gVec, dim=1) == 3)
-    ASSERT(vol > 0.0_dp)
+
+    @:ASSERT(size(deriv0, dim=1) == 3)
+    @:ASSERT(size(deriv0, dim=2) == nAtom0)
+    @:ASSERT(size(deriv1, dim=1) == 3)
+    @:ASSERT(size(deriv1, dim=2) >= nAtom1)
+    @:ASSERT(size(coord0, dim=1) == 3)
+    @:ASSERT(size(coord0, dim=2) >= nAtom0)
+    @:ASSERT(size(coord1, dim=1) == 3)
+    @:ASSERT(size(coord1, dim=2) >= nAtom1)
+    @:ASSERT(size(charge0) == nAtom0)
+    @:ASSERT(size(charge1) == nAtom1)
+    @:ASSERT(size(rVec, dim=1) == 3)
+    @:ASSERT(size(gVec, dim=1) == 3)
+    @:ASSERT(vol > 0.0_dp)
 
     do iAt0 = 1, nAtom0
       do iAt1 = 1, nAtom1
@@ -622,9 +627,9 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine addInvRPrime_periodic_asymm
-  
+
 
 
   !!* Get optimal alpha-parameter for the Ewald summation by finding alpha,
@@ -649,10 +654,10 @@ contains
     integer  :: iIter
     integer  :: iError
 
-    ASSERT(all(shape(latVec) == (/3, 3/)))
-    ASSERT(all(shape(recVec) == (/3, 3/)))
-    ASSERT(volume > 0.0_dp)
-    ASSERT(tolerance > 0.0_dp)
+    @:ASSERT(all(shape(latVec) == (/3, 3/)))
+    @:ASSERT(all(shape(recVec) == (/3, 3/)))
+    @:ASSERT(volume > 0.0_dp)
+    @:ASSERT(tolerance > 0.0_dp)
 
     minG = sqrt(minval(sum(recVec(:,:)**2, dim=1)))
     minR = sqrt(minval(sum(latVec(:,:)**2, dim=1)))
@@ -859,7 +864,7 @@ contains
   end function ewald
 
 
-  
+
   !!* Returns the reciprocal part of the Ewald sum.
   !!* @param rr    Vector where to calculate the Ewald sum.
   !!* @param gVec  Reciprocal space vectors to sum over (Should not contain
@@ -876,9 +881,9 @@ contains
     real(dp) :: gg(3), g2
     integer  :: iG
 
-    ASSERT(size(gVec, dim=1) == 3)
-    ASSERT(size(rr) == 3)
-    ASSERT(vol > 0.0_dp)
+    @:ASSERT(size(gVec, dim=1) == 3)
+    @:ASSERT(size(rr) == 3)
+    @:ASSERT(vol > 0.0_dp)
 
     recSum = 0.0_dp
     do iG = 1, size(gVec, dim=2)
@@ -892,7 +897,7 @@ contains
   end function ewaldReciprocal
 
 
-  
+
   !!* Returns the derivative of the reciprocal part of the Ewald sum.
   !!* @param rr    Vector where to calculate the Ewald sum.
   !!* @param gVec  Reciprocal space vectors to sum over (Should not contain
@@ -908,11 +913,11 @@ contains
 
     real(dp) :: gg(3), g2
     integer  :: iG
-    
-    ASSERT(size(gVec, dim=1) == 3)
-    ASSERT(size(rr) == 3)
-    ASSERT(vol > 0.0_dp)
-    
+
+    @:ASSERT(size(gVec, dim=1) == 3)
+    @:ASSERT(size(rr) == 3)
+    @:ASSERT(vol > 0.0_dp)
+
     recSum(:) = 0.0_dp
     do iG = 1, size(gVec, dim=2)
       gg(:) = gVec(:,iG)
@@ -926,7 +931,7 @@ contains
   end function derivEwaldReciprocal
 
 
-  
+
   !!* Returns the real space part of the Ewald sum.
   !!* @param rr    Vector where to calculate the Ewald sum.
   !!* @param rVec  Real space vectors to sum over. (Should contain origin).
@@ -941,8 +946,8 @@ contains
     integer  :: iR
 
 
-    ASSERT(size(rVec, dim=1) == 3)
-    ASSERT(size(rr) == 3)
+    @:ASSERT(size(rVec, dim=1) == 3)
+    @:ASSERT(size(rr) == 3)
 
     realSum = 0.0_dp;
     do iR = 1, size(rVec, dim=2)
@@ -955,7 +960,7 @@ contains
 
   end function ewaldReal
 
-  
+
 
   !!* Returns the derivative of the real space part of the Ewald sum.
   !!* @param rr    Vector where to calculate the Ewald sum.
@@ -971,8 +976,8 @@ contains
     real(dp) :: rr
     integer  :: iR
 
-    ASSERT(size(rVec, dim=1) == 3)
-    ASSERT(size(rdiff) == 3)
+    @:ASSERT(size(rVec, dim=1) == 3)
+    @:ASSERT(size(rdiff) == 3)
 
     dewr = 0.0_dp;
     do iR = 1, size(rVec, dim=2)
@@ -987,9 +992,9 @@ contains
     end do
 
   end function derivEwaldReal
-  
 
-  
+
+
   !!* Returns the difference in the decrease of the real and reciprocal parts
   !!* of the Ewald sum.
   !!* @param alpha  Parameter for the Ewald summation.
@@ -1006,7 +1011,7 @@ contains
     real(dp), intent(in) :: volume
     real(dp) :: diff
 
-    ASSERT(volume > 0.0_dp)
+    @:ASSERT(volume > 0.0_dp)
 
     diff = ((gTerm(4.0_dp*minG, alpha, volume) &
         &- gTerm(5.0_dp*minG, alpha, volume))) &
@@ -1042,13 +1047,13 @@ contains
     real(dp), intent(in) :: alpha
     real(dp) :: rTerm
 
-    ASSERT(rr >= epsilon(1.0_dp))
+    @:ASSERT(rr >= epsilon(1.0_dp))
 
     rTerm = erfcwrap(alpha*rr)/rr
 
   end function rTerm
 
-  
+
   !!* Returns the derivative of a term in the real space part of the
   !!* Ewald summation for a given vector length.
   !!* @param rr    Length of the real space vector.
@@ -1060,15 +1065,15 @@ contains
 
     real(dp) :: rr
     rr = sqrt(sum(r(:)**2))
-    
-    ASSERT(rr >= epsilon(1.0_dp))
- 
+
+    @:ASSERT(rr >= epsilon(1.0_dp))
+
     derivRTerm (:) = r(:)*(-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* &
         & alpha*rr - erfcwrap(alpha*rr))/(rr*rr*rr)
 
   end function derivRTerm
 
-  
+
   !!* Calculates the stress tensor derivatives of the Ewald electrostatics
   !!* @param stress       Stress tensor
   !!* @param nAtom        Number of atoms.
@@ -1096,21 +1101,21 @@ contains
     real(dp), intent(in)  :: alpha
     real(dp), intent(in)  :: volume
     real(dp), intent(in)  :: q(:)
-    
+
     integer  :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
     real(dp) :: r(3), f(3), g(3), g2, intermed, intermed2
     real(dp) :: stressTmp(3,3)
- 
-    ASSERT(all(shape(stress)==(/3,3/)))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(size(coord, dim=2) >= nAtom)
-    ASSERT(size(nNeighborEwald) == nAtom)
-    ASSERT(size(iNeighbor, dim=2) == nAtom)
-    ASSERT(size(q) == nAtom)
-    ASSERT(volume > 0.0_dp)
- 
+
+    @:ASSERT(all(shape(stress)==(/3,3/)))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) >= nAtom)
+    @:ASSERT(size(nNeighborEwald) == nAtom)
+    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
+    @:ASSERT(size(q) == nAtom)
+    @:ASSERT(volume > 0.0_dp)
+
     stress(:,:) = 0.0_dp
-    
+
     !! Reciprocal space part of the Ewald sum.
     do ii = 1, size(recpoint, dim=2)
       do iInv = -1, 1, 2
@@ -1163,10 +1168,10 @@ contains
         end if
       end do
     end do
-    
+
     stress = stress / volume
 
   end subroutine invR_stress
 
-  
+
 end module coulomb

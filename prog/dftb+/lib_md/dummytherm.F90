@@ -5,11 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Dummy thermostat, delivers only initial velocities according to the
 !!* Maxwell-Boltzmann statistics.
 module dummytherm
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use mdcommon
   use ranlux
@@ -17,24 +18,20 @@ module dummytherm
   private
 
   public :: ODummyThermostat
-  public :: create, destroy, getInitVelocities, state
+  public :: init, getInitVelocities, state
 
   !!* Data for dummy thermostat
   type ODummyThermostat
     private
     integer :: nAtom                  !* Nr. of atoms
     real(dp) :: kT                    !* Temperature
-    real(dp), pointer :: mass(:)      !* Mass of the atoms
+    real(dp), allocatable :: mass(:)      !* Mass of the atoms
     type(ORanlux), pointer :: pRanlux !* Random number generator.
-    type(OMDCommon), pointer :: pMDFrame !* MD Framwork
+    type(OMDCommon) :: pMDFrame !* MD Framwork
   end type ODummyThermostat
 
-  interface create
-    module procedure DummyThermostat_create
-  end interface
-
-  interface destroy
-    module procedure DummyThermostat_destroy
+  interface init
+    module procedure DummyThermostat_init
   end interface
 
   interface getInitVelocities
@@ -51,47 +48,33 @@ contains
   !!* @param self Initialised DummyThermostat instance on return.
   !!* @param kT Temperature of the thermostat
   !!* @param pRanlux Random generator
-  subroutine DummyThermostat_create(self, kT, mass, pRanlux, pMDFrame)
-    type(ODummyThermostat), pointer :: self
+  subroutine DummyThermostat_init(self, kT, mass, pRanlux, pMDFrame)
+    type(ODummyThermostat), intent(out) :: self
     real(dp), intent(in) :: kT
     real(dp), intent(in) :: mass(:)
-    type(ORanlux), pointer :: pRanlux
-    type(OMDCommon), pointer :: pMDFrame
+    type(ORanlux), pointer, intent(in) :: pRanlux
+    type(OMDCommon), intent(in) :: pMDFrame
 
-    INITALLOCATE_P(self)
     self%kT = kT
     self%nAtom = size(mass)
-    INITALLOCATE_PARR(self%mass, (self%nAtom))
+    allocate(self%mass(self%nAtom))
     self%mass = mass(:)
     self%pRanlux => pRanlux
-    self%pMDFrame => pMDFrame
-    
-  end subroutine DummyThermostat_create
+    self%pMDFrame = pMDFrame
 
-  !!* Destroys a DummyThermostat instance.
-  !!* @param self DummyThermostat instance.
-  subroutine DummyThermostat_destroy(self)
-    type(ODummyThermostat), pointer :: self
+  end subroutine DummyThermostat_init
 
-    if (.not. associated(self)) then
-      return
-    end if
-    DEALLOCATE_PARR(self%mass)
-    DEALLOCATE_P(self)
-    
-  end subroutine DummyThermostat_destroy
 
   !!* Returns the initial velocities.
   !!* @param self Thermostat instance.
   !!* @param velocities Contains the velocities on return.
   subroutine DummyThermostat_getInitVelos(self, velocities)
-    type(ODummyThermostat), pointer :: self
+    type(ODummyThermostat), intent(inout) :: self
     real(dp), intent(out) :: velocities(:,:)
 
     integer :: ii
 
-    ASSERT(associated(self))
-    ASSERT(all(shape(velocities) >= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) >= (/ 3, self%nAtom /)))
 
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), self%kT, &
@@ -101,13 +84,13 @@ contains
     call rescaleTokT(self%pMDFrame, velocities(:,:), self%mass, self%kT)
 
   end subroutine DummyThermostat_getInitVelos
-  
+
   subroutine DummyThermostat_state(self, fd)
-    type(ODummyThermostat), pointer :: self
+    type(ODummyThermostat), intent(in) :: self
     integer,intent(in)                  :: fd
-    
+
     ! no internal state, nothing to do
-    
+
   end subroutine DummyThermostat_state
-  
+
 end module dummytherm

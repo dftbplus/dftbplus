@@ -90,5 +90,5 @@ contains
     end if
 
   end subroutine getUffValues
-    
+
 end module dispuffdata

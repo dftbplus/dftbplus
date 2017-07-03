@@ -5,17 +5,18 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Common routines for MD calculations
 module mdcommon
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use constants
   use ranlux
   implicit none
   private
 
-  public :: OMDCommon, create, destroy, restFrame, evalKT, rescaleToKT
+  public :: OMDCommon, init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann
 
   !!* Contains necessary data for the MD framework
@@ -25,12 +26,8 @@ module mdcommon
     logical :: tStationary       ! Always transform to rest frame
   end type OMDCommon
 
-  interface create
-    module procedure MDCommon_create
-  end interface
-
-  interface destroy
-    module procedure MDCommon_destroy
+  interface init
+    module procedure MDCommon_init
   end interface
 
   interface restFrame
@@ -46,46 +43,33 @@ module mdcommon
   end interface
 
 
-contains  
+contains
 
   !!* Creates MD Framework.
   !!* @param sf MD Framework instance.
   !!* @param nMoverAtoms Number of moving atoms in the system
   !!* @param nAllAtom   Total number of real atoms in the system
   !!* @param tStationary  If system should be transformed to rest frame.
-  subroutine MDCommon_create(sf, nMovedAtom, nAllAtom, tStationary)
-    type(OMDCommon), pointer :: sf
+  subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, tStationary)
+    type(OMDCommon), intent(out) :: sf
     integer, intent(in) :: nMovedAtom
     integer, intent(in) :: nAllAtom
     logical             :: tStationary
 
-    ASSERT(nMovedAtom <= nAllAtom)
-    INITALLOCATE_P(sf)
+    @:ASSERT(nMovedAtom <= nAllAtom)
 
     if (nMovedAtom /= nAllAtom .or. .not. tStationary) then
       ! there are fixed atoms present, all  moving atoms have 3 degrees of fd.
-      sf%Nf = real(3 * nMovedAtom, dp) 
+      sf%Nf = real(3 * nMovedAtom, dp)
     else
       ! translational motion is removed, total of 3n - 3 degrees of freedom
       sf%Nf = real(3 * (nMovedAtom - 1), dp)
     end if
     sf%tStationary = tStationary
-    
-  end subroutine MDCommon_create
+
+  end subroutine MDCommon_init
 
 
-
-  !!* Destroys MD framework.
-  !!* @param sf MD Framework instance.
-  subroutine MDCommon_destroy(sf)
-    type(OMDCommon), pointer ::sf
-
-    DEALLOCATE_P(sf)
-
-  end subroutine MDCommon_destroy
-
-  
-  
   !!* Shift velocities so the total velocity is 0
   !!* @param sf MD Framework instance.
   !!* @param velocity particle velocities
@@ -94,7 +78,7 @@ contains
     type(OMDCommon), intent(in) :: sf
     real(dp), intent(inout) :: velocity(:,:)
     real(dp), intent(in) :: mass(:)
-    
+
     real(dp) :: mv(3)
 
     if (sf%tStationary) then
@@ -103,15 +87,15 @@ contains
 
       ! get the total velocity of the system
       mv(:) = mv(:) / sum(mass)
-      
+
       ! and shift so that it is 0
       velocity(:,:) = velocity(:,:) - spread(mv(:), 2, size(mass))
     end if
-    
+
   end subroutine MDCommon_restFrame
 
 
-  
+
   !!* Calculate the kinetic temperature of an integrator.
   !!* @param sf MD Framework instance.
   !!* @parameter kT resulting thermal energy
@@ -122,20 +106,20 @@ contains
     real(dp),intent(out) :: kT
     real(dp), intent(in) :: velocity(:,:)
     real(dp), intent(in) :: mass(:)
-    
+
     real(dp) :: kinE
-    
-    ASSERT(size(velocity,dim=2)==size(mass))
-    ASSERT(size(velocity,dim=1)==3)
-    
+
+    @:ASSERT(size(velocity,dim=2)==size(mass))
+    @:ASSERT(size(velocity,dim=1)==3)
+
     call evalKE(kinE, velocity, mass)
-    
+
     kT = 2.0_dp * kinE / sf%Nf
-    
+
   end subroutine MDCommon_evalKT
 
 
-  
+
   !!* Rescales the velocities of a system to match the target thermal energy.
   !!* @param sf MD Framework instance.
   !!* @param velocity particle velocities
@@ -146,19 +130,19 @@ contains
     real(dp), intent(inout) :: velocity(:,:)
     real(dp), intent(in)    :: mass(:)
     real(dp), intent(in)    :: kTtarget
-    
+
     real(dp) :: currentkT
-    
-    ASSERT(size(velocity,dim=2) == size(mass))
-    ASSERT(size(velocity,dim=1) == 3)
-    
+
+    @:ASSERT(size(velocity,dim=2) == size(mass))
+    @:ASSERT(size(velocity,dim=1) == 3)
+
     call evalkT(sf, currentkT, velocity, mass)
     velocity(:,:) = velocity(:,:) * sqrt(kTtarget/currentkT)
-    
+
   end subroutine MDCommon_rescaleTokT
 
 
-  
+
   !!* Calculate the kinetic energy of the atoms
   !!* @parameter kinE resulting energy
   !!* @param velocity particle velocities
@@ -167,12 +151,12 @@ contains
     real(dp),intent(out) :: kinE
     real(dp), intent(in) :: velocity(:,:)
     real(dp), intent(in) :: mass(:)
-    
-    ASSERT(size(velocity,dim=2) == size(mass))
-    ASSERT(size(velocity,dim=1) == 3)
-    
+
+    @:ASSERT(size(velocity,dim=2) == size(mass))
+    @:ASSERT(size(velocity,dim=1) == 3)
+
     kinE = 0.5_dp * sum(spread(mass(:),1,3) * velocity(:,:)**2)
-    
+
   end subroutine evalKE
 
 
@@ -187,7 +171,7 @@ contains
     real(dp), intent(out) :: eta2
     real(dp), intent(in)  :: u1
     real(dp), intent(in)  :: u2
-    
+
     real(dp) :: theta, a
 
     a = sqrt( -2.0_dp*log(u1) )
@@ -199,28 +183,28 @@ contains
   end subroutine BoxMueller
 
 
-  
+
   !!* Draws an atom velocity from a Maxwell-Boltzmann distribution.
   !!* @param velocity resulting velocity
   !!* @param mass atomic mass in a.u.
-  !!* @param kT system thermal energy 
+  !!* @param kT system thermal energy
   !!* @param pRanlux pointer to a random number generator
   subroutine MaxwellBoltzmann(velocity,mass,kT,pRanlux)
     real(dp), intent(out)  :: velocity(:)
     real(dp), intent(in)   :: mass
     real(dp), intent(in)   :: kT
     type(ORanlux), pointer :: pRanlux
-    
+
     real(dp) :: ranvals(7)
     real(dp) :: junk
-    
-    ASSERT(size(velocity)==3)
-    
+
+    @:ASSERT(size(velocity)==3)
+
     ! use the uniform distribution to get a normal (Gaussian) distribution
     ! and then scale to get a Maxwell-Boltzmann
-    
+
     call getRandom(pRanlux, ranvals)
-    
+
     call BoxMueller(velocity(1),velocity(2),ranvals(1),ranvals(2))
     call BoxMueller(velocity(3),junk,ranvals(3),ranvals(4))
 
@@ -235,7 +219,7 @@ contains
     end if
 
     velocity(:) = velocity(:) * sqrt(kT/mass)
-    
+
   end subroutine MaxwellBoltzmann
 
 end module mdcommon

@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines for interpolation and extrapolation
 module interpolation
-#include "assert.h"
+  use assert
   use accuracy
   use message
   implicit none
@@ -18,7 +20,7 @@ module interpolation
 
 contains
 
-  
+
   !!* Returns the value of a polynomial of 5th degree at x.
   !!* @param y0 Value of the polynom at x = dx.
   !!* @param y0p Value of the 1st derivative at x = dx.
@@ -50,7 +52,7 @@ contains
 
   end function poly5ToZero
 
-  
+
 
   !!* Returns the value of a free spline at a certain point.
   !!* @param y0 Function value at x = 0.
@@ -80,7 +82,7 @@ contains
 
     real(dp) :: aa, bb, cc, dd, dx1
 
-    ASSERT(present(yp) .eqv. present(ypp))
+    @:ASSERT(present(yp) .eqv. present(ypp))
 
     aa = y0
     bb = y0p
@@ -94,10 +96,10 @@ contains
       yp = (3.0_dp*dd*xx + 2.0_dp*cc)*xx + bb
       ypp = 6.0_dp * dd * xx + 2.0_dp * cc
     end if
-    
+
   end subroutine freeCubicSpline
 
-  
+
 
   !!* Polynomial interpolation through given points
   !!* @param xa x-coordinates of the fit points
@@ -121,8 +123,8 @@ contains
 
     nn = size(xp)
 
-    ASSERT(nn > 1)
-    ASSERT(size(yp) == nn)
+    @:ASSERT(nn > 1)
+    @:ASSERT(size(yp) == nn)
 
     cc(:) = yp(:)
     dd(:) = yp(:)
@@ -159,9 +161,9 @@ contains
     if (present(dy)) then
       dy = dyy
     end if
-    
-  end function polyInter
-      
 
-  
+  end function polyInter
+
+
+
 end module interpolation

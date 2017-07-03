@@ -5,11 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains subroutines for the periodic boundary conditions and neighbour
 !!* data
 module periodic
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use constants, only : pi
   use message
@@ -25,12 +26,12 @@ module periodic
 
   public :: getCellTranslations, getLatticePoints, foldCoordToUnitCell
   public :: reallocateHS, buildSquaredAtomIndex
-  public :: TNeighborList, init, destroy
+  public :: TNeighborList, init
   public :: updateNeighborList, updateNeighborListAndSpecies
   public :: getNrOfNeighbors, getNrOfNeighborsForAll
   public :: getImgRange, getSuperSampling
   public :: frac2cart, cart2frac
-  
+
   interface reallocateHS
     module procedure reallocateHS_1
     module procedure reallocateHS_2
@@ -42,24 +43,19 @@ module periodic
     module procedure init_TNeighborList
   end interface
 
-  !!* Destroys ADTs defined in this module
-  interface destroy
-    module procedure destroy_TNeighborList
-  end interface
-
   interface frac2cart
     module procedure fractionalCartesian
   end interface
-  
+
   interface cart2frac
     module procedure cartesianFractional
   end interface
-  
+
   !!* Contains essential data for the neighborlist
   type TNeighborList
-    integer,  pointer :: iNeighbor(:,:) => null()  !* index of neighbor atoms
-    integer,  pointer :: nNeighbor(:) => null()    !* nr. of neighbors
-    real(dp), pointer :: neighDist2(:,:) => null() !* temporary array for
+    integer, allocatable :: iNeighbor(:,:)  !* index of neighbor atoms
+    integer, allocatable :: nNeighbor(:)    !* nr. of neighbors
+    real(dp), allocatable :: neighDist2(:,:) !* temporary array for
                                                    !* neighbor distances
     real(dp)            :: cutoff          !* cutoff it was generated for
     logical             :: initialized = .false.
@@ -76,37 +72,19 @@ contains
     integer,             intent(in)  :: nAtom
     integer,             intent(in)  :: nInitNeighbor
 
-    ASSERT(.not. neighborList%initialized)
-    ASSERT(nAtom > 0)
-    ASSERT(nInitNeighbor > 0)
+    @:ASSERT(.not. neighborList%initialized)
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(nInitNeighbor > 0)
 
-    INITALLOCATE_PARR(neighborList%nNeighbor, (nAtom))
-    INITALLOCATE_PARR(neighborList%iNeighbor, (0:nInitNeighbor, nAtom))
-    INITALLOCATE_PARR(neighborList%neighDist2, (0:nInitNeighbor, nAtom))
+    allocate(neighborList%nNeighbor(nAtom))
+    allocate(neighborList%iNeighbor(0:nInitNeighbor, nAtom))
+    allocate(neighborList%neighDist2(0:nInitNeighbor, nAtom))
 
     neighborList%cutoff = -1.0_dp
     neighborList%initialized = .true.
 
   end subroutine init_TNeighborList
 
-
-
-  !!* Destroys the neighborlist
-  !!* @param neighborlist Neighborlist data.
-  subroutine destroy_TNeighborList(neighborList)
-    type(TNeighborList), intent(inout) :: neighborList
-
-    ASSERT(neighborlist%initialized)
-
-    DEALLOCATE_PARR(neighborList%nNeighbor)
-    DEALLOCATE_PARR(neighborList%iNeighbor)
-    neighborList%cutoff = -1.0_dp
-
-    neighborList%initialized = .false.
-
-  end subroutine destroy_TNeighborList
-
-  
 
   !!* Calculates the translation vectors for cells, which could contain atoms
   !!* interacting with any of the atoms in the central cell.
@@ -126,18 +104,18 @@ contains
     real(dp), intent(in) :: cutoff
 
     integer  :: ii
-    
-    ASSERT(all(shape(latVec) == [3, 3]))
-    ASSERT(all(shape(recVec2p) == [3, 3]))
-    ASSERT(cutoff >= 0.0_dp)
-    
+
+    @:ASSERT(all(shape(latVec) == [3, 3]))
+    @:ASSERT(all(shape(recVec2p) == [3, 3]))
+    @:ASSERT(cutoff >= 0.0_dp)
+
     call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, &
         &negExtension=1)
     allocate(rCellVec(3, size(cellVec, dim=2)))
     do ii = 1, size(rCellVec, dim=2)
       rCellVec(:,ii) = matmul(latVec, cellVec(:,ii))
     end do
-    
+
   end subroutine getCellTranslations
 
 
@@ -151,10 +129,10 @@ contains
 
     integer :: ii, iTmp
 
-    ASSERT(all(shape(imgRange) == (/ 2, 3 /)))
-    ASSERT(dist >= 0.0_dp)
-    ASSERT(all(shape(recVec2p) == (/ 3, 3 /)))
-    
+    @:ASSERT(all(shape(imgRange) == (/ 2, 3 /)))
+    @:ASSERT(dist >= 0.0_dp)
+    @:ASSERT(all(shape(recVec2p) == (/ 3, 3 /)))
+
     do ii = 1, 3
       iTmp = floor(dist * sqrt(sum(recVec2p(:, ii)**2)))
       imgRange(1, ii) = -(iTmp + negExt)
@@ -164,7 +142,7 @@ contains
   end subroutine getImgRange
 
 
-  
+
   !!* Returns a set which definitely contains all the points of a 3D grid
   !!* which are nearer to the origin as a given distance.
   !!* @param latPoint     Returns grid points in relative coords.
@@ -200,9 +178,9 @@ contains
     logical  :: tAll, tOrig, tNoInv
     real(dp), allocatable :: tmpLatPoint(:,:)
 
-    ASSERT(all(shape(latVec) == (/3, 3/)))
-    ASSERT(all(shape(recVec2p) == (/3, 3/)))
-    ASSERT(dist >= 0.0_dp)
+    @:ASSERT(all(shape(latVec) == (/3, 3/)))
+    @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
+    @:ASSERT(dist >= 0.0_dp)
 
     if (present(negExtension)) then
       negExt = negExtension
@@ -233,7 +211,7 @@ contains
     call getImgRange(imgRange, dist, recVec2p, posExt, negExt)
 
     allocate(tmpLatPoint(3, product(sum(abs(imgRange), dim=1) + 1)))
-    
+
     dist2 = dist**2
     if (tOrig) then
       tmpLatPoint(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
@@ -316,12 +294,14 @@ contains
 
     nAtom = size(coord, dim=2)
 
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(all(shape(latVec) == (/3, 3/)))
-    ASSERT(all(shape(recVec2p) == (/3, 3/)))
-    ASSERT_ENV(if (present(invShift)) then)
-    ASSERT_ENV(  ASSERT(all(shape(invShift) == shape(coord))))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(all(shape(latVec) == (/3, 3/)))
+    @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
+  #:call ASSERT_CODE
+    if (present(invShift)) then
+      ASSERT(all(shape(invShift) == shape(coord)))
+    end if
+  #:endcall ASSERT_CODE
 
     vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
     do ii = 1, nAtom
@@ -354,28 +334,28 @@ contains
   !!* @param rCellVec Cell vector for the translated cells to consider.
   subroutine updateNeighborListAndSpecies(coord, species, img2CentCell, &
       &iCellVec, neigh, nAllAtom, coord0, species0, cutoff, rCellVec)
-    real(dp), pointer                  :: coord(:,:)
-    integer,  pointer                  :: species(:)
-    integer,  pointer                  :: img2CentCell(:)
-    integer,  pointer                  :: iCellVec(:)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+    integer,  allocatable, intent(inout) :: species(:)
+    integer,  allocatable, intent(inout) :: img2CentCell(:)
+    integer,  allocatable, intent(inout) :: iCellVec(:)
     type(TNeighborList), intent(inout) :: neigh
     integer,  intent(out)              :: nAllAtom
     real(dp), intent(in)               :: coord0(:,:)
     integer,  intent(in)               :: species0(:)
     real(dp), intent(in)               :: cutoff
     real(dp), intent(in)               :: rCellVec(:,:)
-    
+
 
     call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
     if (size(species) < nAllAtom) then
-      DEALLOCATE_PARR(species)
-      ALLOCATE_PARR(species, (nAllAtom))
+      deallocate(species)
+      allocate(species(nAllAtom))
     end if
     species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
 
   end subroutine updateNeighborListAndSpecies
-  
+
 
 
   !!* Updates the neighbor list according a given geometry.
@@ -399,9 +379,9 @@ contains
   !!*   N^2 algorithm, calculating the distance between the possible atom pairs.
   subroutine updateNeighborList(coord, img2CentCell, iCellVec, neigh, &
       &nAllAtom, coord0, cutoff, rCellVec)
-    real(dp), pointer                  :: coord(:,:)
-    integer,  pointer                  :: img2CentCell(:)
-    integer,  pointer                  :: iCellVec(:)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+    integer,  allocatable, intent(inout) :: img2CentCell(:)
+    integer,  allocatable, intent(inout) :: iCellVec(:)
     type(TNeighborList), intent(inout) :: neigh
     integer,  intent(out)              :: nAllAtom
     real(dp), intent(in)               :: coord0(:,:)
@@ -429,17 +409,17 @@ contains
     maxNeighbor = ubound(neigh%iNeighbor, dim=1)
     nCellVec = size(rCellVec, dim=2)
 
-    ASSERT(nAtom <= mAtom)
-    ASSERT(associated(coord))
-    ASSERT(size(coord, dim=1) == 3)
-    ASSERT(associated(img2CentCell))
-    ASSERT(size(img2CentCell) == mAtom)
-    ASSERT(associated(iCellVec))
-    ASSERT(size(iCellVec) == mAtom)
-    ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
-    ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
-    ASSERT((size(rCellVec, dim=1) == 3))
-    ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(nAtom <= mAtom)
+    @:ASSERT(allocated(coord))
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(allocated(img2CentCell))
+    @:ASSERT(size(img2CentCell) == mAtom)
+    @:ASSERT(allocated(iCellVec))
+    @:ASSERT(size(iCellVec) == mAtom)
+    @:ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
+    @:ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
+    @:ASSERT((size(rCellVec, dim=1) == 3))
+    @:ASSERT(cutoff >= 0.0_dp)
 
     neigh%cutoff = cutoff
     cutoff2 = cutoff**2
@@ -518,7 +498,7 @@ contains
     end do lpCellVec
 
     !! Sort neighbors for all atom by distance
-    ALLOCATE_(indx, (maxNeighbor))
+    allocate(indx(maxNeighbor))
     do iAtom1 = 1, nAtom
       nn1 = neigh%nNeighbor(iAtom1)
       call index_heap_sort(indx(1:nn1), neigh%neighDist2(1:nn1, iAtom1),&
@@ -526,12 +506,11 @@ contains
       neigh%iNeighbor(1:nn1, iAtom1) = neigh%iNeighbor(indx(:nn1), iAtom1)
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
-    DEALLOCATE_(indx)
     coord(:,nAllAtom+1:size(coord, dim=2)) = 0.0_dp
-    
+
   end subroutine updateNeighborList
 
-  
+
 
   !!* Returns the nr. of neighbors for a given cutoff for all atoms.
   !!* @param nNeighbor Contains the nr. of neighbors for each atom on exit.
@@ -546,17 +525,17 @@ contains
 
     nAtom = size(nNeighbor)
 
-    ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
-    ASSERT(size(neigh%nNeighbor) == nAtom)
-    ASSERT(maxval(neigh%nNeighbor) <= size(neigh%iNeighbor, dim=1))
-    ASSERT(all(shape(neigh%neighDist2) == shape(neigh%iNeighbor)))
-    ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
+    @:ASSERT(size(neigh%nNeighbor) == nAtom)
+    @:ASSERT(maxval(neigh%nNeighbor) <= size(neigh%iNeighbor, dim=1))
+    @:ASSERT(all(shape(neigh%neighDist2) == shape(neigh%iNeighbor)))
+    @:ASSERT(cutoff >= 0.0_dp)
 
     !! Get last interacting neighbor for given cutoff
     do iAtom = 1, nAtom
       nNeighbor(iAtom) = getNrOfNeighbors(neigh, cutoff, iAtom)
     end do
-     
+
   end subroutine getNrOfNeighborsForAll
 
 
@@ -574,8 +553,8 @@ contains
 
     character(len=100) :: strError
 
-    ASSERT(cutoff >= 0.0_dp)
-    ASSERT(iAtom <= size(neigh%nNeighbor))
+    @:ASSERT(cutoff >= 0.0_dp)
+    @:ASSERT(iAtom <= size(neigh%nNeighbor))
 
     !! Issue warning, if cutoff is bigger as used for the neighborlist.
     if (cutoff > neigh%cutoff) then
@@ -589,7 +568,7 @@ contains
     call bisection(nNeighbor, &
         &neigh%neighDist2(1:neigh%nNeighbor(iAtom), iAtom), cutoff**2, &
         &tolSameDist2)
-    
+
   end function getNrOfNeighbors
 
 
@@ -598,50 +577,43 @@ contains
 
   !!* Reallocate arrays which depends on the maximal nr. of all atoms.
   subroutine reallocateArrays1(img2CentCell, iCellVec, coord, mNewAtom)
-    integer,  pointer    :: img2CentCell(:)
-    integer,  pointer    :: iCellVec(:)
-    real(dp), pointer    :: coord(:, :)
+    integer,  allocatable, intent(inout) :: img2CentCell(:)
+    integer,  allocatable, intent(inout) :: iCellVec(:)
+    real(dp), allocatable, intent(inout) :: coord(:, :)
     integer,  intent(in) :: mNewAtom
 
     integer               :: mAtom
-    integer,  allocatable :: tmpIntR1(:)
+    integer, allocatable :: tmpIntR1(:)
     real(dp), allocatable :: tmpRealR2(:, :)
 
     mAtom = size(img2CentCell)
 
-    ASSERT(size(iCellVec) == mAtom)
-    ASSERT(all(shape(coord) == (/ 3, mAtom /)))
-    ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
+    @:ASSERT(size(iCellVec) == mAtom)
+    @:ASSERT(all(shape(coord) == (/ 3, mAtom /)))
+    @:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
 
-    ALLOCATE_(tmpIntR1, (mAtom))
-    tmpIntR1(:) = img2CentCell(:)
-    DEALLOCATE_PARR(img2CentCell)
-    ALLOCATE_PARR(img2CentCell, (mNewAtom))
+    call move_alloc(img2CentCell, tmpIntR1)
+    allocate(img2CentCell(mNewAtom))
     img2CentCell(:) = 0
-    img2CentCell(:mAtom) = tmpIntR1(:mAtom)    
-    
+    img2CentCell(:mAtom) = tmpIntR1(:mAtom)
+
     tmpIntR1(:) = iCellVec(:)
-    DEALLOCATE_PARR(iCellVec)
-    ALLOCATE_PARR(iCellVec, (mNewAtom))
+    deallocate(iCellVec)
+    allocate(iCellVec(mNewAtom))
     iCellVec(:mAtom) = tmpIntR1(:mAtom)
 
-    ALLOCATE_(tmpRealR2, (3, mNewAtom))
-    tmpRealR2(:, 1:size(coord,dim=2)) = coord(:, 1:size(coord,dim=2))
-    ! fails on alphas for some reason :
-    ! tmpRealR2(:, :) = coord(:, :)
-    DEALLOCATE_PARR(coord)
-    ALLOCATE_PARR(coord, (3, mNewAtom))
-    coord(:, :mAtom) = tmpRealR2(:, :mAtom)
-    DEALLOCATE_(tmpRealR2)
+    call move_alloc(coord, tmpRealR2)
+    allocate(coord(3, mNewAtom))
+    coord(:, :mAtom) = tmpRealR2
 
   end subroutine reallocateArrays1
 
 
-  
+
   !!* Reallocate array which depends on the maximal nr. of neighbors.
   subroutine reallocateArrays3(iNeighbor, neighDist2, mNewNeighbor)
-    integer,  pointer    :: iNeighbor(:, :)
-    real(dp), pointer    :: neighDist2(:,:)
+    integer, allocatable, intent(inout) :: iNeighbor(:, :)
+    real(dp), allocatable, intent(inout) :: neighDist2(:,:)
     integer,  intent(in) :: mNewNeighbor
 
     integer               :: mNeighbor, mAtom
@@ -651,24 +623,18 @@ contains
     mNeighbor = ubound(iNeighbor, dim=1)
     mAtom = size(iNeighbor, dim=2)
 
-    ASSERT(mNewNeighbor > 0 .and. mNewNeighbor > mNeighbor)
-    ASSERT(all(shape(neighDist2) == shape(iNeighbor)))
+    @:ASSERT(mNewNeighbor > 0 .and. mNewNeighbor > mNeighbor)
+    @:ASSERT(all(shape(neighDist2) == shape(iNeighbor)))
 
-    ALLOCATE_(tmpIntR2, (0:mNeighbor, mAtom))
-    tmpIntR2(:, :) = iNeighbor(:, :)
-    DEALLOCATE_PARR(iNeighbor)
-    ALLOCATE_PARR(iNeighbor, (0:mNewNeighbor, mAtom))
+    call move_alloc(iNeighbor, tmpIntR2)
+    allocate(iNeighbor(0:mNewNeighbor, mAtom))
     iNeighbor(:,:) = 0
-    iNeighbor(:mNeighbor, :mAtom) = tmpIntR2(:mNeighbor, :mAtom)
-    DEALLOCATE_(tmpIntR2)
+    iNeighbor(:mNeighbor, :mAtom) = tmpIntR2
 
-    ALLOCATE_(tmpRealR2, (0:mNeighbor, mAtom))
-    tmpRealR2(:,:) = neighDist2(:,:)
-    DEALLOCATE_PARR(neighDist2)
-    ALLOCATE_PARR(neighDist2, (0:mNewNeighbor, mAtom))
-    neighDist2 = 0.0_dp
-    neighDist2(:mNeighbor, :mAtom) = tmpRealR2(:mNeighbor, :mAtom)
-    DEALLOCATE_(tmpRealR2)
+    call move_alloc(neighDist2, tmpRealR2)
+    allocate(neighDist2(0:mNewNeighbor, mAtom))
+    neighDist2(:,:) = 0.0_dp
+    neighDist2(:mNeighbor, :mAtom) = tmpRealR2
 
   end subroutine reallocateArrays3
 
@@ -686,9 +652,9 @@ contains
   !!* @param orb Orbitals in the system.
   subroutine reallocateHS_1(ham, over, iPair, iNeighbor, nNeighbor, orb, &
       &img2Centcell)
-    real(dp), pointer    :: ham(:)
-    real(dp), pointer    :: over(:)
-    integer,  pointer    :: iPair(:,:)
+    real(dp), allocatable, intent(inout):: ham(:)
+    real(dp), allocatable, intent(inout) :: over(:)
+    integer, allocatable, intent(inout) :: iPair(:,:)
     integer,  intent(in) :: iNeighbor(0:,:)
     integer,  intent(in) :: nNeighbor(:)
     type(TOrbitals), intent(in) :: orb
@@ -704,15 +670,15 @@ contains
     mNeighbor = size(iNeighbor, dim=1)
     nOldElem = size(ham, dim=1)
 
-    ASSERT(associated(ham))
-    ASSERT(associated(over))
-    ASSERT(size(over) == nOldElem)
-    ASSERT(associated(iPair))
-    ASSERT(size(iPair, dim=2) == nAtom)
+    @:ASSERT(allocated(ham))
+    @:ASSERT(allocated(over))
+    @:ASSERT(size(over) == nOldElem)
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
-      DEALLOCATE_PARR(iPair)
-      ALLOCATE_PARR(iPair, (0:mNeighbor-1, nAtom))
+      deallocate(iPair)
+      allocate(iPair(0:mNeighbor-1, nAtom))
       iPair(:,:) = 0
     end if
     nElem = 0
@@ -726,10 +692,10 @@ contains
     end do
     nElem = ind
     if (nElem > nOldElem) then
-      DEALLOCATE_PARR(ham)
-      DEALLOCATE_PARR(over)
-      ALLOCATE_PARR(ham, (nElem))
-      ALLOCATE_PARR(over, (nElem))
+      deallocate(ham)
+      deallocate(over)
+      allocate(ham(nElem))
+      allocate(over(nElem))
       ham(:) = 0.0_dp
       over(:) = 0.0_dp
     end if
@@ -737,7 +703,7 @@ contains
   end subroutine reallocateHS_1
 
 
-  
+
   !!* Allocate (reallocate) space for the sparse hamiltonian and overlap
   !!* matrix.
   !!* @param ham       Hamiltonian.
@@ -751,10 +717,10 @@ contains
   !!* @param img2CentCell Mapping on atoms in the central cell
   subroutine reallocateHS_2(ham, over, iPair, iNeighbor, nNeighbor, orb, &
       &img2CentCell)
-    real(dp), pointer    :: ham(:,:)
-    real(dp), pointer    :: over(:)
-    integer,  pointer    :: iPair(:,:)
-    integer,  intent(in) :: iNeighbor(0:,:)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+    real(dp), allocatable, intent(inout) :: over(:)
+    integer, allocatable, intent(inout) :: iPair(:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
     integer,  intent(in) :: nNeighbor(:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: img2CentCell(:)
@@ -771,15 +737,15 @@ contains
     nSpin = size(ham, dim=2)
     nOldElem = size(ham, dim=1)
 
-    ASSERT(associated(ham))
-    ASSERT(associated(over))
-    ASSERT(size(over) == nOldElem)
-    ASSERT(associated(iPair))
-    ASSERT(size(iPair, dim=2) == nAtom)
+    @:ASSERT(allocated(ham))
+    @:ASSERT(allocated(over))
+    @:ASSERT(size(over) == nOldElem)
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
-      DEALLOCATE_PARR(iPair)
-      ALLOCATE_PARR(iPair, (0:mNeighbor-1, nAtom))
+      deallocate(iPair)
+      allocate(iPair(0:mNeighbor-1, nAtom))
       iPair(:,:) = 0
     end if
     nElem = 0
@@ -793,16 +759,16 @@ contains
     end do
     nElem = ind
     if (nElem > nOldElem) then
-      DEALLOCATE_PARR(ham)
-      DEALLOCATE_PARR(over)
-      ALLOCATE_PARR(ham, (nElem, nSpin))
-      ALLOCATE_PARR(over, (nElem))
+      deallocate(ham)
+      deallocate(over)
+      allocate(ham(nElem, nSpin))
+      allocate(over(nElem))
       ham(:,:) = 0.0_dp
       over(:) = 0.0_dp
     end if
 
   end subroutine reallocateHS_2
-  
+
   !!* Allocate (reallocate) space for the sparse hamiltonian and overlap
   !!* matrix.
   !!* @param ham       Hamiltonian.
@@ -815,8 +781,8 @@ contains
   !!* @param img2CentCell Mapping on atoms in the central cell.
   subroutine reallocateHS_Single(ham, iPair, iNeighbor, nNeighbor, orb, &
       &img2CentCell)
-    real(dp), pointer    :: ham(:)
-    integer,  pointer    :: iPair(:,:)
+    real(dp), allocatable, intent(inout) :: ham(:)
+    integer, allocatable, intent(inout) :: iPair(:,:)
     integer,  intent(in) :: iNeighbor(0:,:)
     integer,  intent(in) :: nNeighbor(:)
     type(TOrbitals), intent(in) :: orb
@@ -832,13 +798,13 @@ contains
     mNeighbor = size(iNeighbor, dim=1)
     nOldElem = size(ham, dim=1)
 
-    ASSERT(associated(ham))
-    ASSERT(associated(iPair))
-    ASSERT(size(iPair, dim=2) == nAtom)
+    @:ASSERT(allocated(ham))
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
 
     if (mNeighbor > size(iPair, dim=1)) then
-      DEALLOCATE_PARR(iPair)
-      ALLOCATE_PARR(iPair, (0:mNeighbor-1, nAtom))
+      deallocate(iPair)
+      allocate(iPair(0:mNeighbor-1, nAtom))
       iPair(:,:) = 0
     end if
     nElem = 0
@@ -852,15 +818,15 @@ contains
     end do
     nElem = ind
     if (nElem > nOldElem) then
-      DEALLOCATE_PARR(ham)
-      ALLOCATE_PARR(ham, (nElem))
+      deallocate(ham)
+      allocate(ham(nElem))
       ham(:) = 0.0_dp
     end if
 
   end subroutine reallocateHS_Single
 
 
-  
+
   !!* Builds an atom offset array for the squared hamiltonain/overlap.
   !!* @param iAtomStart  Returns the offset array for each atom.
   !!* @param orb Information about the orbitals in the system.
@@ -873,7 +839,7 @@ contains
 
     nAtom = size(orb%nOrbAtom)
 
-    ASSERT(all(shape(iAtomStart) == (/ nAtom + 1 /)))
+    @:ASSERT(all(shape(iAtomStart) == (/ nAtom + 1 /)))
 
     ind = 1
     do iAt1 = 1, nAtom
@@ -883,10 +849,10 @@ contains
     iAtomStart(nAtom+1) = ind
 
   end subroutine buildSquaredAtomIndex
-  
+
   !!* Creates a K-points sampling, equivalent to folding of a reciprocal point
   !!*   of a super lattice.
-  !!* @param coeffs Coefficients of the lattice vectors in the linear 
+  !!* @param coeffs Coefficients of the lattice vectors in the linear
   !!*   combination for the super lattice vectors (should be integer values)
   !!* @param shifts Shift of the grid along the three small reciprocal lattice
   !!*   vectors (between 0.0 and 1.0)
@@ -908,8 +874,8 @@ contains
     real(dp), intent(in) :: shifts(:)
     real(dp), intent(in) :: latVecs(:,:)
     real(dp), intent(in) :: recVecs2p(:,:)
-    real(dp), pointer :: kPoints(:,:)
-    real(dp), pointer :: kWeights(:)
+    real(dp), allocatable, intent(out) :: kPoints(:,:)
+    real(dp), allocatable, intent(out) :: kWeights(:)
     logical, intent(in), optional :: reduceByInversion
 
     real(dp), allocatable :: allKPoints(:,:), allKWeights(:)
@@ -924,12 +890,12 @@ contains
     real(dp), parameter :: tol = 1e-4_dp
     real(dp), parameter :: minLim = -tol, maxLim = 1.0_dp - tol
 
-    ASSERT(all(shape(coeffs) == (/ 3, 3 /)))
-    ASSERT(all(coeffs - nint(coeffs) < epsilon(1.0_dp))) ! check they are
-    !  integers
-    ASSERT(size(shifts) == 3)
-    ASSERT(all(shape(latVecs) == (/ 3, 3 /)))
-    ASSERT(all(shape(recVecs2p) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(coeffs) == (/ 3, 3 /)))
+    ! check they are integers
+    @:ASSERT(all(coeffs - nint(coeffs) < epsilon(1.0_dp)))
+    @:ASSERT(size(shifts) == 3)
+    @:ASSERT(all(shape(latVecs) == (/ 3, 3 /)))
+    @:ASSERT(all(shape(recVecs2p) == (/ 3, 3 /)))
 
     if (present(reduceByInversion)) then
       tReduce = reduceByInversion
@@ -958,7 +924,7 @@ contains
     call invert33(invCoeffs, coeffs)
     invCoeffs = transpose(invCoeffs)
     call init(lr1)
-    
+
     do i1 = imgRange(1, 1), imgRange(2, 1)
       do i2 = imgRange(1, 2), imgRange(2, 2)
         do i3 = imgRange(1, 3), imgRange(2, 3)
@@ -976,17 +942,17 @@ contains
     if (abs(real(nAllKPoint,dp) - abs(determinant33(coeffs))) > tol) then
       call error("Monkhorst-Pack routine failed to find all K-points.")
     end if
-    
-    ALLOCATE_(allKPoints, (3, nAllKPoint))
-    ALLOCATE_(allKWeights, (nAllKPoint))
+
+    allocate(allKPoints(3, nAllKPoint))
+    allocate(allKWeights(nAllKPoint))
     call asArray(lr1, allKPoints)
+    call destruct(lr1)
     allKPoints = modulo(allKPoints, 1.0_dp)
     allKWeights = 1.0_dp / real(nAllKPoint, dp)
-    call destroy(lr1)
 
     ! Reduce by inversion if needed
     if (tReduce) then
-      ALLOCATE_(irreducible, (nAllKPoint))
+      allocate(irreducible(nAllKPoint))
       irreducible(:) = .true.
       do i1 = 1, nAllKPoint
         if (.not. irreducible(i1)) then
@@ -1004,8 +970,8 @@ contains
         end do
       end do
       nKPoint = count(irreducible)
-      INITALLOCATE_PARR(kPoints, (3, nKPoint))
-      INITALLOCATE_PARR(kWeights, (nKPoint))
+      allocate(kPoints(3, nKPoint))
+      allocate(kWeights(nKPoint))
       i1 = 1
       i2 = 1
       do while (i2 <= nKpoint)
@@ -1016,41 +982,38 @@ contains
         end if
         i1 = i1 + 1
       end do
-      DEALLOCATE_(irreducible)
     else
-      INITALLOCATE_PARR(kPoints, (3, nAllKPoint))
-      INITALLOCATE_PARR(kWeights, (nAllKPoint))
+      allocate(kPoints(3, nAllKPoint))
+      allocate(kWeights(nAllKPoint))
       kPoints(:,:) = allKPoints
       kWeights(:) = allKWeights
     end if
-    DEALLOCATE_(allKPoints)
-    DEALLOCATE_(allkWeights)
-    
+
   end subroutine getSuperSampling
 
 
   subroutine fractionalCartesian(cartCoords,latvecs)
     real(dp), intent(inout) :: cartCoords(:,:)
     real(dp), intent(in)  :: latvecs(3,3)
-        
-    ASSERT(size(cartCoords,dim=1) == 3)
+
+    @:ASSERT(size(cartCoords,dim=1) == 3)
 
     cartCoords = matmul(latvecs,cartCoords)
-    
+
   end subroutine fractionalCartesian
 
   subroutine cartesianFractional(cartCoords,latvecs)
     real(dp), intent(inout) :: cartCoords(:,:)
     real(dp), intent(in)  :: latvecs(3,3)
-    
+
     real(dp) :: invLatVecs(3,3)
-    
-    
-    ASSERT(size(cartCoords,dim=1) == 3)
-    
+
+
+    @:ASSERT(size(cartCoords,dim=1) == 3)
+
     call invert33(invLatVecs, latvecs)
     cartCoords = matmul(invLatvecs, cartCoords)
-        
+
   end subroutine cartesianFractional
-  
+
 end module periodic

@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use constants
   use inputdata_module
@@ -19,7 +20,6 @@ module parser
   use charmanip
   use message
   use linkedlist
-  use stringlist
   use fileid
   use unitconversion
   use oldcompat
@@ -34,8 +34,6 @@ module parser
   use reppoly
   use commontypes
   use oldskdata
-  use generallist
-  use wrappedpointers
   use xmlf90
   use ipisocket, only : IPI_PROTOCOLS
   implicit none
@@ -93,49 +91,49 @@ contains
       write (*, "(A)") "Interpreting input file '" // xmlInputName //  "'"
     end if
     write (*, "(A)") repeat("-", 80)
-    
+
     !! Get the root of all evil ;-)
     call getChild(hsdTree, rootTag, root)
-    
+
     !! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, &
         &list=.true., allowEmptyValue=.true., dummyValue=.true.)
     call readParserOptions(child, root, parserFlags)
-    
+
     !! Read in the different blocks
-    
+
     !! Atomic geometry and boundary conditions
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
-            
+
     !! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
-    
+
     !! Geometry driver
     call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
     call readDriver(tmp, child, input%geom, input%ctrl)
-    
+
     !! excited state options
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
-    
+
     !! Analysis of properties
     call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readAnalysis(child, input%ctrl, input%geom)
-    
+
     !! Options for calculation
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl)
-    
+
     !! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
-    
+
     input%tInitialized = .true.
-    
+
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
@@ -230,11 +228,9 @@ contains
       call readTGeometryHSD(child, input%geom)
     end select
 
-    call unstring(buffer)
-    
   end subroutine readGeometry
 
-  
+
   !!* Read in driver properties
   !!* @param node   Node to get the information from
   !!* @param parent Parent of node (for error messages)
@@ -267,7 +263,7 @@ contains
     case ("none")
       continue
     case ("steepestdescent")
-      
+
       ctrl%iGeoOpt = 1
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -291,7 +287,7 @@ contains
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
            &child, ctrl%indMovedAtom)
-      
+
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
       if (ctrl%tCoordOpt) then
@@ -321,9 +317,9 @@ contains
         end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
-      
+
     case ("conjugategradient")
-    
+
       ctrl%iGeoOpt = 2
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -346,7 +342,7 @@ contains
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
            &child, ctrl%indMovedAtom)
-      
+
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
       if (ctrl%tCoordOpt) then
@@ -373,7 +369,7 @@ contains
          end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
-      
+
    case("gdiis")
       ctrl%iGeoOpt = 3
       ctrl%tForces = .true.
@@ -399,7 +395,7 @@ contains
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
            &child, ctrl%indMovedAtom)
-      
+
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
       call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
@@ -423,10 +419,10 @@ contains
          end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
-            
+
     case("secondderivatives") ! currently only numerical derivatives of forces
       !  implemented
-      
+
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
       call getChildValue(node, "Atoms", buffer2, "1:-1", child=child, &
@@ -443,10 +439,10 @@ contains
       ctrl%tConvrgForces = .true.
 
     case ("velocityverlet")
-      
+
       ctrl%tForces = .true.
       ctrl%tMD = .true.
-      
+
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
           &multiple=.true.)
@@ -541,12 +537,12 @@ contains
         call getChildValue(value, "ChainLength", ctrl%nh_npart, 3)
         call getChildValue(value, "Order", ctrl%nh_nys, 3)
         call getChildValue(value, "IntegratorSteps", ctrl%nh_nc, 1)
-        
+
         call getChild(value, "Restart",  child=child3, requested=.false.)
         if (associated(child3)) then
-          INITALLOCATE_PARR(ctrl%xnose,(ctrl%nh_npart))
-          INITALLOCATE_PARR(ctrl%vnose,(ctrl%nh_npart))
-          INITALLOCATE_PARR(ctrl%gnose,(ctrl%nh_npart))
+          allocate(ctrl%xnose(ctrl%nh_npart))
+          allocate(ctrl%vnose(ctrl%nh_npart))
+          allocate(ctrl%gnose(ctrl%nh_npart))
           call getChildValue(child3,"x",ctrl%xnose)
           call getChildValue(child3,"v",ctrl%vnose)
           call getChildValue(child3,"g",ctrl%gnose)
@@ -554,17 +550,17 @@ contains
         else
           ctrl%tInitNHC = .false.
         end if
-        
+
         call getChildValue(value, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
             &.false.)
-                
+
       case ("andersen")
         ctrl%iThermostat = 1
         !! Read temperature or temperature profiles
         call getChildValue(value, "Temperature", value2, modifier=modifier, &
             &child=child2)
         call getNodeName(value2, buffer)
-        
+
         select case(char(buffer))
         case (textNodeName)
           call readTemperature(child2, ctrl)
@@ -586,8 +582,8 @@ contains
 
       case ("none")
         ctrl%iThermostat = 0
-        INITALLOCATE_PARR(ctrl%tempSteps, (1))
-        INITALLOCATE_PARR(ctrl%tempValues, (1))
+        allocate(ctrl%tempSteps(1))
+        allocate(ctrl%tempValues(1))
 
         if (ctrl%tReadMDVelocities) then
           ! without a thermostat, if we know the initial velocities, we do not
@@ -612,12 +608,12 @@ contains
       if (ctrl%maxRun < -1) then
         call getChildValue(node, "Steps", ctrl%maxRun)
       end if
-      
+
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
-      
+
       if (geom%tPeriodic) then
-        
+
         call getChild(node, "Barostat", child, requested=.false.)
         if (.not. associated(child)) then
           call setChild(node, "Barostat", child)
@@ -660,11 +656,11 @@ contains
       end if
 
       call readXlbomdOptions(node, ctrl%xlbomd)
-      
+
       call getInputMasses(node, geom, ctrl%masses)
-      
+
     case ("socket")
-      
+
       ctrl%tForces = .true.
       allocate(ctrl%socketInput)
       call getChild(node, 'File', child=child2, requested=.false.)
@@ -688,7 +684,7 @@ contains
           call detailedError(field, "Invalid port number")
         end if
       end if
-      
+
       call getChildValue(node, "Protocol", value, "i-PI", child=child)
       call getNodeName(value, buffer)
       select case(char(buffer))
@@ -705,17 +701,13 @@ contains
       end select
       call getChildValue(node, "Verbosity", ctrl%socketInput%verbosity, 0)
       call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
-      
+
     case default
       call getNodeHSDName(node, buffer)
       call detailedError(parent, "Invalid driver '" // char(buffer) // "'")
-      
+
     end select driver
-    
-    call unstring(buffer)
-    call unstring(buffer2)
-    call unstring(modifier)
-    
+
   end subroutine readDriver
 
 
@@ -822,17 +814,16 @@ contains
       call init(realBuffer)
       call getChildValue(child, "", 1, intBuffer, 3, realBuffer)
       ctrl%nrConstr = len(intBuffer)
-      INITALLOCATE_PARR(ctrl%conAtom, (ctrl%nrConstr))
-      INITALLOCATE_PARR(ctrl%conVec, (3, ctrl%nrConstr))
+      allocate(ctrl%conAtom(ctrl%nrConstr))
+      allocate(ctrl%conVec(3, ctrl%nrConstr))
       call asVector(intBuffer, ctrl%conAtom)
       if (.not.all(ctrl%conAtom<=nAtom)) then
         call detailedError(node,"Non-existent atom specified in constraint")
       end if
       call asArray(realBuffer, ctrl%conVec)
-      call destroy(intBuffer)
-      call destroy(realBuffer)
+      call destruct(intBuffer)
+      call destruct(realBuffer)
     end if
-    call unstring(buffer)
 
   end subroutine readGeoConstraints
 
@@ -851,7 +842,7 @@ contains
     type(string) :: buffer, modifier
     type(listRealR1) :: realBuffer
     integer          :: nVelocities
-    real(dp), pointer :: tmpVelocities(:,:)
+    real(dp), allocatable :: tmpVelocities(:,:)
 
     call getChildValue(node, "Velocities", value, "", child=child, &
         & modifier=modifier, allowEmptyValue=.true.)
@@ -867,22 +858,17 @@ contains
             & // i2c(3*nVelocities) // " supplied, " &
             & // i2c(3*nAtom) // " required.")
       end if
-      INITALLOCATE_PARR(tmpVelocities, (3, nVelocities))
+      allocate(tmpVelocities(3, nVelocities))
       call asArray(realBuffer, tmpVelocities)
       if (len(modifier) > 0) then
         call convertByMul(char(modifier), VelocityUnits, child, &
             & tmpVelocities)
       end if
-      call destroy(realBuffer)
-      INITALLOCATE_PARR(ctrl%initialVelocities, (3, ctrl%nrMoved))
+      call destruct(realBuffer)
+      allocate(ctrl%initialVelocities(3, ctrl%nrMoved))
       ctrl%initialVelocities(:,:) = tmpVelocities(:,ctrl%indMovedAtom(:))
-      DEALLOCATE_PARR(tmpVelocities)
       ctrl%tReadMDVelocities = .true.
     end if
-
-    call unstring(buffer)
-    call unstring(modifier)
-
 
   end subroutine readInitialVelocities
 
@@ -892,23 +878,23 @@ contains
     type(fnode), pointer :: node
     type(TGeometry), intent(in) :: geo
     real(dp), allocatable, intent(out) :: masses(:)
-    
+
     type(fnode), pointer :: child, child2, child3, val
     type(fnodeList), pointer :: children
-    integer, pointer :: pTmpI1(:)
+    integer, allocatable :: pTmpI1(:)
     type(string) :: buffer, modifier
     real(dp) :: rTmp
     integer :: ii, jj, iAt
-    
+
     call getChildValue(node, "Masses", val, "", child=child, allowEmptyValue=.true.,&
         & dummyValue=.true., list=.true.)
-    
+
     ! Read individual atom specifications
     call getChildren(child, "Mass", children)
     if (getLength(children) == 0) then
       return
     end if
-    
+
     allocate(masses(geo%nAtom))
     masses(:) = -1.0_dp
     do ii = 1, getLength(children)
@@ -925,13 +911,10 @@ contains
         end if
         masses(iAt) = rTmp
       end do
-      DEALLOCATE_PARR(pTmpI1)
+      deallocate(pTmpI1)
     end do
     call destroyNodeList(children)
-    
-    call unstring(buffer)
-    call unstring(modifier)
-    
+
   end subroutine getInputMasses
 
 
@@ -957,9 +940,9 @@ contains
     end select
 
   end subroutine readHamiltonian
-  
-  
-  
+
+
+
   !!* Reads DFTB-Hamiltonian
   !!* @param node  Node to get the information from
   !!* @param ctrl  Control structure to be filled
@@ -983,10 +966,8 @@ contains
     type(listCharLc), allocatable :: skFiles(:,:)
     type(listString) :: lStr
     type(listIntR1), allocatable :: angShells(:)
-    type(OList) :: lCharges, lBlurs
-    type(OListIterator) :: iterator
-    type(PRealR2) :: pCharges
-    type(PRealR1) :: pBlurs
+    type(listRealR2) :: lCharges
+    type(listRealR1) :: lBlurs
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
@@ -994,7 +975,9 @@ contains
     logical :: tLower, tExist
     real(dp), allocatable :: kpts(:,:)
     integer, allocatable :: tmpI1(:)
-    integer, pointer :: pTmpI1(:)
+    integer, allocatable :: pTmpI1(:)
+    real(dp), allocatable :: tmpR1(:)
+    real(dp), allocatable :: tmpR2(:,:)
     real(dp) :: rTmp, rTmp3(3)
     integer, allocatable  :: iTmpN(:)
     real(dp) :: coeffsAndShifts(3, 4)
@@ -1004,13 +987,14 @@ contains
     integer :: angShell(maxL+1), angShellOrdered(maxL+1)
     integer :: fp, iErr
     logical :: tBadIntegratingKPoints
-    
+    integer :: nElem
+
     !! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
       angShellOrdered(ii) = ii - 1
     end do
     call getChild(node, "MaxAngularMomentum", child)
-    ALLOCATE_(angShells, (geo%nSpecies))
+    allocate(angShells(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
       call init(angShells(iSp1))
       call getChildValue(child, geo%speciesNames(iSp1), value, child=child2)
@@ -1051,7 +1035,7 @@ contains
           end do
           call append(angShells(iSp1), angShell(1:nShell))
         end do
-        call destroy(lStr)
+        call destruct(lStr)
 
       case(textNodeName)
         call getChildValue(child2, "", buffer)
@@ -1076,10 +1060,10 @@ contains
     !! Orbitals and angular momenta for the given shells (once the SK files
     !! will contain the full information about the basis, this will be moved
     !! to the SK reading routine).
-    INITALLOCATE_P(slako%orb)
-    INITALLOCATE_PARR(slako%orb%nShell, (geo%nSpecies))
-    INITALLOCATE_PARR(slako%orb%nOrbSpecies, (geo%nSpecies))
-    INITALLOCATE_PARR(slako%orb%nOrbAtom, (geo%nAtom))
+    allocate(slako%orb)
+    allocate(slako%orb%nShell(geo%nSpecies))
+    allocate(slako%orb%nOrbSpecies(geo%nSpecies))
+    allocate(slako%orb%nOrbAtom(geo%nAtom))
     slako%orb%mOrb = 0
     slako%orb%mShell = 0
     do iSp1 = 1, geo%nSpecies
@@ -1099,9 +1083,9 @@ contains
     slako%orb%nOrbAtom(:) = slako%orb%nOrbSpecies(geo%species(:))
     slako%orb%nOrb = sum(slako%orb%nOrbAtom)
 
-    INITALLOCATE_PARR(slako%orb%angShell, (slako%orb%mShell, geo%nSpecies))
-    INITALLOCATE_PARR(slako%orb%iShellOrb, (slako%orb%mOrb, geo%nSpecies))
-    INITALLOCATE_PARR(slako%orb%posShell, (slako%orb%mShell+1, geo%nSpecies))
+    allocate(slako%orb%angShell(slako%orb%mShell, geo%nSpecies))
+    allocate(slako%orb%iShellOrb(slako%orb%mOrb, geo%nSpecies))
+    allocate(slako%orb%posShell(slako%orb%mShell+1, geo%nSpecies))
     slako%orb%angShell(:,:) = 0
     do iSp1 = 1, geo%nSpecies
       ind = 1
@@ -1120,7 +1104,7 @@ contains
     end do
 
     !! Slater-Koster files
-    ALLOCATE_(skFiles, (geo%nSpecies, geo%nSpecies))
+    allocate(skFiles(geo%nSpecies, geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
       do iSp2 = 1, geo%nSpecies
         call init(skFiles(iSp2, iSp1))
@@ -1180,13 +1164,13 @@ contains
             end if
             call append(skFiles(iSp2, iSp1), strTmp)
           end do
-          call destroy(lStr)
+          call destruct(lStr)
         end do
       end do
     end select
 
     !! Which repulsive is defined by polynomial? (Default: None)
-    ALLOCATE_(repPoly, (geo%nSpecies, geo%nSpecies))
+    allocate(repPoly(geo%nSpecies, geo%nSpecies))
     call getChildValue(node, "PolynomialRepulsive", value, "", child=child, &
         &list=.true., allowEmptyValue=.true., dummyValue=.true.)
     call getNodeName2(value, buffer)
@@ -1221,15 +1205,15 @@ contains
         &angShells, ctrl%tOrbResolved, skInterMeth, repPoly)
 
     do iSp1 = 1, geo%nSpecies
-      call destroy(angShells(iSp1))
+      call destruct(angShells(iSp1))
       do iSp2 = 1, geo%nSpecies
-        call destroy(skFiles(iSp2, iSp1))
+        call destruct(skFiles(iSp2, iSp1))
       end do
     end do
-    DEALLOCATE_(angShells)
-    DEALLOCATE_(skFiles)
-    DEALLOCATE_(repPoly)
-    
+    deallocate(angShells)
+    deallocate(skFiles)
+    deallocate(repPoly)
+
     !! SCC parameters
     call getChildValue(node, "SCC", ctrl%tSCC, .false.)
     ifSCC: if (ctrl%tSCC) then
@@ -1245,13 +1229,6 @@ contains
       case ("broyden")
         ctrl%iMixSwitch = 3
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.2_dp)
-        call getChildValue(value, "CachedIterations", ctrl%iGenerations, -1, &
-            &child=child)
-        if (ctrl%iGenerations == -1) then
-          ctrl%iGenerations = ctrl%maxIter
-        elseif (ctrl%iGenerations < 1) then
-          call detailedError(child, "Invalid nr. of cached iterations")
-        end if
         call getChildValue(value, "InverseJacobiWeight", ctrl%broydenOmega0, &
             &0.01_dp)
         call getChildValue(value, "MinimalWeight", ctrl%broydenMinWeight, &
@@ -1267,7 +1244,6 @@ contains
         call getChildValue(value, "Generations", ctrl%iGenerations, 4)
         call getChildValue(value, "InitMixingParameter", &
             &ctrl%andersonInitMixing, 0.01_dp)
-        INIT_PARR(ctrl%andersonDynMixParams)
         call getChildValue(value, "DynMixingParameters", value2, "", &
             &child=child, allowEmptyValue=.true.)
         call getNodeName2(value2, buffer2)
@@ -1281,10 +1257,9 @@ contains
                 & must be defined.")
           end if
           ctrl%andersonNrDynMix = len(lr1)
-          INITALLOCATE_PARR(ctrl%andersonDynMixParams, \
-            (2, ctrl%andersonNrDynMix))
+          allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
           call asArray(lr1, ctrl%andersonDynMixParams)
-          call destroy(lr1)
+          call destruct(lr1)
         end if
         call getChildValue(value, "DiagonalRescaling", ctrl%andersonOmega0, &
             &1.0e-2_dp)
@@ -1302,7 +1277,7 @@ contains
         call getNodeHSDName(value, buffer)
         call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
       end select
-      
+
 
       !! Elstner gamma damping for X-H interactions
       call getChildValue(node, "DampXH", ctrl%tDampH, .false.)
@@ -1324,7 +1299,7 @@ contains
         ctrl%tSpin = .false.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp
-        
+
       case ("colinear")
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
@@ -1333,28 +1308,28 @@ contains
         if (.not. ctrl%tReadChrg) then
           call getInitialSpins(value, geo, 1, ctrl%initialSpins)
         end if
-        
+
       case ("noncolinear")
         ctrl%tSpin = .true.
         ctrl%t2Component = .true.
         if (.not. ctrl%tReadChrg) then
           call getInitialSpins(value, geo, 3, ctrl%initialSpins)
         end if
-        
+
       case default
         call getNodeHSDName(value, buffer)
         call detailedError(child, "Invalid spin polarisation type '" //&
             & char(buffer) // "'")
       end select
-                  
+
       ctrl%tMulliken = .true.
-      
+
     end if ifSCC
-    
+
     !! External electric field
     call getChildValue(node, "ElectricField", value, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    
+
     ! external applied field
     call getChild(child, "External",child2,requested=.false.)
     if (associated(child2)) then
@@ -1388,19 +1363,17 @@ contains
     else
       ctrl%tEField = .false.
     end if
-    
+
     ! Point charges present
     call getChildren(child, "PointCharges", children)
-    INIT_PARR(ctrl%extChrg)
-    INIT_PARR(ctrl%extChrgBlurWidth)
     if (getLength(children) > 0) then
 
       if (.not.ctrl%tSCC) then
         call error("External charges can only be used in an SCC calculation")
       end if
-      call init(lCharges, size(transfer(pCharges, listData)))
+      call init(lCharges)
       if (.not. geo%tPeriodic) then
-        call init(lBlurs, size(transfer(pBlurs, listData)))
+        call init(lBlurs)
       end if
       fp = getFileId()
       ctrl%nExtChrg = 0
@@ -1413,21 +1386,21 @@ contains
         case (textNodeName)
           call init(lr1)
           call getChildValue(child3, "", 4, lr1, modifier=modifier)
-          INITALLOCATE_PARR(pCharges%pt, (4, len(lr1)))
-          call asArray(lr1, pCharges%pt)
+          allocate(tmpR2(4, len(lr1)))
+          call asArray(lr1, tmpR2)
           ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
-          call destroy(lr1)
+          call destruct(lr1)
         case ("directread")
           call getChildValue(value, "Records", ind)
           call getChildValue(value, "File", buffer2)
-          INITALLOCATE_PARR(pCharges%pt, (4, ind))
+          allocate(tmpR2(4, ind))
           open(fp, file=unquote(char(buffer2)), form="formatted", &
               &status="old", action="read", iostat=iErr)
           if (iErr /= 0) then
             call detailedError(value, "Could not open file '" &
                 &// trim(unquote(char(buffer2))) // "' for direct reading" )
           end if
-          read(fp, *, iostat=iErr) pCharges%pt
+          read(fp, *, iostat=iErr) tmpR2
           if (iErr /= 0) then
             call detailedError(value, "Error during direct reading '" &
                 &// trim(unquote(char(buffer2))) // "'")
@@ -1437,9 +1410,8 @@ contains
         case default
           call detailedError(value, "Invalid block name")
         end select
-        call convertByMul(char(modifier), lengthUnits, child3, &
-            &pCharges%pt(1:3,:))
-        call append(lCharges, transfer(pCharges, listData))
+        call convertByMul(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
+        call append(lCharges, tmpR2)
         if (.not. geo%tPeriodic) then
           call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
               &modifier=modifier, child=child3)
@@ -1448,46 +1420,40 @@ contains
                 &negative")
           end if
           call convertByMul(char(modifier), lengthUnits, child3, rTmp)
-          INITALLOCATE_PARR(pBlurs%pt, (size(pCharges%pt, dim=2)))
-          pBlurs%pt = rTmp
-          call append(lBlurs, transfer(pBlurs, listData))
+          allocate(tmpR1(size(tmpR2, dim=2)))
+          tmpR1(:) = rTmp
+          call append(lBlurs, tmpR1)
+          deallocate(tmpR1)
         end if
+        deallocate(tmpR2)
       end do
-      
-      INITALLOCATE_PARR(ctrl%extChrg, (4, ctrl%nExtChrg))
+
+      allocate(ctrl%extChrg(4, ctrl%nExtChrg))
       ind = 1
-      call init(iterator, lCharges)
-      do while (isValid(iterator))
-        pCharges = transfer(next(iterator), pCharges)
-        ctrl%extChrg(:,ind:ind+size(pCharges%pt, dim=2)-1) = pCharges%pt
-        ind = ind + size(pCharges%pt, dim=2)
-        DEALLOCATE_PARR(pCharges%pt)
+      do ii = 1, len(lCharges)
+        call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
+        ind = ind + nElem
       end do
-      call destruct(iterator)
       call destruct(lCharges)
-      
+
       if (.not. geo%tPeriodic) then
-        INITALLOCATE_PARR(ctrl%extChrgBlurWidth, (ctrl%nExtChrg))
+        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
         ind = 1
-        call init(iterator, lBlurs)
-        do while (isValid(iterator))
-          pBlurs = transfer(next(iterator), pBlurs)
-          ctrl%extChrgBlurWidth(ind:ind+size(pBlurs%pt)-1) = pBlurs%pt
-          ind = ind + size(pBlurs%pt)
-          DEALLOCATE_PARR(pBlurs%pt)
+        do ii = 1, len(lBlurs)
+          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+          ind = ind + nElem
         end do
-        call destruct(iterator)
         call destruct(lBlurs)
       end if
     else
       ctrl%nExtChrg = 0
     end if
     call destroyNodeList(children)
-    
+
     call getChild(node, "SpinOrbit", child, requested=.false.)
     if (.not. associated(child)) then
       ctrl%tSpinOrbit = .false.
-      ALLOCATE_(ctrl%xi,(0,0))
+      allocate(ctrl%xi(0,0))
     else
       if (ctrl%tSpin .and. .not. ctrl%t2Component) then
         call error("Spin-orbit coupling incompatible with collinear spin.")
@@ -1498,7 +1464,7 @@ contains
 
       call getChildValue(child, "Dual", ctrl%tDualSpinOrbit, .true.)
 
-      ALLOCATE_(ctrl%xi,(slako%orb%mShell,geo%nSpecies))
+      allocate(ctrl%xi(slako%orb%mShell,geo%nSpecies))
       ctrl%xi = 0.0_dp
       do iSp1 = 1, geo%nSpecies
         call getChildValue(child, geo%speciesNames(iSp1), &
@@ -1520,12 +1486,12 @@ contains
     case ("relativelyrobust")
       ctrl%iSolver = 3
     end select
-    
+
     !! Filling (temperature only read, if AdaptFillingTemp was not set
     !! for the selected MD thermostat.)
     call getChildValue(node, "Filling", value, "Fermi", child=child)
     call getNodeName(value, buffer)
-    
+
     select case (char(buffer))
     case ("fermi")
       ctrl%iDistribFn = 0 ! Fermi function
@@ -1543,7 +1509,7 @@ contains
       call getNodeHSDName(value, buffer)
       call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
     end select
-    
+
     if (.not. ctrl%tSetFillingTemp) then
       call getChildValue(value, "Temperature", ctrl%tempElec, 0.0_dp, &
           &modifier=modifier, child=field)
@@ -1552,7 +1518,7 @@ contains
         ctrl%tempElec = minTemp
       end if
     end if
-    
+
     call getChild(value, "FixedFermiLevel", child=child2, modifier=modifier, &
         & requested=.false.)
     if (associated(child2)) then
@@ -1569,26 +1535,24 @@ contains
     else
       ctrl%tFixEf = .false.
     end if
-    
+
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
       call getChildValue(value, "IndependentKFilling", ctrl%tFillKSep, .false.)
     end if
-        
+
     !! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
 
     ! Assume SCC can has usual default number of steps if needed
     tBadIntegratingKPoints = .false.
-    
+
     !! K-Points
     if (geo%tPeriodic) then
-      INIT_PARR(ctrl%kPoint)
-      INIT_PARR(ctrl%kWeight)
       call getChildValue(node, "KPointsAndWeights", value, child=child, &
           &modifier=modifier)
       call getNodeName(value, buffer)
       select case(char(buffer))
-        
+
       case ("supercellfolding")
         tBadIntegratingKPoints = .false.
         if (len(modifier) > 0) then
@@ -1617,7 +1581,7 @@ contains
               & reduceByInversion=.false.)
         end if
         ctrl%nKPoint = size(ctrl%kPoint, dim=2)
-        
+
       case ("klines")
         ! probably unable to integrate charge for SCC
         tBadIntegratingKPoints = .true.
@@ -1627,13 +1591,13 @@ contains
         if (len(li1) < 1) then
           call detailedError(value, "At least one line must be specified.")
         end if
-        ALLOCATE_(tmpI1, (len(li1)))
-        ALLOCATE_(kpts, (3, 0:len(lr1)))
+        allocate(tmpI1(len(li1)))
+        allocate(kpts(3, 0:len(lr1)))
         call asVector(li1, tmpI1)
         call asArray(lr1, kpts(:,1:len(lr1)))
         kpts(:,0) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
-        call destroy(li1)
-        call destroy(lr1)
+        call destruct(li1)
+        call destruct(lr1)
         if (any(tmpI1 < 0)) then
           call detailedError(value, "Interval steps must be greater equal to &
               &zero.")
@@ -1647,8 +1611,8 @@ contains
         do while (tmpI1(ii) == 0)
           ii = ii + 1
         end do
-        INITALLOCATE_PARR(ctrl%kPoint, (3, ctrl%nKPoint))
-        INITALLOCATE_PARR(ctrl%kWeight, (ctrl%nKPoint))
+        allocate(ctrl%kPoint(3, ctrl%nKPoint))
+        allocate(ctrl%kWeight(ctrl%nKPoint))
         ind = 1
         do jj = ii, size(tmpI1)
           if (tmpI1(jj) == 0) then
@@ -1672,8 +1636,8 @@ contains
                 &// "'")
           end select
         end if
-        DEALLOCATE_(tmpI1)
-        DEALLOCATE_(kpts)
+        deallocate(tmpI1)
+        deallocate(kpts)
         if (ctrl%tSCC .and. ctrl%maxIter /= 1) then
           write(errorStr, "(A,I3)") "SCC cycle with k-lines probably will&
               & not converge, SCC iterations set to:", ctrl%maxIter
@@ -1683,21 +1647,21 @@ contains
           call warning("It is strongly suggested you use the&
               & ReadInitialCharges option.")
         end if
-        
+
       case (textNodeName)
-        
+
         ! no idea, but assume user knows what they are doing
         tBadIntegratingKPoints = .false.
-        
+
         call init(lr1)
         call getChildValue(child, "", 4, lr1, modifier=modifier)
         if (len(lr1) < 1) then
           call detailedError(child, "At least one k-point must be defined.")
         end if
         ctrl%nKPoint = len(lr1)
-        ALLOCATE_(kpts, (4, ctrl%nKPoint))
+        allocate(kpts(4, ctrl%nKPoint))
         call asArray(lr1, kpts)
-        call destroy(lr1)
+        call destruct(lr1)
         if (len(modifier) > 0) then
           select case (tolower(char(modifier)))
           case ("relative")
@@ -1709,16 +1673,16 @@ contains
                 &// "'")
           end select
         end if
-        INITALLOCATE_PARR(ctrl%kPoint, (3, ctrl%nKPoint))
-        INITALLOCATE_PARR(ctrl%kWeight, (ctrl%nKPoint))
+        allocate(ctrl%kPoint(3, ctrl%nKPoint))
+        allocate(ctrl%kWeight(ctrl%nKPoint))
         ctrl%kPoint(:,:) = kpts(1:3, :)
         ctrl%kWeight(:) = kpts(4, :)
-        DEALLOCATE_(kpts)
+        deallocate(kpts)
       case default
         call detailedError(value, "Invalid K-point scheme")
       end select
     end if
-    
+
     if (ctrl%tSCC) then
       if (tBadIntegratingKPoints) then
         ii = 1
@@ -1727,7 +1691,7 @@ contains
       end if
       call getChildValue(node, "MaxSCCIterations", ctrl%maxIter, ii)
     end if
-    
+
     call getChild(node, "OrbitalPotential", child, requested=.false.)
     if (.not. associated(child)) then
       !call setChild(node, "OrbitalPotential", child)
@@ -1745,13 +1709,16 @@ contains
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
 
-      INITALLOCATE_PARR(ctrl%nUJ,(geo%nSpecies))
+      allocate(ctrl%nUJ(geo%nSpecies))
       ctrl%nUJ = 0
 
-      ALLOCATE_(lrN,(geo%nSpecies)) ! to hold list of U-J values for each atom
-      ALLOCATE_(liN,(geo%nSpecies)) ! to hold count of U-J values for each atom
-      ALLOCATE_(li1N,(geo%nSpecies))! to hold list of shells for each U-J block
-                                   !  of values
+      ! to hold list of U-J values for each atom
+      allocate(lrN(geo%nSpecies))
+      ! to hold count of U-J values for each atom
+      allocate(liN(geo%nSpecies))
+      ! to hold list of shells for each U-J block of values
+      allocate(li1N(geo%nSpecies))
+
       do iSp1 = 1, geo%nSpecies
         call init(lrN(iSp1))
         call init(liN(iSp1))
@@ -1761,21 +1728,15 @@ contains
         do ii = 1, ctrl%nUJ(iSp1)
           call getItem1(children, ii, child2)
           !call getChildValue(child2,"Shells",li1N(iSp1))
-          
+
           call init(li)
           call getChildValue(child2,"Shells",li)
-          INITALLOCATE_PARR(pTmpI1,(len(li)))
+          allocate(pTmpI1(len(li)))
           call asArray(li,pTmpI1)
           call append(li1N(iSp1),pTmpI1)
           call append(liN(iSp1),size(pTmpI1))
-          DEALLOCATE_PARR(pTmpI1)
-          call destroy(li)
-
-          !call getChild(child2, "Shells", child3)
-          !call getValueFromListOrRange(child3, pTmpI1, &
-          !    & mvalue=slako%orb%nShell(iSp1))
-          !call append(li1N(iSp1),pTmpI1)
-          !call append(liN(iSp1),size(pTmpI1))
+          deallocate(pTmpI1)
+          call destruct(li)
 
           call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
               & child=child3)
@@ -1796,38 +1757,37 @@ contains
       do iSp1 = 1, geo%nSpecies
         ctrl%nUJ(iSp1) = len(lrN(iSp1))
       end do
-      INITALLOCATE_PARR(ctrl%UJ,(maxval(ctrl%nUJ),geo%nSpecies))
+      allocate(ctrl%UJ(maxval(ctrl%nUJ),geo%nSpecies))
       ctrl%UJ = 0.0_dp
-      INITALLOCATE_PARR(ctrl%niUJ,(maxval(ctrl%nUJ),geo%nSpecies))
+      allocate(ctrl%niUJ(maxval(ctrl%nUJ),geo%nSpecies))
       ctrl%niUJ = 0
       do iSp1 = 1, geo%nSpecies
         call asArray(lrN(iSp1),ctrl%UJ(1:len(lrN(iSp1)),iSp1))
-        ALLOCATE_(iTmpN,(len(liN(iSp1))))
+        allocate(iTmpN(len(liN(iSp1))))
         call asArray(liN(iSp1),iTmpN)
         ctrl%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
-        DEALLOCATE_(iTmpN)
-        call destroy(lrN(iSp1))
-        call destroy(liN(iSp1))
+        deallocate(iTmpN)
+        call destruct(lrN(iSp1))
+        call destruct(liN(iSp1))
       end do
-      INITALLOCATE_PARR(ctrl%iUJ, \
-        (maxval(ctrl%niUJ),maxval(ctrl%nUJ),geo%nSpecies))
+      allocate(ctrl%iUJ(maxval(ctrl%niUJ),maxval(ctrl%nUJ),geo%nSpecies))
       ctrl%iUJ = 0
       do iSp1 = 1, geo%nSpecies
         do ii = 1, ctrl%nUJ(iSp1)
-          ALLOCATE_(iTmpN,(ctrl%niUJ(ii,iSp1)))
+          allocate(iTmpN(ctrl%niUJ(ii,iSp1)))
           call get(li1N(iSp1),iTmpN,ii)
           ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
-          DEALLOCATE_(iTmpN)
+          deallocate(iTmpN)
         end do
-        call destroy(li1N(iSp1))
+        call destruct(li1N(iSp1))
       end do
 
-      DEALLOCATE_(li1N)
-      DEALLOCATE_(lrN)
-      DEALLOCATE_(liN)
+      deallocate(li1N)
+      deallocate(lrN)
+      deallocate(liN)
 
       ! sanity check time
-      ALLOCATE_(iTmpN,(slako%orb%mShell))
+      allocate(iTmpN(slako%orb%mShell))
       do iSp1 = 1, geo%nSpecies
         iTmpN = 0
         do ii = 1, ctrl%nUJ(iSp1) ! loop over number of blocks for that species
@@ -1843,16 +1803,16 @@ contains
           stop
         end if
       end do
-      DEALLOCATE_(iTmpN)
+      deallocate(iTmpN)
 
       ctrl%tDFTBU = .true.
 
     end if
-    
+
     if (ctrl%tDFTBU .and. .not. ctrl%tSpin) then
       call error("DFTB+U only supported for spin polarised calculations.")
     end if
-    
+
     !! Dispersion
     call getChildValue(node, "Dispersion", value, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true.)
@@ -1873,27 +1833,6 @@ contains
     !      & at the moment.")
     !end if
 
-    !! Local potentials
-    !call getChildValue(node, "LocalPotentials", value, "", child=child, &
-    !    &allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    !call getChildren(child, "ChargeConstraint", children)
-    !if (getLength(children) > 0) then
-    !  INITALLOCATE_PARR(ctrl%chrgConstr, (geo%nAtom, 2))
-    !  ctrl%chrgConstr(:,:) = 0.0_dp
-    !  do ii = 1, getLength(children)
-    !    call getItem1(children, ii, child2)
-    !    call getChild(child2, "Atoms", child3)
-    !    call getValueFromListOrRange(child3, pTmpI1, mvalue=geo%nAtom)
-    !    call getChildValue(child2, "ReferenceCharge", rTmp)
-    !    ctrl%chrgConstr(pTmpI1, 1) = -rTmp
-    !    call getChildValue(child2, "Prefactor", rTmp)
-    !    ctrl%chrgConstr(pTmpI1, 2) = rTmp
-    !    DEALLOCATE_PARR(pTmpI1)
-    !  end do
-    !else
-    !  INIT_PARR(ctrl%chrgConstr)
-    !end if
-
     !! Third order stuff
     ctrl%t3rd = .false.
     ctrl%t3rdFull = .false.
@@ -1910,7 +1849,7 @@ contains
       end if
       if (ctrl%t3rd .or. ctrl%t3rdFull) then
         call getChild(node, 'HubbardDerivs', child, requested=.true.)
-        ALLOCATE_(ctrl%HubDerivs, (slako%orb%mShell, geo%nSpecies))
+        allocate(ctrl%HubDerivs(slako%orb%mShell, geo%nSpecies))
         ctrl%hubDerivs(:,:) = 0.0_dp
         do iSp1 = 1, geo%nSpecies
           nShell = slako%orb%nShell(iSp1)
@@ -1922,17 +1861,17 @@ contains
                 & ctrl%hubDerivs(1, iSp1))
             ctrl%hubDerivs(2:nShell, iSp1) = ctrl%hubDerivs(1, iSp1)
           end if
-          if (ctrl%t3rd) then
-            INITALLOCATE_PARR(ctrl%thirdOrderOn, (geo%nAtom, 2))
-            ctrl%thirdOrderOn(:,1) = 0.0_dp
-            ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
-          end if
         end do
+        if (ctrl%t3rd) then
+          allocate(ctrl%thirdOrderOn(geo%nAtom, 2))
+          ctrl%thirdOrderOn(:,1) = 0.0_dp
+          ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
+        end if
       end if
     end if
 
     call readDifferentiation(node, ctrl)
-    
+
     if (ctrl%tSCC) then ! Force type
       call getChildValue(node, "ForceEvaluation", buffer, "Traditional", &
           & child=child)
@@ -1951,10 +1890,6 @@ contains
     end if
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
-    
-    call unstring(buffer)
-    call unstring(buffer2)
-    call unstring(modifier)
 
 
   contains
@@ -1964,11 +1899,11 @@ contains
     subroutine getInitialCharges(node, geo, initCharges)
       type(fnode), pointer :: node
       type(TGeometry), intent(in) :: geo
-      real(dp), pointer :: initCharges(:)
+      real(dp), allocatable :: initCharges(:)
 
       type(fnode), pointer :: child, child2, child3, val
       type(fnodeList), pointer :: children
-      integer, pointer :: pTmpI1(:)
+      integer, allocatable :: pTmpI1(:)
       type(string) :: buffer
       real(dp) :: rTmp
       integer :: ii, jj, iAt
@@ -1977,16 +1912,15 @@ contains
       call getChildValue(node, "InitialCharges", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)
 
-      INIT_PARR(initCharges)
       ! Read either all atom charges, or individual atom specifications
       call getChild(child, "AllAtomCharges", child2, requested=.false.)
       if (associated(child2)) then
-        ALLOCATE_PARR(initCharges, (geo%nAtom))
+        allocate(initCharges(geo%nAtom))
         call getChildValue(child2, "", initCharges)
       else
         call getChildren(child, "AtomCharge", children)
         if (getLength(children) > 0) then
-          ALLOCATE_PARR(initCharges, (geo%nAtom))
+          allocate(initCharges(geo%nAtom))
           initCharges = 0.0_dp
         end if
         do ii = 1, getLength(children)
@@ -2004,12 +1938,10 @@ contains
             end if
             initCharges(iAt) = rTmp
           end do
-          DEALLOCATE_PARR(pTmpI1)
+          deallocate(pTmpI1)
         end do
         call destroyNodeList(children)
       end if
-
-      call unstring(buffer)
 
     end subroutine getInitialCharges
 
@@ -2019,11 +1951,11 @@ contains
       type(fnode), pointer :: node
       type(TGeometry), intent(in) :: geo
       integer, intent(in) :: nSpin
-      real(dp), pointer :: initSpins(:,:)
+      real(dp), allocatable :: initSpins(:,:)
 
       type(fnode), pointer :: child, child2, child3, val
       type(fnodeList), pointer :: children
-      integer, pointer :: pTmpI1(:)
+      integer, allocatable :: pTmpI1(:)
       type(string) :: buffer
       real(dp), allocatable :: rTmp(:)
       integer :: ii, jj, iAt
@@ -2031,19 +1963,18 @@ contains
       call getChildValue(node, "InitialSpins", val, "", child=child, &
             &allowEmptyValue=.true., dummyValue=.true., list=.true.)
 
-      INIT_PARR(initSpins)
       ! Read either all atom spins, or individual spin specifications
       call getChild(child, "AllAtomSpins", child2, requested=.false.)
       if (associated(child2)) then
-        ALLOCATE_PARR(initSpins, (nSpin, geo%nAtom))
+        allocate(initSpins(nSpin, geo%nAtom))
         call getChildValue(child2, "", initSpins)
       else
         call getChildren(child, "AtomSpin", children)
         if (getLength(children) > 0) then
-          ALLOCATE_PARR(initSpins, (nSpin, geo%nAtom))
+          allocate(initSpins(nSpin, geo%nAtom))
           initSpins = 0.0_dp
         end if
-        ALLOCATE_(rTmp, (nSpin))
+        allocate(rTmp(nSpin))
         do ii = 1, getLength(children)
           call getItem1(children, ii, child2)
           call getChildValue(child2, "Atoms", buffer, child=child3, &
@@ -2059,13 +1990,11 @@ contains
             end if
             initSpins(:,iAt) = rTmp
           end do
-          DEALLOCATE_PARR(pTmpI1)
+          deallocate(pTmpI1)
         end do
-        DEALLOCATE_(rTmp)
+        deallocate(rTmp)
         call destroyNodeList(children)
       end if
-
-      call unstring(buffer)
 
     end subroutine getInitialSpins
 
@@ -2098,8 +2027,7 @@ contains
         call detailedError(child, "Invalid derivative calculation '" &
             & // char(buffer) // "'")
       end select
-      
-      call unstring(buffer)
+
     end subroutine readDifferentiation
 
   end subroutine readDFTBHam
@@ -2132,41 +2060,41 @@ contains
     integer :: angShell(maxL+1), nShell
     logical :: readRep, readAtomic
     character(lc) :: fileName
-    real(dp), allocatable :: skHam(:,:), skOver(:,:)
+    real(dp), allocatable, target :: skHam(:,:), skOver(:,:)
     real(dp) :: dist
     type(TOldSKData), allocatable :: skData12(:,:), skData21(:,:)
-    type(OSlakoEqGrid), pointer :: pSlakoEqGrid1, pSlakoEqGrid2
+    type(OSlakoEqGrid), allocatable :: pSlakoEqGrid1, pSlakoEqGrid2
     type(TRepSplineIn) :: repSplineIn1, repSplineIn2
     type(TRepPolyIn) :: repPolyIn1, repPolyIn2
-    type(ORepSpline), pointer :: pRepSpline
-    type(ORepPoly), pointer :: pRepPoly
+    type(ORepSpline), allocatable :: pRepSpline
+    type(ORepPoly), allocatable :: pRepPoly
 
-    ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
-    ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
-    ASSERT(all(shape(repPoly) == shape(skFiles)))
+    @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
+    @:ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
+    @:ASSERT(all(shape(repPoly) == shape(skFiles)))
 
-    INITALLOCATE_PARR(slako%skSelf, (orb%mShell, nSpecies))
-    INITALLOCATE_PARR(slako%skHubbU, (orb%mShell, nSpecies))
-    INITALLOCATE_PARR(slako%skOcc, (orb%mShell, nSpecies))
-    INITALLOCATE_PARR(slako%mass, (nSpecies))
+    allocate(slako%skSelf(orb%mShell, nSpecies))
+    allocate(slako%skHubbU(orb%mShell, nSpecies))
+    allocate(slako%skOcc(orb%mShell, nSpecies))
+    allocate(slako%mass(nSpecies))
     slako%skSelf(:,:) = 0.0_dp
     slako%skHubbU(:,:) = 0.0_dp
     slako%skOcc(:,:) = 0.0_dp
 
-    INITALLOCATE_P(slako%skHamCont)
+    allocate(slako%skHamCont)
     call init(slako%skHamCont, nSpecies)
-    INITALLOCATE_P(slako%skOverCont)
+    allocate(slako%skOverCont)
     call init(slako%skOverCont, nSpecies)
-    INITALLOCATE_P(slako%repCont)
+    allocate(slako%repCont)
     call init(slako%repCont, nSpecies)
 
     write(*,"(A)") "Reading SK-files:"
     lpSp1: do iSp1 = 1, nSpecies
       nSK1 = len(angShells(iSp1))
-      lpSp2: do iSp2 = 1, nSpecies
+      lpSp2: do iSp2 = iSp1, nSpecies
         nSK2 = len(angShells(iSp2))
-        ALLOCATE_(skData12, (nSK2, nSK1))
-        ALLOCATE_(skData21, (nSK1, nSK2))
+        allocate(skData12(nSK2, nSK1))
+        allocate(skData21(nSK1, nSK2))
         ind = 1
         do iSK1 = 1, nSK1
           do iSK2 = 1, nSK2
@@ -2240,62 +2168,64 @@ contains
 
         !! Create full H/S table for all interactions of iSp1-iSp2
         nInt = getNSKIntegrals(iSp1, iSp2, orb)
-        ALLOCATE_(skHam, (size(skData12(1,1)%skHam, dim=1), nInt))
-        ALLOCATE_(skOver, (size(skData12(1,1)%skOver, dim=1), nInt))
+        allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
+        allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
         call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1), &
             &angShells(iSp2))
 
         !! Add H/S tables to the containers for iSp1-iSp2
-        INITALLOCATE_P(pSlakoEqGrid1)
-        INITALLOCATE_P(pSlakoEqGrid2)
         dist = skData12(1,1)%dist
+        allocate(pSlakoEqGrid1, pSlakoEqGrid2)
         call init(pSlakoEqGrid1, dist, skHam, skInterMeth)
         call init(pSlakoEqGrid2, dist, skOver, skInterMeth)
         call addTable(slako%skHamCont, pSlakoEqGrid1, iSp1, iSp2)
         call addTable(slako%skOverCont, pSlakoEqGrid2, iSp1, iSp2)
-        DEALLOCATE_(skHam)
-        DEALLOCATE_(skOver)
+        deallocate(skHam)
+        deallocate(skOver)
         if (iSp1 /= iSp2) then
           !! Heteronuclear interactions: the same for the reverse interaction
-          ALLOCATE_(skHam, (size(skData12(1,1)%skHam, dim=1), nInt))
-          ALLOCATE_(skOver, (size(skData12(1,1)%skOver, dim=1), nInt))
+          allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
+          allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
           call getFullTable(skHam, skOver, skData21, skData12, angShells(iSp2),&
               &angShells(iSp1))
-          INITALLOCATE_P(pSlakoEqGrid1)
-          INITALLOCATE_P(pSlakoEqGrid2)
+          allocate(pSlakoEqGrid1, pSlakoEqGrid2)
           call init(pSlakoEqGrid1, dist, skHam, skInterMeth)
           call init(pSlakoEqGrid2, dist, skOver, skInterMeth)
           call addTable(slako%skHamCont, pSlakoEqGrid1, iSp2, iSp1)
           call addTable(slako%skOverCont, pSlakoEqGrid2, iSp2, iSp1)
-          DEALLOCATE_(skHam)
-          DEALLOCATE_(skOver)
+          deallocate(skHam)
+          deallocate(skOver)
         end if
-        DEALLOCATE_(skData12)
-        DEALLOCATE_(skData21)
+        deallocate(skData12)
+        deallocate(skData21)
 
         !! Add repulsives to the containers.
         if (repPoly(iSp2, iSp1)) then
-          INITALLOCATE_P(pRepPoly)
+          allocate(pRepPoly)
           call init(pRepPoly, repPolyIn1)
           call addRepulsive(slako%repCont, pRepPoly, iSp1, iSp2)
+          deallocate(pRepPoly)
         else
-          INITALLOCATE_P(pRepSpline)
+          allocate(pRepSpline)
           call init(pRepSpline, repSplineIn1)
           call addRepulsive(slako%repCont, pRepSpline, iSp1, iSp2)
-          DEALLOCATE_PARR(repSplineIn1%xStart)
-          DEALLOCATE_PARR(repSplineIn1%spCoeffs)
+          deallocate(pRepSpline)
+          deallocate(repSplineIn1%xStart)
+          deallocate(repSplineIn1%spCoeffs)
         end if
         if (iSp1 /= iSp2) then
           if (repPoly(iSp1, iSp2)) then
-            INITALLOCATE_P(pRepPoly)
+            allocate(pRepPoly)
             call init(pRepPoly, repPolyIn2)
             call addRepulsive(slako%repCont, pRepPoly, iSp2, iSp1)
+            deallocate(pRepPoly)
           else
-            INITALLOCATE_P(pRepSpline)
+            allocate(pRepSpline)
             call init(pRepSpline, repSplineIn2)
             call addRepulsive(slako%repCont, pRepSpline, iSp2, iSp1)
-            DEALLOCATE_PARR(repSplineIn2%xStart)
-            DEALLOCATE_PARR(repSplineIn2%spCoeffs)
+            deallocate(pRepSpline)
+            deallocate(repSplineIn2%xStart)
+            deallocate(repSplineIn2%spCoeffs)
           end if
         end if
       end do lpSp2
@@ -2327,8 +2257,8 @@ contains
     nSK1 = size(skData12, dim=2)
     nSK2 = size(skData12, dim=1)
 
-    ASSERT(size(skData21, dim=1) == nSK1)
-    ASSERT(size(skData21, dim=2) == nSK2)
+    @:ASSERT(size(skData21, dim=1) == nSK1)
+    @:ASSERT(size(skData21, dim=2) == nSK2)
 
     nGrid = skData12(1,1)%nGrid
     dist = skData12(1,1)%dist
@@ -2466,7 +2396,7 @@ contains
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
       &angShells2)
     real(dp), intent(out) :: skHam(:,:), skOver(:,:)
-    type(TOldSKData), intent(in) :: skData12(:,:), skData21(:,:)
+    type(TOldSKData), intent(in), target :: skData12(:,:), skData21(:,:)
     type(listIntR1), intent(inout) :: angShells1, angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
@@ -2506,9 +2436,9 @@ contains
             end if
             do mm = 0, lMin
               !! Safety check, if array size are appropriate
-              ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
-              ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
-              ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
+              @:ASSERT(all(shape(skHam) >= (/ size(pHam, dim=1), ind /)))
+              @:ASSERT(all(shape(skOver) >= (/ size(pOver, dim=1), ind /)))
+              @:ASSERT(size(pHam, dim=1) == size(pOver, dim=1))
               skHam(:,ind) = pHam(:,skMap(mm,lMax,lMin))
               skOver(:,ind) = pOver(:,skMap(mm,lMax,lMin))
               ind = ind + 1
@@ -2519,8 +2449,8 @@ contains
     end do
 
   end subroutine getFullTable
-  
-  
+
+
 
   !!* Reads the option block
   !!* @param node Node to parse
@@ -2580,17 +2510,15 @@ contains
       allocate(input%uff)
       call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
-#ifdef WITH_DFTD3      
+    #:if WITH_DFTD3
       allocate(input%dftd3)
       call readDispDFTD3(dispModel, input%dftd3)
-#else
+    #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
-#endif      
+    #:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
-
-    call unstring(buffer)
 
   end subroutine readDispersion
 
@@ -2612,8 +2540,8 @@ contains
     integer :: iAt1, iAt2f, iSp1, iSp2, iNeigh
     integer, allocatable :: nNeighs(:)
     real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
-    real(dp), pointer :: coords(:,:)
-    integer, pointer :: img2CentCell(:), iCellVec(:)
+    real(dp), allocatable :: coords(:,:)
+    integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
     type(TNeighborList) :: neighs
 
@@ -2680,12 +2608,12 @@ contains
       else
         nAllAtom = geo%nAtom
       end if
-      INITALLOCATE_PARR(coords, (3, nAllAtom))
-      INITALLOCATE_PARR(img2CentCell, (nAllAtom))
-      INITALLOCATE_PARR(iCellVec, (nAllAtom))
+      allocate(coords(3, nAllAtom))
+      allocate(img2CentCell(nAllAtom))
+      allocate(iCellVec(nAllAtom))
       call updateNeighborList(coords, img2CentCell, iCellVec, neighs, &
           &nAllAtom, geo%coords, mCutoff, rCellVec)
-      ALLOCATE_(nNeighs, (geo%nAtom))
+      allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
@@ -2710,11 +2638,6 @@ contains
         end if
         tmpR2(3, iAt1) = tmp2R2(13, iSp1)
       end do
-      DEALLOCATE_PARR(coords)
-      DEALLOCATE_PARR(img2CentCell)
-      DEALLOCATE_PARR(iCellVec)
-      call destroy(neighs)
-      DEALLOCATE_(rCutoffs)
 
     case default
       call detailedError(value, "Invalid method for PolarRadiusCharge.")
@@ -2724,10 +2647,6 @@ contains
     input%rWaals(:) = tmpR2(2,:)
     input%charges(:) = tmpR2(3,:)
 
-    call unstring(buffer)
-    call unstring(modif)
-    call unstring(modif2)
-    call unstring(modifs)
 
   end subroutine readDispSlaKirk
 
@@ -2775,12 +2694,10 @@ contains
       end do
     end select
 
-    call unstring(buffer)
-
   end subroutine readDispVdWUFF
 
 
-#ifdef WITH_DFTD3  
+#:if WITH_DFTD3
 
   !!* Reads in initialization data for the DFTD3 dispersion module.
   !!* @param node Node to process.
@@ -2827,11 +2744,10 @@ contains
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCN)
     call getChildValue(node, "threebody", input%threebody, default=.false.)
     input%numgrad = .false.
-    call unstring(buffer)
-    
+
   end subroutine readDispDFTD3
 
-#endif
+#:endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Temperature and temperature profile
@@ -2844,9 +2760,9 @@ contains
 
     type(string) :: modifier
 
-    INITALLOCATE_PARR(ctrl%tempSteps, (1))
-    INITALLOCATE_PARR(ctrl%tempValues, (1))
-    INITALLOCATE_PARR(ctrl%tempMethods, (1))
+    allocate(ctrl%tempSteps(1))
+    allocate(ctrl%tempValues(1))
+    allocate(ctrl%tempMethods(1))
     ctrl%tempMethods(1) = 1
     ctrl%tempSteps(1) = 1
     call getChildValue(node, "", ctrl%tempValues(1), modifier=modifier)
@@ -2857,8 +2773,6 @@ contains
     if (ctrl%tempValues(1) < minTemp) then
       ctrl%tempValues(1) = minTemp
     end if
-    
-    call unstring(modifier)
 
   end subroutine readTemperature
 
@@ -2886,16 +2800,16 @@ contains
       call detailedError(node, "At least one annealing step must be &
           &specified.")
     end if
-    ALLOCATE_(tmpC1, (len(ls)))
-    INITALLOCATE_PARR(ctrl%tempSteps, (len(li1)))
-    INITALLOCATE_PARR(ctrl%tempValues, (len(lr1)))
+    allocate(tmpC1(len(ls)))
+    allocate(ctrl%tempSteps(len(li1)))
+    allocate(ctrl%tempValues(len(lr1)))
     call asArray(ls, tmpC1)
     call asVector(li1, ctrl%tempSteps)
     call asVector(lr1, ctrl%tempValues)
-    call destroy(ls)
-    call destroy(li1)
-    call destroy(lr1)
-    INITALLOCATE_PARR(ctrl%tempMethods, (size(tmpC1)))
+    call destruct(ls)
+    call destruct(li1)
+    call destruct(lr1)
+    allocate(ctrl%tempMethods(size(tmpC1)))
     lp2: do ii = 1, size(tmpC1)
       do jj = 1, size(tempMethodNames)
         if (trim(tmpC1(ii)) == tolower(trim(tempMethodNames(jj)))) then
@@ -2926,37 +2840,37 @@ contains
     if (any(ctrl%tempValues < minTemp)) then
       ctrl%tempValues = max(ctrl%tempValues, minTemp)
     end if
-    DEALLOCATE_(tmpC1)
+    deallocate(tmpC1)
 
   end subroutine readTemperatureProfile
-        
+
   !!* Reads the excited state block
   !!* @param node Node to parse
   !!* @param ctrl Control structure to fill
   subroutine readExcited(node, ctrl)
     type(fnode), pointer :: node
     type(control), intent(inout) :: ctrl
-    
+
     type(fnode), pointer :: child, child2
     type(string) :: buffer
     type(string) :: modifier
-    
+
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-#ifndef WITH_ARPACK
+  #:if not WITH_ARPACK
 
     if (associated(child)) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
 
-#else
+  #:else
 
     if (associated(child)) then
-      
+
       ctrl%lrespini%tInit = .true.
-      
+
       if (ctrl%tSpin) then
         ctrl%lrespini%sym = ' '
       else
@@ -2973,9 +2887,9 @@ contains
               & "' (must be 'Singlet', 'Triplet' or 'Both').")
         end select
       end if
-      
+
       call getChildValue(child, "NrOfExcitations", ctrl%lrespini%nexc)
-      
+
       call getChild(child, "StateOfInterest", child2, requested=.false.)
       if (.not. associated(child2)) then
         ctrl%lrespini%nstat = 0
@@ -2998,7 +2912,7 @@ contains
           end if
         end if
       end if
-      
+
       call getChildValue(child, "EnergyWindow", ctrl%lrespini%energyWindow, 0.0_dp, &
           & modifier=modifier, child=child2)
       ctrl%lrespini%tEnergyWindow = ctrl%lrespini%energyWindow /= 0.0_dp
@@ -3020,15 +2934,13 @@ contains
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
       call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
       call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
-      
-    end if
-    
-    call unstring(buffer)
 
-#endif
-    
+    end if
+
+  #:endif
+
   end subroutine readExcited
-  
+
 
   !!* Reads the analysis block
   !!* @param node Node to parse
@@ -3038,24 +2950,24 @@ contains
     type(fnode), pointer :: node
     type(control), intent(inout) :: ctrl
     type(TGeometry), intent(in) :: geo
-    
+
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
-    integer, pointer :: pTmpI1(:)
+    integer, allocatable :: pTmpI1(:)
     type(string) :: buffer
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(listRealR1) :: lr1
-    
+
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
     call getChildren(child, "Region", children)
     nReg = getLength(children)
     ctrl%tProjEigenvecs = (nReg > 0)
     if (ctrl%tProjEigenvecs) then
-      INITALLOCATE_PARR(ctrl%tShellResInRegion, (nReg))
-      INITALLOCATE_PARR(ctrl%tOrbResInRegion, (nReg))
-      INITALLOCATE_PARR(ctrl%RegionLabel, (nReg))
+      allocate(ctrl%tShellResInRegion(nReg))
+      allocate(ctrl%tOrbResInRegion(nReg))
+      allocate(ctrl%RegionLabel(nReg))
       call init(ctrl%iAtInRegion)
       do iReg = 1, nReg
         call getItem1(children, iReg, child2)
@@ -3080,13 +2992,13 @@ contains
                 &regions where all atoms belong to the same species")
           end if
         end if
-        DEALLOCATE_PARR(pTmpI1)
+        deallocate(pTmpI1)
         write(strTmp, "('region',I0)") iReg
         call getChildValue(child2, "Label", buffer, trim(strTmp))
         ctrl%RegionLabel(iReg) = unquote(char(buffer))
       end do
     end if
-    
+
     call getChild(node, "Localise", child=val, requested=.false.)
     if (associated(val)) then
       ctrl%tLocalise = .true.
@@ -3108,14 +3020,14 @@ contains
               if (len(lr1) < 1) then
                 call detailedError(child2, "Missing values of tollerances.")
               end if
-              INITALLOCATE_PARR(ctrl%sparsePipekTols, (len(lr1)))
+              allocate(ctrl%sparsePipekTols(len(lr1)))
               call asVector(lr1, ctrl%sparsePipekTols)
             else
-              INITALLOCATE_PARR(ctrl%sparsePipekTols, (4))
+              allocate(ctrl%sparsePipekTols(4))
               ctrl%sparsePipekTols = (/0.1_dp,0.01_dp,1.0E-6_dp,1.0E-12_dp/)
               call setChildValue(child2, "Tollerances", ctrl%sparsePipekTols)
             end if
-            call destroy(lr1)
+            call destruct(lr1)
           end if
         end if
       end if
@@ -3123,23 +3035,21 @@ contains
         call detailedError(val, "No localisation method chosen")
       end if
     end if
-    
+
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
     call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
-    
+
     if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
       call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
           & .false.)
     end if
     call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
-    
-    call unstring(buffer)
-    
+
   end subroutine readAnalysis
-  
+
   !> Reads W values if required by settings in the Hamiltonian or the excited state
   !! \param hamNode node for Hamitonian data
   !! \param geo geometry of the system
@@ -3150,13 +3060,13 @@ contains
     type(TGeometry), intent(in)  :: geo
     type(slater), intent(in) :: slako
     type(control), intent(inout) :: ctrl
-    
+
     type(fnode), pointer :: child
     logical :: tLRNeedsSpinConstants, tOrbResolvedW
     integer :: iSp1
-    
+
     tLRNeedsSpinConstants = .false.
-    
+
     if (ctrl%lrespini%tInit) then
       select case (ctrl%lrespini%sym)
       case ("T", "B", " ")
@@ -3166,9 +3076,9 @@ contains
       case default
       end select
     end if
-    
+
     if (tLRNeedsSpinConstants .or. ctrl%tSpin) then
-      ALLOCATE_(ctrl%spinW, (slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
+      allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
       call getChild(hamNode, "SpinConstants", child)
@@ -3177,7 +3087,7 @@ contains
       else
         tOrbResolvedW = .true.
       end if
-      
+
       if (tOrbResolvedW) then
         ! potentially unique values for each shell
         do iSp1 = 1, geo%nSpecies
@@ -3193,7 +3103,7 @@ contains
         end do
       end if
     end if
-    
+
   end subroutine readSpinConstants
 
 
@@ -3205,13 +3115,13 @@ contains
     type(TOrbitals), intent(in) :: orb
     logical, intent(in) :: tShellResolvedScc
     real(dp), allocatable, intent(out) :: hubbU(:,:)
-    
+
     type(fnode), pointer :: child, child2
     integer :: iSp1
 
     call getChild(node, "CustomisedHubbards", child, requested=.false.)
     if (associated(child)) then
-      ALLOCATE_(hubbU, (orb%mShell, geo%nSpecies))
+      allocate(hubbU(orb%mShell, geo%nSpecies))
       hubbU(:,:) = 0.0_dp
       do iSp1 = 1, geo%nSpecies
         call getChild(child, geo%speciesNames(iSp1), child2, requested=.false.)

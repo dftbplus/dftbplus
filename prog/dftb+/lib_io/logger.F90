@@ -13,10 +13,10 @@ module logger
   implicit none
   private
 
-  
+
   public :: LogWriter, LogWriter_init
 
-  
+
   !> Logger
   !!
   type :: LogWriter
@@ -41,7 +41,7 @@ module logger
 
   ! Default verbosity level
   integer, parameter :: DEFAULT_VERBOSITY = 1
-  
+
   ! Maximal line length
   integer, parameter :: MAX_LEN = 80
 
@@ -62,7 +62,7 @@ contains
     else
       this%verbosity = DEFAULT_VERBOSITY
     end if
-    
+
   end subroutine LogWriter_init
 
 
@@ -96,7 +96,7 @@ contains
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
 
-    
+
     character(*), parameter :: DEFAULT_FORM_STR = '(A)'
     character(:), allocatable :: formStr0
     integer :: verbosity0
@@ -106,7 +106,7 @@ contains
     if (verbosity0 <= this%verbosity) then
       write(*, formStr0) msg
     end if
-    
+
   end subroutine writeStr
 
 
@@ -126,7 +126,7 @@ contains
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
 
-    
+
     character(*), parameter :: DEFAULT_FORM_STR = '(I0)'
     character(:), allocatable :: formStr0
     integer :: verbosity0
@@ -189,7 +189,7 @@ contains
     !> Whether column vectors should be written columnwise (default: rowwise)
     logical, intent(in), optional :: columnwise
 
-    
+
     character(*), parameter :: DEFAULT_FORM_STR = '(ES23.15)'
     character(:), allocatable :: formStr0, formStrRow
     integer :: verbosity0
@@ -198,7 +198,7 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     call getOptionalArg(.false., columnwise0, columnwise)
-    
+
     if (verbosity0 <= this%verbosity) then
       if (columnwise0) then
         call getRowFormat(formStr0, 1, formStrRow)
@@ -237,7 +237,7 @@ contains
 
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(.false., columnwise0, columnwise)
-    
+
     if (verbosity0 <= this%verbosity) then
       if (columnwise0) then
         do ii = 1, size(msg, dim=1)
@@ -257,7 +257,7 @@ contains
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
+
   !! Returns the format string for an entire row.
   !!
   subroutine getRowFormat(formStr, nItems, formStrRow)
@@ -275,5 +275,5 @@ contains
 
   end subroutine getRowFormat
 
-    
+
 end module logger

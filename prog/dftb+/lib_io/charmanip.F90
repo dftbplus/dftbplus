@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains character manipulation routines
 module charmanip
-#include "assert.h"  
+  use assert
   implicit none
 
   private
-  
+
   !! Quotation related quantities
   integer, parameter :: nQuoteChar = 2
   character(len=1), parameter :: quoteChars(nQuoteChar) = (/ "'", '"' /)
@@ -33,7 +35,7 @@ module charmanip
 
   !! Maximal character length for integers (including sign)
   integer, parameter :: maxIntLen = range(1) + 2
-  
+
 
 
   public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c, i2c_len
@@ -44,7 +46,7 @@ module charmanip
 
 
 contains
-  
+
   !!* Returns the first unquoted occurance of a substring in a string
   !!* @param string    String to investigate (hay)
   !!* @param substring Substring to look for (needle)
@@ -89,7 +91,7 @@ contains
         tFinished = .true.
       end if
     end do
-    
+
     unqIndex = strPos
 
   end function unquotedIndex
@@ -122,7 +124,7 @@ contains
     lastPos = 1
     tFinished = .false.
     lenStr = len(string)
-    
+
     do while (.not. tFinished)
       shift = quoteEnd
       call getNextQuotationPos(string(shift+1:), quoteStart, quoteEnd)
@@ -150,7 +152,7 @@ contains
     end do
 
   end function unquote
-  
+
 
 
   !!* Returns the starting and ending position of the next quotation
@@ -189,7 +191,7 @@ contains
     else
       qEnd = qStart + 1
     end if
-    
+
   end subroutine getNextQuotationPos
 
 
@@ -211,8 +213,8 @@ contains
 
     nSubstr = size(substrs)
 
-    ASSERT(size(masks) == nSubstr)
-    
+    @:ASSERT(size(masks) == nSubstr)
+
     !! Get first occurance of a separator
     iSubstr = 0
     pos = len(string) + 1
@@ -225,7 +227,7 @@ contains
         end if
       end if
     end do
-    
+
   end subroutine getFirstOccurance
 
 
@@ -273,7 +275,7 @@ contains
         exit
       end if
     end do
-    
+
   end function complementaryScan
 
 
@@ -321,7 +323,7 @@ contains
         tFinished = .true.
       end if
     end do
-    
+
     unqIndex = strPos
 
   end function unquotedScan
@@ -336,7 +338,7 @@ contains
     integer :: len_trim2
 
     len_trim2 = complementaryScan(string, whiteSpaces, back=.true.)
-    
+
   end function len_trim2
 
 
@@ -347,7 +349,7 @@ contains
   function trim2(string)
     character(len=*), intent(in) :: string
     character(len=len_trim2(string)) :: trim2
-  
+
     trim2 = string(:len(trim2))
 
   end function trim2
@@ -375,19 +377,19 @@ contains
   end function tolower
 
 
-  
+
   !!* Calculates for i2c the length of the string to hold the converted number
   !!* @param number Number to convert
   !!* @return Len of the string representation.
   pure function i2c_len(number)
     integer, intent(in) :: number
     integer :: i2c_len
-    
+
     character(len=maxIntLen) :: i2c
-    
+
     write (i2c, "(I0)") number
     i2c_len = len_trim(i2c)
-    
+
   end function i2c_len
 
 
@@ -405,7 +407,7 @@ contains
 
     write (buffer, "(I0)") number
     i2c = trim(buffer)
-    
+
   end function i2c
 
 

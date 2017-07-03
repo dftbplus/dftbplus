@@ -49,7 +49,7 @@ module lapack
       real(rsp), intent(inout) :: rwork(*)
       integer, intent(out) :: info
     end subroutine cheev
-    
+
     subroutine zheev(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, info)
       import rdp
       character, intent(in) :: jobz, uplo
@@ -128,7 +128,7 @@ module lapack
       real(rdp), intent(inout) :: rwork(*)
       integer, intent(out) :: info
     end subroutine zhegv
-    
+
     subroutine ssygvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
         & lwork, iwork, liwork, info)
       import rsp
@@ -479,7 +479,7 @@ module lapack
       integer, intent(out) :: ipiv(*)
       integer, intent(out) :: info
     end subroutine sgetrf
-    
+
     subroutine dgetrf(mm, nn, aa, lda, ipiv, info)
       import rdp
       integer, intent(in) :: mm, nn
@@ -546,7 +546,7 @@ module lapack
       real(rsp), intent(inout) :: bb(ldb, *)
       integer, intent(out) :: info
     end subroutine ssytrs
-    
+
     subroutine dsytrs(uplo, nn, nrhs, aa, lda, ipiv, bb, ldb, info)
       import rdp
       character, intent(in) :: uplo
@@ -566,7 +566,7 @@ module lapack
       integer, intent(in) :: nn
       real(rsp), intent(out) :: xx(*)
     end subroutine slarnv
-    
+
     subroutine dlarnv(idist, iseed, nn, xx)
       import rdp
       integer, intent(in) :: idist
@@ -574,7 +574,7 @@ module lapack
       integer, intent(in) :: nn
       real(rdp), intent(out) :: xx(*)
     end subroutine dlarnv
-    
+
     subroutine clarnv(idist, iseed, nn, xx)
       import rsp
       integer, intent(in) :: idist
@@ -582,7 +582,7 @@ module lapack
       integer, intent(in) :: nn
       complex(rsp), intent(out) :: xx(*)
     end subroutine clarnv
-    
+
     subroutine zlarnv(idist, iseed, nn, xx)
       import rdp
       integer, intent(in) :: idist
@@ -590,7 +590,7 @@ module lapack
       integer, intent(in) :: nn
       complex(rdp), intent(out) :: xx(*)
     end subroutine zlarnv
-    
+
     function ilaenv(ispec, name, opts, n1, n2, n3, n4)
       character, intent(in) :: name, opts
       integer, intent(in) :: ispec, n1, n2, n3, n4
@@ -614,8 +614,8 @@ module lapack
       integer, intent(in) :: info
     end subroutine xerbla
 
-    
+
   end interface
-  
+
 end module lapack
-  
+

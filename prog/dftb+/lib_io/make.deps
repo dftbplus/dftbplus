@@ -1,5 +1,5 @@
-charmanip.o: assert.h
-charmanip.o = charmanip.o $(assert.h)
+charmanip.o: common.fypp _mod_assert
+charmanip.o = charmanip.o $(common.fypp) $(_mod_assert)
 _mod_charmanip: charmanip.o
 _mod_charmanip = $(charmanip.o)
 
@@ -8,23 +8,23 @@ fileid.o = fileid.o $(_mod_message)
 _mod_fileid: fileid.o
 _mod_fileid = $(fileid.o)
 
-formatout.o: _mod_sparse2dense _mod_fileid allocate.h _mod_lapackroutines _mod_accuracy assert.h _mod_constants
-formatout.o = formatout.o $(_mod_sparse2dense) $(_mod_fileid) $(allocate.h) $(_mod_lapackroutines) $(_mod_accuracy) $(assert.h) $(_mod_constants)
+formatout.o: _mod_sparse2dense common.fypp _mod_fileid _mod_constants _mod_lapackroutines _mod_assert _mod_accuracy
+formatout.o = formatout.o $(_mod_sparse2dense) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_lapackroutines) $(_mod_assert) $(_mod_accuracy)
 _mod_formatout: formatout.o
 _mod_formatout = $(formatout.o)
 
-hsdparser.o: _mod_xmlutils _mod_message _mod_charmanip _mod_xmlf90 _mod_fileid assert.h allocate.h
-hsdparser.o = hsdparser.o $(_mod_xmlutils) $(_mod_message) $(_mod_charmanip) $(_mod_xmlf90) $(_mod_fileid) $(assert.h) $(allocate.h)
+hsdparser.o: common.fypp _mod_xmlutils _mod_message _mod_assert _mod_charmanip _mod_xmlf90 _mod_fileid
+hsdparser.o = hsdparser.o $(common.fypp) $(_mod_xmlutils) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_xmlf90) $(_mod_fileid)
 _mod_hsdparser: hsdparser.o
 _mod_hsdparser = $(hsdparser.o)
 
-hsdutils.o: _mod_hsdparser _mod_accuracy allocate.h _mod_charmanip _mod_tokenreader _mod_stringlist _mod_linkedlist _mod_message _mod_xmlf90 assert.h _mod_xmlutils
-hsdutils.o = hsdutils.o $(_mod_hsdparser) $(_mod_accuracy) $(allocate.h) $(_mod_charmanip) $(_mod_tokenreader) $(_mod_stringlist) $(_mod_linkedlist) $(_mod_message) $(_mod_xmlf90) $(assert.h) $(_mod_xmlutils)
+hsdutils.o: _mod_tokenreader common.fypp _mod_xmlutils _mod_charmanip _mod_hsdparser _mod_assert _mod_linkedlist _mod_message _mod_xmlf90 _mod_accuracy
+hsdutils.o = hsdutils.o $(_mod_tokenreader) $(common.fypp) $(_mod_xmlutils) $(_mod_charmanip) $(_mod_hsdparser) $(_mod_assert) $(_mod_linkedlist) $(_mod_message) $(_mod_xmlf90) $(_mod_accuracy)
 _mod_hsdutils: hsdutils.o
 _mod_hsdutils = $(hsdutils.o)
 
-hsdutils2.o: _mod_hsdparser _mod_charmanip _mod_xmlutils assert.h _mod_hsdutils _mod_message _mod_xmlf90 _mod_accuracy _mod_unitconversion
-hsdutils2.o = hsdutils2.o $(_mod_hsdparser) $(_mod_charmanip) $(_mod_xmlutils) $(assert.h) $(_mod_hsdutils) $(_mod_message) $(_mod_xmlf90) $(_mod_accuracy) $(_mod_unitconversion)
+hsdutils2.o: _mod_hsdparser common.fypp _mod_xmlutils _mod_message _mod_assert _mod_charmanip _mod_xmlf90 _mod_unitconversion _mod_accuracy _mod_hsdutils
+hsdutils2.o = hsdutils2.o $(_mod_hsdparser) $(common.fypp) $(_mod_xmlutils) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_xmlf90) $(_mod_unitconversion) $(_mod_accuracy) $(_mod_hsdutils)
 _mod_hsdutils2: hsdutils2.o
 _mod_hsdutils2 = $(hsdutils2.o)
 
@@ -33,8 +33,8 @@ intrinsicpr.o = intrinsicpr.o $(_mod_accuracy)
 _mod_intrinsicpr: intrinsicpr.o
 _mod_intrinsicpr = $(intrinsicpr.o)
 
-ipisocket.o: _mod_fsockets allocate.h assert.h _mod_message _mod_logger _mod_accuracy
-ipisocket.o = ipisocket.o $(_mod_fsockets) $(allocate.h) $(assert.h) $(_mod_message) $(_mod_logger) $(_mod_accuracy)
+ipisocket.o: _mod_fsockets _mod_logger _mod_assert common.fypp _mod_message _mod_accuracy
+ipisocket.o = ipisocket.o $(_mod_fsockets) $(_mod_logger) $(_mod_assert) $(common.fypp) $(_mod_message) $(_mod_accuracy)
 _mod_ipisocket: ipisocket.o
 _mod_ipisocket = $(ipisocket.o)
 
@@ -48,18 +48,18 @@ message.o = message.o
 _mod_message: message.o
 _mod_message = $(message.o)
 
-taggedoutput.o: _mod_accuracy assert.h
-taggedoutput.o = taggedoutput.o $(_mod_accuracy) $(assert.h)
+taggedoutput.o: _mod_accuracy common.fypp _mod_assert
+taggedoutput.o = taggedoutput.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_taggedoutput: taggedoutput.o
 _mod_taggedoutput = $(taggedoutput.o)
 
-tokenreader.o: _mod_charmanip _mod_xmlf90 assert.h _mod_accuracy _mod_message
-tokenreader.o = tokenreader.o $(_mod_charmanip) $(_mod_xmlf90) $(assert.h) $(_mod_accuracy) $(_mod_message)
+tokenreader.o: common.fypp _mod_charmanip _mod_assert _mod_message _mod_xmlf90 _mod_accuracy
+tokenreader.o = tokenreader.o $(common.fypp) $(_mod_charmanip) $(_mod_assert) $(_mod_message) $(_mod_xmlf90) $(_mod_accuracy)
 _mod_tokenreader: tokenreader.o
 _mod_tokenreader = $(tokenreader.o)
 
-xmlutils.o: _mod_charmanip assert.h _mod_xmlf90
-xmlutils.o = xmlutils.o $(_mod_charmanip) $(assert.h) $(_mod_xmlf90)
+xmlutils.o: _mod_charmanip common.fypp _mod_assert _mod_xmlf90
+xmlutils.o = xmlutils.o $(_mod_charmanip) $(common.fypp) $(_mod_assert) $(_mod_xmlf90)
 _mod_xmlutils: xmlutils.o
 _mod_xmlutils = $(xmlutils.o)
 

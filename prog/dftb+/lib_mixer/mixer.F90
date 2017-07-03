@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains a general mixer which calls the desired real mixers.
 module mixer
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use accuracy
   use simplemixer
   use andersonmixer
@@ -23,23 +24,18 @@ module mixer
   type OMixer
     private
     integer :: mixerType
-    type(OSimpleMixer),   pointer :: pSimpleMixer
-    type(OAndersonMixer), pointer :: pAndersonMixer
-    type(OBroydenMixer),  pointer :: pBroydenMixer
-    type(ODIISMixer),  pointer :: pDIISMixer
+    type(OSimpleMixer),   allocatable :: pSimpleMixer
+    type(OAndersonMixer), allocatable :: pAndersonMixer
+    type(OBroydenMixer),  allocatable :: pBroydenMixer
+    type(ODIISMixer),  allocatable :: pDIISMixer
   end type OMixer
 
-  !!* Creates mixer
-  interface create
-    module procedure Mixer_createSimple
-    module procedure Mixer_createAnderson
-    module procedure Mixer_createBroyden
-    module procedure Mixer_createDIIS
-  end interface
-
-  !!* Destroys mixer
-  interface destroy
-    module procedure Mixer_destroy
+  !!* Inits mixer
+  interface init
+    module procedure Mixer_initSimple
+    module procedure Mixer_initAnderson
+    module procedure Mixer_initBroyden
+    module procedure Mixer_initDIIS
   end interface
 
   !!* Resets mixer
@@ -64,7 +60,7 @@ module mixer
 
 
   public :: OMixer
-  public :: create, destroy, reset, mix
+  public :: init, reset, mix
   public :: hasInverseJacobian, getInverseJacobian
 
 
@@ -76,79 +72,63 @@ module mixer
 
 contains
 
-  !!* Common stuff for initializing a Mixer.
-  !!* @param self Initialized mixer on exit.
-  subroutine Mixer_createCommon(self)
-    type(OMixer), pointer :: self
-
-    INITALLOCATE_P(self)
-    self%pSimpleMixer => null()
-    self%pAndersonMixer => null()
-    self%pBroydenMixer => null()
-    self%pDIISMixer => null()
-
-  end subroutine Mixer_createCommon
-
-
   !!* Initializes a mixer as simple mixer.
   !!* @param self Mixer instance
   !!* @param pSimple Pointer to a valid simple mixer instance.
-  subroutine Mixer_createSimple(self, pSimple)
-    type(OMixer), pointer :: self
-    type(OSimpleMixer), pointer :: pSimple
+  subroutine Mixer_initSimple(self, pSimple)
+    type(OMixer), intent(out) :: self
+    type(OSimpleMixer), allocatable, intent(inout) :: pSimple
 
-    call Mixer_createCommon(self)
     self%mixerType = iSimpleMixer
-    self%pSimpleMixer => pSimple
+    call move_alloc(pSimple, self%pSimpleMixer)
 
-  end subroutine Mixer_createSimple
+  end subroutine Mixer_initSimple
 
 
   !!* Initializes a mixer as Anderson mixer.
   !!* @param self Mixer instance
   !!* @param pAnderson Pointer to a valid Anderson mixer instance.
-  subroutine Mixer_createAnderson(self, pAnderson)
-    type(OMixer), pointer :: self
-    type(OAndersonMixer), pointer :: pAnderson
+  subroutine Mixer_initAnderson(self, pAnderson)
+    type(OMixer), intent(out) :: self
+    type(OAndersonMixer), allocatable, intent(inout) :: pAnderson
 
-    call Mixer_createCommon(self)
     self%mixerType = iAndersonMixer
-    self%pAndersonMixer => pAnderson
+    call move_alloc(pAnderson, self%pAndersonMixer)
 
-  end subroutine Mixer_createAnderson
+  end subroutine Mixer_initAnderson
 
 
   !!* Initializes a mixer as Broyden mixer
   !!* @param self Mixer instance
   !!* @param pBroyed Pointer to a valid Broyden mixer instance.
-  subroutine Mixer_createBroyden(self, pBroyden)
-    type(OMixer), pointer :: self
-    type(OBroydenMixer), pointer :: pBroyden
+  subroutine Mixer_initBroyden(self, pBroyden)
+    type(OMixer), intent(out) :: self
+    type(OBroydenMixer), allocatable, intent(inout) :: pBroyden
 
-    call Mixer_createCommon(self)
     self%mixerType = iBroydenMixer
-    self%pBroydenMixer => pBroyden
+    call move_alloc(pBroyden, self%pBroydenMixer)
 
-  end subroutine Mixer_createBroyden
+  end subroutine Mixer_initBroyden
+
 
   !!* Initializes a mixer as DIIS mixer
   !!* @param self Mixer instance
   !!* @param pDIIS Pointer to a valid DIIS mixer instance.
-  subroutine Mixer_createDIIS(self, pDIIS)
-    type(OMixer), pointer :: self
-    type(ODIISMixer), pointer :: pDIIS
+  subroutine Mixer_initDIIS(self, pDIIS)
+    type(OMixer), intent(out) :: self
+    type(ODIISMixer), allocatable, intent(inout) :: pDIIS
 
-    call Mixer_createCommon(self)
     self%mixerType = iDIISMixer
-    self%pDIISMixer => pDIIS
+    call move_alloc(pDIIS, self%pDIISMixer)
 
-  end subroutine Mixer_createDIIS
+  end subroutine Mixer_initDIIS
+
 
   !!* Resets the mixer
   !!* @param self  Mixer instance.
   !!* @param nElem Size of the vectors to mix.
   subroutine Mixer_reset(self, nElem)
-    type(OMixer), pointer :: self
+    type(OMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
     select case (self%mixerType)
@@ -165,35 +145,12 @@ contains
   end subroutine Mixer_reset
 
 
-
-  !!* Destroys the mixer
-  !!* @param self Mixer instance
-  subroutine Mixer_destroy(self)
-    type(OMixer), pointer :: self
-
-    if (associated(self)) then
-      select case (self%mixerType)
-      case (iSimpleMixer)
-        call destroy(self%pSimpleMixer)
-      case (iAndersonMixer)
-        call destroy(self%pAndersonMixer)
-      case (iBroydenMixer)
-        call destroy(self%pBroydenMixer)
-      case (iDIISMixer)
-        call destroy(self%pDIISMixer)
-      end select
-    end if
-    DEALLOCATE_P(self)
-
-  end subroutine Mixer_destroy
-
-
   !!* Mixes to vectors together
   !!* @param self Mixer instance.
   !!* @param qInpRes Input vector on entry, result vector on exit.
   !!* @param qDiff   Difference vector
   subroutine Mixer_mix(self, qInpRes, qDiff)
-    type(OMixer), pointer    :: self
+    type(OMixer), intent(inout) :: self
     real(dp),      intent(inout) :: qInpRes(:)
     real(dp),      intent(in) :: qDiff(:)
 
@@ -216,7 +173,7 @@ contains
   !!* @param self  Mixer instance.
   !!* @param nElem Size of the vectors to mix.
   function Mixer_hasInverseJacobian(self) result(has)
-    type(OMixer), pointer :: self
+    type(OMixer), intent(inout) :: self
     logical :: has
 
     select case (self%mixerType)
@@ -234,7 +191,7 @@ contains
 
 
   subroutine Mixer_getInverseJacobian(self, invJac)
-    type(OMixer), pointer :: self
+    type(OMixer), intent(inout) :: self
     real(dp), intent(out) :: invJac(:,:)
 
     select case (self%mixerType)

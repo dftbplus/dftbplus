@@ -1,6 +1,6 @@
 # -*- makefile -*-
 ############################################################################
-# gfortran/gcc 7.1
+# gfortran/gcc 5.4 - 7.1
 ############################################################################
 
 # Compilers
@@ -8,15 +8,12 @@ FXX = gfortran
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops -fopenmp 
+FXXOPT = -O2 -funroll-all-loops -fopenmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Preprocessor
-CPP = cpp -traditional
-CPPOPT =
-
-# Fortran preprocessor (invokes CPP as defined above and process the result)
-FPP = $(ROOT)/utils/build/fpp/fpp.sh general
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT =
 
 # Linker
 LN = $(FXX)

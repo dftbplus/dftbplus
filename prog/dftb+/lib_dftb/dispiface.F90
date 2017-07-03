@@ -52,7 +52,7 @@ module dispiface
       class(DispersionIface), intent(inout) :: this
       real(dp), intent(inout) :: gradients(:,:)
     end subroutine addGradientsIface
-    
+
     subroutine getStressIface(this, stress)
       import :: DispersionIface, dp
       class(DispersionIface), intent(inout) :: this

@@ -17,14 +17,14 @@ FXXCLEAN = *.mod
 
 # How to tell the preprocessor to look for includes
 #   (should really be the same on most architectures)
-CPPINC = -I
+FYPPINC = -I
 
 # Include user customization to set simply expanded (immediate) variables.
 
 ARCHMAKE = $(ROOT)/make.config
 include $(ARCHMAKE)
 
-CPPOPT += -DDEBUG=$(DEBUG)
+FYPPOPT += -DDEBUG=$(DEBUG)
 
 vpath % $(SRCDIRS)
 
@@ -41,8 +41,9 @@ EXISTING_DEPFILES := $(foreach dep,$(DEPFILES),$(wildcard $(dep)))
 
 # Rule for creating the dependency file
 _dependencies: $(EXISTING_DEPFILES)
-	echo "" > $@
-	for dep in $^; do $(CPP) $(CPPOPT) $$dep >> $@; done
+	echo "#:include 'common.fypp'" > $@.tmp
+	for dep in $^; do cat $$dep >> $@.tmp; done
+	$(FYPP) $(FYPPOPT) $(inc-opts) $@.tmp $@
 
 # Include dependency file unless only cleaning targets are specified which do
 # not require it (NODEPTARGETS can be specified in the GNUmakefiles)
@@ -63,14 +64,14 @@ endif
 
 # Create -Iinclude options for the preprocessor
 define inc-opts
-$(patsubst %,$(CPPINC)%,$(dir $<) $(INCDIRS))
+$(patsubst %,$(FYPPINC)%,$(dir $<) $(INCDIRS))
 endef
 
 #  If no external preprocessor had been specified -> direct compilation
 #  otherwise -> compile in two steps
 
 %.f90: %.F90
-	$(FPP) $(CPP) $(CPPOPT) $(inc-opts) $< > $@
+	$(FYPP) $(FYPPOPT) $(inc-opts) $< > $@
 
 %.o: %.f90
 	$(FXX) $(FXXOPT) $(L_INCS) -o $@ -c $<
@@ -125,7 +126,7 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   else
     PRESENT_EXTERNALS += _extlib_dftd3
   endif
-  CPPOPT += -DWITH_DFTD3
+  FYPPOPT += -DWITH_DFTD3
   L_LIBS += $(if $(filter _extlib_dftd3, $^), $(DFTD3_LIBS))
   L_INCS += $(DFTD3_INCS)
 endif
@@ -138,7 +139,7 @@ L_LIBS_LAPACKBLAS += $(if $(filter _extlib_blas, $^), $(LIB_BLAS))
 # ARPACK
 ifeq ($(strip $(WITH_ARPACK)),1)
   PRESENT_EXTERNALS += _extlib_arpack
-  CPPOPT += -DWITH_ARPACK
+  FYPPOPT += -DWITH_ARPACK
   L_LIBS_ARPACK += $(if $(filter _extlib_arpack, $^), $(ARPACK_LIBS))
 endif
 

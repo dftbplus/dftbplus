@@ -5,22 +5,22 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module to wrap around the different energy components in the DFTB
 !!* total energy expression
 module energies
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use accuracy
   implicit none
 
-  public :: TEnergies, create, destroy
+  public :: TEnergies, init
 
   private
 
   !!* data type to store components of the energy as named variables instead of
   !!* in the old arrays - makes extending energy expression easier.
   type TEnergies
-
     real(dp) :: Erep    = 0.0_dp !* repulsive energy
     real(dp) :: EnonSCC = 0.0_dp !* Non-SCC energy
     real(dp) :: ESCC    = 0.0_dp !* SCC energy
@@ -35,28 +35,24 @@ module energies
     real(dp) :: Eexcited = 0.0_dp !* Excitation energy
     real(dp) :: Etotal  = 0.0_dp !* total energy (Erep+Etotal)
 
-    real(dp), pointer :: atomRep(:)      !* atom resolved repulsive
-    real(dp), pointer :: atomNonSCC(:)   !* atom resolved non-SCC
-    real(dp), pointer :: atomSCC(:)      !* atom resolved SCC
-    real(dp), pointer :: atomSpin(:)     !* atom resolved spin
-    real(dp), pointer :: atomLS(:)       !* atom resolved spin orbit
-    real(dp), pointer :: atomDftbu(:)    !* atom resolved DFTB+U
-    real(dp), pointer :: atomExt(:)      !* atom resolved external field
-!    real(dp), pointer :: atomExtB(:)     !* atom resolved external B field
-    real(dp), pointer :: atomElec(:)     !* atom resolved electronic total
-    real(dp), pointer :: atomDisp(:)     !* atom resolved dispersion
-    real(dp), pointer :: atom3rd(:)      !* atom resolved 3rd order
-    real(dp), pointer :: atomTotal(:)    !* atom resolved total
+    real(dp), allocatable :: atomRep(:)      !* atom resolved repulsive
+    real(dp), allocatable :: atomNonSCC(:)   !* atom resolved non-SCC
+    real(dp), allocatable :: atomSCC(:)      !* atom resolved SCC
+    real(dp), allocatable :: atomSpin(:)     !* atom resolved spin
+    real(dp), allocatable :: atomLS(:)       !* atom resolved spin orbit
+    real(dp), allocatable :: atomDftbu(:)    !* atom resolved DFTB+U
+    real(dp), allocatable :: atomExt(:)      !* atom resolved external field
+!    real(dp), allocatable :: atomExtB(:)     !* atom resolved external B field
+    real(dp), allocatable :: atomElec(:)     !* atom resolved electronic total
+    real(dp), allocatable :: atomDisp(:)     !* atom resolved dispersion
+    real(dp), allocatable :: atom3rd(:)      !* atom resolved 3rd order
+    real(dp), allocatable :: atomTotal(:)    !* atom resolved total
     logical :: tInitialised = .false.
   end type TEnergies
 
-  interface create
-    module procedure Energies_create
-  end interface
-
-  interface destroy
-    module procedure Energies_destroy
-  end interface
+  interface init
+    module procedure Energies_init
+  end interface init
 
 
 contains
@@ -64,24 +60,23 @@ contains
   !!* Allocates storage for the energy components
   !!* @param self data structure to allocate
   !!* @param nAtom number of atoms needed for atom resolved arrays
-  subroutine Energies_create(self,nAtom)
+  subroutine Energies_init(self,nAtom)
     type(TEnergies), intent(out) :: self
     integer, intent(in) :: nAtom
 
-    ASSERT(.not. self%tInitialised)
+    @:ASSERT(.not. self%tInitialised)
 
-    INITALLOCATE_PARR(self%atomRep,(nAtom))
-    INITALLOCATE_PARR(self%atomNonSCC,(nAtom))
-    INITALLOCATE_PARR(self%atomSCC,(nAtom))
-    INITALLOCATE_PARR(self%atomSpin,(nAtom))
-    INITALLOCATE_PARR(self%atomLS,(nAtom))
-    INITALLOCATE_PARR(self%atomDftbu,(nAtom))
-    INITALLOCATE_PARR(self%atomExt,(nAtom))
-!    INITALLOCATE_PARR(self%atomExtB,(nAtom))
-    INITALLOCATE_PARR(self%atomElec,(nAtom))
-    INITALLOCATE_PARR(self%atomDisp, (nAtom))
-    INITALLOCATE_PARR(self%atom3rd, (nAtom))
-    INITALLOCATE_PARR(self%atomTotal,(nAtom))
+    allocate(self%atomRep(nAtom))
+    allocate(self%atomNonSCC(nAtom))
+    allocate(self%atomSCC(nAtom))
+    allocate(self%atomSpin(nAtom))
+    allocate(self%atomLS(nAtom))
+    allocate(self%atomDftbu(nAtom))
+    allocate(self%atomExt(nAtom))
+    allocate(self%atomElec(nAtom))
+    allocate(self%atomDisp(nAtom))
+    allocate(self%atom3rd(nAtom))
+    allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
     self%atomNonSCC(:) = 0.0_dp
     self%atomSCC(:) = 0.0_dp
@@ -109,30 +104,7 @@ contains
     self%e3rd = 0.0_dp
     self%Etotal = 0.0_dp
 
-  end subroutine Energies_create
-
-
-
-  !!* De-allocates storage for the energy components
-  subroutine Energies_destroy(self)
-    type(TEnergies), intent(inout) :: self
-
-    ASSERT(self%tInitialised)
-
-    self%tInitialised = .false.
-    DEALLOCATE_PARR(self%atomRep)
-    DEALLOCATE_PARR(self%atomNonSCC)
-    DEALLOCATE_PARR(self%atomSCC)
-    DEALLOCATE_PARR(self%atomSpin)
-    DEALLOCATE_PARR(self%atomDftbu)
-    DEALLOCATE_PARR(self%atomExt)
-!    DEALLOCATE_PARR(self%atomExtB)
-    DEALLOCATE_PARR(self%atomElec)
-    DEALLOCATE_PARR(self%atomDisp)
-    DEALLOCATE_PARR(self%atomTotal)
-    DEALLOCATE_PARR(self%atom3rd)
-
-  end subroutine Energies_destroy
+  end subroutine Energies_init
 
 
 end module energies

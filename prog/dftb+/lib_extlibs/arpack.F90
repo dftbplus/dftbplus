@@ -5,17 +5,19 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Interfaces for the ARPACK routines needed in DFTB+ (currently for
 !> the linear response excited state calculations).
 module arpack
   use accuracy, only : rsp, rdp
   implicit none
   private
-  
+
   public :: withArpack
 
-  
-#ifdef WITH_ARPACK
+
+#:if WITH_ARPACK
 
   public :: saupd, seupd
 
@@ -45,7 +47,7 @@ module arpack
       real(rsp), intent(inout) :: workl(lworkl)
       integer, intent(inout) :: info
     end subroutine ssaupd
-    
+
     subroutine dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
         & iparam, ipntr, workd, workl, lworkl, info)
       import :: rdp
@@ -68,7 +70,7 @@ module arpack
       integer, intent(inout) :: info
     end subroutine dsaupd
   end interface saupd
-  
+
   !> Wrapper around ARPACK routines sseupd/dseupd.
   interface seupd
     subroutine sseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
@@ -97,7 +99,7 @@ module arpack
       real(rsp), intent(inout) :: workl(lworkl)
       integer, intent(inout) :: info
     end subroutine sseupd
-    
+
     subroutine dseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
         & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
       import :: rdp
@@ -125,12 +127,12 @@ module arpack
       integer, intent(inout) :: info
     end subroutine dseupd
   end interface seupd
-    
-#else
-  
+
+#:else
+
   ! Whether code was built with Arpack support
   logical, parameter :: withArpack = .false.
-  
-#endif
-  
+
+#:endif
+
 end module arpack

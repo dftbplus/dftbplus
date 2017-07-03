@@ -39,7 +39,7 @@ contains
 
   end function erf
 
-  
+
   !> Calculates the value of the complementary error function.
   !! \param x  Function argument.
   !! \return erfc(x)
@@ -120,7 +120,7 @@ contains
 
     xx = arg
     yy = abs(xx)
-    
+
     if (yy <= thresh) then
       !------------------------------------------------------------------
       !  evaluate  erf  for  |x| <= 0.46875
@@ -271,7 +271,7 @@ contains
 
     xx = arg
     yy = abs(xx)
-    
+
     if (yy <= thresh) then
       !------------------------------------------------------------------
       !  evaluate  erf  for  |x| <= 0.46875

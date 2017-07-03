@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Routines implementing the full 3rd order DFTB.
 module thirdorder_module
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use commontypes, only : TOrbitals
   use shortgamma, only : expGammaCutoff
@@ -96,26 +97,26 @@ contains
       this%dUdQ = inp%hubbUDerivs
     else
       this%mShells = 1
-      ALLOCATE_(this%nShells, (this%nSpecies))
+      allocate(this%nShells(this%nSpecies))
       this%nShells(:) = 1
       this%UU = inp%hubbUs(1:1, :)
       this%dUdQ = inp%hubbUDerivs(1:1, :)
     end if
-    
-    ALLOCATE_(this%cutoffs, (this%nSpecies, this%nSpecies))
+
+    allocate(this%cutoffs(this%nSpecies, this%nSpecies))
     call calcCutoffs(this%UU, this%nShells, this%cutoffs)
     this%maxCutoff = maxval(this%cutoffs)
 
-    ALLOCATE_(this%nNeigh, (this%nSpecies, this%nAtoms))
-    ALLOCATE_(this%nNeighMax, (this%nAtoms))
-    ALLOCATE_(this%chargesPerAtom, (this%nAtoms))
-    ALLOCATE_(this%chargesPerShell, (this%mShells, this%nAtoms))
-    ALLOCATE_(this%shift1, (this%mShells, this%nAtoms))
-    ALLOCATE_(this%shift2, (this%mShells, this%nAtoms))
-    ALLOCATE_(this%shift3, (this%nAtoms))
-    ALLOCATE_(this%gamma3ab, (this%mShells, this%mShells, 0, this%nAtoms))
-    ALLOCATE_(this%gamma3ba, (this%mShells, this%mShells, 0, this%nAtoms))
-    ALLOCATE_(this%damped, (this%nSpecies))
+    allocate(this%nNeigh(this%nSpecies, this%nAtoms))
+    allocate(this%nNeighMax(this%nAtoms))
+    allocate(this%chargesPerAtom(this%nAtoms))
+    allocate(this%chargesPerShell(this%mShells, this%nAtoms))
+    allocate(this%shift1(this%mShells, this%nAtoms))
+    allocate(this%shift2(this%mShells, this%nAtoms))
+    allocate(this%shift3(this%nAtoms))
+    allocate(this%gamma3ab(this%mShells, this%mShells, 0, this%nAtoms))
+    allocate(this%gamma3ba(this%mShells, this%mShells, 0, this%nAtoms))
+    allocate(this%damped(this%nSpecies))
     this%damped = inp%damped
     this%dampExp = inp%dampExp
 
@@ -163,10 +164,10 @@ contains
     this%nNeighMax = maxval(this%nNeigh, dim=1)
 
     if (size(this%gamma3ab, dim=3) < maxval(this%nNeighMax) + 1) then
-      DEALLOCATE_(this%gamma3ab)
-      DEALLOCATE_(this%gamma3ba)
-      ALLOCATE_(this%gamma3ab, (this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
-      ALLOCATE_(this%gamma3ba, (this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
+      deallocate(this%gamma3ab)
+      deallocate(this%gamma3ba)
+      allocate(this%gamma3ab(this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
+      allocate(this%gamma3ba(this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
     end if
     this%gamma3ab(:,:,:,:) = 0.0_dp
     this%gamma3ba(:,:,:,:) = 0.0_dp
@@ -221,19 +222,18 @@ contains
     real(dp), allocatable :: chargesPerShell(:,:)
     integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh
 
-    ASSERT(size(species) == this%nAtoms)
-    ASSERT(size(qq, dim=2) == this%nAtoms)
-    ASSERT(size(q0, dim=2) == this%nAtoms)
+    @:ASSERT(size(species) == this%nAtoms)
+    @:ASSERT(size(qq, dim=2) == this%nAtoms)
+    @:ASSERT(size(q0, dim=2) == this%nAtoms)
 
     if (this%shellResolved) then
       call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
           & dQShell=this%chargesPerShell)
     else
       ! First (only) component of this%chargesPerShell contains atomic charge
-      ALLOCATE_(chargesPerShell, (this%mShellsReal, this%nAtoms))
+      allocate(chargesPerShell(this%mShellsReal, this%nAtoms))
       call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom, dQShell=chargesPerShell)
       this%chargesPerShell(1,:) = sum(chargesPerShell, dim=1)
-      DEALLOCATE_(chargesPerShell)
     end if
 
     this%shift1(:,:) = 0.0_dp
@@ -288,7 +288,7 @@ contains
     !> Shift per atom.
     real(dp), intent(out) :: shift(:)
 
-    ASSERT(size(shift) == this%nAtoms)
+    @:ASSERT(size(shift) == this%nAtoms)
 
     if (this%shellResolved) then
       shift(:) = this%shift3
@@ -309,8 +309,8 @@ contains
     !> Shift per shell.
     real(dp), intent(out) :: shift(:,:)
 
-    ASSERT(size(shift, dim=1) == this%mShellsReal)
-    ASSERT(size(shift, dim=2) == this%nAtoms)
+    @:ASSERT(size(shift, dim=1) == this%mShellsReal)
+    @:ASSERT(size(shift, dim=2) == this%nAtoms)
 
     if (this%shellResolved) then
       shift(:,:) = this%shift1 + this%shift2
@@ -327,7 +327,7 @@ contains
     class(ThirdOrder), intent(inout) :: this
     real(dp), intent(out) :: energyPerAtom(:)
 
-    ASSERT(size(energyPerAtom) == this%nAtoms)
+    @:ASSERT(size(energyPerAtom) == this%nAtoms)
 
     energyPerAtom(:) = (1.0_dp / 3.0_dp) * (&
         & sum((this%shift1 + this%shift2) * this%chargesPerShell, dim=1)&
@@ -366,16 +366,15 @@ contains
 
     real(dp), allocatable :: qOutAtom(:), qOutShell(:,:), qOutShellTmp(:,:)
 
-    ALLOCATE_(qOutAtom, (this%nAtoms))
-    ALLOCATE_(qOutShell, (this%mShells, this%nAtoms))
+    allocate(qOutAtom(this%nAtoms))
+    allocate(qOutShell(this%mShells, this%nAtoms))
     if (this%shellResolved) then
       call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
     else
       ! First (only) component of qOutShell contains atomic charge
-      ALLOCATE_(qOutShellTmp, (this%mShellsReal, this%nAtoms))
+      allocate(qOutShellTmp(this%mShellsReal, this%nAtoms))
       call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
-      DEALLOCATE_(qOutShellTmp)
     end if
     energyPerAtom(:) = sum(this%shift1 * qOutShell, dim=1)&
         & + sum(this%shift2 * (qOutShell - this%chargesPerShell), dim=1)&
@@ -482,18 +481,17 @@ contains
     real(dp) :: tmp3(3)
     logical :: damping
 
-    ALLOCATE_(qOutAtom, (this%nAtoms))
-    ALLOCATE_(qOutShell, (this%mShells, this%nAtoms))
-    ALLOCATE_(qDiffAtom, (this%nAtoms))
-    ALLOCATE_(qDiffShell, (this%mShells, this%nAtoms))
+    allocate(qOutAtom(this%nAtoms))
+    allocate(qOutShell(this%mShells, this%nAtoms))
+    allocate(qDiffAtom(this%nAtoms))
+    allocate(qDiffShell(this%mShells, this%nAtoms))
     if (this%shellResolved) then
       call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
     else
       ! First (only) component of qOutShell contains atomic charge
-      ALLOCATE_(qOutShellTmp, (this%mShellsReal, this%nAtoms))
+      allocate(qOutShellTmp(this%mShellsReal, this%nAtoms))
       call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
-      DEALLOCATE_(qOutShellTmp)
     end if
 
     qDiffAtom(:) = qOutAtom - this%chargesPerAtom
@@ -558,7 +556,7 @@ contains
     integer :: iSp1, iSp2
 
     nSpecies = size(cutoffs, dim=1)
-    ALLOCATE_(minUs, (nSpecies))
+    allocate(minUs(nSpecies))
     do iSp1 = 1, nSpecies
       minUs(iSp1) = minval(hubbUs(1:nShells(iSp1), iSp1))
     end do

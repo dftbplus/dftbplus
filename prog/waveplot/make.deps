@@ -1,23 +1,23 @@
-gridcache.o: _mod_molecularorbital _mod_fileid allocate.h _mod_message _mod_accuracy assert.h _mod_constants
-gridcache.o = gridcache.o $(_mod_molecularorbital) $(_mod_fileid) $(allocate.h) $(_mod_message) $(_mod_accuracy) $(assert.h) $(_mod_constants)
+gridcache.o: _mod_molecularorbital common.fypp _mod_constants _mod_fileid _mod_assert _mod_message _mod_accuracy
+gridcache.o = gridcache.o $(_mod_molecularorbital) $(common.fypp) $(_mod_constants) $(_mod_fileid) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
 _mod_gridcache: gridcache.o
 _mod_gridcache = $(gridcache.o)
 
-initprogram.o: _mod_hsdparser _mod_molecularorbital _mod_accuracy allocate.h _mod_charmanip _mod_fileid _mod_typegeometryhsd _mod_slater _mod_hsdutils _mod_gridcache _mod_constants _mod_linkedlist _mod_message _mod_hsdutils2 _mod_flib_dom _mod_unitconversion assert.h _mod_xmlutils
-initprogram.o = initprogram.o $(_mod_hsdparser) $(_mod_molecularorbital) $(_mod_accuracy) $(allocate.h) $(_mod_charmanip) $(_mod_fileid) $(_mod_typegeometryhsd) $(_mod_slater) $(_mod_hsdutils) $(_mod_gridcache) $(_mod_constants) $(_mod_linkedlist) $(_mod_message) $(_mod_hsdutils2) $(_mod_flib_dom) $(_mod_unitconversion) $(assert.h) $(_mod_xmlutils)
+initprogram.o: _mod_hsdparser common.fypp _mod_fileid _mod_xmlutils _mod_charmanip _mod_molecularorbital _mod_typegeometryhsd _mod_slater _mod_assert _mod_gridcache _mod_constants _mod_linkedlist _mod_message _mod_hsdutils2 _mod_flib_dom _mod_unitconversion _mod_accuracy _mod_hsdutils
+initprogram.o = initprogram.o $(_mod_hsdparser) $(common.fypp) $(_mod_fileid) $(_mod_xmlutils) $(_mod_charmanip) $(_mod_molecularorbital) $(_mod_typegeometryhsd) $(_mod_slater) $(_mod_assert) $(_mod_gridcache) $(_mod_constants) $(_mod_linkedlist) $(_mod_message) $(_mod_hsdutils2) $(_mod_flib_dom) $(_mod_unitconversion) $(_mod_accuracy) $(_mod_hsdutils)
 _mod_initprogram: initprogram.o
 _mod_initprogram = $(initprogram.o)
 
-molorb.o: allocate.h assert.h _mod_periodic _mod_slater _mod_simplealgebra _mod_accuracy _mod_typegeometry
-molorb.o = molorb.o $(allocate.h) $(assert.h) $(_mod_periodic) $(_mod_slater) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_typegeometry)
+molorb.o: common.fypp _mod_periodic _mod_slater _mod_assert _mod_simplealgebra _mod_accuracy _mod_typegeometry
+molorb.o = molorb.o $(common.fypp) $(_mod_periodic) $(_mod_slater) $(_mod_assert) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_typegeometry)
 _mod_molecularorbital: molorb.o
 _mod_molecularorbital = $(molorb.o)
 
-slater.o: _mod_accuracy assert.h allocate.h
-slater.o = slater.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+slater.o: _mod_accuracy common.fypp _mod_assert
+slater.o = slater.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_slater: slater.o
 _mod_slater = $(slater.o)
 
-waveplot.o: _mod_molecularorbital allocate.h _mod_fileid _mod_initprogram _mod_periodic _mod_gridcache _mod_linkedlist _mod_charmanip _mod_simplealgebra _mod_accuracy assert.h _mod_typegeometry
-waveplot.o = waveplot.o $(_mod_molecularorbital) $(allocate.h) $(_mod_fileid) $(_mod_initprogram) $(_mod_periodic) $(_mod_gridcache) $(_mod_linkedlist) $(_mod_charmanip) $(_mod_simplealgebra) $(_mod_accuracy) $(assert.h) $(_mod_typegeometry)
+waveplot.o: _mod_molecularorbital common.fypp _mod_fileid _mod_initprogram _mod_periodic _mod_assert _mod_gridcache _mod_linkedlist _mod_charmanip _mod_simplealgebra _mod_accuracy _mod_typegeometry
+waveplot.o = waveplot.o $(_mod_molecularorbital) $(common.fypp) $(_mod_fileid) $(_mod_initprogram) $(_mod_periodic) $(_mod_assert) $(_mod_gridcache) $(_mod_linkedlist) $(_mod_charmanip) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_typegeometry)
 

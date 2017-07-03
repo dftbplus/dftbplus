@@ -7,7 +7,6 @@
 
 !!* General interface for the optimization algorithms
 module geoopt
-#include "allocate.h"
   use accuracy
   use conjgrad
   use steepdesc
@@ -20,21 +19,16 @@ module geoopt
   type OGeoOpt
     private
     integer :: iGeoOpt
-    type(OConjGrad), pointer :: pConjGrad
-    type(OSteepDesc), pointer :: pSteepDesc
-    type(ODIIS), pointer :: pDIIS
+    type(OConjGrad), allocatable :: pConjGrad
+    type(OSteepDesc), allocatable :: pSteepDesc
+    type(ODIIS), allocatable :: pDIIS
   end type OGeoOpt
 
   !!* Creates a geometry optimizer
-  interface create
-    module procedure GeoOpt_createConjGrad
-    module procedure GeoOpt_createSteepDesc
-    module procedure GeoOpt_createDIIS
-  end interface
-
-  !!* Destroys the optimizer
-  interface destroy
-    module procedure GeoOpt_destroy
+  interface init
+    module procedure GeoOpt_initConjGrad
+    module procedure GeoOpt_initSteepDesc
+    module procedure GeoOpt_initDIIS
   end interface
 
   !!* Resets the optimizer
@@ -49,80 +43,61 @@ module geoopt
 
 
   public :: OGeoOpt
-  public :: create, destroy, reset, next
+  public :: init, reset, next
 
   !! Constanst for the different optimizers
   integer, parameter :: iConjGrad = 1
   integer, parameter :: iSteepDesc = 2
   integer, parameter :: iDIIS = 3
-  
+
 contains
-
-  !!* Allocates the object and nulls the pointers in it
-  !!* @param self GeoOpt instance
-  subroutine GeoOpt_createCommon(self)
-    type(OGeoOpt), pointer :: self
-
-    INITALLOCATE_P(self)
-    self%pConjGrad => null()
-    self%pSteepDesc => null()
-    self%pDIIS => null()
-
-  end subroutine GeoOpt_createCommon
-
-  
 
   !!* Creates a general geometry optimizier with a conjugate gradient instance
   !!* @param self      GeoOpt instance
   !!* @param pConjGrad An already initialized conjugate gradient instance
-  subroutine GeoOpt_createConjGrad(self, pConjGrad)
-    type(OGeoOpt), pointer :: self
-    type(OConjGrad), pointer :: pConjGrad
+  subroutine GeoOpt_initConjGrad(self, pConjGrad)
+    type(OGeoOpt), intent(out) :: self
+    type(OConjGrad), allocatable, intent(inout) :: pConjGrad
 
-    call GeoOpt_createCommon(self)
     self%iGeoOpt = iConjGrad
-    self%pConjGrad => pConjGrad
+    call move_alloc(pConjGrad, self%pConjGrad)
 
-  end subroutine GeoOpt_createConjGrad
+  end subroutine GeoOpt_initConjGrad
 
-  
+
 
   !!* Creates a general geometry optimizier with a steepest descent instance
   !!* @param self       GeoOpt instance
   !!* @param pSteepDesc An already initialized steepest descent instance
-  subroutine GeoOpt_createSteepDesc(self, pSteepDesc)
-    type(OGeoOpt), pointer :: self
-    type(OSteepDesc), pointer :: pSteepDesc
+  subroutine GeoOpt_initSteepDesc(self, pSteepDesc)
+    type(OGeoOpt), intent(out) :: self
+    type(OSteepDesc), allocatable, intent(inout) :: pSteepDesc
 
-    call GeoOpt_createCommon(self)
     self%iGeoOpt = iSteepDesc
-    self%pSteepDesc => pSteepDesc
+    call move_alloc(pSteepDesc, self%pSteepDesc)
 
-  end subroutine GeoOpt_createSteepDesc
+  end subroutine GeoOpt_initSteepDesc
 
   !!* Creates a general geometry optimizier with a steepest descent instance
   !!* @param self       GeoOpt instance
   !!* @param pDIIS An already initialized modified DIIS instance
-  subroutine GeoOpt_createDIIS(self, pDIIS)
-    type(OGeoOpt), pointer :: self
-    type(ODIIS), pointer :: pDIIS
+  subroutine GeoOpt_initDIIS(self, pDIIS)
+    type(OGeoOpt), intent(out) :: self
+    type(ODIIS), allocatable, intent(inout) :: pDIIS
 
-    call GeoOpt_createCommon(self)
     self%iGeoOpt = iDIIS
-    self%pDIIS => pDIIS
+    call move_alloc(pDIIS, self%pDIIS)
 
-  end subroutine GeoOpt_createDIIS
+  end subroutine GeoOpt_initDIIS
 
-  
-  
 
   !!* Resets the geometry optimizer
   !!* @param self GeoOpt instance
   !!* @param x0   Initial coordinates
   subroutine GeoOpt_reset(self, x0)
-    type(OGeoOpt), pointer :: self
+    type(OGeoOpt), intent(inout) :: self
     real(dp), intent(in) :: x0(:)
-    
+
     select case (self%iGeoOpt)
     case(iConjGrad)
       call reset(self%pConjGrad, x0)
@@ -131,29 +106,8 @@ contains
     case(iDIIS)
       call reset(self%pDIIS, x0)
     end select
-    
+
   end subroutine GeoOpt_reset
-
-  
-
-  !!* Destroys the geometry optimizer
-  !!* @param self GeoOpt instance
-  subroutine GeoOpt_destroy(self)
-    type(OGeoOpt), pointer :: self
-
-    if (associated(self)) then
-      select case (self%iGeoOpt)
-      case(iConjGrad)
-        call destroy(self%pConjGrad)
-      case(iSteepDesc)
-        call destroy(self%pSteepDesc)
-      case(iDIIS)
-        call destroy(self%pDIIS)
-      end select
-      DEALLOCATE_P(self)
-    end if
-  end subroutine GeoOpt_destroy
-
 
 
   !!* Delivers the next point in the geometry optimization
@@ -164,7 +118,7 @@ contains
   !!* @note When calling the first time, funciton value and gradient for the
   !!*   starting point of the minimization should be passed.
   subroutine GeoOpt_next(self, fx, dx, xNew, tConverged)
-    type(OGeoOpt), pointer :: self
+    type(OGeoOpt), intent(inout) :: self
     real(dp), intent(in) :: fx
     real(dp), intent(in) :: dx(:)
     real(dp), intent(out) :: xNew(:)
@@ -180,6 +134,6 @@ contains
     end select
 
   end subroutine GeoOpt_next
-    
-  
+
+
 end module geoopt

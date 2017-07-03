@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module for initializing SCC part of the calculation
 module sccinit
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use message
   use fileid
@@ -21,8 +22,8 @@ module sccinit
 
   logical :: tReadBinary = .true.
   logical :: tWriteBinary = .true.
-  
-  character(len=120) :: error_string !* Used to return runtime diagnostics  
+
+  character(len=120) :: error_string !* Used to return runtime diagnostics
   integer, parameter :: restartFormat = 3 !* version number for restart format
   !* please increment if you change the interface.
 
@@ -44,19 +45,19 @@ contains
     integer,   intent(in) :: species(:)
     character(len=*), intent(in) :: speciesNames(:)
     type(TOrbitals), intent(in) :: orb
-    
+
     integer :: iAt, iSp, iSh1, nAtom, iShL, iShR, nSh
     real(dp) :: fShell, fAtomRes
 
     nAtom = size(orb%nOrbAtom)
 
-    ASSERT(size(fOrb, dim=1) == orb%mOrb)
-    ASSERT(size(fOrb, dim=2) == nAtom)
-    ASSERT(size(fOrb, dim=3) >= 1)
-    ASSERT(size(fRefShell, dim=1) >= orb%mShell)
-    ASSERT(size(fRefShell, dim=2) == size(orb%nShell))
-    ASSERT(size(species) == nAtom)
-    ASSERT(size(speciesNames) == size(orb%nShell))
+    @:ASSERT(size(fOrb, dim=1) == orb%mOrb)
+    @:ASSERT(size(fOrb, dim=2) == nAtom)
+    @:ASSERT(size(fOrb, dim=3) >= 1)
+    @:ASSERT(size(fRefShell, dim=1) >= orb%mShell)
+    @:ASSERT(size(fRefShell, dim=2) == size(orb%nShell))
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesNames) == size(orb%nShell))
 
     fOrb = 0.0_dp
     !! fill degenerately over m for each shell l
@@ -80,9 +81,9 @@ contains
             &// "' to hold specified atomic charges")
       end if
     end do
-    
+
   end subroutine initQFromAtomChrg
-  
+
 
   !!* Initialise the charge vector from the reference atomic charges
   !!* results in a set of charges appropriate for the neutral spin unpolarised
@@ -91,24 +92,24 @@ contains
   !!* @param qShell The reference charges per shell
   !!* @param species List of chemical species for each atom
   !!* @param orb Information about the orbitals.
-  !!* @todo Generalise initialization to include other cases than the 
+  !!* @todo Generalise initialization to include other cases than the
   !!* atomic closed shell
   subroutine initQFromShellChrg(qq, qShell, species, orb)
     real(dp), intent(out) :: qq(:,:,:)
     real(dp), intent(in)  :: qShell(:,:)
     integer,   intent(in) :: species(:)
     type(TOrbitals), intent(in) :: orb
-    
+
     integer :: iAt1, iSp1, iSh1, nAtom, iSh1l, iSh1r, nSh1
 
     nAtom = size(orb%nOrbAtom)
 
-    ASSERT(size(qq, dim=1) == orb%mOrb)
-    ASSERT(size(qq, dim=2) == nAtom)
-    ASSERT(size(qq, dim=3) >= 1)
-    ASSERT(size(qShell, dim=1) == orb%mShell)
-    ASSERT(size(qShell, dim=2) == size(orb%angShell, dim=2))
-    ASSERT(size(species) == nAtom)
+    @:ASSERT(size(qq, dim=1) == orb%mOrb)
+    @:ASSERT(size(qq, dim=2) == nAtom)
+    @:ASSERT(size(qq, dim=3) >= 1)
+    @:ASSERT(size(qShell, dim=1) == orb%mShell)
+    @:ASSERT(size(qShell, dim=2) == size(orb%angShell, dim=2))
+    @:ASSERT(size(species) == nAtom)
 
     qq(:,:,:) = 0.0_dp
     !! fill degenerately over m for each shell l
@@ -121,10 +122,10 @@ contains
         qq(iSh1l:iSh1r, iAt1, 1) = qShell(iSh1, iSp1) / real(nSh1, dp)
       end do
     end do
-    
+
   end subroutine initQFromShellChrg
 
-      
+
   !!* Initialise the charge vector from a named external file. Check the total
   !!* charge matches that expected for the calculation.
   !!* @param qq The charges per lm,atom,spin
@@ -139,7 +140,7 @@ contains
   !!* @param qiBlock block Mulliken imagninary population for LDA+U and L.S
   !!* @todo XML format for external file/option of charges data in input file
   !!*  in XML. Also further test of the input, if the number of orbital charges
-  !!*  per atom match the number from the angular momentum. 
+  !!*  per atom match the number from the angular momentum.
   subroutine initQFromFile(qq, fileName, orb, magnetisation, nEl, qBlock, &
       & qiBlock)
     real(dp), intent(out)          :: qq(:,:,:)
@@ -147,9 +148,9 @@ contains
     type(TOrbitals), intent(in)    :: orb
     real(dp), intent(in), optional :: nEl
     real(dp), intent(in), optional :: magnetisation
-    real(dp), intent(out), optional :: qBlock(:,:,:,:)    
-    real(dp), intent(out), optional :: qiBlock(:,:,:,:)    
-    
+    real(dp), intent(out), optional :: qBlock(:,:,:,:)
+    real(dp), intent(out), optional :: qiBlock(:,:,:,:)
+
     integer  :: nOrb, nAtom, nSpin ! nr. of orbitals / atoms / spin channels
     integer  :: iErr               ! error returned by the io commands
     integer, save :: file = -1     ! file unit number
@@ -158,31 +159,33 @@ contains
     real(dp) :: CheckSum(size(qq, dim=3)) ! total charge is present at the top
     ! of the file
     real(dp) :: sumQ
-    logical  :: tBlockPresent, tiBlockPresent 
+    logical  :: tBlockPresent, tiBlockPresent
 
-    
+
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
 
-    ASSERT(size(qq, dim=1) == orb%mOrb)
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    ASSERT_ENV(if (present(magnetisation)) then)
-    ASSERT_ENV(ASSERT(nSpin==2))
-    ASSERT_ENV(end if)
-    
-    ASSERT_ENV(if (present(qBlock)) then)
-    ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(qq, dim=1) == orb%mOrb)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+  #:call ASSERT_CODE
+    if (present(magnetisation)) then
+      @:ASSERT(nSpin==2)
+    end if
 
-    ASSERT_ENV(if (present(qiBlock)) then)
-    ASSERT(present(qBlock))
-    ASSERT(all(shape(qiBlock) == shape(qBlock)))
-    ASSERT_ENV(end if)
-    
+    if (present(qBlock)) then
+      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+    end if
+
+    if (present(qiBlock)) then
+      @:ASSERT(present(qBlock))
+      @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
+    end if
+  #:endcall ASSERT_CODE
+
     if (file == -1) then
       file = getFileId()
     end if
-        
+
     if (tReadBinary) then
       open(file, file=fileName, status='old', action='READ', &
           & form='unformatted',iostat=iErr)
@@ -206,7 +209,7 @@ contains
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
     end if
-    
+
     if (fileFormat /= restartFormat) then
       call error("Incompatible file type for external charge data")
     end if
@@ -216,7 +219,7 @@ contains
     end if
 
     qq(:,:,:) = 0.0_dp
-    
+
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         nOrb = orb%nOrbAtom(iAtom)
@@ -231,10 +234,10 @@ contains
         end if
       end do
     end do
-    
+
     if (any(abs(CheckSum(:) - sum(sum(qq(:,:,:),dim=1),dim=1))>elecTolMax))then
       call error("Error during reading external file of charge data - " &
-          & // "checksum failure, probably damaged file")      
+          & // "checksum failure, probably damaged file")
     end if
     sumQ = sum(qq(:,:,1))
     if (present(nEl)) then
@@ -254,12 +257,12 @@ contains
         call error(error_string)
       end if
     end if
-        
+
     if (present(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       if (tBlockPresent) then
         do iSpin = 1, nSpin
-          do iAtom = 1, nAtom      
+          do iAtom = 1, nAtom
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadBinary) then
@@ -274,10 +277,10 @@ contains
               end if
             end do
           end do
-        end do        
+        end do
       end if
       do iSpin = 1, nSpin
-        do iAtom = 1, nAtom      
+        do iAtom = 1, nAtom
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             qBlock(ii, ii ,iAtom, iSpin) = qq(ii ,iAtom, iSpin)
@@ -289,7 +292,7 @@ contains
       qiBlock(:,:,:,:) = 0.0_dp
       if (tiBlockPresent) then
         do iSpin = 1, nSpin
-          do iAtom = 1, nAtom      
+          do iAtom = 1, nAtom
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadBinary) then
@@ -307,7 +310,7 @@ contains
         end do
       end if
     end if
-    ! need a checksum here    
+    ! need a checksum here
     close(file)
 
   end subroutine initQFromFile
@@ -325,7 +328,7 @@ contains
     type(TOrbitals), intent(in)    :: orb
     real(dp), intent(in), optional :: qBlock(:,:,:,:)
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
-    
+
     integer :: nAtom, nOrb, nSpin
     integer :: iAtom, iOrb, iSpin, ii
     integer, save :: file = -1
@@ -335,21 +338,23 @@ contains
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
 
-    ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    ASSERT(size(qq, dim=1) >= orb%mOrb)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
+    @:ASSERT(size(qq, dim=1) >= orb%mOrb)
 
     tqBlock = present(qBlock)
     tqiBlock = present(qiBlock)
-    
-    ASSERT_ENV(if (tqBlock) then)
-    ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
-    ASSERT_ENV(end if)
 
-    ASSERT_ENV(if (present(qiBlock)) then)
-    ASSERT(present(qBlock))
-    ASSERT(all(shape(qiBlock) == shape(qBlock)))
-    ASSERT_ENV(end if)
-    
+  #:call ASSERT_CODE
+    if (tqBlock) then
+      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+    end if
+
+    if (present(qiBlock)) then
+      @:ASSERT(present(qBlock))
+      @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
+    end if
+  #:endcall ASSERT_CODE
+
     if (file == -1) then
       file = getFileId()
     end if
@@ -387,7 +392,7 @@ contains
     end do
     if (tqBlock) then
       do iSpin = 1, nSpin
-        do iAtom = 1, nAtom      
+        do iAtom = 1, nAtom
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteBinary) then
@@ -407,7 +412,7 @@ contains
 
     if (tqiBlock) then
       do iSpin = 1, nSpin
-        do iAtom = 1, nAtom      
+        do iAtom = 1, nAtom
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteBinary) then
@@ -424,9 +429,9 @@ contains
         end do
       end do
     end if
-    
+
     close(file)
-    
+
   end subroutine writeQToFile
-  
+
 end module sccinit

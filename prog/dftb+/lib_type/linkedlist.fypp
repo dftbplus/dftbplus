@@ -1,0 +1,524 @@
+#:mute
+#:if not defined('_LINKEDLIST_FYPP_')
+#:set _LINKEDLIST_FYPP_
+
+#:include 'common.fypp'
+
+
+#:def define_list(TYPE_NAME, ITEM_TYPE, PADDING, ITEM_RANK=0, NODE_TYPE=None)
+  #:mute
+    #:assert ITEM_RANK >= 0
+    #:if ITEM_RANK == 0
+      #:set ITEM_ATTRIB = ''
+      #:set NODE_ATTRIB = ''
+    #:else
+      #:set ITEM_SHAPE = ','.join([':'] * ITEM_RANK)
+      #:set ITEM_SHAPE_LESS = ','.join([':'] * (ITEM_RANK - 1))
+      #:set ITEM_ATTRIB = ', dimension(' + ITEM_SHAPE + ')'
+      #:set NODE_ATTRIB = ITEM_ATTRIB + ', allocatable'
+    #:endif
+    #:set ITEM_ARRAY_SHAPE = ','.join([':'] * (ITEM_RANK + 1))
+    #:set ITEM_ARRAY_ATTRIB = ', dimension(' + ITEM_ARRAY_SHAPE + ')'
+    #:if NODE_TYPE is None
+      #:set NODE_TYPE = ITEM_TYPE
+    #:endif
+  #:endmute
+
+  public :: ${TYPE_NAME}$
+  public :: init, destruct
+  public :: append, len, find, hasElement, isUnishaped
+  public :: get, set, asArray
+#:if ITEM_RANK > 0
+  public :: elemShape, intoArray
+#:endif
+#:if ITEM_RANK == 1
+  public :: asVector
+#:endif
+  
+
+  type :: node
+    ${NODE_TYPE}$${NODE_ATTRIB}$ :: data
+    type(node), pointer :: pNext
+  end type node
+  
+
+  type :: ${TYPE_NAME}$
+    private
+    integer :: length
+  #:if ITEM_RANK > 0
+    integer :: elemShape(${ITEM_RANK}$)
+  #:endif
+    logical :: tUnishaped
+    type(node), pointer :: pFirst
+    type(node), pointer :: pLast
+    integer :: iCache
+    type(node), pointer :: pCache
+    logical :: tInitialized = .false.
+  end type ${TYPE_NAME}$
+
+
+  interface init
+    module procedure ${TYPE_NAME}$_init
+  end interface init
+
+  interface destruct
+    module procedure ${TYPE_NAME}$_destruct
+  end interface destruct
+
+  interface append
+    module procedure ${TYPE_NAME}$_append
+  end interface append
+
+  interface len
+    module procedure ${TYPE_NAME}$_len
+  end interface len
+
+  interface find
+    module procedure ${TYPE_NAME}$_find
+  end interface find
+
+  interface hasElement
+    module procedure ${TYPE_NAME}$_hasElement
+  end interface hasElement
+
+  interface isUnishaped
+    module procedure ${TYPE_NAME}$_isUnishaped
+  end interface isUnishaped
+
+  interface get
+    module procedure ${TYPE_NAME}$_get
+  end interface get
+
+  interface set
+    module procedure ${TYPE_NAME}$_set
+  end interface set
+
+  interface asArray
+    module procedure ${TYPE_NAME}$_asArray
+  end interface asArray
+
+#:if ITEM_RANK > 0
+  interface intoArray
+    module procedure ${TYPE_NAME}$_intoArray
+  end interface intoArray
+
+  interface elemShape
+    module procedure ${TYPE_NAME}$_elemShape
+  end interface elemShape
+#:endif
+
+#:if ITEM_RANK == 1
+  interface asVector
+    module procedure ${TYPE_NAME}$_asVector
+  end interface asVector
+#:endif
+
+
+contains
+
+  !!* Initializes the list.
+  !!* @param list The list to initialize.
+  subroutine ${TYPE_NAME}$_init(list)
+    type(${TYPE_NAME}$), intent(inout) :: list
+
+    @:ASSERT(.not. list%tInitialized)
+
+    list%length = 0
+  #:if ITEM_RANK >0
+    list%elemShape(:) = 0
+  #:endif
+    list%tUnishaped = .true.
+    nullify(list%pFirst)
+    nullify(list%pLast)
+    list%iCache = 0
+    nullify(list%pCache)
+    list%tInitialized = .true.
+
+  end subroutine ${TYPE_NAME}$_init
+
+  
+  !!* Destructs the list.
+  !!* @param list The list to destruct.
+  subroutine ${TYPE_NAME}$_destruct(list)
+    type(${TYPE_NAME}$), intent(inout) :: list
+
+    type(node), pointer :: pCur, pNext
+
+    if (.not. list%tInitialized) then
+      return
+    end if
+
+    pCur => list%pFirst
+    do while(associated(pCur))
+      pNext => pCur%pNext
+      deallocate(pCur)
+      pCur => pNext
+    end do
+    list%tInitialized = .false.
+
+  end subroutine ${TYPE_NAME}$_destruct
+
+
+  !!* Appends an element to the list.
+  !!* @param list  The list to extend.
+  !!* @param data The data to add.
+  subroutine ${TYPE_NAME}$_append(list, data)
+    type(${TYPE_NAME}$), intent(inout) :: list
+    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(in) :: data
+
+    @:ASSERT(list%tInitialized)
+
+    !! List contains already elements -> append to the end otherwise as first
+    if (associated(list%pLast)) then
+      allocate(list%pLast%pNext)
+      list%pLast => list%pLast%pNext
+    #:if ITEM_RANK > 0
+      if (list%tUnishaped .and. (.not. all(shape(data) == list%elemShape))) then
+        list%tUnishaped = .false.
+      end if
+    #:endif
+    else
+      allocate(list%pFirst)
+      list%pLast => list%pFirst
+    #:if ITEM_RANK > 0
+      list%elemShape(:) = shape(data)
+    #:endif
+    end if
+    list%length = list%length + 1
+
+    !! initialize node
+    nullify(list%pLast%pNext)
+    ! WORKAROUND: GFortran 7.1 crashes on automatic allocation
+    !list%pLast%data = data
+  #:if ITEM_RANK == 0
+    list%pLast%data = data
+  #:else
+    ! WORKAROUND: GFortran 5.3 can not cope with source allocation
+    !allocate(list%pLast%data, source=data)
+    #:set allocstr = ','.join(['size(data, dim=%d)' % (ii + 1) for ii in range(ITEM_RANK)])
+    #:set shapestr = ','.join([':' for ii in range(ITEM_RANK)])
+    allocate(list%pLast%data(${allocstr}$))
+    list%pLast%data(${shapestr}$) = data
+  #:endif
+
+  end subroutine ${TYPE_NAME}$_append
+  
+
+  !!* Returns the length(nr. of elements) of the list
+  !!* @param list The list to get the length of.
+  !!* @return     Nr. of elements in the list.
+  integer function ${TYPE_NAME}$_len(list) result(len)
+    type(${TYPE_NAME}$), intent(in) :: list
+    @:ASSERT(list%tInitialized)
+    len = list%length
+  end function ${TYPE_NAME}$_len
+
+
+  !!* Returns the index of an element in the list.
+  !!* @param list  The list object.
+  !!* @param data The data to look for.
+  !!* @return      Index of the element or zero if not found
+  function ${TYPE_NAME}$_find(list, data) result(ind)
+    integer :: ind
+    type(${TYPE_NAME}$), intent(inout) :: list
+    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(in) :: data
+
+    type(node), pointer :: pCur
+    integer :: ii
+
+    @:ASSERT(list%tInitialized)
+
+    pCur => list%pFirst
+    ii = 1
+    do while(associated(pCur))
+    #:if ITEM_RANK == 0
+      if (pCur%data == data) then
+        exit
+      end if
+    #:else
+      if (all(shape(pCur%data) == shape(data))) then
+        if (all(pCur%data == data)) then
+          exit
+        end if
+      end if
+    #:endif
+      pCur => pCur%pNext
+      ii = ii + 1
+    end do
+
+    if (associated(pCur)) then
+      ind = ii
+      list%iCache = ii
+      list%pCache => pCur
+    else
+      ind = 0
+    endif
+
+  end function ${TYPE_NAME}$_find
+
+
+  !!* Check if given element is in the list
+  !!* @param list   The list object
+  !!* @param data  Element to look for
+  !!* @return       True if element had been found, false otherwise
+  logical function ${TYPE_NAME}$_hasElement(list, data) result(hasElement)
+    type(${TYPE_NAME}$), intent(inout) :: list
+    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(in) :: data
+
+    @:ASSERT(list%tInitialized)
+
+    if (find(list, data) == 0) then
+      hasElement = .false.
+    else
+      hasElement = .true.
+    end if
+
+  end function ${TYPE_NAME}$_hasElement
+  
+  
+  !!* Fills a variable with the speciefied element of the list
+  !!* @param list  The list object.
+  !!* @param data The variable to put the element in.
+  !!* @param index Index of the element (0 < index < length of the list)
+  subroutine ${TYPE_NAME}$_get(list, data, index)
+    type(${TYPE_NAME}$), intent(inout) :: list
+    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(out) :: data
+    integer, intent(in) :: index
+
+    type(node), pointer :: pCur
+
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
+
+    pCur => getNode(list, index)
+  #:if ITEM_RANK > 0
+    @:ASSERT(all(shape(pCur%pData) == shape(data)))
+  #:endif
+    data = pCur%data
+
+  end subroutine ${TYPE_NAME}$_get
+  
+
+  !!* Fills a speciefied element of the list with a variable
+  !!* @param list  The list object.
+  !!* @param data The variable to put the element in.
+  !!* @param index Index of the element (0 < index < length of the list)
+  subroutine ${TYPE_NAME}$_set(list, data, index)
+    type(${TYPE_NAME}$), intent(inout) :: list
+    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(in) :: data
+    integer, intent(in) :: index
+
+    type(node), pointer :: pCur
+
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
+
+    pCur => getNode(list, index)
+  #:if ITEM_RANK > 0
+    @:ASSERT(all(shape(pCur%data) == shape(data)))
+  #:endif
+    pCur%data = data
+
+  end subroutine ${TYPE_NAME}$_set
+  
+  
+  !!* Checks if list contains members with equal shaped
+  !!* @param list The list object.
+  !!* @return     True, if elements have equals shaped, False otherwise.
+  logical function ${TYPE_NAME}$_isUnishaped(list) result(isUnishaped)
+    type(${TYPE_NAME}$), intent(in) :: list
+    @:ASSERT(list%tInitialized)
+    isUnishaped = list%tUnishaped
+  end function ${TYPE_NAME}$_isUnishaped
+  
+
+  !!* Returns the list as an array of elements.
+  !!* @param list The list to get the elements from.
+  !!* @param val  Array which will be filled with the elements of the list.
+  !!* @note
+  !!*   The passed array has to have the rank of the list elements + 1.
+  !!*   According to Fortran traditions, the last index of the array addresses
+  !!*   the list elements, the indexes before address the elements inside
+  !!*   the list elements.
+  !!* @note Only unishaped lists can be converted to array!
+  !!* @assert Array has the shape(:, :, :, ..., :, <length of the list>)
+  !!*         and the dimensions before the last one are compatible with the
+  !!*         shape of the elements in the list.
+  subroutine ${TYPE_NAME}$_asArray(list, val)
+    type(${TYPE_NAME}$), intent(in) :: list
+    ${ITEM_TYPE}$${ITEM_ARRAY_ATTRIB}$, intent(out) :: val
+
+    type(node), pointer :: pCur
+    integer :: lenVal
+    integer :: ii
+
+    lenVal = size(val, dim=size(shape(val)))
+    
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(list%tUnishaped)
+    @:ASSERT(lenVal >= list%length)
+
+    pCur => list%pFirst
+    ii = 1
+    do while(associated(pCur))
+    #:if ITEM_RANK == 0
+      val(ii) = pCur%data
+    #:else
+      val(${ITEM_SHAPE}$, ii) = pCur%data
+    #:endif
+      ii = ii + 1
+      pCur => pCur%pNext
+    end do
+    if (ii <= lenVal) then
+    #:if ITEM_RANK == 0
+      val(ii:lenVal) = ${PADDING}$
+    #:else
+      val(${ITEM_SHAPE}$, ii:lenVal) = ${PADDING}$
+    #:endif
+    end if
+    
+  end subroutine ${TYPE_NAME}$_asArray
+
+
+#:if ITEM_RANK > 0
+
+  !!* Get the shape of the elements in the list
+  !!* @param list     The list object
+  !!* @param valshape contains the shape at return
+  subroutine ${TYPE_NAME}$_elemShape(list, valshape, index)
+    type(${TYPE_NAME}$), intent(inout) :: list
+    integer, intent(out) :: valshape(:)
+    integer, intent(in) :: index
+
+    type(node), pointer :: pCur
+
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
+    @:ASSERT(size(valshape, dim=1) == ${ITEM_RANK}$)
+
+    if (list%tUnishaped) then
+      valshape(:) = list%elemShape
+    else
+      pCur => getNode(list, index)
+      valshape(:) = shape(pCur%data)
+    end if
+
+  end subroutine ${TYPE_NAME}$_elemShape
+
+#:endif
+  
+
+#:if ITEM_RANK > 0
+
+  !!* Fills a variable with the speciefied element of the list
+  !!* @param list  The list object.
+  !!* @param data The variable to put the element in.
+  !!* @param nElem number of elements returned in data
+  !!* @param index Index of the element (0 < index < length of the list)
+  subroutine ${TYPE_NAME}$_intoArray(list, data, nElem, index)
+    type(${TYPE_NAME}$), intent(inout) :: list
+    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(inout) :: data
+    integer, intent(out) :: nElem
+    integer, intent(in) :: index
+
+    type(node), pointer :: pCur
+
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(index > 0 .and. index <= list%length)
+
+    pCur => getNode(list, index)
+    nElem = size(pCur%data, dim=${ITEM_RANK}$)
+    @:ASSERT(size(data) >= nElem)
+  #:if ITEM_RANK == 1
+    data(:nElem) = pCur%data
+  #:else
+    data(${ITEM_SHAPE_LESS}$, 1:nElem) = pCur%data
+  #:endif
+  end subroutine ${TYPE_NAME}$_intoArray
+
+#:endif  
+
+
+#:if ITEM_RANK == 1
+
+  !!* Returns the list as a vector (rank 1 array).
+  !!* @param list The list to get the elements from.
+  !!* @param val  Array which will be filled with the elements of the list.
+  !!* @note
+  !!*   The passed array has to have the rank of the list elements + 1.
+  !!*   According to Fortran traditions, the last index of the array addresses
+  !!*   the list elements, the indexes before address the elements inside
+  !!*   the list elements.
+  !!* @note Only unishaped lists can be converted to array!
+  !!* @assert Array has the shape(:, :, :, ..., :, <length of the list>)
+  !!*         and the dimensions before the last one are compatible with the
+  !!*         shape of the elements in the list.
+  subroutine ${TYPE_NAME}$_asVector(list, val)
+    type(${TYPE_NAME}$), intent(in) :: list
+    ${ITEM_TYPE}$, dimension(:), intent(out) :: val
+
+    type(node), pointer :: pCur
+    integer :: lenVal, lenElem
+    integer :: ii
+
+    lenVal = size(val)
+    lenElem = product(list%elemShape)
+
+    @:ASSERT(list%tInitialized)
+    @:ASSERT(list%tUnishaped)
+    @:ASSERT(lenVal >= list%length * lenElem)
+
+    pCur => list%pFirst
+    ii = 1
+    do while(associated(pCur))
+      val(ii : ii + lenElem - 1) = pCur%data
+      ii = ii + lenElem
+      pCur => pCur%pNext
+    end do
+    if (ii <= lenVal) then
+      val(ii:) = ${PADDING}$
+    end if
+    
+  end subroutine ${TYPE_NAME}$_asVector
+
+#:endif
+
+
+  !!* Returns a pointer to a node with a given index
+  !!* @param list  The list object.
+  !!* @param pNode Pointer to set to the wanted node.
+  !!* @param index Index of the wanted node.
+  function getNode(list, index)
+    type(node), pointer :: getNode
+    type(${TYPE_NAME}$), intent(inout) :: list
+    integer, intent(in) :: index
+
+    integer :: ii, iStart
+    
+    @:ASSERT(index > 0 .and. index <= list%length)
+
+    if (list%iCache == index) then
+      getNode => list%pCache
+      return
+    end if
+
+    if (list%iCache > 0 .and. list%iCache < index) then
+      iStart = list%iCache
+      getNode => list%pCache
+    else
+      iStart = 1
+      getNode => list%pFirst
+    end if
+
+    do ii = iStart + 1, index
+      getNode => getNode%pNext
+    end do
+    list%pCache => getNode
+    list%iCache = index
+
+   end function getNode
+
+#:enddef define_list   
+
+#:endif   
+#:endmute

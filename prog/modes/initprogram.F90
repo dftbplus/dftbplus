@@ -5,15 +5,17 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains the routines for initialising modes.
 module InitProgram
-#include "assert.h"
+  use assert
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
   use HSDUtils
   use HSDUtils2
   use flib_dom
-  use LinkedList
+  use linkedlist
   use CharManip
   use Accuracy
   use Constants
@@ -21,7 +23,6 @@ module InitProgram
   use Message
   use FileId
   use UnitConversion
-  use StringList
   use OldSKData
   implicit none
 
@@ -33,7 +34,7 @@ module InitProgram
   character(len=*), parameter :: hsdInput = "modes_in.hsd"
   character(len=*), parameter :: hsdParsedInput = "modes_pin.hsd"
   character(len=*), parameter :: xmlInput = "modes_in.xml"
-  character(len=*), parameter :: xmlParsedInput = "modes_pin.xml" 
+  character(len=*), parameter :: xmlParsedInput = "modes_pin.xml"
   integer, parameter :: parserVersion = 3
 
   public :: initProgramVariables, destructProgramVariables
@@ -48,17 +49,17 @@ module InitProgram
 
   real(dp), allocatable, public :: atomicMasses(:)
   real(dp), allocatable, public :: dynMatrix(:,:)
-  
+
   logical, public :: tPlotModes
   logical, public :: tAnimateModes
   logical, public :: tXmakeMol
-  integer, pointer, public :: modesToPlot(:)  => null()
+  integer, allocatable, public :: modesToPlot(:)
   integer, public :: nModesToPlot
   integer, public :: nCycles
   integer, public, parameter :: nSteps = 10
   integer, public :: nMovedAtom  ! Number of atoms which should be moved.
-  integer, pointer, public :: iMovedAtoms(:) => null()
-  
+  integer, allocatable, public :: iMovedAtoms(:)
+
   !! Locally created variables
 
 contains
@@ -82,7 +83,7 @@ contains
     logical :: tLower, tExist
     integer :: nDerivs
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
-    
+
     !! Write header
     write (*, "(A)") repeat("=", 80)
     write (*, "(A)") "     MODES  " // version
@@ -105,18 +106,16 @@ contains
           &// i2c(parserVersion) // ") do not match")
     end if
 
-    
+
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
 
-    nullify(iMovedAtoms)
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
     call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
         &child, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
-    nullify(modesToPlot)
     call getChild(root, "DisplayModes",child=node,requested=.false.)
     if (associated(node)) then
       tPlotModes = .true.
@@ -138,7 +137,7 @@ contains
     else
       nCycles = 3
     end if
-    
+
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
@@ -192,7 +191,7 @@ contains
           end if
           call append(skFiles(iSp1), strTmp)
         end do
-        call destroy(lStr)
+        call destruct(lStr)
       end do
     end select
 
@@ -200,15 +199,9 @@ contains
     do iSp1 = 1, geo%nSpecies
       call get(skFiles(iSp1), fileName, 1)
       call readFromFile(skData, fileName, .true.)
-      deallocate(skData%skHam)
-      deallocate(skData%skOver)
-      speciesMass(iSp1) = skData%mass      
+      speciesMass(iSp1) = skData%mass
+      call destruct(skFiles(iSp1))
     end do
-    
-    do iSp1 = 1, geo%nSpecies
-      call destroy(skFiles(iSp1))
-    end do
-    deallocate(skFiles)
 
     allocate(dynMatrix(nDerivs,nDerivs))
     call getChildValue(root, "Hessian", value, "", child=child, &
@@ -225,7 +218,7 @@ contains
             & // i2c(nDerivs) // " required.")
       end if
       call asArray(realBuffer, dynMatrix)
-      call destroy(realBuffer)
+      call destruct(realBuffer)
     end if
 
     call getChildValue(root, "WriteHSDInput", tWriteHSD, .true.)
@@ -237,7 +230,7 @@ contains
     !! Finish parsing, dump parsed and processed input
     if (tWriteHSD) then
       call dumpHSD(input, hsdParsedInput)
-      
+
       write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
           &//"'"
     end if
@@ -250,27 +243,19 @@ contains
     write (*,*)
     call destroyNode(input)
 
-    call unstring(strBuffer)
-
 
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
     end do
-    
-    deallocate(speciesMass)
-    
+
   end subroutine initProgramVariables
 
   !!* Destroy the program variables created in initProgramVariables
   subroutine destructProgramVariables()
-    
-    call destruct(geo)
-    deallocate(atomicMasses)
-    deallocate(dynMatrix)
-    deallocate(modesToPlot)
+
     write (*, "(/,A)") repeat("=", 80)
-    
+
   end subroutine destructProgramVariables
 
   !!* Read in the geometry stored as xml in internal or gen format.
@@ -293,8 +278,7 @@ contains
     case default
       call readTGeometryHSD(geonode, geo)
     end select
-    call unstring(buffer)
-    
+
   end subroutine readGeometry
 
 end module InitProgram

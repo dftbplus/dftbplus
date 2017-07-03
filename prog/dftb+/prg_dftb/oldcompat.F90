@@ -17,12 +17,12 @@ module oldcompat
   use xmlf90
   implicit None
   private
-  
+
   public :: convertOldHSD
-  
-  
+
+
 contains
-  
+
   !!* Converts an HSD input for an older parser to the current format.
   !!* @param root Root tag of the HSD-tree
   !!* @param oldVersion Version number of the old parser
@@ -31,10 +31,10 @@ contains
     type(fnode), pointer :: root
     integer, intent(in) :: oldVersion
     integer, intent(in) :: curVersion
-    
+
     integer :: version
     type(fnode), pointer :: ch1, ch2, par
-    
+
     version = oldVersion
     do while (version < curVersion)
       select case(version)
@@ -52,7 +52,7 @@ contains
         version = 5
       end select
     end do
-    
+
     ! increase the parser version number in the tree - resulting
     ! dftb_pin would not work with the old parser as the options have
     ! changed to the new form by now
@@ -60,18 +60,18 @@ contains
         &allowEmptyValue=.true.)
     call getChildValue(par, "ParserVersion", version, child=ch2)
     call setChildValue(ch2, "", curVersion, replace=.true.)
-    
+
   end subroutine convertOldHSD
-  
-  
-  
+
+
+
   !!* Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
   !!* @param root Root tag.
   subroutine convert_1_2(root)
     type(fnode), pointer :: root
-    
+
     type(fnode), pointer :: child1, child2
-    
+
     call getChild(root, "Geometry", child1, requested=.false.)
     if (associated(child1)) then
       call setUnprocessed(child1)
@@ -81,17 +81,17 @@ contains
         call setNodeName(child2, "TypeNames")
       end if
     end if
-    
+
   end subroutine convert_1_2
-  
-  
+
+
   !!* Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
   subroutine convert_2_3(root)
     type(fnode), pointer :: root
-    
+
     type(fnode), pointer :: ch1, ch2, par
     logical :: tValue
-    
+
     call getDescendant(root, &
         &"Driver/VelocityVerlet/Thermostat/Andersen/RescalingProbability", &
         &ch1)
@@ -99,7 +99,7 @@ contains
       call detailedWarning(ch1, "Keyword renamed to 'ReselectProbability'.")
       call setNodeName(ch1, "ReselectProbability")
     end if
-    
+
     call getDescendant(root, &
         &"Driver/VelocityVerlet/Thermostat/Andersen/RescaleIndividually", &
         &ch1)
@@ -107,7 +107,7 @@ contains
       call detailedWarning(ch1, "Keyword renamed to 'ReselectIndividually'.")
       call setNodeName(ch1, "ReselectIndividually")
     end if
-    
+
     call getDescendant(root, "Hamiltonian/DFTB/Variational", ch1)
     if (associated(ch1)) then
       call getChildValue(ch1, "", tValue)
@@ -121,7 +121,7 @@ contains
         call destroyNode(ch1)
       end if
     end if
-    
+
     call getDescendant(root, "Hamiltonian/DFTB/SCC", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(ch1, "", tValue)
@@ -133,39 +133,39 @@ contains
             &per default any more. Keyword 'OrbitalResolvedSCC' added.")
       end if
     end if
-    
+
     call getDescendant(root, "Options/PrintEigenvectors", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword converted to 'WriteEigenvectors'")
       call setNodeName(ch1, "WriteEigenvectors")
     end if
-    
+
     call getDescendant(root, "Options/WriteTaggedOut", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword converted to 'WriteAutotestTag'. &
           &Output file name changed to 'autotest.out'")
       call setNodeName(ch1, "WriteAutotestTag")
     end if
-    
+
     call getDescendant(root, "Options/WriteBandDat", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword converted to 'WriteBandOut'. &
           &Output file name changed to 'band.out'")
       call setNodeName(ch1, "WriteBandOut")
     end if
-    
+
   end subroutine convert_2_3
-  
-  
-  
+
+
+
   !!* Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
   subroutine convert_3_4(root)
     type(fnode), pointer :: root
-    
+
     type(fnode),pointer :: node, node2, node3
     type(fnodeList), pointer :: children
     integer :: ii
-    
+
     !! Replace range operator with short start:end syntax
     call getDescendant(root, "Driver/SteepestDescent/MovedAtoms", node)
     call replaceRange(node)
@@ -186,24 +186,24 @@ contains
       end do
       call destroyNodeList(children)
     end if
-    
+
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
       call detailedWarning(node, "Keyword renamed to 'InitalSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
-    
-    
+
+
   contains
-    
+
     ! Helper function
     subroutine replaceRange(node)
       type(fnode), pointer :: node
-      
+
       type(fnode), pointer :: node2
       integer :: bounds(2)
-      
+
       if (associated(node)) then
         call getChild(node, "Range", node2, requested=.false.)
         if (associated(node2)) then
@@ -215,24 +215,24 @@ contains
               &not supported any more, using 'start:end' instead")
         end if
       end if
-      
+
     end subroutine replaceRange
-    
+
   end subroutine convert_3_4
-  
+
   !!* Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
   subroutine convert_4_5(root)
     type(fnode), pointer :: root
-    
+
     type(fnode), pointer :: ch1, ch2, ch3, par, dummy
     logical :: tVal
-    
+
     call getDescendant(root, "Hamiltonian/DFTB/Eigensolver/Standard", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword renamed to 'QR'.")
       call setNodeName(ch1, "QR")
     end if
-    
+
     call getDescendant(root, "Options/MullikenAnalysis", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(ch1, "", tVal)
@@ -247,7 +247,7 @@ contains
       call setChildValue(ch1, "MullikenAnalysis", tVal)
       call setUnprocessed(ch1)
     end if
-    
+
     call getDescendant(root, "Options/AtomResolvedEnergies", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "AtomResolvedEnergies", tVal)
@@ -260,9 +260,9 @@ contains
         call setChild(root, "Analysis", ch1)
       end if
       call setChildValue(ch1,"AtomResolvedEnergies",tVal)
-      call setUnprocessed(ch1)      
+      call setUnprocessed(ch1)
     end if
-    
+
     call getDescendant(root, "Options/WriteEigenvectors", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "WriteEigenvectors", tVal)
@@ -277,7 +277,7 @@ contains
       call setChildValue(ch1, "WriteEigenvectors", tVal)
       call setUnprocessed(ch1)
     end if
-    
+
     call getDescendant(root, "Options/WriteBandOut", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "WriteBandOut", tVal)
@@ -292,7 +292,7 @@ contains
       call setChildValue(ch1, "WriteBandOut", tVal)
       call setUnprocessed(ch1)
     end if
-    
+
     call getDescendant(root, "Options/CalculateForces", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "CalculateForces", tVal)
@@ -316,13 +316,13 @@ contains
       call detailedWarning(ch2, "Adding legacy step size for finite difference&
           & differentiation")
     end if
-    
+
     call getDescendant(root, "Hamiltonian/DFTB/SpinConstants", ch1, &
         & parent=par)
     if (associated(ch1)) then
       call setChildValue(ch1, "ShellResolvedSpin", .true.)
     end if
-    
+
   end subroutine convert_4_5
-  
+
 end module oldcompat

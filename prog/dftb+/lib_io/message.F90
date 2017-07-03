@@ -7,7 +7,7 @@
 
 !!* Contains rudimentary warning and error functions for the code to report
 !!* problems during run time.
-!!* @desc Provides routines to call with a string or array of strings if 
+!!* @desc Provides routines to call with a string or array of strings if
 !!*   problems occur of a fatal (error) or recoverable (warning) nature.
 module message
   implicit none
@@ -24,19 +24,19 @@ module message
   end interface
 
   public :: warning, error
-  
+
 contains
 
   !!* Gives a warning message.
   !!* @param message Warning message to print to standard out.
   subroutine warning_single(message)
-    character (len=*), intent(in) :: message  
+    character (len=*), intent(in) :: message
     write(*, '(1a)') 'WARNING!'
     write(*, '(2a)') '-> ', trim(message)
   end subroutine warning_single
-  
-  
-  
+
+
+
   !!* Gives a warning message.
   !!* @param messages Lines of the error message to print to standard out.
   subroutine warning_array(messages)
@@ -49,15 +49,15 @@ contains
       write(*,'(2a)') '-> ', trim(messages(ii))
     end do
     stop
-    
+
   end subroutine warning_array
 
 
-  
+
   !!* Gives an error message and stops the code.
   !!* @param message Error message to print to standard out.
-  subroutine error_single(message) 
-    character (len=*), intent(in) :: message  
+  subroutine error_single(message)
+    character (len=*), intent(in) :: message
     write(*,'(1a)') 'ERROR!'
     write(*,'(2a)') '-> ', trim(message)
     stop
@@ -77,9 +77,9 @@ contains
       write(*,'(2a)') '-> ', trim(messages(ii))
     end do
     stop
-    
+
   end subroutine error_array
-  
+
 end module message
 
-  
+

@@ -13,7 +13,7 @@ lapack.o += _extlib_lapack _extlib_blas
 dftd3.o: _extlib_dftd3
 dftd3.o += _extlib_dftd3
 
-#ifdef WITH_ARPACK
+#:if WITH_ARPACK
 arpack.o: _extlib_arpack
 arpack.o += _extlib_arpack
-#endif
+#:endif

@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines related to finite electron temperature, including
 !!* Fermi, Gaussian and Methfessel-Paxton broadening functions.
 !!* @todo Add other methods, including possibly Pederson and Jackson method
 !!* PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
 !!* interpolation instead of bisection.
 module etemp
-#include "assert.h"
+  use assert
   use accuracy, only : dp, elecTol, elecTolMax, mExpArg
   use errorfunction
   use message
@@ -78,19 +80,19 @@ contains
     real(dp) :: nElec
     real(dp) :: nElecMax, nElecMin, maxEig, minEig
     real(dp) :: EfOld
-    
-    ASSERT(all(shape(filling) == shape(eigenvals)))
-    ASSERT(size(eigenvals, dim=3) == size(Ebs))
-    ASSERT(size(eigenvals, dim=3) == size(TS))
-    ASSERT(size(eigenvals, dim=3) == size(E0))
-    ASSERT(nElectrons >= 0.0_dp)
-    ! Not a tight enough bound ? :
-    ASSERT(ceiling(nElectrons) <= 2 * size(eigenvals, dim=1) * size(eigenvals, dim=3))
-    ASSERT(kT > 0.0_dp)
-    ASSERT(size(kWeight) > 0)
-    ASSERT(all(kWeight >= 0.0_dp))
 
-    ASSERT(distrib >= Fermi)
+    @:ASSERT(all(shape(filling) == shape(eigenvals)))
+    @:ASSERT(size(eigenvals, dim=3) == size(Ebs))
+    @:ASSERT(size(eigenvals, dim=3) == size(TS))
+    @:ASSERT(size(eigenvals, dim=3) == size(E0))
+    @:ASSERT(nElectrons >= 0.0_dp)
+    ! Not a tight enough bound ? :
+    @:ASSERT(ceiling(nElectrons) <= 2 * size(eigenvals, dim=1) * size(eigenvals, dim=3))
+    @:ASSERT(kT > 0.0_dp)
+    @:ASSERT(size(kWeight) > 0)
+    @:ASSERT(all(kWeight >= 0.0_dp))
+
+    @:ASSERT(distrib >= Fermi)
 
     ! If no electrons there, we are ready
     if (nElectrons < epsilon(1.0_dp)) then
@@ -111,7 +113,7 @@ contains
         return
       end if
     end if
-         
+
     ! find maximum and minimum possible value of Fermi Energy
     minEig = minval(eigenvals(1,:,:))
     maxEig = maxval(eigenvals(size(eigenvals, dim=1),:,:))
@@ -179,7 +181,7 @@ contains
         end if
       end if
     end if
-    
+
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
     call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight)
 
@@ -246,8 +248,6 @@ contains
           end do
         end do
       end do
-      deallocate(A)
-      deallocate(hermites)
     else
       do ispin = 1, size(eigenvals,dim=3)
         do i = 1, size(kWeight)
@@ -255,13 +255,13 @@ contains
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
             ! Where the compiler does not handle inf gracefully, trap the
             ! exponential function for small input values
-#ifdef EXPTRAP
-            if (x <= mExpArg) then
+            #:if EXP_TRAP
+              if (x <= mExpArg) then
+                electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
+              end if
+            #:else
               electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-            endif
-#else
-            electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-#endif
+            #:endif
           end do
         end do
       end do
@@ -303,15 +303,15 @@ contains
             if (x<10.0_dp) then
               ! Where the compiler does not handle inf gracefully,
               ! trap the exponential function for small input values
-#ifdef EXPTRAP
+            #:if EXP_TRAP
               if (x <= mExpArg) then
                 derivElectronCount = derivElectronCount + &
                     & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
-              endif
-#else
+              end if
+            #:else
               derivElectronCount = derivElectronCount + &
                   & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
-#endif
+            #:endif
             end if
           end do
         end do
@@ -358,9 +358,9 @@ contains
     integer :: i, j , k, l, iSpin
     real(dp) :: occ, x
 
-    ASSERT(size(filling, dim=3) == size(Eband))
-    ASSERT(size(filling, dim=3) == size(TS))
-    ASSERT(size(filling, dim=3) == size(E0))
+    @:ASSERT(size(filling, dim=3) == size(Eband))
+    @:ASSERT(size(filling, dim=3) == size(TS))
+    @:ASSERT(size(filling, dim=3) == size(E0))
 
     kpts = size(kWeights)
 
@@ -412,8 +412,6 @@ contains
           end do
         end do
       end do
-      deallocate(A)
-      deallocate(hermites)
       TS = TS * kT
       E0(:) = (real(MPorder + 1,dp) * (Eband - TS) + Eband) / real(MPorder + 2, dp)
     else
@@ -423,15 +421,15 @@ contains
             x = (eigenvals(j, i, iSpin) - Ef) / kT
             ! Where the compiler does not handle inf gracefully, trap the
             ! exponential function for small values
-#ifdef EXPTRAP
+          #:if EXP_TRAP
             if (x > mExpArg) then
               filling(j, i, iSpin) = 0.0_dp
             else
               filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
             endif
-#else
+          #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-#endif
+          #:endif
             if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if
@@ -463,8 +461,8 @@ contains
     integer, intent(in) :: n
     real(dp) :: nbang(0:n)
     integer i
-    ASSERT(n>=0)
-    ASSERT(size(A)>=n)
+    @:ASSERT(n>=0)
+    @:ASSERT(size(A)>=n)
     A(:) = 0.0_dp
     call fact(nbang,n)
     do i = 0, n
@@ -484,8 +482,8 @@ contains
     integer :: size1, size2
     integer :: ind, iLev, iOrb, iKpt, iSpin, jOrb, jKpt, jSpin
     real(dp) :: nElec
-    
-    allocate(tmpIndx(size(eigenvals)))      
+
+    allocate(tmpIndx(size(eigenvals)))
     call index_heap_sort(tmpIndx, reshape(eigenvals, [size(eigenvals)]))
     size1 = size(eigenvals, dim=1)
     size2 = size(eigenvals, dim=2)

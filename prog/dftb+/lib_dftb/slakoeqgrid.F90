@@ -5,18 +5,19 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains Types and subroutine to build up and query a Slater-Koster table
 !!* where the integrals are specified on an equidistant grid.
 module slakoeqgrid
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use interpolation
   use message
   implicit none
   private
 
-  public :: OSlakoEqGrid, init, destruct
+  public :: OSlakoEqGrid, init
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew
 
@@ -26,7 +27,7 @@ module slakoeqgrid
     integer :: nGrid
     integer :: nInteg
     real(dp) :: dist
-    real(dp), pointer :: skTab(:,:)
+    real(dp), allocatable :: skTab(:,:)
     integer :: skIntMethod
     logical :: tInit = .false.
   end type OSlakoEqGrid
@@ -34,11 +35,6 @@ module slakoeqgrid
   !!* Initialises SlakoEqGrid.
   interface init
     module procedure SlakoEqGrid_init
-  end interface
-
-  !!* Destroys the components of SlakoEqGrid
-  interface destruct
-    module procedure SlakoEqGrid_destruct
   end interface
 
   !!* Returns the integrals for a given distance.
@@ -69,16 +65,16 @@ module slakoeqgrid
   !! Nr. of grid points on the right of the interpolated point
   !! For odd nr. of intervals, nr. of right points should be bigger than
   !! nr. of left points, to remain compatible with the old code.
-  
+
   !! value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
-  integer, parameter :: nRightInterOld_ = 2 
+  integer, parameter :: nRightInterOld_ = 2
   !! value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterNew_ = 4
 
   !! Displacement for deriving interpolated polynomials
   real(dp), parameter :: deltaR_ = 1e-5_dp
 
-  
+
 
 contains
 
@@ -93,31 +89,19 @@ contains
     real(dp), intent(in) :: table(:,:)
     integer, intent(in) :: skintMethod
 
-    ASSERT(.not. self%tInit)
-    ASSERT(dist >= 0.0_dp)
-    ASSERT(skIntMethod == skEqGridOld .or. skIntMethod == skEqGridNew)
+    @:ASSERT(.not. self%tInit)
+    @:ASSERT(dist >= 0.0_dp)
+    @:ASSERT(skIntMethod == skEqGridOld .or. skIntMethod == skEqGridNew)
 
     self%dist = dist
     self%nGrid = size(table, dim=1)
     self%nInteg = size(table, dim=2)
-    INITALLOCATE_PARR(self%skTab, (self%nGrid, self%nInteg))
+    allocate(self%skTab(self%nGrid, self%nInteg))
     self%skTab(:,:) = table(:,:)
     self%skIntMethod = skIntMethod
     self%tInit = .true.
-    
+
   end subroutine SlakoEqGrid_init
-
-
-  
-  !!* Destroys the components of SlakoEqGrid
-  !!* @param self SlakoEqGrid instance.
-  subroutine SlakoEqGrid_destruct(self)
-    type(OSlakoEqGrid), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%skTab)
-    self%tInit = .false.
-    
-  end subroutine SlakoEqGrid_destruct
 
 
 
@@ -130,9 +114,9 @@ contains
     real(dp), intent(out) :: sk(:)
     real(dp), intent(in) :: dist
 
-    ASSERT(self%tInit)
-    ASSERT(size(sk) >= self%nInteg)
-    ASSERT(dist >= 0.0_dp)
+    @:ASSERT(self%tInit)
+    @:ASSERT(size(sk) >= self%nInteg)
+    @:ASSERT(dist >= 0.0_dp)
 
     if (self%skIntMethod == skEqGridOld) then
       call SlakoEqGrid_interOld_(self, sk, dist)
@@ -142,7 +126,7 @@ contains
 
   end subroutine SlakoEqGrid_getSKIntegrals
 
-  
+
 
   !!* Returns the number of intgrals the table contains
   !!* @param self SlakoEqGrid instance.
@@ -174,7 +158,7 @@ contains
   end function SlakoEqGrid_getCutoff
 
 
-  
+
   !!* Inter- and extrapolation for SK-tables, new method.
   !!* @param self SlakoEqGrid table on equiv. grid
   !!* @param dd Output table of interpolated values.
@@ -194,7 +178,7 @@ contains
     incr = self%dist
     rMax = real(leng, dp) * incr + distFudge
     ind = floor(rr / incr)
-    
+
     !! Sanity check, if SK-table contains enough entries
     if (leng < nInterNew_ + 1) then
       call error("SlakoEqGrid: Not enough points in the SK-table for &
@@ -267,7 +251,7 @@ contains
     incr = self%dist
     mInd = leng + floor(distFudgeOld/incr)
     ind = floor(rr / incr)
-    
+
     !! Sanity check, if SK-table contains enough entries
     if (leng < nInterOld_ + 1) then
       call error("skspar: Not enough points in the SK-table for interpolation!")
@@ -315,6 +299,6 @@ contains
     end if
 
   end subroutine SlakoEqGrid_interOld_
-  
-  
+
+
 end module slakoeqgrid

@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Program for calculating system normal modes from a Hessian
 program modes
-# include "assert.h"
+  use assert
   use InitProgram
   use accuracy, only : dp, lc
   use constants, only : Hartree__cm, Bohr__AA, pi
@@ -20,9 +22,9 @@ program modes
   integer  :: iCount, jCount
   real(dp), allocatable :: eigenValues(:)
   real(dp), allocatable :: displ(:,:,:)
-    
+
   character(lc) :: lcTmp, lcTmp2
-  
+
   !! Allocate resources
   call initProgramVariables()
   write (*, "(/,A,/)") "Starting main program"
@@ -63,12 +65,12 @@ program modes
   call initTaggedWriter()
   open(12, file="vibrations.tag", form="formatted", status="replace")
   call writeTagged(12, "frequencies", eigenValues)
-    
+
   if (tPlotModes) then
     call writeTagged(12, "saved_modes", modesToPlot)
     write(*,*) "Writing eigenmodes to vibrations.tag"
     call writeTagged(12, "eigenmodes", dynMatrix(:,ModesToPlot))
-    
+
     write(*,*)'Plotting eigenmodes:'
     write(*,*)ModesToPlot(:)
     ! scale mode components on each atom by mass and then normalise total mode
@@ -87,7 +89,7 @@ program modes
     end do
     call writeTagged(12, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
     close(12)
-    
+
     ! Create displacment vectors for every atom in every mode.
     nAtom = geo%nAtom
     allocate(displ(3, nAtom, nModesToPlot))
@@ -102,7 +104,7 @@ program modes
         end do
       end if
     end do
-    
+
     if (tAnimateModes) then
       do ii = 1, nModesToPlot
         iMode = ModesToPlot(ii)
@@ -149,11 +151,8 @@ program modes
       end do
       close(123)
     end if
-    
+
   end if
 
-  deallocate(eigenValues)
-  
-  call destructProgramVariables()
-  
+
 end program modes

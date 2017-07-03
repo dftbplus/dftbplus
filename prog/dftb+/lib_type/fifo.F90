@@ -5,7 +5,9 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Storage of integer vectors in a FIFO (first in first out) way and wrappers 
+#:include 'common.fypp'
+
+!!* Storage of integer vectors in a FIFO (first in first out) way and wrappers
 !!* for different data types and matrix ranks.
 !!* additional
 !!* @desc
@@ -13,8 +15,7 @@
 !!*   kept in the memory, if there are more, they are written to disc.
 !!* @note In order to use the FIFO you have create and reset it.
 module fifo
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use fileid
   implicit none
@@ -22,7 +23,7 @@ module fifo
 
   public :: OFifoIntR1, OFifoRealR1, OFifoRealR2, OFifoCplxR1, OFifoCplxR2
   public :: init, destruct, reset, get, push, restart
-  
+
 
   type OFifoIntR1
     private
@@ -35,17 +36,17 @@ module fifo
     integer :: readPos                  !* Where to read the next from
     integer :: iMode                    !* Last operation (undefined/read/write)
     logical :: tBufferFull              !* Buffer full, open swap file
-    integer, pointer :: buffer(:,:)     !* The buffer itself.
+    integer, allocatable :: buffer(:,:)     !* The buffer itself.
     logical :: tInit = .false.          !* Is the buffer initialised?
   end type OFifoIntR1
 
-  
+
   type OFifoRealR1
     private
     type(OFifoIntR1) :: fifoIntR1
     integer :: nElem
     integer :: equivIntSize
-    integer, pointer :: convBuffer(:) => null()
+    integer, allocatable :: convBuffer(:)
     logical :: tInit = .false.
   end type OFifoRealR1
 
@@ -64,11 +65,11 @@ module fifo
     type(OFifoIntR1) :: fifoIntR1
     integer :: nElem
     integer :: equivIntSize
-    integer, pointer :: convBuffer(:) => null()
+    integer, allocatable :: convBuffer(:)
     logical :: tInit = .false.
   end type OFifoCplxR1
 
-  
+
   type OFifoCplxR2
     private
     type(OFifoCplxR1) :: fifoCplxR1
@@ -78,23 +79,23 @@ module fifo
   end type OFifoCplxR2
 
 
-  !!* Creates a fifo
+  !!* Initialises a fifo
   interface init
     module procedure FifoIntR1_init
     module procedure FifoRealR1_init
     module procedure FifoRealR2_init
     module procedure FifoCplxR1_init
     module procedure FifoCplxR2_init
-  end interface
+  end interface init
 
-  !!* Destroys the fifo
+  !!* Destructs a fifo
   interface destruct
     module procedure FifoIntR1_destruct
     module procedure FifoRealR1_destruct
     module procedure FifoRealR2_destruct
     module procedure FifoCplxR1_destruct
     module procedure FifoCplxR2_destruct
-  end interface
+  end interface destruct
 
   !!* Resets the fifo
   interface reset
@@ -131,7 +132,7 @@ module fifo
     module procedure FifoCplxR1_restart
     module procedure FifoCplxR2_restart
   end interface restart
-  
+
   integer, parameter :: modeUndefined = 0   !* Undefined fifo state
   integer, parameter :: modeRead = 1        !* Last operation was reading
   integer, parameter :: modeWrite = 2       !* Last operation was writing
@@ -147,27 +148,48 @@ contains
   !!* @caveat This routine relies on the fact that file IDs have maximal 5
   !!*   digits.
   subroutine FifoIntR1_init(sf, bufferSize, fileName)
-    type(OFifoIntR1), intent(inout) :: sf
+    type(OFifoIntR1), intent(out) :: sf
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
-    ASSERT(bufferSize >= 0)
-    ASSERT(len(fileName) > 0)
-    
+    @:ASSERT(bufferSize >= 0)
+    @:ASSERT(len(fileName) > 0)
+
     sf%nElem = 0
     sf%bufferSize = bufferSize
     sf%fileId = getFileId()
     write(sf%fileName, "(A,I5.5)") &
         &fileName(1:min(len_trim(fileName),len(sf%fileName)-5)), sf%fileId
-    INITALLOCATE_PARR(sf%buffer, (sf%nElem, sf%bufferSize))
+    allocate(sf%buffer(sf%nElem, sf%bufferSize))
     open(sf%fileId, file=sf%fileName, status="replace", form="unformatted",&
         &action="write")
     close(sf%fileId)
     sf%tInit = .true.
-    
+
   end subroutine FifoIntR1_init
 
+
+  !!* Destruct FifoIntR1 object.
+  !!* @param sf  FifoIntR1 instance.
+  subroutine FifoIntR1_destruct(sf)
+    type(OFifoIntR1), intent(inout) :: sf
+
+    logical :: tOpened
+
+    if (.not. sf%tInit) then
+      return
+    end if
+
+    if (sf%tBufferFull) then
+      inquire(sf%fileId, opened=tOpened)
+      if (tOpened) then
+        close(sf%fileId)
+      end if
+    end if
+    open(sf%fileId, file=sf%fileName)
+    close(sf%fileId, status="delete")
+
+  end subroutine FifoIntR1_destruct
 
 
   !!* Resets FifoIntR1
@@ -180,8 +202,8 @@ contains
 
     logical :: tOpened, tRealloc
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     tRealloc = (nElem /= sf%nElem)
     if (present(bufferSize)) then
@@ -194,10 +216,10 @@ contains
     !! Reallocate buffer if nr. of elements changed
     if (tRealloc) then
       sf%nElem = nElem
-      DEALLOCATE_PARR(sf%buffer)
-      ALLOCATE_PARR(sf%buffer, (sf%nElem, sf%bufferSize))
+      deallocate(sf%buffer)
+      allocate(sf%buffer(sf%nElem, sf%bufferSize))
     end if
-    
+
     !! is there data left in the file on disc?
     if (sf%bufferSize < sf%nStored) then
       !! Empty file on the disc
@@ -220,34 +242,10 @@ contains
     sf%storePos = 0
     sf%readPos = 0
     sf%iMode = modeUndefined
-    
+
   end subroutine FifoIntR1_reset
 
-  
 
-  !!* Destroys FifoIntR1 nobject.
-  !!* @param sf  FifoIntR1 instance.
-  subroutine FifoIntR1_destruct(sf)
-    type(OFifoIntR1), intent(inout) :: sf
-
-    logical :: tOpened
-
-    ASSERT(sf%tInit)
-
-    if (sf%tBufferFull) then
-      inquire(sf%fileId, opened=tOpened)
-      if (tOpened) then
-        close(sf%fileId)
-      end if
-    end if
-    open(sf%fileId, file=sf%fileName)
-    close(sf%fileId, status="delete")
-    DEALLOCATE_PARR(sf%buffer)
-    sf%tInit = .false.
-    
-  end subroutine FifoIntR1_destruct
-
-  
 
   !!* Adds a new vector to the FIFO.
   !!* @param sf   FifoIntR1 instance
@@ -259,8 +257,8 @@ contains
     integer :: ii
     logical :: tOpened
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     !! Change to write mode if necessary
     if (sf%iMode /= modeWrite) then
@@ -315,10 +313,10 @@ contains
     integer, intent(out) :: vector(:)
 
     integer :: ind, ii
-    
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
-    ASSERT(sf%nStored > 0)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%nStored > 0)
 
     if (sf%iMode /= modeRead) then
       call restart(sf)
@@ -349,7 +347,7 @@ contains
   end subroutine FifoIntR1_get
 
 
-  
+
   !!* Rewinds the FIFO, so that reading starts with first element again.
   !!
   subroutine FifoIntR1_restart(sf)
@@ -367,10 +365,10 @@ contains
     end if
     sf%readPos = 0
     sf%iMode = modeRead
-    
+
   end subroutine FifoIntR1_restart
-  
-  
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  FifoRealR1
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -382,20 +380,29 @@ contains
   !!* @caveat This routine relies on the fact that file IDs have maximal 5
   !!*   digits.
   subroutine FifoRealR1_init(sf, bufferSize, fileName)
-    type(OFifoRealR1), intent(inout) :: sf
+    type(OFifoRealR1), intent(out) :: sf
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
     sf%equivIntSize = 0
-    ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+    allocate(sf%convBuffer(sf%equivIntSize))
     sf%tInit = .true.
-    
+
   end subroutine FifoRealR1_init
 
+
+  !!* Destruct FifoRealR1 object.
+  !!* @param sf  FifoRealR1 instance.
+  subroutine FifoRealR1_destruct(sf)
+    type(OFifoRealR1), intent(inout) :: sf
+
+    call destruct(sf%fifoIntR1)
+
+  end subroutine FifoRealR1_destruct
 
 
   !!* Resets FifoRealR1
@@ -409,41 +416,25 @@ contains
     real(dp), allocatable :: buffer(:)
     integer :: equiv(1)
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
-      DEALLOCATE_PARR(sf%convBuffer)
+      deallocate(sf%convBuffer)
       sf%nElem = nElem
-      ALLOCATE_(buffer, (nElem))
+      allocate(buffer(nElem))
       sf%equivIntSize = size(transfer(buffer, equiv))
-      DEALLOCATE_(buffer)
-      ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+      deallocate(buffer)
+      allocate(sf%convBuffer(sf%equivIntSize))
     end if
     if (present(bufferSize)) then
       call reset(sf%fifoIntR1, sf%equivIntSize, bufferSize)
     else
       call reset(sf%fifoIntR1, sf%equivIntSize)
     end if
-    
+
   end subroutine FifoRealR1_reset
 
-  
-
-  !!* Destroys FifoRealR1 object.
-  !!* @param sf  FifoRealR1 instance.
-  subroutine FifoRealR1_destruct(sf)
-    type(OFifoRealR1), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-
-    call destruct(sf%fifoIntR1)
-    DEALLOCATE_PARR(sf%convBuffer)
-    sf%tInit = .false.
-    
-  end subroutine FifoRealR1_destruct
-
-  
 
   !!* Adds a new vector to the FIFO.
   !!* @param sf   FifoRealR1 instance
@@ -452,15 +443,15 @@ contains
     type(OFifoRealR1), intent(inout) :: sf
     real(dp), intent(in) :: vector(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     sf%convBuffer = transfer(vector, sf%convBuffer, sf%equivIntSize)
     call push(sf%fifoIntR1, sf%convBuffer)
 
   end subroutine FifoRealR1_push
 
-  
+
 
   !!* Returns the current vector from the FIFO without deleting it.
   !!* @param sf   FifoRealR1 instance
@@ -474,9 +465,9 @@ contains
   subroutine FifoRealR1_get(sf, vector)
     type(OFifoRealR1), intent(inout) :: sf
     real(dp), intent(out) :: vector(:)
-    
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     call get(sf%fifoIntR1, sf%convBuffer)
     vector(:) = transfer(sf%convBuffer, vector, sf%nElem)
@@ -490,10 +481,10 @@ contains
     type(OFifoRealR1), intent(inout) :: sf
 
     call restart(sf%fifoIntR1)
-    
+
   end subroutine FifoRealR1_restart
-  
-  
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  FifoRealR2
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -505,19 +496,28 @@ contains
   !!* @caveat This routine relies on the fact that file IDs have maximal 5
   !!*   digits.
   subroutine FifoRealR2_init(sf, bufferSize, fileName)
-    type(OFifoRealR2), intent(inout) :: sf
+    type(OFifoRealR2), intent(out) :: sf
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     sf%shape(:) = 0
-    sf%bufferSize = bufferSize    
+    sf%bufferSize = bufferSize
     call init(sf%fifoRealR1, 0, fileName)
     sf%tInit = .true.
-    
+
   end subroutine FifoRealR2_init
 
+
+  !!* Destruct FifoRealR2 object.
+  !!* @param sf  FifoRealR2 instance.
+  subroutine FifoRealR2_destruct(sf)
+    type(OFifoRealR2), intent(inout) :: sf
+
+    call destruct(sf%fifoRealR1)
+
+  end subroutine FifoRealR2_destruct
 
 
   !!* Resets FifoRealR2
@@ -527,29 +527,15 @@ contains
     type(OFifoRealR2), intent(inout) :: sf
     integer, intent(in) :: newShape(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(newShape) == 2)
-    ASSERT(all(newShape > 0))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(newShape) == 2)
+    @:ASSERT(all(newShape > 0))
 
     sf%shape(:) = newShape(:)
     call reset(sf%fifoRealR1, sf%shape(1), bufferSize=sf%bufferSize*sf%shape(2))
-    
+
   end subroutine FifoRealR2_reset
 
-  
-
-  !!* Destroys FifoRealR2 object.
-  !!* @param sf  FifoRealR2 instance.
-  subroutine FifoRealR2_destruct(sf)
-    type(OFifoRealR2), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-
-    sf%tInit = .false.
-    
-  end subroutine FifoRealR2_destruct
-
-  
 
   !!* Adds a new vector to the FIFO.
   !!* @param sf   FifoRealR2 instance
@@ -560,8 +546,8 @@ contains
 
     integer :: ii
 
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call push(sf%fifoRealR1, data(:,ii))
@@ -569,7 +555,7 @@ contains
 
   end subroutine FifoRealR2_push
 
-  
+
 
   !!* Returns the current vector from the FIFO without deleting it.
   !!* @param sf   FifoRealR2 instance
@@ -585,9 +571,9 @@ contains
     real(dp), intent(out) :: data(:,:)
 
     integer :: ii
-    
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call get(sf%fifoRealR1, data(:,ii))
@@ -602,10 +588,10 @@ contains
     type(OFifoRealR2), intent(inout) :: sf
 
     call restart(sf%fifoRealR1)
-    
+
   end subroutine FifoRealR2_restart
-  
-  
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  FifoCplxR1
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -617,20 +603,29 @@ contains
   !!* @caveat This routine relies on the fact that file IDs have maximal 5
   !!*   digits.
   subroutine FifoCplxR1_init(sf, bufferSize, fileName)
-    type(OFifoCplxR1), intent(inout) :: sf
+    type(OFifoCplxR1), intent(out) :: sf
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
     sf%equivIntSize = 0
-    ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+    allocate(sf%convBuffer(sf%equivIntSize))
     sf%tInit = .true.
-    
+
   end subroutine FifoCplxR1_init
 
+
+  !!* Destruct FifoCplxR1 object.
+  !!* @param sf  FifoCplxR1 instance.
+  subroutine FifoCplxR1_destruct(sf)
+    type(OFifoCplxR1), intent(inout) :: sf
+
+    call destruct(sf%fifoIntR1)
+
+  end subroutine FifoCplxR1_destruct
 
 
   !!* Resets FifoCplxR1
@@ -644,41 +639,25 @@ contains
     complex(dp), allocatable :: buffer(:)
     integer :: equiv(1)
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
-      DEALLOCATE_PARR(sf%convBuffer)
+      deallocate(sf%convBuffer)
       sf%nElem = nElem
-      ALLOCATE_(buffer, (nElem))
+      allocate(buffer(nElem))
       sf%equivIntSize = size(transfer(buffer, equiv))
-      DEALLOCATE_(buffer)
-      ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+      deallocate(buffer)
+      allocate(sf%convBuffer(sf%equivIntSize))
     end if
     if (present(bufferSize)) then
       call reset(sf%fifoIntR1, sf%equivIntSize, bufferSize)
     else
       call reset(sf%fifoIntR1, sf%equivIntSize)
     end if
-    
+
   end subroutine FifoCplxR1_reset
 
-  
-
-  !!* Destroys FifoCplxR1 nobject.
-  !!* @param sf  FifoCplxR1 instance.
-  subroutine FifoCplxR1_destruct(sf)
-    type(OFifoCplxR1), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-
-    call destruct(sf%fifoIntR1)
-    DEALLOCATE_PARR(sf%convBuffer)
-    sf%tInit = .false.
-    
-  end subroutine FifoCplxR1_destruct
-
-  
 
   !!* Adds a new vector to the FIFO.
   !!* @param sf   FifoCplxR1 instance
@@ -687,15 +666,15 @@ contains
     type(OFifoCplxR1), intent(inout) :: sf
     complex(dp), intent(in) :: vector(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     sf%convBuffer = transfer(vector, sf%convBuffer, sf%equivIntSize)
     call push(sf%fifoIntR1, sf%convBuffer)
 
   end subroutine FifoCplxR1_push
 
-  
+
 
   !!* Returns the current vector from the FIFO without deleting it.
   !!* @param sf   FifoCplxR1 instance
@@ -709,27 +688,27 @@ contains
   subroutine FifoCplxR1_get(sf, vector)
     type(OFifoCplxR1), intent(inout) :: sf
     complex(dp), intent(out) :: vector(:)
-    
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     call get(sf%fifoIntR1, sf%convBuffer)
     vector(:) = transfer(sf%convBuffer, vector, sf%nElem)
 
   end subroutine FifoCplxR1_get
 
-  
-  
+
+
   !!* Rewinds the FIFO, so that reading starts with first element again.
   !!
   subroutine FifoCplxR1_restart(sf)
     type(OFifoCplxR1), intent(inout) :: sf
 
     call restart(sf%fifoIntR1)
-    
+
   end subroutine FifoCplxR1_restart
-  
-  
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  FifoCplxR2
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -741,19 +720,28 @@ contains
   !!* @caveat This routine relies on the fact that file IDs have maximal 5
   !!*   digits.
   subroutine FifoCplxR2_init(sf, bufferSize, fileName)
-    type(OFifoCplxR2), intent(inout) :: sf
+    type(OFifoCplxR2), intent(out) :: sf
     integer, intent(in) :: bufferSize
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     sf%shape(:) = 0
     sf%bufferSize = bufferSize
     call init(sf%fifoCplxR1, 0, fileName)
     sf%tInit = .true.
-    
+
   end subroutine FifoCplxR2_init
 
+
+  !!* Destruct FifoCplxR2 object.
+  !!* @param sf  FifoCplxR2 instance.
+  subroutine FifoCplxR2_destruct(sf)
+    type(OFifoCplxR2), intent(inout) :: sf
+
+    call destruct(sf%fifoCplxR1)
+
+  end subroutine FifoCplxR2_destruct
 
 
   !!* Resets FifoCplxR2
@@ -763,29 +751,15 @@ contains
     type(OFifoCplxR2), intent(inout) :: sf
     integer, intent(in) :: newShape(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(newShape) == 2)
-    ASSERT(all(newShape > 0))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(newShape) == 2)
+    @:ASSERT(all(newShape > 0))
 
     sf%shape(:) = newShape(:)
     call reset(sf%fifoCplxR1, sf%shape(1), bufferSize=sf%bufferSize*sf%shape(2))
-    
+
   end subroutine FifoCplxR2_reset
 
-  
-
-  !!* Destroys FifoCplxR2 object.
-  !!* @param sf  FifoCplxR2 instance.
-  subroutine FifoCplxR2_destruct(sf)
-    type(OFifoCplxR2), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-
-    sf%tInit = .false.
-    
-  end subroutine FifoCplxR2_destruct
-
-  
 
   !!* Adds a new vector to the FIFO.
   !!* @param sf   FifoCplxR2 instance
@@ -796,8 +770,8 @@ contains
 
     integer :: ii
 
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call push(sf%fifoCplxR1, data(:,ii))
@@ -805,7 +779,7 @@ contains
 
   end subroutine FifoCplxR2_push
 
-  
+
 
   !!* Returns the current vector from the FIFO without deleting it.
   !!* @param sf   FifoCplxR2 instance
@@ -821,9 +795,9 @@ contains
     complex(dp), intent(out) :: data(:,:)
 
     integer :: ii
-    
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%shape))
 
     do ii = 1, sf%shape(2)
       call get(sf%fifoCplxR1, data(:,ii))
@@ -838,8 +812,8 @@ contains
     type(OFifoCplxR2), intent(inout) :: sf
 
     call restart(sf%fifoCplxR1)
-    
+
   end subroutine FifoCplxR2_restart
-  
-  
+
+
 end module fifo

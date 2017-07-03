@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains an Anderson mixer
 !!* @description
 !!*   The Anderson mixing is done by building a special average over the
@@ -14,12 +16,11 @@
 !!*   considered.
 !!* @note In order to use the mixer you have to create and reset it.
 module andersonmixer
-#include "allocate.h"
-#include "assert.h"  
+  use assert
   use accuracy
   use lapackroutines, only : gesv
   implicit none
-  
+
   private
 
   !!* Contains the necessary data for an Anderson mixer
@@ -33,7 +34,7 @@ module andersonmixer
     private
     real(dp) :: mixParam                    !!* General mixing parameter
     real(dp) :: initMixParam                !!* Initial mixing parameter
-    real(dp), pointer :: convMixParam(:,:)  !!* Convergence dependent mixing
+    real(dp), allocatable :: convMixParam(:,:)  !!* Convergence dependent mixing
                                             !!* parameters
     real(dp) :: omega02                     !!* Symmetry breaking parameter
     logical :: tBreakSym                    !!* Should symmetry be broken?
@@ -42,21 +43,15 @@ module andersonmixer
     integer :: mPrevVector                  !!* Max. nr. of stored prev. vectors
     integer :: nPrevVector                  !!* Nr. of stored previous vectors
     integer :: nElem                        !!* Nr. of elements in the vectors
-    integer, pointer :: indx(:)             !!* Index array for the storage
-    real(dp), pointer :: prevQInput(:,:)    !!* Stored previous input charges
-    real(dp), pointer :: prevQDiff(:,:)     !!* Stored prev. charge differences
-
+    integer, allocatable :: indx(:)             !!* Index array for the storage
+    real(dp), allocatable :: prevQInput(:,:)    !!* Stored previous input charges
+    real(dp), allocatable :: prevQDiff(:,:)     !!* Stored prev. charge differences
   end type OAndersonMixer
-  
+
 
   !!* Creates an AndersonMixer instance
-  interface create
-    module procedure AndersonMixer_create
-  end interface
-
-  !!* Destroys an AndersonMixer instance
-  interface destroy
-    module procedure AndersonMixer_destroy
+  interface init
+    module procedure AndersonMixer_init
   end interface
 
   !!* Resets the mixer
@@ -68,15 +63,15 @@ module andersonmixer
   interface mix
     module procedure AndersonMixer_mix
   end interface
-  
+
 
   public :: OAndersonMixer
-  public :: create, destroy, reset, mix
+  public :: init, reset, mix
 
 contains
 
   !!* Creates an Andersom mixer instance.
-  !!* @param self         Pointer to an initialized Anderson mixer on exit
+  !!* @param self         Initialized Anderson mixer on exit
   !!* @param nGeneration  Nr. of generations (including actual) to consider
   !!* @param mixParam     Mixing parameter for the general case
   !!* @param initMixParam Mixing parameter for the first nGeneration-1 cycles
@@ -87,35 +82,33 @@ contains
   !!*   mixParam or initMixParam.
   !!* @param omega0       Symmetry breaking parameter. Diagonal elements of the
   !!*   system of linear equations are multiplied by (1.0+omega0**2).
-  subroutine AndersonMixer_create(self, nGeneration, mixParam, initMixParam, &
+  subroutine AndersonMixer_init(self, nGeneration, mixParam, initMixParam, &
       &convMixParam, omega0)
-    type(OAndersonMixer), pointer :: self
+    type(OAndersonMixer), intent(out) :: self
     integer, intent(in) :: nGeneration
     real(dp), intent(in) :: mixParam
     real(dp), intent(in) :: initMixParam
     real(dp), intent(in), optional :: convMixParam(:,:)
     real(dp), intent(in), optional :: omega0
 
-    ASSERT(nGeneration >= 2)
+    @:ASSERT(nGeneration >= 2)
 
-    INITALLOCATE_P(self)
     self%nElem = 0
     self%mPrevVector = nGeneration - 1
 
-    INITALLOCATE_PARR(self%prevQInput, (self%nElem, self%mPrevVector))
-    INITALLOCATE_PARR(self%prevQDiff, (self%nElem, self%mPrevVector))
-    INITALLOCATE_PARR(self%indx, (self%mPrevVector))
+    allocate(self%prevQInput(self%nElem, self%mPrevVector))
+    allocate(self%prevQDiff(self%nElem, self%mPrevVector))
+    allocate(self%indx(self%mPrevVector))
 
     self%mixParam = mixParam
     self%initMixParam = initMixParam
     if (present(convMixParam)) then
-      ASSERT(size(convMixParam, dim=1) == 2)
+      @:ASSERT(size(convMixParam, dim=1) == 2)
       self%nConvMixParam = size(convMixParam, dim=2)
-      INITALLOCATE_PARR(self%convMixParam, (2, self%nConvMixParam))
+      allocate(self%convMixParam(2, self%nConvMixParam))
       self%convMixParam(:,:) = convMixParam(:,:)
     else
       self%nConvMixParam = 0
-      INIT_PARR(self%convMixParam)
     end if
     if (present(omega0)) then
       self%omega02 = omega0**2
@@ -125,7 +118,7 @@ contains
       self%tBreakSym = .false.
     end if
 
-  end subroutine AndersonMixer_create
+  end subroutine AndersonMixer_init
 
 
 
@@ -133,19 +126,19 @@ contains
   !!* @param self  Anderson mixer instance
   !!* @param nElem Nr. of elements in the vectors to mix
   subroutine AndersonMixer_reset(self, nElem)
-    type(OAndersonMixer), pointer :: self
+    type(OAndersonMixer), intent(inout) :: self
     integer, intent(in) :: nElem
 
     integer :: ii
 
-    ASSERT(nElem > 0)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= self%nElem) then
       self%nElem = nElem
-      DEALLOCATE_PARR(self%prevQInput)
-      DEALLOCATE_PARR(self%prevQDiff)
-      ALLOCATE_PARR(self%prevQInput, (self%nElem, self%mPrevVector))
-      ALLOCATE_PARR(self%prevQDiff, (self%nElem, self%mPrevVector))
+      deallocate(self%prevQInput)
+      deallocate(self%prevQDiff)
+      allocate(self%prevQInput(self%nElem, self%mPrevVector))
+      allocate(self%prevQDiff(self%nElem, self%mPrevVector))
     end if
     self%nPrevVector = -1
     !! Create index array for accessing elements in the LIFO way
@@ -156,40 +149,22 @@ contains
   end subroutine AndersonMixer_reset
 
 
-
-  !!* Destroys the Anderson mixer
-  !!* @param self Andersom mixer instance.
-  subroutine AndersonMixer_destroy(self)
-    type(OAndersonMixer), pointer :: self
-
-    if (associated(self)) then
-      DEALLOCATE_PARR(self%prevQInput)
-      DEALLOCATE_PARR(self%prevQDiff)
-      DEALLOCATE_PARR(self%indx)
-      DEALLOCATE_PARR(self%convMixParam)
-    end if
-    DEALLOCATE_P(self)
-    
-  end subroutine AndersonMixer_destroy
-
-  
-
   !!* Mixes charges according to the Anderson method
-  !!* @param self       Pointer to the anderson mixer
+  !!* @param self       Anderson mixer
   !!* @param qInpResult Input charges on entry, mixed charges on exit.
   !!* @param qDiff      Charge difference
   subroutine AndersonMixer_mix(self, qInpResult, qDiff)
-    type(OAndersonMixer), pointer :: self
+    type(OAndersonMixer), intent(inout) :: self
     real(dp), intent(inout) :: qInpResult(:)
     real(dp), intent(in)    :: qDiff(:)
-    
+
     real(dp), allocatable :: qInpMiddle(:), qDiffMiddle(:)
     real(dp) :: mixParam
     real(dp) :: rTmp
     integer :: ii
 
-    ASSERT(size(qInpResult) == self%nElem)
-    ASSERT(size(qDiff) == self%nElem)
+    @:ASSERT(size(qInpResult) == self%nElem)
+    @:ASSERT(size(qDiff) == self%nElem)
 
     if (self%nPrevVector < self%mPrevVector) then
       self%nPrevVector = self%nPrevVector + 1
@@ -215,23 +190,20 @@ contains
       return
     end if
 
-    ALLOCATE_(qInpMiddle, (self%nElem))
-    ALLOCATE_(qDiffMiddle, (self%nElem))
+    allocate(qInpMiddle(self%nElem))
+    allocate(qDiffMiddle(self%nElem))
 
     !! Calculate average input charges and average charge differences
     call calcAndersonAverages(qInpMiddle, qDiffMiddle, qInpResult, &
         &qDiff, self%prevQInput, self%prevQDiff, self%nElem, self%nPrevVector, &
         &self%indx, self%tBreakSym, self%omega02)
-    
+
     !! Store vectors before overwriting qInpResult
     call storeVectors(self%prevQInput, self%prevQDiff, self%indx, &
         &qInpResult, qDiff, self%mPrevVector)
 
     !! Mix averaged input charge and average charge difference
     qInpResult(:) = qInpMiddle(:) + mixParam * qDiffMiddle(:)
-
-    DEALLOCATE_(qInpMiddle)
-    DEALLOCATE_(qDiffMiddle)
 
   end subroutine AndersonMixer_mix
 
@@ -272,20 +244,20 @@ contains
     real(dp) :: tmp2
     integer :: ii, jj
 
-    ASSERT(size(qInpMiddle) == nElem)
-    ASSERT(size(qDiffMiddle) == nElem)
-    ASSERT(size(qInput) == nElem)
-    ASSERT(size(qDiff) == nElem)
-    ASSERT(size(prevQInp, dim=1) == nElem)
-    ASSERT(size(prevQInp, dim=2) >= nPrevVector)
-    ASSERT(size(prevQDiff, dim=1) == nElem)
-    ASSERT(size(prevQDiff, dim=2) >= nPrevVector)
-    ASSERT(size(indx) >= nPrevVector)
+    @:ASSERT(size(qInpMiddle) == nElem)
+    @:ASSERT(size(qDiffMiddle) == nElem)
+    @:ASSERT(size(qInput) == nElem)
+    @:ASSERT(size(qDiff) == nElem)
+    @:ASSERT(size(prevQInp, dim=1) == nElem)
+    @:ASSERT(size(prevQInp, dim=2) >= nPrevVector)
+    @:ASSERT(size(prevQDiff, dim=1) == nElem)
+    @:ASSERT(size(prevQDiff, dim=2) >= nPrevVector)
+    @:ASSERT(size(indx) >= nPrevVector)
 
-    ALLOCATE_(aa, (nPrevVector, nPrevVector))
-    ALLOCATE_(bb, (nPrevVector, 1))
-    ALLOCATE_(tmp1, (nElem))
-    
+    allocate(aa(nPrevVector, nPrevVector))
+    allocate(bb(nPrevVector, 1))
+    allocate(tmp1(nElem))
+
     !! Build the system of linear equations
     !! a(i,j) = <F(m)|F(m)-F(m-i)> - <F(m-j)|F(m)-F(m-i)>  (F ~ qDiff)
     !! b(i)   = <F(m)|F(m)-F(m-i)>                         (m ~ current iter.)
@@ -309,10 +281,10 @@ contains
 
     !! Solve system of linear equations
     call gesv(aa, bb)
-    
+
     !! Build averages with calculated coefficients
     qDiffMiddle(:) = 0.0_dp
-    do ii = 1, nPrevVector 
+    do ii = 1, nPrevVector
       qDiffMiddle(:) = qDiffMiddle(:) + bb(ii,1) * prevQDiff(:,indx(ii))
     end do
     qDiffMiddle(:) = qDiffMiddle(:) + (1.0_dp - sum(bb(:,1))) * qDiff(:)
@@ -322,10 +294,6 @@ contains
       qInpMiddle(:) = qInpMiddle(:) + bb(ii,1) * prevQInp(:,indx(ii))
     end do
     qInpMiddle(:) = qInpMiddle(:) + (1.0_dp - sum(bb(:,1))) * qInput(:)
-
-    DEALLOCATE_(aa)
-    DEALLOCATE_(bb)
-    DEALLOCATE_(tmp1)
 
   end subroutine calcAndersonAverages
 
@@ -349,7 +317,7 @@ contains
     integer, intent(in) :: mPrevVector
 
     integer :: tmp
-    
+
     tmp = indx(mPrevVector)
     indx(2:mPrevVector) = indx(1:mPrevVector-1)
     indx(1) = tmp

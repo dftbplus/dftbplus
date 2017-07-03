@@ -5,11 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines relating to Hermite polynomials
 !!* @todo Proper documentation, and trap overflow and underflows
 module hermite
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
 contains
@@ -27,9 +28,9 @@ contains
     integer, intent(in) :: n
     real(dp), intent(in) :: x
     integer :: i
-    ASSERT(n >=0 )
-    ASSERT(size(H) > 0)
-    ASSERT(size(H) <= n+1)
+    @:ASSERT(n >=0 )
+    @:ASSERT(size(H) > 0)
+    @:ASSERT(size(H) <= n+1)
     h(:) = 0.0_dp
     h(0) = 1.0_dp
     if (n > 0) then

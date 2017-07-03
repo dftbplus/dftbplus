@@ -13,7 +13,7 @@ module optarg
 
   public :: getOptionalArg
 
-  
+
   !> Optional argument processor
   !!
   interface getOptionalArg
@@ -23,10 +23,10 @@ module optarg
     module procedure getOptionalArgLogical
   end interface getOptionalArg
 
-  
+
 contains
 
-  
+
   !> Return optional argument or default value if not present (int).
   !!
   subroutine getOptionalArgInt(defArg, outArg, optArg)
@@ -40,13 +40,13 @@ contains
     !> Optional argument to check
     integer, intent(in), optional :: optArg
 
-    
+
     if (present(optArg)) then
       outArg = optArg
     else
       outArg = defArg
     end if
-    
+
   end subroutine getOptionalArgInt
 
 
@@ -63,13 +63,13 @@ contains
     !> Optional argument to check
     real(dp), intent(in), optional :: optArg
 
-    
+
     if (present(optArg)) then
       outArg = optArg
     else
       outArg = defArg
     end if
-    
+
   end subroutine getOptionalArgReal
 
 
@@ -85,16 +85,16 @@ contains
 
     !> Optional argument to check
     character(*), intent(in), optional :: optArg
-    
+
     if (present(optArg)) then
       outArg = optArg
     else
       outArg = defArg
     end if
-    
+
   end subroutine getOptionalArgString
 
-  
+
   !> Return optional argument or default value if not present (logical).
   !!
   subroutine getOptionalArgLogical(defArg, outArg, optArg)
@@ -107,13 +107,13 @@ contains
 
     !> Optional argument to check
     logical, intent(in), optional :: optArg
-    
+
     if (present(optArg)) then
       outArg = optArg
     else
       outArg = defArg
     end if
-    
+
   end subroutine getOptionalArgLogical
 
 end module optarg

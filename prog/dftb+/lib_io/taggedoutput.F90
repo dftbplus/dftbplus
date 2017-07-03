@@ -5,16 +5,18 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains routines to write out various data structures in a comprehensive
 !!* tagged format.
 module taggedoutput
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
   private
 
   public :: initTaggedWriter, writeTagged
-  
+
   !!* Writes objects in standardized form to the output
   interface writeTagged
     module procedure writeTaggedRealR0
@@ -41,7 +43,7 @@ module taggedoutput
 
   integer, parameter :: lenLabel = 20
 
-  
+
   !! Tag names (Should be shorter than lenLabel!)
   character(*), parameter, public :: tag_SCC        = 'scc'
   character(*), parameter, public :: tag_nSCC       = 'n_scc_iters'
@@ -79,7 +81,7 @@ module taggedoutput
   character(*), parameter, public :: tag_qOutput    = 'orbital_charges'
   character(*), parameter, public :: tag_forces     = 'forces_calculated'
   character(*), parameter, public :: tag_forceTot   = 'forces'
-  character(*), parameter, public :: tag_forceBand  = 'electronic_forces'  
+  character(*), parameter, public :: tag_forceBand  = 'electronic_forces'
   character(*), parameter, public :: tag_forceRep   = 'repulsive_forces'
   character(*), parameter, public :: tag_stressRep  = 'repulsive_stress'
   character(*), parameter, public :: tag_stressElec = 'electronic_stress'
@@ -138,7 +140,7 @@ contains
 
 
   subroutine initTaggedWriter()
-    
+
     integer :: nDecDigit, nExpDigit, nChar, nField
 
     if (initialized) then
@@ -175,8 +177,8 @@ contains
     initialized = .true.
 
   end subroutine initTaggedWriter
-    
-    
+
+
 
   subroutine writeTaggedRealR0(file, tag, value, optForm)
     integer,                    intent(in) :: file
@@ -186,21 +188,21 @@ contains
 
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formReal)
     end if
-    
+
 99040 format (A, ':real:0:')
     write (file, 99040) getLabel(tag)
     write (file, form) value
-    
+
   end subroutine writeTaggedRealR0
 
-  
+
 
   subroutine writeTaggedRealR1(file, tag, value, optForm)
     integer,                    intent(in) :: file
@@ -211,20 +213,20 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formReal)
     end if
-    
-    
+
+
 99050 format (A, ':real:1:', I0)
     write (file, 99050) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedRealR1
-  
+
 
 
   subroutine writeTaggedRealR2(file, tag, value, optForm)
@@ -236,14 +238,14 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formReal)
     end if
-        
+
 99060 format (A, ':real:2:', I0, ',', I0)
     write (file, 99060) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2)
@@ -263,14 +265,14 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formReal)
     end if
-        
+
 99070 format (A, ':real:3:', I0, ',', I0, ',', I0)
     write (file, 99070) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3)
@@ -291,15 +293,15 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formReal)
     end if
-    
-    
+
+
 99080 format (A, ':real:4:', I0, ',', I0, ',', I0, ',', I0)
     write (file, 99080) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
@@ -317,25 +319,25 @@ contains
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
     complex(dp),      intent(in) :: value
-    character(len=*), optional, intent(in) :: optForm    
+    character(len=*), optional, intent(in) :: optForm
 
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formCmplx)
     end if
-    
+
 99090 format (A, ':complex:0:')
     write (file, 99090) getLabel(tag)
     write (file, form) value
-    
+
   end subroutine writeTaggedComplexR0
 
-  
+
 
   subroutine writeTaggedComplexR1(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -346,19 +348,19 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formCmplx)
     end if
-    
+
 99100 format (A, ':complex:1:', I0)
     write (file, 99100) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedComplexR1
-  
+
 
 
   subroutine writeTaggedComplexR2(file, tag, value, optForm)
@@ -370,14 +372,14 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formCmplx)
     end if
-    
+
 99110 format (A, ':complex:2:', I0, ',', I0)
     write (file, 99110) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2)
@@ -397,14 +399,14 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formCmplx)
     end if
-    
+
 99120 format (A, ':complex:3:', I0, ',', I0, ',', I0)
     write (file, 99120) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3)
@@ -425,14 +427,14 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formCmplx)
     end if
-    
+
 99130 format (A, ':complex:4:', I0, ',', I0, ',', I0, ',', I0)
     write (file, 99130) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
@@ -451,10 +453,10 @@ contains
     character(len=*), intent(in) :: tag
     integer,          intent(in) :: value
     character(len=*), optional, intent(in) :: optForm
-    
+
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -465,11 +467,11 @@ contains
 99140 format (A, ':integer:0:')
     write (file, 99140) getLabel(tag)
     write (file, form) value
-    
+
   end subroutine writeTaggedIntegerR0
 
-  
-  
+
+
   subroutine writeTaggedIntegerR1(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -479,14 +481,14 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formInt)
     end if
-    
+
 99150 format (A, ':integer:1:', I0)
     write (file, 99150) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
@@ -503,14 +505,14 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formInt)
     end if
-    
+
 99160 format (A, ':integer:2:', I0, ',', I0)
     write (file, 99160) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2)
@@ -530,14 +532,14 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formInt)
     end if
-    
+
 99170 format (A, ':integer:3:', I0, ',', I0, ',', I0)
     write (file, 99170) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3)
@@ -558,14 +560,14 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formInt)
     end if
-    
+
 99180 format (A, ':integer:4:', I0, ',', I0, ',', I0, ',', I0)
     write (file, 99180) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
@@ -584,10 +586,10 @@ contains
     character(len=*), intent(in) :: tag
     logical,          intent(in) :: value
     character(len=*), optional, intent(in) :: optForm
-    
+
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
@@ -598,11 +600,11 @@ contains
 99190 format (A, ':logical:0:')
     write (file, 99190) getLabel(tag)
     write (file, form) value
-    
+
   end subroutine writeTaggedLogicalR0
 
-  
-  
+
+
   subroutine writeTaggedLogicalR1(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -612,14 +614,14 @@ contains
     integer :: ii
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formLogical)
     end if
-    
+
 99200 format (A, ':logical:1:', I0)
     write (file, 99200) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
@@ -636,14 +638,14 @@ contains
     integer :: ii, jj
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formLogical)
     end if
-    
+
 99210 format (A, ':logical:2:', I0, ',', I0)
     write (file, 99210) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2)
@@ -663,14 +665,14 @@ contains
     integer :: ii, jj, kk
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formLogical)
     end if
-    
+
 99220 format (A, ':logical:3:', I0, ',', I0, ',', I0)
     write (file, 99220) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3)
@@ -691,14 +693,14 @@ contains
     integer :: ii, jj, kk, ll
     character(len=20) :: form
 
-    ASSERT(initialized)
+    @:ASSERT(initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
       form = getLabel(formLogical)
     end if
-    
+
 99230 format (A, ':logical:4:', I0, ',', I0, ',', I0, ',', I0)
     write (file, 99230) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
@@ -716,8 +718,8 @@ contains
     character(len=*), intent(in) :: tag
 
     integer :: lentrim
-    
-    ASSERT(initialized)
+
+    @:ASSERT(initialized)
 
     lentrim = len_trim(tag)
     if (lentrim >= lenLabel) then

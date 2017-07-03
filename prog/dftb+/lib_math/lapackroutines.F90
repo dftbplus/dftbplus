@@ -5,19 +5,20 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains F90 wrapper functions for some commonly used lapack calls needed
 !!* in the code. The interface of all LAPACK calls must be defined in the module
 !!* lapack.
 module lapackroutines
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use message
   use lapack
   implicit none
 
   private
-  
+
   character(len=100) :: error_string  !* Used to return runtime diagnostics
 
   !!* Computes the solution to a real system of linear equations
@@ -119,7 +120,7 @@ module lapackroutines
     module procedure sytrs_dble
     module procedure sytrs_real
   end interface
-  
+
   !!* returns a vector of random numers, either from a uniform or normal
   !!* distribution
   !!* @param iDist choice of distribution (1: uniform (0,1), 2: uniform (-1,1),
@@ -136,7 +137,7 @@ module lapackroutines
     module procedure larnv_cplx
     module procedure larnv_dblecplx
   end interface larnv
-  
+
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
   public :: hermatinv, hetri, hetrf
 
@@ -157,26 +158,25 @@ contains
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
-      ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
       nn = nEquation
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
 
     ldb = size(bb, dim=1)
-    ASSERT(ldb >= nn)
+    @:ASSERT(ldb >= nn)
     nrhs = size(bb, dim=2)
     if (present(nSolution)) then
-      ASSERT(nSolution <= nrhs)
+      @:ASSERT(nSolution <= nrhs)
       nrhs = nSolution
     end if
-    
+
     info = 0
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call sgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-    DEALLOCATE_(ipiv)
-    
+
     if (info < 0) then
 99000 format ('Failure in linear equation solver sgesv,', &
           & ' illegal argument at position ',i10)
@@ -211,26 +211,25 @@ contains
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
-      ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
       nn = nEquation
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
 
     ldb = size(bb, dim=1)
-    ASSERT(ldb >= nn)
+    @:ASSERT(ldb >= nn)
     nrhs = size(bb, dim=2)
     if (present(nSolution)) then
-      ASSERT(nSolution <= nrhs)
+      @:ASSERT(nSolution <= nrhs)
       nrhs = nSolution
     end if
-    
+
     info = 0
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call dgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-    DEALLOCATE_(ipiv)
-    
+
     if (info < 0) then
 99020 format ('Failure in linear equation solver dgesv,', &
           & ' illegal argument at position ',i10)
@@ -261,22 +260,22 @@ contains
     integer, optional, intent(in) :: nRow
     integer, optional, intent(in) :: nColumn
     integer, optional, intent(out) :: iError
-    
+
     integer :: mm, nn, lda, info
 
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       mm = nRow
     else
       mm = lda
     end if
     if (present(nColumn)) then
-      ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
       nn = nColumn
     end if
-    ASSERT(size(ipiv) == min(mm, nn))
+    @:ASSERT(size(ipiv) == min(mm, nn))
 
     call sgetrf(mm, nn, aa, lda, ipiv, info)
 
@@ -295,7 +294,7 @@ contains
         call error(error_string)
       end if
     end if
-    
+
   end subroutine getrf_real
 
 
@@ -307,22 +306,22 @@ contains
     integer, optional, intent(in) :: nRow
     integer, optional, intent(in) :: nColumn
     integer, optional, intent(out) :: iError
-    
+
     integer :: mm, nn, lda, info
 
     lda = size(aa, dim=1)
     nn = size(aa, dim=2)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       mm = nRow
     else
       mm = lda
     end if
     if (present(nColumn)) then
-      ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
       nn = nColumn
     end if
-    ASSERT(size(ipiv) == min(mm, nn))
+    @:ASSERT(size(ipiv) == min(mm, nn))
 
     call dgetrf(mm, nn, aa, lda, ipiv, info)
 
@@ -341,7 +340,7 @@ contains
         call error(error_string)
       end if
     end if
-    
+
   end subroutine getrf_dble
 
 
@@ -355,24 +354,23 @@ contains
     integer :: nn, lda, info, lwork
     real(rsp), allocatable :: work(:)
     real(rsp) :: work2(1)
-    
+
     lda = size(aa, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
-    ASSERT(size(ipiv) == nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(ipiv) == nn)
 
     lwork = -1
     call sgetri(nn, aa, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
 
-    ALLOCATE_(work, (lwork))
+    allocate(work(lwork))
     call sgetri(nn, aa, lda, ipiv, work, lwork, info)
-    DEALLOCATE_(work)
 
     if (info < 0) then
 99080 format ('Failure in LU factorisation (sgetri),', &
@@ -391,7 +389,7 @@ contains
     end if
 
   end subroutine getri_real
-  
+
 
   !!* Double precision version of getri.
   subroutine getri_dble(aa, ipiv, nRow, iError)
@@ -403,24 +401,23 @@ contains
     integer :: nn, lda, info, lwork
     real(rdp), allocatable :: work(:)
     real(rdp) :: work2(1)
-    
+
     lda = size(aa, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
-    ASSERT(size(aa, dim=2) >= nn)
-    ASSERT(size(ipiv) == nn)
+    @:ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(ipiv) == nn)
 
     lwork = -1
     call dgetri(nn, aa, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
 
-    ALLOCATE_(work, (lwork))
+    allocate(work(lwork))
     call dgetri(nn, aa, lda, ipiv, work, lwork, info)
-    DEALLOCATE_(work)
 
     if (info < 0) then
 99100 format ('Failure in LU factorisation (dgetri), illegal argument at&
@@ -457,17 +454,16 @@ contains
 
     nn = size(aa, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= nn)
+      @:ASSERT(nRow >= 1 .and. nRow <= nn)
       nn = nRow
     end if
-    ASSERT(size(aa, dim=2) >= nn)
-    
-    ALLOCATE_(ipiv, (nn))
+    @:ASSERT(size(aa, dim=2) >= nn)
+
+    allocate(ipiv(nn))
     call getrf(aa, ipiv, nRow=nn, nColumn=nn, iError=info)
     if (info == 0) then
       call getri(aa, ipiv, nRow=nn, iError=info)
     end if
-    DEALLOCATE_(ipiv)
 
     if (present(iError)) then
       iError = info
@@ -477,14 +473,14 @@ contains
       write (error_string, 99120) info
       call error(error_string)
     end if
-    
+
   end subroutine matinv
 
 
   !> Inverts a symmetric matrix.
   !! \param aa  Symmetric matrix to invert on entry, inverted matrix on exit.
   !! \param uplo  Upper ('U') or lower ('L') matrix. Default: 'L'.
-  !! \param info  Info flag. If not specified and an error occurs, the 
+  !! \param info  Info flag. If not specified and an error occurs, the
   !!     subroutine will stop.
   subroutine symmatinv(aa, uplo, info)
     real(dp), intent(inout) :: aa(:,:)
@@ -495,12 +491,11 @@ contains
     integer, allocatable :: ipiv(:)
 
     nn = size(aa, dim=1)
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call sytrf(aa, ipiv, uplo, info0)
     if (info0 == 0) then
       call sytri(aa, ipiv, uplo, info0)
     end if
-    DEALLOCATE_(ipiv)
 
     if (present(info)) then
       info = info0
@@ -509,14 +504,14 @@ contains
           &error in sytrf or sytri. Info flag:", info
       call error(error_string)
     end if
-    
+
   end subroutine symmatinv
 
 
   !> Inverts a Hermitian matrix.
   !! \param aa  Hermitian matrix to invert on entry, inverted matrix on exit.
   !! \param uplo  Upper ('U') or lower ('L') matrix. Default: 'L'.
-  !! \param info  Info flag. If not specified and an error occurs, the 
+  !! \param info  Info flag. If not specified and an error occurs, the
   !!     subroutine will stop.
   subroutine hermatinv(aa, uplo, info)
     complex(dp), intent(inout) :: aa(:,:)
@@ -527,12 +522,11 @@ contains
     integer, allocatable :: ipiv(:)
 
     nn = size(aa, dim=1)
-    ALLOCATE_(ipiv, (nn))
+    allocate(ipiv(nn))
     call hetrf(aa, ipiv, uplo, info0)
     if (info0 == 0) then
       call hetri(aa, ipiv, uplo, info0)
     end if
-    DEALLOCATE_(ipiv)
 
     if (present(info)) then
       info = info0
@@ -541,7 +535,7 @@ contains
           &error in sytrf or sytri. Info flag:", info
       call error(error_string)
     end if
-    
+
   end subroutine hermatinv
 
 
@@ -578,10 +572,10 @@ contains
     call ssytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call ssytrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
-    
+
     if (present(info)) then
       info = info0
     elseif (info0 /= 0) then
@@ -620,10 +614,10 @@ contains
     call dsytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call dsytrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
-    
+
     if (present(info)) then
       info = info0
     elseif (info0 /= 0) then
@@ -666,10 +660,10 @@ contains
     call chetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call chetrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
-    
+
     if (present(info)) then
       info = info0
     elseif (info0 /= 0) then
@@ -677,7 +671,7 @@ contains
     end if
 
   end subroutine hetrf_complex
-  
+
 
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (dcomplex).
   !! \param aa  Hermitian matrix
@@ -708,10 +702,10 @@ contains
     call zhetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
     if (info0 == 0) then
       lwork = int(tmpwork(1))
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call zhetrf(uplo0, nn, aa, nn, ipiv, work, lwork, info0)
     end if
-    
+
     if (present(info)) then
       info = info0
     elseif (info0 /= 0) then
@@ -747,7 +741,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call ssytri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -755,7 +749,7 @@ contains
       write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
       call error(error_string)
     end if
-    
+
   end subroutine sytri_real
 
 
@@ -781,7 +775,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call dsytri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -789,7 +783,7 @@ contains
       write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
       call error(error_string)
     end if
-    
+
   end subroutine sytri_dreal
 
 
@@ -819,7 +813,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call chetri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -827,7 +821,7 @@ contains
       write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
       call error(error_string)
     end if
-    
+
   end subroutine hetri_complex
 
 
@@ -853,7 +847,7 @@ contains
       uplo0 = "L"
     end if
     nn = size(aa, dim=1)
-    ALLOCATE_(work, (max(1, 2 * nn)))
+    allocate(work(max(1, 2 * nn)))
     call zhetri(uplo0, nn, aa, nn, ipiv, work, info0)
     if (present(info)) then
       info = info0
@@ -861,14 +855,14 @@ contains
       write(error_string, "(A,I10)") "Routine dsytri failed. Info: ", info0
       call error(error_string)
     end if
-    
+
   end subroutine hetri_dcomplex
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! SYTRS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
   !!* Single precision version of sytrs
   subroutine sytrs_real(A,B, nRow, uplo,iError)
     real(rsp), intent(inout)        :: A(:,:)
@@ -876,7 +870,7 @@ contains
     integer, intent(in), optional   :: nRow
     character, intent(in), optional :: uplo
     integer, intent(out), optional  :: iError
-    
+
     integer, allocatable :: ipiv(:)
     character :: iUplo
     integer :: nn, lda, ldb, info, lwork, nrhs
@@ -885,42 +879,39 @@ contains
 
     lda = size(A, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
-    
+
     ldb = size(b, dim=1)
-    ASSERT(ldb >= nn)
-    
+    @:ASSERT(ldb >= nn)
+
     if (present(uplo)) then
        iUplo = uplo
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
-    ASSERT(size(A, dim=2) >= nn)
+    @:ASSERT(size(A, dim=2) >= nn)
     nrhs = size(B, dim=2)
-    
-    ALLOCATE_(ipiv, (nn))
-    
+
+    allocate(ipiv(nn))
+
     lwork = -1
     call ssytrf(iUplo, nn, A, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
     if (info == 0) then
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call ssytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
-      DEALLOCATE_(work)
     end if
 
     if (info == 0) then
        call ssytrs(iUplo, nn, nrhs, A, lda, ipiv, B, ldb, info)
      end if
-     
-    DEALLOCATE_(ipiv)
-    
+
     if (present(iError)) then
        iError = info
     elseif (info /= 0) then
@@ -929,7 +920,7 @@ contains
        write (error_string, 99130) info
        call error(error_string)
     end if
-        
+
   end subroutine sytrs_real
 
   !!* Double precision version of sytrs
@@ -939,7 +930,7 @@ contains
     integer, intent(in), optional   :: nRow
     character, intent(in), optional :: uplo
     integer, intent(out), optional  :: iError
-    
+
     integer, allocatable :: ipiv(:)
     character :: iUplo
     integer :: nn, lda, ldb, info, lwork, nrhs
@@ -948,42 +939,39 @@ contains
 
     lda = size(A, dim=1)
     if (present(nRow)) then
-      ASSERT(nRow >= 1 .and. nRow <= lda)
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
       nn = nRow
     else
       nn = lda
     end if
-    
+
     ldb = size(b, dim=1)
-    ASSERT(ldb >= nn)
-    
+    @:ASSERT(ldb >= nn)
+
     if (present(uplo)) then
        iUplo = uplo
     else
        iUplo = 'L'
     end if
-    ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
+    @:ASSERT(iUplo == 'u' .or. iUplo == 'U' .or. iUplo == 'l' .or. iUplo == 'L')
 
-    ASSERT(size(A, dim=2) >= nn)
+    @:ASSERT(size(A, dim=2) >= nn)
     nrhs = size(B, dim=2)
-    
-    ALLOCATE_(ipiv, (nn))
-    
+
+    allocate(ipiv(nn))
+
     lwork = -1
     call dsytrf(iUplo, nn, A, lda, ipiv, work2, lwork, info)
     lwork = int(work2(1))
     if (info == 0) then
-      ALLOCATE_(work, (lwork))
+      allocate(work(lwork))
       call dsytrf(iUplo, nn, A, lda, ipiv, work, lwork, info)
-      DEALLOCATE_(work)
     end if
 
     if (info == 0) then
        call dsytrs(iUplo, nn, nrhs, A, lda, ipiv, B, ldb, info)
      end if
-     
-    DEALLOCATE_(ipiv)
-    
+
     if (present(iError)) then
        iError = info
     elseif (info /= 0) then
@@ -992,9 +980,9 @@ contains
        write (error_string, 99130) info
        call error(error_string)
     end if
-        
+
   end subroutine sytrs_dble
-  
+
   !!* single precision version of larnv
   subroutine larnv_real(iDist,iSeed,x)
     integer, intent(in)    :: iDist
@@ -1003,12 +991,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)    
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)
     n = size(x)
     x(:) = 0.0
     call SLARNV( iDist, iSeed, n, x )
@@ -1022,12 +1010,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)    
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)
     n = size(x)
     x(:) = 0.0d0
     call DLARNV( iDist, iSeed, n, x )
@@ -1041,12 +1029,12 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)    
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)
     n = size(x)
     x(:) = 0.0
     call CLARNV( iDist, iSeed, n, x )
@@ -1060,15 +1048,15 @@ contains
 
     integer :: n
 
-    ASSERT(iDist > 0)
-    ASSERT(iDist < 4)
-    ASSERT(all(iSeed(:) >= 0))
-    ASSERT(all(iSeed(:) <= 4095))
-    ASSERT(mod(iSeed(4),2) == 1)
-    ASSERT(size(x) > 0)
+    @:ASSERT(iDist > 0)
+    @:ASSERT(iDist < 4)
+    @:ASSERT(all(iSeed(:) >= 0))
+    @:ASSERT(all(iSeed(:) <= 4095))
+    @:ASSERT(mod(iSeed(4),2) == 1)
+    @:ASSERT(size(x) > 0)
     n = size(x)
     x(:) = 0.0d0
     call ZLARNV( iDist, iSeed, n, x )
   end subroutine larnv_dblecplx
-  
+
 end module lapackroutines

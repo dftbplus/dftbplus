@@ -20,7 +20,7 @@ module bisect
     module procedure bisection_real
     module procedure bisection_int
   end interface bisection
-  
+
 contains
 
   !!* real(dp) case for bisection search
@@ -28,12 +28,12 @@ contains
     integer,  intent(out)          :: j
     real(dp), intent(in)           :: xx(:), x
     real(dp), intent(in), optional :: tol
-    
+
     integer  :: n
     integer  :: jlower,jupper,jcurr
     real(dp) :: rTol      !! real tolerance
     logical  :: ascending
-    
+
     n = size(xx)
     if (n == 0) then
       j = 0
@@ -45,7 +45,7 @@ contains
     else
       rTol = epsilon(0.0_dp)
     end if
-    
+
     if (x  < xx(1) - rTol) then
       j = 0
     else if (abs(x - xx(1)) <= rTol) then

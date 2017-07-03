@@ -5,11 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Contains code to calculate the H0 Hamiltonian and overlap matrix and their
 !! derivatives.
 !!
 module nonscc
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   use sk
   use slakocont
@@ -17,7 +19,7 @@ module nonscc
   use message
   implicit none
   private
-  
+
   public :: buildH0, buildS
   public :: NonSccDiff, NonSccDiff_init
   public :: diffTypes
@@ -26,8 +28,8 @@ module nonscc
   ! Keep default value as a constant, as using the expression directly
   ! for the default initialisation triggers ICE.
   real(dp), parameter :: DELTA_X_DIFF_DEFAULT = epsilon(1.0_dp)**0.25_dp
-  
-  
+
+
   !> Contains settings for the derivation of the non-scc contribution.
   !!
   type :: NonSccDiff
@@ -39,64 +41,64 @@ module nonscc
     procedure :: getFirstDeriv
     procedure :: getSecondDeriv
   end type NonSccDiff
-  
-  
+
+
   !> Namespace for possible differentiation methods
   !!
   type :: diffTypesEnum
     integer :: finiteDiff
     integer :: richardson
   end type diffTypesEnum
-  
-  
+
+
   !> Actual values for diffTypes.
   type(diffTypesEnum), parameter :: diffTypes = diffTypesEnum(1, 2)
-  
-  
-  
+
+
+
 contains
-  
-  
+
+
   !> Driver for making the non-SCC Hamiltonian in the primitive sparse format.
   !!
   subroutine buildH0(ham, skHamCont, selfegy, coords, nNeighbors, iNeighbors,&
       & species, iPair, orb)
-    
+
     !> Returns the non-self-consistent Hamiltonian
     real(dp), intent(out) :: ham(:)
-    
+
     !> Container for the SlaKo Hamiltonian integrals
     type(OSlakoCont), intent(in) :: skHamCont
-    
+
     !> On-site energies for each species
     real(dp), intent(in) :: selfegy(:,:)
-    
+
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
-    
+
     !> Number of surrounding neighbors for each atom
     integer, intent(in) :: nNeighbors(:)
-    
+
     !> List of surrounding neighbors for each atom
     integer, intent(in) :: iNeighbors(0:,:)
-    
+
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    
+
     !> Shift vector, where the interaction between two atoms
     integer, intent(in) :: iPair(0:,:)
-    
+
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
-    
-    
+
+
     integer :: nAtom, iAt1, iSp1, ind, iOrb1
-    
+
     nAtom = size(nNeighbors)
     ham(:) = 0.0_dp
-    
+
     ! Put the on-site energies into the Hamiltonian,
-    ! and <lm|l'm'> = delta_l,l' * delta_m',m' for the overlap	!'
+    ! and <lm|l'm'> = delta_l,l' * delta_m',m' for the overlap  !'
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       ind = iPair(0, iAt1) + 1
@@ -105,49 +107,49 @@ contains
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do
-    
+
     call buildDiatomicBlocks(ham, skHamCont, coords, nNeighbors, iNeighbors,&
         & species, iPair, orb)
-    
+
   end subroutine buildH0
-  
-  
+
+
   !> Driver for making the overlap matrix in the primitive sparse format.
   !!
   subroutine buildS(over, skOverCont, coords, nNeighbors, iNeighbors, species,&
       & iPair, orb)
-    
+
     !> Returns the overlap
     real(dp), intent(out) :: over(:)
-    
+
     !> Container for the SlaKo overlap integrals
     type(OSlakoCont), intent(in) :: skOverCont
-    
+
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
-    
+
     !> Number of surrounding neighbors for each atom
     integer, intent(in) :: nNeighbors(:)
-    
+
     !> List of surrounding neighbors for each atom
     integer, intent(in) :: iNeighbors(0:,:)
-    
+
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    
+
     !> Shift vector, where the interaction between two atoms starts in the
     !! sparse format.
     integer, intent(in) :: iPair(0:,:)
-    
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    
-    
+
+
     integer :: nAtom, iAt1, iSp1, ind, iOrb1
-    
+
     nAtom = size(nNeighbors)
     over(:) = 0.0_dp
-    
+
     ! Put 1.0 for the diagonal elements of the overlap.
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
@@ -157,30 +159,30 @@ contains
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do
-    
+
     call buildDiatomicBlocks(over, skOverCont, coords, nNeighbors, iNeighbors,&
         & species, iPair, orb)
-    
+
   end subroutine buildS
-  
-  
+
+
   !> Initializes a differentiator for the non-scc contributions.
   !!
   !! Note: Second derivative can not be calculated currently via Richardson
   !!    interpolation, so the finite difference method is invoked instead.
   !!
   subroutine NonSccDiff_init(this, diffType, deltaXDiff)
-    
+
     !> Initialised instance on exit.
     type(NonSccDiff), intent(out) :: this
-    
+
     !> Type of the differentiator: diffTypes%finiteDiff or diffTypes%richardson
     integer, intent(in) :: diffType
-    
+
     !> Displacement for finite difference differentiation.
     real(dp), intent(in), optional :: deltaXDiff
-    
-    
+
+
     if (all([diffTypes%finiteDiff, diffTypes%richardson] /= diffType)) then
       call error("Invalid differentiator type in NonSccDiff_init")
     end if
@@ -188,40 +190,40 @@ contains
     if (present(deltaXDiff)) then
       this%deltaXDiff = deltaXDiff
     end if
-    
+
   end subroutine NonSccDiff_init
-  
-  
+
+
   !> Calculates the first derivative of H0 or S.
   !!
   subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ,&
       & orb)
-    
+
     !> Instance
     class(NonSccDiff), intent(in) :: this
-    
+
     !> Derivative of H or S diatomic block, with respect to x,y,z (last index).
     real(dp), intent(out) :: deriv(:,:,:)
-    
+
     !> Container for the SK integrals
     type(OSlakoCont), intent(in) :: skCont
-    
+
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
-    
+
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    
+
     !> The first atom in the diatomic block
     integer, intent(in) :: atomI
-    
+
     !> The second atom in the diatomic block
     integer, intent(in) :: atomJ
-    
+
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
-    
-    
+
+
     select case (this%diffType)
     case (diffTypes%finiteDiff)
       call getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI,&
@@ -230,40 +232,40 @@ contains
       call getFirstDerivRichardson(deriv, skCont, coords, species, atomI,&
           & atomJ, orb)
     end select
-    
+
   end subroutine getFirstDeriv
-  
-  
+
+
   !> Calculates the numerical second derivative of a diatomic block of H0 or S.
   !!
   subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ,&
       & orb)
-    
+
     !> Instance.
     class(NonSccDiff), intent(in) :: this
-    
+
     !> Derivative of the diatomic block, with respect to x,y,z (last 2 indices)
     real(dp), intent(out) :: deriv(:,:,:,:)
-    
+
     !> Container for SK Hamiltonian integrals
     type(OSlakoCont), intent(in) :: skCont
-    
+
     !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
-    
+
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    
+
     !> First atom in the diatomic block
     integer, intent(in) :: atomI
-    
+
     !> Second atom in the diatomic block
     integer, intent(in) :: atomJ
-    
+
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
-    
-    
+
+
     ! Note, second derivatives are not Richardson interpolated yet, so finite
     ! difference code is invoked instead.
     select case (this%diffType)
@@ -274,15 +276,15 @@ contains
       call getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI,&
           & atomJ, orb, this%deltaXDiff)
     end select
-    
+
   end subroutine getSecondDeriv
-  
-  
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-  
+
+
   !! Helper routine to calculate the diatomic blocks for the routines
   !! buildH0 and buildS.
   !!
@@ -296,15 +298,15 @@ contains
     integer, intent(in) :: species(:)
     integer, intent(in) :: iPair(0:,:)
     type(TOrbitals), intent(in) :: orb
-    
+
     real(dp) :: tmp(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), dist
     real(dp) :: interSK(getMIntegrals(skCont))
     integer :: nAtom, nOrb1, nOrb2
     integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind
-    
+
     nAtom = size(nNeighbors)
-    
+
     !! Do the diatomic blocks for each of the atoms with its nNeighbors
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
@@ -323,11 +325,11 @@ contains
             & reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do
     end do
-    
+
   end subroutine buildDiatomicBlocks
-  
-  
-  
+
+
+
   !! Calculates the numerical derivative of a diatomic block H0 or S by finite
   !! differences.
   !!
@@ -340,20 +342,20 @@ contains
     integer, intent(in) :: atomI, atomJ
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: deltaXDiff
-    
+
     real(dp) :: interSk(getMIntegrals(skCont))    ! interpolated H integs.
     real(dp) :: vect(3), dist
     integer  :: ii, jj
     integer :: sp1, sp2
     real(dp) :: tmp(size(deriv,dim=1), size(deriv,dim=2),2,3)
-    
-    ASSERT(size(deriv, dim=3) == 3)
-    
+
+    @:ASSERT(size(deriv, dim=3) == 3)
+
     deriv(:,:,:) = 0.0_dp
-    
+
     sp1 = species(atomI)
     sp2 = species(atomJ)
-    
+
     do jj = 1, 3
       do ii = 1, 2
         vect(:) = coords(:,atomJ) - coords(:,atomI)
@@ -365,14 +367,14 @@ contains
             &vect(3), sp1, sp2, orb)
       end do
     end do
-    
+
     do ii = 1, 3
       deriv(:,:,ii) = (tmp(:,:,2,ii) - tmp(:,:,1,ii)) / (2.0_dp * deltaXDiff)
     end do
-    
+
   end subroutine getFirstDerivFiniteDiff
-  
-  
+
+
   !! Calculates the numerical derivative of a diatomic block H0 or S by
   !! Richardsons method.
   !!
@@ -384,11 +386,11 @@ contains
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
     type(TOrbitals), intent(in) :: orb
-    
+
     integer, parameter  :: maxrows = 20
     integer, parameter  :: maxcolumns = 3
     real(dp), parameter :: tol = 1.0E-11_dp ! epsilon ?
-    
+
     real(dp) :: interSk(getMIntegrals(skCont))  ! interpolated S integs.
     real(dp) :: vect(3), dist
     integer  :: sp1, sp2
@@ -399,20 +401,20 @@ contains
     logical  :: tConverged(size(deriv, dim=1), size(deriv, dim=2))
     real(dp) :: hh
     integer  :: ii, iCart, kk, ll, mm, nk
-    
-    ASSERT(size(deriv, dim=3) == 3)
-    
+
+    @:ASSERT(size(deriv, dim=3) == 3)
+
     deriv(:,:,:) = 0.0_dp
-    
+
     sp1 = species(atomI)
     sp2 = species(atomJ)
     do iCart = 1, 3
-      
+
       ! initial finite difference, chosen as an exactly representable value in
       ! floating point
       hh = 0.125_dp
       dd(:,:,:,:) = 0.0_dp
-      
+
       do kk = 1, 2
         vect(:) = coords(:,atomJ) - coords(:,atomI)
         vect(iCart) = vect(iCart) - real(2 * kk - 3, dp) * hh
@@ -422,12 +424,12 @@ contains
         call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3),&
             & sp1, sp2, orb)
       end do
-      
+
       ! row number
       ii = 0
       dd(:,:,0,ii) = (tmp(:,:,2) - tmp(:,:,1)) / (2.0_dp * hh)
       tConverged(:,:) = .false.
-      
+
       ! want value of ii to be consistent however the loop exits, so
       ! using a while instead of for loop
       do while (ii < maxrows .and. .not. all(tConverged))
@@ -480,10 +482,10 @@ contains
       end do
       deriv(:,:,iCart) = dd(:,:,mm,ii)
     end do
-    
+
   end subroutine getFirstDerivRichardson
-  
-  
+
+
   !! Contains code to calculate the numerical second derivative of a
   !! diatomic block of the H0 Hamiltonian and overlap.
   !!
@@ -496,66 +498,66 @@ contains
     integer, intent(in) :: atomI, atomJ
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: deltaXDiff
-    
+
     real(dp) :: interSk(getMIntegrals(skCont))   ! interpolated integs.
     real(dp) :: vect(3), dist
     integer  :: ii, jj, kk, ll
     integer  :: sp1, sp2
     real(dp) :: tmp(size(deriv, dim=1), size(deriv, dim=2))
-    
+
     ! second derivative weights for d2 F /dx2
     real(dp), parameter :: stencil(-1:1) = [1.0_dp, -2.0_dp, 1.0_dp]
-    
-    ASSERT(size(deriv, dim=3) == 3)
-    ASSERT(size(deriv, dim=4) == 3)
-    
+
+    @:ASSERT(size(deriv, dim=3) == 3)
+    @:ASSERT(size(deriv, dim=4) == 3)
+
     deriv(:,:,:,:) = 0.0_dp
-    
+
     sp1 = species(atomI)
     sp2 = species(atomJ)
-    
+
     do ii = 1, 3
       do jj = 1, 3
-        
+
         if (ii == jj) then ! treat diagonal case separately
           cycle
         end if
-        
+
         do kk = -1, 1, 2
           do ll = -1, 1, 2
-            
+
             vect(:) = coords(:,atomJ) - coords(:,atomI)
             vect(ii) = vect(ii) + real(kk, dp) * deltaXDiff
             vect(jj) = vect(jj) + real(ll, dp) * deltaXDiff
-            
+
             dist = sqrt(sum(vect**2))
             vect(:) = vect / dist
-            
+
             call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
             call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
             deriv(:,:,jj,ii) = deriv(:,:,jj,ii) + real(kk * ll, dp) * tmp
           end do
         end do
       end do
-      
+
       do jj = -1, 1
-        
+
         vect(:) = coords(:,atomJ) - coords(:,atomI)
         vect(ii) = vect(ii) + real(jj, dp) * deltaXDiff
-        
+
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        
+
         call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
         call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
         deriv(:,:,ii,ii) = deriv(:,:,ii,ii) + stencil(jj) * tmp
-        
+
       end do
-      
+
     end do
-    
+
     deriv = deriv / deltaXDiff**2
-    
+
     ! Off diagonal should be scaled by 1/4
     do ii = 1, 3
       do jj = ii + 1, 3
@@ -563,7 +565,7 @@ contains
         deriv(:,:,jj,ii) = 0.25_dp * deriv(:,:,jj,ii)
       end do
     end do
-    
+
   end subroutine getSecondDerivFiniteDiff
-  
+
 end module nonscc

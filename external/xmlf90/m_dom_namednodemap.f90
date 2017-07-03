@@ -190,7 +190,6 @@ CONTAINS
              previous%next => nnp%next
           endif
           namedNodeMap%length =  namedNodeMap%length - 1
-          call unstring(nnp%name)
           deallocate(nnp)
           EXIT                 ! one or zero nodes with a given name
        endif

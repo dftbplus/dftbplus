@@ -8,7 +8,6 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program polyvalue
-#include "allocate.h"  
   use accuracy
   use reppoly
   use fileid
@@ -18,7 +17,7 @@ program polyvalue
   character(lc) :: arg, fname
   logical :: homo
   type(tRepPolyIn) :: repPolyIn
-  type(ORepPoly), pointer :: pRepPoly
+  type(ORepPoly) :: pRepPoly
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2, rDummy
@@ -61,7 +60,6 @@ program polyvalue
       & (rDummy, ii = 11, 20)
   close(fp)
 
-  INITALLOCATE_P(pRepPoly)
   call init(pRepPoly, repPolyIn)
   npoint = floor((repPolyIn%cutoff - rstart) / dr) + 1
   rr(:) = 0.0_dp
@@ -71,6 +69,5 @@ program polyvalue
     call getenergyderiv(pRepPoly, grad, rr, d2)
     write(*, "(4E23.15)") rr(1), energy, grad(1), d2
   end do
-  DEALLOCATE_P(pRepPoly)
 
 end program polyvalue

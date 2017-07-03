@@ -5,9 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Helper routines for the linear response modules.
 module linrespcommon
-#include "assert.h"
+  use assert
   use accuracy
   use blasroutines
   use sorting
@@ -15,11 +17,11 @@ module linrespcommon
   use commontypes
   implicit none
   public
-  
+
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp ! prefactor of 2/3.
-  
+
 contains
-  
+
   !> Sort arrays in reverse order for values in sposz array
   !! \param wij Energies of transitions
   !! \param sposz array to be sorted containing transition strengths
@@ -31,15 +33,15 @@ contains
     real(dp), intent(inout) :: sposz(:)
     integer, intent(inout)  :: win(:)
     real(dp), intent(inout) :: transd(:,:)
-    
+
     integer, allocatable :: tmpIndx(:)
-    
+
     allocate(tmpIndx(size(win)))
-    
-    ASSERT(size(wij) == size(sposz))
-    ASSERT(size(wij) == size(win))    
-    ASSERT(size(wij) == size(transd,dim=1))
-    
+
+    @:ASSERT(size(wij) == size(sposz))
+    @:ASSERT(size(wij) == size(win))
+    @:ASSERT(size(wij) == size(transd,dim=1))
+
     call index_heap_sort(tmpIndx, sposz)
     tmpIndx = tmpIndx(size(win):1:-1)
     win = win(tmpIndx)
@@ -47,8 +49,6 @@ contains
     sposz = sposz(tmpIndx)
     transd(:,:) = transd(tmpIndx,:)
 
-    deallocate(tmpIndx)
-    
   end subroutine dipsort
 
   !> find (possibly degenerate) transitions with stronger dipole
@@ -63,18 +63,18 @@ contains
     real(dp), intent(in)    :: threshold
     real(dp), intent(in)    :: grndEigVal(:,:)
     integer, intent(in)     :: getij(:,:)
-    
+
     integer  :: nxov, ii, jj, iOcc, iVrt, iStart
     real(dp) :: eOcc, eExc, mu
-    
+
     nxov = size(wij)
-    ASSERT(nxov == size(sposz))
-    ASSERT(nxov == size(win))
-    ASSERT(all(shape(transd) == [nxov,3]))
-    ASSERT(size(getij,dim=1) >= nxov)
-    ASSERT(size(getij,dim=2) == 2)
-    ASSERT(threshold >= 0.0_dp)
-    
+    @:ASSERT(nxov == size(sposz))
+    @:ASSERT(nxov == size(win))
+    @:ASSERT(all(shape(transd) == [nxov,3]))
+    @:ASSERT(size(getij,dim=1) >= nxov)
+    @:ASSERT(size(getij,dim=2) == 2)
+    @:ASSERT(threshold >= 0.0_dp)
+
     call indxov(win, 1, getij, iOcc, iVrt)
     eOcc = grndEigVal(iOcc,1)
     eExc = wij(1)
@@ -101,9 +101,9 @@ contains
           end do
         end if
         iStart = ii
-      end if      
+      end if
     end do
-    
+
     mu = 0.0_dp
     do jj = iStart, nxov
       call indxov(win, jj, getij, iOcc, iVrt)
@@ -118,9 +118,9 @@ contains
         transd(nxov_r,:) = transd(jj,:)
       end do
     end if
-    
+
   end subroutine dipSelect
-  
+
   !> counts number of transition involving either the HOMO or LUMO levels.
   !! Used to find number of states in the occupied and empty spaces.
   !! \param nxov number of excitations
@@ -132,20 +132,20 @@ contains
   subroutine getNorb_r(nxov, win, getij, homo, no, nv)
     integer, intent(in) :: nxov, win(:), getij(:,:), homo
     integer, intent(out) :: no, nv
-    
+
     integer :: ia, ii, jj
-    
+
     no = 0
     nv = 0
-    
+
     do ia = 1, nxov
       call indxov(win, ia, getij, ii, jj)
       if (ii == homo) nv = nv +1
       if (jj == homo +1) no = no +1
     end do
-    
+
   end subroutine getNorb_r
-  
+
   !> Computes individual indices from the compound occ-virt excitation index.
   !! \param win index array after sorting of eigenvalues.
   !! \param indx  Compound excitation index.
@@ -156,15 +156,15 @@ contains
     integer, intent(in) :: win(:), indx
     integer, intent(in) :: getij(:,:)
     integer, intent(out) :: ii, jj
-    
+
     integer :: indo
-    
+
     indo = win(indx)
     ii = getij(indo,1)
     jj = getij(indo,2)
-    
+
   end subroutine indxov
-  
+
   !> Computes individual indices from the compound occ-occ excitation index.
   !! \param nocc number of occupied states
   !! \param nocc_r number of required occupied-occupied transitions states
@@ -174,11 +174,11 @@ contains
   subroutine indxoo(nocc, nocc_r, indx, ii, jj)
     integer, intent(in) ::  nocc, nocc_r, indx
     integer, intent(out) :: ii, jj
-    
+
     call indxvv(nocc - nocc_r, indx, ii, jj)
-    
+
   end subroutine indxoo
-  
+
   !> Computes individual indices from the compound virtual-virtual
   !! excitation index.
   !! \param indx  Compund excitation index.
@@ -188,23 +188,23 @@ contains
   subroutine indxvv(nocc, indx, ii, jj)
     integer, intent(in) ::  nocc, indx
     integer, intent(out) :: ii, jj
-    
+
     real(dp) :: re
-    
-    ASSERT(indx > 0)
-    
+
+    @:ASSERT(indx > 0)
+
     ! solve a quadratic for the row of a matrix between occupied and
     ! virtual states, given the number of the element in the matrix
     re = sqrt(real(indx, dp) * 2.0_dp - 1.75_dp) - 0.5_dp
-    
+
     ii  = floor(re) + 1 + nocc ! actual row
     jj  = indx - ((ii - 1 - nocc) * (ii - nocc)) / 2 + nocc ! column
-    
-    ASSERT(ii > 0)
-    ASSERT(jj > 0)
-    
+
+    @:ASSERT(ii > 0)
+    @:ASSERT(jj > 0)
+
   end subroutine indxvv
-  
+
   !> Computes the virtual-virtual compound index from two indices.
   !! \param nocc  Number of occupied states.
   !! \param ii  First virtual state.
@@ -213,11 +213,11 @@ contains
   subroutine rindxvv(nocc, ii, jj, indx)
     integer, intent(in) :: nocc, ii, jj
     integer, intent(out) :: indx
-    
+
     indx = (jj - nocc) + (((ii - nocc) - 1) * (ii - nocc)) / 2
-    
+
   end subroutine rindxvv
-  
+
   !> Builds array to convert from orbital pairs to compound index
   !! \param win array for indexing excitations
   !! \param nocc number of occupied states
@@ -230,19 +230,19 @@ contains
     integer, intent(in)  :: nxov
     integer, intent(in)  :: getij(:,:)
     integer, intent(out) :: iatrans(:,nocc+1:)
-    
+
     integer :: ia
-    
-    ASSERT(size(getij,dim=2) == 2)
-    
+
+    @:ASSERT(size(getij,dim=2) == 2)
+
     ! Store reverse indices.
     ! BA: If wij would not be sorted, it would be a trivial transformation.
     do ia = 1, nxov
       iatrans( getij(win(ia),1), getij(win(ia),2) ) = ia
     end do
-    
+
   end subroutine rindxov_array
-  
+
   !> Calculates atomic transition charges for a certain excitation.
   !! Calculates qij = 0.5 * (c_i S c_j + c_j S c_i) where c_i and c_j are
   !! selected eigenvectors, and S the overlap matrix. Since qij is atomic
@@ -260,12 +260,12 @@ contains
     logical, intent(in) :: updwn
     real(dp), intent(in) :: stimc(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(out) :: qij(:)
-    
+
     integer :: kk, aa, bb, ss
     real(dp) :: qTmp(size(stimc,dim=1))
-    
-    ASSERT(all(shape(stimc) == shape(grndEigVecs)))
-    
+
+    @:ASSERT(all(shape(stimc) == shape(grndEigVecs)))
+
     ss = 1
     if (.not. updwn) ss = 2
     qTmp(:) =  grndEigVecs(:,ii,ss) * stimc(:,jj,ss) &
@@ -275,9 +275,9 @@ contains
       bb = iAtomStart(kk + 1) -1
       qij(kk) = 0.5_dp * sum(qTmp(aa:bb))
     end do
-    
+
   end subroutine transq
-  
+
   !> Returns the (spatial) MO overlap between orbitals in different
   !> spin channels
   !! \param pp orbital in alpha channel
@@ -288,14 +288,14 @@ contains
     integer, intent(in) :: pp, qq
     real(dp), intent(in) :: stimc(:,:,:), grndEigVecs(:,:,:)
     real(dp):: S_pq
-    
-    ASSERT(all(shape(grndEigVecs) == shape(stimc)))
-    ASSERT(size(grndEigVecs, dim=3) == 2)
-    
+
+    @:ASSERT(all(shape(grndEigVecs) == shape(stimc)))
+    @:ASSERT(size(grndEigVecs, dim=3) == 2)
+
     S_pq = sum(grndEigVecs(:,pp,1)*stimc(:,qq,2))
-    
+
   end function MOoverlap
-  
+
   !> scale excitation energies by differences in occupations between
   !> filled and empty states
   !! \param wij K-S energies
@@ -310,11 +310,11 @@ contains
     real(dp), intent(in) :: occNr(:,:)
     integer, intent(in) :: win(:), nmatup, nmat, getij(:,:)
     real(dp), intent(out) :: wn_ij(:)
-    
+
     integer :: ia, ii, jj
     logical :: updwn
     real(dp) :: docc_ij
-    
+
     do ia = 1, nmat
       call indxov(win, ia, getij, ii, jj)
       updwn = (win(ia) <= nmatup)
@@ -325,9 +325,9 @@ contains
       end if
       wn_ij(ia) = wij(ia) * docc_ij
     end do
-    
+
   end subroutine wtdn
-  
+
   !> Multiplies the excitation supermatrix with a supervector.
   !! \note In order not to store the entire supermatrix (nmat, nmat), the
   !! various pieces are assembled individually and multiplied directly
@@ -361,7 +361,7 @@ contains
     integer,  intent(in)  :: getij(:,:)
     integer, intent(in)   :: species0(:)
     real(dp), intent(in)  :: spinW(:)
-    
+
     integer :: nmat, natom
     integer :: ia, ii, jj
     real(dp) :: fact
@@ -371,17 +371,17 @@ contains
                                         ! excitation charges). (nAtom)
     real(dp) :: wnij(size(wij))
     logical :: updwn
-    
-    ASSERT(size(vin) == size(vout))
-    
+
+    @:ASSERT(size(vin) == size(vout))
+
     nmat = size(vin)
     natom = size(gamma, dim=1)
-    
+
     vout = 0.0_dp
-    
+
     call wtdn(wij, occNr, win, nmatup, nmat, getij, wnij)
     wnij = sqrt(wnij) ! always used as root(wnij) after this
-    
+
     otmp = 0.0_dp
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
 !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
@@ -392,13 +392,13 @@ contains
       otmp = otmp + vin(ia) * wnij(ia) * qij
     end do
 !$OMP  END PARALLEL DO
-    
+
     if (.not.spin) then !-----------spin-unpolarized systems--------------
-      
+
       if (sym == 'S') then
-        
+
         call hemv(gtmp, gamma, otmp)
-        
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
 !$OMP& SCHEDULE(RUNTIME)
         do ia = 1, nmat
@@ -409,9 +409,9 @@ contains
         end do
 !$OMP  END PARALLEL DO
       else
-        
+
         otmp = 2.0_dp * otmp * spinW(species0)
-        
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
 !$OMP& SCHEDULE(RUNTIME)
         do ia = 1, nmat
@@ -423,27 +423,27 @@ contains
           vout(ia) = vout(ia) + wnij(ia) * dot_product(qij, otmp)
         end do
 !$OMP  END PARALLEL DO
-        
+
       end if
-      
+
     else !--------------spin-polarized systems--------
-      
+
       call hemv(gtmp, gamma, otmp)
-      
+
       otmp(:) = 0.0_dp
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
 !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
-        
+
         call indxov(win, ia, getij, ii, jj)
         updwn = (win(ia) <= nmatup)
-        
+
         call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-        
+
         !singlet gamma part (S)
         vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
-        
+
         !magnetization part (T1)
         if (updwn) then
           fact = 1.0_dp
@@ -451,16 +451,16 @@ contains
           fact =-1.0_dp
         end if
         otmp(:) = otmp(:) + fact * vin(ia) * wnij(ia) * qij(:)
-        
+
       end do
 !$OMP  END PARALLEL DO
 
       otmp = 2.0_dp * otmp * spinW(species0)
-      
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij,fact) &
 !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
-        
+
         call indxov(win, ia, getij, ii, jj)
         updwn = (win(ia) <= nmatup)
         call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
@@ -470,16 +470,16 @@ contains
           fact =-1.0_dp
         end if
         vout(ia) = vout(ia) + fact * wnij(ia) * dot_product(qij, otmp)
-        
+
       end do
 !$OMP  END PARALLEL DO
-      
+
     end if
-    
+
     vout = vout + ( wij**2 ) * vin
-    
+
   end subroutine omegatvec
-  
+
   !> Multiplies the supermatrix (A+B) with a given vector.
   !! \param rkm1  Resulting vector on return.
   !! \param rhs2  Vector, which (A+B) should act on.
@@ -502,13 +502,13 @@ contains
     integer, intent(in) :: nmatup, getij(:,:), iAtomStart(:)
     real(dp), intent(in) :: stimc(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(in) :: gamma(:,:)
-    
+
     integer :: ia, ii, jj
     real(dp) :: tmp(natom), gtmp(natom), qij(natom)
     logical :: updwn
-    
-    ASSERT(size(rkm1) == nmat)
-    
+
+    @:ASSERT(size(rkm1) == nmat)
+
     tmp(:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:tmp)
@@ -521,7 +521,7 @@ contains
     !$OMP  END PARALLEL DO
 
     call hemv(gtmp, gamma, tmp)
-    
+
     rkm1 = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
     !$OMP& SCHEDULE(RUNTIME)
@@ -534,9 +534,9 @@ contains
     !$OMP  END PARALLEL DO
 
     rkm1 = rkm1 + wij * rhs2
-    
+
   end subroutine apbw
-  
+
   !> calculating spin polarized excitations
   !! \param eigval ground state eigenvalues
   !! \param filling occupation numbers for the ground state
@@ -549,17 +549,17 @@ contains
     real(dp), intent(in) :: filling(:,:)
     real(dp), intent(out) :: wij(:)
     integer,  intent(out) :: getij(:,:)
-    
+
     integer :: ind, ii, jj
     integer :: norb, iSpin, nSpin
-    
-    ASSERT(all(shape(grndEigVal)==shape(filling)))
-    
+
+    @:ASSERT(all(shape(grndEigVal)==shape(filling)))
+
     norb = size(grndEigVal, dim=1)
     nSpin = size(grndEigVal, dim=2)
-    
+
     ind = 0
-    
+
     do iSpin = 1, nSpin
       do ii = 1, norb - 1
         do jj = ii, norb
@@ -571,9 +571,9 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine getSPExcitations
-  
+
   !> Calculate dipole moment for transitions
   !! \param transd transition dipole matrix elements for each atom
   !! \param wij energy differences
@@ -581,19 +581,19 @@ contains
   function oscillatorStrength(transd, wij, evec) result(osz)
     real(dp), intent(in) :: transd(:,:), wij(:), evec(:)
     real(dp) :: osz
-    
+
     real(dp) :: rtmp
     integer :: ii
-    
+
     osz = 0.0_dp
     do ii = 1, 3
       rtmp = sum(transd(:,ii) * sqrt(wij) * evec)
       osz = osz + rtmp * rtmp
     end do
     osz = twothird * osz
-    
+
   end function oscillatorStrength
-  
+
   !> Transition dipoles between states
   !! \param transd transition dipole for transitions between KS states
   !! \param eigenvalues
@@ -602,10 +602,10 @@ contains
   subroutine transitionDipole(transd, wij, eval, evec, tdip)
     real(dp), intent(in) :: transd(:,:), wij(:), eval(:), evec(:,:)
     real(dp), intent(out) :: tdip(:,:)
-    
+
     real(dp) :: rtmp
     integer :: ii, ll
-    
+
     tdip(:,:) = 0.0_dp
     do ii = 1, size(evec, dim=2)
       rtmp = sqrt(sqrt(eval(ii)))
@@ -613,7 +613,7 @@ contains
         tdip(ii,ll) = sum(transd(:,ll) * sqrt(wij) * evec(:,ii)) / rtmp
       end do
     end do
-    
+
   end subroutine transitionDipole
 
   !> count initial number of transitions from occupied to empty states
@@ -624,13 +624,13 @@ contains
     integer, intent(in)  :: nOrb, nSpin
     real(dp), intent(in) :: filling(:,:)
     real(dp) :: nxov
-    
+
     real(dp) :: nxov_ud(nSpin)
     integer :: ii, jj, iSpin
-    
-    ASSERT(size(filling,dim=1)==nOrb)
-    ASSERT(size(filling,dim=2)==nSpin)
-    
+
+    @:ASSERT(size(filling,dim=1)==nOrb)
+    @:ASSERT(size(filling,dim=2)==nSpin)
+
     nxov_ud = 0
     do iSpin = 1, nSpin
       do ii = 1, norb - 1
@@ -642,7 +642,7 @@ contains
       end do
     end do
     nxov = sum(nxov_ud)
-       
+
   end function countSPexcitations
-  
+
 end module linrespcommon

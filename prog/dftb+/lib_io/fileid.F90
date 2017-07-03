@@ -7,14 +7,14 @@
 
 module fileid
   use message
-  
+
   private
 
   public :: getFileId
-  
+
   integer, parameter :: minId = 20
   integer, parameter :: maxId = 65535
-  
+
 contains
 
   function getFileId()
@@ -27,7 +27,7 @@ contains
     end if
     getFileId = curId
     curId = curId + 1
-    
+
   end function getFileId
 
 end module fileid

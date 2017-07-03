@@ -1,45 +1,70 @@
-commontypes.o: _mod_accuracy allocate.h
-commontypes.o = commontypes.o $(_mod_accuracy) $(allocate.h)
+commontypes.o: _mod_accuracy
+commontypes.o = commontypes.o $(_mod_accuracy)
 _mod_commontypes: commontypes.o
 _mod_commontypes = $(commontypes.o)
 
-fifo.o: _mod_accuracy _mod_fileid assert.h allocate.h
-fifo.o = fifo.o $(_mod_accuracy) $(_mod_fileid) $(assert.h) $(allocate.h)
+fifo.o: _mod_accuracy common.fypp _mod_assert _mod_fileid
+fifo.o = fifo.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_fileid)
 _mod_fifo: fifo.o
 _mod_fifo = $(fifo.o)
 
-generallist.o: assert.h allocate.h
-generallist.o = generallist.o $(assert.h) $(allocate.h)
-_mod_generallist: generallist.o
-_mod_generallist = $(generallist.o)
-
-linkedlist.o: charmc.inc allocate.h intr1.inc assert.h real.inc realr1.inc int.inc charlc.inc _mod_accuracy
-linkedlist.o = linkedlist.o $(charmc.inc) $(allocate.h) $(intr1.inc) $(assert.h) $(real.inc) $(realr1.inc) $(int.inc) $(charlc.inc) $(_mod_accuracy)
+linkedlist.o: common.fypp _mod_linkedlisti0 _mod_linkedlistr1 _mod_linkedlistr2 _mod_linkedlisti1 _mod_linkedlists0 _mod_linkedlistlc0 _mod_linkedlistmc0 _mod_assert _mod_linkedlistr0 _mod_accuracy
+linkedlist.o = linkedlist.o $(common.fypp) $(_mod_linkedlisti0) $(_mod_linkedlistr1) $(_mod_linkedlistr2) $(_mod_linkedlisti1) $(_mod_linkedlists0) $(_mod_linkedlistlc0) $(_mod_linkedlistmc0) $(_mod_assert) $(_mod_linkedlistr0) $(_mod_accuracy)
 _mod_linkedlist: linkedlist.o
 _mod_linkedlist = $(linkedlist.o)
 
-oldskdata.o: _mod_fileid allocate.h _mod_reppoly _mod_repspline _mod_message _mod_accuracy assert.h _mod_constants
-oldskdata.o = oldskdata.o $(_mod_fileid) $(allocate.h) $(_mod_reppoly) $(_mod_repspline) $(_mod_message) $(_mod_accuracy) $(assert.h) $(_mod_constants)
+linkedlisti0.o: linkedlist.fypp
+linkedlisti0.o = linkedlisti0.o $(linkedlist.fypp)
+_mod_linkedlisti0: linkedlisti0.o
+_mod_linkedlisti0 = $(linkedlisti0.o)
+
+linkedlisti1.o: linkedlist.fypp _mod_accuracy
+linkedlisti1.o = linkedlisti1.o $(linkedlist.fypp) $(_mod_accuracy)
+_mod_linkedlisti1: linkedlisti1.o
+_mod_linkedlisti1 = $(linkedlisti1.o)
+
+linkedlistlc0.o: linkedlist.fypp _mod_accuracy
+linkedlistlc0.o = linkedlistlc0.o $(linkedlist.fypp) $(_mod_accuracy)
+_mod_linkedlistlc0: linkedlistlc0.o
+_mod_linkedlistlc0 = $(linkedlistlc0.o)
+
+linkedlistmc0.o: linkedlist.fypp _mod_accuracy
+linkedlistmc0.o = linkedlistmc0.o $(linkedlist.fypp) $(_mod_accuracy)
+_mod_linkedlistmc0: linkedlistmc0.o
+_mod_linkedlistmc0 = $(linkedlistmc0.o)
+
+linkedlistr0.o: linkedlist.fypp _mod_accuracy
+linkedlistr0.o = linkedlistr0.o $(linkedlist.fypp) $(_mod_accuracy)
+_mod_linkedlistr0: linkedlistr0.o
+_mod_linkedlistr0 = $(linkedlistr0.o)
+
+linkedlistr1.o: linkedlist.fypp _mod_accuracy
+linkedlistr1.o = linkedlistr1.o $(linkedlist.fypp) $(_mod_accuracy)
+_mod_linkedlistr1: linkedlistr1.o
+_mod_linkedlistr1 = $(linkedlistr1.o)
+
+linkedlistr2.o: linkedlist.fypp _mod_accuracy
+linkedlistr2.o = linkedlistr2.o $(linkedlist.fypp) $(_mod_accuracy)
+_mod_linkedlistr2: linkedlistr2.o
+_mod_linkedlistr2 = $(linkedlistr2.o)
+
+linkedlists0.o: _mod_xmlf90 linkedlist.fypp _mod_assert
+linkedlists0.o = linkedlists0.o $(_mod_xmlf90) $(linkedlist.fypp) $(_mod_assert)
+_mod_linkedlists0: linkedlists0.o
+_mod_linkedlists0 = $(linkedlists0.o)
+
+oldskdata.o: common.fypp _mod_fileid _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
+oldskdata.o = oldskdata.o $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
 _mod_oldskdata: oldskdata.o
 _mod_oldskdata = $(oldskdata.o)
 
-stringlist.o: _mod_xmlf90 assert.h allocate.h
-stringlist.o = stringlist.o $(_mod_xmlf90) $(assert.h) $(allocate.h)
-_mod_stringlist: stringlist.o
-_mod_stringlist = $(stringlist.o)
-
-typegeometry.o: _mod_accuracy allocate.h
-typegeometry.o = typegeometry.o $(_mod_accuracy) $(allocate.h)
+typegeometry.o: _mod_accuracy
+typegeometry.o = typegeometry.o $(_mod_accuracy)
 _mod_typegeometry: typegeometry.o
 _mod_typegeometry = $(typegeometry.o)
 
-typegeometryhsd.o: _mod_tokenreader allocate.h _mod_charmanip _mod_stringlist _mod_simplealgebra _mod_hsdutils _mod_linkedlist _mod_hsdutils2 _mod_xmlf90 _mod_typegeometry _mod_unitconversion
-typegeometryhsd.o = typegeometryhsd.o $(_mod_tokenreader) $(allocate.h) $(_mod_charmanip) $(_mod_stringlist) $(_mod_simplealgebra) $(_mod_hsdutils) $(_mod_linkedlist) $(_mod_hsdutils2) $(_mod_xmlf90) $(_mod_typegeometry) $(_mod_unitconversion)
+typegeometryhsd.o: _mod_tokenreader _mod_charmanip _mod_simplealgebra _mod_hsdutils _mod_linkedlist _mod_hsdutils2 _mod_xmlf90 _mod_typegeometry _mod_unitconversion
+typegeometryhsd.o = typegeometryhsd.o $(_mod_tokenreader) $(_mod_charmanip) $(_mod_simplealgebra) $(_mod_hsdutils) $(_mod_linkedlist) $(_mod_hsdutils2) $(_mod_xmlf90) $(_mod_typegeometry) $(_mod_unitconversion)
 _mod_typegeometryhsd: typegeometryhsd.o
 _mod_typegeometryhsd = $(typegeometryhsd.o)
-
-wrappedpointers.o: _mod_accuracy
-wrappedpointers.o = wrappedpointers.o $(_mod_accuracy)
-_mod_wrappedpointers: wrappedpointers.o
-_mod_wrappedpointers = $(wrappedpointers.o)
 

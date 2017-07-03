@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Dispersion a la Slater-Kirkwood as implemented by M. Elstner in old DFTB.
 !!
 !! The expression as found in the old DFTB had been reimplemented. The periodic
@@ -22,7 +24,7 @@
 !!     localy, but somewhere outside, since the Coulomb module does the same.
 !!
 module dispslaterkirkw
-#include "assert.h"
+  use assert
   use accuracy
   use simplealgebra, only : determinant33
   use lapackroutines, only : matinv
@@ -103,14 +105,16 @@ contains
     real(dp) :: tol, rTmp, c6sum
     integer :: iAt1, iAt2
 
-    ASSERT(size(inp%polar) > 0)
-    ASSERT(size(inp%polar) == size(inp%rWaals))
-    ASSERT(size(inp%polar) == size(inp%charges))
-    ASSERT(all(inp%polar >= 0.0_dp))
-    ASSERT(all(inp%rWaals >= 0.0_dp))
-    ASSERT_ENV(if (present(latVecs)) then)
-    ASSERT_ENV(ASSERT(all(shape(latVecs) == [3, 3])))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(inp%polar) > 0)
+    @:ASSERT(size(inp%polar) == size(inp%rWaals))
+    @:ASSERT(size(inp%polar) == size(inp%charges))
+    @:ASSERT(all(inp%polar >= 0.0_dp))
+    @:ASSERT(all(inp%rWaals >= 0.0_dp))
+  #:call ASSERT_CODE
+    if (present(latVecs)) then
+      @:ASSERT(all(shape(latVecs) == [3, 3]))
+    end if
+  #:endcall ASSERT_CODE
 
     this%nAtom = size(inp%polar)
     allocate(this%c6(this%nAtom, this%nAtom))
@@ -254,8 +258,8 @@ contains
     class(DispSlaKirk), intent(inout) :: this
     real(dp), intent(out) :: energies(:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(size(energies) == this%nAtom)
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
 
     energies(:) = this%energies(:)
 
@@ -270,8 +274,8 @@ contains
     class(DispSlaKirk), intent(inout) :: this
     real(dp), intent(inout) :: gradients(:,:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(all(shape(gradients) == [3, this%nAtom]))
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     gradients(:,:) = gradients(:,:) + this%gradients(:,:)
 
@@ -293,7 +297,7 @@ contains
 
   end subroutine getStress
 
-  
+
   !> Estimates the real space cutoff of the dispersion interaction.
   !!
   !! \return Cutoff

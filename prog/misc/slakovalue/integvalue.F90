@@ -8,7 +8,6 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program integvalue
-#include "allocate.h"  
   use accuracy
   use oldskdata
   use slakoeqgrid
@@ -61,7 +60,7 @@ contains
   end subroutine printHelp
 
 
-  
+
   !> Process program arguments.
   !!
   subroutine processArguments(fname, homo, extended, col)
@@ -103,7 +102,7 @@ contains
 
   end subroutine processArguments
 
-  
+
 
   !> Returns the appropriate column of the SK-table.
   !!
@@ -142,7 +141,7 @@ contains
   end subroutine getSkColumnData
 
 
-  
+
   !> Writes values on a given grid.
   !!
   subroutine writeValues(skgrid, rStart, dr, nPoint)

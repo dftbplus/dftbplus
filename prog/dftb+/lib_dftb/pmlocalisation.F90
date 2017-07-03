@@ -5,36 +5,37 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Construct Pipek-Mezey localised orbitals, either for
 !! molecules/gamma point periodic, or for each k-point separately
 !! \note for the k-point case these are NOT localised Wannier functions
 module pmlocalisation
-# include "assert.h"
-# include "allocate.h"
+  use assert
   use accuracy, only : dp
   use blasroutines
   use sparse2dense, only :unpackHS
   use sorting
   use message
-  
+
   implicit none
-  
+
   private
   public :: PipekMezey, PipekMezeyLocalisation
-  
+
   interface PipekMezey
     module procedure PipekMezeyOld_real
     module procedure PipekMezeySuprtRegion_real
     module procedure PipekMezeyOld_kpoints
   end interface PipekMezey
-              
+
   interface PipekMezeyLocalisation
     module procedure PipekMezyLocality_real
     module procedure PipekMezyLocality_kpoints
   end interface PipekMezeyLocalisation
-  
+
 contains
-  
+
   !> Performs conventional Pipek-Mezey localisation for a molecule given the
   !! square overlap matrix using iterative sweeps over each pair of orbitals
   !! \param ci wavefunction coefficients
@@ -48,7 +49,7 @@ contains
     integer,  intent(in)          :: iAtomStart(:)
     real(dp), intent(in)          :: convergence
     integer, intent(in), optional :: mIter
-    
+
     integer  :: iLev1, iLev2, nLev
     integer  :: iAtom1, nAtom, nIter
     integer  :: iOrb1, iOrb2, nOrb
@@ -56,49 +57,49 @@ contains
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa, Pst, Pss, Ptt
     real(dp), allocatable :: Sci1(:), Sci2(:,:), ciTmp1(:), ciTmp2(:)
-    
+
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
     logical  :: tConverged = .false.
-    
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
-    ASSERT(size(ci,dim=1)==size(S,dim=1))
-    ASSERT(size(S,dim=1)==size(S,dim=2))
-    
+
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+    @:ASSERT(size(ci,dim=1)==size(S,dim=1))
+    @:ASSERT(size(S,dim=1)==size(S,dim=2))
+
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nAtom = size(iAtomStart) -1
-    
-    ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
-    
+
+    @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
+
     if (present(mIter)) then
       nIter = mIter
     else
       nIter = 20
     end if
-    
-    ALLOCATE_(Sci1,(nOrb))
-    ALLOCATE_(Sci2,(nOrb,2:nLev))
-    
-    ALLOCATE_(ciTmp1,(nOrb))
-    ALLOCATE_(ciTmp2,(nOrb))
-    
+
+    allocate(Sci1(nOrb))
+    allocate(Sci2(nOrb,2:nLev))
+
+    allocate(ciTmp1(nOrb))
+    allocate(ciTmp2(nOrb))
+
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
       ! Sweep over all pairs of levels
       write(*,*)'Iter', iIter
       do iLev1 = 1, nLev
-        
+
         if (iLev1 < nLev) then
           call symm(Sci2(1:nOrb,iLev1+1:nLev),'l',S,ci(:,iLev1+1:nLev),'L')
         else
           call hemv(Sci2(1:nOrb,nLev),S,ci(:,nLev))
         end if
-        
+
         do iLev2 = iLev1 +1, nLev
-          
+
           call hemv(Sci1,S,ci(:,iLev1))
-          
+
           Ast = 0.0_dp
           Bst = 0.0_dp
           do iAtom1 = 1, nAtom
@@ -111,7 +112,7 @@ contains
             Ast = Ast + Pst * Pst - 0.25_dp * (Pss - Ptt) * (Pss - Ptt)
             Bst = Bst + Pst * (Pss - Ptt)
           end do
-          
+
           AB = Ast * Ast + Bst * Bst
           if (abs(AB)>0.0_dp) then
             C4A = -Ast / sqrt(AB)
@@ -122,11 +123,11 @@ contains
           else
             alpha = 0.0_dp
           end if
-          
+
           if (alphamax < abs(alpha)) then
             alphamax = alpha
           end if
-          
+
           ! now we have to mix the two orbitals
           SINA=SIN(alpha)
           COSA=COS(alpha)
@@ -134,30 +135,25 @@ contains
           ciTmp2 = ci(:,iLev2)
           ci(:,iLev1) = COSA*ciTmp1 + SINA*ciTmp2
           ci(:,iLev2) = COSA*ciTmp2 - SINA*ciTmp1
-          
+
         end do
       end do
-      
+
       conv = abs(alphamax) - abs(alphalast)
       if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
         tConverged = .true.
         exit
       end if
       alphalast = alphamax
-      
+
     end do lpLocalise
-    
+
     if (.not.tConverged) then
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
-    
-    DEALLOCATE_(Sci1)
-    DEALLOCATE_(Sci2)
-    DEALLOCATE_(ciTmp1)
-    DEALLOCATE_(ciTmp2)
-    
+
   end subroutine PipekMezeyOld_real
-  
+
   !> performs Pipek-Mezey localisation for a molecule given the square overlap
   !! matrix, using a support region for each molecular orbital
   !! \param ci wavefunction coefficients
@@ -175,7 +171,7 @@ contains
     real(dp), intent(in)          :: convergence
     integer, intent(in), optional :: mIter
     real(dp), intent(in) :: RegionTol
-    
+
     integer  :: iLev1, iLev2, nLev
     integer  :: iAtom1, nAtom, nIter
     integer  :: iOrb1, iOrb2, nOrb
@@ -188,64 +184,64 @@ contains
     integer, allocatable :: LevPairs(:)
     integer  :: ii, jj, kk, ll, ij, iLev, nLevPairs
     logical  :: tPair, tPresent
-    
+
     integer, allocatable :: oldSites(:,:)
     integer :: nOldSites(2)
-    
+
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
     real(dp) :: rCount
     logical  :: tConverged = .false.
-    
+
     real(dp) :: Localisation, oldLocalisation
     integer, allocatable :: union(:)
-    
+
     write(*,*)'Pipek Mezey localisation'
-    
+
     Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
     write(*,*)'Initial', Localisation
-    
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
-    ASSERT(size(ci,dim=1)==size(S,dim=1))
-    ASSERT(size(S,dim=1)==size(S,dim=2))
-    
+
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+    @:ASSERT(size(ci,dim=1)==size(S,dim=1))
+    @:ASSERT(size(S,dim=1)==size(S,dim=2))
+
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nAtom = size(iAtomStart) -1
-    
-    ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
-    
+
+    @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
+
     if (present(mIter)) then
       nIter = mIter
     else
       nIter = 20
     end if
-    
-    ALLOCATE_(Sci1,(nOrb,2))
-    ALLOCATE_(Sci2,(nOrb,nLev))
-    
-    ALLOCATE_(ciTmp1,(nOrb))
-    ALLOCATE_(ciTmp2,(nOrb))
-    
-    ALLOCATE_(oldSites,(nAtom,2))
-    
-    ALLOCATE_(LevAtAtom,(nLev,nAtom))
-    ALLOCATE_(nLevAtAtom,(nAtom))
+
+    allocate(Sci1(nOrb,2))
+    allocate(Sci2(nOrb,nLev))
+
+    allocate(ciTmp1(nOrb))
+    allocate(ciTmp2(nOrb))
+
+    allocate(oldSites(nAtom,2))
+
+    allocate(LevAtAtom(nLev,nAtom))
+    allocate(nLevAtAtom(nAtom))
     LevAtAtom = 0
     nLevAtAtom = 0
-    ALLOCATE_(SitesLev,(nAtom,nLev))
-    ALLOCATE_(nSitesLev,(nLev))
+    allocate(SitesLev(nAtom,nLev))
+    allocate(nSitesLev(nLev))
     SitesLev = 0
     nSitesLev = 0
-    ALLOCATE_(LevPairs,(nLev))
+    allocate(LevPairs(nLev))
     LevPairs = 0
-    
-    ALLOCATE_(union,(2*nAtom))
-    
+
+    allocate(union(2*nAtom))
+
     ! make Mulliken charges for each level
     call symm(Sci2,'L',S,ci(:,1:nLev),'L')
     Sci2 = Sci2 * ci(:,1:nLev)
-    
+
     nSitesLev(:) = 0
     SitesLev(:,:) = 0
     do iLev1 = 1, nLev
@@ -258,7 +254,7 @@ contains
         end if
       end do
     end do
-    
+
     nLevAtAtom(:) = 0
     LevAtAtom(:,:) = 0
     do iLev1 = 1, nLev
@@ -267,20 +263,20 @@ contains
         LevAtAtom(nLevAtAtom(SitesLev(jj,iLev1)),SitesLev(jj,iLev1)) = iLev1
       end do
     end do
-    
+
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
-      
+
       write(*,"(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
       rCount = 0.0
-      
+
       do iLev1 = 1, nLev
-        
+
         if (real(iLev1)/real(nLev) > rCount) then
           write(*,"(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
           rCount = rCount + 0.1 ! every 10%
         end if
-        
+
         nLevPairs = 0
         LevPairs(:) = 0
         do ii = 1, nSitesLev(iLev1)
@@ -301,17 +297,17 @@ contains
             end if
           end do
         end do
-        
+
         ! Sweep over all pairs of levels with shared regions of charge
         do ii = 1, nLevPairs
           iLev2 = LevPairs(ii)
-          
+
           call hemv(Sci1(:,1),S,ci(:,iLev1))
           call hemv(Sci1(:,2),S,ci(:,iLev2))
-          
+
           Ast = 0.0_dp
           Bst = 0.0_dp
-          
+
           ! Find atomic sites that appear in both localised orbitals
           union = 0
           union(:nSitesLev(iLev1)) = SitesLev(:nSitesLev(iLev1),iLev1)
@@ -319,13 +315,13 @@ contains
               & SitesLev(:nSitesLev(iLev2),iLev2)
           call heap_sort(union(:nSitesLev(iLev1)+nSitesLev(iLev2)))
           kk = unique(union,nSitesLev(iLev1)+nSitesLev(iLev2))
-          
+
           do ll = 1, kk
             iAtom1 = union(ll)
             !  regions
             iOrb1 = iAtomStart(iAtom1)
             iOrb2 = iAtomStart(iAtom1+1) - 1
-            
+
             Pst = 0.5_dp * (sum(ci(iOrb1:iOrb2,iLev1)*Sci1(iOrb1:iOrb2,2))&
                 & + sum(ci(iOrb1:iOrb2,iLev2)*Sci1(iOrb1:iOrb2,1)))
             Pss = sum ( ci(iOrb1:iOrb2,iLev1)*Sci1(iOrb1:iOrb2,1) )
@@ -333,7 +329,7 @@ contains
             Ast = Ast + Pst * Pst - 0.25_dp * (Pss - Ptt) * (Pss - Ptt)
             Bst = Bst + Pst * (Pss - Ptt)
           end do
-          
+
           AB = Ast * Ast + Bst * Bst
           if (abs(AB)>0.0_dp) then
             C4A = -Ast / sqrt(AB)
@@ -344,11 +340,11 @@ contains
           else
             alpha = 0.0_dp
           end if
-          
+
           if (alphamax < abs(alpha)) then
             alphamax = alpha
           end if
-          
+
           ! now we have to mix the two orbitals
           SINA=SIN(alpha)
           COSA=COS(alpha)
@@ -356,12 +352,12 @@ contains
           ciTmp2 = ci(:,iLev2)
           ci(:,iLev1) = COSA*ciTmp1 + SINA*ciTmp2
           ci(:,iLev2) = COSA*ciTmp2 - SINA*ciTmp1
-          
+
           nOldSites(1) = nSitesLev(iLev1)
           oldSites(1:nOldSites(1),1) = SitesLev(1:nOldSites(1),iLev1)
           nOldSites(2) = nSitesLev(iLev2)
           oldSites(1:nOldSites(2),2) = SitesLev(1:nOldSites(2),iLev2)
-          
+
           ! need to update index information now
           jj = iLev1
           call hemv(Sci2(:,jj),S,ci(:,jj))
@@ -391,7 +387,7 @@ contains
               SitesLev(nSitesLev(jj),jj) = iAtom1
             end if
           end do
-          
+
           do jj = 1, nOldSites(1)
             iAtom1 = oldSites(jj,1) ! was a site of level1
             do kk = 1, nLevAtAtom(iAtom1)
@@ -412,7 +408,7 @@ contains
               end if
             end do
           end do
-          
+
           do jj = 1, nOldSites(2)
             iAtom1 = oldSites(jj,2) ! was a site of level2
             do kk = 1, nLevAtAtom(iAtom1)
@@ -433,56 +429,44 @@ contains
               end if
             end do
           end do
-          
+
         end do
       end do
-      
+
       oldLocalisation = Localisation
       Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
       write(*,"(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
           & 'change ',Localisation-oldLocalisation
-      
+
       conv = abs(alphamax) - abs(alphalast)
       if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
         write(*,*)'Converged on rotation angle'
         tConverged = .true.
         exit
       end if
-      
+
       conv = abs(Localisation-oldLocalisation)
       if (abs(conv)<convergence) then
         write(*,*)'Converged on localization value.'
         tConverged = .true.
         exit
       end if
-      
+
       alphalast = alphamax
       write(*,"(' max(alpha)',E10.2)")alphamax
-      
+
     end do lpLocalise
-    
+
     Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
     write(*,*)'Final',Localisation
-    
+
     if (.not.tConverged) then
       write(*,*)alphamax
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
-    
-    DEALLOCATE_(Sci1)
-    DEALLOCATE_(Sci2)
-    DEALLOCATE_(ciTmp1)
-    DEALLOCATE_(ciTmp2)
-    DEALLOCATE_(LevAtAtom)
-    DEALLOCATE_(nLevAtAtom)
-    DEALLOCATE_(SitesLev)
-    DEALLOCATE_(nSitesLev)
-    DEALLOCATE_(LevPairs)
-    DEALLOCATE_(oldSites)
-    DEALLOCATE_(union)
-    
+
   end subroutine PipekMezeySuprtRegion_real
-  
+
   !!* Localisation value of square of Mulliken charges summed over all levels
   !!* \param ci wavefunction coefficients
   !!* \param S overlap matrix
@@ -492,20 +476,20 @@ contains
     real(dp), intent(in)  :: ci(:,:)
     real(dp), intent(in)  :: S(:,:)
     integer,  intent(in)  :: iAtomStart(:)
-    
+
     real(dp), allocatable :: Sci(:,:)
     integer :: nAtom, iAtom, iOrbStart, iOrbEnd, nOrb, nLev
-    
+
     nAtom = size(iAtomStart) -1
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
-    
-    ALLOCATE_(Sci,(nOrb,nLev))
-    
+
+    allocate(Sci(nOrb,nLev))
+
     PipekMezyLocality = 0.0_dp
-    
+
     call symm(Sci,'L',S,ci,'L')
-    
+
     Sci = ci * Sci
     do iAtom = 1, nAtom
       iOrbStart = iAtomStart(iAtom)
@@ -513,11 +497,9 @@ contains
       PipekMezyLocality = PipekMezyLocality &
           & + sum(sum(Sci(iOrbStart:iOrbEnd,1:nLev),dim=1)**2)
     end do
-    
-    DEALLOCATE_(Sci)
-    
+
   end function PipekMezyLocality_real
-  
+
   !> Localisation value of square of Mulliken charges summed over all levels
   !! \param ci wavefunction coefficients
   !! \param S overlap matrix, used as workspace
@@ -548,37 +530,37 @@ contains
     integer,  intent(in)        :: iPair(0:,:)
     integer,  intent(in)        :: img2CentCell(:)
     real(dp) :: PipekMezyLocality(size(kweights))
-    
+
     complex(dp), allocatable :: Sci(:,:)
     real(dp), allocatable :: tmp(:,:)
     integer :: nAtom, iAtom, iKpt, nKpt, iOrbStart, iOrbEnd, nOrb, iLev, nLev
-    
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
-    
+
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+
     nAtom = size(iAtomStart) -1
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nKpt = size(ci,dim=3)
-    
-    ASSERT(all(shape(kpoints) == [3,nKpt]))
-    ASSERT(size(kweights) == nKpt)
-    ASSERT(all(shape(S) == [nOrb,nOrb]))
-    
-    ALLOCATE_(Sci,(nOrb,nLev))
-    ALLOCATE_(tmp,(nAtom,nLev))
-    
+
+    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
+    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(S) == [nOrb,nOrb]))
+
+    allocate(Sci(nOrb,nLev))
+    allocate(tmp(nAtom,nLev))
+
     PipekMezyLocality = 0.0_dp
-    
+
     do iKpt = 1, nKpt
-      
+
       tmp = 0.0_dp
-      
+
       call unpackHS(S, over, kPoints(:,iKpt), iNeighbor, nNeighbor, iCellVec, &
           & cellVec, iAtomStart, iPair, img2CentCell)
-      
+
       call hemm(Sci,'L',S,ci(:,:,iKpt),'L')
       Sci = conjg(ci(:,:,iKpt)) * Sci
-      
+
       do iLev = 1, nLev
         do iAtom = 1, nAtom
           iOrbStart = iAtomStart(iAtom)
@@ -588,14 +570,11 @@ contains
         end do
       end do
       PipekMezyLocality(iKpt) = sum(tmp**2)
-      
+
     end do
-    
-    DEALLOCATE_(Sci)
-    DEALLOCATE_(tmp)
-    
+
   end function PipekMezyLocality_kpoints
-  
+
   !> Performs conventional Pipek-Mezey localisation for a supercell
   !! using iterative sweeps over each pair of orbitals
   !! \param ci wavefunction coefficients
@@ -630,7 +609,7 @@ contains
     integer,  intent(in)          :: img2CentCell(:)
     real(dp), intent(in)          :: convergence
     integer, intent(in), optional :: mIter
-    
+
     integer  :: iLev1, iLev2, nLev, nKpt
     integer  :: iAtom1, nAtom, nIter
     integer  :: iOrb1, iOrb2, nOrb
@@ -642,67 +621,67 @@ contains
     complex(dp), allocatable :: ciTmp1(:), ciTmp2(:)
     complex(dp) :: phase
     complex(dp), parameter :: im = (0.0_dp,1.0_dp)
-    
+
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
     logical  :: tConverged(size(kweights))
-    
-    ASSERT(size(ci,dim=1)>=size(ci,dim=2))
-    
+
+    @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
+
     tConverged = .false.
 
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nAtom = size(iAtomStart) -1
     nKpt = size(ci,dim=3)
-    
-    ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
-    ASSERT(all(shape(kpoints) == [3,nKpt]))
-    ASSERT(size(kweights) == nKpt)
-    ASSERT(all(shape(S) == [nOrb,nOrb]))
-    
+
+    @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
+    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
+    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(S) == [nOrb,nOrb]))
+
     if (present(mIter)) then
       nIter = mIter
     else
       nIter = 20
     end if
-    
-    ALLOCATE_(Sci1,(nOrb))
-    ALLOCATE_(Sci2,(nOrb,nLev))
-    
-    ALLOCATE_(ciTmp1,(nOrb))
-    ALLOCATE_(ciTmp2,(nOrb))
-    
+
+    allocate(Sci1(nOrb))
+    allocate(Sci2(nOrb,nLev))
+
+    allocate(ciTmp1(nOrb))
+    allocate(ciTmp2(nOrb))
+
     lpLocalise: do iIter = 1, nIter
-      
+
       write(*,*)'Iter', iIter
-      
+
       ! Sweep over all pairs of levels in all k-points
       lpKpoints: do iKpt = 1, nKpt
-        
+
         if (tConverged(iKpt)) then
           cycle
         end if
-        
+
         alphamax = 0.0_dp
-        
+
         call unpackHS(S, over, kPoints(:,iKpt), iNeighbor, nNeighbor, &
             & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
-        
+
         ! sweep over all pairs of levels at that k-point
         do iLev1 = 1, nLev
-          
+
           if (iLev1 < nLev) then
             call hemm(Sci2(1:nOrb,iLev1+1:nLev),'l',S,ci(:,iLev1+1:nLev,iKpt),&
                 & 'L')
           else
             call hemv(Sci2(1:nOrb,nLev),S,ci(:,nLev,iKpt))
           end if
-          
+
           do iLev2 = iLev1 +1, nLev
-            
+
             call hemv(Sci1,S,ci(:,iLev1,iKpt))
-            
+
             Ast = 0.0_dp
             Bst = 0.0_dp
             do iAtom1 = 1, nAtom
@@ -716,7 +695,7 @@ contains
               Ast = Ast + abs(Pst)**2 - 0.25_dp * abs(Pss - Ptt)**2
               Bst = Bst + real(Pst * (Pss - Ptt),dp)
             end do
-            
+
             AB = Ast * Ast + Bst * Bst
             if (abs(AB)>0.0_dp) then
               C4A = -Ast / sqrt(AB)
@@ -727,11 +706,11 @@ contains
             else
               alpha = 0.0_dp
             end if
-            
+
             if (alphamax < abs(alpha)) then
               alphamax = alpha
             end if
-            
+
             ! now we have to mix the two orbitals
             SINA=SIN(alpha)
             COSA=COS(alpha)
@@ -739,19 +718,19 @@ contains
             ciTmp2 = ci(:,iLev2, iKpt)
             ci(:,iLev1, iKpt) = COSA*ciTmp1 + SINA*ciTmp2
             ci(:,iLev2, iKpt) = COSA*ciTmp2 - SINA*ciTmp1
-            
+
           end do
         end do
-        
+
         conv = abs(alphamax) - abs(alphalast)
         if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
           tConverged(iKpt) = .true.
           cycle
         end if
         alphalast = alphamax
-        
+
       end do lpKpoints
-      
+
       write(*,*)'Localisations at each k-point'
       write(*,"(6E12.4)") &
           & PipekMezeyLocalisation(ci, S, over, kpoints, kweights, &
@@ -761,17 +740,17 @@ contains
           & sum(PipekMezeyLocalisation(ci, S, over, kpoints, kweights, &
           & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
           & img2CentCell))
-      
+
       if (all(tConverged .eqv. .true.)) then
         exit
       end if
-      
+
     end do lpLocalise
-        
+
     if (.not.all(tConverged .eqv. .true.)) then
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
-    
+
     ! Choose phases to make largest Bloch state element real for each k-point
     lpKpoints2: do iKpt = 1, nKpt
       do iLev1 = 1, nLev
@@ -781,14 +760,9 @@ contains
             & atan2(aimag(ci(ii,iLev1,iKpt)), real(ci(ii,iLev1,iKpt))))
         ci(:,iLev1,iKpt) = phase * ci(:,iLev1,iKpt)
       end do
-      
+
     end do lpKpoints2
-    
-    DEALLOCATE_(Sci1)
-    DEALLOCATE_(Sci2)
-    DEALLOCATE_(ciTmp1)
-    DEALLOCATE_(ciTmp2)
-    
+
   end subroutine PipekMezeyOld_kpoints
-  
+
 end module pmlocalisation

@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Dispersion a la Uff, similar to Thomas Heines approach in the deMon code.
 !!
 !! \ref L. Zheckov et al., JCTC 1, 841-847 (2005)
@@ -15,7 +17,7 @@
 !! \todo Take the reciprocal lattice vectors from outside.
 !!
 module dispuff_module
-#include "assert.h"
+  use assert
   use accuracy
   use simplealgebra, only : determinant33
   use lapackroutines, only : matinv
@@ -93,14 +95,16 @@ contains
     real(dp), allocatable :: dij(:,:), rij(:,:)
     real(dp) :: preU0, preU5, preU10, c6sum
 
-    ASSERT(size(inp%energies) > 0)
-    ASSERT(size(inp%distances) == size(inp%energies))
-    ASSERT(all(inp%energies >= 0.0_dp))
-    ASSERT(all(inp%distances >= 0.0_dp))
-    ASSERT(present(latVecs) .eqv. present(species0))
-    ASSERT_ENV(if (present(latVecs)) then)
-    ASSERT_ENV(ASSERT(all(shape(latVecs) == [3, 3])))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(inp%energies) > 0)
+    @:ASSERT(size(inp%distances) == size(inp%energies))
+    @:ASSERT(all(inp%energies >= 0.0_dp))
+    @:ASSERT(all(inp%distances >= 0.0_dp))
+    @:ASSERT(present(latVecs) .eqv. present(species0))
+  #:call ASSERT_CODE
+    if (present(latVecs)) then
+      @:ASSERT(all(shape(latVecs) == [3, 3]))
+    end if
+  #:endcall ASSERT_CODE
 
     this%nSpecies = size(inp%energies)
     this%nAtom = nAtom
@@ -202,8 +206,8 @@ contains
 
     real(dp) :: recVecs(3, 3), invRecVecs(3, 3)
 
-    ASSERT(this%tPeriodic)
-    ASSERT(all(shape(latVecs) == [3, 3]))
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latVecs) == [3, 3]))
 
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
@@ -230,8 +234,8 @@ contains
     class(DispUff), intent(inout) :: this
     real(dp), intent(out) :: energies(:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(size(energies) == this%nAtom)
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
 
     energies(:) = this%energies(:)
 
@@ -246,8 +250,8 @@ contains
     class(DispUff), intent(inout) :: this
     real(dp), intent(inout) :: gradients(:,:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(all(shape(gradients) == [3, this%nAtom]))
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     gradients(:,:) = gradients(:,:) + this%gradients(:,:)
 
@@ -262,8 +266,8 @@ contains
     class(DispUff), intent(inout) :: this
     real(dp), intent(out) :: stress(:,:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(all(shape(stress) == [3, 3]))
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
 
     stress = this%stress
 
@@ -324,9 +328,11 @@ contains
     real(dp) :: rr, r2, r5, r6, r10, r12, k1, k2, dE, dGr, u0, u1, u2, f6
     real(dp) :: gr(3), vec(3)
 
-    ASSERT_ENV(if (present(stress)) then)
-    ASSERT_ENV(  ASSERT(all(shape(stress) == [3, 3])))
-    ASSERT_ENV(endif)
+  #:call ASSERT_CODE
+    if (present(stress)) then
+      @:ASSERT(all(shape(stress) == [3, 3]))
+    end if
+  #:endcall ASSERT_CODE
 
     !! Cluster case => explicit sum of the contributions
     if (present(removeR6)) then

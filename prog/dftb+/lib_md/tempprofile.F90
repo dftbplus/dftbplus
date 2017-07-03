@@ -5,22 +5,23 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains simple temperature profiles for molecular dynamics.
 module tempprofile
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   implicit none
   private
 
-  public :: OTempProfile, create, destroy, next, getTemperature
+  public :: OTempProfile, init, next, getTemperature
   public :: constProf, linProf, expProf
 
   !!* Data for the temperature profile.
   type OTempProfile
-    integer, pointer :: tempMethods(:)
-    integer, pointer :: tempInts(:)
-    real(dp), pointer :: tempValues(:)
+    integer, allocatable :: tempMethods(:)
+    integer, allocatable :: tempInts(:)
+    real(dp), allocatable :: tempValues(:)
     real(dp) :: curTemp
     integer :: iInt
     integer :: nInt
@@ -28,12 +29,8 @@ module tempprofile
     real(dp) :: incr
   end type OTempProfile
 
-  interface create
-    module procedure TempProfile_create
-  end interface
-
-  interface destroy
-    module procedure TempProfile_destroy
+  interface init
+    module procedure TempProfile_init
   end interface
 
   interface next
@@ -51,7 +48,7 @@ module tempprofile
 
   !! Default starting temperature
   real(dp), parameter :: startingTemp_ = minTemp
-    
+
 
 contains
 
@@ -63,27 +60,25 @@ contains
   !!* @param tempValues Target temperature for each intervall. This temperature
   !!*   will be reached after the specified number of steps, using the
   !!*   specified profile (constant, linear, exponential)
-  subroutine TempProfile_create(self, tempMethods, tempInts, tempValues)
-    type(OTempProfile), pointer :: self
+  subroutine TempProfile_init(self, tempMethods, tempInts, tempValues)
+    type(OTempProfile), intent(out) :: self
     integer, intent(in) :: tempMethods(:)
     integer, intent(in) :: tempInts(:)
     real(dp), intent(in) :: tempValues(:)
 
     integer :: ii, iTmp
 
-    ASSERT(all(tempMethods == constProf .or. tempMethods == linProf \
-      .or. tempMethods == expProf))
-    ASSERT(size(tempInts) > 0)
-    ASSERT(size(tempInts) == size(tempValues) .and. \
-      size(tempInts) == size(tempMethods))
-    ASSERT(all(tempInts >= 0))
-    ASSERT(all(tempValues >= 0.0_dp))
+    @:ASSERT(all(tempMethods == constProf .or. tempMethods == linProf&
+        & .or. tempMethods == expProf))
+    @:ASSERT(size(tempInts) > 0)
+    @:ASSERT(size(tempInts) == size(tempValues) .and. size(tempInts) == size(tempMethods))
+    @:ASSERT(all(tempInts >= 0))
+    @:ASSERT(all(tempValues >= 0.0_dp))
 
-    INITALLOCATE_P(self)
     self%nInt = size(tempInts)
-    INITALLOCATE_PARR(self%tempInts, (0:self%nInt))
-    INITALLOCATE_PARR(self%tempValues, (0:self%nInt))
-    INITALLOCATE_PARR(self%tempMethods, (self%nInt))
+    allocate(self%tempInts(0:self%nInt))
+    allocate(self%tempValues(0:self%nInt))
+    allocate(self%tempMethods(self%nInt))
     self%tempInts(0) = 0
     self%tempInts(1:) = tempInts(:)
     self%tempValues(0) = startingTemp_
@@ -101,38 +96,18 @@ contains
       self%iInt = self%iInt + 1
     end do
     self%curTemp = self%tempValues(self%iInt)
-    
-  end subroutine TempProfile_create
 
+  end subroutine TempProfile_init
 
-
-  !!* Destroys the object.
-  !!* @param self Pointer to the object.
-  subroutine TempProfile_destroy(self)
-    type(OTempProfile), pointer :: self
-
-    if (.not. associated(self)) then
-      return
-    end if
-    DEALLOCATE_PARR(self%tempInts)
-    DEALLOCATE_PARR(self%tempValues)
-    DEALLOCATE_PARR(self%tempMethods)
-    DEALLOCATE_P(self)
-    
-  end subroutine TempProfile_destroy
-
-  
 
   !!* Changes the temperature to the next value.
   !!* @param self Pointer to the TempProfile object.
   subroutine TempProfile_next(self)
-    type(OTempProfile), pointer :: self
+    type(OTempProfile), intent(inout) :: self
 
     real(dp) :: subVal, supVal
     integer :: sub, sup
     logical :: tChanged
-
-    ASSERT(associated(self))
 
     self%iStep = self%iStep + 1
     if (self%iStep > self%tempInts(self%nInt)) then
@@ -145,10 +120,10 @@ contains
       tChanged = .true.
     end do
     sup = self%tempInts(self%iInt)
-    sub = self%tempInts(self%iInt-1)    
+    sub = self%tempInts(self%iInt-1)
     supVal = self%tempValues(self%iInt)
     subVal = self%tempValues(self%iInt-1)
-    
+
     select case (self%tempMethods(self%iInt))
     case (constProf)
       self%curTemp = self%tempValues(self%iInt)
@@ -167,21 +142,19 @@ contains
     end select
 
   end subroutine TempProfile_next
-      
-  
+
+
 
   !!* Returns the current temperature.
   !!* @param self Pointer to the TempProfile object.
   !!* @param temp Temperature on return.
   subroutine TempProfile_getTemperature(self, temp)
-    type(OTempProfile), pointer :: self
+    type(OTempProfile), intent(in) :: self
     real(dp), intent(out) :: temp
 
-    ASSERT(associated(self))
-    
     temp = self%curTemp
-    
+
   end subroutine TempProfile_getTemperature
-  
-  
+
+
 end module tempprofile

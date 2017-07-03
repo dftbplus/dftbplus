@@ -12,11 +12,8 @@ FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
 # Preprocessor
-CPP = cpp -traditional
-CPPOPT =
-
-# Fortran preprocessor (invokes CPP as defined above and process the result)
-FPP = $(ROOT)/utils/build/fpp/fpp.sh nocntln
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT =
 
 # Linker
 LN = $(FXX)

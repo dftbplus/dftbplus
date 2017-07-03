@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Various I/O routines for the main program.
 module mainio
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use accuracy
   use constants
   use periodic
@@ -20,13 +21,13 @@ module mainio
   use linkedlist
   implicit none
   private
-  
+
   public :: writeEigvecs, writeProjEigvecs, getH, SetEigVecsTxtOutput
-  
+
   character(*), parameter :: eigvecOut = "eigenvec.out"
   character(*), parameter :: eigvecBin = "eigenvec.bin"
   character(*), parameter :: regionOut = "region_"
-  
+
   !! Private module variables (suffixed with "_" for clarity)
   logical :: EigVecsAsTxt_ = .false.
 
@@ -35,19 +36,19 @@ module mainio
     module procedure getHreal
     module procedure getHcmplx
   end interface getH
-  
+
   interface writeEigvecs
     module procedure writeRealEigvecs
     module procedure writeCplxEigvecs
   end interface writeEigvecs
-  
+
   interface writeProjEigvecs
     module procedure writeProjRealEigvecs
     module procedure writeProjCplxEigvecs
   end interface writeProjEigvecs
-  
+
 contains
-  
+
   !!* Sets internal logical flag which controls whether to write a txt
   !!* file for eigenvectors.
   !!* @param tTxtWrite Is a txt file written out as well as the binary
@@ -90,14 +91,14 @@ contains
     real(dp), intent(inout) :: HSqrReal(:,:,:), SSqrReal(:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
     character(len=*), intent(in), optional :: fileName
-    
+
     character(lc) :: tmpStr
     integer :: iSpin, iSpin2, iAtom, iSp1, iSh1, iOrb, ang
     integer :: ii, jj
     real(dp), allocatable :: rVecTemp(:)
-    
-    ASSERT(nSpin == 1 .or. nSpin == 2)
-    
+
+    @:ASSERT(nSpin == 1 .or. nSpin == 2)
+
     close(fdEigvec) ! just to be on the safe side
     ! Write eigenvalues in binary form
     if (present(fileName)) then
@@ -116,7 +117,7 @@ contains
       end do
     end do
     close(fdEigvec)
-    
+
     if (EigVecsAsTxt_) then
       ! Write eigenvalues (together with Mulliken populations) in text form
       if (present(fileName)) then
@@ -127,7 +128,7 @@ contains
         open(fdEigvec, file=eigvecOut, action="write", status="replace", &
             &position="rewind")
       end if
-      ALLOCATE_(rVecTemp, (size(HSqrReal, dim=1)))
+      allocate(rVecTemp(size(HSqrReal, dim=1)))
       call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, &
           &iAtomStart, iPair, img2CentCell)
       do iSpin = 1, nSpin
@@ -148,7 +149,7 @@ contains
                 write(tmpStr, "(10X,A1)") orbitalNames(ang+1)
               end if
               do iOrb = 1, 2 * ang + 1
-                jj = jj + 1                
+                jj = jj + 1
                 write(fdEigvec,"(A,I1,T15,F12.6,3X,F12.6)") trim(tmpStr),&
                     &iOrb, HSqrReal(jj, ii, iSpin2), &
                     & HSqrReal(jj, ii, iSpin2) * rVecTemp(jj)
@@ -158,13 +159,12 @@ contains
           end do
         end do
       end do
-      DEALLOCATE_(rVecTemp)
-      
+
       close(fdEigvec)
     end if
-    
+
   end subroutine writeRealEigvecs
-  
+
   !!* Write the complex eigenvectors into text and binary output files.
   !!* @param fdEigvec  Fileid (file not yet opened) to use.
   !!* @param runId  Id of the current program run.
@@ -204,12 +204,12 @@ contains
     complex(dp), intent(inout) :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
     character(len=*), intent(in), optional :: fileName
-    
+
     character(lc) :: tmpStr
     integer :: iSpin, iSpin2, iAtom, iSp1, iSh1, iOrb, ang, iK, iK2, nK
     integer :: ii, jj, nOrb, nSpinChannel
     complex(dp), allocatable :: cVecTemp(:), work(:,:)
-    
+
     nK = size(kPoint, dim=2)
     close(fdEigvec) ! just to be on the safe side
     if (present(fileName)) then
@@ -234,9 +234,9 @@ contains
         end do
       end do
     end do
-    
+
     close(fdEigvec)
-    
+
     if (EigVecsAsTxt_) then
       ! Write eigenvalues (together with Mulliken populations) in text form
       if (present(fileName)) then
@@ -246,16 +246,16 @@ contains
       else
         open(fdEigvec, file=eigvecOut, action="write", status="replace", &
             &position="rewind")
-      end if      
+      end if
       write (fdEigvec,"(A/)") "Coefficients and Mulliken populations of the &
           &atomic orbitals"
-      
+
       if (nSpin == 4) then
         write(fdEigvec,"(A/)")"   Atom   Orb  up spin coefficients        &
             &down spin coefficients         charge      x           y           z"
-        ALLOCATE_(cVecTemp,(size(HSqrCplx, dim=1)))
+        allocate(cVecTemp(size(HSqrCplx, dim=1)))
         nOrb = size(HSqrCplx, dim=1) / 2
-        ALLOCATE_(work,(nOrb,nOrb))
+        allocate(work(nOrb,nOrb))
         do iK = 1, nK
           call getH(1, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
           SSqrCplx = 0.0_dp
@@ -312,12 +312,10 @@ contains
             end do
           end do
         end do
-        DEALLOCATE_(work)
-        
-        
+
       else ! normal spin block structure
-        
-        ALLOCATE_(cVecTemp,(size(HSqrCplx, dim=1)))
+
+        allocate(cVecTemp(size(HSqrCplx, dim=1)))
         do iSpin = 1, nSpin
           do iK = 1, nK
             call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
@@ -355,14 +353,13 @@ contains
           end do
         end do
       end if
-      
-      DEALLOCATE_(cVecTemp)
+
       close(fdEigvec)
-      
+
     end if
-    
+
   end subroutine writeCplxEigvecs
-  
+
   !!* Write the projected eigenstates into text files.
   !!* @param filenames List with filenames for each region.
   !!* @param fdProjEig  File unit IDs for each of the regions.
@@ -395,7 +392,7 @@ contains
     real(dp), intent(inout) :: HSqrReal(:,:,:), SSqrReal(:,:)
     type(listIntR1), intent(inout) :: iOrbRegion
     type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
-    
+
     integer, allocatable :: iOrbs(:)
     integer :: iSpin, iSpin2, iLev, ii, nReg, dummy
     integer :: valshape(1)
@@ -403,19 +400,19 @@ contains
     real(dp), allocatable :: rVecTemp(:)
     character(lc) :: tmpStr
 
-    
+
     nReg = len(iOrbRegion)
-    ASSERT(len(filenames) == nReg)
-    
-    ASSERT(size(fdProjEig) == nReg)
-    ASSERT(all(fdProjEig > 0))
-    
+    @:ASSERT(len(filenames) == nReg)
+
+    @:ASSERT(size(fdProjEig) == nReg)
+    @:ASSERT(all(fdProjEig > 0))
+
     do ii = 1, nReg
       call get(filenames, tmpStr, ii)
       open(fdProjEig(ii), file=tmpStr, action="write", status="replace")
     end do
-    
-    ALLOCATE_(rVecTemp, (size(HSqrReal, dim=1)))
+
+    allocate(rVecTemp(size(HSqrReal, dim=1)))
     call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, &
         &iAtomStart, iPair, img2CentCell)
     do iSpin = 1, nSpin
@@ -432,12 +429,12 @@ contains
         rVecTemp = rVecTemp * HSqrReal(:,iLev,iSpin2)
         do ii = 1, nReg
           call elemShape(iOrbRegion, valshape, ii)
-          ALLOCATE_(iOrbs, (valshape(1)))
+          allocate(iOrbs(valshape(1)))
           call intoArray(iOrbRegion, iOrbs, dummy, ii)
           qState = sum(rVecTemp(iOrbs))
+          deallocate(iOrbs)
           write(fdProjEig(ii), "(f13.6,f10.6)")Hartree__eV*ei(iLev,1,iSpin),&
               & qState
-          DEALLOCATE(iOrbs)
         end do
       end do
       if (iSpin < nSpin) then
@@ -446,15 +443,13 @@ contains
         end do
       end if
     end do
-    
+
     do ii = 1, nReg
       close(fdProjEig(ii))
     end do
-    
-    DEALLOCATE_(rVecTemp)
-    
+
   end subroutine writeProjRealEigvecs
-  
+
   !!* Write the projected complex eigenstates into text files.
   !!* @param fdProjEig  Fileid (file not yet opened) to use.
   !!* @param fdProjEig  File unit IDs for each of the regions.
@@ -495,39 +490,39 @@ contains
     complex(dp), intent(inout) :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
     type(listIntR1), intent(inout) :: iOrbRegion
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
-    
+
     integer, allocatable :: iOrbs(:)
     integer :: iSpin, iSpin2, iK, iK2, nK, iLev, ii, nReg, dummy, nOrb
     integer :: valshape(1)
     real(dp) :: qState
     complex(dp), allocatable :: cVecTemp(:), work(:,:)
     character(lc) :: tmpStr
-    
+
     nK = size(kPoint, dim=2)
     nReg = len(iOrbRegion)
-    ASSERT(len(filenames) == nReg)
-    ASSERT(size(kweight) == nK)
-    
-    ASSERT(size(fdProjEig) == nReg)
-    ASSERT(all(fdProjEig > 0))
-    
+    @:ASSERT(len(filenames) == nReg)
+    @:ASSERT(size(kweight) == nK)
+
+    @:ASSERT(size(fdProjEig) == nReg)
+    @:ASSERT(all(fdProjEig > 0))
+
     do ii = 1, nReg
       call get(filenames, tmpStr, ii)
       open(fdProjEig(ii), file=tmpStr, action="write", status="replace")
     end do
-    
-    ALLOCATE_(cVecTemp,(size(HSqrCplx, dim=1)))
-    
+
+    allocate(cVecTemp(size(HSqrCplx, dim=1)))
+
     if (nSpin <= 2) then
-      
+
       do iSpin = 1, nSpin
         do iK = 1, nK
-          
+
           do ii = 1, nReg
             write(fdProjEig(ii),*)'KPT ',iK,' SPIN ', iSpin, &
                 &' KWEIGHT ', kweight(iK)
           end do
-          
+
           call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
           call unpackHS(SSqrCplx, over, kPoint(:,iK), neighlist%iNeighbor, &
               & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
@@ -536,12 +531,12 @@ contains
             cVecTemp = conjg(HSqrCplx(:,iLev,iK2,iSpin2)) * cVecTemp
             do ii = 1, nReg
               call elemShape(iOrbRegion, valshape, ii)
-              ALLOCATE_(iOrbs, (valshape(1)))
+              allocate(iOrbs(valshape(1)))
               call intoArray(iOrbRegion, iOrbs, dummy, ii)
               qState = real(sum(cVecTemp(iOrbs)), dp)
               write(fdProjEig(ii), "(f13.6,f10.6)") &
                   & Hartree__eV * ei(iLev,iK,iSpin), qState
-              DEALLOCATE_(iOrbs)
+              deallocate(iOrbs)
             end do
           end do
           if (iK < nK .or. iSpin < nSpin) then
@@ -551,18 +546,18 @@ contains
           end if
         end do
       end do
-      
+
     else
-      
+
       iSpin = 1
       nOrb = orb%nOrb
-      ALLOCATE_(work,(nOrb,nOrb))
-      
+      allocate(work(nOrb,nOrb))
+
       do iK = 1, nK
-        
+
         do ii = 1, nReg
           write(fdProjEig(ii),*)'KPT ',iK, ' KWEIGHT ', kweight(iK)
-        end do        
+        end do
         call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
         SSqrCplx = 0.0_dp
         work = 0.0_dp
@@ -574,7 +569,7 @@ contains
           call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,iLev,iK2,iSpin2))
           do ii = 1, nReg
             call elemShape(iOrbRegion, valshape, ii)
-            ALLOCATE_(iOrbs, (valshape(1)))
+            allocate(iOrbs(valshape(1)))
             call intoArray(iOrbRegion, iOrbs, dummy, ii)
             !qState = real(sum(cVecTemp(iOrbs)), dp) &
             !    & + real(sum(cVecTemp(iOrbs+nOrb)), dp)
@@ -596,7 +591,7 @@ contains
                 & * cVecTemp(iOrbs) - &
                 & conjg(HSqrCplx(iOrbs+nOrb, iLev, iK2, iSpin2)) &
                 & * cVecTemp(iOrbs+nOrb) ))
-            DEALLOCATE_(iOrbs)
+            deallocate(iOrbs)
           end do
         end do
         if (iK < nK) then
@@ -604,19 +599,15 @@ contains
             write(fdProjEig(ii),*)
           end do
         end if
-        
+
       end do
-      
-      DEALLOCATE_(work)
-      
+
     end if
-    
+
     do ii = 1, nReg
       close(fdProjEig(ii))
     end do
-    
-    DEALLOCATE_(cVecTemp)
-    
+
   end subroutine writeProjCplxEigvecs
 
   !!* Routines to get eigenvectors out of storage/memory
@@ -630,14 +621,14 @@ contains
     real(dp), intent(inout) :: HSqrReal(:,:,:)
     integer, intent(out) :: iSpin2
     type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
-    
+
     if (present(storeEigvecs)) then
       iSpin2 = 1
       call get(storeEigvecs(iSpin), HSqrReal(:,:,iSpin2))
     else
       iSpin2 = iSpin
     end if
-    
+
   end subroutine getHreal
 
   !!* Routines to get eigenvectors out of storage/memory
@@ -653,7 +644,7 @@ contains
     complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
     integer, intent(out) :: iSpin2, iK2
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
-    
+
     if (present(storeEigvecs)) then
       iSpin2 = 1
       iK2 = 1
@@ -662,7 +653,7 @@ contains
       iSpin2 = iSpin
       iK2 = iK
     end if
-    
+
   end subroutine getHcmplx
-  
+
 end module mainio

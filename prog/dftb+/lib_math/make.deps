@@ -1,5 +1,5 @@
-angmomentum.o: _mod_accuracy _mod_commontypes assert.h allocate.h _mod_qm
-angmomentum.o = angmomentum.o $(_mod_accuracy) $(_mod_commontypes) $(assert.h) $(allocate.h) $(_mod_qm)
+angmomentum.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert _mod_qm
+angmomentum.o = angmomentum.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_qm)
 _mod_angmomentum: angmomentum.o
 _mod_angmomentum = $(angmomentum.o)
 
@@ -8,18 +8,18 @@ bisect.o = bisect.o $(_mod_accuracy)
 _mod_bisect: bisect.o
 _mod_bisect = $(bisect.o)
 
-blasroutines.o: _mod_accuracy assert.h _mod_blas
-blasroutines.o = blasroutines.o $(_mod_accuracy) $(assert.h) $(_mod_blas)
+blasroutines.o: _mod_accuracy common.fypp _mod_assert _mod_blas
+blasroutines.o = blasroutines.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_blas)
 _mod_blasroutines: blasroutines.o
 _mod_blasroutines = $(blasroutines.o)
 
-csrmatrix.o: _mod_accuracy assert.h allocate.h
-csrmatrix.o = csrmatrix.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+csrmatrix.o: _mod_accuracy common.fypp _mod_assert
+csrmatrix.o = csrmatrix.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_csrmatrix: csrmatrix.o
 _mod_csrmatrix = $(csrmatrix.o)
 
-eigensolver.o: allocate.h _mod_message _mod_lapack _mod_blas _mod_accuracy assert.h
-eigensolver.o = eigensolver.o $(allocate.h) $(_mod_message) $(_mod_lapack) $(_mod_blas) $(_mod_accuracy) $(assert.h)
+eigensolver.o: common.fypp _mod_message _mod_lapack _mod_assert _mod_blas _mod_accuracy
+eigensolver.o = eigensolver.o $(common.fypp) $(_mod_message) $(_mod_lapack) $(_mod_assert) $(_mod_blas) $(_mod_accuracy)
 _mod_eigensolver: eigensolver.o
 _mod_eigensolver = $(eigensolver.o)
 
@@ -28,55 +28,55 @@ erfcalc.o = erfcalc.o $(_mod_accuracy)
 _mod_erfcalc: erfcalc.o
 _mod_erfcalc = $(erfcalc.o)
 
-#ifdef INTERNALERFC
-errorfunction.o: _mod_accuracy _mod_erfcalc
-errorfunction.o = errorfunction.o $(_mod_accuracy) $(_mod_erfcalc)
+#:if INTERNAL_ERFC
+errorfunction.o: common.fypp _mod_accuracy _mod_erfcalc
+errorfunction.o = errorfunction.o $(common.fypp) $(_mod_accuracy) $(_mod_erfcalc)
 _mod_errorfunction: errorfunction.o
 _mod_errorfunction = $(errorfunction.o)
-#else
-errorfunction.o: _mod_accuracy
-errorfunction.o = errorfunction.o $(_mod_accuracy)
+#:else
+errorfunction.o: common.fypp _mod_accuracy
+errorfunction.o = errorfunction.o $(common.fypp) $(_mod_accuracy)
 _mod_errorfunction: errorfunction.o
 _mod_errorfunction = $(errorfunction.o)
-#endif
+#:endif
 
-factorial.o: assert.h _mod_accuracy
-factorial.o = factorial.o $(assert.h) $(_mod_accuracy)
+factorial.o: _mod_accuracy common.fypp _mod_assert
+factorial.o = factorial.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_factorial: factorial.o
 _mod_factorial = $(factorial.o)
 
-hermite.o: _mod_accuracy assert.h allocate.h
-hermite.o = hermite.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+hermite.o: _mod_accuracy common.fypp _mod_assert
+hermite.o = hermite.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_hermite: hermite.o
 _mod_hermite = $(hermite.o)
 
-interpolation.o: _mod_accuracy assert.h _mod_message
-interpolation.o = interpolation.o $(_mod_accuracy) $(assert.h) $(_mod_message)
+interpolation.o: _mod_accuracy common.fypp _mod_assert _mod_message
+interpolation.o = interpolation.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_message)
 _mod_interpolation: interpolation.o
 _mod_interpolation = $(interpolation.o)
 
-lapackroutines.o: _mod_accuracy _mod_lapack assert.h allocate.h _mod_message
-lapackroutines.o = lapackroutines.o $(_mod_accuracy) $(_mod_lapack) $(assert.h) $(allocate.h) $(_mod_message)
+lapackroutines.o: _mod_accuracy common.fypp _mod_assert _mod_lapack _mod_message
+lapackroutines.o = lapackroutines.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_lapack) $(_mod_message)
 _mod_lapackroutines: lapackroutines.o
 _mod_lapackroutines = $(lapackroutines.o)
 
-qm.o: _mod_accuracy assert.h
-qm.o = qm.o $(_mod_accuracy) $(assert.h)
+qm.o: _mod_accuracy common.fypp _mod_assert
+qm.o = qm.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_qm: qm.o
 _mod_qm = $(qm.o)
 
-ranlux.o: _mod_accuracy assert.h allocate.h
-ranlux.o = ranlux.o $(_mod_accuracy) $(assert.h) $(allocate.h)
+ranlux.o: _mod_accuracy common.fypp _mod_assert
+ranlux.o = ranlux.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_ranlux: ranlux.o
 _mod_ranlux = $(ranlux.o)
 
-simplealgebra.o: _mod_accuracy assert.h
-simplealgebra.o = simplealgebra.o $(_mod_accuracy) $(assert.h)
+simplealgebra.o: _mod_accuracy common.fypp _mod_assert
+simplealgebra.o = simplealgebra.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_simplealgebra: simplealgebra.o
 _mod_simplealgebra = $(simplealgebra.o)
 
-sorting.o: _mod_accuracy assert.h
-sorting.o = sorting.o $(_mod_accuracy) $(assert.h)
+sorting.o: _mod_accuracy common.fypp _mod_assert
+sorting.o = sorting.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_sorting: sorting.o
 _mod_sorting = $(sorting.o)
 

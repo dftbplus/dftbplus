@@ -5,10 +5,11 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Contains the routines for initialising waveplot.
 module InitProgram
-#include "allocate.h"
-#include "assert.h"
+  use assert
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
   use HSDUtils
@@ -35,10 +36,10 @@ module InitProgram
   character(len=*), parameter :: hsdInput = "waveplot_in.hsd"
   character(len=*), parameter :: hsdParsedInput = "waveplot_pin.hsd"
   character(len=*), parameter :: xmlInput = "waveplot_in.xml"
-  character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml" 
+  character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml"
   integer, parameter :: parserVersion = 3
 
-  public :: initProgramVariables, destructProgramVariables
+  public :: initProgramVariables
 
 
   !! Variables from detailed.xml
@@ -63,9 +64,9 @@ module InitProgram
   logical, public :: tPlotChrgDiff     ! If chrg difference for orbs. to be pl.
   logical, public :: tPlotReal         ! If real part of the wfcs to plot.
   logical, public :: tPlotImag         ! If imaginary part of the wfcs to plot
-  integer, pointer, public :: plottedLevels(:) => null()   ! Levels to plot
-  integer, pointer, public :: plottedKPoints(:) => null()  ! K-points to plot
-  integer, pointer, public :: plottedSpins(:) => null()    ! Spins to plot
+  integer, allocatable, public :: plottedLevels(:)   ! Levels to plot
+  integer, allocatable, public :: plottedKPoints(:)  ! K-points to plot
+  integer, allocatable, public :: plottedSpins(:)    ! Spins to plot
   integer  :: nCached                  ! Nr. of cached grids
   real(dp), public :: boxVecs(3, 3)    ! Box vectors for the plotted region
   real(dp), public :: origin(3)        ! Origin of the box
@@ -88,30 +89,29 @@ module InitProgram
   integer, allocatable, public :: atomicNumbers(:)  ! species-atomic nr. corresp.
 
   !! Locally created variables
-  type(OMolecularOrbital), public, target :: molOrb    ! Molecular orbital
-  type(OMOlecularOrbital), pointer :: pMolOrb
+  type(OMolecularOrbital), allocatable, target, public :: molOrb    ! Molecular orbital
+  type(OMolecularOrbital), pointer :: pMolOrb
   type(OGridCache), public :: grid                     ! Grid cache
   real(dp), public :: gridVec(3, 3)                    ! grid vectors
   integer, allocatable :: levelIndex(:,:)              ! List of levels to plot
-  type(ListIntR1) :: indexBuffer                       ! Temporary storage
   real(dp), public :: gridVol                          ! Volume of the grid
 
 contains
 
   !!* Initialise program variables
   subroutine initProgramVariables()
-    
+
     type(fnode), pointer :: input, root, tmp, detailed
     type(string) :: strBuffer
     integer :: inputVersion
     integer :: ii
     logical :: tHSD, tGroundState
-    
+
     !! Write header
     write (*, "(A)") repeat("=", 80)
     write (*, "(A)") "     WAVEPLOT  " // version
     write (*, "(A,/)") repeat("=", 80)
-    
+
     !! Read in input file as HSD or XML.
     call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
     if (tHSD) then
@@ -121,38 +121,38 @@ contains
     end if
     write (*, "(A)") repeat("-", 80)
     call getChild(input, rootTag, root)
-    
+
     !! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
     if (inputVersion /= parserVersion) then
       call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
           &// i2c(parserVersion) // ") do not match")
     end if
-    
+
     call getChildValue(root, "GroundState", tGroundState, .true.)
-    
+
     !! Read data from detailed.xml
     call getChildValue(root, "DetailedXML", strBuffer)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
     call getChild(tmp, "detailedout", detailed)
     call readDetailed(detailed, tGroundState)
     call destroyNode(tmp)
-    
+
     !! Read basis
     call getChild(root, "Basis", tmp)
     call readBasis(tmp, geo%speciesNames)
     call getChildValue(root, "EigenvecBin", strBuffer)
     eigVecBin = unquote(char(strBuffer))
     call checkEigenvecs(eigVecBin, identity)
-    
+
     !! Read options
     call getChild(root, "Options", tmp)
     call readOptions(tmp, identity, nState, nKPoint, nSpin, occupations, &
         &tRealHam, geo%tPeriodic, basis)
-    
+
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
-    
+
     !! Finish parsing, dump parsed and processed input
     call dumpHSD(input, hsdParsedInput)
     write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
@@ -163,7 +163,6 @@ contains
     write (*, "(A)") repeat("-", 80)
     write (*,*)
     call destroyNode(input)
-    call unstring(strBuffer)
 
     !! Create grid vectors, shift them if necessary
     do ii = 1, 3
@@ -174,47 +173,22 @@ contains
     else
       gridOrigin(:) = origin(:)
     end if
-    gridVol = determinant(gridVec)    
+    gridVol = determinant(gridVec)
 
     write (*, "(A)") "Doing initialisation"
 
     !! Initialize necessary objects
-    call init(molOrb, geo, basis)
+    allocate(molOrb)
     pMolOrb => molOrb
-    
+    call init(molOrb, geo, basis)
+
     call init(grid, levelIndex=levelIndex, &
         &nOrb=nOrb, nAllLevel=nState, nAllKPoint=nKPoint, nAllSpin=nSpin, &
         &nCached=nCached, nPoints=nPoints, tVerbose=tVerbose, &
         &eigVecBin=eigVecBin, gridVec=gridVec, origin=gridOrigin, &
         &kPointCoords=kPointsWeights(1:3,:), tReal=tRealHam,molorb=pMolOrb)
-    
+
   end subroutine initProgramVariables
-
-
-
-  !!* Destroy the program variables created in initProgramVariables
-  subroutine destructProgramVariables()
-
-    integer :: ii
-    
-    call destruct(geo)
-    DEALLOCATE_(kPointsWeights)
-    DEALLOCATE_(occupations)
-    DEALLOCATE_(atomicNumbers)
-    DEALLOCATE_PARR(plottedLevels)
-    DEALLOCATE_PARR(plottedKPoints)
-    DEALLOCATE_PARR(plottedSpins)
-    do ii = 1, size(basis)
-      call destruct(basis(ii))
-    end do
-    DEALLOCATE_(basis)
-    call destruct(grid)
-    DEALLOCATE_(atomicNumbers)
-    DEALLOCATE_(levelIndex)
-    write (*, "(/,A)") repeat("=", 80)
-    
-  end subroutine destructProgramVariables
-
 
 
   !!* Interpret the information stored in detailed.xml
@@ -235,9 +209,9 @@ contains
     call getChildValue(detailed, "NrOfSpins", nSpin)
     call getChildValue(detailed, "NrOfStates", nState)
     call getChildValue(detailed, "NrOfOrbitals", nOrb)
-    ALLOCATE_(kPointsWeights, (4, nKPoint))
+    allocate(kPointsWeights(4, nKPoint))
     call getChildValue(detailed, "KPointsAndWeights", kPointsWeights)
-    ALLOCATE_(occupations, (nState, nKPoint, nSpin))
+    allocate(occupations(nState, nKPoint, nSpin))
 
     if (tGroundState) then
       call getChild(detailed, "Occupations", occ)
@@ -262,11 +236,11 @@ contains
         occupations(:, iK, :) = occupations(:, iK, :) * kPointsWeights(4, iK)
       end do
     end if
-    
+
   end subroutine readDetailed
 
-  
-  
+
+
   !!* Read in the geometry stored as xml in internal or gen format.
   !!* @param geonode Node containing the geometry
   !!* @param geo     Contains the geometry information on exit
@@ -287,8 +261,7 @@ contains
     case default
       call readTGeometryHSD(geonode, geo)
     end select
-    call unstring(buffer)
-    
+
   end subroutine readGeometry
 
 
@@ -314,9 +287,10 @@ contains
     logical, intent(in) :: tRealHam
     logical, intent(in) :: tPeriodic
     type(TSpeciesBasis), intent(in) :: basis(:)
-    
+
     type(fnode), pointer :: subnode, field, value
     type(string) :: buffer, modifier
+    type(ListIntR1) :: indexBuffer
     integer :: curId
     integer :: ind, ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     logical :: tFound
@@ -364,7 +338,7 @@ contains
           &multiple=.true.)
       call convRangeToInt(char(buffer), node, plottedKPoints, nKPoint)
     else
-      ALLOCATE_PARR(plottedKPoints, (1))
+      allocate(plottedKPoints(1))
       plottedKPoints(1) = 1
     end if
     call getChildValue(node, "PlottedSpins", buffer, child=field, &
@@ -391,9 +365,9 @@ contains
     if (len(indexBuffer) == 0) then
       call error("No levels specified for plotting")
     end if
-    ALLOCATE_(levelIndex, (3, len(indexBuffer)))
+    allocate(levelIndex(3, len(indexBuffer)))
     call asArray(indexBuffer, levelIndex)
-    call destroy(indexBuffer)
+    call destruct(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
     if (nCached < 1 .and. nCached /= -1) then
@@ -433,7 +407,7 @@ contains
           boxVecs(ii, ii) = tmpvec(ii)
         end do
       end if
-      
+
     case ("optimalcuboid")
       !! Determine optimal cuboid, so that no basis function leaks out
       call getChildValue(value, "MinEdgeLength", minEdge, child=field, &
@@ -441,7 +415,7 @@ contains
       if (minEdge < 0.0_dp) then
         call detailedError(field, "Minimal edge length must be positive")
       end if
-      ALLOCATE_(mcutoffs, (geo%nSpecies))
+      allocate(mcutoffs(geo%nSpecies))
       do iSpecies = 1 , geo%nSpecies
         mcutoffs(iSpecies) = maxval(basis(iSpecies)%cutoffs)
       end do
@@ -464,7 +438,7 @@ contains
       do ii = 1, 3
         boxVecs(ii, ii) = tmpvec(ii)
       end do
-      
+
     case ("origin","box")
       !! Those nodes are part of an explicit specification -> explitic specif
       call getChildValue(subnode, "Box", boxVecs, modifier=modifier, &
@@ -482,7 +456,7 @@ contains
         ind = getModifierIndex(char(modifier), lengthUnits, field)
         origin(:) = origin(:) * lengthUnits(ind)%value
       end if
-      
+
     case default
       !! Object with unknown name passed
       call detailedError(value, "Invalid element name")
@@ -513,9 +487,7 @@ contains
       call detailedError(field, "Indexes must be greater than zero")
     end if
     call getChildValue(node, "Verbose", tVerbose, .false.)
-    call unstring(buffer)
-    call unstring(modifier)
-    
+
   end subroutine readOptions
 
 
@@ -534,11 +506,11 @@ contains
 
     nSpecies = size(speciesNames)
 
-    ASSERT(nSpecies > 0)
+    @:ASSERT(nSpecies > 0)
 
     call getChildValue(node, "Resolution", basisResolution)
-    ALLOCATE_(basis, (nSpecies))
-    ALLOCATE_(atomicNumbers, (nSpecies))
+    allocate(basis(nSpecies))
+    allocate(atomicNumbers(nSpecies))
     do ii = 1, nSpecies
       speciesName = speciesNames(ii)
       call getChild(node, speciesName, speciesNode)
@@ -564,24 +536,24 @@ contains
     type(listReal) :: bufferExps, bufferCoeffs
     real(dp), allocatable :: coeffs(:), exps(:)
     integer :: ii
-    
+
     call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
     call getChildren(node, "Orbital", children)
     spBasis%nOrb = getLength(children)
     if (spBasis%nOrb < 1) then
       call detailedError(node, "Missing orbital definitions")
     end if
-    ALLOCATE_PARR(spBasis%angMoms, (spBasis%nOrb))
-    ALLOCATE_PARR(spBasis%occupations, (spBasis%nOrb))
-    ALLOCATE_PARR(spBasis%stos, (spBasis%nOrb))
-    ALLOCATE_PARR(spBasis%cutoffs, (spBasis%nOrb))
+    allocate(spBasis%angMoms(spBasis%nOrb))
+    allocate(spBasis%occupations(spBasis%nOrb))
+    allocate(spBasis%stos(spBasis%nOrb))
+    allocate(spBasis%cutoffs(spBasis%nOrb))
     do ii = 1, spBasis%nOrb
       call getItem1(children, ii, tmpNode)
       call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
       call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
       call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
       call init(bufferExps)
-      
+
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
       if (len(bufferExps) == 0) then
         call detailedError(child, "Missing exponents")
@@ -595,19 +567,19 @@ contains
         call detailedError(child, "Number of coefficients incompatible with &
             &number of exponents")
       end if
-      ALLOCATE_(exps, (len(bufferExps)))
+      allocate(exps(len(bufferExps)))
       call asArray(bufferExps, exps)
-      call destroy(bufferExps)
-      ALLOCATE_(coeffs, (len(bufferCoeffs)))
+      call destruct(bufferExps)
+      allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
-      call destroy(bufferCoeffs)
+      call destruct(bufferCoeffs)
       call init(spBasis%stos(ii), &
           &reshape(coeffs, (/ size(coeffs)/size(exps), size(exps) /)), &
           &exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
-      DEALLOCATE_(exps)
-      DEALLOCATE_(coeffs)
+      deallocate(exps)
+      deallocate(coeffs)
     end do
-    
+
   end subroutine readSpeciesBasis
 
 
@@ -635,9 +607,9 @@ contains
     close(fd)
 
   end subroutine checkEigenvecs
-  
 
-  
+
+
   !!* Determinant of a 3x3 matrix (Only temporary!)
   !!* @param matrix The matrix to calculate the determinant from.
   !!* @return       Determinant of the matrix.
@@ -646,7 +618,7 @@ contains
 
     real(dp) :: tmp
 
-    ASSERT(all(shape(matrix) == (/3, 3/)))
+    @:ASSERT(all(shape(matrix) == (/3, 3/)))
 
     tmp = matrix(1, 1) &
         &* (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))
