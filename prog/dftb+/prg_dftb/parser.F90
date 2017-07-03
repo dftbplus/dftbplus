@@ -2091,7 +2091,7 @@ contains
     write(*,"(A)") "Reading SK-files:"
     lpSp1: do iSp1 = 1, nSpecies
       nSK1 = len(angShells(iSp1))
-      lpSp2: do iSp2 = 1, nSpecies
+      lpSp2: do iSp2 = iSp1, nSpecies
         nSK2 = len(angShells(iSp2))
         allocate(skData12(nSK2, nSK1))
         allocate(skData21(nSK1, nSK2))
