@@ -65,6 +65,11 @@ qm.o = qm.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_qm: qm.o
 _mod_qm = $(qm.o)
 
+randomgenpool.o: common.fypp _mod_accuracy _mod_ranlux
+randomgenpool.o = randomgenpool.o $(common.fypp) $(_mod_accuracy) $(_mod_ranlux)
+_mod_randomgenpool: randomgenpool.o
+_mod_randomgenpool = $(randomgenpool.o)
+
 ranlux.o: _mod_accuracy common.fypp _mod_assert
 ranlux.o = ranlux.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_ranlux: ranlux.o
