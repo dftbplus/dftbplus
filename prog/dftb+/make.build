@@ -54,7 +54,6 @@ AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
 	        -d $(TAGDIFF_SCRIPT)
 
 # Get list of tests to execute, but only if test is specified as goal
-$(warning "$(FYPP) $(FYPPOPT) $(inc-opts) $(TESTFILE) > $(PROCESSED_TESTFILE)")
 CREATE_TESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) $(TESTFILE) > $(PROCESSED_TESTFILE)),)
 TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
