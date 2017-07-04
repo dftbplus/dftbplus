@@ -8,8 +8,8 @@ setup(
     author="DFTB+ developers",
     url="http://www.dftbplus.org",
     platforms="platform independent",
-    package_dir={ "": "src" },
-    packages=[ "dptools", ],
+    package_dir={"": "src"},
+    packages=["dptools", "dptools.scripts"],
     scripts=[
         "bin/dp_bands",
         "bin/dp_dos",
