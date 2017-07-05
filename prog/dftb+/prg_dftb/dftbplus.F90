@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* The main dftb+ program
+!> The main dftb+ program
 program dftbplus
   use assert
   use constants
@@ -21,9 +21,8 @@ program dftbplus
   use densitymatrix
   use forces
   use stress
-  use lapackroutines, only : matinv ! reguired to calculate lattice derivs
-  ! from stress tensors
-  use simplealgebra, only : determinant33 ! required for cell volumes
+  use lapackroutines, only : matinv
+  use simplealgebra, only : determinant33
   use taggedoutput
   use scc
   use externalcharges
@@ -50,13 +49,13 @@ program dftbplus
   use elecconstraints
   use pmlocalisation
   use linresp_module
-!  use emfields
   use mainio
   use xmlf90
   implicit none
 
-  !! Revision control strings
+  !> Revision control strings
   character(len=*), parameter :: RELEASE_VERSION = '17.1'
+  !> Release year string
   integer, parameter :: RELEASE_YEAR = 2017
 
   type(inputData), allocatable  :: input             ! Contains the parsed input
@@ -121,45 +120,63 @@ program dftbplus
   real(dp) :: cellPressure
 
   !! Variables for the geometry optimization
-  integer :: iGeoStep                      !* Geometry steps so far
-  integer :: iLatGeoStep                   !* Lattice geometry steps so far
-  logical :: tGeomEnd                      !* Do we have the final geometry?
-  logical :: tCoordEnd                     !* Has this completed?
-  logical :: tCoordStep                    !* do we take an optimization step
-  !* on the lattice or the internal coordinates if optimizing both in a
-  !* periodic geometry
+  !> Geometry steps so far
+  integer :: iGeoStep
+  !> Lattice geometry steps so far
+  integer :: iLatGeoStep
+  !> Do we have the final geometry?
+  logical :: tGeomEnd
+  !> Has this completed?
+  logical :: tCoordEnd
+  !> do we take an optimization step on the lattice or the internal coordinates if optimizing both
+  !> in a periodic geometry
+  logical :: tCoordStep
   real(dp) :: invLatVec(3,3)
-  real(dp), allocatable, target :: coord0Fold(:,:) !* Folded coords (3, nAtom)
-  real(dp), pointer :: pCoord0Out(:,:)  ! Coordinates to print out
-  real(dp), allocatable :: new3Coord(:,:)     !* New coordinates returned by
-  !* the MD routines
-  real(dp) :: tmpLatVecs(9), newLatVecs(9) !* lattice vectors returned by
-  ! the optimizer
+  !> Folded coords (3, nAtom)
+  real(dp), allocatable, target :: coord0Fold(:,:)
+  !> Coordinates to print out
+  real(dp), pointer :: pCoord0Out(:,:)
+  !> New coordinates returned by the MD routines
+  real(dp), allocatable :: new3Coord(:,:)
+  !> lattice vectors returned by the optimizer
+  real(dp) :: tmpLatVecs(9), newLatVecs(9)
   real(dp) :: tmpLat3Vecs(3,3)
-  real(dp), allocatable :: velocities(:,:) !* MD velocities
-  real(dp), allocatable :: movedVelo(:,:)  !* MD velocities for moved atoms
-  real(dp), allocatable :: movedAccel(:,:) !* MD acceleration for moved atoms
-  real(dp), allocatable :: movedMass(:,:)  !* Mass of the moved atoms
-  real(dp) :: KE                           !* MD Kinetic energy
-  real(dp) :: kT                           !* MD instantaneous thermal energy
+  !> MD velocities
+  real(dp), allocatable :: velocities(:,:)
+  !> MD velocities for moved atoms
+  real(dp), allocatable :: movedVelo(:,:)
+  !> MD acceleration for moved atoms
+  real(dp), allocatable :: movedAccel(:,:)
+  !> Mass of the moved atoms
+  real(dp), allocatable :: movedMass(:,:)
+  !> MD Kinetic energy
+  real(dp) :: KE
+  !> MD instantaneous thermal energy
+  real(dp) :: kT
+  !> external electric field
+  real(dp) :: Efield(3), absEfield
+  !> Difference between last calculated and new geometry.
+  real(dp) :: diffGeo
 
-  real(dp) :: Efield(3), absEfield !* external electric field
-
-  real(dp) :: diffGeo                      !* Difference between last calculated
-  !* and new geometry.
-
-  !!* Loop variables
+  !> Loop variables
   integer :: iSCCIter, iSpin, iAtom, iNeigh
 
-  integer :: fdTagged  !!* File descriptor for the tagged writer
-  integer :: fdUser    !!* File descriptor for the human readable output
-  integer :: fdBand    !!* File descriptor for the band structure output
-  integer :: fdEigvec  !!* File descriptor for the eigenvector output
-  integer :: fdResultsTag !!* File descriptor for detailed.tag
-  integer :: fdMD      !!* File descriptor for extra MD output
-  integer :: fdHessian !!* File descriptor for numerical Hessian
+  !> File descriptor for the tagged writer
+  integer :: fdTagged
+  !> File descriptor for the human readable output
+  integer :: fdUser
+  !> File descriptor for the band structure output
+  integer :: fdBand
+  !> File descriptor for the eigenvector output
+  integer :: fdEigvec
+  !> File descriptor for detailed.tag
+  integer :: fdResultsTag
+  !> File descriptor for extra MD output
+  integer :: fdMD
+  !> File descriptor for numerical Hessian
+  integer :: fdHessian
 
-  !!* Name of the human readable file
+  !> Name of the human readable file
   character(*), parameter :: taggedOut = "autotest.tag"
   character(*), parameter :: userOut = "detailed.out"
   character(*), parameter :: bandOut = "band.out"
@@ -167,8 +184,8 @@ program dftbplus
   character(*), parameter :: resultsTag = "results.tag"
   character(*), parameter :: hessianOut = "hessian.out"
 
-
-  real(dp) :: sccErrorQ           !* Charge error in the last iterations
+  !> Charge error in the last iterations
+  real(dp) :: sccErrorQ
   real(dp) :: rTmp
   real(dp), allocatable :: tmpDerivs(:)
   real(dp), allocatable :: tmpMatrix(:,:)
@@ -176,38 +193,46 @@ program dftbplus
   real(dp), allocatable    :: rVecTemp(:)
   character(lc) :: lcTmp
 
-  character(lc) :: tmpStr  !!* temporary character variable
+  !> temporary character variable
+  character(lc) :: tmpStr
 
   real(dp), pointer :: pDynMatrix(:,:)
 
-  logical :: tWriteRestart = .false. !* flag to write out geometries (and
-  !* charge data if scc) when moving atoms about - in the case of conjugate
-  !* gradient/steepest descent the geometries are written anyway
-  integer :: minSCCIter                   !* Minimal number of SCC iterations
+  !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case of
+  !> conjugate gradient/steepest descent the geometries are written anyway
+  logical :: tWriteRestart = .false.
+  !> Minimal number of SCC iterations
+  integer :: minSCCIter
 
   type(xmlf_t) :: xf
   real(dp), allocatable :: bufferRealR2(:,:)
-  logical :: tStopSCC, tStopDriver   ! if scf/geometry driver should be stopped
+  !> if scf/geometry driver should be stopped
+  logical :: tStopSCC, tStopDriver
+
   integer :: ang, iSh1, iSp1
 
   real(dp), allocatable :: shift3rd(:)
   real(dp), allocatable :: orbresshift3rd(:,:)
+  !> net charge on each atom
+  real(dp), allocatable :: dqAtom(:)
 
-  real(dp), allocatable :: dqAtom(:) ! net charge on each atom
+  !> density matrix
+  real(dp), allocatable :: rhoSqrReal(:,:,:)
 
-  real(dp), allocatable :: rhoSqrReal(:,:,:) ! density matrix
 
-  ! Natural orbitals for excited state density matrix, if requested
+  !> Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
 
   real(dp), allocatable :: invJacobian(:,:)
 
-  real(dp) :: localisation ! locality measure for the wavefunction
-
-  integer :: nFilledLev ! temporary variable for number of occupied levels
-
-  integer :: nSpinHams  ! Nr. of different spin Hamiltonians
-  integer :: sqrHamSize  ! Size of the sqr Hamiltonian
+  !> locality measure for the wavefunction
+  real(dp) :: localisation
+  !> temporary variable for number of occupied levels
+  integer :: nFilledLev
+  !> Nr. of different spin Hamiltonians
+  integer :: nSpinHams
+  !> Size of the sqr Hamiltonian
+  integer :: sqrHamSize
 
   call printDFTBHeader(RELEASE_VERSION, RELEASE_YEAR)
   write (*,'(/A/)') "***  Parsing and initializing"
