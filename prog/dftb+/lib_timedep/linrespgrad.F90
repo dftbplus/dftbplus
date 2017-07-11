@@ -356,10 +356,13 @@ contains
         nxov_d = 0
         if (tOscillatorWindow) then
 
-          ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-          call dipselect(wij(nxov_r+1:), sposz(nxov_r+1:), win(nxov_r+1:), &
-              & snglPartTransDip(nxov_r+1:,:),nxov_d, oscillatorWindow, &
-              & grndEigVal, getij)
+          ! If there are remaining transitions above the selected set
+          if (nxov_r < nxov) then
+            ! find transitions that are strongly dipole allowed (> oscillatorWindow)
+            call dipselect(wij(nxov_r+1:), sposz(nxov_r+1:), win(nxov_r+1:), &
+                & snglPartTransDip(nxov_r+1:,:),nxov_d, oscillatorWindow, &
+                & grndEigVal, getij)
+          end if
 
         end if
 
