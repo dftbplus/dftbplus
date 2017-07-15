@@ -7,9 +7,8 @@
 
 #:include 'common.fypp'
 
-!!* Contains F90 wrapper functions for some commonly used lapack calls needed
-!!* in the code. The interface of all LAPACK calls must be defined in the module
-!!* lapack.
+!> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
+!> interface of all LAPACK calls must be defined in the module lapack.
 module lapackroutines
   use assert
   use accuracy
@@ -19,43 +18,44 @@ module lapackroutines
 
   private
 
-  character(len=100) :: error_string  !* Used to return runtime diagnostics
+  !> Used to return runtime diagnostics
+  character(len=100) :: error_string  
 
-  !!* Computes the solution to a real system of linear equations
-  !!* A * X = B,
-  !!* where A is an N-by-N matrix and X and B are N-by-NRHS matrices
-  !!* @param aa  Contains the coefficients on entry, the LU factorisation
-  !!*   on exit.
-  !!* @param bb  Right hand side(s) of the linear equation on entry, solution(s)
-  !!*   on exit.
-  !!* @param nEquation  The size of the problem (nr. of variables and
-  !!*    equations). Must be only specified if different from size(aa, dim=1).
-  !!* @param nSolution  Nr. of right hand sides (nr. of solutions). Must be only
-  !!*   specified if different from size(b, dim=2).
-  !!* @param iError  Error flag. If present, Lapack error flags are reported
-  !!*   and noncritical errors (iError > 0) will not abort the program.
+  !> Computes the solution to a real system of linear equations
+  !> A * X = B,
+  !> where A is an N-by-N matrix and X and B are N-by-NRHS matrices
+  !> @param aa  Contains the coefficients on entry, the LU factorisation
+  !>   on exit.
+  !> @param bb  Right hand side(s) of the linear equation on entry, solution(s)
+  !>   on exit.
+  !> @param nEquation  The size of the problem (nr. of variables and
+  !>    equations). Must be only specified if different from size(aa, dim=1).
+  !> @param nSolution  Nr. of right hand sides (nr. of solutions). Must be only
+  !>   specified if different from size(b, dim=2).
+  !> @param iError  Error flag. If present, Lapack error flags are reported
+  !>   and noncritical errors (iError > 0) will not abort the program.
   interface gesv
     module procedure gesv_real
     module procedure gesv_dble
   end interface gesv
 
-  !!* Computes the LU decomposition of a general rectangular matrix using
-  !!* partial pivoting with row interchanges.
-  !!* @param aa      Matrix to decompose on entry, L and U on exit. Unit
-  !!*   diagonal elements of L are not stored.
-  !!* @param ipiv    Pivot indices, row i of the matrix was interchanged with
-  !!*   row ipiv(i).
-  !!* @param nRow    Number of rows of the matrix to decompose. (Necessary if
-  !!*   different from the number of rows of the passed matrix)
-  !!* @param nColumn Number of rows of the matrix to decompose. (Necessary if
-  !!*   different from the number of columns of the passed matrix)
-  !!* @param iError  Error flag. Zero on successfull exit. If not present, any
-  !!*   lapack error causes program termination. If passed only fatal lapack
-  !!*   errors with error flag < 0 cause abort.
-  !!* @desc
-  !!*   The decomposition has the form: A = P*L*U, where P is a permutation
-  !!*   matrix, L is a lower triangular matrix with unit diagonal elements and
-  !!*   U is an upper triangular matrix.
+  !> Computes the LU decomposition of a general rectangular matrix using
+  !> partial pivoting with row interchanges.
+  !> @param aa      Matrix to decompose on entry, L and U on exit. Unit
+  !>   diagonal elements of L are not stored.
+  !> @param ipiv    Pivot indices, row i of the matrix was interchanged with
+  !>   row ipiv(i).
+  !> @param nRow    Number of rows of the matrix to decompose. (Necessary if
+  !>   different from the number of rows of the passed matrix)
+  !> @param nColumn Number of rows of the matrix to decompose. (Necessary if
+  !>   different from the number of columns of the passed matrix)
+  !> @param iError  Error flag. Zero on successfull exit. If not present, any
+  !>   lapack error causes program termination. If passed only fatal lapack
+  !>   errors with error flag < 0 cause abort.
+  !> @desc
+  !>   The decomposition has the form: A = P*L*U, where P is a permutation
+  !>   matrix, L is a lower triangular matrix with unit diagonal elements and
+  !>   U is an upper triangular matrix.
   interface getrf
     module procedure getrf_real
     module procedure getrf_dble
@@ -82,55 +82,55 @@ module lapackroutines
   end interface hetri
 
 
-  !!* Computes the inverse of a matrix using LU factorization computed by getrf.
-  !!* @param aa      Matrix to decompose on entry, L and U on exit. Unit
-  !!*   diagonal elements of L are not stored.
-  !!* @param ipiv    Pivot indices, as calculated by getri
-  !!* @param nRow    Number of rows of the matrix to decompose. (Necessary if
-  !!*   different from the number of rows of the passed matrix)
-  !!* @param iError  Error flag. Zero on successfull exit. If not present, any
-  !!*   lapack error causes program termination. If present, only fatal lapack
-  !!*   errors with error flag < 0 cause abort.
+  !> Computes the inverse of a matrix using LU factorization computed by getrf.
+  !> @param aa      Matrix to decompose on entry, L and U on exit. Unit
+  !>   diagonal elements of L are not stored.
+  !> @param ipiv    Pivot indices, as calculated by getri
+  !> @param nRow    Number of rows of the matrix to decompose. (Necessary if
+  !>   different from the number of rows of the passed matrix)
+  !> @param iError  Error flag. Zero on successfull exit. If not present, any
+  !>   lapack error causes program termination. If present, only fatal lapack
+  !>   errors with error flag < 0 cause abort.
   interface getri
     module procedure getri_real
     module procedure getri_dble
   end interface
 
-  !!* Solves a system of linear equations A*X = B with a real
-  !!* symmetric matrix A using the factorization A = U*D*U**T or
-  !!* A = L*D*L**T computed by DSYTRF.
-  !!* @param A on entry, the symmetric matrix A.  If UPLO = 'U', the leading
-  !!*   N-by-N upper triangular part of A contains the upper
-  !!*   triangular part of the matrix A, and the strictly lower
-  !!*   triangular part of A is not referenced.  If UPLO = 'L', the
-  !!*   leading N-by-N lower triangular part of A contains the lower
-  !!*   triangular part of the matrix A, and the strictly upper
-  !!*   triangular part of A is not referenced.
-  !!*   On exit, the block diagonal matrix D and the multipliers used
-  !!*   to obtain the factor U or L
-  !!* @param B On entry, the right hand side matrix B. On exit, the solution
-  !!*   matrix X.
-  !!* @param nRow  Number of rows of the matrix to decompose. (Necessary if
-  !!*   different from the number of rows of the passed matrix)
-  !!* @param uplo upper or lower triangle of the matrix, defaults to lower
-  !!* @param iError Error flag. Zero on successfull exit. If not present, any
-  !!*   lapack error causes program termination. If present, only fatal lapack
-  !!*   errors with error flag < 0 cause abort.
+  !> Solves a system of linear equations A*X = B with a real
+  !> symmetric matrix A using the factorization A = U*D*U**T or
+  !> A = L*D*L**T computed by DSYTRF.
+  !> @param A on entry, the symmetric matrix A.  If UPLO = 'U', the leading
+  !>   N-by-N upper triangular part of A contains the upper
+  !>   triangular part of the matrix A, and the strictly lower
+  !>   triangular part of A is not referenced.  If UPLO = 'L', the
+  !>   leading N-by-N lower triangular part of A contains the lower
+  !>   triangular part of the matrix A, and the strictly upper
+  !>   triangular part of A is not referenced.
+  !>   On exit, the block diagonal matrix D and the multipliers used
+  !>   to obtain the factor U or L
+  !> @param B On entry, the right hand side matrix B. On exit, the solution
+  !>   matrix X.
+  !> @param nRow  Number of rows of the matrix to decompose. (Necessary if
+  !>   different from the number of rows of the passed matrix)
+  !> @param uplo upper or lower triangle of the matrix, defaults to lower
+  !> @param iError Error flag. Zero on successfull exit. If not present, any
+  !>   lapack error causes program termination. If present, only fatal lapack
+  !>   errors with error flag < 0 cause abort.
   interface sytrs
     module procedure sytrs_dble
     module procedure sytrs_real
   end interface
 
-  !!* returns a vector of random numers, either from a uniform or normal
-  !!* distribution
-  !!* @param iDist choice of distribution (1: uniform (0,1), 2: uniform (-1,1),
-  !!* 3: normal (0,1)
-  !!* @param iSeed INTEGER array, dimension (4)
-  !!* On entry, the seed of the random number generator; the array
-  !!* elements must be between 0 and 4095, and ISEED(4) must be
-  !!* odd.
-  !!* On exit, the seed is updated.
-  !!* @param x On exit, vector of random numbers
+  !> returns a vector of random numers, either from a uniform or normal
+  !> distribution
+  !> @param iDist choice of distribution (1: uniform (0,1), 2: uniform (-1,1),
+  !> 3: normal (0,1)
+  !> @param iSeed INTEGER array, dimension (4)
+  !> On entry, the seed of the random number generator; the array
+  !> elements must be between 0 and 4095, and ISEED(4) must be
+  !> odd.
+  !> On exit, the seed is updated.
+  !> @param x On exit, vector of random numbers
   interface larnv
     module procedure larnv_real
     module procedure larnv_dble
@@ -249,11 +249,7 @@ contains
   end subroutine gesv_dble
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! getrf
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !!* Single precision version of getrf.
+  !> Single precision version of getrf.
   subroutine getrf_real(aa, ipiv, nRow, nColumn, iError)
     real(rsp), intent(inout) :: aa(:,:)
     integer, intent(out) :: ipiv(:)
@@ -299,7 +295,7 @@ contains
 
 
 
-  !!* Double precision version of getrf.
+  !> Double precision version of getrf.
   subroutine getrf_dble(aa, ipiv, nRow, nColumn, iError)
     real(rdp), intent(inout) :: aa(:,:)
     integer, intent(out) :: ipiv(:)
@@ -344,7 +340,7 @@ contains
   end subroutine getrf_dble
 
 
-  !!* Single precision version of getri.
+  !> Single precision version of getri.
   subroutine getri_real(aa, ipiv, nRow, iError)
     real(rsp), intent(inout) :: aa(:,:)
     integer, intent(in) :: ipiv(:)
@@ -391,7 +387,7 @@ contains
   end subroutine getri_real
 
 
-  !!* Double precision version of getri.
+  !> Double precision version of getri.
   subroutine getri_dble(aa, ipiv, nRow, iError)
     real(rdp), intent(inout) :: aa(:,:)
     integer, intent(in) :: ipiv(:)
@@ -438,12 +434,12 @@ contains
   end subroutine getri_dble
 
 
-  !!* Inverts a matrix.
-  !!* @param aa     Matrix to invert on entry, inverted matrix on exit
-  !!* @param nRow   Nr. of rows of the matrix (if different from size(aa, dim=1)
-  !!* @param iError Error flag. Returns 0 on successfull operation. If this
-  !!*   variable is not specified, any occuring error (e.g. singular matrix)
-  !!*   stops the program.
+  !> Inverts a matrix.
+  !> @param aa     Matrix to invert on entry, inverted matrix on exit
+  !> @param nRow   Nr. of rows of the matrix (if different from size(aa, dim=1)
+  !> @param iError Error flag. Returns 0 on successfull operation. If this
+  !>   variable is not specified, any occuring error (e.g. singular matrix)
+  !>   stops the program.
   subroutine matinv(aa, nRow, iError)
     real(dp), intent(inout) :: aa(:,:)
     integer, intent(in), optional :: nRow
@@ -539,10 +535,6 @@ contains
   end subroutine hermatinv
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! SYTRF
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   !! \param aa  Symmetric matrix
   !! \param ipiv  Interchanges of blocks on exit.
@@ -626,10 +618,6 @@ contains
 
   end subroutine sytrf_dreal
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! HETRF
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (complex).
   !! \param aa  Hermitian matrix
@@ -715,10 +703,6 @@ contains
   end subroutine hetrf_dcomplex
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! SYTRI
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
   !> Computes the inverse of a symmetric matrix (real).
   !! \param aa  Symmetric matrix to be inverted.
   !! \param ipiv  Block interchanges as created by the sytrf() routine.
@@ -786,10 +770,6 @@ contains
 
   end subroutine sytri_dreal
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! HETRI
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Computes the inverse of a Hermitian matrix (complex).
   !! \param aa  Symmetric matrix to be inverted.
@@ -859,11 +839,7 @@ contains
   end subroutine hetri_dcomplex
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! SYTRS
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !!* Single precision version of sytrs
+  !> Single precision version of sytrs
   subroutine sytrs_real(A,B, nRow, uplo,iError)
     real(rsp), intent(inout)        :: A(:,:)
     real(rsp), intent(inout)        :: B(:,:)
@@ -923,7 +899,7 @@ contains
 
   end subroutine sytrs_real
 
-  !!* Double precision version of sytrs
+  !> Double precision version of sytrs
   subroutine sytrs_dble(A,B, nRow, uplo,iError)
     real(rdp), intent(inout)        :: A(:,:)
     real(rdp), intent(inout)        :: B(:,:)
@@ -983,7 +959,7 @@ contains
 
   end subroutine sytrs_dble
 
-  !!* single precision version of larnv
+  !> single precision version of larnv
   subroutine larnv_real(iDist,iSeed,x)
     integer, intent(in)    :: iDist
     integer, intent(inout) :: iSeed(4)
@@ -1002,7 +978,7 @@ contains
     call SLARNV( iDist, iSeed, n, x )
   end subroutine larnv_real
 
-  !!* double precision version of larnv
+  !> double precision version of larnv
   subroutine larnv_dble(iDist,iSeed,x)
     integer, intent(in)    :: iDist
     integer, intent(inout) :: iSeed(4)
@@ -1021,7 +997,7 @@ contains
     call DLARNV( iDist, iSeed, n, x )
   end subroutine larnv_dble
 
-  !!* complex version of larnv
+  !> complex version of larnv
   subroutine larnv_cplx(iDist,iSeed,x)
     integer, intent(in)       :: iDist
     integer, intent(inout)    :: iSeed(4)
@@ -1040,7 +1016,7 @@ contains
     call CLARNV( iDist, iSeed, n, x )
   end subroutine larnv_cplx
 
-  !!* double complex precision version of larnv
+  !> double complex precision version of larnv
   subroutine larnv_dblecplx(iDist,iSeed,x)
     integer, intent(in)       :: iDist
     integer, intent(inout)    :: iSeed(4)

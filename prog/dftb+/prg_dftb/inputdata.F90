@@ -7,11 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains data type representing the input data for DFTB
-!!* @todo
-!!*   Has to be replaced by a more general approach, which should be
-!!*   a kind of database (quite similar to Thomas' global library, but !'
-!!*   with a dynamical approach).
+!> Contains data type representing the input data for DFTB
 module inputdata_module
   use assert
   use accuracy
@@ -30,50 +26,68 @@ module inputdata_module
   save
 
   type control
+    !> random number generator seed
     integer       :: iSeed       = 0
+    !> maximum force for geometry convergence
     real(dp)      :: maxForce    = 0.0_dp
+    !> SCC calculation?
     logical       :: tScc        = .false.
-    logical       :: tOrbResolved = .false. ! l-shell resolved SCC
+    !> l-shell resolved SCC
+    logical       :: tOrbResolved = .false. 
     real(dp)      :: sccTol      = 0.0_dp
     logical       :: tReadChrg   = .false.
     logical       :: tGeoOpt     = .false. ! should probably be packaged
     logical       :: tCoordOpt   = .false.
-    real(dp)      :: maxAtomDisp = 0.2_dp ! maximum line search step for atoms
+    !> maximum line search step for atoms
+    real(dp)      :: maxAtomDisp = 0.2_dp 
     logical       :: tLatOpt     = .false. ! should probably be packaged
     logical       :: tLatOptFixAng = .false.
     logical       :: tLatOptFixLen(3) = .false.
     logical       :: tLatOptIsotropic = .false.
-    real(dp)      :: maxLatDisp = 0.2_dp ! maximum possible linesearch step
+    !> maximum possible linesearch step
+    real(dp)      :: maxLatDisp = 0.2_dp 
     logical       :: tAppendGeo  = .false.
     logical       :: tConvrgForces = .true.
     integer       :: iGeoOpt     = 0
-    real(dp)      :: deltaGeoOpt = 0.0_dp ! used for gDIIS
-    integer       :: iGenGeoOpt = 0 ! used for gDIIS
-    logical       :: tMulliken   = .false. ! internal requirement for Mulliken
-    logical       :: tPrintMulliken   = .false. ! printout of Mulliken
+    !> used for gDIIS
+    real(dp)      :: deltaGeoOpt = 0.0_dp
+    !> used for gDIIS
+    integer       :: iGenGeoOpt = 0
+    !> internal variable for requirement of Mulliken analysis
+    logical       :: tMulliken   = .false.
+    !> printout of Mulliken
+    logical       :: tPrintMulliken   = .false. 
     logical       :: tLocalise   = .false.
     logical       :: tPipekMezey = .false.
     logical       :: tPipekDense = .false.
     real(dp), allocatable :: sparsePipekTols(:)
     real(dp)      :: PipekTol
-    integer       :: PipekMaxIter = 100 ! cycles to localise charges
-    logical       :: tAtomicEnergy = .false. !
-    logical       :: tPrintEigVecs  = .false. ! print eigenvectors to disc
-    logical       :: tPrintEigVecsTxt = .false. ! text file of eigenvectors?
-    logical       :: tProjEigenvecs = .false. !project eigenvectors spatially
-
-    logical       :: tForces     = .false. ! Evaluate forces
-    integer :: forceType
-    logical       :: tPrintForces = .false. ! Output forces
+    !> cycles to localise charges
+    integer       :: PipekMaxIter = 100
+    !> printing of atom resolved energies
+    logical       :: tAtomicEnergy = .false.
+    !> print eigenvectors to disc
+    logical       :: tPrintEigVecs  = .false.
+    !> text file of eigenvectors?
+    logical       :: tPrintEigVecsTxt = .false.
+    !> project eigenvectors spatially
+    logical       :: tProjEigenvecs = .false. 
+    !> Evaluate forces
+    logical       :: tForces     = .false.
+    !> force evaluation method
+    integer       :: forceType
+    !> Output forces
+    logical       :: tPrintForces = .false. 
     integer       :: iDerivMethod = 0
-    real(dp)      :: deriv1stDelta = 0.0_dp ! 1st derivative finite
-                                            ! difference step
+    !> 1st derivative finite difference step
+    real(dp)      :: deriv1stDelta = 0.0_dp 
 
-    logical       :: tMD         = .false. ! Molecular dynamics
-    logical       :: tDerivs     = .false. ! Finite difference
-                                           ! derivatives calculation?
-    logical       :: tShowFoldedCoord !* Should central cell coordinates
-    !* be output?
+    !> Molecular dynamics
+    logical       :: tMD         = .false.
+    !> Finite difference derivatives calculation?
+    logical       :: tDerivs     = .false.
+    !> Should central cell coordinates be output?
+    logical       :: tShowFoldedCoord 
 
     real(dp)               :: nrChrg        = 0.0_dp
     real(dp)               :: nrSpinPol     = 0.0_dp
@@ -82,7 +96,9 @@ module inputdata_module
     logical                :: tSpinOrbit    = .false.
     logical                :: tDualSpinOrbit = .false.
     logical                :: t2Component   = .false.
-    real(dp), allocatable  :: initialSpins(:,:)   !initial spin pattern
+    !> initial spin pattern
+    real(dp), allocatable  :: initialSpins(:,:)
+    !> initial charges
     real(dp), allocatable  :: initialCharges(:)
     logical                :: tDFTBU        = .false.
     integer                :: iSolver       = 0
@@ -105,20 +121,22 @@ module inputdata_module
     integer, allocatable   :: conAtom(:)
     real(dp), allocatable  :: conVec(:,:)
     character(lc)          :: outFile       = ''
-    logical                :: tReadMDVelocities = .false. ! do we have MD velocities
-    real(dp), allocatable  :: initialVelocities(:,:) ! initial MD velocities
+    !> do we have MD velocities
+    logical                :: tReadMDVelocities = .false.
+    !> initial MD velocities
+    real(dp), allocatable  :: initialVelocities(:,:) 
     real(dp)               :: deltaT        = 0.0_dp
 
     real(dp)               :: tempAtom      = 0.0_dp
     integer                :: iThermostat   = 0
-    logical                :: tInitNHC = .false. ! whether to initialize
-    !  internal state of the Nose-Hoover thermostat from input
+    !> whether to initialize internal state of the Nose-Hoover thermostat from input
+    logical                :: tInitNHC = .false. 
     real(dp), allocatable :: xnose(:)
     real(dp), allocatable :: vnose(:)
     real(dp), allocatable :: gnose(:)
 
-    logical                :: tMDstill ! whether to shift to a co-moving
-    ! frame for MD
+    !> whether to shift to a co-moving frame for MD
+    logical                :: tMDstill 
     logical                :: tRescale = .false.
     integer, allocatable   :: tempMethods(:)
     integer, allocatable   :: tempSteps(:)
@@ -131,78 +149,93 @@ module inputdata_module
     logical                :: tFillKSep     = .false.
     integer                :: iDistribFn    = 0
     real(dp)               :: wvScale       = 0.0_dp
-    integer                :: nh_npart      = 3 ! chain length for Nose-Hoover
-    integer                :: nh_nys        = 3 ! order of integration
-    integer                :: nh_nc         = 1 ! multiple time steps for N-H
-    !  propagation
+    !> default chain length for Nose-Hoover
+    integer                :: nh_npart      = 3
+    !> default order of NH integration
+    integer                :: nh_nys        = 3
+    !> default multiple time steps for N-H propagation
+    integer                :: nh_nc         = 1 
 
     integer                :: maxRun        = -2
 
-    real(dp)               :: deriv2ndDelta    = 0.0_dp ! second
-    ! derivative finite difference step
+    !> second derivative finite difference step
+    real(dp)               :: deriv2ndDelta    = 0.0_dp 
 
     integer                :: nKPoint       = 0
     real(dp), allocatable :: kPoint(:,:)
     real(dp), allocatable :: kWeight(:)
 
-    real(dp)               :: pressure       = 0.0_dp ! cell presure if periodic
+    !> cell presure if periodic
+    real(dp)               :: pressure       = 0.0_dp 
     logical                :: tBarostat = .false.
-    logical                :: tIsotropic = .true. ! use isotropic scaling if
-    !  barostatting
+    !> use isotropic scaling if barostatting
+    logical                :: tIsotropic = .true. 
     real(dp)               :: BarostatStrength = 0.0_dp
 
-    ! read atomic masses from the input not the SK data
+    !> read atomic masses from the input not the SK data
     real(dp), allocatable :: masses(:)
 
-    real(dp), allocatable :: spinW(:,:,:)  ! spin constants
-    real(dp), allocatable :: hubbU(:,:)    ! customised Hubbard U values
-    real(dp), allocatable :: xi(:,:)       ! spin-orbit constants
+    !> spin constants
+    real(dp), allocatable :: spinW(:,:,:)
+    !> customised Hubbard U values
+    real(dp), allocatable :: hubbU(:,:)    
+    !> spin-orbit constants
+    real(dp), allocatable :: xi(:,:)       
 
-    integer                :: DFTBUfunc     = 0 ! choice of the DFTB+U
-    ! functional
-    real(dp), allocatable :: UJ(:,:)     ! list of U-J for species
-    integer,  allocatable :: nUJ(:)      ! How many U-J for each
-    ! species
-    integer,  allocatable :: niUJ(:,:)   ! number of l-values of
-    ! U-J for each block
-    integer,  allocatable :: iUJ(:,:,:)  ! l-values of U-J for each
-    ! block
+    !> choice of the DFTB+U functional
+    integer                :: DFTBUfunc     = 0
+    !> list of U-J for species
+    real(dp), allocatable :: UJ(:,:)
+    !> How many U-J for each species
+    integer,  allocatable :: nUJ(:)      
+    !> number of l-values of U-J for each block
+    integer,  allocatable :: niUJ(:,:)
+    !> l-values of U-J for each block
+    integer,  allocatable :: iUJ(:,:,:)  
 
-    !! External charges
+    !> Number of external charges
     integer :: nExtChrg = 0
+    !> external charge values and locations
     real(dp), allocatable :: extChrg(:,:)
+    !> finite charge width if needed
     real(dp), allocatable :: extChrgBlurWidth(:)
 
-    !! External electric field
+    !> External homogeneous electric field
     logical  :: tEField = .false.
+    !> time dependent field in MD
     logical  :: tTDEfield = .false.
+    !> strength
     real(dp) :: EFieldStrength = 0.0_dp
+    !> direction
     real(dp) :: EfieldVector(3)
+    !> frequency of time dependent field
     real(dp) :: EfieldOmega
+    !> relative phase of field
     integer  :: EfieldPhase = 0
 
-    !! Projection of eigenvectors
+    !> Projection of eigenvectors
     type(listIntR1) :: iAtInRegion
     logical, allocatable :: tShellResInRegion(:)
     logical, allocatable :: tOrbResInRegion(:)
     character(lc), allocatable :: RegionLabel(:)
 
-    !! H short range damping
+    !> H short range damping
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
 
-    !! Old repulsive
+    !> Old repulsive
     logical :: useBuggyRepSum
 
-    !! Old kinetic energy stress contribution in MD
+    !> Old kinetic energy stress contribution in MD
     logical :: useBuggyKEStress = .false.
 
-    !! Ewald alpha
+    !> Ewald alpha
     real(dp) :: ewaldAlpha = 0.0_dp
 
-    !! Various options
+    !> Various options
     logical :: tWriteTagged = .false.
-    integer :: restartFreq  = 20 ! Nr. of SCC iterations without restart info
+    !> Nr. of SCC iterations without restart info
+    integer :: restartFreq  = 20 
     logical :: tWriteDetailedXML = .false.
     logical :: tWriteResultsTag = .false.
     logical :: tWriteDetailedOut = .true.
@@ -212,27 +245,28 @@ module inputdata_module
     logical :: tWriteRealHS = .false.
     logical :: tMinMemory = .false.
 
-    !! Dispersion related stuff
+    !> Dispersion related stuff
     type(DispersionInp), allocatable :: dispInp
 
-    !! Local potentials
+    !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)
     real(dp), allocatable :: thirdOrderOn(:,:)
 
-    !! 3rd order
+    !> 3rd order
     real(dp), allocatable :: hubDerivs(:,:)
     logical :: t3rd, t3rdFull
 
-    !! XLBOMD
+    !> XLBOMD
     type(XLBOMDInp), allocatable :: xlbomd
 
     type(linrespini) :: lrespini
 
-    !! socket communication
+    !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
   end type control
 
 
+  !> Atomistic geometry and boundary conditions of the system
   type geometry
     integer           :: nrAtoms         = 0
     logical           :: tPeriodic       = .false.
@@ -245,7 +279,7 @@ module inputdata_module
     character(mc), allocatable :: speciesName(:)
   end type geometry
 
-
+  !> Slater-Koster data
   type slater
     real(dp), allocatable :: skSelf(:, :)
     real(dp), allocatable :: skHubbU(:, :)
@@ -258,7 +292,7 @@ module inputdata_module
     type(TOrbitals), allocatable :: orb
   end type slater
 
-
+  !> container for input data constituents
   type inputData
     type(control)  :: ctrl
     type(TGeometry) :: geom
@@ -267,11 +301,12 @@ module inputdata_module
   end type inputData
 
 
-
+  !> Initialise the input data
   interface init
     module procedure InputData_init
   end interface init
 
+  !> destroy input data for variables that do not go out of scope
   interface destruct
     module procedure InputData_destruct
   end interface destruct
@@ -283,6 +318,7 @@ module inputdata_module
 
 contains
 
+  !> Mark data structure as initialised
   subroutine InputData_init(self)
     type(inputData), intent(out) :: self
 
@@ -290,7 +326,7 @@ contains
 
   end subroutine InputData_init
 
-
+  !> destructor for parts that are not cleaned up when going out of scope
   subroutine InputData_destruct(self)
     type(inputData), intent(inout) :: self
 
@@ -298,7 +334,7 @@ contains
 
   end subroutine InputData_destruct
 
-
+  !> destructor for parts that are not cleaned up when going out of scope
   subroutine Control_destruct(self)
     type(control), intent(inout) :: self
 
@@ -307,7 +343,5 @@ contains
     end if
 
   end subroutine Control_destruct
-
-
 
 end module inputdata_module

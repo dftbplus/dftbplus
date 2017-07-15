@@ -7,10 +7,10 @@
 
 #:include 'common.fypp'
 
-!!* Contains F90 wrapper functions for some commonly used lapack calls needed
-!!* in the code
-!!* @caveat contains some fixes for lapack 3.0 bugs, if this gets corrected in
-!!* lapack 4.x they should be removed
+!> Contains F90 wrapper functions for some commonly used lapack calls needed
+!> in the code
+!> @caveat contains some fixes for lapack 3.0 bugs, if this gets corrected in
+!> lapack 4.x they should be removed
 module eigensolver
   use assert
   use message
@@ -22,15 +22,16 @@ module eigensolver
 
   public :: heev, hegv, hegvd, gvr, bgv
 
-  character(len=100) :: error_string !* Used to return runtime diagnostics
+  !> Used to return runtime diagnostics
+  character(len=100) :: error_string 
 
-  !!* Simple eigensolver for a symmetric/Hermitian matrix
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @caveat the matrix a is overwritten
+  !> Simple eigensolver for a symmetric/Hermitian matrix
+  !> @param a contains the matrix for the solver, returns eigenvalues if
+  !> requested
+  !> @param w eigenvalues
+  !> @param uplo upper or lower triangle of the matrix
+  !> @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+  !> @caveat the matrix a is overwritten
   interface heev
     module procedure real_ssyev
     module procedure dble_dsyev
@@ -38,34 +39,19 @@ module eigensolver
     module procedure dblecmplx_zheev
   end interface heev
 
-!  !!* Simple eigensolver for a general matrix
-!  !!* @param a contains the matrix for the solver, returns eigenvalues if
-!  !!* requested
-!  !!* @param w eigenvalues
-!  !!* @param vr
-!  !!* @param vl
-!  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-!  !!* @caveat the matrix a is overwritten
-!  interface geev
-!    module procedure real_sgeev
-!    module procedure dble_dgeev
-!    module procedure cmplx_cgeev
-!    module procedure dblecmplx_zgeev
-!  end interface geev
-
-  !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param b contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved
-  !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
-  !!* default is 1
-  !!* @caveat the matrix a is overwritten
-  !!* @caveat the matrix b is overwritted with Cholesky factorization if
-  !!* eigenvalues are computed
+  !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem
+  !> @param a contains the matrix for the solver, returns eigenvalues if
+  !> requested
+  !> @param b contains the second matrix for the solver
+  !> @param w eigenvalues
+  !> @param uplo upper or lower triangle of the matrix
+  !> @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+  !> @param itype optional specifies the problem type to be solved
+  !> 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
+  !> default is 1
+  !> @caveat the matrix a is overwritten
+  !> @caveat the matrix b is overwritted with Cholesky factorization if
+  !> eigenvalues are computed
   interface hegv
     module procedure real_ssygv
     module procedure dble_dsygv
@@ -73,20 +59,20 @@ module eigensolver
     module procedure dblecmplx_zhegv
   end interface hegv
 
-  !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
-  !!* using divide and conquer
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param b contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved
-  !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
-  !!* default is 1
-  !!* @caveat the matrix a is overwritten
-  !!* @caveat the matrix b is overwritted with Cholesky factorization if
-  !!* eigenvalues are computed
+  !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem
+  !> using divide and conquer
+  !> @param a contains the matrix for the solver, returns eigenvalues if
+  !> requested
+  !> @param b contains the second matrix for the solver
+  !> @param w eigenvalues
+  !> @param uplo upper or lower triangle of the matrix
+  !> @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+  !> @param itype optional specifies the problem type to be solved
+  !> 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
+  !> default is 1
+  !> @caveat the matrix a is overwritten
+  !> @caveat the matrix b is overwritted with Cholesky factorization if
+  !> eigenvalues are computed
   interface hegvd
     module procedure real_ssygvd
     module procedure dble_dsygvd
@@ -94,25 +80,25 @@ module eigensolver
     module procedure dblecmplx_zhegvd
   end interface hegvd
 
-  !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
-  !!* using the lapack relatively robust representation solver, based on the
-  !!* SYGV source. If the requested number of eigenvalues is lower than
-  !!* the size of H/S suspace mode is used (optionally the range can be
-  !!* set using il and ul) to return the lowest eigenvalues/vectors of number
-  !!* size(w)
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param b contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved
-  !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
-  !!* default is 1
-  !!* @param il optional lower range
-  !!* @param ul optional upper range
-  !!* @caveat the matrix a is overwritten
-  !!* @caveat the matrix b is overwritten
+  !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem
+  !> using the lapack relatively robust representation solver, based on the
+  !> SYGV source. If the requested number of eigenvalues is lower than
+  !> the size of H/S suspace mode is used (optionally the range can be
+  !> set using il and ul) to return the lowest eigenvalues/vectors of number
+  !> size(w)
+  !> @param a contains the matrix for the solver, returns eigenvalues if
+  !> requested
+  !> @param b contains the second matrix for the solver
+  !> @param w eigenvalues
+  !> @param uplo upper or lower triangle of the matrix
+  !> @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+  !> @param itype optional specifies the problem type to be solved
+  !> 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
+  !> default is 1
+  !> @param il optional lower range
+  !> @param ul optional upper range
+  !> @caveat the matrix a is overwritten
+  !> @caveat the matrix b is overwritten
   interface gvr
     module procedure real_ssygvr
     module procedure dble_dsygvr
@@ -120,16 +106,16 @@ module eigensolver
     module procedure dblecmplx_zhegvr
   end interface
 
-  !!* Simple eigensolver for a symmetric/Hermitian banded generalized matrix
-  !!* problem of the form A*x=(lambda)*B*x
-  !!* @param ab contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param bb contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param itype optional specifies the problem type to be solved
-  !!* @caveat the matrix ab is overwritten
-  !!* @caveat the matrix bb is overwritted with a split Cholesky factorization
+  !> Simple eigensolver for a symmetric/Hermitian banded generalized matrix
+  !> problem of the form A*x=(lambda)*B*x
+  !> @param ab contains the matrix for the solver, returns eigenvalues if
+  !> requested
+  !> @param bb contains the second matrix for the solver
+  !> @param w eigenvalues
+  !> @param uplo upper or lower triangle of the matrix
+  !> @param itype optional specifies the problem type to be solved
+  !> @caveat the matrix ab is overwritten
+  !> @caveat the matrix bb is overwritted with a split Cholesky factorization
   interface bgv
     module procedure real_ssbgv
     module procedure dble_dsbgv
@@ -139,7 +125,7 @@ module eigensolver
 
 contains
 
-  !!* Real eigensolver for a symmetric matrix
+  !> Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(out) :: w(:)
@@ -177,7 +163,7 @@ contains
 
   End Subroutine real_ssyev
 
-  !!* Double precision eigensolver for a symmetric matrix
+  !> Double precision eigensolver for a symmetric matrix
   Subroutine dble_dsyev(a,w,uplo,jobz)
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(out) :: w(:)
@@ -215,7 +201,7 @@ contains
 
   End Subroutine dble_dsyev
 
-  !!* Complex eigensolver for a Hermitian matrix
+  !> Complex eigensolver for a Hermitian matrix
   Subroutine cmplx_cheev(a,w,uplo,jobz)
     complex(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(out) :: w(:)
@@ -255,7 +241,7 @@ contains
 
   End Subroutine cmplx_cheev
 
-  !!* Double complex eigensolver for a Hermitian matrix
+  !> Double complex eigensolver for a Hermitian matrix
   Subroutine dblecmplx_zheev(a,w,uplo,jobz)
     complex(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(out) :: w(:)
@@ -296,7 +282,7 @@ contains
   End Subroutine dblecmplx_zheev
 
 
-  !!* Real eigensolver for generalized symmetric matrix problem
+  !> Real eigensolver for generalized symmetric matrix problem
   Subroutine real_ssygv(a,b,w,uplo,jobz,itype)
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
@@ -348,7 +334,7 @@ contains
 
   End Subroutine real_ssygv
 
-  !!* Double precision eigensolver for generalized symmetric matrix problem
+  !> Double precision eigensolver for generalized symmetric matrix problem
   Subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(inout) :: b(:,:)
@@ -400,7 +386,7 @@ contains
 
   End Subroutine dble_dsygv
 
-  !!* Complex eigensolver for generalized Hermitian matrix problem
+  !> Complex eigensolver for generalized Hermitian matrix problem
   Subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
@@ -475,7 +461,7 @@ contains
 
   End Subroutine cmplx_chegv
 
-  !!* Double complex eigensolver for generalized Hermitian matrix problem
+  !> Double complex eigensolver for generalized Hermitian matrix problem
   Subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
@@ -550,8 +536,8 @@ contains
 
   End Subroutine dblecmplx_zhegv
 
-  !!* Real eigensolver for generalized symmetric matrix problem - divide and
-  !!* conquer
+  !> Real eigensolver for generalized symmetric matrix problem - divide and
+  !> conquer
   Subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
@@ -607,8 +593,8 @@ contains
 
   End Subroutine real_ssygvd
 
-  !!* Double precision eigensolver for generalized symmetric matrix problem
-  !!* divide and conquer
+  !> Double precision eigensolver for generalized symmetric matrix problem
+  !> divide and conquer
   Subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(inout) ::  b(:,:)
@@ -664,8 +650,8 @@ contains
 
   End Subroutine dble_dsygvd
 
-  !!* Complex eigensolver for generalized Hermitian matrix problem divide and
-  !!* conquer
+  !> Complex eigensolver for generalized Hermitian matrix problem divide and
+  !> conquer
   Subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
@@ -725,8 +711,8 @@ contains
 
   End Subroutine cmplx_chegvd
 
-  !!* Double complex eigensolver for generalized Hermitian matrix problem
-  !!* divide and conquer
+  !> Double complex eigensolver for generalized Hermitian matrix problem
+  !> divide and conquer
   Subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
@@ -786,13 +772,13 @@ contains
 
   End Subroutine dblecmplx_zhegvd
 
-  !!* Real eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* This version re-uses a triangle of a matrix (saving an additional
-  !!* allocation that was in the previous version)
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+  !> Real eigensolver for generalized symmetric matrix problem -
+  !> Relatively Robust Representation, optionally use the subspace form if w
+  !> is smaller than the  size of a and b, then only the first n
+  !> eigenvalues/eigenvectors are found
+  !> This version re-uses a triangle of a matrix (saving an additional
+  !> allocation that was in the previous version)
+  !> @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     real(rsp), intent(inout) :: a(:,:)
     real(rsp), intent(inout) :: b(:,:)
@@ -982,13 +968,13 @@ contains
 
   end subroutine real_ssygvr
 
-  !!* Double precision  eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* This version re-uses a triangle of a matrix (saving an additional
-  !!* allocation that was in the previous version)
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+  !> Double precision  eigensolver for generalized symmetric matrix problem -
+  !> Relatively Robust Representation, optionally use the subspace form if w
+  !> is smaller than the  size of a and b, then only the first n
+  !> eigenvalues/eigenvectors are found
+  !> This version re-uses a triangle of a matrix (saving an additional
+  !> allocation that was in the previous version)
+  !> @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     real(rdp), intent(inout) :: a(:,:)
     real(rdp), intent(inout) :: b(:,:)
@@ -1178,11 +1164,11 @@ contains
 
   end subroutine dble_dsygvr
 
-  !!* Complex eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+  !> Complex eigensolver for generalized symmetric matrix problem -
+  !> Relatively Robust Representation, optionally use the subspace form if w
+  !> is smaller than the  size of a and b, then only the first n
+  !> eigenvalues/eigenvectors are found
+  !> @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     complex(rsp), intent(inout) :: a(:,:)
     complex(rsp), intent(inout) :: b(:,:)
@@ -1378,11 +1364,11 @@ contains
 
   end subroutine cmplx_chegvr
 
-  !!* Double complex eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+  !> Double complex eigensolver for generalized symmetric matrix problem -
+  !> Relatively Robust Representation, optionally use the subspace form if w
+  !> is smaller than the  size of a and b, then only the first n
+  !> eigenvalues/eigenvectors are found
+  !> @author B. Hourahine, based in part on deMon routine from T. Heine
   subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
     complex(rdp), intent(inout) :: a(:,:)
     complex(rdp), intent(inout) :: b(:,:)
@@ -1580,7 +1566,7 @@ contains
 
 
 
-    !!* simple single precision banded matrix eigensolver
+    !> simple single precision banded matrix eigensolver
   subroutine real_ssbgv(ab, bb, w, uplo, z)
     real(rsp), intent(inout) :: ab(:,:)
     real(rsp), intent(inout) :: bb(:,:)
@@ -1647,7 +1633,7 @@ contains
 
   end subroutine real_ssbgv
 
-  !!* Simple double precision banded matrix eigen solver
+  !> Simple double precision banded matrix eigen solver
   subroutine dble_dsbgv(ab, bb, w, uplo, z)
     real(rdp), intent(inout) :: ab(:,:)
     real(rdp), intent(inout) :: bb(:,:)
@@ -1714,7 +1700,7 @@ contains
 
   end subroutine dble_dsbgv
 
-  !!* Simple complex precision banded matrix eigen solver
+  !> Simple complex precision banded matrix eigen solver
   subroutine cmplx_chbgv(ab, bb, w, uplo, z)
     complex(rsp), intent(inout) :: ab(:,:)
     complex(rsp), intent(inout) :: bb(:,:)
@@ -1784,7 +1770,7 @@ contains
 
   end subroutine cmplx_chbgv
 
-  !!* Simple double complex precision banded matrix eigen solver
+  !> Simple double complex precision banded matrix eigen solver
   subroutine dblecmplx_zhbgv(ab, bb, w, uplo, z)
     complex(rdp), intent(inout) :: ab(:,:)
     complex(rdp), intent(inout) :: bb(:,:)
