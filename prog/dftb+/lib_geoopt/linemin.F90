@@ -7,37 +7,36 @@
 
 #:include 'common.fypp'
 
-!!* Line minimization iterator for arbitary function using its gradient.
-!!* @desc
-!!*   The line minimization algorithm is working in the following way:
-!!*   <ol>
-!!*     <li>One step along the unity vector along the gradient in the starting
-!!*       point (lenght of the step specified externally)</li>
-!!*     <li>Intervals between previous and current point enlarged as long as
-!!*       the derivative does not change sign. (Derivative in the first point
-!!*       is negative.)</li>
-!!*     <li>One point between the brackets is estimated by the secant method
-!!*       or by bisection (see below).</li>
-!!*     <li>If the derivative in the new point is not below the tolerance:
-!!*       A new point is searched between the two bracketing
-!!*       points and the intermediate point between the brackets with the
-!!*       following methods in a fallback way.
-!!*       <ol>
-!!*         <li>Quadratic fit on the derivatives in the three points.
-!!*           The calculated root (using Muller's method) must lie between the
-!!*           intermediate point and the left (right) bracket if the derivative
-!!*           in the intermediate point is greater (less) than zero.</li>
-!!*         <li>Linear interpolation (secant method) between the left (right)
-!!*           bracket and the intermediate point if the derivative in latter is
-!!*           greater (less) than zero.</li>
-!!*         <li>Bisection between the intermediate point and the left (right)
-!!*           bracket and the indermediate point (depending on the sign of
-!!*           derivative there).</li>
-!!*       </ol>
-!!*       This step is repeated as long as the projected derivative
-!!*       of the function on the line is less than the given tolerance.
-!!*     </li>
-!!*   </ol>
+!> Line minimization iterator for arbitary function using its gradient.
+!>   The line minimization algorithm is working in the following way:
+!>   <ol>
+!>     <li>One step along the unity vector along the gradient in the starting
+!>       point (lenght of the step specified externally)</li>
+!>     <li>Intervals between previous and current point enlarged as long as
+!>       the derivative does not change sign. (Derivative in the first point
+!>       is negative.)</li>
+!>     <li>One point between the brackets is estimated by the secant method
+!>       or by bisection (see below).</li>
+!>     <li>If the derivative in the new point is not below the tolerance:
+!>       A new point is searched between the two bracketing
+!>       points and the intermediate point between the brackets with the
+!>       following methods in a fallback way.
+!>       <ol>
+!>         <li>Quadratic fit on the derivatives in the three points.
+!>           The calculated root (using Muller's method) must lie between the
+!>           intermediate point and the left (right) bracket if the derivative
+!>           in the intermediate point is greater (less) than zero.</li>
+!>         <li>Linear interpolation (secant method) between the left (right)
+!>           bracket and the intermediate point if the derivative in latter is
+!>           greater (less) than zero.</li>
+!>         <li>Bisection between the intermediate point and the left (right)
+!>           bracket and the indermediate point (depending on the sign of
+!>           derivative there).</li>
+!>       </ol>
+!>       This step is repeated as long as the projected derivative
+!>       of the function on the line is less than the given tolerance.
+!>     </li>
+!>   </ol>
 module linemin
   use assert
   use accuracy
@@ -46,58 +45,74 @@ module linemin
 
   private
 
-  !!* Holds data for the line minimalizer
+  !> Holds data for the line minimalizer
   type OLineMin
     private
-    integer  :: nElem              !* Number of vector elements
-    logical  :: tInitialized       !* If initialized
-    integer  :: state              !* State of the object
-    integer  :: mIter              !* Max. nr. of iterations
-    integer  :: iIter              !* Nr. of performed steps
-    real(dp), allocatable :: x0(:)     !* Starting point
-    real(dp), allocatable :: d0(:)     !* Direction of the line
-    real(dp) :: xx(2)              !* Coordinate of left and right brackets
-    real(dp) :: dx(2)              !* Derivatives in the left and right brackets
-    real(dp) :: xCur               !* Current position along the line
-    real(dp) :: tolerance          !* Tolerance for the line derivative
-    real(dp) :: maxDisp            !* Maximal displacement in any coordinate
-    real(dp) :: maxX               !* Maximal displacement along the line
-    real(dp) :: firstStep          !* Step length of the first step
-    logical  :: tConverged         !* If converged
+    !> Number of vector elements
+    integer  :: nElem
+    !> If initialized
+    logical  :: tInitialized
+    !> State of the object
+    integer  :: state
+    !> Max. nr. of iterations
+    integer  :: mIter
+    !> Nr. of performed steps
+    integer  :: iIter
+    !> Starting point
+    real(dp), allocatable :: x0(:)
+    !> Direction of the line
+    real(dp), allocatable :: d0(:)
+    !> Coordinate of left and right brackets
+    real(dp) :: xx(2)
+    !> Derivatives in the left and right brackets
+    real(dp) :: dx(2)
+    !> Current position along the line
+    real(dp) :: xCur
+    !> Tolerance for the line derivative
+    real(dp) :: tolerance
+    !> Maximal displacement in any coordinate
+    real(dp) :: maxDisp
+    !> Maximal displacement along the line
+    real(dp) :: maxX
+    !> Step length of the first step
+    real(dp) :: firstStep
+    !> If converged
+    logical  :: tConverged
+
   end type OLineMin
 
 
-  !!* Creates a line minimizer
+  !> Creates a line minimizer
   interface init
     module procedure LineMin_init
   end interface
 
-  !!* Resets a line minimizer
+  !> Resets a line minimizer
   interface reset
     module procedure LineMin_reset
   end interface
 
-  !!* Gets the next point for the line minimization
+  !> Gets the next point for the line minimization
   interface next
     module procedure LineMin_next
   end interface
 
-  !!* Returns the coordinate of the minimum
+  !> Returns the coordinate of the minimum
   interface getMinX
     module procedure LineMin_getMinX
   end interface
 
-  !!* Returns function value in the minimum
+  !> Returns function value in the minimum
   interface getMinY
     module procedure LineMin_getMinY
   end interface
 
-  !!* Returns gradient in the minimum
+  !> Returns gradient in the minimum
   interface getMinGrad
     module procedure LineMin_getMinGrad
   end interface
 
-  !!* Returns one dimensional coordinate of the minimum
+  !> Returns one dimensional coordinate of the minimum
   interface getMinLambda
     module procedure LineMin_getMinLambda
   end interface
@@ -106,23 +121,24 @@ module linemin
   public :: init, reset, next, getMinX, getMinY, getMinGrad
   public :: getMinLambda
 
+  !> Internal state of the line minimiser algorithm
   integer, parameter :: st_1 = 1, st_2 = 2, st_3 = 3
 
 
 contains
 
 
-  !!* Creates a new line minimizer
-  !!* @param self      Valid line minimizer instance on exit
-  !!* @param nElem     Nr. of elements in the coordinate/gradient vectors
-  !!* @param mIter     Nr. of maximal iterations to perform (>3)
-  !!* @param tolerance Convergence criteria for the projected derivative
-  !!* @param maxDisp   Maximal movement in one coordinate in one step
+  !> Creates a new line minimizer
   subroutine LineMin_init(self, nElem, mIter, tolerance, maxDisp)
+    !> Valid line minimizer instance on exit
     type(OLineMin), intent(out) :: self
+    !> Nr. of elements in the coordinate/gradient vectors
     integer,  intent(in) :: nElem
+    !> Nr. of maximal iterations to perform (>3)
     integer,  intent(in) :: mIter
+    !> Convergence criteria for the projected derivative
     real(dp), intent(in) :: tolerance
+    !> Maximal movement in one coordinate in one step
     real(dp), intent(in) :: maxDisp
 
     @:ASSERT(nElem > 0)
@@ -141,14 +157,15 @@ contains
 
 
 
-  !!* Resets the line minimizer
-  !!* @param self Line minimizer instance
-  !!* @param x0   New starting point
-  !!* @param d0   New direction
+  !> Resets the line minimizer
   subroutine LineMin_reset(self, x0, d0, firstStep)
+    !> Line minimizer instance
     type(OLineMin), intent(inout) :: self
+    !> New starting point
     real(dp), intent(in) :: x0(:)
+    !> New direction
     real(dp), intent(in) :: d0(:)
+    !> Length of the first step along the line.
     real(dp), intent(in) :: firstStep
 
     real(dp) :: tmp
@@ -173,23 +190,23 @@ contains
 
 
 
-  !!* Passes the function value and the derivative of the last point to
-  !!* line minimizer and gives a new coordinate back.
-  !!* @param self       Line minimizer instance
-  !!* @param fx         Function value for the last returned point
-  !!* @param dx         Gradient for the last returned point
-  !!* @param xNew       New point to calculate
-  !!* @param tConverged True, line minimization converged. The last passed
-  !!*   point is the one with the lowest projected derivative.
-  !!* @note Getting back tConverged = .true. can also mean, that the
-  !!*   line minimization did not converge in the maximal nr. of steps.
-  !!* @note When calling this subroutine the first time, function value and
-  !!*   gradient for the starting point of the minimization should be passed.
+  !> Passes the function value and the derivative of the last point to line minimizer and gives a
+  !> new coordinate back.
+  !> Getting back tConverged = .true. can also mean that the line minimization did not converge in
+  !> the maximal nr. of steps.
+  !> When calling this subroutine the first time, function value and gradient for the starting point
+  !> of the minimization should be passed.
   subroutine LineMin_next(self, fx, dx, xNew, tConverged)
+    !> Line minimizer instance
     type(OLineMin), intent(inout) :: self
+    !> Function value for the last returned point
     real(dp), intent(in)  :: fx
+    !> Gradient for the last returned point
     real(dp), intent(in)  :: dx(:)
+    !> New point to calculate
     real(dp), intent(out) :: xNew(:)
+    !> True, line minimization converged. The last passed point is the one with the lowest projected
+    !> derivative.
     logical,  intent(out) :: tConverged
 
     @:ASSERT(self%tInitialized)
@@ -209,37 +226,38 @@ contains
 
 
 
-  !!* Invisible working horse for LineMin_next.
-  !!* @param state       State of the minimizer
-  !!* @param mIter       Nr. of maximal iterations
-  !!* @param iIter       Nr. of iterations so far
-  !!* @param xCur        Coordinate of the current point
-  !!* @param x0          Starting point for the line minimization
-  !!* @param d0          Direction of the line minimization
-  !!* @param xx          Coordinates of the left and right brackets
-  !!* @param dx          Derivatives in the left and right brackets
-  !!* @param tConverged  If method converged
-  !!* @param tolerance   Tolerance criteria for the projected derivative
-  !!* @param maxX        Maximal movement along one component in one step
-  !!* @param firstStep   Length of the first step along the line.
-  !!* @param fu          Function value of the current point
-  !!* @param du          Gradient in the current point
-  !!* @param uu          Suggested coordinate of the next point on exit
+  !> Invisible workhorse for LineMin_next.
   subroutine next_local(state, mIter, iIter, xCur, x0, d0, xx, dx, &
       &tConverged, tolerance, maxX, firstStep, fu, du, uu)
+    !> State of the minimizer
     integer,  intent(inout) :: state
+    !> Nr. of maximal iterations
     integer,  intent(inout) :: mIter
+    !> Nr. of iterations so far
     integer,  intent(inout) :: iIter
+    !> Coordinate of the current point
     real(dp), intent(inout) :: xCur
+    !> Starting point for the line minimization
     real(dp), intent(inout) :: x0(:)
+    !> Direction of the line minimization
     real(dp), intent(inout) :: d0(:)
-    real(dp), intent(inout) :: xx(:), dx(:)
+    !> Coordinates of the left and right brackets
+    real(dp), intent(inout) :: xx(:)
+    !> Derivatives in the left and right brackets
+    real(dp), intent(inout) :: dx(:)
+    !> If method converged
     logical,  intent(inout) :: tConverged
+    !> Tolerance criteria for the projected derivative
     real(dp), intent(in)    :: tolerance
+    !> Maximal movement along one component in one step
     real(dp), intent(in)    :: maxX
+    !> Length of the first step along the line.
     real(dp), intent(in)    :: firstStep
+    !> Function value of the current point
     real(dp), intent(in)    :: fu
+    !> Gradient in the current point
     real(dp), intent(in)    :: du(:)
+    !> Suggested coordinate of the next point on exit
     real(dp), intent(out)   :: uu(:)
 
     real(dp) :: dCur, xNew
@@ -368,13 +386,13 @@ contains
 
 
 
-  !!* Gives the coordinate of the minimal point back
-  !!* @param self Line minimizer
-  !!* @param minX Coordinate of the minimal point
-  !!* @note The passed back value is meaningless if the subroutine is called
-  !!*   before the line minimizer signalizes convergence.
+  !> Gives the coordinate of the minimal point back
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
   subroutine LineMin_getMinX(self, minX)
+    !> Line minimizer
     type(OLineMin), intent(in) :: self
+    !> Coordinate of the minimal point
     real(dp), intent(out) :: minX(:)
 
     minX(:) = self%x0(:)
@@ -383,13 +401,13 @@ contains
 
 
 
-  !!* Gives the function value in the minimal point back
-  !!* @param self Line minimizer
-  !!* @param minY Function value in the minimal point
-  !!* @note The passed back value is meaningless if the subroutine is called
-  !!*   before the line minimizer signalizes convergence.
+  !> Returns the function at the minimal point
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
   subroutine LineMin_getMinY(self, minY)
+    !> Line minimizer
     type(OLineMin), intent(in) :: self
+    !> Function value in the minimal point
     real(dp), intent(out) :: minY
 
     minY = self%xx(1)
@@ -398,13 +416,13 @@ contains
 
 
 
-  !!* Gives the gradient in the minimal point back
-  !!* @param self    Line minimizer
-  !!* @param minGrad Gradient in the minimal point
-  !!* @note The passed back value is meaningless if the subroutine is called
-  !!*   before the line minimizer signalizes convergence.
+  !> Gives the gradient in the minimal point back
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
   subroutine LineMin_getMinGrad(self, minGrad)
+    !> Line minimizer
     type(OLineMin), intent(in) :: self
+    !> Gradient in the minimal point
     real(dp), intent(out) :: minGrad(:)
 
     minGrad(:) = self%d0(:)
@@ -412,13 +430,13 @@ contains
   end subroutine LineMin_getMinGrad
 
 
-  !!* Returns the displacement to the minimum along the line
-  !!* @param self      Line minimizer
-  !!* @param minLambda Displacement along the line to the minimum
-  !!* @note The passed back value is meaningless if the subroutine is called
-  !!*   before the line minimizer signalizes convergence.
+  !> Returns the displacement to the minimum along the line
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
   subroutine LineMin_getMinLambda(self, minLambda)
+    !> Line minimizer
     type(OLineMin), intent(in) :: self
+    !> Displacement along the line to the minimum
     real(dp), intent(out) :: minLambda
 
     minLambda = self%xx(2)

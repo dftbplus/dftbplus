@@ -7,8 +7,8 @@
 
 #:include 'common.fypp'
 
-!> Interfaces for the ARPACK routines needed in DFTB+ (currently for
-!> the linear response excited state calculations).
+!> Interfaces for the ARPACK routines needed in DFTB+ (currently for the linear response excited
+!> state calculations).
 module arpack
   use accuracy, only : rsp, rdp
   implicit none
@@ -21,7 +21,7 @@ module arpack
 
   public :: saupd, seupd
 
-  ! Whether code was built with Arpack support
+  !> Whether code was built with Arpack support
   logical, parameter :: withArpack = .true.
 
   !> Wrapper around ARPACK routines ssaupd/dsaupd.
@@ -130,7 +130,7 @@ module arpack
 
 #:else
 
-  ! Whether code was built with Arpack support
+  !> Whether code was built with ARPACK support
   logical, parameter :: withArpack = .false.
 
 #:endif

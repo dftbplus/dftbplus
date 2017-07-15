@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Angular momentum related routines
+!> Angular momentum related routines
 module angmomentum
   use assert
   use accuracy, only : dp
@@ -19,8 +19,8 @@ module angmomentum
   private
   public :: Loperators, getL
 
-  ! construct Lz and L+ in the tesseral spherical hamonics basis for a given
-  ! value of l
+  ! construct \(L_z\) and \(L^+\) in the tesseral spherical hamonics basis for a given value of
+  ! \(l\)
   interface Loperators
     module procedure operators
   end interface
@@ -33,14 +33,13 @@ module angmomentum
 
 contains
 
-  !!* Returns L+ and Lz in the tesseral spherical Harmonics basis
-  !!* used in DFTB+
-  !!* @param Lplus L+ operator
-  !!* @param Lz Lz operator
-  !!* @param l value of the orbital momentum to construct these matrices
+  !> Returns \(L^+\) and \(L_z\) in the tesseral spherical Harmonics basis used in DFTB+
   subroutine operators(Lplus,Lz,l)
+    !> \(L^+\) operator
     complex(dp),intent(out) :: Lplus(0:,0:)
+    !> \(L_z\) operator
     complex(dp),intent(out) :: Lz(0:,0:)
+    !> value of the orbital momentum to construct these matrices
     integer, intent(in)     :: l
 
     integer :: m ! magnetic quantum number
@@ -52,13 +51,13 @@ contains
     @:ASSERT(size(Lplus,dim=1)==2*l+1)
     @:ASSERT(size(Lplus,dim=2)==2*l+1)
 
-    ! Lz in usual spherical harmonic basis
+    ! \(L_z\) in usual spherical harmonic basis
     Lz = 0.0_dp
     do m = -l, l
       Lz(l+m,l+m) = real(m,dp)
     end do
 
-    ! L+ in usual spherical harmonic basis
+    ! \(L^+\) in usual spherical harmonic basis
     Lplus = 0.0_dp
     do m = -l, l-1
       Lplus(l+m+1,l+m) = sqrt(real(l*(l+1)-m*(m+1),dp))
@@ -66,7 +65,7 @@ contains
 
     allocate(u(0:2*l,0:2*l))
 
-    ! unitary transformation from $Y_{lm}$ to $\overline{Y}_{lm}$
+    ! unitary transformation from \(Y_{lm}\) to \(\overline{Y}_{lm}\)
     u(:,:) = 0.0_dp
     do m = 1, l
       u(l+m,l+m) = sqrt(0.5_dp) * real(mod(m+1,2)-mod(m,2),dp)
@@ -81,16 +80,17 @@ contains
 
   end subroutine operators
 
-  !!* Calculates the on-site orbital angular momentum
-  !!* @param Lshell resulting orbital angular momentum
-  !!* @param iAtomStart Offset array in the square matrix.
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param species Species of the atoms
+  !> Calculates the on-site orbital angular momentum
   subroutine onsite(Lshell, rho, iAtomStart, orb, species)
+    !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out)       :: Lshell(:,:,:)
+    !> Density matrix
     complex(dp), intent(in)     :: rho(:,:)
+    !> Offset array in the square matrix
     integer,  intent(in)        :: iAtomStart(:)
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+    !> Species of the atoms
     integer, intent(in)         :: species(:)
 
     integer :: nAtom, nSpecies, nOrb, iSp
@@ -165,16 +165,15 @@ contains
 
   end subroutine onsite
 
-  !!* Calculates the on-site orbital angular momentum for dual populations
-  !!* @param Lshell resulting orbital angular momentum
-  !!* @param qBlockSkew Antisymmetric Mulliken block populations for imaginary
-  !!* coefficients of Pauli matrics
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param species Species of the atoms
+  !> Calculates the on-site orbital angular momentum for dual populations
   subroutine dual(Lshell, qBlockSkew, orb, species)
+    !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out)       :: Lshell(:,:,:)
+    !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
     real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+    !> Species of the atoms
     integer, intent(in)         :: species(:)
 
     integer :: nAtom, nSpecies, iSp

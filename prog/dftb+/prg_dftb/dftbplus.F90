@@ -58,7 +58,8 @@ program dftbplus
   !> Release year string
   integer, parameter :: RELEASE_YEAR = 2017
 
-  type(inputData), allocatable  :: input             ! Contains the parsed input
+  !> Contains the parsed input2
+  type(inputData), allocatable  :: input
 
   integer                  :: nk, iEgy, nSpin2, nK2, iSpin2, iK2
   complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
@@ -70,32 +71,49 @@ program dftbplus
   real(dp), allocatable    :: h0(:)
 
   ! variables for derivatives using the Hellmann-Feynman theorem:
-  real(dp), allocatable    :: hprime(:,:) ! for derivatives of H wrt external
-  real(dp), allocatable    :: potentialDerivative(:,:) ! for derivatives of V
-  real(dp), allocatable    :: dipoleTmp(:,:) ! temporary dipole data
+  !> for derivatives of H wrt external perturbation
+  real(dp), allocatable    :: hprime(:,:)
+  !> for derivatives of V
+  real(dp), allocatable    :: potentialDerivative(:,:)
+  !> temporary dipole data
+  real(dp), allocatable    :: dipoleTmp(:,:) 
 
+  !> electronic filling
   real(dp), allocatable    :: filling(:,:,:)
-  real(dp), allocatable :: Eband(:), TS(:), E0(:), Eold
+  !> band structure energy
+  real(dp), allocatable :: Eband(:)
+  !> entropy of electrons at temperature T
+  real(dp), allocatable :: TS(:)
+  !> zero temperature electronic energy
+  real(dp), allocatable :: E0(:)
+  !> energy in previous scc cycles
+  real(dp), allocatable :: Eold
 
+  !> Total energy components
   type(TEnergies), allocatable :: energy
+  !> Potentials for orbitals
   type(TPotentials), allocatable :: potential
 
   real(dp), allocatable    :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
   real(dp), allocatable    :: chrgForces(:,:)
-  real(dp), allocatable    :: excitedDerivs(:,:) ! excited state force addition
+  !> excited state force addition
+  real(dp), allocatable    :: excitedDerivs(:,:)
 
-  ! Stress tensors for various contribution in periodic calculations
+  !> Stress tensors for various contribution in periodic calculations
   real(dp) :: elecStress(3,3), repulsiveStress(3,3), kineticStress(3,3)
   real(dp) :: dispStress(3,3), totalStress(3,3)
 
-  ! Derivatives of lattice vectors in periodic calculations
+  !> Derivatives of lattice vectors in periodic calculations
   real(dp) :: elecLatDeriv(3,3), repulsiveLatDeriv(3,3)
   real(dp) :: dispLatDeriv(3,3), totalLatDeriv(3,3)
-  ! derivative of cell volume wrt to lattice vectors, needed for pV term
+  !> derivative of cell volume wrt to lattice vectors, needed for pV term
   real(dp) :: derivCellVol(3,3)
 
+  !> dipole moments when available
   real(dp) :: dipoleMoment(3)
-  real(dp) :: angularMomentum(3) ! hold total angular momentum vector
+
+  !> hold total angular momentum vector
+  real(dp) :: angularMomentum(3) 
 
   integer                  :: ii, jj, kk
 
@@ -108,8 +126,10 @@ program dftbplus
   character(len=*), parameter :: formatEigen = '(8f14.8)'
   character(len=*), parameter :: formatHessian = '(4f16.10)'
   character(len=*), parameter :: formatGeoOut = "(I5,F16.8,F16.8,F16.8)"
-  ! formats for data with 1 or two units, and exponential notation form:
+  
+  !> formats for data with 1 or two units, and exponential notation form:
   character(len=*), parameter :: format1U = "(' ',A,':',T32,F18.10,T51,A)"
+  
   character(len=*), parameter :: format2U = &
       &"(' ',A,':',T32,F18.10,T51,A,T54,F16.4,T71,A)"
   character(len=*), parameter :: format1Ue = "(' ',A,':',T37,E13.6,T51,A)"
@@ -131,6 +151,7 @@ program dftbplus
   !> do we take an optimization step on the lattice or the internal coordinates if optimizing both
   !> in a periodic geometry
   logical :: tCoordStep
+  !> inverse of the lattice vector matrix
   real(dp) :: invLatVec(3,3)
   !> Folded coords (3, nAtom)
   real(dp), allocatable, target :: coord0Fold(:,:)

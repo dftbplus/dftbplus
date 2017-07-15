@@ -6,8 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Interface wrapper for the blas routines.
-!!
-!! All BLAS routines must be included here, which are called from the main code.
+!> All BLAS routines which are called from the main code must be included here.
 module blas
   use accuracy, only : rsp, rdp
   public

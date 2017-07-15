@@ -7,23 +7,17 @@
 
 #:include 'common.fypp'
 
-!!* Contains F90 wrapper functions for some commonly used blas calls needed
-!!* in the code. The interface of all BLAS calls must be defined in the module
-!!* blas.
+!> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
+!> interface of all BLAS calls must be defined in the module blas.
 module blasroutines
   use assert
   use accuracy
   use blas
   implicit none
 
-  !!* Rank 1 update of a matrix A := alpha*x*x' + A     !'
-  !!* @param a contains the matrix for the update
-  !!* @param alpha scaling value for the update contribution
-  !!* @param x vector of values for the update
-  !!* @param uplo optional upper, 'U', or lower 'L' triangle, defaults to lower
-  !!* @desc
-  !!*  Wrapper for the level 2 blas routine xsyr to perform the rank 1
-  !!*  update of the chosen triangle of $A = \alpha x \times x^{\prime *} + A$
+  !> Rank 1 update of a matrix A := alpha*x*x' + A
+  !> Wrapper for the level 2 blas routine xsyr to perform the rank 1 update of the chosen triangle
+  !> of $A = \alpha x \times x^{\prime *} + A$
   interface her
     module procedure her_real
     module procedure her_cmplx
@@ -31,14 +25,9 @@ module blasroutines
     module procedure her_dblecmplx
   end interface her
 
-  !!* Rank 1 update of a matrix A := alpha*x*y' + A     !'
-  !!* @param a contains the matrix for the update
-  !!* @param alpha scaling value for the update contribution
-  !!* @param x vector of values for the update
-  !!* @param y vector of values for the update
-  !!* @desc
-  !!*  Wrapper for the level 2 blas routine xger to perform the rank 1
-  !!*  update of the chosen triangle of $A = \alpha x \times y^{\prime *} + A$
+  !> Rank 1 update of a matrix A := alpha*x*y' + A
+  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of the chosen triangle
+  !> of $A = \alpha x \times y^{\prime *} + A$
   interface ger
     module procedure ger_real
     module procedure ger_cmplx
@@ -46,35 +35,8 @@ module blasroutines
     module procedure ger_dblecmplx
   end interface ger
 
-  !!* Rank k update of a matrix C := alpha*A*A' + beta C     !'
-  !!* @param C contains the matrix to be updated
-  !!* @param A contains the matrix to update
-  !!* @param alpha scaling value for the update contribution, defaults to 1
-  !!* @param beta scaling value for the original C, defaults to 0
-  !!* @param uplo optional upper, 'U', or lower 'L' triangle, defaults to lower
-  !!* @param trans optional transpose (defaults to 'n'), allowed choices are
-  !!* 'n', 'N', 't', 'T' (and 'C' or 'c' for the real cases)
-  !!* @param n order of the matrix C
-  !!* @param k internal order of A summation
-  !!* @desc Wrapper for the level 3 blas routine syrk to perform the rank k
-  !!* update of the chosen triangle ofC
-  interface herk
-    module procedure herk_real
-    module procedure herk_cmplx
-    module procedure herk_dble
-    module procedure herk_dblecmplx
-  end interface
-
-  !!* Symmetric matrix vector multiply
-  !!* y := alpha*A*x + beta*y
-  !!* @param y vector
-  !!* @param a symmetric matrix
-  !!* @param x vector
-  !!* @param uplo optional upper, 'U', or lower 'L' triangle
-  !!* (defaults to lower)
-  !!* @param alpha optional scaling factor (defaults to 1)
-  !!* @param beta optional scaling factor (defaults to 0)
-  !!* @desc Wrapper for the level 2 blas routine
+  !> Symmetric matrix vector multiply y := alpha*A*x + beta*y
+  !> Wrapper for the level 2 blas routine
   interface hemv
     module procedure symv_real
     module procedure symv_dble
@@ -82,92 +44,32 @@ module blasroutines
     module procedure hemv_dblecmplx
   end interface
 
-  !!* General matrix vector multiply
-  !!* y := alpha*a*x + beta*y
-  !!* @param y vector
-  !!* @param a matrix
-  !!* @param x vector
-  !!* @param alpha optional scaling factor (defaults to 1)
-  !!* @param beta optional scaling factor (defaults to 0)
-  !!* @param trans optional transpose (defaults to 'n'), allowed choices are
-  !!* 'n', 'N', 't', 'T', 'c' and 'C'
-  !!* @desc Wrapper for the level 2 blas routine
+  !> General matrix vector multiply y := alpha*a*x + beta*y
+  !> Wrapper for the level 2 blas routine
   interface gemv
     module procedure gemv_real
     module procedure gemv_dble
   end interface
 
-  !!* Banded symmetric matrix vector multiply
-  !!* y := alpha*A*x + beta*y
-  !!* @param y vector
-  !!* @param ba banded symmetric matrix
-  !!* @param x vector
-  !!* @param uplo optional upper, 'U', or lower 'L' triangle
-  !!* (defaults to lower)
-  !!* @param alpha optional scaling factor (defaults to 1)
-  !!* @param beta optional scaling factor (defaults to 0)
-  !!* @desc Wrapper for the level 2 blas routine
+  !> Banded symmetric matrix vector multiply y := alpha*A*x + beta*y
+  !> Wrapper for the level 2 blas routine
   interface sbmv
     module procedure sbmv_real
     module procedure sbmv_dble
   end interface
 
 
-  !!* Interface to SYMM routines
-  !!* @param C general matrix output
-  !!* @param side symmetric matrix on 'l'eft or 'r'ight , where A is symmetric
-  !!*  and B is general
-  !!*  SIDE = 'L' or 'l'   C := alpha*A*B + beta*C,
-  !!*  SIDE = 'R' or 'r'   C := alpha*B*A + beta*C
-  !!* @param A symmetric matrix, size
-  !!* @param B general matrix
-  !!* @param uplo A is an 'U'pper or 'L'ower triangle matrix, defaults to lower
-  !!* @param alpha defaults to 1 if not set
-  !!* @param beta defaults to 0 if not set
-  !!* @param m specifies the number of rows of the matrix C
-  !!* @param n specifies the number of columns of the matrix C
-  !!* @desc Wrapper for the level 3 blas routine
+  !> Interface to SYMM routines
+  !> Wrapper for the level 3 blas routine
   interface symm
      module procedure symm_real
      module procedure symm_dble
   end interface symm
 
-  !!* Interface to HEMM routines
-  !!* @param C general matrix output
-  !!* @param side symmetric matrix on 'l'eft or 'r'ight , where A is symmetric
-  !!*  and B is general
-  !!*  SIDE = 'L' or 'l'   C := alpha*A*B + beta*C,
-  !!*  SIDE = 'R' or 'r'   C := alpha*B*A + beta*C
-  !!* @param A hermitian matrix
-  !!* @param B general matrix
-  !!* @param uplo A is an 'U'pper or 'L'ower triangle matrix, defaults to lower
-  !!* @param alpha defaults to 1 if not set
-  !!* @param beta defaults to 0 if not set
-  !!* @param m specifies the number of rows of the matrix C
-  !!* @param n specifies the number of columns of the matrix C
-  !!* @desc Wrapper for the level 3 blas routine
-  interface hemm
-     module procedure hemm_cmplx
-     module procedure hemm_dblecmplx
-  end interface
 
-  !!* Interface to GEMM routines
-  !!* evaluates C := alpha*op( A )*op( B ) + beta*C,
-  !!* where  op( X ) is one of op( X ) = X   or   op( X ) = X'
-  !!* @param C general matrix output
-  !!* @param A symmetric matrix
-  !!* @param B general matrix
-  !!* @param alpha defaults to 1 if not set
-  !!* @param beta defaults to 0 if not set
-  !!* @param transA optional transpose of A matrix (defaults to 'n'),
-  !!* allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
-  !!* @param transB optional transpose of B matrix (defaults to 'n'),
-  !!* allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
-  !!* @param n specifies the number of columns of the matrix C
-  !!* @param m specifies the number of rows of the matrix C
-  !!* @param k specifies the internal number of elements in
-  !!* Op(A)_ik Op(B)_kj
-  !!* @desc Wrapper for the level 3 blas routine
+  !> Interface to GEMM routines evaluates C := alpha*op( A )*op( B ) + beta*C, where op( X ) is one
+  !> of op( X ) = X or op( X ) = X'
+  !> Wrapper for the level 3 blas routine
   interface gemm
      module procedure gemm_real
      module procedure gemm_dble
@@ -175,13 +77,35 @@ module blasroutines
      module procedure gemm_dblecmplx
   end interface
 
+  !> Rank k update of a matrix C := alpha*A*A' + beta C
+  !> Wrapper for the level 3 blas routine syrk to perform the rank k update of the chosen triangle
+  !> ofC
+  interface herk
+    module procedure herk_real
+    module procedure herk_cmplx
+    module procedure herk_dble
+    module procedure herk_dblecmplx
+  end interface
+
+  !> Interface to HEMM routines
+  !> Wrapper for the level 3 blas routine
+  interface hemm
+     module procedure hemm_cmplx
+     module procedure hemm_dblecmplx
+  end interface
+
+
 contains
 
-  !!* Real rank 1 update of a symmetric matrix
+  !> Real rank 1 update of a symmetric matrix
   subroutine her_real(a,alpha,x,uplo)
+    !> contains the matrix for the update
     real(rsp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     real(rsp), intent(in)  :: alpha
+    !> vector of values for the update
     real(rsp), intent(in)  :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional :: uplo
 
     integer   :: n
@@ -199,11 +123,15 @@ contains
     call ssyr(iuplo,n,alpha,x,1,a,n)
   end subroutine her_real
 
-  !!* Complex rank 1 update of a symmetric matrix
+  !> Complex rank 1 update of a symmetric matrix
   subroutine her_cmplx(a,alpha,x,uplo)
+    !> contains the matrix for the update
     complex(rsp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     real(rsp), intent(in)  :: alpha
+    !> vector of values for the update
     complex(rsp), intent(in)  :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in),optional :: uplo
 
     integer :: n
@@ -221,11 +149,15 @@ contains
     call cher(iuplo,n,alpha,x,1,a,n)
   end subroutine her_cmplx
 
-  !!* Double precision rank 1 update of a symmetric matrix
+  !> Double precision rank 1 update of a symmetric matrix
   subroutine her_dble(a,alpha,x,uplo)
+    !> contains the matrix for the update
     real(rdp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     real(rdp), intent(in)  :: alpha
+    !> vector of values for the update
     real(rdp), intent(in)  :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional :: uplo
 
     character :: iuplo
@@ -242,11 +174,15 @@ contains
     call dsyr(iuplo,n,alpha,x,1,a,n)
   end subroutine her_dble
 
-  !!* Double complex rank 1 update of a symmetric matrix
+  !> Double complex rank 1 update of a symmetric matrix
   subroutine her_dblecmplx(a,alpha,x,uplo)
+    !> contains the matrix for the update
     complex(rdp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     real(rdp), intent(in)  :: alpha
+    !> vector of values for the update
     complex(rdp), intent(in)  :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in),optional :: uplo
 
     integer :: n
@@ -263,11 +199,15 @@ contains
     call zher(iuplo,n,alpha,x,1,a,n)
   end subroutine her_dblecmplx
 
-  !!* Real rank 1 update of a general matrix
+  !> Real rank 1 update of a general matrix
   subroutine ger_real(a,alpha,x,y)
+    !> contains the matrix for the update
     real(rsp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     real(rsp), intent(in)    :: alpha
+    !> vector of values for the update
     real(rsp), intent(in)    :: x(:)
+    !> vector of values for the update
     real(rsp), intent(in)    :: y(:)
 
     integer   :: n, m
@@ -278,11 +218,15 @@ contains
     call sger(m,n,alpha,x,1,y,1,a,m)
   end subroutine ger_real
 
-  !!* complex rank 1 update of a general matrix
+  !> complex rank 1 update of a general matrix
   subroutine ger_cmplx(a,alpha,x,y)
-    complex(rsp), intent(inout) :: a(:,:)
-    complex(rsp), intent(in)    :: alpha
-    complex(rsp), intent(in)    :: x(:)
+      !> contains the matrix for the update
+                                                      complex(rsp), intent(inout) :: a(:,:)
+      !> scaling value for the update contribution
+                                                      complex(rsp), intent(in)    :: alpha
+      !> vector of values for the update
+                                                      complex(rsp), intent(in)    :: x(:)
+      !> vector of values for the update
     complex(rsp), intent(in)    :: y(:)
 
     integer   :: n, m
@@ -293,11 +237,15 @@ contains
     call cgerc(m,n,alpha,x,1,y,1,a,m)
   end subroutine ger_cmplx
 
-  !!* Double precision rank 1 update of a general matrix
+  !> Double precision rank 1 update of a general matrix
   subroutine ger_dble(a,alpha,x,y)
+    !> contains the matrix for the update
     real(rdp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     real(rdp), intent(in)    :: alpha
+    !> vector of values for the update
     real(rdp), intent(in)    :: x(:)
+    !> vector of values for the update
     real(rdp), intent(in)    :: y(:)
 
     integer   :: n, m
@@ -308,11 +256,15 @@ contains
     call dger(m,n,alpha,x,1,y,1,a,m)
   end subroutine ger_dble
 
-  !!* complex rank 1 update of a general matrix
+  !> complex rank 1 update of a general matrix
   subroutine ger_dblecmplx(a,alpha,x,y)
+    !> contains the matrix for the update
     complex(rdp), intent(inout) :: a(:,:)
+    !> scaling value for the update contribution
     complex(rdp), intent(in)    :: alpha
+    !> vector of values for the update
     complex(rdp), intent(in)    :: x(:)
+    !> vector of values for the update
     complex(rdp), intent(in)    :: y(:)
 
     integer   :: n, m
@@ -323,13 +275,19 @@ contains
     call zgerc(m,n,alpha,x,1,y,1,a,m)
   end subroutine ger_dblecmplx
 
-  !!* real symmetric matrix*vector product
+  !> real symmetric matrix*vector product
   subroutine symv_real(y,a,x,uplo,alpha,beta)
+    !> vector
     real(rsp), intent(inout)           :: y(:)
+    !> symmetric matrix
     real(rsp), intent(in)              :: a(:,:)
+    !> vector
     real(rsp), intent(in)              :: x(:)
-    character, intent(in), optional          :: uplo
+    !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
+    character, intent(in), optional    :: uplo
+    !> optional scaling factor (defaults to 1)
     real(rsp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     real(rsp), intent(in), optional    :: beta
 
     integer   :: n
@@ -361,13 +319,19 @@ contains
 
   end subroutine symv_real
 
-  !!* real symmetric matrix*vector product
+  !> real symmetric matrix*vector product
   subroutine symv_dble(y,a,x,uplo,alpha,beta)
+    !> vector
     real(rdp), intent(inout)           :: y(:)
+    !> symmetric matrix
     real(rdp), intent(in)              :: a(:,:)
+    !> vector
     real(rdp), intent(in)              :: x(:)
-    character, intent(in), optional          :: uplo
+    !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
+    character, intent(in), optional    :: uplo
+    !> optional scaling factor (defaults to 1)
     real(rdp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     real(rdp), intent(in), optional    :: beta
 
     integer   :: n
@@ -399,13 +363,19 @@ contains
 
   end subroutine symv_dble
 
-  !!* complex hermitian matrix*vector product
+  !> complex hermitian matrix*vector product
   subroutine hemv_cmplx(y,a,x,uplo,alpha,beta)
+    !> vector
     complex(rsp), intent(inout)           :: y(:)
+    !> symmetric matrix
     complex(rsp), intent(in)              :: a(:,:)
+    !> vector
     complex(rsp), intent(in)              :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
     character, intent(in), optional       :: uplo
+    !> optional scaling factor (defaults to 1)
     complex(rsp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     complex(rsp), intent(in), optional    :: beta
 
     integer      :: n
@@ -437,13 +407,19 @@ contains
 
   end subroutine hemv_cmplx
 
-  !!* double complex hermitian matrix*vector product
+  !> double complex hermitian matrix*vector product
   subroutine hemv_dblecmplx(y,a,x,uplo,alpha,beta)
+    !> vector
     complex(rdp), intent(inout)           :: y(:)
+    !> symmetric matrix
     complex(rdp), intent(in)              :: a(:,:)
+    !> vector
     complex(rdp), intent(in)              :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
     character, intent(in), optional     :: uplo
+    !> optional scaling factor (defaults to 1)
     complex(rdp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     complex(rdp), intent(in), optional    :: beta
 
     integer   :: n
@@ -475,14 +451,20 @@ contains
 
   end subroutine hemv_dblecmplx
 
-  !!* real matrix*vector product
+  !> real matrix*vector product
   subroutine gemv_real(y,a,x,alpha,beta,trans)
+    !> vector
     real(rsp), intent(inout)           :: y(:)
+    !> matrix
     real(rsp), intent(in)              :: a(:,:)
+    !> vector
     real(rsp), intent(in)              :: x(:)
+    !> optional scaling factor (defaults to 1)
     real(rsp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     real(rsp), intent(in), optional    :: beta
-    character, intent(in), optional            :: trans
+    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
+    character, intent(in), optional    :: trans
 
     integer           :: n, m
     character         :: iTrans
@@ -515,14 +497,20 @@ contains
 
   end subroutine gemv_real
 
-  !!* double precision matrix*vector product
+  !> double precision matrix*vector product
   subroutine gemv_dble(y,a,x,alpha,beta,trans)
+    !> vector
     real(rdp), intent(inout)           :: y(:)
+    !> matrix
     real(rdp), intent(in)              :: a(:,:)
+    !> vector
     real(rdp), intent(in)              :: x(:)
+    !> optional scaling factor (defaults to 1)
     real(rdp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     real(rdp), intent(in), optional    :: beta
-    character, intent(in), optional            :: trans
+    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
+    character, intent(in), optional    :: trans
 
     integer           :: n, m
     character         :: iTrans
@@ -555,13 +543,19 @@ contains
 
   end subroutine gemv_dble
 
-  !!* real symmetric banded matrix*vector product
+  !> real symmetric banded matrix*vector product
   subroutine sbmv_real(y,ba,x,uplo,alpha,beta)
+    !> vector
     real(rsp), intent(inout)           :: y(:)
+    !> banded symmetric matrix
     real(rsp), intent(in)              :: ba(:,:)
+    !> vector
     real(rsp), intent(in)              :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
     character, intent(in), optional    :: uplo
+    !> optional scaling factor (defaults to 1)
     real(rsp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     real(rsp), intent(in), optional    :: beta
 
     integer   :: n
@@ -595,13 +589,19 @@ contains
     call ssbmv( iUplo, n, k, iAlpha, ba, k+1, x, 1, iBeta, y, 1 )
   end subroutine sbmv_real
 
-  !!* double precision symmetric banded matrix*vector product
+  !> double precision symmetric banded matrix*vector product
   subroutine sbmv_dble(y,ba,x,uplo,alpha,beta)
+    !> vector
     real(rdp), intent(inout)           :: y(:)
+    !> banded symmetric matrix
     real(rdp), intent(in)              :: ba(:,:)
+    !> vector
     real(rdp), intent(in)              :: x(:)
+    !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
     character, intent(in), optional    :: uplo
+    !> optional scaling factor (defaults to 1)
     real(rdp), intent(in), optional    :: alpha
+    !> optional scaling factor (defaults to 0)
     real(rdp), intent(in), optional    :: beta
 
     integer   :: n
@@ -635,16 +635,26 @@ contains
     call dsbmv( iUplo, n, k, iAlpha, ba, k+1, x, 1, iBeta, y, 1 )
   end subroutine sbmv_dble
 
-  !!* real precision symmetric matrix * general matrix multiply
+  !> real precision symmetric matrix * general matrix multiply
   subroutine symm_real(C,side,A,B,uplo,alpha,beta,m,n)
+    !> general matrix output
     real(rsp), intent(inout)           :: C(:,:)
+    !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and B is general SIDE = 'L' or
+    !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
     character, intent(in)              :: side
+    !> symmetric matrix, size
     real(rsp), intent(in)              :: A(:,:)
+    !> general matrix
     real(rsp), intent(in)              :: B(:,:)
+    !> is an 'U'pper or 'L'ower triangle matrix, defaults to lower
     character, intent(in), optional    :: uplo
+    !> defaults to 1 if not set
     real(rsp), intent(in), optional    :: alpha
+    !> defaults to 0 if not set
     real(rsp), intent(in), optional    :: beta
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional      :: m
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional      :: n
 
     integer   :: lda, ldb, ldc, ka, im, in
@@ -703,16 +713,26 @@ contains
 
   end subroutine symm_real
 
-  !!* double precision symmetric matrix * general matrix multiply
+  !> double precision symmetric matrix * general matrix multiply
   subroutine symm_dble(C,side,A,B,uplo,alpha,beta,m,n)
+    !> general matrix output
     real(rdp), intent(inout)           :: C(:,:)
+    !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and B is general SIDE = 'L' or
+    !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
     character, intent(in)              :: side
+    !> symmetric matrix, size
     real(rdp), intent(in)              :: A(:,:)
+    !> general matrix
     real(rdp), intent(in)              :: B(:,:)
+    !> is an 'U'pper or 'L'ower triangle matrix, defaults to lower
     character, intent(in), optional    :: uplo
+    !> defaults to 1 if not set
     real(rdp), intent(in), optional    :: alpha
+    !> defaults to 0 if not set
     real(rdp), intent(in), optional    :: beta
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional      :: m
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional      :: n
 
     integer   :: lda, ldb, ldc, ka, im, in
@@ -771,17 +791,29 @@ contains
 
   end subroutine symm_dble
 
-  !!* real matrix*matrix product
+  !> real matrix*matrix product
   subroutine gemm_real(C,A,B,alpha,beta,transA,transB,n,m,k)
+    !> general matrix output
     real(rsp), intent(inout)           :: C(:,:)
+    !> symmetric matrix
     real(rsp), intent(in)              :: A(:,:)
+    !> general matrix
     real(rsp), intent(in)              :: B(:,:)
+    !> defaults to 1 if not set
     real(rsp), intent(in), optional    :: alpha
+    !> defaults to 0 if not set
     real(rsp), intent(in), optional    :: beta
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transA
+    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transB
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional      :: n
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional      :: m
+    !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldb, ldc
@@ -862,17 +894,29 @@ contains
 
   end subroutine gemm_real
 
-  !!* Double precision matrix*matrix product
+  !> Double precision matrix*matrix product
   subroutine gemm_dble(C,A,B,alpha,beta,transA,transB,n,m,k)
+    !> general matrix output
     real(rdp), intent(inout)           :: C(:,:)
+    !> symmetric matrix
     real(rdp), intent(in)              :: A(:,:)
+    !> general matrix
     real(rdp), intent(in)              :: B(:,:)
+    !> defaults to 1 if not set
     real(rdp), intent(in), optional    :: alpha
+    !> defaults to 0 if not set
     real(rdp), intent(in), optional    :: beta
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transA
+    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transB
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional      :: n
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional      :: m
+    !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldb, ldc
@@ -954,17 +998,29 @@ contains
   end subroutine gemm_dble
 
 
-  !!* complex matrix*matrix product
+  !> complex matrix*matrix product
   subroutine gemm_cmplx(C,A,B,alpha,beta,transA,transB,n,m,k)
+    !> general matrix output
     complex(rsp), intent(inout)           :: C(:,:)
+    !> symmetric matrix
     complex(rsp), intent(in)              :: A(:,:)
+    !> general matrix
     complex(rsp), intent(in)              :: B(:,:)
+    !> defaults to 1 if not set
     complex(rsp), intent(in), optional    :: alpha
+    !> defaults to 0 if not set
     complex(rsp), intent(in), optional    :: beta
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transA
+    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transB
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional      :: n
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional      :: m
+    !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldb, ldc
@@ -1045,17 +1101,29 @@ contains
 
   end subroutine gemm_cmplx
 
-  !!* Double precision matrix*matrix product
+  !> Double precision matrix*matrix product
   subroutine gemm_dblecmplx(C,A,B,alpha,beta,transA,transB,n,m,k)
+    !> general matrix output
     complex(rdp), intent(inout)           :: C(:,:)
+    !> symmetric matrix
     complex(rdp), intent(in)              :: A(:,:)
+    !> general matrix
     complex(rdp), intent(in)              :: B(:,:)
+    !> defaults to 1 if not set
     complex(rdp), intent(in), optional    :: alpha
+    !> defaults to 0 if not set
     complex(rdp), intent(in), optional    :: beta
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transA
+    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
     character, intent(in), optional    :: transB
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional      :: n
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional      :: m
+    !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldb, ldc
@@ -1136,15 +1204,24 @@ contains
 
   end subroutine gemm_dblecmplx
 
-  !!* real rank-k update
+  !> real rank-k update
   subroutine herk_real(C,A,alpha,beta,uplo,trans,n,k)
+    !> contains the matrix to be updated
     real(rsp), intent(inout)           :: C(:,:)
+    !> contains the matrix to update
     real(rsp), intent(in)              :: A(:,:)
+    !> scaling value for the update contribution, defaults to 1
     real(rsp), intent(in), optional    :: alpha
+    !> scaling value for the original C, defaults to 0
     real(rsp), intent(in), optional    :: beta
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional    :: uplo
+    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
+    !> for the real cases)
     character, intent(in), optional    :: trans
+    !> order of the matrix C
     integer, intent(in), optional      :: n
+    !> internal order of A summation
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldc
@@ -1209,15 +1286,24 @@ contains
 
   end subroutine herk_real
 
-  !!* Double precision rank-k update
+  !> Double precision rank-k update
   subroutine herk_dble(C,A,alpha,beta,uplo,trans,n,k)
+    !> contains the matrix to be updated
     real(rdp), intent(inout)           :: C(:,:)
+    !> contains the matrix to update
     real(rdp), intent(in)              :: A(:,:)
+    !> scaling value for the update contribution, defaults to 1
     real(rdp), intent(in), optional    :: alpha
+    !> scaling value for the original C, defaults to 0
     real(rdp), intent(in), optional    :: beta
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional    :: uplo
+    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
+    !> for the real cases)
     character, intent(in), optional    :: trans
+    !> order of the matrix C
     integer, intent(in), optional      :: n
+    !> internal order of A summation
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldc
@@ -1282,15 +1368,24 @@ contains
 
   end subroutine herk_dble
 
-  !!* complex rank-k update
+  !> complex rank-k update
   subroutine herk_cmplx(C,A,alpha,beta,uplo,trans,n,k)
+    !> contains the matrix to be updated
     complex(rsp), intent(inout)           :: C(:,:)
+    !> contains the matrix to update
     complex(rsp), intent(in)              :: A(:,:)
+    !> scaling value for the update contribution, defaults to 1
     real(rsp), intent(in), optional    :: alpha
+    !> scaling value for the original C, defaults to 0
     real(rsp), intent(in), optional    :: beta
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional    :: uplo
+    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
+    !> for the real cases)
     character, intent(in), optional    :: trans
+    !> order of the matrix C
     integer, intent(in), optional      :: n
+    !> internal order of A summation
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldc
@@ -1352,15 +1447,24 @@ contains
 
   end subroutine herk_cmplx
 
-  !!* Double complex rank-k update
+  !> Double complex rank-k update
   subroutine herk_dblecmplx(C,A,alpha,beta,uplo,trans,n,k)
+    !> contains the matrix to be updated
     complex(rdp), intent(inout)           :: C(:,:)
+    !> contains the matrix to update
     complex(rdp), intent(in)              :: A(:,:)
+    !> scaling value for the update contribution, defaults to 1
     real(rdp), intent(in), optional    :: alpha
+    !> scaling value for the original C, defaults to 0
     real(rdp), intent(in), optional    :: beta
+    !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional    :: uplo
+    !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
+    !> for the real cases)
     character, intent(in), optional    :: trans
+    !> order of the matrix C
     integer, intent(in), optional      :: n
+    !> internal order of A summation
     integer, intent(in), optional      :: k
 
     integer   :: lda, ldc
@@ -1422,20 +1526,26 @@ contains
 
   end subroutine herk_dblecmplx
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! hemm
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !!* single precision hermitian matrix * general matrix multiply
+  !> single precision hermitian matrix * general matrix multiply
   subroutine hemm_cmplx(C, side, A, B, uplo, alpha, beta, m, n)
+    !> general matrix output
     complex(rsp), intent(inout) :: C(:,:)
+    !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and B is general SIDE = 'L' or
+    !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
     character, intent(in) :: side
+    !> hermitian matrix
     complex(rsp), intent(in) :: A(:,:)
+    !> general matrix
     complex(rsp), intent(in) :: B(:,:)
+    !> A is an 'U'pper or 'L'ower triangle matrix, defaults to lower
     character, intent(in), optional :: uplo
+    !> defaults to 1 if not set
     complex(rsp), intent(in), optional :: alpha
+    !> defaults to 0 if not set
     complex(rsp), intent(in), optional :: beta
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional :: m
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional :: n
 
     integer   :: lda, ldb, ldc, ka, im, in
@@ -1495,16 +1605,26 @@ contains
   end subroutine hemm_cmplx
 
 
-  !!* double precision hermitian matrix * general matrix multiply
+  !> double precision hermitian matrix * general matrix multiply
   subroutine hemm_dblecmplx(C, side, A, B, uplo, alpha, beta, m, n)
+    !> general matrix output
     complex(rdp), intent(inout) :: C(:,:)
+    !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and B is gen
+    !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
     character, intent(in) :: side
+    !> hermitian matrix
     complex(rdp), intent(in) :: A(:,:)
+    !> general matrix
     complex(rdp), intent(in) :: B(:,:)
+    !> A is an 'U'pper or 'L'ower triangle matrix, defaults to lower
     character, intent(in), optional :: uplo
+    !> defaults to 1 if not set
     complex(rdp), intent(in), optional :: alpha
+    !> defaults to 0 if not set
     complex(rdp), intent(in), optional :: beta
+    !> specifies the number of rows of the matrix C
     integer, intent(in), optional :: m
+    !> specifies the number of columns of the matrix C
     integer, intent(in), optional :: n
 
     integer   :: lda, ldb, ldc, ka, im, in

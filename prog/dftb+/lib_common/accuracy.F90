@@ -35,10 +35,10 @@ module accuracy
   !> Length of the tail after the SK table for the old extrapolation alg.
   real(dp), parameter :: distFudgeOld = 0.3_dp
 
-  !> Desired tolerance for number of total electrons when finding electron chemical potential
-  !> The Fermi level is searched to give the number of electrons as accurate as elecTol. If
-  !> bisection ends and difference between nr. of electrons calculated/theoretical is bigger than
-  !> elecTolMax, the program stops.
+  !> Desired tolerance for number of total electrons when finding electron chemical potential The
+  !> Fermi level is searched to give the number of electrons as accurate as elecTol. If bisection
+  !> ends and difference between nr. of electrons calculated/theoretical is bigger than elecTolMax,
+  !> the program stops.
   real(dp), parameter :: elecTol = 1.0e-15_dp
 
   !> Maximal allowed tolerance for number of total electrons when finding Ef
@@ -48,8 +48,8 @@ module accuracy
   !> Minimal temperature, temperatures below that are replaced by this value
   real(dp), parameter :: minTemp = 1.0e-8_dp
 
-  !> Tolerance for atomic distances. Atoms closer than that are regarded
-  !> to sit on the same positions. (Dummy atoms)
+  !> Tolerance for atomic distances. Atoms closer than that are regarded to sit on the same
+  !> positions. (Dummy atoms)
   real(dp), parameter :: tolSameDist = 1.0e-5_dp
 
   !> Tolerance for atomic square distances

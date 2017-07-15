@@ -6,22 +6,23 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Implementing the special functions erf(x), erfc(x) and exp(x*x) * erfc(x).
-!!
-!! \details The special functions erf(x), erfc(x) and exp(x * x) * erfc(x) are
-!! implemented using the appropriate routine in NETLIB/SPECFUNC. The routines
-!! had been converted to Fortran 2003. They can handle single and double
-!! precision calls.
-!!
-!! Compared to iforts built in erf routine, the max. deviation is 4e-16 for
-!! the double precision implementation.
+!>
+!> The special functions erf(x), erfc(x) and exp(x * x) * erfc(x) are
+!> implemented using the appropriate routine in NETLIB/SPECFUNC. The routines
+!> have been converted to Fortran 2003. They can handle single and double
+!> precision calls.
+!>
+!> Compared to iforts built in erf routine, the max. deviation is 4e-16 for
+!> the double precision implementation.
 module erfcalc
-  ! wp: working precision, sp: real single, dp: real double
+  !> wp: working precision, sp: real single, dp: real double
   use accuracy,  only : wp => dp, sp => rsp, dp => rdp
   implicit none
   private
 
   public :: erf, erfc, erfcx
 
+  !> Evaluate erf()
   interface erfcalc_calc
     module procedure erfcalc_calcsingle, erfcalc_calcdouble
   end interface
@@ -29,10 +30,10 @@ module erfcalc
 contains
 
   !> Calculates the value of the error function.
-  !! \param x  Function argument.
-  !! \return erf(x)
   function erf(x)
+    !> Function argument.
     real(wp), intent(in) :: x
+    !> erf(x)
     real(wp) :: erf
 
     call erfcalc_calc(x, erf, 0)
@@ -41,10 +42,10 @@ contains
 
 
   !> Calculates the value of the complementary error function.
-  !! \param x  Function argument.
-  !! \return erfc(x)
   function erfc(x)
+    !> Function argument.
     real(wp), intent(in) :: x
+    !> erfc(x)
     real(wp) :: erfc
 
     call erfcalc_calc(x, erfc, 1)
@@ -53,10 +54,10 @@ contains
 
 
   !> Calculates the value of the function exp(x**2) * erfc(x)
-  !! \param x  Function argument.
-  !! \return exp(x**2) * erfc(x)
   function erfcx(x)
+    !> Function argument.
     real(wp), intent(in) :: x
+    !> exp(x**2) * erfc(x)
     real(wp) :: erfcx
 
     call erfcalc_calc(x, erfcx, 2)
@@ -65,12 +66,12 @@ contains
 
 
   !> Calculates the appropriate function in double precision.
-  !! \param arg  Where to evaluate the function (x).
-  !! \param res  Result.
-  !! \param jint  Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
   subroutine erfcalc_calcdouble(arg, res, jint)
+    !> Where to evaluate the function (x).
     real(dp), intent(in) :: arg
+    !> Result.
     real(dp), intent(out) :: res
+    !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
     integer, intent(in) :: jint
 
     real(dp), parameter :: xinf = 1.79E308_dp
@@ -216,12 +217,12 @@ contains
 
 
   !> Calculates the appropriate function in single precision.
-  !! \param arg  Where to evaluate the function (x).
-  !! \param res  Result.
-  !! \param jint  Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
   subroutine erfcalc_calcsingle(arg, res, jint)
+    !> Where to evaluate the function (x).
     real(sp), intent(in) :: arg
+    !> Result.
     real(sp), intent(out) :: res
+    !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
     integer, intent(in) :: jint
 
     real(sp), parameter :: xinf = 3.40E+38_sp
@@ -340,9 +341,7 @@ contains
 
   contains
 
-    !------------------------------------------------------------------
-    !  fix up for negative argument, erf, etc.
-    !------------------------------------------------------------------
+    !>  fix up for negative argument, erf, etc.
     subroutine fixnegf_()
       if (jint == 0) then
         res = (half - res) + half
