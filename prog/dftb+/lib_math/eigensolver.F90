@@ -453,7 +453,7 @@ contains
 !   end bug fix
     allocate(work(LWKOPT))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call CHEGV(iitype, jobz, 'L', n, a, n, b, n, w, work, LWKOPT, rwork, info)
+    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, LWKOPT, rwork, info)
     if (info/=0) then
        if (info<0) then
 99220 format ('Failure in diagonalisation routine chegv,', &
@@ -528,7 +528,7 @@ contains
 !   end bug fix
     allocate(work(LWKOPT))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call ZHEGV(iitype, jobz, 'L', n, a, n, b, n, w, work, LWKOPT, rwork, info)
+    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, LWKOPT, rwork, info)
     if (info/=0) then
        if (info<0) then
 99250 format ('Failure in diagonalisation routine zhegv,', &
