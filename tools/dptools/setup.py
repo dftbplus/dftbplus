@@ -3,18 +3,20 @@ from distutils.core import setup
 
 setup(
     name="dptools",
-    version="0.1p3",
+    version="17.1",
     description="Tools to process DFTB+ related data",
-    author="B. Aradi, B. Hourahine, A. Pecchia",
-    url="http://www.dftb-plus.info",
+    author="DFTB+ developers",
+    url="http://www.dftbplus.org",
     platforms="platform independent",
-    package_dir={ "": "src" },
-    packages=[ "dptools", ],
+    package_dir={"": "src"},
+    packages=["dptools", "dptools.scripts"],
     scripts=[
         "bin/dp_bands",
         "bin/dp_dos",
-        "bin/gen2xyz",
         "bin/gen2cif",
+        "bin/gen2xyz",
+        "bin/makecube",
+        "bin/repeatgen",
         "bin/xyz2gen",
     ],
     classifiers=[
