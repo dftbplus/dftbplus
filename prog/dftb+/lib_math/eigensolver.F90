@@ -411,7 +411,8 @@ contains
     complex(rsp), allocatable :: work(:)
     real(rsp), allocatable :: rwork(:)
     integer n, info, iitype
-    integer ::  NB, LWKOPT
+    integer :: int_idealwork
+    complex(rsp) :: idealwork(1)
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -426,34 +427,14 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     allocate(rwork(3*n-2))
-!   Bugfix for fault in allocation query in zhegv. Should be removed if
-!   lapack gets fixed
-!
-!   In zhegv/chegv the reference lapack reads :
-!
-!         IF( INFO.NE.0 ) THEN
-!            CALL XERBLA( 'ZHEGV ', -INFO )
-!            RETURN
-!         END IF
-!
-!   But in dsygv/ssygv instead the test reads :
-!
-!         IF( INFO.NE.0 ) THEN
-!            CALL XERBLA( 'DSYGV ', -INFO )
-!            RETURN
-!         ELSE IF( LQUERY ) THEN
-!            RETURN
-!         END IF
-!
-!
-!   Hence the complex routines attempt to solve the eigenproblem even when
-!   called as a workspace query.
-    NB = ILAENV( 1, 'CHETRD', UPLO, N, -1, -1, -1 )
-    LWKOPT = ( NB+1 )*N
-!   end bug fix
-    allocate(work(LWKOPT))
+    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
+    if (info/=0) then
+       call error("Failue in CHEGV to determine optimum workspace")
+    endif
+    int_idealwork=floor(real(idealwork(1)))
+    allocate(work(int_idealwork))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, LWKOPT, rwork, info)
+    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
        if (info<0) then
 99220 format ('Failure in diagonalisation routine chegv,', &
@@ -486,7 +467,8 @@ contains
     complex(rdp), allocatable :: work(:)
     real(rdp), allocatable :: rwork(:)
     integer n, info, iitype
-    integer ::  NB, LWKOPT
+    integer :: int_idealwork
+    complex(rdp) :: idealwork(1)
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -501,34 +483,14 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     allocate(rwork(3*n-2))
-!   Bugfix for fault in allocation query in zhegv. Should be removed if
-!   lapack gets fixed
-!
-!   In zhegv/zhegv the reference lapack reads :
-!
-!         IF( INFO.NE.0 ) THEN
-!            CALL XERBLA( 'ZHEGV ', -INFO )
-!            RETURN
-!         END IF
-!
-!   But in dsygv/ssygv instead the test reads :
-!
-!         IF( INFO.NE.0 ) THEN
-!            CALL XERBLA( 'DSYGV ', -INFO )
-!            RETURN
-!         ELSE IF( LQUERY ) THEN
-!            RETURN
-!         END IF
-!
-!
-!   Hence the complex routines attempt to solve the eigenproblem even when
-!   called as a workspace query.
-    NB = ILAENV( 1, 'CHETRD', UPLO, N, -1, -1, -1 )
-    LWKOPT = ( NB+1 )*N
-!   end bug fix
-    allocate(work(LWKOPT))
+    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
+    if (info/=0) then
+       call error("Failue in CHEGV to determine optimum workspace")
+    endif
+    int_idealwork=floor(real(idealwork(1)))
+    allocate(work(int_idealwork))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, LWKOPT, rwork, info)
+    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
        if (info<0) then
 99250 format ('Failure in diagonalisation routine zhegv,', &
