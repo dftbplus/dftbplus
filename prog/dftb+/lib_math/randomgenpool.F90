@@ -11,7 +11,7 @@
 !!
 !! A random generator pool returns random generators on request. The status of the subsequently
 !! returned random generators (and hence the random numbers they will produce) is uniquely
-!! determined by the seed value used to initialise the random generator pool.
+!! determined by the seed value used to initialise the random generator pool itself.
 !!
 module randomgenpool
   use accuracy, only : dp
@@ -50,11 +50,12 @@ contains
 
     !> Seed to use for initialisation of the random generator pool.
     !!
-    !! If value is less than one, a random seed will be chosen (and passed back).
+    !! If value is less than one, a random seed will be chosen (and passed back to the calling
+    !! routine).
     integer, intent(inout) :: seed
 
-    !> Whether the first random generator returned should deliver the same random numbers
-    !! as the former global random generator in DFTB+ (default: .false.)
+    !> Whether the first random generator returned should deliver the same random number sequence
+    !! as the old global random generator in DFTB+ (default: .false.)
     logical, intent(in), optional :: oldCompat
 
     integer :: timeValues(8)

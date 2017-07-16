@@ -1303,7 +1303,7 @@ contains
     end if
 
     iSeed = input%ctrl%iSeed
-    ! Note: This routine may not be called multpiple times. If you need further random generators,
+    ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
     call createRandomGenerators(iSeed, randomInit, randomThermostat)
 
@@ -2214,7 +2214,7 @@ contains
   subroutine createRandomGenerators(seed, randomInit, randomThermostat)
 
     !> Global seed used for initialisation of the random generator pool. If less than one, random
-    !! initialisation will be done.
+    !! initialisation of the seed will occur.
     integer, intent(inout) :: seed
 
     !> Random generator for initprogram.
@@ -2223,17 +2223,18 @@ contains
     !> Random generator for the actual thermostat.
     type(ORanlux), allocatable, intent(out) :: randomThermostat
 
-    
+
     type(ORandomGenPool) :: randGenPool
 
     call init(randGenPool, seed, oldCompat=.true.)
 
-    ! DO NOT CHANGE the ORDER of calls below, as it would destroy backwards compatibility and
-    ! reproduciblity. If further random generators are needed *append* similar getGenerator()
-    ! calls. All random generators used within the code must be generated here.
+    ! DO NOT CHANGE the ORDER of calls below, as this will destroy backwards compatibility and
+    ! reproduciblity of random number sequences in the code. If further random generators are needed
+    ! *append* similar getGenerator() calls. All random generators used within the code must be
+    ! generated here.
     call randGenPool%getGenerator(randomThermostat)
     call randGenPool%getGenerator(randomInit)
-    
+
   end subroutine createRandomGenerators
 
 
