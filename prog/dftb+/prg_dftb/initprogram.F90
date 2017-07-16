@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Global variables and initialization for the main program. To do: Assignment (copy) operator for
-!> TNeighbors!
+!> Global variables and initialization for the main program.
 module initprogram
   use assert
   use inputdata_module
@@ -32,6 +31,7 @@ module initprogram
   use steepdesc
   use gdiis
 
+  use randomgenpool
   use ranlux
   use mdcommon
   use mdintegrator
@@ -351,10 +351,6 @@ module initprogram
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
 
-  !> pool of initial random numbers for future use. See comment in code at create(pRanlux, in this
-  !> routine.
-  real(dp)              :: random_pool(10)
-
   !> Is this initialised
   logical            :: tInitialized = .false.
   private :: tInitialized
@@ -367,16 +363,12 @@ module initprogram
   !> Charge mixer
   type(OMixer), allocatable :: pChrgMixer
 
-  !> Random number generator
-  type(ORanlux), allocatable, target :: randomGenerator
-  !> Pointer to random generator
-  type(ORanlux), pointer :: pRandomGenerator
-
   !> MD Framework
   type(OMDCommon), allocatable :: pMDFrame
   !> MD integrator
   type(OMDIntegrator), allocatable :: pMDIntegrator
   !> Temperature profile driver in MD
+
   type(OTempProfile), allocatable, target :: temperatureProfile
 
   !> geometry optimiser
@@ -510,6 +502,8 @@ module initprogram
   integer, parameter :: nInitNeighbor = 40  
   private :: nInitNeighbor
 
+  private :: createRandomGenerators
+
 
 
 contains
@@ -552,6 +546,9 @@ contains
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
     type(OTempProfile), pointer :: pTempProfile
 
+    type(ORanlux), allocatable :: randomInit, randomThermostat
+    integer :: iSeed
+
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
     integer :: iStart, iEnd
 
@@ -567,9 +564,10 @@ contains
 
 
     character(lc) :: strTmp, strTmp2
+
     !> flag to check for first cycle through a loop
     logical :: tFirst 
-    integer  :: iSeed, timeValues(8)
+
     real(dp) :: rTmp
 
     !> Flag if some files do exist or not
@@ -594,6 +592,7 @@ contains
 
     !> Used for indexing linear response
     integer :: homoLoc(1)
+
 
     @:ASSERT(input%tInitialized)
 
@@ -1481,44 +1480,13 @@ contains
 
     end if
 
-    ! Generate a random id for the run. Seed with system time if possible.
-    call system_clock(iSeed)
-    ! Try date_and_time if system_clock does not work properly.
-    if (iSeed < 1) then
-      call date_and_time(values=timeValues)
-      if (timeValues(5) >= 0) then
-        iSeed = 1000 * (60 * (60 * timeValues(5) + timeValues(6)) &
-            &+ timeValues(7)) + timeValues(8)
-      end if
-    end if
-    ! Try  default seeder if attempts to use the clock failed.
-    if (iSeed < 1) then
-      call random_seed
-      call random_number(rTmp)
-      ! Make sure seed > 0.
-      iSeed = int(real(huge(iSeed) - 1, dp) * rTmp) + 1
-    end if
-    allocate(randomGenerator)
-    call init(randomGenerator, initSeed=iSeed)
-    call getRandom(randomGenerator, rTmp)
-    runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
-    deallocate(randomGenerator)
-
-    ! Create random generator and pull off first 10
-    ! random numbers to avoid disturbing the subsequent sequence.
-    ! random_pool can then be used to seed other generators if needed,
-    ! with a supply of random numbers controlled from the initial seed.
-    ! If the size of random_pool is changed then reproducibility of
-    ! the random numbers if initialised from a seed is lost.
     iSeed = input%ctrl%iSeed
-    if (iSeed < 1) then
-      iSeed = runId     ! No seed specified, use random runId
-    end if
-    allocate(randomGenerator)
-    call init(randomGenerator, 3, iSeed)
-    call getRandom(randomGenerator,random_pool(:))
-    pRandomGenerator => randomGenerator
+    ! Note: This routine may not be called multiple times. If you need further random generators,
+    ! extend the routine and create them within this call.
+    call createRandomGenerators(iSeed, randomInit, randomThermostat)
 
+    call getRandom(randomInit, rTmp)
+    runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
 
     ! MD stuff
     if (tMD) then
@@ -1541,27 +1509,27 @@ contains
       select case (input%ctrl%iThermostat)
       case (0) ! No thermostat
         allocate(pDummyTherm)
-        call init(pDummyTherm, tempAtom, mass(indMovedAtom), pRandomGenerator, pMDFrame)
+        call init(pDummyTherm, tempAtom, mass(indMovedAtom), randomThermostat, pMDFrame)
         call init(pThermostat, pDummyTherm)
       case (1) ! Andersen thermostat
         allocate(pAndersenTherm)
-        call init(pAndersenTherm, pRandomGenerator, mass(indMovedAtom), pTempProfile,&
+        call init(pAndersenTherm, randomThermostat, mass(indMovedAtom), pTempProfile,&
             & input%ctrl%tRescale, input%ctrl%wvScale, pMDFrame)
         call init(pThermostat, pAndersenTherm)
       case (2) ! Berendsen thermostat
         allocate(pBerendsenTherm)
-        call init(pBerendsenTherm, pRandomGenerator, mass(indMovedAtom), pTempProfile,&
+        call init(pBerendsenTherm, randomThermostat, mass(indMovedAtom), pTempProfile,&
             & input%ctrl%wvScale, pMDFrame)
         call init(pThermostat, pBerendsenTherm)
       case (3) ! Nose-Hoover-Chain thermostat
         allocate(pNHCTherm)
         if (input%ctrl%tInitNHC) then
-          call init(pNHCTherm, pRandomGenerator, mass(indMovedAtom), &
+          call init(pNHCTherm, randomThermostat, mass(indMovedAtom), &
               & pTempProfile, input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, &
               & input%ctrl%nh_npart, input%ctrl%nh_nys, input%ctrl%nh_nc, &
               & input%ctrl%xnose, input%ctrl%vnose, input%ctrl%gnose)
         else
-          call init(pNHCTherm, pRandomGenerator, mass(indMovedAtom), pTempProfile,&
+          call init(pNHCTherm, randomThermostat, mass(indMovedAtom), pTempProfile,&
               & input%ctrl%wvScale, pMDFrame, input%ctrl%deltaT, &
               & input%ctrl%nh_npart, input%ctrl%nh_nys, input%ctrl%nh_nc)
         end if
@@ -2416,6 +2384,36 @@ contains
     end do
 
   end subroutine destructProgramVariables
+
+
+
+  !> Creates all random generators needed in the code.
+  !!
+  subroutine createRandomGenerators(seed, randomInit, randomThermostat)
+
+    !> Global seed used for initialisation of the random generator pool. If less than one, random
+    !! initialisation of the seed will occur.
+    integer, intent(inout) :: seed
+
+    !> Random generator for initprogram.
+    type(ORanlux), allocatable, intent(out) :: randomInit
+
+    !> Random generator for the actual thermostat.
+    type(ORanlux), allocatable, intent(out) :: randomThermostat
+
+
+    type(ORandomGenPool) :: randGenPool
+
+    call init(randGenPool, seed, oldCompat=.true.)
+
+    ! DO NOT CHANGE the ORDER of calls below, as this will destroy backwards compatibility and
+    ! reproduciblity of random number sequences in the code. If further random generators are needed
+    ! *append* similar getGenerator() calls. All random generators used within the code must be
+    ! generated here.
+    call randGenPool%getGenerator(randomThermostat)
+    call randGenPool%getGenerator(randomInit)
+
+  end subroutine createRandomGenerators
 
 
 end module initprogram

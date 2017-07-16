@@ -28,7 +28,7 @@ module andersentherm
   type OAndersenThermostat
     private
     integer :: nAtom                    !* Nr. of atoms
-    type(ORanlux), pointer :: pRanlux   !* Random number generator
+    type(ORanlux), allocatable :: pRanlux   !* Random number generator
     real(dp), allocatable :: mass(:)        !* Mass of the atoms
     type(OTempProfile), pointer :: pTempProfile  !* Temperature generator
     logical :: tRescaleIndiv            !* Rescale velocities individually?
@@ -65,14 +65,14 @@ contains
   subroutine AndersenThermostat_init(self, pRanlux, masses, tempProfile, &
       &rescaleIndiv, wvScale, pMDFramework)
     type(OAndersenThermostat), intent(out) :: self
-    type(ORanlux), pointer, intent(in) :: pRanlux
+    type(ORanlux), allocatable, intent(inout) :: pRanlux
     real(dp), intent(in) :: masses(:)
     type(OTempProfile), pointer, intent(in) :: tempProfile
     logical, intent(in) :: rescaleIndiv
     real(dp), intent(in) :: wvScale
     type(OMDCommon), intent(in) :: pMDFramework
 
-    self%pRanlux => pRanlux
+    call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
     allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)

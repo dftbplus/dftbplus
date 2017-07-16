@@ -26,7 +26,7 @@ module dummytherm
     integer :: nAtom                  !* Nr. of atoms
     real(dp) :: kT                    !* Temperature
     real(dp), allocatable :: mass(:)      !* Mass of the atoms
-    type(ORanlux), pointer :: pRanlux !* Random number generator.
+    type(ORanlux), allocatable :: pRanlux !* Random number generator.
     type(OMDCommon) :: pMDFrame !* MD Framwork
   end type ODummyThermostat
 
@@ -52,14 +52,14 @@ contains
     type(ODummyThermostat), intent(out) :: self
     real(dp), intent(in) :: kT
     real(dp), intent(in) :: mass(:)
-    type(ORanlux), pointer, intent(in) :: pRanlux
+    type(ORanlux), allocatable, intent(inout) :: pRanlux
     type(OMDCommon), intent(in) :: pMDFrame
 
     self%kT = kT
     self%nAtom = size(mass)
     allocate(self%mass(self%nAtom))
     self%mass = mass(:)
-    self%pRanlux => pRanlux
+    call move_alloc(pRanlux, self%pRanlux)
     self%pMDFrame = pMDFrame
 
   end subroutine DummyThermostat_init

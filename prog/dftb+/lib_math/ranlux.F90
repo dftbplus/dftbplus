@@ -70,7 +70,7 @@ module ranlux
   !!* Creates a ranlux random number generator
   interface init
     module procedure Ranlux_init_default
-    module procedure Ranlux_init_restart
+    !module procedure Ranlux_init_restart
   end interface
 
   !!* Fills a vector with random numbers

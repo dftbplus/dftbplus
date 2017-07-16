@@ -30,7 +30,7 @@ module nhctherm
   type ONHCThermostat
     private
     integer :: nAtom                    !* Nr. of atoms
-    type(ORanlux), pointer :: pRanlux   !* Random number generator
+    type(ORanlux), allocatable :: pRanlux   !* Random number generator
     real(dp), allocatable :: mass(:)        !* Mass of the atoms
     type(OTempProfile), pointer :: pTempProfile !* Temperature generator
     real(dp) :: couplingParameter       !* coupling strength to friction term
@@ -75,7 +75,7 @@ contains
       & couplingParameter, pMDFrame, deltaT, npart, nys, nc, &
       & xnose, vnose, gnose)
     type(ONHCThermostat), intent(out) :: self
-    type(ORanlux), pointer, intent(in) :: pRanlux
+    type(ORanlux), allocatable, intent(inout) :: pRanlux
     real(dp), intent(in) :: masses(:)
     type(OTempProfile), pointer, intent(in) :: tempProfile
     real(dp), intent(in) :: couplingParameter
@@ -88,7 +88,7 @@ contains
     real(dp), intent(in), optional :: vnose(:)
     real(dp), intent(in), optional :: gnose(:)
 
-    @:ASSERT(associated(pRanlux))
+    @:ASSERT(allocated(pRanlux))
     @:ASSERT(present(xnose).eqv.present(vnose))
     @:ASSERT(present(xnose).eqv.present(gnose))
   #:call ASSERT_CODE
@@ -98,7 +98,7 @@ contains
     end if
   #:endcall ASSERT_CODE
 
-    self%pRanlux => pRanlux
+    call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
     allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)

@@ -28,7 +28,7 @@ module berendsentherm
   type OBerendsenThermostat
     private
     integer :: nAtom                    !* Nr. of atoms
-    type(ORanlux), pointer :: pRanlux   !* Random number generator
+    type(ORanlux), allocatable :: pRanlux   !* Random number generator
     real(dp), allocatable :: mass(:)        !* Mass of the atoms
     type(OTempProfile), pointer :: pTempProfile  !* Temperature generator
     real(dp) :: couplingParameter       !* coupling strength to friction term
@@ -62,13 +62,13 @@ contains
   subroutine Berendsen_init(self, pRanlux, masses, tempProfile, &
       & couplingParameter, pMDFrame)
     type(OBerendsenThermostat), intent(out) :: self
-    type(ORanlux), pointer, intent(in) :: pRanlux
+    type(ORanlux), allocatable, intent(inout) :: pRanlux
     real(dp), intent(in) :: masses(:)
     type(OTempProfile), pointer, intent(in) :: tempProfile
     real(dp), intent(in) :: couplingParameter
     type(OMDCommon) :: pMDFrame
 
-    self%pRanlux => pRanlux
+    call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
     allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)

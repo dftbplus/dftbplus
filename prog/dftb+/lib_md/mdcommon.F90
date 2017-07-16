@@ -193,7 +193,7 @@ contains
     real(dp), intent(out)  :: velocity(:)
     real(dp), intent(in)   :: mass
     real(dp), intent(in)   :: kT
-    type(ORanlux), pointer :: pRanlux
+    type(ORanlux), intent(inout) :: pRanlux
 
     real(dp) :: ranvals(7)
     real(dp) :: junk
