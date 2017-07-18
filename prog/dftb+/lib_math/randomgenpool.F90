@@ -24,10 +24,14 @@ module randomgenpool
   !> Random generator pool
   type :: ORandomGenPool
     private
+    !> random number generator for pool
     type(ORanlux), allocatable :: generator
+    !> Random values that have been generated
     integer :: served = -1
+    !> Compatibility to old behaviour
     logical :: oldCompat = .false.
   contains
+    !> returns a random generator
     procedure :: getGenerator
   end type ORandomGenPool
 
@@ -49,7 +53,6 @@ contains
     class(ORandomGenPool), intent(out) :: this
 
     !> Seed to use for initialisation of the random generator pool.
-    !!
     !! If value is less than one, a random seed will be chosen (and passed back to the calling
     !! routine).
     integer, intent(inout) :: seed
@@ -91,7 +94,6 @@ contains
 
 
   !> Returns a random generator.
-  !!
   subroutine getGenerator(this, randomGenerator)
 
     !> Instance.
@@ -121,6 +123,8 @@ contains
       call init(randomGenerator, initSeed=seed)
     end if
     this%served = this%served + 1
+
+    @:ASSERT(this%served < huge(this%served))
 
   end subroutine getGenerator
 

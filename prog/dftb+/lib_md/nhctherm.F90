@@ -7,8 +7,8 @@
 
 #:include 'common.fypp'
 
-!!* Nose-Hoover Chain thermostat
-!!* @ref based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
+!> Nose-Hoover Chain thermostat
+!> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
 module nhctherm
   use assert
   use accuracy
@@ -26,60 +26,78 @@ module nhctherm
   public :: ONHCThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
-  !!* Data for the NHC thermostat
+  !> Data for the NHC thermostat
   type ONHCThermostat
     private
-    integer :: nAtom                    !* Nr. of atoms
-    type(ORanlux), allocatable :: pRanlux   !* Random number generator
-    real(dp), allocatable :: mass(:)        !* Mass of the atoms
-    type(OTempProfile), pointer :: pTempProfile !* Temperature generator
-    real(dp) :: couplingParameter       !* coupling strength to friction term
-    type(OMDCommon) :: pMDFrame !* MD Framework.
-    real(dp) :: deltaT !* MD timestep
-    integer :: nyosh !* order of NHC operator - eqn 29
+    !> Nr. of atoms
+    integer :: nAtom
+    !> Random number generator
+    type(ORanlux), allocatable :: pRanlux
+    !> Mass of the atoms
+    real(dp), allocatable :: mass(:)
+    !> Temperature generator
+    type(OTempProfile), pointer :: pTempProfile
+    !> coupling strength to friction term
+    real(dp) :: couplingParameter
+    !> MD Framework.
+    type(OMDCommon) :: pMDFrame
+    !> MD timestep
+    real(dp) :: deltaT
+    !> order of NHC operator - eqn 29
+    integer :: nyosh
+    !> weight coefficients
     real(dp), allocatable :: w(:)
-    integer :: nresn !* times steps to expand propogator of NHC part of
-    !* evolution operator
-    integer :: nnos ! number of thermostat particles in chain
+    !> times steps to expand propogator of NHC part of evolution operator
+    integer :: nresn 
+    !> number of thermostat particles in chain
+    integer :: nnos
+    !> internal chain positions
     real(dp), allocatable :: xnose(:)
+    !> internal chain velocities
     real(dp), allocatable :: vnose(:)
+    !> internal chain accelerations
     real(dp), allocatable :: gnose(:)
   end type ONHCThermostat
 
+  !> initialise thermostat
   interface init
     module procedure NHC_init
   end interface
 
+  !> initial thermal velocities if needed
   interface getInitVelocities
     module procedure NHC_getInitVelos
   end interface
 
+  !> update velocites acording to the thermostat
   interface updateVelocities
     module procedure NHC_updateVelos
   end interface
 
+  !> write state of the thermostat
   interface state
     module procedure NHC_state
   end interface
 
 contains
 
-  !!* Creates an NHC thermostat instance.
-  !!* @param self Initialised instance on exit.
-  !!* @param pRanlux Pointer to the random generator.
-  !!* @param masses Masses of the atoms.
-  !!* @param deltaT MD time step
-  !!* @param couplingParameter Coupling parameter for the thermostat
-  !!* @param tempProfile Pointer to a temperature profile object.
+  !> Creates an NHC thermostat instance.
   subroutine NHC_init(self, pRanlux, masses, tempProfile, &
       & couplingParameter, pMDFrame, deltaT, npart, nys, nc, &
       & xnose, vnose, gnose)
+    !> Initialised instance on exit.
     type(ONHCThermostat), intent(out) :: self
+    !> Random generator.    
     type(ORanlux), allocatable, intent(inout) :: pRanlux
+    !> Masses of the atoms.  
     real(dp), intent(in) :: masses(:)
+    !> Temperature profile object.  
     type(OTempProfile), pointer, intent(in) :: tempProfile
+    !> Coupling parameter for the thermostat  
     real(dp), intent(in) :: couplingParameter
+    !> Molecular dynamics generic framework
     type(OMDCommon), intent(in) :: pMDFrame
+    !> MD time step    
     real(dp), intent(in) :: deltaT
     integer, intent(in) :: npart
     integer, intent(in) :: nys
@@ -107,18 +125,20 @@ contains
     self%pMDFrame = pMDFrame
     self%deltaT = deltaT
 
-    self%nresn = nc ! pg 1124 'For typical simulations, nc can be taken to be
-    !  one.'
+    ! pg 1124 'For typical simulations, nc can be taken to be one.'
+    self%nresn = nc 
     if (self%nresn < 1) then
       call error('Nose-Hoover propogation steps must be at least 1.')
     end if
 
-    self%nnos = npart ! particles in the chain
+    ! particles in the chain
+    self%nnos = npart 
     if (self%nnos < 1) then
       call error('Nose-Hoover chains must contain at least one mass.')
     end if
 
-    self%nyosh = nys ! current choice of order
+    ! current choice of order
+    self%nyosh = nys 
     allocate(self%w(self%nyosh))
     select case (self%nyosh)
     case (3)
@@ -152,11 +172,11 @@ contains
   end subroutine NHC_init
 
 
-  !!* Returns the initial velocities.
-  !!* @param self NHCThermostat instance.
-  !!* @param velocities Contains the velocities on return.
+  !> Returns the initial velocities.
   subroutine NHC_getInitVelos(self, velocities)
+    !> NHCThermostat instance.
     type(ONHCThermostat), intent(inout) :: self
+    !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
     real(dp) :: kT
@@ -173,12 +193,12 @@ contains
 
   end subroutine NHC_getInitVelos
 
-  !!* Updates the provided velocities according the current temperature.
-  !!* @param self NHCThermostat instance.
-  !!* @param velocities Updated velocities on exit.
-  !!* @note routines based on NHCINT from reference
+  !> Updates the provided velocities according the current temperature.
+  !> routines based on NHCINT from reference
   subroutine NHC_updateVelos(self, velocities)
+    !> NHCThermostat instance.
     type(ONHCThermostat), intent(inout) :: self
+    !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
     integer         :: nnos1, iresn, iyosh, inos
@@ -253,8 +273,11 @@ contains
   end subroutine NHC_updateVelos
 
 
+  !> Outputs internals of thermostat
   subroutine NHC_state(self, fd)
+    !> instance of thermostat
     type(ONHCThermostat), intent(in) :: self
+    !> filehandle to write out to
     integer,intent(in)                  :: fd
 
     write(fd,*)'Nose-Hoover chain variables'
