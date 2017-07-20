@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains subroutines to calculate repulsive pair contributions to energy
-!!* and forces
+!> Contains subroutines to calculate repulsive pair contributions to energy and forces
 module repulsive
   use assert
   use accuracy, only : dp
@@ -25,23 +24,22 @@ module repulsive
 
 contains
 
-  !!* Subroutine for calculating total energy contribution of the repulsives.
-  !!* @param reslt Total energy contribution.
-  !!* @param coords coordinates (x,y,z, all atoms including possible images)
-  !!* @param nNeighbors Number of neighbors for atoms in the central cell
-  !!* @param iNeighbors Index of neighbors for a given atom.
-  !!* @param species Species of atoms in the central cell.
-  !!* @param img2CentCell Index of each atom in the central cell which the atom
-  !!*   is mapped on.
-  !!* @param repCont Container for repulsive potentials.
+  !> Subroutine for calculating total energy contribution of the repulsives.
   subroutine getERep_total(reslt, coords, nNeighbors, iNeighbors, species, &
       &img2CentCell, repCont)
+    !> Total energy contribution.
     real(dp), intent(out) :: reslt
+    !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
+    !> Number of neighbors for atoms in the central cell
     integer, intent(in) :: nNeighbors(:)
+    !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
+    !> Species of atoms in the central cell.
     integer, intent(in) :: species(:)
+    !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
+    !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
 
     integer :: iAt1, iNeigh, iAt2, iAt2f
@@ -67,23 +65,22 @@ contains
 
 
 
-  !!* Subroutine for repulsive energy contributions for each atom
-  !!* @param reslt Energy for each atom.
-  !!* @param coords coordinates (x,y,z, all atoms including possible images)
-  !!* @param nNeighbors Number of neighbors for atoms in the central cell
-  !!* @param iNeighbors Index of neighbors for a given atom.
-  !!* @param species Species of atoms in the central cell.
-  !!* @param repCont Container for repulsive potentials.
-  !!* @param img2CentCell Index of each atom in the central cell which the atom
-  !!*   is mapped on.
+  !> Subroutine for repulsive energy contributions for each atom
   subroutine getERep_atoms(reslt, coords, nNeighbors, iNeighbors, species,&
       &repCont, img2CentCell)
+    !> Energy for each atom.
     real(dp), intent(out) :: reslt(:)
+    !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in)  :: coords(:,:)
+    !> Number of neighbors for atoms in the central cell
     integer, intent(in)   :: nNeighbors(:)
+    !> Index of neighbors for a given atom.
     integer, intent(in)   :: iNeighbors(0:,:)
+    !> Species of atoms in the central cell.
     integer, intent(in)   :: species(:)
+    !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
+    !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iNeigh, iAt2, iAt2f
@@ -110,23 +107,22 @@ contains
 
 
 
-  !!* Subroutine for force contributions of the repulsives.
-  !!* @param reslt Energy for each atom.
-  !!* @param coords coordinates (x,y,z, all atoms including possible images)
-  !!* @param nNeighbors Number of neighbors for atoms in the central cell
-  !!* @param iNeighbors Index of neighbors for a given atom.
-  !!* @param species Species of atoms in the central cell.
-  !!* @param repCont Container for repulsive potentials.
-  !!* @param img2CentCell Index of each atom in the central cell which the atom
-  !!*   is mapped on.
+  !> Subroutine for force contributions of the repulsives.
   subroutine getERepDeriv(reslt, coords, nNeighbors, iNeighbors, species, &
       &repCont, img2CentCell)
+    !> Energy for each atom.
     real(dp), intent(out) :: reslt(:,:)
+    !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
+    !> Number of neighbors for atoms in the central cell
     integer, intent(in) :: nNeighbors(:)
+    !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
+    !> Species of atoms in the central cell.
     integer, intent(in) :: species(:)
+    !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
+    !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iNeigh, iAt2, iAt2f
