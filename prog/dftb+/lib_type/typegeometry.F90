@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> data type and associated routines for specifying atomic geometry and boundary conditions
 module typegeometry
   use accuracy
   implicit none
@@ -12,21 +13,31 @@ module typegeometry
 
   public :: TGeometry, normalize
 
-  !!* Type for containing geometrical information
+  !> Type for containing geometrical information
   type TGeometry
+    !> number of atoms
     integer           :: nAtom
+    !> is this periodic
     logical           :: tPeriodic
+    !> if periodic, is this in fractional units?
     logical           :: tFracCoord
+    !> atomic species
     integer,  allocatable :: species(:)
+    !> coordinates of atoms
     real(dp), allocatable :: coords(:,:)
+    !> number of different atomic species
     integer           :: nSpecies
+    !> geometry origin (GEN file requirement)
     real(dp), allocatable :: origin(:)
+    !> lattice vectors if periodic
     real(dp), allocatable :: latVecs(:,:)
+    !> reciprocal lattice vectors in units of \(2\pi\)
     real(dp), allocatable :: recVecs2p(:,:)
+    !> name(s) of the atomic species
     character(mc), allocatable :: speciesNames(:)
   end type TGeometry
 
-  !!* Interface for cleaning up a geometry against non-existent atom species
+  !> Interface for cleaning up a geometry against non-existent atom species
   interface normalize
     module procedure Geometry_normalize
   end interface
@@ -34,10 +45,10 @@ module typegeometry
 
 contains
 
-  !!* Normalises a geometry object to be safe against the abscence of any atoms
-  !!* of a species specified in the input file
-  !!* @param self Geometry object
+  !> Normalises a geometry object to be safe against the absence of any atoms of a species specified
+  !> in the input file
   subroutine Geometry_normalize(sf)
+    !> Geometry object
     type(TGeometry), intent(inout) :: sf
 
     logical, allocatable :: inUse(:)
@@ -49,7 +60,8 @@ contains
     do iSp = 1, sf%nSpecies
       inUse(iSp) = any(sf%species == iSp)
     end do
-    if (.not. all(inUse)) then !some of the species are redundant, so re-index
+    !some of the species are redundant, so re-index
+    if (.not. all(inUse)) then
       call move_alloc(sf%species, oldSpecies)
       call move_alloc(sf%speciesNames, oldSpeciesNames)
       sf%nSpecies = count(inUse)
