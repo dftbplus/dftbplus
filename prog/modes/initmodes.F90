@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !!* Contains the routines for initialising modes.
-module InitProgram
+module InitModes
   use assert
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
@@ -280,4 +280,4 @@ contains
 
   end subroutine readGeometry
 
-end module InitProgram
+end module InitModes

@@ -8,6 +8,9 @@ preprocess:
         true
 src_dir:
         ../../../prog/dftb+/
+        ../../../prog/modes/
+        ../../../prog/waveplot/
+        ../../../prog/misc/
 output_dir: ./doc
 project_github: https://github.com/dftbplus/dftbplus
 project_website: http://www.dftbplus.org

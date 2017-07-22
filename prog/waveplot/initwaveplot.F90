@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !!* Contains the routines for initialising waveplot.
-module InitProgram
+module InitWaveplot
   use assert
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
@@ -633,4 +633,4 @@ contains
 
 
 
-end module InitProgram
+end module InitWaveplot

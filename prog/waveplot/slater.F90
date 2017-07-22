@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Routines to calculate a Slater type orbital (STO)
+!> Routines to calculate a Slater type orbital (STO)
 module Slater
   use assert
   use accuracy
@@ -28,17 +28,17 @@ module Slater
     integer :: nGrid
   end type OSlaterOrbital
 
-  !!* Initialises a SlaterOrbital
+  !> Initialises a SlaterOrbital
   interface init
     module procedure SlaterOrbital_init
   end interface
 
-  !!* Returns the value of a Slater orbital in a given point
+  !> Returns the value of a Slater orbital in a given point
   interface getValue
     module procedure SlaterOrbital_getValue
   end interface
 
-  !!* Assignement operator for SlaterOrbital to assure proper allocation
+  !> Assignement operator for SlaterOrbital to assure proper allocation
   interface assignment(=)
     module procedure SlaterOrbital_assign
   end interface
@@ -51,17 +51,18 @@ module Slater
 contains
 
 
-  !!* Returns the real tesseral spherical harmonics in a given point
-  !!* @param ll    Angular momentum of the spherical harmonics (0 <= ll <= 3)
-  !!* @param mm    Magnetic quantum number
-  !!* @param coord Coordinate where the value should be calculated
-  !!* @param rrOpt Length of the coordinate vector, if known in advance
-  !!* @note This function only work for angular momenta between 0 and 3 (s-f).
+  !> Returns the real tesseral spherical harmonics in a given point
+  !> This function only work for angular momenta between 0 and 3 (s-f).
   function RealTessY(ll, mm, coord, rrOpt) result (rty)
+    !> Angular momentum of the spherical harmonics (0 <= ll <= 3)
     integer, intent(in) :: ll
+    !> Magnetic quantum number
     integer, intent(in) :: mm
+    !> Coordinate where the value should be calculated
     real(dp), intent(in) :: coord(:)
+    !> Length of the coordinate vector, if known in advance
     real(dp), intent(in), optional :: rrOpt
+
     real(dp) :: rty
 
     real(dp) :: rr, xx, yy, zz
@@ -120,8 +121,8 @@ contains
         rty = 0.5462742152960395_dp * (xx**2 - yy**2) / rr**2
       end select
     case(3)
-      ! general set for f orbitals (not cubic), see
-      ! http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
+      !> general set for f orbitals (not cubic), see
+      !> http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
       select case (mm)
       case(-3)
         ! y(3x**2-y**2)
@@ -155,19 +156,19 @@ contains
 
 
 
-  !!* Initialises a SlaterOrbital.
-  !!* @param self       SlaterOrbital instance to initialise
-  !!* @param aa         Summation coefficients (nCoeffPerAlpha, nAlpha)
-  !!* @param alpha      Exponential coefficients
-  !!* @param ll         Angular momentum of the orbital
-  !!* @param resolution Grid distance for the orbital
-  !!* @param cutoff     Cutoff, after which orbital is assumed to be zero
+  !> Initialises a SlaterOrbital.
   subroutine SlaterOrbital_init(self, aa, alpha, ll, resolution, cutoff)
+    !> SlaterOrbital instance to initialise
     type(OSlaterOrbital), intent(inout) :: self
+    !> Summation coefficients (nCoeffPerAlpha, nAlpha)
     real(dp), intent(in) :: aa(:,:)
+    !> Exponential coefficients
     real(dp), intent(in) :: alpha(:)
+    !> Angular momentum of the orbital
     integer, intent(in) :: ll
+    !> Grid distance for the orbital
     real(dp), intent(in) :: resolution
+    !> Cutoff, after which orbital is assumed to be zero
     real(dp), intent(in) :: cutoff
 
     integer :: nAlpha
@@ -185,16 +186,15 @@ contains
     allocate(self%aa(nPow, nAlpha))
     allocate(self%alpha(nAlpha))
 
-    !! Storing parameter. (This is theoretically superflous now, since
-    !! the function is calculated only once at initialisation time and stored
-    !! on a grid.)
+    ! Storing parameter. (This is theoretically now superfluous, since the function is calculated
+    ! only once at initialisation time and stored on a grid.)
     self%aa(:,:) = aa
     self%alpha(:) = -1.0_dp * alpha
     self%nPow = nPow
     self%nAlpha = nAlpha
     self%ll = ll
 
-    !! Obtain STO on a grid
+    ! Obtain STO on a grid
     self%nGrid = floor(cutoff / resolution) + 2
     self%gridDist = resolution
     allocate(self%gridValue(self%nGrid))
@@ -207,13 +207,13 @@ contains
   end subroutine SlaterOrbital_init
 
 
-  !!* Retunrns the value of the SlaterOrbital in a given point
-  !!* @param self SlaterOrbital instance
-  !!* @param rr   Distance, where STO should be calculated
-  !!* @param sto  Contains the value of the function on return
+  !> Retunrns the value of the SlaterOrbital in a given point
   subroutine SlaterOrbital_getValue(self, rr, sto)
+    !> SlaterOrbital instance
     type(OSlaterOrbital), intent(in) :: self
+    !> Distance, where STO should be calculated
     real(dp), intent(in)  :: rr
+    !> Contains the value of the function on return
     real(dp), intent(out) :: sto
 
     integer :: ind
@@ -235,22 +235,21 @@ contains
 
 
 
-  !!* Calculates the value of an STO analytically
-  !!* @param ll     Angular momentum of the STO
-  !!* @param nPow   Maximal power of the distance in the STO
-  !!* @param nAlpha Number of exponential coefficients
-  !!* @param aa     Summation coefficients (nPow, nAlpha)
-  !!* @param alpha  Exponential coefficients
-  !!* @param rr     Distance, where the STO should be calculated
-  !!* @param sto    Value of the STO on return
-  subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, &
-      &sto)
+  !> Calculates the value of an STO analytically
+  subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, sto)
+    !> Angular momentum of the STO
     integer, intent(in) :: ll
+    !> Maximal power of the distance in the STO
     integer, intent(in) :: nPow
+    !> Number of exponential coefficients
     integer, intent(in) :: nAlpha
+    !> Summation coefficients (nPow, nAlpha)
     real(dp), intent(in) :: aa(:,:)
+    !> Exponential coefficients
     real(dp), intent(in) :: alpha(:)
+    !> Distance, where the STO should be calculated
     real(dp), intent(in)  :: rr
+    !> Value of the STO on return
     real(dp), intent(out) :: sto
 
     real(dp) :: pows(nPow)
@@ -280,14 +279,11 @@ contains
 
 
 
-  !!* An STO assignement with proper memory allocation (deep copy)
-  !!* @param left  Left value of the assignment
-  !!* @param right Right value of the assignment
-  !!* @note This subroutine must be elemental, so the usuall macros for the
-  !!*   allocation/deallocation can not be used, since they contain
-  !!*   io-statements.
+  !> An STO assignement with proper memory allocation (deep copy)
   elemental subroutine SlaterOrbital_assign(left, right)
+    !> Left value of the assignment
     type(OSlaterOrbital), intent(inout) :: left
+    !> Right value of the assignment
     type(OSlaterOrbital), intent(in) :: right
 
     if (allocated(left%aa)) then
