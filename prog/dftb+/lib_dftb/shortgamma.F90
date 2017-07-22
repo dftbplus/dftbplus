@@ -17,7 +17,8 @@ module shortgamma
   public :: expGamma, expGammaDamped, expGammaPrime, expGammaDampedPrime
   public :: expGammaCutoff
 
-  character(len=100) :: error_string !* Used to return runtime diagnostics
+  !> Used to return runtime diagnostics
+  character(len=100) :: error_string
 
 contains
 
