@@ -8,11 +8,8 @@
 #:include 'common.fypp'
 
 !> Implements the Extended Lagrangian Born-Oppenheimer MD.
-!!
-!! \see Aradi et al. Extended lagrangian density functional
-!!  tight-binding molecular dynamics for molecules and
-!!  solids. J. Chem. Theory Comput. 11:3357-3363, 2015
-!!
+!> Aradi et al. Extended lagrangian density functional tight-binding molecular dynamics for
+!> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module xlbomd_module
   use assert
   use accuracy
@@ -23,42 +20,31 @@ module xlbomd_module
 
   public :: XlbomdInp, Xlbomd, Xlbomd_init
 
-
+  !> File for reading the inverse of the Jacobian matrix if needed
   character(*), parameter :: JacobianKernelFile = "neginvjac.dat"
 
 
   !> Input for the Xlbomd driver.
-  !!
   type :: XlbomdInp
-
     !> Number of generation to consider during the integration (5, 6, 7)
     integer :: nKappa
-
     !> Scaling factor (only for fast Xlbomd, otherwise 1.0)
     real(dp) :: scale
-
-    !> Scc parameter override: minimal Scc iterations per timestep
-    integer :: minSccIter
-
-    !> Scc parameter override: maximal Scc iterations per timestep
-    integer :: maxSccIter
-
-    !> Scc parameter override: scc tolerance
+    !> SCC parameter override: minimal SCC iterations per timestep
+    integer :: minSCCIter
+    !> SCC parameter override: maximal SCC iterations per timestep
+    integer :: maxSCCIter
+    !> SCC parameter override: scc tolerance
     real(dp) :: sccTol
-
     !> Number of time steps to precede the actual start of the XL integrator
     integer :: nPreSteps
-
     !> Number of full SCC steps after the XL integrator has been started. Those
-    !! steps are used to fill up the integrator and to average the Jacobian.
-    integer :: nFullSccSteps
-
+    !> steps are used to fill up the integrator and to average the Jacobian.
+    integer :: nFullSCCSteps
     !> Number of transient steps (during which prediction is corrected)
     integer :: nTransientSteps
-
     !> Whether Xlbomd should use inverse Jacobian instead of scaling
     logical :: useInverseJacobian
-
     !> Whether Jacobian should be read from disk.
     logical :: readInverseJacobian
 
@@ -66,21 +52,20 @@ module xlbomd_module
 
 
   !> Contains the data for the Xlbomd driver.
-  !!
   type :: Xlbomd
     private
     type(ExtLagrangian) :: extLagr
     integer :: nKappa
-    integer :: minSccIter, maxSccIter, minSccIter0, maxSccIter0
+    integer :: minSCCIter, maxSCCIter, minSCCIter0, maxSCCIter0
     real(dp) :: sccTol, sccTol0
     integer :: iStep
-    integer :: iStartXl, nPreSteps, nTransientSteps, nFullSccSteps
+    integer :: iStartXl, nPreSteps, nTransientSteps, nFullSCCSteps
     logical :: useInverseJacobian, readInverseJacobian
     real(dp), allocatable :: invJacobian(:,:)
   contains
-    procedure :: setDefaultSccParameters
+    procedure :: setDefaultSCCParameters
     procedure :: isActive
-    procedure :: getSccParameters
+    procedure :: getSCCParameters
     procedure :: getNextCharges
     procedure :: needsInverseJacobian
     procedure :: setInverseJacobian
@@ -91,15 +76,11 @@ module xlbomd_module
 contains
 
   !> Initializes the Xlbomd instance.
-  !!
   subroutine Xlbomd_init(this, input, nElems)
-
     !> Instance.
     type(Xlbomd), intent(out) :: this
-
     !> Basic input parameters.
     type(XlbomdInp), intent(in) :: input
-
     !> Nr. of elements in the charge vector
     integer, intent(in) :: nElems
 
@@ -107,8 +88,8 @@ contains
     type(ExtLagrangianInp) :: extLagrInp
 
     @:ASSERT(input%scale >= 0.0_dp)
-    @:ASSERT(input%minSccIter >= 1)
-    @:ASSERT(input%maxSccIter >= 1 .and. input%maxSccIter >= input%minSccIter)
+    @:ASSERT(input%minSCCIter >= 1)
+    @:ASSERT(input%maxSCCIter >= 1 .and. input%maxSCCIter >= input%minSCCIter)
     @:ASSERT(input%sccTol > 0.0_dp)
 
     extLagrInp%nTimeSteps = input%nKappa
@@ -121,11 +102,11 @@ contains
     this%iStep = 1
     this%nTransientSteps = input%nTransientSteps
     this%nPreSteps = input%nPreSteps
-    this%nFullSccSteps = input%nFullSccSteps
-    this%iStartXl = this%nPreSteps + input%nFullSccSteps - input%nKappa
+    this%nFullSCCSteps = input%nFullSCCSteps
+    this%iStartXl = this%nPreSteps + input%nFullSCCSteps - input%nKappa
 
-    this%minSccIter = input%minSccIter
-    this%maxSccIter = input%maxSccIter
+    this%minSCCIter = input%minSCCIter
+    this%maxSCCIter = input%maxSCCIter
     this%sccTol = input%sccTol
 
     this%useInverseJacobian = input%useInverseJacobian
@@ -143,15 +124,11 @@ contains
 
 
   !> Delivers charges for the next time step.
-  !!
   subroutine getNextCharges(this, qCurrent, qNext)
-
     !> Instance.
     class(Xlbomd), intent(inout) :: this
-
     !> Charges for current time step.
     real(dp), intent(in) :: qCurrent(:)
-
     !> Charges for next time step.
     real(dp), intent(out) :: qNext(:)
 
@@ -164,36 +141,28 @@ contains
   end subroutine getNextCharges
 
 
-  !> Sets default Scc parameters to return, if no override is done.
-  !!
-  subroutine setDefaultSccParameters(this, minSccIter, maxSccIter, sccTol)
-    !> Instance.
+  !> Sets default SCC parameters to return, if no override is done.
+  subroutine setDefaultSCCParameters(this, minSCCIter, maxSCCIter, sccTol)  !> Instance.
     class(Xlbomd), intent(inout) :: this
-
-    !> Minimal number of Scc iterations.
-    integer, intent(in) :: minSccIter
-
-    !> Maximal number of Scc iterations.
-    integer, intent(in) :: maxSccIter
-
-    !> Scc tolerance.
+    !> Minimal number of SCC iterations.
+    integer, intent(in) :: minSCCIter
+    !> Maximal number of SCC iterations.
+    integer, intent(in) :: maxSCCIter
+    !> SCC tolerance.
     real(dp), intent(in) :: sccTol
 
 
-    this%minSccIter0 = minSccIter
-    this%maxSccIter0 = maxSccIter
+    this%minSCCIter0 = minSCCIter
+    this%maxSCCIter0 = maxSCCIter
     this%sccTol0 = sccTol
 
-  end subroutine setDefaultSccParameters
+  end subroutine setDefaultSCCParameters
 
 
-  !> Signalizes whether XLBOMD integration is active.
-  !!
+  !> Signals whether XLBOMD integration is active.
   function isActive(this)
-
     !> Instance.
     class(Xlbomd), intent(in) :: this
-
     !> True if XLBOMD integration is active (no SCC convergence needed)
     logical :: isActive
 
@@ -202,44 +171,36 @@ contains
   end function isActive
 
 
-  !> Returns the Scc parameters to be used when the integrator is active.
-  !!
-  subroutine getSccParameters(this, minSccIter, maxSccIter, sccTol)
-
+  !> Returns the SCC parameters to be used when the integrator is active.
+  subroutine getSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
     !> Instance.
     class(Xlbomd), intent(in) :: this
-
-    !> Minimal number of Scc cycles.
-    integer, intent(out) :: minSccIter
-
-    !> Maximal number of Scc cycles
-    integer, intent(out) :: maxSccIter
-
-    !> Tolerance for Scc convergence.
+    !> Minimal number of SCC cycles.
+    integer, intent(out) :: minSCCIter
+    !> Maximal number of SCC cycles
+    integer, intent(out) :: maxSCCIter
+    !> Tolerance for SCC convergence.
     real(dp), intent(out) :: sccTol
 
     if (this%extLagr%needsConvergedValues()) then
-      minSccIter = this%minSccIter0
-      maxSccIter = this%maxSccIter0
+      minSCCIter = this%minSCCIter0
+      maxSCCIter = this%maxSCCIter0
       sccTol = this%sccTol0
     else
-      minSccIter = this%minSccIter
-      maxSccIter = this%maxSccIter
+      minSCCIter = this%minSCCIter
+      maxSCCIter = this%maxSCCIter
       sccTol = this%sccTol
     end if
 
-  end subroutine getSccParameters
+  end subroutine getSCCParameters
 
 
   !> Whether integrator needs the inverse Jacobian at the current step.
-  !!
   function needsInverseJacobian(this)
-
     !> Instance.
     class(Xlbomd), intent(in) :: this
-
-    !> True, if a inverse Jacobian is needed. It should be passed via the
-    !! setInverseJacobian() procedure.
+    !> True, if a inverse Jacobian is needed. It should be passed via the setInverseJacobian()
+    !> procedure.
     logical :: needsInverseJacobian
 
     integer :: iStart, iEnd
@@ -247,7 +208,7 @@ contains
     needsInverseJacobian = .false.
     if (this%useInverseJacobian .and. .not. this%readInverseJacobian) then
       iStart = this%nPreSteps + 1
-      iEnd = this%nPreSteps + this%nFullSccSteps
+      iEnd = this%nPreSteps + this%nFullSCCSteps
       needsInverseJacobian = (this%iStep >= iStart .and. this%iStep <= iEnd)
     end if
 
@@ -255,12 +216,10 @@ contains
 
 
   !> Sets the inverse Jacobian for driving the Xlbomd simulation.
-  !!
-  !! \param this  Instance.
-  !! \param invJacobian  Inverse Jacobian.
-  !!
   subroutine setInverseJacobian(this, invJacobian)
+    !> Instance.
     class(Xlbomd), intent(inout) :: this
+    !> Inverse Jacobian.    
     real(dp), intent(in) :: invJacobian(:,:)
 
     real(dp) :: coeffOld, coeffNew, normFactor
@@ -278,8 +237,9 @@ contains
 
   end subroutine setInverseJacobian
 
-
+  !> Read inverse Jacobian from disc
   subroutine readJacobianKernel(this)
+    !> Instance.
     class(Xlbomd), intent(inout) :: this
 
     open(12, file=JacobianKernelFile, status="old", action="read")
