@@ -6,7 +6,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a simple logger which helps to avoid direct write statements.
-!!
 module logger
   use accuracy, only : dp
   use optarg
@@ -18,11 +17,11 @@ module logger
 
 
   !> Logger
-  !!
   type :: LogWriter
     private
     integer :: verbosity
   contains
+    !> internal write procedures
     procedure :: writeStr
     procedure :: writeInt
     procedure :: writeReal
@@ -33,16 +32,15 @@ module logger
 
 
   !> Constructor for LogWriter
-  !!
   interface LogWriter
     module procedure construct
   end interface LogWriter
 
 
-  ! Default verbosity level
+  !> Default verbosity level
   integer, parameter :: DEFAULT_VERBOSITY = 1
 
-  ! Maximal line length
+  !> Maximum line length
   integer, parameter :: MAX_LEN = 80
 
 
@@ -81,7 +79,6 @@ contains
 
 
   !> Writes a message into the log (string).
-  !!
   subroutine writeStr(this, msg, verbosity, formStr)
 
     !> Instance
@@ -111,7 +108,6 @@ contains
 
 
   !> Writes a message into the log (int).
-  !!
   subroutine writeInt(this, msg, verbosity, formStr)
 
     !> Instance
@@ -141,7 +137,6 @@ contains
 
 
   !> Writes a message into the log (real).
-  !!
   subroutine writeReal(this, msg, verbosity, formStr)
 
     !> Instance
@@ -171,7 +166,6 @@ contains
 
 
   !> Writes a message into the log (real1).
-  !!
   subroutine writeReal1(this, msg, verbosity, formStr, columnwise)
 
     !> Instance
@@ -213,7 +207,6 @@ contains
 
 
   !> Writes a message into the log (real2).
-  !!
   subroutine writeReal2(this, msg, verbosity, formStr, columnwise)
 
     !> Instance
@@ -253,13 +246,7 @@ contains
   end subroutine writeReal2
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
   !! Returns the format string for an entire row.
-  !!
   subroutine getRowFormat(formStr, nItems, formStrRow)
     character(*), intent(in) :: formStr
     integer, intent(in) :: nItems

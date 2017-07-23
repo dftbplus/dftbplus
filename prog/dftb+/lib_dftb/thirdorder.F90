@@ -194,7 +194,7 @@ contains
   end subroutine updateCoords
 
 
-  !> Signalizes changed charges for the instance.
+  !> Updates with changed charges for the instance.
   !!
   subroutine updateCharges(this, species, neighList, qq, q0, img2CentCell, orb)
 

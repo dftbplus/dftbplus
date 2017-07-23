@@ -152,7 +152,7 @@ module hsdutils
   !!* Maximal number of characters needed to represent a logical value
   integer, parameter :: nCharLogical = 4
 
-  !!* Attribute signalising that a tag was processed
+  !!* Attribute signals that a tag was processed
   character(len=*), parameter :: attrProcessed = "proc"
 
   !!* Preallocateated size for temporary buffer strings
@@ -2867,7 +2867,7 @@ contains
 
 
 
-  !!* Checks if error flag signalizes an error. If yes, raises error.
+  !!* Checks if error flag signals an error. If yes, raises error.
   !!* @param node Node which the error flag was set for
   !!* @param iErr Content of the error flag.
   !!* @param msg  Message to print, if error occured

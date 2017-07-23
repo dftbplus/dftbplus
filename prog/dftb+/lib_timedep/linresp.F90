@@ -44,7 +44,7 @@ module linresp_module
     real(dp) :: oscillatorWindow ! single particle transitions to be
                                  ! included above the energy window if
                                  ! they are brighter than this
-    ! state of interest (warning - this is also used as a signaling variable)
+    ! state of interest (warning - this is also used as a signal variable)
     integer :: nStat
 
     ! symmetry of states being calculated

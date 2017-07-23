@@ -238,7 +238,7 @@ contains
 
   !> Gives the coordinate of the minimal point back
   !> The returned value is meaningless if the subroutine is called
-  !>   before the CG minimizer signalizes convergence.
+  !>   before the CG minimizer signals convergence.
   subroutine ConjGrad_getMinX(self, minX)
     !> CG minimizer
     type(OConjGrad), intent(in) :: self
@@ -255,7 +255,7 @@ contains
 
   !> Gives the function value in the minimal point back.
   !> The returned value is meaningless if the subroutine is called before the CG minimizer
-  !>   signalizes convergence.
+  !>   signals convergence.
   subroutine ConjGrad_getMinY(self, minY)
     !> CG minimizer
     type(OConjGrad), intent(in) :: self

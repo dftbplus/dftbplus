@@ -22,13 +22,13 @@ module tokenreader
 
   private
 
-  !!* Flag for signalising successfull token reading
+  !!* Flag for signals successfull token reading
   integer, parameter :: TOKEN_OK = 0
 
-  !!* Flag for signalising end of string
+  !!* Flag for signals end of string
   integer, parameter :: TOKEN_EOS = -1
 
-  !!* Flag for signalising reading error
+  !!* Flag for signals reading error
   integer, parameter :: TOKEN_ERROR = -2
 
 

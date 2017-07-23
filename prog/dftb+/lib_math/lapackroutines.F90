@@ -538,7 +538,7 @@ contains
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   !! \param aa  Symmetric matrix
   !! \param ipiv  Interchanges of blocks on exit.
-  !! \param uplo  Signalizes whether upper (U) or lower (L) triangle should be
+  !! \param uplo  Signals whether upper (U) or lower (L) triangle should be
   !!     used (default: lower).
   !! \param info  Info flag (0 = OK). If not set and an error occured, the
   !!     subroutine stops.
@@ -580,7 +580,7 @@ contains
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   !! \param aa  Symmetric matrix
   !! \param ipiv  Interchanges of blocks on exit.
-  !! \param uplo  Signalizes whether upper (U) or lower (L) triangle should be
+  !! \param uplo  Signals whether upper (U) or lower (L) triangle should be
   !!     used (default: lower).
   !! \param info  Info flag (0 = OK). If not set and an error occured, the
   !!     subroutine stops.
@@ -622,7 +622,7 @@ contains
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (complex).
   !! \param aa  Hermitian matrix
   !! \param ipiv  Interchanges of blocks on exit.
-  !! \param uplo  Signalizes whether upper (U) or lower (L) triangle should be
+  !! \param uplo  Signals whether upper (U) or lower (L) triangle should be
   !!     used (default: lower).
   !! \param info  Info flag (0 = OK). If not set and an error occured, the
   !!     subroutine stops.
@@ -664,7 +664,7 @@ contains
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (dcomplex).
   !! \param aa  Hermitian matrix
   !! \param ipiv  Interchanges of blocks on exit.
-  !! \param uplo  Signalizes whether upper (U) or lower (L) triangle should be
+  !! \param uplo  Signals whether upper (U) or lower (L) triangle should be
   !!     used (default: lower).
   !! \param info  Info flag (0 = OK). If not set and an error occured, the
   !!     subroutine stops.
