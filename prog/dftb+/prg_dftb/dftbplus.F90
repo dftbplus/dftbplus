@@ -2714,7 +2714,7 @@ program dftbplus
               end if
               if (tFixEf .and. tPrintMulliken) then
                 write(fdMD,"(' Net charge     : ',F14.8)") &
-                    & sum(q0(:, ii, 1) - qOutput(:, ii, 1))
+                    & sum(q0(:, :, 1) - qOutput(:, :, 1))
               end if
               if (tDipole) then
                 write(fdMD,"(' Dipole moment  :',3f14.8,' au')")dipoleMoment
