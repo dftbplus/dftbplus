@@ -12,7 +12,6 @@ import sys
 import optparse
 import numpy as np
 from dptools.gen import Gen
-from dptools.cif import Cif
 
 USAGE = """usage: %prog [options] INPUT
 
