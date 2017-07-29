@@ -28,7 +28,7 @@ module gdiis
     !> Tolerance criteria for convergence
     real(dp) :: tolerance
     !> If object is initialized
-    logical  :: tInitialized 
+    logical  :: tInitialized
   end type ODIIS
 
   !> Creates gDIIS instance
@@ -54,11 +54,11 @@ contains
 
   !> Creates a DIIS geometry optimiser instance
   subroutine gDIIS_init(self, nElem, tol, alpha, nGens)
-    !> DIIS instance on exit  
+    !> DIIS instance on exit
     type(ODIIS), intent(out) :: self
-    !> Nr. of elements in the vectors    
+    !> Nr. of elements in the vectors
     integer, intent(in)  :: nElem
-    !> Termination tolerance for the gradient    
+    !> Termination tolerance for the gradient
     real(dp), intent(in) :: tol
     !> initial value for mixing in gradient information to DIIS space
     real(dp), intent(in) :: alpha

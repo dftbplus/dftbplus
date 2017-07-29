@@ -31,14 +31,14 @@ module qm
     module procedure isunitary_real
     module procedure isunitary_cmplx
   end interface isunitary
-  
+
 contains
 
   !> constructs a commutator for given matrices C = [A,B]
   subroutine C_(C,A,B)
     !> result of commutator
     complex(dp), intent(out) :: C(:,:)
-    !> first matrix  
+    !> first matrix
     complex(dp), intent(in)  :: A(:,:)
     !> second matrix
     complex(dp), intent(in)  :: B(:,:)
@@ -53,7 +53,7 @@ contains
 
   !> unitary transformation on a matrix \(X^\prime = U X U^\dag\)
   subroutine U_cmplx(xx, uu)
-    !! matrix in original basis, U X U* on return.  
+    !! matrix in original basis, U X U* on return.
     complex(dp), intent(inout) :: xx(:,:)
     !! unitary matrix
     complex(dp), intent(in) :: uu(:,:)
@@ -64,26 +64,26 @@ contains
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
 
     @:ASSERT(isunitary(uu,epsilon(1.0_rsp)))
-    
+
     work = matmul(xx, transpose(conjg(uu)))
     xx = matmul(uu, work)
 
   end subroutine U_cmplx
-  
+
   !> unitary transformation on a matrix \(X^\prime = U X U^\dag\)
   subroutine U_real(xx, uu)
     !> \param X matrix in original basis, U X U^T on return.
     real(dp), intent(inout) :: xx(:,:)
-    !> unitary matrix    
+    !> unitary matrix
     real(dp), intent(in) :: uu(:,:)
 
     real(dp) :: work(size(xx,dim=1),size(xx,dim=2))
-    
+
     @:ASSERT(all(shape(xx) == shape(uu)))
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
-    
+
     @:ASSERT(isunitary(uu,epsilon(1.0_rsp)))
-    
+
     work = matmul(xx, transpose(uu))
     xx = matmul(uu, work)
 
@@ -97,13 +97,13 @@ contains
     real(dp), intent(in) :: tol
     !> test result
     logical :: unitary
-    
+
     integer :: ii
     real(dp) :: work(size(U,dim=1),size(U,dim=2))
 
     @:ASSERT(size(U,dim=1) == size(U,dim=1))
     @:ASSERT(size(U,dim=1)==size(U,dim=1))
-    
+
     work = matmul(U,transpose(U))
 
     unitary = .true.
@@ -118,7 +118,7 @@ contains
       unitary = .false.
       return
     end if
-    
+
   end function isunitary_real
 
   !> tests if a matrix is unitary to single precision
@@ -129,7 +129,7 @@ contains
     real(dp), intent(in) :: tol
     !> test result
     logical :: unitary
-    
+
     integer :: ii
     complex(dp) :: work(size(U,dim=1),size(U,dim=2))
 
@@ -150,7 +150,7 @@ contains
       unitary = .false.
       return
     end if
-    
+
   end function isunitary_cmplx
 
 end module qm

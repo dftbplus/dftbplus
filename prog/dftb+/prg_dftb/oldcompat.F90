@@ -27,9 +27,9 @@ contains
   subroutine convertOldHSD(root, oldVersion, curVersion)
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
-    !> Version number of the old parser    
+    !> Version number of the old parser
     integer, intent(in) :: oldVersion
-    !> Version number of the current parser  
+    !> Version number of the current parser
     integer, intent(in) :: curVersion
 
     integer :: version

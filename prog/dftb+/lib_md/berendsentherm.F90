@@ -38,7 +38,7 @@ module berendsentherm
     !> coupling strength to friction term
     real(dp) :: couplingParameter
     !> MD Framework.
-    type(OMDCommon) :: pMDFrame 
+    type(OMDCommon) :: pMDFrame
   end type OBerendsenThermostat
 
   !> initialise object
@@ -72,7 +72,7 @@ contains
     type(ORanlux), allocatable, intent(inout) :: pRanlux
     !> Masses of the atoms.
     real(dp), intent(in) :: masses(:)
-    !> Temperature profile object.  
+    !> Temperature profile object.
     type(OTempProfile), pointer, intent(in) :: tempProfile
     !> Coupling parameter for the thermostat.
     real(dp), intent(in) :: couplingParameter

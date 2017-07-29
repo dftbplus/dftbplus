@@ -33,19 +33,19 @@ module inputdata_module
     !> SCC calculation?
     logical       :: tScc        = .false.
     !> l-shell resolved SCC
-    logical       :: tOrbResolved = .false. 
+    logical       :: tOrbResolved = .false.
     real(dp)      :: sccTol      = 0.0_dp
     logical       :: tReadChrg   = .false.
     logical       :: tGeoOpt     = .false. ! should probably be packaged
     logical       :: tCoordOpt   = .false.
     !> maximum line search step for atoms
-    real(dp)      :: maxAtomDisp = 0.2_dp 
+    real(dp)      :: maxAtomDisp = 0.2_dp
     logical       :: tLatOpt     = .false. ! should probably be packaged
     logical       :: tLatOptFixAng = .false.
     logical       :: tLatOptFixLen(3) = .false.
     logical       :: tLatOptIsotropic = .false.
     !> maximum possible linesearch step
-    real(dp)      :: maxLatDisp = 0.2_dp 
+    real(dp)      :: maxLatDisp = 0.2_dp
     logical       :: tAppendGeo  = .false.
     logical       :: tConvrgForces = .true.
     integer       :: iGeoOpt     = 0
@@ -56,7 +56,7 @@ module inputdata_module
     !> internal variable for requirement of Mulliken analysis
     logical       :: tMulliken   = .false.
     !> printout of Mulliken
-    logical       :: tPrintMulliken   = .false. 
+    logical       :: tPrintMulliken   = .false.
     logical       :: tLocalise   = .false.
     logical       :: tPipekMezey = .false.
     logical       :: tPipekDense = .false.
@@ -71,23 +71,23 @@ module inputdata_module
     !> text file of eigenvectors?
     logical       :: tPrintEigVecsTxt = .false.
     !> project eigenvectors spatially
-    logical       :: tProjEigenvecs = .false. 
+    logical       :: tProjEigenvecs = .false.
     !> Evaluate forces
     logical       :: tForces     = .false.
     !> force evaluation method
     integer       :: forceType
     !> Output forces
-    logical       :: tPrintForces = .false. 
+    logical       :: tPrintForces = .false.
     integer       :: iDerivMethod = 0
     !> 1st derivative finite difference step
-    real(dp)      :: deriv1stDelta = 0.0_dp 
+    real(dp)      :: deriv1stDelta = 0.0_dp
 
     !> Molecular dynamics
     logical       :: tMD         = .false.
     !> Finite difference derivatives calculation?
     logical       :: tDerivs     = .false.
     !> Should central cell coordinates be output?
-    logical       :: tShowFoldedCoord 
+    logical       :: tShowFoldedCoord
 
     real(dp)               :: nrChrg        = 0.0_dp
     real(dp)               :: nrSpinPol     = 0.0_dp
@@ -124,19 +124,19 @@ module inputdata_module
     !> do we have MD velocities
     logical                :: tReadMDVelocities = .false.
     !> initial MD velocities
-    real(dp), allocatable  :: initialVelocities(:,:) 
+    real(dp), allocatable  :: initialVelocities(:,:)
     real(dp)               :: deltaT        = 0.0_dp
 
     real(dp)               :: tempAtom      = 0.0_dp
     integer                :: iThermostat   = 0
     !> whether to initialize internal state of the Nose-Hoover thermostat from input
-    logical                :: tInitNHC = .false. 
+    logical                :: tInitNHC = .false.
     real(dp), allocatable :: xnose(:)
     real(dp), allocatable :: vnose(:)
     real(dp), allocatable :: gnose(:)
 
     !> whether to shift to a co-moving frame for MD
-    logical                :: tMDstill 
+    logical                :: tMDstill
     logical                :: tRescale = .false.
     integer, allocatable   :: tempMethods(:)
     integer, allocatable   :: tempSteps(:)
@@ -154,22 +154,22 @@ module inputdata_module
     !> default order of NH integration
     integer                :: nh_nys        = 3
     !> default multiple time steps for N-H propagation
-    integer                :: nh_nc         = 1 
+    integer                :: nh_nc         = 1
 
     integer                :: maxRun        = -2
 
     !> second derivative finite difference step
-    real(dp)               :: deriv2ndDelta    = 0.0_dp 
+    real(dp)               :: deriv2ndDelta    = 0.0_dp
 
     integer                :: nKPoint       = 0
     real(dp), allocatable :: kPoint(:,:)
     real(dp), allocatable :: kWeight(:)
 
     !> cell presure if periodic
-    real(dp)               :: pressure       = 0.0_dp 
+    real(dp)               :: pressure       = 0.0_dp
     logical                :: tBarostat = .false.
     !> use isotropic scaling if barostatting
-    logical                :: tIsotropic = .true. 
+    logical                :: tIsotropic = .true.
     real(dp)               :: BarostatStrength = 0.0_dp
 
     !> read atomic masses from the input not the SK data
@@ -178,20 +178,20 @@ module inputdata_module
     !> spin constants
     real(dp), allocatable :: spinW(:,:,:)
     !> customised Hubbard U values
-    real(dp), allocatable :: hubbU(:,:)    
+    real(dp), allocatable :: hubbU(:,:)
     !> spin-orbit constants
-    real(dp), allocatable :: xi(:,:)       
+    real(dp), allocatable :: xi(:,:)
 
     !> choice of the DFTB+U functional
     integer                :: DFTBUfunc     = 0
     !> list of U-J for species
     real(dp), allocatable :: UJ(:,:)
     !> How many U-J for each species
-    integer,  allocatable :: nUJ(:)      
+    integer,  allocatable :: nUJ(:)
     !> number of l-values of U-J for each block
     integer,  allocatable :: niUJ(:,:)
     !> l-values of U-J for each block
-    integer,  allocatable :: iUJ(:,:,:)  
+    integer,  allocatable :: iUJ(:,:,:)
 
     !> Number of external charges
     integer :: nExtChrg = 0
@@ -235,7 +235,7 @@ module inputdata_module
     !> Various options
     logical :: tWriteTagged = .false.
     !> Nr. of SCC iterations without restart info
-    integer :: restartFreq  = 20 
+    integer :: restartFreq  = 20
     logical :: tWriteDetailedXML = .false.
     logical :: tWriteResultsTag = .false.
     logical :: tWriteDetailedOut = .true.

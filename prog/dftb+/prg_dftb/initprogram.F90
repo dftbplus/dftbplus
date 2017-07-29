@@ -415,25 +415,25 @@ module initprogram
   !> Nr. of external charges
   integer :: nExtChrg
 
-  !> external electric field   
-  logical  :: tEField = .false.        
-  !> field strength            
-  real(dp) :: EFieldStrength = 0.0_dp  
-  !> field direction           
-  real(dp) :: EfieldVector(3) = 0.0_dp 
-  !> time dependent            
-  logical  :: tTDEfield = .false.      
-  !> angular frequency         
-  real(dp) :: EfieldOmega = 0.0_dp     
-  !> phase of field at step 0  
-  integer  :: EfieldPhase = 0          
+  !> external electric field
+  logical  :: tEField = .false.
+  !> field strength
+  real(dp) :: EFieldStrength = 0.0_dp
+  !> field direction
+  real(dp) :: EfieldVector(3) = 0.0_dp
+  !> time dependent
+  logical  :: tTDEfield = .false.
+  !> angular frequency
+  real(dp) :: EfieldOmega = 0.0_dp
+  !> phase of field at step 0
+  integer  :: EfieldPhase = 0
 
   !> Partial density of states (PDOS) projection regions
   type(listIntR1), save :: iOrbRegion
   !> PDOS region labels
   type(listCharLc), save :: regionLabels
   !> file units for PDOS results
-  integer, allocatable, save :: fdProjEig(:) 
+  integer, allocatable, save :: fdProjEig(:)
 
   !> Third order DFTB
   logical :: t3rd
@@ -451,32 +451,32 @@ module initprogram
   !> data type for linear response
   type(linresp), save :: lresp
 
-  !> If initial charges/dens mtx. from external file.             
-  logical :: tReadChrg         
-  !> produce tagged output?                                       
-  logical :: tWriteTagged      
-  !> Produce detailed.xml                                         
-  logical :: tWriteDetailedXML 
-  !> Produce detailed.tag                                         
-  logical :: tWriteResultsTag  
-  !> Produce detailed.out                                         
-  logical :: tWriteDetailedOut 
-  !> Produce band.dat                                             
-  logical :: tWriteBandDat     
-  !> Should HS (square) be printed?                               
-  logical :: tWriteHS          
-  !> Should HS (sparse) be printed?                               
-  logical :: tWriteRealHS      
-  !> try to reduce  memory by storing large arrays to disc        
-  logical :: tMinMemory        
-  !> store eigenvectors on disc instead of memory                 
-  logical :: tStoreEigvecs     
+  !> If initial charges/dens mtx. from external file.
+  logical :: tReadChrg
+  !> produce tagged output?
+  logical :: tWriteTagged
+  !> Produce detailed.xml
+  logical :: tWriteDetailedXML
+  !> Produce detailed.tag
+  logical :: tWriteResultsTag
+  !> Produce detailed.out
+  logical :: tWriteDetailedOut
+  !> Produce band.dat
+  logical :: tWriteBandDat
+  !> Should HS (square) be printed?
+  logical :: tWriteHS
+  !> Should HS (sparse) be printed?
+  logical :: tWriteRealHS
+  !> try to reduce  memory by storing large arrays to disc
+  logical :: tMinMemory
+  !> store eigenvectors on disc instead of memory
+  logical :: tStoreEigvecs
 
   !> Program run id
-  integer :: runId 
+  integer :: runId
 
   !> Frequency for saving restart info
-  integer :: restartFreq    
+  integer :: restartFreq
 
   !> If dispersion should be calculated
   logical :: tDispersion
@@ -485,7 +485,7 @@ module initprogram
   !> Can stress be calculated? - start by assuming it can
   logical :: tStress = .true.
 
-  !> FIFO for storing eigenvectors in real case  
+  !> FIFO for storing eigenvectors in real case
   type(OFifoRealR2), allocatable :: storeEigvecsReal(:)
   !> FIFO for storing eigenvectors in complex
   type(OFifoCplxR2), allocatable :: storeEigvecsCplx(:)
@@ -499,7 +499,7 @@ module initprogram
   type(NonSccDiff), save :: nonSccDeriv
 
   !> First guess for nr. of neighbors.
-  integer, parameter :: nInitNeighbor = 40  
+  integer, parameter :: nInitNeighbor = 40
   private :: nInitNeighbor
 
   private :: createRandomGenerators
@@ -518,23 +518,23 @@ contains
     integer  :: nGeneration
     real(dp) :: mixParam
     !> mixer number
-    integer :: iMixer        
+    integer :: iMixer
     type(OSimpleMixer), allocatable :: pSimpleMixer
     type(OAndersonMixer), allocatable :: pAndersonMixer
     type(OBroydenMixer), allocatable :: pBroydenMixer
     type(ODIISMixer), allocatable :: pDIISMixer
 
     ! Geometry optimizer related local variables
-    !> Conjugate gradient driver    
-    type(OConjGrad), allocatable :: pConjGrad      
-    !> Steepest descent driver      
-    type(OSteepDesc), allocatable :: pSteepDesc    
-    !> Conjugate gradient driver    
-    type(OConjGrad), allocatable :: pConjGradLat   
-    !> Steepest descent driver      
-    type(OSteepDesc), allocatable :: pSteepDescLat 
-    !> gradient DIIS driver         
-    type(ODIIS), allocatable :: pDIIS              
+    !> Conjugate gradient driver
+    type(OConjGrad), allocatable :: pConjGrad
+    !> Steepest descent driver
+    type(OSteepDesc), allocatable :: pSteepDesc
+    !> Conjugate gradient driver
+    type(OConjGrad), allocatable :: pConjGradLat
+    !> Steepest descent driver
+    type(OSteepDesc), allocatable :: pSteepDescLat
+    !> gradient DIIS driver
+    type(ODIIS), allocatable :: pDIIS
 
     ! MD related local variables
     type(OThermostat), allocatable :: pThermostat
@@ -566,12 +566,12 @@ contains
     character(lc) :: strTmp, strTmp2
 
     !> flag to check for first cycle through a loop
-    logical :: tFirst 
+    logical :: tFirst
 
     real(dp) :: rTmp
 
     !> Flag if some files do exist or not
-    logical :: tExist 
+    logical :: tExist
 
     ! Orbital equivalency for SCC and Spin
     integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)

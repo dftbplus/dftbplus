@@ -10,7 +10,7 @@ module constants
   use accuracy
 
   !! Natural constants
-  
+
   !> $\pi$
   real(dp), parameter :: pi = 3.14159265358979323846_dp
   !> Bohr->Angstrom

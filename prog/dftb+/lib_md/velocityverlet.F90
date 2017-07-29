@@ -42,7 +42,7 @@ module velocityverlet
     !> Pressure tensor
     real(dp) :: Pressure(3,3)
     !> is the cell scaling isotropic
-    logical  :: tIsotropic = .true.      
+    logical  :: tIsotropic = .true.
   end type OVelocityVerlet
 
   !> initialise MD
@@ -72,13 +72,13 @@ contains
 
   !> Creates a VelocityVerlet object from the thermostat settings
   subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat)
-    !> Initialised object on exit.    
+    !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
-    !> Integration time step.    
+    !> Integration time step.
     real(dp), intent(in)                 :: deltaT
-    !> Position of the atoms.    
+    !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
-    !> Thermostat if needed.    
+    !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
     @:ASSERT(size(positions, dim=1) == 3)
@@ -104,13 +104,13 @@ contains
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities
   subroutine VelocityVerlet_velocities(self, deltaT, positions, pThermostat, &
       & velocities)
-    !> Initialised object on exit.    
+    !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
-    !> Integration time step.    
+    !> Integration time step.
     real(dp), intent(in)                 :: deltaT
-    !> Position of the atoms.    
+    !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
-    !> Thermostat.    
+    !> Thermostat.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
     !> List of initial velocities
     real(dp), intent(in)                 :: velocities(:,:)
@@ -129,7 +129,7 @@ contains
 
     ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
     ! t+.5 velocities when possible once forces are available for the coordinates
-    self%vHalfPresent = .false. 
+    self%vHalfPresent = .false.
 
     self%tBarostat = .false.
 
@@ -138,17 +138,17 @@ contains
   !> Creates a VelocityVerlet object from the thermostat settings and isotropic pressure
   subroutine VV_themostats_pressure(self, deltaT, positions, pThermostat, &
       & Barostat, Pressure, tIsotropic)
-    !> Initialised object on exit.    
+    !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
-    !> Integration time step.    
+    !> Integration time step.
     real(dp), intent(in)                 :: deltaT
-    !> Position of the atoms.    
+    !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
-    !> Thermostat if needed.    
+    !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
-    !> Coupling strength.    
+    !> Coupling strength.
     real(dp), intent(in)                 :: Barostat
-    !> Target isotropic pressure    
+    !> Target isotropic pressure
     real(dp), intent(in)                 :: Pressure
     !> Is this an isotropic barostat, or can the cell shape change?
     logical, intent(in)                  :: tIsotropic
@@ -186,19 +186,19 @@ contains
   !> pressure
   subroutine VV_velocities_pressure(self, deltaT, positions, pThermostat, &
       & velocities, Barostat, Pressure, tIsotropic)
-    !> Initialised object on exit.  
+    !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
-    !> Integration time step.  
+    !> Integration time step.
     real(dp), intent(in)                 :: deltaT
-    !> Position of the atoms.  
+    !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
-    !> Thermostat.    
+    !> Thermostat.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
-    !> List of initial velocities    
+    !> List of initial velocities
     real(dp), intent(in)                 :: velocities(:,:)
-    !> Coupling strength    
+    !> Coupling strength
     real(dp), intent(in)                 :: Barostat
-    !> Target isotropic pressure    
+    !> Target isotropic pressure
     real(dp), intent(in)                 :: Pressure
     !> Is this an isotropic barostat, or can the cell shape change?
     logical, intent(in)                  :: tIsotropic
@@ -219,7 +219,7 @@ contains
 
     ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
     ! t+.5 velocities when possible once forces are available for the coordinates
-    self%vHalfPresent = .false. 
+    self%vHalfPresent = .false.
 
     self%tBarostat = .true.
     self%BarostatStrength = Barostat
@@ -240,11 +240,11 @@ contains
   subroutine VelocityVerlet_next(self, accel, newCoord, newVelocity)
     !> Integrator to propogate
     type(OVelocityVerlet), intent(inout) :: self
-    !> Accelerations.  
+    !> Accelerations.
     real(dp),intent(in) :: accel(:,:)
-    !> Displaced coordinates  
+    !> Displaced coordinates
     real(dp),intent(out) :: newCoord(:,:)
-    !> Velocity of displaced coords  
+    !> Velocity of displaced coords
     real(dp),intent(out) :: newVelocity(:,:)
 
     newCoord(:,:) = 0.0_dp
@@ -296,7 +296,7 @@ contains
   subroutine VelocityVerlet_rescale(self,coord,latVecs,pressureTensor)
     !> Integrator to rescale
     type(OVelocityVerlet), intent(inout) :: self
-    !> Atom coordinates to rescale    
+    !> Atom coordinates to rescale
     real(dp),intent(inout)         :: coord(:,:)
     !> Lattice vectors to rescale
     real(dp),intent(inout)         :: latVecs(3,3)
@@ -310,7 +310,7 @@ contains
     @:ASSERT(self%tBarostat)
 
     ! isotropic Berendsen, not quite consistent with anisotropic but its in the literature...
-    if (self%tIsotropic) then 
+    if (self%tIsotropic) then
       Pext = 0.0_dp
       P = 0.0_dp
       do ii = 1, 3

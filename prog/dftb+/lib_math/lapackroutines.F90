@@ -19,7 +19,7 @@ module lapackroutines
   private
 
   !> Used to return runtime diagnostics
-  character(len=100) :: error_string  
+  character(len=100) :: error_string
 
   !> Computes the solution to a real system of linear equations
   !> A * X = B,

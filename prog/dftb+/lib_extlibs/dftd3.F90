@@ -18,7 +18,7 @@ module dftd3_module
   public :: withDftD3
 
 #:if WITH_DFTD3
-  
+
   !> Whether code was built with DFTD3 support
   logical, parameter :: withDftD3 = .true.
 

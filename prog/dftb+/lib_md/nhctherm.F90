@@ -48,7 +48,7 @@ module nhctherm
     !> weight coefficients
     real(dp), allocatable :: w(:)
     !> times steps to expand propogator of NHC part of evolution operator
-    integer :: nresn 
+    integer :: nresn
     !> number of thermostat particles in chain
     integer :: nnos
     !> internal chain positions
@@ -87,17 +87,17 @@ contains
       & xnose, vnose, gnose)
     !> Initialised instance on exit.
     type(ONHCThermostat), intent(out) :: self
-    !> Random generator.    
+    !> Random generator.
     type(ORanlux), allocatable, intent(inout) :: pRanlux
-    !> Masses of the atoms.  
+    !> Masses of the atoms.
     real(dp), intent(in) :: masses(:)
-    !> Temperature profile object.  
+    !> Temperature profile object.
     type(OTempProfile), pointer, intent(in) :: tempProfile
-    !> Coupling parameter for the thermostat  
+    !> Coupling parameter for the thermostat
     real(dp), intent(in) :: couplingParameter
     !> Molecular dynamics generic framework
     type(OMDCommon), intent(in) :: pMDFrame
-    !> MD time step    
+    !> MD time step
     real(dp), intent(in) :: deltaT
     integer, intent(in) :: npart
     integer, intent(in) :: nys
@@ -126,19 +126,19 @@ contains
     self%deltaT = deltaT
 
     ! pg 1124 'For typical simulations, nc can be taken to be one.'
-    self%nresn = nc 
+    self%nresn = nc
     if (self%nresn < 1) then
       call error('Nose-Hoover propogation steps must be at least 1.')
     end if
 
     ! particles in the chain
-    self%nnos = npart 
+    self%nnos = npart
     if (self%nnos < 1) then
       call error('Nose-Hoover chains must contain at least one mass.')
     end if
 
     ! current choice of order
-    self%nyosh = nys 
+    self%nyosh = nys
     allocate(self%w(self%nyosh))
     select case (self%nyosh)
     case (3)

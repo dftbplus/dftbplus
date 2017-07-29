@@ -1190,7 +1190,7 @@ module lapack
       !> distribution choice
       integer, intent(in) :: idist
       !> generator seed
-      integer, intent(inout) :: iseed(4)  
+      integer, intent(inout) :: iseed(4)
       !> vector dimension
       integer, intent(in) :: nn
       !> Random values on exit
@@ -1202,7 +1202,7 @@ module lapack
   interface ilaenv
     !> Provides problem-dependent LAPACK routine parameters for the local environment
     function ilaenv(ispec, name, opts, n1, n2, n3, n4)
-      !> Specifies the parameter to be returned 
+      !> Specifies the parameter to be returned
       integer, intent(in) :: ispec
       !> name of alling subroutine
       character, intent(in) :: name

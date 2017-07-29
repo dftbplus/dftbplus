@@ -29,7 +29,7 @@ module repspline
     !> Coeffs for the exponential head
     real(dp) :: expCoeffs(3)
     !> Cutoff for the last spline
-    real(dp) :: cutoff                  
+    real(dp) :: cutoff
   end type TRepSplineIn
 
 
@@ -49,7 +49,7 @@ module repspline
     !> Cutoff of the last spline
     real(dp) :: cutoff
     !> Initialisation status
-    logical :: tInit = .false.          
+    logical :: tInit = .false.
   end type ORepSpline
 
 
@@ -78,7 +78,7 @@ contains
 
   !> Initialises spline repulsive.
   subroutine RepSpline_init(self, inp)
-    !> Spline repulsive.  
+    !> Spline repulsive.
     type(ORepSpline), intent(out) :: self
     !> Input parameters for the spline repulsive.
     type(TRepSplineIn), intent(in) :: inp
@@ -106,7 +106,7 @@ contains
 
   !> Returns cutoff of the repulsive.
   function RepSpline_getCutoff(self) result(cutoff)
-    !> Spline repulsive.    
+    !> Spline repulsive.
     type(ORepSpline), intent(in) :: self
     !> Cutoff.
     real(dp) :: cutoff
@@ -166,11 +166,11 @@ contains
 
   !> Returns gradient of the repulsive for a given distance.
   subroutine RepSpline_getEnergyDeriv(self, grad, xx, d2)
-    !> Spline repulsive.  
+    !> Spline repulsive.
     type(ORepSpline), intent(in) :: self
-    !> Resulting contribution    
+    !> Resulting contribution
     real(dp), intent(out) :: grad(3)
-    !> Actual vector between atoms    
+    !> Actual vector between atoms
     real(dp), intent(in) :: xx(3)
     !> Second derivative in direction of xx, if needed.
     real(dp), intent(out), optional :: d2

@@ -142,7 +142,8 @@ contains
 
 
   !> Sets default SCC parameters to return, if no override is done.
-  subroutine setDefaultSCCParameters(this, minSCCIter, maxSCCIter, sccTol)  !> Instance.
+  subroutine setDefaultSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
+    !> Instance.
     class(Xlbomd), intent(inout) :: this
     !> Minimal number of SCC iterations.
     integer, intent(in) :: minSCCIter
@@ -219,7 +220,7 @@ contains
   subroutine setInverseJacobian(this, invJacobian)
     !> Instance.
     class(Xlbomd), intent(inout) :: this
-    !> Inverse Jacobian.    
+    !> Inverse Jacobian.
     real(dp), intent(in) :: invJacobian(:,:)
 
     real(dp) :: coeffOld, coeffNew, normFactor

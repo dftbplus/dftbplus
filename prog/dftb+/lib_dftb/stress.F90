@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Routines to calculate contributions to the stress tensor
+!> Routines to calculate contributions to the stress tensor
 module stress
   use assert
   use accuracy
@@ -24,32 +24,30 @@ module stress
 
 contains
 
-  !!* The stress tensor contribution from the repulsive energy term
-  !!* @param st stress tensor
-  !!* @param coords coordinates (x,y,z, all atoms including possible images)
-  !!* @param nNeighbors Number of neighbors for atoms in the central cell
-  !!* @param iNeighbors Index of neighbors for a given atom.
-  !!* @param species Species of atoms in the central cell.
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param repCont Container for repulsive potentials.
-  !!* @param cellVol cell volume.
-  subroutine getRepulsiveStress(st, coords, nNeighbors, iNeighbors, species, &
-      & img2CentCell, repCont, cellVol)
-    real(dp), intent(out) :: st(:,:)
+  !> The stress tensor contribution from the repulsive energy term
+  subroutine getRepulsiveStress(st,coords,nNeighbors,iNeighbors,species,img2CentCell,repCont, &
+      & cellVol)
+    !> stress tensor
+    real(dp), intent(out) :: st(3,3)
+    !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in)  :: coords(:,:)
+    !> Number of neighbors for atoms in the central cell
     integer, intent(in)   :: nNeighbors(:)
+    !> Index of neighbors for a given atom.
     integer, intent(in)   :: iNeighbors(0:,:)
+    !> Species of atoms in the central cell.
     integer, intent(in)   :: species(:)
+    !> indexing array for periodic image atoms
     integer, intent(in)   :: img2CentCell(:)
+    !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
+    !> cell volume.
     real(dp), intent(in)  :: cellVol
 
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii
     real(dp) :: vect(3), intermed(3), prefac
 
-    @:ASSERT(all(shape(st)==(/ 3, 3/)))
-
-    st(:,:) = 0.0_dp
+    st = 0.0_dp
 
     do iAt1 = 1, size(nNeighbors)
       do iNeigh = 1, nNeighbors(iAt1)
@@ -73,27 +71,26 @@ contains
   end subroutine getRepulsiveStress
 
 
-  !!* The kinetic contribution to the stress tensor
-  !!* @param st stress tensor
-  !!* @param mass particle masses
-  !!* @param species Species of atoms in the central cell.
-  !!* @param velo particle velocities
-  !!* @param cellVol cell volume.
+  !> The kinetic contribution to the stress tensor
   subroutine getKineticStress(st, mass, species, velo, cellVol)
-    real(dp), intent(out) :: st(:,:)
+    !> stress tensor
+    real(dp), intent(out) :: st(3,3)
+    !> particle masses
     real(dp), intent(in)  :: mass(:)
+    !> Species of atoms in the central cell.
     integer, intent(in)   :: species(:)
+    !> particle velocities
     real(dp), intent(in)  :: velo(:,:)
+    !> cell volume.
     real(dp), intent(in)  :: cellVol
 
     integer :: ii, jj, iAtom, nAtom
 
     nAtom = size(species)
-    @:ASSERT(all(shape(st) == (/3, 3/)))
     @:ASSERT(all(shape(velo) == (/3, nAtom/)))
     @:ASSERT(size(mass) == nAtom)
 
-    st(:,:) = 0.0_dp
+    st = 0.0_dp
 
     do iAtom = 1, nAtom
       do ii = 1, 3
@@ -109,35 +106,36 @@ contains
   end subroutine getKineticStress
 
 
-  !!* The stress tensor contributions from the non-SCC energy
-  !!* @param st stress tensor
-  !!* @param DM density matrix in packed format
-  !!* @param EDM energy-weighted density matrix in packed format
-  !!* @param skHamCont Container for SK Hamiltonian integrals
-  !!* @param skOverCont Container for SK overlap integrals
-  !!* @param coords list of all atomic coordinates
-  !!* @param species list of all atomic species
-  !!* @param iNeighbor neighbor list for atoms
-  !!* @param nNeighbor number of neighbors of each atom
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @param orb Information about the shells and orbitals in the system.
-  !!* @param cellVol cell volume.
-  subroutine getNonSCCStress(st, derivator, DM, EDM, skHamCont, skOverCont,&
-      & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
-      & cellVol)
-    real(dp), intent(out) :: st(:,:)
+  !> The stress tensor contributions from the non-SCC energy
+  subroutine getNonSCCStress(st,derivator,DM,EDM,skHamCont,skOverCont,coords,species,iNeighbor, &
+      & nNeighbor,img2CentCell,iPair,orb,cellVol)
+    !> stress tensor
+    real(dp), intent(out) :: st(3,3)
+    !> density matrix in packed format
     class(NonSccDiff), intent(in) :: derivator
+    !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: DM(:)
+    !> Container for SK Hamiltonian integrals
     real(dp), intent(in) :: EDM(:)
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    !> Container for SK overlap integrals
+    type(OSlakoCont), intent(in) :: skOverCont
+    !> list of all atomic coordinates
+    type(OSlakoCont), intent(in) :: skHamCont
+    !> list of all atomic species
     real(dp), intent(in) :: coords(:,:)
+    !> neighbor list for atoms
     integer, intent(in) :: species(:)
+    !> number of neighbors of each atom
     integer, intent(in) :: iNeighbor(0:,:)
+    !> indexing array for periodic image atoms
     integer, intent(in) :: nNeighbor(:)
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: img2CentCell(:)
+    !> Information about the shells and orbitals in the system.
     integer, intent(in) :: iPair(0:,:)
+    !> cell volume.
     type(TOrbitals), intent(in) :: orb
+
     real(dp), intent(in)  :: cellVol
 
     integer   :: iOrig, ii, jj
@@ -147,11 +145,10 @@ contains
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp)  :: vect(3), intermed(3)
 
-    @:ASSERT(all(shape(st)==(/3,3/)))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
 
     nAtom = size(orb%nOrbAtom)
-    st(:,:) = 0.0_dp
+    st = 0.0_dp
 
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -172,7 +169,7 @@ contains
         call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
             & iAtom1, iAtom2, orb)
         call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+            & iAtom1, iAtom2, orb)
         do ii = 1, 3
           ! note factor of 2 for implicit summation over lower triangle of
           ! density matrix:
@@ -204,38 +201,38 @@ contains
   end subroutine getNonSCCStress
 
 
-  !!* The stress tensor contributions from a potential
-  !!* @param st stress tensor
-  !!* @param DM density matrix in packed format
-  !!* @param EDM energy-weighted density matrix in packed format
-  !!* @param skHamCont Container for SK Hamiltonian integrals
-  !!* @param skOverCont Container for SK overlap integrals
-  !!* @param coords list of all atomic coordinates
-  !!* @param species list of all atomic species
-  !!* @param iNeighbor neighbor list for atoms
-  !!* @param nNeighbor number of neighbors of each atom
-  !!* @param nAtom number of real atoms
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @param orb Information about the orbitals
-  !!* @param shift block shift from the potential
-  !!* @param cellVol cell volume.
-  subroutine getBlockStress(st, derivator, DM, EDM, skHamCont, skOverCont,&
-      & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift,&
-      & cellVol)
-    real(dp), intent(out) :: st(:,:)
+  !> The stress tensor contributions from a potential
+  subroutine getBlockStress(st,derivator,DM,EDM,skHamCont,skOverCont,coords,species,iNeighbor, &
+      & nNeighbor,img2CentCell,iPair,orb,shift,cellVol)
+    !> stress tensor
+    real(dp), intent(out) :: st(3,3)
+    !> density matrix in packed format
     class(NonSccDiff), intent(in) :: derivator
+    !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
+    !> Container for SK Hamiltonian integrals
     real(dp), intent(in) :: EDM(:)
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    !> Container for SK overlap integrals
+    type(OSlakoCont), intent(in) :: skHamCont
+    !> list of all atomic coordinates
+    type(OSlakoCont), intent(in) :: skOverCont
+    !> list of all atomic species
     real(dp), intent(in) :: coords(:,:)
+    !> neighbor list for atoms
     integer, intent(in) :: species(:)
+    !> number of neighbors of each atom
     integer, intent(in) :: iNeighbor(0:,:)
+    !> number of real atoms
     integer, intent(in) :: nNeighbor(:)
+    !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
+    !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
+    !> cell volume.
     real(dp), intent(in)  :: cellVol
 
     integer   :: iOrig, iSpin, nSpin, ii, jj
@@ -250,14 +247,13 @@ contains
     nSpin = size(shift,dim=4)
 
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    @:ASSERT(all(shape(st)==(/3,3/)))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
     @:ASSERT(size(DM,dim=2)==nSpin)
 
-    st(:,:) = 0.0_dp
+    st = 0.0_dp
 
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
@@ -327,144 +323,143 @@ contains
 
   end subroutine getBlockStress
 
-  !!* The stress tensor contributions from a complex potential
-  !!* @param st stress tensor
-  !!* @param DM density matrix in packed format
-  !!* @param iDM imaginary part of density matrix in packed format
-  !!* @param EDM energy-weighted density matrix in packed format
-  !!* @param skHamCont Container for SK Hamiltonian integrals
-  !!* @param skOverCont Container for SK overlap integrals
-  !!* @param coords list of all atomic coordinates
-  !!* @param species list of all atomic species
-  !!* @param iNeighbor neighbor list for atoms
-  !!* @param nNeighbor number of neighbors of each atom
-  !!* @param nAtom number of real atoms
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @param orb Information about the orbitals
-  !!* @param shift block shift from the potential
-  !!* @param iShift imaginary block shift from the potential
-  !!* @param cellVol cell volume.
-  subroutine getBlockiStress(st, derivator, DM, iDM, EDM, skHamCont,&
-      & skOverCont, coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
-      & orb, shift, iShift, cellVol)
-    real(dp), intent(out) :: st(:,:)
-    class(NonSccDiff), intent(in) :: derivator
-    real(dp), intent(in) :: DM(:,:)
-    real(dp), intent(in) :: iDM(:,:)
-    real(dp), intent(in) :: EDM(:)
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
-    real(dp), intent(in) :: coords(:,:)
-    integer, intent(in) :: species(:)
-    integer, intent(in) :: iNeighbor(0:,:)
-    integer, intent(in) :: nNeighbor(:)
-    integer, intent(in) :: img2CentCell(:)
-    integer, intent(in) :: iPair(0:,:)
-    type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: shift(:,:,:,:)
-    real(dp), intent(in) :: iShift(:,:,:,:)
-    real(dp), intent(in)  :: cellVol
+  !> The stress tensor contributions from a complex potential
+  subroutine getBlockiStress(st,derivator,DM,iDM,EDM,skHamCont,skOverCont,coords,species, &
+      & iNeighbor,nNeighbor,img2CentCell,iPair,orb,shift,iShift,cellVol)
+  !> stress tensor
+  real(dp), intent(out) :: st(3,3)
+  !> density matrix in packed format
+  class(NonSccDiff), intent(in) :: derivator
+  !> imaginary part of density matrix in packed format
+  real(dp), intent(in) :: DM(:,:)
+  !> energy-weighted density matrix in packed format
+  real(dp), intent(in) :: iDM(:,:)
+  !> Container for SK Hamiltonian integrals
+  real(dp), intent(in) :: EDM(:)
+  !> Container for SK overlap integrals
+  type(OSlakoCont), intent(in) :: skHamCont
+  !> list of all atomic coordinates
+  type(OSlakoCont), intent(in) :: skOverCont
+  !> list of all atomic species
+  real(dp), intent(in) :: coords(:,:)
+  !> neighbor list for atoms
+  integer, intent(in) :: species(:)
+  !> number of neighbors of each atom
+  integer, intent(in) :: iNeighbor(0:,:)
+  !> number of real atoms
+  integer, intent(in) :: nNeighbor(:)
+  !> indexing array for periodic image atoms
+  integer, intent(in) :: img2CentCell(:)
+  !> indexing array for the Hamiltonian
+  integer, intent(in) :: iPair(0:,:)
+  !> Information about the orbitals
+  type(TOrbitals), intent(in) :: orb
+  !> block shift from the potential
+  real(dp), intent(in) :: shift(:,:,:,:)
+  !> imaginary block shift from the potential
+  real(dp), intent(in) :: iShift(:,:,:,:)
+  !> cell volume.
+  real(dp), intent(in)  :: cellVol
 
-    integer   :: iOrig, iSpin, nSpin, ii, jj
-    integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2, iSp1, iSp2
-    real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp)  :: shiftSprime(orb%mOrb,orb%mOrb)
-    real(dp)  :: vect(3), intermed(3)
+  integer   :: iOrig, iSpin, nSpin, ii, jj
+  integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+  integer   :: nOrb1, nOrb2, iSp1, iSp2
+  real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+  real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+  real(dp)  :: shiftSprime(orb%mOrb,orb%mOrb)
+  real(dp)  :: vect(3), intermed(3)
 
-    nAtom = size(orb%nOrbAtom)
-    nSpin = size(shift,dim=4)
+  nAtom = size(orb%nOrbAtom)
+  nSpin = size(shift,dim=4)
 
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-    @:ASSERT(all(shape(st)==(/3,3/)))
-    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    @:ASSERT(size(shift,dim=1)==orb%mOrb)
-    @:ASSERT(size(shift,dim=2)==orb%mOrb)
-    @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(size(DM,dim=2)==nSpin)
+  @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+  @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+  @:ASSERT(size(shift,dim=1)==orb%mOrb)
+  @:ASSERT(size(shift,dim=2)==orb%mOrb)
+  @:ASSERT(size(shift,dim=3)==nAtom)
+  @:ASSERT(size(DM,dim=2)==nSpin)
 
-    st(:,:) = 0.0_dp
+  st = 0.0_dp
 
-    do iAtom1 = 1, nAtom
-      iSp1 = species(iAtom1)
-      nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        iSp2 = species(iAtom2f)
-        if (iAtom1 /= iAtom2) then
-          nOrb2 = orb%nOrbSpecies(iSp2)
-          iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-              & iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+  do iAtom1 = 1, nAtom
+    iSp1 = species(iAtom1)
+    nOrb1 = orb%nOrbSpecies(iSp1)
+    do iNeigh = 1, nNeighbor(iAtom1)
+      iAtom2 = iNeighbor(iNeigh, iAtom1)
+      iAtom2f = img2CentCell(iAtom2)
+      iSp2 = species(iAtom2f)
+      if (iAtom1 /= iAtom2) then
+        nOrb2 = orb%nOrbSpecies(iSp2)
+        iOrig = iPair(iNeigh,iAtom1) + 1
+        sqrDMTmp(1:nOrb2,1:nOrb1) = &
+            & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
+        sqrEDMTmp(1:nOrb2,1:nOrb1) = &
+            & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
+            & iAtom1, iAtom2, orb)
+        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
+            & iAtom1, iAtom2, orb)
 
-          intermed(:) = 0.0_dp
+        intermed(:) = 0.0_dp
+        do ii = 1, 3
+          ! again factor of 2 from lower triangle sum of DM
+          intermed(ii) = 2.0_dp * ( &
+              & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+              &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+              & )
+        end do
+
+        do iSpin = 1, nSpin
           do ii = 1, 3
+            shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
+                & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
+                & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
+                & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
+                & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
             ! again factor of 2 from lower triangle sum of DM
-            intermed(ii) = 2.0_dp * ( &
-                & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                & )
+            intermed(ii) = intermed(ii) + 2.0_dp * ( &
+                &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
+                & ) )
           end do
+        end do
 
-          do iSpin = 1, nSpin
-            do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-              ! again factor of 2 from lower triangle sum of DM
-              intermed(ii) = intermed(ii) + 2.0_dp * ( &
-                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
-                  & ) )
-            end do
+        do iSpin = 1, nSpin
+          do ii = 1, 3
+            shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
+                & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
+                & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
+                & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
+                & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+            intermed(ii) = intermed(ii) + &
+                &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                &reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
           end do
+        end do
 
-          do iSpin = 1, nSpin
-            do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-              intermed(ii) = intermed(ii) + &
-                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
+        vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
+        if (iAtom1/=iAtom2f) then
+          do ii = 1, 3
+            do jj = 1, 3
+              st(jj,ii) = st(jj,ii) &
+                  & + 2.0_dp * intermed(jj) * vect(ii)
             end do
           end do
-
-          vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
-          if (iAtom1/=iAtom2f) then
-            do ii = 1, 3
-              do jj = 1, 3
-                st(jj,ii) = st(jj,ii) &
-                    & + 2.0_dp * intermed(jj) * vect(ii)
-              end do
+        else
+          do ii = 1, 3
+            do jj = 1, 3
+              st(jj,ii) = st(jj,ii) &
+                  & + intermed(jj) * vect(ii)
             end do
-          else
-            do ii = 1, 3
-              do jj = 1, 3
-                st(jj,ii) = st(jj,ii) &
-                    & + intermed(jj) * vect(ii)
-              end do
-            end do
-          end if
+          end do
         end if
-      enddo
+      end if
     enddo
+  enddo
 
-    st(:,:) = -0.5_dp * st(:,:) / cellVol
+  st(:,:) = -0.5_dp * st(:,:) / cellVol
 
-  end subroutine getBlockiStress
+end subroutine getBlockiStress
 
 
 end module stress

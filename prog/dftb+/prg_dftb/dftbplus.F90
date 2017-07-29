@@ -76,7 +76,7 @@ program dftbplus
   !> for derivatives of V
   real(dp), allocatable    :: potentialDerivative(:,:)
   !> temporary dipole data
-  real(dp), allocatable    :: dipoleTmp(:,:) 
+  real(dp), allocatable    :: dipoleTmp(:,:)
 
   !> electronic filling
   real(dp), allocatable    :: filling(:,:,:)
@@ -113,7 +113,7 @@ program dftbplus
   real(dp) :: dipoleMoment(3)
 
   !> hold total angular momentum vector
-  real(dp) :: angularMomentum(3) 
+  real(dp) :: angularMomentum(3)
 
   integer                  :: ii, jj, kk
 
@@ -126,10 +126,10 @@ program dftbplus
   character(len=*), parameter :: formatEigen = '(8f14.8)'
   character(len=*), parameter :: formatHessian = '(4f16.10)'
   character(len=*), parameter :: formatGeoOut = "(I5,F16.8,F16.8,F16.8)"
-  
+
   !> formats for data with 1 or two units, and exponential notation form:
   character(len=*), parameter :: format1U = "(' ',A,':',T32,F18.10,T51,A)"
-  
+
   character(len=*), parameter :: format2U = &
       &"(' ',A,':',T32,F18.10,T51,A,T54,F16.4,T71,A)"
   character(len=*), parameter :: format1Ue = "(' ',A,':',T37,E13.6,T51,A)"

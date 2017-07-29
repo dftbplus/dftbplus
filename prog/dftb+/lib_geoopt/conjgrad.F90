@@ -20,26 +20,26 @@ module conjgrad
   !> Contains data for the conjugate gradient minimizer
   type OConjGrad
     private
-    !> State of the minimizer                                    
-    integer :: state                   
-    !> Nr. of variables                                          
-    integer :: nElem                   
-    !> Gradient in previous cycle                                
-    real(dp), allocatable :: gg(:)     
-    !> Conjugate gradient                                        
-    real(dp), allocatable :: hh(:)     
-    !> Last calculated point                                     
-    real(dp), allocatable :: uu(:)     
-    !> Tolerance criteria for convergence                        
-    real(dp) :: tolerance              
-    !> Maximal displacement along one coordinate in one step     
-    real(dp) :: maxDisp                
-    !> If CG converged                                           
-    logical :: tConverged              
-    !> If object is initialized                                  
-    logical :: tInitialized            
-    !> Line minimizer                                            
-    type(OLineMin) :: pLinMin          
+    !> State of the minimizer
+    integer :: state
+    !> Nr. of variables
+    integer :: nElem
+    !> Gradient in previous cycle
+    real(dp), allocatable :: gg(:)
+    !> Conjugate gradient
+    real(dp), allocatable :: hh(:)
+    !> Last calculated point
+    real(dp), allocatable :: uu(:)
+    !> Tolerance criteria for convergence
+    real(dp) :: tolerance
+    !> Maximal displacement along one coordinate in one step
+    real(dp) :: maxDisp
+    !> If CG converged
+    logical :: tConverged
+    !> If object is initialized
+    logical :: tInitialized
+    !> Line minimizer
+    type(OLineMin) :: pLinMin
   end type OConjGrad
 
   !> Initialises CG instance
@@ -83,13 +83,13 @@ contains
 
   !> Creates a conjugate gradient instance
   subroutine ConjGrad_init(self, nElem, tol, maxDisp)
-    !> Conjugate gradient instance on exit  
+    !> Conjugate gradient instance on exit
     type(OConjGrad), intent(out) :: self
-    !> Nr. of elements in the vectors    
+    !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
-    !> Termination tolerance for the gradient    
+    !> Termination tolerance for the gradient
     real(dp), intent(in) :: tol
-    !> Maximal displacement in one element in one step    
+    !> Maximal displacement in one element in one step
     real(dp), intent(in) :: maxDisp
 
     @:ASSERT(nElem > 0)
@@ -173,7 +173,7 @@ contains
     logical,  intent(inout) :: tConverged
     !> cut out tollerance for optimisation
     real(dp), intent(in)    :: tolerance
-    !> Line minimizer 
+    !> Line minimizer
     type(OLineMin), intent(inout) :: pLinMin
     !> Function value in the last point
     real(dp), intent(in) :: fu
@@ -273,9 +273,9 @@ contains
   !> The returned value is meaningless if the subroutine is called before the CG minimizer signals
   !> convergence.
   subroutine ConjGrad_getMinGrad(self, minGrad)
-    !> CG minimizer    
+    !> CG minimizer
     type(OConjGrad), intent(in) :: self
-    !> Coordinate of the minimal point    
+    !> Coordinate of the minimal point
     real(dp), intent(out) :: minGrad(:)
 
     @:ASSERT(self%tInitialized .and. self%tConverged)

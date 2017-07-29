@@ -49,15 +49,15 @@ module InitModes
 
   !! Variables from detailed.xml
 
-  !> Unique identifier of the run 
+  !> Unique identifier of the run
   integer, public :: identity
   !> Geometry
-  type(TGeometry), public :: geo       
+  type(TGeometry), public :: geo
 
   !! Variables from the Option block
 
   !> If program should be verbose
-  logical, public :: tVerbose          
+  logical, public :: tVerbose
 
   !> atomic masses to build dynamical matrix
   real(dp), allocatable, public :: atomicMasses(:)
@@ -275,7 +275,7 @@ contains
 
   !> Read in the geometry stored as xml in internal or gen format.
   subroutine readGeometry(geonode, geo)
-    !> Node containing the geometry  
+    !> Node containing the geometry
     type(fnode), pointer :: geonode
     !> Contains the geometry information on exit
     type(TGeometry), intent(out) :: geo

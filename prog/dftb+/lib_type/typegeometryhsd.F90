@@ -36,7 +36,7 @@ contains
 
   !> Write the geometry in HSD format to a specified node
   subroutine writeTGeometryHSD_dom(node, geo)
-    !> Node in the HSD-tree which should contain the geometry  
+    !> Node in the HSD-tree which should contain the geometry
     type(fnode), pointer :: node
     !> The geometry
     type(TGeometry), intent(in) :: geo
@@ -57,7 +57,7 @@ contains
   subroutine writeTGeometryHSD_xmlf(xf, geo)
     !> Node in the HSD-tree which should contain the geometry
     type(xmlf_t), intent(inout) :: xf
-    !> The geometry  
+    !> The geometry
     type(TGeometry), intent(in) :: geo
 
     call writeChildValue(xf, "TypeNames", geo%speciesNames)
@@ -74,7 +74,7 @@ contains
 
   !> Read the geometry from a node in a HSD tree.
   subroutine readTGeometryHSD(node, geo)
-    !> Node in the HSD tree containing the geomery  
+    !> Node in the HSD tree containing the geomery
     type(fnode), pointer :: node
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
@@ -164,9 +164,9 @@ contains
 
 
 
-  !> Reads the geometry from a node in a HSD tree in GEN format  
+  !> Reads the geometry from a node in a HSD tree in GEN format
   subroutine readTGeometryGen(node, geo)
-    !> Node containing the geometry in Gen format  
+    !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo

@@ -62,7 +62,7 @@ module parser
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
     !> XML or HSD output?
-    logical :: tWriteXML, tWriteHSD         
+    logical :: tWriteXML, tWriteHSD
   end type TParserFlags
 
 
@@ -237,15 +237,15 @@ contains
 
   !> Read in driver properties
   subroutine readDriver(node, parent, geom, ctrl)
-    !> Node to get the information from    
+    !> Node to get the information from
     type(fnode), pointer :: node
-    !> Parent of node (for error messages)    
+    !> Parent of node (for error messages)
     type(fnode), pointer :: parent
-    !> Control structure to be filled    
+    !> Control structure to be filled
     type(TGeometry), intent(in) :: geom
-    !> Nr. of atoms in the system    
+    !> Nr. of atoms in the system
     type(control), intent(inout) :: ctrl
-    
+
     type(fnode), pointer :: child, child2, child3, value, value2, field
 
     type(string) :: buffer, buffer2, modifier
@@ -799,9 +799,9 @@ contains
 
   !> Reads geometry constraints.
   subroutine readGeoConstraints(node, ctrl, nAtom)
-    !> Node to get the information from  
+    !> Node to get the information from
     type(fnode), pointer :: node
-    !> Control structure to be filled    
+    !> Control structure to be filled
     type(control), intent(inout) :: ctrl
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
@@ -838,11 +838,11 @@ contains
 
   !> Reads MD velocities
   subroutine readInitialVelocities(node, ctrl, nAtom)
-    !> Node to get the information from  
+    !> Node to get the information from
     type(fnode), pointer :: node
-    !> Control structure to be filled    
+    !> Control structure to be filled
     type(control), intent(inout) :: ctrl
-    !> Total number of all atoms  
+    !> Total number of all atoms
     integer, intent(in)  :: nAtom
 
     type(fnode), pointer :: value, child
@@ -882,7 +882,7 @@ contains
 
   ! Reads atomic masses from input file, eventually overwriting those in the SK files
   subroutine getInputMasses(node, geo, masses)
-    !> relevant node of input data 
+    !> relevant node of input data
     type(fnode), pointer :: node
     !> geometry object, which contains atomic species information
     type(TGeometry), intent(in) :: geo
@@ -930,12 +930,12 @@ contains
 
   !> Reads Hamiltonian
   subroutine readHamiltonian(node, ctrl, geo, slako)
-    !> Node to get the information from  
+    !> Node to get the information from
     type(fnode), pointer :: node
-    !> Control structure to be filled  
+    !> Control structure to be filled
     type(control), intent(inout) :: ctrl
-    !> Geometry structure to be filled    
-    type(TGeometry), intent(in) :: geo    
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
 
@@ -955,11 +955,11 @@ contains
 
   !> Reads DFTB-Hamiltonian
   subroutine readDFTBHam(node, ctrl, geo, slako)
-    !> Node to get the information from    
+    !> Node to get the information from
     type(fnode), pointer :: node
-    !> Control structure to be filled    
+    !> Control structure to be filled
     type(control), intent(inout) :: ctrl
-    !> Geometry structure to be filled  
+    !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
@@ -1793,7 +1793,7 @@ contains
       do iSp1 = 1, geo%nSpecies
         iTmpN = 0
         ! loop over number of blocks for that species
-        do ii = 1, ctrl%nUJ(iSp1) 
+        do ii = 1, ctrl%nUJ(iSp1)
           iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) = &
               & iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) + 1
         end do
@@ -1962,7 +1962,7 @@ contains
       integer :: ii, jj, iAt
 
       @:ASSERT(nSpin == 2 .or. nSpin == 4)
-      
+
       call getChildValue(node, "InitialSpins", val, "", child=child, &
             &allowEmptyValue=.true., dummyValue=.true., list=.true.)
 
@@ -2043,20 +2043,20 @@ contains
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly)
-    !> List of SK file names to read in for every interaction    
+    !> List of SK file names to read in for every interaction
     type(ListCharLc), intent(inout) :: skFiles(:,:)
-    !> Nr. of species in the system    
+    !> Nr. of species in the system
     integer, intent(in)    :: nSpecies
-    !> Data type for slako information    
+    !> Data type for slako information
     type(slater), intent(inout) :: slako
-    !> Information about the orbitals in the system    
+    !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
     !> For every species, a list of rank one arrays. Each array contains the angular momenta to pick
     !> from the appropriate SK-files.
     type(listIntR1), intent(inout) :: angShells(:)
     !> Are the Hubbard Us different for each l-shell?
     logical, intent(in) :: orbRes
-    !> Method of the sk interpolation    
+    !> Method of the sk interpolation
     integer, intent(in)  :: skInterMeth
     !> is this a polynomial or spline repulsive?
     logical, intent(in) :: repPoly(:,:)
@@ -2243,11 +2243,11 @@ contains
 
   !> Checks if the provided set of SK-tables for a the interactions A-B and B-A are consistent.
   subroutine checkSKCompElec(skData12, skData21, sp1, sp2)
-    !> Slater-Koster integral set for the interaction A-B    
+    !> Slater-Koster integral set for the interaction A-B
     type(TOldSKData), intent(in), target :: skData12(:,:)
-    !> Slater-Koster integral set for the interaction B-A    
+    !> Slater-Koster integral set for the interaction B-A
     type(TOldSKData), intent(in), target :: skData21(:,:)
-    !> Species number for A (for error messages)    
+    !> Species number for A (for error messages)
     integer, intent(in) :: sp1
     !> Species number for B (for error messages)
     integer, intent(in) :: sp2
@@ -2294,9 +2294,9 @@ contains
 
   !> Checks if the provided repulsive splines for A-B and B-A are compatible
   subroutine checkSKCompRepSpline(repIn1, repIn2, sp1, sp2)
-    !> Repulsive spline for interaction A-B  
+    !> Repulsive spline for interaction A-B
     type(TRepSplineIn), intent(in) :: repIn1
-    !> Repulsive spline for interaction B-A    
+    !> Repulsive spline for interaction B-A
     type(TRepSplineIn), intent(in) :: repIn2
     !> Number of species A (for error messages only)
     integer, intent(in) :: sp1
@@ -2344,13 +2344,13 @@ contains
 
   !> Checks if repulsive polynomials for A-B and B-A are compatible
   subroutine checkSKCompRepPoly(repIn1, repIn2, sp1, sp2)
-    !> Repulsive polynomial for interaction A-B   
+    !> Repulsive polynomial for interaction A-B
     type(TRepPolyIn), intent(in) :: repIn1
     !> Repulsive polynomial for interaction B-A
     type(TRepPolyIn), intent(in) :: repIn2
     !> Number of species A (for error messages only)
     integer, intent(in) :: sp1
-    !> Number of species B (for error messages only)  
+    !> Number of species B (for error messages only)
     integer, intent(in) :: sp2
 
     !> for error string return
@@ -2400,15 +2400,15 @@ contains
   !> containing all integrals.
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
       &angShells2)
-    !> Resulting table of H integrals  
+    !> Resulting table of H integrals
     real(dp), intent(out) :: skHam(:,:)
-    !> Resulting table of S integrals    
+    !> Resulting table of S integrals
     real(dp), intent(out) :: skOver(:,:)
-    !> Contains all SK files describing interactions for A-B  
+    !> Contains all SK files describing interactions for A-B
     type(TOldSKData), intent(in), target :: skData12(:,:)
     !> Contains all SK files describing interactions for B-A
     type(TOldSKData), intent(in), target :: skData21(:,:)
-    !> Angular momenta to pick from the SK-files for species A    
+    !> Angular momenta to pick from the SK-files for species A
     type(listIntR1), intent(inout) :: angShells1
     !> Angular momenta to pick from the SK-files for species B
     type(listIntR1), intent(inout) :: angShells2
@@ -2472,7 +2472,7 @@ contains
     type(fnode), pointer :: node
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
-    
+
     type(fnode), pointer :: child
 
     call getChildValue(node, "WriteAutotestTag", ctrl%tWriteTagged, .false.)
@@ -2502,7 +2502,7 @@ contains
   end subroutine readOptions
 
 
-  ! Reads in dispersion related settings  
+  ! Reads in dispersion related settings
   subroutine readDispersion(node, geo, input)
     !> Node to parse
     type(fnode), pointer :: node
@@ -2668,9 +2668,9 @@ contains
   subroutine readDispVdWUFF(node, geo, input)
     !> Node to process
     type(fnode), pointer :: node
-    !> Geometry of the system    
+    !> Geometry of the system
     type(TGeometry), intent(in) :: geo
-    !> Filled input structure on exit  
+    !> Filled input structure on exit
     type(DispUffInp), intent(out) :: input
 
     type(string) :: buffer
@@ -2863,7 +2863,7 @@ contains
   subroutine readExcited(node, ctrl)
     !> Node to parse
     type(fnode), pointer :: node
-    !> Control structure to fill    
+    !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child, child2
@@ -2961,7 +2961,7 @@ contains
   subroutine readAnalysis(node, ctrl, geo)
     !> Node to parse
     type(fnode), pointer :: node
-    !> Control structure to fill  
+    !> Control structure to fill
     type(control), intent(inout) :: ctrl
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
@@ -3069,9 +3069,9 @@ contains
   subroutine readSpinConstants(hamNode, geo, slako, ctrl)
     !> node for Hamitonian data
     type(fnode), pointer         :: hamNode
-    !> geometry of the system  
+    !> geometry of the system
     type(TGeometry), intent(in)  :: geo
-    !> Slater-Koster structure  
+    !> Slater-Koster structure
     type(slater), intent(in) :: slako
     !> control structure
     type(control), intent(inout) :: ctrl

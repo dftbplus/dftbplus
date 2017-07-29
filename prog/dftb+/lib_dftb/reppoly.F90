@@ -30,7 +30,7 @@ module reppoly
     !> Polynomial coefficients
     real(dp) :: polyCoeffs(powMin:powMax)
     !> Cutoff distance
-    real(dp) :: cutoff                            
+    real(dp) :: cutoff
   end type TRepPolyIn
 
 
@@ -73,7 +73,7 @@ contains
   subroutine RepPoly_init(self, inp)
     !> Polynomial repulsive
     type(ORepPoly), intent(out) :: self
-    !> Input parameters for the polynomial repulsive  
+    !> Input parameters for the polynomial repulsive
     type(TRepPolyIn), intent(in) :: inp
 
 
@@ -135,9 +135,9 @@ contains
 
   !> Returns gradient of the repulsive for a given distance.
   subroutine RepPoly_getEnergyDeriv(self, res, xx, d2)
-    !> Polynomial repulsive.  
+    !> Polynomial repulsive.
     type(ORepPoly), intent(in) :: self
-    !> Resulting contribution    
+    !> Resulting contribution
     real(dp), intent(out) :: res(3)
     !> Actual vector between atoms
     real(dp), intent(in) :: xx(3)
