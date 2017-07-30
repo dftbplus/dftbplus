@@ -459,7 +459,7 @@ contains
     !> array to sort, first element of first dimension is an index array, second element is actual
     !> value
     integer, intent(inout) :: A(:,:)
-    !> \param N number of elements in array
+    !> N number of elements in array
     integer, intent(in)    :: N
     !> workspace of at least (N+1)/2 size
     integer, intent (out)  :: T(:,:)

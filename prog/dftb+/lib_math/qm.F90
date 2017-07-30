@@ -72,7 +72,7 @@ contains
 
   !> unitary transformation on a matrix \(X^\prime = U X U^\dag\)
   subroutine U_real(xx, uu)
-    !> \param X matrix in original basis, U X U^T on return.
+    !> matrix in original basis, U X U^T on return.
     real(dp), intent(inout) :: xx(:,:)
     !> unitary matrix
     real(dp), intent(in) :: uu(:,:)
