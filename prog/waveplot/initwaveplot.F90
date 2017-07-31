@@ -448,13 +448,13 @@ contains
       end if
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, field)
-        boxVecs(:,:) = boxVecs(:,:) * lengthUnits(ind)%value
+        boxVecs(:,:) = boxVecs(:,:) * lengthUnits(ind)%convertValue
       end if
       call getChildValue(subnode, "Origin", origin, modifier=modifier, &
           &child=field)
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, field)
-        origin(:) = origin(:) * lengthUnits(ind)%value
+        origin(:) = origin(:) * lengthUnits(ind)%convertValue
       end if
 
     case default

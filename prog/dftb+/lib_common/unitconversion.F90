@@ -19,7 +19,7 @@ module unitconversion
     !> label for conversion factor
     character(20) :: name
     !> its value
-    real(dp) :: value
+    real(dp) :: convertValue    
   end type unit
 
 

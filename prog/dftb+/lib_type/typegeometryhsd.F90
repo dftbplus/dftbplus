@@ -131,7 +131,7 @@ contains
         geo%tFracCoord = .true.
       case default
         ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
-        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%value
+        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%convertValue
         call setChildValue(typesAndCoords, "", &
             &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
             &replace=.true.)
@@ -144,7 +144,7 @@ contains
       geo%latVecs(:,:) = reshape(latvec, (/3, 3/))
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, child)
-        geo%latVecs = geo%latVecs(:,:) * lengthUnits(ind)%value
+        geo%latVecs = geo%latVecs(:,:) * lengthUnits(ind)%convertValue
         call setChildValue(child, "", geo%latVecs, .true.)
       end if
       if (geo%tFracCoord) then

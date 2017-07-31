@@ -7,19 +7,14 @@
 
 #:include 'common.fypp'
 
-!!* Contains the HSD (Human readable Structured Data) parser.
-!!* @desc
-!!* <p>
-!!*   The HSD format is a more or less user friendly input format, which can
-!!*   be easily converted to a simplified XML format. The parser returns a
-!!*   DOM-tree, which can be further processed. The returned tree contains
-!!*   also information about the original name and position of the keywords
-!!*   in the original HSD format, in order to enable user friendly error
-!!*   messages, if inconsistent data is detected during the processing of the
-!!*   DOM-tree.
-!!* </p><p>
-!!*   For the specification of the HSD format see the sample input
-!!* </p>
+!> Contains the HSD (Human readable Structured Data) parser.
+!>
+!> <p> The HSD format is a more or less user friendly input format, which can be easily converted to
+!> a simplified XML format. The parser returns a DOM-tree, which can be further processed. The
+!> returned tree contains also information about the original name and position of the keywords in
+!> the original HSD format, in order to enable user friendly error messages, if inconsistent data is
+!> detected during the processing of the DOM-tree.</p>
+!><p> For the specification of the HSD format see the sample input </p>
 module hsdparser
   use assert
   use message
@@ -30,22 +25,22 @@ module hsdparser
   implicit none
   private
 
-  !!* Wrapper around the parsing function
+  !> Wrapper around the parsing function
   interface parseHSD
     module procedure parseHSD_stdin
     module procedure parseHSD_file
     module procedure parseHSD_opened
-  end interface
+  end interface parseHSD
 
 
-  !!* Wrapper around the HSD dumping
+  !> Wrapper around the HSD dumping
   interface dumpHSD
     module procedure dumpHSD_file
     module procedure dumpHSD_opened
-  end interface
+  end interface dumpHSD
 
 
-  !! Main token separator characters
+  !> Main token separator characters
   integer, parameter :: nSeparator = 7
   character(len=*), parameter :: sIncludeXML = "<<!"
   character(len=*), parameter :: sIncludeParsed = "<<+"
@@ -58,12 +53,12 @@ module hsdparser
       &(/ sIncludeXML, sIncludeParsed, sIncludeUnparsed, &
       &sSingleOpen, sOpen, sClose, sSingleClose /)
 
-  !! Other parsed characters
+  !> Other parsed characters
   character(len=*), parameter :: sModifierOpen = "["
   character(len=*), parameter :: sModifierClose = "]"
   character(len=*), parameter :: sComment = "#"
 
-  !! Extension related stuff
+  !> Extension related stuff
   integer, parameter :: nExtension = 5
   character(len=*), parameter :: sExtendIfPresentOrDie = "+"
   character(len=*), parameter :: sExtendIfPresent = "?"
@@ -75,16 +70,16 @@ module hsdparser
       &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
 
 
-  !! Name and file descriptor from standard input/output
+  !> Name and file descriptor from standard input/output
   character(len=*), parameter :: stdin = "*"
   character(len=*), parameter :: stdout = "*"
   integer, parameter :: fdStdin = 0
   integer, parameter :: fdStdout = 0
 
-  !! Forbidden (even if quoted) characters in the iput
+  !> Forbidden (even if quoted) characters in the iput
   character(len=*), parameter :: forbiddenChars = "<>"
 
-  !! Attribute names
+  !> Attribute names
   character(len=*), parameter :: attrStart = "start"
   character(len=*), parameter :: attrEnd = "end"
   character(len=*), parameter :: attrFile = "file"
@@ -92,21 +87,21 @@ module hsdparser
   character(len=*), parameter :: attrModifier = "m"
   character(len=*), parameter :: attrList = "l"
 
-  !! Length of a parsed line
+  !> Length of a parsed line
   integer, parameter :: lc = 1024
 
-  !! Maximal record lenght on output in characters (bytes).
-  !! If text nodes bigger than that occur runtime error can be expected.
+  !> Maximal record lenght on output in characters (bytes).
+  !> If text nodes bigger than that occur runtime error can be expected.
   integer, parameter :: MAXRECL = 1024 * 1024
 
-  !! Name of the root tag
+  !> Name of the root tag
   character(len=lc) :: rootName
 
-  !! Pointer to the top of the currently processed document
-  !! (modified only in parseHSD and replaceTreeFromFile)
+  !> Pointer to the top of the currently processed document
+  !> (modified only in parseHSD and replaceTreeFromFile)
   type(fnode), pointer :: myDoc
 
-  !! Format of the input line
+  !> Format of the input line
   character(len=lc) :: lineFormat = ""
 
 
@@ -117,11 +112,11 @@ module hsdparser
 
 contains
 
-  !!* Parses HSD format from stdandard input
-  !!* @param initRootName Name of the root tag of the resulting XML-tree
-  !!* @param xmlDoc       DOM-tree of the parsed input on exit
+  !> Parses HSD format from stdandard input
   subroutine parseHSD_stdin(initRootName, xmlDoc)
+    !> Name of the root tag of the resulting XML-tree
     character(len=*), intent(in) :: initRootName
+    !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
     call parseHSD_opened(initRootName, fdStdin, stdin, xmlDoc)
@@ -130,13 +125,13 @@ contains
 
 
 
-  !!* Parser HSD format from a file
-  !!* @param rootName Name of the root tag, which should contain the parsed tree
-  !!* @param file     Name of the file (used in error messages)
-  !!* @param xmlDoc       DOM-tree of the parsed input on exit
+  !> Parser HSD format from a file
   subroutine parseHSD_file(initRootName, file, xmlDoc)
+    !> Name of the root tag, which should contain the parsed tree
     character(len=*), intent(in) :: initRootName
+    !> Name of the file (used in error messages)
     character(len=*), intent(in) :: file
+    !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
     integer, save :: fd = -1
@@ -157,15 +152,15 @@ contains
 
 
 
-  !!* Parses HSD format from an already opened file
-  !!* @param rootName Name of the root tag, which should contain the parsed tree
-  !!* @param fd       File descriptor of the open file containing the input
-  !!* @param file     Name of the file (used in error messages)
-  !!* @param xmlDoc       DOM-tree of the parsed input on exit
+  !> Parses HSD format from an already opened file
   subroutine parseHSD_opened(initRootName, fd, file, xmlDoc)
+    !> Name of the root tag, which should contain the parsed tree
     character(len=*), intent(in) :: initRootName
+    !> File descriptor of the open file containing the input
     integer, intent(in) :: fd
+    !> Name of the file (used in error messages)
     character(len=*), intent(in), optional :: file
+    !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
     type(fnode), pointer :: rootNode, dummy
@@ -200,29 +195,30 @@ contains
 
 
 
-  !!* Recursive parsing function for the HSD parser making the actual work
-  !!* @param curNode     Node which should contain parsed input
-  !!* @param depth       Number of open blocks/assignments.
-  !!* @param residual    Unparsed text from the previous line
-  !!* @param tRightValue Is next parsed token a right value of an assignment?
-  !!* @param fd          File descriptor of the input
-  !!* @param curFile     Name of the current input file
-  !!* @param fileDepth   Number of open files
-  !!* @param curLine     Number of current line in the current file
-  !!* @param parsedTypes True for those separators, which should be parsed
-  !!* @return            True, if parsing is done
-  recursive function parse_recursive(curNode, depth, residual, tRightValue, &
-      &fd, curFile, fileDepth, curLine, parsedTypes, tNew) result (tFinished)
+  !> Recursive parsing function for the HSD parser making the actual work
+  recursive function parse_recursive(curNode, depth, residual, tRightValue, fd, curFile, fileDepth,&
+      & curLine, parsedTypes, tNew) result (tFinished)
+    !> Node which should contain parsed input
     type(fnode), pointer             :: curNode
+    !> Number of open blocks/assignments.
     integer, intent(in)              :: depth
+    !> Unparsed text from the previous line
     character(len=lc), intent(inout) :: residual
+    !> Is next parsed token a right value of an assignment?
     logical, intent(in)              :: tRightValue
+    !> File descriptor of the input
     integer, intent(in)              :: fd
+    !> Name of the current input file
     character(len=lc), intent(in)    :: curFile
+    !> Number of open files
     integer, intent(in)              :: fileDepth
+    !> Number of current line in the current file
     integer, intent(inout)           :: curLine
+    !> True for those separators, which should be parsed
     logical, intent(in)              :: parsedTypes(nSeparator)
+    !> True, if parsing is done
     logical, intent(in)              :: tNew
+
     logical                          :: tFinished
 
     character(len=lc) :: strLine, word
@@ -502,18 +498,17 @@ contains
 
 
 
-  !!* Creates a child node with attributes related to the HSD input.
-  !!* @param parentNode Parent node containing of the child to be created
-  !!* @param childName  Name of the new child
-  !!* @param curLine    Number of the current line
-  !!* @param file       Name of the current file
-  !!* @return Pointer to the new (appended) child node
-  function createChildNode(parentNode, childName, curLine, file) &
-      &result(newChild)
+  !> Creates a child node with attributes related to the HSD input.
+  function createChildNode(parentNode, childName, curLine, file) result(newChild)
+    !> Parent node containing of the child to be created
     type(fnode), pointer          :: parentNode
+    !> Name of the new child
     character(len=lc), intent(in) :: childName
+    !> Number of the current line
     integer, intent(in)           :: curLine
+    !> Name of the current file
     character(len=lc), intent(in) :: file
+    !> Pointer to the new (appended) child node
     type(fnode), pointer          :: newChild
 
     type(fnode), pointer :: dummy, sameChild
@@ -620,13 +615,13 @@ contains
 
 
 
-  !!* Checks for forbidden characters and issue error message, if any found.
-  !!* @param str     String to investigate
-  !!* @param curFile Name of the current file
-  !!* @param curLine Number of the current line in the current file
+  !> Checks for forbidden characters and issue error message, if any found.
   subroutine checkForbiddenChars(str, curFile, curLine)
+    !> String to investigate
     character(len=*), intent(in) :: str
+    !> Name of the current file
     character(len=*), intent(in) :: curFile
+    !> Number of the current line in the current file
     integer, intent(in) :: curLine
 
     if (scan(str, forbiddenChars) /= 0) then
@@ -637,13 +632,13 @@ contains
 
 
 
-  !!* Issues a parsing error message containing file name and line number.
-  !!* @param message Parsing error message
-  !!* @param file    Name of the current file
-  !!* @param line    Number of current line
+  !> Issues a parsing error message containing file name and line number.
   subroutine parsingError(message, file, line)
+    !> Parsing error message
     character(len=*), intent(in) :: message
+    !> Name of the current file
     character(len=lc), intent(in) :: file
+    !> Number of current line
     integer, intent(in) :: line
 
     character(len=lc) :: msgArray(2)
@@ -663,14 +658,14 @@ contains
 
 
 
-  !!* Dumps the DOM-tree of a HSD document to a file.
-  !!* @param myDoc    DOM-tree of a HSD document
-  !!* @param fileName File for the XML-dump.
-  !!* @descr This routine pretty prints the XML-tree in the specified file.
-  !!*   Attributes related to the HSD document (e.g. line number, file etc.)
-  !!*   are not printed.
+  !> Dumps the DOM-tree of a HSD document to a file.
+  !>
+  !> This routine pretty prints the XML-tree in the specified file.  Attributes related to the HSD
+  !> document (e.g. line number, file etc.)  are not printed.
   subroutine dumpHSDAsXML(myDoc, fileName)
+    !> DOM-tree of a HSD document
     type(fnode), pointer :: myDoc
+    !> File for the XML-dump.
     character(len=*), intent(in) :: fileName
 
     type(xmlf_t) :: xf
@@ -688,22 +683,22 @@ contains
 
 
 
-  !!* Recursive working horse for dumpHSD
-  !!* @param xf   XML pretty printer data
-  !!* @param node Node to prety print
+  !> Recursive workhorse for dumpHSD
   recursive subroutine dumpHSDAsXML_recursive(xf, node)
+    !> XML pretty printer data
     type(xmlf_t), intent(inout) :: xf
+    !> Node to prety print
     type(fnode), pointer :: node
 
-    type(string) :: txt, name, value
+    type(string) :: txt, name, nodeValue
     type(fnode), pointer :: fp
     type(fnamedNodeMap), pointer :: attribs
     integer :: ii
 
     call getNodeName(node, txt)
     if (getNodeType(node) == TEXT_NODE) then
-      call getNodeValue(node, value)
-      call xml_AddPCData(xf, trim2(char(value)))
+      call getNodeValue(node, nodeValue)
+      call xml_AddPCData(xf, trim2(char(nodeValue)))
     else
       call xml_NewElement(xf, char(txt))
       attribs => getAttributes(node)
@@ -712,8 +707,8 @@ contains
         call getNodeName(fp, name)
         !! Currently only the modifier and single attributes are dumped
         if (name == attrModifier .or. name == attrList) then
-          call getNodeValue(fp, value)
-          call xml_AddAttribute(xf, char(name), char(value))
+          call getNodeValue(fp, nodeValue)
+          call xml_AddAttribute(xf, char(name), char(nodeValue))
         end if
       end do
       fp => getFirstChild(node)
@@ -728,13 +723,14 @@ contains
 
 
 
-  !!* Replaces the tree
-  !!* @param curNode Node, which should contained the parsed children from file
-  !!* @param file    File to parse
-  !!* @note The solution with access to a global module variable is not very
-  !!*   elegant, but it saves the deep cloning of the parsed document.
+  !> Replaces the tree
+  !>
+  !> The solution with access to a global module variable is not very
+  !> elegant, but it saves the deep cloning of the parsed document.
   subroutine replaceTreeFromFile(curNode, file)
+    !> Node, which should contained the parsed children from file
     type(fnode), pointer :: curNode
+    !> File to parse
     character(len=*), intent(in) :: file
 
     type(fnode), pointer :: newDoc, rootNode
@@ -756,11 +752,11 @@ contains
 
 
 
-  !!* Dumps a HSD tree in a file.
-  !!* @param myDoc The DOM tree
-  !!* @param file  Name of the file
+  !> Dumps a HSD tree in a file.
   subroutine dumpHSD_file(myDoc, file)
+    !> The DOM tree
     type(fnode), pointer :: myDoc
+    !> Name of the file
     character(len=*), intent(in) :: file
 
     integer, save :: fd = -1
@@ -784,11 +780,11 @@ contains
 
 
 
-  !!* Dumps a DOM-tree representing a HSD input in HSD format to an opened file.
-  !!* @param myDoc The DOM tree
-  !!* @param fd    File descriptor for an open file where output should go.
+  !> Dumps a DOM-tree representing a HSD input in HSD format to an opened file.
   subroutine dumpHSD_opened(myDoc, fd)
+    !> The DOM tree
     type(fnode), pointer :: myDoc
+    !> File descriptor for an open file where output should go.
     integer, intent(in) :: fd
 
     type(fnode), pointer :: rootNode
@@ -809,17 +805,17 @@ contains
 
 
 
-  !!* Recursive working horse for the dumpHSD routine.
-  !!* @param node        Node to dump
-  !!* @param indent      Current indentation level
-  !!* @param fd          File descriptor for an open file where output should go
-  !!* @param tRightValue Is current node the right hand side of an assignment?
-  !!* @param buffer      Buffer for storing temporary strings
+  !> Recursive workhorse for the dumpHSD routine.
   recursive subroutine dumpHSD_recursive(node, indent, fd, tRightValue, buffer)
+    !> Node to dump
     type(fnode),      pointer       :: node
+    !> Current indentation level
     integer,          intent(in)    :: indent
+    !> File descriptor for an open file where output should go
     integer,          intent(in)    :: fd
+    !> Is current node the right hand side of an assignment?
     logical,          intent(in)    :: tRightValue
+    !> Buffer for storing temporary strings
     type(string),     intent(inout) :: buffer
 
     type(fnode), pointer :: child, attr
@@ -911,10 +907,11 @@ contains
 
 
 
-  !!* Returns the name of a node, if present in pretty printing format.
-  !!* @param node Node to investigate.
+  !> Returns the name of a node, if present in pretty printing format.
   subroutine getNodeHSDName(node, name)
+    !> Node to investigate.
     type(fnode), pointer :: node
+    !> name of the node on return
     type(string), intent(inout) :: name
 
     call getAttribute(node, attrName, name)
@@ -926,13 +923,13 @@ contains
 
 
 
-  !!* Returns the path of a node, if possible in pretty printing format.
-  !!* @param node        Node to investigate
-  !!* @param path        String containing the path on return
-  !!* @param excludeRoot If root node should be excluded
+  !> Returns the path of a node, if possible in pretty printing format.
   subroutine getHSDPath(node, path, excludeRoot)
+    !> Node to investigate
     type(fnode), pointer :: node
+    !> String containing the path on return
     type(string), intent(inout) :: path
+    !> If root node should be excluded
     logical, intent(in), optional :: excludeRoot
 
     type(fnode), pointer :: parent
@@ -957,15 +954,15 @@ contains
 
 
 
-  !!* Working horse for the getHSDPath routine
-  !!* @param node     Node to look for
-  !!* @param path     String containing the path until now
-  !!* @param inclRoot If document root should be included
-  !!* @param buffer   Buffer for strings (to avoid destruction at every call)
+  !> Workhorse for the getHSDPath routine
   recursive subroutine getHSDPath_recursive(node, path, inclRoot, buffer)
+    !> Node to look for
     type(fnode), pointer :: node
+    !> String containing the path until now
     type(string), intent(inout) :: path
+    !> If document root should be included
     logical, intent(in) :: inclRoot
+    !> Buffer for strings (to avoid destruction at every call)
     type(string), intent(inout) :: buffer
 
     type(fnode), pointer :: parent
