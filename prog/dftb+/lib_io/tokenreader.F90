@@ -84,10 +84,7 @@ contains
     if (tokLen == 0) then
       iError = TOKEN_EOS
     else
-      !read (str(tokStart:tokEnd), *, iostat=iError) value
-      !! Ugly hack for intel, because it interprets F, T as integers...
-      iTmp = tokEnd - tokStart + 1
-      read (str(tokStart:tokEnd), "(I"// i2c(iTmp) // ")", iostat=iError) value
+      read (str(tokStart:tokEnd), *, iostat=iError) value
       if (iError /= 0) then
         iError = TOKEN_ERROR
       else
