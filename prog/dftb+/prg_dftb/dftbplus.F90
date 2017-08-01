@@ -1355,6 +1355,11 @@ program dftbplus
 
         !! Write out atomic charges
         if (tPrintMulliken) then
+          if (tFixEf) then
+            write(fdUser,"(' Net charge     : ',F14.8)") &
+                    & sum(q0(:, :, 1) - qOutput(:, :, 1))
+          end if
+
           write (fdUser, "(/,A)") " Net atomic charges (e)"
           write (fdUser, "(1X,A5,1X,A16)")" Atom", " Net charge"
           do ii = 1, nAtom
