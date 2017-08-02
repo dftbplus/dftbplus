@@ -1355,6 +1355,7 @@ program dftbplus
 
         !! Write out atomic charges
         if (tPrintMulliken) then
+          write(fdUser,"(' Net charge: ',F14.8)") sum(q0(:, :, 1) - qOutput(:, :, 1))
           write (fdUser, "(/,A)") " Net atomic charges (e)"
           write (fdUser, "(1X,A5,1X,A16)")" Atom", " Net charge"
           do ii = 1, nAtom
@@ -2713,8 +2714,7 @@ program dftbplus
                     &absEField * au__V_m, 'V/m'
               end if
               if (tFixEf .and. tPrintMulliken) then
-                write(fdMD,"(' Net charge     : ',F14.8)") &
-                    & sum(q0(:, ii, 1) - qOutput(:, ii, 1))
+                write(fdMD,"(' Net charge     : ',F14.8)") sum(q0(:, :, 1) - qOutput(:, :, 1))
               end if
               if (tDipole) then
                 write(fdMD,"(' Dipole moment  :',3f14.8,' au')")dipoleMoment
