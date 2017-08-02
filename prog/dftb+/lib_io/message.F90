@@ -33,7 +33,7 @@ contains
   subroutine warning_single(message)
     !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
-    
+
     write(*, '(1a)') 'WARNING!'
     write(*, '(2a)') '-> ', trim(message)
   end subroutine warning_single
@@ -61,7 +61,7 @@ contains
   subroutine error_single(message)
     !> Error message to print to standard out.
     character (len=*), intent(in) :: message
-    
+
     write(*,'(1a)') 'ERROR!'
     write(*,'(2a)') '-> ', trim(message)
     stop

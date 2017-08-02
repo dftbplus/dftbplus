@@ -1761,7 +1761,7 @@ program dftbplus
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
               & img2CentCell, orb, skHamCont, skOverCont, tWriteTagged, &
-              & fdTagged, energy%Eexcited, tForces, excitedDerivs, &
+              & fdTagged, energy%Eexcited, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal, occNatural=occNatural(:,1), &
               & naturalOrbs=naturalOrbs(:,:,1))
 
@@ -1775,7 +1775,7 @@ program dftbplus
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
               & img2CentCell, orb, skHamCont, skOverCont, tWriteTagged, &
-              & fdTagged, energy%Eexcited, tForces, excitedDerivs, &
+              & fdTagged, energy%Eexcited, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal)
         end if
       else
