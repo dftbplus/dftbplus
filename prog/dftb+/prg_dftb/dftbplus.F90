@@ -42,7 +42,7 @@ program dftbplus
   use parser
   use sparse2dense, only : unpackHS, packHS, packERho, iPackHS,&
       & blockSymmetrizeHS, blockHermitianHS
-  use blasroutines, only : hemv, gemm, symm, hemm
+  use blasroutines, only : symm, hemm
   use hsdutils
   use charmanip
   use shift
@@ -62,7 +62,7 @@ program dftbplus
 
   type(inputData), allocatable  :: input             ! Contains the parsed input
 
-  integer                  :: nk, iEgy, nSpin2, nK2, iSpin2, iK2
+  integer                  :: nk, nSpin2, nK2, iSpin2, iK2
   complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
   real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:), HSqrReal2(:,:)
   real(dp),    allocatable :: eigen(:,:,:), eigen2(:,:,:)
@@ -97,21 +97,14 @@ program dftbplus
   real(dp) :: derivCellVol(3,3)
 
   real(dp) :: dipoleMoment(3)
-  real(dp) :: angularMomentum(3) ! hold total angular momentum vector
 
-  integer                  :: ii, jj, kk
+  integer                  :: ii, jj
 
   logical                  :: tConverged
 
   logical, parameter       :: tDensON2 = .false.  ! O(N^2) density mtx creation
   logical, parameter       :: tAppendDetailedOut = .false.
 
-  character(len=*), parameter :: formatEnergy = '(8f12.5)'
-  character(len=*), parameter :: formatEigen = '(8f14.8)'
-  character(len=*), parameter :: formatHessian = '(4f16.10)'
-  character(len=*), parameter :: formatGeoOut = "(I5,F16.8,F16.8,F16.8)"
-  ! formats for data with 1 or two units, and exponential notation form:
-  character(len=*), parameter :: format1U = "(' ',A,':',T32,F18.10,T51,A)"
   character(len=*), parameter :: format2U = &
       &"(' ',A,':',T32,F18.10,T51,A,T54,F16.4,T71,A)"
   character(len=*), parameter :: format1Ue = "(' ',A,':',T37,E13.6,T51,A)"
@@ -141,7 +134,6 @@ program dftbplus
   real(dp), allocatable :: movedVelo(:,:)  !* MD velocities for moved atoms
   real(dp), allocatable :: movedAccel(:,:) !* MD acceleration for moved atoms
   real(dp), allocatable :: movedMass(:,:)  !* Mass of the moved atoms
-  real(dp) :: KE                           !* MD Kinetic energy
   real(dp) :: kT                           !* MD instantaneous thermal energy
 
   real(dp) :: Efield(3), absEfield !* external electric field
@@ -152,7 +144,7 @@ program dftbplus
   !!* Loop variables
   integer :: iSCCIter, iSpin, iAtom, iNeigh
 
-  integer :: fdTagged  !!* File descriptor for the tagged writer
+  integer :: fdAutotest  !!* File descriptor for the tagged writer
   integer :: fdUser    !!* File descriptor for the human readable output
   integer :: fdBand    !!* File descriptor for the band structure output
   integer :: fdEigvec  !!* File descriptor for the eigenvector output
@@ -161,7 +153,7 @@ program dftbplus
   integer :: fdHessian !!* File descriptor for numerical Hessian
 
   !!* Name of the human readable file
-  character(*), parameter :: taggedOut = "autotest.tag"
+  character(*), parameter :: autotestTag = "autotest.tag"
   character(*), parameter :: userOut = "detailed.out"
   character(*), parameter :: bandOut = "band.out"
   character(*), parameter :: mdOut = "md.out"
@@ -169,8 +161,7 @@ program dftbplus
   character(*), parameter :: hessianOut = "hessian.out"
 
 
-  real(dp) :: sccErrorQ           !* Charge error in the last iterations
-  real(dp) :: rTmp
+  real(dp) :: sccErrorQ, diffElec
   real(dp), allocatable :: tmpDerivs(:)
   real(dp), allocatable :: tmpMatrix(:,:)
   real(dp), allocatable :: orbitalL(:,:,:), orbitalLPart(:,:,:)
@@ -186,10 +177,8 @@ program dftbplus
   !* gradient/steepest descent the geometries are written anyway
   integer :: minSCCIter                   !* Minimal number of SCC iterations
 
-  type(xmlf_t) :: xf
-  real(dp), allocatable :: bufferRealR2(:,:)
   logical :: tStopSCC, tStopDriver   ! if scf/geometry driver should be stopped
-  integer :: ang, iSh1, iSp1
+  integer :: iSh1, iSp1
 
   real(dp), allocatable :: shift3rd(:)
   real(dp), allocatable :: orbresshift3rd(:,:)
@@ -234,39 +223,26 @@ program dftbplus
   dispLatDeriv = 0.0_dp
   totalLatDeriv = 0.0_dp
   derivCellVol = 0.0_dp
-  if (tWriteTagged.or.tWriteResultsTag) then
-    !! Initialize tagged writer and human readable output
-    call initTaggedWriter()
-  end if
-  if (tWriteTagged) then
-    fdTagged = getFileId()
-    open(fdTagged, file=taggedOut, position="rewind", status="replace")
-    close(fdTagged)
+
+  call initTaggedWriter()
+  if (tWriteAutotest) then
+    call initOutputFile(autotestTag, fdAutotest)
   end if
   if (tWriteResultsTag) then
-    fdResultsTag = getFileId()
+    call initOutputFile(resultsTag, fdResultsTag)
   end if
-
   if (tWriteBandDat) then
-    fdBand = getFileId()
+    call initOutputFile(bandOut, fdBand)
   end if
   fdEigvec = getFileId()
-
   if (tDerivs) then
-    fdHessian = getFileId()
-    open(fdHessian, file=hessianOut, position="rewind", status="replace")
+    call initOutputFile(hessianOut, fdHessian)
   end if
-
-  ! initially empty file
   if (tWriteDetailedOut) then
-    fdUser = getFileId()
-    open(fdUser, file=userOut, position="rewind", status="replace")
+    call initOutputFile(userOut, fdUser)
   end if
-
-  ! initially open to file to be empty
   if (tMD) then
-    fdMD = getFileId()
-    open(fdMD, file=mdOut, position="rewind", status="replace")
+    call initOutputFile(mdOut, fdMD)
   end if
 
   allocate(rhoPrim(0, nSpin))
@@ -395,14 +371,11 @@ program dftbplus
   end if
 
   if (tLinResp .and. tPrintExcitedEigVecs) then
-    ALLOCATE(naturalOrbs(nOrb,nOrb,1))
-    ALLOCATE(occNatural(nOrb,1))
-  else
-    ALLOCATE(naturalOrbs(0,0,0))
-    ALLOCATE(occNatural(0,0))
+    ALLOCATE(naturalOrbs(nOrb, nOrb, 1))
+    ALLOCATE(occNatural(nOrb, 1))
+    naturalOrbs(:,:,:) = 0.0_dp
+    occNatural(:,:) = 0.0_dp
   end if
-  naturalOrbs = 0.0_dp
-  occNatural = 0.0_dp
 
   if (tMD) then
     allocate(velocities(3,nAtom))
@@ -478,11 +451,10 @@ program dftbplus
       tWriteRestart = .false.
     end if
 
-    if (tMD.and.tWriteRestart) then
-      write(fdMD,*)"MD step:",iGeoStep
-      call state(pMDIntegrator,fdMD)
+    if (tMD .and. tWriteRestart) then
+      call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
     end if
-
+    
     !! Write out geometry information
     write(stdOut, '(/,A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
@@ -853,25 +825,10 @@ program dftbplus
           end if
         end do spinDensMat
 
-        do iSpin = 1, nSpin
-          if (tWriteBandDat) then
-            if (iSpin == 1) then
-              open(unit=fdBand, file=bandOut, action="write")
-            end if
-            do nk=1,nKPoint
-              write(fdBand,*)'KPT ',nk,' SPIN ', iSpin, &
-                  &' KWEIGHT ', kweight(nK)
-              do iEgy=1,sqrHamSize
-                write(fdBand, formatEnergy) Hartree__eV*eigen(iEgy,nk,iSpin),&
-                    & filling(iEgy,nk,iSpin)
-              end do
-              write(fdBand,*)
-            end do
-            if (iSpin == nSpin) then
-              close(fdBand)
-            end if
-          end if
-        end do
+        if (tWriteBandDat) then
+          call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
+        end if
+        
 
         call ud2qm(rhoPrim)
 
@@ -990,16 +947,7 @@ program dftbplus
         filling(:,1:nKPoint,1) = 0.5_dp * filling(:,1:nKPoint,1)
 
         if (tWriteBandDat) then
-          open(unit=fdBand, file=bandOut, action="write")
-          do nk=1,nKPoint
-            write(fdBand, *) 'KPT ',nk,' SPIN ', 1, ' KWEIGHT ', kweight(nK)
-            do iEgy=1,sqrHamSize
-              write(fdBand, formatEnergy) Hartree__eV*eigen(iEgy,nk,1),&
-                  & filling(iEgy,nk,1)
-            end do
-            write(fdBand,*)
-          end do
-          close(fdBand)
+          call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
         end if
 
       end if ! end of nSpin == 4 case
@@ -1178,6 +1126,8 @@ program dftbplus
           & energy%atomDisp(:)
 
       energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
+      energy%EMermin = energy%Etotal - sum(TS)
+      energy%EGibbs = energy%EMermin + cellVol * pressure
 
       !! Stop SCC if appropriate stop file is present (We need this query here
       !! since the following block contains a check iSCCIter /= nSCCIter)
@@ -1256,68 +1206,31 @@ program dftbplus
             end if
           end if
         end if
-
-      end if
-
-
-      !! Clear detailed.out if necessary
-      if (tWriteDetailedOut .and. .not. tAppendDetailedOut) then
-        close(fdUser)
-        open(fdUser, file=userOut, position="rewind", status="replace")
-        select case(iDistribFn)
-        case(0)
-          write(fdUser,*)'Fermi distribution function'
-        case(1)
-          write(fdUser,*)'Gaussian distribution function'
-        case default
-          write(fdUser,*)'Methfessel-Paxton distribution function order'&
-              &,iDistribFn
-        end select
-        write(fdUser,*) ""
       end if
 
       if (tSCC) then
         if (iSCCiter > 1) then
-          rTmp = (energy%Eelec-Eold)
+          diffElec = energy%Eelec - Eold
         else
-          rTmp = 0.0_dp
+          diffElec = 0.0_dp
         end if
         Eold = energy%Eelec
+      end if
+      
+      if (tWriteDetailedOut) then
+        call writeDetailedOut1(fdUser, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
+            & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec,&
+            & sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling, orb,&
+            & species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
+            & pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit,&
+            & tScc)
+      end if
 
-        if (tWriteDetailedOut) then
-          if (nGeoSteps > 0) then
-            if (tMD) then
-              write(fdUser,"('MD step: ',I0)") iGeoStep
-            elseif (tDerivs) then
-              write(fdUser,"('Difference derivative step: ',I0)") iGeoStep
-            else
-              if (tCoordOpt .and. tLatOpt) then
-                write (fdUser, "('Geometry optimization step: ',I0, &
-                    & ', Lattice step: ',I0)") &
-                    & iGeoStep,iLatGeoStep
-              else
-                write(fdUser,"('Geometry optimization step: ',I0)") iGeoStep
-              end if
-            end if
-          else
-            write(fdUser,*) "Calculation with static geometry"
-          end if
-          write(fdUser,*)''
-          write (fdUser,'(/A)') repeat("*", 80)
-          write(fdUser,"(' ',A5,A18,A18,A18)") "iSCC", " Total electronic ", &
-              & "  Diff electronic ", "     SCC error    "
-          write(fdUser,"(I5,E18.8,E18.8,E18.8,E18.8)") iSCCIter, &
-              & energy%Eelec, rTmp, sccErrorQ
-          write (fdUser,'(A)') repeat("*", 80)
-          write(fdUser,*)""
-        end if
-
+      if (tSCC) then
         if (tDFTBU) then
-          write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, rTmp, &
-              &sccErrorQ
+          write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, diffElec, sccErrorQ
         else
-          write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, rTmp, &
-              & sccErrorQ
+          write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, diffElec, sccErrorQ
         end if
       end if
 
@@ -1344,345 +1257,6 @@ program dftbplus
         end if
       end if
 
-      if (tWriteDetailedOut) then
-        if (nMovedAtom > 0 .and. .not. tDerivs) then
-          write (fdUser,*) "Coordinates of moved atoms (au):"
-          do ii = 1, nMovedAtom
-            write(fdUser,formatGeoOut) indMovedAtom(ii), &
-                &pCoord0Out(:, indMovedAtom(ii))
-          end do
-          write (fdUser,*) ""
-        end if
-
-        !! Write out atomic charges
-        if (tPrintMulliken) then
-          write(fdUser,"(' Net charge: ',F14.8)") sum(q0(:, :, 1) - qOutput(:, :, 1))
-          write (fdUser, "(/,A)") " Net atomic charges (e)"
-          write (fdUser, "(1X,A5,1X,A16)")" Atom", " Net charge"
-          do ii = 1, nAtom
-            write (fdUser, "(1X,I5,1X,F16.8)") ii, &
-                &sum(q0(:, ii, 1) - qOutput(:, ii, 1))
-          end do
-          write(fdUser,*) ""
-        end if
-        lpSpinPrint: do iSpin = 1, nSpinHams
-          if (nSpin == 2) then
-            write(fdUser,*) 'COMPONENT = ',trim(spinName(iSpin))
-          else
-            write(fdUser,*) 'COMPONENT = ',trim(quaternionName(iSpin))
-          end if
-          write(fdUser,*) ' '
-          write(fdUser,*)'Eigenvalues /H'
-          do iEgy = 1, sqrHamSize
-            write(fdUser, formatEigen) (eigen(iEgy,ii,iSpin),ii=1,nKPoint)
-          end do
-          write(fdUser,*) ""
-          write(fdUser,*)'Eigenvalues /eV'
-          do iEgy = 1, sqrHamSize
-            write(fdUser, formatEigen) &
-                &(Hartree__eV*eigen(iEgy,ii,iSpin),ii=1,nKPoint)
-          end do
-          write (fdUser,*) ''
-          write(fdUser,*)'Fillings'
-          do iEgy = 1, sqrHamSize
-            write(fdUser, formatEnergy) (filling(iEgy,ii,iSpin),ii=1,nKPoint)
-          end do
-          write (fdUser,*) ""
-        end do lpSpinPrint
-        if (nSpin == 4) then
-          if (tPrintMulliken) then
-            do jj = 1, 4
-              write (fdUser,"(' Nr. of electrons (',A,'):',F16.8)") &
-                  & quaternionName(jj),sum(qOutput(:, :,jj))
-              write (fdUser,*) ""
-              write (fdUser, "(' Atom populations (',A,')')") quaternionName(jj)
-              write (fdUser, "(1X,A5,1X,A16)")" Atom", " Population"
-
-              do ii = 1, nAtom
-                write (fdUser, "(1X,I5,1X,F16.8)") ii, sum(qOutput(:, ii, jj))
-              end do
-              write (fdUser,*) ''
-              write (fdUser, "(' l-shell populations (',A,')')") quaternionName(jj)
-              write (fdUser, "(1X,A5,1X,A3,1X,A3,1X,A16)")" Atom", "Sh.", &
-                  &"  l", " Population"
-              do ii = 1, nAtom
-                iSp1 = species(ii)
-                do iSh1 = 1, orb%nShell(iSp1)
-                  write (fdUser, "(1X,I5,1X,I3,1X,I3,1X,F16.8)") ii, iSh1, &
-                      &orb%angShell(iSh1,iSp1), &
-                      &sum(qOutput(orb%posShell(iSh1,iSp1)&
-                      &:orb%posShell(iSh1+1,iSp1)-1, ii, jj))
-                end do
-              end do
-              write (fdUser,*) ''
-              write (fdUser, "(' Orbital populations (',A,')')") &
-                  & quaternionName(jj)
-              write (fdUser, "(1X,A5,1X,A3,1X,A3,1X,A3,1X,A16)") " Atom", &
-                  & "Sh.","  l","  m", " Population"
-              do ii = 1, nAtom
-                iSp1 = species(ii)
-                do iSh1 = 1, orb%nShell(iSp1)
-                  ang = orb%angShell(iSh1, iSp1)
-                  do kk = 0, 2 * ang
-                    write (fdUser, "(' ',I5,1X,I3,1X,I3,1X,I3,1X,F16.8)") &
-                        &ii, iSh1, ang, kk - ang, &
-                        &qOutput(orb%posShell(iSh1,iSp1)+kk, ii, jj)
-                  end do
-                end do
-              end do
-              write (fdUser,*) ''
-            end do
-          end if
-          if (tDFTBU) then
-            do jj = 1, 4
-              write (fdUser, "(' Block populations (',A,')')") &
-                  & quaternionName(jj)
-              do ii = 1, nAtom
-                iSp1 = species(ii)
-                write(fdUser,*)'Atom',ii
-                do kk = 1, orb%nOrbSpecies(iSp1)
-                  write(fdUser,"(16F8.4)") &
-                      & qBlockOut(1:orb%nOrbSpecies(iSp1),kk,ii,jj)
-                end do
-                write (fdUser,*) ''
-              end do
-            end do
-          end if
-          if (tImHam .and. tPrintMulliken) then
-            write (fdUser,*) ''
-            write (fdUser,*) ' Electron angular momentum (mu_B/hbar)'
-            write (fdUser, "(2X,A5,T10,A3,T14,A1,T20,A1,T35,A9)")"Atom", "Sh.",&
-                &"l", "S", "Momentum"
-            do ii = 1, nAtom
-              iSp1 = species(ii)
-              do iSh1 = 1, orb%nShell(iSp1)
-                write (fdUser, "(1X,I5,1X,I3,1X,I3,1X,F14.8,' :',3F14.8)") &
-                    & ii, iSh1, orb%angShell(iSh1,iSp1), &
-                    & 0.5_dp*sqrt(sum(sum(qOutput(orb%posShell(iSh1,iSp1)&
-                    & :orb%posShell(iSh1+1,iSp1)-1, ii, 2:4),dim=1)**2)), &
-                    & -gfac*0.25_dp*sum(qOutput(orb%posShell(iSh1,iSp1)&
-                    & :orb%posShell(iSh1+1,iSp1)-1, ii, 2:4),dim=1)
-              end do
-            end do
-            write (fdUser,*) ''
-            write (fdUser,*) ' Orbital angular momentum (mu_B/hbar)'
-            write (fdUser, "(2X,A5,T10,A3,T14,A1,T20,A1,T35,A9)")"Atom", "Sh.",&
-                &"l", "L", "Momentum"
-            do ii = 1, nAtom
-              iSp1 = species(ii)
-              do iSh1 = 1, orb%nShell(iSp1)
-                write (fdUser, "(1X,I5,1X,I3,1X,I3,1X,F14.8,' :',3F14.8)") &
-                    & ii, iSh1, orb%angShell(iSh1,iSp1), &
-                    & sqrt(sum(orbitalL(1:3,iSh1,ii)**2)),-orbitalL(1:3,iSh1,ii)
-              end do
-            end do
-            write (fdUser,*) ''
-            write (fdUser,*) ' Total angular momentum (mu_B/hbar)'
-            write (fdUser, "(2X,A5,T10,A3,T14,A1,T20,A1,T35,A9)")"Atom", "Sh.",&
-                &"l", "J", "Momentum"
-            angularMomentum = 0.0_dp
-            do ii = 1, nAtom
-              iSp1 = species(ii)
-              do iSh1 = 1, orb%nShell(iSp1)
-                write (fdUser, "(1X,I5,1X,I3,1X,I3,1X,F14.8,' :',3F14.8)") &
-                    & ii, iSh1, orb%angShell(iSh1,iSp1), sqrt(sum((&
-                    & orbitalL(1:3,iSh1,ii) &
-                    & +sum(0.5_dp*qOutput(orb%posShell(iSh1,iSp1)&
-                    & :orb%posShell(iSh1+1,iSp1)-1, ii, 2:4),dim=1))**2)), &
-                    & -orbitalL(1:3,iSh1,ii) &
-                    & -gfac*0.25_dp*sum(qOutput(orb%posShell(iSh1,iSp1)&
-                    & :orb%posShell(iSh1+1,iSp1)-1, ii, 2:4),dim=1)
-                angularMomentum(1:3) = angularMomentum(1:3) &
-                    &  -orbitalL(1:3,iSh1,ii) &
-                    & -gfac*0.25_dp*sum(qOutput(orb%posShell(iSh1,iSp1)&
-                    & :orb%posShell(iSh1+1,iSp1)-1, ii, 2:4),dim=1)
-              end do
-            end do
-            write (fdUser,*) ''
-          end if
-        else
-          if (nSpin == 2) then
-            call qm2ud(qOutput)
-            if (tDFTBU) then
-              call qm2ud(qBlockOut)
-            end if
-          end if
-          lpSpinPrint2: do iSpin = 1, nSpin
-            if (tPrintMulliken) then
-              write (fdUser,"(' Nr. of electrons (',A,'):',F16.8)") &
-                  & trim(spinName(iSpin)),sum(qOutput(:, :,iSpin))
-              write (fdUser, "(' Atom populations (',A,')')")&
-                  & trim(spinName(iSpin))
-              write (fdUser, "(1X,A5,1X,A16)")" Atom", " Population"
-
-              do ii = 1, nAtom
-                write (fdUser, "(1X,I5,1X,F16.8)")ii, sum(qOutput(:, ii, iSpin))
-              end do
-              write (fdUser,*) ''
-              write (fdUser, "(' l-shell populations (',A,')')") &
-                  & trim(spinName(iSpin))
-              write (fdUser, "(1X,A5,1X,A3,1X,A3,1X,A16)")" Atom", "Sh.", &
-                  &"  l", " Population"
-              do ii = 1, nAtom
-                iSp1 = species(ii)
-                do iSh1 = 1, orb%nShell(iSp1)
-                  write (fdUser, "(1X,I5,1X,I3,1X,I3,1X,F16.8)") ii, iSh1, &
-                      &orb%angShell(iSh1,iSp1), &
-                      &sum(qOutput(orb%posShell(iSh1,iSp1)&
-                      &:orb%posShell(iSh1+1,iSp1)-1, ii, iSpin))
-                end do
-              end do
-              write (fdUser,*) ''
-              write (fdUser, "(' Orbital populations (',A,')')") &
-                  & trim(spinName(iSpin))
-              write (fdUser, "(1X,A5,1X,A3,1X,A3,1X,A3,1X,A16)")" Atom", "Sh.",&
-                  &"  l","  m", " Population"
-              do ii = 1, nAtom
-                iSp1 = species(ii)
-                do iSh1 = 1, orb%nShell(iSp1)
-                  ang = orb%angShell(iSh1, iSp1)
-                  do kk = 0, 2 * ang
-                    write (fdUser, "(' ',I5,1X,I3,1X,I3,1X,I3,1X,F16.8)") &
-                        &ii, iSh1, ang, kk - ang, &
-                        &qOutput(orb%posShell(iSh1,iSp1)+kk, ii, iSpin)
-                  end do
-                end do
-              end do
-              write (fdUser,*) ''
-            end if
-            if (tDFTBU) then
-              write (fdUser, "(' Block populations (',A,')')") &
-                  & trim(spinName(iSpin))
-              do ii = 1, nAtom
-                iSp1 = species(ii)
-                write(fdUser,*)'Atom',ii
-                do kk = 1, orb%nOrbSpecies(iSp1)
-                  write(fdUser,"(16F8.4)") &
-                      & qBlockOut(1:orb%nOrbSpecies(iSp1),kk,ii,iSpin)
-                end do
-              end do
-              write (fdUser,*) ''
-            end if
-          end do lpSpinPrint2
-          if (nSpin == 2) then
-            call ud2qm(qOutput)
-            if (tDFTBU) then
-              call ud2qm(qBlockOut)
-            end if
-          end if
-        end if
-
-        if (nSpin == 2) then
-          call qm2ud(qOutput)
-          call qm2ud(qInput)
-        end if
-        lpSpinPrint3: do iSpin = 1, nSpinHams
-          if (nSpin == 2) then
-            write(fdUser,*)'Spin ',trim(spinName(iSpin))
-          end if
-          write(fdUser,format2U) 'Fermi level', Ef(iSpin),"H", &
-              & Hartree__eV*Ef(iSpin),'eV'
-          write(fdUser,format2U) 'Band energy', Eband(iSpin),"H", &
-              &Hartree__eV*Eband(iSpin),'eV'
-          write(fdUser,format2U)'TS', TS(iSpin),"H", Hartree__eV*TS(iSpin),'eV'
-          write(fdUser,format2U) 'Band free energy (E-TS)',&
-              &Eband(iSpin)-TS(iSpin),"H",&
-              &Hartree__eV*(Eband(iSpin)-TS(iSpin)),'eV'
-          write(fdUser,format2U)'Extrapolated E(0K)',E0(iSpin),"H",&
-              &Hartree__eV*(E0(iSpin)),'eV'
-          if (tPrintMulliken) then
-            if (nSpin == 2) then
-              write(fdUser, &
-                  & "(' Input/Output electrons (',A,'):',F16.8,F16.8)") &
-                  &trim(spinName(iSpin)), sum(qInput(:, :, iSpin)), &
-                  & sum(qOutput(:, :,iSpin))
-            else
-              write(fdUser, &
-                  & "(' Input/Output electrons (',A,'):',F16.8,F16.8)") &
-                  & quaternionName(iSpin), sum(qInput(:, :, iSpin)), &
-                  & sum(qOutput(:, :,iSpin))
-            end if
-          end if
-          write (fdUser,*) ''
-
-        end do lpSpinPrint3
-        if (nSpin == 2) then
-          call ud2qm(qOutput)
-          call ud2qm(qInput)
-        end if
-
-        write(fdUser,format2U) 'Energy H0', energy%EnonSCC,'H',  &
-            & energy%EnonSCC*Hartree__eV,'eV'
-
-        if (tSCC) then
-          write (fdUser,format2U) 'Energy SCC', energy%ESCC,'H', &
-              & energy%ESCC*Hartree__eV,'eV'
-          if (tSpin) then
-            write (fdUser,format2U) 'Energy SPIN', energy%Espin,'H', &
-                & energy%Espin*Hartree__eV,'eV'
-          end if
-          if (tDFTBU) then
-            write (fdUser,format2U) 'Energy DFTB+U', energy%Edftbu,'H', &
-                &energy%Edftbu*Hartree__eV,'eV'
-          end if
-        end if
-        if (tSpinOrbit) then
-          write(fdUser,format2U) 'Energy L.S', energy%ELS,'H', &
-              & energy%ELS*Hartree__eV,'eV'
-        end if
-        if (tEfield) then
-          write(fdUser,format2U) 'Energy ext. field', energy%Eext,'H', &
-              & energy%Eext*Hartree__eV,'eV'
-        end if
-
-        write(fdUser,format2U) 'Total Electronic energy', energy%Eelec,'H', &
-            & energy%Eelec*Hartree__eV,'eV'
-
-        !! Write out repulsive related data
-
-        write(fdUser,format2U) 'Repulsive energy', energy%Erep,'H', &
-            & energy%Erep*Hartree__eV,'eV'
-        if (tDispersion) then
-          write (fdUser,format2U) 'Dispersion energy', energy%eDisp,'H', &
-              &energy%eDisp * Hartree__eV,'eV'
-        end if
-        write(fdUser,format2U) 'Total energy', energy%Etotal,'H', &
-            &(energy%Etotal) * Hartree__eV,'eV'
-        write(fdUser,format2U) 'Total Mermin free energy', energy%Etotal -&
-            & sum(TS),'H', (energy%Etotal - sum(TS)) * Hartree__eV,'eV'
-        if (tPeriodic.and.pressure/=0.0_dp) then
-          write(fdUser,format2U) 'Gibbs free energy', energy%Etotal -&
-              & sum(TS)+CellVol*pressure,'H', Hartree__eV * &
-              & (energy%Etotal - sum(TS)+CellVol*pressure),'eV'
-        end if
-        write (fdUser,*) ''
-
-        if (tAtomicEnergy) then
-          write (fdUser, "(' Atom resolved electronic energies ')")
-          do ii = 1, nAtom
-            write (fdUser, "(1X,I5,F16.8,' H',F16.6,' eV')") ii, &
-                & energy%atomElec(ii), Hartree__eV*energy%atomElec(ii)
-          end do
-          write (fdUser,*) ''
-        end if
-
-        if (tAtomicEnergy) then
-          write (fdUser, "(' Atom resolved repulsive energies ')")
-          do ii = 1, nAtom
-            write (fdUser, "(1X,I5,F16.8,' H',F16.6,' eV')") ii, &
-                & energy%atomRep(ii), Hartree__eV*energy%atomRep(ii)
-          end do
-          write (fdUser,*) ''
-          write (fdUser, "(' Atom resolved total energies ')")
-          do ii = 1, nAtom
-            write (fdUser, "(1X,I5,F16.8,' H',F16.6,' eV')") ii, &
-                & energy%atomTotal(ii), Hartree__eV*energy%atomTotal(ii)
-          end do
-          write (fdUser,*) ''
-        end if
-
-      end if
-
       if (tConverged) then
         exit lpSCC
       end if
@@ -1706,8 +1280,8 @@ program dftbplus
           call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), iAtomStart)
         end do
       end if
-      if (tWriteTagged) then
-        open(fdTagged, file=taggedOut, position="append")
+      if (tWriteAutotest) then
+        open(fdAutotest, file=autotestTag, position="append")
       end if
 
       if (tLinRespZVect) then
@@ -1716,8 +1290,8 @@ program dftbplus
           call addGradients(tSpin, lresp, iAtomStart, &
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
-              & img2CentCell, orb, skHamCont, skOverCont, tWriteTagged, &
-              & fdTagged, energy%Eexcited, tForces, excitedDerivs, &
+              & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
+              & fdAutotest, energy%Eexcited, tForces, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal, occNatural=occNatural(:,1), &
               & naturalOrbs=naturalOrbs(:,:,1))
 
@@ -1730,19 +1304,21 @@ program dftbplus
           call addGradients(tSpin, lresp, iAtomStart, &
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
-              & img2CentCell, orb, skHamCont, skOverCont, tWriteTagged, &
-              & fdTagged, energy%Eexcited, tForces, excitedDerivs, &
+              & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
+              & fdAutotest, energy%Eexcited, tForces, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal)
         end if
       else
         call calcExcitations(tSpin, lresp, iAtomStart,&
             & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0,&
             & dqAtom, species0, neighborList%iNeighbor,&
-            & img2CentCell, orb, tWriteTagged, fdTagged, energy%Eexcited)
+            & img2CentCell, orb, tWriteAutotest, fdAutotest, energy%Eexcited)
       end if
       energy%Etotal = energy%Etotal + energy%Eexcited
-      if (tWriteTagged) then
-        close(fdTagged)
+      energy%EMermin = energy%EMermin + energy%Eexcited
+      energy%EGibbs = energy%EGibbs + energy%Eexcited
+      if (tWriteAutotest) then
+        close(fdAutotest)
       end if
     end if
 
@@ -1892,11 +1468,9 @@ program dftbplus
     end if
 
     write(stdOut, *)
-    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", &
-        & Hartree__eV*energy%Etotal,"eV"
-    write(stdOut, format2U) "Total Mermin free energy", &
-        & energy%Etotal - sum(TS),"H", &
-        & Hartree__eV*(energy%Etotal - sum(TS)),"eV"
+    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+        & Hartree__eV * energy%EMermin,"eV"
 
     if (tDipole) then
       dipoleMoment(:) = 0.0_dp
@@ -2287,101 +1861,26 @@ program dftbplus
     if (tStress .and. .not. tMD) then
       write(stdOut, format2Ue)'Pressure',cellPressure,'au',&
           & cellPressure* au__pascal, 'Pa'
-      if (pressure/=0.0_dp) then
-        write(stdOut, format2U) "Gibbs free energy", &
-            & energy%Etotal - sum(TS(:)) + CellVol*pressure,'H', &
-            & Hartree__eV*(energy%Etotal - sum(TS(:)) + CellVol*pressure), 'eV'
+      if (pressure /= 0.0_dp) then
+        write(stdOut, format2U) "Gibbs free energy", energy%EGibbs,'H',&
+            & Hartree__eV * energy%EGibbs, 'eV'
       end if
     end if
-
-    !! Write out information after the end of the SCC loop, but within the
-    !! geometry loop
 
     if (tWriteDetailedOut) then
-      if (tSCC) then
-        if (tConverged) then
-          write (fdUser,*) "SCC converged"
-          write (fdUser,*) ""
-        else
-          if (.not. tXlbomd) then
-            write (fdUser,*)"SCC is NOT converged, maximal SCC&
-                & iterations exceeded"
-            write (fdUser,*) ""
-            if (tConvrgForces) then
-              call error("SCC is NOT converged, maximal SCC iterations&
-                  & exceeded")
-            else
-              call warning("SCC is NOT converged, maximal SCC iterations&
-                  & exceeded")
-            end if
-          end if
-        end if
+      call writeDetailedOut2(fdUser, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMD,&
+          & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, totalDeriv, &
+          & chrgForces, indMovedAtom, cellVol, cellPressure, geoOutFile)
+    end if
+
+    if (tScc .and. .not. tXlbomd .and. .not. tConverged) then
+      if (tConvrgForces) then
+        call error("SCC is NOT converged, maximal SCC iterations exceeded")
       else
-        write (fdUser,*) "Non-SCC calculation"
-        write (fdUser,*) ""
-      end if
-
-      if (tLinResp.and.energy%Eexcited /= 0.0_dp) then
-        write (fdUser, format2U) "Excitation Energy", energy%Eexcited,"H", &
-            & Hartree__eV*energy%Eexcited,"eV"
-        write (fdUser,*)
-      end if
-
-      if (tGeoOpt .or. tMD) then
-        write(fdUser,*) "Full geometry written in ",trim(geoOutFile), &
-            & ".{xyz|gen}"
-        write(fdUser,*)''
-      end if
-
-      !! Write out forces
-      if (tPrintForces) then
-
-        write(fdUser,*)'Total Forces'
-        do ii = 1, nAtom
-          write(fdUser,*) -totalDeriv(:,ii)
-        end do
-        write(fdUser,*)''
-
-        if (tStress.and. .not.tMD) then
-          write(fdUser,*)'Total stress tensor'
-          do ii = 1, 3
-            write(fdUser,"(3F20.12)")totalStress(:,ii)
-          end do
-          write(fdUser,*)
-          write(fdUser,*)'Total lattice derivs'
-          do ii = 1, 3
-            write(fdUser,"(3F20.12)")totalLatDeriv(:,ii)
-          end do
-          write(fdUser,*)''
-        end if
-
-        write(fdUser,format1Ue) "Maximal derivative component", &
-            & maxval(abs(totalderiv)),'au'
-        if (nMovedAtom > 0) then
-          write (fdUser,format1Ue) "Max force for moved atoms:", &
-              &maxval(abs(totalDeriv(:,indMovedAtom))),'au'
-        end if
-        write(fdUser,*)''
-
-        if (tExtChrg) then
-          write (fdUser,*) "Forces on external charges"
-          do ii = 1, nExtChrg
-            write (fdUser, *) -chrgForces(:,ii)
-          end do
-          write(fdUser,*)''
-        end if
-
-        if (tPeriodic .and. .not. tMD) then
-          write(fdUser,format1Ue)'Volume',CellVol,'au^3'
-          if (tStress) then
-            write(fdUser,format2Ue)'Pressure',cellPressure, 'au', &
-                & cellPressure * au__pascal, 'Pa'
-          end if
-          write(fdUser,*)''
-        end if
-
+        call warning("SCC is NOT converged, maximal SCC iterations exceeded")
       end if
     end if
+
 
     if (tForces) then
       !! Set force components along constraint vectors zero
@@ -2429,8 +1928,7 @@ program dftbplus
 
       if (tSocket) then
         ! stress was computed above in the force evaluation block
-        call socket%send(energy%ETotal - sum(TS), -totalDeriv, &
-            & totalStress * cellVol)
+        call socket%send(energy%EMermin, -totalDeriv, totalStress * cellVol)
       end if
 
       !! If geometry minimizer finished and the last calculated geometry is the
@@ -2459,12 +1957,10 @@ program dftbplus
           if (tGeomEnd) exit lpGeomOpt
         elseif (tGeoOpt) then
           if (tCoordStep) then
-            call next(pGeoCoordOpt, energy%Etotal - sum(TS), tmpDerivs, &
-                & tmpCoords,tCoordEnd)
+            call next(pGeoCoordOpt, energy%EMermin, tmpDerivs, tmpCoords,tCoordEnd)
             if (.not.tLatOpt) tGeomEnd = tCoordEnd
           else
-            call next(pGeoLatOpt, energy%Etotal - sum(TS) + CellVol*pressure, &
-                & tmpLatVecs, newLatVecs,tGeomEnd)
+            call next(pGeoLatOpt, energy%EGibbs, tmpLatVecs, newLatVecs,tGeomEnd)
             if (tLatOptFixAng) then ! optimization uses scaling factor of
               !  lattice vectors
               if (any(tLatOptFixLen)) then
@@ -2494,9 +1990,11 @@ program dftbplus
           if (allocated(temperatureProfile)) then
             call next(temperatureProfile)
           end if
-          call evalKE(KE, movedVelo, movedMass(1,:))
+          call evalKE(energy%Ekin, movedVelo, movedMass(1,:))
           call evalkT(pMDFrame, kT, movedVelo, movedMass(1,:))
           velocities(:, indMovedAtom) = movedVelo(:,:)
+          energy%EMerminKin = energy%EMermin + energy%Ekin
+          energy%EGibbsKin = energy%EGibbs + energy%Ekin
           if (tWriteRestart) then
             write(tmpStr,"('MD iter: ',i0)")iGeoStep
             ! save geometry in gen format
@@ -2524,20 +2022,6 @@ program dftbplus
                 & + totalStress(3,3) )/3.0_dp
 
             totalLatDeriv = -CellVol * matmul(totalStress,invLatVec)
-
-          end if
-
-          if (tStress .and. tWriteDetailedOut .and. tPrintForces) then
-            write(fdUser,*)'Total stress tensor'
-            do ii = 1, 3
-              write(fdUser,"(3F20.12)")totalStress(:,ii)
-            end do
-            write(fdUser,*)''
-            write(fdUser,*)'Total lattice derivs'
-            do ii = 1, 3
-              write(fdUser,"(3F20.12)")totalLatDeriv(:,ii)
-            end do
-            write(fdUser,*)''
           end if
 
           if (tSetFillingTemp) then
@@ -2549,42 +2033,24 @@ program dftbplus
                 & absEField * au__V_m, 'V/m'
           end if
           write(stdOut, format2U)"MD Temperature:",kT,"H",kT/Boltzmann,"K"
-          !write(stdOut, format1U)"MD Kinetic Energy", KE,"H"
-          write(stdOut, format2U)"MD Kinetic Energy", KE,"H",Hartree__eV*KE,"eV"
-          write(stdOut, format2U)"Total MD Energy",KE + energy%Etotal - sum(TS),"H", &
-              & Hartree__eV*(KE + energy%Etotal - sum(TS)),"eV"
+          write(stdOut, format2U)"MD Kinetic Energy", energy%Ekin, "H",&
+              & Hartree__eV * energy%Ekin,"eV"
+          write(stdOut, format2U)"Total MD Energy", energy%EMerminKin, "H", &
+              & Hartree__eV * energy%EMerminKin, "eV"
           if (tPeriodic) then
-            write(stdOut, format2Ue)'Pressure',cellPressure,'au',&
-                & cellPressure* au__pascal, 'Pa'
-            if (pressure/=0.0_dp) then
-              write(stdOut, format2U) 'Gibbs free energy including KE', KE + &
-                  & energy%Etotal -sum(TS(:))+CellVol*pressure, &
-                  & 'H', Hartree__eV * (KE+energy%Etotal - sum(TS(:)) &
-                  & + CellVol*pressure),'eV'
+            write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+            if (pressure /= 0.0_dp) then
+              write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+                  & Hartree__eV * energy%EGibbsKin,'eV'
             end if
           end if
+
           if (tWriteDetailedOut) then
-            if (tSetFillingTemp) then
-              write (fdUser, format2U)"Electronic Temperature", tempElec,'au',&
-                  &tempElec * Hartree__eV,'eV'
-            end if
-            write(fdUser,format1U)"MD Kinetic Energy", KE,"H"
-            write(fdUser,format1U)"Total MD Energy", &
-                & KE + energy%Etotal - sum(TS),"H"
-            if (tPeriodic) then
-              write(fdUser,format2Ue)'Pressure',cellPressure,'au',&
-                  & cellPressure* au__pascal, 'Pa'
-              if (pressure/=0.0_dp) then
-                write(fdUser,format2U) 'Gibbs free energy including KE', KE + &
-                    & energy%Etotal -sum(TS(:))+CellVol*pressure, &
-                    & 'H', Hartree__eV * (KE+energy%Etotal - sum(TS(:)) &
-                    & + CellVol*pressure),'eV'
-              end if
-            end if
-            write(fdUser,format2U)"MD Temperature",kT,"H",kT/Boltzmann,"K"
+            call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
+                & totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
           end if
         end if
-
+        
         if (tGeomEnd.and.tGeoOpt) then
           diffGeo = 0.0_dp
           if (tLatOpt) then
@@ -2657,6 +2123,7 @@ program dftbplus
 
             if (tBarostat) then ! apply a Barostat
               call rescale(pMDIntegrator,coord0,latVec,totalStress)
+              !cellVol = abs(determinant33(latVec))
               recVec2p = latVec(:,:)
               call matinv(recVec2p)
               recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
@@ -2675,71 +2142,21 @@ program dftbplus
             end if
 
             if (tWriteRestart) then
-              if (tStress) then
-                if (tBarostat) then
-                  write(fdMD,*)'Lattice vectors (A)'
-                  do ii = 1, 3
-                    write(fdMD,*)latVec(:,ii)*Bohr__AA
-                  end do
-                  write(fdMD,format2Ue)'Volume',CellVol,'au^3', &
-                      & (Bohr__AA**3)*CellVol,'A^3'
-                end if
-                write(fdMD,format2Ue)'Pressure',cellPressure,'au',&
-                    & cellPressure * au__pascal, 'Pa'
-                if (pressure/=0.0_dp) then
-                  write(fdMD,format2U) 'Gibbs free energy', &
-                      & energy%Etotal -sum(TS)+CellVol*pressure, &
-                      & 'H', Hartree__eV * (energy%Etotal - sum(TS) &
-                      & + CellVol*pressure),'eV'
-                  write(fdMD,format2U) 'Gibbs free energy including KE', KE + &
-                      & energy%Etotal -sum(TS)+CellVol*pressure, &
-                      & 'H', Hartree__eV * (KE+energy%Etotal - sum(TS) &
-                      & + CellVol*pressure),'eV'
-                end if
+              if (tPeriodic) then
+                cellVol = abs(determinant33(latVec))
+                energy%EGibbs = energy%EMermin + pressure * cellVol
               end if
-              if (tLinResp .and. energy%Eexcited /= 0.0_dp) then ! need to
-                ! sort out properly where this is actually evaluated
-                write (fdMD, format2U) "Excitation Energy", &
-                    & energy%Eexcited,"H", Hartree__eV*energy%Eexcited,"eV"
-              end if
-              write(fdMD,format2U)'Potential Energy', &
-                  & energy%Etotal - sum(TS),'H', &
-                  & (energy%Etotal - sum(TS))*Hartree__eV,'eV'
-              write(fdMD,format2U)'MD Kinetic Energy',KE,'H',KE*Hartree__eV,'eV'
-              write(fdMD,format2U)'Total MD Energy', &
-                  & KE+energy%Etotal - sum(TS),'H', &
-                  & (KE+energy%Etotal - sum(TS))*Hartree__eV,'eV'
-              write(fdMD,format2U)'MD Temperature', kT,'au',kT/Boltzmann,'K'
-              if (tEfield) then
-                write(fdMD,format1U1e)'External E field', absEField, 'au', &
-                    &absEField * au__V_m, 'V/m'
-              end if
-              if (tFixEf .and. tPrintMulliken) then
-                write(fdMD,"(' Net charge     : ',F14.8)") sum(q0(:, :, 1) - qOutput(:, :, 1))
-              end if
-              if (tDipole) then
-                write(fdMD,"(' Dipole moment  :',3f14.8,' au')")dipoleMoment
-                write(fdMD,"(' Dipole moment  :',3f14.8,' Debye')") &
-                    & dipoleMoment*au__Debye
-              end if
+              call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
+                  & tDipole, energy, latVec, cellVol, cellPressure, pressure, kT, absEField,&
+                  & dipoleMoment, qOutput, q0)
             end if
           end if
         end if
       end if
-
-      if (tWriteDetailedOut.and.tMD) then
-        write(fdUser,format1U)"MD Kinetic Energy", KE,"H"
-        write(fdUser,format2U)"Total MD Energy", &
-            & KE + energy%Etotal - sum(TS),"H", &
-            & Hartree__eV*(KE + energy%Etotal - sum(TS)), "eV"
-        write(fdUser,format2U)"MD Temperature",kT,"H",kT/Boltzmann,"K"
-        write(fdUser,*) ""
-      end if
     end if
 
-    if (tWriteDetailedOut .and. tEfield) then
-      write(fdUser,format1U1e)'External E field', absEField,'au', &
-          & absEField * au__V_m, 'V/m'
+    if (tWriteDetailedOut) then
+      call writeDetailedOut4(fdUser, tMD, energy, kT)
     end if
 
     !! Stop reading of initial charges/block populations again
@@ -2764,37 +2181,11 @@ program dftbplus
     call socket%shutdown()
   end if
 
-  if (tWriteDetailedOut.and.tDipole) then
-    write(fdUser,"(' Dipole moment  :',3f14.8,' au')")dipoleMoment
-    write(fdUser,"(' Dipole moment  :',3f14.8,' Debye')") &
-        & dipoleMoment*au__Debye
-    write(fdUser,*)''
-  end if
-
   tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
   if (tWriteDetailedOut) then
-    if (tGeoOpt) then
-      if (tGeomEnd) then
-        write (fdUser,*) "Geometry converged"
-      else
-        write (fdUser, *) "!!! Geometry did NOT converge!"
-      end if
-    elseif (tMD) then
-      if (tGeomEnd) then
-        write (fdUser,*) "Molecular dynamics completed"
-      else
-        write (fdUser, *) "!!! Molecular dynamics terminated abnormally!"
-      end if
-    elseif (tDerivs) then
-      if (tGeomEnd) then
-        write (fdUser,*) "Second derivatives completed"
-      else
-        write (fdUser, *) "!!! Second derivatives terminated abnormally!"
-      end if
-    end if
-    write(fdUser,*)''
-    close(fdUser)
+    call writeDetailedOut5(fdUser, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, tDipole, absEField,&
+        & dipoleMoment)
   end if
 
   if (tGeoOpt) then
@@ -2821,17 +2212,16 @@ program dftbplus
   end if
 
   if (tMD) then
-    write(stdOut, *)'MD information accumulated in ',mdOut
-    close(fdMD)
+    call writeMdOut3(fdMd)
+    write(stdOut, *) 'MD information accumulated in ', mdOut
   end if
 
   if (tDerivs) then
     call getHessianMatrix(derivDriver, pDynMatrix)
-    write(stdOut, *)'Hessian matrix written to ',hessianOut
-    do ii = 1, size(pDynMatrix,dim=2)
-      write(fdHessian,formatHessian)pDynMatrix(:,ii)
-    end do
-    close(fdHessian)
+    write(stdOut, *) 'Hessian matrix written to ', hessianOut
+    call writeHessianOut(fdHessian, hessianOut, pDynMatrix)
+  else
+    nullify(pDynMatrix)
   end if
 
   if (tLocalise) then ! warning the canonical DFTB ground state
@@ -2922,139 +2312,25 @@ program dftbplus
     end if
   end if
 
-  if (tWriteTagged) then
-    !! Write out final results in tagged format
-    open(fdTagged, file=taggedOut, position="append")
+  if (tWriteAutotest) then
     if (tPeriodic) then
-      CellVol = abs(determinant33(latVec))
-      call writeTagged(fdTagged, tag_volume, CellVol)
+      cellVol = abs(determinant33(latVec))
+      energy%EGibbs = energy%EMermin + pressure * cellVol
     end if
-    if (tPrintMulliken) then
-      call qm2ud(qOutput)
-      call writeTagged(fdTagged, tag_qOutput, qOutput(:,:,1))
-      call ud2qm(qOutput)
-    end if
-    if (tForces) then
-      call writeTagged(fdTagged, tag_forceTot, -totalDeriv)
-      if (tExtChrg) then
-        call writeTagged(fdTagged, tag_chrgForces, -chrgForces)
-      end if
-      if (tLinResp) then
-        call writeTagged(fdTagged, tag_excForce, -excitedDerivs)
-      end if
-      if (tStress) then
-        call writeTagged(fdTagged, tag_stressTot, totalStress)
-      end if
-    end if
-    if (tDerivs) then
-      call writeTagged(fdTagged, tag_HessianNum, pDynMatrix)
-    end if
-    call writeTagged(fdTagged, tag_freeEgy, energy%Etotal - sum(TS))
-    if (pressure/=0.0_dp) then
-      call writeTagged(fdTagged, tag_Gibbsfree, &
-          & energy%Etotal - sum(TS) + CellVol*pressure)
-    end if
-    call writeTagged(fdTagged, tag_endCoord, coord0)
-    if (tLocalise) then
-      call writeTagged(fdTagged, tag_pmlocalise, localisation)
-    end if
-    close(fdTagged)
+    call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
+        & totalDeriv, chrgForces, tLinResp, excitedDerivs, tStress, totalStress, pDynMatrix,&
+        & energy%EMermin, pressure, energy%EGibbs, coord0, tLocalise, localisation)
   end if
-
   if (tWriteResultsTag) then
-    open(fdResultsTag, file=resultsTag, position="rewind", status="replace")
-    call writeTagged(fdResultsTag, tag_egyTotal, energy%Etotal)
-    if (tAtomicEnergy) then
-      call writeTagged(fdResultsTag, tag_egyTotalAt, energy%atomTotal)
-    end if
-    call writeTagged(fdResultsTag, tag_forces, tForces)
-    if (tForces) then
-      call writeTagged(fdResultsTag, tag_forceTot, -totalDeriv)
-      if (tExtChrg) then
-        call writeTagged(fdResultsTag, tag_chrgForces, -chrgForces)
-      end if
-    end if
-    if (tStress) then
-      call writeTagged(fdResultsTag, tag_stressTot, totalStress)
-    end if
-    if (tDerivs) then
-      call writeTagged(fdResultsTag, tag_HessianNum, pDynMatrix)
-    end if
-    call writeTagged(fdResultsTag, tag_scc, tSCC)
-    if (tSCC) then
-      call writeTagged(fdResultsTag, tag_nSCC, iSCCIter)
-      call writeTagged(fdResultsTag, tag_sccConv, tConverged)
-    end if
-    if (tPrintMulliken) then
-      call writeTagged(fdResultsTag, tag_qOutputAt, sum(qOutput, dim=1))
-      call writeTagged(fdResultsTag, tag_qOutAtNet, &
-          &sum(q0(:,:,1) - qOutput(:,:,1), dim=1))
-    end if
-    call writeTagged(fdResultsTag, tag_eigenVal, eigen)
-    call writeTagged(fdResultsTag, tag_filling, filling)
-    call writeTagged(fdResultsTag, tag_efermi, Ef)
-    if (size(nEl) == 1) then
-      call writeTagged(fdResultsTag, tag_nElUp, 0.5_dp*nEl(1))
-      call writeTagged(fdResultsTag, tag_nElDown, 0.5_dp*nEl(1))
-    else
-      call writeTagged(fdResultsTag, tag_nElUp, nEl(1))
-      call writeTagged(fdResultsTag, tag_nElDown, nEl(2))
-    end if
-     if (tPeriodic) then
-      CellVol = abs(determinant33(latVec))
-      call writeTagged(fdResultsTag, tag_volume, CellVol)
-    end if
-
-    close(fdResultsTag)
+    call writeResultsTag(fdResultsTag, resultsTag, energy, tAtomicEnergy, totalDeriv, chrgForces,&
+        & tStress, totalStress, pDynMatrix, tScc, iSccIter, tConverged, tPrintMulliken, qOutput,&
+        & q0, eigen, filling, Ef, nEl, tPeriodic, cellVol)
   end if
-
-
   if (tWriteDetailedXML) then
-    !! Ugly hack for printing out xml info, will be removed later
-    call xml_OpenFile("detailed.xml", xf, indent=.true.)
-    call xml_ADDXMLDeclaration(xf)
-    call xml_NewElement(xf, "detailedout")
-    call writeChildValue(xf, "identity", runId)
-    call xml_NewElement(xf, "geometry")
-    call writeChildValue(xf, "typenames", speciesName)
-    call writeChildValue(xf, "typesandcoordinates", &
-        &reshape(species0, (/ 1, size(species0) /)), pCoord0Out)
-    call writeChildValue(xf, "periodic", tPeriodic)
-    if (tPeriodic) then
-      call writeChildValue(xf, "latticevectors", latVec)
-    end if
-    call xml_EndElement(xf, "geometry")
-    call writeChildValue(xf, "real", tRealHS)
-    call writeChildValue(xf, "nrofkpoints", nKPoint)
-    call writeChildValue(xf, "nrofspins", nSpin)
-    call writeChildValue(xf, "nrofstates", size(eigen, dim=1))
-    call writeChildValue(xf, "nroforbitals", nOrb)
-    allocate(bufferRealR2(4, nKPoint))
-    bufferRealR2(1:3, :) = kPoint(:,:)
-    bufferRealR2(4, :) = kWeight(:)
-    call writeChildValue(xf, "kpointsandweights", bufferRealR2)
-    deallocate(bufferRealR2)
-    call xml_NewElement(xf, "occupations")
-    do ii = 1, nSpin
-      call xml_NewElement(xf, "spin" // i2c(ii))
-      do jj = 1, nKpoint
-        call writeChildValue(xf, "k" // i2c(jj), filling(:, jj, mod(ii,3)))
-      end do
-      call xml_EndElement(xf, "spin" // i2c(ii))
-    end do
-    call xml_EndElement(xf, "occupations")
-    if (tLinResp .and. tPrintExcitedEigVecs) then
-      call xml_NewElement(xf, "excitedoccupations")
-      call xml_NewElement(xf, "spin" // i2c(1))
-      call writeChildValue(xf, "k" // i2c(1), occNatural)
-      call xml_EndElement(xf, "spin" // i2c(1))
-      call xml_EndElement(xf, "excitedoccupations")
-    end if
-
-    call xml_EndElement(xf, "detailedout")
-    call xml_Close(xf)
+    call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
+        & nKPoint, nSpin, size(eigen, dim=1), nOrb, kPoint, kWeight, filling, occNatural)
   end if
-
+  
   call destructProgramVariables()
 
 contains
@@ -3220,6 +2496,7 @@ contains
 
   end subroutine getFillingsAndBandEnergies
 
+
   !> Write out geometry in gen format if needed
   subroutine writeGenGeometry()
     character(lc) :: lcTmpLocal
@@ -3236,5 +2513,7 @@ contains
       end if
     end if
   end subroutine writeGenGeometry
+
+
 
 end program dftbplus

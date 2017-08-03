@@ -246,9 +246,6 @@ module initprogram
   logical :: tConvrgForces
   character(mc), allocatable :: speciesName(:)
 
-  logical            :: tInitialized = .false.
-  private :: tInitialized
-
   type(OGeoOpt), allocatable :: pGeoCoordOpt  !* General geometry optimizer
   type(OGeoOpt), allocatable :: pGeoLatOpt    !* Geometry optimizer for lattice
                                           !* consts
@@ -308,7 +305,7 @@ module initprogram
 
   !! Other stuff
   logical :: tReadChrg    !* If initial charges/dens mtx. from external file.
-  logical :: tWriteTagged !* produce tagged output?
+  logical :: tWriteAutotest !* produce tagged output?
   logical :: tWriteDetailedXML !* Produce detailed.xml
   logical :: tWriteResultsTag !* Produce detailed.tag
   logical :: tWriteDetailedOut !* Produce detailed.out
@@ -1664,7 +1661,7 @@ contains
 
 
     !! Set various options
-    tWriteTagged = input%ctrl%tWriteTagged
+    tWriteAutotest = input%ctrl%tWriteTagged
     tWriteDetailedXML = input%ctrl%tWriteDetailedXML
     tWriteResultsTag = input%ctrl%tWriteResultsTag
     tWriteDetailedOut = input%ctrl%tWriteDetailedOut
@@ -1711,8 +1708,6 @@ contains
     end if
 
     restartFreq = input%ctrl%restartFreq
-
-    tInitialized = .true.
 
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
@@ -2184,8 +2179,6 @@ contains
       end if
 
     end if
-
-    tInitialized = .true.
 
   end subroutine initProgramVariables
 
