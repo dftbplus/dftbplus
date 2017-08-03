@@ -170,7 +170,6 @@ contains
         else
           self%alpha = 0.5*self%alpha ! points the other way, mix in less
         end if
-        ! write(*,*)'Alpha ',self%alpha
       end if
 
       allocate(aa(self%iPrevVector+1, self%iPrevVector+1))

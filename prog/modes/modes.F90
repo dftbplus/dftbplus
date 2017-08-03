@@ -10,6 +10,7 @@
 !!* Program for calculating system normal modes from a Hessian
 program modes
   use assert
+  use io
   use InitProgram
   use accuracy, only : dp, lc
   use constants, only : Hartree__cm, Bohr__AA, pi
@@ -27,7 +28,7 @@ program modes
 
   !! Allocate resources
   call initProgramVariables()
-  write (*, "(/,A,/)") "Starting main program"
+  write(stdout, "(/,A,/)") "Starting main program"
 
   allocate(eigenValues(3 * nMovedAtom))
 
@@ -56,11 +57,11 @@ program modes
 
   ! take square root of modes (allowing for imaginary modes) and print
   eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
-  write(*,*)'Vibrational modes (cm-1):'
+  write(stdout, *)'Vibrational modes (cm-1):'
   do ii = 1, 3 * nMovedAtom
-    write(*,'(i5,f8.2)')ii,eigenValues(ii)*Hartree__cm
+    write(stdout, '(i5,f8.2)')ii,eigenValues(ii)*Hartree__cm
   end do
-  write(*,*)
+  write(stdout, *)
 
   call initTaggedWriter()
   open(12, file="vibrations.tag", form="formatted", status="replace")
@@ -68,11 +69,11 @@ program modes
 
   if (tPlotModes) then
     call writeTagged(12, "saved_modes", modesToPlot)
-    write(*,*) "Writing eigenmodes to vibrations.tag"
+    write(stdout, *) "Writing eigenmodes to vibrations.tag"
     call writeTagged(12, "eigenmodes", dynMatrix(:,ModesToPlot))
 
-    write(*,*)'Plotting eigenmodes:'
-    write(*,*)ModesToPlot(:)
+    write(stdout, *)'Plotting eigenmodes:'
+    write(stdout, *)ModesToPlot(:)
     ! scale mode components on each atom by mass and then normalise total mode
     do ii = 1, nModesToPlot
       iMode = ModesToPlot(ii)

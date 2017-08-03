@@ -48,8 +48,8 @@ velocityverlet.o = velocityverlet.o $(common.fypp) $(_mod_fileid) $(_mod_assert)
 _mod_velocityverlet: velocityverlet.o
 _mod_velocityverlet = $(velocityverlet.o)
 
-xlbomd.o: _mod_accuracy common.fypp _mod_assert _mod_extlagrangian_module _mod_message
-xlbomd.o = xlbomd.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_extlagrangian_module) $(_mod_message)
+xlbomd.o: _mod_extlagrangian_module common.fypp _mod_message _mod_assert _mod_accuracy _mod_io
+xlbomd.o = xlbomd.o $(_mod_extlagrangian_module) $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_accuracy) $(_mod_io)
 _mod_xlbomd_module: xlbomd.o
 _mod_xlbomd_module = $(xlbomd.o)
 

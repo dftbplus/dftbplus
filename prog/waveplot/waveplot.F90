@@ -10,6 +10,7 @@
 !!* Program for plotting molecular orbitals as cube files.
 program waveplot
   use assert
+  use io
   use InitProgram
   use accuracy
   use CharManip
@@ -48,7 +49,7 @@ program waveplot
 
   !! Allocate resources
   call initProgramVariables()
-  write (*, "(/,A,/)") "Starting main program"
+  write(stdout, "(/,A,/)") "Starting main program"
 
   !! Allocating buffer for general grid, total charge and spin up
   allocate(buffer(nPoints(1), nPoints(2), nPoints(3)))
@@ -96,15 +97,15 @@ program waveplot
     end do
   end if
 
-  write (*, "(A)") "Origin"
-  write (*, "(2X,3(F0.5,1X))") origin(:)
-  write (*, "(A)") "Box"
+  write(stdout, "(A)") "Origin"
+  write(stdout, "(2X,3(F0.5,1X))") origin(:)
+  write(stdout, "(A)") "Box"
   do i1 = 1, 3
-    write (*, "(2X,3(F0.5,1X))") boxVecs(:, i1)
+    write(stdout, "(2X,3(F0.5,1X))") boxVecs(:, i1)
   end do
-  write (*, "(A)") "Spatial resolution [1/Bohr]:"
-  write (*, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(gridVec**2, dim=1))
-  write (*,*)
+  write(stdout, "(A)") "Spatial resolution [1/Bohr]:"
+  write(stdout, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(gridVec**2, dim=1))
+  write(stdout, *)
 
   !! Create density superposition of the atomic orbitals. Occupation is
   !! distributed equally on orbitals with the same angular momentum.
@@ -126,7 +127,7 @@ program waveplot
     sumAtomicChrg = sum(atomicChrg) * gridVol
 
     if (tVerbose) then
-      write (*, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
+      write(stdout, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
     end if
     if (tPlotAtomDens) then
       write (comments(2), 9989) identity
@@ -134,12 +135,12 @@ program waveplot
       fileName = "wp-atomdens.cube"
       call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
           &fileName, comments, repeatBox)
-      write (*, "(A)") "File '" // trim(fileName) // "' written"
+      write(stdout, "(A)") "File '" // trim(fileName) // "' written"
     end if
   end if
 
   if (tVerbose) then
-    write (*, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", &
+    write(stdout, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", &
         &"State", "Action", "Norm", "W. Occup."
   end if
 
@@ -234,7 +235,7 @@ program waveplot
       end if
       sumChrg = sum(buffer) * gridVol
       if (tVerbose) then
-        write (*, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc",&
+        write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc",&
             &sumChrg, occupations(iLevel, iKPoint, iSpin)
       end if
     end if
@@ -249,7 +250,7 @@ program waveplot
             &//i2c(iLevel) // "-abs2.cube"
         call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
             &fileName, comments, repeatBox)
-        write (*, "(A)") "File '" // trim(fileName) // "' written"
+        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (tPlotChrgDiff) then
@@ -261,7 +262,7 @@ program waveplot
             &//i2c(iLevel) // "-abs2diff.cube"
         call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
             &fileName, comments, repeatBox)
-        write (*, "(A)") "File '" // trim(fileName) // "' written"
+        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (tPlotReal) then
@@ -277,7 +278,7 @@ program waveplot
             &//i2c(iLevel) // "-real.cube"
         call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
             &fileName, comments, repeatBox)
-        write (*, "(A)") "File '" // trim(fileName) // "' written"
+        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (tPlotImag) then
@@ -289,7 +290,7 @@ program waveplot
             &//i2c(iLevel) // "-imag.cube"
         call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
             &fileName, comments, repeatBox)
-        write (*, "(A)") "File '" // trim(fileName) // "' written"
+        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
       end if
     end if
   end do lpStates
@@ -304,9 +305,9 @@ program waveplot
     fileName = "wp-abs2.cube"
     call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, totChrg, &
         &fileName, comments, repeatBox)
-    write (*, "(A)") "File '" // trim(fileName) // "' written"
+    write(stdout, "(A)") "File '" // trim(fileName) // "' written"
     if (tVerbose) then
-      write (*, "(/,'Total charge:',F12.6,/)") sumTotChrg
+      write(stdout, "(/,'Total charge:',F12.6,/)") sumTotChrg
     end if
   end if
 
@@ -318,7 +319,7 @@ program waveplot
     fileName = 'wp-abs2diff.cube'
     call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
         &fileName, comments, repeatBox)
-    write (*, "(A)") "File '" // trim(fileName) // "' written"
+    write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
   !! Dump spin polarisation
@@ -329,7 +330,7 @@ program waveplot
     fileName = 'wp-spinpol.cube'
     call writeCubeFile(geo, atomicNumbers, gridVec, gridOrigin, buffer, &
         &fileName, comments, repeatBox)
-    write (*, "(A)") "File '" // trim(fileName) // "' written"
+    write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
 

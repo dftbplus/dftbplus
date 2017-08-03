@@ -9,6 +9,7 @@
 !!
 module logger
   use accuracy, only : dp
+  use io
   use optarg
   implicit none
   private
@@ -104,7 +105,7 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(*, formStr0) msg
+      write(stdout, formStr0) msg
     end if
 
   end subroutine writeStr
@@ -134,7 +135,7 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(*, formStr0) msg
+      write(stdout, formStr0) msg
     end if
 
   end subroutine writeInt
@@ -164,7 +165,7 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(*, formStr0) msg
+      write(stdout, formStr0) msg
     end if
 
   end subroutine writeReal
@@ -202,10 +203,10 @@ contains
     if (verbosity0 <= this%verbosity) then
       if (columnwise0) then
         call getRowFormat(formStr0, 1, formStrRow)
-        write(*, formStrRow) msg
+        write(stdout, formStrRow) msg
       else
         call getRowFormat(formStr0, size(msg), formStrRow)
-        write(*, formStrRow) msg
+        write(stdout, formStrRow) msg
       end if
     end if
 

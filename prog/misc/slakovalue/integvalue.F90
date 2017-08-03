@@ -9,6 +9,7 @@
 !! and second derivatives.
 program integvalue
   use accuracy
+  use io
   use oldskdata
   use slakoeqgrid
   use fileid
@@ -41,7 +42,7 @@ contains
   !> Prints help and stops.
   subroutine printHelp()
 
-    write(*, "(A)") &
+    write(stdout, "(A)") &
         & "Usage: integvalue  {homo|hetero}  skfile {orig|ext} col",&
         & "",&
         "Reads an SK-file, extracts the given column in the integral table and&
@@ -157,7 +158,7 @@ contains
       call getSKIntegrals(skgrid, sk0, dist)
       call getSKIntegrals(skgrid, skp1, dist + deltaXDiff)
       call getSKIntegrals(skgrid, skm1, dist - deltaXDiff)
-      write(*, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
+      write(stdout, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
           & (skp1 + skm1 - 2.0_dp * sk0) / (deltaXDiff * deltaXDiff)
     end do
 

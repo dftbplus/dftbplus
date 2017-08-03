@@ -10,6 +10,7 @@
 !!* Contains the routines for initialising modes.
 module InitProgram
   use assert
+  use io
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
   use HSDUtils
@@ -84,18 +85,18 @@ contains
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
 
     !! Write header
-    write (*, "(A)") repeat("=", 80)
-    write (*, "(A)") "     MODES  " // version
-    write (*, "(A,/)") repeat("=", 80)
+    write(stdout, "(A)") repeat("=", 80)
+    write(stdout, "(A)") "     MODES  " // version
+    write(stdout, "(A,/)") repeat("=", 80)
 
     !! Read in input file as HSD or XML.
     call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
     if (tHSD) then
-      write (*, "(A)") "Interpreting input file '" // hsdInput // "'"
+      write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
     else
-      write (*, "(A)") "Interpreting input file '" // xmlInput //  "'"
+      write(stdout, "(A)") "Interpreting input file '" // xmlInput //  "'"
     end if
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") repeat("-", 80)
     call getChild(input, rootTag, root)
 
     !! Check if input version is the one, which we can handle
@@ -230,16 +231,16 @@ contains
     if (tWriteHSD) then
       call dumpHSD(input, hsdParsedInput)
 
-      write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
+      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
           &//"'"
     end if
     if (tWriteXML) then
       call dumpHSDAsXML(input, xmlParsedInput)
-      write (*, "(A)") "Processed input written as XML to '" // xmlParsedInput &
+      write(stdout, "(A)") "Processed input written as XML to '" // xmlParsedInput &
           &//"'"
     end if
-    write (*, "(A)") repeat("-", 80)
-    write (*,*)
+    write(stdout, "(A)") repeat("-", 80)
+    write(stdout, *)
     call destroyNode(input)
 
 
@@ -253,7 +254,7 @@ contains
   !!* Destroy the program variables created in initProgramVariables
   subroutine destructProgramVariables()
 
-    write (*, "(/,A)") repeat("=", 80)
+    write(stdout, "(/,A)") repeat("=", 80)
 
   end subroutine destructProgramVariables
 

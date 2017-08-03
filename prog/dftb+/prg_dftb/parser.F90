@@ -12,6 +12,7 @@ module parser
   use assert
   use accuracy
   use constants
+  use io
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
@@ -84,13 +85,13 @@ contains
       call error("No input file found.")
     end if
 
-    write (*, '(A,1X,I0,/)') 'Parser version:', parserVersion
+    write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     if (tHSD) then
-      write (*, "(A)") "Interpreting input file '" // hsdInputName // "'"
+      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
     else
-      write (*, "(A)") "Interpreting input file '" // xmlInputName //  "'"
+      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
     end if
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") repeat("-", 80)
 
     !! Get the root of all evil ;-)
     call getChild(hsdTree, rootTag, root)
@@ -140,12 +141,12 @@ contains
     !! Dump processed tree in HSD and XML format
     if (parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
-      write (*, '(/,/,A)') "Processed input in HSD format written to '" &
+      write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
     if (parserFlags%tWriteXML) then
       call dumpHSDAsXML(hsdTree, xmlProcInputName)
-      write (*, '(A,/)') "Processed input in XML format written to '" &
+      write(stdout, '(A,/)') "Processed input in XML format written to '" &
           &// xmlProcInputName // "'"
     end if
 
@@ -183,10 +184,10 @@ contains
           &"Sorry, no compatibility mode for parser version " &
           &// i2c(inputVersion) // " (too old)")
     elseif (inputVersion /= parserVersion) then
-      write (*, "(A,I2,A,I2,A)") "***  Converting input from version ", &
+      write(stdout, "(A,I2,A,I2,A)") "***  Converting input from version ", &
           &inputVersion, " to version ", parserVersion, " ..."
       call convertOldHSD(root, inputVersion, parserVersion)
-      write (*, "(A,/)") "***  Done."
+      write(stdout, "(A,/)") "***  Done."
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
@@ -1791,11 +1792,11 @@ contains
               & iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) + 1
         end do
         if (any(iTmpN(:)>1)) then
-          write(*,*)'Multiple copies of shells present in OrbitalPotential!'
-          write(*,"(A,A3,A,I2)") &
+          write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
+          write(stdout, "(A,A3,A,I2)") &
               & 'The count for the occurance of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
-          write(*,*)iTmpN(1:slako%orb%nShell(iSp1))
+          write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
           stop
         end if
       end do
@@ -2084,7 +2085,7 @@ contains
     allocate(slako%repCont)
     call init(slako%repCont, nSpecies)
 
-    write(*,"(A)") "Reading SK-files:"
+    write(stdout, "(A)") "Reading SK-files:"
     lpSp1: do iSp1 = 1, nSpecies
       nSK1 = len(angShells(iSp1))
       lpSp2: do iSp2 = iSp1, nSpecies
@@ -2097,7 +2098,7 @@ contains
             readRep = (iSK1 == 1 .and. iSK2 == 1)
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
-            write (*,"(2X,A)") trim(fileName)
+            write(stdout, "(2X,A)") trim(fileName)
             if (readRep .and. repPoly(iSp2, iSp1)) then
               call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
                   &repPolyIn=repPolyIn1)
@@ -2226,7 +2227,7 @@ contains
         end if
       end do lpSp2
     end do lpSp1
-    write(*,"(A)") "Done."
+    write(stdout, "(A)") "Done."
 
   end subroutine readSKFiles
 

@@ -13,6 +13,7 @@
 !!* orbital calculator.
 module GridCache
   use assert
+  use io
   use Constants
   use Accuracy
   use FileId
@@ -268,14 +269,14 @@ contains
             &== sf%levelIndex(:,iStartAbs+ind-1))) then
           ind = ind + 1
           if (sf%tVerbose) then
-            write (*, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
+            write(stdout, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
           end if
         end if
       end do
 
       !! Get molecular orbital for that eigenvector
       if (sf%tVerbose) then
-        write(*, "(/,A,/)") "Calculating grid"
+        write(stdout, "(/,A,/)") "Calculating grid"
       end if
       if (sf%tReal) then
         eigReal => sf%eigenvecReal(:, :iEnd)

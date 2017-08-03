@@ -7,6 +7,7 @@
 
 module intrinsicpr
   use accuracy
+  use io
 
   private
 
@@ -46,7 +47,7 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write (*, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
+    write(stdout, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayRealR1
 
@@ -119,7 +120,7 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write (*, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
+    write(stdout, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayComplexR1
 
@@ -192,7 +193,7 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write (*, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
+    write(stdout, *) (array(ii), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayIntR1
 
@@ -265,7 +266,7 @@ contains
     if (.not. present(omitHeader)) then
       print *, " Shape: ", shape(array)
     end if
-    write (*, *) (trim(array(ii)), ii = lbound(array, 1), ubound(array, 1))
+    write(stdout, *) (trim(array(ii)), ii = lbound(array, 1), ubound(array, 1))
 
   end subroutine printArrayCharR1
 

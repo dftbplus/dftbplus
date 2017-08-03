@@ -32,7 +32,6 @@ module hsdparser
 
   !!* Wrapper around the parsing function
   interface parseHSD
-    module procedure parseHSD_stdin
     module procedure parseHSD_file
     module procedure parseHSD_opened
   end interface
@@ -75,12 +74,6 @@ module hsdparser
       &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
 
 
-  !! Name and file descriptor from standard input/output
-  character(len=*), parameter :: stdin = "*"
-  character(len=*), parameter :: stdout = "*"
-  integer, parameter :: fdStdin = 0
-  integer, parameter :: fdStdout = 0
-
   !! Forbidden (even if quoted) characters in the iput
   character(len=*), parameter :: forbiddenChars = "<>"
 
@@ -110,25 +103,12 @@ module hsdparser
   character(len=lc) :: lineFormat = ""
 
 
-  public :: parseHSD, dumpHSD, dumpHSDAsXML, stdin, stdout, newline
+  public :: parseHSD, dumpHSD, dumpHSDAsXML, newline
   public :: getNodeHSDName, getHSDPath
   public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
 
 
 contains
-
-  !!* Parses HSD format from stdandard input
-  !!* @param initRootName Name of the root tag of the resulting XML-tree
-  !!* @param xmlDoc       DOM-tree of the parsed input on exit
-  subroutine parseHSD_stdin(initRootName, xmlDoc)
-    character(len=*), intent(in) :: initRootName
-    type(fnode), pointer :: xmlDoc
-
-    call parseHSD_opened(initRootName, fdStdin, stdin, xmlDoc)
-
-  end subroutine parseHSD_stdin
-
-
 
   !!* Parser HSD format from a file
   !!* @param rootName Name of the root tag, which should contain the parsed tree
@@ -175,8 +155,6 @@ contains
 
     if (present(file)) then
       curFile = file
-    elseif (fd == fdStdin) then
-      curFile = stdin
     else
       curFile = "???"
     end if
@@ -253,11 +231,7 @@ contains
         strLine = adjustl(residual)
         residual = ""
       else
-        if (fd == fdStdin) then
-          read (*, trim(lineFormat), iostat=iostat) strLine
-        else
-          read (fd, trim(lineFormat), iostat=iostat) strLine
-        end if
+        read (fd, trim(lineFormat), iostat=iostat) strLine
         curLine = curLine + 1
         call convertWhitespaces(strLine)
         strLine = adjustl(strLine)
@@ -648,14 +622,9 @@ contains
 
     character(len=lc) :: msgArray(2)
 
-    if (trim(file) == stdin) then
-      write (msgArray(1), 9990) line
-9990  format("HSD parser error: Standard input, Line ",I5,".")
-    else
-      !! Watch out to trunk away enough from the file name to prevent overflow
-      write (msgArray(1), 9991) trim(file(1:lc-40)), line
-9991  format("HSD parser error: File '",A,"', Line",I5,".")
-    end if
+    !! Watch out to trunk away enough from the file name to prevent overflow
+    write (msgArray(1), 9991) trim(file(1:lc-40)), line
+9991 format("HSD parser error: File '",A,"', Line",I5,".")
     write (msgArray(2), "(A)") trim(message(:min(lc, len(message))))
     call error(msgArray)
 

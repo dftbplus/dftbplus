@@ -10,6 +10,7 @@
 !!* @desc Provides routines to call with a string or array of strings if
 !!*   problems occur of a fatal (error) or recoverable (warning) nature.
 module message
+  use io
   implicit none
   private
 
@@ -31,8 +32,8 @@ contains
   !!* @param message Warning message to print to standard out.
   subroutine warning_single(message)
     character (len=*), intent(in) :: message
-    write(*, '(1a)') 'WARNING!'
-    write(*, '(2a)') '-> ', trim(message)
+    write(stdout, '(1a)') 'WARNING!'
+    write(stdout, '(2a)') '-> ', trim(message)
   end subroutine warning_single
 
 
@@ -44,9 +45,9 @@ contains
 
     integer :: ii
 
-    write(*,'(1a)') 'WARNING!'
+    write(stdout, '(1a)') 'WARNING!'
     do ii = 1, size(messages)
-      write(*,'(2a)') '-> ', trim(messages(ii))
+      write(stdout, '(2a)') '-> ', trim(messages(ii))
     end do
     stop
 
@@ -58,8 +59,8 @@ contains
   !!* @param message Error message to print to standard out.
   subroutine error_single(message)
     character (len=*), intent(in) :: message
-    write(*,'(1a)') 'ERROR!'
-    write(*,'(2a)') '-> ', trim(message)
+    write(stdout, '(1a)') 'ERROR!'
+    write(stdout, '(2a)') '-> ', trim(message)
     stop
   end subroutine error_single
 
@@ -72,9 +73,9 @@ contains
 
     integer :: ii
 
-    write(*,'(1a)') 'ERROR!'
+    write(stdout, '(1a)') 'ERROR!'
     do ii = 1, size(messages)
-      write(*,'(2a)') '-> ', trim(messages(ii))
+      write(stdout, '(2a)') '-> ', trim(messages(ii))
     end do
     stop
 

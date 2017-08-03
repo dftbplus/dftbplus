@@ -16,6 +16,7 @@
 module xlbomd_module
   use assert
   use accuracy
+  use io
   use message
   use extlagrangian_module
   implicit none
@@ -286,7 +287,7 @@ contains
     read(12, *) this%invJacobian
     close(12)
     this%invJacobian = transpose(this%invJacobian)
-    write(*, "(A,A,A)") "Negative inverse Jacobian read from '", &
+    write(stdout, "(A,A,A)") "Negative inverse Jacobian read from '", &
         & JacobianKernelFile, "'"
 
   end subroutine readJacobianKernel

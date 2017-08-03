@@ -11,6 +11,7 @@
 module sccinit
   use assert
   use accuracy
+  use io
   use message
   use fileid
   use commontypes
@@ -214,7 +215,7 @@ contains
       call error("Incompatible file type for external charge data")
     end if
     if (iSpin /= nSpin) then
-      write(*,*)iSpin
+      write(stdout, *) iSpin
       call error("Incorrect number of spins in restart file")
     end if
 

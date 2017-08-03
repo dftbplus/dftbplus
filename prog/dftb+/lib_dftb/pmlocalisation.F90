@@ -13,6 +13,7 @@
 module pmlocalisation
   use assert
   use accuracy, only : dp
+  use io
   use blasroutines
   use sparse2dense, only :unpackHS
   use sorting
@@ -87,7 +88,7 @@ contains
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
       ! Sweep over all pairs of levels
-      write(*,*)'Iter', iIter
+      write(stdout, *)'Iter', iIter
       do iLev1 = 1, nLev
 
         if (iLev1 < nLev) then
@@ -196,10 +197,10 @@ contains
     real(dp) :: Localisation, oldLocalisation
     integer, allocatable :: union(:)
 
-    write(*,*)'Pipek Mezey localisation'
+    write(stdout, *)'Pipek Mezey localisation'
 
     Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
-    write(*,*)'Initial', Localisation
+    write(stdout, *)'Initial', Localisation
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     @:ASSERT(size(ci,dim=1)==size(S,dim=1))
@@ -267,13 +268,13 @@ contains
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
 
-      write(*,"(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
+      write(stdout, "(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
       rCount = 0.0
 
       do iLev1 = 1, nLev
 
         if (real(iLev1)/real(nLev) > rCount) then
-          write(*,"(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
+          write(stdout, "(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
           rCount = rCount + 0.1 ! every 10%
         end if
 
@@ -435,33 +436,33 @@ contains
 
       oldLocalisation = Localisation
       Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
-      write(*,"(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
+      write(stdout, "(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
           & 'change ',Localisation-oldLocalisation
 
       conv = abs(alphamax) - abs(alphalast)
       if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
-        write(*,*)'Converged on rotation angle'
+        write(stdout, *)'Converged on rotation angle'
         tConverged = .true.
         exit
       end if
 
       conv = abs(Localisation-oldLocalisation)
       if (abs(conv)<convergence) then
-        write(*,*)'Converged on localization value.'
+        write(stdout, *)'Converged on localization value.'
         tConverged = .true.
         exit
       end if
 
       alphalast = alphamax
-      write(*,"(' max(alpha)',E10.2)")alphamax
+      write(stdout, "(' max(alpha)',E10.2)")alphamax
 
     end do lpLocalise
 
     Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
-    write(*,*)'Final',Localisation
+    write(stdout, *)'Final',Localisation
 
     if (.not.tConverged) then
-      write(*,*)alphamax
+      write(stdout, *)alphamax
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
 
@@ -654,7 +655,7 @@ contains
 
     lpLocalise: do iIter = 1, nIter
 
-      write(*,*)'Iter', iIter
+      write(stdout, *)'Iter', iIter
 
       ! Sweep over all pairs of levels in all k-points
       lpKpoints: do iKpt = 1, nKpt
@@ -731,12 +732,12 @@ contains
 
       end do lpKpoints
 
-      write(*,*)'Localisations at each k-point'
-      write(*,"(6E12.4)") &
+      write(stdout, *)'Localisations at each k-point'
+      write(stdout, "(6E12.4)") &
           & PipekMezeyLocalisation(ci, S, over, kpoints, kweights, &
           & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
           & img2CentCell)
-      write(*,"(1X,A,E12.4)")'Total', &
+      write(stdout, "(1X,A,E12.4)")'Total', &
           & sum(PipekMezeyLocalisation(ci, S, over, kpoints, kweights, &
           & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
           & img2CentCell))

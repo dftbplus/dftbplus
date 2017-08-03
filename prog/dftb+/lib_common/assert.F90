@@ -9,6 +9,7 @@
 
 !!* Auxiliary subroutines for the ASSERT command
 module assert
+  use io
   implicit none
   private
 
@@ -27,9 +28,9 @@ contains
     character(*), intent(in) :: fileName
     integer,      intent(in) :: lineNr
 
-    write (*, '(A)') "!!! UNFULLFILLED ASSERTION"
-    write (*, '(A,A)') "!!! FILE:      ", fileName
-    write (*, '(A,I0)') "!!! LINE NR.:  ", lineNr
+    write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
+    write(stdout, '(A,A)') "!!! FILE:      ", fileName
+    write(stdout, '(A,I0)') "!!! LINE NR.:  ", lineNr
     stop
 
   end subroutine assertError

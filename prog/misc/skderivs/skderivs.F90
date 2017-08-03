@@ -10,6 +10,7 @@
 !!* Calculates the first and second derivatives of matrix elements
 program skderivs
   use assert
+  use io
   use Accuracy
   use Constants
   use Message
@@ -62,20 +63,20 @@ contains
     allocate(fpHam(size(inp%iHam)))
     allocate(fpOver(size(inp%iOver)))
 
-    write (*, "(A)") ""
-    write (*, "(A)") "Following files will be created:"
+    write(stdout, "(A)") ""
+    write(stdout, "(A)") "Following files will be created:"
     call resize_string(buffer, 1024)
     do ii = 1, size(inp%iHam)
       fpHam(ii) = getFileId()
       strTmp = trim(inp%output) // ".ham." // i2c(ii)
       open(fpHam(ii), file=strTmp, status="replace", position="rewind")
-      write (*, "(2X,A)") trim(strTmp)
+      write(stdout, "(2X,A)") trim(strTmp)
     end do
     do ii = 1, size(inp%iOver)
       fpOver(ii) = getFileId()
       strTmp = trim(inp%output) // ".ovr." // i2c(ii)
       open(fpOver(ii), file=strTmp, status="replace", position="rewind")
-      write (*, "(2X,A)") trim(strTmp)
+      write(stdout, "(2X,A)") trim(strTmp)
     end do
 
     do ii = 1, nGrid
@@ -166,11 +167,11 @@ contains
       call error("No input file found.")
     end if
 
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") repeat("-", 80)
     if (isHSD) then
-      write (*, "(A)") "Interpreting input file '" // hsdInputName // "'"
+      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
     else
-      write (*, "(A)") "Interpreting input file '" // xmlInputName //  "'"
+      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
     end if
 
     do ii = 1, maxL+1
@@ -270,8 +271,8 @@ contains
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root)
-    write (*, "(A)") "Done."
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") "Done."
+    write(stdout, "(A)") repeat("-", 80)
 
   end subroutine parseHSDInput
 

@@ -11,6 +11,7 @@
 program dftbplus
   use assert
   use constants
+  use io
   use initprogram
   use inputdata_module
   use nonscc
@@ -210,18 +211,18 @@ program dftbplus
   integer :: sqrHamSize  ! Size of the sqr Hamiltonian
 
   call printDFTBHeader(RELEASE_VERSION, RELEASE_YEAR)
-  write (*,'(/A/)') "***  Parsing and initializing"
+  write(stdOut, '(/A/)') "***  Parsing and initializing"
 
   !! Parse input and set the variables in the local scope according the input.
   !! These variables are defined in the initprogram module.
 
   allocate(input)
   call parseHSDInput(input)
-  write (*,"(/A)") "Starting initialization..."
-  write (*,"(A80)") repeat("-", 80)
+  write(stdOut, "(/A)") "Starting initialization..."
+  write(stdOut, "(A80)") repeat("-", 80)
   call initProgramVariables(input)
   deallocate(input)
-  write (*,*)
+  write(stdOut, *)
 
   elecStress = 0.0_dp
   repulsiveStress = 0.0_dp
@@ -483,11 +484,11 @@ program dftbplus
     end if
 
     !! Write out geometry information
-    write(*, '(/,A)') repeat('-', 80)
+    write(stdOut, '(/,A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
-      write (*, "(/,'***  Geometry step: ',I0,', Lattice step: ',I0,/)") iGeoStep,iLatGeoStep
+      write(stdOut, "(/,'***  Geometry step: ',I0,', Lattice step: ',I0,/)") iGeoStep,iLatGeoStep
     else
-      write (*, "(/,'***  Geometry step: ',I0,/)") iGeoStep
+      write(stdOut, "(/,'***  Geometry step: ',I0,/)") iGeoStep
     end if
 
 
@@ -575,7 +576,7 @@ program dftbplus
     end if
 
     if (tSCC .and. (.not. tAppendDetailedOut)) then
-      write(*,"(' ',A5,A18,A18,A18)") "iSCC", " Total electronic ", &
+      write(stdOut, "(' ',A5,A18,A18,A18)") "iSCC", " Total electronic ", &
           & "  Diff electronic ", "     SCC error    "
     end if
 
@@ -757,7 +758,7 @@ program dftbplus
                 & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, &
                 & img2CentCell, kPoint, iCellVec, cellVec)
           end if
-          write (*, "(A)") "Hamilton/Overlap written, exiting program."
+          write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
           stop
         end if
 
@@ -1182,9 +1183,9 @@ program dftbplus
       !! since the following block contains a check iSCCIter /= nSCCIter)
       inquire(file=fStopSCC, exist=tStopSCC)
       if (tStopSCC) then
-        write (*,*) "Stop file '" // fStopSCC // "' found."
+        write(stdOut, *) "Stop file '" // fStopSCC // "' found."
         nSCCIter = iSCCIter
-        write (*,*) "Setting max number of scc cycles to current cycle."
+        write(stdOut, *) "Setting max number of scc cycles to current cycle."
       end if
 
 
@@ -1312,10 +1313,10 @@ program dftbplus
         end if
 
         if (tDFTBU) then
-          write(*,"(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, rTmp, &
+          write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, rTmp, &
               &sccErrorQ
         else
-          write(*,"(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, rTmp, &
+          write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, rTmp, &
               & sccErrorQ
         end if
       end if
@@ -1747,7 +1748,7 @@ program dftbplus
 
     if (tXlbomd) then
       if (xlbomdIntegrator%needsInverseJacobian()) then
-        write(*, "(A)") ">> Updating XLBOMD Inverse Jacobian"
+        write(stdOut, "(A)") ">> Updating XLBOMD Inverse Jacobian"
         allocate(invJacobian(nIneqOrb, nIneqOrb))
         call getInverseJacobian(pChrgMixer, invJacobian)
         call xlbomdIntegrator%setInverseJacobian(invJacobian)
@@ -1890,10 +1891,10 @@ program dftbplus
       end if
     end if
 
-    write (*,*)
-    write (*, format2U) "Total Energy", energy%Etotal,"H", &
+    write(stdOut, *)
+    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", &
         & Hartree__eV*energy%Etotal,"eV"
-    write (*, format2U) "Total Mermin free energy", &
+    write(stdOut, format2U) "Total Mermin free energy", &
         & energy%Etotal - sum(TS),"H", &
         & Hartree__eV*(energy%Etotal - sum(TS)),"eV"
 
@@ -1910,7 +1911,7 @@ program dftbplus
       allocate(hprime(size(h0),1))
       allocate(dipoleTmp(size(qOutput,dim=1),nAtom))
       allocate(potentialDerivative(nAtom,1))
-      write(*,"(A)",advance='no')'Hellmann Feynman dipole:'
+      write(stdOut, "(A)",advance='no')'Hellmann Feynman dipole:'
       do ii = 1, 3 ! loop over directions
         potentialDerivative = 0.0_dp
         potentialDerivative(:,1) = -coord(ii,:) ! Potential from dH/dE
@@ -1926,9 +1927,9 @@ program dftbplus
           dipoleTmp(1,iAtom) = dipoleTmp(1,iAtom) &
               & + sum(q0(:,iAtom,1))*coord0(ii,iAtom)
         end do
-        write(*,"(f12.8)",advance='no')sum(dipoleTmp)
+        write(stdOut, "(f12.8)",advance='no')sum(dipoleTmp)
       end do
-      write(*,*)" au"
+      write(stdOut, *)" au"
       deallocate(potentialDerivative)
       deallocate(hprime)
       deallocate(dipoleTmp)
@@ -2276,7 +2277,7 @@ program dftbplus
         elecLatDeriv = -CellVol * matmul(elecStress,invLatVec)
         totalLatDeriv = repulsiveLatDeriv + elecLatDeriv + dispLatDeriv
 
-        write(*,format2Ue)'Volume',CellVol,'au^3',(Bohr__AA**3)*CellVol,'A^3'
+        write(stdOut, format2Ue)'Volume',CellVol,'au^3',(Bohr__AA**3)*CellVol,'A^3'
 
       end if
 
@@ -2284,10 +2285,10 @@ program dftbplus
 
     ! MD case includes atomic kinetic energy contribution, so print that later
     if (tStress .and. .not. tMD) then
-      write(*,format2Ue)'Pressure',cellPressure,'au',&
+      write(stdOut, format2Ue)'Pressure',cellPressure,'au',&
           & cellPressure* au__pascal, 'Pa'
       if (pressure/=0.0_dp) then
-        write (*, format2U) "Gibbs free energy", &
+        write(stdOut, format2U) "Gibbs free energy", &
             & energy%Etotal - sum(TS(:)) + CellVol*pressure,'H', &
             & Hartree__eV*(energy%Etotal - sum(TS(:)) + CellVol*pressure), 'eV'
       end if
@@ -2393,7 +2394,7 @@ program dftbplus
       if (tCoordOpt) then
         tmpDerivs(1:nMovedCoord) = &
             & reshape(totalDeriv(:,indMovedAtom),(/ nMovedCoord /))
-        write (*,"(' ',A,':',T30,E20.6)") "Maximal force component", &
+        write(stdOut, "(' ',A,':',T30,E20.6)") "Maximal force component", &
             &maxval(abs(tmpDerivs))
       end if
 
@@ -2422,7 +2423,7 @@ program dftbplus
           tmpLatVecs(:) = 0.0_dp
           tmpLatVecs(1) = sum(tmpLat3Vecs)
         end if
-        write (*,format1Ue) "Maximal Lattice force component", &
+        write(stdOut, format1Ue) "Maximal Lattice force component", &
             & maxval(abs(tmpLatVecs)),'au'
       end if
 
@@ -2540,23 +2541,23 @@ program dftbplus
           end if
 
           if (tSetFillingTemp) then
-            write(*,format2U)'Electronic Temperature:',tempElec,'H',&
+            write(stdOut, format2U)'Electronic Temperature:',tempElec,'H',&
                 &tempElec/Boltzmann,'K'
           end if
           if (tEfield) then
-            write(*,format1U1e)'External E field', absEField, 'au', &
+            write(stdOut, format1U1e)'External E field', absEField, 'au', &
                 & absEField * au__V_m, 'V/m'
           end if
-          write(*,format2U)"MD Temperature:",kT,"H",kT/Boltzmann,"K"
-          !write(*,format1U)"MD Kinetic Energy", KE,"H"
-          write(*,format2U)"MD Kinetic Energy", KE,"H",Hartree__eV*KE,"eV"
-          write(*,format2U)"Total MD Energy",KE + energy%Etotal - sum(TS),"H", &
+          write(stdOut, format2U)"MD Temperature:",kT,"H",kT/Boltzmann,"K"
+          !write(stdOut, format1U)"MD Kinetic Energy", KE,"H"
+          write(stdOut, format2U)"MD Kinetic Energy", KE,"H",Hartree__eV*KE,"eV"
+          write(stdOut, format2U)"Total MD Energy",KE + energy%Etotal - sum(TS),"H", &
               & Hartree__eV*(KE + energy%Etotal - sum(TS)),"eV"
           if (tPeriodic) then
-            write(*,format2Ue)'Pressure',cellPressure,'au',&
+            write(stdOut, format2Ue)'Pressure',cellPressure,'au',&
                 & cellPressure* au__pascal, 'Pa'
             if (pressure/=0.0_dp) then
-              write(*,format2U) 'Gibbs free energy including KE', KE + &
+              write(stdOut, format2U) 'Gibbs free energy including KE', KE + &
                   & energy%Etotal -sum(TS(:))+CellVol*pressure, &
                   & 'H', Hartree__eV * (KE+energy%Etotal - sum(TS(:)) &
                   & + CellVol*pressure),'eV'
@@ -2748,12 +2749,12 @@ program dftbplus
     if (.not. tStopSCC) then
       inquire(file=fStopDriver, exist=tStopDriver)
       if (tStopDriver) then
-        write (*,*) "Stop file '" // fStopDriver // "' found."
+        write(stdOut, *) "Stop file '" // fStopDriver // "' found."
       end if
     end if
     if (tStopSCC .or. tStopDriver) then
       nGeoSteps = iGeoStep
-      write (*,*) "Setting max number of geometry steps to current step number."
+      write(stdOut, *) "Setting max number of geometry steps to current step number."
     end if
 
     iGeoStep = iGeoStep + 1
@@ -2798,35 +2799,35 @@ program dftbplus
 
   if (tGeoOpt) then
     if (tGeomEnd) then
-      write (*,*)
-      write (*,*) "Geometry converged"
+      write(stdOut, *)
+      write(stdOut, *) "Geometry converged"
     else
       call warning("!!! Geometry did NOT converge!")
     end if
   elseif (tMD) then
     if (tGeomEnd) then
-      write (*,*)
-      write (*,*) "Molecular dynamics completed"
+      write(stdOut, *)
+      write(stdOut, *) "Molecular dynamics completed"
     else
       call warning("!!! Molecular dynamics terminated abnormally!")
     end if
   elseif (tDerivs) then
     if (tGeomEnd) then
-      write (*,*)
-      write (*,*) "Second derivatives completed"
+      write(stdOut, *)
+      write(stdOut, *) "Second derivatives completed"
     else
       call warning("!!! Second derivatives terminated abnormally!")
     end if
   end if
 
   if (tMD) then
-    write(*,*)'MD information accumulated in ',mdOut
+    write(stdOut, *)'MD information accumulated in ',mdOut
     close(fdMD)
   end if
 
   if (tDerivs) then
     call getHessianMatrix(derivDriver, pDynMatrix)
-    write(*,*)'Hessian matrix written to ',hessianOut
+    write(stdOut, *)'Hessian matrix written to ',hessianOut
     do ii = 1, size(pDynMatrix,dim=2)
       write(fdHessian,formatHessian)pDynMatrix(:,ii)
     end do
@@ -2861,7 +2862,7 @@ program dftbplus
           localisation = PipekMezeyLocalisation(HSqrReal(:,1:nFilledLev,iSpin),&
               & SSqrReal,iAtomStart)
 
-          write(*,*)'Original localisation',localisation
+          write(stdOut, *)'Original localisation',localisation
 
           if (tPipekDense) then
             call PipekMezey(HSqrReal(:,1:nFilledLev,iSpin), SSqrReal, &
@@ -2876,7 +2877,7 @@ program dftbplus
           localisation = PipekMezeyLocalisation(HSqrReal(:,1:nFilledLev,iSpin),&
               & SSqrReal,iAtomStart)
 
-          write(*,*)'Final localisation ',localisation
+          write(stdOut, *)'Final localisation ',localisation
 
         end do
 
@@ -2895,7 +2896,7 @@ program dftbplus
               & kweight, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, &
               & iAtomStart, iPair, img2CentCell))
 
-          write(*,*)'Original localisation',localisation
+          write(stdOut, *)'Original localisation',localisation
 
           call PipekMezey(HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, &
               & over, kpoint, kweight, neighborList%iNeighbor, nNeighbor, &
@@ -2907,7 +2908,7 @@ program dftbplus
               & kweight, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, &
               & iAtomStart, iPair, img2CentCell))
 
-          write(*,*)'Final localisation',localisation
+          write(stdOut, *)'Final localisation',localisation
 
         end do
 

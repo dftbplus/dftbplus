@@ -1,5 +1,5 @@
-arpack.o: _mod_accuracy
-arpack.o = arpack.o $(_mod_accuracy)
+arpack.o: common.fypp _mod_accuracy
+arpack.o = arpack.o $(common.fypp) $(_mod_accuracy)
 _mod_arpack: arpack.o
 _mod_arpack = $(arpack.o)
 
