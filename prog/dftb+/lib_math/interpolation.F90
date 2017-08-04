@@ -17,9 +17,7 @@ module interpolation
 
   public :: poly5ToZero, freeCubicSpline, polyInter
 
-
 contains
-
 
   !> Returns the value of a polynomial of 5th degree at x.
   !> The polynomial is created with the following boundary conditions: Its value, and its 1st and
@@ -51,8 +49,6 @@ contains
     yy = ((ff*xr + ee)*xr + dd)*xr*xr*xr
 
   end function poly5ToZero
-
-
 
   !> Returns the value of a free spline at a certain point.
   !> The spline is created with the following boundary conditions: Its value, 1st and 2nd
@@ -96,8 +92,6 @@ contains
     end if
 
   end subroutine freeCubicSpline
-
-
 
   !> Polynomial interpolation through given points
   !> The algorithm is based on the one in Numerical recipes.
@@ -161,7 +155,5 @@ contains
     end if
 
   end function polyInter
-
-
 
 end module interpolation

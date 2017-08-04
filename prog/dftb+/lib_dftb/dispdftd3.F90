@@ -19,7 +19,6 @@ module dispdftd3_module
 
   public :: DispDftD3Inp, DispDftD3, DispDftD3_init
 
-
   !> Input structure for the DFT-D3 initialization.
   type :: DispDftD3Inp
     real(dp) :: s6, s8, a1, a2, sr6, sr8, alpha6
@@ -28,7 +27,6 @@ module dispdftd3_module
     real(dp) :: cutoff, cutoffCN
     logical :: threebody, numgrad
   end type DispDftD3Inp
-
 
   !> Internal state of the DFT-D3
   type, extends(DispersionIface) :: DispDftD3
@@ -49,7 +47,6 @@ module dispdftd3_module
     procedure :: getStress
     procedure :: getRCutoff
   end type DispDftD3
-
 
 contains
 
@@ -104,7 +101,6 @@ contains
 
   end subroutine DispDftD3_init
 
-
   !> Notifies the objects about changed coordinates.
   !!
   !! \param neigh  Updated neighbor list.
@@ -134,7 +130,6 @@ contains
 
   end subroutine updateCoords
 
-
   !> Notifies the object about updated lattice vectors.
   !!
   !! \param latVecs  New lattice vectors
@@ -149,7 +144,6 @@ contains
     this%tCoordsUpdated = .false.
 
   end subroutine updateLatVecs
-
 
   !> Returns the atomic resolved energies due to the dispersion.
   !!
@@ -169,7 +163,6 @@ contains
 
   end subroutine getEnergies
 
-
   !> Adds the atomic gradients to the provided vector.
   !!
   !! \param gradients  The vector to increase by the gradients.
@@ -185,7 +178,6 @@ contains
     gradients(:,:) = gradients + this%gradients
 
   end subroutine addGradients
-
 
   !> Returns the stress tensor.
   !!
@@ -203,7 +195,6 @@ contains
 
   end subroutine getStress
 
-
   !> Estimates the real space cutoff of the dispersion interaction.
   !!
   !! \return Cutoff
@@ -217,6 +208,5 @@ contains
     cutoff = 0.0_dp
 
   end function getRCutoff
-
 
 end module dispdftd3_module

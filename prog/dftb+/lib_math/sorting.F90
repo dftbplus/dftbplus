@@ -124,8 +124,6 @@ contains
 
   end subroutine heap_sort_real
 
-
-
   !> integer case in-place heap sort
   !> based on Numerical Recipes Software 1986-92
   subroutine heap_sort_int(array)
@@ -174,8 +172,6 @@ contains
     end do
 
   end subroutine  heap_sort_int
-
-
 
   !> Real case heap sort returning an index.
   !> based on Numerical Recipes Software 1986-92
@@ -243,8 +239,6 @@ contains
 
   end subroutine index_heap_sort_real
 
-
-
   !> real case heap sort returning an index
   !> based on Numerical Recipes Software 1986-92
   subroutine index_heap_sort_int(indx, array)
@@ -301,7 +295,6 @@ contains
     end do
 
   end subroutine index_heap_sort_int
-
 
   !> Merge sort of integers
   subroutine merge_sort_int(array)
@@ -548,10 +541,6 @@ contains
 
   !> Real merge sort
 
-
-
-
-
   recursive subroutine mergeSort_real(A,N,T)
     !> array to sort
     real(dp), intent(inout) :: A(:)
@@ -588,8 +577,6 @@ contains
   end subroutine mergeSort_real
 
   !> Merge sort of reals, using an array index instead of re-ordering
-
-
 
   subroutine merge_sort_indx_real(indx,array, tol)
     !> array of sorted order

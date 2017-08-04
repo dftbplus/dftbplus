@@ -81,7 +81,6 @@ module lapackroutines
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
   public :: hermatinv, hetri, hetrf
 
-
 contains
 
   ! Single precision version of gesv
@@ -142,8 +141,6 @@ contains
 
   end subroutine gesv_real
 
-
-
   ! Double precision version of gesv
   subroutine gesv_dble(aa, bb, nEquation, nSolution, iError)
     !> Contains the coefficients on entry, the LU factorisation on exit.
@@ -203,7 +200,6 @@ contains
 
   end subroutine gesv_dble
 
-
   !> Single precision version of getrf.
   subroutine getrf_real(aa, ipiv, nRow, nColumn, iError)
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
@@ -255,8 +251,6 @@ contains
     end if
 
   end subroutine getrf_real
-
-
 
   !> Double precision version of getrf.
   subroutine getrf_dble(aa, ipiv, nRow, nColumn, iError)
@@ -310,7 +304,6 @@ contains
 
   end subroutine getrf_dble
 
-
   !> Single precision version of getri.
   subroutine getri_real(aa, ipiv, nRow, iError)
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
@@ -362,7 +355,6 @@ contains
     end if
 
   end subroutine getri_real
-
 
   !> Double precision version of getri.
   subroutine getri_dble(aa, ipiv, nRow, iError)
@@ -416,7 +408,6 @@ contains
 
   end subroutine getri_dble
 
-
   !> Inverts a matrix.
   subroutine matinv(aa, nRow, iError)
     !> Matrix to invert on entry, inverted matrix on exit
@@ -454,7 +445,6 @@ contains
 
   end subroutine matinv
 
-
   !> Inverts a symmetric matrix.
   subroutine symmatinv(aa, uplo, info)
     !> Symmetric matrix to invert on entry, inverted matrix on exit.
@@ -484,7 +474,6 @@ contains
 
   end subroutine symmatinv
 
-
   !> Inverts a Hermitian matrix.
   subroutine hermatinv(aa, uplo, info)
     !> Hermitian matrix to invert on entry, inverted matrix on exit.
@@ -513,7 +502,6 @@ contains
     end if
 
   end subroutine hermatinv
-
 
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   subroutine sytrf_real(aa, ipiv, uplo, info)
@@ -554,7 +542,6 @@ contains
 
   end subroutine sytrf_real
 
-
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   subroutine sytrf_dreal(aa, ipiv, uplo, info)
     !> Symmetric matrix
@@ -593,7 +580,6 @@ contains
     end if
 
   end subroutine sytrf_dreal
-
 
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (complex).
   subroutine hetrf_complex(aa, ipiv, uplo, info)
@@ -634,7 +620,6 @@ contains
 
   end subroutine hetrf_complex
 
-
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (dcomplex).
   subroutine hetrf_dcomplex(aa, ipiv, uplo, info)
     !> Hermitian matrix
@@ -674,7 +659,6 @@ contains
 
   end subroutine hetrf_dcomplex
 
-
   !> Computes the inverse of a symmetric matrix (real).
   subroutine sytri_real(aa, ipiv, uplo, info)
     !> Symmetric matrix to be inverted.
@@ -706,7 +690,6 @@ contains
     end if
 
   end subroutine sytri_real
-
 
   !> Computes the inverse of a symmetric matrix (dreal).
   subroutine sytri_dreal(aa, ipiv, uplo, info)
@@ -740,7 +723,6 @@ contains
 
   end subroutine sytri_dreal
 
-
   !> Computes the inverse of a Hermitian matrix (complex).
   subroutine hetri_complex(aa, ipiv, uplo, info)
     !> Symmetric matrix to be inverted.
@@ -773,7 +755,6 @@ contains
 
   end subroutine hetri_complex
 
-
   !> Computes the inverse of a Hermitian matrix (dreal).
   subroutine hetri_dcomplex(aa, ipiv, uplo, info)
     !> Hermitian matrix to be inverted.
@@ -805,7 +786,6 @@ contains
     end if
 
   end subroutine hetri_dcomplex
-
 
   !> Single precision version of sytrs
   subroutine sytrs_real(A,B, nRow, uplo,iError)

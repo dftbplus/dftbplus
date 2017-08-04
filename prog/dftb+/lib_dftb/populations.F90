@@ -35,7 +35,6 @@ module populations
     module procedure skewMullikenPerBlock
   end interface
 
-
 contains
 
   !!* Calculate the Mulliken population for each atom in the system, by summing
@@ -78,8 +77,6 @@ contains
     deallocate(qPerOrbital)
 
   end subroutine mullikenPerAtom
-
-
 
   !!* Calculate the Mulliken population for each orbital in the system
   !!* using purely real-space overlap and density matrix values.
@@ -280,6 +277,5 @@ contains
     end do
 
   end subroutine skewMullikenPerBlock
-
 
 end module populations

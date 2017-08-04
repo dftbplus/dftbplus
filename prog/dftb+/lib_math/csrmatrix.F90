@@ -43,9 +43,7 @@ module csrmatrix
     module procedure unfoldFromCSR_real
   end interface
 
-
 contains
-
 
   !> Folds the internal sparse formatted matrix and converts it to the compressed sparse row (csr)
   !> format (real version).
@@ -79,7 +77,6 @@ contains
     integer :: iOrb1, iOrb2, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
     integer :: iRow, iCol, ind
     integer :: ii, jj
-
 
     nOrb(:) = (mAngAtom(:)+1)**2
     nAtom = size(mAngAtom)
@@ -201,8 +198,6 @@ contains
 
   end subroutine foldToCSR_real
 
-
-
   !> Unfolds a matrix from the CSR form into the internal sparse representation (real version).
   subroutine unfoldFromCSR_real(csr, iAtomStart, iPair, iNeighbor, nNeighbor, &
       &img2CentCell, mAngAtom, mmAng, sparse)
@@ -224,7 +219,6 @@ contains
     integer, intent(in) :: mmAng
     !> The sparse matrix to convert
     real(dp), intent(inout) :: sparse(:)
-
 
     integer :: nOrb(size(mAngAtom))
     real(dp), allocatable :: tmpCol(:,:)
@@ -266,7 +260,5 @@ contains
     end do
 
   end subroutine unfoldFromCSR_real
-
-
 
 end module csrmatrix

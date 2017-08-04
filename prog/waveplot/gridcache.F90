@@ -86,7 +86,6 @@ module GridCache
   public :: OGridCache
   public :: init, next
 
-
 contains
 
   !> Initialises a GridCache instance
@@ -202,8 +201,6 @@ contains
 
   end subroutine GridCache_init
 
-
-
   !> Returns the next entry from the cache
   subroutine GridCache_next_real(sf, gridValReal, levelIndex, tFinished)
     !> Gridcache instance
@@ -221,8 +218,6 @@ contains
 
   end subroutine GridCache_next_real
 
-
-
   !> Returns the next entry from the cache
   subroutine GridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
     !> Gridcache instance
@@ -239,8 +234,6 @@ contains
     call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine GridCache_next_cmpl
-
-
 
   !> Working subroutine for the GridCache_next_* subroutines
   subroutine local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
@@ -327,6 +320,5 @@ contains
     tFinished = sf%tFinished
 
   end subroutine local_next
-
 
 end module GridCache

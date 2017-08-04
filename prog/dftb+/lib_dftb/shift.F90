@@ -230,7 +230,6 @@ contains
 
   end subroutine add_shift_block
 
-
   subroutine addatom_shell(shiftshell, atom, orb, species)
     real(dp), intent(inout) :: shiftshell(:,:,:)
     real(dp), intent(in) :: atom(:,:)
@@ -256,7 +255,6 @@ contains
     end do
 
   end subroutine addatom_shell
-
 
   subroutine addshell_block(shiftblock, shell, orb, species)
     real(dp), intent(inout) :: shiftblock(:,:,:,:)
@@ -289,6 +287,5 @@ contains
     end do
 
   end subroutine addshell_block
-
 
 end module shift

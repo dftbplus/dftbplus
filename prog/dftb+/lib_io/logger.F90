@@ -12,9 +12,7 @@ module logger
   implicit none
   private
 
-
   public :: LogWriter, LogWriter_init
-
 
   !> Logger
   type :: LogWriter
@@ -30,19 +28,16 @@ module logger
     generic :: write => writeStr, writeInt, writeReal, writeReal1, writeReal2
   end type LogWriter
 
-
   !> Constructor for LogWriter
   interface LogWriter
     module procedure construct
   end interface LogWriter
-
 
   !> Default verbosity level
   integer, parameter :: DEFAULT_VERBOSITY = 1
 
   !> Maximum line length
   integer, parameter :: MAX_LEN = 80
-
 
 contains
 
@@ -63,7 +58,6 @@ contains
 
   end subroutine LogWriter_init
 
-
   !> Constructs a logger.
   function construct(verbosity) result(this)
 
@@ -76,7 +70,6 @@ contains
     call LogWriter_init(this, verbosity)
 
   end function construct
-
 
   !> Writes a message into the log (string).
   subroutine writeStr(this, msg, verbosity, formStr)
@@ -93,7 +86,6 @@ contains
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
 
-
     character(*), parameter :: DEFAULT_FORM_STR = '(A)'
     character(:), allocatable :: formStr0
     integer :: verbosity0
@@ -105,7 +97,6 @@ contains
     end if
 
   end subroutine writeStr
-
 
   !> Writes a message into the log (int).
   subroutine writeInt(this, msg, verbosity, formStr)
@@ -122,7 +113,6 @@ contains
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
 
-
     character(*), parameter :: DEFAULT_FORM_STR = '(I0)'
     character(:), allocatable :: formStr0
     integer :: verbosity0
@@ -134,7 +124,6 @@ contains
     end if
 
   end subroutine writeInt
-
 
   !> Writes a message into the log (real).
   subroutine writeReal(this, msg, verbosity, formStr)
@@ -151,7 +140,6 @@ contains
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
 
-
     character(*), parameter :: DEFAULT_FORM_STR = '(ES23.15)'
     character(:), allocatable :: formStr0
     integer :: verbosity0
@@ -163,7 +151,6 @@ contains
     end if
 
   end subroutine writeReal
-
 
   !> Writes a message into the log (real1).
   subroutine writeReal1(this, msg, verbosity, formStr, columnwise)
@@ -182,7 +169,6 @@ contains
 
     !> Whether column vectors should be written columnwise (default: rowwise)
     logical, intent(in), optional :: columnwise
-
 
     character(*), parameter :: DEFAULT_FORM_STR = '(ES23.15)'
     character(:), allocatable :: formStr0, formStrRow
@@ -204,7 +190,6 @@ contains
     end if
 
   end subroutine writeReal1
-
 
   !> Writes a message into the log (real2).
   subroutine writeReal2(this, msg, verbosity, formStr, columnwise)
@@ -245,7 +230,6 @@ contains
 
   end subroutine writeReal2
 
-
   !! Returns the format string for an entire row.
   subroutine getRowFormat(formStr, nItems, formStrRow)
     character(*), intent(in) :: formStr
@@ -261,6 +245,5 @@ contains
     write(formStrRow, '(A,I0,A,A)') '(', nItems, trim(formStr), ')'
 
   end subroutine getRowFormat
-
 
 end module logger

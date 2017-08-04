@@ -12,7 +12,6 @@ module intrinsicpr
 
   public :: printContent
 
-
   interface printContent
     module procedure printArrayRealR1
     module procedure printArrayRealR2
@@ -29,7 +28,6 @@ module intrinsicpr
     module procedure printArrayCharR1
     module procedure printArrayCharR2
   end interface
-
 
 contains
 
@@ -50,8 +48,6 @@ contains
 
   end subroutine printArrayRealR1
 
-
-
   subroutine printArrayRealR2(array, omitHeader)
     real(dp), intent(in)           :: array(:, :)
     logical,  intent(in), optional :: omitHeader
@@ -67,8 +63,6 @@ contains
     end do
 
   end subroutine printArrayRealR2
-
-
 
   subroutine printArrayRealR3(array, omitHeader)
     real(dp), intent(in)           :: array(:, :, :)
@@ -86,8 +80,6 @@ contains
 
   end subroutine printArrayRealR3
 
-
-
   subroutine printArrayRealR4(array, omitHeader)
     real(dp), intent(in)           :: array(:, :, :, :)
     logical,  intent(in), optional :: omitHeader
@@ -103,8 +95,6 @@ contains
     end do
 
   end subroutine printArrayRealR4
-
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Complex arrays
@@ -123,8 +113,6 @@ contains
 
   end subroutine printArrayComplexR1
 
-
-
   subroutine printArrayComplexR2(array, omitHeader)
     complex(dp), intent(in)        :: array(:, :)
     logical,  intent(in), optional :: omitHeader
@@ -140,8 +128,6 @@ contains
     end do
 
   end subroutine printArrayComplexR2
-
-
 
   subroutine printArrayComplexR3(array, omitHeader)
     complex(dp), intent(in)        :: array(:, :, :)
@@ -159,8 +145,6 @@ contains
 
   end subroutine printArrayComplexR3
 
-
-
   subroutine printArrayComplexR4(array, omitHeader)
     complex(dp), intent(in)        :: array(:, :, :, :)
     logical,  intent(in), optional :: omitHeader
@@ -176,8 +160,6 @@ contains
     end do
 
   end subroutine printArrayComplexR4
-
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Integer arrays
@@ -196,8 +178,6 @@ contains
 
   end subroutine printArrayIntR1
 
-
-
   subroutine printArrayIntR2(array, omitHeader)
     integer, intent(in)           :: array(:, :)
     logical, intent(in), optional :: omitHeader
@@ -213,8 +193,6 @@ contains
     end do
 
   end subroutine printArrayIntR2
-
-
 
   subroutine printArrayIntR3(array, omitHeader)
     integer, intent(in)           :: array(:, :, :)
@@ -232,8 +210,6 @@ contains
 
   end subroutine printArrayIntR3
 
-
-
   subroutine printArrayIntR4(array, omitHeader)
     integer, intent(in)           :: array(:, :, :, :)
     logical, intent(in), optional :: omitHeader
@@ -249,8 +225,6 @@ contains
     end do
 
   end subroutine printArrayIntR4
-
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!   Character arrays
@@ -269,8 +243,6 @@ contains
 
   end subroutine printArrayCharR1
 
-
-
   subroutine printArrayCharR2(array, omitHeader)
     character(lc), intent(in)           :: array(:, :)
     logical,       intent(in), optional :: omitHeader
@@ -286,7 +258,6 @@ contains
     end do
 
   end subroutine printArrayCharR2
-
 
 end module intrinsicpr
 

@@ -70,7 +70,6 @@ contains
 
   end subroutine getRepulsiveStress
 
-
   !> The kinetic contribution to the stress tensor
   subroutine getKineticStress(st, mass, species, velo, cellVol)
     !> stress tensor
@@ -104,7 +103,6 @@ contains
     st(:,:) = st(:,:) / cellVol
 
   end subroutine getKineticStress
-
 
   !> The stress tensor contributions from the non-SCC energy
   subroutine getNonSCCStress(st,derivator,DM,EDM,skHamCont,skOverCont,coords,species,iNeighbor, &
@@ -199,7 +197,6 @@ contains
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
   end subroutine getNonSCCStress
-
 
   !> The stress tensor contributions from a potential
   subroutine getBlockStress(st,derivator,DM,EDM,skHamCont,skOverCont,coords,species,iNeighbor, &
@@ -460,6 +457,5 @@ contains
   st(:,:) = -0.5_dp * st(:,:) / cellVol
 
 end subroutine getBlockiStress
-
 
 end module stress

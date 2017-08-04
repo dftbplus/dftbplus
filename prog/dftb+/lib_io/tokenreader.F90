@@ -31,7 +31,6 @@ module tokenreader
   !> Flag for signals reading error
   integer, parameter :: TOKEN_ERROR = -2
 
-
   !> Contains procedures which read the next token from a string
   interface getNextToken
     module procedure getNextToken_string
@@ -55,13 +54,10 @@ module tokenreader
   !> Lower cased character representation of the logical false value
   character(len=*), parameter :: LOGICAL_FALSE_LO = "no"
 
-
   public :: getNextToken, TOKEN_OK, TOKEN_EOS, TOKEN_ERROR
   public :: LOGICAL_TRUE, LOGICAL_FALSE, LOGICAL_TRUE_LO, LOGICAL_FALSE_LO
 
-
 contains
-
 
   !> Returns the next token from the provided string as integer
   subroutine getNextToken_integer(str, tokenValue, start, iostat)
@@ -102,8 +98,6 @@ contains
     end if
 
   end subroutine getNextToken_integer
-
-
 
   !> Returns the next token from the provided string as rank one integer array
   subroutine getNextToken_integerR1(str, tokenValue, start, iostat, nItem)
@@ -153,8 +147,6 @@ contains
 
   end subroutine getNextToken_integerR1
 
-
-
   !> Returns the next token from the provided string as string
   subroutine getNextToken_string(str, tokenValue, start, iostat)
     !> String to parse
@@ -183,8 +175,6 @@ contains
     end if
 
   end subroutine getNextToken_string
-
-
 
   !> Returns the next token from the provided string as real.
   subroutine getNextToken_real(str, tokenValue, start, iostat)
@@ -223,8 +213,6 @@ contains
     end if
 
   end subroutine getNextToken_real
-
-
 
   !> Returns the next token from the provided string as rank one real array
   subroutine getNextToken_realR1(str, tokenValue, start, iostat, nItem)
@@ -274,8 +262,6 @@ contains
 
   end subroutine getNextToken_realR1
 
-
-
   !> Returns the next token from the provided string as logical
   subroutine getNextToken_logical(str, tokenValue, start, iostat)
     !> String to parse
@@ -318,7 +304,6 @@ contains
     end if
 
   end subroutine getNextToken_logical
-
 
   !> Returns the next token from the provided string as logical
   subroutine getNextToken_logicalR1(str, tokenValue, start, iostat, nItem)
@@ -422,6 +407,5 @@ contains
     start = tokEnd + 2
 
   end subroutine getNextToken_local
-
 
 end module tokenreader

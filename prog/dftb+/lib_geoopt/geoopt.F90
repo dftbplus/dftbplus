@@ -41,7 +41,6 @@ module geoopt
     module procedure GeoOpt_next
   end interface
 
-
   public :: OGeoOpt
   public :: init, reset, next
 
@@ -63,8 +62,6 @@ contains
     call move_alloc(pConjGrad, self%pConjGrad)
 
   end subroutine GeoOpt_initConjGrad
-
-
 
   !> Creates a general geometry optimizier with a steepest descent instance
   subroutine GeoOpt_initSteepDesc(self, pSteepDesc)
@@ -90,7 +87,6 @@ contains
 
   end subroutine GeoOpt_initDIIS
 
-
   !> Resets the geometry optimizer
   subroutine GeoOpt_reset(self, x0)
     !> GeoOpt instance
@@ -108,7 +104,6 @@ contains
     end select
 
   end subroutine GeoOpt_reset
-
 
   !> Delivers the next point in the geometry optimization. When calling the first time, funciton
   !> value and gradient for the starting point of the minimization should be passed.
@@ -134,6 +129,5 @@ contains
     end select
 
   end subroutine GeoOpt_next
-
 
 end module geoopt

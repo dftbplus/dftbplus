@@ -171,7 +171,6 @@ contains
 
   end subroutine NHC_init
 
-
   !> Returns the initial velocities.
   subroutine NHC_getInitVelos(self, velocities)
     !> NHCThermostat instance.
@@ -271,7 +270,6 @@ contains
     call restFrame(self%pMDFrame, velocities, self%mass)
 
   end subroutine NHC_updateVelos
-
 
   !> Outputs internals of thermostat
   subroutine NHC_state(self, fd)

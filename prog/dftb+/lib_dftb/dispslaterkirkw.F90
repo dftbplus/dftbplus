@@ -38,7 +38,6 @@ module dispslaterkirkw
 
   public :: DispSlaKirkInp, DispSlaKirk, DispSlaKirk_init
 
-
   !> Contains the initialisation data for the Slater-Kirkwood module.
   !!
   type :: DispSlaKirkInp
@@ -51,7 +50,6 @@ module dispslaterkirkw
     !> Effective charges (nAtom)
     real(dp), allocatable :: charges(:)
   end type DispSlaKirkInp
-
 
   !> Data for the Slater-Kirkwood type dispersion.
   !!
@@ -81,12 +79,10 @@ module dispslaterkirkw
     procedure :: getRCutoff
   end type DispSlaKirk
 
-
   !! Some magic constants for the damping function (see paper)
   integer, parameter :: nn_ = 7         ! N
   integer, parameter :: mm_ = 4         ! M
   real(dp), parameter :: dd_ = 3.0_dp   ! d
-
 
 contains
 
@@ -174,7 +170,6 @@ contains
 
   end subroutine DispSlaKirk_init
 
-
   !> Notifies the objects about changed coordinates.
   !!
   !! \param neigh  Updated neighbor list.
@@ -218,7 +213,6 @@ contains
 
   end subroutine updateCoords
 
-
   !> Notifies the object about updated lattice vectors.
   !!
   !! \param latVecs  New lattice vectors
@@ -249,7 +243,6 @@ contains
 
   end subroutine updateLatVecs
 
-
   !> Returns the atomic resolved energies due to the dispersion.
   !!
   !! \param energies  Contains the atomic energy contributions on exit.
@@ -264,7 +257,6 @@ contains
     energies(:) = this%energies(:)
 
   end subroutine getEnergies
-
 
   !> Adds the atomic gradients to the provided vector.
   !!
@@ -281,7 +273,6 @@ contains
 
   end subroutine addGradients
 
-
   !> Returns the stress tensor.
   !!
   !! \note The stress tensor is not calculated for this dispersion model
@@ -297,7 +288,6 @@ contains
 
   end subroutine getStress
 
-
   !> Estimates the real space cutoff of the dispersion interaction.
   !!
   !! \return Cutoff
@@ -309,7 +299,6 @@ contains
     cutoff = this%rCutoff
 
   end function getRCutoff
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
@@ -392,7 +381,6 @@ contains
 
   end subroutine addDispEnergyAndGrad_cluster
 
-
   !! Returns the distance, beyond that the damping function equals approx. 1.
   !!
   !! \param r0 Length scaling parameter
@@ -409,6 +397,5 @@ contains
         &- (1.0_dp - tol)**(1.0_dp/real(mm_,dp))))**(1.0_dp/real(nn_, dp))
 
   end function getDampCutoff_
-
 
 end module dispslaterkirkw

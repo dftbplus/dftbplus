@@ -32,13 +32,11 @@ module hsdparser
     module procedure parseHSD_opened
   end interface parseHSD
 
-
   !> Wrapper around the HSD dumping
   interface dumpHSD
     module procedure dumpHSD_file
     module procedure dumpHSD_opened
   end interface dumpHSD
-
 
   !> Main token separator characters
   integer, parameter :: nSeparator = 7
@@ -68,7 +66,6 @@ module hsdparser
   character(len=*), parameter :: extensions(nExtension) = &
       &(/ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
       &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
-
 
   !> Name and file descriptor from standard input/output
   character(len=*), parameter :: stdin = "*"
@@ -104,11 +101,9 @@ module hsdparser
   !> Format of the input line
   character(len=lc) :: lineFormat = ""
 
-
   public :: parseHSD, dumpHSD, dumpHSDAsXML, stdin, stdout, newline
   public :: getNodeHSDName, getHSDPath
   public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
-
 
 contains
 
@@ -122,8 +117,6 @@ contains
     call parseHSD_opened(initRootName, fdStdin, stdin, xmlDoc)
 
   end subroutine parseHSD_stdin
-
-
 
   !> Parser HSD format from a file
   subroutine parseHSD_file(initRootName, file, xmlDoc)
@@ -149,8 +142,6 @@ contains
     close(fd, iostat=iostat)
 
   end subroutine parseHSD_file
-
-
 
   !> Parses HSD format from an already opened file
   subroutine parseHSD_opened(initRootName, fd, file, xmlDoc)
@@ -192,8 +183,6 @@ contains
     myDoc => null()
 
   end subroutine parseHSD_opened
-
-
 
   !> Recursive parsing function for the HSD parser making the actual work
   recursive function parse_recursive(curNode, depth, residual, tRightValue, fd, curFile, fileDepth,&
@@ -366,7 +355,6 @@ contains
           end if
         end if
 
-
       case(2, 3)
         !! File inclusion operator -> append content of new file to current node
         if (associated(curNode)) then
@@ -443,7 +431,6 @@ contains
         residual = strLine
         nodetype = 1
 
-
       case(5)
         if (nodetype < 0) then
           call parsingError("Node already contains free text, no child nodes&
@@ -495,8 +482,6 @@ contains
     end if
 
   end function parse_recursive
-
-
 
   !> Creates a child node with attributes related to the HSD input.
   function createChildNode(parentNode, childName, curLine, file) result(newChild)
@@ -613,8 +598,6 @@ contains
 
   end function createChildNode
 
-
-
   !> Checks for forbidden characters and issue error message, if any found.
   subroutine checkForbiddenChars(str, curFile, curLine)
     !> String to investigate
@@ -629,8 +612,6 @@ contains
     end if
 
   end subroutine checkForbiddenChars
-
-
 
   !> Issues a parsing error message containing file name and line number.
   subroutine parsingError(message, file, line)
@@ -656,8 +637,6 @@ contains
 
   end subroutine parsingError
 
-
-
   !> Dumps the DOM-tree of a HSD document to a file.
   !>
   !> This routine pretty prints the XML-tree in the specified file.  Attributes related to the HSD
@@ -680,8 +659,6 @@ contains
     call xml_Close(xf)
 
   end subroutine dumpHSDAsXML
-
-
 
   !> Recursive workhorse for dumpHSD
   recursive subroutine dumpHSDAsXML_recursive(xf, node)
@@ -721,8 +698,6 @@ contains
 
   end subroutine dumpHSDAsXML_recursive
 
-
-
   !> Replaces the tree
   !>
   !> The solution with access to a global module variable is not very
@@ -750,8 +725,6 @@ contains
 
   end subroutine replaceTreeFromFile
 
-
-
   !> Dumps a HSD tree in a file.
   subroutine dumpHSD_file(myDoc, file)
     !> The DOM tree
@@ -778,8 +751,6 @@ contains
 
   end subroutine dumpHSD_file
 
-
-
   !> Dumps a DOM-tree representing a HSD input in HSD format to an opened file.
   subroutine dumpHSD_opened(myDoc, fd)
     !> The DOM tree
@@ -802,8 +773,6 @@ contains
     end do
 
   end subroutine dumpHSD_opened
-
-
 
   !> Recursive workhorse for the dumpHSD routine.
   recursive subroutine dumpHSD_recursive(node, indent, fd, tRightValue, buffer)
@@ -905,8 +874,6 @@ contains
 
   end subroutine dumpHSD_recursive
 
-
-
   !> Returns the name of a node, if present in pretty printing format.
   subroutine getNodeHSDName(node, name)
     !> Node to investigate.
@@ -920,8 +887,6 @@ contains
     end if
 
   end subroutine getNodeHSDName
-
-
 
   !> Returns the path of a node, if possible in pretty printing format.
   subroutine getHSDPath(node, path, excludeRoot)
@@ -952,8 +917,6 @@ contains
 
   end subroutine getHSDPath
 
-
-
   !> Workhorse for the getHSDPath routine
   recursive subroutine getHSDPath_recursive(node, path, inclRoot, buffer)
     !> Node to look for
@@ -978,7 +941,5 @@ contains
     end if
 
   end subroutine getHSDPath_recursive
-
-
 
 end module hsdparser

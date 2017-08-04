@@ -57,7 +57,6 @@ module andersonmixer
     real(dp), allocatable :: prevQDiff(:,:)
   end type OAndersonMixer
 
-
   !> Creates an AndersonMixer instance
   interface init
     module procedure AndersonMixer_init
@@ -72,7 +71,6 @@ module andersonmixer
   interface mix
     module procedure AndersonMixer_mix
   end interface mix
-
 
   public :: OAndersonMixer
   public :: init, reset, mix
@@ -127,8 +125,6 @@ contains
 
   end subroutine AndersonMixer_init
 
-
-
   !> Makes the mixer ready for a new SCC cycle
   subroutine AndersonMixer_reset(self, nElem)
     !> Anderson mixer instance
@@ -154,7 +150,6 @@ contains
     end do
 
   end subroutine AndersonMixer_reset
-
 
   !> Mixes charges according to the Anderson method
   subroutine AndersonMixer_mix(self, qInpResult, qDiff)
@@ -213,8 +208,6 @@ contains
     qInpResult(:) = qInpMiddle(:) + mixParam * qDiffMiddle(:)
 
   end subroutine AndersonMixer_mix
-
-
 
   !> Calculates averages input charges and average charge differences according to the Anderson
   !> method.
@@ -304,8 +297,6 @@ contains
 
   end subroutine calcAndersonAverages
 
-
-
   !> Stores a vector pair in a limited storage. If the stack is full, the oldest vector pair is
   !> overwritten.
   subroutine storeVectors(prevQInp, prevQDiff, indx, qInput, qDiff, mPrevVector)
@@ -331,6 +322,5 @@ contains
     prevQDiff(:,indx(1)) = qDiff(:)
 
   end subroutine storeVectors
-
 
 end module andersonmixer

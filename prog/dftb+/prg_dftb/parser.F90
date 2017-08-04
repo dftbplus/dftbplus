@@ -65,7 +65,6 @@ module parser
     logical :: tWriteXML, tWriteHSD
   end type TParserFlags
 
-
 contains
 
   !> Parse input from an HSD/XML file
@@ -161,8 +160,6 @@ contains
 
   end subroutine parseHSDInput
 
-
-
   !> Read in parser options (options not passed to the main code)
   subroutine readParserOptions(node, root, flags)
     !> Node to get the information from
@@ -210,8 +207,6 @@ contains
 
   end subroutine readParserOptions
 
-
-
   !> Read in Geometry
   subroutine readGeometry(node, input)
     !> Node to get the information from
@@ -233,7 +228,6 @@ contains
     end select
 
   end subroutine readGeometry
-
 
   !> Read in driver properties
   subroutine readDriver(node, parent, geom, ctrl)
@@ -796,7 +790,6 @@ contains
 
   end subroutine readXlbomdOptions
 
-
   !> Reads geometry constraints.
   subroutine readGeoConstraints(node, ctrl, nAtom)
     !> Node to get the information from
@@ -833,8 +826,6 @@ contains
     end if
 
   end subroutine readGeoConstraints
-
-
 
   !> Reads MD velocities
   subroutine readInitialVelocities(node, ctrl, nAtom)
@@ -878,7 +869,6 @@ contains
     end if
 
   end subroutine readInitialVelocities
-
 
   ! Reads atomic masses from input file, eventually overwriting those in the SK files
   subroutine getInputMasses(node, geo, masses)
@@ -927,7 +917,6 @@ contains
 
   end subroutine getInputMasses
 
-
   !> Reads Hamiltonian
   subroutine readHamiltonian(node, ctrl, geo, slako)
     !> Node to get the information from
@@ -950,8 +939,6 @@ contains
     end select
 
   end subroutine readHamiltonian
-
-
 
   !> Reads DFTB-Hamiltonian
   subroutine readDFTBHam(node, ctrl, geo, slako)
@@ -1287,13 +1274,11 @@ contains
         call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
       end select
 
-
       ! Elstner gamma damping for X-H interactions
       call getChildValue(node, "DampXH", ctrl%tDampH, .false.)
       if (ctrl%tDampH) then
         call getChildValue(node, "DampXHExponent", ctrl%dampExp)
       end if
-
 
       if (geo%tPeriodic) then
         call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
@@ -1885,9 +1870,7 @@ contains
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
 
-
   contains
-
 
     ! Reads inital charges
     subroutine getInitialCharges(node, geo, initCharges)
@@ -1904,7 +1887,6 @@ contains
       type(string) :: buffer
       real(dp) :: rTmp
       integer :: ii, jj, iAt
-
 
       call getChildValue(node, "InitialCharges", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)
@@ -1941,7 +1923,6 @@ contains
       end if
 
     end subroutine getInitialCharges
-
 
     ! Reads initial spins
     subroutine getInitialSpins(node, geo, nSpin, initSpins)
@@ -2001,7 +1982,6 @@ contains
 
     end subroutine getInitialSpins
 
-
     ! Reads numerical differentiation method to be used
     subroutine readDifferentiation(node, ctrl)
       !> relevant node in input tree
@@ -2036,8 +2016,6 @@ contains
     end subroutine readDifferentiation
 
   end subroutine readDFTBHam
-
-
 
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
@@ -2239,8 +2217,6 @@ contains
 
   end subroutine readSKFiles
 
-
-
   !> Checks if the provided set of SK-tables for a the interactions A-B and B-A are consistent.
   subroutine checkSKCompElec(skData12, skData21, sp1, sp2)
     !> Slater-Koster integral set for the interaction A-B
@@ -2290,8 +2266,6 @@ contains
 
   end subroutine checkSKCompElec
 
-
-
   !> Checks if the provided repulsive splines for A-B and B-A are compatible
   subroutine checkSKCompRepSpline(repIn1, repIn2, sp1, sp2)
     !> Repulsive spline for interaction A-B
@@ -2340,8 +2314,6 @@ contains
 
   end subroutine checkSKCompRepSpline
 
-
-
   !> Checks if repulsive polynomials for A-B and B-A are compatible
   subroutine checkSKCompRepPoly(repIn1, repIn2, sp1, sp2)
     !> Repulsive polynomial for interaction A-B
@@ -2369,8 +2341,6 @@ contains
 
   end subroutine checkSKCompRepPoly
 
-
-
   !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
   !> species
   pure function getNSKIntegrals(sp1, sp2, orb) result(nInt)
@@ -2394,8 +2364,6 @@ contains
 
   end function getNSKIntegrals
 
-
-
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
   !> containing all integrals.
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
@@ -2416,7 +2384,6 @@ contains
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
     integer :: angShell1(maxL+1), angShell2(maxL+1)
     real(dp), pointer :: pHam(:,:), pOver(:,:)
-
 
     !> Maps (mm, l1, l2 ) onto an element in the SK table.
     !> l2 >= l1 (l1 = 0, 1, ...; l2 = 0, 1, ...), m <= l1.
@@ -2464,8 +2431,6 @@ contains
 
   end subroutine getFullTable
 
-
-
   !> Reads the option block
   subroutine readOptions(node, ctrl)
     !> Node to parse
@@ -2501,7 +2466,6 @@ contains
 
   end subroutine readOptions
 
-
   ! Reads in dispersion related settings
   subroutine readDispersion(node, geo, input)
     !> Node to parse
@@ -2535,7 +2499,6 @@ contains
     end select
 
   end subroutine readDispersion
-
 
   !> Reads in the dispersion input data for the Slater-Kirkwood dispersion modell.
   subroutine readDispSlaKirk(node, geo, input)
@@ -2660,9 +2623,7 @@ contains
     input%rWaals(:) = tmpR2(2,:)
     input%charges(:) = tmpR2(3,:)
 
-
   end subroutine readDispSlaKirk
-
 
   !> Reads in initialization data for the UFF dispersion model
   subroutine readDispVdWUFF(node, geo, input)
@@ -2708,7 +2669,6 @@ contains
     end select
 
   end subroutine readDispVdWUFF
-
 
 #:if WITH_DFTD3
 
@@ -2786,7 +2746,6 @@ contains
     end if
 
   end subroutine readTemperature
-
 
   !> reads a temperature profile for MD with sanity checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
@@ -2956,7 +2915,6 @@ contains
 
   end subroutine readExcited
 
-
   !> Reads the analysis block
   subroutine readAnalysis(node, ctrl, geo)
     !> Node to parse
@@ -3121,7 +3079,6 @@ contains
 
   end subroutine readSpinConstants
 
-
   !> Reads customised Hubbard U values that over-ride the SK file values
   subroutine readCustomisedHubbards(node, geo, orb, tShellResolvedScc, hubbU)
     !> input data to parse
@@ -3157,6 +3114,5 @@ contains
     end if
 
   end subroutine readCustomisedHubbards
-
 
 end module parser

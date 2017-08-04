@@ -13,8 +13,6 @@ module linkedlists0
   implicit none
   private
 
-
-
   $:define_list(&
       & TYPE_NAME='listString',&
       & ITEM_TYPE='character(len=*)',&

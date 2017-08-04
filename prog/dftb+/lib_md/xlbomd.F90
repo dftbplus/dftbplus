@@ -23,7 +23,6 @@ module xlbomd_module
   !> File for reading the inverse of the Jacobian matrix if needed
   character(*), parameter :: JacobianKernelFile = "neginvjac.dat"
 
-
   !> Input for the Xlbomd driver.
   type :: XlbomdInp
     !> Number of generation to consider during the integration (5, 6, 7)
@@ -50,7 +49,6 @@ module xlbomd_module
 
   end type XlbomdInp
 
-
   !> Contains the data for the Xlbomd driver.
   type :: Xlbomd
     private
@@ -72,7 +70,6 @@ module xlbomd_module
     procedure, private :: readJacobianKernel
   end type Xlbomd
 
-
 contains
 
   !> Initializes the Xlbomd instance.
@@ -83,7 +80,6 @@ contains
     type(XlbomdInp), intent(in) :: input
     !> Nr. of elements in the charge vector
     integer, intent(in) :: nElems
-
 
     type(ExtLagrangianInp) :: extLagrInp
 
@@ -122,7 +118,6 @@ contains
 
   end subroutine Xlbomd_init
 
-
   !> Delivers charges for the next time step.
   subroutine getNextCharges(this, qCurrent, qNext)
     !> Instance.
@@ -140,7 +135,6 @@ contains
 
   end subroutine getNextCharges
 
-
   !> Sets default SCC parameters to return, if no override is done.
   subroutine setDefaultSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
     !> Instance.
@@ -152,13 +146,11 @@ contains
     !> SCC tolerance.
     real(dp), intent(in) :: sccTol
 
-
     this%minSCCIter0 = minSCCIter
     this%maxSCCIter0 = maxSCCIter
     this%sccTol0 = sccTol
 
   end subroutine setDefaultSCCParameters
-
 
   !> Signals whether XLBOMD integration is active.
   function isActive(this)
@@ -170,7 +162,6 @@ contains
     isActive = this%extLagr%needsConvergedValues()
 
   end function isActive
-
 
   !> Returns the SCC parameters to be used when the integrator is active.
   subroutine getSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
@@ -195,7 +186,6 @@ contains
 
   end subroutine getSCCParameters
 
-
   !> Whether integrator needs the inverse Jacobian at the current step.
   function needsInverseJacobian(this)
     !> Instance.
@@ -214,7 +204,6 @@ contains
     end if
 
   end function needsInverseJacobian
-
 
   !> Sets the inverse Jacobian for driving the Xlbomd simulation.
   subroutine setInverseJacobian(this, invJacobian)
@@ -251,6 +240,5 @@ contains
         & JacobianKernelFile, "'"
 
   end subroutine readJacobianKernel
-
 
 end module xlbomd_module

@@ -36,17 +36,13 @@ module hsdutils2
     module procedure convertByMul_realR2
   end interface convertByMul
 
-
   !> Separator for modifiers
   character, parameter :: sepModifier = ","
 
   !> common error message within this module
   character(len=*), parameter :: MSG_INVALID_MODIFIER = "Invalid modifier: "
 
-
-
 contains
-
 
   !> Removes the processed flag from node
   subroutine setUnprocessed(node)
@@ -58,8 +54,6 @@ contains
     end if
 
   end subroutine setUnprocessed
-
-
 
   !> Gets the index of a modifier from an array of possible modifier names.
   function getModifierIndex(modifier, modifiers, node, requested) result(ind)
@@ -99,10 +93,7 @@ contains
 
   end function getModifierIndex
 
-
-
   !> Prints a warning message about unprocessed nodes
-
 
   subroutine getUnprocessedNodes(node, nodeList)
     !> Root element of the tree to investigate
@@ -114,8 +105,6 @@ contains
 
   end subroutine getUnprocessedNodes
 
-
-
   !> Prints a warning message about unprocessed nodes
   subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
     !> Root element of the tree to investigate
@@ -124,7 +113,6 @@ contains
     logical, intent(in), optional      :: tIgnoreUnprocessed
     !> list of left over nodes (if present)
     type(fnodeList), pointer, optional :: nodeList
-
 
     type(fnodeList), pointer :: list
     type(fnode), pointer     :: child
@@ -163,8 +151,6 @@ contains
 
   end subroutine warnUnprocessedNodes
 
-
-
   !> Reads a HSD tree from an xml-file
   subroutine readHSDAsXML(fileName, fp)
     !> file to read
@@ -177,8 +163,6 @@ contains
     call normalize(fp)
 
   end subroutine readHSDAsXML
-
-
 
   !> Reads HSD from an HSD-file or from an xml-file, but stop if input is ambiguous or missing.
   !> If optional parameter 'missing' is not passed, the subroutine stops if input is not found. If
@@ -234,8 +218,6 @@ contains
 
   end subroutine readHSDOrXML
 
-
-
   !> Returns the name of a node, with empty string for unassociated nodes.
   subroutine getNodeName2(node, nodeName)
     !> Node to get the name from
@@ -250,8 +232,6 @@ contains
     end if
 
   end subroutine getNodeName2
-
-
 
   !> Changes the name of a given node.
   !>
@@ -275,8 +255,6 @@ contains
 
   end subroutine setNodeName
 
-
-
   !> Removes the modifier attribute from a given node.
   subroutine removeModifier(node)
     !> The node to process.
@@ -287,8 +265,6 @@ contains
     end if
 
   end subroutine removeModifier
-
-
 
   !> Splits a modifier containing coma separated list of modifiers into components.
   !>
@@ -324,8 +300,6 @@ contains
     modifiers(nModif) = trim(adjustl(modifier(iStart:)))
 
   end subroutine splitModifier
-
-
 
   !> Implementation of convertByMul for real scalar.
   subroutine convertByMul_real(modifier, units, child, convertValue, replace, changed)
@@ -367,8 +341,6 @@ contains
     end if
 
   end subroutine convertByMul_real
-
-
 
   !> Implementation of convertByMul for real rank one array.
   subroutine convertByMul_realR1(modifier, units, child, convertValue, replace, changed)
@@ -452,8 +424,6 @@ contains
 
   end subroutine convertByMul_realR2
 
-
-
   !> Returns a descendant of a given node.
   subroutine getDescendant(root, path, child, requested, processed, parent)
     !> Node to seek the descendants of
@@ -518,7 +488,5 @@ contains
     end if
 
   end subroutine getDescendant
-
-
 
 end module hsdutils2

@@ -52,11 +52,9 @@ module slakoeqgrid
     module procedure SlakoEqGrid_getCutoff
   end interface
 
-
   !! Interpolation methods
   integer, parameter :: skEqGridOld = 1
   integer, parameter :: skEqGridNew = 2
-
 
   !! Nr. of grid points to use for the polynomial interpolation
   integer, parameter :: nInterOld_ = 3
@@ -73,8 +71,6 @@ module slakoeqgrid
 
   !! Displacement for deriving interpolated polynomials
   real(dp), parameter :: deltaR_ = 1e-5_dp
-
-
 
 contains
 
@@ -103,8 +99,6 @@ contains
 
   end subroutine SlakoEqGrid_init
 
-
-
   !!* Returns the integrals for a given distance.
   !!* @param self SlakoEqGrid instance.
   !!* @param sk Contains the interpolated integrals on exit
@@ -126,8 +120,6 @@ contains
 
   end subroutine SlakoEqGrid_getSKIntegrals
 
-
-
   !!* Returns the number of intgrals the table contains
   !!* @param self SlakoEqGrid instance.
   !!* @return Number of integrals.
@@ -138,8 +130,6 @@ contains
     nInt = self%nInteg
 
   end function SlakoEqGrid_getNIntegrals
-
-
 
   !!* Returns the cutoff of the interaction.
   !!* @param self  SlakoEqGrid instance.
@@ -157,8 +147,6 @@ contains
 
   end function SlakoEqGrid_getCutoff
 
-
-
   !!* Inter- and extrapolation for SK-tables, new method.
   !!* @param self SlakoEqGrid table on equiv. grid
   !!* @param dd Output table of interpolated values.
@@ -172,7 +160,6 @@ contains
     real(dp) :: incr, dr, rMax
     integer :: leng, ind, iLast
     integer :: ii
-
 
     leng = self%nGrid
     incr = self%dist
@@ -219,8 +206,6 @@ contains
     end if
 
   end subroutine SlakoEqGrid_interNew_
-
-
 
   !!* Inter- and extrapolation for SK-tables like in the old DFTB code.
   !!* @param iSp1 Atom species for the first atom of interest.
@@ -299,6 +284,5 @@ contains
     end if
 
   end subroutine SlakoEqGrid_interOld_
-
 
 end module slakoeqgrid

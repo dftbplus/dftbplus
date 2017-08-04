@@ -45,7 +45,6 @@ module energies
     !* total energy (Erep+Etotal)
     real(dp) :: Etotal  = 0.0_dp
 
-
     !* atom resolved repulsive
     real(dp), allocatable :: atomRep(:)
     !* atom resolved non-SCC
@@ -75,7 +74,6 @@ module energies
   interface init
     module procedure Energies_init
   end interface init
-
 
 contains
 
@@ -125,6 +123,5 @@ contains
     self%Etotal = 0.0_dp
 
   end subroutine Energies_init
-
 
 end module energies

@@ -88,7 +88,6 @@ contains
 
   end subroutine derivs_create
 
-
   !!* Takes the next step for derivatives using the central difference
   !!* formula to choose the new coordinates for differentiation of the
   !!* forces with respect to atomic coordinates

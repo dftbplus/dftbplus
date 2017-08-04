@@ -20,7 +20,6 @@ module xmlutils
   public :: getTagsWithoutAttribute, removeChildNodes, removeNodes
   public :: getChildrenByName
 
-
 contains
 
   !> Returns first child with the specified name.
@@ -52,8 +51,6 @@ contains
 
   end function getFirstChildByName
 
-
-
   !> Returns last child with the specified name.
   function getLastChildByName(node, name) result(child)
     !> Parent node containing children
@@ -82,8 +79,6 @@ contains
     end if
 
   end function getLastChildByName
-
-
 
   !> Returns a list of children with the specified node name.
   function getChildrenByName(node, name) result(childList)
@@ -115,9 +110,6 @@ contains
 
   end function getChildrenByName
 
-
-
-
   !> Remove text nodes with only whitespace characters from node and children.
   recursive subroutine removeSpace(node)
     !> Node to investigate
@@ -145,8 +137,6 @@ contains
 
   end subroutine removeSpace
 
-
-
   !> Collects nodes in a tree that are without a specific attribute.
   function getTagsWithoutAttribute(node, name, rootOnly) result(nodeList)
     !> Tree to investigate
@@ -172,8 +162,6 @@ contains
     call getTagsWithoutAttr_recursive(node, name, tRootOnly, nodeList)
 
   end function getTagsWithoutAttribute
-
-
 
   !> Recursive working subroutine for the getTagsWithoutAttribute routine
   recursive subroutine getTagsWithoutAttr_recursive(node, name, rootOnly, &
@@ -209,8 +197,6 @@ contains
 
   end subroutine getTagsWithoutAttr_recursive
 
-
-
   !> Remove and destroy all children of a node.
   subroutine removeChildNodes(node)
     !> Node to process
@@ -230,8 +216,6 @@ contains
 
   end subroutine removeChildNodes
 
-
-
   !> Removes nodes from a tree and destroys them.
   !> Caveat: The nodes must not be children of each other.
   subroutine removeNodes(nodeList)
@@ -248,7 +232,5 @@ contains
     end do
 
   end subroutine removeNodes
-
-
 
 end module xmlutils

@@ -43,7 +43,6 @@ module taggedoutput
 
   integer, parameter :: lenLabel = 20
 
-
   !! Tag names (Should be shorter than lenLabel!)
   character(*), parameter, public :: tag_SCC        = 'scc'
   character(*), parameter, public :: tag_nSCC       = 'n_scc_iters'
@@ -138,7 +137,6 @@ module taggedoutput
 
 contains
 
-
   subroutine initTaggedWriter()
 
     integer :: nDecDigit, nExpDigit, nChar, nField
@@ -178,8 +176,6 @@ contains
 
   end subroutine initTaggedWriter
 
-
-
   subroutine writeTaggedRealR0(file, tag, value, optForm)
     integer,                    intent(in) :: file
     character(len=*),           intent(in) :: tag
@@ -202,8 +198,6 @@ contains
 
   end subroutine writeTaggedRealR0
 
-
-
   subroutine writeTaggedRealR1(file, tag, value, optForm)
     integer,                    intent(in) :: file
     character(len=*),           intent(in) :: tag
@@ -221,13 +215,10 @@ contains
       form = getLabel(formReal)
     end if
 
-
 99050 format (A, ':real:1:', I0)
     write (file, 99050) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedRealR1
-
-
 
   subroutine writeTaggedRealR2(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -253,8 +244,6 @@ contains
         & ii = 1, size(value, dim=1)), &
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedRealR2
-
-
 
   subroutine writeTaggedRealR3(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -282,8 +271,6 @@ contains
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedRealR3
 
-
-
   subroutine writeTaggedRealR4(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -301,7 +288,6 @@ contains
       form = getLabel(formReal)
     end if
 
-
 99080 format (A, ':real:4:', I0, ',', I0, ',', I0, ',', I0)
     write (file, 99080) getLabel(tag), &
         & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
@@ -312,8 +298,6 @@ contains
         & kk = 1, size(value, dim=3)), &
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedRealR4
-
-
 
   subroutine writeTaggedComplexR0(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -337,8 +321,6 @@ contains
 
   end subroutine writeTaggedComplexR0
 
-
-
   subroutine writeTaggedComplexR1(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -360,8 +342,6 @@ contains
     write (file, 99100) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedComplexR1
-
-
 
   subroutine writeTaggedComplexR2(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -388,8 +368,6 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedComplexR2
 
-
-
   subroutine writeTaggedComplexR3(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -415,8 +393,6 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedComplexR3
-
-
 
   subroutine writeTaggedComplexR4(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -446,8 +422,6 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedComplexR4
 
-
-
   subroutine writeTaggedIntegerR0(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -470,8 +444,6 @@ contains
 
   end subroutine writeTaggedIntegerR0
 
-
-
   subroutine writeTaggedIntegerR1(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -493,8 +465,6 @@ contains
     write (file, 99150) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedIntegerR1
-
-
 
   subroutine writeTaggedIntegerR2(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -521,8 +491,6 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedIntegerR2
 
-
-
   subroutine writeTaggedIntegerR3(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -548,8 +516,6 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedIntegerR3
-
-
 
   subroutine writeTaggedIntegerR4(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -579,8 +545,6 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedIntegerR4
 
-
-
   subroutine writeTaggedLogicalR0(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -603,8 +567,6 @@ contains
 
   end subroutine writeTaggedLogicalR0
 
-
-
   subroutine writeTaggedLogicalR1(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -626,8 +588,6 @@ contains
     write (file, 99200) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedLogicalR1
-
-
 
   subroutine writeTaggedLogicalR2(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -654,8 +614,6 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedLogicalR2
 
-
-
   subroutine writeTaggedLogicalR3(file, tag, value, optForm)
     integer,          intent(in) :: file
     character(len=*), intent(in) :: tag
@@ -681,8 +639,6 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedLogicalR3
-
-
 
   subroutine writeTaggedLogicalR4(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -712,8 +668,6 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedLogicalR4
 
-
-
   character(len=20) function getLabel(tag)
     character(len=*), intent(in) :: tag
 
@@ -730,6 +684,5 @@ contains
     end if
 
   end function getLabel
-
 
 end module taggedoutput

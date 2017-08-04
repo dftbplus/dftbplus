@@ -240,7 +240,6 @@ program dftbplus
   !> density matrix
   real(dp), allocatable :: rhoSqrReal(:,:,:)
 
-
   !> Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
 
@@ -373,7 +372,6 @@ program dftbplus
     pCoord0Out => coord0
   end if
 
-
   if (tMD.or.tDerivs) then
     allocate(new3Coord(3, nMovedAtom))
   end if
@@ -458,7 +456,6 @@ program dftbplus
     velocities(:,:) = 0.0_dp
   end if
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Geometry loop
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -535,7 +532,6 @@ program dftbplus
     else
       write (*, "(/,'***  Geometry step: ',I0,/)") iGeoStep
     end if
-
 
     if (tPeriodic) then
       invLatVec = transpose(latVec)
@@ -644,7 +640,6 @@ program dftbplus
     potential%extAtom = 0.0_dp
     potential%extShell = 0.0_dp
     potential%extBlock = 0.0_dp
-
 
     if (tEField) then
       Efield(:) = EFieldStrength * EfieldVector(:)
@@ -1049,7 +1044,6 @@ program dftbplus
 
       end if ! end of nSpin == 4 case
 
-
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !! Mulliken analysis
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1133,7 +1127,6 @@ program dftbplus
         call total_shift(potential%intBlock, potential%intShell, orb, species)
       end if
 
-
       !! Calculate energies
 
       ! non-SCC part
@@ -1181,7 +1174,6 @@ program dftbplus
         end if
       end if
 
-
       potential%iorbitalBlock = 0.0_dp
       if (tDualSpinOrbit) then
         call shiftLS(potential%iorbitalBlock,xi,orb,species)
@@ -1211,7 +1203,6 @@ program dftbplus
         energy%Edftbu = 0.0_dp
       end if
 
-
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin &
           & + energy%ELS + energy%Edftbu + energy%Eext + energy%e3rd
 
@@ -1232,7 +1223,6 @@ program dftbplus
         nSCCIter = iSCCIter
         write (*,*) "Setting max number of scc cycles to current cycle."
       end if
-
 
       !! Mix charges
       if (tSCC) then
@@ -1304,7 +1294,6 @@ program dftbplus
 
       end if
 
-
       !! Clear detailed.out if necessary
       if (tWriteDetailedOut .and. .not. tAppendDetailedOut) then
         close(fdUser)
@@ -1365,7 +1354,6 @@ program dftbplus
               & sccErrorQ
         end if
       end if
-
 
       !! Not writing any restarting info if not converged and minimal number of
       !! SCC iterations not done.
@@ -1858,9 +1846,6 @@ program dftbplus
         end if
       end if
     end if
-
-
-
 
     if (tProjEigenvecs) then
       if (.not.tRealHS .or. (nSpin == 4)) then
@@ -3053,7 +3038,6 @@ program dftbplus
     close(fdResultsTag)
   end if
 
-
   if (tWriteDetailedXML) then
     !! Ugly hack for printing out xml info, will be removed later
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
@@ -3154,7 +3138,6 @@ contains
     end if
 
   end subroutine writeHS
-
 
   !> Calculates electron fillings and resulting band energy terms.
   !!

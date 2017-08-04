@@ -15,7 +15,6 @@ module steepdesc
 
   private
 
-
   !> Contains data for the steepest descent minimizer
   type OSteepDesc
     private
@@ -35,7 +34,6 @@ module steepdesc
     logical :: tInitialized
   end type OSteepDesc
 
-
   !> Creates SD instance
   interface init
     module procedure SteepDesc_init
@@ -51,10 +49,8 @@ module steepdesc
     module procedure SteepDesc_next
   end interface
 
-
   public :: OSteepDesc
   public :: init, reset, next
-
 
 contains
 
@@ -86,7 +82,6 @@ contains
 
   end subroutine SteepDesc_init
 
-
   !> Resets CG minimizer
   subroutine SteepDesc_reset(self, x0)
     !> minimizer object
@@ -101,8 +96,6 @@ contains
     self%tInitialized = .true.
 
   end subroutine SteepDesc_reset
-
-
 
   !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
   !> back.
@@ -131,8 +124,6 @@ contains
     tConverged = self%tConverged
 
   end subroutine SteepDesc_next
-
-
 
   !> Workhorse for the SD minimizer
   subroutine next_local(xNew, xOld, grad, weight, maxDisp, tolerance, &
@@ -178,6 +169,5 @@ contains
     xOld(:) = xNew(:)
 
   end subroutine next_local
-
 
 end module steepdesc

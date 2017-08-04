@@ -44,7 +44,6 @@ module thirdorder_module
 
   end type ThirdOrderInp
 
-
   !> Internal status of third order.
   type ThirdOrder
     integer :: nSpecies, nAtoms, mShells, mShellsReal
@@ -72,7 +71,6 @@ module thirdorder_module
     procedure :: addGradientDc
     procedure :: addGradientDcXlbomd
   end type ThirdOrder
-
 
 contains
 
@@ -122,7 +120,6 @@ contains
 
   end subroutine ThirdOrder_init
 
-
   !> Returns real space cutoff.
   !!
   function getCutoff(this) result(cutoff)
@@ -136,7 +133,6 @@ contains
     cutoff = this%maxCutoff
 
   end function getCutoff
-
 
   !> Updates data structures if there are changed coordinates for the instance.
   subroutine updateCoords(this, neighList, species)
@@ -192,7 +188,6 @@ contains
     end do
 
   end subroutine updateCoords
-
 
   !> Updates with changed charges for the instance.
   !!
@@ -277,7 +272,6 @@ contains
 
   end subroutine updateCharges
 
-
   !> Returns shifts per atom.
   !!
   subroutine getShiftPerAtom(this, shift)
@@ -297,7 +291,6 @@ contains
     end if
 
   end subroutine getShiftPerAtom
-
 
   !> Returns shifts per shell.
   !!
@@ -320,7 +313,6 @@ contains
 
   end subroutine getShiftPerShell
 
-
   !> Returns energy per atom.
   !!
   subroutine getEnergyPerAtom(this, energyPerAtom)
@@ -334,7 +326,6 @@ contains
         & + this%shift3 * this%chargesPerAtom)
 
   end subroutine getEnergyPerAtom
-
 
   !> Returns the energy per atom for linearized 3rd order Hamiltonian.
   !!
@@ -381,7 +372,6 @@ contains
         & + this%shift3 * (qOutAtom - this%chargesPerAtom)
 
   end subroutine getEnergyPerAtomXlbomd
-
 
   !> Add gradient component resulting from the derivative of the potential.
   !!
@@ -439,7 +429,6 @@ contains
     end do
 
   end subroutine addGradientDc
-
 
   !> Add gradient component resulting from the derivative of the potential for
   !! the linearized (XLBOMD) case.
@@ -540,7 +529,6 @@ contains
 
   end subroutine addGradientDcXlbomd
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -570,7 +558,6 @@ contains
 
   end subroutine calcCutoffs
 
-
   ! Gamma_AB = dgamma_AB/dUa * (dUa/dQa)
   function gamma3(Ua, Ub, dUa, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, dUa, rab
@@ -582,7 +569,6 @@ contains
 
   end function gamma3
 
-
   ! dGamma_AB/dr
   function gamma3pR(Ua, Ub, dUa, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, dUa, rab
@@ -593,7 +579,6 @@ contains
     res = gamma2pUpR(Ua, Ub, rab, damping, xi) * dUa
 
   end function gamma3pR
-
 
   ! dgamma_AB/dUa
   ! Sign convention: routine delivers dgamma_AB/dUa with the right sign.
@@ -631,7 +616,6 @@ contains
     end if
 
   end function gamma2pU
-
 
   ! d^2gamma_AB/dUa*dr
   ! Sign convention: routine delivers d^2gamma_AB/dUa*dr with the right sign.
@@ -671,7 +655,6 @@ contains
 
   end function gamma2pUpR
 
-
   ! \frac{d\gamma}{dU_{l_a}} for r = 0
   ! Eq S7 in Gaus et al. (2015) JCTC 11:4205-4219, DOI: 10.1021/acs.jctc.5b00600
   function dGdUr0(tauA, tauB) result(res)
@@ -689,7 +672,6 @@ contains
 
   end function dGdUr0
 
-
   ! S1(tauA,tauB,r): Short range SCC when tauA <> tauB and r <> 0
   function short_1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
@@ -699,7 +681,6 @@ contains
 
   end function short_1
 
-
   ! S2(tau,r), short range SCC when tauA = tauB = tau and r <> 0.
   function short_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
@@ -708,7 +689,6 @@ contains
     res = exp(-tau * rab) * gg(tau, rab)
 
   end function short_2
-
 
   ! dS1(tauA,tauB,r)/dtauA
   function shortpT_1(tauA, tauB, rab) result(res)
@@ -720,7 +700,6 @@ contains
 
   end function shortpT_1
 
-
   ! dS2(tauA,tauB,r)/dtauA
   function shortpT_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
@@ -729,7 +708,6 @@ contains
     res = exp(-tau * rab) * (gpT(tau, rab) - rab * gg(tau, rab))
 
   end function shortpT_2
-
 
   ! dS1(tauA,tauB,r)/dr
   function shortpR_1(tauA, tauB, rab) result(res)
@@ -741,7 +719,6 @@ contains
 
   end function shortpR_1
 
-
   ! dS2(tauA,tauB,r)/dr
   function shortpR_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
@@ -750,7 +727,6 @@ contains
     res = exp(-tau * rab) * (gpR(tau, rab) - tau * gg(tau, rab))
 
   end function shortpR_2
-
 
   ! d^2S1(tauA,tauB,r)/dtauA*dr
   function shortpTpR_1(tauA, tauB, rab) result(res)
@@ -763,7 +739,6 @@ contains
 
   end function shortpTpR_1
 
-
   ! d^2S2(tau,r)/dtau*dr
   function shortpTpR_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
@@ -773,7 +748,6 @@ contains
         & + gpTpR(tau, rab) - rab * gpR(tau, rab))
 
   end function shortpTpR_2
-
 
   ! f(tauA,tauB,r)
   function ff(tauA, tauB, rab) result(res)
@@ -785,7 +759,6 @@ contains
 
   end function ff
 
-
   ! df(tauA,tauB,r)/dtauA
   function fpT1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
@@ -795,7 +768,6 @@ contains
         & - 12.0_dp * tauA**3 * tauB**4 / ((tauA**2 - tauB**2)**4 * rab)
 
   end function fpT1
-
 
   ! df(tauB,tauA,rab)/dtauA
   function fpT2(tauB, tauA , rab) result(res)
@@ -807,7 +779,6 @@ contains
 
   end function fpT2
 
-
   ! df(tauA, tauB,r)/dr
   function fpR(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
@@ -816,7 +787,6 @@ contains
     res = (tauB**6 - 3.0_dp * tauB**4 * tauA**2) / (rab**2 * (tauA**2 - tauB**2)**3)
 
   end function fpR
-
 
   ! d^2f(tauA,tauB,r)/dtauA*dr
   function fpT1pR(tauA, tauB, rab) result(res)
@@ -827,7 +797,6 @@ contains
 
   end function fpT1pR
 
-
   ! d^2f(tauB,tauA,r)/dtauA*dr
   function fpT2pR(tauB, tauA, rab) result(res)
     real(dp), intent(in) :: tauB, tauA, rab
@@ -836,7 +805,6 @@ contains
     res = -12.0_dp * tauA**3 * tauB**4 / (rab**2 * (tauA**2 - tauB**2)**4)
 
   end function fpT2pR
-
 
   ! g(tau,r)
   function gg(tau, rab) result(res)
@@ -848,7 +816,6 @@ contains
 
   end function gg
 
-
   ! dg(tau,rab)/dtau
   function gpT(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
@@ -857,7 +824,6 @@ contains
     res = 1.0_dp / 48.0_dp * (33.0_dp + 18.0_dp * tau * rab + 3.0_dp * tau**2 * rab**2)
 
   end function gpT
-
 
   ! dg(tau,r)/dr
   function gpR(tau, rab) result(res)
@@ -868,7 +834,6 @@ contains
 
   end function gpR
 
-
   ! d^2g(tau,r)/dtau*dr
   function gpTpR(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
@@ -877,7 +842,6 @@ contains
     res = (3.0_dp * tau + tau**2 * rab) / 8.0_dp
 
   end function gpTpR
-
 
   ! Damping: h(Ua,Ub)
   function hh(Ua, Ub, rab, xi) result(res)
@@ -888,7 +852,6 @@ contains
 
   end function hh
 
-
   ! dh(Ua,Ub)/dUa
   function hpU(Ua, Ub, rab, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab, xi
@@ -897,7 +860,6 @@ contains
     res = -0.5_dp * xi * rab**2 * (0.5_dp * (Ua + Ub))**(xi - 1.0_dp) * hh(Ua, Ub, rab, xi)
 
   end function hpU
-
 
   ! dh(Ua,Ub)/dr
   function hpR(Ua, Ub, rab, xi) result(res)
@@ -908,7 +870,6 @@ contains
 
   end function hpR
 
-
   ! dh(Ua,Ub)/dUa*dr
   function hpUpR(Ua, Ub, rab, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab, xi
@@ -918,6 +879,5 @@ contains
         & * (rab**2 * (0.5_dp * (Ua + Ub))**xi - 1.0_dp) * hh(Ua, Ub, rab, xi)
 
   end function hpUpR
-
 
 end module thirdorder_module

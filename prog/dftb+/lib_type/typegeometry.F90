@@ -42,7 +42,6 @@ module typegeometry
     module procedure Geometry_normalize
   end interface
 
-
 contains
 
   !> Normalises a geometry object to be safe against the absence of any atoms of a species specified
@@ -81,6 +80,5 @@ contains
     end if
 
   end subroutine Geometry_normalize
-
 
 end module typegeometry

@@ -50,7 +50,6 @@ module diismixer
     real(dp), allocatable :: deltaR(:)
   end type ODIISMixer
 
-
   !> Creates an DIISMixer instance
   interface init
     module procedure DIISMixer_init
@@ -65,7 +64,6 @@ module diismixer
   interface mix
     module procedure DIISMixer_mix
   end interface
-
 
   public :: ODIISMixer
   public :: init, reset, mix
@@ -115,14 +113,12 @@ contains
 
   end subroutine DIISMixer_init
 
-
   !> Makes the mixer ready for a new SCC cycle
   subroutine DIISMixer_reset(self, nElem)
     !> DIIS mixer instance
     type(ODIISMixer), intent(inout) :: self
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
-
 
     @:ASSERT(nElem > 0)
 
@@ -142,7 +138,6 @@ contains
     self%indx = 0
 
   end subroutine DIISMixer_reset
-
 
   !> Mixes charges according to the DIIS method
   subroutine DIISMixer_mix(self, qInpResult, qDiff)

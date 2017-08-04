@@ -25,7 +25,6 @@ module dispcommon
   public :: addDispEGr_per_species, addDispEGr_per_atom
   public :: getOptimalEta, getMaxRDispersion, getMaxGDispersion
 
-
 contains
 
   !> Adds the energy per atom and the gradients for periodic \(1/r^6\) summation.
@@ -140,7 +139,6 @@ contains
     end do
 
   end subroutine addDispEGr_per_atom
-
 
   !> Adds the energy per atom and the gradients for periodic \(1/r^6\) summation.
   !> Fast converging Ewald like summation on \(1/r^6\) type interactions.  The \(1/r^12\) term is
@@ -260,8 +258,6 @@ contains
 
   end subroutine addDispEGr_per_species
 
-
-
   !> Delivers the optimal paramater eta for the Ewald-like summation
   function getOptimalEta(latVecs, vol) result(eta)
     !> Lattice vectors
@@ -280,8 +276,6 @@ contains
     eta = sqrt(vecLens(indx(1)) * vol / (pi * sqrt(sum(tmp**2))))
 
   end function getOptimalEta
-
-
 
   !> Returns the longest real space vector needed to achive a given accuracy in the Ewald summation
   !> for the dispersion.
@@ -347,8 +341,6 @@ contains
 
   end function getMaxRDispersion
 
-
-
   !> Returns the longest reciprocal space vector needed to achive a given accuracy in the Ewald
   !> summation for the dispersion.
   function getMaxGDispersion(eta, c6sum, minValue) result(xx)
@@ -411,7 +403,6 @@ contains
 
   end function getMaxGDispersion
 
-
   !> Returns an estimate of the error of the real space summation for a certain cutoff
   function getDispRealError(rr, c6sum, vol, eta) result(err)
     !> Cutoff radius
@@ -430,7 +421,6 @@ contains
         &* erfcwrap(rr/eta)
 
   end function getDispRealError
-
 
   !> Returns the error of the reciprocal space summation for a certain cutoff
   function getDispReciprocalError(gg, c6sum, eta) result(err)

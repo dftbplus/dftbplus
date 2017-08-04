@@ -49,7 +49,6 @@ module gdiis
   public :: ODIIS
   public :: init, reset, next
 
-
 contains
 
   !> Creates a DIIS geometry optimiser instance

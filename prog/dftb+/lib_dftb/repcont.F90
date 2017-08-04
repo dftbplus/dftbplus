@@ -34,7 +34,6 @@ module repcont
     type(ORepPoly), allocatable :: pRepPoly
   end type PRep_
 
-
   !!* Contains the repulsive interactions for the species pairs.
   type ORepCont
     private
@@ -44,7 +43,6 @@ module repcont
     logical :: tDataOK                        ! All repulsives added.
     logical :: tInit = .false.
   end type ORepCont
-
 
   !!* Initialises the repulsive container.
   interface init
@@ -72,7 +70,6 @@ module repcont
     module procedure RepCont_getEnergyDeriv
   end interface
 
-
 contains
 
   !!* Initialises the repulsive container.
@@ -91,7 +88,6 @@ contains
     self%tInit = .true.
 
   end subroutine RepCont_init
-
 
   !!* Adds a spline repulsive function to the container for a given species
   !!* pair.
@@ -112,8 +108,6 @@ contains
 
   end subroutine RepCont_addRepSpline
 
-
-
   !!* Adds a polynomial repulsive function to the container for a given species
   !!* pair.
   !!* @param self Repulsive container.
@@ -133,8 +127,6 @@ contains
 
   end subroutine RepCont_addRepPoly
 
-
-
   !!* Returns a global cutoff for all repulive functions.
   !!* @param self Repulsive container.
   !!* @return Global cutoff.
@@ -146,8 +138,6 @@ contains
     cutoff = self%cutoff
 
   end function RepCont_getCutoff
-
-
 
   !!* Returns the repulsive energy for a given distance and species pair.
   !!* @param self Repulsive container.
@@ -171,8 +161,6 @@ contains
     end select
 
   end subroutine RepCont_getEnergy
-
-
 
   !!* Returns the repulsive gradient for a given distance and species pair.
   !!* @param self Repulsive container.
@@ -198,6 +186,5 @@ contains
     end select
 
   end subroutine RepCont_getEnergyDeriv
-
 
 end module repcont

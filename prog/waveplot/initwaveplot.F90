@@ -41,7 +41,6 @@ module InitWaveplot
 
   public :: initProgramVariables
 
-
   !! Variables from detailed.xml
   integer, public :: identity          ! Identity of the run
   type(TGeometry), public :: geo       ! Geometry
@@ -190,7 +189,6 @@ contains
 
   end subroutine initProgramVariables
 
-
   !!* Interpret the information stored in detailed.xml
   !!* @param detailed Pointer to the node, containing the info
   !!* @para tGroundState look for ground state occupations (T) or excited (F)
@@ -239,8 +237,6 @@ contains
 
   end subroutine readDetailed
 
-
-
   !!* Read in the geometry stored as xml in internal or gen format.
   !!* @param geonode Node containing the geometry
   !!* @param geo     Contains the geometry information on exit
@@ -263,8 +259,6 @@ contains
     end select
 
   end subroutine readGeometry
-
-
 
   !!* Interpret the options.
   !!* @param node        Node containig the information
@@ -490,8 +484,6 @@ contains
 
   end subroutine readOptions
 
-
-
   !!* Read in the basis related informations
   !!* @param node        Node containing the basis definition
   !!* @param speciesNames Names of the species for which basis should be read in
@@ -519,8 +511,6 @@ contains
     end do
 
   end subroutine readBasis
-
-
 
   !!* Read in basis function for a species.
   !!* @param node            Node containing the basis definition for a species
@@ -582,8 +572,6 @@ contains
 
   end subroutine readSpeciesBasis
 
-
-
   !!* Checks, if the eigenvector file has the right identity number.
   !!* @param fileName File to check
   !!* @param identity Identity number.
@@ -608,8 +596,6 @@ contains
 
   end subroutine checkEigenvecs
 
-
-
   !!* Determinant of a 3x3 matrix (Only temporary!)
   !!* @param matrix The matrix to calculate the determinant from.
   !!* @return       Determinant of the matrix.
@@ -630,7 +616,5 @@ contains
     determinant = abs(tmp)
 
   end function determinant
-
-
 
 end module InitWaveplot

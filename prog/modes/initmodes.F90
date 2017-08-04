@@ -46,7 +46,6 @@ module InitModes
 
   public :: initProgramVariables
 
-
   !! Variables from detailed.xml
 
   !> Unique identifier of the run
@@ -127,7 +126,6 @@ contains
       call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
           &// i2c(parserVersion) // ") do not match")
     end if
-
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
@@ -264,7 +262,6 @@ contains
     write (*, "(A)") repeat("-", 80)
     write (*,*)
     call destroyNode(input)
-
 
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom

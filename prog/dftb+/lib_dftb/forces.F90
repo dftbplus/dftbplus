@@ -123,7 +123,6 @@ contains
 
   end subroutine derivative_nonSCC
 
-
   !> The SCC and spin electronic force contribution for all atoms, calculated from
   !> \(F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial R_\alpha} -
   !> (\rho^E_{\mu\nu}-\frac{H^1_{\mu\nu}}{S_{\mu\nu}} \rho_{\mu\nu})\frac{S_{\mu\nu}}{\partial
@@ -233,7 +232,6 @@ contains
     enddo
 
   end subroutine derivative_block
-
 
   !> The SCC and spin electronic force contribution for all atoms, calculated from
   !> \(F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial R_\alpha} -

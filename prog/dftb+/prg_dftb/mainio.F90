@@ -418,7 +418,6 @@ contains
     real(dp), allocatable :: rVecTemp(:)
     character(lc) :: tmpStr
 
-
     nReg = len(iOrbRegion)
     @:ASSERT(len(filenames) == nReg)
 
@@ -467,8 +466,6 @@ contains
     end do
 
   end subroutine writeProjRealEigvecs
-
-
 
   !> Write the projected complex eigenstates into text files.
   subroutine writeProjCplxEigvecs(filenames, fdProjEig, ei, nSpin, neighlist, &

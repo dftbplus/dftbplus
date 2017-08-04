@@ -28,7 +28,6 @@ module slakocont
     type(OSlakoEqGrid), allocatable :: pSlakoEqGrid
   end type PSlaKo_
 
-
   !!* Container for Slater-Koster integrals for all pair-interactions
   type OSlakoCont
     private
@@ -39,7 +38,6 @@ module slakocont
     logical :: tDataOK
     logical :: tInit = .false.
   end type OSlakoCont
-
 
   !!* Initialises SlakoCont
   interface init
@@ -87,7 +85,6 @@ contains
 
   end subroutine SlakoCont_init
 
-
   !!* Adds a Slater-Koster table for a given diatomic pair to the container.
   !!* @param self SlakoCont instance
   !!* @param pTable Slater-Koster table to be added
@@ -107,8 +104,6 @@ contains
 
   end subroutine SlakoCont_addTableEqGrid
 
-
-
   !!* Returns the maximal number of integrals needed for describing any of the
   !!* interactions in the container
   !!* @param self SlakoCont instance
@@ -126,8 +121,6 @@ contains
 
   end function SlakoCont_getMIntegrals
 
-
-
   !!* Returns the cutoff for all interactions
   !!* @param self SlakoCont instance
   !!* @return Cutoff.
@@ -139,7 +132,6 @@ contains
     cutoff = self%cutoff
 
   end function SlakoCont_getCutoff
-
 
   !!* Returns the Slater-Koster integrals for a given distance for a given
   !!* species pair.
@@ -158,7 +150,5 @@ contains
     call getSKIntegrals(self%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
 
   end subroutine SlakoCont_getSKIntegrals
-
-
 
 end module slakocont

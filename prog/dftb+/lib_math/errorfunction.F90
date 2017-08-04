@@ -29,7 +29,6 @@ module errorfunction
 
   public :: erfwrap, erfcwrap
 
-
 contains
 
   !> Calculates the value of the error function.
@@ -42,7 +41,6 @@ contains
     res = erf(xx)
 
   end function erfwrap
-
 
   !> Calculates the value of the complementary error function.
   function erfcwrap(xx) result(res)

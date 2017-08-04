@@ -40,7 +40,6 @@ contains
 
   end function erf
 
-
   !> Calculates the value of the complementary error function.
   function erfc(x)
     !> Function argument.
@@ -52,7 +51,6 @@ contains
 
   end function erfc
 
-
   !> Calculates the value of the function exp(x**2) * erfc(x)
   function erfcx(x)
     !> Function argument.
@@ -63,7 +61,6 @@ contains
     call erfcalc_calc(x, erfcx, 2)
 
   end function erfcx
-
 
   !> Calculates the appropriate function in double precision.
   subroutine erfcalc_calcdouble(arg, res, jint)
@@ -214,7 +211,6 @@ contains
     end subroutine fixnegf_
 
   end subroutine erfcalc_calcdouble
-
 
   !> Calculates the appropriate function in single precision.
   subroutine erfcalc_calcsingle(arg, res, jint)

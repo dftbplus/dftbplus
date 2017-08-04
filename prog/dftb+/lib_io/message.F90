@@ -38,8 +38,6 @@ contains
     write(*, '(2a)') '-> ', trim(message)
   end subroutine warning_single
 
-
-
   !> Gives a warning message.
   subroutine warning_array(messages)
     !> Lines of the error message to print to standard out.
@@ -55,8 +53,6 @@ contains
 
   end subroutine warning_array
 
-
-
   !> Gives an error message and stops the code.
   subroutine error_single(message)
     !> Error message to print to standard out.
@@ -66,8 +62,6 @@ contains
     write(*,'(2a)') '-> ', trim(message)
     stop
   end subroutine error_single
-
-
 
   !> Gives an error messages and stops the code.
   subroutine error_array(messages)

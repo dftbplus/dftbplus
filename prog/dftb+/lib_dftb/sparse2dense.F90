@@ -44,7 +44,6 @@ module sparse2dense
     module procedure packHSPauliImag_kpts
   end interface
 
-
   !!* Pack energy weighted Pauli idenity square matrix to sparse form.
   interface packErho
     module procedure packHSPauliERho
@@ -67,7 +66,6 @@ module sparse2dense
   interface blockAntiSymmetrizeHS
     module procedure blockAntiSymmetrizeHS_real
   end interface
-
 
 contains
 
@@ -183,7 +181,6 @@ contains
     integer  :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
 
-
     nAtom = size(iNeighbor, dim=2)
 
     @:ASSERT(nAtom > 0)
@@ -218,8 +215,6 @@ contains
       end do
     end do
   end subroutine unpackHS_real_kpts
-
-
 
   !!* Unpacks sparse matrix to square form (real version for Gamma point)
   !!* @param square       Square form matrix on exit.
@@ -369,8 +364,6 @@ contains
     end do
   end subroutine packHS_cmplx
 
-
-
   !!* Pack squared matrix in the sparse form (real version).
   !!* @param primitive    Sparse matrix
   !!* @param square       Squared form matrix
@@ -441,7 +434,6 @@ contains
     end do
   end subroutine packHS_real
 
-
   !!* Pack squared matrix in the sparse form (real Pauli version).
   !!* @param primitive    Sparse matrix
   !!* @param square       Squared form matrix
@@ -489,7 +481,6 @@ contains
     @:ASSERT(all(shape(nNeighbor) == (/ nAtom /)))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(size(primitive,dim=2)==4)
-
 
     do iBlock = 0, 1
       do iAtom1 = 1, nAtom
@@ -757,7 +748,6 @@ contains
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(size(primitive,dim=2)==4)
 
-
     do iBlock = 0, 1
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
@@ -965,8 +955,6 @@ contains
             & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) &
             & -reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
 
-
-
       end do
     end do
 
@@ -1173,7 +1161,6 @@ contains
 
   end subroutine blockSymmetrizeHS_cmplx
 
-
   !!* Symmetrize a squared matrix leaving the on-site atomic blocks alone.
   !!* (Complex version)
   !!* @param square   Square form matrix.
@@ -1226,7 +1213,6 @@ contains
     end do
 
   end subroutine blockSymmetrizeHS_real
-
 
   !!* Anti-symmetrize a squared matrix leaving the on-site atomic blocks alone.
   !!* (Real version)

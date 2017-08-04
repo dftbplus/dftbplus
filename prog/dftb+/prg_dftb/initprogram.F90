@@ -338,7 +338,6 @@ module initprogram
   !> socket details
   type(IpiSocketComm), allocatable :: socket
 
-
   !> File containing output geometry
   character(lc) :: geoOutFile
 
@@ -407,7 +406,6 @@ module initprogram
   integer, allocatable :: iEqBlockDFTBU(:,:,:,:)
   !> Orbital equivalency for orbital blocks with spin-orbit
   integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
-
 
   ! External charges
   !> If external charges must be considered
@@ -504,10 +502,7 @@ module initprogram
 
   private :: createRandomGenerators
 
-
-
 contains
-
 
   !> Initializes the variables in the module based on the parsed input
   subroutine initProgramVariables(input)
@@ -562,7 +557,6 @@ contains
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
 
-
     character(lc) :: strTmp, strTmp2
 
     !> flag to check for first cycle through a loop
@@ -593,7 +587,6 @@ contains
     !> Used for indexing linear response
     integer :: homoLoc(1)
 
-
     @:ASSERT(input%tInitialized)
 
     ! Basic variables
@@ -610,7 +603,6 @@ contains
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
 
-
     if (t2Component) then
       nSpin = 4
     end if
@@ -619,7 +611,6 @@ contains
       call error("Colinear spin polarization required for shared Ef over spin&
           & channels")
     end if
-
 
     sccTol = input%ctrl%sccTol
     nAtom = input%geom%nAtom
@@ -750,7 +741,6 @@ contains
         end if
       end do
     end do
-
 
     ! Initialise the SCC module (the two copies of the Hubbard Us are rather
     ! artifical, since the copy for the main program is only used for dumping
@@ -1001,7 +991,6 @@ contains
     if (.not.(tDFTBU.and.tImHam)) then
       allocate(iEqBlockDFTBULS(0, 0, 0, 0))
     end if
-
 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
@@ -1663,7 +1652,6 @@ contains
       call initQFromShellChrg(q0, referenceN0, species0, orb)
     end if
 
-
     tReadChrg = input%ctrl%tReadChrg
     if (tSCC) then
       do iAt = 1, nAtom
@@ -1735,7 +1723,6 @@ contains
         end if
         ! Rescaling to ensure correct number of electrons in the system
         qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
-
 
         select case (nSpin)
         case (1)
@@ -1838,7 +1825,6 @@ contains
     allocate(neighborList)
     call init(neighborList, nAtom, nInitNeighbor)
     allocate(nNeighbor(nAtom))
-
 
     ! Set various options
     tWriteTagged = input%ctrl%tWriteTagged
@@ -2366,8 +2352,6 @@ contains
 
   end subroutine initProgramVariables
 
-
-
   subroutine destructProgramVariables()
 
     integer :: ii
@@ -2385,8 +2369,6 @@ contains
 
   end subroutine destructProgramVariables
 
-
-
   !> Creates all random generators needed in the code.
   !!
   subroutine createRandomGenerators(seed, randomInit, randomThermostat)
@@ -2401,7 +2383,6 @@ contains
     !> Random generator for the actual thermostat.
     type(ORanlux), allocatable, intent(out) :: randomThermostat
 
-
     type(ORandomGenPool) :: randGenPool
 
     call init(randGenPool, seed, oldCompat=.true.)
@@ -2414,6 +2395,5 @@ contains
     call randGenPool%getGenerator(randomInit)
 
   end subroutine createRandomGenerators
-
 
 end module initprogram

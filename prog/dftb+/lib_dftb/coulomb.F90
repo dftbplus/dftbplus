@@ -57,9 +57,7 @@ module coulomb
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
-
 contains
-
 
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
   !> constructed.
@@ -88,8 +86,6 @@ contains
     end do
 
   end subroutine invR_cluster
-
-
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
@@ -162,8 +158,6 @@ contains
 
   end subroutine sumInvR_cluster_asymm
 
-
-
   !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
   !> constructed.
   subroutine invR_periodic(invRMat, nAtom, coord, nNeighborEwald, iNeighbor, &
@@ -225,8 +219,6 @@ contains
 
   end subroutine invR_periodic
 
-
-
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
   subroutine sumInvR_periodic_asymm(invRVec, nAtom0, nAtom1, coord0, &
       &coord1, charges1, rLat, gLat, alpha, volume)
@@ -275,8 +267,6 @@ contains
 
   end subroutine sumInvR_periodic_asymm
 
-
-
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
   !> storing anything.
   subroutine addInvRPrime_cluster(deriv, nAtom, coord, deltaQAtom)
@@ -310,7 +300,6 @@ contains
     end do
 
   end subroutine addInvRPrime_cluster
-
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
   !> geometry
@@ -351,8 +340,6 @@ contains
     end do
 
   end subroutine addInvRPrimeXlbomd_cluster
-
-
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
@@ -438,25 +425,6 @@ contains
 
   end subroutine addInvRPrime_cluster_asymm
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
   subroutine addInvRPrime_periodic(deriv, nAtom, coord, nNeighborEwald, &
       &iNeighbor, img2CentCell, recPoint, alpha, volume,deltaQAtom)
@@ -525,7 +493,6 @@ contains
     end do
 
   end subroutine addInvRPrime_periodic
-
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
   subroutine addInvRPrimeXlbomd_periodic(nAtom, coord, nNeighborEwald, &
@@ -599,8 +566,6 @@ contains
 
   end subroutine addInvRPrimeXlbomd_periodic
 
-
-
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
   subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, nAtom0, nAtom1, &
@@ -665,8 +630,6 @@ contains
     end do
 
   end subroutine addInvRPrime_periodic_asymm
-
-
 
   !> Get optimal alpha-parameter for the Ewald summation by finding alpha, where decline of real and
   !> reciprocal part of Ewald are equal.
@@ -752,8 +715,6 @@ contains
 
   end function getOptimalAlphaEwald
 
-
-
   !> Returns the longest reciprocal vector which gives a bigger contribution to the Ewald sum than a
   !> certain tolerance.
   function getMaxGEwald(alpha, volume, minValue) result(xx)
@@ -815,8 +776,6 @@ contains
 
   end function getMaxGEwald
 
-
-
   !> Returns the longest real space vector which gives a bigger contribution to the Ewald sum than a
   !> certain tolerance.
   function getMaxREwald(alpha, minValue) result(xx)
@@ -876,8 +835,6 @@ contains
 
   end function getMaxREwald
 
-
-
   !> Returns the Ewald sum for a given lattice in a given point.
   function ewald(rr, rVec, gVec, alpha, vol)
     !> Vector where to calculate the Ewald sum.
@@ -901,8 +858,6 @@ contains
     end if
 
   end function ewald
-
-
 
   !> Returns the reciprocal part of the Ewald sum.
   function ewaldReciprocal(rr, gVec, alpha, vol) result(recSum)
@@ -935,8 +890,6 @@ contains
     recSum = 2.0_dp * recSum * 4.0_dp * pi / vol
 
   end function ewaldReciprocal
-
-
 
   !> Returns the derivative of the reciprocal part of the Ewald sum.
   function derivEwaldReciprocal(rr, gVec, alpha, vol) result(recSum)
@@ -971,8 +924,6 @@ contains
 
   end function derivEwaldReciprocal
 
-
-
   !> Returns the real space part of the Ewald sum.
   function ewaldReal(rr, rVec, alpha) result(realSum)
     !> Real space vectors to sum over. (Should contain origin).
@@ -1000,8 +951,6 @@ contains
     end do
 
   end function ewaldReal
-
-
 
   !> Returns the derivative of the real space part of the Ewald sum.
   function derivEwaldReal(rdiff, rVec, alpha) result(dewr)
@@ -1035,8 +984,6 @@ contains
 
   end function derivEwaldReal
 
-
-
   !> Returns the difference in the decrease of the real and reciprocal parts of the Ewald sum.
   !> In order to make the real space part shorter as the reciprocal space part, the inclinations are
   !> taken at different points for the the real space and the reciprocal space part.
@@ -1060,8 +1007,6 @@ contains
 
   end function diffRecReal
 
-
-
   !> Returns the max. value of a term in the reciprocal space part of the Ewald summation for a
   !> given vector length.
   function gTerm(gg, alpha, vol)
@@ -1078,8 +1023,6 @@ contains
 
   end function gTerm
 
-
-
   !> Returns the max. value of a term in the real space part of the Ewald summation for a given
   !> vector length.
   function rTerm(rr, alpha)
@@ -1095,7 +1038,6 @@ contains
     rTerm = erfcwrap(alpha*rr)/rr
 
   end function rTerm
-
 
   !> Returns the derivative of a term in the real space part of the Ewald summation for a given
   !> vector length.
@@ -1116,7 +1058,6 @@ contains
         & alpha*rr - erfcwrap(alpha*rr))/(rr*rr*rr)
 
   end function derivRTerm
-
 
   !> Calculates the stress tensor derivatives of the Ewald electrostatics
   !> Aguard and Madden J Chem Phys 119 7471 (2003)
@@ -1214,6 +1155,5 @@ contains
     stress = stress / volume
 
   end subroutine invR_stress
-
 
 end module coulomb

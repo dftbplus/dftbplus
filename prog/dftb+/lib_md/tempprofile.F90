@@ -49,9 +49,7 @@ module tempprofile
   !! Default starting temperature
   real(dp), parameter :: startingTemp_ = minTemp
 
-
 contains
-
 
   !!* Creates a TempProfile instance.
   !!* @param self TempProfile instane on return.
@@ -99,7 +97,6 @@ contains
 
   end subroutine TempProfile_init
 
-
   !!* Changes the temperature to the next value.
   !!* @param self Pointer to the TempProfile object.
   subroutine TempProfile_next(self)
@@ -143,8 +140,6 @@ contains
 
   end subroutine TempProfile_next
 
-
-
   !!* Returns the current temperature.
   !!* @param self Pointer to the TempProfile object.
   !!* @param temp Temperature on return.
@@ -155,6 +150,5 @@ contains
     temp = self%curTemp
 
   end subroutine TempProfile_getTemperature
-
 
 end module tempprofile

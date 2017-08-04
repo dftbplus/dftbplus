@@ -55,7 +55,6 @@ module broydenmixer
     real(dp), allocatable :: uu(:,:)
   end type OBroydenMixer
 
-
   !> Creates Broyden mixer
   interface init
     module procedure BroydenMixer_init
@@ -78,7 +77,6 @@ module broydenmixer
 
   public :: OBroydenMixer
   public :: init, reset, mix, getInverseJacobian
-
 
 contains
 
@@ -123,8 +121,6 @@ contains
 
   end subroutine BroydenMixer_init
 
-
-
   !> Makes the mixer ready for a new SCC cycle
   subroutine BroydenMixer_reset(self, nElem)
     !> Broyden mixer instance
@@ -151,7 +147,6 @@ contains
 
   end subroutine BroydenMixer_reset
 
-
   !> Mixes charges according to the modified Broyden method
   subroutine BroydenMixer_mix(self, qInpResult, qDiff)
     !> The Broyden mixer
@@ -172,8 +167,6 @@ contains
         &self%dF, self%uu)
 
   end subroutine BroydenMixer_mix
-
-
 
   !> Does the real work for the Broyden mixer
   subroutine modifiedBroydenMixing(qInpResult, qInpLast, qDiffLast, aa, ww, &
@@ -300,7 +293,6 @@ contains
 
   end subroutine modifiedBroydenMixing
 
-
   !> return inverse of the Jacobian for the mixing process
   subroutine BroydenMixer_getInverseJacobian(self, invJac)
     !> Broyden mixer
@@ -353,6 +345,5 @@ contains
     end do
 
   end subroutine BroydenMixer_getInverseJacobian
-
 
 end module broydenmixer

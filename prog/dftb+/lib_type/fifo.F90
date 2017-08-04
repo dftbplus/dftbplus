@@ -22,7 +22,6 @@ module fifo
   public :: OFifoIntR1, OFifoRealR1, OFifoRealR2, OFifoCplxR1, OFifoCplxR2
   public :: init, destruct, reset, get, push, restart
 
-
   type OFifoIntR1
     private
     !> Nr. of elements in stored vectors
@@ -78,7 +77,6 @@ module fifo
     logical :: tInit = .false.
   end type OFifoCplxR1
 
-
   !> Complex 2D array
   type OFifoCplxR2
     private
@@ -87,7 +85,6 @@ module fifo
     integer :: bufferSize
     logical :: tInit = .false.
   end type OFifoCplxR2
-
 
   !> Initialises a fifo
   interface init
@@ -150,9 +147,7 @@ module fifo
   !> Last operation was writing
   integer, parameter :: modeWrite = 2
 
-
 contains
-
 
   !> Creates a FifoIntR1 instance, which stores rank 1 vectors.
   !> Caveat: this routine relies on the fact that file IDs have maximum of 5 digits.
@@ -181,7 +176,6 @@ contains
 
   end subroutine FifoIntR1_init
 
-
   !> Destroy FifoIntR1 object.
   subroutine FifoIntR1_destruct(sf)
     !> FifoIntR1 instance.
@@ -203,7 +197,6 @@ contains
     close(sf%fileId, status="delete")
 
   end subroutine FifoIntR1_destruct
-
 
   !> Resets FifoIntR1
   subroutine FifoIntR1_reset(sf, nElem, bufferSize)
@@ -259,8 +252,6 @@ contains
 
   end subroutine FifoIntR1_reset
 
-
-
   !> Adds a new vector to the FIFO.
   subroutine FifoIntR1_push(sf, vector)
     !> FifoIntR1 instance
@@ -312,7 +303,6 @@ contains
 
   end subroutine FifoIntR1_push
 
-
   !> Returns the current vector from the FIFO without deleting it.
   !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
   !> first out). The vectors are not deleted from the fifo. If all the vectors had been returned, or
@@ -358,8 +348,6 @@ contains
 
   end subroutine FifoIntR1_get
 
-
-
   !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoIntR1_restart(sf)
     !> FIFO object
@@ -399,7 +387,6 @@ contains
 
   end subroutine FifoRealR1_init
 
-
   !> Destruct FifoRealR1 object.
   subroutine FifoRealR1_destruct(sf)
     !> FifoRealR1 instance.
@@ -408,7 +395,6 @@ contains
     call destruct(sf%fifoIntR1)
 
   end subroutine FifoRealR1_destruct
-
 
   !> Resets FifoRealR1
   subroutine FifoRealR1_reset(sf, nElem, bufferSize)
@@ -441,7 +427,6 @@ contains
 
   end subroutine FifoRealR1_reset
 
-
   !> Adds a new vector to the FIFO.
   subroutine FifoRealR1_push(sf, vector)
     !> FifoRealR1 instance
@@ -456,8 +441,6 @@ contains
     call push(sf%fifoIntR1, sf%convBuffer)
 
   end subroutine FifoRealR1_push
-
-
 
   !> Returns the current vector from the FIFO without deleting it.
   !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
@@ -478,7 +461,6 @@ contains
 
   end subroutine FifoRealR1_get
 
-
   !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoRealR1_restart(sf)
     !> fifo object
@@ -487,7 +469,6 @@ contains
     call restart(sf%fifoIntR1)
 
   end subroutine FifoRealR1_restart
-
 
   !> Creates a FifoRealR2 instance, which stores rank 2 matrices.
   subroutine FifoRealR2_init(sf, bufferSize, fileName)
@@ -507,7 +488,6 @@ contains
 
   end subroutine FifoRealR2_init
 
-
   !> Destroy a FifoRealR2 object.
   subroutine FifoRealR2_destruct(sf)
     !> FifoRealR2 instance.
@@ -516,7 +496,6 @@ contains
     call destruct(sf%fifoRealR1)
 
   end subroutine FifoRealR2_destruct
-
 
   !> Resets FifoRealR2
   subroutine FifoRealR2_reset(sf, newShape)
@@ -532,7 +511,6 @@ contains
     call reset(sf%fifoRealR1, sf%arrayShape(1), bufferSize=sf%bufferSize*sf%arrayShape(2))
 
   end subroutine FifoRealR2_reset
-
 
   !> Adds a new vector to the FIFO.
   subroutine FifoRealR2_push(sf, data)
@@ -551,8 +529,6 @@ contains
     end do
 
   end subroutine FifoRealR2_push
-
-
 
   !> Returns the current vector from the FIFO without deleting it.
   !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
@@ -576,7 +552,6 @@ contains
 
   end subroutine FifoRealR2_get
 
-
   !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoRealR2_restart(sf)
     !> FifoRealR2 instance
@@ -585,7 +560,6 @@ contains
     call restart(sf%fifoRealR1)
 
   end subroutine FifoRealR2_restart
-
 
   !> Creates a FifoCplxR1 instance, which stores rank 1 vectors.
   subroutine FifoCplxR1_init(sf, bufferSize, fileName)
@@ -606,7 +580,6 @@ contains
 
   end subroutine FifoCplxR1_init
 
-
   !> Destroy a FifoCplxR1 object.
   subroutine FifoCplxR1_destruct(sf)
     !> FifoCplxR1 instance.
@@ -615,7 +588,6 @@ contains
     call destruct(sf%fifoIntR1)
 
   end subroutine FifoCplxR1_destruct
-
 
   !> Resets a FifoCplxR1
   subroutine FifoCplxR1_reset(sf, nElem, bufferSize)
@@ -648,7 +620,6 @@ contains
 
   end subroutine FifoCplxR1_reset
 
-
   !> Adds a new vector to the FIFO.
   subroutine FifoCplxR1_push(sf, vector)
     !> FifoCplxR1 instance
@@ -663,8 +634,6 @@ contains
     call push(sf%fifoIntR1, sf%convBuffer)
 
   end subroutine FifoCplxR1_push
-
-
 
   !> Returns the current vector from the FIFO without deleting it.
   !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
@@ -685,7 +654,6 @@ contains
 
   end subroutine FifoCplxR1_get
 
-
   !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoCplxR1_restart(sf)
     !> FifoCplxR1 instance
@@ -694,7 +662,6 @@ contains
     call restart(sf%fifoIntR1)
 
   end subroutine FifoCplxR1_restart
-
 
   !> Creates a FifoCplxR2 instance, which stores rank 2 matrices.
   subroutine FifoCplxR2_init(sf, bufferSize, fileName)
@@ -714,7 +681,6 @@ contains
 
   end subroutine FifoCplxR2_init
 
-
   !> Destroy a FifoCplxR2 object.
   subroutine FifoCplxR2_destruct(sf)
     !> FifoCplxR2 instance.
@@ -723,7 +689,6 @@ contains
     call destruct(sf%fifoCplxR1)
 
   end subroutine FifoCplxR2_destruct
-
 
   !> Resets a FifoCplxR2 instance
   subroutine FifoCplxR2_reset(sf, newShape)
@@ -739,7 +704,6 @@ contains
     call reset(sf%fifoCplxR1, sf%arrayShape(1), bufferSize=sf%bufferSize*sf%arrayShape(2))
 
   end subroutine FifoCplxR2_reset
-
 
   !> Adds a new vector to the FIFO.
   subroutine FifoCplxR2_push(sf, data)
@@ -758,8 +722,6 @@ contains
     end do
 
   end subroutine FifoCplxR2_push
-
-
 
   !> Returns the current vector from the FIFO without deleting it.
   !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
@@ -783,7 +745,6 @@ contains
 
   end subroutine FifoCplxR2_get
 
-
   !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoCplxR2_restart(sf)
     !> instance of a fifo
@@ -792,6 +753,5 @@ contains
     call restart(sf%fifoCplxR1)
 
   end subroutine FifoCplxR2_restart
-
 
 end module fifo

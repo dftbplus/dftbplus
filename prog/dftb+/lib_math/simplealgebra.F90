@@ -33,8 +33,6 @@ contains
 
   end subroutine cross3
 
-
-
   !> Signed determinant of a 3x3 matrix
   real(dp) function  determinant33(matrix)
     !> The matrix for which to calculate the determinant.
@@ -75,8 +73,6 @@ contains
     deriv = deriv * sign(1.0_dp,determinant33(matrix))
 
   end subroutine derivDeterminant33
-
-
 
   !> Inverts a 3x3 matrix
   subroutine invert33(inverted, orig, optDet)

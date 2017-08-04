@@ -17,7 +17,6 @@ module extlagrangian_module
   public ::ExtLagrangian, ExtLagrangian_init
   public :: ExtLagrangianInp
 
-
   !> Input for an extended Lagrangian integrator.
   !!
   type :: ExtLagrangianInp
@@ -29,7 +28,6 @@ module extlagrangian_module
     integer :: nElems
 
   end type ExtLagrangianInp
-
 
   !> Represents an extended Lagrangian integrator.
   !!
@@ -53,7 +51,6 @@ module extlagrangian_module
     procedure, private :: updatePhaseAndSteps
   end type ExtLagrangian
 
-
   ! Internal type for enumerating different phases of the integrator.
   type :: ExtLagrangianPhases
     integer :: off
@@ -64,7 +61,6 @@ module extlagrangian_module
 
   type(ExtLagrangianPhases), parameter :: phases =&
       & ExtLagrangianPhases(1, 2, 3, 4)
-
 
   ! Various integrator parameters for integration with 5 time steps
   real(dp), parameter :: auxCoeffs5(0:5) = &
@@ -84,7 +80,6 @@ module extlagrangian_module
       & -1.0_dp]
   real(dp), parameter :: alpha7 = 1.6e-3
   real(dp), parameter :: kappa7 = 1.86_dp
-
 
 contains
 
@@ -127,8 +122,6 @@ contains
 
   end subroutine ExtLagrangian_init
 
-
-
   !> Turns on the integrator.
   !!
   !! The integrator will start of filling up its database with the subsequent
@@ -148,7 +141,6 @@ contains
     !! fully converged calculations and XL predicted ones.
     integer, intent(in), optional :: nTransientSteps
 
-
     integer :: nTransientSteps0
 
     if (present(nTransientSteps)) then
@@ -163,8 +155,6 @@ contains
 
   end subroutine turnOn
 
-
-
   !> Reads the last output and provides the input for the next timestep.
   !!
   subroutine getNextInput(this, outLast, inNext)
@@ -177,7 +167,6 @@ contains
 
     !> Input quantity for the next iteration
     real(dp), intent(out) :: inNext(:)
-
 
     real(dp), allocatable :: diff(:)
     integer :: ind, ind0, ind1
@@ -244,8 +233,6 @@ contains
 
   end subroutine getNextInput
 
-
-
   !> Whether next output quantity passed to the integrator should still contain
   !! fully converged values.
   !!
@@ -257,13 +244,10 @@ contains
     !> Whether converged values are needed.
     logical :: needsConverged
 
-
     needsConverged = any(this%phase ==&
         & [phases%off, phases%fillingUp, phases%interpolating])
 
   end function needsConvergedValues
-
-
 
   !> Sets a preconditioner for the integrator.
   !!
@@ -299,7 +283,6 @@ contains
 
   end subroutine setPreconditioner
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private methods
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -322,7 +305,5 @@ contains
     end if
 
   end subroutine updatePhaseAndSteps
-
-
 
 end module extlagrangian_module

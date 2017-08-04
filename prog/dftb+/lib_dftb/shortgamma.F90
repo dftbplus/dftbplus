@@ -90,8 +90,6 @@ contains
 
   end function expGammaCutoff
 
-
-
   !> Determines the value of the short range contribution to gamma with the exponential form
   function expGamma(rab,Ua,Ub)
     !> separation of sites a and b
@@ -201,8 +199,6 @@ contains
     end if
   end function expGammaPrime
 
-
-
   !> Determines the value of the short range contribution to gamma with the exponential form with
   !> damping.
   !> See J. Phys. Chem. A, 111, 10865 (2007).
@@ -225,8 +221,6 @@ contains
 
   end function expGammaDamped
 
-
-
   !> Determines the value of the derivative of the short range contribution to gamma with the
   !> exponential form with damping
   function expGammaDampedPrime(rab, Ua, Ub, dampExp)
@@ -248,9 +242,6 @@ contains
         &+ 2.0_dp * expGamma(rab, Ua, Ub) * exp(rTmp * rab**2) * rab * rTmp
 
   end function expGammaDampedPrime
-
-
-
 
   !> Determines the value of the short range contribution to gamma using the old Ohno/Klopman form
   !> Caveat: This is too long ranged to use in a periodic calculation
@@ -277,8 +268,6 @@ contains
     OhnoKlopman = 1.0_dp/sqrt(rab**2 + 0.25_dp*(1.0_dp/Ua + 1.0_dp/Ub)**2)
 
   end function OhnoKlopman
-
-
 
   !> Determines the value of the derivative of the short range contribution to gamma using the old
   !> Ohno/Klopman form. Caveat: This is too long ranged to use in a periodic calculation
@@ -307,8 +296,6 @@ contains
 
   end function OhnoKlopmanPrime
 
-
-
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
   !> Ua /= Ub and R > 0
   function gammaSubExprn(rab,tau1,tau2)
@@ -336,8 +323,6 @@ contains
         & (tau2**6-3.0_dp*tau2**4*tau1**2)/(rab*(tau1**2-tau2**2)**3) )
 
   end function gammaSubExprn
-
-
 
   !> Determines the derivative of the value of a part of the short range contribution to the
   !> exponential gamma, when Ua /= Ub and R > 0
@@ -368,6 +353,5 @@ contains
         & / (rab**2 *(tau1**2-tau2**2)**3)
 
   end function gammaSubExprnPrime
-
 
 end module shortgamma

@@ -69,7 +69,6 @@ contains
 
   end subroutine DummyThermostat_init
 
-
   !> Returns the initial velocities.
   subroutine DummyThermostat_getInitVelos(self, velocities)
     !> Thermostat instance.

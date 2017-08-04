@@ -65,7 +65,6 @@ module hsdutils
     module procedure getChVal_lStringIntR1RealR1
   end interface getChildValue
 
-
   !> Sets the value (the child) of a child node identified by its name
   !>
   !> Those functions are the inverse of the getChildValue functions. They create a child with the
@@ -91,7 +90,6 @@ module hsdutils
     module procedure setChVal_charR1intR2RealR2
   end interface setChildValue
 
-
   !> Writes a child and its value to an xml-write stream
   interface writeChildValue
     module procedure writeChVal_logical
@@ -107,7 +105,6 @@ module hsdutils
     module procedure writeChVal_charR1IntR2RealR2
   end interface writeChildValue
 
-
   !> Returns a string representation of an object
   interface getAsString
     module procedure getAsString_logical
@@ -122,7 +119,6 @@ module hsdutils
     module procedure getAsString_charR1
     module procedure getAsString_charR1IntR2RealR2
   end interface getAsString
-
 
   !> Error messages
   character(len=*), parameter :: MSG_MISSING_FIELD = "Missing child: "
@@ -149,7 +145,6 @@ module hsdutils
 
   !> Preallocateated size for temporary buffer strings
   integer, parameter :: preAllocSize = 1024
-
 
 contains
 
@@ -334,8 +329,6 @@ contains
 
   end subroutine getChVal_string
 
-
-
   !> Returns the value (the child) of a child node as real.
   subroutine getChVal_real(node, name, variableValue, default, modifier, child)
     !> The node to investigate.
@@ -386,8 +379,6 @@ contains
     end if
 
   end subroutine getChVal_real
-
-
 
   !> Returns the value (the child) of a child node as a rank one real array.
   subroutine getChVal_realR1(node, name, variableValue, default, nItem, modifier, child)
@@ -456,8 +447,6 @@ contains
 
   end subroutine getChVal_realR1
 
-
-
   !> Returns the value (the child) of a child node as a rank two real array.
   !>
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
@@ -518,8 +507,6 @@ contains
 
   end subroutine getChVal_realR2
 
-
-
   !> Returns the value (the child) of a child node as integer.
   subroutine getChVal_int(node, name, variableValue, default, modifier, child)
     !> The node to investigate.
@@ -569,8 +556,6 @@ contains
     end if
 
   end subroutine getChVal_int
-
-
 
   !> Returns the value (the child) of a child node as a rank one integer array.
   subroutine getChVal_intR1(node, name, variableValue, default, nItem, modifier, child)
@@ -638,8 +623,6 @@ contains
 
   end subroutine getChVal_intR1
 
-
-
   !> Returns the value (the child) of a child node as a rank two integer array.
   !>
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
@@ -699,8 +682,6 @@ contains
 
   end subroutine getChVal_intR2
 
-
-
   !> Returns the value (the child) of a child node as a linked list of strings.
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
@@ -743,8 +724,6 @@ contains
 
   end subroutine getChVal_lString
 
-
-
   !> Helper function for getChVal_lString to avoid string to character conversion in the do-loop.
   subroutine getChVal_lString_h(text, variableValue, node)
     !> Text to parse
@@ -768,8 +747,6 @@ contains
     end if
 
   end subroutine getChVal_lString_h
-
-
 
   !> Returns the value (the child) of a child node as a linked list of reals.
   !>
@@ -814,8 +791,6 @@ contains
 
   end subroutine getChVal_lReal
 
-
-
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lReal_h(text, variableValue, node)
     !> text  Text to parse
@@ -838,8 +813,6 @@ contains
     end if
 
   end subroutine getChVal_lReal_h
-
-
 
   !> Returns the value (the child) of a child node as a linked list of rank one real arrays.
   !>
@@ -886,8 +859,6 @@ contains
 
   end subroutine getChVal_lRealR1
 
-
-
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lRealR1_h(text, dim, variableValue, node)
     !> Text to parse
@@ -916,8 +887,6 @@ contains
     end if
 
   end subroutine getChVal_lRealR1_h
-
-
 
   !> Returns the value (the child) of a child node as linked list of integers.
   !>
@@ -962,8 +931,6 @@ contains
 
   end subroutine getChVal_lInt
 
-
-
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lInt_h(text, variableValue, node)
     !> Text to parse
@@ -987,8 +954,6 @@ contains
     end if
 
   end subroutine getChVal_lInt_h
-
-
 
   !> Returns the value (the child) of a child node as linked list of rank one integer arrays.
   !>
@@ -1035,8 +1000,6 @@ contains
 
   end subroutine getChVal_lIntR1
 
-
-
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lIntR1_h(text, dim, variableValue, node)
     !> Text to parse
@@ -1065,8 +1028,6 @@ contains
     end if
 
   end subroutine getChVal_lIntR1_h
-
-
 
   !> Returns the value (the child) of a child node as a linked list rank one integer and rank one
   !> real arrays.
@@ -1125,8 +1086,6 @@ contains
 
   end subroutine getChVal_lIntR1RealR1
 
-
-
   !> Helper function for getChVal_lIntR1RealR1 to avoid string to char conversion in the do-loop.
   subroutine getChVal_lIntR1RealR1_h(text, dimInt, valueInt, dimReal, valueReal, node)
     !> Text to parse
@@ -1167,8 +1126,6 @@ contains
     end do
 
   end subroutine getChVal_lIntR1RealR1_h
-
-
 
   !> Returns the value (the child) of a child node as a linked list of string, rank one integer and
   !> rank one real arrays.
@@ -1230,8 +1187,6 @@ contains
 
   end subroutine getChVal_lStringIntR1RealR1
 
-
-
   !> Helper function for getChVal_lIntR1RealR1 to avoid string to char conversion in the do-loop.
   subroutine getChVal_lStringIntR1RealR1_h(text, valueStr, dimInt, valueInt, dimReal, valueReal, &
       & node)
@@ -1277,8 +1232,6 @@ contains
     end do
 
   end subroutine getChVal_lStringIntR1RealR1_h
-
-
 
   !> Returns the value (the child) of a child node as a node.
   !>
@@ -1375,7 +1328,6 @@ contains
     end if
 
   end subroutine getChVal_node
-
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
   subroutine convAtomRangeToInt(str, speciesNames, species, node, val)
@@ -1485,7 +1437,6 @@ contains
 
   end subroutine convAtomRangeToInt
 
-
   !> Converts a string containing indices and ranges to a list of indices.
   subroutine convRangeToInt(str, node, val, nMax)
     !> String to convert
@@ -1572,9 +1523,6 @@ contains
 
   end subroutine convRangeToInt
 
-
-
-
   !> Returns a child node with a specified name
   subroutine getChild(node, name, child, requested, modifier)
     !> Node to investigate
@@ -1614,8 +1562,6 @@ contains
 
   end subroutine getChild
 
-
-
   !> Returns a list of children with the specified name.
   subroutine getChildren(node, name, children)
     !> Parent node to investigate
@@ -1635,8 +1581,6 @@ contains
     end do
 
   end subroutine getChildren
-
-
 
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_logical(node, name, variableValue, replace, child, modifier)
@@ -1675,7 +1619,6 @@ contains
 
   end subroutine setChVal_logical
 
-
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_logicalR1(node, name, variableValue, replace, child, modifier)
     !> The node to investigate
@@ -1712,8 +1655,6 @@ contains
     end if
 
   end subroutine setChVal_logicalR1
-
-
 
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_logical(xf, name, variableValue)
@@ -1762,7 +1703,6 @@ contains
 
   end subroutine getAsString_logical
 
-
   !> Returns the text representation of the passed object
   subroutine getAsString_logicalR1(variableValue, strBuffer)
     !> Value to represent
@@ -1794,8 +1734,6 @@ contains
     end do
 
   end subroutine getAsString_logicalR1
-
-
 
   !> Sets the value (child) of a child with given name.
   !>
@@ -1837,8 +1775,6 @@ contains
 
   end subroutine setChVal_real
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_real(xf, name, variableValue)
     !> Xmlwriter stream
@@ -1855,8 +1791,6 @@ contains
 
   end subroutine writeChVal_real
 
-
-
   !> Returns the text representation of the passed object
   subroutine getAsString_real(variableValue, strBuffer)
     !> Value to represent
@@ -1870,8 +1804,6 @@ contains
     strBuffer = trim(adjustl(buffer))
 
   end subroutine getAsString_real
-
-
 
   !> Sets the value (child) of a child with given name.
   !>
@@ -1912,8 +1844,6 @@ contains
 
   end subroutine setChVal_realR1
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_realR1(xf, name, variableValue)
     !> Xmlwriter stream
@@ -1929,8 +1859,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_realR1
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_realR1(variableValue, strBuffer)
@@ -1959,8 +1887,6 @@ contains
     end do
 
   end subroutine getAsString_realR1
-
-
 
   !> Sets the value (child) of a child with given name.  The node to investigate
   !>
@@ -2006,8 +1932,6 @@ contains
 
   end subroutine setChVal_realR2
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_realR2(xf, name, variableValue)
     !> Xmlwriter stream
@@ -2023,8 +1947,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_realR2
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_realR2(variableValue, strBuffer)
@@ -2047,8 +1969,6 @@ contains
     end do
 
   end subroutine getAsString_realR2
-
-
 
   !> Sets the value (child) of a child with given name.
   !>
@@ -2089,8 +2009,6 @@ contains
 
   end subroutine setChVal_int
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_int(xf, name, variableValue)
     !> Xmlwriter stream
@@ -2107,8 +2025,6 @@ contains
 
   end subroutine writeChVal_int
 
-
-
   !> Returns the text representation of the passed object
   subroutine getAsString_int(variableValue, strBuffer)
     !> Value to represent
@@ -2122,8 +2038,6 @@ contains
     strBuffer = trim(adjustl(buffer))
 
   end subroutine getAsString_int
-
-
 
   !> Sets the value (child) of a child with given name.
   !>
@@ -2164,8 +2078,6 @@ contains
 
   end subroutine setChVal_intR1
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_intR1(xf, name, variableValue)
     !> Xmlwriter stream
@@ -2181,8 +2093,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_intR1
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_intR1(variableValue, strBuffer)
@@ -2211,8 +2121,6 @@ contains
     end do
 
   end subroutine getAsString_intR1
-
-
 
   !> Sets the value (child) of a child with given name.
   !>
@@ -2257,8 +2165,6 @@ contains
 
   end subroutine setChVal_intR2
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_intR2(xf, name, variableValue)
     !> Xmlwriter stream
@@ -2274,8 +2180,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_intR2
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_intR2(variableValue, strBuffer)
@@ -2298,8 +2202,6 @@ contains
     end do
 
   end subroutine getAsString_intR2
-
-
 
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_char(node, name, variableValue, replace, child, omitQuotes, modifier)
@@ -2347,8 +2249,6 @@ contains
 
   end subroutine setChVal_char
 
-
-
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_charR1(node, name, variableValue, replace, child, modifier)
     !> The node to investigate
@@ -2385,8 +2285,6 @@ contains
 
   end subroutine setChVal_charR1
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_charR1(xf, name, variableValue)
     !> Xmlwriter stream
@@ -2402,8 +2300,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_charR1
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_charR1(variableValue, strBuffer)
@@ -2429,8 +2325,6 @@ contains
     end do
 
   end subroutine getAsString_charR1
-
-
 
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_intR2RealR2(node, name, intValue, realValue, replace, child, modifier)
@@ -2470,8 +2364,6 @@ contains
 
   end subroutine setChVal_intR2RealR2
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_intR2RealR2(xf, name, intValue, realValue)
     !> Xmlwriter stream
@@ -2489,8 +2381,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_intR2RealR2
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_intR2RealR2(intValue, realValue, strBuffer)
@@ -2526,8 +2416,6 @@ contains
     end do
 
   end subroutine getAsString_intR2RealR2
-
-
 
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_charR1IntR2RealR2(node, name, charValue, intValue, realValue, replace, &
@@ -2570,8 +2458,6 @@ contains
 
   end subroutine setChVal_charR1IntR2RealR2
 
-
-
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_charR1IntR2RealR2(xf, name, charValue, intValue, realValue)
     !> Xmlwriter stream
@@ -2591,8 +2477,6 @@ contains
     call writeChild_local(xf, name, char(strBuffer))
 
   end subroutine writeChVal_charR1IntR2RealR2
-
-
 
   !> Returns the text representation of the passed object
   subroutine getAsString_charR1IntR2RealR2(charValue, intValue, realValue, strBuffer)
@@ -2632,8 +2516,6 @@ contains
     end do
 
   end subroutine getAsString_charR1IntR2RealR2
-
-
 
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_node(node, name, variableValue, replace, child, modifier, list)
@@ -2677,8 +2559,6 @@ contains
     end if
 
   end subroutine setChVal_node
-
-
 
   !> Workhorse for the setChildValue routines
   !>
@@ -2757,7 +2637,6 @@ contains
 
   end subroutine createChild_local
 
-
   !> new child in the xml
   subroutine writeChild_local(xf, name, variableValue)
     !> xmlWriter stream
@@ -2772,8 +2651,6 @@ contains
     call xml_EndElement(xf, name)
 
   end subroutine writeChild_local
-
-
 
   !> Creates a child with the given name
   subroutine setChild(node, name, child, replace, list, modifier)
@@ -2826,7 +2703,6 @@ contains
 
   end subroutine setChild
 
-
   !> Returns the content of the first TEXT_NODE child of a given node or empty string, if such a
   !> node does not exist.
   !>
@@ -2850,8 +2726,6 @@ contains
 
   end subroutine getFirstTextChild
 
-
-
   !> Checks if error flag signals an error. If yes, raises error.
   subroutine checkError(node, iErr, msg)
     !> Node which the error flag was set for
@@ -2869,7 +2743,6 @@ contains
 
   end subroutine checkError
 
-
   !> Issues an error, if the string from a given position contains non-whitespace characters.
   subroutine checkNoData(node, str, start)
     !> Node which is being processed (for error message)
@@ -2884,8 +2757,6 @@ contains
     end if
 
   end subroutine checkNoData
-
-
 
   !> Prints detailed error, including line number and path
   subroutine detailedError(node, msg)
@@ -2902,8 +2773,6 @@ contains
 
   end subroutine detailedError
 
-
-
   !> Prints detailed warning, including line number and path
   subroutine detailedWarning(node, msg)
     !> Node where the error occured.
@@ -2917,8 +2786,6 @@ contains
     call warning(char(str) // newline)
 
   end subroutine detailedWarning
-
-
 
   !> Appends path and line information to a string.
   subroutine appendPathAndLine(node, str)
@@ -2950,6 +2817,5 @@ contains
     end if
 
   end subroutine appendPathAndLine
-
 
 end module hsdutils

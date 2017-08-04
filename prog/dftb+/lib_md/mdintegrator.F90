@@ -61,7 +61,6 @@ contains
 
   end subroutine MDIntegrator_init_VVerlet
 
-
   !!* Delivers the next velocities
   !!* @param self Integrator wrapper instance on exit.
   !!* @param accel Accelerations.
@@ -80,7 +79,6 @@ contains
 
   end subroutine MDIntegrator_next
 
-
   subroutine MDIntegrator_rescale(self,coord,latVecs,stress)
     type(OMDIntegrator), intent(inout) :: self
     real(dp),intent(inout)       :: coord(:,:)
@@ -90,7 +88,6 @@ contains
     call rescale(self%pVelocityVerlet,coord,latVecs,stress)
 
   end subroutine MDIntegrator_rescale
-
 
   !!* Probe internal state of the integrator
   subroutine MDIntegrator_state(self,fd)

@@ -16,7 +16,6 @@ module arpack
 
   public :: withArpack
 
-
 #:if WITH_ARPACK
 
   public :: saupd, seupd

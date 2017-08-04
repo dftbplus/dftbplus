@@ -456,7 +456,6 @@ contains
 
     end do
 
-
     if (tArnoldi) then
       close(fdArnoldi)
     end if
@@ -691,7 +690,6 @@ contains
       end if
 
     end if
-
 
     if (fdArnoldiDiagnosis > 0) then
       ! tests for quality of returned eigenpairs
@@ -2035,7 +2033,6 @@ contains
     character :: sign
 
     @:ASSERT(size(sposz)>=nxov)
-
 
     if (fdSPTrans > 0) then
       ! single particle excitations

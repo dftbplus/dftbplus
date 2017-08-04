@@ -94,7 +94,6 @@ contains
 
   end subroutine AndersenThermostat_init
 
-
   !> Returns the initial velocities.
   subroutine AndersenThermostat_getInitVelos(self, velocities)
     !> AndersenThermostat instance.
@@ -115,8 +114,6 @@ contains
     call rescaleTokT(self%pMDFramework, velocities, self%mass, kT)
 
   end subroutine AndersenThermostat_getInitVelos
-
-
 
   !> Updates the provided velocities according the current temperature.
   subroutine AndersenThermostat_updateVelos(self, velocities)

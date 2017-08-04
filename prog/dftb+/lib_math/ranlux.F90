@@ -65,7 +65,6 @@ module ranlux
     real(dp) :: twom12
   end type ORanlux
 
-
   !> Creates a ranlux random number generator
   interface init
     module procedure Ranlux_init_default
@@ -86,7 +85,6 @@ module ranlux
 
   public :: ORanlux
   public :: init, getRandom, getState
-
 
   !> Maximal luxury level
   integer, parameter :: maxlev = 4
@@ -111,7 +109,6 @@ module ranlux
 
   !> Mask for all but the lowest 24 bits
   integer, parameter :: maskhi = not(masklo)
-
 
 contains
 
@@ -179,8 +176,6 @@ contains
 
   end subroutine Ranlux_init_default
 
-
-
   !> Creates and initializes a random generator with previously saved values.
   subroutine Ranlux_init_restart(self, isdext)
     !> Initialized random generator instance on exit
@@ -224,7 +219,6 @@ contains
 
   end subroutine Ranlux_init_restart
 
-
   !> Fills a given vector with random numbers.
   subroutine Ranlux_getRandomVector(self, rvec)
     !> Ranlux instance
@@ -236,7 +230,6 @@ contains
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
 
   end subroutine Ranlux_getRandomVector
-
 
   !> Fills a given 2D array with random numbers.
   subroutine Ranlux_getRandom2DArray(self, r2Darray)
@@ -254,7 +247,6 @@ contains
 
   end subroutine Ranlux_getRandom2DArray
 
-
   !> Returns a random number
   subroutine Ranlux_getRandomNumber(self, rnum)
     !> Ranlux instance
@@ -269,8 +261,6 @@ contains
     rnum = rvec(1)
 
   end subroutine Ranlux_getRandomNumber
-
-
 
   !> Workhorse for the Ranlux_getRandom* methods.
   subroutine getRandomVector_local(rvec,iseeds,icarry,in24,i24,j24,next,nskip,twom24,twom12)
@@ -343,8 +333,6 @@ contains
 
   end subroutine getRandomVector_local
 
-
-
   !> Saves the state of the random generator in an integer array
   subroutine Ranlux_getState(self, isdext)
     !> Ranlux instance.
@@ -362,6 +350,5 @@ contains
     end if
 
   end subroutine Ranlux_getState
-
 
 end module ranlux

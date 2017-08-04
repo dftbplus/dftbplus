@@ -89,7 +89,6 @@ contains
 
   end subroutine Berendsen_init
 
-
   !> Returns the initial velocities.
   subroutine Berendsen_getInitVelos(self, velocities)
     !> BerendsenThermostat instance.
@@ -110,8 +109,6 @@ contains
     call rescaleTokT(self%pMDFrame, velocities, self%mass, kT)
 
   end subroutine Berendsen_getInitVelos
-
-
 
   !> Updates the provided velocities according the current temperature.
   !> Shifts to rest frame coordinates if required - this removes some of the flying icecube effect.

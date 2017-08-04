@@ -76,7 +76,6 @@ contains
 !
 !  end subroutine MagField
 
-
   !!* Constructs shift potential for scalar potential part of megnetic field
   !!* @param shift block shift from the potential
   !!* @param iShift imaginary block shift from the potential

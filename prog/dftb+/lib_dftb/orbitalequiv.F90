@@ -121,8 +121,6 @@ contains
 
   end subroutine OrbitalEquiv_reduce
 
-
-
   !!* Expands a reduced vector by putting every element of it into the first
   !!* corresponding orbital and putting zero for all other equivalent orbitals.
   !!* @param input Reduced vector.
@@ -164,6 +162,5 @@ contains
     end do
 
   end subroutine OrbitalEquiv_expand
-
 
 end module orbitalequiv

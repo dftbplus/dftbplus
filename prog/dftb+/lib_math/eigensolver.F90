@@ -256,7 +256,6 @@ contains
 
   end subroutine dblecmplx_zheev
 
-
   !> Real eigensolver for generalized symmetric matrix problem
   subroutine real_ssygv(a,b,w,uplo,jobz,itype)
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
@@ -1646,8 +1645,6 @@ contains
     end if
 
   end subroutine dblecmplx_zhegvr
-
-
 
   !> Single precision banded symmetric generalised matrix eigensolver
   subroutine real_ssbgv(ab, bb, w, uplo, z)

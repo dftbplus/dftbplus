@@ -357,9 +357,7 @@ contains
       end do
     end if
 
-
   end subroutine E_dftbU
-
 
   !!* Returns the equivalence between the orbitals in the DFTB+U interactions
   !!* @param equiv   The equivalence vector on return
@@ -391,7 +389,6 @@ contains
     @:ASSERT(size(iUJ,dim=3) == maxval(species))
     @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
     @:ASSERT(all(iUJ <= orb%mShell))
-
 
     equiv(:,:,:) = 0
 
@@ -460,7 +457,6 @@ contains
     @:ASSERT(size(iUJ,dim=3) == maxval(species))
     @:ASSERT(size(iUJ,dim=1) <= orb%mShell)
     @:ASSERT(all(iUJ <= orb%mShell))
-
 
     iEqBlockDFTBU(:,:,:,:) = 0
 
@@ -556,8 +552,6 @@ contains
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
     logical :: iSkew
-
-
 
     nAtom = size(output, dim=3)
     nSpin = size(output, dim=4)

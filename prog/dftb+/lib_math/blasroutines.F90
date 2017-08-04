@@ -58,14 +58,12 @@ module blasroutines
     module procedure sbmv_dble
   end interface
 
-
   !> Interface to SYMM routines
   !> Wrapper for the level 3 blas routine
   interface symm
      module procedure symm_real
      module procedure symm_dble
   end interface symm
-
 
   !> Interface to GEMM routines evaluates C := alpha*op( A )*op( B ) + beta*C, where op( X ) is one
   !> of op( X ) = X or op( X ) = X'
@@ -93,7 +91,6 @@ module blasroutines
      module procedure hemm_cmplx
      module procedure hemm_dblecmplx
   end interface
-
 
 contains
 
@@ -997,7 +994,6 @@ contains
 
   end subroutine gemm_dble
 
-
   !> complex matrix*matrix product
   subroutine gemm_cmplx(C,A,B,alpha,beta,transA,transB,n,m,k)
     !> general matrix output
@@ -1603,7 +1599,6 @@ contains
     call chemm(side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc)
 
   end subroutine hemm_cmplx
-
 
   !> double precision hermitian matrix * general matrix multiply
   subroutine hemm_dblecmplx(C, side, A, B, uplo, alpha, beta, m, n)

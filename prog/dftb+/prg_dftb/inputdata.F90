@@ -265,7 +265,6 @@ module inputdata_module
     type(IpiSocketCommInp), allocatable :: socketInput
   end type control
 
-
   !> Atomistic geometry and boundary conditions of the system
   type geometry
     integer           :: nrAtoms         = 0
@@ -300,7 +299,6 @@ module inputdata_module
     logical        :: tInitialized = .false.
   end type inputData
 
-
   !> Initialise the input data
   interface init
     module procedure InputData_init
@@ -311,10 +309,8 @@ module inputdata_module
     module procedure InputData_destruct
   end interface destruct
 
-
   public :: control, TGeometry, slater, inputData, XLBOMDInp
   public :: init, destruct
-
 
 contains
 

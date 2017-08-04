@@ -26,7 +26,6 @@ module densitymatrix
 
   public :: makeDensityMatrix
 
-
   !!* Provides an interface to calculate the two types of dm - regular and
   !!* weighted and put them into packed storage
   interface makeDensityMatrix
@@ -45,7 +44,6 @@ module densitymatrix
   real(dp), parameter :: arbitraryConstant = 0.1_dp
 
 contains
-
 
   !!* Make a regular density matrix for the real wave-function case
   !!* @param dm the resulting nOrb*nOrb density matrix
@@ -110,9 +108,6 @@ contains
     end if
   end subroutine fullDensityMatrix_real
 
-
-
-
   !!* Make a regular density matrix for the complex wave-function case
   !!* @param dm the resulting nOrb*nOrb density matrix
   !!* @param eigenvecs the eigenvectors of the system
@@ -174,9 +169,6 @@ contains
 
     end if
   end subroutine fullDensityMatrix_cmplx
-
-
-
 
   !!* Make an energy weighted density matrix for the real
   !!* wave-function case
@@ -250,9 +242,6 @@ contains
     end if
   end subroutine fullEnergyDensityMatrix_real
 
-
-
-
   !!* Make an energy weighted density matrix for the complex
   !!* wave-function case
   !!* @param dm the resulting nOrb*nOrb density matrix
@@ -325,9 +314,6 @@ contains
 
     end if
   end subroutine fullEnergyDensityMatrix_cmplx
-
-
-
 
   !!* Make a regular density matrix for the real wave-function case
   !!* @param dm the resulting nOrb*nOrb density matrix with only the elements
@@ -410,9 +396,6 @@ contains
     end do
 
   end subroutine sp_density_matrix_real
-
-
-
 
   !!* Make a regular density matrix for the complex wave-function case
   !!* @param dm the resulting nOrb*nOrb density matrix with only the elements
@@ -498,9 +481,6 @@ contains
 
   end subroutine sp_density_matrix_cmplx
 
-
-
-
   !!* Make an energy weighted density matrix for the real wave-function case
   !!* @param dm the resulting nOrb*nOrb density matrix with only the elements
   !!* of interest calculated, instead of the whole dm
@@ -529,7 +509,6 @@ contains
     integer, allocatable     :: inCellNeighbor(:,:)
     integer, allocatable     :: nInCellNeighbor(:)
     real(dp), allocatable    :: tmpEigen(:,:)
-
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
@@ -587,8 +566,6 @@ contains
     end do
 
   end subroutine sp_energy_density_matrix_real
-
-
 
   !!* Make an energy weighted density matrix for the complex wave-function
   !!* case
@@ -675,6 +652,5 @@ contains
     end do
 
   end subroutine sp_energy_density_matrix_cmplx
-
 
 end module densitymatrix

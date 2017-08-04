@@ -31,7 +31,6 @@ module typegeometryhsd
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
 
-
 contains
 
   !> Write the geometry in HSD format to a specified node
@@ -51,8 +50,6 @@ contains
 
   end subroutine writeTGeometryHSD_dom
 
-
-
   !> Write the geometry in HSD format to an xml writer
   subroutine writeTGeometryHSD_xmlf(xf, geo)
     !> Node in the HSD-tree which should contain the geometry
@@ -69,8 +66,6 @@ contains
     end if
 
   end subroutine writeTGeometryHSD_xmlf
-
-
 
   !> Read the geometry from a node in a HSD tree.
   subroutine readTGeometryHSD(node, geo)
@@ -162,8 +157,6 @@ contains
 
   end subroutine readTGeometryHSD
 
-
-
   !> Reads the geometry from a node in a HSD tree in GEN format
   subroutine readTGeometryGen(node, geo)
     !> Node containing the geometry in Gen format
@@ -177,8 +170,6 @@ contains
     call readTGeometryGen_help(node, geo, char(text))
 
   end subroutine readTGeometryGen
-
-
 
   !> Helping routine for reading geometry from a HSD tree in GEN format
   subroutine readTGeometryGen_help(node, geo, text)
@@ -295,7 +286,5 @@ contains
     call normalize(geo)
 
   end subroutine readTGeometryGen_help
-
-
 
 end module typegeometryhsd

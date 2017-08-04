@@ -24,7 +24,6 @@ module reppoly
   integer, parameter :: powMax = 9
   integer, parameter :: powMin1 = max(powMin, 1)
 
-
   !> Initialisation type for ORepPoly
   type TRepPolyIn
     !> Polynomial coefficients
@@ -32,7 +31,6 @@ module reppoly
     !> Cutoff distance
     real(dp) :: cutoff
   end type TRepPolyIn
-
 
   !> Contains the polynomial representation of a repulsive.
   type ORepPoly
@@ -44,7 +42,6 @@ module reppoly
     !> initialised the repulsive
     logical :: tInit = .false.
   end type ORepPoly
-
 
   !> Initialises polynomial repulsive.
   interface init
@@ -66,7 +63,6 @@ module reppoly
     module procedure RepPoly_getEnergyDeriv
   end interface
 
-
 contains
 
   !> Initialises polynomial repulsive
@@ -76,7 +72,6 @@ contains
     !> Input parameters for the polynomial repulsive
     type(TRepPolyIn), intent(in) :: inp
 
-
     @:ASSERT(.not. self%tInit)
     @:ASSERT(inp%cutoff >= 0.0_dp)
 
@@ -85,8 +80,6 @@ contains
     self%tInit = .true.
 
   end subroutine RepPoly_init
-
-
 
   !> Returns cutoff of the repulsive
   function RepPoly_getCutoff(self) result(cutoff)
@@ -99,8 +92,6 @@ contains
     cutoff = self%cutoff
 
   end function RepPoly_getCutoff
-
-
 
   !> Returns energy of the repulsive for a given distance
   subroutine RepPoly_getEnergy(self, res, rr)
@@ -130,8 +121,6 @@ contains
     end if
 
   end subroutine RepPoly_getEnergy
-
-
 
   !> Returns gradient of the repulsive for a given distance.
   subroutine RepPoly_getEnergyDeriv(self, res, xx, d2)
@@ -184,6 +173,5 @@ contains
     end if
 
   end subroutine RepPoly_getEnergyDeriv
-
 
 end module reppoly

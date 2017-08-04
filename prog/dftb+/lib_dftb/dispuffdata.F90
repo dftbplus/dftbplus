@@ -54,7 +54,6 @@ TUFF("np", 3.424_dp, 0.019_dp), TUFF("pu", 3.424_dp, 0.016_dp), TUFF("am", 3.381
 TUFF("bk", 3.339_dp, 0.013_dp), TUFF("cf", 3.313_dp, 0.013_dp), TUFF("es", 3.299_dp, 0.012_dp), TUFF("fm", 3.286_dp, 0.012_dp), &
 TUFF("md", 3.274_dp, 0.011_dp), TUFF("no", 3.248_dp, 0.011_dp), TUFF("lw", 3.236_dp, 0.011_dp) /)
 
-
 contains
 
   !!* Returns distance and energy parameters of the UFF field.

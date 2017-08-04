@@ -18,11 +18,9 @@ module ipisocket
   implicit none
   private
 
-
   public :: IpiSocketCommInp
   public :: IpiSocketComm, IpiSocketComm_init
   public :: IPI_PROTOCOLS
-
 
   !> Input for initialising IpiSocketComm.
   type :: IpiSocketCommInp
@@ -44,7 +42,6 @@ module ipisocket
     integer :: port
   end type IpiSocketCommInp
 
-
   !> Communicator for i-Pi communication via sockets
   type :: IpiSocketComm
     private
@@ -64,12 +61,10 @@ module ipisocket
     module procedure construct
   end interface IpiSocketComm
 
-
   ! Enum containig possible protocols
   type :: IpiProtocolsEnum
     integer :: IPI_1
   end type IpiProtocolsEnum
-
 
   !> Available socket protocol types
   type(IpiProtocolsEnum), parameter :: IPI_PROTOCOLS =&
@@ -77,7 +72,6 @@ module ipisocket
 
   ! Length of strings expected for i-pi messages
   integer, parameter :: IPI_MSGLEN = 12
-
 
 contains
 
@@ -90,7 +84,6 @@ contains
 
     !> Input data.
     type(IpiSocketCommInp), intent(in) :: input
-
 
     logical :: tUnix
     character(lc) :: msg
@@ -128,7 +121,6 @@ contains
 
   end subroutine IpiSocketComm_init
 
-
   !> Construct IpiSocketComm instance.
   !!
   function construct(input) result(this)
@@ -142,7 +134,6 @@ contains
     call IpiSocketComm_init(this, input)
 
   end function construct
-
 
   !> Receives data from an external i-Pi program via a socket.
   !!
@@ -159,7 +150,6 @@ contains
 
     !> Cell lattice vectors.
     real(dp), intent(out) :: cell(3, 3)
-
 
     character(lc) :: msg
     character(len=IPI_MSGLEN) :: header, buffer
@@ -233,7 +223,6 @@ contains
 
   end subroutine receive
 
-
   !> Send data to an external program via a socket
   !!
   !! All data in atomic units, and currently assumes the number
@@ -252,7 +241,6 @@ contains
 
     !> Cell stresses
     real(dp), intent(in) :: stress(3, 3)
-
 
     character(len=IPI_MSGLEN) :: header, buffer
     character(lc) :: msg
@@ -326,7 +314,6 @@ contains
 
   end subroutine send
 
-
   !> Shuts down the socket.
   !!
   !! All data in atomic units, and currently assumes the number
@@ -341,6 +328,5 @@ contains
     this%tInit = .false.
 
   end subroutine shutdown
-
 
 end module ipisocket

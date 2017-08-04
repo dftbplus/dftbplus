@@ -13,7 +13,6 @@ module commontypes
 
   public :: TOrbitals
 
-
   !> Contains information about the orbitals of the species/atoms in the system
   type TOrbitals
     !> Nr. of shells for each atomic species (nSpecies)

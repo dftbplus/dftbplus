@@ -65,7 +65,6 @@ module scc
   !> tolerance for Ewald
   real(dp), parameter :: tolEwald = 1.0e-9_dp
 
-
   ! Private module variables (suffixed with "_" for clarity)
 
   !> If module is initialised
@@ -141,7 +140,6 @@ module scc
 
   !> evaluate Ewald parameter
   logical :: tAutoEwald_
-
 
 contains
 
@@ -287,7 +285,6 @@ contains
 
   end subroutine init_SCC
 
-
   !> Returns a minimal cutoff for the neighborlist, which must be passed to various functions in
   !> this module.
   function getSCCCutoff() result(cutoff)
@@ -300,7 +297,6 @@ contains
 
   end function getSCCCutoff
 
-
   !> Returns the currenty used alpha parameter of the Ewald-summation
   function getSCCEwaldPar() result(alpha)
     !> Parameter in the Ewald summation.
@@ -310,7 +306,6 @@ contains
     alpha = alpha_
 
   end function getSCCEwaldPar
-
 
   !> Updates the number of neighbors for the SCC module (local).
   subroutine updateNNeigh_(species, neighList)
@@ -338,8 +333,6 @@ contains
     end if
 
   end subroutine updateNNeigh_
-
-
 
   !> Updates the atom coordinates for the SCC module.
   subroutine updateCoords_SCC(coord, species, neighList, img2CentCell)
@@ -376,7 +369,6 @@ contains
 
   end subroutine updateCoords_SCC
 
-
   !> Updates the SCC module, if the lattice vectors had been changed
   subroutine updateLatVecs_SCC(latVec, recVec, vol)
     !> New lattice vectors
@@ -410,7 +402,6 @@ contains
     tChrgUp_ = .false.
 
   end subroutine updateLatVecs_SCC
-
 
   !> Updates the SCC module, if the charges have been changed
   subroutine updateCharges_SCC(qOrbital, q0, orb, species, iNeighbor, &
@@ -446,7 +437,6 @@ contains
 
   end subroutine updateCharges_SCC
 
-
   !> Calculates various net charges needed by the SCC module.
   subroutine getNetCharges_(species, orb, qOrbital, q0, dQ, dQAtom, dQShell, &
       & dQUniqU)
@@ -476,7 +466,6 @@ contains
 
   end subroutine getNetCharges_
 
-
   !> net charges for each atomic orbital
   subroutine getNetChargesPerOrbital_(qOrbital, q0, deltaQ)
     !> orbital charges
@@ -490,7 +479,6 @@ contains
 
   end subroutine getNetChargesPerOrbital_
 
-
   !> net charges per atom
   subroutine getNetChargesPerAtom_(deltaQ, deltaQAtom)
     !> net charges
@@ -501,7 +489,6 @@ contains
     deltaQAtom(:) = sum(deltaQ(:,:), dim=1)
 
   end subroutine getNetChargesPerAtom_
-
 
   !> net charge per atomic shell
   subroutine getNetChargesPerLShell_(species, orb, deltaQ, deltaQPerLShell)
@@ -528,7 +515,6 @@ contains
 
   end subroutine getNetChargesPerLShell_
 
-
   !> net charges for orbitals with the same hubard U value on an atom
   subroutine getNetChargesPerUniqU_(species, orb, deltaQPerLShell, deltaQUniqU)
     !> chemical species
@@ -553,8 +539,6 @@ contains
     end do
 
   end subroutine getNetChargesPerUniqU_
-
-
 
   !> Set up the storage and internal values for the short range part of Gamma.
   subroutine initGamma_(coord, species, iNeighbor)
@@ -630,7 +614,6 @@ contains
 
   end subroutine getAtomicGammaMatrix
 
-
   !> Calculate  the derivative of the short range part of Gamma.
   subroutine addGammaPrime_(force, coord, species, iNeighbor, img2CentCell)
     !> force vector to add the short-range part of gamma contribution
@@ -685,7 +668,6 @@ contains
     end do
 
   end subroutine addGammaPrime_
-
 
   !> Calculate  the derivative of the short range part of Gamma.
   subroutine addSTGammaPrime_(st, coord, species, iNeighbor, img2CentCell)
@@ -758,7 +740,6 @@ contains
 
   end subroutine addSTGammaPrime_
 
-
   !> Calculates the contribution of the charge consistent part to the energy per atom.
   subroutine getEnergyPerAtom_SCC(eSCC)
     !> The SCC contribution to the energy
@@ -780,7 +761,6 @@ contains
     end if
 
   end subroutine getEnergyPerAtom_SCC
-
 
   !> Calculates SCC energy contribution using the linearized XLBOMD form.
   !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
@@ -829,8 +809,6 @@ contains
 
   end subroutine getEnergyPerAtom_SCC_Xlbomd
 
-
-
   !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
   !> which is not covered in the term with the shift vectors.
   subroutine addForceDCSCC(force, species, iNeighbor, img2CentCell, &
@@ -848,7 +826,6 @@ contains
     !> Force contribution due to the external charges, which is not contained in the term with the
     !> shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
-
 
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == nAtom_)
@@ -873,8 +850,6 @@ contains
     end if
 
   end subroutine addForceDCSCC
-
-
 
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
   !> shift vectors.
@@ -918,7 +893,6 @@ contains
     ! end if
 
   end subroutine addStressDCSCC
-
 
   !> Constructs the shift vectors for the SCC contributions.
   !> The full shift vector must be constructed by adding shiftAtom and shiftShell accordingly.
@@ -974,8 +948,6 @@ contains
 
   end subroutine buildShifts_
 
-
-
   !> Returns the shift per atom coming from the SCC part (with a spin index)
   subroutine getShiftPerAtom(shift)
     !> Contains the shift on exit.
@@ -997,8 +969,6 @@ contains
 
   end subroutine getShiftPerAtom
 
-
-
   !> Returns the shift per L contribution of the SCC. (with a spin index)
   subroutine getShiftPerL(shift)
     !> Contains the shift on exit.
@@ -1011,8 +981,6 @@ contains
     shift(:,:,1) = shiftPerL_(:,:)
 
   end subroutine getShiftPerL
-
-
 
   !> Returns the equivalency relations between orbitals of the atoms. If transfering charge between
   !> the orbitals does not change the electrostatic energy, they are considered equivalent.
@@ -1048,7 +1016,6 @@ contains
     end do
 
   end subroutine SCC_getOrbitalEquiv
-
 
   !> Calculate the "double counting" force term using linearized XLBOMD form.
   !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
@@ -1109,7 +1076,6 @@ contains
 
   end subroutine addForceDCSCC_Xlbomd
 
-
   !> Calculate the derivative of the short range contributions using the linearized XLBOMD
   !> formulation with auxiliary charges.
   subroutine addGammaPrimeXlbomd_(dQInUniqU, dQOutUniqU, coord, species, &
@@ -1167,6 +1133,5 @@ contains
     end do
 
   end subroutine addGammaPrimeXlbomd_
-
 
 end module scc

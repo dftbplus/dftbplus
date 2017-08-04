@@ -63,11 +63,9 @@ module mixer
     module procedure Mixer_getInverseJacobian
   end interface getInverseJacobian
 
-
   public :: OMixer
   public :: init, reset, mix
   public :: hasInverseJacobian, getInverseJacobian
-
 
   !> Identifying constant for each of the different mixers.
   integer, parameter :: iSimpleMixer = 1
@@ -89,7 +87,6 @@ contains
 
   end subroutine Mixer_initSimple
 
-
   !> Initializes an Anderson mixer.
   subroutine Mixer_initAnderson(self, pAnderson)
     !> Mixer instance
@@ -101,7 +98,6 @@ contains
     call move_alloc(pAnderson, self%pAndersonMixer)
 
   end subroutine Mixer_initAnderson
-
 
   !> Initializes a Broyden mixer
   subroutine Mixer_initBroyden(self, pBroyden)
@@ -115,7 +111,6 @@ contains
 
   end subroutine Mixer_initBroyden
 
-
   !> Initializes a DIIS mixer
   subroutine Mixer_initDIIS(self, pDIIS)
     !> Mixer instance
@@ -127,7 +122,6 @@ contains
     call move_alloc(pDIIS, self%pDIISMixer)
 
   end subroutine Mixer_initDIIS
-
 
   !> Resets the mixer
   subroutine Mixer_reset(self, nElem)
@@ -148,7 +142,6 @@ contains
     end select
 
   end subroutine Mixer_reset
-
 
   !> Mixes vectors together
   subroutine Mixer_mix(self, qInpRes, qDiff)
@@ -171,8 +164,6 @@ contains
     end select
 
   end subroutine Mixer_mix
-
-
 
   !> Tells whether the mixer is able to provide the inverse Jacobian.
   function Mixer_hasInverseJacobian(self) result(has)
@@ -213,6 +204,5 @@ contains
     end select
 
   end subroutine Mixer_getInverseJacobian
-
 
 end module mixer

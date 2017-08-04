@@ -32,7 +32,6 @@ module linkedList
 
 contains
 
-
   character(mc) function charMc(string)
     character(*), intent(in) :: string
 
@@ -40,13 +39,11 @@ contains
 
   end function charMc
 
-
   character(lc) function charLc(string)
     character(*), intent(in) :: string
 
     charLc = string(1:min(lc, len(string)))
 
   end function charLc
-
 
 end module linkedList

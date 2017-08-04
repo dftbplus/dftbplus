@@ -24,7 +24,6 @@ module dispiface
     procedure(getStressIface), deferred :: getStress
   end type DispersionIface
 
-
   abstract interface
     subroutine updateCoordsIface(this, neigh, img2CentCell, coords, species0)
       import :: DispersionIface, TNeighborList, dp

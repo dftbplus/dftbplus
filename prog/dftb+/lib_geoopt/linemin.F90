@@ -81,7 +81,6 @@ module linemin
 
   end type OLineMin
 
-
   !> Creates a line minimizer
   interface init
     module procedure LineMin_init
@@ -124,9 +123,7 @@ module linemin
   !> Internal state of the line minimiser algorithm
   integer, parameter :: st_1 = 1, st_2 = 2, st_3 = 3
 
-
 contains
-
 
   !> Creates a new line minimizer
   subroutine LineMin_init(self, nElem, mIter, tolerance, maxDisp)
@@ -154,8 +151,6 @@ contains
     self%maxDisp = maxDisp
     self%tInitialized = .false.
   end subroutine LineMin_init
-
-
 
   !> Resets the line minimizer
   subroutine LineMin_reset(self, x0, d0, firstStep)
@@ -187,8 +182,6 @@ contains
     self%tInitialized = .true.
 
   end subroutine LineMin_reset
-
-
 
   !> Passes the function value and the derivative of the last point to line minimizer and gives a
   !> new coordinate back.
@@ -223,8 +216,6 @@ contains
     tConverged = self%tConverged
 
   end subroutine LineMin_next
-
-
 
   !> Invisible workhorse for LineMin_next.
   subroutine next_local(state, mIter, iIter, xCur, x0, d0, xx, dx, &
@@ -384,8 +375,6 @@ contains
 
   end subroutine next_local
 
-
-
   !> Gives the coordinate of the minimal point back
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
@@ -398,8 +387,6 @@ contains
     minX(:) = self%x0(:)
 
   end subroutine LineMin_getMinX
-
-
 
   !> Returns the function at the minimal point
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
@@ -414,8 +401,6 @@ contains
 
   end subroutine LineMin_getMinY
 
-
-
   !> Gives the gradient in the minimal point back
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
@@ -429,7 +414,6 @@ contains
 
   end subroutine LineMin_getMinGrad
 
-
   !> Returns the displacement to the minimum along the line
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
@@ -442,6 +426,5 @@ contains
     minLambda = self%xx(2)
 
   end subroutine LineMin_getMinLambda
-
 
 end module linemin

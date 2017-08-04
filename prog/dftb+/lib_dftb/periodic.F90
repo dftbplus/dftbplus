@@ -91,7 +91,6 @@ contains
 
   end subroutine init_TNeighborList
 
-
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
   !> the atoms in the central cell.
   !> This subroutine uses a simple guess to get the necessary translation vectors. This results in a
@@ -124,8 +123,6 @@ contains
 
   end subroutine getCellTranslations
 
-
-
   subroutine getImgRange(imgRange, dist, recVec2p, posExt, negExt)
     integer, intent(out) :: imgRange(:,:)
     real(dp), intent(in) :: dist
@@ -146,8 +143,6 @@ contains
     end do
 
   end subroutine getImgRange
-
-
 
   !> Returns a set which definitely contains all the points of a 3D grid which are nearer to the
   !> origin than a given distance.
@@ -274,8 +269,6 @@ contains
 
   end subroutine getLatticePoints
 
-
-
   !> Fold coordinates back in the central cell
   !> Throw away the integer part of the relative coordinates of every atom. If the resulting
   !> coordinate is very near to 1.0 (closer than 1e-12 in absolute length), fold it to 0.0 to make
@@ -323,8 +316,6 @@ contains
 
   end subroutine foldCoordToUnitCell
 
-
-
   !> Updates the neighbor list and the species arrays.
   subroutine updateNeighborListAndSpecies(coord, species, img2CentCell, &
       &iCellVec, neigh, nAllAtom, coord0, species0, cutoff, rCellVec)
@@ -349,7 +340,6 @@ contains
     !> Cell vector for the translated cells to consider.
     real(dp), intent(in)               :: rCellVec(:,:)
 
-
     call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
     if (size(species) < nAllAtom) then
@@ -360,27 +350,7 @@ contains
 
   end subroutine updateNeighborListAndSpecies
 
-
-
   !> Updates the neighbor list according a given geometry.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   !> The neighborlist for the given cutoff is calculated. Arrays are resized if necessary. The
   !> neighbor list determination is a simple N^2 algorithm, calculating the distance between the
@@ -456,7 +426,6 @@ contains
     end do
     neigh%neighDist2(:,:) = 0.0_dp
 
-
     ! Loop over all possible neighbors for all atoms in the central cell.
     ! Only those neighbors are considered which map on atom with a higher
     ! or equal index in the central cell.
@@ -531,8 +500,6 @@ contains
 
   end subroutine updateNeighborList
 
-
-
   !> Returns the nr. of neighbors for a given cutoff for all atoms.
   subroutine getNrOfNeighborsForAll(nNeighbor, neigh, cutoff)
     !> Contains the nr. of neighbors for each atom on exit.
@@ -558,8 +525,6 @@ contains
     end do
 
   end subroutine getNrOfNeighborsForAll
-
-
 
   !> Returns the nr. of neighbors for a given atom.
   function getNrOfNeighbors(neigh, cutoff, iAtom) result(nNeighbor)
@@ -591,10 +556,6 @@ contains
         &tolSameDist2)
 
   end function getNrOfNeighbors
-
-
-
-
 
   !> Reallocate arrays which depends on the maximal nr. of all atoms.
   subroutine reallocateArrays1(img2CentCell, iCellVec, coord, mNewAtom)
@@ -633,8 +594,6 @@ contains
 
   end subroutine reallocateArrays1
 
-
-
   !> Reallocate array which depends on the maximal nr. of neighbors.
   subroutine reallocateArrays3(iNeighbor, neighDist2, mNewNeighbor)
     !> list of neighbours
@@ -665,8 +624,6 @@ contains
     neighDist2(:mNeighbor, :mAtom) = tmpRealR2
 
   end subroutine reallocateArrays3
-
-
 
   !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
   subroutine reallocateHS_1(ham, over, iPair, iNeighbor, nNeighbor, orb, &
@@ -732,8 +689,6 @@ contains
     end if
 
   end subroutine reallocateHS_1
-
-
 
   !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
   subroutine reallocateHS_2(ham, over, iPair, iNeighbor, nNeighbor, orb, &
@@ -860,8 +815,6 @@ contains
     end if
 
   end subroutine reallocateHS_Single
-
-
 
   !> Builds an atom offset array for the squared hamiltonain/overlap.
   subroutine buildSquaredAtomIndex(iAtomStart, orb)

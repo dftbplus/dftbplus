@@ -194,7 +194,6 @@ contains
 
   end subroutine constrainL_
 
-
   subroutine constrainJ_(shift, qIn, iShift, qBlockSkew, orb, species, &
       & conAt, conSh, Jtarget, V, vec)
     real(dp), intent(inout)     :: shift(:,:,:,:)
@@ -277,7 +276,6 @@ contains
           & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
     end do
 
-
     do iSpin = 2, nSpin
       do iOrb = orb%posShell(conSh,species(conAt)), &
           & orb%posShell(conSh+1,species(conAt))-1
@@ -285,7 +283,6 @@ contains
             & + w * vecNorm(iSpin-1)
       end do
     end do
-
 
   end subroutine constrainJ_
 

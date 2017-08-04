@@ -47,7 +47,6 @@ module mdcommon
     module procedure MDCommon_rescaleToKT
   end interface
 
-
 contains
 
   !> Creates MD Framework.
@@ -74,7 +73,6 @@ contains
 
   end subroutine MDCommon_init
 
-
   !> Shift velocities so the total velocity is 0
   subroutine  MDCommon_restFrame(sf, velocity, mass)
     !> MD Framework instance.
@@ -99,8 +97,6 @@ contains
 
   end subroutine MDCommon_restFrame
 
-
-
   !> Calculate the kinetic temperature of an integrator.
   subroutine MDCommon_evalKT(sf, kT, velocity, mass)
     !> MD Framework instance.
@@ -123,8 +119,6 @@ contains
 
   end subroutine MDCommon_evalKT
 
-
-
   !> Rescales the velocities of a system to match the target thermal energy.
   subroutine MDCommon_rescaleTokT(sf, velocity, mass, kTtarget)
     !> MD Framework instance.
@@ -146,8 +140,6 @@ contains
 
   end subroutine MDCommon_rescaleTokT
 
-
-
   !> Calculate the kinetic energy of the atoms
   subroutine evalKE(kinE, velocity, mass)
     !> resulting energy
@@ -163,8 +155,6 @@ contains
     kinE = 0.5_dp * sum(spread(mass(:),1,3) * velocity(:,:)**2)
 
   end subroutine evalKE
-
-
 
   !> Converts a uniform distribution into a Gaussian distribution.
   subroutine BoxMueller(eta1,eta2,u1,u2)
@@ -186,8 +176,6 @@ contains
     eta2 = a * sin(theta)
 
   end subroutine BoxMueller
-
-
 
   !> Draws an atom velocity from a Maxwell-Boltzmann distribution.
   subroutine MaxwellBoltzmann(velocity,mass,kT,pRanlux)

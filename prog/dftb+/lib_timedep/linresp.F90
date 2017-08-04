@@ -268,7 +268,6 @@ contains
 
   end subroutine LinResp_calcExcitations
 
-
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, self, iAtomStart, eigVec, eigVal, SSqrReal, filling, &
       & coords0, dqAt, species0, iNeighbor, img2CentCell, orb, skHamCont, skOverCont, &

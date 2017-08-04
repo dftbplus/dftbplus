@@ -20,7 +20,6 @@ module oldcompat
 
   public :: convertOldHSD
 
-
 contains
 
   !> Converts an HSD input for an older parser to the current format
@@ -62,8 +61,6 @@ contains
 
   end subroutine convertOldHSD
 
-
-
   !> Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
   subroutine convert_1_2(root)
     !> Root tag of the HSD-tree
@@ -82,7 +79,6 @@ contains
     end if
 
   end subroutine convert_1_2
-
 
   !> Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
   subroutine convert_2_3(root)
@@ -156,8 +152,6 @@ contains
 
   end subroutine convert_2_3
 
-
-
   !> Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
   subroutine convert_3_4(root)
     !> Root tag of the HSD-tree
@@ -194,7 +188,6 @@ contains
       call detailedWarning(node, "Keyword renamed to 'InitalSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
-
 
   contains
 

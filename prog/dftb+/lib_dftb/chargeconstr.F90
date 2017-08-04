@@ -44,7 +44,6 @@ module chargeconstr
     module procedure ChrgConstr_addEnergyPerAtom
   end interface
 
-
 contains
 
   !* Initializes
@@ -71,8 +70,6 @@ contains
 
   end subroutine ChrgConstr_init
 
-
-
   subroutine ChrgConstr_buildShift(sf, chargesPerAtom)
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(in) :: chargesPerAtom(:)
@@ -85,8 +82,6 @@ contains
 
   end subroutine ChrgConstr_buildShift
 
-
-
   subroutine ChrgConstr_addShiftPerAtom(sf, shiftPerAtom)
     type(OChrgConstr), intent(inout) :: sf
     real(dp), intent(inout) :: shiftPerAtom(:)
@@ -97,8 +92,6 @@ contains
     shiftPerAtom = shiftPerAtom + sf%shift
 
   end subroutine ChrgConstr_addShiftPerAtom
-
-
 
   subroutine ChrgConstr_addEnergyPerAtom(sf, energyPerAtom, chargesPerAtom)
     type(OChrgConstr), intent(inout) :: sf
@@ -113,6 +106,5 @@ contains
         &+ sf%shift * (chargesPerAtom - sf%refCharges) / real(sf%kappa, dp)
 
   end subroutine ChrgConstr_addEnergyPerAtom
-
 
 end module chargeconstr

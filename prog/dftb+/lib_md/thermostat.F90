@@ -55,7 +55,6 @@ module thermostat
 
 contains
 
-
   !!* Creates a thermostat wrapper for a DummyThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a DummyThermostat.
@@ -67,7 +66,6 @@ contains
     call move_alloc(pThermostat, self%pDummy)
 
   end subroutine Thermostat_init_Dummy
-
 
   !!* Creates a thermostat wrapper for an AndersenThermostat.
   !!* @param self Wrapper instance on exit.
@@ -81,7 +79,6 @@ contains
 
   end subroutine Thermostat_init_Andersen
 
-
   !!* Creates a thermostat wrapper for a BerendsenThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a BerendsenThermostat.
@@ -94,7 +91,6 @@ contains
 
   end subroutine Thermostat_init_Berendsen
 
-
   !!* Creates a thermostat wrapper for a NHCThermostat.
   !!* @param self Wrapper instance on exit.
   !!* @param pThermostat Pointer to a NHCThermostat.
@@ -106,7 +102,6 @@ contains
     call move_alloc(pThermostat, self%pNHC)
 
   end subroutine Thermostat_init_NHC
-
 
   !!* Returns the initial velocities
   !!* @param self Wrapper instance.
@@ -169,7 +164,5 @@ contains
     end select
 
   end subroutine Thermostat_state
-
-
 
 end module thermostat

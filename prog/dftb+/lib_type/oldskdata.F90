@@ -42,7 +42,6 @@ module oldskdata
     real(dp), allocatable :: skOver(:,:)
   end type TOldSKData
 
-
   !> Reads the data from an SK-file.
   interface readFromFile
     module procedure OldSKData_readFromFile
@@ -61,7 +60,6 @@ module oldskdata
   !> Mapping between old (spd) and new (spdf) interactions in the SK-table
   integer, parameter :: iSKInterOld(nSKInterOld) &
       & = (/8, 9, 10, 13, 14, 15, 16, 18, 19, 20/)
-
 
 contains
 
@@ -168,7 +166,6 @@ contains
 
   end subroutine OldSKData_readFromFile
 
-
   !> Reads the repulsive from an open file.
   subroutine OldSKData_readsplinerep(fp, fname, repsplinein, isp1, isp2)
     !! File identifier.
@@ -238,7 +235,6 @@ contains
 
   end subroutine OldSKData_readsplinerep
 
-
   !> Checks for IO errors and prints message.
   subroutine checkIOError(iostat, fname, msg)
     !> Flag of the IO operation.
@@ -253,6 +249,5 @@ contains
     end if
 
   end subroutine checkIOError
-
 
 end module oldskdata

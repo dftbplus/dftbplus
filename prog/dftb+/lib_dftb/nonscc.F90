@@ -29,7 +29,6 @@ module nonscc
   ! for the default initialisation triggers ICE.
   real(dp), parameter :: DELTA_X_DIFF_DEFAULT = epsilon(1.0_dp)**0.25_dp
 
-
   !> Contains settings for the derivation of the non-scc contribution.
   !!
   type :: NonSccDiff
@@ -42,7 +41,6 @@ module nonscc
     procedure :: getSecondDeriv
   end type NonSccDiff
 
-
   !> Namespace for possible differentiation methods
   !!
   type :: diffTypesEnum
@@ -50,14 +48,10 @@ module nonscc
     integer :: richardson
   end type diffTypesEnum
 
-
   !> Actual values for diffTypes.
   type(diffTypesEnum), parameter :: diffTypes = diffTypesEnum(1, 2)
 
-
-
 contains
-
 
   !> Driver for making the non-SCC Hamiltonian in the primitive sparse format.
   !!
@@ -91,7 +85,6 @@ contains
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
-
     integer :: nAtom, iAt1, iSp1, ind, iOrb1
 
     nAtom = size(nNeighbors)
@@ -112,7 +105,6 @@ contains
         & species, iPair, orb)
 
   end subroutine buildH0
-
 
   !> Driver for making the overlap matrix in the primitive sparse format.
   !!
@@ -144,7 +136,6 @@ contains
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-
     integer :: nAtom, iAt1, iSp1, ind, iOrb1
 
     nAtom = size(nNeighbors)
@@ -165,7 +156,6 @@ contains
 
   end subroutine buildS
 
-
   !> Initializes a differentiator for the non-scc contributions.
   !!
   !! Note: Second derivative can not be calculated currently via Richardson
@@ -182,7 +172,6 @@ contains
     !> Displacement for finite difference differentiation.
     real(dp), intent(in), optional :: deltaXDiff
 
-
     if (all([diffTypes%finiteDiff, diffTypes%richardson] /= diffType)) then
       call error("Invalid differentiator type in NonSccDiff_init")
     end if
@@ -192,7 +181,6 @@ contains
     end if
 
   end subroutine NonSccDiff_init
-
 
   !> Calculates the first derivative of H0 or S.
   !!
@@ -223,7 +211,6 @@ contains
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
 
-
     select case (this%diffType)
     case (diffTypes%finiteDiff)
       call getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI,&
@@ -234,7 +221,6 @@ contains
     end select
 
   end subroutine getFirstDeriv
-
 
   !> Calculates the numerical second derivative of a diatomic block of H0 or S.
   !!
@@ -265,7 +251,6 @@ contains
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
 
-
     ! Note, second derivatives are not Richardson interpolated yet, so finite
     ! difference code is invoked instead.
     select case (this%diffType)
@@ -279,11 +264,9 @@ contains
 
   end subroutine getSecondDeriv
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
   !! Helper routine to calculate the diatomic blocks for the routines
   !! buildH0 and buildS.
@@ -328,8 +311,6 @@ contains
 
   end subroutine buildDiatomicBlocks
 
-
-
   !! Calculates the numerical derivative of a diatomic block H0 or S by finite
   !! differences.
   !!
@@ -373,7 +354,6 @@ contains
     end do
 
   end subroutine getFirstDerivFiniteDiff
-
 
   !! Calculates the numerical derivative of a diatomic block H0 or S by
   !! Richardsons method.
@@ -484,7 +464,6 @@ contains
     end do
 
   end subroutine getFirstDerivRichardson
-
 
   !! Contains code to calculate the numerical second derivative of a
   !! diatomic block of the H0 Hamiltonian and overlap.

@@ -40,7 +40,6 @@ program skderivs
   call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in.xml", "skderivs_in")
   call main(inp)
 
-
 contains
 
   !> Does the main job of calculating derivatives and writing them to disc
@@ -141,8 +140,6 @@ contains
     end do
 
   end subroutine main
-
-
 
   !> Parses the HSD input
   subroutine parseHSDInput(inp, hsdInputName, xmlInputName, rootTag)
@@ -282,7 +279,6 @@ contains
 
   end subroutine parseHSDInput
 
-
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
   !> containing all integrals.
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, angShells2)
@@ -349,8 +345,6 @@ contains
 
   end subroutine getFullTable
 
-
-
   !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
   !> species.
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
@@ -376,6 +370,5 @@ contains
     end do
 
   end function getNSKIntegrals
-
 
 end program skderivs

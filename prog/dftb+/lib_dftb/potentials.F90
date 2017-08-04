@@ -41,7 +41,6 @@ module potentials
     module procedure Potentials_init
   end interface
 
-
 contains
 
   !!* Allocates storage for the potential components
@@ -80,6 +79,5 @@ contains
     self%tInitialised = .true.
 
   end subroutine Potentials_init
-
 
 end module potentials

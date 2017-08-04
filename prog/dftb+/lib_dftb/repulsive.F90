@@ -63,8 +63,6 @@ contains
 
   end subroutine getERep_total
 
-
-
   !> Subroutine for repulsive energy contributions for each atom
   subroutine getERep_atoms(reslt, coords, nNeighbors, iNeighbors, species,&
       &repCont, img2CentCell)
@@ -104,8 +102,6 @@ contains
     end do
 
   end subroutine getERep_atoms
-
-
 
   !> Subroutine for force contributions of the repulsives.
   subroutine getERepDeriv(reslt, coords, nNeighbors, iNeighbors, species, &
@@ -147,6 +143,5 @@ contains
     end do
 
   end subroutine getERepDeriv
-
 
 end module repulsive

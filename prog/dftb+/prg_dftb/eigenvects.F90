@@ -92,8 +92,6 @@ contains
 
   end subroutine realH
 
-
-
   !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
   !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
   !> effect of lapack)
@@ -503,7 +501,6 @@ contains
           & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
     end if
 
-
     ! 0 -i y part
     ! i  0
     work(:,:) = 0.0_dp
@@ -529,7 +526,6 @@ contains
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & - 0.5_dp * work(1:nOrb,1:nOrb)
     end if
-
 
     ! 1  0 z part
     ! 0 -1

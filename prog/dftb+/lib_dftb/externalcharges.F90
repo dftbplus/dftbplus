@@ -51,8 +51,6 @@ module ExternalCharges
   logical :: tUpdated_ = .false.         ! First coordinates received?
   real(dp), allocatable :: rCellVec_(:,:)  ! Real lattice points for Ewald-sum.
 
-
-
 contains
 
   !!* Initializes the calculator for external charges
@@ -123,7 +121,6 @@ contains
 
   end subroutine init_ExtChrg
 
-
   !!* Updates the module, if the lattice vectors had been changed
   !!* @param latVecs  New lattice vectors
   !!* @param recVecs  New reciprocal lattice vectors.
@@ -142,7 +139,6 @@ contains
         & recVecs / (2.0_dp * pi), ewaldCutoff)
 
   end subroutine updateLatVecs_ExtChrg
-
 
   !!* Builds the new shift vectors for new atom coordinates
   !!* @param atomCoords Coordinates of the atoms (not the point charges!)
@@ -165,8 +161,6 @@ contains
 
   end subroutine updateCoords_ExtChrg_cluster
 
-
-
   !!* Builds the new shift vectors for new atom coordinates
   !!* @param atomCoords Coordinates of the atoms (not the point charges!)
   subroutine updateCoords_ExtChrg_periodic(atomCoords, gLat, alpha, &
@@ -188,8 +182,6 @@ contains
     tUpdated_ = .true.
 
   end subroutine updateCoords_ExtChrg_periodic
-
-
 
   !!* Adds the contribution of the external charges to the shift vector
   !!* @param shift Shift vector to add the contribution to.
@@ -215,8 +207,6 @@ contains
 
   end subroutine addShift2
 
-
-
   !!* Adds the atomic energy contribution do to the external charges.
   !!* @param atomCharges Charge of the atoms
   !!* @param energy Vector containing the energy per atom values.
@@ -231,8 +221,6 @@ contains
     energy(:) = energy(:) + invRVec_(:) * atomCharges(:)
 
   end subroutine addEnergyPerAtom_ExtChrg
-
-
 
   !!* Adds that part of force contribution due to the external charges, which is
   !!* not contained in the term with the shift vectors.
@@ -261,8 +249,6 @@ contains
     end if
 
   end subroutine addForceDCSCC_ExtChrg_cluster
-
-
 
   !!* Adds that part of force contribution due to the external charges, which is
   !!* not contained in the term with the shift vectors.
@@ -293,6 +279,5 @@ contains
         &vol)
 
   end subroutine addForceDCSCC_ExtChrg_periodic
-
 
 end module ExternalCharges

@@ -20,7 +20,6 @@ module dispersions
   implicit none
   public
 
-
   type :: DispersionInp
     type(DispUffInp), allocatable :: uff
     type(DispSlaKirkInp), allocatable :: slakirk

@@ -30,7 +30,6 @@ module dispuff_module
 
   public :: DispUffInp, DispUff, DispUff_init
 
-
   !! Input structure for the van der Waals initialization.
   type :: DispUffInp
     !> potential depths (nSpecies)
@@ -39,7 +38,6 @@ module dispuff_module
     !> van der Waals radii (nSpecies)
     real(dp), allocatable :: distances(:)
   end type DispUffInp
-
 
   !> Internal state of the van der Waals dispersion module.
   type, extends(DispersionIface) :: DispUff
@@ -68,8 +66,6 @@ module dispuff_module
     procedure :: getStress
     procedure :: getRCutoff
   end type DispUff
-
-
 
 contains
 
@@ -156,7 +152,6 @@ contains
 
   end subroutine DispUff_init
 
-
   !> Notifies the objects about changed coordinates.
   !!
   !! \param neigh  Updated neighbor list.
@@ -195,7 +190,6 @@ contains
 
   end subroutine updateCoords
 
-
   !> Notifies the object about updated lattice vectors.
   !!
   !! \param latVecs  New lattice vectors
@@ -225,7 +219,6 @@ contains
 
   end subroutine updateLatVecs
 
-
   !> Returns the atomic resolved energies due to the dispersion.
   !!
   !! \param energies  Contains the atomic energy contributions on exit.
@@ -240,7 +233,6 @@ contains
     energies(:) = this%energies(:)
 
   end subroutine getEnergies
-
 
   !> Adds the atomic gradients to the provided vector.
   !!
@@ -257,7 +249,6 @@ contains
 
   end subroutine addGradients
 
-
   !> Returns the stress tensor.
   !!
   !! \param stress tensor from the dispersion
@@ -273,7 +264,6 @@ contains
 
   end subroutine getStress
 
-
   !> Estimates the real space cutoff of the dispersion interaction.
   !!
   !! \return Cutoff
@@ -285,7 +275,6 @@ contains
     cutoff = max(this%rCutoff, this%ewaldRCut)
 
   end function getRCutoff
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines

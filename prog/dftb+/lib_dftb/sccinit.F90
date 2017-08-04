@@ -30,8 +30,6 @@ module sccinit
   !> version number for restart format, please increment if you change the interface.
   integer, parameter :: restartFormat = 3
 
-
-
 contains
 
   !> Initialise the charge vector from the reference atomic charges
@@ -87,7 +85,6 @@ contains
 
   end subroutine initQFromAtomChrg
 
-
   !> Initialise the charge vector from the reference atomic charges results in a set of charges
   !> appropriate for the neutral spin unpolarised atom reference system that DFTB assumes for
   !> SCC/spin extensions
@@ -126,7 +123,6 @@ contains
 
   end subroutine initQFromShellChrg
 
-
   !> Initialise the charge vector from a named external file. Check the total
   !> charge matches that expected for the calculation.
   !> Should test of the input, if the number of orbital charges per atom match the number from the
@@ -158,7 +154,6 @@ contains
     ! of the file
     real(dp) :: sumQ
     logical  :: tBlockPresent, tiBlockPresent
-
 
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
@@ -312,7 +307,6 @@ contains
     close(file)
 
   end subroutine initQFromFile
-
 
   !> Write the current charges to an external file
   subroutine writeQToFile(qq, fileName, orb, qBlock, qiBlock)

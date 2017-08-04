@@ -13,7 +13,6 @@ module unitconversion
 
   public
 
-
   !> Contains name of a unit and its conversion factor
   type unit
     !> label for conversion factor
@@ -21,7 +20,6 @@ module unitconversion
     !> its value
     real(dp) :: convertValue
   end type unit
-
 
   !> Number of length units
   integer, parameter :: nLengthUnit = 8
@@ -37,7 +35,6 @@ module unitconversion
       &unit("picometer           ", 1.0e-2_dp * AA__Bohr), &
       &unit("au                  ", 1.0_dp) &
       /)
-
 
   !> Number of energy units
   integer, parameter :: nEnergyUnit = 13
@@ -59,7 +56,6 @@ module unitconversion
       &unit("au                  ", 1.0_dp) &
       &/)
 
-
   !> Number of force units
   integer, parameter :: nForceUnit = 7
 
@@ -73,7 +69,6 @@ module unitconversion
       &unit("joule/m             ", J__Hartree / (1.0e10_dp * AA__Bohr)), &
       &unit("au                  ", 1.0_dp) &
       &/)
-
 
   !> Number of time units
   integer, parameter :: nTimeUnit = 7
@@ -114,7 +109,6 @@ module unitconversion
       &unit("bohr^3              ", 1.0_dp), &
       &unit("au                  ", 1.0_dp) &
       &/)
-
 
   !> Number of charge units
   integer, parameter :: nChargeUnit = 4

@@ -37,8 +37,6 @@ module MolecularOrbital
     real(dp), allocatable :: occupations(:)
   end type TSpeciesBasis
 
-
-
   !> Data type containing information for molecular orbital calculator
   type OMolecularOrbital
     private
@@ -178,8 +176,6 @@ contains
 
   end subroutine MolecularOrbital_init
 
-
-
   !> Returns molecular orbitals on a grid
   subroutine MolecularOrbital_getValue_real(self, origin, gridVecs, &
       &eigVecsReal, valueOnGrid, addDensities)
@@ -223,8 +219,6 @@ contains
 
   end subroutine MolecularOrbital_getValue_real
 
-
-
   !> Returns molecular orbitals on a grid
   subroutine MolecularOrbital_getValue_cmpl(self, origin, gridVecs, &
       &eigVecsCmpl, kPoints, kIndexes, valueOnGrid)
@@ -266,8 +260,6 @@ contains
         &self%cellVec, tAddDensities, valueReal, valueOnGrid)
 
   end subroutine MolecularOrbital_getValue_cmpl
-
-
 
   !> Returns the values of several molecular orbitals on grids.
   !> Caveat: The flag tPeriodic decides if the complex or the real version is read/written for the
@@ -335,7 +327,6 @@ contains
     real(dp) :: xx, val
     integer :: nPoints(4)
     integer :: ind, i1, i2, i3, iEig, iAtom, iOrb, iM, iSpecies, iL, iCell
-
 
     ! Array for the contribution of each orbital (and its periodic images)
     if (tReal) then
@@ -445,6 +436,5 @@ contains
     end do lpI3
 
   end subroutine local_getValue
-
 
 end module MolecularOrbital

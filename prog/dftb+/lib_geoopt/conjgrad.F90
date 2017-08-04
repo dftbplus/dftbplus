@@ -110,7 +110,6 @@ contains
 
   end subroutine ConjGrad_init
 
-
   !> Resets CG minimizer
   subroutine ConjGrad_reset(self, x0)
     !> CG minimizer
@@ -126,8 +125,6 @@ contains
     self%tInitialized = .true.
 
   end subroutine ConjGrad_reset
-
-
 
   !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
   !> back.  When calling the first time, funciton value and gradient for the starting point of the
@@ -155,8 +152,6 @@ contains
     xNew(:) = self%uu(:)
     tConverged = self%tConverged
   end subroutine ConjGrad_next
-
-
 
   !> Workhorse for the CG minimizer.
   subroutine next_local(state, gg, hh, uu, tConverged, tolerance, pLinMin, fu,&
@@ -234,8 +229,6 @@ contains
 
   end subroutine next_local
 
-
-
   !> Gives the coordinate of the minimal point back
   !> The returned value is meaningless if the subroutine is called
   !>   before the CG minimizer signals convergence.
@@ -251,8 +244,6 @@ contains
 
   end subroutine ConjGrad_getMinX
 
-
-
   !> Gives the function value in the minimal point back.
   !> The returned value is meaningless if the subroutine is called before the CG minimizer
   !>   signals convergence.
@@ -266,8 +257,6 @@ contains
     call getMinY(self%pLinMin, minY)
 
   end subroutine ConjGrad_getMinY
-
-
 
   !> Gives the gradient in the minimal point back
   !> The returned value is meaningless if the subroutine is called before the CG minimizer signals

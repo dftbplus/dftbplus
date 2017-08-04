@@ -42,7 +42,6 @@ module randomgenpool
 
 contains
 
-
   !> Intialises a random generator pool.
   subroutine RandomGenPool_init(this, seed, oldCompat)
 
@@ -91,7 +90,6 @@ contains
 
   end subroutine RandomGenPool_init
 
-
   !> Returns a random generator.
   subroutine getGenerator(this, randomGenerator)
 
@@ -126,6 +124,5 @@ contains
     @:ASSERT(this%served < huge(this%served))
 
   end subroutine getGenerator
-
 
 end module randomgenpool

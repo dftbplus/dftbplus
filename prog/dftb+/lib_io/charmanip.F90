@@ -37,14 +37,11 @@ module charmanip
   !> Maximal character length for integers (including sign)
   integer, parameter :: maxIntLen = range(1) + 2
 
-
-
   public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c, i2c_len
   public :: getNextQuotationPos, getFirstOccurance, complementaryScan
   public :: unquotedScan
   public :: space, lineFeed, carriageReturn, tabulator, whiteSpaces, newline
   public :: convertWhitespaces
-
 
 contains
 
@@ -96,8 +93,6 @@ contains
     unqIndex = strPos
 
   end function unquotedIndex
-
-
 
   !> Unquotes a string by removing the paired quotation marks
   function unquote(string, optLower) result(unquoted)
@@ -154,8 +149,6 @@ contains
 
   end function unquote
 
-
-
   !> Returns the starting and ending position of the next quotation
   !> Note: Starting and ending positions are retuned as integer greater than the string length if
   !> there is not a match for the quotes string
@@ -195,8 +188,6 @@ contains
 
   end subroutine getNextQuotationPos
 
-
-
   !> Returns the first occurance of any of the passed substrings in a string
   subroutine getFirstOccurance(string, substrs, masks, iSubstr, pos)
     !> String to investigate
@@ -230,8 +221,6 @@ contains
     end do
 
   end subroutine getFirstOccurance
-
-
 
   !> Scans a string for the first character not part of a supplied set.
   pure function complementaryScan(string, set, back) result(ind)
@@ -277,8 +266,6 @@ contains
     end do
 
   end function complementaryScan
-
-
 
   !> Returns the first unquoted occurance of a substring in a string
   function unquotedScan(string, set) result(unqIndex)
@@ -328,8 +315,6 @@ contains
 
   end function unquotedScan
 
-
-
   !> Length of a trimmed string if CR, LF and TAB count as trimmed characters.
   pure function len_trim2(string)
     !> String to investigate
@@ -341,8 +326,6 @@ contains
 
   end function len_trim2
 
-
-
   !> Returns a trimmed string if CR, LF and TAB count as trimmed characters.
   function trim2(string)
     !> String to trim
@@ -353,8 +336,6 @@ contains
     trim2 = string(:len(trim2))
 
   end function trim2
-
-
 
   !> Returns a lowercase string
   pure function tolower(str) result(lower)
@@ -376,8 +357,6 @@ contains
 
   end function tolower
 
-
-
   !> Calculates for i2c the length of the string to hold the converted number
   pure function i2c_len(number)
     !> Number to convert
@@ -391,8 +370,6 @@ contains
     i2c_len = len_trim(i2c)
 
   end function i2c_len
-
-
 
   !> Converts an integer to a character string
   !> caveat: Works only if the integer can be represented in 10 characters
@@ -410,8 +387,6 @@ contains
 
   end function i2c
 
-
-
   !> Replaces whitespace characters not recognised by Fortran as such by spaces.
   subroutine convertWhitespaces(str)
     !> String to process.
@@ -426,7 +401,5 @@ contains
     end do
 
   end subroutine convertWhitespaces
-
-
 
 end module charmanip

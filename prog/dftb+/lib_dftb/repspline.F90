@@ -32,7 +32,6 @@ module repspline
     real(dp) :: cutoff
   end type TRepSplineIn
 
-
   !> Contains the spline representation of a repulsive.
   type ORepSpline
     private
@@ -51,7 +50,6 @@ module repspline
     !> Initialisation status
     logical :: tInit = .false.
   end type ORepSpline
-
 
   !> Initialises spline repulsive.
   interface init
@@ -73,7 +71,6 @@ module repspline
     module procedure RepSpline_getEnergyDeriv
   end interface
 
-
 contains
 
   !> Initialises spline repulsive.
@@ -82,7 +79,6 @@ contains
     type(ORepSpline), intent(out) :: self
     !> Input parameters for the spline repulsive.
     type(TRepSplineIn), intent(in) :: inp
-
 
     @:ASSERT(.not. self%tInit)
     @:ASSERT(size(inp%xStart) > 0)
@@ -102,8 +98,6 @@ contains
 
   end subroutine RepSpline_init
 
-
-
   !> Returns cutoff of the repulsive.
   function RepSpline_getCutoff(self) result(cutoff)
     !> Spline repulsive.
@@ -114,8 +108,6 @@ contains
     cutoff = self%cutoff
 
   end function RepSpline_getCutoff
-
-
 
   !> Returns energy of the repulsive for a given distance.
   subroutine RepSpline_getEnergy(self, res, rr)
@@ -161,8 +153,6 @@ contains
     end if
 
   end subroutine RepSpline_getEnergy
-
-
 
   !> Returns gradient of the repulsive for a given distance.
   subroutine RepSpline_getEnergyDeriv(self, grad, xx, d2)
@@ -228,8 +218,6 @@ contains
     end if
     grad(:) = d1 * xx(:) / rr
 
-
   end subroutine RepSpline_getEnergyDeriv
-
 
 end module repspline

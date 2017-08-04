@@ -27,7 +27,6 @@ module formatout
     module procedure clearFile_fname
   end interface clearFile
 
-
   !> Writes geometry information in gen format to a file
   interface writeGenFormat
     module procedure writeGenFormat_fname
@@ -46,8 +45,6 @@ module formatout
     module procedure writeSparseAsSquare_cplx
   end interface writeSparseAsSquare
 
-
-
 contains
 
   !> Clears contents of file
@@ -64,8 +61,6 @@ contains
     close(fd)
 
   end subroutine clearFile_fname
-
-
 
   !> A wrapper around writeGenFormat_fid to open a file first.
   subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord)
@@ -94,8 +89,6 @@ contains
     close(fd)
 
   end subroutine writeGenFormat_fname
-
-
 
   !> Writes coordinates in the famous GEN format to a file
   subroutine writeGenFormat_fid(fd, coord, species, speciesName, latVec, tFracCoord)
@@ -171,8 +164,6 @@ contains
     end if
   end subroutine writeGenFormat_fid
 
-
-
   !> Writes coordinates in the XYZ format
   subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities, &
       & comment)
@@ -202,8 +193,6 @@ contains
     close(fd)
 
   end subroutine writeXYZFormat_fname
-
-
 
   !> Writes coordinates in the XYZ format with additional charges and vectors
   subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, comment)
@@ -274,8 +263,6 @@ contains
 
   end subroutine writeXYZFormat_fid
 
-
-
   !> Writes the greeting message of dftb+ on stdout
   subroutine printDFTBHeader(release, year)
     !> release version of the code
@@ -309,7 +296,6 @@ contains
     write(*, '(A,/,2A,/)') vbar, vbar, repeat(hbar, headerWidth - 1)
 
   end subroutine printDFTBHeader
-
 
   !> Converts a sparse matrix to its square form and write it to a file.
   subroutine writeSparseAsSquare_real(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
@@ -350,8 +336,6 @@ contains
     close(fd)
 
   end subroutine writeSparseAsSquare_real
-
-
 
   !> Converts a sparse matrix to its square form and write it to a file.
   subroutine writeSparseAsSquare_cplx(fname, sparse, kPoints, iNeighbor, nNeighbor, iAtomStart, &
@@ -404,8 +388,6 @@ contains
     close(fd)
 
   end subroutine writeSparseAsSquare_cplx
-
-
 
   !> Writes a sparse matrix to a file.
   subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
@@ -464,7 +446,5 @@ contains
     close(fd)
 
   end subroutine writeSparse
-
-
 
 end module formatout

@@ -32,7 +32,6 @@ module sk
 
 contains
 
-
   !!* Driver for making the non-SCC hhamiltonian or overlap matrices
   !!* for a given diatomic block
   !!* @param hh the rectangular matrix containing the resulting diatomic
@@ -134,8 +133,6 @@ contains
 
   end subroutine rotateH0
 
-
-
   !!* rotation routine for interaction of an s orbital with an s orbital
   !!* @param hh dimeric block to put the results in to
   !!* @param ll directional cosine ll
@@ -152,8 +149,6 @@ contains
     hh(1,1) = sk(1)
 
   end subroutine ss
-
-
 
   !!* rotation routine for interaction of an s orbital with a p orbital
   !!* @param hh dimeric block to put the results in to
@@ -174,8 +169,6 @@ contains
     hh(3,1) = ll*sk(1)
 
   end subroutine sp
-
-
 
   !!* rotation routine for interaction of an s orbital with a d orbital
   !!* @param hh dimeric block to put the results in to
@@ -198,8 +191,6 @@ contains
     hh(5,1) = (2.0_dp*ll**2-1.0_dp+nn**2)*sqrt(3.0_dp)*sk(1)/2.0_dp
 
   end subroutine sd
-
-
 
   !!* rotation routine for interaction of an s orbital with an f orbital
   !!* @param hh dimeric block to put the results in to
@@ -229,8 +220,6 @@ contains
 
   end subroutine sf
 
-
-
   !!* rotation routine for interaction of a p orbital with a p orbital
   !!* @param hh dimeric block to put the results in to
   !!* @param ll directional cosine ll
@@ -256,8 +245,6 @@ contains
     hh(3,3) = ll**2*sk(1)+(1.0_dp-ll**2)*sk(2)
 
   end subroutine pp
-
-
 
   !!* rotation routine for interaction of a p orbital with a d orbital
   !!* @param hh dimeric block to put the results in to
@@ -302,8 +289,6 @@ contains
         &-((nn**2-2.0_dp+2.0_dp*ll**2)*ll*sk(2))
 
   end subroutine pd
-
-
 
   !!* rotation routine for interaction of a p orbital with an f orbital
   !!* @param hh dimeric block to put the results in to
@@ -381,8 +366,6 @@ contains
 
   end subroutine pf
 
-
-
   !!* rotation routine for interaction of a d orbital with a d orbital
   !!* @param hh dimeric block to put the results in to
   !!* @param ll directional cosine ll
@@ -453,8 +436,6 @@ contains
         &+(ll**2*nn**2)+(nn**2)/2.0_dp+1.0_dp/4.0_dp-(ll**2)+(ll**4))*sk(3)
 
   end subroutine dd
-
-
 
   !!* rotation routine for interaction of a d orbital with an f orbital
   !!* @param hh dimeric block to put the results in to
@@ -635,8 +616,6 @@ contains
 
   end subroutine df
 
-
-
   !!* rotation routine for interaction of an f orbital with an f orbital
   !!* @param hh dimeric block to put the results in to
   !!* @param ll directional cosine ll
@@ -650,7 +629,6 @@ contains
 
     @:ASSERT(size(sk) == 4)
     @:ASSERT(all(shape(hh) >= (/ 7, 7 /)))
-
 
     hh(1,1) = - 5.0_dp/ 8.0_dp*(-1.0_dp+nn**2+ll**2)*((4.0_dp*ll**2-1.0_dp&
         &+nn**2)**2)*sk(1)+(15.0_dp/16.0_dp*(nn**6)- 15.0_dp&
@@ -887,6 +865,5 @@ contains
         &*sk(4)
 
   end subroutine ff
-
 
 end module sk

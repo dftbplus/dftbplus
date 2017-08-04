@@ -85,7 +85,6 @@ contains
 
   end subroutine getNetCharges
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -98,7 +97,6 @@ contains
 
   end subroutine getNetChargesPerOrbital
 
-
   subroutine getNetChargesPerAtom(deltaQ, deltaQAtom)
     real(dp), intent(in) :: deltaQ(:,:)
     real(dp), intent(out) :: deltaQAtom(:)
@@ -106,7 +104,6 @@ contains
     deltaQAtom(:) = sum(deltaQ, dim=1)
 
   end subroutine getNetChargesPerAtom
-
 
   subroutine getNetChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
     integer, intent(in) :: species(:)
@@ -127,7 +124,6 @@ contains
     end do
 
   end subroutine getNetChargesPerLShell
-
 
   subroutine getNetChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU,&
       & deltaQUniqU)
@@ -150,6 +146,5 @@ contains
     end do
 
   end subroutine getNetChargesPerUniqU
-
 
 end module charges

@@ -26,7 +26,6 @@ module etemp
 
   public :: Efilling, electronFill, Fermi, Gaussian, Methfessel
 
-
   !* Definition of a type of broadening function - Fermi-Dirac in this case
   integer, parameter :: Fermi = 0
 
@@ -37,9 +36,7 @@ module etemp
   !* Methfessel + n as a value
   integer, parameter :: Methfessel = 1
 
-
   real(dp), parameter :: epsilon2 = 2.0_dp * epsilon(1.0_dp)
-
 
 contains
 
@@ -192,7 +189,6 @@ contains
 
   end subroutine Efilling
 
-
   !!* Calculates the number of electrons for a given Fermi energy and
   !!* distribution function
   !!* @param Ef Fermi energy for given distribution
@@ -268,7 +264,6 @@ contains
     end if
   end function electronCount
 
-
   !!* Calculates the derivative of the number of electrons for a given Fermi
   !!* energy and distribution function
   !!* @param Ef Fermi energy for given distribution
@@ -318,7 +313,6 @@ contains
       end do
     end if
   end function derivElectronCount
-
 
   !!* Calculate filling and TS for the given eigenspectrum and distribution
   !!* function and Fermi energy, for two spin channels
@@ -450,7 +444,6 @@ contains
 
   end subroutine electronFill
 
-
   !!* Calculate the weighting factors for the Methfessel-Paxton smearing scheme
   !!* @param A returned weighting values for the scheme, given by
   !!* $A_n = \frac{(-1)^n}{n!4^n\sqrt{\pi]}$
@@ -469,7 +462,6 @@ contains
       A(i) = real((-1)**i,dp)/(nbang(i)*real(4**i,dp)*sqrt(pi))
     end do
   end subroutine Aweights
-
 
   !! Middle gap position, assuming aufbau principle for the filling
   function middleGap(eigenvals, kWeight, nElectrons)
@@ -504,6 +496,5 @@ contains
     middleGap = 0.5_dp * (eigenvals(jOrb, jKpt, jSpin) + eigenvals(iOrb, iKpt, iSpin))
 
   end function middleGap
-
 
 end module etemp

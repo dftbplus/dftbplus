@@ -99,7 +99,6 @@ contains
 
   end subroutine VelocityVerlet_themostats
 
-
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities
   subroutine VelocityVerlet_velocities(self, deltaT, positions, pThermostat, &
@@ -180,7 +179,6 @@ contains
 
   end subroutine VV_themostats_pressure
 
-
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities and barostat isotropic
   !> pressure
@@ -231,7 +229,6 @@ contains
     self%tIsotropic = tIsotropic
 
   end subroutine VV_velocities_pressure
-
 
   !> Takes a timestep for the MD integrator, optionally with a thermostat.
   !> Due to the way the velocity Verlet is split, the returned velocity is for 1 complete MD step

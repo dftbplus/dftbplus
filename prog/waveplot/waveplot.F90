@@ -198,7 +198,6 @@ program waveplot
     deallocate(rCellVec)
   end if
 
-
   ! Calculate the molecular orbitals and write them to the disc
   iSpinOld = 1
   tFinished = .false.
@@ -332,7 +331,6 @@ program waveplot
     write (*, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
-
 contains
 
   !> Writes a 3D function as cube file.
@@ -427,7 +425,5 @@ contains
     close(fd)
 
   end subroutine writeCubeFile
-
-
 
 end program waveplot

@@ -22,7 +22,6 @@ module simplemixer
     real(dp) :: mixParam
   end type OSimpleMixer
 
-
   !> Creates a SimpleMixer instance
   interface init
     module procedure SimpleMixer_init
@@ -38,10 +37,8 @@ module simplemixer
     module procedure SimpleMixer_mix
   end interface
 
-
   public :: OSimpleMixer
   public :: init, reset, mix
-
 
 contains
 
@@ -56,7 +53,6 @@ contains
 
   end subroutine SimpleMixer_init
 
-
   !> Resets the mixer
   subroutine SimpleMixer_reset(self, nElem)
     !> Simple mixer instance
@@ -69,8 +65,6 @@ contains
     continue
 
   end subroutine SimpleMixer_reset
-
-
 
   !> Does the actual mixing
   subroutine SimpleMixer_mix(self, qInpResult, qDiff)
@@ -86,6 +80,5 @@ contains
     qInpResult(:) = qInpResult(:) + self%mixParam * qDiff(:)
 
   end subroutine SimpleMixer_mix
-
 
 end module simplemixer

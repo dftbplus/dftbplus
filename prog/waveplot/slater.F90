@@ -43,13 +43,10 @@ module Slater
     module procedure SlaterOrbital_assign
   end interface
 
-
   public :: RealTessY
   public :: OSlaterOrbital, init, getValue, assignment(=)
 
-
 contains
-
 
   !> Returns the real tesseral spherical harmonics in a given point
   !> This function only work for angular momenta between 0 and 3 (s-f).
@@ -154,8 +151,6 @@ contains
 
   end function RealTessY
 
-
-
   !> Initialises a SlaterOrbital.
   subroutine SlaterOrbital_init(self, aa, alpha, ll, resolution, cutoff)
     !> SlaterOrbital instance to initialise
@@ -206,7 +201,6 @@ contains
 
   end subroutine SlaterOrbital_init
 
-
   !> Retunrns the value of the SlaterOrbital in a given point
   subroutine SlaterOrbital_getValue(self, rr, sto)
     !> SlaterOrbital instance
@@ -232,8 +226,6 @@ contains
     end if
 
   end subroutine SlaterOrbital_getValue
-
-
 
   !> Calculates the value of an STO analytically
   subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, sto)
@@ -277,8 +269,6 @@ contains
 
   end subroutine SlaterOrbital_getValue_explicit
 
-
-
   !> An STO assignement with proper memory allocation (deep copy)
   elemental subroutine SlaterOrbital_assign(left, right)
     !> Left value of the assignment
@@ -303,7 +293,5 @@ contains
     left%nGrid = right%nGrid
 
   end subroutine SlaterOrbital_assign
-
-
 
 end module Slater
