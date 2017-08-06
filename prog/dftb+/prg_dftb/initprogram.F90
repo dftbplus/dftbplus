@@ -1400,6 +1400,8 @@ contains
         call error("Linear reponse does not work with non-colinear spin polarization yet")
       elseif (tSpin .and. tForces) then
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
+      elseif (tPeriodic .and. tForces) then
+        call error("excited state relaxation is not implemented yet periodic systems")
       elseif (tPeriodic .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular&
             & crystals")

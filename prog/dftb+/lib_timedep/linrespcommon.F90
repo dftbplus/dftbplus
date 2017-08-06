@@ -249,15 +249,16 @@ contains
     integer, intent(in)  :: nxov
     !> array of the occupied->virtual pairs
     integer, intent(in)  :: getij(:,:)
-    !> resulting index array
+    !> resulting index array from orbital pairs to compound index
     integer, intent(out) :: iatrans(:,nocc+1:)
 
     integer :: ia
 
     @:ASSERT(size(getij,dim=2) == 2)
 
-    ! Store reverse indices.
-    ! BA: If wij would not be sorted, it would be a trivial transformation.
+    ! Store reverse indices
+
+    ! If wij was not sorted, it would be a trivial transformation.
     do ia = 1, nxov
       iatrans( getij(win(ia),1), getij(win(ia),2) ) = ia
     end do

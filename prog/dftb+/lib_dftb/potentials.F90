@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Module to wrap around the different shift contributions in the DFTB
-!!* energy expressions
+!> Module to wrap around the different shift contributions in the DFTB energy expressions
 module potentials
   use assert
   use accuracy, only : dp
@@ -19,21 +18,28 @@ module potentials
 
   private
 
-  !!* data type to store components of the internal and external potential as
-  !!* named variables - makes extending expressions easier.
-  !!* @note the reason for splitting internal and external potentials is that
-  !!* internals require 0.5 scaling for double counting when evaluating total
-  !!* energies
+  !> data type to store components of the internal and external potential as named variables - makes
+  !> extending expressions easier.
+  !>
+  !> Note: the reason for splitting internal and external potentials is that internals require 0.5
+  !> scaling for double counting when evaluating total energies
   type TPotentials
     logical :: tInitialised = .false.
-    real(dp), allocatable :: intAtom(:,:) ! internal atom and spin resolved pot.
+    !> internal atom and spin resolved potential
+    real(dp), allocatable :: intAtom(:,:)
+    !> internal shell and spin resolved potential
     real(dp), allocatable :: intShell(:,:,:)
+    !> internal block and spin resolved potential
     real(dp), allocatable :: intBlock(:,:,:,:)
-    real(dp), allocatable :: extAtom(:,:) ! external atom and spin resolved pot.
+    !> external atom and spin resolved potential
+    real(dp), allocatable :: extAtom(:,:)
+    !> external shell and spin resolved potential
     real(dp), allocatable :: extShell(:,:,:)
+    !> external block and spin resolved potential
     real(dp), allocatable :: extBlock(:,:,:,:)
-    real(dp), allocatable :: orbitalBlock(:,:,:,:) ! pSIC/DFTB+U etc.
-    ! L.S etc where these are imaginary coefficients
+    !> pSIC/DFTB+U etc. potential
+    real(dp), allocatable :: orbitalBlock(:,:,:,:)
+    !> L.S etc where these are imaginary coefficients
     real(dp), allocatable :: iorbitalBlock(:,:,:,:)
   end type TPotentials
 
@@ -43,15 +49,15 @@ module potentials
 
 contains
 
-  !!* Allocates storage for the potential components
-  !!* @param self data structure to allocate
-  !!* @param orb information about the orbitals and their angular momenta
-  !!* @param nAtom number of atoms needed for atom resolved arrays
-  !!* @param nSpin number of spins
+  !> Allocates storage for the potential components
   subroutine Potentials_init(self,orb,nAtom,nSpin)
+    !> data structure to allocate
     type(TPotentials), intent(out) :: self
+    !> information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+    !> number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
+    !> number of spins
     integer, intent(in) :: nSpin
 
     @:ASSERT(.not. self%tInitialised)

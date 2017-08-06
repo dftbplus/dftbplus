@@ -1727,7 +1727,16 @@ program dftbplus
     energy%Eexcited = 0.0_dp
     excitedDerivs = 0.0_dp
     if (tLinResp) then
-      @:ASSERT(.not. t3rd .and. tRealHS)
+      if (t3rd) then
+        call error("Third order currently incompatible with excited state")
+      end if
+      if (.not.tRealHS) then
+        call error("Only real systems are supported for excited state calculations")
+      end if
+      if (tPeriodic .and. tForces) then
+        call error("Forces in the excited state for periodic geometries are currently unavailable")
+      end if
+      
       dqAtom = sum( qOutput(:,:,1) - q0(:,:,1) , dim=1)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor,&
           & iAtomStart, iPair, img2CentCell)

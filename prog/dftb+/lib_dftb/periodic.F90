@@ -845,17 +845,16 @@ contains
   !> sum(shift(i)*B(i)) where B(i) are the reciprocal lattice vectors of the super lattice.
   !> Finally, points equivalent by inversion are reduced, unless specified otherwise.
   subroutine getSuperSampling(coeffs, shifts, kPoints, kWeights, reduceByInversion)
-    !> @param coeffs Coefficients of the lattice vectors in the linear combination for the super
-    !> lattice vectors (should be integer values)
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !> (should be integer values)
     real(dp), intent(in) :: coeffs(:,:)
-    !> @param shifts Shift of the grid along the three small reciprocal lattice vectors (between 0.0
-    !> and 1.0)
+    !> Shift of the grid along the three small reciprocal lattice vectors (between 0.0 and 1.0)
     real(dp), intent(in) :: shifts(:)
-    !> @param kPoints Contains the kPoints on exit.
+    !> Contains the kPoints on exit.
     real(dp), allocatable, intent(out) :: kPoints(:,:)
-    !> @param kWeights Contains the weights of the kPoints on exit.
+    !> Contains the weights of the kPoints on exit.
     real(dp), allocatable, intent(out) :: kWeights(:)
-    !> @param reduceByInversion If points equivalent by inversion should be reduced.
+    !> If points equivalent by inversion should be reduced.
     logical, intent(in), optional :: reduceByInversion
 
     real(dp), allocatable :: allKPoints(:,:), allKWeights(:)
