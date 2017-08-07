@@ -7,8 +7,9 @@
 
 #:include 'common.fypp'
 
-!!* Contains routines for the additional local potential, which should enforce
-!!* charge constraints.
+!> Contains routines for the additional local potential, which should enforce charge constraints.
+!>
+!> Note: this also has the same functional form as 3rd order SCC contributions
 module chargeconstr
   use assert
   use accuracy
@@ -18,41 +19,52 @@ module chargeconstr
   public :: OChrgConstr, init
   public :: buildShift, addShiftPerAtom, addEnergyPerAtom
 
+  !> Constraint object
   type OChrgConstr
     private
+    !> Instance initialised?
     logical :: tInit = .false.
+    !> Number of atoms
     integer :: nAtom
+    !> Exponent of potential
     integer :: kappa
+    !> Target charges
     real(dp), allocatable :: refCharges(:)
+    !> Prefactor for constraint
     real(dp), allocatable :: prefactors(:)
+    !> Potential from constraint
     real(dp), allocatable :: shift(:)
   end type OChrgConstr
 
+  !> Initialise
   interface init
     module procedure ChrgConstr_init
   end interface
 
+  !> build the shift
   interface buildShift
     module procedure ChrgConstr_buildShift
   end interface
 
+  !> add the shift in
   interface addShiftPerAtom
     module procedure ChrgConstr_addShiftPerAtom
   end interface
 
+  !> energy contributions
   interface addEnergyPerAtom
     module procedure ChrgConstr_addEnergyPerAtom
   end interface
 
 contains
 
-  !* Initializes
-  !* @param sf
-  !* @param inp Array contining reference charges and prefactors (nAtom, 2)
-  !* @param kappa exponent of the local potential to add
+  !> Initializes
   subroutine ChrgConstr_init(sf, inp, kappa)
+    !> Instance of a constraint
     type(OChrgConstr), intent(inout) :: sf
+    !> Array contining reference charges and prefactors (nAtom, 2)
     real(dp), intent(in) :: inp(:,:)
+    !> exponent of the local potential to add
     integer, intent(in) :: kappa
 
     @:ASSERT(.not. sf%tInit)
@@ -70,20 +82,25 @@ contains
 
   end subroutine ChrgConstr_init
 
+  !> build the shift (potential)
   subroutine ChrgConstr_buildShift(sf, chargesPerAtom)
+    !> Instance of a constraint
     type(OChrgConstr), intent(inout) :: sf
+    !> Atomic charges
     real(dp), intent(in) :: chargesPerAtom(:)
 
     @:ASSERT(sf%tInit)
     @:ASSERT(size(chargesPerAtom) == size(sf%shift))
 
-    sf%shift = real(sf%kappa, dp) * sf%prefactors &
-        &* (chargesPerAtom - sf%refCharges)**(sf%kappa - 1)
+    sf%shift = real(sf%kappa, dp) * sf%prefactors * (chargesPerAtom - sf%refCharges)**(sf%kappa - 1)
 
   end subroutine ChrgConstr_buildShift
 
+  !> Add the shift onto a supplied vector
   subroutine ChrgConstr_addShiftPerAtom(sf, shiftPerAtom)
+    !> Instance of a constraint
     type(OChrgConstr), intent(inout) :: sf
+    !> Shift to append onto
     real(dp), intent(inout) :: shiftPerAtom(:)
 
     @:ASSERT(sf%tInit)
@@ -93,17 +110,20 @@ contains
 
   end subroutine ChrgConstr_addShiftPerAtom
 
+  !> Energy associated with constrain violation
   subroutine ChrgConstr_addEnergyPerAtom(sf, energyPerAtom, chargesPerAtom)
+    !> Instance of a constraint
     type(OChrgConstr), intent(inout) :: sf
+    !> Energy per atom from constraint
     real(dp), intent(inout) :: energyPerAtom(:)
+    !> Instance of a constraint
     real(dp), intent(in) :: chargesPerAtom(:)
 
     @:ASSERT(sf%tInit)
     @:ASSERT(size(energyPerAtom) == sf%nAtom)
     @:ASSERT(size(energyPerAtom) == sf%nAtom)
 
-    energyPerAtom = energyPerAtom &
-        &+ sf%shift * (chargesPerAtom - sf%refCharges) / real(sf%kappa, dp)
+    energyPerAtom = energyPerAtom + sf%shift * (chargesPerAtom - sf%refCharges) / real(sf%kappa, dp)
 
   end subroutine ChrgConstr_addEnergyPerAtom
 

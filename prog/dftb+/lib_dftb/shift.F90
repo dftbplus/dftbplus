@@ -111,7 +111,7 @@ contains
     type(TOrbitals), intent(in) :: orb
     !> Indexing array for the Hamiltonian.
     integer, intent(in) :: iPair(0:,:)
-    !> @parma img2CentCell Index mapping atoms onto the central cell atoms.
+    !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
     !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
     integer, intent(in) :: img2CentCell(:)

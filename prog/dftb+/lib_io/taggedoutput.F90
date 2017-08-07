@@ -668,9 +668,13 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedLogicalR4
 
-  character(len=20) function getLabel(tag)
+  !> Extracts the label for a tag
+  function getLabel(tag)
+    !> relevant tag
     character(len=*), intent(in) :: tag
-
+    !> Label
+    character(len=20) :: getLabel
+    
     integer :: lentrim
 
     @:ASSERT(initialized)

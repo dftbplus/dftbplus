@@ -22,13 +22,16 @@ module pmlocalisation
 
   private
   public :: PipekMezey, PipekMezeyLocalisation
+  
 
+  !> Performs localisation on orbitals
   interface PipekMezey
     module procedure PipekMezeyOld_real
     module procedure PipekMezeySuprtRegion_real
     module procedure PipekMezeyOld_kpoints
   end interface PipekMezey
 
+  !> Value of the localisation measure for orbitals
   interface PipekMezeyLocalisation
     module procedure PipekMezyLocality_real
     module procedure PipekMezyLocality_kpoints
