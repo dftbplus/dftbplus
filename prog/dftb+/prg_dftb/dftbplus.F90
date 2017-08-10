@@ -451,23 +451,30 @@ program dftbplus
 
     if (tSocket) then
       call socket%receive(coord0, latvec)
-      cellVol = determinant33(latVec)
-      recVec2p = latVec(:,:)
-      call matinv(recVec2p)
-      recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-      recVec = 2.0_dp * pi * recVec2p
-      recCellVol = determinant33(recVec)
+      if (tPeriodic) then
+        cellVol = determinant33(latVec)
+        recVec2p = latVec(:,:)
+        call matinv(recVec2p)
+        recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
+        recVec = 2.0_dp * pi * recVec2p
+        recCellVol = determinant33(recVec)
 
-      if (tSCC) then
-        call updateLatVecs_SCC(latVec, recVec, cellVol)
-        mCutoff = max(mCutoff, getSCCCutoff())
+        if (tSCC) then
+          call updateLatVecs_SCC(latVec, recVec, cellVol)
+          mCutoff = max(mCutoff, getSCCCutoff())
+        end if
+        if (tDispersion) then
+          call dispersion%updateLatVecs(latVec)
+          mCutoff = max(mCutoff, dispersion%getRCutoff())
+        end if
+        call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
+            & mCutoff)
+      else
+        cellVol = 0.0_dp
+        recVec2p = 0.0_dp
+        recVec = 0.0_dp
+        recCellVol = 0.0_dp
       end if
-      if (tDispersion) then
-        call dispersion%updateLatVecs(latVec)
-        mCutoff = max(mCutoff, dispersion%getRCutoff())
-      end if
-      call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
-          & mCutoff)
     end if
 
     if (restartFreq > 0 .and. (tGeoOpt .or. tMD)) then
