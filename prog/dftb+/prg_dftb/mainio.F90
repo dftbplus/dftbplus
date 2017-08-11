@@ -35,6 +35,7 @@ module mainio
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
+  public :: format1U, format2U, format1Ue, format2Ue, format1U1e
 
   character(*), parameter :: eigvecOut = "eigenvec.out"
   character(*), parameter :: eigvecBin = "eigenvec.bin"
@@ -44,10 +45,10 @@ module mainio
   character(len=*), parameter :: formatEnergy = '(8f12.5)'
   character(len=*), parameter :: formatEigen = '(8f14.8)'
   character(len=*), parameter :: formatGeoOut = "(I5, F16.8, F16.8, F16.8)"
-  character(len=*), parameter :: format1U = "(' ', A, ':', T32, F18.10, T51, A)"
-  character(len=*), parameter :: format2U = "(' ', A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-  character(len=*), parameter :: format1Ue = "(' ', A, ':', T37, E13.6, T51, A)"
-  character(len=*), parameter :: format2Ue = "(' ', A, ':', T37, E13.6, T51, A, T57, E13.6, T71,A)"
+  character(len=*), parameter :: format1U = "(A, ':', T32, F18.10, T51, A)"
+  character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+  character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
+  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71,A)"
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
   
@@ -1011,7 +1012,7 @@ contains
 
     if (tSCC) then
       write(fd, "(/, A)") repeat("*", 80)
-      write(fd, "(1X, A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
+      write(fd, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
           & "     SCC error    "
       write(fd, "(I5, E18.8, E18.8, E18.8, E18.8)") iSCCIter, energy%Eelec, diffElec, sccErrorQ
       write(fd, "(A)") repeat("*", 80)
@@ -1030,9 +1031,9 @@ contains
     if (tPrintMulliken) then
       write(fd, "(A, F14.8)") " Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
       write(fd, "(/,A)") " Net atomic charges (e)"
-      write(fd, "(1X, A5, 1X, A16)")" Atom", " Net charge"
+      write(fd, "(A5, 1X, A16)")" Atom", " Net charge"
       do iAt = 1, nAtom
-        write(fd, "(1X, I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
+        write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
     end if
@@ -1061,33 +1062,33 @@ contains
     if (nSpin == 4) then
       if (tPrintMulliken) then
         do iSpin = 1, 4
-          write(fd,"(3A, F16.8)") ' Nr. of electrons (', quaternionName(iSpin), '):',&
+          write(fd,"(3A, F16.8)") 'Nr. of electrons (', quaternionName(iSpin), '):',&
               & sum(qOutput(:,:, iSpin))
           write(fd, *)
-          write(fd, "(/, 3A)") ' Atom populations (', quaternionName(iSpin), ')'
-          write(fd, "(1X, A5, 1X, A16)") " Atom", " Population"
+          write(fd, "(/, 3A)") 'Atom populations (', quaternionName(iSpin), ')'
+          write(fd, "(A5, 1X, A16)") " Atom", " Population"
           do iAt = 1, nAtom
             write(fd, "(1X, I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
           end do
-          write(fd, "(/, 3A)") ' l-shell populations (', quaternionName(iSpin), ')'
-          write(fd, "(1X, A5, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.", "  l", " Population"
+          write(fd, "(/, 3A)") 'l-shell populations (', quaternionName(iSpin), ')'
+          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.", "  l", " Population"
           do iAt = 1, nAtom
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
-              write(fd, "(1X,I5,1X,I3,1X,I3,1X,F16.8)") iAt, iSh, orb%angShell(iSh, iSp), &
+              write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp), &
                   & sum(qOutput(orb%posShell(iSh,iSp):orb%posShell(iSh+1, iSp) - 1, iAt, iSpin))
             end do
           end do
           write(fd,*)
-          write(fd, "(/, 3A)") ' Orbital populations (', quaternionName(iSpin) ,')'
-          write(fd, "(1X, A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.","  l","  m",&
+          write(fd, "(/, 3A)") 'Orbital populations (', quaternionName(iSpin) ,')'
+          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.","  l","  m",&
               & " Population"
           do iAt = 1, nAtom
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
               do kk = 0, 2 * ang
-                write(fd, "(1X ,I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
+                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
                     & iAt, iSh, ang, kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
               end do
             end do
@@ -1098,7 +1099,7 @@ contains
 
       if (tDFTBU) then
         do iSpin = 1, 4
-          write(fd, "(3A)") ' Block populations (', quaternionName(iSpin), ')'
+          write(fd, "(3A)") 'Block populations (', quaternionName(iSpin), ')'
           do iAt = 1, nAtom
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
@@ -1111,13 +1112,13 @@ contains
       end if
 
       if (tImHam .and. tPrintMulliken) then
-        write(fd, "(/, A)") ' Electron angular momentum (mu_B/hbar)'
+        write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
         do iAt = 1, nAtom
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
-            write(fd, "(1X, I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
                 & iAt, iSh, orb%angShell(iSh, iSp),&
                 & 0.5_dp * sqrt(sum(sum(qOutput(orb%posShell(iSh, iSp)&
                 & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)**2)), &
@@ -1125,27 +1126,27 @@ contains
                 & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)
           end do
         end do
-        write(fd, "(/, A)") ' Orbital angular momentum (mu_B/hbar)'
+        write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
         do iAt = 1, nAtom
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
-            write(fd, "(1X, I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
                 & iAt, iSh, orb%angShell(iSh, iSp), &
                 & sqrt(sum(orbitalL(1:3, iSh, iAt)**2)), -orbitalL(1:3, iSh, iAt)
           end do
         end do
         
         write(fd, *)
-        write(fd, "(A)") ' Total angular momentum (mu_B/hbar)'
+        write(fd, "(A)") 'Total angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
         do iAt = 1, nAtom
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
-            write(fd, "(1X, I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
                 & iAt, iSh, orb%angShell(iSh, iSp),&
                 & sqrt(sum((orbitalL(1:3, iSh, iAt)&
                 & + sum(0.5_dp * qOutput(orb%posShell(iSh, iSp)&
@@ -1170,35 +1171,35 @@ contains
       end if
       lpSpinPrint2: do iSpin = 1, nSpin
         if (tPrintMulliken) then
-          write(fd, "(3A, F16.8)") ' Nr. of electrons (', trim(spinName(iSpin)), '):',&
+          write(fd, "(3A, F16.8)") 'Nr. of electrons (', trim(spinName(iSpin)), '):',&
               & sum(qOutput(:, :, iSpin))
-          write(fd, "(3A)") ' Atom populations (', trim(spinName(iSpin)), ')'
-          write(fd, "(1X, A5, 1X, A16)") " Atom", " Population"
+          write(fd, "(3A)") 'Atom populations (', trim(spinName(iSpin)), ')'
+          write(fd, "(A5, 1X, A16)") " Atom", " Population"
           do iAt = 1, nAtom
-            write(fd, "(1X, I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
+            write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
           end do
           write(fd, *)
-          write(fd, "(3A)") ' l-shell populations (', trim(spinName(iSpin)), ')'
-          write(fd, "(1X, A5, 1X, A3, 1X, A3, 1X, A16)")&
+          write(fd, "(3A)") 'l-shell populations (', trim(spinName(iSpin)), ')'
+          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", " Population"
           do iAt = 1, nAtom
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
-              write(fd, "(1X, I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
+              write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
                   & sum(qOutput(orb%posShell(iSh, iSp):orb%posShell(iSh + 1, iSp)-1, iAt,&
                   & iSpin))
             end do
           end do
           write(fd, *)
-          write(fd, "(3A)") ' Orbital populations (', trim(spinName(iSpin)), ')'
-          write(fd, "(1X, A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)")&
+          write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
+          write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", "  m", " Population"
           do iAt = 1, nAtom
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
               do kk = 0, 2 * ang
-                write(fd, "(1X, I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
+                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
                     &iAt, iSh, ang, kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
               end do
             end do
@@ -1206,7 +1207,7 @@ contains
           write(fd, *)
         end if
         if (tDFTBU) then
-          write(fd, "(3A)") ' Block populations (', trim(spinName(iSpin)), ')'
+          write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
           do iAt = 1, nAtom
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
@@ -1242,10 +1243,10 @@ contains
       write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       if (tPrintMulliken) then
         if (nSpin == 2) then
-          write(fd, "(3A, 2F16.8)") ' Input / Output electrons (', trim(spinName(iSpin)), '):',&
+          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
               & sum(qInput(:, :, iSpin)), sum(qOutput(:, :, iSpin))
         else
-          write(fd, "(3A, 2F16.8)") ' Input / Output electrons (', quaternionName(iSpin), '):',&
+          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
               & sum(qInput(:, :, iSpin)), sum(qOutput(:, :, iSpin))
         end if
       end if
@@ -1297,22 +1298,22 @@ contains
     write(fd, *)
 
     if (tAtomicEnergy) then
-      write(fd, "(A)") ' Atom resolved electronic energies '
+      write(fd, "(A)") 'Atom resolved electronic energies '
       do iAt = 1, nAtom
-        write(fd, "(1X, I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
             & Hartree__eV * energy%atomElec(iAt), ' eV'
       end do
       write(fd, *)
 
-      write(fd, "(A)") ' Atom resolved repulsive energies '
+      write(fd, "(A)") 'Atom resolved repulsive energies '
       do iAt = 1, nAtom
-        write(fd, "(1X, I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
             & Hartree__eV * energy%atomRep(iAt), ' eV'
       end do
       write(fd, *)
-      write(fd, "(A)") ' Atom resolved total energies '
+      write(fd, "(A)") 'Atom resolved total energies '
       do iAt = 1, nAtom
-        write(fd, "(1X, I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do
       write(fd, *)
@@ -1366,8 +1367,7 @@ contains
     if (tPrintForces) then
       write(fd, "(A)") 'Total Forces'
       do iAt = 1, size(totalDeriv, dim=2)
-        !write(fd, "(3F20.12)") -totalDeriv(:, iAt)
-        write(fd, *) -totalDeriv(:, iAt)
+        write(fd, "(3F20.12)") -totalDeriv(:, iAt)
       end do
       write(fd, *)
       if (tStress .and. .not. tMd) then
@@ -1393,8 +1393,7 @@ contains
       if (allocated(chrgForces)) then
         write(fd, "(A)") "Forces on external charges"
         do ii = 1, size(chrgForces, dim=2)
-          !write(fd, "(3F20.12)") -chrgForces(:, ii)
-          write(fd, *) -chrgForces(:, ii)
+          write(fd, "(3F20.12)") -chrgForces(:, ii)
         end do
         write(fd, *)
       end if
@@ -1481,8 +1480,8 @@ contains
     end if
     
     if (tDipole) then
-      write(fd, "(A, 3F14.8, A)") ' Dipole moment:', dipoleMoment, ' au'
-      write(fd, "(A, 3F14.8, A)") ' Dipole moment:', dipoleMoment * au__Debye, ' Debye'
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment, ' au'
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye, ' Debye'
       write(fd, *)
     end if
     
@@ -1543,8 +1542,7 @@ contains
       if (tBarostat) then
         write(fd, "(A)") 'Lattice vectors (A)'
         do ii = 1, 3
-          !write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
-          write(fd, *) latVec(:,ii) * Bohr__AA
+          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
         end do
         write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
       end if
@@ -1569,11 +1567,11 @@ contains
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
     if (tFixEf .and. tPrintMulliken) then
-      write(fd, "(A, F14.8)") ' Net charge     : ', sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
     if (tDipole) then
-      write(fd, "(A, 3F14.8, A)") ' Dipole moment  :', dipoleMoment,  'au'
-      write(fd, "(A, 3F14.8, A)") ' Dipole moment  :', dipoleMoment * au__Debye,  'Debye'
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment,  'au'
+      write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye,  'Debye'
     end if
 
   end subroutine writeMdOut2
