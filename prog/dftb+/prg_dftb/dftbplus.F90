@@ -450,8 +450,9 @@ program dftbplus
   lpGeomOpt: do while (iGeoStep <= nGeoSteps)
 
     if (tSocket) then
-      call socket%receive(coord0, latvec)
+      call socket%receive(coord0, tmpLat3Vecs)
       if (tPeriodic) then
+        latVec(:,:) = tmpLat3Vecs
         cellVol = determinant33(latVec)
         recVec2p = latVec(:,:)
         call matinv(recVec2p)
@@ -469,11 +470,6 @@ program dftbplus
         end if
         call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
             & mCutoff)
-      else
-        cellVol = 0.0_dp
-        recVec2p = 0.0_dp
-        recVec = 0.0_dp
-        recCellVol = 0.0_dp
       end if
     end if
 

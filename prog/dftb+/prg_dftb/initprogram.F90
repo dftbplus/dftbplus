@@ -110,7 +110,7 @@ module initprogram
   ! normalized vectors in those directions
   real(dp)              :: normOrigLatVec(3,3)
 
-  real(dp)              :: recVec2p(3,3)   !* reciprocal vectors in 2pi units
+  real(dp), allocatable :: recVec2p(:,:)   !* reciprocal vectors in 2pi units
   real(dp)              :: CellVol          !* cell volume
   real(dp)              :: recCellVol       !* reciprocal cell volume
   real(dp), allocatable :: cellVec(:,:)    !* translation vecs for interacting
@@ -460,14 +460,12 @@ contains
       nSCCIter = 1
     end if
 
-    allocate(latVec(3, 3))
-    allocate(recVec(3, 3))
-    latvec = 0.0_dp
-    recVec = 0.0_dp
-    recVec2p = 0.0_dp
     if (tPeriodic) then
+      allocate(latVec(3, 3))
       @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
+      allocate(recVec(3, 3))
+      allocate(recVec2p(3, 3))
       recVec2p = latVec(:,:)
       call matinv(recVec2p)
       recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
@@ -475,6 +473,9 @@ contains
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else
+      allocate(latVec(0, 0))
+      allocate(recVec(0, 0))
+      allocate(recVec2p(0, 0))
       CellVol = 0.0_dp
       recCellVol = 0.0_dp
     end if
