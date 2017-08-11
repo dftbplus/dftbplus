@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 !> DFT-D3 dispersion model.
-!!
 module dispdftd3_module
   use assert
   use accuracy
@@ -28,43 +27,57 @@ module dispdftd3_module
     logical :: threebody, numgrad
   end type DispDftD3Inp
 
-  !> Internal state of the DFT-D3
+  !> Internal state of the DFT-D3 dispersion
   type, extends(DispersionIface) :: DispDftD3
     private
+    !> calculator to evaluate dispersion
     type(dftd3_calc), allocatable :: calculator
+    !> number of atoms
     integer :: nAtom
+    !> energy
     real(dp) :: dispE
+    !> force contributions
     real(dp), allocatable :: gradients(:,:)
-    real(dp) :: stress(3, 3), latVecs(3, 3)
+    !> lattice vectors if periodic
+    real(dp) :: latVecs(3, 3)
+    !> stress tensor
+    real(dp) :: stress(3, 3)
+    !> atomic nuber
     integer, allocatable :: izp(:)
+    !> is this periodic
     logical :: tPeriodic
+    !> are  the coordinates current?
     logical :: tCoordsUpdated = .false.
   contains
+    !> update internal store of coordinates
     procedure :: updateCoords
+    !> update internal store of lattice vectors
     procedure :: updateLatVecs
+    !> return energy contribution
     procedure :: getEnergies
+    !> return force contribution
     procedure :: addGradients
+    !> return stress tensor contribution
     procedure :: getStress
+    !> cutoff distance in real space for dispersion
     procedure :: getRCutoff
   end type DispDftD3
 
 contains
 
   !> Inits a DispDftD3 instance.
-  !!
-  !! \param this  Initialised instance at return.
-  !! \param inp  Specific input parameters for DFT-D3 Grimme.
-  !! \param nAtom  Nr. of atoms in the system.
-  !! \param species0  Species of every atom in the unit cell.
-  !! \param speciesNames  Names of species.
-  !! \param latVecs  Lattice vectors, if the system is periodic.
-  !!
   subroutine DispDftD3_init(this, inp, nAtom, species0, speciesNames, latVecs)
+    !> Initialised instance at return.
     type(DispDftD3), intent(out) :: this
+    !> Specific input parameters for DFT-D3 Grimme.
     type(DispDftD3Inp), intent(in) :: inp
+    !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
+    !> Species of every atom in the unit cell.
     integer, intent(in) :: species0(:)
+    !> Names of species.
     character(*), intent(in) :: speciesNames(:)
+    !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:,:)
 
     type(dftd3_input) :: d3inp
@@ -102,24 +115,23 @@ contains
   end subroutine DispDftD3_init
 
   !> Notifies the objects about changed coordinates.
-  !!
-  !! \param neigh  Updated neighbor list.
-  !! \param img2CentCell  Updated mapping to central cell.
-  !! \param coord  Updated coordinates.
-  !! \param species0  Species of the atoms in the unit cell.
-  !!
   subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+    !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+    !> Updated neighbor list.
     type(TNeighborList), intent(in) :: neigh
+    !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
+    !> Updated coordinates.
     real(dp), intent(in) :: coords(:,:)
+    !> Species of the atoms in the unit cell.
     integer, intent(in) ::  species0(:)
 
     @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
-      ! dftd3 calculates the periodic images by itself -> only coords in
-      ! central cell must be passed.
+      ! dftd3 calculates the periodic images by itself -> only coords in central cell must be
+      ! passed.
       call dftd3_pbc_dispersion(this%calculator, coords(:, 1:this%nAtom), &
           & this%izp, this%latVecs, this%dispE, this%gradients, this%stress)
     else
@@ -131,11 +143,10 @@ contains
   end subroutine updateCoords
 
   !> Notifies the object about updated lattice vectors.
-  !!
-  !! \param latVecs  New lattice vectors
-  !!
   subroutine updateLatVecs(this, latVecs)
+    !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+    !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
     @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
@@ -146,29 +157,26 @@ contains
   end subroutine updateLatVecs
 
   !> Returns the atomic resolved energies due to the dispersion.
-  !!
-  !! \param energies  Contains the atomic energy contributions on exit.
-  !!
   subroutine getEnergies(this, energies)
+    !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+    !> Contains the atomic energy contributions on exit.
     real(dp), intent(out) :: energies(:)
 
     @:ASSERT(allocated(this%calculator))
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(size(energies) == this%nAtom)
 
-    ! DftD3 only delivers total energy, so we distribute it evenly over all
-    ! atoms.
+    ! DftD3 only delivers total energy, so we distribute it evenly over all atoms.
     energies(:) = this%dispE / real(this%nAtom, dp)
 
   end subroutine getEnergies
 
   !> Adds the atomic gradients to the provided vector.
-  !!
-  !! \param gradients  The vector to increase by the gradients.
-  !!
   subroutine addGradients(this, gradients)
+    !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+    !> The vector to increase by the gradients.
     real(dp), intent(inout) :: gradients(:,:)
 
     @:ASSERT(allocated(this%calculator))
@@ -180,11 +188,10 @@ contains
   end subroutine addGradients
 
   !> Returns the stress tensor.
-  !!
-  !! \param stress tensor from the dispersion
-  !!
   subroutine getStress(this, stress)
+    !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+    !> stress tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
     @:ASSERT(allocated(this%calculator))
@@ -196,15 +203,14 @@ contains
   end subroutine getStress
 
   !> Estimates the real space cutoff of the dispersion interaction.
-  !!
-  !! \return Cutoff
-  !!
   function getRCutoff(this) result(cutoff)
+    !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+    !> Resulting cutoff
     real(dp) :: cutoff
 
-    ! Since dftd3-routine uses its own real space summation routines, we do not
-    ! need any real space neighbors from neighbour list -> return 0 cutoff
+    ! Since dftd3-routine uses its own real space summation routines, we do not need any real space
+    ! neighbors from neighbour list -> return 0 cutoff
     cutoff = 0.0_dp
 
   end function getRCutoff
