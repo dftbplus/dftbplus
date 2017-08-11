@@ -2430,7 +2430,7 @@ program dftbplus
       end if
 
       if (tSocket) then
-        ! stress was computed above in the force evaluation block
+        ! stress was computed above in the force evaluation block or is 0 if aperiodic
         call socket%send(energy%ETotal - sum(TS), -totalDeriv, &
             & totalStress * cellVol)
       end if

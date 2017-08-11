@@ -7,7 +7,8 @@ import numpy as np
 import numpy.linalg as la
 from sockettools import frac2cart, readgen, receive_all, a0
 
-# Expecting two geometry steps of communication with DFTB+
+# Expecting five geometry steps of communication with DFTB+, sending
+# the same structure each time
 NR_STEPS = 5
 
 def connect():
