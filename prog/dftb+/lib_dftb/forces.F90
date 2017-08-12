@@ -34,10 +34,8 @@ module forces
 
 contains
 
-  !> The non-SCC electronic force contribution for all atoms, calculated from
-  !>\(F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial R_\alpha} -
-  !> \rho^E_{\mu\nu}\frac{S_{\mu\nu}}{\partial R_\alpha}\)
-  !> with \(\rho\) and \(\rho^E\) being the density and energy-density matrices
+  !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
+  !> density and energy-density matrices
   subroutine derivative_nonSCC(deriv, derivator, DM, EDM, skHamCont,&
       & skOverCont, coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
       & orb)
@@ -123,11 +121,8 @@ contains
 
   end subroutine derivative_nonSCC
 
-  !> The SCC and spin electronic force contribution for all atoms, calculated from
-  !> \(F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial R_\alpha} -
-  !> (\rho^E_{\mu\nu}-\frac{H^1_{\mu\nu}}{S_{\mu\nu}} \rho_{\mu\nu})\frac{S_{\mu\nu}}{\partial
-  !> R_\alpha}\)
-  !> with \(\rho\) and \(\rho^E\) being the density and energy-density matrices
+  !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
+  !> consistent potential and the density and energy-density matrices
   subroutine derivative_block(deriv, derivator, DM, EDM, skHamCont, skOverCont,&
       & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
     !> x,y,z derivatives for each real atom in the system
@@ -233,11 +228,8 @@ contains
 
   end subroutine derivative_block
 
-  !> The SCC and spin electronic force contribution for all atoms, calculated from
-  !> \(F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial R_\alpha} -
-  !> (\rho^E_{\mu\nu}-\frac{H^1_{\mu\nu}}{S_{\mu\nu}} \rho_{\mu\nu})\frac{S_{\mu\nu}}{\partial
-  !> R_\alpha}\)
-  !> with \(\rho\) and \(\rho^E\) being the density and energy-density matrices
+  !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
+  !> for example from spin-orbit
   subroutine derivative_iBlock(deriv, derivator, DM, iDM, EDM, skHamCont,&
       & skOverCont,coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
       & orb, shift, iShift)

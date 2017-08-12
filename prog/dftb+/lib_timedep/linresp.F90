@@ -10,14 +10,12 @@
 !> Linear response formulation of TD-DFTB as developed by Niehaus et al.
 !>
 !> The functionality of the module has some limitation:
-!> <ul>
-!>   <li>Third order does not work.</li>
-!>   <li>Periodic system do not work yet appart from Gamma point.</li>
-!>   <li>Orbital potentials or spin-orbit does not work yet.</li>
-!>   <li>Only for closed shell or colinear spin polarization (excitation energies only in that
-!>       case).</li>
-!>   <li>Onsite corrections are not included in this version</li>
-!> </ul>
+!> * Third order does not work.
+!> * Periodic system do not work yet appart from Gamma point.
+!> * Orbital potentials or spin-orbit does not work yet.
+!> * Only for closed shell or colinear spin polarization (excitation energies only in that
+!>   case).
+!> * Onsite corrections are not included in this version
 module linresp_module
   use assert
   use accuracy

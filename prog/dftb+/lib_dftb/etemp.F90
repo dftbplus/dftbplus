@@ -446,9 +446,9 @@ contains
   !>
   !> Ref: M. Methfessel and A. T. Paxton, Phys. Rev. B Vol 40, pp 3616 (1989)
   subroutine Aweights(A,n)
-    !> returned weighting values for the scheme, given by \(A_n = \frac{(-1)^n}{n!4^n\sqrt{\pi]}\)
+    !> returned weighting values for the scheme
     real(dp), intent(out) :: A(0:)
-    !> the required order to calculate \(A_n\) up to
+    !> the required order to calculate A_n up to
     integer, intent(in) :: n
 
     real(dp) :: nbang(0:n)

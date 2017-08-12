@@ -41,38 +41,38 @@ module dispuff_module
   !> Internal state of the van der Waals dispersion module.
   type, extends(DispersionIface) :: DispUff
   private
-  !> Nr. of atoms, species              
-  integer :: nAtom, nSpecies                         
-  !> Prefactors for \(r^{-6}\)                
-  real(dp), allocatable :: c6(:,:)                   
-  !> Prefactors for \(r^{-12}\)               
-  real(dp), allocatable :: c12(:,:)                  
-  !> Prefactors for polynomial          
-  real(dp), allocatable :: cPoly(:,:,:)              
-  !> Switching radius                   
-  real(dp), allocatable :: r0(:,:)                   
-  !> Real space cutoff                  
-  real(dp) :: rCutoff                                
-  !> Periodic system?                   
-  logical :: tPeriodic                               
-  !> Volume of the unit cell            
-  real(dp) :: vol                                    
-  !> Ewald summation parameter          
-  real(dp) :: eta                                    
-  !> Ewald cutoff radii                 
-  real(dp) :: ewaldRCut, ewaldGCut                   
-  !> Sum of the c6 coeffs.              
-  real(dp) :: c6sum                                  
-  !> Reciprocal lattice vectors         
-  real(dp), allocatable :: gLatPoints(:,:)           
+  !> Nr. of atoms, species
+  integer :: nAtom, nSpecies
+  !> Prefactors for r^{-6}
+  real(dp), allocatable :: c6(:,:)
+  !> Prefactors for r^{-12}
+  real(dp), allocatable :: c12(:,:)
+  !> Prefactors for polynomial
+  real(dp), allocatable :: cPoly(:,:,:)
+  !> Switching radius
+  real(dp), allocatable :: r0(:,:)
+  !> Real space cutoff
+  real(dp) :: rCutoff
+  !> Periodic system?
+  logical :: tPeriodic
+  !> Volume of the unit cell
+  real(dp) :: vol
+  !> Ewald summation parameter
+  real(dp) :: eta
+  !> Ewald cutoff radii
+  real(dp) :: ewaldRCut, ewaldGCut
+  !> Sum of the c6 coeffs.
+  real(dp) :: c6sum
+  !> Reciprocal lattice vectors
+  real(dp), allocatable :: gLatPoints(:,:)
   !> energies for atoms
   real(dp), allocatable :: energies(:)
   !> gradient contribution
   real(dp), allocatable :: gradients(:,:)
-  !> stress tensor component            
-  real(dp) :: stress(3,3) = 0.0_dp                   
-  !> If first coordinate update         
-  logical :: coordsUpdated = .false.                 
+  !> stress tensor component
+  real(dp) :: stress(3,3) = 0.0_dp
+  !> If first coordinate update
+  logical :: coordsUpdated = .false.
 contains
   procedure :: updateCoords
   procedure :: updateLatVecs
@@ -88,13 +88,13 @@ contains
 subroutine DispUff_init(this, inp, nAtom, species0, latVecs)
   !> data structure to initialise
   type(DispUff), intent(out) :: this
-  !> Specific input parameters for Slater-Kirkwood. 
+  !> Specific input parameters for Slater-Kirkwood.
   type(DispUffInp), intent(in) :: inp
-  !> Nr. of atoms in the system.                  
+  !> Nr. of atoms in the system.
   integer, intent(in) :: nAtom
-  !> Species of every atom in the unit cell.   
+  !> Species of every atom in the unit cell.
   integer, intent(in), optional :: species0(:)
-  !> Lattice vectors, if system is periodic.    
+  !> Lattice vectors, if system is periodic.
   real(dp), intent(in), optional :: latVecs(:,:)
 
   integer :: iSp1, iSp2, iAt1
@@ -165,11 +165,11 @@ end subroutine DispUff_init
 subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
   !> Instance of dispersion to update
   class(DispUff), intent(inout) :: this
-  !> Updated neighbor list.                   
+  !> Updated neighbor list.
   type(TNeighborList), intent(in) :: neigh
-  !> Updated mapping to central cell.  
+  !> Updated mapping to central cell.
   integer, intent(in) :: img2CentCell(:)
-  !> Updated coordinates.                     
+  !> Updated coordinates.
   real(dp), intent(in) :: coords(:,:)
   !> Species of the atoms in the unit cell.
   integer, intent(in) :: species0(:)
@@ -282,33 +282,33 @@ end function getRCutoff
 !> Returns the energy per atom and the gradients for the cluster case
 subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbors, iNeighbor, &
     & neighDist2, img2CentCell, c6, c12, cPoly, r0, energies, gradients, removeR6, stress, vol)
-  !> Nr. of atoms (without periodic images)                          
+  !> Nr. of atoms (without periodic images)
   integer, intent(in) :: nAtom
-  !> Coordinates of the atoms (including images)                    
+  !> Coordinates of the atoms (including images)
   real(dp), intent(in) :: coords(:,:)
-  !> Species of every atom.                                        
+  !> Species of every atom.
   integer, intent(in) :: species(:)
-  !> Nr. of neighbors for each atom                             
+  !> Nr. of neighbors for each atom
   integer, intent(in) :: nNeighbors(:)
-  !> Neighborlist.                                               
+  !> Neighborlist.
   integer, intent(in) :: iNeighbor(0:,:)
-  !> Square distances of the neighbours.                        
+  !> Square distances of the neighbours.
   real(dp), intent(in) :: neighDist2(0:,:)
-  !> Mapping into the central cell.                           
+  !> Mapping into the central cell.
   integer, intent(in) :: img2CentCell(:)
-  !> Prefactors for the \(r^{-6}\) potential                                  
+  !> Prefactors for the r^{-6} potential
   real(dp), intent(in) :: c6(:,:)
-  !> Prefactors for the \(r^{-12}\) potential                                
+  !> Prefactors for the r^{-12} potential
   real(dp), intent(in) :: c12(:,:)
-  !> Prefactors for the polynomial part.                             
+  !> Prefactors for the polynomial part.
   real(dp), intent(in) :: cPoly(:,:,:)
-  !> Distances where polynomial repr. should change to LJ.              
+  !> Distances where polynomial repr. should change to LJ.
   real(dp), intent(in) :: r0(:,:)
-  !> Updated energy vector at return                              
+  !> Updated energy vector at return
   real(dp), intent(out) :: energies(:)
-  !> Updated gradient vector at return                           
+  !> Updated gradient vector at return
   real(dp), intent(out) :: gradients(:,:)
-  !> If yes, the \(1/r^6\) term is substracted from every interaction.
+  !> If yes, the 1/r^6 term is substracted from every interaction.
   logical , intent(in), optional :: removeR6
 
   real(dp), intent(out), optional :: stress(:,:)

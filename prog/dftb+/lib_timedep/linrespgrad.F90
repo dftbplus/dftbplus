@@ -787,8 +787,8 @@ contains
 
   end subroutine getOscillatorStrengths
 
-  !> Calculate \(langle S^2 \rangle\) as a measure of spin contamination (smaller magnitudes are
-  !> better, 0.5 is considered an upper threshold for reliability according to Garcia thesis)
+  !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
+  !> considered an upper threshold for reliability according to Garcia thesis)
   subroutine getExcSpin(Ssq, nmatup, getij, win, eval, evec, wij, filling, stimc, grndEigVecs)
     !> spin contamination
     real(dp), intent(out) :: Ssq(:)

@@ -8,35 +8,29 @@
 #:include 'common.fypp'
 
 !> Line minimization iterator for arbitary function using its gradient.
-!>   The line minimization algorithm is working in the following way:
-!>   <ol>
-!>     <li>One step along the unity vector along the gradient in the starting
-!>       point (lenght of the step specified externally)</li>
-!>     <li>Intervals between previous and current point enlarged as long as
-!>       the derivative does not change sign. (Derivative in the first point
-!>       is negative.)</li>
-!>     <li>One point between the brackets is estimated by the secant method
-!>       or by bisection (see below).</li>
-!>     <li>If the derivative in the new point is not below the tolerance:
-!>       A new point is searched between the two bracketing
-!>       points and the intermediate point between the brackets with the
-!>       following methods in a fallback way.
-!>       <ol>
-!>         <li>Quadratic fit on the derivatives in the three points.
-!>           The calculated root (using Muller's method) must lie between the
-!>           intermediate point and the left (right) bracket if the derivative
-!>           in the intermediate point is greater (less) than zero.</li>
-!>         <li>Linear interpolation (secant method) between the left (right)
-!>           bracket and the intermediate point if the derivative in latter is
-!>           greater (less) than zero.</li>
-!>         <li>Bisection between the intermediate point and the left (right)
-!>           bracket and the indermediate point (depending on the sign of
-!>           derivative there).</li>
-!>       </ol>
-!>       This step is repeated as long as the projected derivative
-!>       of the function on the line is less than the given tolerance.
-!>     </li>
-!>   </ol>
+!>
+!> The line minimization algorithm works in the following way:
+!> 1. One step along the unity vector along the gradient in the starting point (lenght of the step
+!>    specified externally)
+!> 2. Intervals between previous and current point enlarged as long as the derivative does not
+!>    change sign. (Derivative in the first point is negative.)
+!> 3. One point between the brackets is estimated by the secant method or by bisection (see below).
+!> 4. If the derivative in the new point is not below the tolerance: A new point is searched between
+!>    the two bracketing points and the intermediate point between the brackets with the following
+!>    methods in fallback order
+!>    a. Quadratic fit on the derivatives in the three points.
+!>       The calculated root (using Muller's method) must lie between the
+!>       intermediate point and the left (right) bracket if the derivative
+!>       in the intermediate point is greater (less) than zero.
+!>    b. Linear interpolation (secant method) between the left (right)
+!>       bracket and the intermediate point if the derivative in latter is
+!>       greater (less) than zero.
+!>    c. Bisection between the intermediate point and the left (right)
+!>       bracket and the indermediate point (depending on the sign of
+!>       derivative there).
+!>
+!> Step 4. is repeated as long as the projected derivative of the function on the line is less than
+!> the given tolerance.
 module linemin
   use assert
   use accuracy

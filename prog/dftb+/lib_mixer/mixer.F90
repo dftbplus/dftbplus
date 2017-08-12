@@ -53,12 +53,12 @@ module mixer
     module procedure Mixer_mix
   end interface mix
 
-  !> Is \(J^-1\) available?
+  !> Is J^-1 available?
   interface hasInverseJacobian
     module procedure Mixer_hasInverseJacobian
   end interface hasInverseJacobian
 
-  !> Return \(J^-1\) if possible
+  !> Return J^-1 if possible
   interface getInverseJacobian
     module procedure Mixer_getInverseJacobian
   end interface getInverseJacobian

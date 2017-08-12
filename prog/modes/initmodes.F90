@@ -37,7 +37,7 @@ module InitModes
   character(len=*), parameter :: hsdInput = "modes_in.hsd"
   !> parsed output name
   character(len=*), parameter :: hsdParsedInput = "modes_pin.hsd"
-  !> xml file name
+  !> xml input file name
   character(len=*), parameter :: xmlInput = "modes_in.xml"
   !> parsed xml name
   character(len=*), parameter :: xmlParsedInput = "modes_pin.xml"

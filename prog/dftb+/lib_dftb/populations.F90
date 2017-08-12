@@ -74,9 +74,8 @@ contains
   end subroutine mullikenPerAtom
 
   !> Calculate the Mulliken population for each orbital in the system using purely real-space
-  !> overlap and density matrix values.  Currently Mulliken defined as
-  !> \(q_a = \sum_k w_k\sum_{\mu on a}\sum_\nu S_{\nu\mu}(k).\rho_{\mu\nu}(k)\)
-  !> but transformed into real space sums over one triangle of real space extended matrices
+  !> overlap and density matrix values.  Currently Mulliken is transformed into real space sums over
+  !> one triangle of real space extended matrices
   !>
   !> To do: add description of algorithm to programer manual / documentation.
   subroutine mullikenPerOrbital(qq, over, rho, orb, iNeighbor, nNeighbor, img2CentCell, iPair)

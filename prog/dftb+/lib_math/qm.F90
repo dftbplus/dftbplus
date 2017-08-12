@@ -21,12 +21,13 @@ module qm
     module procedure C_
   end interface
 
-  ! perform a unitary transformation on a matrix \(X^\prime = U X U^\dag\)
+  !> perform a unitary transformation of a matrix X' = U X U^T*
   interface unitary
     module procedure U_cmplx
     module procedure U_real
   end interface
 
+  !> Test if a matrix is unitary (U U^T* = 1)
   interface isunitary
     module procedure isunitary_real
     module procedure isunitary_cmplx
@@ -51,9 +52,9 @@ contains
 
   end subroutine C_
 
-  !> unitary transformation on a matrix \(X^\prime = U X U^\dag\)
+  !> unitary transformation of a matrix X' = U X U^T*
   subroutine U_cmplx(xx, uu)
-    !! matrix in original basis, U X U* on return.
+    !! matrix in original basis, U X U^T* on return.
     complex(dp), intent(inout) :: xx(:,:)
     !! unitary matrix
     complex(dp), intent(in) :: uu(:,:)
@@ -70,7 +71,7 @@ contains
 
   end subroutine U_cmplx
 
-  !> unitary transformation on a matrix \(X^\prime = U X U^\dag\)
+  !> unitary transformation of a matrix X' = U X U^T*
   subroutine U_real(xx, uu)
     !> matrix in original basis, U X U^T on return.
     real(dp), intent(inout) :: xx(:,:)

@@ -111,7 +111,7 @@ contains
   pure function SlakoCont_getMIntegrals(self) result(mInt)
     !> SlakoCont instance
     type(OSlakoCont), intent(in) :: self
-    !> @return Max. number of integrals.
+    !> Max. number of integrals.
     integer :: mInt
 
     !! Pure procedures can not contain any I/O, therefore the following assertion is commented out
@@ -124,7 +124,7 @@ contains
   function SlakoCont_getCutoff(self) result(cutoff)
     !> SlakoCont instance
     type(OSlakoCont), intent(in) :: self
-    !> @return Cutoff.
+    !> Cutoff of interaction
     real(dp) :: cutoff
 
     @:ASSERT(self%tInit)

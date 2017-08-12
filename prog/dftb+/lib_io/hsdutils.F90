@@ -2710,7 +2710,7 @@ contains
   subroutine getFirstTextChild(node, str)
     !> The node to investigate.
     type(fnode), pointer :: node
-    !> @return String representation of the TEXT_NODE.
+    !> String representation of the TEXT_NODE.
     type(string), intent(out) :: str
 
     type(fnode), pointer :: child

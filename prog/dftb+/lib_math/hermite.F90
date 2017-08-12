@@ -17,10 +17,10 @@ contains
 
   !> Calculates all of the Hermite polynomials of x from
   !> order 0 up to order n, using the recurrence relation,
-  !> \(H_{n+1}(x) = 2\left( xH_{n}(x) - nH_{n-1}(x) \right)\),
-  !> with $\(H_0(x) = 1\) and \(H_0(x) = 2x\).
+  !> H_{n+1}(x) = 2 ( xH_{n}(x) - nH_{n-1}(x) ),
+  !> with H_0(x) = 1 and H_0(x) = 2x.
   subroutine hx(h,n,x)
-    !> Resulting polynomials \(H_n(x)\), starting from \(H_0\) upwards
+    !> Resulting polynomials H_n(x), starting from H_0 upwards
     real(dp), intent(out) :: h(0:)
     !> Order of the polynomials to calculate up to
     integer, intent(in) :: n

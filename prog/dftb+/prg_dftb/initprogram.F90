@@ -135,7 +135,7 @@ module initprogram
   ! normalized vectors in those directions
   real(dp)              :: normOrigLatVec(3,3)
 
-  !> reciprocal vectors in \(2\pi\) units
+  !> reciprocal vectors in 2\pi units
   real(dp), allocatable :: recVec2p(:,:)
   !> cell volume
   real(dp)              :: CellVol
@@ -169,7 +169,7 @@ module initprogram
   !> list of atomic masses for each species
   real(dp), allocatable :: speciesMass(:)
 
-  !> Raw \(H^0\) hamiltonian data
+  !> Raw H^0 hamiltonian data
   type(OSlakoCont)  :: skHamCont
   !> Raw overlap hamiltonian data
   type(OSlakoCont) :: skOverCont
@@ -493,7 +493,7 @@ module initprogram
   !> XLBOMD related parameters
   type(Xlbomd), allocatable :: xlbomdIntegrator
 
-  !> Differentiation method for \((H^0,S)\)
+  !> Differentiation method for (H^0,S)
   type(NonSccDiff), save :: nonSccDeriv
 
   !> First guess for nr. of neighbors.

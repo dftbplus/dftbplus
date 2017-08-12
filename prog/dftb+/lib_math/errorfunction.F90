@@ -10,15 +10,14 @@
 !> Wrappers for the functions erf(x) and erfc(x).
 !>
 !> Based on the preprocessor settings, the error function is wrapped differently:
-!> <ol>
-!>   <li> no special definitions: the intrinsic error function is used (officially
-!>   first available in the Fortran 2008 standard, but most F95/2003 compilers
-!>   already implements this). </li>
-!>   <li> EXTERNALERFC is defined: single precision and double precision external
-!>   routines are expected (erf(x), erfc(x), derf(x), derfc(x)).</li>
-!>   <li>INTERNALERFC is defined: erf(x) and erfc(x) are internally calculated
-!>   by the code.</li>
-!> </ol>
+!>
+!> a) no special definitions: the intrinsic error function is used (officially first available in
+!>    the Fortran 2008 standard, but most F95/2003 compilers already implements this).
+!>
+!> b) EXTERNALERFC is defined: single precision and double precision external routines are expected
+!>    (erf(x), erfc(x), derf(x), derfc(x)).
+!>
+!> c) INTERNALERFC is defined: erf(x) and erfc(x) are internally calculated by the code.
 module errorfunction
   use accuracy
 #:if INTERNAL_ERFC

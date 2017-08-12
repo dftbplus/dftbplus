@@ -34,10 +34,12 @@ contains
   end subroutine cross3
 
   !> Signed determinant of a 3x3 matrix
-  real(dp) function  determinant33(matrix)
+  function  determinant33(matrix)
     !> The matrix for which to calculate the determinant.
     real(dp), intent(in) :: matrix(:,:)
-
+    !> Resulting det(matrix)
+    real(dp) :: determinant33
+    
     real(dp) :: tmp
 
     @:ASSERT(all(shape(matrix) == (/3, 3/)))

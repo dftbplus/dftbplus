@@ -27,8 +27,8 @@ module dispcommon
 
 contains
 
-  !> Adds the energy per atom and the gradients for periodic \(1/r^6\) summation.
-  !> Fast converging Ewald like summation on \(1/r^6\) type interactions.  For details see the
+  !> Adds the energy per atom and the gradients for periodic 1/r^6 summation.
+  !> Fast converging Ewald like summation on 1/r^6 type interactions.  For details see the
   !> references in the module description.
   !> Note: the interaction parameter C6 is specified atomwise.
   subroutine addDispEGr_per_atom(nAtom, coords, nNeighbors, iNeighbor, neighDist2, img2CentCell, &
@@ -140,8 +140,8 @@ contains
 
   end subroutine addDispEGr_per_atom
 
-  !> Adds the energy per atom and the gradients for periodic \(1/r^6\) summation.
-  !> Fast converging Ewald like summation on \(1/r^6\) type interactions.  The \(1/r^12\) term is
+  !> Adds the energy per atom and the gradients for periodic 1/r^6 summation.
+  !> Fast converging Ewald like summation on 1/r^6 type interactions.  The 1/r^12 term is
   !> summed in direct space.
   !> Note: the interaction coefficients (c6) are specified specieswise.
   subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighbors, iNeighbor, neighDist2, &

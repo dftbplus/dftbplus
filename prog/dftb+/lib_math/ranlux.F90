@@ -8,42 +8,38 @@
 #:include 'common.fypp'
 
 !> High quality pseudo random generator for "luxury pseudorandom numbers".
-!> <p>
+!>
 !>   This is a subtract-and-borrow random generator proposed by Masaglia and
 !>   Zaman, implemented by F. James with the name RCARRY in 1991, and later
 !>   improved by M. Luescher in 1993. Fortran 77 coded by F. James 1993.
 !>   The current version is a repackaging of the integer based version made
 !>   by K.G. Hamilton and F. James.
-!> </p>
-!> <p>
+!>
 !>  The following luxury levels are available:
-!>  <table border="1">
-!>    <tr><th>Level</th><th>p</th><th>Description</th></tr>
-!>    <tr><td>0</td><td>24</td><td>Equivalent to the original RCARRY of
-!>      Marsaglia and Zaman, very long period, but fails many tests.</td></tr>
-!>   <tr><td>1</td><td>48</td><td>Considerable improvement in quality over
-!>     level 0, now passes the gap test, but still fails spectral test.
-!>   </td></tr>
-!>   <tr><td>2</td><td>97</td><td>Passes all known tests, but theoretically
-!>     still defective</td></tr>
-!>   <tr><td>3</td><td>223</td><td>DEFAULT VALUE. Any theoretically possible
-!>     correlations have very small chance of being observed.</td></tr>
-!>   <tr><td>4</td><td>389</td><td>Highest possible luxury, all 24 bits
-!>     chaotic.</td></tr>
-!>   </table>
-!> </p>
-!> <p>
-!>   The validation was made by obtaining the difference between the F90
-!>   version of the original code and the current module for 1e5 calls
-!>   each filling a vector with 1e6 random numbers. (i686-linux-ifort81,
-!>   DEBUG=0) Luxury level was 3, the initial seed 123456. Since the original
-!>   code uses single precision, while the current code uses double precision,
-!>   differences less than 1e-11 occur in the generated numbers. The integers
-!>   describing the inner state of the generators had been compared after each
-!>   call and had been found to be identical every time.
-!> </p>
-!> See M. Luscher, Computer Physics Communications  79 (1994) 100 and
-!> F. James, Computer Physics Communications 79 (1994) 111
+!>
+!> Level 0 p=24 Equivalent to the original RCARRY of Marsaglia and Zaman, very long period, but
+!> fails many tests.
+!>
+!> Level 1 p=48 Considerable improvement in quality over level 0, now passes the gap test, but still
+!> fails spectral test.
+!>
+!> Level 2 p=97 Passes all known tests, but theoretically still defective
+!>
+!> Level 3 p=223 DEFAULT VALUE. Any theoretically possible correlations have very small chance of
+!> being observed.
+!>
+!> Level 4 p=389 Highest possible luxury, all 24 bits chaotic.
+!>
+!>
+!> The validation was made by obtaining the difference between the F90 version of the original code
+!> and the current module for 1e5 calls each filling a vector with 1e6 random
+!> numbers. (i686-linux-ifort81, DEBUG=0) Luxury level was 3, the initial seed 123456. Since the
+!> original code uses single precision, while the current code uses double precision, differences
+!> less than 1e-11 occur in the generated numbers. The integers describing the inner state of the
+!> generators had been compared after each call and had been found to be identical every time.
+!>
+!> See M. Luscher, Computer Physics Communications 79 (1994) 100 and F. James, Computer Physics
+!> Communications 79 (1994) 111
 module ranlux
   use assert
   use accuracy, only : dp

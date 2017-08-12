@@ -78,8 +78,7 @@ contains
     complex(dp), intent(out) :: square(:,:)
     !> Sparse matrix
     real(dp),    intent(in)  :: orig(:)
-    !> <b>Relative</b> coordinates of the K-point where the sparse matrix should be
-    !> unfolded.
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp),    intent(in)  :: kPoint(:)
     !> Neighbor list for each atom (First index from 0!)
     integer,     intent(in)  :: iNeighbor(0:,:)
@@ -152,8 +151,7 @@ contains
     real(dp), intent(out) :: square(:,:)
     !> Sparse matrix
     real(dp), intent(in)  :: orig(:)
-    !> <b>Relative</b> coordinates of the K-point where the sparse matrix should be
-    !> unfolded.
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in)  :: kPoint(:)
     !> Neighbor list for each atom (First index from 0!)
     integer,  intent(in)  :: iNeighbor(0:,:)
@@ -540,7 +538,7 @@ contains
     real(dp), intent(inout)   :: primitive(:,:)
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
-    !> location in the BZ in units of \(2\pi\)
+    !> location in the BZ in units of 2\pi
     real(dp),    intent(in) :: kPoint(:)
     !> Weight of the k-point
     real(dp),    intent(in) :: kweight

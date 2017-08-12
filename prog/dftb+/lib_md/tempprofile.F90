@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains simple temperature profiles for molecular dynamics.
+!> Contains simple temperature profiles for molecular dynamics.
 module tempprofile
   use assert
   use accuracy
@@ -17,51 +17,61 @@ module tempprofile
   public :: OTempProfile, init, next, getTemperature
   public :: constProf, linProf, expProf
 
-  !!* Data for the temperature profile.
+  !> Data for the temperature profile.
   type OTempProfile
+    !> The annealing method for each interval.
     integer, allocatable :: tempMethods(:)
+    !> The length of the intervals (in MD steps)
     integer, allocatable :: tempInts(:)
+    !> Target temperature for each interval
     real(dp), allocatable :: tempValues(:)
+    !> Current kinetic temperature
     real(dp) :: curTemp
+    !> Index for current temperature value
     integer :: iInt
+    !> Number of intervals in total
     integer :: nInt
+    !> Current interval
     integer :: iStep
+    !> Temperature increment to next step
     real(dp) :: incr
   end type OTempProfile
 
+  !> Initialise the profile
   interface init
     module procedure TempProfile_init
-  end interface
+  end interface init
 
+  !> Next temperature in the profile
   interface next
     module procedure TempProfile_next
-  end interface
+  end interface next
 
+  !> Get the current temperature in the profile
   interface getTemperature
     module procedure TempProfile_getTemperature
-  end interface
+  end interface getTemperature
 
-  !! Constants for the different profile options
+  !> Constants for the different profile options
   integer, parameter :: constProf = 1
   integer, parameter :: linProf = 2
   integer, parameter :: expProf = 3
 
-  !! Default starting temperature
+  !> Default starting temperature
   real(dp), parameter :: startingTemp_ = minTemp
 
 contains
 
-  !!* Creates a TempProfile instance.
-  !!* @param self TempProfile instane on return.
-  !!* @param tempMethods The annealing method for each intervall.
-  !!* @param tempInts The length of the intervalls (in steps)
-  !!* @param tempValues Target temperature for each intervall. This temperature
-  !!*   will be reached after the specified number of steps, using the
-  !!*   specified profile (constant, linear, exponential)
+  !> Creates a TempProfile instance.
   subroutine TempProfile_init(self, tempMethods, tempInts, tempValues)
+    !> TempProfile instane on return.
     type(OTempProfile), intent(out) :: self
+    !> The annealing method for each interval.
     integer, intent(in) :: tempMethods(:)
+    !> The length of the intervals (in steps)
     integer, intent(in) :: tempInts(:)
+    !> Target temperature for each interval. This temperature will be reached after the specified
+    !> number of steps, using the specified profile (constant, linear, exponential)
     real(dp), intent(in) :: tempValues(:)
 
     integer :: ii, iTmp
@@ -97,9 +107,9 @@ contains
 
   end subroutine TempProfile_init
 
-  !!* Changes the temperature to the next value.
-  !!* @param self Pointer to the TempProfile object.
+  !> Changes the temperature to the next value.
   subroutine TempProfile_next(self)
+    !> The TempProfile object.
     type(OTempProfile), intent(inout) :: self
 
     real(dp) :: subVal, supVal
@@ -110,7 +120,7 @@ contains
     if (self%iStep > self%tempInts(self%nInt)) then
       return
     end if
-    !! Looking for the next interval which contains the relevant information
+    ! Looking for the next interval which contains the relevant information
     tChanged = .false.
     do while (self%tempInts(self%iInt) < self%iStep)
       self%iInt = self%iInt + 1
@@ -140,11 +150,11 @@ contains
 
   end subroutine TempProfile_next
 
-  !!* Returns the current temperature.
-  !!* @param self Pointer to the TempProfile object.
-  !!* @param temp Temperature on return.
+  !> Returns the current temperature.
   subroutine TempProfile_getTemperature(self, temp)
+    !> Pointer to the TempProfile object.
     type(OTempProfile), intent(in) :: self
+    !> Temperature on return.
     real(dp), intent(out) :: temp
 
     temp = self%curTemp

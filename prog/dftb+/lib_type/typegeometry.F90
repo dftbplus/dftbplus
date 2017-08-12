@@ -31,7 +31,7 @@ module typegeometry
     real(dp), allocatable :: origin(:)
     !> lattice vectors if periodic
     real(dp), allocatable :: latVecs(:,:)
-    !> reciprocal lattice vectors in units of \(2\pi\)
+    !> reciprocal lattice vectors in units of 2\pi
     real(dp), allocatable :: recVecs2p(:,:)
     !> name(s) of the atomic species
     character(mc), allocatable :: speciesNames(:)

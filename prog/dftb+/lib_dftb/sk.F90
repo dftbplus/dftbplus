@@ -8,11 +8,13 @@
 #:include 'common.fypp'
 
 !> Contains code to perform the sk rotations of matrix elements from the parameterization
-!> orientation along $\langle 0,0,1 \rangle$ to the one needed in the calculation.
-!> To do: Transformations to give the derivatives with respect to ll, mm and nn
+!> orientation along <0,0,1> to the one needed in the actual calculation.
+!>
+!> To do: Transformations to give the derivatives with respect to ll, mm and nn.
 !> Base on "Compact expression for the angular dependence of tight-binding hamiltonian matrix
-!> elements", A. V. Podolskiy and P. Vogl, <I>Phys. Rev.  B</I> <B>69</B> 233101, 2004.
-!> Caveat: Only angular momenta up to \(f\) are currently allowed
+!> elements", A. V. Podolskiy and P. Vogl, Phys. Rev.  B 69, 233101 (2004).
+!>
+!> Caveat: Only angular momenta up to f are currently allowed
 module sk
   use assert
   use accuracy
@@ -29,7 +31,7 @@ module sk
 contains
 
   !> Driver for making the non-SCC hhamiltonian or overlap matrices for a given diatomic block
-  !> Caveat: Only angular momenta up to \(f\) are currently allowed
+  !> Caveat: Only angular momenta up to f are currently allowed
   subroutine rotateH0(hh, skIntegs, ll, mm, nn, iSp1, iSp2, orb)
     !> the rectangular matrix containing the resulting diatomic matrix elements
     real(dp), intent(out) :: hh(:,:)

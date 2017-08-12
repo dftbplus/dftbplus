@@ -9,12 +9,13 @@
 
 !> Contains the HSD (Human readable Structured Data) parser.
 !>
-!> <p> The HSD format is a more or less user friendly input format, which can be easily converted to
-!> a simplified XML format. The parser returns a DOM-tree, which can be further processed. The
+!> The HSD format is a more or less user friendly input format, which can be easily converted to a
+!> simplified XML format. The parser returns a DOM-tree, which can be further processed. The
 !> returned tree contains also information about the original name and position of the keywords in
 !> the original HSD format, in order to enable user friendly error messages, if inconsistent data is
-!> detected during the processing of the DOM-tree.</p>
-!><p> For the specification of the HSD format see the sample input </p>
+!> detected during the processing of the DOM-tree.
+!>
+!> For the specification of the HSD format see the sample input
 module hsdparser
   use assert
   use message

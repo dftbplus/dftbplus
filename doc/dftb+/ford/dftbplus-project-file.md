@@ -23,12 +23,11 @@ include:
 predocmark: >
 display: public
          protected
-         private
 proc_internals:
         false
 source: true
 graph: true
-search: false
+search: true
 macro: TEST
        LOGIC=.true.
 license: by
