@@ -52,9 +52,12 @@ module tempprofile
     module procedure TempProfile_getTemperature
   end interface getTemperature
 
-  !> Constants for the different profile options
+  ! Constants for the different profile options
+  !> Constant temperature
   integer, parameter :: constProf = 1
+  !> linear change in profile
   integer, parameter :: linProf = 2
+  !> exponentially changing profile
   integer, parameter :: expProf = 3
 
   !> Default starting temperature

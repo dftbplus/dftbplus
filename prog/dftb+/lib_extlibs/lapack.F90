@@ -126,8 +126,8 @@ module lapack
     subroutine ssygv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
         & info)
       import rsp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -159,8 +159,8 @@ module lapack
     subroutine dsygv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
         & info)
       import rdp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -192,8 +192,8 @@ module lapack
     subroutine chegv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
         & rwork, info)
       import rsp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -227,8 +227,8 @@ module lapack
     subroutine zhegv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
         & rwork, info)
       import rdp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -262,8 +262,8 @@ module lapack
     subroutine ssygvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
         & lwork, iwork, liwork, info)
       import rsp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -299,8 +299,8 @@ module lapack
     subroutine dsygvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
         & lwork, iwork, liwork, info)
       import rdp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -336,8 +336,8 @@ module lapack
     subroutine chegvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
         & lwork, rwork, lrwork, iwork, liwork, info)
       import rsp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -360,6 +360,7 @@ module lapack
       integer, intent(in) :: lwork
       !> real workspace
       real(rsp), intent(inout) :: rwork(*)
+      !> size of rwork
       integer, intent(in) :: lrwork
       !> integer workspace
       integer, intent(inout) :: iwork(*)
@@ -376,8 +377,8 @@ module lapack
     subroutine zhegvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
         & lwork, rwork, lrwork, iwork, liwork, info)
       import rdp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> job type
       character, intent(in) :: jobz
       !> Upper 'U' or lower 'L' triangle
@@ -400,6 +401,7 @@ module lapack
       integer, intent(in) :: lwork
       !> real workspace
       real(rdp), intent(inout) :: rwork(*)
+      !> workspace size for rwork
       integer, intent(in) :: lrwork
       !> integer workspace
       integer, intent(inout) :: iwork(*)
@@ -418,6 +420,8 @@ module lapack
       import rsp
       !> job type
       character, intent(in) :: jobz
+      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> eigenvalues
       character, intent(in) :: range
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
@@ -427,12 +431,17 @@ module lapack
       integer, intent(in) :: lda
       !> matrix A
       real(rsp), intent(inout) :: aa(lda, *)
+      !> Lower range if in mode range =  V
       real(rsp), intent(in) :: vl
+      !> upper range
       real(rsp), intent(in) :: vu
+      !> lower number if in mode range =  I
       integer, intent(in) :: il
+      !> upper number if in mode range =  I
       integer, intent(in) :: iu
       !> absolute error tolerance for the eigenvalues
       real(rsp), intent(in) :: abstol
+      !> total number of eigenvalues found
       integer, intent(out) :: mm
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
@@ -440,6 +449,7 @@ module lapack
       integer, intent(in) :: ldz
       !> matrix Z
       real(rsp), intent(out) :: zz(ldz, *)
+      !> support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
       !> workspace
       real(rsp), intent(inout) :: work(*)
@@ -462,6 +472,8 @@ module lapack
       import rdp
       !> job type
       character, intent(in) :: jobz
+      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> eigenvalues
       character, intent(in) :: range
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
@@ -471,18 +483,25 @@ module lapack
       integer, intent(in) :: lda
       !> matrix A
       real(rdp), intent(inout) :: aa(lda, *)
+      !> Lower range if in mode range =  V
       real(rdp), intent(in) :: vl
+      !> upper range
       real(rdp), intent(in) :: vu
+      !> lower number if in mode range =  I
       integer, intent(in) :: il
+      !> upper number if in mode range =  I
       integer, intent(in) :: iu
       !> absolute error tolerance for the eigenvalues
       real(rdp), intent(in) :: abstol
+      !> total number of eigenvalues found
       integer, intent(out) :: mm
       !> eigenvalues
       real(rdp), intent(out) :: ww(*)
       !> leading dimension of Z
       integer, intent(in) :: ldz
+      !> matrix Z
       real(rdp), intent(out) :: zz(ldz, *)
+      !> support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
       !> workspace
       real(rdp), intent(inout) :: work(*)
@@ -506,6 +525,8 @@ module lapack
       import rsp
       !> job type
       character, intent(in) :: jobz
+      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> eigenvalues
       character, intent(in) :: range
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
@@ -515,12 +536,17 @@ module lapack
       integer, intent(in) :: lda
       !> matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
+      !> Lower range if in mode range =  V
       real(rsp), intent(in) :: vl
+      !> upper range
       real(rsp), intent(in) :: vu
+      !> lower number if in mode range =  I
       integer, intent(in) :: il
+      !> upper number if in mode range =  I
       integer, intent(in) :: iu
       !> absolute error tolerance for the eigenvalues
       real(rsp), intent(in) :: abstol
+      !> total number of eigenvalues found
       integer, intent(out) :: mm
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
@@ -528,6 +554,7 @@ module lapack
       integer, intent(in) :: ldz
       !> matrix Z
       complex(rsp), intent(out) :: zz(ldz, *)
+      !> support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
       !> workspace
       complex(rsp), intent(inout) :: work(*)
@@ -535,6 +562,7 @@ module lapack
       integer, intent(in) :: lwork
       !> real workspace
       real(rsp), intent(inout) :: rwork(*)
+      !> size of rwork
       integer, intent(in) :: lrwork
       !> integer workspace
       integer, intent(inout) :: iwork(*)
@@ -554,6 +582,8 @@ module lapack
       import rdp
       !> job type
       character, intent(in) :: jobz
+      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> eigenvalues
       character, intent(in) :: range
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
@@ -563,12 +593,17 @@ module lapack
       integer, intent(in) :: lda
       !> matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
+      !> Lower range if in mode range =  V
       real(rdp), intent(in) :: vl
+      !> upper range
       real(rdp), intent(in) :: vu
+      !> lower number if in mode range =  I
       integer, intent(in) :: il
+      !> upper number if in mode range =  I
       integer, intent(in) :: iu
       !> absolute error tolerance for the eigenvalues
       real(rdp), intent(in) :: abstol
+      !> total number of eigenvalues found
       integer, intent(out) :: mm
       !> eigenvalues
       real(rdp), intent(out) :: ww(*)
@@ -576,6 +611,7 @@ module lapack
       integer, intent(in) :: ldz
       !> matrix Z
       complex(rdp), intent(out) :: zz(ldz, *)
+      !> support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
       !> workspace
       complex(rdp), intent(inout) :: work(*)
@@ -583,6 +619,7 @@ module lapack
       integer, intent(in) :: lwork
       !> real workspace
       real(rdp), intent(inout) :: rwork(*)
+      !> size of rwork
       integer, intent(in) :: lrwork
       !> integer workspace
       integer, intent(inout) :: iwork(*)
@@ -670,8 +707,8 @@ module lapack
     !> Reduce real symmetric-definite generalized eigenproblem to standard form
     subroutine ssygst(itype, uplo, nn, aa, lda, bb, ldb, info)
       import rsp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
       !> matrix dimension
@@ -694,8 +731,8 @@ module lapack
     !> Reduce double precision symmetric-definite generalized eigenproblem to standard form
     subroutine dsygst(itype, uplo, nn, aa, lda, bb, ldb, info)
       import rdp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
       !> matrix dimension
@@ -718,8 +755,8 @@ module lapack
     !> Reduce complex hermitian-definite generalized eigenproblem to standard form
     subroutine chegst(itype, uplo, nn, aa, lda, bb, ldb, info)
       import rsp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
       !> matrix dimension
@@ -742,8 +779,8 @@ module lapack
     !> Reduce double complex hermitian-definite generalized eigenproblem to standard form
     subroutine zhegst(itype, uplo, nn, aa, lda, bb, ldb, info)
       import rdp
-     !> Specifies the problem type to be solved
-     integer, intent(in) :: itype
+      !> Specifies the problem type to be solved
+      integer, intent(in) :: itype
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
       !> matrix dimension
@@ -773,7 +810,9 @@ module lapack
       character, intent(in) :: uplo
       !> matrix dimension
       integer, intent(in) :: nn
+      !> number of superdiagonals/subdiagonals for U / L
       integer, intent(in) :: ka
+      !> number of subdiagonals/superdiagonals for U / L
       integer, intent(in) :: kb
       !> leading dimension of ab
       integer, intent(in) :: ldab
@@ -808,7 +847,9 @@ module lapack
       character, intent(in) :: uplo
       !> matrix dimension
       integer, intent(in) :: nn
+      !> number of superdiagonals/subdiagonals for U / L
       integer, intent(in) :: ka
+      !> number of subdiagonals/superdiagonals for U / L
       integer, intent(in) :: kb
       !> leading dimension for ab
       integer, intent(in) :: ldab
@@ -822,6 +863,7 @@ module lapack
       real(rdp), intent(out) :: ww(*)
       !> leading dimension of Z
       integer, intent(in) :: ldz
+      !> matrix Z
       real(rdp), intent(out) :: zz(ldz, *)
       !> workspace
       real(rdp), intent(inout) :: work(*)
@@ -842,7 +884,9 @@ module lapack
       character, intent(in) :: uplo
       !> matrix dimension
       integer, intent(in) :: nn
+      !> number of superdiagonals/subdiagonals for U / L
       integer, intent(in) :: ka
+      !> number of subdiagonals/superdiagonals for U / L
       integer, intent(in) :: kb
       !> leading dimension of ab
       integer, intent(in) :: ldab
@@ -879,7 +923,9 @@ module lapack
       character, intent(in) :: uplo
       !> matrix dimension
       integer, intent(in) :: nn
+      !> number of superdiagonals/subdiagonals for U / L
       integer, intent(in) :: ka
+      !> number of subdiagonals/superdiagonals for U / L
       integer, intent(in) :: kb
       !> leading dimension of ab
       integer, intent(in) :: ldab
@@ -957,6 +1003,7 @@ module lapack
     !> Computes LU factorization of real matrix
     subroutine sgetrf(mm, nn, aa, lda, ipiv, info)
       import rsp
+      !> number of rows of the matrix
       integer, intent(in) :: mm
       !> matrix dimension
       integer, intent(in) :: nn
@@ -976,6 +1023,7 @@ module lapack
     !> Computes LU factorization of double precision matrix
     subroutine dgetrf(mm, nn, aa, lda, ipiv, info)
       import rdp
+      !> number of rows of the matrix
       integer, intent(in) :: mm
       !> matrix dimension
       integer, intent(in) :: nn

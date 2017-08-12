@@ -14,14 +14,20 @@ module charmanip
 
   private
 
-  !> Quotation related quantities
+  ! Quotation related quantities
+  !> count of these
   integer, parameter :: nQuoteChar = 2
+  !> types of quote mark
   character(len=1), parameter :: quoteChars(nQuoteChar) = (/ "'", '"' /)
 
-  !> Whitespace like characters
+  ! Whitespace like characters
+  !> blank space
   character(len=1), parameter :: space = " "
+  !> line feed character
   character(len=1), parameter :: lineFeed = achar(10)
+  !> carriage return
   character(len=1), parameter :: carriageReturn = achar(13)
+  !> tab symbol
   character(len=1), parameter :: tabulator = achar(9)
 
   !> collected whitespace characters

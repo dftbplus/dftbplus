@@ -538,7 +538,7 @@ contains
     real(dp), intent(inout)   :: primitive(:,:)
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
-    !> location in the BZ in units of 2\pi
+    !> location in the BZ in units of 2pi
     real(dp),    intent(in) :: kPoint(:)
     !> Weight of the k-point
     real(dp),    intent(in) :: kweight

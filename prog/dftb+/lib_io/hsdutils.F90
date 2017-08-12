@@ -2777,8 +2777,9 @@ contains
   subroutine detailedWarning(node, msg)
     !> Node where the error occured.
     type(fnode), pointer :: node
-    character(len=*), intent(in) :: msg
     !> Message to print
+    character(len=*), intent(in) :: msg
+
     type(string) :: str
 
     str = msg

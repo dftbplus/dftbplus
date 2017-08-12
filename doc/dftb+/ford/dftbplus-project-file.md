@@ -27,7 +27,7 @@ proc_internals:
         false
 source: true
 graph: true
-search: true
+search: false
 macro: TEST
        LOGIC=.true.
 license: by

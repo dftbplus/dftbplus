@@ -19,9 +19,11 @@ module reppoly
   public :: TRepPolyIn, ORepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv
 
-  !> Minimal and maximal power appearing in the polynomial
+  !> Minimal power appearing in the polynomial
   integer, parameter :: powMin = 2
+  !> Maximal power appearing in the polynomial
   integer, parameter :: powMax = 9
+  !> smallest power between 1 and powMin
   integer, parameter :: powMin1 = max(powMin, 1)
 
   !> Initialisation type for ORepPoly

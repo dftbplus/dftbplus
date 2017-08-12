@@ -20,10 +20,14 @@ module dispersions
   implicit none
   public
 
+  !> Types of dispersion model
   type :: DispersionInp
+    !> Based on universal force-field
     type(DispUffInp), allocatable :: uff
+    !> Slater-Kirkwood
     type(DispSlaKirkInp), allocatable :: slakirk
   #:if WITH_DFTD3
+    !> Grimme DFT-D3
     type(DispDftD3Inp), allocatable :: dftd3
   #:endif
   end type DispersionInp

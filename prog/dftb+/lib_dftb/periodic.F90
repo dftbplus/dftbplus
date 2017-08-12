@@ -17,7 +17,7 @@ module periodic
   use bisect
   use linkedlist
   use simplealgebra, only : determinant33, invert33
-  use commontypes
+   use commontypes
   use memman
   implicit none
 
@@ -123,18 +123,22 @@ contains
 
   end subroutine getCellTranslations
 
+  !> Calculate the range of images of the central cell that interact
   subroutine getImgRange(imgRange, dist, recVec2p, posExt, negExt)
-    integer, intent(out) :: imgRange(:,:)
+    !> Array of the two extremal points
+    integer, intent(out) :: imgRange(2,3)
+    !> distance of interaction
     real(dp), intent(in) :: dist
-    real(dp), intent(in) :: recVec2p(:,:)
+    !> reciprocal lattice vector
+    real(dp), intent(in) :: recVec2p(3,3)
+    !> Extend the set along the positive lattice vectors with that many additional lattice vectors.
     integer, intent(in) :: posExt
+    !> Same as posExtension for negative lattice vectors
     integer, intent(in) :: negExt
 
     integer :: ii, iTmp
 
-    @:ASSERT(all(shape(imgRange) == (/ 2, 3 /)))
     @:ASSERT(dist >= 0.0_dp)
-    @:ASSERT(all(shape(recVec2p) == (/ 3, 3 /)))
 
     do ii = 1, 3
       iTmp = floor(dist * sqrt(sum(recVec2p(:, ii)**2)))
@@ -981,7 +985,7 @@ contains
 
   end subroutine fractionalCartesian
 
-  !> cartesian to fractional coordinates in periodic geometry
+  !> Cartesian to fractional coordinates in periodic geometry
   subroutine cartesianFractional(cartCoords,latvecs)
     !> cartesian coordinates on entry, fractional on exit
     real(dp), intent(inout) :: cartCoords(:,:)

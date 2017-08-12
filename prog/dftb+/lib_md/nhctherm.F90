@@ -19,6 +19,7 @@ module nhctherm
   use message
   implicit none
 
+  !> Short string for error returns
   character(lc) :: lcTmp
 
   private

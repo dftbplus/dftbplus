@@ -52,12 +52,16 @@ module slakoeqgrid
     module procedure SlakoEqGrid_getCutoff
   end interface getCutoff
 
-  !> Interpolation methods
+  ! Interpolation methods
+  !> Historical method
   integer, parameter :: skEqGridOld = 1
+  !> Current method
   integer, parameter :: skEqGridNew = 2
 
-  !> Nr. of grid points to use for the polynomial interpolation
+  ! Nr. of grid points to use for the polynomial interpolation
+  !> Historical choice
   integer, parameter :: nInterOld_ = 3
+  !> Present choice
   integer, parameter :: nInterNew_ = 8
 
   ! Nr. of grid points on the right of the interpolated point.

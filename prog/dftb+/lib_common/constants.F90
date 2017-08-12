@@ -11,7 +11,7 @@ module constants
 
   !! Natural constants
 
-  !> $\pi$
+  !> pi
   real(dp), parameter :: pi = 3.14159265358979323846_dp
   !> Bohr->Angstrom
   real(dp), parameter :: Bohr__AA = 0.529177249_dp
@@ -33,7 +33,7 @@ module constants
   real(dp), parameter :: fs__au = 1.0_dp/au__fs
   !> fine structure constant
   real(dp), parameter :: alpha_fs = 0.007297352568_dp
-  !> speed of light in a.u. $\sim$137
+  !> speed of light in a.u. ~137
   real(dp), parameter :: c = 1.0_dp/alpha_fs
   !> atomic units -> SI
   real(dp), parameter :: au__Coulomb = 1.60217653e-19_dp
@@ -59,8 +59,8 @@ module constants
   !> Hartree -> kcal/mol
   real(dp), parameter :: Hartree__kcal_mol = 1.0_dp / kcal_mol__Hartree
 
-  !> Rydberg -> m-1 codata 2006 R$_\infty$
-  real(dp), parameter :: Rydberg__m = 10973731.568527 !
+  !> Rydberg -> m-1 codata 2006 R_infty
+  real(dp), parameter :: Rydberg__m = 10973731.568527
 
   !> Hartree -> cm-1
   real(dp), parameter :: Hartree__cm = 2.0_dp * Rydberg__m / 100.0_dp

@@ -63,16 +63,16 @@ module accuracy
   !> Minimal square distance between neighbors
   real(dp), parameter :: minNeighDist2 = minNeighDist**2
 
-  !> Cut-off value to calculate the short-range part of $\gamma_{ab}$
+  !> Cut-off value to calculate the short-range part of gamma_ab
   real(dp), parameter :: minShortGamma = 1.0e-10_dp
 
   !> Cut-off value to calculate the short-range part of Ewald sum
   real(dp), parameter :: minShortEwald = 1.0e-10_dp
 
-  !> Tolerance for error in cut-off of short-range part of $\gamma_{ab}$
+  !> Tolerance for error in cut-off of short-range part of gamma_ab
   real(dp), parameter :: tolShortGamma = 1.0e-10_dp
 
-  !> Tolerance for error in cut-off of short-range part of $\gamma_{ab}$
+  !> Tolerance for error in cut-off of short-range part of gamma_ab
   real(dp), parameter :: tolShortEwald = 1.0e-10_dp
 
   !> Minimum value for alpha in Ewald sum

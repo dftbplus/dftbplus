@@ -60,7 +60,7 @@ module MolecularOrbital
     logical :: tPeriodic
     !> Lattice vectors
     real(dp), allocatable :: latVecs(:,:)
-    !> Reciprocal vectors divided by 2\pi
+    !> Reciprocal vectors divided by 2pi
     real(dp), allocatable :: recVecs2p(:,:)
     !> Cell shift vectors
     real(dp), allocatable :: cellVec(:,:)

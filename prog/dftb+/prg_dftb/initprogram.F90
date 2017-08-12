@@ -132,10 +132,10 @@ module initprogram
 
   !> original lattice vectors used for optimizing
   real(dp)              :: origLatVec(3,3)
-  ! normalized vectors in those directions
+  !> normalized vectors in those directions
   real(dp)              :: normOrigLatVec(3,3)
 
-  !> reciprocal vectors in 2\pi units
+  !> reciprocal vectors in 2 pi units
   real(dp), allocatable :: recVec2p(:,:)
   !> cell volume
   real(dp)              :: CellVol
@@ -2354,6 +2354,7 @@ contains
 
   end subroutine initProgramVariables
 
+  !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
 
     integer :: ii

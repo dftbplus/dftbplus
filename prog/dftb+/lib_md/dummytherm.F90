@@ -33,15 +33,18 @@ module dummytherm
     !> MD Framwork
     type(OMDCommon) :: pMDFrame
   end type ODummyThermostat
-
+  
+  !> Initialise thermostat object
   interface init
     module procedure DummyThermostat_init
   end interface
 
+  !> Velocities at start of calculation
   interface getInitVelocities
     module procedure DummyThermostat_getInitVelos
   end interface
 
+  !> write state to disc
   interface state
     module procedure DummyThermostat_state
   end interface

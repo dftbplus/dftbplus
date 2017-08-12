@@ -109,31 +109,31 @@ contains
       & nNeighbor,img2CentCell,iPair,orb,cellVol)
     !> stress tensor
     real(dp), intent(out) :: st(3,3)
-    !> density matrix in packed format
+    !> Derivative calculator for (H0,S)
     class(NonSccDiff), intent(in) :: derivator
-    !> energy-weighted density matrix in packed format
+    !> density matrix in packed format
     real(dp), intent(in) :: DM(:)
-    !> Container for SK Hamiltonian integrals
+    !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
-    !> Container for SK overlap integrals
+    !> Container for SK Hamiltonian integrals
     type(OSlakoCont), intent(in) :: skOverCont
-    !> list of all atomic coordinates
+    !> Container for SK overlap integrals
     type(OSlakoCont), intent(in) :: skHamCont
-    !> list of all atomic species
+    !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
-    !> neighbor list for atoms
+    !> list of all atomic species
     integer, intent(in) :: species(:)
-    !> number of neighbors of each atom
+    !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
-    !> indexing array for periodic image atoms
+    !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
-    !> indexing array for the Hamiltonian
+    !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
-    !> Information about the shells and orbitals in the system.
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
-    !> cell volume.
+    !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-
+    !> cell volume.
     real(dp), intent(in)  :: cellVol
 
     integer   :: iOrig, ii, jj

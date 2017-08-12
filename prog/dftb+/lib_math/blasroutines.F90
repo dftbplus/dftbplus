@@ -17,7 +17,6 @@ module blasroutines
 
   !> Rank 1 update of a matrix A := alpha*x*x' + A
   !> Wrapper for the level 2 blas routine xsyr to perform the rank 1 update of the chosen triangle
-  !> of $A = \alpha x \times x^{\prime *} + A$
   interface her
     module procedure her_real
     module procedure her_cmplx
@@ -27,7 +26,6 @@ module blasroutines
 
   !> Rank 1 update of a matrix A := alpha*x*y' + A
   !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of the chosen triangle
-  !> of $A = \alpha x \times y^{\prime *} + A$
   interface ger
     module procedure ger_real
     module procedure ger_cmplx

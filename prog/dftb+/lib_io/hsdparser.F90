@@ -39,50 +39,79 @@ module hsdparser
     module procedure dumpHSD_opened
   end interface dumpHSD
 
-  !> Main token separator characters
+  ! Main token separator characters
+  !> number of separator character strings
   integer, parameter :: nSeparator = 7
+  !> XML includer
   character(len=*), parameter :: sIncludeXML = "<<!"
+  !> include parsed material
   character(len=*), parameter :: sIncludeParsed = "<<+"
+  !> include unparsed material
   character(len=*), parameter :: sIncludeUnparsed = "<<<"
+  !> open for a single thing
   character(len=*), parameter :: sSingleOpen = "=  "
+  !> open region
   character(len=*), parameter :: sOpen = "{  "
+  !> close region
   character(len=*), parameter :: sClose = "}  "
+  !> close region
   character(len=*), parameter :: sSingleClose = ";  "
+  !> Collect together as an array
   character(len=*), parameter :: separators(nSeparator) = &
       &(/ sIncludeXML, sIncludeParsed, sIncludeUnparsed, &
       &sSingleOpen, sOpen, sClose, sSingleClose /)
 
-  !> Other parsed characters
+  ! Other parsed characters
+  !> open modifier
   character(len=*), parameter :: sModifierOpen = "["
+  !> close modifier
   character(len=*), parameter :: sModifierClose = "]"
+  !> comment mark
   character(len=*), parameter :: sComment = "#"
 
-  !> Extension related stuff
+  ! Extension related stuff
+  !> number of parser tag extensions
   integer, parameter :: nExtension = 5
+  !> Extend with things, or halt
   character(len=*), parameter :: sExtendIfPresentOrDie = "+"
+  !> Optionally extend if present
   character(len=*), parameter :: sExtendIfPresent = "?"
+  !> Extend with 0 or more instances
   character(len=*), parameter :: sExtendIfPresentOrCreate = "*"
+  !> create if missing
   character(len=*), parameter :: sCreateIfNotPresent = "/"
+  !> replace if present, or create
   character(len=*), parameter :: sReplaceIfPresentOrCreate = "!"
+  !> Collect together as an array
   character(len=*), parameter :: extensions(nExtension) = &
       &(/ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
       &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
 
-  !> Name and file descriptor from standard input/output
+  ! Name and file descriptors for standard input/output
+  !> Standard in
   character(len=*), parameter :: stdin = "*"
+  !> Standard out
   character(len=*), parameter :: stdout = "*"
+  !> file ID for input
   integer, parameter :: fdStdin = 0
+  !> file ID for output
   integer, parameter :: fdStdout = 0
 
   !> Forbidden (even if quoted) characters in the iput
   character(len=*), parameter :: forbiddenChars = "<>"
 
-  !> Attribute names
+  ! Attribute names
+  !> Start of attribute
   character(len=*), parameter :: attrStart = "start"
+  !> end of attribute
   character(len=*), parameter :: attrEnd = "end"
+  !> file name
   character(len=*), parameter :: attrFile = "file"
+  !> attribte name
   character(len=*), parameter :: attrName = "name"
+  !> modifier label
   character(len=*), parameter :: attrModifier = "m"
+  !> list label
   character(len=*), parameter :: attrList = "l"
 
   !> Length of a parsed line
