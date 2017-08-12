@@ -25,6 +25,7 @@ module arpack
 
   !> Wrapper around ARPACK routines ssaupd/dsaupd.
   interface saupd
+    !> single precision Arnoldi solver call
     subroutine ssaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
         & iparam, ipntr, workd, workl, lworkl, info)
       import :: rsp
@@ -47,6 +48,7 @@ module arpack
       integer, intent(inout) :: info
     end subroutine ssaupd
 
+    !> double precision Arnoldi solver call
     subroutine dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
         & iparam, ipntr, workd, workl, lworkl, info)
       import :: rdp
@@ -72,6 +74,8 @@ module arpack
 
   !> Wrapper around ARPACK routines sseupd/dseupd.
   interface seupd
+
+    !> single precision return from the results of the solver
     subroutine sseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
         & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
       import :: rsp
@@ -99,6 +103,7 @@ module arpack
       integer, intent(inout) :: info
     end subroutine sseupd
 
+    !> double precision return from the results of the solver
     subroutine dseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
         & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
       import :: rdp

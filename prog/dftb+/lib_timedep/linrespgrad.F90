@@ -931,8 +931,8 @@ contains
 
   end subroutine getExcSpin
 
-  ! Build right hand side of the equation for the Z-vector and those parts of the W-vectors which do
-  ! not depend on Z.
+  !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
+  !> do not depend on Z.
   subroutine getZVectorEqRHS(xpy, xmy, win, iAtomStart, homo, nocc, nmatup, getij, iatrans, natom, &
       & species0, grndEigVal, stimc, c, gammaMat, spinW, omega, sym, rhs, t, wov, woo, wvv)
     !> X+Y Furche term
@@ -1163,7 +1163,7 @@ contains
 
   end subroutine getZVectorEqRHS
 
-  ! Solving the (A+B) Z = -R equation via conjugate gradient
+  !> Solving the (A+B) Z = -R equation via conjugate gradient
   subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c)
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)

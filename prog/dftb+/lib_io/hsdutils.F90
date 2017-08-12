@@ -1362,7 +1362,7 @@ contains
 
   contains
 
-    ! Helper routine.
+    !> Helper routine.
     subroutine process(cbuffer, speciesNames, species, nAtom, node, li)
       character(len=*), intent(in) :: cbuffer
       character(len=*), intent(in) :: speciesNames(:)
@@ -1467,7 +1467,7 @@ contains
 
   contains
 
-    ! Helper routine.
+    !> Helper routine.
     subroutine process(cbuffer, nMax, node, li)
       character(len=*), intent(in) :: cbuffer
       integer, intent(in) :: nMax

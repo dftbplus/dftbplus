@@ -187,9 +187,7 @@ contains
 
   contains
 
-    !------------------------------------------------------------------
-    !  fix up for negative argument, erf, etc.
-    !------------------------------------------------------------------
+    !> fix up for negative argument, erf, etc.
     subroutine fixnegf_()
       if (jint == 0) then
         res = (half - res) + half
@@ -337,7 +335,7 @@ contains
 
   contains
 
-    !>  fix up for negative argument, erf, etc.
+    !> fix up for negative argument, erf, etc.
     subroutine fixnegf_()
       if (jint == 0) then
         res = (half - res) + half

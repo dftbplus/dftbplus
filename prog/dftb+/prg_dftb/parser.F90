@@ -870,7 +870,7 @@ contains
 
   end subroutine readInitialVelocities
 
-  ! Reads atomic masses from input file, eventually overwriting those in the SK files
+  !> Reads atomic masses from input file, eventually overwriting those in the SK files
   subroutine getInputMasses(node, geo, masses)
     !> relevant node of input data
     type(fnode), pointer :: node
@@ -1872,7 +1872,7 @@ contains
 
   contains
 
-    ! Reads inital charges
+    !> Reads inital charges
     subroutine getInitialCharges(node, geo, initCharges)
       !> relevant node in input tree
       type(fnode), pointer :: node
@@ -1924,7 +1924,7 @@ contains
 
     end subroutine getInitialCharges
 
-    ! Reads initial spins
+    !> Reads initial spins
     subroutine getInitialSpins(node, geo, nSpin, initSpins)
       !> relevant node in input data
       type(fnode), pointer :: node
@@ -1982,7 +1982,7 @@ contains
 
     end subroutine getInitialSpins
 
-    ! Reads numerical differentiation method to be used
+    !> Reads numerical differentiation method to be used
     subroutine readDifferentiation(node, ctrl)
       !> relevant node in input tree
       type(fnode), pointer, intent(in) :: node
@@ -2466,7 +2466,7 @@ contains
 
   end subroutine readOptions
 
-  ! Reads in dispersion related settings
+  !> Reads in dispersion related settings
   subroutine readDispersion(node, geo, input)
     !> Node to parse
     type(fnode), pointer :: node

@@ -45,14 +45,22 @@ module ipisocket
   !> Communicator for i-Pi communication via sockets
   type :: IpiSocketComm
     private
-    type(LogWriter) :: logger   ! used to log messages
-    integer :: verbosity   ! level of verbosity
-    integer :: socket   ! socket number
-    integer :: nAtom   ! expected number of atoms
-    logical :: tInit = .false.   ! Initialisation of variables
+    !> used to log messages
+    type(LogWriter) :: logger
+    !> level of verbosity
+    integer :: verbosity
+    !> socket number
+    integer :: socket
+    !> expected number of atoms
+    integer :: nAtom
+    !> Initialisation of variables
+    logical :: tInit = .false.
   contains
+    !> send data out
     procedure :: send
+    !> receive data in
     procedure :: receive
+    !> shut the socket down
     procedure :: shutdown
   end type IpiSocketComm
 

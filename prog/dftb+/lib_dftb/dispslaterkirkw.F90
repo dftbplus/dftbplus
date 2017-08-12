@@ -84,11 +84,17 @@ module dispslaterkirkw
 
 contains
 
+  !> update internal copy of coordinates
   procedure :: updateCoords
+  !> update internal copy of lattice vectors
   procedure :: updateLatVecs
+  !> energy contribution
   procedure :: getEnergies
+  !> force contributions
   procedure :: addGradients
+  !> stress tensor contribution
   procedure :: getStress
+  !> real space cutoff
   procedure :: getRCutoff
   
 end type DispSlaKirk

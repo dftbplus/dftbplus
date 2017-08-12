@@ -19,12 +19,18 @@ module logger
     private
     integer :: verbosity
   contains
-    !> internal write procedures
+    ! internal write procedures
+    !> write a string
     procedure :: writeStr
+    !> write an integer
     procedure :: writeInt
+    !> write a real
     procedure :: writeReal
+    !> write a real vector
     procedure :: writeReal1
+    !> write a real array
     procedure :: writeReal2
+    !> generic for all of these
     generic :: write => writeStr, writeInt, writeReal, writeReal1, writeReal2
   end type LogWriter
 
@@ -230,7 +236,7 @@ contains
 
   end subroutine writeReal2
 
-  !! Returns the format string for an entire row.
+  !> Returns the format string for an entire row.
   subroutine getRowFormat(formStr, nItems, formStrRow)
     character(*), intent(in) :: formStr
     integer, intent(in) :: nItems

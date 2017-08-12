@@ -19,7 +19,6 @@ module charges
 contains
 
   !> Calculates various net charges.
-  !!
   subroutine getNetCharges(species, orb, qOrbital, q0, iHubbU, dQ, dQAtom,&
       & dQShell, dQUniqU)
 
@@ -85,10 +84,9 @@ contains
 
   end subroutine getNetCharges
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Private routines
 
+  !> orbital resolved charges
   subroutine getNetChargesPerOrbital(qOrbital, q0, deltaQ)
     real(dp), intent(in) :: qOrbital(:,:), q0(:,:)
     real(dp), intent(out) :: deltaQ(:,:)
@@ -97,6 +95,7 @@ contains
 
   end subroutine getNetChargesPerOrbital
 
+  !> atom resolved charges
   subroutine getNetChargesPerAtom(deltaQ, deltaQAtom)
     real(dp), intent(in) :: deltaQ(:,:)
     real(dp), intent(out) :: deltaQAtom(:)
@@ -105,6 +104,7 @@ contains
 
   end subroutine getNetChargesPerAtom
 
+  !> shell resolved charges
   subroutine getNetChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
     integer, intent(in) :: species(:)
     type(TOrbitals), intent(in) :: orb
@@ -125,6 +125,7 @@ contains
 
   end subroutine getNetChargesPerLShell
 
+  !> charges for regions with common U values
   subroutine getNetChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU,&
       & deltaQUniqU)
     integer, intent(in) :: species(:)

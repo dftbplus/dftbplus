@@ -161,7 +161,7 @@ contains
     type(fnodeList), pointer :: children
     integer :: ii
 
-    !! Replace range operator with short start:end syntax
+    ! Replace range operator with short start:end syntax
     call getDescendant(root, "Driver/SteepestDescent/MovedAtoms", node)
     call replaceRange(node)
     call getDescendant(root, "Driver/ConjugateGradient/MovedAtoms", node)
@@ -191,7 +191,7 @@ contains
 
   contains
 
-    ! Helper function for Range keyword
+    !> Helper function for Range keyword
     subroutine replaceRange(node)
       !> node to process
       type(fnode), pointer :: node

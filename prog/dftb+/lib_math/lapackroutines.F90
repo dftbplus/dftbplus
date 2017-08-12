@@ -83,7 +83,7 @@ module lapackroutines
 
 contains
 
-  ! Single precision version of gesv
+  !> Single precision version of gesv
   subroutine gesv_real(aa, bb, nEquation, nSolution, iError)
     !> Contains the coefficients on entry, the LU factorisation on exit.
     real(rsp), intent(inout) :: aa(:,:)
@@ -141,7 +141,7 @@ contains
 
   end subroutine gesv_real
 
-  ! Double precision version of gesv
+  !> Double precision version of gesv
   subroutine gesv_dble(aa, bb, nEquation, nSolution, iError)
     !> Contains the coefficients on entry, the LU factorisation on exit.
     real(rdp), intent(inout) :: aa(:,:)

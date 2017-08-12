@@ -30,7 +30,6 @@ module extlagrangian_module
   end type ExtLagrangianInp
 
   !> Represents an extended Lagrangian integrator.
-  !!
   type :: ExtLagrangian
     private
     integer :: phase
@@ -44,10 +43,15 @@ module extlagrangian_module
     real(dp), allocatable :: auxCoeffs(:)
     real(dp) :: alpha, kappa
   contains
+    !> turn on the integrator
     procedure :: turnOn
+    !> input for next time steo
     procedure :: getNextInput
+    !> are converged values required for next step
     procedure :: needsConvergedValues
+    !> Preconditioner for integrator
     procedure :: setPreconditioner
+    !> Internal helper function
     procedure, private :: updatePhaseAndSteps
   end type ExtLagrangian
 
@@ -223,6 +227,7 @@ contains
 
   contains
 
+    !> helper function
     function modIndex(ind)
       integer, intent(in) :: ind
       integer :: modIndex
@@ -283,10 +288,10 @@ contains
 
   end subroutine setPreconditioner
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Private methods
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  ! Private methods
+
+  !> helper function
   subroutine updatePhaseAndSteps(this)
     class(ExtLagrangian), intent(inout) :: this
 

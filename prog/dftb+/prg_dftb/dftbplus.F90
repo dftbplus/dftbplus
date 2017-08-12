@@ -139,7 +139,7 @@ program dftbplus
       &"(' ',A,':',T32,F18.10,T51,A,T57,E13.6,T71,A)"
   real(dp) :: cellPressure
 
-  !! Variables for the geometry optimization
+  ! Variables for the geometry optimization
   !> Geometry steps so far
   integer :: iGeoStep
   !> Lattice geometry steps so far
@@ -257,8 +257,8 @@ program dftbplus
   call printDFTBHeader(RELEASE_VERSION, RELEASE_YEAR)
   write (*,'(/A/)') "***  Parsing and initializing"
 
-  !! Parse input and set the variables in the local scope according the input.
-  !! These variables are defined in the initprogram module.
+  ! Parse input and set the variables in the local scope according the input.
+  ! These variables are defined in the initprogram module.
 
   allocate(input)
   call parseHSDInput(input)
@@ -279,7 +279,7 @@ program dftbplus
   totalLatDeriv = 0.0_dp
   derivCellVol = 0.0_dp
   if (tWriteTagged.or.tWriteResultsTag) then
-    !! Initialize tagged writer and human readable output
+    ! Initialize tagged writer and human readable output
     call initTaggedWriter()
   end if
   if (tWriteTagged) then
@@ -456,9 +456,7 @@ program dftbplus
     velocities(:,:) = 0.0_dp
   end if
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !! Geometry loop
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Geometry loop
 
   tGeomEnd = nGeoSteps == 0
 
@@ -525,7 +523,7 @@ program dftbplus
       call state(pMDIntegrator,fdMD)
     end if
 
-    !! Write out geometry information
+    ! Write out geometry information
     write(*, '(/,A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
       write (*, "(/,'***  Geometry step: ',I0,', Lattice step: ',I0,/)") iGeoStep,iLatGeoStep
@@ -546,25 +544,25 @@ program dftbplus
 
     end if
 
-    !! Save old coordinates and fold coords to unit cell
+    ! Save old coordinates and fold coords to unit cell
     coord0Fold(:,:) = coord0
     if (tPeriodic) then
       call foldCoordToUnitCell(coord0Fold, latVec, recVec2p)
     end if
 
-    !! Initialize neighborlists
+    ! Initialize neighborlists
     call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, &
         &neighborList, nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
 
-    !! Calculate neighborlist for SK and repulsive calculation
+    ! Calculate neighborlist for SK and repulsive calculation
     call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
 
-    !! Reallocate Hamiltonian and overlap based on the new neighbor list
+    ! Reallocate Hamiltonian and overlap based on the new neighbor list
     call reallocateHS(ham, over, iPair, neighborList%iNeighbor, nNeighbor, &
         &orb, img2CentCell)
 
-    !! Reallocate density matrixes if necessary
+    ! Reallocate density matrixes if necessary
     if (size(ham, dim=1) > size(rhoPrim, dim=1)) then
       deallocate(H0)
       allocate(H0(size(ham,dim=1)))
@@ -584,12 +582,12 @@ program dftbplus
       end if
     end if
 
-    !! (Re)Initialize mixer
+    ! (Re)Initialize mixer
     if (tSCC) then
       call reset(pChrgMixer, nMixElements)
     end if
 
-    !! Notify various modules about coordinate changes
+    ! Notify various modules about coordinate changes
     if (tSCC) then
       call updateCoords_SCC(coord, species, neighborList, img2CentCell)
     end if
@@ -601,13 +599,13 @@ program dftbplus
       call thirdOrd%updateCoords(neighborList, species)
     end if
 
-    !! Build non-scc Hamiltonian and overlap
+    ! Build non-scc Hamiltonian and overlap
     call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor,&
         &  neighborList%iNeighbor, species, iPair, orb)
     call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor,&
         & species, iPair, orb)
 
-    !! Adapt electron temperature to MD, if necessary
+    ! Adapt electron temperature to MD, if necessary
     if (tSetFillingTemp) then
       call getTemperature(temperatureProfile, tempElec)
     end if
@@ -626,7 +624,7 @@ program dftbplus
     energy%ETotal = 0.0_dp
     energy%atomTotal(:) = 0.0_dp
 
-    !! Calculate repulsive energy
+    ! Calculate repulsive energy
     call getERep(energy%atomRep, coord, nNeighbor, neighborList%iNeighbor, &
         &species, pRepCont, img2CentCell)
     energy%Erep = sum(energy%atomRep)
@@ -680,9 +678,9 @@ program dftbplus
     call total_shift(potential%extShell, potential%extAtom, orb, species)
     call total_shift(potential%extBlock, potential%extShell, orb, species)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !! SCC-loop
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    ! SCC-loop
+
     iSCCIter = 1
     tStopSCC = .false.
 
@@ -697,7 +695,7 @@ program dftbplus
         ham(ii,1) = h0(ii)
       end do
 
-      !! Build various contribution to the Hamiltonian
+      ! Build various contribution to the Hamiltonian
 
       ! Reset this in case DFTB+U terms are added to
       ! potential%iorbitalBlock later in loop:
@@ -741,14 +739,14 @@ program dftbplus
         end if
 
         call total_shift(potential%intShell, potential%intAtom, orb, species)
-        !! Build spin contribution (if necessary)
+        ! Build spin contribution (if necessary)
         if (tSpin) then
           call addSpinShift(potential%intShell,chargePerShell,species,orb,spinW)
         end if
 
         call total_shift(potential%intBlock, potential%intShell, orb, species)
 
-        if (tDFTBU) then !! Apply LDA+U correction (if necessary)
+        if (tDFTBU) then ! Apply LDA+U correction (if necessary)
           potential%orbitalBlock = 0.0_dp
           if (tImHam) then
             call shift_DFTBU(potential%orbitalBlock,potential%iorbitalBlock, &
@@ -1044,9 +1042,9 @@ program dftbplus
 
       end if ! end of nSpin == 4 case
 
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !! Mulliken analysis
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      
+      ! Mulliken analysis
+      
 
       if (tMulliken) then
         qOutput(:,:,:) = 0.0_dp
@@ -1101,7 +1099,7 @@ program dftbplus
 
         ! recalculate the SCC shifts for the output charge.
 
-        !! SCC contribution is calculated with the output charges.
+        ! SCC contribution is calculated with the output charges.
         call updateCharges_SCC(qOutput, q0, orb, species, &
             &neighborList%iNeighbor, img2CentCell)
 
@@ -1119,7 +1117,7 @@ program dftbplus
 
         call total_shift(potential%intShell, potential%intAtom, orb, species)
 
-        !! Build spin contribution (if necessary)
+        ! Build spin contribution (if necessary)
         if (tSpin) then
           call addSpinShift(potential%intShell,chargePerShell,species,orb,spinW)
         end if
@@ -1127,7 +1125,7 @@ program dftbplus
         call total_shift(potential%intBlock, potential%intShell, orb, species)
       end if
 
-      !! Calculate energies
+      ! Calculate energies
 
       ! non-SCC part
       energy%EnonSCC = 0.0_dp
@@ -1215,8 +1213,8 @@ program dftbplus
 
       energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
 
-      !! Stop SCC if appropriate stop file is present (We need this query here
-      !! since the following block contains a check iSCCIter /= nSCCIter)
+      ! Stop SCC if appropriate stop file is present (We need this query here
+      ! since the following block contains a check iSCCIter /= nSCCIter)
       inquire(file=fStopSCC, exist=tStopSCC)
       if (tStopSCC) then
         write (*,*) "Stop file '" // fStopSCC // "' found."
@@ -1224,7 +1222,7 @@ program dftbplus
         write (*,*) "Setting max number of scc cycles to current cycle."
       end if
 
-      !! Mix charges
+      ! Mix charges
       if (tSCC) then
         qOutRed = 0.0_dp
         if (nSpin == 2) then
@@ -1256,10 +1254,10 @@ program dftbplus
         tConverged = (sccErrorQ < sccTol) .and. &
             & (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
         if ((.not. tConverged) .and. iSCCiter /= nSCCiter) then
-          !! Avoid mixing of spin unpolarised density for spin polarised
-          !! cases, this is only a problem in iteration 1, as there is
-          !! only the (spin unpolarised!) atomic input density at that
-          !! point. (Unless charges had been initialized externally)
+          ! Avoid mixing of spin unpolarised density for spin polarised
+          ! cases, this is only a problem in iteration 1, as there is
+          ! only the (spin unpolarised!) atomic input density at that
+          ! point. (Unless charges had been initialized externally)
           if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1.or.tDFTBU) &
               & .and. .not.tReadChrg) then
             qInput(:,:,:) = qOutput(:,:,:)
@@ -1294,7 +1292,7 @@ program dftbplus
 
       end if
 
-      !! Clear detailed.out if necessary
+      ! Clear detailed.out if necessary
       if (tWriteDetailedOut .and. .not. tAppendDetailedOut) then
         close(fdUser)
         open(fdUser, file=userOut, position="rewind", status="replace")
@@ -1355,8 +1353,8 @@ program dftbplus
         end if
       end if
 
-      !! Not writing any restarting info if not converged and minimal number of
-      !! SCC iterations not done.
+      ! Not writing any restarting info if not converged and minimal number of
+      ! SCC iterations not done.
       if (restartFreq > 0 .and. .not.(tMD .or. tGeoOpt .or. tDerivs) .and. nSCCIter > 1) then
         if (tConverged .or. ((iSCCIter >= minSCCIter &
             & .or. tReadChrg .or. iGeoStep > 0) &
@@ -1387,7 +1385,7 @@ program dftbplus
           write (fdUser,*) ""
         end if
 
-        !! Write out atomic charges
+        ! Write out atomic charges
         if (tPrintMulliken) then
           write (fdUser, "(/,A)") " Net atomic charges (e)"
           write (fdUser, "(1X,A5,1X,A16)")" Atom", " Net charge"
@@ -1670,7 +1668,7 @@ program dftbplus
         write(fdUser,format2U) 'Total Electronic energy', energy%Eelec,'H', &
             & energy%Eelec*Hartree__eV,'eV'
 
-        !! Write out repulsive related data
+        ! Write out repulsive related data
 
         write(fdUser,format2U) 'Repulsive energy', energy%Erep,'H', &
             & energy%Erep*Hartree__eV,'eV'
@@ -1723,7 +1721,7 @@ program dftbplus
 
     end do lpSCC
 
-    !! Linear response
+    ! Linear response
     energy%Eexcited = 0.0_dp
     excitedDerivs = 0.0_dp
     if (tLinResp) then
@@ -1976,7 +1974,7 @@ program dftbplus
       dipoleMoment(:) = 0.0_dp
     end if
 
-    !! Calculate energy weighted density matrix
+    ! Calculate energy weighted density matrix
     if (tForces) then
 
       !if (tXLBOMD) then
@@ -1995,7 +1993,7 @@ program dftbplus
       !      & potential%intBlock + potential%extBlock)
       !end if
 
-      !! Calculate the identity part of the energy weighted density matrix
+      ! Calculate the identity part of the energy weighted density matrix
       ERhoPrim(:) = 0.0_dp
 
       if (nSpin == 4) then
@@ -2057,8 +2055,8 @@ program dftbplus
                 call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), &
                     & filling(:,1,iSpin), eigen2(:,1,iSpin))
               case(2)
-                !! Correct force for XLBOMD for T=0K (DHD)
-                !! Eigenvectors stored in HSqrReal are overwritten
+                ! Correct force for XLBOMD for T=0K (DHD)
+                ! Eigenvectors stored in HSqrReal are overwritten
                 call unpackHS(SSqrReal, ham(:,iSpin), neighborlist%iNeighbor, &
                     & nNeighbor, iAtomStart, iPair, img2CentCell)
                 call blockSymmetrizeHS(SSqrReal, iAtomStart)
@@ -2099,9 +2097,9 @@ program dftbplus
             end if
 
             do nK = 1, nKPoint
-              !! Calculate eigenvectors, if necessary. Eigenvectors for the last
-              !! spin in the last k-points are still there, so use those
-              !! directly
+              ! Calculate eigenvectors, if necessary. Eigenvectors for the last
+              ! spin in the last k-points are still there, so use those
+              ! directly
               if (tStoreEigvecs) then
                 iK2 = 1
                 call get(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2, iSpin2))
@@ -2123,8 +2121,8 @@ program dftbplus
                 case (1)
                   call error("Force type 1 not implemented for complex H")
                 case(2)
-                  !! Correct force for XLBOMD for T=0K (DHD)
-                  !! Eigenvectors stored in HSqrCplx are overwritten
+                  ! Correct force for XLBOMD for T=0K (DHD)
+                  ! Eigenvectors stored in HSqrCplx are overwritten
                   call makeDensityMatrix(HSqrCplx2, HSqrCplx(:,:,iK2,iSpin2), &
                       &filling(:,nK,iSpin))
                   call unpackHS(SSqrCplx, ham(:,iSpin), kPoint(:,nK), &
@@ -2332,8 +2330,8 @@ program dftbplus
       end if
     end if
 
-    !! Write out information after the end of the SCC loop, but within the
-    !! geometry loop
+    ! Write out information after the end of the SCC loop, but within the
+    ! geometry loop
 
     if (tWriteDetailedOut) then
       if (tSCC) then
@@ -2371,7 +2369,7 @@ program dftbplus
         write(fdUser,*)''
       end if
 
-      !! Write out forces
+      ! Write out forces
       if (tPrintForces) then
 
         write(fdUser,*)'Total Forces'
@@ -2422,7 +2420,7 @@ program dftbplus
     end if
 
     if (tForces) then
-      !! Set force components along constraint vectors zero
+      ! Set force components along constraint vectors zero
       do ii = 1, nGeoConstr
         iAtom = conAtom(ii)
         totalDeriv(:,iAtom) = totalDeriv(:,iAtom) &
@@ -2471,10 +2469,10 @@ program dftbplus
             & totalStress * cellVol)
       end if
 
-      !! If geometry minimizer finished and the last calculated geometry is the
-      !! minimal one (not necessary the case, depends on the optimizer!)
-      !! -> we are finished.
-      !! Otherwise we have to recalc everything in the converged geometry.
+      ! If geometry minimizer finished and the last calculated geometry is the
+      ! minimal one (not necessary the case, depends on the optimizer!)
+      ! -> we are finished.
+      ! Otherwise we have to recalc everything in the converged geometry.
 
       if (tGeomEnd) then
         exit lpGeomOpt
@@ -2781,10 +2779,10 @@ program dftbplus
           & absEField * au__V_m, 'V/m'
     end if
 
-    !! Stop reading of initial charges/block populations again
+    ! Stop reading of initial charges/block populations again
     tReadChrg = .false.
 
-    !! Stop SCC if appropriate stop file is present
+    ! Stop SCC if appropriate stop file is present
     if (.not. tStopSCC) then
       inquire(file=fStopDriver, exist=tStopDriver)
       if (tStopDriver) then
@@ -2962,7 +2960,7 @@ program dftbplus
   end if
 
   if (tWriteTagged) then
-    !! Write out final results in tagged format
+    ! Write out final results in tagged format
     open(fdTagged, file=taggedOut, position="append")
     if (tPeriodic) then
       CellVol = abs(determinant33(latVec))
@@ -3048,7 +3046,7 @@ program dftbplus
   end if
 
   if (tWriteDetailedXML) then
-    !! Ugly hack for printing out xml info, will be removed later
+    ! Ugly hack for printing out xml info, will be removed later
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
     call xml_ADDXMLDeclaration(xf)
     call xml_NewElement(xf, "detailedout")
@@ -3097,7 +3095,7 @@ program dftbplus
 
 contains
 
-  ! Invokes the writing routines for the Hamiltonian and overlap matrices.
+  !> Invokes the writing routines for the Hamiltonian and overlap matrices.
   subroutine writeHS(tWriteHS, tWriteRealHS, ham, over, iNeighbor, &
       &nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, &
       &cellVec, iHam)
@@ -3149,7 +3147,6 @@ contains
   end subroutine writeHS
 
   !> Calculates electron fillings and resulting band energy terms.
-  !!
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
 
@@ -3181,7 +3178,7 @@ contains
     integer, intent(in) :: iDistribFn
 
     !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
-    !! given number of electrons on exit
+    !> given number of electrons on exit
     real(dp), intent(inout) :: Ef(:)
 
     !> Fillings
