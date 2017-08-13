@@ -6,7 +6,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Common interface for all dispersion modules.
-!!
 module dispiface
   use accuracy, only : dp
   use periodic, only : TNeighborList

@@ -7,6 +7,7 @@
 
 #:include 'linkedlist.fypp'
 
+!> Linked list for single integers
 module linkedlisti0
   implicit none
   private

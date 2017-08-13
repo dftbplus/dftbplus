@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Extended Lagrangian dynamics 
 module extlagrangian_module
   use assert
   use accuracy, only : dp
@@ -55,7 +56,7 @@ module extlagrangian_module
     procedure, private :: updatePhaseAndSteps
   end type ExtLagrangian
 
-  ! Internal type for enumerating different phases of the integrator.
+  !> Internal type for enumerating different states of the integrator.
   type :: ExtLagrangianPhases
     integer :: off
     integer :: fillingUp
@@ -63,22 +64,23 @@ module extlagrangian_module
     integer :: on
   end type ExtLagrangianPhases
 
+  !> Internal states of the integrator
   type(ExtLagrangianPhases), parameter :: phases =&
       & ExtLagrangianPhases(1, 2, 3, 4)
 
-  ! Various integrator parameters for integration with 5 time steps
+  !> Various integrator parameters for integration with 5 time steps
   real(dp), parameter :: auxCoeffs5(0:5) = &
       & [-6.0_dp, 14.0_dp, -8.0_dp, -3.0_dp, 4.0_dp, -1.0_dp]
   real(dp), parameter :: alpha5 = 18e-3_dp
   real(dp), parameter :: kappa5 = 1.82_dp
 
-  ! Various integrator parameters for integration with 6 time steps
+  !> Various integrator parameters for integration with 6 time steps
   real(dp), parameter :: auxCoeffs6(0:6) = &
       & [-14.0_dp, 36.0_dp, -27.0_dp, -2.0_dp, 12.0_dp, -6.0_dp, 1.0_dp]
   real(dp), parameter :: alpha6 = 5.5e-3_dp
   real(dp), parameter :: kappa6 = 1.84_dp
 
-  ! Various integrator parameters for integration with 7 time steps
+  !> Various integrator parameters for integration with 7 time steps
   real(dp), parameter :: auxCoeffs7(0:7) = &
       & [-36.0_dp, 99.0_dp, -88.0_dp, 11.0_dp, 32.0_dp, -25.0_dp, 8.0_dp,&
       & -1.0_dp]
@@ -88,7 +90,6 @@ module extlagrangian_module
 contains
 
   !> Initializes an extended Lagrangian integrator.
-  !!
   subroutine ExtLagrangian_init(this, input)
 
     !> Initialized instance at exit.

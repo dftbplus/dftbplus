@@ -21,6 +21,7 @@ module spin
   public :: getEnergySpin, addSpinShift
   public :: Spin_getOrbitalEquiv, ud2qm, qm2ud
 
+  !> Get the spin contribution to the energy
   interface getEnergySpin
     module procedure getEnergySpin_total
     module procedure getEnergySpin_atom

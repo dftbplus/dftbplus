@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Constraints on the electronic ground state
 module elecconstraints
   use assert
   use accuracy, only : dp

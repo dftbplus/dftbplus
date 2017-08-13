@@ -55,6 +55,8 @@ module linrespgrad
   integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
   integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
   integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
+  
+  !> Common block of ARPACK variables
   common /debug/ logfil, ndigit, mgetv0,&
       &    msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,&
       &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
@@ -170,8 +172,8 @@ contains
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
 
-    ! array from pairs of single particles states to compound index - should replace with a more
-    ! compact data structure in the cases where there are oscilator windows
+    !> array from pairs of single particles states to compound index - should replace with a more
+    !> compact data structure in the cases where there are oscilator windows
     integer, allocatable :: iatrans(:,:)
 
     character, allocatable :: symmetries(:)
@@ -187,10 +189,10 @@ contains
 
     integer :: nStat
 
-    ! control variables
+    !> control variables
     logical :: tZVector, tCoeffs, tTradip
 
-    ! printing data
+    !> printing data
     logical :: tMulliken
 
     !> should gradients be calculated

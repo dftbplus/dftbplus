@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Module to calculate net charges
 module charges
   use assert
   use accuracy

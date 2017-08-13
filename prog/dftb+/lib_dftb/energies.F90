@@ -71,6 +71,7 @@ module energies
     logical :: tInitialised = .false.
   end type TEnergies
 
+  !> initialise the data type for storing energies
   interface init
     module procedure Energies_init
   end interface init

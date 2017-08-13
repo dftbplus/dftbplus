@@ -16,6 +16,7 @@ module Slater
   private
   save
 
+  !> Data for STOs
   type OSlaterOrbital
     private
     integer :: nPow

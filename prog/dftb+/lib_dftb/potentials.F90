@@ -43,6 +43,7 @@ module potentials
     real(dp), allocatable :: iorbitalBlock(:,:,:,:)
   end type TPotentials
 
+  !> Initialise the structure
   interface init
     module procedure Potentials_init
   end interface

@@ -22,6 +22,7 @@ module fifo
   public :: OFifoIntR1, OFifoRealR1, OFifoRealR2, OFifoCplxR1, OFifoCplxR2
   public :: init, destruct, reset, get, push, restart
 
+  !> First-in-first-out queue for reals
   type OFifoIntR1
     private
     !> Nr. of elements in stored vectors

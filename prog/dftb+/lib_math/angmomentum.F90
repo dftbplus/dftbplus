@@ -19,12 +19,12 @@ module angmomentum
   private
   public :: Loperators, getL
 
-  ! construct L_z and L^+ in the tesseral spherical hamonics basis for a given value of l
+  !> construct L_z and L^+ in the tesseral spherical hamonics basis for a given value of l
   interface Loperators
     module procedure operators
   end interface
 
-  ! Calculate atomic angular momentum for each shell
+  !> Calculate atomic angular momentum for each shell
   interface getL
     module procedure onsite
     module procedure dual
@@ -41,7 +41,9 @@ contains
     !> value of the orbital momentum to construct these matrices
     integer, intent(in)     :: l
 
-    integer :: m ! magnetic quantum number
+    ! magnetic quantum number
+    integer :: m
+
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
     complex(dp), allocatable :: u(:,:)
 

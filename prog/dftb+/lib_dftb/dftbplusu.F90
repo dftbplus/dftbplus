@@ -22,6 +22,7 @@ module dftbplusu
   public :: shift_DFTBU, AppendBlock_reduce, Block_expand
   public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
 
+  !> Potential shift from LDA+U type potentials
   interface shift_DFTBU
     module procedure shift_U
     module procedure shift_iU

@@ -69,7 +69,7 @@ module ipisocket
     module procedure construct
   end interface IpiSocketComm
 
-  ! Enum containig possible protocols
+  !> Enumerate possible protocols
   type :: IpiProtocolsEnum
     integer :: IPI_1
   end type IpiProtocolsEnum
@@ -78,7 +78,7 @@ module ipisocket
   type(IpiProtocolsEnum), parameter :: IPI_PROTOCOLS =&
       & IpiProtocolsEnum(1)
 
-  ! Length of strings expected for i-pi messages
+  !> Length of strings expected for i-pi messages
   integer, parameter :: IPI_MSGLEN = 12
 
 contains
@@ -180,8 +180,8 @@ contains
     allocate(commsBuffer1(this%nAtom * 3))
     call this%logger%write('socketRetrieve: Retrieving data from socket... ', 1)
 
-    ! wait for anything other than 'STATUS' state from the interface,
-    ! returning state 'READY' in the meanwhile
+    ! wait for anything other than 'STATUS' state from the interface, returning state 'READY' in the
+    ! meanwhile
     do while (.true.)
       call readbuffer(this%socket, header)
       call this%logger%write('ipisocket%receive: read from socket: ' // trim(header), 3)
@@ -311,11 +311,10 @@ contains
     call this%logger%write('ipisocket%send: write to socket: stress', 3)
     call this%logger%write(stress, 4, '(f12.6)')
 
-    ! i-pi can also receive an arbitrary string, that will be printed
-    ! out to the 'extra' trajectory file. this is useful if you want
-    ! to return additional information, e.g.  atomic charges, wannier
-    ! centres, etc. one must return the number of characters, then the
-    ! string. here we just send back zero characters.
+    ! i-pi can also receive an arbitrary string, that will be printed out to the 'extra' trajectory
+    ! file. this is useful if you want to return additional information, e.g.  atomic charges,
+    ! wannier centres, etc. one must return the number of characters, then the string. here we just
+    ! send back zero characters.
     call writebuffer(this%socket, 0)
     call this%logger%write('ipisocket%send: 0: nothing else to send', 3)
     call this%logger%write('ipisocket%send: Done', 1)

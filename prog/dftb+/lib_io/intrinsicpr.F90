@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> Module to print data types
 module intrinsicpr
   use accuracy
 
@@ -12,6 +13,7 @@ module intrinsicpr
 
   public :: printContent
 
+  !> Print various types of array
   interface printContent
     module procedure printArrayRealR1
     module procedure printArrayRealR2

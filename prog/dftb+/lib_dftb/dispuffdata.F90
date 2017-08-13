@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains the Van der Waal parameters for the UFF force field.
+!> Contains the Van der Waal parameters for the UFF force field.
 module dispuffdata
   use accuracy
   use message, only : error
@@ -18,8 +18,11 @@ module dispuffdata
 
   !> Contains UFF data (chemical symbol, vdW distance, depth of the LJ potential)
   type TUFF
+    !> Chemical symbol
     character(2) :: symbol
+    !> vdW minimum distance 
     real(dp) :: distance
+    !> depth of minimum
     real(dp) :: energy
   end type TUFF
 

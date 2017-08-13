@@ -17,6 +17,7 @@ module repulsive
 
   public :: getERep, getERepDeriv
 
+  !> Return repulsive energy contributions
   interface getERep
      module procedure getERep_total
      module procedure getERep_atoms

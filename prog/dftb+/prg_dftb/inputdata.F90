@@ -25,6 +25,7 @@ module inputdata_module
   private
   save
 
+  !> Main control data for program as extracted by the parser
   type control
     !> random number generator seed
     integer       :: iSeed       = 0
@@ -34,20 +35,31 @@ module inputdata_module
     logical       :: tScc        = .false.
     !> l-shell resolved SCC
     logical       :: tOrbResolved = .false.
+    !> SCC tolerance
     real(dp)      :: sccTol      = 0.0_dp
+    !> Read starting charges from disc
     logical       :: tReadChrg   = .false.
-    logical       :: tGeoOpt     = .false. ! should probably be packaged
+    !> should probably be packaged
+    logical       :: tGeoOpt     = .false.
+    !> coordinate optimisation
     logical       :: tCoordOpt   = .false.
     !> maximum line search step for atoms
     real(dp)      :: maxAtomDisp = 0.2_dp
-    logical       :: tLatOpt     = .false. ! should probably be packaged
+    !> should probably be packaged
+    logical       :: tLatOpt     = .false.
+    !> Fix angles during lattice optimisation
     logical       :: tLatOptFixAng = .false.
+    !> Fix lengths of specified vectors
     logical       :: tLatOptFixLen(3) = .false.
+    !> Isotropically scale instead
     logical       :: tLatOptIsotropic = .false.
     !> maximum possible linesearch step
     real(dp)      :: maxLatDisp = 0.2_dp
+    !> add new geometries at the end of files
     logical       :: tAppendGeo  = .false.
+    !> use converged SCC forces only
     logical       :: tConvrgForces = .true.
+    !> geometry step
     integer       :: iGeoOpt     = 0
     !> used for gDIIS
     real(dp)      :: deltaGeoOpt = 0.0_dp
@@ -57,10 +69,15 @@ module inputdata_module
     logical       :: tMulliken   = .false.
     !> printout of Mulliken
     logical       :: tPrintMulliken   = .false.
+    !> Localise electronic states
     logical       :: tLocalise   = .false.
+    !> use Givens rotations
     logical       :: tPipekMezey = .false.
+    !> dense or sparse algorithm
     logical       :: tPipekDense = .false.
+    !> tolerance on sparse region locating
     real(dp), allocatable :: sparsePipekTols(:)
+    !> tolerance on termination
     real(dp)      :: PipekTol
     !> cycles to localise charges
     integer       :: PipekMaxIter = 100
@@ -78,6 +95,7 @@ module inputdata_module
     integer       :: forceType
     !> Output forces
     logical       :: tPrintForces = .false.
+    !> method for calculating derivatives
     integer       :: iDerivMethod = 0
     !> 1st derivative finite difference step
     real(dp)      :: deriv1stDelta = 0.0_dp

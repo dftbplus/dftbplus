@@ -7,6 +7,7 @@
 
 #:include 'linkedlist.fypp'
 
+!> Linked list of single strings
 module linkedlists0
   use assert
   use xmlf90
