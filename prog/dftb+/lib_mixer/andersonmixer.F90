@@ -23,6 +23,7 @@ module andersonmixer
 
   private
 
+
   !> Contains the necessary data for an Anderson mixer
   !>
   !> For efficiency reasons this derived type also contains the data for the limited memory storage,
@@ -31,41 +32,56 @@ module andersonmixer
   !> pairs. (LIFO)
   type OAndersonMixer
     private
+
     !> General mixing parameter
     real(dp) :: mixParam
+
     !> Initial mixing parameter
     real(dp) :: initMixParam
+
     !> Convergence dependent mixing parameters
     real(dp), allocatable :: convMixParam(:,:)
+
     !> Symmetry breaking parameter
     real(dp) :: omega02
+
     !> Should symmetry be broken?
     logical :: tBreakSym
+
     !> Nr. of convergence dependent mixing parameters
     integer :: nConvMixParam
+
     !> Max. nr. of stored prev. vectors
     integer :: mPrevVector
+
     !> Nr. of stored previous vectors
     integer :: nPrevVector
+
     !> Nr. of elements in the vectors
     integer :: nElem
+
     !> Index array for the storage
     integer, allocatable :: indx(:)
+
     !> Stored previous input charges
     real(dp), allocatable :: prevQInput(:,:)
+
     !> Stored prev. charge differences
     real(dp), allocatable :: prevQDiff(:,:)
   end type OAndersonMixer
+
 
   !> Creates an AndersonMixer instance
   interface init
     module procedure AndersonMixer_init
   end interface init
 
+
   !> Resets the mixer
   interface reset
     module procedure AndersonMixer_reset
   end interface reset
+
 
   !> Does the mixing
   interface mix
@@ -77,21 +93,29 @@ module andersonmixer
 
 contains
 
+
   !> Creates an Andersom mixer instance.
   subroutine AndersonMixer_init(self, nGeneration, mixParam, initMixParam, convMixParam, omega0)
+
     !> Initialized Anderson mixer on exit
     type(OAndersonMixer), intent(out) :: self
+
     !> Nr. of generations (including actual) to consider
     integer, intent(in) :: nGeneration
+
     !> Mixing parameter for the general case
     real(dp), intent(in) :: mixParam
+
     !> Mixing parameter for the first nGeneration-1 cycles
     real(dp), intent(in) :: initMixParam
+
     !> Convergence dependent mixing parameters. Given as 2 by n array of tolerance and mixing
     !> factors pairs. The tolerances (Euclidean norm of the charge diff. vector) must follow each
+
     !> other in decreasing order. Mixing parameters given here eventually override mixParam or
     !> initMixParam.
     real(dp), intent(in), optional :: convMixParam(:,:)
+
     !> Symmetry breaking parameter. Diagonal elements of the system of linear equations are
     !> multiplied by (1.0+omega0**2).
     real(dp), intent(in), optional :: omega0
@@ -125,10 +149,13 @@ contains
 
   end subroutine AndersonMixer_init
 
+
   !> Makes the mixer ready for a new SCC cycle
   subroutine AndersonMixer_reset(self, nElem)
+
     !> Anderson mixer instance
     type(OAndersonMixer), intent(inout) :: self
+
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
 
@@ -151,12 +178,16 @@ contains
 
   end subroutine AndersonMixer_reset
 
+
   !> Mixes charges according to the Anderson method
   subroutine AndersonMixer_mix(self, qInpResult, qDiff)
+
     !> Anderson mixer
     type(OAndersonMixer), intent(inout) :: self
+
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
+
     !> Charge difference
     real(dp), intent(in)    :: qDiff(:)
 
@@ -209,6 +240,7 @@ contains
 
   end subroutine AndersonMixer_mix
 
+
   !> Calculates averages input charges and average charge differences according to the Anderson
   !> method.
   !>
@@ -217,26 +249,37 @@ contains
   !> matrix built from the DFs.
   subroutine calcAndersonAverages(qInpMiddle, qDiffMiddle, qInput, qDiff, prevQInp, prevQDiff, &
       & nElem, nPrevVector, indx, tBreakSym, omega02)
+
     !> Contains average input charge on exit
     real(dp), intent(out) :: qInpMiddle(:)
+
     !> Contains averages charge difference on exit
     real(dp), intent(out) :: qDiffMiddle(:)
+
     !> Input charge in the last iteration
     real(dp), intent(in)  :: qInput(:)
+
     !> Charge difference in the last iteration
     real(dp), intent(in)  :: qDiff(:)
+
     !> Input charges of the previous iterations
     real(dp), intent(in)  :: prevQInp(:,:)
+
     !> Charge differences of the previous iterations
     real(dp), intent(in)  :: prevQDiff(:,:)
+
     !> Nr. of elements in the charge vectors
     integer, intent(in) :: nElem
+
     !> Nr. of previous iterations stored
     integer, intent(in) :: nPrevVector
+
     !> Index array describing the reverse storage order
     integer, intent(in) :: indx(:)
+
     !> If symmetry of linear equation system should be broken
     logical, intent(in) :: tBreakSym
+
     !> Symmetry breaking constant
     real(dp), intent(in) :: omega02
 
@@ -297,19 +340,26 @@ contains
 
   end subroutine calcAndersonAverages
 
+
   !> Stores a vector pair in a limited storage. If the stack is full, the oldest vector pair is
   !> overwritten.
   subroutine storeVectors(prevQInp, prevQDiff, indx, qInput, qDiff, mPrevVector)
+
     !> Contains previous vectors of the first type
     real(dp), intent(inout) :: prevQInp(:,:)
+
     !> Contains previous vectors of the second type
     real(dp), intent(inout) :: prevQDiff(:,:)
+
     !> Indexing array to the stacks
     integer, intent(inout) :: indx(:)
+
     !> New first vector
     real(dp), intent(in) :: qInput(:)
+
     !> New second vector
     real(dp), intent(in) :: qDiff(:)
+
     !> Size of the stacks.
     integer, intent(in) :: mPrevVector
 

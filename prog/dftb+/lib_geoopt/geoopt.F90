@@ -15,6 +15,7 @@ module geoopt
 
   private
 
+
   !> Interface type for the various geometry optimization algorithms
   type OGeoOpt
     private
@@ -24,6 +25,7 @@ module geoopt
     type(ODIIS), allocatable :: pDIIS
   end type OGeoOpt
 
+
   !> Creates a geometry optimizer
   interface init
     module procedure GeoOpt_initConjGrad
@@ -31,10 +33,12 @@ module geoopt
     module procedure GeoOpt_initDIIS
   end interface
 
+
   !> Resets the optimizer
   interface reset
     module procedure GeoOpt_reset
   end interface
+
 
   !> Delivers the next point in the minimization
   interface next
@@ -51,10 +55,13 @@ module geoopt
 
 contains
 
+
   !> Creates a general geometry optimizier with a conjugate gradient instance
   subroutine GeoOpt_initConjGrad(self, pConjGrad)
+
     !> GeoOpt instance
     type(OGeoOpt), intent(out) :: self
+
     !> An already initialized conjugate gradient instance
     type(OConjGrad), allocatable, intent(inout) :: pConjGrad
 
@@ -63,10 +70,13 @@ contains
 
   end subroutine GeoOpt_initConjGrad
 
+
   !> Creates a general geometry optimizier with a steepest descent instance
   subroutine GeoOpt_initSteepDesc(self, pSteepDesc)
+
     !> GeoOpt instance
     type(OGeoOpt), intent(out) :: self
+
     !> An already initialized steepest descent instance
     type(OSteepDesc), allocatable, intent(inout) :: pSteepDesc
 
@@ -75,10 +85,13 @@ contains
 
   end subroutine GeoOpt_initSteepDesc
 
+
   !> Creates a general geometry optimizier with a steepest descent instance
   subroutine GeoOpt_initDIIS(self, pDIIS)
+
     !> GeoOpt instance
     type(OGeoOpt), intent(out) :: self
+
     !> An already initialized modified DIIS instance
     type(ODIIS), allocatable, intent(inout) :: pDIIS
 
@@ -87,10 +100,13 @@ contains
 
   end subroutine GeoOpt_initDIIS
 
+
   !> Resets the geometry optimizer
   subroutine GeoOpt_reset(self, x0)
+
     !> GeoOpt instance
     type(OGeoOpt), intent(inout) :: self
+
     !> Initial coordinates
     real(dp), intent(in) :: x0(:)
 
@@ -105,17 +121,23 @@ contains
 
   end subroutine GeoOpt_reset
 
+
   !> Delivers the next point in the geometry optimization. When calling the first time, funciton
   !> value and gradient for the starting point of the minimization should be passed.
   subroutine GeoOpt_next(self, fx, dx, xNew, tConverged)
+
     !> Optimiser object
     type(OGeoOpt), intent(inout) :: self
+
     !> Function value for last point returned by this routine
     real(dp), intent(in) :: fx
+
     !> Gradient in the last point
     real(dp), intent(in) :: dx(:)
+
     !> New proposed point
     real(dp), intent(out) :: xNew(:)
+
     !> True, if gradient got below the specified tolerance.
     logical, intent(out) :: tConverged
 

@@ -25,28 +25,38 @@ module sk
 
   public :: rotateH0
 
+
   !> Maximal angular momentum, for which rotations are present
   integer, parameter :: mAngRot_ = 3
 
 contains
 
+
   !> Driver for making the non-SCC hhamiltonian or overlap matrices for a given diatomic block
   !> Caveat: Only angular momenta up to f are currently allowed
   subroutine rotateH0(hh, skIntegs, ll, mm, nn, iSp1, iSp2, orb)
+
     !> the rectangular matrix containing the resulting diatomic matrix elements
     real(dp), intent(out) :: hh(:,:)
+
     !> Slater-Koster table for dimer of species i-j
     real(dp), intent(in), target :: skIntegs(:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Chemical species of atom i
     integer, intent(in) :: iSp1
+
     !> chemical species of atom j
     integer, intent(in) :: iSp2
+
     !> Information about the orbitals of chemical species in the system.
     type(TOrbitals), intent(in) :: orb
 
@@ -131,10 +141,13 @@ contains
 
   end subroutine rotateH0
 
+
   !> rotation routine for interaction of an s orbital with an s orbital
   subroutine ss(hh, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -145,16 +158,22 @@ contains
 
   end subroutine ss
 
+
   !> rotation routine for interaction of an s orbital with a p orbital
   subroutine sp(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -167,16 +186,22 @@ contains
 
   end subroutine sp
 
+
   !> rotation routine for interaction of an s orbital with a d orbital
   subroutine sd(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -191,16 +216,22 @@ contains
 
   end subroutine sd
 
+
   !> rotation routine for interaction of an s orbital with an f orbital
   subroutine sf(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -221,16 +252,22 @@ contains
 
   end subroutine sf
 
+
   !> rotation routine for interaction of a p orbital with a p orbital
   subroutine pp(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -249,16 +286,22 @@ contains
 
   end subroutine pp
 
+
   !> rotation routine for interaction of a p orbital with a d orbital
   subroutine pd(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -295,16 +338,22 @@ contains
 
   end subroutine pd
 
+
   !> rotation routine for interaction of a p orbital with an f orbital
   subroutine pf(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -373,16 +422,22 @@ contains
 
   end subroutine pf
 
+
   !> rotation routine for interaction of a d orbital with a d orbital
   subroutine dd(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -446,16 +501,22 @@ contains
 
   end subroutine dd
 
+
   !> rotation routine for interaction of a d orbital with an f orbital
   subroutine df(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 
@@ -627,16 +688,22 @@ contains
 
   end subroutine df
 
+
   !> rotation routine for interaction of an f orbital with an f orbital
   subroutine ff(hh, ll, mm, nn, sk)
+
     !> dimeric block to put the results in to
     real(dp), intent(inout) :: hh(:,:)
+
     !> directional cosine ll
     real(dp), intent(in) :: ll
+
     !> directional cosine mm
     real(dp), intent(in) :: mm
+
     !> directional cosine nn
     real(dp), intent(in) :: nn
+
     !> Slater-Koster table for dimer element of the Slater-Koster table
     real(dp), intent(in) :: sk(:)
 

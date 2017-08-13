@@ -47,6 +47,7 @@ module ranlux
 
   private
 
+
   !> Internal variables for the luxury pseudorandom generator
   type ORanlux
     integer :: next(24)
@@ -61,11 +62,13 @@ module ranlux
     real(dp) :: twom12
   end type ORanlux
 
+
   !> Creates a ranlux random number generator
   interface init
     module procedure Ranlux_init_default
     !module procedure Ranlux_init_restart
   end interface init
+
 
   !> Fills a vector with random numbers
   interface getRandom
@@ -73,6 +76,7 @@ module ranlux
     module procedure Ranlux_getRandom2DArray
     module procedure Ranlux_getRandomNumber
   end interface getRandom
+
 
   !> Return the state of the generator
   interface getState
@@ -82,38 +86,50 @@ module ranlux
   public :: ORanlux
   public :: init, getRandom, getState
 
+
   !> Maximal luxury level
   integer, parameter :: maxlev = 4
+
 
   !> Default luxury level
   integer, parameter :: lxdflt = 3
 
+
   !> Default seed
   integer, parameter :: jsdflt = 314159265
+
 
   !> Nr. of random numbers to throw away to destroy coherence
   integer, parameter :: ndskip(0:maxlev) = (/ 0, 24, 73, 199, 365 /)
 
+
   !> 2**24 as integer
   integer, parameter :: itwo24 = 2**24
+
 
   !> Auxiliary constant
   integer, parameter :: icons = 2147483563
 
+
   !> Mask for the lowest 24 bits
   integer, parameter :: masklo = itwo24 - 1
+
 
   !> Mask for all but the lowest 24 bits
   integer, parameter :: maskhi = not(masklo)
 
 contains
 
+
   !> Creates and initializes a random generator
   subroutine Ranlux_init_default(self, luxlev, initSeed)
+
     !> Initialized random generator on exit
     type(ORanlux), intent(out) :: self
+
     !> Luxury level. Possible values: 0, 1, 2, 3, 4. (Default: 3)
     integer, intent(in), optional :: luxlev
+
     !> Initial seed value. (Default: 314159265)
     integer, intent(in), optional :: initSeed
 
@@ -172,10 +188,13 @@ contains
 
   end subroutine Ranlux_init_default
 
+
   !> Creates and initializes a random generator with previously saved values.
   subroutine Ranlux_init_restart(self, isdext)
+
     !> Initialized random generator instance on exit
     type(ORanlux), intent(out) :: self
+
     !> Contains the state of a saved generator as produced by Ranlux_getState.
     integer, intent(in) :: isdext(:)
 
@@ -215,10 +234,13 @@ contains
 
   end subroutine Ranlux_init_restart
 
+
   !> Fills a given vector with random numbers.
   subroutine Ranlux_getRandomVector(self, rvec)
+
     !> Ranlux instance
     type(ORanlux), intent(inout) :: self
+
     !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: rvec(:)
 
@@ -227,10 +249,13 @@ contains
 
   end subroutine Ranlux_getRandomVector
 
+
   !> Fills a given 2D array with random numbers.
   subroutine Ranlux_getRandom2DArray(self, r2Darray)
+
     !> Ranlux instance
     type(ORanlux), intent(inout) :: self
+
     !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: r2Darray(:,:)
 
@@ -243,10 +268,13 @@ contains
 
   end subroutine Ranlux_getRandom2DArray
 
+
   !> Returns a random number
   subroutine Ranlux_getRandomNumber(self, rnum)
+
     !> Ranlux instance
     type(ORanlux), intent(inout) :: self
+
     !> Contains the random number on exit.
     real(dp), intent(out) :: rnum
 
@@ -258,26 +286,37 @@ contains
 
   end subroutine Ranlux_getRandomNumber
 
+
   !> Workhorse for the Ranlux_getRandom* methods.
   subroutine getRandomVector_local(rvec,iseeds,icarry,in24,i24,j24,next,nskip,twom24,twom12)
+
     !> Vector containing the random numbers on exit
     real(dp), intent(out) :: rvec(:)
+
     !> Stored seeds
     integer, intent(inout) :: iseeds(:)
+
     !> Carry bit
     integer, intent(inout) :: icarry
+
     !> Auxiliary variable
     integer, intent(inout) :: in24
+
     !> Auxiliary variable
     integer, intent(inout) :: i24
+
     !> Auxiliary variable
     integer, intent(inout) :: j24
+
     !> Auxiliary variable
     integer, intent(in) :: next(:)
+
     !> Nr. of numbers to throw away to destroy coherence
     real(dp), intent(in) :: twom24
+
     !> 2**-24 as real
     real(dp), intent(in) :: twom12
+
     !> 2**-12 as real
     integer, intent(in) :: nskip
 
@@ -329,10 +368,13 @@ contains
 
   end subroutine getRandomVector_local
 
+
   !> Saves the state of the random generator in an integer array
   subroutine Ranlux_getState(self, isdext)
+
     !> Ranlux instance.
     type(ORanlux), intent(in) :: self
+
     !> Contains the state of the generator as integer array.
     integer, intent(out) :: isdext(:)
 

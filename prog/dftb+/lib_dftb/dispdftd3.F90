@@ -18,6 +18,7 @@ module dispdftd3_module
 
   public :: DispDftD3Inp, DispDftD3, DispDftD3_init
 
+
   !> Input structure for the DFT-D3 initialization.
   type :: DispDftD3Inp
     real(dp) :: s6, s8, a1, a2, sr6, sr8, alpha6
@@ -27,56 +28,80 @@ module dispdftd3_module
     logical :: threebody, numgrad
   end type DispDftD3Inp
 
+
   !> Internal state of the DFT-D3 dispersion
   type, extends(DispersionIface) :: DispDftD3
     private
+
     !> calculator to evaluate dispersion
     type(dftd3_calc), allocatable :: calculator
+
     !> number of atoms
     integer :: nAtom
+
     !> energy
     real(dp) :: dispE
+
     !> force contributions
     real(dp), allocatable :: gradients(:,:)
+
     !> lattice vectors if periodic
     real(dp) :: latVecs(3, 3)
+
     !> stress tensor
     real(dp) :: stress(3, 3)
+
     !> atomic nuber
     integer, allocatable :: izp(:)
+
     !> is this periodic
     logical :: tPeriodic
+
     !> are  the coordinates current?
     logical :: tCoordsUpdated = .false.
+    
   contains
+
     !> update internal store of coordinates
     procedure :: updateCoords
+
     !> update internal store of lattice vectors
     procedure :: updateLatVecs
+
     !> return energy contribution
     procedure :: getEnergies
+
     !> return force contribution
     procedure :: addGradients
+
     !> return stress tensor contribution
     procedure :: getStress
+
     !> cutoff distance in real space for dispersion
     procedure :: getRCutoff
   end type DispDftD3
 
 contains
 
+
   !> Inits a DispDftD3 instance.
   subroutine DispDftD3_init(this, inp, nAtom, species0, speciesNames, latVecs)
+
     !> Initialised instance at return.
     type(DispDftD3), intent(out) :: this
+
     !> Specific input parameters for DFT-D3 Grimme.
     type(DispDftD3Inp), intent(in) :: inp
+
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
+
     !> Species of every atom in the unit cell.
     integer, intent(in) :: species0(:)
+
     !> Names of species.
     character(*), intent(in) :: speciesNames(:)
+
     !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:,:)
 
@@ -114,16 +139,22 @@ contains
 
   end subroutine DispDftD3_init
 
+
   !> Notifies the objects about changed coordinates.
   subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+
     !> Updated neighbor list.
     type(TNeighborList), intent(in) :: neigh
+
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Updated coordinates.
     real(dp), intent(in) :: coords(:,:)
+
     !> Species of the atoms in the unit cell.
     integer, intent(in) ::  species0(:)
 
@@ -142,10 +173,13 @@ contains
 
   end subroutine updateCoords
 
+
   !> Notifies the object about updated lattice vectors.
   subroutine updateLatVecs(this, latVecs)
+
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
@@ -156,10 +190,13 @@ contains
 
   end subroutine updateLatVecs
 
+
   !> Returns the atomic resolved energies due to the dispersion.
   subroutine getEnergies(this, energies)
+
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+
     !> Contains the atomic energy contributions on exit.
     real(dp), intent(out) :: energies(:)
 
@@ -172,10 +209,13 @@ contains
 
   end subroutine getEnergies
 
+
   !> Adds the atomic gradients to the provided vector.
   subroutine addGradients(this, gradients)
+
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+
     !> The vector to increase by the gradients.
     real(dp), intent(inout) :: gradients(:,:)
 
@@ -187,10 +227,13 @@ contains
 
   end subroutine addGradients
 
+
   !> Returns the stress tensor.
   subroutine getStress(this, stress)
+
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+
     !> stress tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
@@ -202,10 +245,13 @@ contains
 
   end subroutine getStress
 
+
   !> Estimates the real space cutoff of the dispersion interaction.
   function getRCutoff(this) result(cutoff)
+
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
+
     !> Resulting cutoff
     real(dp) :: cutoff
 

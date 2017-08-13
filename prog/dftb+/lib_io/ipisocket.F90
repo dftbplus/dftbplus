@@ -22,73 +22,95 @@ module ipisocket
   public :: IpiSocketComm, IpiSocketComm_init
   public :: IPI_PROTOCOLS
 
+
   !> Input for initialising IpiSocketComm.
   type :: IpiSocketCommInp
+
     !> Number of atoms for which data is exchanged
     integer :: nAtom
+
 
     !> Host name
     character(:), allocatable :: host
 
+
     !> Verbosity level of detail on communication.
     integer :: verbosity
+
 
     !> Protocol type of message headers and data to use (currently only
     !! IPI_PROTOCOL1 understood).
     integer :: protocol
+
 
     !> Port to connect to if using an internet protocol, if -1, its a file
     !! system connection
     integer :: port
   end type IpiSocketCommInp
 
+
   !> Communicator for i-Pi communication via sockets
   type :: IpiSocketComm
     private
+
     !> used to log messages
     type(LogWriter) :: logger
+
     !> level of verbosity
     integer :: verbosity
+
     !> socket number
     integer :: socket
+
     !> expected number of atoms
     integer :: nAtom
+
     !> Initialisation of variables
     logical :: tInit = .false.
   contains
+
     !> send data out
     procedure :: send
+
     !> receive data in
     procedure :: receive
+
     !> shut the socket down
     procedure :: shutdown
   end type IpiSocketComm
+
 
   !> Constructor for IpiSocketComm.
   interface IpiSocketComm
     module procedure construct
   end interface IpiSocketComm
 
+
   !> Enumerate possible protocols
   type :: IpiProtocolsEnum
     integer :: IPI_1
   end type IpiProtocolsEnum
 
+
   !> Available socket protocol types
   type(IpiProtocolsEnum), parameter :: IPI_PROTOCOLS =&
       & IpiProtocolsEnum(1)
+
 
   !> Length of strings expected for i-pi messages
   integer, parameter :: IPI_MSGLEN = 12
 
 contains
 
+
   !> Construct IpiSocketComm instance.
   !!
   subroutine IpiSocketComm_init(this, input)
 
+
     !> Instance.
     type(IpiSocketComm), intent(out) :: this
+
 
     !> Input data.
     type(IpiSocketCommInp), intent(in) :: input
@@ -129,12 +151,15 @@ contains
 
   end subroutine IpiSocketComm_init
 
+
   !> Construct IpiSocketComm instance.
   !!
   function construct(input) result(this)
 
+
     !> Input data
     type(IpiSocketCommInp), intent(in) :: input
+
 
     !> Instance
     type(IpiSocketComm) :: this
@@ -143,6 +168,7 @@ contains
 
   end function construct
 
+
   !> Receives data from an external i-Pi program via a socket.
   !!
   !! All data in atomic units, and currently assumes the number
@@ -150,11 +176,14 @@ contains
   !!
   subroutine receive(this, coord, cell)
 
+
     !> Instance.
     class(IpiSocketComm), intent(inout) :: this
 
+
     !> Atomic coordinates.
     real(dp), intent(out) :: coord(:,:)
+
 
     !> Cell lattice vectors.
     real(dp), intent(out) :: cell(3, 3)
@@ -231,6 +260,7 @@ contains
 
   end subroutine receive
 
+
   !> Send data to an external program via a socket
   !!
   !! All data in atomic units, and currently assumes the number
@@ -238,14 +268,18 @@ contains
   !!
   subroutine send(this, energy, forces, stress)
 
+
     !> Instance
     class(IpiSocketComm), intent(inout) :: this
+
 
     !> Total energy
     real(dp), intent(in) :: energy
 
+
     !> Total forces
     real(dp), intent(in) :: forces(:,:)
+
 
     !> Cell stresses
     real(dp), intent(in) :: stress(3, 3)
@@ -321,12 +355,14 @@ contains
 
   end subroutine send
 
+
   !> Shuts down the socket.
   !!
   !! All data in atomic units, and currently assumes the number
   !! of atoms is the same as passed at construction/initialisation.
   !!
   subroutine shutdown(this)
+
 
     !> Instance
     class(IpiSocketComm), intent(inout) :: this

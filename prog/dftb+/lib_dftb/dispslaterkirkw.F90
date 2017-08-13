@@ -36,67 +36,93 @@ module dispslaterkirkw
 
   public :: DispSlaKirkInp, DispSlaKirk, DispSlaKirk_init
 
+
   !> Contains the initialisation data for the Slater-Kirkwood module.
   type :: DispSlaKirkInp
+
     !> Atomic polarisabilities (nAtom)
     real(dp), allocatable :: polar(:)
 
+
     !> Van der Waals radii (nAtom)
     real(dp), allocatable :: rWaals(:)
+
 
     !> Effective charges (nAtom)
     real(dp), allocatable :: charges(:)
   end type DispSlaKirkInp
 
+
   !> Data for the Slater-Kirkwood type dispersion.
   type, extends(DispersionIface) :: DispSlaKirk
   private
+
   !> Atomic polarisabilities (nAtom)
   real(dp), allocatable :: c6(:,:)
+
   !> Van der Waals radii (nAtom)
   real(dp), allocatable :: rVdW2(:,:)
+
   !> Nr. of atoms (without images)
   integer :: nAtom
+
   !> Energies
   real(dp), allocatable :: energies(:)
+
   !> Gradients (3, nAtom)
   real(dp), allocatable :: gradients(:,:)
+
   !> stress tensor components
   real(dp) :: stress(3,3)
+
   !> If system is periodic
   logical :: tPeriodic
+
   !> Real space cutoff
   real(dp) :: rCutoff
+
   !> Reciprocal space cutoff
   real(dp) :: gCutoff
+
   !> Cutoff, where damping function = 1
   real(dp) :: dampCutoff
+
   !> Periodic summation parameter
   real(dp) :: eta
+
   !> Volume of the unit cell
   real(dp) :: vol
+
   !> Largest pair distance
   real(dp) :: maxR
+
   !> Temporary dirty solution
   real(dp), allocatable :: gLatPoint(:,:)
+
   !> If first coordinate update done
   logical :: coordsUpdated = .false.
 
 contains
 
+
   !> update internal copy of coordinates
   procedure :: updateCoords
+
   !> update internal copy of lattice vectors
   procedure :: updateLatVecs
+
   !> energy contribution
   procedure :: getEnergies
+
   !> force contributions
   procedure :: addGradients
+
   !> stress tensor contribution
   procedure :: getStress
+
   !> real space cutoff
   procedure :: getRCutoff
-  
+
 end type DispSlaKirk
 
 !> Some magic constants for the damping function (see paper)
@@ -106,149 +132,76 @@ real(dp), parameter :: dd_ = 3.0_dp   ! d
 
 contains
 
+
   !> Initializes a SlaterKirkwood instance.
-  subroutine DispSlaKirk_init(this, inp, latVecs)
-    !> Initialized instance on exit.
-    type(DispSlaKirk), intent(out) :: this
-    !> Input parameters for Slater-Kirkwood.
-    type(DispSlaKirkInp), intent(in) :: inp
-    !> Lattice vectors, if the system is periodic.
-    real(dp), intent(in), optional :: latVecs(:,:)
+subroutine DispSlaKirk_init(this, inp, latVecs)
 
-    real(dp) :: recVecs(3, 3), invRecVecs(3, 3)
-    real(dp) :: tol, rTmp, c6sum
-    integer :: iAt1, iAt2
+  !> Initialized instance on exit.
+  type(DispSlaKirk), intent(out) :: this
 
-    @:ASSERT(size(inp%polar) > 0)
-    @:ASSERT(size(inp%polar) == size(inp%rWaals))
-    @:ASSERT(size(inp%polar) == size(inp%charges))
-    @:ASSERT(all(inp%polar >= 0.0_dp))
-    @:ASSERT(all(inp%rWaals >= 0.0_dp))
+  !> Input parameters for Slater-Kirkwood.
+  type(DispSlaKirkInp), intent(in) :: inp
+
+  !> Lattice vectors, if the system is periodic.
+  real(dp), intent(in), optional :: latVecs(:,:)
+
+  real(dp) :: recVecs(3, 3), invRecVecs(3, 3)
+  real(dp) :: tol, rTmp, c6sum
+  integer :: iAt1, iAt2
+
+  @:ASSERT(size(inp%polar) > 0)
+  @:ASSERT(size(inp%polar) == size(inp%rWaals))
+  @:ASSERT(size(inp%polar) == size(inp%charges))
+  @:ASSERT(all(inp%polar >= 0.0_dp))
+  @:ASSERT(all(inp%rWaals >= 0.0_dp))
 #:call ASSERT_CODE
-    if (present(latVecs)) then
-      @:ASSERT(all(shape(latVecs) == [3, 3]))
-    end if
+  if (present(latVecs)) then
+    @:ASSERT(all(shape(latVecs) == [3, 3]))
+  end if
 #:endcall ASSERT_CODE
 
-    this%nAtom = size(inp%polar)
-    allocate(this%c6(this%nAtom, this%nAtom))
-    allocate(this%rVdW2(this%nAtom, this%nAtom))
-    this%rCutoff = 0.0_dp
-    this%c6 = 0.0_dp
-    this%rVdW2 = 0.0_dp
-    this%maxR = 0.0_dp
-    tol = epsilon(1.0_dp)
-    do iAt1 = 1, this%nAtom
-      if (inp%polar(iAt1) < tol .or. inp%rWaals(iAt1) < tol) then
-        cycle
+  this%nAtom = size(inp%polar)
+  allocate(this%c6(this%nAtom, this%nAtom))
+  allocate(this%rVdW2(this%nAtom, this%nAtom))
+  this%rCutoff = 0.0_dp
+  this%c6 = 0.0_dp
+  this%rVdW2 = 0.0_dp
+  this%maxR = 0.0_dp
+  tol = epsilon(1.0_dp)
+  do iAt1 = 1, this%nAtom
+    if (inp%polar(iAt1) < tol .or. inp%rWaals(iAt1) < tol) then
+      cycle
+    end if
+    do iAt2 = 1, iAt1
+      this%c6(iAt2, iAt1) = 1.5_dp * inp%polar(iAt1) * inp%polar(iAt2)&
+          & / (sqrt(inp%polar(iAt1)/ inp%charges(iAt1)) &
+          & + sqrt(inp%polar(iAt2)/ inp%charges(iAt2)))
+      rTmp = (inp%rWaals(iAt1)**3 + inp%rWaals(iAt2)**3) &
+          &/ (inp%rWaals(iAt1)**2 + inp%rWaals(iAt2)**2)
+      this%rVdW2(iAt2, iAt1) = dd_ / rTmp**nn_
+      this%maxR = max(this%maxR, rTmp)
+      if (iAt1 /= iAt2) then
+        this%c6(iAt1, iAt2) = this%c6(iAt2, iAt1)
+        this%rVdW2(iAt1, iAt2) = this%rVdW2(iAt2, iAt1)
       end if
-      do iAt2 = 1, iAt1
-        this%c6(iAt2, iAt1) = 1.5_dp * inp%polar(iAt1) * inp%polar(iAt2)&
-            & / (sqrt(inp%polar(iAt1)/ inp%charges(iAt1)) &
-            & + sqrt(inp%polar(iAt2)/ inp%charges(iAt2)))
-        rTmp = (inp%rWaals(iAt1)**3 + inp%rWaals(iAt2)**3) &
-            &/ (inp%rWaals(iAt1)**2 + inp%rWaals(iAt2)**2)
-        this%rVdW2(iAt2, iAt1) = dd_ / rTmp**nn_
-        this%maxR = max(this%maxR, rTmp)
-        if (iAt1 /= iAt2) then
-          this%c6(iAt1, iAt2) = this%c6(iAt2, iAt1)
-          this%rVdW2(iAt1, iAt2) = this%rVdW2(iAt2, iAt1)
-        end if
-      end do
     end do
-    this%rCutoff = (maxval(this%c6) / tolDispersion)**(1.0_dp / 6.0_dp)
+  end do
+  this%rCutoff = (maxval(this%c6) / tolDispersion)**(1.0_dp / 6.0_dp)
 
-    this%tPeriodic = present(latVecs)
-    if (this%tPeriodic) then
-      this%vol = abs(determinant33(latVecs))
-      invRecVecs(:,:) = latVecs / (2.0_dp * pi)
-      recVecs(:,:) = transpose(invRecVecs)
-      call matinv(recVecs)
-
-      ! Scaling down optimal eta (as suggested in the literature) is purely empirical, it reduces
-      ! the real space summation, and seems to yield shorter execution times. (It does not influence
-      ! the result.)
-      this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
-      c6sum = sum(abs(this%c6))
-      this%rCutoff = getMaxRDispersion(this%eta, c6sum, this%vol, &
-          & tolDispersion)
-      ! Cutoff, beyond which dispersion is purely 1/r^6 without damping
-      this%dampCutoff = getDampCutoff_(this%maxR, tolDispDamp)
-      this%rCutoff = max(this%rCutoff, this%dampCutoff)
-      this%gCutoff = getMaxGDispersion(this%eta, c6sum, tolDispersion)
-      call getLatticePoints(this%gLatPoint, recVecs, invRecVecs, &
-          & this%gCutoff, onlyInside=.true., reduceByInversion=.true., &
-          & withoutOrigin=.true.)
-      this%gLatPoint(:,:) = matmul(recVecs, this%gLatPoint)
-    end if
-
-    allocate(this%energies(this%nAtom))
-    allocate(this%gradients(3, this%nAtom))
-    this%coordsUpdated = .false.
-
-  end subroutine DispSlaKirk_init
-
-  !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
-    !> The data object for dispersion
-    class(DispSlaKirk), intent(inout) :: this
-    !> Updated neighbor list.
-    type(TNeighborList), intent(in) :: neigh
-    !> Updated mapping to central cell.
-    integer, intent(in) :: img2CentCell(:)
-    !> Updated coordinates.
-    real(dp), intent(in) :: coords(:,:)
-    !> Species of the atoms in the unit cell.
-    integer, intent(in) :: species0(:)
-
-    !> Neighbors for real space summation
-    integer, allocatable :: nNeighReal(:)
-    !> Nr. of neighbors with damping
-    integer, allocatable :: nNeighDamp(:)
-
-    allocate(nNeighReal(this%nAtom))
-    call getNrOfNeighborsForAll(nNeighReal, neigh, this%rCutoff)
-    this%energies(:) = 0.0_dp
-    this%gradients(:,:) = 0.0_dp
-    this%stress(:,:) = 0.0_dp
-    if (this%tPeriodic) then
-      ! Make Ewald summation for a pure 1/r^6 interaction
-      call addDispEGr_per_atom(this%nAtom, coords, nNeighReal, &
-          & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
-          & this%eta, this%vol, this%gLatPoint, this%energies, this%gradients, &
-          & this%stress)
-      ! Correct those terms, where damping is important
-      allocate(nNeighDamp(this%nAtom))
-      call getNrOfNeighborsForAll(nNeighDamp, neigh, this%dampCutoff)
-      call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighDamp, &
-          & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
-          & this%rVdW2, this%energies, this%gradients, dampCorrection=-1.0_dp)
-    else
-      call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighReal, &
-          & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
-          & this%rVdW2, this%energies, this%gradients)
-    end if
-    this%coordsUpdated = .true.
-
-  end subroutine updateCoords
-
-  !> Notifies the object about updated lattice vectors.
-  subroutine updateLatVecs(this, latVecs)
-    !> The data object for dispersion
-    class(DispSlaKirk), intent(inout) :: this
-    !> New lattice vectors
-    real(dp), intent(in) :: latVecs(:,:)
-
-    real(dp) :: recVecs(3, 3), invRecVecs(3, 3)
-    real(dp) :: c6sum
-
+  this%tPeriodic = present(latVecs)
+  if (this%tPeriodic) then
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
     recVecs(:,:) = transpose(invRecVecs)
     call matinv(recVecs)
+
+    ! Scaling down optimal eta (as suggested in the literature) is purely empirical, it reduces
+    ! the real space summation, and seems to yield shorter execution times. (It does not influence
+    ! the result.)
     this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
     c6sum = sum(abs(this%c6))
-    this%rCutoff = getMaxRDispersion(this%eta, c6sum, this%vol, tolDispersion)
+    this%rCutoff = getMaxRDispersion(this%eta, c6sum, this%vol, &
+        & tolDispersion)
     ! Cutoff, beyond which dispersion is purely 1/r^6 without damping
     this%dampCutoff = getDampCutoff_(this%maxR, tolDispDamp)
     this%rCutoff = max(this%rCutoff, this%dampCutoff)
@@ -257,151 +210,268 @@ contains
         & this%gCutoff, onlyInside=.true., reduceByInversion=.true., &
         & withoutOrigin=.true.)
     this%gLatPoint(:,:) = matmul(recVecs, this%gLatPoint)
-    this%coordsUpdated = .false.
+  end if
 
-  end subroutine updateLatVecs
+  allocate(this%energies(this%nAtom))
+  allocate(this%gradients(3, this%nAtom))
+  this%coordsUpdated = .false.
 
-  !> Returns the atomic resolved energies due to the dispersion.
-  subroutine getEnergies(this, energies)
-    !> The data object for dispersion
-    class(DispSlaKirk), intent(inout) :: this
-    !> Contains the atomic energy contributions on exit.
-    real(dp), intent(out) :: energies(:)
+end subroutine DispSlaKirk_init
 
-    @:ASSERT(this%coordsUpdated)
-    @:ASSERT(size(energies) == this%nAtom)
 
-    energies(:) = this%energies(:)
+!> Notifies the objects about changed coordinates.
+subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
 
-  end subroutine getEnergies
+  !> The data object for dispersion
+  class(DispSlaKirk), intent(inout) :: this
 
-  !> Adds the atomic gradients to the provided vector.
-  subroutine addGradients(this, gradients)
-    !> The data object for dispersion
-    class(DispSlaKirk), intent(inout) :: this
-    !> The vector to increase by the gradients.
-    real(dp), intent(inout) :: gradients(:,:)
+  !> Updated neighbor list.
+  type(TNeighborList), intent(in) :: neigh
 
-    @:ASSERT(this%coordsUpdated)
-    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+  !> Updated mapping to central cell.
+  integer, intent(in) :: img2CentCell(:)
 
-    gradients(:,:) = gradients(:,:) + this%gradients(:,:)
+  !> Updated coordinates.
+  real(dp), intent(in) :: coords(:,:)
 
-  end subroutine addGradients
+  !> Species of the atoms in the unit cell.
+  integer, intent(in) :: species0(:)
 
-  !> Returns the stress tensor.
-  !>
-  !> Note: The stress tensor is not calculated for this dispersion model so the program is stopped,
-  !> if this method is called.
-  subroutine getStress(this, stress)
-    !> The data object for dispersion
-    class(DispSlaKirk), intent(inout) :: this
-    !> tensor from the dispersion
-    real(dp), intent(out) :: stress(:,:)
 
-    call error("Internal error: DispSlaKirk%getStress() was called")
+  !> Neighbors for real space summation
+  integer, allocatable :: nNeighReal(:)
 
-  end subroutine getStress
+  !> Nr. of neighbors with damping
+  integer, allocatable :: nNeighDamp(:)
 
-  !> Estimates the real space cutoff of the dispersion interaction.
-  function getRCutoff(this) result(cutoff)
-    !> The data object for dispersion
-    class(DispSlaKirk), intent(inout) :: this
-    !> Cutoff for the interaction
-    real(dp) :: cutoff
+  allocate(nNeighReal(this%nAtom))
+  call getNrOfNeighborsForAll(nNeighReal, neigh, this%rCutoff)
+  this%energies(:) = 0.0_dp
+  this%gradients(:,:) = 0.0_dp
+  this%stress(:,:) = 0.0_dp
+  if (this%tPeriodic) then
+    ! Make Ewald summation for a pure 1/r^6 interaction
+    call addDispEGr_per_atom(this%nAtom, coords, nNeighReal, &
+        & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
+        & this%eta, this%vol, this%gLatPoint, this%energies, this%gradients, &
+        & this%stress)
+    ! Correct those terms, where damping is important
+    allocate(nNeighDamp(this%nAtom))
+    call getNrOfNeighborsForAll(nNeighDamp, neigh, this%dampCutoff)
+    call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighDamp, &
+        & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
+        & this%rVdW2, this%energies, this%gradients, dampCorrection=-1.0_dp)
+  else
+    call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighReal, &
+        & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
+        & this%rVdW2, this%energies, this%gradients)
+  end if
+  this%coordsUpdated = .true.
 
-    cutoff = this%rCutoff
+end subroutine updateCoords
 
-  end function getRCutoff
 
-  !> Adds the energy per atom and the gradients for the cluster case
-  subroutine addDispEnergyAndGrad_cluster(nAtom, coords, nNeighbors, iNeighbor, neighDist2, &
-      & img2CentCell, c6, rVdW2, energies, gradients, dampCorrection)
-    !> Nr. of atoms (without periodic images)
-    integer, intent(in) :: nAtom
-    !> Coordinates of the atoms (including images)
-    real(dp), intent(in) :: coords(:,:)
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbors(:)
-    !> Neighborlist.
-    integer, intent(in) :: iNeighbor(0:,:)
-    !> Square distances of the neighbours.
-    real(dp), intent(in) :: neighDist2(0:,:)
-    !> Mapping into the central cell.
-    integer, intent(in) :: img2CentCell(:)
-    !> Van der Waals coefficients (nAtom, nAtom)
-    real(dp), intent(in) :: c6(:,:)
-    !> Scaled inverse van der Waals radii (nAtom, nAtom)
-    real(dp), intent(in) :: rVdW2(:,:)
-    !> Updated energy vector at return
-    real(dp), intent(inout) :: energies(:)
-    !> Updated gradient vector at return
-    real(dp), intent(inout) :: gradients(:,:)
-    !> Adds the provided value to the damping function (use -1.0 to sum up damped 1/r^6 terms and
-    !> subtract pure 1/r^6 ones, in order to correct periodic Ewald sum for the short range damped
-    !> terms.)
-    real(dp), intent(in), optional :: dampCorrection
+!> Notifies the object about updated lattice vectors.
+subroutine updateLatVecs(this, latVecs)
 
-    integer :: iAt1, iNeigh, iAt2, iAt2f
-    real(dp) :: dist2, dist, h0, h1, h2, rTmp
-    real(dp) :: diff(3), gr(3)
-    real(dp) :: corr
+  !> The data object for dispersion
+  class(DispSlaKirk), intent(inout) :: this
 
-    if (present(dampCorrection)) then
-      corr = dampCorrection
-    else
-      corr = 0.0_dp
-    end if
+  !> New lattice vectors
+  real(dp), intent(in) :: latVecs(:,:)
 
-    ! Cluster case => explicit sum of the contributions NOTE: the cluster summation also (ab)used in
-    ! the periodic case, neighbors may go over the cell boundary -> img2CentCell needed for folding
-    ! back.
-    do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighbors(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        if (c6(iAt2f, iAt1) == 0.0_dp) then
-          cycle
+  real(dp) :: recVecs(3, 3), invRecVecs(3, 3)
+  real(dp) :: c6sum
+
+  this%vol = abs(determinant33(latVecs))
+  invRecVecs(:,:) = latVecs / (2.0_dp * pi)
+  recVecs(:,:) = transpose(invRecVecs)
+  call matinv(recVecs)
+  this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
+  c6sum = sum(abs(this%c6))
+  this%rCutoff = getMaxRDispersion(this%eta, c6sum, this%vol, tolDispersion)
+  ! Cutoff, beyond which dispersion is purely 1/r^6 without damping
+  this%dampCutoff = getDampCutoff_(this%maxR, tolDispDamp)
+  this%rCutoff = max(this%rCutoff, this%dampCutoff)
+  this%gCutoff = getMaxGDispersion(this%eta, c6sum, tolDispersion)
+  call getLatticePoints(this%gLatPoint, recVecs, invRecVecs, &
+      & this%gCutoff, onlyInside=.true., reduceByInversion=.true., &
+      & withoutOrigin=.true.)
+  this%gLatPoint(:,:) = matmul(recVecs, this%gLatPoint)
+  this%coordsUpdated = .false.
+
+end subroutine updateLatVecs
+
+
+!> Returns the atomic resolved energies due to the dispersion.
+subroutine getEnergies(this, energies)
+
+  !> The data object for dispersion
+  class(DispSlaKirk), intent(inout) :: this
+
+  !> Contains the atomic energy contributions on exit.
+  real(dp), intent(out) :: energies(:)
+
+  @:ASSERT(this%coordsUpdated)
+  @:ASSERT(size(energies) == this%nAtom)
+
+  energies(:) = this%energies(:)
+
+end subroutine getEnergies
+
+
+!> Adds the atomic gradients to the provided vector.
+subroutine addGradients(this, gradients)
+
+  !> The data object for dispersion
+  class(DispSlaKirk), intent(inout) :: this
+
+  !> The vector to increase by the gradients.
+  real(dp), intent(inout) :: gradients(:,:)
+
+  @:ASSERT(this%coordsUpdated)
+  @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+
+  gradients(:,:) = gradients(:,:) + this%gradients(:,:)
+
+end subroutine addGradients
+
+
+!> Returns the stress tensor.
+!>
+!> Note: The stress tensor is not calculated for this dispersion model so the program is stopped,
+!> if this method is called.
+subroutine getStress(this, stress)
+
+  !> The data object for dispersion
+  class(DispSlaKirk), intent(inout) :: this
+
+  !> tensor from the dispersion
+  real(dp), intent(out) :: stress(:,:)
+
+  call error("Internal error: DispSlaKirk%getStress() was called")
+
+end subroutine getStress
+
+
+!> Estimates the real space cutoff of the dispersion interaction.
+function getRCutoff(this) result(cutoff)
+
+  !> The data object for dispersion
+  class(DispSlaKirk), intent(inout) :: this
+
+  !> Cutoff for the interaction
+  real(dp) :: cutoff
+
+  cutoff = this%rCutoff
+
+end function getRCutoff
+
+
+!> Adds the energy per atom and the gradients for the cluster case
+subroutine addDispEnergyAndGrad_cluster(nAtom, coords, nNeighbors, iNeighbor, neighDist2, &
+    & img2CentCell, c6, rVdW2, energies, gradients, dampCorrection)
+
+  !> Nr. of atoms (without periodic images)
+  integer, intent(in) :: nAtom
+
+  !> Coordinates of the atoms (including images)
+  real(dp), intent(in) :: coords(:,:)
+
+  !> Nr. of neighbors for each atom
+  integer, intent(in) :: nNeighbors(:)
+
+  !> Neighborlist.
+  integer, intent(in) :: iNeighbor(0:,:)
+
+  !> Square distances of the neighbours.
+  real(dp), intent(in) :: neighDist2(0:,:)
+
+  !> Mapping into the central cell.
+  integer, intent(in) :: img2CentCell(:)
+
+  !> Van der Waals coefficients (nAtom, nAtom)
+  real(dp), intent(in) :: c6(:,:)
+
+  !> Scaled inverse van der Waals radii (nAtom, nAtom)
+  real(dp), intent(in) :: rVdW2(:,:)
+
+  !> Updated energy vector at return
+  real(dp), intent(inout) :: energies(:)
+
+  !> Updated gradient vector at return
+  real(dp), intent(inout) :: gradients(:,:)
+
+  !> Adds the provided value to the damping function (use -1.0 to sum up damped 1/r^6 terms and
+  !> subtract pure 1/r^6 ones, in order to correct periodic Ewald sum for the short range damped
+
+  !> terms.)
+  real(dp), intent(in), optional :: dampCorrection
+
+  integer :: iAt1, iNeigh, iAt2, iAt2f
+  real(dp) :: dist2, dist, h0, h1, h2, rTmp
+  real(dp) :: diff(3), gr(3)
+  real(dp) :: corr
+
+  if (present(dampCorrection)) then
+    corr = dampCorrection
+  else
+    corr = 0.0_dp
+  end if
+
+  ! Cluster case => explicit sum of the contributions NOTE: the cluster summation also (ab)used in
+  ! the periodic case, neighbors may go over the cell boundary -> img2CentCell needed for folding
+  ! back.
+  do iAt1 = 1, nAtom
+    do iNeigh = 1, nNeighbors(iAt1)
+      iAt2 = iNeighbor(iNeigh, iAt1)
+      iAt2f = img2CentCell(iAt2)
+      if (c6(iAt2f, iAt1) == 0.0_dp) then
+        cycle
+      end if
+      dist2 = neighDist2(iNeigh, iAt1)
+      if (dist2 > minNeighDist2) then
+        dist = sqrt(dist2)
+        h0 = rVdW2(iAt2f, iAt1)
+        h1 = exp(-1.0_dp * h0 * dist**nn_)
+        h2 = 1.0_dp - h1
+        ! Energy
+        rTmp = -0.5_dp * c6(iAt2f, iAt1) * (h2**mm_ + corr) / dist**6
+        energies(iAt1) = energies(iAt1) + rTmp
+        if (iAt1 /= iAt2f) then
+          energies(iAt2f) = energies(iAt2f) + rTmp
         end if
-        dist2 = neighDist2(iNeigh, iAt1)
-        if (dist2 > minNeighDist2) then
-          dist = sqrt(dist2)
-          h0 = rVdW2(iAt2f, iAt1)
-          h1 = exp(-1.0_dp * h0 * dist**nn_)
-          h2 = 1.0_dp - h1
-          ! Energy
-          rTmp = -0.5_dp * c6(iAt2f, iAt1) * (h2**mm_ + corr) / dist**6
-          energies(iAt1) = energies(iAt1) + rTmp
-          if (iAt1 /= iAt2f) then
-            energies(iAt2f) = energies(iAt2f) + rTmp
-          end if
-          ! Gradients
-          diff(:) = (coords(:,iAt1) - coords(:,iAt2))
-          gr(:) = -c6(iAt2f, iAt1) * diff(:) &
-              &* (mm_*h2**(mm_-1)*h1*h0*nn_*dist**(nn_-8) &
-              &- 6.0_dp * (h2**mm_ + corr) * dist**(-8))
-          gradients(:,iAt1) = gradients(:,iAt1) + gr(:)
-          gradients(:,iAt2f) = gradients(:,iAt2f) - gr(:)
-        end if
-      end do
+        ! Gradients
+        diff(:) = (coords(:,iAt1) - coords(:,iAt2))
+        gr(:) = -c6(iAt2f, iAt1) * diff(:) &
+            &* (mm_*h2**(mm_-1)*h1*h0*nn_*dist**(nn_-8) &
+            &- 6.0_dp * (h2**mm_ + corr) * dist**(-8))
+        gradients(:,iAt1) = gradients(:,iAt1) + gr(:)
+        gradients(:,iAt2f) = gradients(:,iAt2f) - gr(:)
+      end if
     end do
+  end do
 
-  end subroutine addDispEnergyAndGrad_cluster
+end subroutine addDispEnergyAndGrad_cluster
 
-  !> Returns the distance, beyond that the damping function equals approx. 1.
-  function getDampCutoff_(r0, tol) result(xx)
-    !> Length scaling parameter
-    real(dp), intent(in) :: r0
-    !> Tolerance value.
-    real(dp), intent(in) :: tol
-    !> cutoff
-    real(dp) :: xx
 
-    ! solve: 1 - tol < (1-exp(-d*(r/r0)^N))^M for r and hope that the logarithm is not blowing up
-    ! your computer.
-    xx = r0 * (-1.0_dp/dd_ * log(1.0_dp &
-        &- (1.0_dp - tol)**(1.0_dp/real(mm_,dp))))**(1.0_dp/real(nn_, dp))
+!> Returns the distance, beyond that the damping function equals approx. 1.
+function getDampCutoff_(r0, tol) result(xx)
 
-  end function getDampCutoff_
+  !> Length scaling parameter
+  real(dp), intent(in) :: r0
+
+  !> Tolerance value.
+  real(dp), intent(in) :: tol
+
+  !> cutoff
+  real(dp) :: xx
+
+  ! solve: 1 - tol < (1-exp(-d*(r/r0)^N))^M for r and hope that the logarithm is not blowing up
+  ! your computer.
+  xx = r0 * (-1.0_dp/dd_ * log(1.0_dp &
+      &- (1.0_dp - tol)**(1.0_dp/real(mm_,dp))))**(1.0_dp/real(nn_, dp))
+
+end function getDampCutoff_
 
 end module dispslaterkirkw

@@ -24,6 +24,7 @@ program skderivs
   use FileId
   implicit none
 
+
   !> Contains the data necessary for the main program
   type TInputData
     type(OSlakoEqGrid), pointer :: skHam, skOver
@@ -34,6 +35,7 @@ program skderivs
     character(lc) :: output
   end type TInputData
 
+
   !> input data for the calculation of the derivatives
   type(TInputData) :: inp
 
@@ -42,8 +44,10 @@ program skderivs
 
 contains
 
+
   !> Does the main job of calculating derivatives and writing them to disc
   subroutine main(inp)
+
     !> instance
     type(TInputData), intent(inout) :: inp
 
@@ -141,14 +145,19 @@ contains
 
   end subroutine main
 
+
   !> Parses the HSD input
   subroutine parseHSDInput(inp, hsdInputName, xmlInputName, rootTag)
+
     !> parsed data
     type(TInputData), intent(out) :: inp
+
     !> file name for HSD input
     character(*), intent(in) :: hsdInputName
+
     !> file name for XML input
     character(*), intent(in) :: xmlInputName
+
     !> name of the tag at the root of the tree
     character(*), intent(in) :: rootTag
 
@@ -279,19 +288,26 @@ contains
 
   end subroutine parseHSDInput
 
+
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
   !> containing all integrals.
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, angShells2)
+
     !> Resulting table of H integrals
     real(dp), intent(out) :: skOver(:,:)
+
     !> Resulting table of S integrals
     real(dp), intent(out) :: skHam(:,:)
+
     !> Contains all SK files describing interactions for A-B
     type(TOldSKData), intent(in), target :: skData12(:,:)
+
     !> Contains all SK files describing interactions for B-A
     type(TOldSKData), intent(in), target :: skData21(:,:)
+
     !> Angular momenta to pick from the SK-files for species A
     type(listIntR1), intent(inout) :: angShells1
+
     !> Angular momenta to pick from the SK-files for species B
     type(listIntR1), intent(inout) :: angShells2
 
@@ -345,13 +361,17 @@ contains
 
   end subroutine getFullTable
 
+
   !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
   !> species.
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
+
     !> list of shells for species B
     type(listIntR1), intent(inout) :: angShells2
+
     !> list of shells for species A
     type(listIntR1), intent(inout) :: angShells1
+
     !> count of integrals
     integer :: nInt
 

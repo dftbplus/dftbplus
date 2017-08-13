@@ -17,6 +17,7 @@ module energies
 
   private
 
+
   !> data type to store components of the energy as named variables instead of
   !> in the old arrays - makes extending energy expression easier.
   type TEnergies
@@ -71,6 +72,7 @@ module energies
     logical :: tInitialised = .false.
   end type TEnergies
 
+
   !> initialise the data type for storing energies
   interface init
     module procedure Energies_init
@@ -78,10 +80,13 @@ module energies
 
 contains
 
+
   !> Allocates storage for the energy components
   subroutine Energies_init(self,nAtom)
+
     !> data structure to allocate
     type(TEnergies), intent(out) :: self
+
     !> number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
 

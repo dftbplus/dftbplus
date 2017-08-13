@@ -27,36 +27,50 @@ module dispcommon
 
 contains
 
+
   !> Adds the energy per atom and the gradients for periodic 1/r^6 summation.
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  For details see the
   !> references in the module description.
   !> Note: the interaction parameter C6 is specified atomwise.
   subroutine addDispEGr_per_atom(nAtom, coords, nNeighbors, iNeighbor, neighDist2, img2CentCell, &
       & c6, eta, vol, gLatVecs, energies, gradients, stress)
+
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
+
     !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
+
     !> Nr. of neighbors for each atom
     integer, intent(in) :: nNeighbors(:)
+
     !> Neighborlist.
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
+
     !> Mapping of periodic images onto the central cell
     integer, intent(in) :: img2CentCell(:)
+
     !> Van der Waals coefficients (nAtom, nAtom)
     real(dp), intent(in) :: c6(:,:)
+
     !> Controling partitioning between real and reciprocal space sum
     real(dp), intent(in) :: eta
+
     !> Volume of the unit cell
     real(dp), intent(in) :: vol
+
     !> Set of reciprocal space vectors to include in the sum
     real(dp), intent(in) :: gLatVecs(:,:)
+
     !> Updated energy vector at return
     real(dp), intent(inout) :: energies(:)
+
     !> Updated gradient vector at return
     real(dp), intent(inout) :: gradients(:,:)
+
     !> Updated stress tensor
     real(dp), intent(inout) :: stress(:,:)
 
@@ -140,38 +154,53 @@ contains
 
   end subroutine addDispEGr_per_atom
 
+
   !> Adds the energy per atom and the gradients for periodic 1/r^6 summation.
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  The 1/r^12 term is
   !> summed in direct space.
   !> Note: the interaction coefficients (c6) are specified specieswise.
   subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighbors, iNeighbor, neighDist2, &
       & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
+
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
+
     !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
+
     !> chemical species of atoms
     integer, intent(in) :: species0(:)
+
     !> Nr. of neighbors for each atom
     integer, intent(in) :: nNeighbors(:)
+
     !> Neighborlist.
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
+
     !> Mapping of periodic images onto the central cell
     integer, intent(in) :: img2CentCell(:)
+
     !> Van der Waals coefficients (nSpecies, nSpecies)
     real(dp), intent(in) :: c6(:,:)
+
     !> Controling partitioning between real and reciprocal space sum
     real(dp), intent(in) :: eta
+
     !> Volume of the unit cell
     real(dp), intent(in) :: vol
+
     !> Set of reciprocal space vectors to include in the sum
     real(dp), intent(in) :: gLatVecs(:,:)
+
     !> Updated energy vector at return
     real(dp), intent(inout) :: energies(:)
+
     !> Updated gradient vector at return
     real(dp), intent(inout) :: gradients(:,:)
+
     !> Updated stress tensor
     real(dp), intent(inout) :: stress(:,:)
 
@@ -258,12 +287,16 @@ contains
 
   end subroutine addDispEGr_per_species
 
+
   !> Delivers the optimal paramater eta for the Ewald-like summation
   function getOptimalEta(latVecs, vol) result(eta)
+
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
+
     !> unit cell volume
     real(dp), intent(in) :: vol
+
     !> Optimal parameter.
     real(dp) :: eta
 
@@ -277,17 +310,23 @@ contains
 
   end function getOptimalEta
 
+
   !> Returns the longest real space vector needed to achive a given accuracy in the Ewald summation
   !> for the dispersion.
   function getMaxRDispersion(eta, c6sum, vol, minValue) result(xx)
+
     !> Parameter of the ewald summation.
     real(dp), intent(in) :: eta
+
     !> Sum of the Van der Waals coefficients (for every possible interaction in the system).
     real(dp), intent(in) :: c6sum
+
     !> Volume of the unit cell
     real(dp), intent(in) :: vol
+
     !> Tolerance value.
     real(dp), intent(in) :: minValue
+
     !> Cutoff radius.
     real(dp) :: xx
 
@@ -341,15 +380,20 @@ contains
 
   end function getMaxRDispersion
 
+
   !> Returns the longest reciprocal space vector needed to achive a given accuracy in the Ewald
   !> summation for the dispersion.
   function getMaxGDispersion(eta, c6sum, minValue) result(xx)
+
     !> Parameter of the ewald summation.
     real(dp), intent(in) :: eta
+
     !> Sum of the absolute values of the c6 coeffs for every atom pair.
     real(dp), intent(in) :: c6sum
+
     !> Tolerance value.
     real(dp), intent(in) :: minValue
+
     !> Cutoff radius.
     real(dp) :: xx
 
@@ -403,16 +447,22 @@ contains
 
   end function getMaxGDispersion
 
+
   !> Returns an estimate of the error of the real space summation for a certain cutoff
   function getDispRealError(rr, c6sum, vol, eta) result(err)
+
     !> Cutoff radius
     real(dp), intent(in) :: rr
+
     !> VdW coefficient sum.
     real(dp), intent(in) :: c6sum
+
     !> Volume of the supercell
     real(dp), intent(in) :: vol
+
     !> Summation parameter
     real(dp), intent(in) :: eta
+
     !> Estimated error of the summation.
     real(dp) :: err
 
@@ -422,14 +472,19 @@ contains
 
   end function getDispRealError
 
+
   !> Returns the error of the reciprocal space summation for a certain cutoff
   function getDispReciprocalError(gg, c6sum, eta) result(err)
+
     !> Cutoff radius
     real(dp), intent(in) :: gg
+
     !> VdW coefficient sum.
     real(dp), intent(in) :: c6sum
+
     !> Summation parameter
     real(dp), intent(in) :: eta
+
     !> Estimated error of the summation.
     real(dp) :: err
 

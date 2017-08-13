@@ -29,18 +29,25 @@ module InitModes
   private
   save
 
+
   !> program version
   character(len=*), parameter :: version =  "0.01"
+
   !> root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
+
   !> input file name
   character(len=*), parameter :: hsdInput = "modes_in.hsd"
+
   !> parsed output name
   character(len=*), parameter :: hsdParsedInput = "modes_pin.hsd"
+
   !> xml input file name
   character(len=*), parameter :: xmlInput = "modes_in.xml"
+
   !> parsed xml name
   character(len=*), parameter :: xmlParsedInput = "modes_pin.xml"
+
   !> version of the input document
   integer, parameter :: parserVersion = 3
 
@@ -48,43 +55,58 @@ module InitModes
 
   !! Variables from detailed.xml
 
+
   !> Unique identifier of the run
   integer, public :: identity
+
   !> Geometry
   type(TGeometry), public :: geo
 
   !! Variables from the Option block
 
+
   !> If program should be verbose
   logical, public :: tVerbose
 
+
   !> atomic masses to build dynamical matrix
   real(dp), allocatable, public :: atomicMasses(:)
+
   !> dynamical matrix
   real(dp), allocatable, public :: dynMatrix(:,:)
 
+
   !> produce plots of modes, orjust eigenvalues
   logical, public :: tPlotModes
+
   !> animate mode  or as vectors
   logical, public :: tAnimateModes
+
   !> use xmakemol dialect xyz
   logical, public :: tXmakeMol
+
   !> modes to produce xyz file for
   integer, allocatable, public :: modesToPlot(:)
+
   !> number of modes being plotted
   integer, public :: nModesToPlot
+
   !> if animating, number of cycles to show in an animation
   integer, public :: nCycles
+
   !> steps in an animation cycle
   integer, public, parameter :: nSteps = 10
+
   !> Number of atoms which should be moved.
   integer, public :: nMovedAtom
+
   !> list of atoms in dynamical matrix
   integer, allocatable, public :: iMovedAtoms(:)
 
   !! Locally created variables
 
 contains
+
 
   !> Initialise program variables
   subroutine initProgramVariables()
@@ -270,10 +292,13 @@ contains
 
   end subroutine initProgramVariables
 
+
   !> Read in the geometry stored as xml in internal or gen format.
   subroutine readGeometry(geonode, geo)
+
     !> Node containing the geometry
     type(fnode), pointer :: geonode
+
     !> Contains the geometry information on exit
     type(TGeometry), intent(out) :: geo
 

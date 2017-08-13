@@ -14,6 +14,7 @@ module factorial
 
   implicit none
 
+
   !> Calculate factorals up to a given order
   interface fact
      module procedure int_fact
@@ -22,10 +23,13 @@ module factorial
 
 contains
 
+
   !> integer factorials of values 0 .. n
   subroutine int_fact(nbang,n)
+
     !> nbang factorials
     integer, intent(inout) :: nbang(0:)
+
     !> n calculate factorials from 0 to n
     integer, intent(in) :: n
 
@@ -40,10 +44,13 @@ contains
 
   end subroutine int_fact
 
+
   !> real factorials of values 0 .. n
   subroutine real_fact(nbang,n)
+
     !> nbang factorials
     real(dp), intent(inout) :: nbang(0:)
+
     !> n calculate factorials from 0 to n
     integer, intent(in) :: n
 

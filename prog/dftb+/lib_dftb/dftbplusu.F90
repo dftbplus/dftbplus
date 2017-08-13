@@ -22,6 +22,7 @@ module dftbplusu
   public :: shift_DFTBU, AppendBlock_reduce, Block_expand
   public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
 
+
   !> Potential shift from LDA+U type potentials
   interface shift_DFTBU
     module procedure shift_U
@@ -30,25 +31,35 @@ module dftbplusu
 
 contains
 
+
   !> Construct the Orbital contribution to the Hamiltonian
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein PHYSICAL REVIEW B 67 (15): 153106 APR 15 2003
   subroutine shift_U(shift, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ)
+
     !> potential to augment
     real(dp), intent(inout)        :: shift(:,:,:,:)
+
     !> block charges
     real(dp), intent(in)           :: qBlock(:,:,:,:)
+
     !> list of the species for each atom
     integer,  intent(in)           :: species(:)
+
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in)    :: orb
+
     !> choice of functional, so far FLL, pSIC (1,2)
     integer,  intent(in), optional :: functional
+
     !> list of U-J values for each species
     real(dp), intent(in)           :: UJ(:,:)
+
     !> number of blocks in each case
     integer, intent(in)            :: nUJ(:)
+
     !> number of shells in each block
     integer, intent(in)            :: niUJ(:,:)
+
     !> shells in the block
     integer, intent(in)            :: iUJ(:,:,:)
 
@@ -118,31 +129,43 @@ contains
 
   end subroutine Shift_U
 
-  !> Construct the Orbital contribution to the Hamiltonian
+
+  !> Construct the orbital contribution to the Hamiltonian
   !> 
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein Physical Review B 67, 153106 (2003)
   subroutine shift_iU(shiftR, shiftI, qBlockR, qBlockI, species, orb, functional, UJ, nUJ, niUJ, &
       & iUJ)
+
     !> Real part of shift
     real(dp), intent(inout)        :: shiftR(:,:,:,:)
+
     !> imaginary part of shift
     real(dp), intent(inout)        :: shiftI(:,:,:,:)
+
     !> real part of block charges
     real(dp), intent(in)           :: qBlockR(:,:,:,:)
+
     !> imaginary part of block charges
     real(dp), intent(in)           :: qBlockI(:,:,:,:)
+
     !> list of the species for each atom
     integer,  intent(in)           :: species(:)
+
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in)    :: orb
+
     !> choice of functional, so far FLL, pSIC (1,2)
     integer,  intent(in), optional :: functional
+
     !> list of U-J values for each species
     real(dp), intent(in)           :: UJ(:,:)
+
     !> number of +U blocks to calculate for each species
     integer, intent(in)            :: nUJ(:)
+
     !> number of l values contained in each block for each species
     integer, intent(in)            :: niUJ(:,:)
+
     !> list of l values in each block for each species
     integer, intent(in)            :: iUJ(:,:,:)
 
@@ -213,28 +236,39 @@ contains
 
   end subroutine Shift_iU
 
+
   !> Calculates the energy contribution for the DFTB+U type functionals
   !> 
   !> Note: factor of 0.5 in expressions as using double the Pauli spinors
   subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
+
     !> energy contribution
     real(dp), intent(inout)        :: egy(:)
+
     !> charge block populations
     real(dp), intent(in)           :: qBlock(:,:,:,:)
+
     !> list of the species for each atom
     integer,  intent(in)           :: species(:)
+
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in)    :: orb
+
     !> choice of functional, so far FLL, pSIC (1,2)
     integer,  intent(in), optional :: functional
+
     !> list of U-J values for each species
     real(dp), intent(in)           :: UJ(:,:)
+
     !> number of +U blocks to calculate for each species
     integer, intent(in)            :: nUJ(:)
+
     !> number of l values contained in each block for each species
     integer, intent(in)            :: niUJ(:,:)
+
     !> list of l values in each block for each species
     integer, intent(in)            :: iUJ(:,:,:)
+
     !> optional skew population for L.S cases
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
@@ -345,18 +379,25 @@ contains
 
   end subroutine E_dftbU
 
+
   !> Returns the equivalence between the orbitals in the DFTB+U interactions
   subroutine DFTBplsU_getOrbitalEquiv(equiv, orb, species, nUJ, niUJ, iUJ)
+
     !> The equivalence vector on return
     integer, intent(out) :: equiv(:,:,:)
+
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
     !> Species of each atom
     integer, intent(in) :: species(:)
+
     !> How many U-J for each species
     integer, intent(in) :: nUJ(:)
+
     !> number of l-values of U-J for each block
     integer, intent(in) :: niUJ(:,:)
+
     !> l-values of U-J for each block
     integer, intent(in) :: iUJ(:,:,:)
 
@@ -406,20 +447,28 @@ contains
 
   end subroutine DFTBplsU_getOrbitalEquiv
 
+
   !> Returns the index for packing the relevant parts of DFTB+U atomic blocks into a 1D array
   subroutine DFTBU_blockIndx(iEqBlockDFTBU, count, orb, species, nUJ, niUJ, iUJ)
+
     !> The mapping array on return
     integer, intent(out)        :: iEqBlockDFTBU(:,:,:,:)
+
     !> Number of prior entries in 1D array holding regular charges
     integer, intent(in)         :: count
+
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
     !> Species of each atom
     integer, intent(in)         :: species(:)
+
     !> How many U-J for each species
     integer, intent(in)         :: nUJ(:)
+
     !> number of l-values of U-J for each block
     integer, intent(in)         :: niUJ(:,:)
+
     !> l-values of U-J for each block
     integer, intent(in)         :: iUJ(:,:,:)
 
@@ -471,16 +520,22 @@ contains
 
   end subroutine DFTBU_blockIndx
 
+
   !> Adds DFTB+U blocks onto end of a 1D vector
   subroutine AppendBlock_reduce(input, equiv, orb, output, skew)
+
     !> unpacked data
     real(dp), intent(in) :: input(:,:,:,:)
+
     !> equivalences
     integer, intent(in) :: equiv(:,:,:,:)
+
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
     !> 1D array with appended data
     real(dp), intent(inout) :: output(:)
+
     !> is skew symmetry required
     logical, optional, intent(in) :: skew
 
@@ -523,26 +578,37 @@ contains
 
   end subroutine AppendBlock_reduce
 
+
   !> Extract DFTB+U blocks blocks from the end of a 1D vector
   subroutine Block_expand(input, blockEquiv, orb, output, species, nUJ, niUJ, iUJ, orbEquiv, skew)
+
     !> 1D array of packed data
     real(dp), intent(in)        :: input(:)
+
     !> equivalences for blocks on atomic sites
     integer, intent(in)         :: blockEquiv(:,:,:,:)
+
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
     !> unpacked data
     real(dp), intent(out)       :: output(:,:,:,:)
+
     !> Species of each atom
     integer, intent(in)         :: species(:)
+
     !> How many U-J for each species
     integer, intent(in)         :: nUJ(:)
+
     !> number of l-values of U-J for each block
     integer, intent(in)         :: niUJ(:,:)
+
     !> l-values of U-J for each block
     integer, intent(in)         :: iUJ(:,:,:)
+
     !> equivalences for atoms
     integer, intent(in),optional :: orbEquiv(:,:,:)
+
     !> is skew symmetry required
     logical, optional, intent(in) :: skew
 

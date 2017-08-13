@@ -8,6 +8,7 @@
 #:include 'common.fypp'
 
 !> Contains functions for transforming between the compressed sparse format and the internal sparse
+ 
 !> matrix format.
 module csrmatrix
   use assert
@@ -17,26 +18,35 @@ module csrmatrix
 
   public :: r_CSR, foldToCSR, unfoldFromCSR
 
+
   !> Compressed sparse format, both triangles stored
   type r_CSR
+
     !> elements in array
     integer :: nnz
+
     !> number of matrix rows
     integer :: nrow
+
     !> matrix columns
     integer :: ncol
+
     !> data in array
     real(dp), allocatable :: nzval(:)
+
     !> column location
     integer, allocatable :: colind(:)
+
     !> row location of data
     integer, allocatable :: rowpnt(:)
   end type r_CSR
+
 
   !> Convert from internal sparse to CSR format
   interface foldToCSR
     module procedure foldToCSR_real
   end interface
+
 
   !> Convert from CSR to internal format
   interface unfoldFromCSR
@@ -45,27 +55,37 @@ module csrmatrix
 
 contains
 
+
   !> Folds the internal sparse formatted matrix and converts it to the compressed sparse row (csr)
   !> format (real version).
   subroutine foldToCSR_real(sparse, iAtomStart, iPair, &
       &iNeighbor, nNeighbor, img2CentCell, mAngAtom, mmAng, &
       &csr)
+
     !> The sparse matrix to convert
     real(dp), intent(in) :: sparse(:)
+
     !> Starting positions of the atoms in the square matrix
     integer, intent(in) :: iAtomStart(:)
+
     !> Starting position of atom-neighbor interaction in the sparse matrix.
     integer, intent(in) :: iPair(0:,:)
+
     !> Index of neighbors
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Number of neighbors
     integer, intent(in) :: nNeighbor(:)
+
     !> Image of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Angular momentum of each atom
     integer, intent(in) :: mAngAtom(:)
+
     !> angular momentum in the system.
     integer, intent(in) :: mmAng
+
     !> CSR matrix both triangles of the matrix are set.
     type(r_CSR), intent(out) :: csr
 
@@ -198,25 +218,35 @@ contains
 
   end subroutine foldToCSR_real
 
+
   !> Unfolds a matrix from the CSR form into the internal sparse representation (real version).
   subroutine unfoldFromCSR_real(csr, iAtomStart, iPair, iNeighbor, nNeighbor, &
       &img2CentCell, mAngAtom, mmAng, sparse)
+
     !> CSR matrix, the matrix must be symmetric.
     type(r_CSR), intent(in) :: csr
+
     !> Starting positions of the atoms in the square matrix
     integer, intent(in) :: iAtomStart(:)
+
     !> Starting position of atom-neighbor interaction in the sparse matrix.
     integer, intent(in) :: iPair(0:,:)
+
     !> Index of neighbors
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Number of neighbors
     integer, intent(in) :: nNeighbor(:)
+
     !> Image of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Angular momentum of each atom
     integer, intent(in) :: mAngAtom(:)
+
     !> Maximal angular momentum in the system.
     integer, intent(in) :: mmAng
+
     !> The sparse matrix to convert
     real(dp), intent(inout) :: sparse(:)
 

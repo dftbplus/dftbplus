@@ -42,6 +42,7 @@ module parser
 
   public :: parseHSDInput, parserVersion
 
+
   !> File names
   character(len=*), parameter :: hsdInputName = "dftb_in.hsd"
   character(len=*), parameter :: xmlInputName = "dftb_in.xml"
@@ -49,26 +50,34 @@ module parser
   character(len=*), parameter :: xmlProcInputName = "dftb_pin.xml"
   character(len=*), parameter :: rootTag = "dftb_in"
 
+
   !> Version of the current parser
   integer, parameter :: parserVersion = 5
+
 
   !> Version of the oldest parser, for which compatibility is maintained
   integer, parameter :: minVersion = 1
 
+
   !> Container type for parser related flags.
   type TParserFlags
+
     !> stop after parsing?
     logical :: tStop
+
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
+
     !> XML or HSD output?
     logical :: tWriteXML, tWriteHSD
   end type TParserFlags
 
 contains
 
+
   !> Parse input from an HSD/XML file
   subroutine parseHSDInput(input)
+
     !> Returns initialised input variables on exit
     type(inputData), intent(out) :: input
 
@@ -160,13 +169,17 @@ contains
 
   end subroutine parseHSDInput
 
+
   !> Read in parser options (options not passed to the main code)
   subroutine readParserOptions(node, root, flags)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Root of the entire tree (in the case it must be converted for example because of compability
     !> options)
     type(fnode), pointer :: root
+
     !> Contains parser flags on exit.
     type(TParserFlags), intent(out) :: flags
 
@@ -207,10 +220,13 @@ contains
 
   end subroutine readParserOptions
 
+
   !> Read in Geometry
   subroutine readGeometry(node, input)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Input structure to be filled
     type(inputData), intent(inout) :: input
 
@@ -229,14 +245,19 @@ contains
 
   end subroutine readGeometry
 
+
   !> Read in driver properties
   subroutine readDriver(node, parent, geom, ctrl)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Parent of node (for error messages)
     type(fnode), pointer :: parent
+
     !> Control structure to be filled
     type(TGeometry), intent(in) :: geom
+
     !> Nr. of atoms in the system
     type(control), intent(inout) :: ctrl
 
@@ -285,12 +306,12 @@ contains
       call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
-           &child, ctrl%indMovedAtom)
+          &child, ctrl%indMovedAtom)
 
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
       if (ctrl%tCoordOpt) then
-         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
+        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
       call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
           &modifier=modifier, child=field)
@@ -303,7 +324,7 @@ contains
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
       call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-            & .true.)
+          & .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
         if (ctrl%nrConstr/=0) then
@@ -340,12 +361,12 @@ contains
       call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
-           &child, ctrl%indMovedAtom)
+          &child, ctrl%indMovedAtom)
 
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
       if (ctrl%tCoordOpt) then
-         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
+        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
       call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
           &modifier=modifier, child=field)
@@ -355,21 +376,21 @@ contains
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
       call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-            & .true.)
+          & .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
-         if (ctrl%nrConstr/=0) then
-            call error("Lattice optimisation and constraints currently&
-                 & incompatible.")
-         end if
-         if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-            call error("Subset of optimising atoms not currently possible with&
-                 & lattice optimisation.")
-         end if
+        if (ctrl%nrConstr/=0) then
+          call error("Lattice optimisation and constraints currently&
+              & incompatible.")
+        end if
+        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
+          call error("Subset of optimising atoms not currently possible with&
+              & lattice optimisation.")
+        end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
-   case("gdiis")
+    case("gdiis")
       ctrl%iGeoOpt = 3
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -393,7 +414,7 @@ contains
       call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
-           &child, ctrl%indMovedAtom)
+          &child, ctrl%indMovedAtom)
 
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
@@ -405,17 +426,17 @@ contains
       ctrl%outFile = unquote(char(buffer2))
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
       call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
-            & .true.)
+          & .true.)
       call readGeoConstraints(node, ctrl, geom%nAtom)
       if (ctrl%tLatOpt) then
-         if (ctrl%nrConstr/=0) then
-            call error("Lattice optimisation and constraints currently&
-                 & incompatible.")
-         end if
-         if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
-            call error("Subset of optimising atoms not currently possible with&
-                 & lattice optimisation.")
-         end if
+        if (ctrl%nrConstr/=0) then
+          call error("Lattice optimisation and constraints currently&
+              & incompatible.")
+        end if
+        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
+          call error("Subset of optimising atoms not currently possible with&
+              & lattice optimisation.")
+        end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
@@ -709,10 +730,13 @@ contains
 
   end subroutine readDriver
 
+
   !> Extended lagrangian options
   subroutine readXlbomdOptions(node, input)
+
     !> node in the input tree
     type(fnode), pointer :: node
+
     !> extracted settings on exit
     type(XlbomdInp), allocatable, intent(out) :: input
 
@@ -790,12 +814,16 @@ contains
 
   end subroutine readXlbomdOptions
 
+
   !> Reads geometry constraints.
   subroutine readGeoConstraints(node, ctrl, nAtom)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Control structure to be filled
     type(control), intent(inout) :: ctrl
+
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
 
@@ -827,12 +855,16 @@ contains
 
   end subroutine readGeoConstraints
 
+
   !> Reads MD velocities
   subroutine readInitialVelocities(node, ctrl, nAtom)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Control structure to be filled
     type(control), intent(inout) :: ctrl
+
     !> Total number of all atoms
     integer, intent(in)  :: nAtom
 
@@ -870,12 +902,16 @@ contains
 
   end subroutine readInitialVelocities
 
+
   !> Reads atomic masses from input file, eventually overwriting those in the SK files
   subroutine getInputMasses(node, geo, masses)
+
     !> relevant node of input data
     type(fnode), pointer :: node
+
     !> geometry object, which contains atomic species information
     type(TGeometry), intent(in) :: geo
+
     !> masses to be returned
     real(dp), allocatable, intent(out) :: masses(:)
 
@@ -917,14 +953,19 @@ contains
 
   end subroutine getInputMasses
 
+
   !> Reads Hamiltonian
   subroutine readHamiltonian(node, ctrl, geo, slako)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Control structure to be filled
     type(control), intent(inout) :: ctrl
+
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
+
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
 
@@ -940,14 +981,19 @@ contains
 
   end subroutine readHamiltonian
 
+
   !> Reads DFTB-Hamiltonian
   subroutine readDFTBHam(node, ctrl, geo, slako)
+
     !> Node to get the information from
     type(fnode), pointer :: node
+
     !> Control structure to be filled
     type(control), intent(inout) :: ctrl
+
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
+
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
 
@@ -1690,7 +1736,7 @@ contains
       select case(tolower(char(buffer)))
       case ("fll")
         ctrl%DFTBUfunc = 1 ! change this to get value from DFTB+U module named variables to avoid
-                           ! ambiguity
+        ! ambiguity
       case ("psic")
         ctrl%DFTBUfunc = 2
       case default
@@ -1872,12 +1918,16 @@ contains
 
   contains
 
+
     !> Reads inital charges
     subroutine getInitialCharges(node, geo, initCharges)
+
       !> relevant node in input tree
       type(fnode), pointer :: node
+
       !> geometry, including atomic type information
       type(TGeometry), intent(in) :: geo
+
       !> initial atomic charges
       real(dp), allocatable :: initCharges(:)
 
@@ -1924,14 +1974,19 @@ contains
 
     end subroutine getInitialCharges
 
+
     !> Reads initial spins
     subroutine getInitialSpins(node, geo, nSpin, initSpins)
+
       !> relevant node in input data
       type(fnode), pointer :: node
+
       !> geometry, including atomic information
       type(TGeometry), intent(in) :: geo
+
       !> number of spin channels
       integer, intent(in) :: nSpin
+
       !> initial spins on return
       real(dp), allocatable :: initSpins(:,:)
 
@@ -1945,7 +2000,7 @@ contains
       @:ASSERT(nSpin == 2 .or. nSpin == 4)
 
       call getChildValue(node, "InitialSpins", val, "", child=child, &
-            &allowEmptyValue=.true., dummyValue=.true., list=.true.)
+          &allowEmptyValue=.true., dummyValue=.true., list=.true.)
 
       ! Read either all atom spins, or individual spin specifications
       call getChild(child, "AllAtomSpins", child2, requested=.false.)
@@ -1982,12 +2037,16 @@ contains
 
     end subroutine getInitialSpins
 
+
     !> Reads numerical differentiation method to be used
     subroutine readDifferentiation(node, ctrl)
+
       !> relevant node in input tree
       type(fnode), pointer, intent(in) :: node
+
       !> control e to fill
       type(control), intent(inout) :: ctrl
+
 
       !> default of a reasonable choice for round off when using a second order formula
       real(dp), parameter :: defDelta = epsilon(1.0_dp)**0.25_dp
@@ -2017,25 +2076,34 @@ contains
 
   end subroutine readDFTBHam
 
+
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly)
+
     !> List of SK file names to read in for every interaction
     type(ListCharLc), intent(inout) :: skFiles(:,:)
+
     !> Nr. of species in the system
     integer, intent(in)    :: nSpecies
+
     !> Data type for slako information
     type(slater), intent(inout) :: slako
+
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
     !> For every species, a list of rank one arrays. Each array contains the angular momenta to pick
     !> from the appropriate SK-files.
     type(listIntR1), intent(inout) :: angShells(:)
+
     !> Are the Hubbard Us different for each l-shell?
     logical, intent(in) :: orbRes
+
     !> Method of the sk interpolation
     integer, intent(in)  :: skInterMeth
+
     !> is this a polynomial or spline repulsive?
     logical, intent(in) :: repPoly(:,:)
 
@@ -2217,14 +2285,19 @@ contains
 
   end subroutine readSKFiles
 
+
   !> Checks if the provided set of SK-tables for a the interactions A-B and B-A are consistent.
   subroutine checkSKCompElec(skData12, skData21, sp1, sp2)
+
     !> Slater-Koster integral set for the interaction A-B
     type(TOldSKData), intent(in), target :: skData12(:,:)
+
     !> Slater-Koster integral set for the interaction B-A
     type(TOldSKData), intent(in), target :: skData21(:,:)
+
     !> Species number for A (for error messages)
     integer, intent(in) :: sp1
+
     !> Species number for B (for error messages)
     integer, intent(in) :: sp2
 
@@ -2266,19 +2339,26 @@ contains
 
   end subroutine checkSKCompElec
 
+
   !> Checks if the provided repulsive splines for A-B and B-A are compatible
   subroutine checkSKCompRepSpline(repIn1, repIn2, sp1, sp2)
+
     !> Repulsive spline for interaction A-B
     type(TRepSplineIn), intent(in) :: repIn1
+
     !> Repulsive spline for interaction B-A
     type(TRepSplineIn), intent(in) :: repIn2
+
     !> Number of species A (for error messages only)
     integer, intent(in) :: sp1
+
     !> Number of species B (for error messages only)
     integer, intent(in) :: sp2
 
+
     !> Tolerance for the agreement in the repulsive data
     real(dp), parameter :: tolRep = 1.0e-8_dp
+
 
     !> string for error return
     character(lc) :: errorStr
@@ -2314,16 +2394,22 @@ contains
 
   end subroutine checkSKCompRepSpline
 
+
   !> Checks if repulsive polynomials for A-B and B-A are compatible
   subroutine checkSKCompRepPoly(repIn1, repIn2, sp1, sp2)
+
     !> Repulsive polynomial for interaction A-B
     type(TRepPolyIn), intent(in) :: repIn1
+
     !> Repulsive polynomial for interaction B-A
     type(TRepPolyIn), intent(in) :: repIn2
+
     !> Number of species A (for error messages only)
     integer, intent(in) :: sp1
+
     !> Number of species B (for error messages only)
     integer, intent(in) :: sp2
+
 
     !> for error string return
     character(lc) :: errorStr
@@ -2341,15 +2427,20 @@ contains
 
   end subroutine checkSKCompRepPoly
 
+
   !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
   !> species
   pure function getNSKIntegrals(sp1, sp2, orb) result(nInt)
+
     !> Index of the first species
     integer, intent(in) :: sp1
+
     !> Index of the second species
     integer, intent(in) :: sp2
+
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
     !> Nr. of Slater-Koster interactions
     integer :: nInt
 
@@ -2364,26 +2455,34 @@ contains
 
   end function getNSKIntegrals
 
+
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
   !> containing all integrals.
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
       &angShells2)
+
     !> Resulting table of H integrals
     real(dp), intent(out) :: skHam(:,:)
+
     !> Resulting table of S integrals
     real(dp), intent(out) :: skOver(:,:)
+
     !> Contains all SK files describing interactions for A-B
     type(TOldSKData), intent(in), target :: skData12(:,:)
+
     !> Contains all SK files describing interactions for B-A
     type(TOldSKData), intent(in), target :: skData21(:,:)
+
     !> Angular momenta to pick from the SK-files for species A
     type(listIntR1), intent(inout) :: angShells1
+
     !> Angular momenta to pick from the SK-files for species B
     type(listIntR1), intent(inout) :: angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
     integer :: angShell1(maxL+1), angShell2(maxL+1)
     real(dp), pointer :: pHam(:,:), pOver(:,:)
+
 
     !> Maps (mm, l1, l2 ) onto an element in the SK table.
     !> l2 >= l1 (l1 = 0, 1, ...; l2 = 0, 1, ...), m <= l1.
@@ -2431,10 +2530,13 @@ contains
 
   end subroutine getFullTable
 
+
   !> Reads the option block
   subroutine readOptions(node, ctrl)
+
     !> Node to parse
     type(fnode), pointer :: node
+
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
@@ -2466,12 +2568,16 @@ contains
 
   end subroutine readOptions
 
+
   !> Reads in dispersion related settings
   subroutine readDispersion(node, geo, input)
+
     !> Node to parse
     type(fnode), pointer :: node
+
     !> geometry, including atomic information
     type(TGeometry), intent(in) :: geo
+
     !> dispersion data on exit
     type(DispersionInp), intent(out) :: input
 
@@ -2488,24 +2594,28 @@ contains
       allocate(input%uff)
       call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
-    #:if WITH_DFTD3
+#:if WITH_DFTD3
       allocate(input%dftd3)
       call readDispDFTD3(dispModel, input%dftd3)
-    #:else
+#:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
-    #:endif
+#:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
 
   end subroutine readDispersion
 
+
   !> Reads in the dispersion input data for the Slater-Kirkwood dispersion modell.
   subroutine readDispSlaKirk(node, geo, input)
+
     !> Node to process
     type(fnode), pointer :: node
+
     !> Geometry of the current system
     type(TGeometry), intent(in) :: geo
+
     !> Contains the input for the dispersion module on exit
     type(DispSlaKirkInp), intent(out) :: input
 
@@ -2625,12 +2735,16 @@ contains
 
   end subroutine readDispSlaKirk
 
+
   !> Reads in initialization data for the UFF dispersion model
   subroutine readDispVdWUFF(node, geo, input)
+
     !> Node to process
     type(fnode), pointer :: node
+
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
+
     !> Filled input structure on exit
     type(DispUffInp), intent(out) :: input
 
@@ -2672,10 +2786,13 @@ contains
 
 #:if WITH_DFTD3
 
+
   !> Reads in initialization data for the DFTD3 dispersion module.
   subroutine readDispDFTD3(node, input)
+
     !> Node to process.
     type(fnode), pointer :: node
+
     !> Filled input structure on exit.
     type(DispDftD3Inp), intent(out) :: input
 
@@ -2722,10 +2839,13 @@ contains
 
 #:endif
 
+
   !> reads in value of temperature for MD with sanity checking of the input
   subroutine readTemperature(node, ctrl)
+
     !> data to parse
     type(fnode), pointer :: node
+
     !> control data coming back
     type(control), intent(inout) :: ctrl
 
@@ -2747,14 +2867,19 @@ contains
 
   end subroutine readTemperature
 
+
   !> reads a temperature profile for MD with sanity checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
+
     !> parser node contaning the relevant part of the user input
     type(fnode), pointer :: node
+
     !> unit modifier for the profile
     character(len=*), intent(in) :: modifier
+
     !> Control structure to populate
     type(control), intent(inout) :: ctrl
+
 
     !> Names of thermal profiles
     character(len=*), parameter :: tempMethodNames(3) = (/ 'constant   ', &
@@ -2818,10 +2943,13 @@ contains
 
   end subroutine readTemperatureProfile
 
+
   !> Reads the excited state data block
   subroutine readExcited(node, ctrl)
+
     !> Node to parse
     type(fnode), pointer :: node
+
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
@@ -2832,14 +2960,14 @@ contains
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-  #:if not WITH_ARPACK
+#:if not WITH_ARPACK
 
     if (associated(child)) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
 
-  #:else
+#:else
 
     if (associated(child)) then
 
@@ -2911,16 +3039,20 @@ contains
 
     end if
 
-  #:endif
+#:endif
 
   end subroutine readExcited
 
+
   !> Reads the analysis block
   subroutine readAnalysis(node, ctrl, geo)
+
     !> Node to parse
     type(fnode), pointer :: node
+
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
+
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
 
@@ -3023,14 +3155,19 @@ contains
 
   end subroutine readAnalysis
 
+
   !> Reads W values if required by settings in the Hamiltonian or the excited state
   subroutine readSpinConstants(hamNode, geo, slako, ctrl)
+
     !> node for Hamitonian data
     type(fnode), pointer         :: hamNode
+
     !> geometry of the system
     type(TGeometry), intent(in)  :: geo
+
     !> Slater-Koster structure
     type(slater), intent(in) :: slako
+
     !> control structure
     type(control), intent(inout) :: ctrl
 
@@ -3079,16 +3216,22 @@ contains
 
   end subroutine readSpinConstants
 
+
   !> Reads customised Hubbard U values that over-ride the SK file values
   subroutine readCustomisedHubbards(node, geo, orb, tShellResolvedScc, hubbU)
+
     !> input data to parse
     type(fnode), pointer, intent(in) :: node
+
     !> geometry of the system
     type(TGeometry), intent(in)  :: geo
+
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
     !> is this a shell resolved calculation, or only one U value per atom
     logical, intent(in) :: tShellResolvedScc
+
     !> hubbard U values on exit
     real(dp), allocatable, intent(out) :: hubbU(:,:)
 

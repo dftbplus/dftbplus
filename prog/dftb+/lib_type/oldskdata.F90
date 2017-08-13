@@ -22,40 +22,54 @@ module oldskdata
 
   public :: TOldSKData, readFromFile, readSplineRep
 
+
   !> Represents the Slater-Koster data in an SK file.
   type TOldSKData
+
     !> Grid separation
     real(dp) :: dist
+
     !> Nr. of grid points
     integer :: nGrid
+
     !> Atomic eigenvalues.
     real(dp) :: skSelf(4)
+
     !> Hubbard Us
     real(dp) :: skHubbU(4)
+
     !> Occupations
     real(dp) :: skOcc(4)
+
     !> Mass of the atom
     real(dp) :: mass
+
     !> Table for H
     real(dp), allocatable :: skHam(:,:)
+
     !> Table for S
     real(dp), allocatable :: skOver(:,:)
   end type TOldSKData
+
 
   !> Reads the data from an SK-file.
   interface readFromFile
     module procedure OldSKData_readFromFile
   end interface readFromFile
 
+
   !> Reads the repulsive from an open file
   interface readSplineRep
     module procedure OldSKData_readSplineRep
   end interface readSplineRep
 
+
   !> nr. of interactions in the SK-file
   integer, parameter :: nSKInter = 20
+
   !> nr. of ints. in old SK-file
   integer, parameter :: nSKInterOld = 10
+
 
   !> Mapping between old (spd) and new (spdf) interactions in the SK-table
   integer, parameter :: iSKInterOld(nSKInterOld) &
@@ -63,21 +77,29 @@ module oldskdata
 
 contains
 
+
   !> Reads the data from an SK-file.
   subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, &
       &repSplineIn, repPolyIn)
+
     !> Contains the content of the SK-file on exit
     type(TOldSKData), intent(out) :: skData
+
     !> Name of the file to read the data from
     character(len=*), intent(in) :: fileName
+
     !> Is it a homonuclear SK-file?
     logical, intent(in) :: homo
+
     !> Index of 1st interacting species (for error messages only)
     integer, intent(in), optional :: iSp1
+
     !> Index of 2nd interacting species (for error messages only)
     integer, intent(in), optional :: iSp2
+
     !> Repulsive spline part of the SK-file.
     type(TRepSplineIn), intent(out), optional :: repSplineIn
+
     !> Repulsive polynomial part of the SK-file.
     type(TRepPolyIn), intent(out), optional :: repPolyIn
 
@@ -166,6 +188,7 @@ contains
 
   end subroutine OldSKData_readFromFile
 
+
   !> Reads the repulsive from an open file.
   subroutine OldSKData_readsplinerep(fp, fname, repsplinein, isp1, isp2)
     !! File identifier.
@@ -235,12 +258,16 @@ contains
 
   end subroutine OldSKData_readsplinerep
 
+
   !> Checks for IO errors and prints message.
   subroutine checkIOError(iostat, fname, msg)
+
     !> Flag of the IO operation.
     integer, intent(in) :: iostat
+
     !> Name of the file.
     character(*), intent(in) :: fname
+
     !> Message to print if IO operation flag is non-zero.
     character(*), intent(in) :: msg
 

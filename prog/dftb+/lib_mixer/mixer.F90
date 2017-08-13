@@ -20,20 +20,27 @@ module mixer
 
   private
 
+
   !> Interface type for various mixers.
   type OMixer
     private
+
     !> numerical type of mixer 1:4
     integer :: mixerType
+
     !> simple mixer instance
     type(OSimpleMixer),   allocatable :: pSimpleMixer
+
     !> Anderson mixer instance
     type(OAndersonMixer), allocatable :: pAndersonMixer
+
     !> Broyden mixer instance
     type(OBroydenMixer),  allocatable :: pBroydenMixer
+
     !> modified DIIS mixer instance
     type(ODIISMixer),  allocatable :: pDIISMixer
   end type OMixer
+
 
   !> Initialises specific mixer in use
   interface init
@@ -43,20 +50,24 @@ module mixer
     module procedure Mixer_initDIIS
   end interface
 
+
   !> Resets mixer
   interface reset
     module procedure Mixer_reset
   end interface reset
+
 
   !> Does the actual mixing
   interface mix
     module procedure Mixer_mix
   end interface mix
 
+
   !> Is J^-1 available?
   interface hasInverseJacobian
     module procedure Mixer_hasInverseJacobian
   end interface hasInverseJacobian
+
 
   !> Return J^-1 if possible
   interface getInverseJacobian
@@ -67,6 +78,7 @@ module mixer
   public :: init, reset, mix
   public :: hasInverseJacobian, getInverseJacobian
 
+
   !> Identifying constant for each of the different mixers.
   integer, parameter :: iSimpleMixer = 1
   integer, parameter :: iAndersonMixer = 2
@@ -75,10 +87,13 @@ module mixer
 
 contains
 
+
   !> Initializes a simple mixer.
   subroutine Mixer_initSimple(self, pSimple)
+
     !> Mixer instance
     type(OMixer), intent(out) :: self
+
     !> A valid simple mixer instance on exit.
     type(OSimpleMixer), allocatable, intent(inout) :: pSimple
 
@@ -87,10 +102,13 @@ contains
 
   end subroutine Mixer_initSimple
 
+
   !> Initializes an Anderson mixer.
   subroutine Mixer_initAnderson(self, pAnderson)
+
     !> Mixer instance
     type(OMixer), intent(out) :: self
+
     !> A valid Anderson mixer instance on exit.
     type(OAndersonMixer), allocatable, intent(inout) :: pAnderson
 
@@ -99,10 +117,13 @@ contains
 
   end subroutine Mixer_initAnderson
 
+
   !> Initializes a Broyden mixer
   subroutine Mixer_initBroyden(self, pBroyden)
+
     !> Mixer instance
     type(OMixer), intent(out) :: self
+
     !> A valid Broyden mixer instance on exit.
     type(OBroydenMixer), allocatable, intent(inout) :: pBroyden
 
@@ -111,10 +132,13 @@ contains
 
   end subroutine Mixer_initBroyden
 
+
   !> Initializes a DIIS mixer
   subroutine Mixer_initDIIS(self, pDIIS)
+
     !> Mixer instance
     type(OMixer), intent(out) :: self
+
     !> A valid DIIS mixer instance on exit.
     type(ODIISMixer), allocatable, intent(inout) :: pDIIS
 
@@ -123,10 +147,13 @@ contains
 
   end subroutine Mixer_initDIIS
 
+
   !> Resets the mixer
   subroutine Mixer_reset(self, nElem)
+
     !> Mixer instance.
     type(OMixer), intent(inout) :: self
+
     !> Size of the vectors to mix.
     integer, intent(in) :: nElem
 
@@ -143,12 +170,16 @@ contains
 
   end subroutine Mixer_reset
 
+
   !> Mixes vectors together
   subroutine Mixer_mix(self, qInpRes, qDiff)
+
     !> Mixer instance.
     type(OMixer), intent(inout) :: self
+
     !> Input vector on entry, result vector on exit.
     real(dp),      intent(inout) :: qInpRes(:)
+
     !> Difference between input and output vectors (measure of lack of convergence)
     real(dp),      intent(in) :: qDiff(:)
 
@@ -165,10 +196,13 @@ contains
 
   end subroutine Mixer_mix
 
+
   !> Tells whether the mixer is able to provide the inverse Jacobian.
   function Mixer_hasInverseJacobian(self) result(has)
+
     !> Mixer instance.
     type(OMixer), intent(inout) :: self
+
     !> Size of the vectors to mix.
     logical :: has
 
@@ -185,10 +219,13 @@ contains
 
   end function Mixer_hasInverseJacobian
 
+
   !> Return an inverse Jacobian if possible, halting if not
   subroutine Mixer_getInverseJacobian(self, invJac)
+
     !> Mixer instance.
     type(OMixer), intent(inout) :: self
+
     !> Inverse Jacobian matrix if available
     real(dp), intent(out) :: invJac(:,:)
 

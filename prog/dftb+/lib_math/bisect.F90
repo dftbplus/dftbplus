@@ -10,6 +10,7 @@ module bisect
   use accuracy, only : dp
   implicit none
 
+
   !> Bisection driver to find a point in an array xx(:) between xx(1) and xx(size(xx)) such that
   !> element indexed j is less than the value x queried
   interface bisection
@@ -19,14 +20,19 @@ module bisect
 
 contains
 
+
   !> real case for bisection search
   subroutine bisection_real(j,xx,x, tol)
+
     !> located element such that xx(j) < x < xx(j+1)
     integer,  intent(out)          :: j
+
     !> array of values in monotonic order to search through
     real(dp), intent(in)           :: xx(:)
+
     !> value to locate j for
     real(dp), intent(in)           :: x
+
     !> Tolerance for equality comparision
     real(dp), intent(in), optional :: tol
 
@@ -71,12 +77,16 @@ contains
     end if
   end subroutine bisection_real
 
+
   !> integer case for bisection search
   subroutine bisection_int(j,xx,x)
+
     !> located element such that xx(j) < x < xx(j+1)
     integer, intent(out) :: j
+
     !> array of values in monotonic order to search through
     integer, intent(in) :: xx(:)
+
     !> value to locate j for
     integer, intent(in) :: x
 

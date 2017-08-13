@@ -24,39 +24,51 @@ module andersentherm
   public :: OAndersenThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
+
   !> Data for the Andersen thermostat
   type OAndersenThermostat
     private
+
     !> Nr. of atoms
     integer :: nAtom
+
     !> Random number generator
     type(ORanlux), allocatable :: pRanlux
+
     !> Mass of the atoms
     real(dp), allocatable :: mass(:)
+
     !> Temperature generator
     type(OTempProfile), pointer :: pTempProfile
+
     !> Rescale velocities individually?
     logical :: tRescaleIndiv
+
     !> Rescaling probability
     real(dp) :: wvScale
+
     !> MD framework
     type(OMDCommon) :: pMDFramework
   end type OAndersenThermostat
+
 
   !> Initialise thermostat object
   interface init
     module procedure AndersenThermostat_init
   end interface init
 
+
   !> Velocities at start of calculation
   interface getInitVelocities
     module procedure AndersenThermostat_getInitVelos
   end interface
 
+
   !> New atomic velocities
   interface updateVelocities
     module procedure AndersenThermostat_updateVelos
   end interface
+
 
   !> write state to disc
   interface state
@@ -65,21 +77,29 @@ module andersentherm
 
 contains
 
+
   !> Creates an Andersen thermostat instance.
   subroutine AndersenThermostat_init(self, pRanlux, masses, tempProfile, &
       &rescaleIndiv, wvScale, pMDFramework)
+
     !> Initialised instance on exit.
     type(OAndersenThermostat), intent(out) :: self
+
     !> Random generator
     type(ORanlux), allocatable, intent(inout) :: pRanlux
+
     !> Masses of the atoms.
     real(dp), intent(in) :: masses(:)
+
     !> Pointer to a temperature profile object.
     type(OTempProfile), pointer, intent(in) :: tempProfile
+
     !> If velocities should be rescaled per atom
     logical, intent(in) :: rescaleIndiv
+
     !> Rescaling probability.
     real(dp), intent(in) :: wvScale
+
     !> Molecular dynamics general specifications
     type(OMDCommon), intent(in) :: pMDFramework
 
@@ -94,10 +114,13 @@ contains
 
   end subroutine AndersenThermostat_init
 
+
   !> Returns the initial velocities.
   subroutine AndersenThermostat_getInitVelos(self, velocities)
+
     !> AndersenThermostat instance.
     type(OAndersenThermostat), intent(inout) :: self
+
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
@@ -115,10 +138,13 @@ contains
 
   end subroutine AndersenThermostat_getInitVelos
 
+
   !> Updates the provided velocities according the current temperature.
   subroutine AndersenThermostat_updateVelos(self, velocities)
+
     !> AndersenThermostat instance.
     type(OAndersenThermostat), intent(inout) :: self
+
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
@@ -153,10 +179,13 @@ contains
 
   end subroutine AndersenThermostat_updateVelos
 
+
   !> Outputs internals of thermostat
   subroutine AndersenThermostat_state(self, fd)
+
     !> instance of thermostat
     type(OAndersenThermostat), intent(in) :: self
+
     !> filehandle to write out to
     integer,intent(in)                 :: fd
 

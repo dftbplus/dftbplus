@@ -30,6 +30,7 @@ module hsdutils
   public :: getChild, getChildren, setChild
   public :: attrProcessed
 
+
   !> Returns the value (the child) of a child node identified by its name.
   !>
   !> These routines investigate the provided node and look for a child with the supplied name. If
@@ -65,6 +66,7 @@ module hsdutils
     module procedure getChVal_lStringIntR1RealR1
   end interface getChildValue
 
+
   !> Sets the value (the child) of a child node identified by its name
   !>
   !> Those functions are the inverse of the getChildValue functions. They create a child with the
@@ -90,6 +92,7 @@ module hsdutils
     module procedure setChVal_charR1intR2RealR2
   end interface setChildValue
 
+
   !> Writes a child and its value to an xml-write stream
   interface writeChildValue
     module procedure writeChVal_logical
@@ -104,6 +107,7 @@ module hsdutils
     module procedure writeChVal_charR1
     module procedure writeChVal_charR1IntR2RealR2
   end interface writeChildValue
+
 
   !> Returns a string representation of an object
   interface getAsString
@@ -120,6 +124,7 @@ module hsdutils
     module procedure getAsString_charR1IntR2RealR2
   end interface getAsString
 
+
   !> Error messages
   character(len=*), parameter :: MSG_MISSING_FIELD = "Missing child: "
   character(len=*), parameter :: MSG_EXISTING_CHILD = "Already existing child: "
@@ -128,38 +133,51 @@ module hsdutils
   character(len=*), parameter :: MSG_MISSING_VALUES = "Not enough values &
       &provided."
 
+
   !> Length of a line (for wrapping long lines when writing values)
   integer, parameter :: lineLength = 80
+
 
   !> Maximal number of characters needed to represent an integer
   integer, parameter :: nCharInt = 50
 
+
   !> Maximal number of characters needed to represent a real number
   integer, parameter :: nCharReal = 50
+
 
   !> Maximal number of characters needed to represent a logical value
   integer, parameter :: nCharLogical = 4
 
+
   !> Attribute signals that a tag was processed
   character(len=*), parameter :: attrProcessed = "proc"
+
 
   !> Preallocateated size for temporary buffer strings
   integer, parameter :: preAllocSize = 1024
 
 contains
 
+
   !> Returns the value (the child) of a child node as logical.
   subroutine getChVal_logical(node, name, variableValue, default, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     logical, intent(out) :: variableValue
+
     !> Default value for the child, if child is not found
     logical, intent(in), optional :: default
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -198,21 +216,29 @@ contains
 
   end subroutine getChVal_logical
 
+
   !> Returns the value (the child) of a child node as logical.
   subroutine getChVal_logicalR1(node, name, variableValue, default, nItem, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     logical, intent(out) :: variableValue(:)
+
     !> Default value for the child, if child is not found
     logical, intent(in), optional :: default(:)
+
     !> Nr. of read items. If this argument is not passed, and the nr. of read items is less than the
     !> size of the array, the subroutine raises an error.
     integer, intent(out), optional :: nItem
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -265,20 +291,28 @@ contains
 
   end subroutine getChVal_logicalR1
 
+
   !> Returns the value (the child) of a child node as string.
   subroutine getChVal_string(node, name, variableValue, default, modifier, child, multiple)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     type(string), intent(inout) :: variableValue
+
     !> Default value for the child, if child is not found
     character(len=*), intent(in), optional :: default
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
+
     !> If true, string contains as many tokens as possible, not just one (with spaces between the
     !> tokens).
     logical, intent(in), optional :: multiple
@@ -329,18 +363,25 @@ contains
 
   end subroutine getChVal_string
 
+
   !> Returns the value (the child) of a child node as real.
   subroutine getChVal_real(node, name, variableValue, default, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     real(dp), intent(out) :: variableValue
+
     !> Default value for the child, if child is not found
     real(dp), intent(in), optional :: default
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -380,21 +421,29 @@ contains
 
   end subroutine getChVal_real
 
+
   !> Returns the value (the child) of a child node as a rank one real array.
   subroutine getChVal_realR1(node, name, variableValue, default, nItem, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     real(dp), intent(out) :: variableValue(:)
+
     !> Default value for the child, if child is not found
     real(dp), intent(in), optional :: default(:)
+
     !> Nr. of read items. If this argument is not passed, and the nr. of read items is less than the
     !> size of the array, the subroutine raises an error.
     integer, intent(out), optional :: nItem
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -447,25 +496,33 @@ contains
 
   end subroutine getChVal_realR1
 
+
   !> Returns the value (the child) of a child node as a rank two real array.
   !>
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
   !> are pretty printed. For higher ranked arrays the rank one version should be used with some
   !> reshaping after.
   subroutine getChVal_realR2(node, name, variableValue, default, nItem, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     real(dp), intent(out) :: variableValue(:,:)
+
     !> Default value for the child, if child is not found
     real(dp), intent(in), optional :: default(:,:)
+
     !> Nr. of read items. If this argument is not passed, and the nr. of read items is less than the
     !> size of the array, the subroutine raises an error.
     integer, intent(out), optional :: nItem
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -507,18 +564,25 @@ contains
 
   end subroutine getChVal_realR2
 
+
   !> Returns the value (the child) of a child node as integer.
   subroutine getChVal_int(node, name, variableValue, default, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     integer, intent(out) :: variableValue
+
     !> Default value for the child, if child is not found
     integer, intent(in), optional :: default
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -557,21 +621,29 @@ contains
 
   end subroutine getChVal_int
 
+
   !> Returns the value (the child) of a child node as a rank one integer array.
   subroutine getChVal_intR1(node, name, variableValue, default, nItem, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     integer, intent(out) :: variableValue(:)
+
     !> Default value for the child, if child is not found
     integer, intent(in), optional :: default(:)
+
     !> Nr. of read items. If this argument is not passed, and the nr. of read items is less than the
     !> size of the array, the subroutine raises an error.
     integer, intent(out), optional :: nItem
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -623,25 +695,33 @@ contains
 
   end subroutine getChVal_intR1
 
+
   !> Returns the value (the child) of a child node as a rank two integer array.
   !>
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
   !> are pretty printed. For higher ranked arrays the rank one version should be used with some
   !> reshaping after.
   subroutine getChVal_intR2(node, name, variableValue, default, nItem, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     integer, intent(out) :: variableValue(:,:)
+
     !> Default value for the child, if child is not found
     integer, intent(in), optional :: default(:,:)
+
     !> Nr. of read items. If this argument is not passed, and the nr. of read items is less than the
     !> size of the array, the subroutine raises an error.
     integer, intent(out), optional :: nItem
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -682,6 +762,7 @@ contains
 
   end subroutine getChVal_intR2
 
+
   !> Returns the value (the child) of a child node as a linked list of strings.
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
@@ -689,14 +770,19 @@ contains
   !> be explicitely queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lString(node, name, variableValue, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     type(listString), intent(inout) :: variableValue
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -724,12 +810,16 @@ contains
 
   end subroutine getChVal_lString
 
+
   !> Helper function for getChVal_lString to avoid string to character conversion in the do-loop.
   subroutine getChVal_lString_h(text, variableValue, node)
+
     !> Text to parse
     character(len=*), intent(in) :: text
+
     !> Contains the value of the parsed text
     type(listString), intent(inout) :: variableValue
+
     !> node for error handling
     type(fnode), pointer :: node
 
@@ -748,6 +838,7 @@ contains
 
   end subroutine getChVal_lString_h
 
+
   !> Returns the value (the child) of a child node as a linked list of reals.
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
@@ -755,14 +846,19 @@ contains
   !> be explicitely queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lReal(node, name, variableValue, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     type(listReal), intent(inout) :: variableValue
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -791,10 +887,13 @@ contains
 
   end subroutine getChVal_lReal
 
+
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lReal_h(text, variableValue, node)
+
     !> text  Text to parse
     character(len=*), intent(in) :: text
+
     !> value Contains the value of the parsed text
     type(listReal), intent(inout) :: variableValue
     type(fnode), pointer :: node
@@ -814,6 +913,7 @@ contains
 
   end subroutine getChVal_lReal_h
 
+
   !> Returns the value (the child) of a child node as a linked list of rank one real arrays.
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
@@ -821,16 +921,22 @@ contains
   !> be explicitely queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lRealR1(node, name, dim, variableValue, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Dimension of the arrays
     integer, intent(in) :: dim
+
     !> Value on return
     type(listRealR1), intent(inout) :: variableValue
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -859,14 +965,19 @@ contains
 
   end subroutine getChVal_lRealR1
 
+
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lRealR1_h(text, dim, variableValue, node)
+
     !> Text to parse
     character(len=*), intent(in) :: text
+
     !> buffer sizing
     integer, intent(in) :: dim
+
     !> Contains the value of the parsed text
     type(listRealR1), intent(inout) :: variableValue
+
     !> nodes for error handling
     type(fnode), pointer :: node
 
@@ -888,6 +999,7 @@ contains
 
   end subroutine getChVal_lRealR1_h
 
+
   !> Returns the value (the child) of a child node as linked list of integers.
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
@@ -895,14 +1007,19 @@ contains
   !> be explicitely queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lInt(node, name, variableValue, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     type(listInt), intent(inout) :: variableValue
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
@@ -931,12 +1048,16 @@ contains
 
   end subroutine getChVal_lInt
 
+
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lInt_h(text, variableValue, node)
+
     !> Text to parse
     character(len=*), intent(in) :: text
+
     !> Contains the value of the parsed text
     type(listInt), intent(inout) :: variableValue
+
     !> node for error handling
     type(fnode), pointer :: node
 
@@ -955,6 +1076,7 @@ contains
 
   end subroutine getChVal_lInt_h
 
+
   !> Returns the value (the child) of a child node as linked list of rank one integer arrays.
   !>
   !> In order to prevent a double packaging (from array to linked list and then from linked list to
@@ -962,16 +1084,22 @@ contains
   !> be explicitely queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
   subroutine getChVal_lIntR1(node, name, dim, variableValue, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     integer, intent(in) :: dim
+
     !> Modifier of the child on return
     type(listIntR1), intent(inout) :: variableValue
+
     !> Pointer to the child node (with the spec. name) on return
     type(string), intent(inout), optional :: modifier
+
     !> the child itself
     type(fnode), pointer, optional :: child
 
@@ -1000,14 +1128,19 @@ contains
 
   end subroutine getChVal_lIntR1
 
+
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
   subroutine getChVal_lIntR1_h(text, dim, variableValue, node)
+
     !> Text to parse
     character(len=*), intent(in) :: text
+
     !> buffer sizing
     integer, intent(in) :: dim
+
     !> Contains the value of the parsed text
     type(listIntR1), intent(inout) :: variableValue
+
     !> node for error handling
     type(fnode), pointer :: node
 
@@ -1029,6 +1162,7 @@ contains
 
   end subroutine getChVal_lIntR1_h
 
+
   !> Returns the value (the child) of a child node as a linked list rank one integer and rank one
   !> real arrays.
   !>
@@ -1038,20 +1172,28 @@ contains
   !> an explicit setChildValue call.
   subroutine getChVal_lIntR1RealR1(node, name, dimInt, valueInt, dimReal, valueReal, modifier, &
       & child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Dimension of the integer arrays in the list
     integer, intent(in) :: dimInt
+
     !> List of integer arrays on return
     integer, intent(in) :: dimReal
+
     !> Dimensio of the real arrays in the list
     type(listIntR1), intent(inout) :: valueInt
+
     !> List of real array on return
     type(listRealR1), intent(inout) :: valueReal
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child on return
     type(fnode), pointer, optional :: child
 
@@ -1086,18 +1228,25 @@ contains
 
   end subroutine getChVal_lIntR1RealR1
 
+
   !> Helper function for getChVal_lIntR1RealR1 to avoid string to char conversion in the do-loop.
   subroutine getChVal_lIntR1RealR1_h(text, dimInt, valueInt, dimReal, valueReal, node)
+
     !> Text to parse
     character(len=*), intent(in) :: text
+
     !> integer buffer dimensioning
     integer, intent(in) :: dimInt
+
     !> Contains the value of the integer in the parsed text
     type(listIntR1), intent(inout) :: valueInt
+
     !> real buffer dimensioning
     integer, intent(in) :: dimReal
+
     !> Contains the value of the real in the parsed text
     type(listRealR1), intent(inout) :: valueReal
+
     !> for error handling
     type(fnode), pointer :: node
 
@@ -1127,6 +1276,7 @@ contains
 
   end subroutine getChVal_lIntR1RealR1_h
 
+
   !> Returns the value (the child) of a child node as a linked list of string, rank one integer and
   !> rank one real arrays.
   !>
@@ -1136,22 +1286,31 @@ contains
   !> an explicit setChildValue call.
   subroutine getChVal_lStringIntR1RealR1(node, name, valueStr, dimInt, valueInt, dimReal, &
       & valueReal, modifier, child)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> List of strings on return.
     type(listString), intent(inout) :: valueStr
+
     !> Dimension of the integer arrays in the list
     integer, intent(in) :: dimInt
+
     !> List of integer arrays on return
     type(listIntR1), intent(inout) :: valueInt
+
     !> Dimension of the real arrays in the list
     integer, intent(in) :: dimReal
+
     !> List of real array on return
     type(listRealR1), intent(inout) :: valueReal
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child on return
     type(fnode), pointer, optional :: child
 
@@ -1187,21 +1346,29 @@ contains
 
   end subroutine getChVal_lStringIntR1RealR1
 
+
   !> Helper function for getChVal_lIntR1RealR1 to avoid string to char conversion in the do-loop.
   subroutine getChVal_lStringIntR1RealR1_h(text, valueStr, dimInt, valueInt, dimReal, valueReal, &
       & node)
+
     !> Text to parse
     character(len=*), intent(in) :: text
+
     !> Contains the string part of the parsed text
     type(listString), intent(inout) :: valueStr
+
     !> integer buffer dimensioning
     integer, intent(in) :: dimInt
+
     !> Contains the integer part of the parsed text
     type(listIntR1), intent(inout) :: valueInt
+
     !> integer buffer dimensioning
     integer, intent(in) :: dimReal
+
     !> Contains the real value part of the parsed text
     type(listRealR1), intent(inout) :: valueReal
+
     !> for error handling
     type(fnode), pointer :: node
 
@@ -1233,30 +1400,41 @@ contains
 
   end subroutine getChVal_lStringIntR1RealR1_h
 
+
   !> Returns the value (the child) of a child node as a node.
   !>
   !> Caveat: If allowEmptyValue is set to .true. and the child has no subnodes (empty value) then
   !> the returned value is an unassociated pointer
   subroutine getChVal_node(node, name, variableValue, default, modifier, child, list, &
       & allowEmptyValue, dummyValue)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value on return
     type(fnode), pointer :: variableValue
+
     !> Default value for the child, if child is not found. If the empty string is passed as default
     !> value, the child is created but no value is added to it. The returned value pointer will be
+
     !> unassociated. (allowEmptyValue must be explicitely set to .true.)
     character(len=*), intent(in), optional :: default
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
+
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
+
     !> If the node created as default should be tagged as list.
     logical, intent(in), optional :: list
+
     !> If the child is allowed to have an empty value.
     logical, intent(in), optional :: allowEmptyValue
+
     !> If true, the value is not marked as processed.
     logical, intent(in), optional :: dummyValue
 
@@ -1329,16 +1507,22 @@ contains
 
   end subroutine getChVal_node
 
+
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
   subroutine convAtomRangeToInt(str, speciesNames, species, node, val)
+
     !> String to convert
     character(len=*), intent(in) :: str
+
     !> Contains the valid species names.
     character(len=*), intent(in) :: speciesNames(:)
+
     !> Contains for every atom its species index
     integer, intent(in) :: species(:)
+
     !> Master node for detailed errors.
     type(fnode), pointer :: node
+
     !> Integer list of atom indices on return.
     integer, allocatable, intent(out) :: val(:)
 
@@ -1361,6 +1545,7 @@ contains
     call destruct(li)
 
   contains
+
 
     !> Helper routine.
     subroutine process(cbuffer, speciesNames, species, nAtom, node, li)
@@ -1437,14 +1622,19 @@ contains
 
   end subroutine convAtomRangeToInt
 
+
   !> Converts a string containing indices and ranges to a list of indices.
   subroutine convRangeToInt(str, node, val, nMax)
+
     !> String to convert
     character(len=*), intent(in) :: str
+
     !> Master node for detailed errors.
     type(fnode), pointer :: node
+
     !> Integer list of atom indices on return.
     integer, allocatable, intent(out) :: val(:)
+
     !> Maximum number for an index
     integer, intent(in) :: nMax
 
@@ -1466,6 +1656,7 @@ contains
     call destruct(li)
 
   contains
+
 
     !> Helper routine.
     subroutine process(cbuffer, nMax, node, li)
@@ -1523,16 +1714,22 @@ contains
 
   end subroutine convRangeToInt
 
+
   !> Returns a child node with a specified name
   subroutine getChild(node, name, child, requested, modifier)
+
     !> Node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child node to look for
     character(len=*), intent(in) :: name
+
     !> Contains a pointer to the child on return
     type(fnode), pointer :: child
+
     !> If true and child not found, error is issued
     logical, intent(in), optional :: requested
+
     !> Contains modifier on exit.
     type(string), intent(inout), optional :: modifier
 
@@ -1562,12 +1759,16 @@ contains
 
   end subroutine getChild
 
+
   !> Returns a list of children with the specified name.
   subroutine getChildren(node, name, children)
+
     !> Parent node to investigate
     type(fnode), pointer :: node
+
     !> Name of the children to look for
     character(len=*), intent(in) :: name
+
     !> List of the children.
     type(fnodeList), pointer :: children
 
@@ -1582,18 +1783,25 @@ contains
 
   end subroutine getChildren
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_logical(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     logical, intent(in) :: variableValue
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -1619,18 +1827,25 @@ contains
 
   end subroutine setChVal_logical
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_logicalR1(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     logical, intent(in) :: variableValue(:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -1656,12 +1871,16 @@ contains
 
   end subroutine setChVal_logicalR1
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_logical(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     logical, intent(in) :: variableValue
 
@@ -1672,12 +1891,16 @@ contains
 
   end subroutine writeChVal_logical
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_logicalR1(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     logical, intent(in) :: variableValue(:)
 
@@ -1688,10 +1911,13 @@ contains
 
   end subroutine writeChVal_logicalR1
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_logical(variableValue, strBuffer)
+
     !> Value to represent
     logical, intent(in) :: variableValue
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -1703,10 +1929,13 @@ contains
 
   end subroutine getAsString_logical
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_logicalR1(variableValue, strBuffer)
+
     !> Value to represent
     logical, intent(in) :: variableValue(:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -1735,21 +1964,28 @@ contains
 
   end subroutine getAsString_logicalR1
 
+
   !> Sets the value (child) of a child with given name.
   !>
   !> Caveat: This subroutines assumes, that a real can be represented as text with less than
   !> nCharReal characters.
   subroutine setChVal_real(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     real(dp), intent(in) :: variableValue
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -1775,12 +2011,16 @@ contains
 
   end subroutine setChVal_real
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_real(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     real(dp), intent(in) :: variableValue
 
@@ -1791,10 +2031,13 @@ contains
 
   end subroutine writeChVal_real
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_real(variableValue, strBuffer)
+
     !> Value to represent
     real(dp), intent(in) :: variableValue
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -1805,21 +2048,28 @@ contains
 
   end subroutine getAsString_real
 
+
   !> Sets the value (child) of a child with given name.
   !>
   !> Caveat: This subroutines assumes, that a real can be represented as text with less than
   !> nCharReal characters.
   subroutine setChVal_realR1(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     real(dp), intent(in) :: variableValue(:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -1844,12 +2094,16 @@ contains
 
   end subroutine setChVal_realR1
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_realR1(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     real(dp), intent(in) :: variableValue(:)
 
@@ -1860,10 +2114,13 @@ contains
 
   end subroutine writeChVal_realR1
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_realR1(variableValue, strBuffer)
+
     !> Value to represent
     real(dp), intent(in) :: variableValue(:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -1888,6 +2145,7 @@ contains
 
   end subroutine getAsString_realR1
 
+
   !> Sets the value (child) of a child with given name.  The node to investigate
   !>
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
@@ -1897,16 +2155,22 @@ contains
   !> This subroutines assumes, that a real can be represented as text with less than nCharReal
   !> characters.
   subroutine setChVal_realR2(node, name, variableValue, replace, child, modifier)
+
     !> node to process from
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     real(dp), intent(in) :: variableValue(:,:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), intent(in), optional :: modifier
 
@@ -1932,12 +2196,16 @@ contains
 
   end subroutine setChVal_realR2
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_realR2(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     real(dp), intent(in) :: variableValue(:,:)
 
@@ -1948,10 +2216,13 @@ contains
 
   end subroutine writeChVal_realR2
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_realR2(variableValue, strBuffer)
+
     !> Value to represent
     real(dp), intent(in) :: variableValue(:,:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -1970,21 +2241,28 @@ contains
 
   end subroutine getAsString_realR2
 
+
   !> Sets the value (child) of a child with given name.
   !>
   !> Caveat: This subroutines assumes, that an integer can be represented as text with less than
   !> nCharInt characters.
   subroutine setChVal_int(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     integer, intent(in) :: variableValue
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2009,12 +2287,16 @@ contains
 
   end subroutine setChVal_int
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_int(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     integer, intent(in) :: variableValue
 
@@ -2025,10 +2307,13 @@ contains
 
   end subroutine writeChVal_int
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_int(variableValue, strBuffer)
+
     !> Value to represent
     integer, intent(in) :: variableValue
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -2039,19 +2324,25 @@ contains
 
   end subroutine getAsString_int
 
+
   !> Sets the value (child) of a child with given name.
   !>
   !> Caveat: This subroutines assumes, that an integer can be represented as text with less than
   !> nCharInt characters.
   subroutine setChVal_intR1(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     integer, intent(in) :: variableValue(:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Optional modifier for the child
     type(fnode), pointer, optional :: child
 
@@ -2078,12 +2369,16 @@ contains
 
   end subroutine setChVal_intR1
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_intR1(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     integer, intent(in) :: variableValue(:)
 
@@ -2094,10 +2389,13 @@ contains
 
   end subroutine writeChVal_intR1
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_intR1(variableValue, strBuffer)
+
     !> Value to represent
     integer, intent(in) :: variableValue(:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -2122,6 +2420,7 @@ contains
 
   end subroutine getAsString_intR1
 
+
   !> Sets the value (child) of a child with given name.
   !>
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
@@ -2131,16 +2430,22 @@ contains
   !> Caveat: This subroutines assumes, that an integer can be represented as text with less than
   !> nCharInt characters.
   subroutine setChVal_intR2(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     integer, intent(in) :: variableValue(:,:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2165,12 +2470,16 @@ contains
 
   end subroutine setChVal_intR2
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_intR2(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     integer, intent(in) :: variableValue(:,:)
 
@@ -2181,10 +2490,13 @@ contains
 
   end subroutine writeChVal_intR2
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_intR2(variableValue, strBuffer)
+
     !> Value to represent
     integer, intent(in) :: variableValue(:,:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -2203,20 +2515,28 @@ contains
 
   end subroutine getAsString_intR2
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_char(node, name, variableValue, replace, child, omitQuotes, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     character(len=*), intent(in) :: variableValue
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> If quotes around the string should be omitted
     logical, intent(in), optional :: omitQuotes
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2249,18 +2569,25 @@ contains
 
   end subroutine setChVal_char
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_charR1(node, name, variableValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     character(len=*), intent(in) :: variableValue(:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2285,12 +2612,16 @@ contains
 
   end subroutine setChVal_charR1
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_charR1(xf, name, variableValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Value of the node
     character(len=*), intent(in) :: variableValue(:)
 
@@ -2301,10 +2632,13 @@ contains
 
   end subroutine writeChVal_charR1
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_charR1(variableValue, strBuffer)
+
     !> Value to represent
     character(len=*), intent(in) :: variableValue(:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -2326,20 +2660,28 @@ contains
 
   end subroutine getAsString_charR1
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_intR2RealR2(node, name, intValue, realValue, replace, child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value for the integers
     integer, intent(in) :: intValue(:,:)
+
     !> Value for the reals
     real(dp), intent(in) :: realValue(:,:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2364,14 +2706,19 @@ contains
 
   end subroutine setChVal_intR2RealR2
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_intR2RealR2(xf, name, intValue, realValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> Integer value of the node
     integer, intent(in) :: intValue(:,:)
+
     !> real values of the node
     real(dp), intent(in) :: realValue(:,:)
 
@@ -2382,12 +2729,16 @@ contains
 
   end subroutine writeChVal_intR2RealR2
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_intR2RealR2(intValue, realValue, strBuffer)
+
     !> integer value in node
     integer, intent(in) :: intValue(:,:)
+
     !> real value in node
     real(dp), intent(in) :: realValue(:,:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -2417,23 +2768,32 @@ contains
 
   end subroutine getAsString_intR2RealR2
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_charR1IntR2RealR2(node, name, charValue, intValue, realValue, replace, &
       & child, modifier)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value for the characters
     character(len=*), intent(in) :: charValue(:)
+
     !> Value for the integers
     integer, intent(in) :: intValue(:,:)
+
     !> Value for the reals
     real(dp), intent(in) :: realValue(:,:)
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2458,16 +2818,22 @@ contains
 
   end subroutine setChVal_charR1IntR2RealR2
 
+
   !> Writes the text representation of a node and its value to an xmlwriter.
   subroutine writeChVal_charR1IntR2RealR2(xf, name, charValue, intValue, realValue)
+
     !> Xmlwriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> Name of the node
     character(len=*), intent(in) :: name
+
     !> character part of node
     character(len=*), intent(in) :: charValue(:)
+
     !> integer part of node
     integer, intent(in) :: intValue(:,:)
+
     !> real value part of node
     real(dp), intent(in) :: realValue(:,:)
 
@@ -2478,14 +2844,19 @@ contains
 
   end subroutine writeChVal_charR1IntR2RealR2
 
+
   !> Returns the text representation of the passed object
   subroutine getAsString_charR1IntR2RealR2(charValue, intValue, realValue, strBuffer)
+
     !> character part of node
     character(len=*), intent(in) :: charValue(:)
+
     !> integer part of node
     integer, intent(in) :: intValue(:,:)
+
     !> real value part of node
     real(dp), intent(in) :: realValue(:,:)
+
     !> Text representation on exit
     type(string), intent(inout) :: strBuffer
 
@@ -2517,20 +2888,28 @@ contains
 
   end subroutine getAsString_charR1IntR2RealR2
 
+
   !> Sets the value (child) of a child with given name.
   subroutine setChVal_node(node, name, variableValue, replace, child, modifier, list)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to look for
     character(len=*), intent(in) :: name
+
     !> Value to set
     type(fnode), pointer :: variableValue
+
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
+
     !> Pointer to the child node (with the provided name)
     type(fnode), pointer, optional :: child
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
+
     !> If created child should be marked as a list.
     logical, optional, intent(in) :: list
 
@@ -2560,22 +2939,29 @@ contains
 
   end subroutine setChVal_node
 
+
   !> Workhorse for the setChildValue routines
   !>
   !> If an empty string is provided as child name, no child is created, and the current node is
   !> replace instead. The pointer "node" becames associated with the new node, since the old
   !> instance will be destroyed.
   subroutine createChild_local(node, name, list, replace, child, variableValue)
+
     !> The node to investigate
     type(fnode), pointer :: node
+
     !> Name of the child to create
     character(len=*), intent(in) :: name
+
     !> True, if child should be signed as a list
     logical, intent(in) :: list
+
     !> Replace if child with same name already exists
     logical, intent(in) :: replace
+
     !> Pointer to the created child on return
     type(fnode), pointer :: child
+
     !> Value to set (if empty, no child is appended to the created child)
     character(len=*), intent(in), optional :: variableValue
 
@@ -2637,12 +3023,16 @@ contains
 
   end subroutine createChild_local
 
+
   !> new child in the xml
   subroutine writeChild_local(xf, name, variableValue)
+
     !> xmlWriter stream
     type(xmlf_t), intent(inout) :: xf
+
     !> node name
     character(len=*), intent(in) :: name
+
     !> stored variale string
     character(len=*), intent(in) :: variableValue
 
@@ -2652,18 +3042,25 @@ contains
 
   end subroutine writeChild_local
 
+
   !> Creates a child with the given name
   subroutine setChild(node, name, child, replace, list, modifier)
+
     !> Node to append the child to
     type(fnode), pointer :: node
+
     !> Name of the child node to append
     character(len=*), intent(in) :: name
+
     !> Contains the pointer to the added child node on return
     type(fnode), pointer :: child
+
     !> If an already existing child with the same name should be replaced
     logical, intent(in), optional :: replace
+
     !> If child should be signed as a list tag
     logical, intent(in), optional :: list
+
     !> Optional modifier for the child
     character(len=*), optional, intent(in) :: modifier
 
@@ -2703,13 +3100,16 @@ contains
 
   end subroutine setChild
 
+
   !> Returns the content of the first TEXT_NODE child of a given node or empty string, if such a
   !> node does not exist.
   !>
   !> Note: the document tree is normalized, every node has only one TEXT_NODE child.
   subroutine getFirstTextChild(node, str)
+
     !> The node to investigate.
     type(fnode), pointer :: node
+
     !> String representation of the TEXT_NODE.
     type(string), intent(out) :: str
 
@@ -2726,12 +3126,16 @@ contains
 
   end subroutine getFirstTextChild
 
+
   !> Checks if error flag signals an error. If yes, raises error.
   subroutine checkError(node, iErr, msg)
+
     !> Node which the error flag was set for
     type(fnode), pointer :: node
+
     !> Content of the error flag.
     integer, intent(in) :: iErr
+
     !> Message to print, if error occured
     character(len=*), intent(in) :: msg
 
@@ -2743,12 +3147,16 @@ contains
 
   end subroutine checkError
 
+
   !> Issues an error, if the string from a given position contains non-whitespace characters.
   subroutine checkNoData(node, str, start)
+
     !> Node which is being processed (for error message)
     type(fnode), pointer :: node
+
     !> String content of the child.
     character(len=*), intent(in) :: str
+
     !> Starting position, after which the string should not contain any whitespace characters.
     integer, intent(in) :: start
 
@@ -2758,10 +3166,13 @@ contains
 
   end subroutine checkNoData
 
+
   !> Prints detailed error, including line number and path
   subroutine detailedError(node, msg)
+
     !> Node where the error occured.
     type(fnode), pointer :: node
+
     !> Message to print
     character(len=*), intent(in) :: msg
 
@@ -2773,10 +3184,13 @@ contains
 
   end subroutine detailedError
 
+
   !> Prints detailed warning, including line number and path
   subroutine detailedWarning(node, msg)
+
     !> Node where the error occured.
     type(fnode), pointer :: node
+
     !> Message to print
     character(len=*), intent(in) :: msg
 
@@ -2788,10 +3202,13 @@ contains
 
   end subroutine detailedWarning
 
+
   !> Appends path and line information to a string.
   subroutine appendPathAndLine(node, str)
+
     !> Node, for which path and line should be added
     type(fnode), pointer :: node
+
     !> String prepending the path and line information
     type(string), intent(inout) :: str
 

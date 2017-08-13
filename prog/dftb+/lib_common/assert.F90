@@ -20,10 +20,13 @@ contains
 
 #:call ASSERT_CODE
 
+
   !> Prints assertion error and abort program execution.
   subroutine assertError(fileName, lineNr)
+
     !> Name of the file in which the error occured.
     character(*), intent(in) :: fileName
+
     !> Nr. of the line at which the error occured.
     integer,      intent(in) :: lineNr
 

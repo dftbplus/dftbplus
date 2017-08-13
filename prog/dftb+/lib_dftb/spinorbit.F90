@@ -19,6 +19,7 @@ module spinorbit
   private
   public :: getEnergySpinOrbit, shiftLS
 
+
   !> Interfaces for spin orbit energies in either the onsite (just local part of the density matrix)
   !> or dual (Mulliken projected density matrix)
   interface  getEnergySpinOrbit
@@ -28,18 +29,25 @@ module spinorbit
 
 contains
 
+
   !> Calculates the spin orbit energy for on-site L.S coupling
   subroutine onsite(Eatom, rho, iAtomStart, xi, orb, species)
+
     !> returned energy for each atom
     real(dp), intent(out)       :: Eatom(:)
+
     !> Density matrix in Packed format
     complex(dp), intent(in)     :: rho(:,:)
+
     !> Offset array in the square matrix.
     integer,  intent(in)        :: iAtomStart(:)
+
     !> spin orbit constants for each shell of each species
     real(dp), intent(in)        :: xi(:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in)         :: species(:)
 
@@ -122,16 +130,22 @@ contains
 
   end subroutine onsite
 
+
   !> Calculates the spin orbit energy and angular momentum for dual L.S coupling
   subroutine dual(Eatom, qBlockSkew, xi, orb, species)
+
     !> returned energy for each atom
     real(dp), intent(out)       :: Eatom(:)
+
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
     real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+
     !> spin orbit constants for each shell of each species
     real(dp), intent(in)        :: xi(:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in)         :: species(:)
 
@@ -202,14 +216,19 @@ contains
 
   end subroutine dual
 
+
   !> Constructs shift potential for spin-orbit
   subroutine shiftLS(shift, xi, orb, species)
+
     !> block shift from the potential
     real(dp), intent(inout)       :: shift(:,:,:,:)
+
     !> spin orbit constants for each shell of each species
     real(dp), intent(in)        :: xi(:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in)         :: species(:)
 

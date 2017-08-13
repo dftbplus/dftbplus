@@ -21,6 +21,7 @@ module slakoeqgrid
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew
 
+
   !> Represents an equally spaced Slater-Koster grid
   type OSlakoEqGrid
     private
@@ -32,20 +33,24 @@ module slakoeqgrid
     logical :: tInit = .false.
   end type OSlakoEqGrid
 
+
   !> Initialises SlakoEqGrid.
   interface init
     module procedure SlakoEqGrid_init
   end interface init
+
 
   !> Returns the integrals for a given distance.
   interface getSKIntegrals
     module procedure SlakoEqGrid_getSKIntegrals
   end interface getSKIntegrals
 
+
   !> Returns the number of integrals the table contains
   interface getNIntegrals
     module procedure SlakoEqGrid_getNIntegrals
   end interface getNIntegrals
+
 
   !> Returns the cutoff of the interaction.
   interface getCutoff
@@ -53,14 +58,18 @@ module slakoeqgrid
   end interface getCutoff
 
   ! Interpolation methods
+
   !> Historical method
   integer, parameter :: skEqGridOld = 1
+
   !> Current method
   integer, parameter :: skEqGridNew = 2
 
   ! Nr. of grid points to use for the polynomial interpolation
+
   !> Historical choice
   integer, parameter :: nInterOld_ = 3
+
   !> Present choice
   integer, parameter :: nInterNew_ = 8
 
@@ -69,24 +78,32 @@ module slakoeqgrid
   ! For an odd number of intervals, the number of right points should be bigger than the number of
   ! left points, to remain compatible with the old code.
 
+
   !> value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterOld_ = 2
+
   !> value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterNew_ = 4
+
 
   !> Displacement for deriving interpolated polynomials
   real(dp), parameter :: deltaR_ = 1e-5_dp
 
 contains
 
+
   !> Initialises SlakoEqGrid.
   subroutine SlakoEqGrid_init(self, dist, table, skIntMethod)
+
     !> SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(out) :: self
+
     !> Distance between the grid points.
     real(dp), intent(in) :: dist
+
     !> Slater-Koster table (first entry belongs to first grid point)
     real(dp), intent(in) :: table(:,:)
+
     !> Method for the interpolation between the entries.
     integer, intent(in) :: skintMethod
 
@@ -104,12 +121,16 @@ contains
 
   end subroutine SlakoEqGrid_init
 
+
   !> Returns the integrals for a given distance.
   subroutine SlakoEqGrid_getSKIntegrals(self, sk, dist)
+
     !> SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(in) :: self
+
     !> Contains the interpolated integrals on exit
     real(dp), intent(out) :: sk(:)
+
     !> Distance for which the integrals should be interpolated.
     real(dp), intent(in) :: dist
 
@@ -125,10 +146,13 @@ contains
 
   end subroutine SlakoEqGrid_getSKIntegrals
 
+
   !> Returns the number of intgrals the table contains
   function SlakoEqGrid_getNIntegrals(self) result(nInt)
+
     !> SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(in) :: self
+
     !> Number of integrals.
     integer :: nInt
 
@@ -136,10 +160,13 @@ contains
 
   end function SlakoEqGrid_getNIntegrals
 
+
   !> Returns the cutoff of the interaction.
   function SlakoEqGrid_getCutoff(self) result(cutoff)
+
     !>  SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(in) :: self
+
     !> grid cutoff
     real(dp) :: cutoff
 
@@ -152,12 +179,16 @@ contains
 
   end function SlakoEqGrid_getCutoff
 
+
   !> Inter- and extrapolation for SK-tables, new method.
   subroutine SlakoEqGrid_interNew_(self, dd, rr)
+
     !> SlakoEqGrid table on equiv. grid
     type(OSlakoEqGrid), intent(in) :: self
+
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
+
     !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
@@ -212,12 +243,16 @@ contains
 
   end subroutine SlakoEqGrid_interNew_
 
+
   !> Inter- and extra-polation for SK-tables equivalent to the old DFTB code.
   subroutine SlakoEqGrid_interOld_(self, dd, rr)
+
     !> Data structure for SK interpolation
     type(OSlakoEqGrid), intent(in) :: self
+
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
+
     !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 

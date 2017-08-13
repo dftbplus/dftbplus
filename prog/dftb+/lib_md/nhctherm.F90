@@ -19,6 +19,7 @@ module nhctherm
   use message
   implicit none
 
+
   !> Short string for error returns
   character(lc) :: lcTmp
 
@@ -27,53 +28,72 @@ module nhctherm
   public :: ONHCThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
+
   !> Data for the NHC thermostat
   type ONHCThermostat
     private
+
     !> Nr. of atoms
     integer :: nAtom
+
     !> Random number generator
     type(ORanlux), allocatable :: pRanlux
+
     !> Mass of the atoms
     real(dp), allocatable :: mass(:)
+
     !> Temperature generator
     type(OTempProfile), pointer :: pTempProfile
+
     !> coupling strength to friction term
     real(dp) :: couplingParameter
+
     !> MD Framework.
     type(OMDCommon) :: pMDFrame
+
     !> MD timestep
     real(dp) :: deltaT
+
     !> order of NHC operator - eqn 29
     integer :: nyosh
+
     !> weight coefficients
     real(dp), allocatable :: w(:)
+
     !> times steps to expand propogator of NHC part of evolution operator
     integer :: nresn
+
     !> number of thermostat particles in chain
     integer :: nnos
+
     !> internal chain positions
     real(dp), allocatable :: xnose(:)
+
     !> internal chain velocities
     real(dp), allocatable :: vnose(:)
+
     !> internal chain accelerations
     real(dp), allocatable :: gnose(:)
   end type ONHCThermostat
+
 
   !> initialise thermostat
   interface init
     module procedure NHC_init
   end interface
 
+
   !> initial thermal velocities if needed
   interface getInitVelocities
     module procedure NHC_getInitVelos
   end interface
 
+
   !> update velocites acording to the thermostat
   interface updateVelocities
     module procedure NHC_updateVelos
   end interface
+
 
   !> write state of the thermostat
   interface state
@@ -82,22 +102,30 @@ module nhctherm
 
 contains
 
+
   !> Creates an NHC thermostat instance.
   subroutine NHC_init(self, pRanlux, masses, tempProfile, &
       & couplingParameter, pMDFrame, deltaT, npart, nys, nc, &
       & xnose, vnose, gnose)
+
     !> Initialised instance on exit.
     type(ONHCThermostat), intent(out) :: self
+
     !> Random generator.
     type(ORanlux), allocatable, intent(inout) :: pRanlux
+
     !> Masses of the atoms.
     real(dp), intent(in) :: masses(:)
+
     !> Temperature profile object.
     type(OTempProfile), pointer, intent(in) :: tempProfile
+
     !> Coupling parameter for the thermostat
     real(dp), intent(in) :: couplingParameter
+
     !> Molecular dynamics generic framework
     type(OMDCommon), intent(in) :: pMDFrame
+
     !> MD time step
     real(dp), intent(in) :: deltaT
     integer, intent(in) :: npart
@@ -172,10 +200,13 @@ contains
 
   end subroutine NHC_init
 
+
   !> Returns the initial velocities.
   subroutine NHC_getInitVelos(self, velocities)
+
     !> NHCThermostat instance.
     type(ONHCThermostat), intent(inout) :: self
+
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
@@ -193,11 +224,14 @@ contains
 
   end subroutine NHC_getInitVelos
 
+
   !> Updates the provided velocities according the current temperature.
   !> routines based on NHCINT from reference
   subroutine NHC_updateVelos(self, velocities)
+
     !> NHCThermostat instance.
     type(ONHCThermostat), intent(inout) :: self
+
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
@@ -272,10 +306,13 @@ contains
 
   end subroutine NHC_updateVelos
 
+
   !> Outputs internals of thermostat
   subroutine NHC_state(self, fd)
+
     !> instance of thermostat
     type(ONHCThermostat), intent(in) :: self
+
     !> filehandle to write out to
     integer,intent(in)                  :: fd
 

@@ -18,53 +18,71 @@ module repspline
   public :: TRepSplineIn, ORepSpline, init
   public :: getCutoff, getEnergy, getEnergyDeriv
 
+
   !> Initialisation type for ORepSpline
   type TRepSplineIn
+
     !> Starting pos. for each spline
     real(dp), allocatable :: xStart(:)
+
     !> Spline coeffs (3, nSpline-1)
     real(dp), allocatable :: spCoeffs(:,:)
+
     !> Coeffs. of the last spline
     real(dp) :: spLastCoeffs(6)
+
     !> Coeffs for the exponential head
     real(dp) :: expCoeffs(3)
+
     !> Cutoff for the last spline
     real(dp) :: cutoff
   end type TRepSplineIn
 
+
   !> Contains the spline representation of a repulsive.
   type ORepSpline
     private
+
     !> Nr. of splines.
     integer :: nSpline
+
     !> Starting point for each spline
     real(dp), allocatable :: xStart(:)
+
     !> Spline coeffs (3, nSpline-1)
     real(dp), allocatable :: spCoeffs(:,:)
+
     !> Coeffs of the last spline
     real(dp) :: spLastCoeffs(6)
+
     !> Exponential head
     real(dp) :: expCoeffs(3)
+
     !> Cutoff of the last spline
     real(dp) :: cutoff
+
     !> Initialisation status
     logical :: tInit = .false.
   end type ORepSpline
+
 
   !> Initialises spline repulsive.
   interface init
     module procedure RepSpline_init
   end interface
 
+
   !> Returns cutoff of the repulsive.
   interface getCutoff
     module procedure RepSpline_getCutoff
   end interface
 
+
   !> Returns energy of the repulsive for a given distance.
   interface getEnergy
     module procedure RepSpline_getEnergy
   end interface
+
 
   !> Returns gradient of the repulsive for a given distance.
   interface getEnergyDeriv
@@ -73,10 +91,13 @@ module repspline
 
 contains
 
+
   !> Initialises spline repulsive.
   subroutine RepSpline_init(self, inp)
+
     !> Spline repulsive.
     type(ORepSpline), intent(out) :: self
+
     !> Input parameters for the spline repulsive.
     type(TRepSplineIn), intent(in) :: inp
 
@@ -98,10 +119,13 @@ contains
 
   end subroutine RepSpline_init
 
+
   !> Returns cutoff of the repulsive.
   function RepSpline_getCutoff(self) result(cutoff)
+
     !> Spline repulsive.
     type(ORepSpline), intent(in) :: self
+
     !> Cutoff.
     real(dp) :: cutoff
 
@@ -109,12 +133,16 @@ contains
 
   end function RepSpline_getCutoff
 
+
   !> Returns energy of the repulsive for a given distance.
   subroutine RepSpline_getEnergy(self, res, rr)
+
     !> Spline repulsive.
     type(ORepSpline), intent(in) :: self
+
     !> repulsive contribution
     real(dp), intent(out) :: res
+
     !> Distance between interacting atoms.
     real(dp), intent(in) :: rr
 
@@ -154,14 +182,19 @@ contains
 
   end subroutine RepSpline_getEnergy
 
+
   !> Returns gradient of the repulsive for a given distance.
   subroutine RepSpline_getEnergyDeriv(self, grad, xx, d2)
+
     !> Spline repulsive.
     type(ORepSpline), intent(in) :: self
+
     !> Resulting contribution
     real(dp), intent(out) :: grad(3)
+
     !> Actual vector between atoms
     real(dp), intent(in) :: xx(3)
+
     !> Second derivative in direction of xx, if needed.
     real(dp), intent(out), optional :: d2
 

@@ -22,12 +22,16 @@ module oldcompat
 
 contains
 
+
   !> Converts an HSD input for an older parser to the current format
   subroutine convertOldHSD(root, oldVersion, curVersion)
+
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
+
     !> Version number of the old parser
     integer, intent(in) :: oldVersion
+
     !> Version number of the current parser
     integer, intent(in) :: curVersion
 
@@ -61,8 +65,10 @@ contains
 
   end subroutine convertOldHSD
 
+
   !> Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
   subroutine convert_1_2(root)
+
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
@@ -80,8 +86,10 @@ contains
 
   end subroutine convert_1_2
 
+
   !> Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
   subroutine convert_2_3(root)
+
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
@@ -152,8 +160,10 @@ contains
 
   end subroutine convert_2_3
 
+
   !> Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
   subroutine convert_3_4(root)
+
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
@@ -191,8 +201,10 @@ contains
 
   contains
 
+
     !> Helper function for Range keyword
     subroutine replaceRange(node)
+
       !> node to process
       type(fnode), pointer :: node
 
@@ -215,8 +227,10 @@ contains
 
   end subroutine convert_3_4
 
+
   !> Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
   subroutine convert_4_5(root)
+
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 

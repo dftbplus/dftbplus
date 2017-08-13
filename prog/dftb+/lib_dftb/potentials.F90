@@ -18,30 +18,40 @@ module potentials
 
   private
 
+
   !> data type to store components of the internal and external potential as named variables - makes
   !> extending expressions easier.
   !>
   !> Note: the reason for splitting internal and external potentials is that internals require 0.5
-  !> scaling for double counting when evaluating total energies
+  !> scaling for double counting when evaluating total energies of the form V * n
   type TPotentials
     logical :: tInitialised = .false.
+
     !> internal atom and spin resolved potential
     real(dp), allocatable :: intAtom(:,:)
+
     !> internal shell and spin resolved potential
     real(dp), allocatable :: intShell(:,:,:)
+
     !> internal block and spin resolved potential
     real(dp), allocatable :: intBlock(:,:,:,:)
+
     !> external atom and spin resolved potential
     real(dp), allocatable :: extAtom(:,:)
+
     !> external shell and spin resolved potential
     real(dp), allocatable :: extShell(:,:,:)
+
     !> external block and spin resolved potential
     real(dp), allocatable :: extBlock(:,:,:,:)
+
     !> pSIC/DFTB+U etc. potential
     real(dp), allocatable :: orbitalBlock(:,:,:,:)
+
     !> L.S etc where these are imaginary coefficients
     real(dp), allocatable :: iorbitalBlock(:,:,:,:)
   end type TPotentials
+
 
   !> Initialise the structure
   interface init
@@ -50,14 +60,19 @@ module potentials
 
 contains
 
+
   !> Allocates storage for the potential components
   subroutine Potentials_init(self,orb,nAtom,nSpin)
+
     !> data structure to allocate
     type(TPotentials), intent(out) :: self
+
     !> information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
     !> number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
+
     !> number of spins
     integer, intent(in) :: nSpin
 

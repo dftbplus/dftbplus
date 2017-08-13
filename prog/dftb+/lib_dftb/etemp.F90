@@ -26,20 +26,25 @@ module etemp
 
   public :: Efilling, electronFill, Fermi, Gaussian, Methfessel
 
+
   !> Definition of a type of broadening function - Fermi-Dirac in this case
   integer, parameter :: Fermi = 0
 
+
   !> Definition of a type of broadening function - Gaussian in this case
   integer, parameter :: Gaussian = 1
+
 
   !> Definition of a type of broadening function - Methfessel-Paxton, for higher orders use
   !> Methfessel + n as a value
   integer, parameter :: Methfessel = 1
 
+
   !> Twice the machine precision
   real(dp), parameter :: epsilon2 = 2.0_dp * epsilon(1.0_dp)
 
 contains
+
 
   !> Driver to calculate electron filling, the band-structure energy at T and extrapolated to T=0K,
   !> and the entropy of the electron energy for the Mermin free energy, returning band energy and
@@ -50,26 +55,37 @@ contains
   !>
   !> Note: If no electrons are present, the Fermi energy is set to zero per default.
   subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib)
+
     !> Band structure energy at T
     real(dp), intent(out) :: Ebs(:)
+
     !> Fermi energy for given distribution
     real(dp), intent(out) :: Ef
+
     !> Entropy
     real(dp), intent(out) :: TS(:)
+
     !> Band structure energy extrapolated to T=0K
     real(dp), intent(out) :: E0(:)
+
     !> Electron occupancies
     real(dp), intent(out) :: filling(:,:,:)
+
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in)  :: eigenvals(:,:,:)
+
     !> Number of electrons
     real(dp), intent(in)  :: nElectrons
+
     !> Thermal energy in atomic units
     real(dp), intent(in)  :: kT
+
     !> k-point weightings
     real(dp), intent(in)  :: kWeight(:)
+
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+
     !> scheme
     integer, intent(in)   :: distrib
 
@@ -83,10 +99,10 @@ contains
     @:ASSERT(size(eigenvals, dim=3) == size(TS))
     @:ASSERT(size(eigenvals, dim=3) == size(E0))
     @:ASSERT(nElectrons >= 0.0_dp)
-    
+
     ! Not a tight enough bound ? :
     @:ASSERT(ceiling(nElectrons) <= 2 * size(eigenvals, dim=1) * size(eigenvals, dim=3))
-    
+
     @:ASSERT(kT > 0.0_dp)
     @:ASSERT(size(kWeight) > 0)
     @:ASSERT(all(kWeight >= 0.0_dp))
@@ -190,18 +206,25 @@ contains
 
   end subroutine Efilling
 
+
   !> Calculates the number of electrons for a given Fermi energy and distribution function
   function electronCount(Ef,eigenvals,kT,distrib,kWeight)
+
     !> Fermi energy for given distribution
     real(dp) :: electronCount
+
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: Ef
+
     !> Thermal energy in atomic units
     real(dp), intent(in) :: eigenvals(:,:,:)
+
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined sumbolically, so (Methfessel + 2) gives the 2nd order M-P
+
     !> scheme
     real(dp), intent(in) :: kT
+
     !> k-point weightings
     integer, intent(in) :: distrib
 
@@ -264,23 +287,31 @@ contains
     end if
   end function electronCount
 
+
   !> Calculates the derivative of the number of electrons for a given Fermi energy and distribution
   !> function
   !>
   !> To do: support Methfestle-Paxton
   function derivElectronCount(Ef,eigenvals,kT,distrib,kWeight)
+
     !> Fermi energy for given distribution
     real(dp) :: derivElectronCount
+
     !> The eigenvalues of the levels, 1st index is energy
     real(dp), intent(in) :: Ef
+
     !> 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: eigenvals(:,:,:)
+
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
+
     !> Choice of distribution functions, currently
     integer, intent(in) :: distrib
+
     !> Fermi supported.
     real(dp), intent(in) :: kWeight(:)
+
     !> k-point weightings
     real(dp) :: w
     integer i, j, ispin
@@ -314,6 +345,7 @@ contains
     end if
   end function derivElectronCount
 
+
   !> Calculate filling and TS for the given eigenspectrum and distribution function and Fermi
   !> energy, for two spin channels
   !>
@@ -321,24 +353,34 @@ contains
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
   !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
   subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
+
     !> Band structure energy at T
     real(dp), intent(out) :: Eband(:)
+
     !> Electron occupancies
     real(dp), intent(out) :: filling(:,:,:)
+
     !> Entropy * temperature
     real(dp), intent(out) :: TS(:)
+
     !> Band structure energy extrapolated to T=0K
     real(dp), intent(out) :: E0(:)
+
     !> Fermi energy for given distribution
     real(dp), intent(in) :: Ef
+
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: eigenvals(:,:,:)
+
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
+
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+
     !> scheme
     integer, intent(in) :: distrib
+
     !> k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
@@ -442,12 +484,15 @@ contains
 
   end subroutine electronFill
 
+
   !> Calculate the weighting factors for the Methfessel-Paxton smearing scheme
   !>
   !> Ref: M. Methfessel and A. T. Paxton, Phys. Rev. B Vol 40, pp 3616 (1989)
   subroutine Aweights(A,n)
+
     !> returned weighting values for the scheme
     real(dp), intent(out) :: A(0:)
+
     !> the required order to calculate A_n up to
     integer, intent(in) :: n
 
@@ -462,14 +507,19 @@ contains
     end do
   end subroutine Aweights
 
+
   !> Middle gap position, assuming aufbau principle for the filling
   function middleGap(eigenvals, kWeight, nElectrons)
+
     !> Eigenvalues of states
     real(dp), intent(in) :: eigenvals(:,:,:)
+
     !> Weights of k-points
     real(dp), intent(in) :: kWeight(:)
+
     !> Number of electrons to fill in
     real(dp), intent(in) :: nElectrons
+
     !> Resulting mid gap position
     real(dp) :: middleGap
 

@@ -19,30 +19,39 @@ module dummytherm
   public :: ODummyThermostat
   public :: init, getInitVelocities, state
 
+
   !> Data for dummy thermostat
   type ODummyThermostat
     private
+
     !> Nr. of atoms
     integer :: nAtom
+
     !> Temperature
     real(dp) :: kT
+
     !> Mass of the atoms
     real(dp), allocatable :: mass(:)
+
     !> Random number generator.
     type(ORanlux), allocatable :: pRanlux
+
     !> MD Framwork
     type(OMDCommon) :: pMDFrame
   end type ODummyThermostat
+
   
   !> Initialise thermostat object
   interface init
     module procedure DummyThermostat_init
   end interface
 
+
   !> Velocities at start of calculation
   interface getInitVelocities
     module procedure DummyThermostat_getInitVelos
   end interface
+
 
   !> write state to disc
   interface state
@@ -51,15 +60,20 @@ module dummytherm
 
 contains
 
+
   !> Creates a DummyThermostat instance.
   subroutine DummyThermostat_init(self, kT, mass, pRanlux, pMDFrame)
     type(ODummyThermostat), intent(out) :: self
+
     !> Initialised DummyThermostat instance on return.
     real(dp), intent(in) :: kT
+
     !> Temperature of the thermostat
     real(dp), intent(in) :: mass(:)
+
     !> Random generator
     type(ORanlux), allocatable, intent(inout) :: pRanlux
+
     !> thermostat object
     type(OMDCommon), intent(in) :: pMDFrame
 
@@ -72,10 +86,13 @@ contains
 
   end subroutine DummyThermostat_init
 
+
   !> Returns the initial velocities.
   subroutine DummyThermostat_getInitVelos(self, velocities)
+
     !> Thermostat instance.
     type(ODummyThermostat), intent(inout) :: self
+
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
@@ -92,10 +109,13 @@ contains
 
   end subroutine DummyThermostat_getInitVelos
 
+
   !> no internal state, nothing to do
   subroutine DummyThermostat_state(self, fd)
+
     !> thermostat object
     type(ODummyThermostat), intent(in) :: self
+
     !> file unit
     integer,intent(in)                  :: fd
 

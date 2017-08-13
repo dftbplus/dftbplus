@@ -24,13 +24,16 @@ module mainio
 
   public :: writeEigvecs, writeProjEigvecs, getH, SetEigVecsTxtOutput
 
+
   !> output file names
   character(*), parameter :: eigvecOut = "eigenvec.out"
   character(*), parameter :: eigvecBin = "eigenvec.bin"
   character(*), parameter :: regionOut = "region_"
 
+
   !> Private module variables (suffixed with "_" for clarity)
   logical :: EigVecsAsTxt_ = .false.
+
 
   !> Routines to get eigenvectors out of storage/memory
   interface getH
@@ -38,11 +41,13 @@ module mainio
     module procedure getHcmplx
   end interface getH
 
+
   !> write eigenvectors to disc
   interface writeEigvecs
     module procedure writeRealEigvecs
     module procedure writeCplxEigvecs
   end interface writeEigvecs
+
 
   !> write eigenvector projections onto defined regions
   interface writeProjEigvecs
@@ -52,50 +57,70 @@ module mainio
 
 contains
 
+
   !> Sets internal logical flag which controls whether to write a txt file for eigenvectors.
   subroutine SetEigVecsTxtOutput(tTxtWrite)
+
     !> Is a txt file written out, as well as the binary data?
     logical, intent(in) :: tTxtWrite
     EigVecsAsTxt_ = tTxtWrite
   end subroutine SetEigVecsTxtOutput
 
+
   !> Write the real eigenvectors into text and binary output files.
   subroutine writeRealEigvecs(fdEigvec, runId, nAtom, nSpin, neighlist, &
       &nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, speciesName, &
       &over, HSqrReal, SSqrReal, storeEigvecs, fileName)
+
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fdEigvec
+
     !> Id of the current program run.
     integer, intent(in) :: runId
+
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
+
     !> Nr. of spin channels.
     integer, intent(in) :: nSpin
+
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighlist
+
     !> Nr. of neighbors for SK-interaction.
     integer, intent(in) :: nNeighbor(:)
+
     !> Positions of atoms int the dense matrices.
     integer, intent(in) :: iAtomStart(:)
+
     !> Positions of interactions in the sparse matrices.
     integer, intent(in) :: iPair(:,:)
+
     !> Mapping of atoms into the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
+
     !> Species.
     integer, intent(in) :: species(:)
+
     !> Name of the species.
     character(mc), intent(in) :: speciesName(:)
+
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
+
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: HSqrReal(:,:,:)
+
     !> Work array.
     real(dp), intent(inout) :: SSqrReal(:,:)
+
     !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
     !> whatever is already there.
     type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
+
     !> optional alternative file pre-fix
     character(len=*), intent(in), optional :: fileName
 
@@ -172,50 +197,71 @@ contains
 
   end subroutine writeRealEigvecs
 
+
   !> Write the complex eigenvectors into text and binary output files.
   subroutine writeCplxEigvecs(fdEigvec, runId, nAtom, nSpin, neighlist, &
       &nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, &
       &species, speciesName, over, kpoint, HSqrCplx, SSqrCplx, storeEigvecs, &
       & fileName)
+
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fdEigvec
+
     !> Id of the current program run.
     integer, intent(in) :: runId
+
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
+
     !> Nr. of spin channels.
     integer, intent(in) :: nSpin
+
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighlist
+
     !> Nr. of neighbors for SK-interaction.
     integer, intent(in) :: nNeighbor(:)
+
     !> Cell vectors of shifted cells.
     real(dp), intent(in) :: cellVec(:,:)
+
     !> Cell vector index of every atom.
     integer, intent(in) :: iCellVec(:)
+
     !> Positions of atoms int the dense matrices.
     integer, intent(in) :: iAtomStart(:)
+
     !> Positions of interactions in the sparse matrices.
     integer, intent(in) :: iPair(:,:)
+
     !> Mapping of atoms into the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
+
     !> Species.
     integer, intent(in) :: species(:)
+
     !> Name of the species.
     character(mc), intent(in) :: speciesName(:)
+
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
+
     !> KPoints.
     real(dp), intent(in) :: kpoint(:,:)
+
     !> Square Hamiltonian (or work array)
     complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
+
     !> Work array.
     complex(dp), intent(inout) :: SSqrCplx(:,:)
+
     !> If present, Hamiltonian(s) are fetched from this storage into HSqrCplx, instead of using
     !> whatever is already there.
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
+
     !> optional alternative file pre-fix
     character(len=*), intent(in), optional :: fileName
 
@@ -375,38 +421,54 @@ contains
 
   end subroutine writeCplxEigvecs
 
+
   !> Write the projected eigenstates into text files
   subroutine writeProjRealEigvecs(filenames, fdProjEig, ei, nSpin, neighlist, &
       &nNeighbor, iAtomStart, iPair, img2CentCell, orb, &
       &over, HSqrReal, SSqrReal, iOrbRegion, storeEigvecs)
+
     !> List with filenames for each region
     type(listCharLc), intent(inout) :: filenames
+
     !> File unit IDs for each of the regions
     integer, intent(in) :: fdProjEig(:)
+
     !> eigenvalues
     real(dp), intent(in) :: ei(:,:,:)
+
     !> Nr. of spin channels
     integer, intent(in) :: nSpin
+
     !> Neighbor list
     type(TNeighborList), intent(in) :: neighlist
+
     !> Nr. of neighbors for SK-interaction
     integer, intent(in) :: nNeighbor(:)
+
     !> Positions of atoms int the dense matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> Positions of interactions in the sparse matrices
     integer, intent(in) :: iPair(:,:)
+
     !> Mapping of atoms into the central cell
     integer, intent(in) :: img2CentCell(:)
+
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
+
     !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
+
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: HSqrReal(:,:,:)
+
     !> Work array
     real(dp), intent(inout) :: SSqrReal(:,:)
+
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
+
     !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
     !> whatever is already there
     type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
@@ -467,46 +529,66 @@ contains
 
   end subroutine writeProjRealEigvecs
 
+
   !> Write the projected complex eigenstates into text files.
   subroutine writeProjCplxEigvecs(filenames, fdProjEig, ei, nSpin, neighlist, &
       & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, &
       & over, kpoint, kweight, HSqrCplx, SSqrCplx, iOrbRegion, storeEigvecs)
+
     !> list of region names
     type(ListCharLc), intent(inout) :: filenames
+
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fdProjEig(:)
+
     !> eigenvalues
     real(dp), intent(in) :: ei(:,:,:)
+
     !> Nr. of spin channels.
     integer, intent(in) :: nSpin
+
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighlist
+
     !> Nr. of neighbors for SK-interaction.
     integer, intent(in) :: nNeighbor(:)
+
     !> Cell vectors of shifted cells.
     real(dp), intent(in) :: cellVec(:,:)
+
     !> Cell vector index of every atom.
     integer, intent(in) :: iCellVec(:)
+
     !> Positions of first basis function of each atom in the dense matrices.
     integer, intent(in) :: iAtomStart(:)
+
     !> Positions of interactions in the sparse matrices.
     integer, intent(in) :: iPair(:,:)
+
     !> Mapping of atoms into the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
+
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
+
     !> KPoints.
     real(dp), intent(in) :: kpoint(:,:)
+
     !> KPoints weights
     real(dp), intent(in) :: kweight(:)
+
     !> Square Hamiltonian (or work array)
     complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
+
     !> Work array.
     complex(dp), intent(inout) :: SSqrCplx(:,:)
+
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
+
     !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
     !> whatever is already there.
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
@@ -630,14 +712,19 @@ contains
 
   end subroutine writeProjCplxEigvecs
 
+
   !> Routines to get eigenvectors out of storage/memory
   subroutine getHreal(iSpin, HSqrReal, iSpin2, storeEigvecs)
+
     !> required spin index
     integer, intent(in) :: iSpin
+
     !> Square Hamiltonian
     real(dp), intent(inout) :: HSqrReal(:,:,:)
+
     !> spin index in returned HSqrReal
     integer, intent(out) :: iSpin2
+
     !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
     !> whatever is already there.
     type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
@@ -651,18 +738,25 @@ contains
 
   end subroutine getHreal
 
+
   !> Routines to get eigenvectors out of storage/memory
   subroutine getHcmplx(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
+
     !> required spin index
     integer, intent(in) :: iSpin
+
     !> required kpoint index
     integer, intent(in) :: iK
+
     !> Square Hamiltonian
     complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
+
     !> spin index in returned HSqrCplx
     integer, intent(out) :: iSpin2
+
     !> kpoint index in returned HSqrCplx
     integer, intent(out) :: iK2
+
     !> If present, Hamiltonian(s) are fetched from this storage into HSqrCplx, instead of using
     !> whatever is already there.
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)

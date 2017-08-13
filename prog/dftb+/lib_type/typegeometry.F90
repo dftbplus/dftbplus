@@ -13,29 +13,41 @@ module typegeometry
 
   public :: TGeometry, normalize
 
+
   !> Type for containing geometrical information
   type TGeometry
+
     !> number of atoms
     integer           :: nAtom
+
     !> is this periodic
     logical           :: tPeriodic
+
     !> if periodic, is this in fractional units?
     logical           :: tFracCoord
+
     !> atomic species
     integer,  allocatable :: species(:)
+
     !> coordinates of atoms
     real(dp), allocatable :: coords(:,:)
+
     !> number of different atomic species
     integer           :: nSpecies
+
     !> geometry origin (GEN file requirement)
     real(dp), allocatable :: origin(:)
+
     !> lattice vectors if periodic
     real(dp), allocatable :: latVecs(:,:)
+
     !> reciprocal lattice vectors in units of 2pi
     real(dp), allocatable :: recVecs2p(:,:)
+
     !> name(s) of the atomic species
     character(mc), allocatable :: speciesNames(:)
   end type TGeometry
+
 
   !> Interface for cleaning up a geometry against non-existent atom species
   interface normalize
@@ -44,9 +56,11 @@ module typegeometry
 
 contains
 
+
   !> Normalises a geometry object to be safe against the absence of any atoms of a species specified
   !> in the input file
   subroutine Geometry_normalize(sf)
+
     !> Geometry object
     type(TGeometry), intent(inout) :: sf
 

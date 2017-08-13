@@ -16,6 +16,7 @@ module Slater
   private
   save
 
+
   !> Data for STOs
   type OSlaterOrbital
     private
@@ -29,15 +30,18 @@ module Slater
     integer :: nGrid
   end type OSlaterOrbital
 
+
   !> Initialises a SlaterOrbital
   interface init
     module procedure SlaterOrbital_init
   end interface
 
+
   !> Returns the value of a Slater orbital in a given point
   interface getValue
     module procedure SlaterOrbital_getValue
   end interface
+
 
   !> Assignement operator for SlaterOrbital to assure proper allocation
   interface assignment(=)
@@ -49,15 +53,20 @@ module Slater
 
 contains
 
+
   !> Returns the real tesseral spherical harmonics in a given point
   !> This function only work for angular momenta between 0 and 3 (s-f).
   function RealTessY(ll, mm, coord, rrOpt) result (rty)
+
     !> Angular momentum of the spherical harmonics (0 <= ll <= 3)
     integer, intent(in) :: ll
+
     !> Magnetic quantum number
     integer, intent(in) :: mm
+
     !> Coordinate where the value should be calculated
     real(dp), intent(in) :: coord(:)
+
     !> Length of the coordinate vector, if known in advance
     real(dp), intent(in), optional :: rrOpt
 
@@ -119,6 +128,7 @@ contains
         rty = 0.5462742152960395_dp * (xx**2 - yy**2) / rr**2
       end select
     case(3)
+
       !> general set for f orbitals (not cubic), see
       !> http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
       select case (mm)
@@ -152,18 +162,25 @@ contains
 
   end function RealTessY
 
+
   !> Initialises a SlaterOrbital.
   subroutine SlaterOrbital_init(self, aa, alpha, ll, resolution, cutoff)
+
     !> SlaterOrbital instance to initialise
     type(OSlaterOrbital), intent(inout) :: self
+
     !> Summation coefficients (nCoeffPerAlpha, nAlpha)
     real(dp), intent(in) :: aa(:,:)
+
     !> Exponential coefficients
     real(dp), intent(in) :: alpha(:)
+
     !> Angular momentum of the orbital
     integer, intent(in) :: ll
+
     !> Grid distance for the orbital
     real(dp), intent(in) :: resolution
+
     !> Cutoff, after which orbital is assumed to be zero
     real(dp), intent(in) :: cutoff
 
@@ -202,12 +219,16 @@ contains
 
   end subroutine SlaterOrbital_init
 
+
   !> Retunrns the value of the SlaterOrbital in a given point
   subroutine SlaterOrbital_getValue(self, rr, sto)
+
     !> SlaterOrbital instance
     type(OSlaterOrbital), intent(in) :: self
+
     !> Distance, where STO should be calculated
     real(dp), intent(in)  :: rr
+
     !> Contains the value of the function on return
     real(dp), intent(out) :: sto
 
@@ -228,20 +249,28 @@ contains
 
   end subroutine SlaterOrbital_getValue
 
+
   !> Calculates the value of an STO analytically
   subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, sto)
+
     !> Angular momentum of the STO
     integer, intent(in) :: ll
+
     !> Maximal power of the distance in the STO
     integer, intent(in) :: nPow
+
     !> Number of exponential coefficients
     integer, intent(in) :: nAlpha
+
     !> Summation coefficients (nPow, nAlpha)
     real(dp), intent(in) :: aa(:,:)
+
     !> Exponential coefficients
     real(dp), intent(in) :: alpha(:)
+
     !> Distance, where the STO should be calculated
     real(dp), intent(in)  :: rr
+
     !> Value of the STO on return
     real(dp), intent(out) :: sto
 
@@ -270,10 +299,13 @@ contains
 
   end subroutine SlaterOrbital_getValue_explicit
 
+
   !> An STO assignement with proper memory allocation (deep copy)
   elemental subroutine SlaterOrbital_assign(left, right)
+
     !> Left value of the assignment
     type(OSlaterOrbital), intent(inout) :: left
+
     !> Right value of the assignment
     type(OSlaterOrbital), intent(in) :: right
 

@@ -16,18 +16,24 @@ module dispuffdata
 
   public :: getUffValues
 
+
   !> Contains UFF data (chemical symbol, vdW distance, depth of the LJ potential)
   type TUFF
+
     !> Chemical symbol
     character(2) :: symbol
+
     !> vdW minimum distance 
     real(dp) :: distance
+
     !> depth of minimum
     real(dp) :: energy
   end type TUFF
 
+
   !> Values are in AA and kcal/mol
   !>
+
   !> (Data is awfully compressed, as F95 only allows 32 continuation lines and 132 characters per
   !> one line!)
   type(TUFF) :: database(103) = (/&
@@ -60,16 +66,21 @@ TUFF("md", 3.274_dp, 0.011_dp), TUFF("no", 3.248_dp, 0.011_dp), TUFF("lw", 3.236
 
 contains
 
+
   !> Returns distance and energy parameters of the UFF field.
   subroutine getUffValues(name, distance, energy, found)
+
     !> Name of the element for look for.
     character(len=*), intent(in) :: name
+
     !> Distance (in Bohr) at return.    
     real(dp), intent(out) :: distance
+
     !> Energy (in Hartree) at return.
     real(dp), intent(out) :: energy
+
     !> Flags if the element has been found. If this parameter is not specified and the element is
-    !> not found, the program stops.
+  !> not found, the program stops.
     logical, intent(out), optional :: found
 
     character(2) :: symbol

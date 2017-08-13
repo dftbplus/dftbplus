@@ -31,18 +31,25 @@ module InitWaveplot
   private
   save
 
+
   !> program version
   character(len=*), parameter :: version =  "0.3"
+
   !> root node name of the input tree
   character(len=*), parameter :: rootTag = "waveplot"
+
   !> input file name
   character(len=*), parameter :: hsdInput = "waveplot_in.hsd"
+
   !> parsed output name
   character(len=*), parameter :: hsdParsedInput = "waveplot_pin.hsd"
+
   !> xml input file name
   character(len=*), parameter :: xmlInput = "waveplot_in.xml"
+
   !> parsed xml name
   character(len=*), parameter :: xmlParsedInput = "waveplot_pin.xml"
+
   !> version of the input document
   integer, parameter :: parserVersion = 3
 
@@ -50,107 +57,150 @@ module InitWaveplot
 
   !! Variables from detailed.xml
 
+
   !> Identity of the run
   integer, public :: identity
+
   !> Geometry
   type(TGeometry), public :: geo
+
   !> If eigvecs/hamiltonian is real
   logical, public :: tRealHam
+
   !> Nr. of K-Points
   integer :: nKPoint
+
   !> Nr. of spins
   integer :: nSpin
+
   !> Nr. of states
   integer :: nState
+
   !> Nr. of orbitals per state
   integer, public :: nOrb
+
   !> K-Points & weights
   real(dp), allocatable :: kPointsWeights(:, :)
+
   !> Occupations
   real(dp), allocatable, public :: occupations(:,:,:)
 
   !! Variables from the Option block
 
+
   !> If total charge should be plotted
   logical, public :: tPlotTotChrg
+
   !> If total charge should be calculated
   logical, public :: tCalcTotChrg
+
   !> If total spin pol. to be plotted
   logical, public :: tPlotTotSpin
+
   !> If total charge difference to be pl.
   logical, public :: tPlotTotDiff
+
   !> If atomic densities to be plotted
   logical, public :: tPlotAtomDens
+
   !> If atomic densities to be calculated
   logical, public :: tCalcAtomDens
+
   !> If charge for orbitals to be plotted
   logical, public :: tPlotChrg
+
   !> If chrg difference for orbs. to be pl.
   logical, public :: tPlotChrgDiff
+
   !> If real part of the wfcs to plot.
   logical, public :: tPlotReal
+
   !> If imaginary part of the wfcs to plot
   logical, public :: tPlotImag
+
   !> Levels to plot
   integer, allocatable, public :: plottedLevels(:)
+
   !> K-points to plot
   integer, allocatable, public :: plottedKPoints(:)
+
   !> Spins to plot
   integer, allocatable, public :: plottedSpins(:)
+
   !> Nr. of cached grids
   integer  :: nCached
+
   !> Box vectors for the plotted region
   real(dp), public :: boxVecs(3, 3)
+
   !> Origin of the box
   real(dp), public :: origin(3)
+
   !> Origin of the grid in the box
   real(dp), public :: gridOrigin(3)
+
   !> Nr of grid points along 3 directions
   integer, public :: nPoints(3)
+
   !> If grid should shifted by a half cell
   logical :: tShiftGrid
+
   !> If box should filled with folded atoms
   logical, public :: tFillBox
+
   !> Repeat box along 3 directions
   integer, public :: repeatBox(3)
+
   !> If coords should be folded to unit cell
   logical, public :: tFoldCoords
+
   !> If program should be verbose
   logical, public :: tVerbose
 
   !! Variables from the Basis block
 
+
   !> Resolution of the radial wfcs
   real(dp) :: basisResolution
+
   !> definition of the wfcs
   type(TSpeciesBasis), allocatable, public :: basis(:)
 
   !! Variables from the EigvecBin block
+
 
   !> File with binary eigenvectors
   character(len=1024) :: eigVecBin
 
   !! Variables from AtomicNumbers block
 
+
   !> species-atomic nr. corresp.
   integer, allocatable, public :: atomicNumbers(:)
 
   !! Locally created variables
 
+
   !> Molecular orbital
   type(OMolecularOrbital), allocatable, target, public :: molOrb
+
   !> pointer to the orbital
   type(OMolecularOrbital), pointer :: pMolOrb
+
   !> Grid cache
   type(OGridCache), public :: grid
+
   !> grid vectors
   real(dp), public :: gridVec(3, 3)
+
   !> List of levels to plot
   integer, allocatable :: levelIndex(:,:)
+
   !> Volume of the grid
   real(dp), public :: gridVol
 
 contains
+
 
   !> Initialise program variables
   subroutine initProgramVariables()
@@ -244,10 +294,13 @@ contains
 
   end subroutine initProgramVariables
 
+
   !> Interpret the information stored in detailed.xml
   subroutine readDetailed(detailed, tGroundState)
+
     !> Pointer to the node, containing the info
     type(fnode), pointer :: detailed
+
     !> look for ground state occupations (T) or excited (F)
     logical, intent(in)  :: tGroundState
 
@@ -292,10 +345,13 @@ contains
 
   end subroutine readDetailed
 
+
   !> Read in the geometry stored as xml in internal or gen format.
   subroutine readGeometry(geonode, geo)
+
     !> Node containing the geometry
     type(fnode), pointer :: geonode
+
     !> Contains the geometry information on exit
     type(TGeometry), intent(out) :: geo
 
@@ -315,25 +371,35 @@ contains
 
   end subroutine readGeometry
 
+
   !> Interpret the options.
   subroutine readOptions(node, identity, nLevel, nKPoint, nSpin, occupations, tRealHam, tPeriodic, &
       & basis)
+
     !> Node containig the information
     type(fnode), pointer :: node
+
     !> Identity nr. of the dftb+ calculation to after-process
     integer, intent(in) :: identity
+
     !> Nr. of states in the dftb+ calc.
     integer, intent(in) :: nLevel
+
     !> Nr. of K-points
     integer, intent(in) :: nKPoint
+
     !> Nr. of spins
     integer, intent(in) :: nSpin
+
     !> Occupations in the dftb+ calculation
     real(dp), intent(in) :: occupations(:,:,:)
+
     !> If Hamiltonian was real or not
     logical, intent(in) :: tRealHam
+
     !> If the system was periodic
     logical, intent(in) :: tPeriodic
+
     !> Basis functions (needed for the cutoffs)
     type(TSpeciesBasis), intent(in) :: basis(:)
 
@@ -538,10 +604,13 @@ contains
 
   end subroutine readOptions
 
+
   !> Read in the basis related informations
   subroutine readBasis(node, speciesNames)
+
     !> Node containing the basis definition
     type(fnode), pointer :: node
+
     !> Names of the species for which basis should be read in
     character(len=*), intent(in) :: speciesNames(:)
 
@@ -566,12 +635,16 @@ contains
 
   end subroutine readBasis
 
+
   !> Read in basis function for a species.
   subroutine readSpeciesBasis(node, basisResolution, spBasis)
+
     !> Node containing the basis definition for a species
     type(fnode), pointer :: node
+
     !> Grid distance for discretising the basis functions
     real(dp), intent(in) :: basisResolution
+
     !> Contains the basis on return
     type(TSpeciesBasis), intent(out) :: spBasis
 
@@ -626,10 +699,13 @@ contains
 
   end subroutine readSpeciesBasis
 
+
   !> Checks, if the eigenvector file has the right identity number.
   subroutine checkEigenvecs(fileName, identity)
+
     !> File to check
     character(len=*), intent(in) :: fileName
+
     !> Identity number.
     integer, intent(in) :: identity
 
@@ -650,10 +726,13 @@ contains
 
   end subroutine checkEigenvecs
 
+
   !> Determinant of a 3x3 matrix (Only temporary!)
   function  determinant(matrix)
+
     !> The matrix to calculate the determinant from.
     real(dp), intent(in) :: matrix(:, :)
+
     !> Determinant of the matrix.
     real(dp) :: determinant
 

@@ -22,10 +22,12 @@ module formatout
   public :: printDFTBHeader
   public :: writeSparseAsSquare, writeSparse
 
+
   !> Clears contents of a file
   interface clearFile
     module procedure clearFile_fname
   end interface clearFile
+
 
   !> Writes geometry information in gen format to a file
   interface writeGenFormat
@@ -33,11 +35,13 @@ module formatout
     module procedure writeGenFormat_fid
   end interface writeGenFormat
 
+
   !> Writes geometry information in xyz format to a file
   interface writeXYZFormat
     module procedure writeXYZFormat_fname
     module procedure writeXYZFormat_fid
   end interface writeXYZFormat
+
 
   !> Writes DFTB+ type sparse matrix in square form to disc
   interface writeSparseAsSquare
@@ -47,8 +51,10 @@ module formatout
 
 contains
 
+
   !> Clears contents of file
   subroutine clearFile_fname(fileName)
+
     !> name of the file which should be cleared
     character(len=*), intent(in)   :: fileName
 
@@ -62,18 +68,25 @@ contains
 
   end subroutine clearFile_fname
 
+
   !> A wrapper around writeGenFormat_fid to open a file first.
   subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord)
+
     !> File name of the file which should be created
     character(len=*), intent(in)   :: fileName
+
     !> Coordinates in atomic units
     real(dp),         intent(in)   :: coord(:,:)
+
     !> Species of the atoms
     integer,          intent(in)   :: species(:)
+
     !> Name of the different species
     character(mc),    intent(in)   :: speciesName(:)
+
     !> Lattice vectors
     real(dp), intent(in), optional :: latVec(3,3)
+
     !> Print out fractional coordinates?
     logical, intent(in), optional  :: tFracCoord
 
@@ -90,18 +103,25 @@ contains
 
   end subroutine writeGenFormat_fname
 
+
   !> Writes coordinates in the famous GEN format to a file
   subroutine writeGenFormat_fid(fd, coord, species, speciesName, latVec, tFracCoord)
+
     !> File id of an open file where output should be written
     integer,           intent(in)  :: fd
+
     !> Coordinates in atomic units
     real(dp),          intent(in)  :: coord(:,:)
+
     !> Species of the atoms
     integer,           intent(in)  :: species(:)
+
     !> Name of the different species
     character(mc),     intent(in)  :: speciesName(:)
+
     !> Lattice vectors
     real(dp), intent(in), optional :: latVec(:,:)
+
     !> Print out fractional coordinates?
     logical, intent(in), optional  :: tFracCoord
 
@@ -164,21 +184,29 @@ contains
     end if
   end subroutine writeGenFormat_fid
 
+
   !> Writes coordinates in the XYZ format
   subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities, &
       & comment)
+
     !> File name of a file to be created
     character(len=*), intent(in) :: fileName
+
     !> Coordinates in atomic units
     real(dp), intent(in) :: coord(:,:)
+
     !> Species of the atoms
     integer,  intent(in) :: species(:)
+
     !> Name of the different species
     character(mc), intent(in) :: speciesName(:)
+
     !> Optional vector with charges for each atom.
     real(dp), intent(in), optional :: charges(:)
+
     !> Optional array of velocity vectors for each atom.
     real(dp), intent(in), optional :: velocities(:,:)
+
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
@@ -194,20 +222,28 @@ contains
 
   end subroutine writeXYZFormat_fname
 
+
   !> Writes coordinates in the XYZ format with additional charges and vectors
   subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, comment)
+
     !> File id of an open file where output should be written
     integer,  intent(in) :: fd
+
     !> Coordinates in atomic units
     real(dp), intent(in) :: coords(:,:)
+
     !> Species of the atoms
     integer,  intent(in) :: species(:)
+
     !> Name of the different species
     character(mc), intent(in) :: speciesNames(:)
+
     !> Optional vector with charges for each atom.
     real(dp), intent(in), optional :: charges(:)
+
     !> Optional array of velocity vectors for each atom.
     real(dp), intent(in), optional :: velocities(:,:)
+
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
@@ -263,10 +299,13 @@ contains
 
   end subroutine writeXYZFormat_fid
 
+
   !> Writes the greeting message of dftb+ on stdout
   subroutine printDFTBHeader(release, year)
+
     !> release version of the code
     character(len=*), intent(in) :: release
+
     !> release year
     integer, intent(in) :: year
 
@@ -297,21 +336,29 @@ contains
 
   end subroutine printDFTBHeader
 
+
   !> Converts a sparse matrix to its square form and write it to a file.
   subroutine writeSparseAsSquare_real(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
       & img2CentCell)
+
     !> Name of the file to write the matrix to.
     character(len=*), intent(in) :: fname
+
     !> Sparse matrix.
     real(dp), intent(in) :: sparse(:)
+
     !> Neighbor list index.
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Number of neighbors.
     integer, intent(in) :: nNeighbor(:)
+
     !> Offset array in the square matrix.
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
+
     !> Pair indexing array.
     integer, intent(in) :: img2CentCell(:)
+
     !> Mapping of the atoms to the central cell.
     real(dp), allocatable :: square(:,:)
     character(mc) :: strForm
@@ -337,27 +384,38 @@ contains
 
   end subroutine writeSparseAsSquare_real
 
+
   !> Converts a sparse matrix to its square form and write it to a file.
   subroutine writeSparseAsSquare_cplx(fname, sparse, kPoints, iNeighbor, nNeighbor, iAtomStart, &
       & iPair, img2CentCell, iCellVec, cellVec)
+
     !> Name of the file to write the matrix into.
     character(len=*), intent(in) :: fname
+
     !> Sparse matrix.
     real(dp), intent(in) :: sparse(:)
+
     !> List of k-points.
     real(dp), intent(in) :: kPoints(:,:)
+
     !> Neighbor list index.
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Number of neighbors.
     integer, intent(in) :: nNeighbor(:)
+
     !> Offset array in the square matrix.
     integer, intent(in) :: iAtomStart(:)
+
     !> Pair indexing array.
     integer, intent(in) :: iPair(0:,:)
+
     !> Mapping of the atoms to the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Index of the cell translation vectors for each atom.
     integer, intent(in) :: iCellVec(:)
+
     !> Cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
 
@@ -389,25 +447,35 @@ contains
 
   end subroutine writeSparseAsSquare_cplx
 
+
   !> Writes a sparse matrix to a file.
   subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
       & iCellVec, cellVec)
+
     !> Name of the file to write the matrix to.
     character(len=*), intent(in) :: fname
+
     !> Sparse matrix.
     real(dp), intent(in) :: sparse(:)
+
     !> Neighbor list index.
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Number of neighbors.
     integer, intent(in) :: nNeighbor(:)
+
     !> Offset array in the square matrix.
     integer, intent(in) :: iAtomStart(:)
+
     !> Pair indexing array.
     integer, intent(in) :: iPair(0:,:)
+
     !> Mapping of the atoms to the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Index of the cell translation vectors for each atom.
     integer, intent(in) :: iCellVec(:)
+
     !> Cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
 

@@ -17,20 +17,26 @@ module shortgamma
   public :: expGamma, expGammaDamped, expGammaPrime, expGammaDampedPrime
   public :: expGammaCutoff
 
+
   !> Used to return runtime diagnostics
   character(len=100) :: error_string
 
 contains
 
+
   !> Determines the cut off where the short range part goes to zero (a small constant)
   function expGammaCutoff(U2, U1, minValue)
+
     !> Hubbard U value in a.u.
     real(dp), intent(in) :: U2
+
     !> Hubbard U value in a.u.
     real(dp), intent(in) :: U1
+
     !> value below which the short range contribution is considered negligible. If not set this
     !> comes from a constant in the precision module.
     real(dp), intent(in), optional :: minValue
+
     !> Returned cut off distance
     real(dp) :: expGammaCutoff
 
@@ -90,14 +96,19 @@ contains
 
   end function expGammaCutoff
 
+
   !> Determines the value of the short range contribution to gamma with the exponential form
   function expGamma(rab,Ua,Ub)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Hubbard U for site a
     real(dp), intent(in) :: Ua
+
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
+
     !> contribution
     real(dp) :: expGamma
 
@@ -145,15 +156,20 @@ contains
 
   end function expGamma
 
+
   !> Determines the value of the derivative of the short range contribution to gamma with the
   !> exponential form
   function expGammaPrime(rab,Ua,Ub)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Hubbard U for site a
     real(dp), intent(in) :: Ua
+
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
+
     !> returned contribution
     real(dp) :: expGammaPrime
 
@@ -199,18 +215,24 @@ contains
     end if
   end function expGammaPrime
 
+
   !> Determines the value of the short range contribution to gamma with the exponential form with
   !> damping.
   !> See J. Phys. Chem. A, 111, 10865 (2007).
   function expGammaDamped(rab, Ua, Ub, dampExp)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Hubbard U for site a
     real(dp), intent(in) :: Ua
+
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
+
     !> Damping exponent
     real(dp), intent(in) :: dampExp
+
     !> returned contribution
     real(dp) :: expGammaDamped
 
@@ -221,17 +243,23 @@ contains
 
   end function expGammaDamped
 
+
   !> Determines the value of the derivative of the short range contribution to gamma with the
   !> exponential form with damping
   function expGammaDampedPrime(rab, Ua, Ub, dampExp)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Hubbard U for site a
     real(dp), intent(in) :: Ua
+
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
+
     !> Damping exponent
     real(dp), intent(in) :: dampExp
+
     !> returned contribution
     real(dp) :: expGammaDampedPrime
 
@@ -243,15 +271,20 @@ contains
 
   end function expGammaDampedPrime
 
+
   !> Determines the value of the short range contribution to gamma using the old Ohno/Klopman form
   !> Caveat: This is too long ranged to use in a periodic calculation
   function OhnoKlopman(rab,Ua,Ub)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Hubbard U for site a
     real(dp), intent(in) :: Ua
+
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
+
     !> contribution
     real(dp) :: OhnoKlopman
 
@@ -269,15 +302,20 @@ contains
 
   end function OhnoKlopman
 
+
   !> Determines the value of the derivative of the short range contribution to gamma using the old
   !> Ohno/Klopman form. Caveat: This is too long ranged to use in a periodic calculation
   function OhnoKlopmanPrime(rab,Ua,Ub)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Hubbard U for site a
     real(dp), intent(in) :: Ua
+
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
+
     !> contribution
     real(dp) :: OhnoKlopmanPrime
 
@@ -296,15 +334,20 @@ contains
 
   end function OhnoKlopmanPrime
 
+
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
   !> Ua /= Ub and R > 0
   function gammaSubExprn(rab,tau1,tau2)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Charge fluctuation for site a
     real(dp), intent(in) :: tau1
+
     !> Charge fluctuation U for site b
     real(dp), intent(in) :: tau2
+
     !> contribution
     real(dp) :: gammaSubExprn
 
@@ -324,15 +367,20 @@ contains
 
   end function gammaSubExprn
 
+
   !> Determines the derivative of the value of a part of the short range contribution to the
   !> exponential gamma, when Ua /= Ub and R > 0
   function gammaSubExprnPrime(rab,tau1,tau2)
+
     !> separation of sites a and b
     real(dp), intent(in) :: rab
+
     !> Charge fluctuation for site a
     real(dp), intent(in) :: tau1
+
     !> Charge fluctuation U for site b
     real(dp), intent(in) :: tau2
+
     !> contribution
     real(dp) :: gammaSubExprnPrime
 

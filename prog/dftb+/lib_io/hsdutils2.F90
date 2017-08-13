@@ -28,6 +28,7 @@ module hsdutils2
   public :: setUnprocessed, getDescendant
   public :: convertByMul
 
+
   !> Converts according to passed modifier and array of possible units by multplicating the provided
   !> value with the appropriate conversion factor.
   interface convertByMul
@@ -36,16 +37,20 @@ module hsdutils2
     module procedure convertByMul_realR2
   end interface convertByMul
 
+
   !> Separator for modifiers
   character, parameter :: sepModifier = ","
+
 
   !> common error message within this module
   character(len=*), parameter :: MSG_INVALID_MODIFIER = "Invalid modifier: "
 
 contains
 
+
   !> Removes the processed flag from node
   subroutine setUnprocessed(node)
+
     !> The node to process
     type(fnode), pointer :: node
 
@@ -55,16 +60,22 @@ contains
 
   end subroutine setUnprocessed
 
+
   !> Gets the index of a modifier from an array of possible modifier names.
   function getModifierIndex(modifier, modifiers, node, requested) result(ind)
+
     !> String containing the parsed modifier
     character(len=*), intent(in) :: modifier
+
     !> Array containing the names of the possible modifiers
     type(unit), intent(in) :: modifiers(:)
+
     !> Node for which the modifier was obtained (for errors)
     type(fnode), pointer :: node
+
     !> Should an error be raised, if the modifier is not found?
     logical, intent(in), optional :: requested
+
     !> Index of the modifer (zero if not found)
     integer :: ind
 
@@ -93,11 +104,14 @@ contains
 
   end function getModifierIndex
 
+
   !> Prints a warning message about unprocessed nodes
 
   subroutine getUnprocessedNodes(node, nodeList)
+
     !> Root element of the tree to investigate
     type(fnode), pointer :: node
+
     !> Containst the list of unprocessed nodes.
     type(fnodeList), pointer :: nodeList
 
@@ -105,12 +119,16 @@ contains
 
   end subroutine getUnprocessedNodes
 
+
   !> Prints a warning message about unprocessed nodes
   subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
+
     !> Root element of the tree to investigate
     type(fnode), pointer               :: node
+
     !> if anything left after processing should be flagged
     logical, intent(in), optional      :: tIgnoreUnprocessed
+
     !> list of left over nodes (if present)
     type(fnodeList), pointer, optional :: nodeList
 
@@ -151,10 +169,13 @@ contains
 
   end subroutine warnUnprocessedNodes
 
+
   !> Reads a HSD tree from an xml-file
   subroutine readHSDAsXML(fileName, fp)
+
     !> file to read
     character(len=*), intent(in) :: fileName
+
     !> to the tree
     type(fnode), pointer :: fp
 
@@ -164,20 +185,27 @@ contains
 
   end subroutine readHSDAsXML
 
+
   !> Reads HSD from an HSD-file or from an xml-file, but stop if input is ambiguous or missing.
   !> If optional parameter 'missing' is not passed, the subroutine stops if input is not found. If
   !> ambigous input is found, the subroutine stops anyway.
   subroutine readHSDOrXML(hsdFile, xmlFile, rootTag, fp, hsdInput, missing)
+
     !> File containing the HSD input
     character(len=*), intent(in) :: hsdFile
+
     !> File containing the XML input
     character(len=*), intent(in) :: xmlFile
+
     !> Name of the root tag
     character(len=*), intent(in) :: rootTag
+
     !> Parsed tree on retunr
     type(fnode), pointer :: fp
+
     !> True, if tree was read from an HSD file
     logical, intent(out), optional :: hsdInput
+
     !> True, if neither xml nor hsd input was found
     logical, intent(out), optional :: missing
 
@@ -218,10 +246,13 @@ contains
 
   end subroutine readHSDOrXML
 
+
   !> Returns the name of a node, with empty string for unassociated nodes.
   subroutine getNodeName2(node, nodeName)
+
     !> Node to get the name from
     type(fnode), pointer :: node
+
     !> Contains the node name for an associated node or empty string for an unassociated one.
     type(string), intent(inout)  :: nodeName
 
@@ -233,12 +264,15 @@ contains
 
   end subroutine getNodeName2
 
+
   !> Changes the name of a given node.
   !>
   !> Returns if node is not associated.
   subroutine setNodeName(node, name)
+
     !> Node to change.
     type(fnode), pointer :: node
+
     !> New name of the node.
     character(len=*), intent(in) :: name
 
@@ -255,8 +289,10 @@ contains
 
   end subroutine setNodeName
 
+
   !> Removes the modifier attribute from a given node.
   subroutine removeModifier(node)
+
     !> The node to process.
     type(fnode), pointer :: node
 
@@ -266,15 +302,19 @@ contains
 
   end subroutine removeModifier
 
+
   !> Splits a modifier containing coma separated list of modifiers into components.
   !>
   !> Note: if the number of the modifiers found differs from the size of the modifiers array, the
   !> program stops with error.
   subroutine splitModifier(modifier, child, modifiers)
+
     !> The list of modifers as a string.
     character(len=*), intent(in) :: modifier
+
     !>  The child which carries this modifier (for error messages)
     type(fnode), pointer :: child
+
     !>  Array of the modifiers, occuring in modifer.
     type(string), intent(inout) :: modifiers(:)
 
@@ -301,18 +341,25 @@ contains
 
   end subroutine splitModifier
 
+
   !> Implementation of convertByMul for real scalar.
   subroutine convertByMul_real(modifier, units, child, convertValue, replace, changed)
+
     !> Modifier (name of the unit to use)
     character(len=*), intent(in) :: modifier
+
     !> Array of the possible units
     type(unit), intent(in) :: units(:)
+
     !> The child, which carries the modifier.
     type(fnode), pointer :: child
+
     !> Value to convert, converted value on return.
     real(dp), intent(inout) :: convertValue
+
     !> If childs value should replaced by the new value (default: .false.)
     logical, intent(in), optional :: replace
+
     !> Contains flag on return, if childs value was changed.
     logical, intent(out), optional :: changed
 
@@ -342,18 +389,25 @@ contains
 
   end subroutine convertByMul_real
 
+
   !> Implementation of convertByMul for real rank one array.
   subroutine convertByMul_realR1(modifier, units, child, convertValue, replace, changed)
+
     !> Modifier (name of the unit to use)
     character(len=*), intent(in) :: modifier
+
     !> Array of the possible units
     type(unit), intent(in) :: units(:)
+
     !> The child, which carries the modifier.
     type(fnode), pointer :: child
+
     !> Value to convert, converted value on return.
     real(dp), intent(inout) :: convertValue(:)
+
     !> If childs value should replaced by the new value (default: .false.)
     logical, intent(in), optional :: replace
+
     !> Contains flag on return, if childs value was changed.
     logical, intent(out), optional :: changed
 
@@ -383,18 +437,25 @@ contains
 
   end subroutine convertByMul_realR1
 
+
   !> Implementation of convertByMul for real rank two array.
   subroutine convertByMul_realR2(modifier, units, child, convertValue, replace, changed)
+
     !> Modifier (name of the unit to use)
     character(len=*), intent(in) :: modifier
+
     !> Array of the possible units
     type(unit), intent(in) :: units(:)
+
     !> The child, which carries the modifier.
     type(fnode), pointer :: child
+
     !> Value to convert, converted value on return.
     real(dp), intent(inout) :: convertValue(:,:)
+
     !> If childs value should replaced by the new value (default: .false.)
     logical, intent(in), optional :: replace
+
     !> Contains flag on return, if childs value was changed.
     logical, intent(out), optional :: changed
 
@@ -424,19 +485,26 @@ contains
 
   end subroutine convertByMul_realR2
 
+
   !> Returns a descendant of a given node.
   subroutine getDescendant(root, path, child, requested, processed, parent)
+
     !> Node to seek the descendants of
     type(fnode), pointer :: root
+
     !> Path to the descendant. Parents are separated by "/" from their children
     !> (e.g. node1/node2/node3)
     character(len=*), intent(in) :: path
+
     !> Pointer to the child on return or null pointer if not found
     type(fnode), pointer :: child
+
     !> Should the program stop, if specified descendant is not present (default: .false.)
     logical, intent(in), optional :: requested
+
     !> Should elements along the path marked as processed? (default: .false.)
     logical, intent(in), optional :: processed
+
     !>If provided, contains parent node of the child, or the last associated node, if the child was
     !>not found.
     type(fnode), pointer, optional :: parent

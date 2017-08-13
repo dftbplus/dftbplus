@@ -23,10 +23,12 @@ module repcont
   public :: ORepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
 
+
   !> Types of repulsive currently supported
   integer, parameter :: typeRepInvalid = 0
   integer, parameter :: typeRepSpline = 1
   integer, parameter :: typeRepPoly = 2
+
 
   !> Contains repulsive types.
   type PRep_
@@ -35,25 +37,33 @@ module repcont
     type(ORepPoly), allocatable :: pRepPoly
   end type PRep_
 
+
   !> Contains the repulsive interactions for the species pairs.
   type ORepCont
     private
+
     !> repulsive functions
     type(PRep_), allocatable :: repulsives(:,:)
+
     !> number of chemical species
     integer :: nSpecies
+
     !> Max. cutoff among all repulsives
     real(dp) :: cutoff
+
     !> All repulsives added.
     logical :: tDataOK
+
     !> Is structure initialised?
     logical :: tInit = .false.
   end type ORepCont
+
 
   !> Initialises the repulsive container.
   interface init
     module procedure RepCont_init
   end interface init
+
 
   !> Adds a new repulsive function for a given pair.
   interface addRepulsive
@@ -61,15 +71,18 @@ module repcont
     module procedure RepCont_addRepPoly
   end interface addRepulsive
 
+
   !> Returns global repulsive cutoff.
   interface getCutoff
     module procedure RepCont_getCutoff
   end interface getCutoff
 
+
   !> Returns the repulsive energy for a given distance and species pair.
   interface getEnergy
     module procedure RepCont_getEnergy
   end interface getEnergy
+
 
   !> Returns the repulsive gradient for a given distance and species pair.
   interface getEnergyDeriv
@@ -78,10 +91,13 @@ module repcont
 
 contains
 
+
   !> Initialises the repulsive container.
   subroutine RepCont_init(self, nSpecies)
+
     !> Repulsive container.
     type(ORepCont), intent(out) :: self
+
     !> Nr. of species.
     integer, intent(in) :: nSpecies
 
@@ -95,14 +111,19 @@ contains
 
   end subroutine RepCont_init
 
+
   !> Adds a spline repulsive function to the container for a given species pair.
   subroutine RepCont_addRepSpline(self, pRep, iSp1, iSp2)
+
     !> Repulsive container.
     type(ORepCont), intent(inout) :: self
+
     !> Repulsive function to add.
     type(ORepSpline), intent(in) :: pRep
+
     !> Nr. of the first interacting species.
     integer, intent(in) :: iSp1
+
     !> Nr. of the second interacting species.
     integer, intent(in) :: iSp2
 
@@ -114,14 +135,19 @@ contains
 
   end subroutine RepCont_addRepSpline
 
+
   !> Adds a polynomial repulsive function to the container for a given species pair.
   subroutine RepCont_addRepPoly(self, pRep, iSp1, iSp2)
+
     !> Repulsive container.
     type(ORepCont), intent(inout) :: self
+
     !> Repulsive function to add.
     type(ORepPoly), intent(in) :: pRep
+
     !> Nr. of the first interacting species.
     integer, intent(in) :: iSp1
+
     !> Nr. of the second interacting species.
     integer, intent(in) :: iSp2
 
@@ -133,10 +159,13 @@ contains
 
   end subroutine RepCont_addRepPoly
 
+
   !> Returns a global cutoff for all repulive functions.
   function RepCont_getCutoff(self) result(cutoff)
+
     !> Repulsive container.
     type(ORepCont), intent(in) :: self
+
     !> Global cutoff.
     real(dp) :: cutoff
 
@@ -145,16 +174,22 @@ contains
 
   end function RepCont_getCutoff
 
+
   !> Returns the repulsive energy for a given distance and species pair.
   subroutine RepCont_getEnergy(self, res, rr, sp1, sp2)
+
     !> Repulsive container.
     type(ORepCont), intent(in) :: self
+
     !> Energy contribution.
     real(dp), intent(out) :: res
+
     !> Distance between the atoms
     real(dp), intent(in) :: rr
+
     !> Type of the first interacting atom
     integer, intent(in) :: sp1
+
     !> Type of the second interacting atom
     integer, intent(in) :: sp2
 
@@ -169,16 +204,22 @@ contains
 
   end subroutine RepCont_getEnergy
 
+
   !> Returns the repulsive gradient for a given distance and species pair.
   subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2)
+
     !> Repulsive container.
     type(ORepCont), intent(in) :: self
+
     !> Gradient on exit.
     real(dp), intent(out) :: res(:)
+
     !> Difference vector between the interacting atoms
     real(dp), intent(in) :: xx(:)
+
     !> Type of the first interacting atom
     integer, intent(in) :: sp1
+
     !> Type of the second interacting atom
     integer, intent(in) :: sp2
 

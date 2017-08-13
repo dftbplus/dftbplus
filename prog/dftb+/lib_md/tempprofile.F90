@@ -17,35 +17,47 @@ module tempprofile
   public :: OTempProfile, init, next, getTemperature
   public :: constProf, linProf, expProf
 
+
   !> Data for the temperature profile.
   type OTempProfile
+
     !> The annealing method for each interval.
     integer, allocatable :: tempMethods(:)
+
     !> The length of the intervals (in MD steps)
     integer, allocatable :: tempInts(:)
+
     !> Target temperature for each interval
     real(dp), allocatable :: tempValues(:)
+
     !> Current kinetic temperature
     real(dp) :: curTemp
+
     !> Index for current temperature value
     integer :: iInt
+
     !> Number of intervals in total
     integer :: nInt
+
     !> Current interval
     integer :: iStep
+
     !> Temperature increment to next step
     real(dp) :: incr
   end type OTempProfile
+
 
   !> Initialise the profile
   interface init
     module procedure TempProfile_init
   end interface init
 
+
   !> Next temperature in the profile
   interface next
     module procedure TempProfile_next
   end interface next
+
 
   !> Get the current temperature in the profile
   interface getTemperature
@@ -53,26 +65,35 @@ module tempprofile
   end interface getTemperature
 
   ! Constants for the different profile options
+
   !> Constant temperature
   integer, parameter :: constProf = 1
+
   !> linear change in profile
   integer, parameter :: linProf = 2
+
   !> exponentially changing profile
   integer, parameter :: expProf = 3
+
 
   !> Default starting temperature
   real(dp), parameter :: startingTemp_ = minTemp
 
 contains
 
+
   !> Creates a TempProfile instance.
   subroutine TempProfile_init(self, tempMethods, tempInts, tempValues)
+
     !> TempProfile instane on return.
     type(OTempProfile), intent(out) :: self
+
     !> The annealing method for each interval.
     integer, intent(in) :: tempMethods(:)
+
     !> The length of the intervals (in steps)
     integer, intent(in) :: tempInts(:)
+
     !> Target temperature for each interval. This temperature will be reached after the specified
     !> number of steps, using the specified profile (constant, linear, exponential)
     real(dp), intent(in) :: tempValues(:)
@@ -110,8 +131,10 @@ contains
 
   end subroutine TempProfile_init
 
+
   !> Changes the temperature to the next value.
   subroutine TempProfile_next(self)
+
     !> The TempProfile object.
     type(OTempProfile), intent(inout) :: self
 
@@ -153,10 +176,13 @@ contains
 
   end subroutine TempProfile_next
 
+
   !> Returns the current temperature.
   subroutine TempProfile_getTemperature(self, temp)
+
     !> Pointer to the TempProfile object.
     type(OTempProfile), intent(in) :: self
+
     !> Temperature on return.
     real(dp), intent(out) :: temp
 

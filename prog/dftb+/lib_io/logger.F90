@@ -14,44 +14,57 @@ module logger
 
   public :: LogWriter, LogWriter_init
 
+
   !> Logger
   type :: LogWriter
     private
     integer :: verbosity
   contains
     ! internal write procedures
+
     !> write a string
     procedure :: writeStr
+
     !> write an integer
     procedure :: writeInt
+
     !> write a real
     procedure :: writeReal
+
     !> write a real vector
     procedure :: writeReal1
+
     !> write a real array
     procedure :: writeReal2
+
     !> generic for all of these
     generic :: write => writeStr, writeInt, writeReal, writeReal1, writeReal2
   end type LogWriter
+
 
   !> Constructor for LogWriter
   interface LogWriter
     module procedure construct
   end interface LogWriter
 
+
   !> Default verbosity level
   integer, parameter :: DEFAULT_VERBOSITY = 1
+
 
   !> Maximum line length
   integer, parameter :: MAX_LEN = 80
 
 contains
 
+
   !> Initialises a logger
   subroutine LogWriter_init(this, verbosity)
 
+
     !> Initialised instance on exit
     type(LogWriter), intent(out) :: this
+
 
     !> verbosity level
     integer, intent(in), optional :: verbosity
@@ -64,11 +77,14 @@ contains
 
   end subroutine LogWriter_init
 
+
   !> Constructs a logger.
   function construct(verbosity) result(this)
 
+
     !> verbosity level
     integer, intent(in), optional :: verbosity
+
 
     !> Initialised instance on exit
     type(LogWriter) :: this
@@ -77,17 +93,22 @@ contains
 
   end function construct
 
+
   !> Writes a message into the log (string).
   subroutine writeStr(this, msg, verbosity, formStr)
+
 
     !> Instance
     class(LogWriter), intent(inout) :: this
 
+
     !> Message to write
     character(*), intent(in) :: msg
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
+
 
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
@@ -104,17 +125,22 @@ contains
 
   end subroutine writeStr
 
+
   !> Writes a message into the log (int).
   subroutine writeInt(this, msg, verbosity, formStr)
+
 
     !> Instance
     class(LogWriter), intent(inout) :: this
 
+
     !> Message to write
     integer, intent(in) :: msg
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
+
 
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
@@ -131,17 +157,22 @@ contains
 
   end subroutine writeInt
 
+
   !> Writes a message into the log (real).
   subroutine writeReal(this, msg, verbosity, formStr)
+
 
     !> Instance
     class(LogWriter), intent(inout) :: this
 
+
     !> Message to write
     real(dp), intent(in) :: msg
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
+
 
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
@@ -158,20 +189,26 @@ contains
 
   end subroutine writeReal
 
+
   !> Writes a message into the log (real1).
   subroutine writeReal1(this, msg, verbosity, formStr, columnwise)
+
 
     !> Instance
     class(LogWriter), intent(inout) :: this
 
+
     !> Message to write
     real(dp), intent(in) :: msg(:)
+
 
     !> Verbosity level
     integer, intent(in), optional :: verbosity
 
+
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
+
 
     !> Whether column vectors should be written columnwise (default: rowwise)
     logical, intent(in), optional :: columnwise
@@ -197,20 +234,26 @@ contains
 
   end subroutine writeReal1
 
+
   !> Writes a message into the log (real2).
   subroutine writeReal2(this, msg, verbosity, formStr, columnwise)
+
 
     !> Instance
     class(LogWriter), intent(inout) :: this
 
+
     !> Message to write
     real(dp), intent(in) :: msg(:,:)
+
 
     !> Verbosity level
     integer, intent(in), optional :: verbosity
 
+
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
+
 
     !> Whether column vectors should be written columnwise (default: rowwise)
     logical, intent(in), optional :: columnwise
@@ -235,6 +278,7 @@ contains
     end if
 
   end subroutine writeReal2
+
 
   !> Returns the format string for an entire row.
   subroutine getRowFormat(formStr, nItems, formStrRow)

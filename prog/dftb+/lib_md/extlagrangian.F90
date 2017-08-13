@@ -18,17 +18,21 @@ module extlagrangian_module
   public ::ExtLagrangian, ExtLagrangian_init
   public :: ExtLagrangianInp
 
+
   !> Input for an extended Lagrangian integrator.
   !!
   type :: ExtLagrangianInp
 
+
     !> Nr. of timesteps to consider for the integration.
     integer :: nTimeSteps
+
 
     !> Nr. of elements in the vectors which should be propagated.
     integer :: nElems
 
   end type ExtLagrangianInp
+
 
   !> Represents an extended Lagrangian integrator.
   type :: ExtLagrangian
@@ -44,17 +48,23 @@ module extlagrangian_module
     real(dp), allocatable :: auxCoeffs(:)
     real(dp) :: alpha, kappa
   contains
+
     !> turn on the integrator
     procedure :: turnOn
+
     !> input for next time steo
     procedure :: getNextInput
+
     !> are converged values required for next step
     procedure :: needsConvergedValues
+
     !> Preconditioner for integrator
     procedure :: setPreconditioner
+
     !> Internal helper function
     procedure, private :: updatePhaseAndSteps
   end type ExtLagrangian
+
 
   !> Internal type for enumerating different states of the integrator.
   type :: ExtLagrangianPhases
@@ -64,9 +74,11 @@ module extlagrangian_module
     integer :: on
   end type ExtLagrangianPhases
 
+
   !> Internal states of the integrator
   type(ExtLagrangianPhases), parameter :: phases =&
       & ExtLagrangianPhases(1, 2, 3, 4)
+
 
   !> Various integrator parameters for integration with 5 time steps
   real(dp), parameter :: auxCoeffs5(0:5) = &
@@ -74,11 +86,13 @@ module extlagrangian_module
   real(dp), parameter :: alpha5 = 18e-3_dp
   real(dp), parameter :: kappa5 = 1.82_dp
 
+
   !> Various integrator parameters for integration with 6 time steps
   real(dp), parameter :: auxCoeffs6(0:6) = &
       & [-14.0_dp, 36.0_dp, -27.0_dp, -2.0_dp, 12.0_dp, -6.0_dp, 1.0_dp]
   real(dp), parameter :: alpha6 = 5.5e-3_dp
   real(dp), parameter :: kappa6 = 1.84_dp
+
 
   !> Various integrator parameters for integration with 7 time steps
   real(dp), parameter :: auxCoeffs7(0:7) = &
@@ -89,11 +103,14 @@ module extlagrangian_module
 
 contains
 
+
   !> Initializes an extended Lagrangian integrator.
   subroutine ExtLagrangian_init(this, input)
 
+
     !> Initialized instance at exit.
     class(ExtLagrangian), intent(inout) :: this
+
 
     !> Input container.
     class(ExtLagrangianInp), intent(in) :: input
@@ -127,6 +144,7 @@ contains
 
   end subroutine ExtLagrangian_init
 
+
   !> Turns on the integrator.
   !!
   !! The integrator will start of filling up its database with the subsequent
@@ -136,8 +154,10 @@ contains
   !!
   subroutine turnOn(this, nTransientSteps)
 
+
     !> Instance variable.
     class(ExtLagrangian), intent(inout) :: this
+
 
     !> Nr. of transient steps to do *additional* to the ones needed to fill up
     !! the integrator. During those additional steps, the integrator still needs
@@ -160,15 +180,19 @@ contains
 
   end subroutine turnOn
 
+
   !> Reads the last output and provides the input for the next timestep.
   !!
   subroutine getNextInput(this, outLast, inNext)
 
+
     !> Instance.
     class(ExtLagrangian), intent(inout) :: this
 
+
     !> Output quantity of the last iteration.
     real(dp), intent(in) :: outLast(:)
+
 
     !> Input quantity for the next iteration
     real(dp), intent(out) :: inNext(:)
@@ -228,6 +252,7 @@ contains
 
   contains
 
+
     !> helper function
     function modIndex(ind)
       integer, intent(in) :: ind
@@ -239,13 +264,16 @@ contains
 
   end subroutine getNextInput
 
+
   !> Whether next output quantity passed to the integrator should still contain
   !! fully converged values.
   !!
   function needsConvergedValues(this) result(needsConverged)
 
+
     !> Instance.
     class(ExtLagrangian), intent(in) :: this
+
 
     !> Whether converged values are needed.
     logical :: needsConverged
@@ -255,16 +283,20 @@ contains
 
   end function needsConvergedValues
 
+
   !> Sets a preconditioner for the integrator.
   !!
   subroutine setPreconditioner(this, scale, precondMtx)
 
+
     !> Instance variable.
     class(ExtLagrangian), intent(inout) :: this
+
 
     !> Scaling factor for the difference vector (e.g. scaling factor for
     !! SCF-free XLBOMD). Default: 1.0.
     real(dp), intent(in), optional :: scale
+
 
     !> Preconditioning matrix for the difference vector (e.g. inverse Jacobian)
     !! Default: identity matrix.
@@ -289,8 +321,8 @@ contains
 
   end subroutine setPreconditioner
 
-
   ! Private methods
+
 
   !> helper function
   subroutine updatePhaseAndSteps(this)

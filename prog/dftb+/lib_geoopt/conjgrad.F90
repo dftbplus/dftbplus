@@ -17,40 +17,54 @@ module conjgrad
 
   private
 
+
   !> Contains data for the conjugate gradient minimizer
   type OConjGrad
     private
+
     !> State of the minimizer
     integer :: state
+
     !> Nr. of variables
     integer :: nElem
+
     !> Gradient in previous cycle
     real(dp), allocatable :: gg(:)
+
     !> Conjugate gradient
     real(dp), allocatable :: hh(:)
+
     !> Last calculated point
     real(dp), allocatable :: uu(:)
+
     !> Tolerance criteria for convergence
     real(dp) :: tolerance
+
     !> Maximal displacement along one coordinate in one step
     real(dp) :: maxDisp
+
     !> If CG converged
     logical :: tConverged
+
     !> If object is initialized
     logical :: tInitialized
+
     !> Line minimizer
     type(OLineMin) :: pLinMin
   end type OConjGrad
+
 
   !> Initialises CG instance
   interface init
     module procedure ConjGrad_init
   end interface init
 
+
   !> Resets CG
   interface reset
     module procedure ConjGrad_reset
   end interface reset
+
 
   !> Passes calculated function value and gradient to the minimizer and gives
   !> back a new coordinate.
@@ -58,15 +72,18 @@ module conjgrad
     module procedure ConjGrad_next
   end interface next
 
+
   !> Coordinate of the minimum.
   interface getMinX
     module procedure ConjGrad_getMinX
   end interface getMinX
 
+
   !> Function value in the minimum.
   interface getMinY
     module procedure ConjGrad_getMinY
   end interface getMinY
+
 
   !> Gradient in the minimum.
   interface getMinGrad
@@ -76,19 +93,25 @@ module conjgrad
   public :: OConjGrad
   public :: init, reset, next, getMinX, getMinY, getMinGrad
 
+
   !> State of the conjugate gradient cycle
   integer, parameter  :: st_1 = 1, st_2 = 2
 
 contains
 
+
   !> Creates a conjugate gradient instance
   subroutine ConjGrad_init(self, nElem, tol, maxDisp)
+
     !> Conjugate gradient instance on exit
     type(OConjGrad), intent(out) :: self
+
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
+
     !> Termination tolerance for the gradient
     real(dp), intent(in) :: tol
+
     !> Maximal displacement in one element in one step
     real(dp), intent(in) :: maxDisp
 
@@ -110,10 +133,13 @@ contains
 
   end subroutine ConjGrad_init
 
+
   !> Resets CG minimizer
   subroutine ConjGrad_reset(self, x0)
+
     !> CG minimizer
     type(OConjGrad), intent(inout) :: self
+
     !> Point to start from
     real(dp), intent(in) :: x0(:)
 
@@ -126,18 +152,24 @@ contains
 
   end subroutine ConjGrad_reset
 
+
   !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
   !> back.  When calling the first time, funciton value and gradient for the starting point of the
   !> minimization should be passed.
   subroutine ConjGrad_next(self, fx, dx, xNew, tConverged)
+
     !> CG minimizer
     type(OConjGrad), intent(inout) :: self
+
     !> Function value for last point returned by this routine
     real(dp), intent(in)  :: fx
+
     !> Gradient in the last point
     real(dp), intent(in)  :: dx(:)
+
     !> New proposed point
     real(dp), intent(out) :: xNew(:)
+
     !> True, if gradient goes below the specified tolerance
     logical,  intent(out) :: tConverged
 
@@ -153,25 +185,35 @@ contains
     tConverged = self%tConverged
   end subroutine ConjGrad_next
 
+
   !> Workhorse for the CG minimizer.
   subroutine next_local(state, gg, hh, uu, tConverged, tolerance, pLinMin, fu,&
       &du)
+
     !> state of the conjugate gradient minimizer
     integer, intent(inout) :: state
+
     !> Gradient in previous cycle
     real(dp), intent(inout) :: gg(:)
+
     !> Conjugate gradient
     real(dp), intent(inout) :: hh(:)
+
     !> New calculated point
     real(dp), intent(inout) :: uu(:)
+
     !> Did convergence occur?
     logical,  intent(inout) :: tConverged
+
     !> cut out tollerance for optimisation
     real(dp), intent(in)    :: tolerance
+
     !> Line minimizer
     type(OLineMin), intent(inout) :: pLinMin
+
     !> Function value in the last point
     real(dp), intent(in) :: fu
+
     !> Gradient in the last point
     real(dp), intent(in) :: du(:)
 
@@ -229,12 +271,15 @@ contains
 
   end subroutine next_local
 
+
   !> Gives the coordinate of the minimal point back
   !> The returned value is meaningless if the subroutine is called
   !>   before the CG minimizer signals convergence.
   subroutine ConjGrad_getMinX(self, minX)
+
     !> CG minimizer
     type(OConjGrad), intent(in) :: self
+
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minX(:)
 
@@ -244,12 +289,15 @@ contains
 
   end subroutine ConjGrad_getMinX
 
+
   !> Gives the function value in the minimal point back.
   !> The returned value is meaningless if the subroutine is called before the CG minimizer
   !>   signals convergence.
   subroutine ConjGrad_getMinY(self, minY)
+
     !> CG minimizer
     type(OConjGrad), intent(in) :: self
+
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minY
 
@@ -258,12 +306,15 @@ contains
 
   end subroutine ConjGrad_getMinY
 
+
   !> Gives the gradient in the minimal point back
   !> The returned value is meaningless if the subroutine is called before the CG minimizer signals
   !> convergence.
   subroutine ConjGrad_getMinGrad(self, minGrad)
+
     !> CG minimizer
     type(OConjGrad), intent(in) :: self
+
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minGrad(:)
 

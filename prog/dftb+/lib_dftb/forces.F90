@@ -21,12 +21,16 @@ module forces
 
   public :: derivative_nonSCC, derivative_shift
 
+
   !> forces with shift vectors present
   interface derivative_shift
+
     !> derivatives without any shift
     module procedure derivative_nonSCC
+
     !> derivatives with shift
     module procedure derivative_block
+
     !> derivatives with complex shift
     module procedure derivative_iBlock
 
@@ -34,35 +38,49 @@ module forces
 
 contains
 
+
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
   !> density and energy-density matrices
   subroutine derivative_nonSCC(deriv, derivator, DM, EDM, skHamCont,&
       & skOverCont, coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
       & orb)
+
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
+
     !> Differentiatior for the non-scc components
     class(NonSccDiff), intent(in) :: derivator
+
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:)
+
     !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
+
     !> Container for SK Hamiltonian integrals
     type(OSlakoCont), intent(in) :: skHamCont
+
     !> Container for SK overlap integrals
     type(OSlakoCont), intent(in) :: skOverCont
+
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
     !> list of all atomic species
     integer, intent(in) :: species(:)
+
     !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
+
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
@@ -121,36 +139,51 @@ contains
 
   end subroutine derivative_nonSCC
 
+
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
   !> consistent potential and the density and energy-density matrices
   subroutine derivative_block(deriv, derivator, DM, EDM, skHamCont, skOverCont,&
       & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
+
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
+
     !> Differentiatior for the non-scc components
     class(NonSccDiff), intent(in) :: derivator
+
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
+
     !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
+
     !> Container for SK Hamiltonian integrals
     type(OSlakoCont) :: skHamCont
+
     !> Container for SK overlap integrals
     type(OSlakoCont) :: skOverCont
+
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
     !> list of all atomic species
     integer, intent(in) :: species(:)
+
     !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
+
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
@@ -228,41 +261,58 @@ contains
 
   end subroutine derivative_block
 
+
   !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
   !> for example from spin-orbit
   subroutine derivative_iBlock(deriv, derivator, DM, iDM, EDM, skHamCont,&
       & skOverCont,coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
       & orb, shift, iShift)
+
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
+
     !> Differentiatior for the non-scc components
     class(NonSccDiff), intent(in) :: derivator
+
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
+
     !> imaginary part of the density matrix in packed format
     real(dp), intent(in) :: iDM(:,:)
+
     !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
+
     !> Container for SK Hamiltonian integrals
     type(OSlakoCont) :: skHamCont
+
     !> Container for SK overlap integrals
     type(OSlakoCont) :: skOverCont
+
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
     !> list of all atomic species
     integer, intent(in) :: species(:)
+
     !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
+
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
+
     !> imaginary block shift from the potential
     real(dp), intent(in) :: iShift(:,:,:,:)
 

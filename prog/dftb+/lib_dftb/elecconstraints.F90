@@ -19,25 +19,30 @@ module elecconstraints
   private
   public :: constrainQ, constrainS, constrainL, constrainJ, constrainMj
 
+
   !> Optional constraining potential on atomic charges
   interface constrainQ
     module procedure constrainQ_
   end interface constrainQ
+
 
   !> Optional constraining potential on shell spins
   interface constrainS
     module procedure constrainS_
   end interface constrainS
 
+
   !> Optional constraining potential on orbital moment of atomic shells
   interface constrainL
     module procedure constrainL_
   end interface constrainL
 
+
   !> Optional constraining potential on total angular momentum of shells
   interface constrainJ
     module procedure constrainJ_
   end interface constrainJ
+
 
   !> Optional constraining potential on projection of total angular momentum of shells
   interface constrainMj
@@ -46,22 +51,31 @@ module elecconstraints
 
 contains
 
+
   !> Quadratic constraint on atomic charge
   subroutine constrainQ_(shift, qIn, orb, species, conAt, conSh, Qtarget, V)
+
     !> shift to append contribution
     real(dp), intent(inout) :: shift(:,:,:,:)
+
     !> charges
     real(dp), intent(in) :: qIn(:,:,:)
+
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
     !> Chemical species of atoms
     integer, intent(in) :: species(:)
+
     !> atom to be constrained
     integer, intent(in) :: conAt
+
     !> shell of atom to be constrained
     integer, intent(in) :: conSh
+
     !> target value
     real(dp), intent(in) :: Qtarget
+
     !> weight of the constraint
     real(dp), intent(in) :: V
 
@@ -78,24 +92,34 @@ contains
 
   end subroutine constrainQ_
 
+
   !> Quadratic constraint on local spin (non-colinear)
   subroutine constrainS_(shift, qIn, orb, species, conAt, conSh, Starget, V, vec)
+
     !> shift to append contribution
     real(dp), intent(inout) :: shift(:,:,:,:)
+
     !> charges
     real(dp), intent(in) :: qIn(:,:,:)
+
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
     !> Chemical species of atoms
     integer, intent(in) :: species(:)
+
     !> atom to be constrained
     integer, intent(in) :: conAt
+
     !> shell of atom to be constrained
     integer, intent(in) :: conSh
+
     !> target value
     real(dp), intent(in) :: Starget
+
     !> weight of the constraint
     real(dp), intent(in) :: V
+
     !> direction of spin
     real(dp), intent(in) :: vec(3)
 
@@ -126,25 +150,35 @@ contains
 
   end subroutine constrainS_
 
+
   !> Quadratic constraint on orbital angular momentum
   subroutine constrainL_(iShift,qBlockSkew, orb, species, conAt, conSh, Ltarget, V, vec)
+
     !> shift block shift
     real(dp), intent(inout) :: iShift(:,:,:,:)
+
     !> Antisymmetric Mulliken block populations for imaginary coefficients of
-    !> Pauli matrics
+  !> Pauli matrics
     real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in) :: species(:)
+
     !> Atom for constraint
     integer, intent(in) :: conAt
+
     !> Shell for constraint
     integer, intent(in) :: conSh
+
     !> value of L
     real(dp), intent(in) :: Ltarget
+
     !> strength of constraint
     real(dp), intent(in) :: V
+
     !> direction of constrain
     real(dp), intent(in) :: vec(3)
 
@@ -209,28 +243,39 @@ contains
 
   end subroutine constrainL_
 
+
   !> Quadratic constraint on total angular momentum
   subroutine constrainJ_(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, Jtarget, V, &
       & vec)
     real(dp), intent(inout) :: shift(:,:,:,:)
+
     !> charges
     real(dp), intent(in) :: qIn(:,:,:)
+
     !> Imaginary block shift
     real(dp), intent(inout) :: iShift(:,:,:,:)
+
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
     real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in) :: species(:)
+
     !> Atom for constraint
     integer, intent(in) :: conAt
+
     !> Shell for constraint
     integer, intent(in) :: conSh
+
     !> value of J
     real(dp), intent(in) :: Jtarget
+
     !> strength of constraint
     real(dp), intent(in) :: V
+
     !> direction of constrain
     real(dp), intent(in) :: vec(3)
 
@@ -309,29 +354,41 @@ contains
 
   end subroutine constrainJ_
 
+
   !> Quadratic constraint on projection of angular momentum
   subroutine constrainMj_(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, MjTarget, V, &
       & vec)
+
     !> block shift
     real(dp), intent(inout) :: shift(:,:,:,:)
+
     !> charges
     real(dp), intent(in) :: qIn(:,:,:)
+
     !> Imaginary block shift
     real(dp), intent(inout) :: iShift(:,:,:,:)
+
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
     real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in) :: species(:)
+
     !> Atom for constraint
     integer, intent(in) :: conAt
+
     !> Shell for constraint
     integer, intent(in) :: conSh
+
     !> value of Mj
     real(dp), intent(in) :: MjTarget
+
     !> strength of constraint
     real(dp), intent(in) :: V
+
     !> direction of constrain
     real(dp), intent(in) :: vec(3)
 

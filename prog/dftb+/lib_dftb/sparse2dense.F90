@@ -23,12 +23,14 @@ module sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS,  blockHermitianHS, blockAntiSymmetrizeHS
 
+
   !> Unpack sparse matrix (Hamiltonian, overlap, etc.) to square form
   interface unpackHS
     module procedure unpackHS_real
     module procedure unpackHS_real_kpts
     module procedure unpackHS_cmplx
   end interface unpackHS
+
 
   !> Pack square matrix to sparse form.
   interface packHS
@@ -38,11 +40,13 @@ module sparse2dense
     module procedure packHSPauli_kpts
   end interface packHS
 
+
   !> Pack square matrix to sparse form.
   interface iPackHS
     module procedure packHSPauliImag
     module procedure packHSPauliImag_kpts
   end interface iPackHS
+
 
   !> Pack energy weighted Pauli idenity square matrix to sparse form.
   interface packErho
@@ -50,17 +54,20 @@ module sparse2dense
     module procedure packHSPauliERho_kpts
   end interface packErho
 
+
   !> Symmetrize the square matrix except the on-site blocks
   interface blockSymmetrizeHS
     module procedure blockSymmetrizeHS_real
     module procedure blockSymmetrizeHS_cmplx
   end interface blockSymmetrizeHS
 
+
   !> Hermitian the square matrix except the on-site blocks
   interface blockHermitianHS
     module procedure blockSymmetrizeHS_real
     module procedure blockHermitianHS_cmplx
   end interface blockHermitianHS
+
 
   !> Symmetrize the square matrix except the on-site blocks
   interface blockAntiSymmetrizeHS
@@ -69,29 +76,40 @@ module sparse2dense
 
 contains
 
+
   !> Unpacks sparse matrix to square form (complex version) @note The non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
   subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, &
       & iAtomStart, iPair, img2CentCell)
+
     !> Square form matrix on exit.
     complex(dp), intent(out) :: square(:,:)
+
     !> Sparse matrix
     real(dp),    intent(in)  :: orig(:)
+
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp),    intent(in)  :: kPoint(:)
+
     !> Neighbor list for each atom (First index from 0!)
     integer,     intent(in)  :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer,     intent(in)  :: nNeighbor(:)
+
     !> Index of the cell translation vector for each atom.
     integer,     intent(in)  :: iCellVec(:)
+
     !> Relative coordinates of the cell translation vectors.
     real(dp),    intent(in)  :: cellVec(:,:)
+
     !> Atom offset for the squared Hamiltonian
     integer,     intent(in)  :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,     intent(in)  :: iPair(0:,:)
+
     !> Atomic mapping indexes.
     integer,     intent(in)  :: img2CentCell(:)
 
@@ -141,30 +159,41 @@ contains
 
   end subroutine unpackHS_cmplx
 
+
   !> Unpacks sparse matrix to square form (only real part of the phase factor is considered)
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHS_real_kpts(square, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, &
       & iAtomStart, iPair, img2CentCell)
+
     !> Square form matrix on exit.
     real(dp), intent(out) :: square(:,:)
+
     !> Sparse matrix
     real(dp), intent(in)  :: orig(:)
+
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in)  :: kPoint(:)
+
     !> Neighbor list for each atom (First index from 0!)
     integer,  intent(in)  :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer,  intent(in)  :: nNeighbor(:)
+
     !> Index of the cell translation vector for each atom.
     integer,  intent(in)  :: iCellVec(:)
+
     !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in)  :: cellVec(:,:)
+
     !> Atom offset for the squared Hamiltonian
     integer,  intent(in)  :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,     intent(in)  :: iPair(0:,:)
+
     !> Index from images of atoms to the central cell.
     integer,  intent(in)  :: img2CentCell(:)
 
@@ -212,23 +241,31 @@ contains
     end do
   end subroutine unpackHS_real_kpts
 
+
   !> Unpacks sparse matrix to square form (real version for Gamma point)
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHS_real(square, orig, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
+
     !> Square form matrix on exit.
     real(dp), intent(out) :: square(:,:)
+
     !> Sparse matrix
     real(dp), intent(in)  :: orig(:)
+
     !> Neighbor list for each atom (First index from 0!)
     integer,  intent(in)  :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer,  intent(in)  :: nNeighbor(:)
+
     !> Atom offset for the squared Hamiltonian
     integer,  intent(in)  :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,     intent(in)  :: iPair(0:,:)
+
     !> Atomic mapping indexes.
     integer,  intent(in)  :: img2CentCell(:)
 
@@ -266,31 +303,44 @@ contains
 
   end subroutine unpackHS_real
 
+
   !> Pack squared matrix in the sparse form (complex version).
   subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+
     !> Sparse matrix
     real(dp),    intent(inout) :: primitive(:)
+
     !> Squared form matrix
     complex(dp), intent(in)    :: square(:,:)
+
     !> Relative coordinates of the K-point
     real(dp),    intent(in)    :: kPoint(:)
+
     !> Weight of the K-point
     real(dp),    intent(in)    :: kweight
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,     intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,     intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,     intent(in)    :: mOrb
+
     !> Index of the cell translation vector for each atom.
     integer,     intent(in)    :: iCellVec(:)
+
     !> Relative coordinates of the cell translation vectors.
     real(dp),    intent(in)    :: cellVec(:,:)
+
     !> Atom offset for the squared matrix
     integer,     intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,     intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,     intent(in)    :: img2CentCell(:)
 
@@ -358,23 +408,32 @@ contains
     end do
   end subroutine packHS_cmplx
 
+
   !> Pack squared matrix in the sparse form (real version).
   subroutine packHS_real(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
       & img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
+
     !> Squared form matrix
     real(dp), intent(in)    :: square(:,:)
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: mOrb
+
     !> Atom offset for the squared matrix
     integer,  intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,  intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: img2CentCell(:)
 
@@ -425,23 +484,32 @@ contains
     end do
   end subroutine packHS_real
 
+
   !> Pack squared matrix in the sparse form (real Pauli version).
   subroutine packHSPauli(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
       & img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout)   :: primitive(:,:)
+
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: mOrb
+
     !> Atom offset for the squared matrix
     integer,  intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,  intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: img2CentCell(:)
 
@@ -531,31 +599,44 @@ contains
 
   end subroutine packHSPauli
 
+
   !> Pack squared matrix into the sparse form (complex Pauli version).
   subroutine packHSPauli_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout)   :: primitive(:,:)
+
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
+
     !> location in the BZ in units of 2pi
     real(dp),    intent(in) :: kPoint(:)
+
     !> Weight of the k-point
     real(dp),    intent(in) :: kweight
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: mOrb
+
     !> Index of the cell translation vector for each atom.
     integer,     intent(in) :: iCellVec(:)
+
     !> Relative coordinates of the cell translation vectors.
     real(dp),    intent(in) :: cellVec(:,:)
+
     !> Atom offset for the squared matrix
     integer,  intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,  intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: img2CentCell(:)
 
@@ -690,23 +771,32 @@ contains
 
   end subroutine packHSPauli_kpts
 
+
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form.
   subroutine packHSPauliImag(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
       & img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout)   :: primitive(:,:)
+
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: mOrb
+
     !> Atom offset for the squared matrix
     integer,  intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,  intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: img2CentCell(:)
 
@@ -796,31 +886,44 @@ contains
 
   end subroutine packHSPauliImag
 
+
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form (complex version).
   subroutine packHSPauliImag_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:,:)
+
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
+
     !> Relative coordinates of the K-point
     real(dp),    intent(in) :: kPoint(:)
+
     !> Weight of the K-point
     real(dp),    intent(in) :: kweight
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: mOrb
+
     !> Index of the cell translation vector for each atom.
     integer,     intent(in) :: iCellVec(:)
+
     !> Relative coordinates of the cell translation vectors.
     real(dp),    intent(in) :: cellVec(:,:)
+
     !> Atom offset for the squared matrix
     integer,  intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,  intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: img2CentCell(:)
 
@@ -944,23 +1047,32 @@ contains
 
   end subroutine packHSPauliImag_kpts
 
+
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
   subroutine packHSPauliERho(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
       & img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout)   :: primitive(:)
+
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
+
     !> Neighbor list for the atoms (First index from 0!)
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for the atoms.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: mOrb
+
     !> Atom offset for the squared matrix
     integer,  intent(in)    :: iAtomStart(:)
+
     !> indexing array for the sparse Hamiltonian
     integer,  intent(in)    :: iPair(0:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: img2CentCell(:)
 
@@ -1018,27 +1130,38 @@ contains
 
   end subroutine packHSPauliERho
 
+
   !> Pack squared matrix in the sparse form (real version).
   subroutine packHSPauliERho_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+
     !> Sparse matrix
     real(dp), intent(inout)   :: primitive(:)
+
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
+
     !> Neighbor list for the atoms (First index from 0!)
     real(dp),    intent(in) :: kPoint(:)
+
     !> Nr. of neighbors for the atoms.
     real(dp),    intent(in) :: kweight
+
     !> Maximal number of orbitals on an atom.
     integer,  intent(in)    :: iNeighbor(0:,:)
+
     !> Index of the cell translation vector for each atom.
     integer,  intent(in)    :: nNeighbor(:)
+
     !> Relative coordinates of the cell translation vectors.
     integer,  intent(in)    :: mOrb
+
     !> Atom offset for the squared matrix
     integer,     intent(in) :: iCellVec(:)
+
     !> indexing array for the sparse Hamiltonian
     real(dp),    intent(in) :: cellVec(:,:)
+
     !> Mapping between image atoms and correspondent atom in the central cell.
     integer,  intent(in)    :: iAtomStart(:)
 
@@ -1115,10 +1238,13 @@ contains
 
   end subroutine packHSPauliERho_kpts
 
+
   !> Symmetrize a squared matrix leaving the on-site atomic blocks alone.  (Complex version)
   subroutine blockSymmetrizeHS_cmplx(square, iAtomStart)
+
     !> Square form matrix.
     complex(dp), intent(inout) :: square(:,:)
+
     !> Returns the offset array for each atom.
     integer, intent(in) :: iAtomStart(:)
 
@@ -1141,10 +1267,13 @@ contains
 
   end subroutine blockSymmetrizeHS_cmplx
 
+
   !> Symmetrize a squared matrix leaving the on-site atomic blocks alone.  (Complex version)
   subroutine blockHermitianHS_cmplx(square, iAtomStart)
+
     !> Square form matrix.
     complex(dp), intent(inout) :: square(:,:)
+
     !> Returns the offset array for each atom.
     integer, intent(in) :: iAtomStart(:)
 
@@ -1167,10 +1296,13 @@ contains
 
   end subroutine blockHermitianHS_cmplx
 
+
   !> Symmetrize a squared matrix leaving the on-site atomic blocks alone.  (Real version)
   subroutine blockSymmetrizeHS_real(square, iAtomStart)
+
     !> Square form matrix.
     real(dp), intent(inout) :: square(:,:)
+
     !> Returns the offset array for each atom.
     integer,  intent(in)    :: iAtomStart(:)
 
@@ -1192,10 +1324,13 @@ contains
 
   end subroutine blockSymmetrizeHS_real
 
+
   !> Anti-symmetrize a squared matrix leaving the on-site atomic blocks alone.  (Real version)
   subroutine blockAntiSymmetrizeHS_real(square, iAtomStart)
+
     !> Square form matrix.
     real(dp), intent(inout) :: square(:,:)
+
     !> Contains the offset in the array for each atom.
     integer,  intent(in)    :: iAtomStart(:)
 

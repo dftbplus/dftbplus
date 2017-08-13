@@ -30,13 +30,16 @@ module linrespgrad
 
   public :: LinRespGrad_old
 
+
   !> Tolerance for ARPACK solver.
   real(dp), parameter :: ARTOL = epsilon(1.0_dp)
+
 
   !> Maximal allowed iteration in the ARPACK solver.
   integer, parameter :: MAX_AR_ITER = 300
 
   character(lc) :: tmpStr
+
 
   !> Names of output files
   character(*), parameter :: arpackOut = "ARPACK.DAT"
@@ -50,12 +53,14 @@ module linrespgrad
   character(*), parameter :: transDipOut = "TDP.DAT"
   character(*), parameter :: singlePartOut = "SPX.DAT"
 
+
   !> Communication with ARPACK for progress information
   integer :: logfil, ndigit, mgetv0
   integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
   integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
   integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
-  
+
+
   !> Common block of ARPACK variables
   common /debug/ logfil, ndigit, mgetv0,&
       &    msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,&
@@ -63,6 +68,7 @@ module linrespgrad
       &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
 contains
+
 
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !> based on Time Dependent DFRT
@@ -72,95 +78,140 @@ contains
       & fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, tEnergyWindow, &
       & energyWindow,tOscillatorWindow, oscillatorWindow, omega, shift, skHamCont, skOverCont, &
       & excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+
     !> spin polarized calculation
     logical, intent(in) :: tSpin
+
     !> number of atoms
     integer, intent(in) :: natom
+
     !> index vector for S and H matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> ground state MO-coefficients
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
     !> ground state MO-energies
     real(dp), intent(in) :: grndEigVal(:,:)
+
     !> converged ground state Mulliken net charges - atomic charges
     real(dp), intent(in) :: dq(:)
+
     !> atomic positions
     real(dp), intent(in) :: coord0(:,:)
+
     !> number of excited states to solve for
     integer, intent(in) :: nexc
+
     !> state of interest (< 0 find brightest, 0 calculate all nexc states, > 0 that specific state)
     integer, intent(in) :: nstat0
+
     !> symmetry required singlet ('S'), triplet ("T") or both ("B")
     character, intent(in) :: symc
+
     !> square overlap matrix between basis functions, both triangles required
     real(dp), intent(in) :: SSqr(:,:)
+
     !> occupations for the states
     real(dp), intent(in) :: filling(:,:)
+
     !> chemical species of each atom
     integer, intent(in) :: species0(:)
+
     !> ground state Hubbard U values for each species
     real(dp), intent(in) :: HubbardU(:)
+
     !> ground state spin derivatives for each species
     real(dp), intent(in) :: spinW(:)
+
     !> real number of electrons in system
     real(dp), intent(in) :: rnel
+
     !> Atomic neighbour lists
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Mapping of atom number to central cell atom number
     integer, intent(in) :: img2CentCell(:)
+
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
     !> print tag information
     logical, intent(in) :: tWriteTagged
+
     !> file descriptor for the tagged data output
     integer, intent(in) :: fdTagged
+
     !> file unit for excited Mulliken populations?
     integer, intent(in) :: fdMulliken
+
     !> file unit if the coefficients for the excited states should be written to disc
     integer, intent(in) :: fdCoeffs
+
     !> Add the ground state to the excited state transition density matrix when determining the
     !> natural orbitals
     logical, intent(in) :: tGrndState
+
     !> file for X+Y data
     integer, intent(in) :: fdXplusY
+
     !> File unit for single particle (KS) transitions if required
     integer, intent(in) :: fdTrans
+
     !> File unit for single particle transition dipole strengths
     integer, intent(in) :: fdSPTrans
+
     !> File unit for transition dipole data
     integer, intent(in) :: fdTradip
+
     !> write state of Arnoldi solver to disc
     logical, intent(in) :: tArnoldi
+
     !> file unit for Arnoldi write out
     integer, intent(in) :: fdArnoldi
+
     !> file unit for Arnoldi solver tests, if this is < 1 no tests are performed
     integer, intent(in) :: fdArnoldiDiagnosis
+
     !> file handle for excitation energies
     integer, intent(in) :: fdExc
+
     !> is an energy window specified
     logical, intent(in)  :: tEnergyWindow
+
     !> energy window for transitions above energy of nexc-th single particle transtion
     real(dp), intent(in) :: energyWindow
+
     !> is an oscillator window specified
     logical, intent(in)  :: tOscillatorWindow
+
     !> the window for transitions not included in nexc and energy window (if used)
     real(dp), intent(in) :: oscillatorWindow
+
     !> excitation energy of state nstat0 if nstat0 /= 0
     real(dp), intent(out) :: omega
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
+
     !> non-SCC hamitonian data
     type(OSlakoCont), intent(in), optional :: skHamCont
+
     !> overlap data
     type(OSlakoCont), intent(in), optional :: skOverCont
+
     !> excitation energy gradient with respect to atomic positions
     real(dp), intent(out), optional :: excgrad(:,:)
+
     !> Differentiator for H0 and S matrices.
     class(NonSccDiff), intent(in), optional :: derivator
+
     !> ground state square density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
+
     !> Occupation numbers for natural orbitals from the excited state density matrix
     real(dp), intent(out), optional :: occNatural(:)
+
     !> the single particle eigenvectors themselves for the excited state density matrix.
     real(dp), intent(out), optional :: naturalOrbs(:,:)
 
@@ -171,6 +222,7 @@ contains
     real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
+
 
     !> array from pairs of single particles states to compound index - should replace with a more
     !> compact data structure in the cases where there are oscilator windows
@@ -189,11 +241,14 @@ contains
 
     integer :: nStat
 
+
     !> control variables
     logical :: tZVector, tCoeffs, tTradip
 
+
     !> printing data
     logical :: tMulliken
+
 
     !> should gradients be calculated
     logical :: tForces
@@ -267,6 +322,7 @@ contains
         tForces = .true.
       end if
     end if
+
 
     !> is a z vector required?
     tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs)
@@ -566,41 +622,59 @@ contains
 
   end subroutine LinRespGrad_old
 
+
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc, &
       & grndEigVecs, filling, getij, gammaMat, species0, spinW, fdArnoldiDiagnosis, eval, evec)
+
     !> spin polarisation?
     logical, intent(in) :: tSpin
+
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
+
     !> symmetry to calculate transitions
     character, intent(in) :: sym
+
     !> index array for single particle excitions
     integer, intent(in) :: win(:)
+
     !> number of same spin excitations
     integer, intent(in) :: nmatup
+
     !> number of occupied-virtual transitions
     integer, intent(in) :: nxov
+
     !> indexing array for square matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: stimc(:,:,:)
+
     !> ground state eigenvectors
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
     !> occupation numbers
     real(dp), intent(in) :: filling(:,:)
+
     !> electrostatic matrix
     real(dp), intent(in) :: gammaMat(:,:)
+
     !> index array for for single particle excitations
     integer, intent(in) :: getij(:,:)
+
     !> central cell chemical species
     integer, intent(in) :: species0(:)
+
     !> file handle for ARPACK eigenstate tests
     integer, intent(in) :: fdArnoldiDiagnosis
+
     !> atomic resolved spin constants
     real(dp), intent(in) :: spinW(:)
+
     !> resulting eigenvalues for transitions
     real(dp), intent(out) :: eval(:)
+
     !> eigenvectors for transitions
     real(dp), intent(out) :: evec(:,:)
 
@@ -719,33 +793,47 @@ contains
 
   end subroutine buildAndDiagExcMatrix
 
+
   !> Calculate oscillator strength for a given excitation between KS states
   subroutine getOscillatorStrengths(sym, snglPartTransDip, wij, eval, evec, filling, win, nmatup, &
       & getij, istat, osz, tTradip, transitionDipoles)
+
     !> symmetry of transition
     character, intent(in) :: sym
+
     !> dipole moments for single particle transtions
     real(dp), intent(in) :: snglPartTransDip(:,:)
+
     !> energies for single particle transitions
     real(dp), intent(in) :: wij(:)
+
     !> Low lying eigenvalues of Casida eqn
     real(dp), intent(in) :: eval(:)
+
     !> eigenvectors of Casida eqn
     real(dp), intent(in) :: evec(:,:)
+
     !> Single particle occupations in the ground state
     real(dp), intent(in) :: filling(:,:)
+
     !> index for transitions
     integer, intent(in) :: win(:)
+
     !> number of up spin transitions before the down spin start
     integer, intent(in) :: nmatup
+
     !> index from single particle excitation to specific pair of single particle states involved
     integer, intent(in) :: getij(:,:)
+
     !> write transition dipole
     logical :: tTradip
+
     !> flag wich if <-1 on entry is returned as the brightest state
     integer, intent(inout) :: istat
+
     !> Oscilator strengths of transitions
     real(dp), intent(out) :: osz(:)
+
     !> resulting transition dipoles
     real(dp), intent(out) :: transitionDipoles(:,:)
 
@@ -789,27 +877,38 @@ contains
 
   end subroutine getOscillatorStrengths
 
+
   !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
   !> considered an upper threshold for reliability according to Garcia thesis)
   subroutine getExcSpin(Ssq, nmatup, getij, win, eval, evec, wij, filling, stimc, grndEigVecs)
+
     !> spin contamination
     real(dp), intent(out) :: Ssq(:)
+
     !> number of spin up excitations
     integer, intent(in) :: nmatup
+
     !> index for composite excitations to specific occupied and empty states
     integer, intent(in) :: getij(:,:)
+
     !> single particle excitations
     integer, intent(in) :: win(:)
+
     !> Casida exitation energies
     real(dp), intent(in) :: eval(:)
+
     !> Casida excited eigenvectors
     real(dp), intent(in) :: evec(:,:)
+
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
+
     !> occupations in ground state
     real(dp), intent(in) :: filling(:,:)
+
     !> Overlap times ground state eigenvectors
     real(dp), intent(in) :: stimc(:,:,:)
+
     !> Ground state eigenvectors
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
@@ -933,54 +1032,78 @@ contains
 
   end subroutine getExcSpin
 
+
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !> do not depend on Z.
   subroutine getZVectorEqRHS(xpy, xmy, win, iAtomStart, homo, nocc, nmatup, getij, iatrans, natom, &
       & species0, grndEigVal, stimc, c, gammaMat, spinW, omega, sym, rhs, t, wov, woo, wvv)
+
     !> X+Y Furche term
     real(dp), intent(in) :: xpy(:)
+
     !> X-Y Furche term
     real(dp), intent(in) :: xmy(:)
+
     !> index array for single particle transitions
     integer, intent(in) :: win(:)
+
     !> index vector for S and H matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> highest occupied level
     integer, intent(in) :: homo
+
     !> number of filled states
     integer, intent(in) :: nocc
+
     !> number of same spin excitations
     integer, intent(in) :: nmatup
+
     !> index array between transitions in square and 1D representations
     integer, intent(in) :: getij(:,:)
+
     !> index array from orbital pairs to compound index
     integer, intent(in) :: iatrans(:,homo+1:)
+
     !> number of central cell atoms
     integer, intent(in) :: natom
+
     !> central cell chemical species
     integer, intent(in) :: species0(:)
+
     !> ground state wavefunctions
     real(dp), intent(in) :: grndEigVal(:)
+
     !> overlap times ground state wavefunctions
     real(dp), intent(in) :: stimc(:,:,:)
+
     !> ground state wavefunctions
     real(dp), intent(in) :: c(:,:,:)
+
     !> softened coulomb matrix
     real(dp), intent(in) :: gammaMat(:,:)
+
     !> ground state spin derivatives for each species
     real(dp), intent(in) :: spinW(:)
+
     !> Excitation energies
     real(dp), intent(in) :: omega
+
     !> Symmetry of the transitions
     character, intent(in) :: sym
+
     !> Right hand side for the Furche solution
     real(dp), intent(out) :: rhs(:)
+
     !> T matrix
     real(dp), intent(out) :: t(:,:)
+
     !> W vector occupied-virtual part
     real(dp), intent(out) :: wov(:)
+
     !> W vector occupied part
     real(dp), intent(out) :: woo(:)
+
     !> W vector virtual part
     real(dp), intent(out) :: wvv(:)
 
@@ -1165,26 +1288,37 @@ contains
 
   end subroutine getZVectorEqRHS
 
+
   !> Solving the (A+B) Z = -R equation via conjugate gradient
   subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c)
+
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
+
     !> index for single particle excitations
     integer, intent(in) :: win(:)
+
     !> number of transitions between only up states
     integer, intent(in) :: nmatup
+
     !> index array from composite index to specific filled-empty transition
     integer, intent(in) :: getij(:,:)
+
     !> number of atoms
     integer, intent(in) :: natom
+
     !> index vector for S and H0 matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> overlap times ground state mo-coefficients
     real(dp), intent(in) :: stimc(:,:,:)
+
     !> Softened coulomb matrix
     real(dp), intent(in) :: gammaMat(:,:)
+
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
+
     !> ground state mo-coefficients
     real(dp), intent(in) :: c(:,:,:)
 
@@ -1258,36 +1392,51 @@ contains
 
   end subroutine solveZVectorEq
 
+
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
   subroutine calcWvectorZ(zz, win, homo, nocc, nmatup, getij, iAtomStart, stimc, c, gammaMat, &
       & grndEigVal, wov, woo, wvv)
+
     !> Z vector
     real(dp), intent(in) :: zz(:)
+
     !> index array for transitions
     integer, intent(in) :: win(:)
+
     !> highest occupied level
     integer, intent(in) :: homo
+
     !> number of filled levels
     integer, intent(in) :: nocc
+
     !> number of same spin excitations
     integer, intent(in) :: nmatup
+
     !> index array between transitions in square and 1D representations
     integer, intent(in) :: getij(:,:)
+
     !> index array for S and H0 ground state square matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> overlap times ground state wavefunctions
     real(dp), intent(in) :: stimc(:,:,:)
+
     !> ground state wavefunctions
     real(dp), intent(in) :: c(:,:,:)
+
     !> softened coulomb matrix
     real(dp), intent(in) :: gammaMat(:,:)
+
     !> ground state MO-energies
     real(dp), intent(in) :: grndEigVal(:)
+
     !> W vector occupied-virtual part
     real(dp), intent(inout) :: wov(:)
+
     !> W vector occupied part
     real(dp), intent(inout) :: woo(:)
+
     !> W vector virtual part
     real(dp), intent(inout) :: wvv(:)
 
@@ -1351,15 +1500,20 @@ contains
 
   end subroutine calcWvectorZ
 
+
   !> Mulliken population for a square density matrix and overlap
   !> Note: assumes both triangles of both square matrices are filled
   subroutine getExcMulliken(iAtomStart, pc, s, dqex)
+
     !> indexing array for atoms
     integer, intent(in) :: iAtomStart(:)
+
     !> density matrix
     real(dp), intent(in) :: pc(:,:)
+
     !> overlap matrix
     real(dp), intent(in) :: s(:,:)
+
     !> output atomic charges
     real(dp), intent(out) :: dqex(:)
 
@@ -1376,18 +1530,25 @@ contains
 
   end subroutine getExcMulliken
 
+
   !> Excited state Mulliken charges and dipole moments written to disc
   subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0, fdMulliken)
+
     !> symmetry label
     character, intent(in) :: sym
+
     !> state index
     integer, intent(in)   :: nstat
+
     !> ground state net charge
     real(dp), intent(in)  :: dq(:)
+
     !> change in atomic charges from ground to excited state
     real(dp), intent(in)  :: dqex(:)
+
     !> central cell coordinates
     real(dp), intent(in)  :: coord0(:,:)
+
     !> file unit for Mulliken data
     integer, intent(in) :: fdMulliken
 
@@ -1432,24 +1593,33 @@ contains
 
   end subroutine writeExcMulliken
 
+
   !> Calculate transition moments for transitions between Kohn-Sham states, including spin-flipping
   !> transitions
   subroutine calcTransitionDipoles(coord0, win, nmatup, getij, iAtomStart, stimc, grndEigVecs, &
       & snglPartTransDip)
+
     !> Atomic positions
     real(dp), intent(in) :: coord0(:,:)
+
     !> transition energies
     integer, intent(in) :: win(:)
+
     !> number of same-spin transitions
     integer, intent(in) :: nmatup
+
     !> index array for ground state square matrices
     integer, intent(in) :: iAtomStart(:)
+
     !> index array for excitation pairs
     integer, intent(in) :: getij(:,:)
+
     !> overlap times ground state wavefunctions
     real(dp), intent(in) :: stimc(:,:,:)
+
     !> ground state wavefunctions
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
     !> resulting transition dipoles
     real(dp), intent(out) :: snglPartTransDip(:,:)
 
@@ -1473,6 +1643,7 @@ contains
 
   end subroutine calcTransitionDipoles
 
+
   !> Calculation of force from derivatives of excitation energy
   !> 1. we need the ground and excited Mulliken charges
   !> 2. we need P,(T,Z),W, X + Y from linear response
@@ -1482,67 +1653,98 @@ contains
       & nocc, nmatup, getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, &
       & HubbardU, spinW, shift, woo, wov, wvv, xpy, coord0, orb, &
       & skHamCont, skOverCont, derivator, rhoSqr, excgrad)
+
     !> symmetry of the transition
     character, intent(in) :: sym
+
     !> number of single particle transitions to include
     integer, intent(in)   :: nxov
+
     !> number of central cell atoms
     integer, intent(in)   :: natom
+
     !> central cell chemical species
     integer, intent(in)   :: species0(:)
+
     !> index array for S and H0 ground state square matrices
     integer, intent(in)   :: iAtomStart(:)
+
     !> number of orbitals for ground state system
     integer, intent(in)   :: norb
+
     !> number of highest occupied state in ground state
     integer, intent(in)   :: homo
+
     !> number of occupied states in calculation (not neccessarily same as HOMO in the case of
     !> windowing)
     integer, intent(in)   :: nocc
+
     !> single particle excitation energies
     integer, intent(in)   :: win(:)
+
     !> number of up->up transitions
     integer, intent(in)   :: nmatup
+
     !> index array from composite transition index to specific single particle states
     integer, intent(in)   :: getij(:,:)
+
     !> ground state eigenvectors
     real(dp), intent(in)  :: grndEigVecs(:,:,:)
+
     !> transition density matrix
     real(dp), intent(in)  :: pc(:,:)
+
     !> overlap times ground state eigenvectors
     real(dp), intent(in)  :: stimc(:,:,:)
+
     !> ground state net charges
     real(dp), intent(in)  :: dq(:)
+
     !> charge differences from ground to excited state
     real(dp), intent(in)  :: dqex(:)
+
     !> softened coulomb matrix
     real(dp), intent(in)  :: gammaMat(:,:)
+
     !> ground state Hubbard U values
     real(dp), intent(in)  :: HubbardU(:)
+
     !> ground state spin derivatives for each species
     real(dp), intent(in)  :: spinW(:)
+
     !> ground state potentials (shift vector)
     real(dp), intent(in)  :: shift(:)
+
     !> W vector occupied part
     real(dp), intent(in)  :: woo(:)
+
     !> W vector occupied-virtual part
     real(dp), intent(in)  :: wov(:)
+
     !> W vector virtual part
     real(dp), intent(in)  :: wvv(:)
+
     !> X+Y Furche term
     real(dp), intent(in)  :: xpy(:)
+
     !> central cell atomic coordinates
     real(dp), intent(in)  :: coord0(:,:)
+
     !> data type for atomic orbital information
     type(TOrbitals), intent(in)   :: orb
+
     !> H0 data
     type(OSlakoCont), intent(in)  :: skHamCont
+
     !> overlap data
     type(OSlakoCont), intent(in)  :: skOverCont
+
     !> Differentiatior for the non-scc matrices
     class(NonSccDiff), intent(in) :: derivator
+
     !> ground state density matrix for spin-free case
     real(dp), intent(in)  :: rhoSqr(:,:)
+
     !> resulting excited state gradient
     real(dp), intent(out) :: excgrad(:,:)
 
@@ -1660,8 +1862,8 @@ contains
       end do
     end do
 
-    !> now calculating the force
-    !> complexity : norb * norb * 3
+
+    ! now calculating the force complexity : norb * norb * 3
 
     ! as have already performed norb**3 operation to get here,
     ! calculate for all atoms
@@ -1737,25 +1939,35 @@ contains
 
   end subroutine addGradients
 
+
   !> Write out excitations projected onto ground state
   subroutine writeCoeffs(tt, grndEigVecs, occ, nocc, fdCoeffs, tCoeffs, tIncGroundState, &
       & occNatural, naturalOrbs)
+
     !> T part of the matrix
     real(dp), intent(in) :: tt(:,:)
+
     !> ground state eigenvectors
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
     !> ground state occupations
     real(dp), intent(in) :: occ(:,:)
+
     !> number of filled states
     integer, intent(in)  :: nocc
+
     !> file descriptor to write data into
     integer, intent(in)  :: fdCoeffs
+
     !> save the coefficients of the natural orbitals
     logical, intent(in)  :: tCoeffs
+
     !> include the ground state as well as the transition part
     logical, intent(in)  :: tIncGroundState
+
     !> Natural orbital occupation numbers
     real(dp), intent(out), optional :: occNatural(:)
+
     !> Natural orbitals
     real(dp), intent(out), optional :: naturalOrbs(:,:)
 
@@ -1806,12 +2018,16 @@ contains
 
   end subroutine writeCoeffs
 
+
   !> Project MO density matrix onto ground state orbitals
   subroutine evalCoeffs(t2,occ,eig)
+
     !> density matrix
     real(dp), intent(inout) :: t2(:,:)
+
     !> resulting natural orbital occupations
     real(dp), intent(out)   :: occ(:)
+
     !> 'natural' eigenvectors
     real(dp), intent(in)    :: eig(:,:)
 
@@ -1825,42 +2041,60 @@ contains
 
   end subroutine evalCoeffs
 
+
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
   subroutine writeExcitations(sym, osz, nexc, nmatup, getij, win, eval, evec, wij, fdXplusY, &
       & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
+
     !> oscillator strengths for transitions from ground to excited states
     real(dp), intent(in) :: osz(:)
+
     !> number of excited states to solve for
     integer, intent(in) :: nexc
+
     !> number of same spin excitations
     integer, intent(in) :: nmatup
+
     !> index array between transitions in square and 1D representations
     integer, intent(in) :: getij(:,:)
+
     !> index array for single particle excitions
     integer, intent(in) :: win(:)
+
     !> excitation energies
     real(dp), intent(in) :: eval(:)
+
     !> eigenvectors of excited states
     real(dp), intent(in) :: evec(:,:)
+
     !> single particle excitation energies
     real(dp), intent(in) :: wij(:)
+
     !> single particle transition dipole moments
     real(dp), intent(in) :: transitionDipoles(:,:)
+
     !> should tagged information be written out
     logical, intent(in) :: tWriteTagged
+
     !> file unit for transition dipoles
     integer, intent(in) :: fdTradip
+
     !> file unit for X+Y data
     integer, intent(in) :: fdXplusY
+
     !> file unit for transitions
     integer, intent(in) :: fdTrans
+
     !> file unit for tagged output (> -1 for write out)
     integer, intent(in) :: fdTagged
+
     !> file unit for excitation energies
     integer, intent(in) :: fdExc
+
     !> For spin polarized systems, measure of spin
     real(dp), intent(in), optional :: Ssq(:)
 
@@ -2019,8 +2253,7 @@ contains
 
     end do
 
-    ! Determine degenerate levels and sum oscillator strength over any
-    ! degenerate levels
+    ! Determine degenerate levels and sum oscillator strength over any degenerate levels
     iDeg = 1
     eDeg(1) = eval(1)
     oDeg(1) = osz(1)
@@ -2040,17 +2273,23 @@ contains
 
   end subroutine writeExcitations
 
+
   !> Create transition density matrix in MO basis P = T + 1/2 Z symmetric (paper has T + Z
   !> asymmetric) (Zab = Zij = 0, Tia = 0)
   subroutine calcPMatrix(t, rhs, win, getij, pc)
+
     !> T matrix
     real(dp), intent(in) :: t(:,:)
+
     !> Z matrix
     real(dp), intent(in) :: rhs(:)
+
     !> index array for single particle transitions
     integer, intent(in) :: win(:)
+
     !> array of the occupied->virtual pairs (nTransitions,occ 1 or virtual 2)
     integer, intent(in) :: getij(:,:)
+
     !> resulting excited state density matrix
     real(dp), intent(out) :: pc(:,:)
 
@@ -2067,24 +2306,33 @@ contains
 
   end subroutine calcPMatrix
 
+
   !> Write single particle excitations to a file as well as potentially to tagged output file (in
   !> that case, summing over degeneracies)
   subroutine writeSPExcitations(wij, win, nmatup, getij, fdSPTrans, sposz, nxov, tSpin)
+
     !> single particle excitation energies
     real(dp), intent(in)  :: wij(:)
+
     !> index array for single particle transitions
     integer, intent(in)   :: win(:)
+
     !> number of transitions within same spin channel
     integer, intent(in)   :: nmatup
+
     !> index from composite index to occupied and virtual single particle states
     integer, intent(in)   :: getij(:,:)
+
     !> file descriptor for the single particle excitation data
     integer, intent(in)   :: fdSPTrans
+
     !> single particle oscilation strengths
     real(dp), intent(in)  :: sposz(:)
+
     !> Number of included single particle excitations to print out (assumes that win and wij are
     !> sorted so that the wanted transitions are first in the array)
     integer, intent(in)   :: nxov
+
     !> is this a spin-polarized calculation?
     logical, intent(in)   :: tSpin
 

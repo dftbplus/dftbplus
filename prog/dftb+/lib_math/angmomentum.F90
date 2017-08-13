@@ -19,10 +19,12 @@ module angmomentum
   private
   public :: Loperators, getL
 
+
   !> construct L_z and L^+ in the tesseral spherical hamonics basis for a given value of l
   interface Loperators
     module procedure operators
   end interface
+
 
   !> Calculate atomic angular momentum for each shell
   interface getL
@@ -32,12 +34,16 @@ module angmomentum
 
 contains
 
+
   !> Returns L^+ and L_z in the tesseral spherical Harmonics basis used in DFTB+
   subroutine operators(Lplus,Lz,l)
+
     !> L^+ operator
     complex(dp),intent(out) :: Lplus(0:,0:)
+
     !> L_z operator
     complex(dp),intent(out) :: Lz(0:,0:)
+
     !> value of the orbital momentum to construct these matrices
     integer, intent(in)     :: l
 
@@ -81,16 +87,22 @@ contains
 
   end subroutine operators
 
+
   !> Calculates the on-site orbital angular momentum
   subroutine onsite(Lshell, rho, iAtomStart, orb, species)
+
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out)       :: Lshell(:,:,:)
+
     !> Density matrix
     complex(dp), intent(in)     :: rho(:,:)
+
     !> Offset array in the square matrix
     integer,  intent(in)        :: iAtomStart(:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in)         :: species(:)
 
@@ -166,14 +178,19 @@ contains
 
   end subroutine onsite
 
+
   !> Calculates the on-site orbital angular momentum for dual populations
   subroutine dual(Lshell, qBlockSkew, orb, species)
+
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out)       :: Lshell(:,:,:)
+
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
     real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> Species of the atoms
     integer, intent(in)         :: species(:)
 

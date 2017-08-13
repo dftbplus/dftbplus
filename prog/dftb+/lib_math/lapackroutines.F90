@@ -18,8 +18,10 @@ module lapackroutines
 
   private
 
+
   !> Used to return runtime diagnostics
   character(len=100) :: error_string
+
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
   !> matrix and X and B are N-by-NRHS matrices
@@ -27,6 +29,7 @@ module lapackroutines
     module procedure gesv_real
     module procedure gesv_dble
   end interface gesv
+
 
   !> Computes the LU decomposition of a general rectangular matrix using partial pivoting with row
   !> interchanges.
@@ -37,25 +40,30 @@ module lapackroutines
     module procedure getrf_dble
   end interface getrf
 
+
   !> Bunch-Kaufman factorization of a symmetric matrix.
   interface sytrf
     module procedure sytrf_real, sytrf_dreal
   end interface sytrf
+
 
   !> Bunch-Kaufman factorization of a Hermitian matrix.
   interface hetrf
     module procedure hetrf_complex, hetrf_dcomplex
   end interface hetrf
 
+
   !> Inverts a symmetric matrix.
   interface sytri
     module procedure sytri_real, sytri_dreal
   end interface sytri
 
+
   !> Inverts a Hermitian matrix.
   interface hetri
     module procedure hetri_complex, hetri_dcomplex
   end interface hetri
+
 
   !> Computes the inverse of a matrix using LU factorization computed by getrf.
   interface getri
@@ -63,12 +71,14 @@ module lapackroutines
     module procedure getri_dble
   end interface getri
 
+
   !> Solves a system of linear equations A*X = B with a real symmetric matrix A using the
   !> factorization A = U*D*U**T or A = L*D*L**T computed by DSYTRF.
   interface sytrs
     module procedure sytrs_dble
     module procedure sytrs_real
   end interface sytrs
+
 
   !> returns a vector of random numers, either from a uniform or normal distribution
   interface larnv
@@ -83,18 +93,24 @@ module lapackroutines
 
 contains
 
+
   !> Single precision version of gesv
   subroutine gesv_real(aa, bb, nEquation, nSolution, iError)
+
     !> Contains the coefficients on entry, the LU factorisation on exit.
     real(rsp), intent(inout) :: aa(:,:)
+
     !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
     real(rsp), intent(inout) :: bb(:,:)
+
     !> The size of the problem (nr. of variables and equations). Must be only specified if different
     !> from size(aa, dim=1).
     integer, intent(in), optional :: nEquation
+
     !> Nr. of right hand sides (nr. of solutions). Must be only specified if different from size(b,
     !> dim=2).
     integer, intent(in), optional :: nSolution
+
     !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
     !> will not abort the program.
     integer, intent(out), optional :: iError
@@ -141,18 +157,24 @@ contains
 
   end subroutine gesv_real
 
+
   !> Double precision version of gesv
   subroutine gesv_dble(aa, bb, nEquation, nSolution, iError)
+
     !> Contains the coefficients on entry, the LU factorisation on exit.
     real(rdp), intent(inout) :: aa(:,:)
+
     !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
     real(rdp), intent(inout) :: bb(:,:)
+
     !> The size of the problem (nr. of variables and equations). Must be only specified if different
     !> from size(aa, dim=1).
     integer, intent(in), optional :: nEquation
+
     !> Nr. of right hand sides (nr. of solutions). Must be only specified if different from size(b,
     !> dim=2).
     integer, intent(in), optional :: nSolution
+
     !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
     !> will not abort the program.
     integer, intent(out), optional :: iError
@@ -200,18 +222,24 @@ contains
 
   end subroutine gesv_dble
 
+
   !> Single precision version of getrf.
   subroutine getrf_real(aa, ipiv, nRow, nColumn, iError)
+
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
     real(rsp), intent(inout) :: aa(:,:)
+
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(out) :: ipiv(:)
+
     !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
     !> of the passed matrix)
     integer, optional, intent(in) :: nRow
+
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
     !> of the passed matrix)
     integer, optional, intent(in) :: nColumn
+
     !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
     integer, optional, intent(out) :: iError
@@ -252,18 +280,24 @@ contains
 
   end subroutine getrf_real
 
+
   !> Double precision version of getrf.
   subroutine getrf_dble(aa, ipiv, nRow, nColumn, iError)
+
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
     real(rdp), intent(inout) :: aa(:,:)
+
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(out) :: ipiv(:)
+
     !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
     !> of the passed matrix)
     integer, optional, intent(in) :: nRow
+
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
     !> of the passed matrix)
     integer, optional, intent(in) :: nColumn
+
     !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
     integer, optional, intent(out) :: iError
@@ -304,15 +338,20 @@ contains
 
   end subroutine getrf_dble
 
+
   !> Single precision version of getri.
   subroutine getri_real(aa, ipiv, nRow, iError)
+
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
     real(rsp), intent(inout) :: aa(:,:)
+
     !> Pivot indices, as calculated by getri
     integer, intent(in) :: ipiv(:)
+
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
     !> the passed matrix)
     integer, intent(in), optional :: nRow
+
     !> iError Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional :: iError
@@ -356,15 +395,20 @@ contains
 
   end subroutine getri_real
 
+
   !> Double precision version of getri.
   subroutine getri_dble(aa, ipiv, nRow, iError)
+
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
     real(rdp), intent(inout) :: aa(:,:)
+
     !> Pivot indices, as calculated by getri
     integer, intent(in) :: ipiv(:)
+
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
     !> the passed matrix)
     integer, intent(in), optional :: nRow
+
     !> iError Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional :: iError
@@ -408,12 +452,16 @@ contains
 
   end subroutine getri_dble
 
+
   !> Inverts a matrix.
   subroutine matinv(aa, nRow, iError)
+
     !> Matrix to invert on entry, inverted matrix on exit
     real(dp), intent(inout) :: aa(:,:)
+
     !> Nr. of rows of the matrix (if different from size(aa, dim=1)
     integer, intent(in), optional :: nRow
+
     !> iError Error flag. Returns 0 on successfull operation. If this variable is not specified, any
     !> occuring error (e.g. singular matrix) stops the program.
     integer, intent(out), optional :: iError
@@ -445,12 +493,16 @@ contains
 
   end subroutine matinv
 
+
   !> Inverts a symmetric matrix.
   subroutine symmatinv(aa, uplo, info)
+
     !> Symmetric matrix to invert on entry, inverted matrix on exit.
     real(dp), intent(inout) :: aa(:,:)
+
     !> Upper ('U') or lower ('L') matrix. Default: 'L'.
     character, intent(in), optional :: uplo
+
     !> Info flag. If not specified and an error occurs, the subroutine will stop.
     integer, intent(out), optional :: info
 
@@ -474,12 +526,16 @@ contains
 
   end subroutine symmatinv
 
+
   !> Inverts a Hermitian matrix.
   subroutine hermatinv(aa, uplo, info)
+
     !> Hermitian matrix to invert on entry, inverted matrix on exit.
     complex(dp), intent(inout) :: aa(:,:)
+
     !> Upper ('U') or lower ('L') matrix. Default: 'L'.
     character, intent(in), optional :: uplo
+
     !> Info flag. If not specified and an error occurs, the subroutine will stop.
     integer, intent(out), optional :: info
 
@@ -503,14 +559,19 @@ contains
 
   end subroutine hermatinv
 
+
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   subroutine sytrf_real(aa, ipiv, uplo, info)
+
     !> Symmetric matrix
     real(rsp), intent(inout) :: aa(:,:)
+
     !> Interchanges of blocks on exit.
     integer, intent(out) :: ipiv(:)
+
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
+
     !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -542,14 +603,19 @@ contains
 
   end subroutine sytrf_real
 
+
   !> Computes the Bunch-Kaufman factorization of a symmetric matrix (dreal).
   subroutine sytrf_dreal(aa, ipiv, uplo, info)
+
     !> Symmetric matrix
     real(rdp), intent(inout) :: aa(:,:)
+
     !> Interchanges of blocks on exit.
     integer, intent(out) :: ipiv(:)
+
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
+
     !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -581,14 +647,19 @@ contains
 
   end subroutine sytrf_dreal
 
+
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (complex).
   subroutine hetrf_complex(aa, ipiv, uplo, info)
+
     !> Hermitian matrix
     complex(rsp), intent(inout) :: aa(:,:)
+
     !> Interchanges of blocks on exit.
     integer, intent(out) :: ipiv(:)
+
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
+
     !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -620,14 +691,19 @@ contains
 
   end subroutine hetrf_complex
 
+
   !> Computes the Bunch-Kaufman factorization of a Hermitian matrix (dcomplex).
   subroutine hetrf_dcomplex(aa, ipiv, uplo, info)
+
     !> Hermitian matrix
     complex(rdp), intent(inout) :: aa(:,:)
+
     !> Interchanges of blocks on exit.
     integer, intent(out) :: ipiv(:)
+
     !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
     character, intent(in), optional :: uplo
+
     !> Info flag (0 = OK). If not set and an error occured, the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -659,14 +735,19 @@ contains
 
   end subroutine hetrf_dcomplex
 
+
   !> Computes the inverse of a symmetric matrix (real).
   subroutine sytri_real(aa, ipiv, uplo, info)
+
     !> Symmetric matrix to be inverted.
     real(rsp), intent(in) :: aa(:,:)
+
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
+
     !> Upper ('U') or lower ('L') matrix (default: 'L')
     character, intent(in), optional :: uplo
+
     !> Info flag. If not present and an error occurs the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -691,14 +772,19 @@ contains
 
   end subroutine sytri_real
 
+
   !> Computes the inverse of a symmetric matrix (dreal).
   subroutine sytri_dreal(aa, ipiv, uplo, info)
+
     !> Symmetric matrix to be inverted.
     real(rdp), intent(in) :: aa(:,:)
+
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
+
     !> upper or lower triangle
     character, intent(in), optional :: uplo
+
     !> Info flag. If not present and an error occurs the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -723,14 +809,19 @@ contains
 
   end subroutine sytri_dreal
 
+
   !> Computes the inverse of a Hermitian matrix (complex).
   subroutine hetri_complex(aa, ipiv, uplo, info)
+
     !> Symmetric matrix to be inverted.
     complex(rsp), intent(in) :: aa(:,:)
+
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
+
     !> Upper ('U') or lower ('L') matrix (default: 'L')
     character, intent(in), optional :: uplo
+
     !> Info flag. If not present and an error occurs the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -755,14 +846,19 @@ contains
 
   end subroutine hetri_complex
 
+
   !> Computes the inverse of a Hermitian matrix (dreal).
   subroutine hetri_dcomplex(aa, ipiv, uplo, info)
+
     !> Hermitian matrix to be inverted.
     complex(rdp), intent(in) :: aa(:,:)
+
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
+
     !> Upper ('U') or lower ('L') matrix (default: 'L')
     character, intent(in), optional :: uplo
+
     !> Info flag. If not present and an error occurs the subroutine stops.
     integer, intent(out), optional :: info
 
@@ -787,22 +883,28 @@ contains
 
   end subroutine hetri_dcomplex
 
+
   !> Single precision version of sytrs
   subroutine sytrs_real(A,B, nRow, uplo,iError)
-    !> on entry, the symmetric matrix A.  If UPLO = 'U', the leading N-by-N upper triangular part of
+
+    !> On entry, the symmetric matrix A.  If UPLO = 'U', the leading N-by-N upper triangular part of
     !> A contains the upper triangular part of the matrix A, and the strictly lower triangular part
     !> of A is not referenced.  If UPLO = 'L', the leading N-by-N lower triangular part of A
     !> contains the lower triangular part of the matrix A, and the strictly upper triangular part of
     !> A is not referenced.  On exit, the block diagonal matrix D and the multipliers used to obtain
     !> the factor U or L
     real(rsp), intent(inout)        :: A(:,:)
+
     !> On entry, the right hand side matrix B. On exit, the solution matrix X.
     real(rsp), intent(inout)        :: B(:,:)
+
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
     !> the passed matrix)
     integer, intent(in), optional   :: nRow
+
     !> upper or lower triangle of the matrix, defaults to lower
     character, intent(in), optional :: uplo
+
     !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional  :: iError
@@ -859,22 +961,28 @@ contains
 
   end subroutine sytrs_real
 
+
   !> Double precision version of sytrs
   subroutine sytrs_dble(A,B, nRow, uplo,iError)
-    !> on entry, the symmetric matrix A.  If UPLO = 'U', the leading N-by-N upper triangular part of
+
+    !> On entry, the symmetric matrix A.  If UPLO = 'U', the leading N-by-N upper triangular part of
     !> A contains the upper triangular part of the matrix A, and the strictly lower triangular part
     !> of A is not referenced.  If UPLO = 'L', the leading N-by-N lower triangular part of A
     !> contains the lower triangular part of the matrix A, and the strictly upper triangular part of
     !> A is not referenced.  On exit, the block diagonal matrix D and the multipliers used to obtain
     !> the factor U or L
     real(rdp), intent(inout)        :: A(:,:)
+
     !> On entry, the right hand side matrix B. On exit, the solution matrix X.
     real(rdp), intent(inout)        :: B(:,:)
+
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
     !> the passed matrix)
     integer, intent(in), optional   :: nRow
+
     !> upper or lower triangle of the matrix, defaults to lower
     character, intent(in), optional :: uplo
+
     !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
     integer, intent(out), optional  :: iError
@@ -931,13 +1039,17 @@ contains
 
   end subroutine sytrs_dble
 
+
   !> single precision version of larnv
   subroutine larnv_real(iDist,iSeed,x)
+
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
     integer, intent(in)    :: iDist
+
     !> On entry, the seed of the random number generator; the array elements must be between 0 and
     !> 4095, and ISEED(4) must be odd. On exit, the seed is updated.
     integer, intent(inout) :: iSeed(4)
+
     !> On exit, vector of random numbers
     real(rsp), intent(out) :: x(:)
 
@@ -954,13 +1066,17 @@ contains
     call SLARNV( iDist, iSeed, n, x )
   end subroutine larnv_real
 
+
   !> double precision version of larnv
   subroutine larnv_dble(iDist,iSeed,x)
+
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
     integer, intent(in)    :: iDist
+
     !> On entry, the seed of the random number generator; the array elements must be between 0 and
     !> 4095, and ISEED(4) must be odd. On exit, the seed is updated.
     integer, intent(inout) :: iSeed(4)
+
     !> On exit, vector of random numbers
     real(rdp), intent(out) :: x(:)
 
@@ -977,13 +1093,17 @@ contains
     call DLARNV( iDist, iSeed, n, x )
   end subroutine larnv_dble
 
+
   !> complex version of larnv
   subroutine larnv_cplx(iDist,iSeed,x)
+
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
     integer, intent(in)       :: iDist
+
     !> On entry, the seed of the random number generator; the array elements must be between 0 and
     !> 4095, and ISEED(4) must be odd. On exit, the seed is updated.
     integer, intent(inout)    :: iSeed(4)
+
     !> On exit, vector of random numbers
     complex(rsp), intent(out) :: x(:)
 
@@ -1000,13 +1120,17 @@ contains
     call CLARNV( iDist, iSeed, n, x )
   end subroutine larnv_cplx
 
+
   !> double complex precision version of larnv
   subroutine larnv_dblecplx(iDist,iSeed,x)
+
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
     integer, intent(in)       :: iDist
+
     !> INTEGER array, dimension (4) On entry, the seed of the random number generator; the array
     !> elements must be between 0 and 4095, and ISEED(4) must be odd. On exit, the seed is updated.
     integer, intent(inout)    :: iSeed(4)
+
     !> On exit, vector of random numbers
     complex(rdp), intent(out) :: x(:)
 

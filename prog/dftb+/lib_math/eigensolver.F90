@@ -21,8 +21,10 @@ module eigensolver
 
   public :: heev, hegv, hegvd, gvr, bgv
 
+
   !> Used to return runtime diagnostics
   character(len=100) :: error_string
+
 
   !> Simple eigensolver for a symmetric/Hermitian matrix
   !> Caveat: the matrix a is overwritten
@@ -33,6 +35,7 @@ module eigensolver
     module procedure dblecmplx_zheev
   end interface heev
 
+
   !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem
   !> caveat: the matrix a is overwritten
   !> caveat: the matrix b is overwritten with Cholesky factorization
@@ -42,6 +45,7 @@ module eigensolver
     module procedure cmplx_chegv
     module procedure dblecmplx_zhegv
   end interface hegv
+
 
   !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem using divide and
   !> conquer eigensolver
@@ -54,6 +58,7 @@ module eigensolver
     module procedure dblecmplx_zhegvd
   end interface hegvd
 
+
   !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem using the lapack
   !> relatively robust representation solver, based on the SYGV source. If the requested number of
   !> eigenvalues is lower than the size of H/S suspace mode is used (optionally the range can be set
@@ -64,6 +69,7 @@ module eigensolver
     module procedure cmplx_chegvr
     module procedure dblecmplx_zhegvr
   end interface
+
 
   !> Eigensolver for a symmetric/Hermitian banded generalized matrix
   !> problem of the form A*x=(lambda)*B*x
@@ -76,15 +82,20 @@ module eigensolver
 
 contains
 
+
   !> Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
+
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
 
@@ -120,15 +131,20 @@ contains
 
   end subroutine real_ssyev
 
+
   !> Double precision eigensolver for a symmetric matrix
   subroutine dble_dsyev(a,w,uplo,jobz)
+
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
 
@@ -164,15 +180,20 @@ contains
 
   end subroutine dble_dsyev
 
+
   !> Complex eigensolver for a Hermitian matrix
   subroutine cmplx_cheev(a,w,uplo,jobz)
+
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
 
@@ -210,15 +231,20 @@ contains
 
   end subroutine cmplx_cheev
 
+
   !> Double complex eigensolver for a Hermitian matrix
   subroutine dblecmplx_zheev(a,w,uplo,jobz)
+
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
 
@@ -256,19 +282,26 @@ contains
 
   end subroutine dblecmplx_zheev
 
+
   !> Real eigensolver for generalized symmetric matrix problem
   subroutine real_ssygv(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rsp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -317,19 +350,26 @@ contains
 
   end subroutine real_ssygv
 
+
   !> Double precision eigensolver for generalized symmetric matrix problem
   subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rdp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -378,19 +418,26 @@ contains
 
   end subroutine dble_dsygv
 
+
   !> Complex eigensolver for generalized Hermitian matrix problem
   subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rsp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -462,19 +509,26 @@ contains
 
   end subroutine cmplx_chegv
 
+
   !> Double complex eigensolver for generalized Hermitian matrix problem
   subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rdp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -546,19 +600,26 @@ contains
 
   end subroutine dblecmplx_zhegv
 
+
   !> Real eigensolver for generalized symmetric matrix problem - divide and conquer
   subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rsp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -611,19 +672,26 @@ contains
 
   end subroutine real_ssygvd
 
+
   !> Double precision eigensolver for generalized symmetric matrix problem divide and conquer
   subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rdp), intent(inout) ::  b(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -676,19 +744,26 @@ contains
 
   end subroutine dble_dsygvd
 
+
   !> Complex eigensolver for generalized Hermitian matrix problem divide and conquer
   subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rsp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -745,19 +820,26 @@ contains
 
   end subroutine cmplx_chegvd
 
+
   !> Double complex eigensolver for generalized Hermitian matrix problem divide and conquer
   subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rdp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
@@ -814,6 +896,7 @@ contains
 
   end subroutine dblecmplx_zhegvd
 
+
   !> Real eigensolver for generalized symmetric matrix problem - Relatively Robust
   !> Representation, optionally use the subspace form if w is smaller than the size of a and b, then
   !> only the first n eigenvalues/eigenvectors are found.
@@ -821,22 +904,30 @@ contains
   !> previous version).
   !> Based in part on deMon routine from T. Heine
   subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rsp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
@@ -1019,6 +1110,7 @@ contains
 
   end subroutine real_ssygvr
 
+
   !> Double precision eigensolver for generalized symmetric matrix problem - Relatively Robust
   !> Representation, optionally use the subspace form if w is smaller than the size of a and b, then
   !> only the first n eigenvalues/eigenvectors are found.
@@ -1026,22 +1118,30 @@ contains
   !> previous version).
   !> Based in part on deMon routine from T. Heine
   subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rdp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
@@ -1224,6 +1324,7 @@ contains
 
   end subroutine dble_dsygvr
 
+
   !> Complex precision eigensolver for generalized symmetric matrix problem - Relatively Robust
   !> Representation, optionally use the subspace form if w is smaller than the size of a and b, then
   !> only the first n eigenvalues/eigenvectors are found.
@@ -1231,22 +1332,30 @@ contains
   !> previous version).
   !> Based in part on deMon routine from T. Heine
   subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rsp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
@@ -1435,6 +1544,7 @@ contains
 
   end subroutine cmplx_chegvr
 
+
   !> Double complex precision eigensolver for generalized symmetric matrix problem - Relatively
   !> Robust Representation, optionally use the subspace form if w is smaller than the size of a and
   !> b, then only the first n eigenvalues/eigenvectors are found.
@@ -1442,22 +1552,30 @@ contains
   !> previous version).
   !> Based in part on deMon routine from T. Heine
   subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rdp), intent(inout) :: b(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
@@ -1646,16 +1764,22 @@ contains
 
   end subroutine dblecmplx_zhegvr
 
+
   !> Single precision banded symmetric generalised matrix eigensolver
   subroutine real_ssbgv(ab, bb, w, uplo, z)
+
     !> contains the matrix for the solver (overwritten before exit)
     real(rsp), intent(inout) :: ab(:,:)
+
     !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     real(rsp), intent(inout) :: bb(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> returns calculated eigenvectors if present
     real(rsp), optional, intent(out) :: z(:,:)
 
@@ -1718,16 +1842,22 @@ contains
 
   end subroutine real_ssbgv
 
+
   !> Double precision banded symmetric generalised matrix eigensolver
   subroutine dble_dsbgv(ab, bb, w, uplo, z)
+
     !> contains the matrix for the solver (overwritten before exit)
     real(rdp), intent(inout) :: ab(:,:)
+
     !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     real(rdp), intent(inout) :: bb(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> returns calculated eigenvectors if present
     real(rdp), optional, intent(out) :: z(:,:)
 
@@ -1790,16 +1920,22 @@ contains
 
   end subroutine dble_dsbgv
 
+
   !> Complex banded symmetric generalised matrix eigensolver
   subroutine cmplx_chbgv(ab, bb, w, uplo, z)
+
     !> contains the matrix for the solver (overwritten before exit)
     complex(rsp), intent(inout) :: ab(:,:)
+
     !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     complex(rsp), intent(inout) :: bb(:,:)
+
     !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> returns calculated eigenvectors if present
     complex(rsp), optional, intent(out) :: z(:,:)
 
@@ -1865,16 +2001,22 @@ contains
 
   end subroutine cmplx_chbgv
 
+
   !> Complex double precision banded symmetric generalised matrix eigensolver
   subroutine dblecmplx_zhbgv(ab, bb, w, uplo, z)
+
     !> contains the matrix for the solver (overwritten before exit)
     complex(rdp), intent(inout) :: ab(:,:)
+
     !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     complex(rdp), intent(inout) :: bb(:,:)
+
     !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
     !> returns calculated eigenvectors if present
     complex(rdp), optional, intent(out) :: z(:,:)
 

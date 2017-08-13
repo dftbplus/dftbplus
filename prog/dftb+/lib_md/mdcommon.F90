@@ -19,28 +19,35 @@ module mdcommon
   public :: OMDCommon, init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann
 
+
   !> Contains necessary data for the MD framework
   type OMDCommon
+
     !> Nr. of degrees of freedom
     real(dp) :: Nf
+
     !> Should transform to rest frame?
     logical :: tStationary
   end type OMDCommon
+
 
   !> initialise thermostat
   interface init
     module procedure MDCommon_init
   end interface
 
+
   !> transform to co-moving frame if needed
   interface restFrame
     module procedure MDCommon_restFrame
   end interface
 
+
   !> evaluate thermal energy
   interface evalKT
     module procedure MDCommon_evalKT
   end interface
+
 
   !> rescale velocities to temperature
   interface rescaleToKT
@@ -49,14 +56,19 @@ module mdcommon
 
 contains
 
+
   !> Creates MD Framework.
   subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, tStationary)
+
     !> MD Framework instance.
     type(OMDCommon), intent(out) :: sf
+
     !> Number of moving atoms in the system
     integer, intent(in) :: nMovedAtom
+
     !> Total number of real atoms in the system
     integer, intent(in) :: nAllAtom
+
     !> If system should be transformed to rest frame.
     logical             :: tStationary
 
@@ -73,12 +85,16 @@ contains
 
   end subroutine MDCommon_init
 
+
   !> Shift velocities so the total velocity is 0
   subroutine  MDCommon_restFrame(sf, velocity, mass)
+
     !> MD Framework instance.
     type(OMDCommon), intent(in) :: sf
+
     !> Particle velocities
     real(dp), intent(inout) :: velocity(:,:)
+
     !> Particle masses
     real(dp), intent(in) :: mass(:)
 
@@ -97,14 +113,19 @@ contains
 
   end subroutine MDCommon_restFrame
 
+
   !> Calculate the kinetic temperature of an integrator.
   subroutine MDCommon_evalKT(sf, kT, velocity, mass)
+
     !> MD Framework instance.
     type(OMDCommon), intent(in) :: sf
+
     !> resulting thermal energy
     real(dp),intent(out) :: kT
+
     !> particle velocities
     real(dp), intent(in) :: velocity(:,:)
+
     !> particle masses
     real(dp), intent(in) :: mass(:)
 
@@ -119,14 +140,19 @@ contains
 
   end subroutine MDCommon_evalKT
 
+
   !> Rescales the velocities of a system to match the target thermal energy.
   subroutine MDCommon_rescaleTokT(sf, velocity, mass, kTtarget)
+
     !> MD Framework instance.
     type(OMDCommon), intent(in) :: sf
+
     !> particle velocities
     real(dp), intent(inout) :: velocity(:,:)
+
     !> particle masses
     real(dp), intent(in)    :: mass(:)
+
     !> intended kinetic energy
     real(dp), intent(in)    :: kTtarget
 
@@ -140,12 +166,16 @@ contains
 
   end subroutine MDCommon_rescaleTokT
 
+
   !> Calculate the kinetic energy of the atoms
   subroutine evalKE(kinE, velocity, mass)
+
     !> resulting energy
     real(dp),intent(out) :: kinE
+
     !> particle velocities
     real(dp), intent(in) :: velocity(:,:)
+
     !> particle masses
     real(dp), intent(in) :: mass(:)
 
@@ -156,14 +186,19 @@ contains
 
   end subroutine evalKE
 
+
   !> Converts a uniform distribution into a Gaussian distribution.
   subroutine BoxMueller(eta1,eta2,u1,u2)
+
     !> number with Gaussian distribution
     real(dp), intent(out) :: eta1
+
     !> number with Gaussian distribution
     real(dp), intent(out) :: eta2
+
     !> number with uniform distribution
     real(dp), intent(in)  :: u1
+
     !> number from uniform distribution
     real(dp), intent(in)  :: u2
 
@@ -177,14 +212,19 @@ contains
 
   end subroutine BoxMueller
 
+
   !> Draws an atom velocity from a Maxwell-Boltzmann distribution.
   subroutine MaxwellBoltzmann(velocity,mass,kT,pRanlux)
+
     !> resulting velocity
     real(dp), intent(out)  :: velocity(3)
+
     !> atomic mass in a.u.
     real(dp), intent(in)   :: mass
+
     !> system thermal energy
     real(dp), intent(in)   :: kT
+
     !> Random number generator
     type(ORanlux), intent(inout) :: pRanlux
 

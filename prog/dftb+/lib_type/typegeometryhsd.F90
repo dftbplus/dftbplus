@@ -19,24 +19,30 @@ module typegeometryhsd
   implicit none
   private
 
+
   !> Writes the content of a geometry object to a dom tree or to an xml-writer
   interface writeTGeometryHSD
     module procedure writeTGeometryHSD_dom
     module procedure writeTGeometryHSD_xmlf
   end interface
 
+
   !> Types/subroutines from TypeGeometry
   public :: TGeometry, normalize
+
 
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
 
 contains
 
+
   !> Write the geometry in HSD format to a specified node
   subroutine writeTGeometryHSD_dom(node, geo)
+
     !> Node in the HSD-tree which should contain the geometry
     type(fnode), pointer :: node
+
     !> The geometry
     type(TGeometry), intent(in) :: geo
 
@@ -50,10 +56,13 @@ contains
 
   end subroutine writeTGeometryHSD_dom
 
+
   !> Write the geometry in HSD format to an xml writer
   subroutine writeTGeometryHSD_xmlf(xf, geo)
+
     !> Node in the HSD-tree which should contain the geometry
     type(xmlf_t), intent(inout) :: xf
+
     !> The geometry
     type(TGeometry), intent(in) :: geo
 
@@ -67,10 +76,13 @@ contains
 
   end subroutine writeTGeometryHSD_xmlf
 
+
   !> Read the geometry from a node in a HSD tree.
   subroutine readTGeometryHSD(node, geo)
+
     !> Node in the HSD tree containing the geomery
     type(fnode), pointer :: node
+
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
@@ -157,10 +169,13 @@ contains
 
   end subroutine readTGeometryHSD
 
+
   !> Reads the geometry from a node in a HSD tree in GEN format
   subroutine readTGeometryGen(node, geo)
+
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
+
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
@@ -171,12 +186,16 @@ contains
 
   end subroutine readTGeometryGen
 
+
   !> Helping routine for reading geometry from a HSD tree in GEN format
   subroutine readTGeometryGen_help(node, geo, text)
+
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
+
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
+
     !> Text content of the node
     character(len=*), intent(in) :: text
 

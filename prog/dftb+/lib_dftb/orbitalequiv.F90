@@ -27,15 +27,20 @@ module orbitalequiv
 
 contains
 
+
   !> Merges two equivalency arrays by finding the intersection in the equivalences.
   !> Note: Equivalences marked below 0 are mapped to 0 in the final equivalence matrix
   subroutine OrbitalEquiv_merge(equiv1, equiv2, orb, equivNew)
+
     !> First equivalency array.
     integer, intent(in) :: equiv1(:,:,:)
+
     !> Second equivalency array
     integer, intent(in) :: equiv2(:,:,:)
+
     !> Contains information about the atomic orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
     !> New equivalency array on return.
     integer, intent(out) :: equivNew(:,:,:)
 
@@ -83,15 +88,20 @@ contains
 
   end subroutine OrbitalEquiv_merge
 
+
   !> Reduces passed orbital property by summing up on equivalent orbitals.
   !> Note: equivalences of 0 or below are not reduced
   subroutine OrbitalEquiv_reduce(input, equiv, orb, output)
+
     !> The vector containing the values for all orbitals
     real(dp), intent(in) :: input(:,:,:)
+
     !> Vector containing equivalency relations between the orbitals.
     integer, intent(in) :: equiv(:,:,:)
+
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
     !> Contains the equivalent orbital sums at exit as vector.
     real(dp), intent(out) :: output(:)
 
@@ -119,16 +129,21 @@ contains
 
   end subroutine OrbitalEquiv_reduce
 
+
   !> Expands a reduced vector by putting every element of it into the first corresponding orbital
   !> and putting zero for all other equivalent orbitals.
   !> Note: equivalences of 0 or below are not expanded
   subroutine OrbitalEquiv_expand(input, equiv, orb, output)
+
     !> Reduced vector.
     real(dp), intent(in) :: input(:)
+
     !> Equivalency relation.
     integer, intent(in) :: equiv(:,:,:)
+
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
     !> Expanded array.
     real(dp), intent(out) :: output(:,:,:)
 

@@ -17,6 +17,7 @@ module repulsive
 
   public :: getERep, getERepDeriv
 
+
   !> Return repulsive energy contributions
   interface getERep
      module procedure getERep_total
@@ -25,21 +26,29 @@ module repulsive
 
 contains
 
+
   !> Subroutine for calculating total energy contribution of the repulsives.
   subroutine getERep_total(reslt, coords, nNeighbors, iNeighbors, species, &
       &img2CentCell, repCont)
+
     !> Total energy contribution.
     real(dp), intent(out) :: reslt
+
     !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
+
     !> Number of neighbors for atoms in the central cell
     integer, intent(in) :: nNeighbors(:)
+
     !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
+
     !> Species of atoms in the central cell.
     integer, intent(in) :: species(:)
+
     !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
+
     !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
 
@@ -64,21 +73,29 @@ contains
 
   end subroutine getERep_total
 
+
   !> Subroutine for repulsive energy contributions for each atom
   subroutine getERep_atoms(reslt, coords, nNeighbors, iNeighbors, species,&
       &repCont, img2CentCell)
+
     !> Energy for each atom.
     real(dp), intent(out) :: reslt(:)
+
     !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in)  :: coords(:,:)
+
     !> Number of neighbors for atoms in the central cell
     integer, intent(in)   :: nNeighbors(:)
+
     !> Index of neighbors for a given atom.
     integer, intent(in)   :: iNeighbors(0:,:)
+
     !> Species of atoms in the central cell.
     integer, intent(in)   :: species(:)
+
     !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
+
     !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
 
@@ -104,21 +121,29 @@ contains
 
   end subroutine getERep_atoms
 
+
   !> Subroutine for force contributions of the repulsives.
   subroutine getERepDeriv(reslt, coords, nNeighbors, iNeighbors, species, &
       &repCont, img2CentCell)
+
     !> Energy for each atom.
     real(dp), intent(out) :: reslt(:,:)
+
     !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
+
     !> Number of neighbors for atoms in the central cell
     integer, intent(in) :: nNeighbors(:)
+
     !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
+
     !> Species of atoms in the central cell.
     integer, intent(in) :: species(:)
+
     !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
+
     !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
 

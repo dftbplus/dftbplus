@@ -20,34 +20,47 @@ module xlbomd_module
 
   public :: XlbomdInp, Xlbomd, Xlbomd_init
 
+
   !> File for reading the inverse of the Jacobian matrix if needed
   character(*), parameter :: JacobianKernelFile = "neginvjac.dat"
 
+
   !> Input for the Xlbomd driver.
   type :: XlbomdInp
+
     !> Number of generation to consider during the integration (5, 6, 7)
     integer :: nKappa
+
     !> Scaling factor (only for fast Xlbomd, otherwise 1.0)
     real(dp) :: scale
+
     !> SCC parameter override: minimal SCC iterations per timestep
     integer :: minSCCIter
+
     !> SCC parameter override: maximal SCC iterations per timestep
     integer :: maxSCCIter
+
     !> SCC parameter override: scc tolerance
     real(dp) :: sccTol
+
     !> Number of time steps to precede the actual start of the XL integrator
     integer :: nPreSteps
+
     !> Number of full SCC steps after the XL integrator has been started. Those
     !> steps are used to fill up the integrator and to average the Jacobian.
     integer :: nFullSCCSteps
+
     !> Number of transient steps (during which prediction is corrected)
     integer :: nTransientSteps
+
     !> Whether Xlbomd should use inverse Jacobian instead of scaling
     logical :: useInverseJacobian
+
     !> Whether Jacobian should be read from disk.
     logical :: readInverseJacobian
 
   end type XlbomdInp
+
 
   !> Contains the data for the Xlbomd driver.
   type :: Xlbomd
@@ -72,12 +85,16 @@ module xlbomd_module
 
 contains
 
+
   !> Initializes the Xlbomd instance.
   subroutine Xlbomd_init(this, input, nElems)
+
     !> Instance.
     type(Xlbomd), intent(out) :: this
+
     !> Basic input parameters.
     type(XlbomdInp), intent(in) :: input
+
     !> Nr. of elements in the charge vector
     integer, intent(in) :: nElems
 
@@ -118,12 +135,16 @@ contains
 
   end subroutine Xlbomd_init
 
+
   !> Delivers charges for the next time step.
   subroutine getNextCharges(this, qCurrent, qNext)
+
     !> Instance.
     class(Xlbomd), intent(inout) :: this
+
     !> Charges for current time step.
     real(dp), intent(in) :: qCurrent(:)
+
     !> Charges for next time step.
     real(dp), intent(out) :: qNext(:)
 
@@ -135,14 +156,19 @@ contains
 
   end subroutine getNextCharges
 
+
   !> Sets default SCC parameters to return, if no override is done.
   subroutine setDefaultSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
+
     !> Instance.
     class(Xlbomd), intent(inout) :: this
+
     !> Minimal number of SCC iterations.
     integer, intent(in) :: minSCCIter
+
     !> Maximal number of SCC iterations.
     integer, intent(in) :: maxSCCIter
+
     !> SCC tolerance.
     real(dp), intent(in) :: sccTol
 
@@ -152,10 +178,13 @@ contains
 
   end subroutine setDefaultSCCParameters
 
+
   !> Signals whether XLBOMD integration is active.
   function isActive(this)
+
     !> Instance.
     class(Xlbomd), intent(in) :: this
+
     !> True if XLBOMD integration is active (no SCC convergence needed)
     logical :: isActive
 
@@ -163,14 +192,19 @@ contains
 
   end function isActive
 
+
   !> Returns the SCC parameters to be used when the integrator is active.
   subroutine getSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
+
     !> Instance.
     class(Xlbomd), intent(in) :: this
+
     !> Minimal number of SCC cycles.
     integer, intent(out) :: minSCCIter
+
     !> Maximal number of SCC cycles
     integer, intent(out) :: maxSCCIter
+
     !> Tolerance for SCC convergence.
     real(dp), intent(out) :: sccTol
 
@@ -186,10 +220,13 @@ contains
 
   end subroutine getSCCParameters
 
+
   !> Whether integrator needs the inverse Jacobian at the current step.
   function needsInverseJacobian(this)
+
     !> Instance.
     class(Xlbomd), intent(in) :: this
+
     !> True, if a inverse Jacobian is needed. It should be passed via the setInverseJacobian()
     !> procedure.
     logical :: needsInverseJacobian
@@ -205,10 +242,13 @@ contains
 
   end function needsInverseJacobian
 
+
   !> Sets the inverse Jacobian for driving the Xlbomd simulation.
   subroutine setInverseJacobian(this, invJacobian)
+
     !> Instance.
     class(Xlbomd), intent(inout) :: this
+
     !> Inverse Jacobian.
     real(dp), intent(in) :: invJacobian(:,:)
 
@@ -227,8 +267,10 @@ contains
 
   end subroutine setInverseJacobian
 
+
   !> Read inverse Jacobian from disc
   subroutine readJacobianKernel(this)
+
     !> Instance.
     class(Xlbomd), intent(inout) :: this
 

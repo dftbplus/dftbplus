@@ -16,16 +16,19 @@ module qm
 
   public
 
+
   !> constructs a commutator
   interface commutator
     module procedure C_
   end interface
+
 
   !> perform a unitary transformation of a matrix X' = U X U^T*
   interface unitary
     module procedure U_cmplx
     module procedure U_real
   end interface
+
 
   !> Test if a matrix is unitary (U U^T* = 1)
   interface isunitary
@@ -35,12 +38,16 @@ module qm
 
 contains
 
+
   !> constructs a commutator for given matrices C = [A,B]
   subroutine C_(C,A,B)
+
     !> result of commutator
     complex(dp), intent(out) :: C(:,:)
+
     !> first matrix
     complex(dp), intent(in)  :: A(:,:)
+
     !> second matrix
     complex(dp), intent(in)  :: B(:,:)
 
@@ -51,6 +58,7 @@ contains
     C = matmul(A,B) - matmul(B,A)
 
   end subroutine C_
+
 
   !> unitary transformation of a matrix X' = U X U^T*
   subroutine U_cmplx(xx, uu)
@@ -71,10 +79,13 @@ contains
 
   end subroutine U_cmplx
 
+
   !> unitary transformation of a matrix X' = U X U^T*
   subroutine U_real(xx, uu)
+
     !> matrix in original basis, U X U^T on return.
     real(dp), intent(inout) :: xx(:,:)
+
     !> unitary matrix
     real(dp), intent(in) :: uu(:,:)
 
@@ -90,12 +101,16 @@ contains
 
   end subroutine U_real
 
+
   !> tests if a matrix is unitary to single precision
   function isunitary_real(U,tol) result (unitary)
+
     !> matrix to test
     real(dp), intent(in) :: U(:,:)
+
     !> tollerance for test
     real(dp), intent(in) :: tol
+
     !> test result
     logical :: unitary
 
@@ -122,12 +137,16 @@ contains
 
   end function isunitary_real
 
+
   !> tests if a matrix is unitary to single precision
   function isunitary_cmplx(U,tol) result (unitary)
+
     !> matrix to test
     complex(dp), intent(in) :: U(:,:)
+
     !> tollerance for test
     real(dp), intent(in) :: tol
+
     !> test result
     logical :: unitary
 

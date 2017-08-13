@@ -23,17 +23,20 @@ module ExternalCharges
   public :: updateCoords_ExtChrg, updateLatVecs_ExtChrg, addShiftPerAtom_ExtChrg
   public :: addEnergyPerAtom_ExtChrg, addForceDCSCC_ExtChrg
 
+
   !> Updates the stored coordinates for point charges
   interface updateCoords_ExtChrg
     module procedure updateCoords_ExtChrg_cluster
     module procedure updateCoords_ExtChrg_periodic
   end interface updateCoords_ExtChrg
 
+
   !> Add the potential from the point charges
   interface addShiftPerAtom_ExtChrg
     module procedure addShift1
     module procedure addShift2
   end interface addShiftPerAtom_ExtChrg
+
 
   !> force contributions from external charges
   interface addForceDCSCC_ExtChrg
@@ -43,45 +46,63 @@ module ExternalCharges
 
   ! Private module variables
 
+
   !> Number of point charges
   integer :: nChrg_
+
   !> Number of atoms
   integer :: nAtom_
+
   !> Coordinates of the point charges
   real(dp), allocatable :: coords_(:,:)
+
   !> Charge of the point charges
   real(dp), allocatable :: charges_(:)
+
   !> Shift vector
   real(dp), allocatable :: invRVec_(:)
+
   !> If charges should be blured
   logical :: tBlur_
+
   !> Blur width for the charges.
   real(dp), allocatable :: blurWidths_(:)
+
   !> System periodic?
   logical :: tPeriodic_
+
   !> Calculator initialised?
   logical :: tInitialized_ = .false.
+
   !> First coordinates received?
   logical :: tUpdated_ = .false.
+
   !> Real lattice points for Ewald-sum.
   real(dp), allocatable :: rCellVec_(:,:)
 
 contains
 
+
   !> Initializes the calculator for external charges
   !>
   !> Note: Blurring of point charges is currently not possible with periodic boundary conditions.
   subroutine init_ExtChrg(coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff, blurWidths)
+
     !> (4, nAtom) array with coordinates and charges
     real(dp), intent(in) :: coordsAndCharges(:,:)
+
     !> Number of atoms
     integer, intent(in) :: nAtom
+
     !> Blurring for the external charges
     real(dp), intent(in), optional :: latVecs(:,:)
+
     !> Lattice vectors of the supercell
     real(dp), intent(in), optional :: recVecs(:,:)
+
     !> Reciprocal vectors
     real(dp), intent(in), optional :: ewaldCutoff
+
     !> Cutoff for the ewald summation
     real(dp), intent(in), optional :: blurWidths(:)
 
@@ -134,12 +155,16 @@ contains
 
   end subroutine init_ExtChrg
 
+
   !> Updates the module, if the lattice vectors had been changed
   subroutine updateLatVecs_ExtChrg(latVecs, recVecs, ewaldCutoff)
+
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
+
     !> New reciprocal lattice vectors.
     real(dp), intent(in) :: recVecs(:,:)
+
     !> Cutoff for the Ewald function.
     real(dp), intent(in) :: ewaldCutoff
 
@@ -154,8 +179,10 @@ contains
 
   end subroutine updateLatVecs_ExtChrg
 
+
   !> Builds the new shift vectors for new atom coordinates
   subroutine updateCoords_ExtChrg_cluster(atomCoords)
+
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
 
@@ -175,14 +202,19 @@ contains
 
   end subroutine updateCoords_ExtChrg_cluster
 
+
   !> Builds the new shift vectors for new atom coordinates
   subroutine updateCoords_ExtChrg_periodic(atomCoords, gLat, alpha, volume)
+
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
+
     !> Reciprocal lattice vectors
     real(dp), intent(in) :: gLat(:,:)
+
     !> Ewald parameter
     real(dp), intent(in) :: alpha
+
     !> Cell volume
     real(dp), intent(in) :: volume
 
@@ -199,8 +231,10 @@ contains
 
   end subroutine updateCoords_ExtChrg_periodic
 
+
   !> Adds the contribution of the external charges to the shift vector
   subroutine addShift1(shift)
+
     !> Shift vector to add the contribution to.
     real(dp), intent(inout) :: shift(:)
 
@@ -211,8 +245,10 @@ contains
 
   end subroutine addShift1
 
+
   !> Adds the contribution of the external charges to the shift vector
   subroutine addShift2(shift)
+
     !> Shift vector to add the contribution to.
     real(dp), intent(inout) :: shift(:,:)
 
@@ -223,10 +259,13 @@ contains
 
   end subroutine addShift2
 
+
   !> Adds the atomic energy contribution do to the external charges.
   subroutine addEnergyPerAtom_ExtChrg(atomCharges, energy)
+
     !> Charge of the atoms
     real(dp), intent(in) :: atomCharges(:)
+
     !> Vector containing the energy per atom values.
     real(dp), intent(inout) :: energy(:)
 
@@ -238,15 +277,20 @@ contains
 
   end subroutine addEnergyPerAtom_ExtChrg
 
+
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
   subroutine addForceDCSCC_ExtChrg_cluster(atomForces, chrgForces, atomCoords, atomCharges)
+
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
+
     !> Force vectors on the external charges
     real(dp), intent(inout) :: chrgForces(:,:)
+
     !> Coordinates of the atoms.
     real(dp), intent(in) :: atomCoords(:,:)
+
     !> Charges of the atoms.
     real(dp), intent(in) :: atomCharges(:)
 
@@ -265,22 +309,30 @@ contains
 
   end subroutine addForceDCSCC_ExtChrg_cluster
 
+
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
   subroutine addForceDCSCC_ExtChrg_periodic(atomForces, chrgForces, atomCoords, atomCharges, gVec, &
       & alpha, vol)
+
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
+
     !> Force vectors on the external charges
     real(dp), intent(inout) :: chrgForces(:,:)
+
     !> Coordinates of the atoms.
     real(dp), intent(in) :: atomCoords(:,:)
+
     !> Charges of the atoms.
     real(dp), intent(in) :: atomCharges(:)
+
     !> Reciprocal lattice vectors for the Ewald summation
     real(dp), intent(in) :: gVec(:,:)
+
     !> Parameter of the Ewald summation
     real(dp), intent(in) :: alpha
+
     !> Cell volume
     real(dp), intent(in) :: vol
 

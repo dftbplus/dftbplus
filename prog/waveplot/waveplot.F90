@@ -333,23 +333,32 @@ program waveplot
 
 contains
 
+
   !> Writes a 3D function as cube file.
   subroutine writeCubeFile(geo, atomicNumbers, gridVecs, origin, gridVal, &
       &fileName, comments, repeatBox)
+
     !> Geometry information about the structure
     type(TGeometry), intent(in) :: geo
+
     !> Atomic numbers correpsonding to each species
     integer, intent(in) :: atomicNumbers(:)
+
     !> Grid vectors
     real(dp), intent(in) :: gridVecs(:,:)
+
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
+
     !> Value of the 3D function in the grid points
     real(dp), intent(in) :: gridVal(:,:,:)
+
     !> Name of the file to create
     character(len=*), intent(in) :: fileName
+
     !> First two comment lines of the file
     character(len=*), intent(in), optional :: comments(:)
+
     !> How often the grid should be repeated along the direction of the grid vectors
     integer, intent(in), optional :: repeatBox(:)
 

@@ -22,53 +22,72 @@ module broydenmixer
 
   private
 
+
   !> Contains the necessary data for a Broyden mixer.
   type OBroydenMixer
     private
+
     !> Actual iteration
     integer :: iIter
+
     !> Nr. of maximal iterations
     integer :: mIter
+
     !> Nr. of element in the vectors
     integer :: nElem
+
     !> Jacobi matrix differences
     real(dp) :: omega0
+
     !> Mixing parameter
     real(dp) :: alpha
+
     !> Minimal weight
     real(dp) :: minWeight
+
     !> Maximal weight
     real(dp) :: maxWeight
+
     !> Weighting factor (numerator)
     real(dp) :: weightFac
+
     !> Weights for prev. iterations
     real(dp), allocatable :: ww(:)
+
     !> Charge difference in last iter.
     real(dp), allocatable :: qDiffLast(:)
+
     !> Input charge in last iteration
     real(dp), allocatable :: qInpLast(:)
+
     !> Storage for the "a" matrix
     real(dp), allocatable :: aa(:,:)
+
     !> DF vectors
     real(dp), allocatable :: dF (:,:)
+
     !> uu vectors
     real(dp), allocatable :: uu(:,:)
   end type OBroydenMixer
 
+
   !> Creates Broyden mixer
   interface init
     module procedure BroydenMixer_init
-  end interface
+  end interface init
+
 
   !> Resets Broyden mixer
   interface reset
     module procedure BroydenMixer_reset
-  end interface
+  end interface reset
+
 
   !> Does the charge mixing
   interface mix
     module procedure BroydenMixer_mix
   end interface mix
+
 
   !> Returns inverse Jacobian
   interface getInverseJacobian
@@ -80,24 +99,32 @@ module broydenmixer
 
 contains
 
+
   !> Creates a Broyden mixer instance.
   !> The weight associated with an iteration is calculated as weigthFac/ww where ww is the Euclidian
   !> norm of the charge difference vector. If the calculated weigth is outside of the
   !> [minWeight,maxWeight] region it is replaced with the appropriate boundary value.
   subroutine BroydenMixer_init(self, mIter, mixParam, omega0, minWeight, &
       &maxWeight, weightFac)
+
     !> an initialized Broyden mixer on exit
     type(OBroydenMixer), intent(out) :: self
+
     !> Maximum nr. of iterations (max. nr. of vectors to store)
     integer, intent(in) :: mIter
+
     !> Mixing parameter
     real(dp), intent(in) :: mixParam
+
     !> Weight for the Jacobi matrix differences
     real(dp), intent(in) :: omega0
+
     !> Minimal weight allowed
     real(dp), intent(in) :: minWeight
+
     !> Maximal weight allowed
     real(dp), intent(in) :: maxWeight
+
     !> Numerator of the weight
     real(dp), intent(in) :: weightFac
 
@@ -121,10 +148,13 @@ contains
 
   end subroutine BroydenMixer_init
 
+
   !> Makes the mixer ready for a new SCC cycle
   subroutine BroydenMixer_reset(self, nElem)
+
     !> Broyden mixer instance
     type(OBroydenMixer), intent(inout) :: self
+
     !> Length of the vectors to mix
     integer, intent(in) :: nElem
 
@@ -147,12 +177,16 @@ contains
 
   end subroutine BroydenMixer_reset
 
+
   !> Mixes charges according to the modified Broyden method
   subroutine BroydenMixer_mix(self, qInpResult, qDiff)
+
     !> The Broyden mixer
     type(OBroydenMixer), intent(inout) :: self
+
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
+
     !> Charge difference between output and input charges
     real(dp), intent(in)    :: qDiff(:)
 
@@ -168,38 +202,54 @@ contains
 
   end subroutine BroydenMixer_mix
 
+
   !> Does the real work for the Broyden mixer
   subroutine modifiedBroydenMixing(qInpResult, qInpLast, qDiffLast, aa, ww, &
       &nn, qDiff, alpha, omega0, minWeight, maxWeight, weightFac, nElem, &
       &dF, uu)
+
     !> Current input charge on entry, mixed charged on exit
     real(dp), intent(inout) :: qInpResult(:)
+
     !> Input charge vector of the previous iterations
     real(dp), intent(inout) :: qInpLast(:)
+
     !> Charge difference of the previous iteration
     real(dp), intent(inout) :: qDiffLast(:)
+
     !> The matrix a (needed for the mixing).
     real(dp), intent(inout) :: aa(:,:)
+
     !> Weighting factors of the iterations.
     real(dp), intent(inout) :: ww(:)
+
     !> Current iteration number
     integer, intent(in) :: nn
+
     !> Charge difference of the current iteration.
     real(dp), intent(in) :: qDiff(:)
+
     !> Mixing parameter
     real(dp), intent(in) :: alpha
+
     !> Weight for the Jacobi matrix differences
     real(dp), intent(in) :: omega0
+
     !> Minimal weight allowed
     real(dp), intent(in) :: minWeight
+
     !> Maximal weight allowed
     real(dp), intent(in) :: maxWeight
+
     !> Numerator of the weight
     real(dp), intent(in) :: weightFac
+
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
+
     !> Prev. DFs.
     real(dp), intent(inout) :: dF(:,:)
+
     !> Prev. U vectors
     real(dp), intent(inout) :: uu(:,:)
 
@@ -293,10 +343,13 @@ contains
 
   end subroutine modifiedBroydenMixing
 
+
   !> return inverse of the Jacobian for the mixing process
   subroutine BroydenMixer_getInverseJacobian(self, invJac)
+
     !> Broyden mixer
     type(OBroydenMixer), intent(inout) :: self
+
     !> Inverse of the Jacobian
     real(dp), intent(out) :: invJac(:,:)
 

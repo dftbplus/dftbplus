@@ -22,14 +22,18 @@ module tokenreader
 
   private
 
+
   !> Flag for signals successfull token reading
   integer, parameter :: TOKEN_OK = 0
+
 
   !> Flag for signals end of string
   integer, parameter :: TOKEN_EOS = -1
 
+
   !> Flag for signals reading error
   integer, parameter :: TOKEN_ERROR = -2
+
 
   !> Contains procedures which read the next token from a string
   interface getNextToken
@@ -42,14 +46,18 @@ module tokenreader
     module procedure getNextToken_logicalR1
   end interface getNextToken
 
+
   !> Character representation of the logical true value
   character(len=*), parameter :: LOGICAL_TRUE = "Yes"
+
 
   !> Lower cased character representation of the logical true value
   character(len=*), parameter :: LOGICAL_TRUE_LO = "yes"
 
+
   !> Character representation of the logical false value
   character(len=*), parameter :: LOGICAL_FALSE = "No"
+
 
   !> Lower cased character representation of the logical false value
   character(len=*), parameter :: LOGICAL_FALSE_LO = "no"
@@ -59,15 +67,20 @@ module tokenreader
 
 contains
 
+
   !> Returns the next token from the provided string as integer
   subroutine getNextToken_integer(str, tokenValue, start, iostat)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     integer, intent(out) :: tokenValue
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
 
@@ -99,17 +112,23 @@ contains
 
   end subroutine getNextToken_integer
 
+
   !> Returns the next token from the provided string as rank one integer array
   subroutine getNextToken_integerR1(str, tokenValue, start, iostat, nItem)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     integer, intent(out) :: tokenValue(:)
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
+
     !> Nr. of read items
     integer, intent(out), optional :: nItem
 
@@ -147,15 +166,20 @@ contains
 
   end subroutine getNextToken_integerR1
 
+
   !> Returns the next token from the provided string as string
   subroutine getNextToken_string(str, tokenValue, start, iostat)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     type(string), intent(inout) :: tokenValue
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
 
@@ -176,15 +200,20 @@ contains
 
   end subroutine getNextToken_string
 
+
   !> Returns the next token from the provided string as real.
   subroutine getNextToken_real(str, tokenValue, start, iostat)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     real(dp), intent(out) :: tokenValue
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
 
@@ -214,17 +243,23 @@ contains
 
   end subroutine getNextToken_real
 
+
   !> Returns the next token from the provided string as rank one real array
   subroutine getNextToken_realR1(str, tokenValue, start, iostat, nItem)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     real(dp), intent(out) :: tokenValue(:)
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
+
     !> Nr. of read items
     integer, intent(out), optional :: nItem
 
@@ -262,15 +297,20 @@ contains
 
   end subroutine getNextToken_realR1
 
+
   !> Returns the next token from the provided string as logical
   subroutine getNextToken_logical(str, tokenValue, start, iostat)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     logical, intent(out) :: tokenValue
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
 
@@ -305,17 +345,23 @@ contains
 
   end subroutine getNextToken_logical
 
+
   !> Returns the next token from the provided string as logical
   subroutine getNextToken_logicalR1(str, tokenValue, start, iostat, nItem)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> Contains the value of the token on return
     logical, intent(out) :: tokenValue(:)
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return.
     integer, intent(inout) :: start
+
     !> Token reader i/o status flag on return
     integer, intent(out), optional :: iostat
+
     !> Nr. of read items
     integer, intent(out), optional :: nItem
 
@@ -353,21 +399,28 @@ contains
 
   end subroutine getNextToken_logicalR1
 
+
   !> Returns the next token from the provided string
   !>
   !> If the string does not contain any tokens, the empty string is returned.
   subroutine getNextToken_local(str, tokStart, tokEnd, tokLen, start, ignoreQuotation)
+
     !> String to parse
     character(len=*), intent(in) :: str
+
     !> stating location of token in string
     integer, intent(out) :: tokStart
+
     !> end position of token in string
     integer, intent(out) :: tokEnd
+
     !> length of the token
     integer, intent(out) :: tokLen
+
     !> Starting position for the parsing on call, first position after the end of the token on
     !> return
     integer, intent(inout) :: start
+
     !> ignore quotation marks (Default: yes)
     logical, intent(in), optional :: ignoreQuotation
 

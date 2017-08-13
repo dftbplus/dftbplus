@@ -22,12 +22,16 @@ module xmlutils
 
 contains
 
+
   !> Returns first child with the specified name.
   function getFirstChildByName(node, name) result(child)
+
     !> Parent node containing children
     type(fnode), pointer :: node
+
     !> Child name to look for (empty string returns the node itself)
     character(len=*), intent(in) :: name
+
     !> Pointer to child with the specified name or null pointer if not found. If the name parameter
     !> was empty, a pointer to the node itself will be returned.
     type(fnode), pointer :: child
@@ -51,12 +55,16 @@ contains
 
   end function getFirstChildByName
 
+
   !> Returns last child with the specified name.
   function getLastChildByName(node, name) result(child)
+
     !> Parent node containing children
     type(fnode), pointer :: node
+
     !> Child name to look for (empty string returns the node itself)
     character(len=*), intent(in) :: name
+
     !> Pointer to child with the specified name or null pointer if not found. If the name parameter
     !> was empty, a pointer to the node itself will be returned.
     type(fnode), pointer :: child
@@ -80,12 +88,16 @@ contains
 
   end function getLastChildByName
 
+
   !> Returns a list of children with the specified node name.
   function getChildrenByName(node, name) result(childList)
+
     !> Parent node to investigate.
     type(fnode), pointer :: node
+
     !> Name of the children to look for.
     character(len=*), intent(in) :: name
+
     !> List of the children on return.
     type(fnodeList), pointer :: childList
 
@@ -110,8 +122,10 @@ contains
 
   end function getChildrenByName
 
+
   !> Remove text nodes with only whitespace characters from node and children.
   recursive subroutine removeSpace(node)
+
     !> Node to investigate
     type(fnode), pointer :: node
 
@@ -137,14 +151,19 @@ contains
 
   end subroutine removeSpace
 
+
   !> Collects nodes in a tree that are without a specific attribute.
   function getTagsWithoutAttribute(node, name, rootOnly) result(nodeList)
+
     !> Tree to investigate
     type(fnode), pointer :: node
+
     !> Name of the attribute to look for
     character(len=*), intent(in) :: name
+
     !> Should children of a found attribute-less node be ignored?
     logical, intent(in), optional :: rootOnly
+
     !> List of the nodes without the specified attribute
     type(fnodeList), pointer :: nodeList
 
@@ -163,15 +182,20 @@ contains
 
   end function getTagsWithoutAttribute
 
+
   !> Recursive working subroutine for the getTagsWithoutAttribute routine
   recursive subroutine getTagsWithoutAttr_recursive(node, name, rootOnly, &
       &nodeList)
+
     !> Tree to investigate
     type(fnode), pointer :: node
+
     !> Name of the attribute to look for
     character(len=*), intent(in) :: name
+
     !> Should children of a found attribute-less node be ignored?
     logical, intent(in) :: rootOnly
+
     !> List of the nodes without the specified attribute
     type(fnodeList), pointer :: nodeList
 
@@ -197,8 +221,10 @@ contains
 
   end subroutine getTagsWithoutAttr_recursive
 
+
   !> Remove and destroy all children of a node.
   subroutine removeChildNodes(node)
+
     !> Node to process
     type(fnode), pointer :: node
 
@@ -216,9 +242,11 @@ contains
 
   end subroutine removeChildNodes
 
+
   !> Removes nodes from a tree and destroys them.
   !> Caveat: The nodes must not be children of each other.
   subroutine removeNodes(nodeList)
+
     !> Contains the nodes to remove
     type(fnodeList), pointer :: nodeList
 

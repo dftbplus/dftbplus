@@ -17,6 +17,7 @@ module taggedoutput
 
   public :: initTaggedWriter, writeTagged
 
+
   !> Writes objects in standardized form to the output
   interface writeTagged
     module procedure writeTaggedRealR0
@@ -137,6 +138,7 @@ module taggedoutput
 
 contains
 
+
   !> initialise writer
   subroutine initTaggedWriter()
 
@@ -177,6 +179,7 @@ contains
 
   end subroutine initTaggedWriter
 
+
   !> write single real values
   subroutine writeTaggedRealR0(file, tag, value, optForm)
     integer,                    intent(in) :: file
@@ -200,6 +203,7 @@ contains
 
   end subroutine writeTaggedRealR0
 
+
   !> write real vectors
   subroutine writeTaggedRealR1(file, tag, value, optForm)
     integer,                    intent(in) :: file
@@ -222,6 +226,7 @@ contains
     write (file, 99050) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedRealR1
+
 
   !> write real arrays
   subroutine writeTaggedRealR2(file, tag, value, optForm)
@@ -249,6 +254,7 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedRealR2
 
+
   !> write 3d real arrays
   subroutine writeTaggedRealR3(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -275,6 +281,7 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedRealR3
+
 
   !> write 4d real arrays
   subroutine writeTaggedRealR4(file, tag, value, optForm)
@@ -305,6 +312,7 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedRealR4
 
+
   !> single complex values
   subroutine writeTaggedComplexR0(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -328,6 +336,7 @@ contains
 
   end subroutine writeTaggedComplexR0
 
+
   !> complex vectors
   subroutine writeTaggedComplexR1(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -350,6 +359,7 @@ contains
     write (file, 99100) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedComplexR1
+
 
   !> complex arrays
   subroutine writeTaggedComplexR2(file, tag, value, optForm)
@@ -377,6 +387,7 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedComplexR2
 
+
   !> complex 3d arrays
   subroutine writeTaggedComplexR3(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -403,6 +414,7 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedComplexR3
+
 
   !> complex 4d arrays
   subroutine writeTaggedComplexR4(file, tag, value, optForm)
@@ -433,6 +445,7 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedComplexR4
 
+
   !> write integer values
   subroutine writeTaggedIntegerR0(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -456,6 +469,7 @@ contains
 
   end subroutine writeTaggedIntegerR0
 
+
   !> write integer vectors
   subroutine writeTaggedIntegerR1(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -478,6 +492,7 @@ contains
     write (file, 99150) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedIntegerR1
+
 
   !> write integer arrays
   subroutine writeTaggedIntegerR2(file, tag, value, optForm)
@@ -505,6 +520,7 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedIntegerR2
 
+
   !> write 3d integer arrays
   subroutine writeTaggedIntegerR3(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -531,6 +547,7 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedIntegerR3
+
 
   !> write 4d integer arrays
   subroutine writeTaggedIntegerR4(file, tag, value, optForm)
@@ -561,6 +578,7 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedIntegerR4
 
+
   !> write logical values
   subroutine writeTaggedLogicalR0(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -584,6 +602,7 @@ contains
 
   end subroutine writeTaggedLogicalR0
 
+
   !> write logical vectors
   subroutine writeTaggedLogicalR1(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -606,6 +625,7 @@ contains
     write (file, 99200) getLabel(tag), size(value)
     write (file, form) (value(ii), ii = 1, size(value))
   end subroutine writeTaggedLogicalR1
+
 
   !> write logical arrays
   subroutine writeTaggedLogicalR2(file, tag, value, optForm)
@@ -633,6 +653,7 @@ contains
         & jj = 1, size(value, dim=2))
   end subroutine writeTaggedLogicalR2
 
+
   !> write 3d logical arrays
   subroutine writeTaggedLogicalR3(file, tag, value, optForm)
     integer,          intent(in) :: file
@@ -659,6 +680,7 @@ contains
         & jj = 1, size(value, dim=2)), &
         & kk = 1, size(value, dim=3))
   end subroutine writeTaggedLogicalR3
+
 
   !> write 4d logical arrays
   subroutine writeTaggedLogicalR4(file, tag, value, optForm)
@@ -689,10 +711,13 @@ contains
         & ll = 1, size(value, dim=4))
   end subroutine writeTaggedLogicalR4
 
+
   !> Extracts the label for a tag
   function getLabel(tag)
+
     !> relevant tag
     character(len=*), intent(in) :: tag
+
     !> Label
     character(len=20) :: getLabel
     

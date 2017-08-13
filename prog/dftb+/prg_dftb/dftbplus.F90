@@ -53,10 +53,13 @@ program dftbplus
   use xmlf90
   implicit none
 
+
   !> Revision control strings
   character(len=*), parameter :: RELEASE_VERSION = '17.1'
+
   !> Release year string
   integer, parameter :: RELEASE_YEAR = 2017
+
 
   !> Contains the parsed input2
   type(inputData), allocatable  :: input
@@ -71,46 +74,62 @@ program dftbplus
   real(dp), allocatable    :: h0(:)
 
   ! variables for derivatives using the Hellmann-Feynman theorem:
+
   !> for derivatives of H wrt external perturbation
   real(dp), allocatable    :: hprime(:,:)
+
   !> for derivatives of V
   real(dp), allocatable    :: potentialDerivative(:,:)
+
   !> temporary dipole data
   real(dp), allocatable    :: dipoleTmp(:,:)
 
+
   !> electronic filling
   real(dp), allocatable    :: filling(:,:,:)
+
   !> band structure energy
   real(dp), allocatable :: Eband(:)
+
   !> entropy of electrons at temperature T
   real(dp), allocatable :: TS(:)
+
   !> zero temperature electronic energy
   real(dp), allocatable :: E0(:)
+
   !> energy in previous scc cycles
   real(dp), allocatable :: Eold
 
+
   !> Total energy components
   type(TEnergies), allocatable :: energy
+
   !> Potentials for orbitals
   type(TPotentials), allocatable :: potential
 
   real(dp), allocatable    :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
   real(dp), allocatable    :: chrgForces(:,:)
+
   !> excited state force addition
   real(dp), allocatable    :: excitedDerivs(:,:)
+
 
   !> Stress tensors for various contribution in periodic calculations
   real(dp) :: elecStress(3,3), repulsiveStress(3,3), kineticStress(3,3)
   real(dp) :: dispStress(3,3), totalStress(3,3)
 
+
   !> Derivatives of lattice vectors in periodic calculations
   real(dp) :: elecLatDeriv(3,3), repulsiveLatDeriv(3,3)
   real(dp) :: dispLatDeriv(3,3), totalLatDeriv(3,3)
+
   !> derivative of cell volume wrt to lattice vectors, needed for pV term
   real(dp) :: derivCellVol(3,3)
 
+
   !> dipole moments when available
   real(dp) :: dipoleMoment(3)
+
 
   !> hold total angular momentum vector
   real(dp) :: angularMomentum(3)
@@ -127,6 +146,7 @@ program dftbplus
   character(len=*), parameter :: formatHessian = '(4f16.10)'
   character(len=*), parameter :: formatGeoOut = "(I5,F16.8,F16.8,F16.8)"
 
+
   !> formats for data with 1 or two units, and exponential notation form:
   character(len=*), parameter :: format1U = "(' ',A,':',T32,F18.10,T51,A)"
 
@@ -140,62 +160,89 @@ program dftbplus
   real(dp) :: cellPressure
 
   ! Variables for the geometry optimization
+
   !> Geometry steps so far
   integer :: iGeoStep
+
   !> Lattice geometry steps so far
   integer :: iLatGeoStep
+
   !> Do we have the final geometry?
   logical :: tGeomEnd
+
   !> Has this completed?
   logical :: tCoordEnd
+
   !> do we take an optimization step on the lattice or the internal coordinates if optimizing both
   !> in a periodic geometry
   logical :: tCoordStep
+
   !> inverse of the lattice vector matrix
   real(dp) :: invLatVec(3,3)
+
   !> Folded coords (3, nAtom)
   real(dp), allocatable, target :: coord0Fold(:,:)
+
   !> Coordinates to print out
   real(dp), pointer :: pCoord0Out(:,:)
+
   !> New coordinates returned by the MD routines
   real(dp), allocatable :: new3Coord(:,:)
+
   !> lattice vectors returned by the optimizer
   real(dp) :: tmpLatVecs(9), newLatVecs(9)
   real(dp) :: tmpLat3Vecs(3,3)
+
   !> MD velocities
   real(dp), allocatable :: velocities(:,:)
+
   !> MD velocities for moved atoms
   real(dp), allocatable :: movedVelo(:,:)
+
   !> MD acceleration for moved atoms
   real(dp), allocatable :: movedAccel(:,:)
+
   !> Mass of the moved atoms
   real(dp), allocatable :: movedMass(:,:)
+
   !> MD Kinetic energy
   real(dp) :: KE
+
   !> MD instantaneous thermal energy
   real(dp) :: kT
+
   !> external electric field
   real(dp) :: Efield(3), absEfield
+
   !> Difference between last calculated and new geometry.
   real(dp) :: diffGeo
+
 
   !> Loop variables
   integer :: iSCCIter, iSpin, iAtom, iNeigh
 
+
   !> File descriptor for the tagged writer
   integer :: fdTagged
+
   !> File descriptor for the human readable output
   integer :: fdUser
+
   !> File descriptor for the band structure output
   integer :: fdBand
+
   !> File descriptor for the eigenvector output
   integer :: fdEigvec
+
   !> File descriptor for detailed.tag
   integer :: fdResultsTag
+
   !> File descriptor for extra MD output
   integer :: fdMD
+
   !> File descriptor for numerical Hessian
   integer :: fdHessian
+
 
   !> Name of the human readable file
   character(*), parameter :: taggedOut = "autotest.tag"
@@ -204,6 +251,7 @@ program dftbplus
   character(*), parameter :: mdOut = "md.out"
   character(*), parameter :: resultsTag = "results.tag"
   character(*), parameter :: hessianOut = "hessian.out"
+
 
   !> Charge error in the last iterations
   real(dp) :: sccErrorQ
@@ -214,19 +262,23 @@ program dftbplus
   real(dp), allocatable    :: rVecTemp(:)
   character(lc) :: lcTmp
 
+
   !> temporary character variable
   character(lc) :: tmpStr
 
   real(dp), pointer :: pDynMatrix(:,:)
 
+
   !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case of
   !> conjugate gradient/steepest descent the geometries are written anyway
   logical :: tWriteRestart = .false.
+
   !> Minimal number of SCC iterations
   integer :: minSCCIter
 
   type(xmlf_t) :: xf
   real(dp), allocatable :: bufferRealR2(:,:)
+
   !> if scf/geometry driver should be stopped
   logical :: tStopSCC, tStopDriver
 
@@ -234,23 +286,30 @@ program dftbplus
 
   real(dp), allocatable :: shift3rd(:)
   real(dp), allocatable :: orbresshift3rd(:,:)
+
   !> net charge on each atom
   real(dp), allocatable :: dqAtom(:)
 
+
   !> density matrix
   real(dp), allocatable :: rhoSqrReal(:,:,:)
+
 
   !> Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
 
   real(dp), allocatable :: invJacobian(:,:)
 
+
   !> locality measure for the wavefunction
   real(dp) :: localisation
+
   !> temporary variable for number of occupied levels
   integer :: nFilledLev
+
   !> Nr. of different spin Hamiltonians
   integer :: nSpinHams
+
   !> Size of the sqr Hamiltonian
   integer :: sqrHamSize
 
@@ -677,7 +736,6 @@ program dftbplus
 
     call total_shift(potential%extShell, potential%extAtom, orb, species)
     call total_shift(potential%extBlock, potential%extShell, orb, species)
-
 
     ! SCC-loop
 
@@ -3095,6 +3153,7 @@ program dftbplus
 
 contains
 
+
   !> Invokes the writing routines for the Hamiltonian and overlap matrices.
   subroutine writeHS(tWriteHS, tWriteRealHS, ham, over, iNeighbor, &
       &nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, &
@@ -3146,49 +3205,64 @@ contains
 
   end subroutine writeHS
 
+
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
 
+
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
+
 
     !> Nr. of electrons for each spin channel
     real(dp), intent(in) :: nElectrons(:)
 
+
     !> Nr. of spin blocks in the Hamiltonian (1 - spin avg, 2 - colinear, 4 - non-colinear)
     integer, intent(in) :: nSpinBlocks
+
 
     !> Electronic temperature
     real(dp), intent(in) :: tempElec
 
+
     !> Weight of the k-points.
     real(dp), intent(in) :: kWeights(:)
+
 
     !> Whether for colinear spin a common Fermi level for both spin channels should be used
     logical, intent(in) :: tSpinSharedEf
 
+
     !> Whether each K-point should be filled separately (individual Fermi-level for each k-point)
     logical, intent(in) ::  tFillKSep
+
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
 
+
     !> Selector for the distribution function
     integer, intent(in) :: iDistribFn
+
 
     !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
     !> given number of electrons on exit
     real(dp), intent(inout) :: Ef(:)
 
+
     !> Fillings
     real(dp), intent(out) :: fillings(:,:,:)
+
 
     !> Band energies
     real(dp), intent(out) :: Eband(:)
 
+
     !> Band entropies
     real(dp), intent(out) :: TS(:)
+
 
     !> Band energies extrapolated to zero Kelvin
     real(dp), intent(out) :: E0(:)
@@ -3253,6 +3327,7 @@ contains
     end if
 
   end subroutine getFillingsAndBandEnergies
+
 
   !> Write out geometry in gen format if needed
   subroutine writeGenGeometry()

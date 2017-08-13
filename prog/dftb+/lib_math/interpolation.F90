@@ -19,21 +19,28 @@ module interpolation
 
 contains
 
+
   !> Returns the value of a polynomial of 5th degree at x.
   !> The polynomial is created with the following boundary conditions: Its value, and its 1st and
   !> 2nd derivatives are zero at x = 0 and agree with the provided values at x = dx.
   function poly5ToZero(y0, y0p, y0pp, xx, dx) result(yy)
+
     !> Value of the polynom at x = dx.
     real(dp), intent(in) :: y0
+
     !> Value of the 1st derivative at x = dx.
     real(dp), intent(in) :: y0p
+
     !> Value of the 2nd derivative at x = dx.
     real(dp), intent(in) :: y0pp
+
     !> The point where the polynomial should be calculated
     real(dp), intent(in) :: xx
+
     !> The point, where the polynomials value and first two derivatives should take the provided
     !> values.
     real(dp), intent(in) :: dx
+
 
     !> Value of the polynomial at xx.
     real(dp) :: yy
@@ -50,27 +57,37 @@ contains
 
   end function poly5ToZero
 
+
   !> Returns the value of a free spline at a certain point.
   !> The spline is created with the following boundary conditions: Its value, 1st and 2nd
   !> derivatives agree with the provided values at x = 0 and its value agrees with the provided
   !> value at x = dx.  Note: If you want the value for a derivative, you have to query them both.
   subroutine freeCubicSpline(y0, y0p, y0pp, dx, ydx, xx, yy, yp, ypp)
+
     !> Function value at x = 0.
     real(dp), intent(in) :: y0
+
     !> First derivative at x = 0.
     real(dp), intent(in) :: y0p
+
     !> Second derivative at x = 0.
     real(dp), intent(in) :: y0pp
+
     !> Second fitting point.
     real(dp), intent(in) :: ydx
+
     !> Function value at dx.
     real(dp), intent(in) :: dx
+
     !> Point to interpolate.
     real(dp), intent(in) :: xx
+
     !> Value of the 3rd order polynomial at xx.
     real(dp), intent(out), optional :: yy
+
     !> First derivative at xx.
     real(dp), intent(out), optional :: yp
+
     !> Second derivative at xx.
     real(dp), intent(out), optional :: ypp
 
@@ -93,17 +110,23 @@ contains
 
   end subroutine freeCubicSpline
 
+
   !> Polynomial interpolation through given points
   !> The algorithm is based on the one in Numerical recipes.
   function polyInter(xp, yp, xx, dy) result(yy)
+
     !> x-coordinates of the fit points
     real(dp), intent(in) :: xp(:)
+
     !> y-coordinates of the fit points
     real(dp), intent(in) :: yp(:)
+
     !> The point, where the polynomial should be calculated
     real(dp), intent(in) :: xx
+
     !> Optional error estimate on calculated value
     real(dp), intent(out), optional :: dy
+
     !> The value of the polynomial
     real(dp) :: yy
 

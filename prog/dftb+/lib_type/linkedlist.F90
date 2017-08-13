@@ -23,6 +23,7 @@ module linkedList
   implicit none
   private
 
+
   !> Expose the used linked list content
   public :: listReal, listRealR1, listRealR2, listCharMc, listCharLc, listInt, listIntR1
   public :: listString
@@ -32,10 +33,13 @@ module linkedList
 
 contains
 
+
   !> string of up to mc characters extraction from character array
   function charMc(string)
+
     !> full string
     character(*), intent(in) :: string
+
     !> resulting characters
     character(mc) :: charMC
 
@@ -43,10 +47,13 @@ contains
 
   end function charMc
 
+
   !> string of up to lc characters extraction from character array
   function charLc(string)
+
     !> full string
     character(*), intent(in) :: string
+
     !> resulting characters
     character(lc) :: charLc
 

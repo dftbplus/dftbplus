@@ -30,10 +30,13 @@ module errorfunction
 
 contains
 
+
   !> Calculates the value of the error function.
   function erfwrap(xx) result(res)
+
     !> Function argument.
     real(dp), intent(in) :: xx
+
     !> erf(x)
     real(dp) :: res
 
@@ -41,10 +44,13 @@ contains
 
   end function erfwrap
 
+
   !> Calculates the value of the complementary error function.
   function erfcwrap(xx) result(res)
+
     !> Function argument.
     real(dp), intent(in) :: xx
+
     !> erf(x)
     real(dp) :: res
 

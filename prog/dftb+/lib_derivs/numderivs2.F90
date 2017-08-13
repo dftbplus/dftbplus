@@ -17,40 +17,51 @@ module numderivs2
 
   public :: OnumDerivs, create, next, getHessianMatrix
 
+
   !> Contains necessary data for the derivs
   type OnumDerivs
     private
+
     !> Internal matrix to hold derivative and intermediate values for their construction
     real(dp), allocatable :: derivs(:,:)
+
 
     !> Coordinates at x=0 to differentiate at
     real(dp), allocatable :: x0(:,:)
 
+
     !> How many derivates are needed
     integer           :: nDerivs
+
 
     !> Which atom are we currently differentiating with respect to?
     integer           :: iAtom
 
+
     !> Which component, x,y,z are we currently differentiating with respect to?
     integer           :: iComponent
+
 
     !> displacement along + or - for central difference
     real(dp)          :: iDelta
 
+
     !> Step size for derivative
     real(dp)          :: Delta
   end type OnumDerivs
+
 
   !> Create numerical second derivatives instance
   interface create
     module procedure derivs_create
   end interface
 
+
   !> Delivers the next set of coordinates for evaluation of forces
   interface next
     module procedure derivs_next
   end interface
+
 
   !> Get the Hessian matrix of derivatives for the system
   interface getHessianMatrix
@@ -59,15 +70,18 @@ module numderivs2
 
 contains
 
-  !> Create new instance of derivative object
 
+  !> Create new instance of derivative object
   !> Note: Use pre-relaxed coordinates when starting this, as the the truncation at second
   !> derivatives is only valid at the minimum position.
   subroutine derivs_create(self,xInit,Delta)
+
     !> Pointer to the initialised object on exit.
     type(OnumDerivs), allocatable, intent(out) :: self
+
     !> initial atomic coordinates (3,:)
     real(dp), intent(inout) :: xInit(:,:)
+
     !> step size for numerical derivative
     real(dp), intent(in) :: Delta
 
@@ -93,15 +107,20 @@ contains
 
   end subroutine derivs_create
 
+
   !> Takes the next step for derivatives using the central difference formula to choose the new
   !> coordinates for differentiation of the forces with respect to atomic coordinates
   subroutine derivs_next(self,xNew,fOld,tGeomEnd)
+
     !> Derivatives instance to propogate
     type(OnumDerivs), intent(inout) :: self
+
     !> New coordinates for the next step
     real(dp), intent(out)     :: xNew(:,:)
+
     !> Forces for the previous geometry
     real(dp), intent(in)      :: fOld(:,:)
+
     !> Has the process terminated? If so internally calculate the Hessian matrix.
     logical, intent(out)      :: tGeomEnd
 
@@ -147,10 +166,13 @@ contains
 
   end subroutine derivs_next
 
+
   !> Routine to return pointer to internal matrix of derivative elements.
   subroutine getDerivMatrixPtr(self,d)
+
     !> Derivatives instance including the Hessian internally
     type(OnumDerivs), intent(in), target :: self
+
     !> Pointer to the Hessian matrix to allow retrieval
     real(dp), pointer :: d(:,:)
 

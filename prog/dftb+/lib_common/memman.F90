@@ -15,6 +15,7 @@ module memman
 
   public :: incrmntOfArray
 
+
   !> If the space for an array gets to small and has to be reallocated,
   !> new_size = arrayIncrement * old_size.
   !> Setting it too low causes a lot of realloc operations to occur!.
@@ -22,10 +23,12 @@ module memman
 
 contains
 
+
   !> figures out how much larger an array should be to minimize reallocations in future if the array
   !> grows more
   function incrmntOfArray(currentSize)
     integer             :: incrmntOfArray
+
     !> current array size
     integer, intent(in) :: currentSize
 

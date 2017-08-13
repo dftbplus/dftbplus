@@ -22,11 +22,13 @@ module slakocont
   public :: OSlakoCont, init
   public :: addTable, getMIntegrals, getCutoff, getSKIntegrals
 
+
   !> A specific Slater-Koster table implementation.
   type PSlaKo_
     integer :: iType = 0
     type(OSlakoEqGrid), allocatable :: pSlakoEqGrid
   end type PSlaKo_
+
 
   !> Container for Slater-Koster integrals for all pair-interactions
   type OSlakoCont
@@ -39,25 +41,30 @@ module slakocont
     logical :: tInit = .false.
   end type OSlakoCont
 
+
   !> Initialises SlakoCont
   interface init
     module procedure SlakoCont_init
   end interface init
+
 
   !> Adds a Slater-Koster table for a given diatomic pair to the container.
   interface addTable
     module procedure SlakoCont_addTableEqGrid
   end interface addTable
 
+
   !> Returns the maximal number of integrals needed for the interactions.
   interface getMIntegrals
     module procedure SlakoCont_getMIntegrals
   end interface getMIntegrals
 
+
   !> Returns the cutoff for all interactions
   interface getCutoff
     module procedure SlakoCont_getCutoff
   end interface getCutoff
+
 
   !> Returns the Slater-Koster integrals for a given distance for a given species pair.
   interface getSKIntegrals
@@ -66,10 +73,13 @@ module slakocont
 
 contains
 
+
   !> Initialises SlakoCont
   subroutine SlakoCont_init(self, nSpecies)
+
     !> SlakoCont instance
     type(OSlakoCont), intent(out) :: self
+
     !> Nr. of species in the system.
     integer, intent(in) :: nSpecies
 
@@ -84,14 +94,19 @@ contains
 
   end subroutine SlakoCont_init
 
+
   !> Adds a Slater-Koster table for a given diatomic pair to the container.
   subroutine SlakoCont_addTableEqGrid(self, pTable, iSp1, iSp2)
+
     !> SlakoCont instance
     type(OSlakoCont), intent(inout) :: self
+
     !> Slater-Koster table to be added
     type(OSlakoEqGrid), allocatable, intent(inout) :: pTable
+
     !> Index of the first interacting species
     integer, intent(in) :: iSp1
+
     !> Index of the second interacting species
     integer, intent(in) :: iSp2
 
@@ -104,13 +119,16 @@ contains
 
   end subroutine SlakoCont_addTableEqGrid
 
+
   !> Returns the maximal number of integrals needed for describing any of the interactions in the
   !> container
   !>
   !> This subroutine is "pure", so that it can be used to determine the size of static arrays.
   pure function SlakoCont_getMIntegrals(self) result(mInt)
+
     !> SlakoCont instance
     type(OSlakoCont), intent(in) :: self
+
     !> Max. number of integrals.
     integer :: mInt
 
@@ -120,10 +138,13 @@ contains
 
   end function SlakoCont_getMIntegrals
 
+
   !> Returns the cutoff for all interactions
   function SlakoCont_getCutoff(self) result(cutoff)
+
     !> SlakoCont instance
     type(OSlakoCont), intent(in) :: self
+
     !> Cutoff of interaction
     real(dp) :: cutoff
 
@@ -132,16 +153,22 @@ contains
 
   end function SlakoCont_getCutoff
 
+
   !> Returns the Slater-Koster integrals for a given distance for a given species pair.
   subroutine SlakoCont_getSKIntegrals(self, sk, dist, sp1, sp2)
+
     !> SlakoCont instance
     type(OSlakoCont), intent(in) :: self
+
     !> Contains the integrals on exit
     real(dp), intent(out) :: sk(:)
+
     !> Distance of the two atoms
     real(dp), intent(in) :: dist
+
     !> Index of the first interacting species.
     integer, intent(in) :: sp1
+
     !> Index of the second interacting species.
     integer, intent(in) :: sp2
 

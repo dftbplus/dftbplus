@@ -20,30 +20,42 @@ module velocityverlet
   public :: OVelocityVerlet
   public :: init, next, rescale, state
 
+
   !> Data for the integrator.
   type OVelocityVerlet
     private
+
     !> Nr. of atoms
     integer :: nAtom
+
     !> time step for the integrator
     real(dp) :: deltaT
+
     !> list of particle positions
     real(dp), allocatable :: positions(:,: )
+
     !> list of particle velocities
     real(dp), allocatable :: velocities(:,:)
+
     !> Thermostat
     type(OThermostat), allocatable :: pThermostat
+
     !> do we have the v(t-.5) internal velocity state?
     logical           :: vHalfPresent = .false.
+
     !> do we have a barostat?
     logical  :: tBarostat
+
     !> Strength of Berendsen coupling
     real(dp) :: BarostatStrength
+
     !> Pressure tensor
     real(dp) :: Pressure(3,3)
+
     !> is the cell scaling isotropic
     logical  :: tIsotropic = .true.
   end type OVelocityVerlet
+
 
   !> initialise MD
   interface init
@@ -53,15 +65,18 @@ module velocityverlet
     module procedure VV_velocities_pressure
   end interface
 
+
   !> next geometry step
   interface next
     module procedure VelocityVerlet_next
   end interface
 
+
   !> Adjust velocities
   interface rescale
     module procedure VelocityVerlet_rescale
   end interface
+
 
   !> write state of the integrator
   interface state
@@ -70,14 +85,19 @@ module velocityverlet
 
 contains
 
+
   !> Creates a VelocityVerlet object from the thermostat settings
   subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat)
+
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
+
     !> Integration time step.
     real(dp), intent(in)                 :: deltaT
+
     !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
+
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
@@ -99,18 +119,24 @@ contains
 
   end subroutine VelocityVerlet_themostats
 
+
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities
   subroutine VelocityVerlet_velocities(self, deltaT, positions, pThermostat, &
       & velocities)
+
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
+
     !> Integration time step.
     real(dp), intent(in)                 :: deltaT
+
     !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
+
     !> Thermostat.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
+
     !> List of initial velocities
     real(dp), intent(in)                 :: velocities(:,:)
 
@@ -134,21 +160,29 @@ contains
 
   end subroutine VelocityVerlet_velocities
 
+
   !> Creates a VelocityVerlet object from the thermostat settings and isotropic pressure
   subroutine VV_themostats_pressure(self, deltaT, positions, pThermostat, &
       & Barostat, Pressure, tIsotropic)
+
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
+
     !> Integration time step.
     real(dp), intent(in)                 :: deltaT
+
     !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
+
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
+
     !> Coupling strength.
     real(dp), intent(in)                 :: Barostat
+
     !> Target isotropic pressure
     real(dp), intent(in)                 :: Pressure
+
     !> Is this an isotropic barostat, or can the cell shape change?
     logical, intent(in)                  :: tIsotropic
 
@@ -179,25 +213,34 @@ contains
 
   end subroutine VV_themostats_pressure
 
+
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities and barostat isotropic
   !> pressure
   subroutine VV_velocities_pressure(self, deltaT, positions, pThermostat, &
       & velocities, Barostat, Pressure, tIsotropic)
+
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
+
     !> Integration time step.
     real(dp), intent(in)                 :: deltaT
+
     !> Position of the atoms.
     real(dp), intent(in)                 :: positions(:,:)
+
     !> Thermostat.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
+
     !> List of initial velocities
     real(dp), intent(in)                 :: velocities(:,:)
+
     !> Coupling strength
     real(dp), intent(in)                 :: Barostat
+
     !> Target isotropic pressure
     real(dp), intent(in)                 :: Pressure
+
     !> Is this an isotropic barostat, or can the cell shape change?
     logical, intent(in)                  :: tIsotropic
 
@@ -230,17 +273,22 @@ contains
 
   end subroutine VV_velocities_pressure
 
+
   !> Takes a timestep for the MD integrator, optionally with a thermostat.
   !> Due to the way the velocity Verlet is split, the returned velocity is for 1 complete MD step
   !> behind the returned positions so print positions, then call next and then print velocities to
   !> get agreement between the positions and velocities.
   subroutine VelocityVerlet_next(self, accel, newCoord, newVelocity)
+
     !> Integrator to propogate
     type(OVelocityVerlet), intent(inout) :: self
+
     !> Accelerations.
     real(dp),intent(in) :: accel(:,:)
+
     !> Displaced coordinates
     real(dp),intent(out) :: newCoord(:,:)
+
     !> Velocity of displaced coords
     real(dp),intent(out) :: newVelocity(:,:)
 
@@ -286,17 +334,22 @@ contains
 
   end subroutine VelocityVerlet_next
 
+
   !> Rescale the cell parameters and coordinates according to the tensorial version of the Berensen
   !> barostat (allows cell shape changes if the external pressure/stress is non isotropic)
   !> The forms of the isotropic and anisotropic Beresdsen barostats in the literature are slightly
   !> incompatible in their definitions
   subroutine VelocityVerlet_rescale(self,coord,latVecs,pressureTensor)
+
     !> Integrator to rescale
     type(OVelocityVerlet), intent(inout) :: self
+
     !> Atom coordinates to rescale
     real(dp),intent(inout)         :: coord(:,:)
+
     !> Lattice vectors to rescale
     real(dp),intent(inout)         :: latVecs(3,3)
+
     !> System stress tensor
     real(dp),intent(in)            :: pressureTensor(3,3)
 
@@ -333,10 +386,13 @@ contains
 
   end subroutine VelocityVerlet_rescale
 
+
   !> Outputs internals of MD integrator
   subroutine VelocityVerlet_state(self,fd)
+
     !> instance of integrator
     type(OVelocityVerlet), intent(in) :: self
+
     !> filehandle to write out to
     integer,intent(in)             :: fd
 

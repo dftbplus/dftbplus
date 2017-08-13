@@ -22,60 +22,86 @@ module GridCache
   private
   save
 
+
   !> Contains the data for a grid cache
   type OGridCache
+
     !> Molecular orbital calculator
     type(OMolecularOrbital), pointer :: molorb
+
     !> Grid vectors
     real(dp) :: gridVec(3,3)
+
     !> Origin of the grid
     real(dp) :: origin(3)
+
     !> Real eigenvectors
     real(dp), allocatable :: eigenvecReal(:,:)
+
     !> Complex eigenvectors
     complex(dp), allocatable :: eigenvecCmpl(:,:)
+
     !> Parameters of the levels
     integer, allocatable :: levelIndex(:,:)
+
     !> Eigenvectors read so far
     integer :: nReadEigVec
+
     !> Grids processed so far
     integer :: iGrid
+
     !> Nr. of grids to process
     integer :: nGrid
+
     !> Position in the cache
     integer :: cachePos
+
     !> Are we ready?
     logical :: tFinished
+
     !> File descriptor for eigenvec
     integer :: fdEigVec
+
     !> Size of the eigenvectors
     integer :: nOrb
+
     !> Levels in the eigenvec file
     integer :: nAllLevel
+
     !> K-points in the eigenv. file
     integer :: nAllKPoint
+
     !> Spins in the eigenvec. file
     integer :: nAllSpin
+
     !> Verbose?
     logical :: tVerbose
+
     !> Nr. of cached grids
     integer :: nCached
+
     !> Cache for real grids
     real(dp), allocatable :: gridCacheReal(:,:,:,:)
+
     !> Cache for complex grids
     complex(dp), allocatable :: gridCacheCmpl(:,:,:,:)
+
     !> KPoints
     real(dp), allocatable :: kPoints(:,:)
+
     !> Are eigenvectors real
     logical :: tReal
+
     !> Initialised?
     logical :: tInitialised = .false.
   end type OGridCache
+
 
   !> Initialises a GridCache instance.
   interface init
     module procedure GridCache_init
   end interface
+
 
   !> Delivers the next molecular orbital grid from the cache
   interface next
@@ -88,39 +114,55 @@ module GridCache
 
 contains
 
+
   !> Initialises a GridCache instance
   !> Caveat: Level index is not allowed to contain duplicate entries!
   subroutine GridCache_init(sf, levelIndex, nOrb, nAllLevel, &
       &nAllKPoint, nAllSpin, nCached, nPoints, tVerbose, eigvecbin, gridVec, &
       &origin, kPointCoords, tReal, molorb)
+
     !> The structure to initialise
     type(OGridCache), intent(inout) :: sf
+
     !> Contains indexes (spin, kpoint, state) of the levels which must be calculated
     integer, intent(in) :: levelIndex(:,:)
+
     !> Nr. of orbitals (elements) in an eigenvectors
     integer, intent(in) :: nOrb
+
     !> Nr. of levels, for which eigenvector is provided in the eigenvector file
     integer, intent(in) :: nAllLevel
+
     !> Nr. of k-points for which eigenvectors are provided.
     integer, intent(in) :: nAllKPoint
+
     !> Nr. of all spins for which eigenvectors are provided.
     integer, intent(in) :: nAllSpin
+
     !> Nr. of cached grids
     integer, intent(in) :: nCached
+
     !> Nr. of grid points along the grid vectors
     integer, intent(in) :: nPoints(:)
+
     !> If verbosity should turned on
     logical, intent(in) :: tVerbose
+
     !> Name of the binary eigenvector file
     character(len=*), intent(in) :: eigvecbin
+
     !> Grid vectors
     real(dp), intent(in) :: gridVec(:,:)
+
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
+
     !> Coordinates of the k-points
     real(dp), intent(in) :: kPointCoords(:,:)
+
     !> If grids and eigenvectors are real
     logical, intent(in)  :: tReal
+
     !> Molecular orbital calculator
     type(OMolecularOrbital), pointer, intent(in) :: molorb
 
@@ -201,14 +243,19 @@ contains
 
   end subroutine GridCache_init
 
+
   !> Returns the next entry from the cache
   subroutine GridCache_next_real(sf, gridValReal, levelIndex, tFinished)
+
     !> Gridcache instance
     type(OGridCache), intent(inout) :: sf
+
     !> Contains the molecular orbital on the grid on exit
     real(dp), pointer :: gridValReal(:,:,:)
+
     !> Indices of the moleular orbital (spin, kpoint, level)
     integer, intent(out) :: levelIndex(:)
+
     !> If all orbitals had been processed.
     logical, intent(out) :: tFinished
 
@@ -218,14 +265,19 @@ contains
 
   end subroutine GridCache_next_real
 
+
   !> Returns the next entry from the cache
   subroutine GridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
+
     !> Gridcache instance
     type(OGridCache), intent(inout) :: sf
+
     !> Contains the molecular orbital on the grid on exit
     complex(dp), pointer :: gridValCmpl(:,:,:)
+
     !> Indices of the moleular orbital (spin, kpoint, level)
     integer, intent(out) :: levelIndex(:)
+
     !> If all orbitals had been processed.
     logical, intent(out) :: tFinished
 
@@ -235,16 +287,22 @@ contains
 
   end subroutine GridCache_next_cmpl
 
+
   !> Working subroutine for the GridCache_next_* subroutines
   subroutine local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+
     !> Gridcache instance
     type(OGridCache), intent(inout), target :: sf
+
     !> Contains the real grid onexit
     real(dp), pointer :: gridValReal(:,:,:)
+
     !> Contains the complex grid on exit
     complex(dp), pointer :: gridValCmpl(:,:,:)
+
     !> Level indexes of the processed orbital on exit
     integer, intent(out) :: levelIndex(:)
+
     !> If all orbitals had been processed.
     logical, intent(out) :: tFinished
 

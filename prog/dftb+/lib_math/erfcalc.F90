@@ -15,12 +15,14 @@
 !> Compared to iforts built in erf routine, the max. deviation is 4e-16 for
 !> the double precision implementation.
 module erfcalc
+
   !> wp: working precision, sp: real single, dp: real double
   use accuracy,  only : wp => dp, sp => rsp, dp => rdp
   implicit none
   private
 
   public :: erf, erfc, erfcx
+
 
   !> Evaluate erf()
   interface erfcalc_calc
@@ -29,10 +31,13 @@ module erfcalc
 
 contains
 
+
   !> Calculates the value of the error function.
   function erf(x)
+
     !> Function argument.
     real(wp), intent(in) :: x
+
     !> erf(x)
     real(wp) :: erf
 
@@ -40,10 +45,13 @@ contains
 
   end function erf
 
+
   !> Calculates the value of the complementary error function.
   function erfc(x)
+
     !> Function argument.
     real(wp), intent(in) :: x
+
     !> erfc(x)
     real(wp) :: erfc
 
@@ -51,10 +59,13 @@ contains
 
   end function erfc
 
+
   !> Calculates the value of the function exp(x**2) * erfc(x)
   function erfcx(x)
+
     !> Function argument.
     real(wp), intent(in) :: x
+
     !> exp(x**2) * erfc(x)
     real(wp) :: erfcx
 
@@ -62,12 +73,16 @@ contains
 
   end function erfcx
 
+
   !> Calculates the appropriate function in double precision.
   subroutine erfcalc_calcdouble(arg, res, jint)
+
     !> Where to evaluate the function (x).
     real(dp), intent(in) :: arg
+
     !> Result.
     real(dp), intent(out) :: res
+
     !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
     integer, intent(in) :: jint
 
@@ -187,6 +202,7 @@ contains
 
   contains
 
+
     !> fix up for negative argument, erf, etc.
     subroutine fixnegf_()
       if (jint == 0) then
@@ -210,12 +226,16 @@ contains
 
   end subroutine erfcalc_calcdouble
 
+
   !> Calculates the appropriate function in single precision.
   subroutine erfcalc_calcsingle(arg, res, jint)
+
     !> Where to evaluate the function (x).
     real(sp), intent(in) :: arg
+
     !> Result.
     real(sp), intent(out) :: res
+
     !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
     integer, intent(in) :: jint
 
@@ -334,6 +354,7 @@ contains
     call fixnegf_()
 
   contains
+
 
     !> fix up for negative argument, erf, etc.
     subroutine fixnegf_()

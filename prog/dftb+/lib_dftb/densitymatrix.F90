@@ -25,6 +25,7 @@ module densitymatrix
 
   public :: makeDensityMatrix
 
+
   !> Provides an interface to calculate the two types of dm - regular and
   !> weighted and put them into packed storage
   interface makeDensityMatrix
@@ -44,14 +45,18 @@ module densitymatrix
 
 contains
 
+
   !> Make a regular density matrix for the real wave-function case
   !> Note: In order to save memory, the eigenvectors (which should be intent(in) parameters) are
   !> overwritten and then restored again
   subroutine fullDensityMatrix_real(dm, eigenvecs, filling)
+
     !> the resulting nOrb*nOrb density matrix
     real(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     real(dp), intent(inout) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
@@ -107,14 +112,18 @@ contains
     end if
   end subroutine fullDensityMatrix_real
 
+
   !> Make a regular density matrix for the complex wave-function case
   !> Note: in order to save memory, the eigenvectors (which should be intent(in) parameters) are
   !> overwritten and then restored again
   subroutine fullDensityMatrix_cmplx(dm, eigenvecs, filling)
+
     !> the resulting nOrb*nOrb density matrix
     complex(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     complex(dp), intent(inout) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
@@ -169,16 +178,21 @@ contains
     end if
   end subroutine fullDensityMatrix_cmplx
 
+
   !> Make an energy weighted density matrix for the real wave-function case
   !> Note: in order to save memory, the eigenvectors (which should be intent(in) parameters) are
   !> overwritten and then restored again
   subroutine fullEnergyDensityMatrix_real(dm, eigenvecs, filling, eigen)
+
     !> the resulting nOrb*nOrb density matrix
     real(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     real(dp), intent(inout) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
+
     !> eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
 
@@ -240,16 +254,21 @@ contains
     end if
   end subroutine fullEnergyDensityMatrix_real
 
+
   !> Make an energy weighted density matrix for the complex wave-function case
   !> Note: in order to save memory, the eigenvectors (which should be intent(in) parameters) are
   !> overwritten and then restored again
   subroutine fullEnergyDensityMatrix_cmplx(dm, eigenvecs, filling, eigen)
+
     !> the resulting nOrb*nOrb density matrix
     complex(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     complex(dp), intent(inout) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
+
     !> eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
 
@@ -312,24 +331,33 @@ contains
     end if
   end subroutine fullEnergyDensityMatrix_cmplx
 
+
   !> Make a regular density matrix for the real wave-function case
   subroutine sp_density_matrix_real(dm, eigenvecs, filling, iNeighbor, nNeighbor, orb, iAtomStart, &
       & img2CentCell)
+
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
     !> calculated, instead of the whole dm
     real(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     real(dp), intent(in) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
+
     !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: nNeighbor(:)
+
     !> Information about the orbitals of the atoms
     type(TOrbitals), intent(in) :: orb
+
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
+
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
 
@@ -394,24 +422,33 @@ contains
 
   end subroutine sp_density_matrix_real
 
+
   !> Make a regular density matrix for the complex wave-function case
   subroutine sp_density_matrix_cmplx(dm, eigenvecs, filling, iNeighbor, nNeighbor, orb, iAtomStart,&
       & img2CentCell)
+
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
     !> calculated, instead of the whole dm
     complex(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     complex(dp), intent(in) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
+
     !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: nNeighbor(:)
+
     !> Informatio about the orbitals.
     type(TOrbitals), intent(in) :: orb
+
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
+
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
 
@@ -478,26 +515,36 @@ contains
 
   end subroutine sp_density_matrix_cmplx
 
+
   !> Make an energy weighted density matrix for the real wave-function case
   subroutine sp_energy_density_matrix_real(dm, eigenvecs, filling, eigen, iNeighbor, nNeighbor, &
       & orb, iAtomStart, img2CentCell)
+
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
     !> calculated, instead of the whole dm
     real(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     real(dp), intent(in) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
+
     !> eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
+
     !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: nNeighbor(:)
+
     !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
+
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
+
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
 
@@ -564,24 +611,33 @@ contains
 
   end subroutine sp_energy_density_matrix_real
 
+
   !> Make an energy weighted density matrix for the complex wave-function case
   subroutine sp_energy_density_matrix_cmplx(dm, eigenvecs, filling, eigen, iNeighbor, nNeighbor, &
       & orb, iAtomStart, img2CentCell)
+
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
     !> calculated, instead of the whole dm
     complex(dp), intent(out) :: dm(:,:)
+
     !> the eigenvectors of the system
     complex(dp), intent(in) :: eigenvecs(:,:)
+
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
+
     !> Neighbor list for each atom (First index from 0!)
     real(dp), intent(in) :: eigen(:)
+
     !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: iNeighbor(0:,:)
+
     !> Information about the orbitals.
     integer, intent(in) :: nNeighbor(:)
+
     !> Atom offset for the squared Hamiltonian
     type(TOrbitals), intent(in) :: orb
+
     !> Atomic mapping indexes.
     integer, intent(in) :: iAtomStart(:)
 

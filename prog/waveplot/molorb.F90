@@ -21,61 +21,86 @@ module MolecularOrbital
   private
   save
 
+
   !> Data type containing information about the basis for a species
   type TSpeciesBasis
+
     !> Atomic number of the species
     integer :: atomicNumber
+
     !> Nr. of orbitals
     integer :: nOrb
+
     !> Angular momentum for each orb.
     integer, allocatable :: angMoms(:)
+
     !> Cutoff for each orbital
     real(dp), allocatable :: cutoffs(:)
+
     !> STO for each orbital
     type(OSlaterOrbital), allocatable :: stos(:)
+
     !> Occupation for each orb.
     real(dp), allocatable :: occupations(:)
   end type TSpeciesBasis
 
+
   !> Data type containing information for molecular orbital calculator
   type OMolecularOrbital
     private
+
     !> Nr. of atoms
     integer :: nAtom
+
     !> Nr. of species
     integer :: nSpecies
+
     !> Species of each atom
     integer, allocatable :: species(:)
+
     !> Index array for STOs
     integer, allocatable :: iStos(:)
+
     !> All STOs sequentially
     type(OSlaterOrbital), allocatable :: stos(:)
+
     !> Cutoff for each STO
     real(dp), allocatable :: cutoffs(:)
+
     !> Angular mometum for each STO
     integer, allocatable :: angMoms(:)
+
     !> Nr. of orbitals in the system
     integer :: nOrb
+
     !> If sytem is periodic
     logical :: tPeriodic
+
     !> Lattice vectors
     real(dp), allocatable :: latVecs(:,:)
+
     !> Reciprocal vectors divided by 2pi
     real(dp), allocatable :: recVecs2p(:,:)
+
     !> Cell shift vectors
     real(dp), allocatable :: cellVec(:,:)
+
     !> Nr. of cell shift vectors
     integer :: nCell
+
     !> Coordinates in all cells
     real(dp), allocatable :: coords(:,:,:)
+
     !> If it is initialised
     logical :: tInitialised = .false.
   end type OMolecularOrbital
+
 
   !> Initialises a MolecularOrbital instance
   interface init
     module procedure MolecularOrbital_init
   end interface
+
 
   !> Returns the value of one or more molecular orbitals on a grid
   interface getValue
@@ -88,12 +113,16 @@ module MolecularOrbital
 
 contains
 
+
   !> Initialises MolecularOrbital instance.
   subroutine MolecularOrbital_init(self, geometry, basis)
+
     !> Molecular Orbital
     type(OMolecularOrbital), intent(out) :: self
+
     !> Geometrical information.
     type(TGeometry), intent(in) :: geometry
+
     !> Basis for each species.
     type(TSpeciesBasis), intent(in) :: basis(:)
 
@@ -176,19 +205,26 @@ contains
 
   end subroutine MolecularOrbital_init
 
+
   !> Returns molecular orbitals on a grid
   subroutine MolecularOrbital_getValue_real(self, origin, gridVecs, &
       &eigVecsReal, valueOnGrid, addDensities)
+
     !> MolecularOrbital instance
     type(OMolecularOrbital), intent(in) :: self
+
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
+
     !> Grid vectors
     real(dp), intent(in) :: gridVecs(:,:)
+
     !> Summation coefficients for the STOs
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Add densities instead of wave functions
     logical, intent(in), optional :: addDensities
 
@@ -219,21 +255,29 @@ contains
 
   end subroutine MolecularOrbital_getValue_real
 
+
   !> Returns molecular orbitals on a grid
   subroutine MolecularOrbital_getValue_cmpl(self, origin, gridVecs, &
       &eigVecsCmpl, kPoints, kIndexes, valueOnGrid)
+
     !> MolecularOrbital instance
     type(OMolecularOrbital), intent(in) :: self
+
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
+
     !> Grid vectors
     real(dp), intent(in) :: gridVecs(:,:)
+
     !> Summation coefficients for the STOs
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
+
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
+
     !> Index of the k-points in kPoints for every mol.orbital
     integer, intent(in) :: kIndexes(:)
+
     !> Molecular orbitals on grid on exit.
     complex(dp), intent(out) :: valueOnGrid(:,:,:,:)
 
@@ -261,6 +305,7 @@ contains
 
   end subroutine MolecularOrbital_getValue_cmpl
 
+
   !> Returns the values of several molecular orbitals on grids.
   !> Caveat: The flag tPeriodic decides if the complex or the real version is read/written for the
   !> various parameters.
@@ -268,50 +313,73 @@ contains
       &nAtom, nOrb, coords, species, cutoffs, iStos, angMoms, stos, tPeriodic, &
       &tReal, latVecs, recVecs2p, kPoints, kIndexes, nCell, cellVec, &
       &tAddDensities, valueReal, valueCmpl)
+
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
+
     !> Grid vectors
     real(dp), intent(in) :: gridVecs(:,:)
+
     !> Real eigenvectors, or null-array
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Complex eigenvectors, or null-array
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
+
     !> Nr. of atoms
     integer, intent(in) :: nAtom
+
     !> Nr. of orbitals
     integer, intent(in) :: nOrb
+
     !> Coordinates of the atoms
     real(dp), intent(in) :: coords(:,:,:)
+
     !> Species for each atom
     integer, intent(in) :: species(:)
+
     !> Cutoff for each STO
     real(dp), intent(in) :: cutoffs(:)
+
     !> Starting position of the STOs for each species
     integer, intent(in) :: iStos(:)
+
     !> Angular moment for each STO
     integer, intent(in) :: angMoms(:)
+
     !> Array containing the STOs
     type(OSlaterOrbital), intent(in) :: stos(:)
+
     !> If the system is periodic
     logical, intent(in) :: tPeriodic
+
     !> If the system is real
     logical, intent(in) :: tReal
+
     !> Lattice vectors or null-array
     real(dp), intent(in) :: latVecs(:,:)
+
     !> Reciprocal vectors divided by 2pi (periodic) or a null-array (molecular)
     real(dp), intent(in) :: recVecs2p(:,:)
+
     !> Kpoints or null-array
     real(dp), intent(in) :: kPoints(:,:)
+
     !> Index of the k-points for each orbital in KPoints
     integer, intent(in) :: kIndexes(:)
+
     !> Nr. of cells to consider
     integer, intent(in) :: nCell
+
     !> Translation vector of the considered cells
     real(dp), intent(in) :: cellVec(:,:)
+
     !> If densities should be added instead of wave funcs
     logical, intent(in) :: tAddDensities
+
     !> Contains the real grid on exit
     real(dp), intent(out) :: valueReal(:,:,:,:)
+
     !> Contains the complex grid on exit
     complex(dp), intent(out) :: valueCmpl(:,:,:,:)
 
