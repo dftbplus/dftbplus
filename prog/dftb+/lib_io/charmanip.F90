@@ -53,7 +53,7 @@ module charmanip
   !> Maximal character length for integers (including sign)
   integer, parameter :: maxIntLen = range(1) + 2
 
-  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c, i2c_len
+  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c
   public :: getNextQuotationPos, getFirstOccurance, complementaryScan
   public :: unquotedScan
   public :: space, lineFeed, carriageReturn, tabulator, whiteSpaces, newline
@@ -383,11 +383,10 @@ contains
 
     !> String to trim
     character(len=*), intent(in) :: string
+    
+    character(:), allocatable :: trim2
 
-    !> Trimmed string
-    character(len=len_trim2(string)) :: trim2
-
-    trim2 = string(:len(trim2))
+    trim2 = string(:len_trim2(string))
 
   end function trim2
 
@@ -415,37 +414,19 @@ contains
   end function tolower
 
 
-  !> Calculates for i2c the length of the string to hold the converted number
-  pure function i2c_len(number)
-
-    !> Number to convert
-    integer, intent(in) :: number
-
-    !> Len of the string representation.
-    integer :: i2c_len
-
-    character(len=maxIntLen) :: i2c
-
-    write (i2c, "(I0)") number
-    i2c_len = len_trim(i2c)
-
-  end function i2c_len
-
 
   !> Converts an integer to a character string
-  !> caveat: Works only if the integer can be represented in 10 characters
-  !> - waiting for fortran 2003 to allow dynamical character strings
   pure function i2c(number)
 
     !> Integer to convert
     integer, intent(in) :: number
 
-    !> String containing the converted number
-    character(len=i2c_len(number)) :: i2c
+    !> converted string
+    character(:), allocatable :: i2c
 
     character(len=maxIntLen) :: buffer
 
-    write (buffer, "(I0)") number
+    write(buffer, "(I0)") number
     i2c = trim(buffer)
 
   end function i2c

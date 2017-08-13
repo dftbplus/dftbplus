@@ -77,8 +77,6 @@ contains
     !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
 
-    integer :: nOrb
-
     @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
     @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
     @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
@@ -97,9 +95,7 @@ contains
     case(2)
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(3)
-      ! use subspace for all eigenstates
-      nOrb = size(eigen)
-      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz,ilIn=1,iuIn=nOrb)
+      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
@@ -160,7 +156,6 @@ contains
     !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
 
-    integer :: nOrb
     @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
     @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
     @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
@@ -179,9 +174,7 @@ contains
     case(2)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(3)
-      ! use subspace for all eigenstates
-      nOrb = size(eigen)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz,ilIn=1,iuIn=nOrb)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
@@ -412,7 +405,7 @@ contains
     case(2)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(3)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz,ilIn=1,iuIn=2*nOrb)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
@@ -667,7 +660,7 @@ contains
     case(2)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(3)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz,ilIn=1,iuIn=2*nOrb)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
