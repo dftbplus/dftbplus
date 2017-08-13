@@ -187,7 +187,7 @@ contains
     type(OAndersenThermostat), intent(in) :: self
 
     !> filehandle to write out to
-    integer,intent(in)                 :: fd
+    integer,intent(in) :: fd
 
     ! no internal state, nothing to do
 

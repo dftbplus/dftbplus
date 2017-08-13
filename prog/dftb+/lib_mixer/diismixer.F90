@@ -52,7 +52,7 @@ module diismixer
     logical :: tFromStart
 
     !> force modification for gDIIS?
-    logical  :: tAddIntrpGradient
+    logical :: tAddIntrpGradient
 
     !> Alpha factor to add in new information
     real(dp) :: alpha
@@ -92,13 +92,13 @@ contains
     type(ODIISMixer), intent(out) :: self
 
     !> Nr. of generations (including actual) to consider
-    integer, intent(in)            :: nGeneration
+    integer, intent(in) :: nGeneration
 
     !> Mixing parameter for the first nGeneration cycles
-    real(dp), intent(in)           :: initMixParam
+    real(dp), intent(in) :: initMixParam
 
     !> True if using DIIS from iteration 2 as well as mixing
-    logical, intent(in), optional  :: tFromStart
+    logical, intent(in), optional :: tFromStart
 
     !> if present, fraction of extrapolated downhill direction to include in DIIS space
     real(dp), intent(in), optional :: alpha
@@ -173,7 +173,7 @@ contains
     real(dp), intent(inout) :: qInpResult(:)
 
     !> Charge difference vector between output and input charges
-    real(dp), intent(in)    :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
 
     real(dp), allocatable :: aa(:,:), bb(:,:)
     integer :: ii, jj

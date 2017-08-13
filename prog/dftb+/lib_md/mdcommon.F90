@@ -70,7 +70,7 @@ contains
     integer, intent(in) :: nAllAtom
 
     !> If system should be transformed to rest frame.
-    logical             :: tStationary
+    logical :: tStationary
 
     @:ASSERT(nMovedAtom <= nAllAtom)
 
@@ -151,10 +151,10 @@ contains
     real(dp), intent(inout) :: velocity(:,:)
 
     !> particle masses
-    real(dp), intent(in)    :: mass(:)
+    real(dp), intent(in) :: mass(:)
 
     !> intended kinetic energy
-    real(dp), intent(in)    :: kTtarget
+    real(dp), intent(in) :: kTtarget
 
     real(dp) :: currentkT
 
@@ -197,10 +197,10 @@ contains
     real(dp), intent(out) :: eta2
 
     !> number with uniform distribution
-    real(dp), intent(in)  :: u1
+    real(dp), intent(in) :: u1
 
     !> number from uniform distribution
-    real(dp), intent(in)  :: u2
+    real(dp), intent(in) :: u2
 
     real(dp) :: theta, a
 
@@ -217,13 +217,13 @@ contains
   subroutine MaxwellBoltzmann(velocity,mass,kT,pRanlux)
 
     !> resulting velocity
-    real(dp), intent(out)  :: velocity(3)
+    real(dp), intent(out) :: velocity(3)
 
     !> atomic mass in a.u.
-    real(dp), intent(in)   :: mass
+    real(dp), intent(in) :: mass
 
     !> system thermal energy
-    real(dp), intent(in)   :: kT
+    real(dp), intent(in) :: kT
 
     !> Random number generator
     type(ORanlux), intent(inout) :: pRanlux

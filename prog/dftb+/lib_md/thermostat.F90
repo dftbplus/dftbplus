@@ -193,7 +193,7 @@ contains
     type(OThermostat), intent(in) :: self
 
     !> file handle to write state out to
-    integer, intent(in)        :: fd
+    integer, intent(in) :: fd
 
     select case (self%thermostat)
     case (dummy_)

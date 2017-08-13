@@ -37,39 +37,39 @@ contains
   subroutine shift_U(shift, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ)
 
     !> potential to augment
-    real(dp), intent(inout)        :: shift(:,:,:,:)
+    real(dp), intent(inout) :: shift(:,:,:,:)
 
     !> block charges
-    real(dp), intent(in)           :: qBlock(:,:,:,:)
+    real(dp), intent(in) :: qBlock(:,:,:,:)
 
     !> list of the species for each atom
-    integer,  intent(in)           :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Angular momentum information about the orbitals.
-    type(TOrbitals), intent(in)    :: orb
+    type(TOrbitals), intent(in) :: orb
 
     !> choice of functional, so far FLL, pSIC (1,2)
-    integer,  intent(in), optional :: functional
+    integer, intent(in), optional :: functional
 
     !> list of U-J values for each species
-    real(dp), intent(in)           :: UJ(:,:)
+    real(dp), intent(in) :: UJ(:,:)
 
     !> number of blocks in each case
-    integer, intent(in)            :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> number of shells in each block
-    integer, intent(in)            :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> shells in the block
-    integer, intent(in)            :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
-    integer     :: nAtom, nSpin, iAt, iSp, iSpecies
+    integer :: nAtom, nSpin, iAt, iSp, iSpecies
 
-    integer     :: iFunctional
+    integer :: iFunctional
 
-    integer     :: iStart1, iEnd1, iStart2, iEnd2
+    integer :: iStart1, iEnd1, iStart2, iEnd2
 
-    integer     :: ii, jj, kk, ll, ik
+    integer :: ii, jj, kk, ll, ik
 
     @:ASSERT(all(shape(shift)==shape(qBlock)))
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
@@ -137,42 +137,42 @@ contains
       & iUJ)
 
     !> Real part of shift
-    real(dp), intent(inout)        :: shiftR(:,:,:,:)
+    real(dp), intent(inout) :: shiftR(:,:,:,:)
 
     !> imaginary part of shift
-    real(dp), intent(inout)        :: shiftI(:,:,:,:)
+    real(dp), intent(inout) :: shiftI(:,:,:,:)
 
     !> real part of block charges
-    real(dp), intent(in)           :: qBlockR(:,:,:,:)
+    real(dp), intent(in) :: qBlockR(:,:,:,:)
 
     !> imaginary part of block charges
-    real(dp), intent(in)           :: qBlockI(:,:,:,:)
+    real(dp), intent(in) :: qBlockI(:,:,:,:)
 
     !> list of the species for each atom
-    integer,  intent(in)           :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Angular momentum information about the orbitals.
-    type(TOrbitals), intent(in)    :: orb
+    type(TOrbitals), intent(in) :: orb
 
     !> choice of functional, so far FLL, pSIC (1,2)
-    integer,  intent(in), optional :: functional
+    integer, intent(in), optional :: functional
 
     !> list of U-J values for each species
-    real(dp), intent(in)           :: UJ(:,:)
+    real(dp), intent(in) :: UJ(:,:)
 
     !> number of +U blocks to calculate for each species
-    integer, intent(in)            :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> number of l values contained in each block for each species
-    integer, intent(in)            :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> list of l values in each block for each species
-    integer, intent(in)            :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
-    integer     :: nAtom, nSpin, iAt, iSp, iSpecies
-    integer     :: iFunctional
-    integer     :: iStart1, iEnd1, iStart2, iEnd2
-    integer     :: ii, jj, kk, ll, ik
+    integer :: nAtom, nSpin, iAt, iSp, iSpecies
+    integer :: iFunctional
+    integer :: iStart1, iEnd1, iStart2, iEnd2
+    integer :: ii, jj, kk, ll, ik
 
     @:ASSERT(all(shape(shiftR)==shape(qBlockR)))
     @:ASSERT(all(shape(shiftI)==shape(qBlockI)))
@@ -243,40 +243,40 @@ contains
   subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
 
     !> energy contribution
-    real(dp), intent(inout)        :: egy(:)
+    real(dp), intent(inout) :: egy(:)
 
     !> charge block populations
-    real(dp), intent(in)           :: qBlock(:,:,:,:)
+    real(dp), intent(in) :: qBlock(:,:,:,:)
 
     !> list of the species for each atom
-    integer,  intent(in)           :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Angular momentum information about the orbitals.
-    type(TOrbitals), intent(in)    :: orb
+    type(TOrbitals), intent(in) :: orb
 
     !> choice of functional, so far FLL, pSIC (1,2)
-    integer,  intent(in), optional :: functional
+    integer, intent(in), optional :: functional
 
     !> list of U-J values for each species
-    real(dp), intent(in)           :: UJ(:,:)
+    real(dp), intent(in) :: UJ(:,:)
 
     !> number of +U blocks to calculate for each species
-    integer, intent(in)            :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> number of l values contained in each block for each species
-    integer, intent(in)            :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> list of l values in each block for each species
-    integer, intent(in)            :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
     !> optional skew population for L.S cases
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
-    integer     :: nAtom, nSpin, iAt, iSp, iSpecies
-    integer     :: iFunctional
-    integer     :: iStart1, iEnd1, iStart2, iEnd2
-    integer     :: ii, jj, kk, ll, ik
-    real(dp)    :: blockTmp(orb%mOrb,orb%mOrb)
+    integer :: nAtom, nSpin, iAt, iSp, iSpecies
+    integer :: iFunctional
+    integer :: iStart1, iEnd1, iStart2, iEnd2
+    integer :: ii, jj, kk, ll, ik
+    real(dp) :: blockTmp(orb%mOrb,orb%mOrb)
 
     @:ASSERT(size(qBlock,dim=1)==orb%mOrb)
     @:ASSERT(size(qBlock,dim=2)==orb%mOrb)
@@ -452,25 +452,25 @@ contains
   subroutine DFTBU_blockIndx(iEqBlockDFTBU, count, orb, species, nUJ, niUJ, iUJ)
 
     !> The mapping array on return
-    integer, intent(out)        :: iEqBlockDFTBU(:,:,:,:)
+    integer, intent(out) :: iEqBlockDFTBU(:,:,:,:)
 
     !> Number of prior entries in 1D array holding regular charges
-    integer, intent(in)         :: count
+    integer, intent(in) :: count
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
     !> Species of each atom
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     !> How many U-J for each species
-    integer, intent(in)         :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> number of l-values of U-J for each block
-    integer, intent(in)         :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> l-values of U-J for each block
-    integer, intent(in)         :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
     integer :: nAtom, nSpin, iCount
     integer :: iAt, iSp, iSpecies
@@ -583,28 +583,28 @@ contains
   subroutine Block_expand(input, blockEquiv, orb, output, species, nUJ, niUJ, iUJ, orbEquiv, skew)
 
     !> 1D array of packed data
-    real(dp), intent(in)        :: input(:)
+    real(dp), intent(in) :: input(:)
 
     !> equivalences for blocks on atomic sites
-    integer, intent(in)         :: blockEquiv(:,:,:,:)
+    integer, intent(in) :: blockEquiv(:,:,:,:)
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
     !> unpacked data
-    real(dp), intent(out)       :: output(:,:,:,:)
+    real(dp), intent(out) :: output(:,:,:,:)
 
     !> Species of each atom
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     !> How many U-J for each species
-    integer, intent(in)         :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> number of l-values of U-J for each block
-    integer, intent(in)         :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> l-values of U-J for each block
-    integer, intent(in)         :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
     !> equivalences for atoms
     integer, intent(in),optional :: orbEquiv(:,:,:)

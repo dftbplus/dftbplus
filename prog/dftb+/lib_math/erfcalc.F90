@@ -129,7 +129,7 @@ contains
         & 2.33520497626869185E-3_dp ]
 
     integer :: ii
-    real(dp) ::  del, xx, xden, xnum, yy, ysq
+    real(dp) :: del, xx, xden, xnum, yy, ysq
 
     xx = arg
     yy = abs(xx)
@@ -282,7 +282,7 @@ contains
         & 2.33520497626869185E-3_sp ]
 
     integer :: ii
-    real(sp) ::  del, xx, xden, xnum, yy, ysq
+    real(sp) :: del, xx, xden, xnum, yy, ysq
 
     xx = arg
     yy = abs(xx)

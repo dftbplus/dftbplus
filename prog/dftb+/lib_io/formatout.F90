@@ -56,7 +56,7 @@ contains
   subroutine clearFile_fname(fileName)
 
     !> name of the file which should be cleared
-    character(len=*), intent(in)   :: fileName
+    character(len=*), intent(in) :: fileName
 
     integer, save :: fd = -1
 
@@ -73,22 +73,22 @@ contains
   subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord)
 
     !> File name of the file which should be created
-    character(len=*), intent(in)   :: fileName
+    character(len=*), intent(in) :: fileName
 
     !> Coordinates in atomic units
-    real(dp),         intent(in)   :: coord(:,:)
+    real(dp),         intent(in) :: coord(:,:)
 
     !> Species of the atoms
-    integer,          intent(in)   :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Name of the different species
-    character(mc),    intent(in)   :: speciesName(:)
+    character(mc),    intent(in) :: speciesName(:)
 
     !> Lattice vectors
     real(dp), intent(in), optional :: latVec(3,3)
 
     !> Print out fractional coordinates?
-    logical, intent(in), optional  :: tFracCoord
+    logical, intent(in), optional :: tFracCoord
 
     integer, save :: fd = -1
 
@@ -108,22 +108,22 @@ contains
   subroutine writeGenFormat_fid(fd, coord, species, speciesName, latVec, tFracCoord)
 
     !> File id of an open file where output should be written
-    integer,           intent(in)  :: fd
+    integer, intent(in) :: fd
 
     !> Coordinates in atomic units
-    real(dp),          intent(in)  :: coord(:,:)
+    real(dp),          intent(in) :: coord(:,:)
 
     !> Species of the atoms
-    integer,           intent(in)  :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Name of the different species
-    character(mc),     intent(in)  :: speciesName(:)
+    character(mc),     intent(in) :: speciesName(:)
 
     !> Lattice vectors
     real(dp), intent(in), optional :: latVec(:,:)
 
     !> Print out fractional coordinates?
-    logical, intent(in), optional  :: tFracCoord
+    logical, intent(in), optional :: tFracCoord
 
     integer :: nAtom, nSpecies
     character(6) :: formatSpecies
@@ -196,7 +196,7 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Species of the atoms
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Name of the different species
     character(mc), intent(in) :: speciesName(:)
@@ -227,13 +227,13 @@ contains
   subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, comment)
 
     !> File id of an open file where output should be written
-    integer,  intent(in) :: fd
+    integer, intent(in) :: fd
 
     !> Coordinates in atomic units
     real(dp), intent(in) :: coords(:,:)
 
     !> Species of the atoms
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Name of the different species
     character(mc), intent(in) :: speciesNames(:)

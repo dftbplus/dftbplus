@@ -28,13 +28,13 @@ module gdiis
     real(dp), allocatable :: x(:)
 
     !> Number of elements in vector
-    integer  :: nElem
+    integer :: nElem
 
     !> Tolerance criteria for convergence
     real(dp) :: tolerance
 
     !> If object is initialized
-    logical  :: tInitialized
+    logical :: tInitialized
   end type ODIIS
 
 
@@ -68,7 +68,7 @@ contains
     type(ODIIS), intent(out) :: self
 
     !> Nr. of elements in the vectors
-    integer, intent(in)  :: nElem
+    integer, intent(in) :: nElem
 
     !> Termination tolerance for the gradient
     real(dp), intent(in) :: tol
@@ -77,7 +77,7 @@ contains
     real(dp), intent(in) :: alpha
 
     !> Number of vectors to use in building DIIS space
-    integer, intent(in)  :: nGens
+    integer, intent(in) :: nGens
 
     self%nElem = nElem
     self%tolerance = tol
@@ -112,7 +112,7 @@ contains
     type(ODIIS), intent(inout) :: self
 
     !> Gradient in the last point
-    real(dp), intent(in)  :: dx(:)
+    real(dp), intent(in) :: dx(:)
 
     !> New proposed point
     real(dp), intent(out) :: xNew(:)

@@ -95,7 +95,7 @@ contains
     real(dp), intent(in) :: couplingParameter
 
     !> Molecular dynamics generic framework
-    type(OMDCommon), intent(in)  :: pMDFrame
+    type(OMDCommon), intent(in) :: pMDFrame
 
     call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
@@ -162,7 +162,7 @@ contains
     type(OBerendsenThermostat), intent(in) :: self
 
     !> file unit
-    integer,intent(in)                  :: fd
+    integer,intent(in) :: fd
 
     ! no internal state, nothing to do
 

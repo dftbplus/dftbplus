@@ -18,8 +18,8 @@ program modes
   use TaggedOutput
   implicit none
 
-  integer  :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
-  integer  :: iCount, jCount
+  integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
+  integer :: iCount, jCount
   real(dp), allocatable :: eigenValues(:)
   real(dp), allocatable :: displ(:,:,:)
 

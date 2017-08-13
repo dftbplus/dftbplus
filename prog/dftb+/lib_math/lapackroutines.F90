@@ -893,21 +893,21 @@ contains
     !> contains the lower triangular part of the matrix A, and the strictly upper triangular part of
     !> A is not referenced.  On exit, the block diagonal matrix D and the multipliers used to obtain
     !> the factor U or L
-    real(rsp), intent(inout)        :: A(:,:)
+    real(rsp), intent(inout) :: A(:,:)
 
     !> On entry, the right hand side matrix B. On exit, the solution matrix X.
-    real(rsp), intent(inout)        :: B(:,:)
+    real(rsp), intent(inout) :: B(:,:)
 
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
     !> the passed matrix)
-    integer, intent(in), optional   :: nRow
+    integer, intent(in), optional :: nRow
 
     !> upper or lower triangle of the matrix, defaults to lower
     character, intent(in), optional :: uplo
 
     !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
-    integer, intent(out), optional  :: iError
+    integer, intent(out), optional :: iError
 
     integer, allocatable :: ipiv(:)
     character :: iUplo
@@ -971,21 +971,21 @@ contains
     !> contains the lower triangular part of the matrix A, and the strictly upper triangular part of
     !> A is not referenced.  On exit, the block diagonal matrix D and the multipliers used to obtain
     !> the factor U or L
-    real(rdp), intent(inout)        :: A(:,:)
+    real(rdp), intent(inout) :: A(:,:)
 
     !> On entry, the right hand side matrix B. On exit, the solution matrix X.
-    real(rdp), intent(inout)        :: B(:,:)
+    real(rdp), intent(inout) :: B(:,:)
 
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
     !> the passed matrix)
-    integer, intent(in), optional   :: nRow
+    integer, intent(in), optional :: nRow
 
     !> upper or lower triangle of the matrix, defaults to lower
     character, intent(in), optional :: uplo
 
     !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
     !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
-    integer, intent(out), optional  :: iError
+    integer, intent(out), optional :: iError
 
     integer, allocatable :: ipiv(:)
     character :: iUplo
@@ -1044,7 +1044,7 @@ contains
   subroutine larnv_real(iDist,iSeed,x)
 
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
-    integer, intent(in)    :: iDist
+    integer, intent(in) :: iDist
 
     !> On entry, the seed of the random number generator; the array elements must be between 0 and
     !> 4095, and ISEED(4) must be odd. On exit, the seed is updated.
@@ -1071,7 +1071,7 @@ contains
   subroutine larnv_dble(iDist,iSeed,x)
 
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
-    integer, intent(in)    :: iDist
+    integer, intent(in) :: iDist
 
     !> On entry, the seed of the random number generator; the array elements must be between 0 and
     !> 4095, and ISEED(4) must be odd. On exit, the seed is updated.
@@ -1098,11 +1098,11 @@ contains
   subroutine larnv_cplx(iDist,iSeed,x)
 
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
-    integer, intent(in)       :: iDist
+    integer, intent(in) :: iDist
 
     !> On entry, the seed of the random number generator; the array elements must be between 0 and
     !> 4095, and ISEED(4) must be odd. On exit, the seed is updated.
-    integer, intent(inout)    :: iSeed(4)
+    integer, intent(inout) :: iSeed(4)
 
     !> On exit, vector of random numbers
     complex(rsp), intent(out) :: x(:)
@@ -1125,11 +1125,11 @@ contains
   subroutine larnv_dblecplx(iDist,iSeed,x)
 
     !> choice of distribution (1: uniform (0,1), 2: uniform (-1,1), 3: normal (0,1)
-    integer, intent(in)       :: iDist
+    integer, intent(in) :: iDist
 
     !> INTEGER array, dimension (4) On entry, the seed of the random number generator; the array
     !> elements must be between 0 and 4095, and ISEED(4) must be odd. On exit, the seed is updated.
-    integer, intent(inout)    :: iSeed(4)
+    integer, intent(inout) :: iSeed(4)
 
     !> On exit, vector of random numbers
     complex(rdp), intent(out) :: x(:)

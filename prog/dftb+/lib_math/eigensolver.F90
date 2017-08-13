@@ -445,7 +445,7 @@ contains
     complex(rsp), allocatable :: work(:)
     real(rsp), allocatable :: rwork(:)
     integer n, info, iitype
-    integer ::  NB, LWKOPT
+    integer :: NB, LWKOPT
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -536,7 +536,7 @@ contains
     complex(rdp), allocatable :: work(:)
     real(rdp), allocatable :: rwork(:)
     integer n, info, iitype
-    integer ::  NB, LWKOPT
+    integer :: NB, LWKOPT
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -681,7 +681,7 @@ contains
     real(rdp), intent(inout) :: a(:,:)
 
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    real(rdp), intent(inout) ::  b(:,:)
+    real(rdp), intent(inout) :: b(:,:)
 
     !> eigenvalues
     real(rdp), intent(out) :: w(:)

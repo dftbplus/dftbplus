@@ -60,7 +60,7 @@ contains
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    integer  :: ii, nLevels
+    integer :: ii, nLevels
     real(dp) :: shift
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
@@ -196,7 +196,7 @@ contains
     !> eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
 
-    integer  :: ii, nLevels
+    integer :: ii, nLevels
     real(dp) :: shift
     real(dp) :: fillProduct(size(filling))
 
@@ -361,11 +361,11 @@ contains
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
 
-    integer                  :: iAt1, iNeigh1, nOrb1, nOrb2, jj
-    integer                  :: nAtom, nLevels, start1, start2, ii
-    integer, allocatable     :: inCellNeighbor(:,:)
-    integer, allocatable     :: nInCellNeighbor(:)
-    real(dp), allocatable    :: tmpEigen(:,:)
+    integer :: iAt1, iNeigh1, nOrb1, nOrb2, jj
+    integer :: nAtom, nLevels, start1, start2, ii
+    integer, allocatable :: inCellNeighbor(:,:)
+    integer, allocatable :: nInCellNeighbor(:)
+    real(dp), allocatable :: tmpEigen(:,:)
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
@@ -452,10 +452,10 @@ contains
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
 
-    integer                  :: iAt1, iNeigh1, nOrb1, nOrb2, jj, nAtom
-    integer                  :: nLevels, start1, start2, ii
-    integer, allocatable     :: inCellNeighbor(:,:)
-    integer, allocatable     :: nInCellNeighbor(:)
+    integer :: iAt1, iNeigh1, nOrb1, nOrb2, jj, nAtom
+    integer :: nLevels, start1, start2, ii
+    integer, allocatable :: inCellNeighbor(:,:)
+    integer, allocatable :: nInCellNeighbor(:)
     complex(dp), allocatable :: tmpEigen(:,:)
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
@@ -548,11 +548,11 @@ contains
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
 
-    integer                  :: iAt1, iNeigh1, jj, nOrb1, nOrb2, nAtom
-    integer                  :: nLevels, start1, start2, ii
-    integer, allocatable     :: inCellNeighbor(:,:)
-    integer, allocatable     :: nInCellNeighbor(:)
-    real(dp), allocatable    :: tmpEigen(:,:)
+    integer :: iAt1, iNeigh1, jj, nOrb1, nOrb2, nAtom
+    integer :: nLevels, start1, start2, ii
+    integer, allocatable :: inCellNeighbor(:,:)
+    integer, allocatable :: nInCellNeighbor(:)
+    real(dp), allocatable :: tmpEigen(:,:)
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
@@ -643,10 +643,10 @@ contains
 
     integer, intent(in) :: img2CentCell(:)
 
-    integer                  :: iAt1, iNeigh1, jj, nOrb1, nOrb2
-    integer                  :: nAtom, nLevels, start1, start2, ii
-    integer, allocatable     :: inCellNeighbor(:,:)
-    integer, allocatable     :: nInCellNeighbor(:)
+    integer :: iAt1, iNeigh1, jj, nOrb1, nOrb2
+    integer :: nAtom, nLevels, start1, start2, ii
+    integer, allocatable :: inCellNeighbor(:,:)
+    integer, allocatable :: nInCellNeighbor(:)
     complex(dp), allocatable :: tmpEigen(:,:)
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))

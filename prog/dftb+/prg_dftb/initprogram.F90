@@ -83,22 +83,22 @@ module initprogram
 
 
   !> Is the calculation SCC?
-  logical               :: tSCC
+  logical :: tSCC
 
   !> Nr. of different cutoffs
-  integer,  parameter   :: nCutoff = 1
+  integer, parameter :: nCutoff = 1
 
   !> nr. of atoms
-  integer               :: nAtom
+  integer :: nAtom
 
   !> nr. of all (boundary condition images and original) atoms
-  integer               :: nAllAtom
+  integer :: nAllAtom
 
   !> nr. of original atom in central cell
   integer, allocatable :: Img2CentCell(:)
 
   !> nr of different types (nAtom)
-  integer               :: nType
+  integer :: nType
 
 
   !> data type for atomic orbital information
@@ -106,16 +106,16 @@ module initprogram
 
 
   !> nr. of orbitals in the system
-  integer               :: nOrb
+  integer :: nOrb
 
   !> nr. of orbitals for all atoms
-  integer               :: nAllOrb
+  integer :: nAllOrb
 
   !> types of the atoms (nAllAtom)
   integer, allocatable :: species(:)
 
   !> type of the atoms (nAtom)
-  integer,  allocatable :: species0(:)
+  integer, allocatable :: species0(:)
 
   !> Coords of the atoms (3, nAllAtom)
   real(dp), allocatable :: coord(:,:)
@@ -134,20 +134,20 @@ module initprogram
 
 
   !> if calculation is periodic
-  logical               :: tPeriodic
+  logical :: tPeriodic
 
   !> Should central cell coordinates be output?
-  logical               :: tShowFoldedCoord
+  logical :: tShowFoldedCoord
 
 
   !> How to calculate forces
   integer :: forceType
 
   !> are atomic coordinates fractional?
-  logical               :: tFracCoord
+  logical :: tFracCoord
 
   !> Tollerance for SCC cycle
-  real(dp)              :: sccTol
+  real(dp) :: sccTol
 
 
   !> lattice vectors as columns
@@ -158,20 +158,20 @@ module initprogram
 
 
   !> original lattice vectors used for optimizing
-  real(dp)              :: origLatVec(3,3)
+  real(dp) :: origLatVec(3,3)
 
   !> normalized vectors in those directions
-  real(dp)              :: normOrigLatVec(3,3)
+  real(dp) :: normOrigLatVec(3,3)
 
 
   !> reciprocal vectors in 2 pi units
   real(dp), allocatable :: recVec2p(:,:)
 
   !> cell volume
-  real(dp)              :: CellVol
+  real(dp) :: CellVol
 
   !> reciprocal cell volume
-  real(dp)              :: recCellVol
+  real(dp) :: recCellVol
 
   !> translation vecs for interacting image cells (3, nImgCell + 1)
   real(dp), allocatable :: cellVec(:,:)
@@ -187,14 +187,14 @@ module initprogram
   type(TNeighborList), allocatable, save :: neighborList
 
   !> nr. of neighbors for atoms out to SK + rep distance
-  integer,  allocatable :: nNeighbor(:)
+  integer, allocatable :: nNeighbor(:)
 
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iPair(:,:)
 
 
   !> atom start pos for squared H/S
-  integer,  allocatable :: iAtomStart(:)
+  integer, allocatable :: iAtomStart(:)
 
 
   !> Hubbard Us (orbital, atom)
@@ -214,7 +214,7 @@ module initprogram
 
 
   !> Raw H^0 hamiltonian data
-  type(OSlakoCont)  :: skHamCont
+  type(OSlakoCont) :: skHamCont
 
   !> Raw overlap hamiltonian data
   type(OSlakoCont) :: skOverCont
@@ -230,7 +230,7 @@ module initprogram
 
 
   !> longest pair interaction
-  real(dp)              :: mCutoff
+  real(dp) :: mCutoff
 
 
   !> Sparse hamiltonian matrix
@@ -247,7 +247,7 @@ module initprogram
 
 
   !> nr. of K-points
-  integer               :: nKPoint
+  integer :: nKPoint
 
   !> K-points
   real(dp), allocatable :: kPoint(:,:)
@@ -257,24 +257,24 @@ module initprogram
 
 
   !> external pressure if periodic
-  real(dp)              :: pressure
+  real(dp) :: pressure
 
   !> Barostat used if MD and periodic
-  logical               :: tBarostat
+  logical :: tBarostat
 
   !> Barostat coupling strength
-  real(dp)              :: BarostatStrength
+  real(dp) :: BarostatStrength
 
 
   !> H and S are real
-  logical               :: tRealHS
+  logical :: tRealHS
 
 
   !> nr. of electrons
   real(dp), allocatable :: nEl(:)
 
   !> Nr. of all electrons if neutral
-  real(dp)              :: nEl0
+  real(dp) :: nEl0
 
 
   !> Spin W values
@@ -285,22 +285,22 @@ module initprogram
 
 
   !> is this a DFTB+U calculation?
-  logical               :: tDFTBU
+  logical :: tDFTBU
 
   !> Choice of orbital functional
-  integer               :: nDFTBUfunc
+  integer :: nDFTBUfunc
 
   !> list of U-J for species
   real(dp), allocatable :: UJ(:,:)
 
   !> How many U-J for each species
-  integer, allocatable  :: nUJ(:)
+  integer, allocatable :: nUJ(:)
 
   !> number of l-values of U-J for each block
-  integer, allocatable  :: niUJ(:,:)
+  integer, allocatable :: niUJ(:,:)
 
   !> l-values of U-J for each block
-  integer, allocatable  :: iUJ(:,:,:)
+  integer, allocatable :: iUJ(:,:,:)
 
 
   !> electron temperature
@@ -320,7 +320,7 @@ module initprogram
   logical :: tSetFillingTemp
 
   !> Choice of electron distribution function, defaults to Fermi
-  integer  :: iDistribFn = 0
+  integer :: iDistribFn = 0
 
   !> atomic kinetic temperature
   real(dp) :: tempAtom
@@ -360,92 +360,92 @@ module initprogram
 
 
   !> Geometry optimization needed?
-  logical               :: tGeoOpt
+  logical :: tGeoOpt
 
   !> optimize coordinates inside unit cell (periodic)?
-  logical               :: tCoordOpt
+  logical :: tCoordOpt
 
   !> optimize lattice constants?
-  logical               :: tLatOpt
+  logical :: tLatOpt
 
   !> Fix angles between lattice vectors when optimizing?
-  logical               :: tLatOptFixAng
+  logical :: tLatOptFixAng
 
   !> Fix length of specified lattice vectors when optimizing?
-  logical               :: tLatOptFixLen(3)
+  logical :: tLatOptFixLen(3)
 
   !> Optimise lattice isotropically
-  logical               :: tLatOptIsotropic
+  logical :: tLatOptIsotropic
 
   !> Is this a MD calculation?
-  logical               :: tMD
+  logical :: tMD
 
   !> Is this a derivatives calc?
-  logical               :: tDerivs
+  logical :: tDerivs
 
   !> Do we need Mulliken charges?
-  logical               :: tMulliken
+  logical :: tMulliken
 
   !> Calculate localised orbitals?
-  logical               :: tLocalise
+  logical :: tLocalise
 
   !> Use PipekMezey localisation?
-  logical               :: tPipekMezey
+  logical :: tPipekMezey
 
   !> use a dense algorithm for Pipek-Mezey localisation?
-  logical               :: tPipekDense
+  logical :: tPipekDense
 
   !> tollerances for element neglect if instead using a sparse version of Pipek-Mezey localisation
   real(dp), allocatable :: sparsePipekTols(:)
 
   !> halting tollerance for localisation
-  real(dp)              :: PipekTol
+  real(dp) :: PipekTol
 
   !> number of localisation iterations
-  integer               :: PipekMaxIter
+  integer :: PipekMaxIter
 
 
   !> Do we need to show Mulliken charges?
-  logical               :: tPrintMulliken
+  logical :: tPrintMulliken
 
   !> calculate an electric dipole?
-  logical               :: tDipole
+  logical :: tDipole
 
   !> Do we need atom resolved E?
-  logical               :: tAtomicEnergy
+  logical :: tAtomicEnergy
 
   !> Print out eigenvectors?
-  logical               :: tPrintEigVecs
+  logical :: tPrintEigVecs
 
   !> Store as a text file
-  logical               :: tPrintEigVecsTxt
+  logical :: tPrintEigVecsTxt
 
   !> Print eigenvector projections?
-  logical               :: tProjEigenvecs
+  logical :: tProjEigenvecs
 
   !> Do we need forces?
-  logical               :: tForces
+  logical :: tForces
 
   !> are forces being returned
-  logical               :: tPrintForces
+  logical :: tPrintForces
 
   !> Number of moved atoms
-  integer               :: nMovedAtom
+  integer :: nMovedAtom
 
   !> Index of the moved atoms
-  integer, allocatable  :: indMovedAtom(:)
+  integer, allocatable :: indMovedAtom(:)
 
   !> Nr. of moved coordinates
-  integer               :: nMovedCoord
+  integer :: nMovedCoord
 
   !> Nr. of geo movements to do
-  integer               :: nGeoSteps
+  integer :: nGeoSteps
 
   !> Nr. of geometry constraints
-  integer               :: nGeoConstr
+  integer :: nGeoConstr
 
   !> Index of constrained atoms
-  integer,  allocatable :: conAtom(:)
+  integer, allocatable :: conAtom(:)
 
   !> Constraint vectors
   real(dp), allocatable :: conVec(:,:)
@@ -463,7 +463,7 @@ module initprogram
 
 
   !> Append geometries in the output?
-  logical               :: tAppendGeo
+  logical :: tAppendGeo
 
 
   !> Only use converged forces if SCC
@@ -475,7 +475,7 @@ module initprogram
 
 
   !> Is this initialised
-  logical            :: tInitialized = .false.
+  logical :: tInitialized = .false.
   private :: tInitialized
 
 
@@ -506,40 +506,40 @@ module initprogram
 
 
   !> reference neutral atomic occupations
-  real(dp), allocatable    :: q0(:, :, :)
+  real(dp), allocatable :: q0(:, :, :)
 
   !> shell resolved neutral reference
-  real(dp), allocatable    :: qShell0(:,:)
+  real(dp), allocatable :: qShell0(:,:)
 
   !> input charges (for potentials)
-  real(dp), allocatable    :: qInput(:, :, :)
+  real(dp), allocatable :: qInput(:, :, :)
 
   !> output charges
-  real(dp), allocatable    :: qOutput(:, :, :)
+  real(dp), allocatable :: qOutput(:, :, :)
 
   !> input Mulliken block charges (diagonal part == Mulliken charges)
-  real(dp), allocatable    :: qBlockIn(:, :, :, :)
+  real(dp), allocatable :: qBlockIn(:, :, :, :)
 
   !> Output Mulliken block charges
-  real(dp), allocatable    :: qBlockOut(:, :, :, :)
+  real(dp), allocatable :: qBlockOut(:, :, :, :)
 
   !> Imaginary part of input Mulliken block charges
-  real(dp), allocatable    :: qiBlockIn(:, :, :, :)
+  real(dp), allocatable :: qiBlockIn(:, :, :, :)
 
   !> Imaginary part of output Mulliken block charges
-  real(dp), allocatable    :: qiBlockOut(:, :, :, :)
+  real(dp), allocatable :: qiBlockOut(:, :, :, :)
 
   !> input charges packed into unique equivalence elements
-  real(dp), allocatable    :: qInpRed(:)
+  real(dp), allocatable :: qInpRed(:)
 
   !> output charges packed into unique equivalence elements
-  real(dp), allocatable    :: qOutRed(:)
+  real(dp), allocatable :: qOutRed(:)
 
   !> charge differences packed into unique equivalence elements
-  real(dp), allocatable    :: qDiffRed(:)
+  real(dp), allocatable :: qDiffRed(:)
 
   !> Orbital equivalence relations
-  integer, allocatable     :: iEqOrbitals(:,:,:)
+  integer, allocatable :: iEqOrbitals(:,:,:)
 
   !> nr. of inequivalent orbitals
   integer :: nIneqOrb
@@ -564,7 +564,7 @@ module initprogram
 
 
   !> external electric field
-  logical  :: tEField = .false.
+  logical :: tEField = .false.
 
   !> field strength
   real(dp) :: EFieldStrength = 0.0_dp
@@ -573,13 +573,13 @@ module initprogram
   real(dp) :: EfieldVector(3) = 0.0_dp
 
   !> time dependent
-  logical  :: tTDEfield = .false.
+  logical :: tTDEfield = .false.
 
   !> angular frequency
   real(dp) :: EfieldOmega = 0.0_dp
 
   !> phase of field at step 0
-  integer  :: EfieldPhase = 0
+  integer :: EfieldPhase = 0
 
 
   !> Partial density of states (PDOS) projection regions
@@ -698,7 +698,7 @@ contains
     type(inputData), intent(inout), target :: input
 
     ! Mixer related local variables
-    integer  :: nGeneration
+    integer :: nGeneration
     real(dp) :: mixParam
 
     !> mixer number

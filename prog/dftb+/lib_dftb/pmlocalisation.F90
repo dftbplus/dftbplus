@@ -47,31 +47,31 @@ contains
   subroutine PipekMezeyOld_real(ci, S, iAtomStart, convergence, mIter)
 
     !> wavefunction coefficients
-    real(dp), intent(inout)       :: ci(:,:)
+    real(dp), intent(inout) :: ci(:,:)
 
     !> overlap matrix in square form
-    real(dp), intent(in)          :: S(:,:)
+    real(dp), intent(in) :: S(:,:)
 
     !> Atom offset for the squared Hamiltonian
-    integer,  intent(in)          :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> tollerance for halting localisation iterations
-    real(dp), intent(in)          :: convergence
+    real(dp), intent(in) :: convergence
 
     !> maximum number of iterations to use
     integer, intent(in), optional :: mIter
 
-    integer  :: iLev1, iLev2, nLev
-    integer  :: iAtom1, nAtom, nIter
-    integer  :: iOrb1, iOrb2, nOrb
-    integer  :: iIter
+    integer :: iLev1, iLev2, nLev
+    integer :: iAtom1, nAtom, nIter
+    integer :: iOrb1, iOrb2, nOrb
+    integer :: iIter
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa, Pst, Pss, Ptt
     real(dp), allocatable :: Sci1(:), Sci2(:,:), ciTmp1(:), ciTmp2(:)
 
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
-    logical  :: tConverged = .false.
+    logical :: tConverged = .false.
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     @:ASSERT(size(ci,dim=1)==size(S,dim=1))
@@ -170,16 +170,16 @@ contains
   subroutine PipekMezeySuprtRegion_real(ci, S, iAtomStart, convergence, mIter, RegionTol)
 
     !> support region for each molecular orbital
-    real(dp), intent(inout)       :: ci(:,:)
+    real(dp), intent(inout) :: ci(:,:)
 
     !> wavefunction coefficients
-    real(dp), intent(in)          :: S(:,:)
+    real(dp), intent(in) :: S(:,:)
 
     !> overlap matrix in square form
-    integer,  intent(in)          :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> Atom offset for the squared Hamiltonian
-    real(dp), intent(in)          :: convergence
+    real(dp), intent(in) :: convergence
 
     !> tollerance for halting localisation iterations
     integer, intent(in), optional :: mIter
@@ -188,18 +188,18 @@ contains
     real(dp), intent(in) :: RegionTol
 
     !> Number of electrons per site to consider it within a domain.
-    integer  :: iLev1, iLev2, nLev
-    integer  :: iAtom1, nAtom, nIter
-    integer  :: iOrb1, iOrb2, nOrb
-    integer  :: iIter
+    integer :: iLev1, iLev2, nLev
+    integer :: iAtom1, nAtom, nIter
+    integer :: iOrb1, iOrb2, nOrb
+    integer :: iIter
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa, Pst, Pss, Ptt
     real(dp), allocatable :: Sci1(:,:), Sci2(:,:), ciTmp1(:), ciTmp2(:)
     integer, allocatable :: LevAtAtom(:,:), nLevAtAtom(:)
     integer, allocatable :: SitesLev(:,:), nSitesLev(:)
     integer, allocatable :: LevPairs(:)
-    integer  :: ii, jj, kk, ll, ij, iLev, nLevPairs
-    logical  :: tPair, tPresent
+    integer :: ii, jj, kk, ll, ij, iLev, nLevPairs
+    logical :: tPair, tPresent
 
     integer, allocatable :: oldSites(:,:)
     integer :: nOldSites(2)
@@ -207,7 +207,7 @@ contains
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
     real(dp) :: rCount
-    logical  :: tConverged = .false.
+    logical :: tConverged = .false.
 
     real(dp) :: Localisation, oldLocalisation
     integer, allocatable :: union(:)
@@ -491,13 +491,13 @@ contains
     real(dp) :: PipekMezyLocality
 
     !> wavefunction coefficients
-    real(dp), intent(in)  :: ci(:,:)
+    real(dp), intent(in) :: ci(:,:)
 
     !> overlap matrix
-    real(dp), intent(in)  :: S(:,:)
+    real(dp), intent(in) :: S(:,:)
 
     !> Atom offset for the squared Hamiltonian
-    integer,  intent(in)  :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     real(dp), allocatable :: Sci(:,:)
     integer :: nAtom, iAtom, iOrbStart, iOrbEnd, nOrb, nLev
@@ -528,40 +528,40 @@ contains
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
 
     !> wavefunction coefficients
-    complex(dp), intent(in)     :: ci(:,:,:)
+    complex(dp), intent(in) :: ci(:,:,:)
 
     !> overlap matrix, used as workspace
-    complex(dp), intent(inout)  :: S(:,:)
+    complex(dp), intent(inout) :: S(:,:)
 
     !> sparse overlap matrix
-    real(dp), intent(in)        :: over(:)
+    real(dp), intent(in) :: over(:)
 
     !> full set of k-points
-    real(dp), intent(in)        :: kpoints(:,:)
+    real(dp), intent(in) :: kpoints(:,:)
 
     !> weights for each k-point
-    real(dp), intent(in)        :: kweights(:)
+    real(dp), intent(in) :: kweights(:)
 
     !> neighbour list
-    integer,  intent(in)        :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of neighbours
-    integer,  intent(in)        :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> list of which image cells atoms outside the central cell fall into
-    integer,  intent(in)        :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> vectors to the image cells
-    real(dp), intent(in)        :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> index for the square matrices
-    integer,  intent(in)        :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> index for the sparse matrices
-    integer,  intent(in)        :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> index array back to central cell
-    integer,  intent(in)        :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Locality for each k-point
     real(dp) :: PipekMezyLocality(size(kweights))
@@ -617,51 +617,51 @@ contains
       & cellVec, iAtomStart, iPair, img2CentCell, convergence, mIter)
 
     !> wavefunction coefficients
-    complex(dp), intent(inout)    :: ci(:,:,:)
+    complex(dp), intent(inout) :: ci(:,:,:)
 
     !> overlap matrix, used as workspace
-    complex(dp), intent(inout)    :: S(:,:)
+    complex(dp), intent(inout) :: S(:,:)
 
     !> sparse overlap matrix
-    real(dp), intent(in)          :: over(:)
+    real(dp), intent(in) :: over(:)
 
     !> full set of k-points
-    real(dp), intent(in)          :: kpoints(:,:)
+    real(dp), intent(in) :: kpoints(:,:)
 
     !> weights for each k-point
-    real(dp), intent(in)          :: kweights(:)
+    real(dp), intent(in) :: kweights(:)
 
     !> neighbour list
-    integer,  intent(in)          :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of neighbours
-    integer,  intent(in)          :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> list of which image cells atoms outside the central cell fall into
-    integer,  intent(in)          :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> vectors to the image cells
-    real(dp), intent(in)          :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> index for the square matrices
-    integer,  intent(in)          :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> index for the sparse matrices
-    integer,  intent(in)          :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> index array back to central cell
-    integer,  intent(in)          :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> tollerance for halting localisation iterations
-    real(dp), intent(in)          :: convergence
+    real(dp), intent(in) :: convergence
 
     !> maximum number of iterations to use
     integer, intent(in), optional :: mIter
 
-    integer  :: iLev1, iLev2, nLev, nKpt
-    integer  :: iAtom1, nAtom, nIter
-    integer  :: iOrb1, iOrb2, nOrb
-    integer  :: iIter, iKpt, iLoc(1), ii
+    integer :: iLev1, iLev2, nLev, nKpt
+    integer :: iAtom1, nAtom, nIter
+    integer :: iOrb1, iOrb2, nOrb
+    integer :: iIter, iKpt, iLoc(1), ii
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa
     complex(dp) :: Pst, Pss, Ptt
@@ -672,7 +672,7 @@ contains
 
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
-    logical  :: tConverged(size(kweights))
+    logical :: tConverged(size(kweights))
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
 

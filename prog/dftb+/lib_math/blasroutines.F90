@@ -110,15 +110,15 @@ contains
     real(rsp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    real(rsp), intent(in)  :: alpha
+    real(rsp), intent(in) :: alpha
 
     !> vector of values for the update
-    real(rsp), intent(in)  :: x(:)
+    real(rsp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional :: uplo
 
-    integer   :: n
+    integer :: n
     character :: iUplo
     @:ASSERT(size(a,dim=1) == size(a,dim=2))
     @:ASSERT(size(a,dim=1) == size(x))
@@ -141,10 +141,10 @@ contains
     complex(rsp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    real(rsp), intent(in)  :: alpha
+    real(rsp), intent(in) :: alpha
 
     !> vector of values for the update
-    complex(rsp), intent(in)  :: x(:)
+    complex(rsp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in),optional :: uplo
@@ -172,10 +172,10 @@ contains
     real(rdp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    real(rdp), intent(in)  :: alpha
+    real(rdp), intent(in) :: alpha
 
     !> vector of values for the update
-    real(rdp), intent(in)  :: x(:)
+    real(rdp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in), optional :: uplo
@@ -202,10 +202,10 @@ contains
     complex(rdp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    real(rdp), intent(in)  :: alpha
+    real(rdp), intent(in) :: alpha
 
     !> vector of values for the update
-    complex(rdp), intent(in)  :: x(:)
+    complex(rdp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
     character, intent(in),optional :: uplo
@@ -232,15 +232,15 @@ contains
     real(rsp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    real(rsp), intent(in)    :: alpha
+    real(rsp), intent(in) :: alpha
 
     !> vector of values for the update
-    real(rsp), intent(in)    :: x(:)
+    real(rsp), intent(in) :: x(:)
 
     !> vector of values for the update
-    real(rsp), intent(in)    :: y(:)
+    real(rsp), intent(in) :: y(:)
 
-    integer   :: n, m
+    integer :: n, m
     @:ASSERT(size(a,dim=1) == size(x))
     @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
@@ -256,15 +256,15 @@ contains
     complex(rsp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    complex(rsp), intent(in)    :: alpha
+    complex(rsp), intent(in) :: alpha
 
     !> vector of values for the update
-    complex(rsp), intent(in)    :: x(:)
+    complex(rsp), intent(in) :: x(:)
 
     !> vector of values for the update
-    complex(rsp), intent(in)    :: y(:)
+    complex(rsp), intent(in) :: y(:)
 
-    integer   :: n, m
+    integer :: n, m
     @:ASSERT(size(a,dim=1) == size(x))
     @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
@@ -280,15 +280,15 @@ contains
     real(rdp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    real(rdp), intent(in)    :: alpha
+    real(rdp), intent(in) :: alpha
 
     !> vector of values for the update
-    real(rdp), intent(in)    :: x(:)
+    real(rdp), intent(in) :: x(:)
 
     !> vector of values for the update
-    real(rdp), intent(in)    :: y(:)
+    real(rdp), intent(in) :: y(:)
 
-    integer   :: n, m
+    integer :: n, m
     @:ASSERT(size(a,dim=1) == size(x))
     @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
@@ -304,15 +304,15 @@ contains
     complex(rdp), intent(inout) :: a(:,:)
 
     !> scaling value for the update contribution
-    complex(rdp), intent(in)    :: alpha
+    complex(rdp), intent(in) :: alpha
 
     !> vector of values for the update
-    complex(rdp), intent(in)    :: x(:)
+    complex(rdp), intent(in) :: x(:)
 
     !> vector of values for the update
-    complex(rdp), intent(in)    :: y(:)
+    complex(rdp), intent(in) :: y(:)
 
-    integer   :: n, m
+    integer :: n, m
     @:ASSERT(size(a,dim=1) == size(x))
     @:ASSERT(size(a,dim=2) == size(y))
     m = size(x)
@@ -325,24 +325,24 @@ contains
   subroutine symv_real(y,a,x,uplo,alpha,beta)
 
     !> vector
-    real(rsp), intent(inout)           :: y(:)
+    real(rsp), intent(inout) :: y(:)
 
     !> symmetric matrix
-    real(rsp), intent(in)              :: a(:,:)
+    real(rsp), intent(in) :: a(:,:)
 
     !> vector
-    real(rsp), intent(in)              :: x(:)
+    real(rsp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional scaling factor (defaults to 1)
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
-    integer   :: n
+    integer :: n
     character :: iUplo
     real(rsp) :: iAlpha, iBeta
 
@@ -376,24 +376,24 @@ contains
   subroutine symv_dble(y,a,x,uplo,alpha,beta)
 
     !> vector
-    real(rdp), intent(inout)           :: y(:)
+    real(rdp), intent(inout) :: y(:)
 
     !> symmetric matrix
-    real(rdp), intent(in)              :: a(:,:)
+    real(rdp), intent(in) :: a(:,:)
 
     !> vector
-    real(rdp), intent(in)              :: x(:)
+    real(rdp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional scaling factor (defaults to 1)
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
-    integer   :: n
+    integer :: n
     character :: iUplo
     real(rdp) :: iAlpha, iBeta
 
@@ -427,25 +427,25 @@ contains
   subroutine hemv_cmplx(y,a,x,uplo,alpha,beta)
 
     !> vector
-    complex(rsp), intent(inout)           :: y(:)
+    complex(rsp), intent(inout) :: y(:)
 
     !> symmetric matrix
-    complex(rsp), intent(in)              :: a(:,:)
+    complex(rsp), intent(in) :: a(:,:)
 
     !> vector
-    complex(rsp), intent(in)              :: x(:)
+    complex(rsp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
-    character, intent(in), optional       :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional scaling factor (defaults to 1)
-    complex(rsp), intent(in), optional    :: alpha
+    complex(rsp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    complex(rsp), intent(in), optional    :: beta
+    complex(rsp), intent(in), optional :: beta
 
-    integer      :: n
-    character    :: iUplo
+    integer :: n
+    character :: iUplo
     complex(rsp) :: iAlpha, iBeta
 
     if (present(uplo)) then
@@ -478,24 +478,24 @@ contains
   subroutine hemv_dblecmplx(y,a,x,uplo,alpha,beta)
 
     !> vector
-    complex(rdp), intent(inout)           :: y(:)
+    complex(rdp), intent(inout) :: y(:)
 
     !> symmetric matrix
-    complex(rdp), intent(in)              :: a(:,:)
+    complex(rdp), intent(in) :: a(:,:)
 
     !> vector
-    complex(rdp), intent(in)              :: x(:)
+    complex(rdp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
-    character, intent(in), optional     :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional scaling factor (defaults to 1)
-    complex(rdp), intent(in), optional    :: alpha
+    complex(rdp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    complex(rdp), intent(in), optional    :: beta
+    complex(rdp), intent(in), optional :: beta
 
-    integer   :: n
+    integer :: n
     character :: iUplo
     complex(rdp) :: iAlpha, iBeta
 
@@ -529,25 +529,25 @@ contains
   subroutine gemv_real(y,a,x,alpha,beta,trans)
 
     !> vector
-    real(rsp), intent(inout)           :: y(:)
+    real(rsp), intent(inout) :: y(:)
 
     !> matrix
-    real(rsp), intent(in)              :: a(:,:)
+    real(rsp), intent(in) :: a(:,:)
 
     !> vector
-    real(rsp), intent(in)              :: x(:)
+    real(rsp), intent(in) :: x(:)
 
     !> optional scaling factor (defaults to 1)
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
     !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
-    character, intent(in), optional    :: trans
+    character, intent(in), optional :: trans
 
-    integer           :: n, m
-    character         :: iTrans
+    integer :: n, m
+    character :: iTrans
     real(rsp) :: iAlpha, iBeta
 
     if (present(trans)) then
@@ -582,25 +582,25 @@ contains
   subroutine gemv_dble(y,a,x,alpha,beta,trans)
 
     !> vector
-    real(rdp), intent(inout)           :: y(:)
+    real(rdp), intent(inout) :: y(:)
 
     !> matrix
-    real(rdp), intent(in)              :: a(:,:)
+    real(rdp), intent(in) :: a(:,:)
 
     !> vector
-    real(rdp), intent(in)              :: x(:)
+    real(rdp), intent(in) :: x(:)
 
     !> optional scaling factor (defaults to 1)
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
     !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
-    character, intent(in), optional    :: trans
+    character, intent(in), optional :: trans
 
-    integer           :: n, m
-    character         :: iTrans
+    integer :: n, m
+    character :: iTrans
     real(rdp) :: iAlpha, iBeta
 
     if (present(trans)) then
@@ -635,25 +635,25 @@ contains
   subroutine sbmv_real(y,ba,x,uplo,alpha,beta)
 
     !> vector
-    real(rsp), intent(inout)           :: y(:)
+    real(rsp), intent(inout) :: y(:)
 
     !> banded symmetric matrix
-    real(rsp), intent(in)              :: ba(:,:)
+    real(rsp), intent(in) :: ba(:,:)
 
     !> vector
-    real(rsp), intent(in)              :: x(:)
+    real(rsp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional scaling factor (defaults to 1)
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
-    integer   :: n
-    integer   :: k
+    integer :: n
+    integer :: k
     character :: iUplo
     real(rsp) :: iAlpha, iBeta
 
@@ -688,25 +688,25 @@ contains
   subroutine sbmv_dble(y,ba,x,uplo,alpha,beta)
 
     !> vector
-    real(rdp), intent(inout)           :: y(:)
+    real(rdp), intent(inout) :: y(:)
 
     !> banded symmetric matrix
-    real(rdp), intent(in)              :: ba(:,:)
+    real(rdp), intent(in) :: ba(:,:)
 
     !> vector
-    real(rdp), intent(in)              :: x(:)
+    real(rdp), intent(in) :: x(:)
 
     !> optional upper, 'U', or lower 'L' triangle (defaults to lower)
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional scaling factor (defaults to 1)
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> optional scaling factor (defaults to 0)
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
-    integer   :: n
-    integer   :: k
+    integer :: n
+    integer :: k
     character :: iUplo
     real(rdp) :: iAlpha, iBeta
 
@@ -741,34 +741,34 @@ contains
   subroutine symm_real(C,side,A,B,uplo,alpha,beta,m,n)
 
     !> general matrix output
-    real(rsp), intent(inout)           :: C(:,:)
+    real(rsp), intent(inout) :: C(:,:)
 
     !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and B is general SIDE = 'L' or
     !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
-    character, intent(in)              :: side
+    character, intent(in) :: side
 
     !> symmetric matrix, size
-    real(rsp), intent(in)              :: A(:,:)
+    real(rsp), intent(in) :: A(:,:)
 
     !> general matrix
-    real(rsp), intent(in)              :: B(:,:)
+    real(rsp), intent(in) :: B(:,:)
 
     !> is an 'U'pper or 'L'ower triangle matrix, defaults to lower
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> defaults to 1 if not set
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
     !> specifies the number of rows of the matrix C
-    integer, intent(in), optional      :: m
+    integer, intent(in), optional :: m
 
     !> specifies the number of columns of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
-    integer   :: lda, ldb, ldc, ka, im, in
+    integer :: lda, ldb, ldc, ka, im, in
     character :: iUplo
     real(rsp) :: iAlpha, iBeta
 
@@ -829,34 +829,34 @@ contains
   subroutine symm_dble(C,side,A,B,uplo,alpha,beta,m,n)
 
     !> general matrix output
-    real(rdp), intent(inout)           :: C(:,:)
+    real(rdp), intent(inout) :: C(:,:)
 
     !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and B is general SIDE = 'L' or
     !> 'l' C := alpha*A*B + beta*C, SIDE = 'R' or 'r' C := alpha*B*A + beta*C
-    character, intent(in)              :: side
+    character, intent(in) :: side
 
     !> symmetric matrix, size
-    real(rdp), intent(in)              :: A(:,:)
+    real(rdp), intent(in) :: A(:,:)
 
     !> general matrix
-    real(rdp), intent(in)              :: B(:,:)
+    real(rdp), intent(in) :: B(:,:)
 
     !> is an 'U'pper or 'L'ower triangle matrix, defaults to lower
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> defaults to 1 if not set
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
     !> specifies the number of rows of the matrix C
-    integer, intent(in), optional      :: m
+    integer, intent(in), optional :: m
 
     !> specifies the number of columns of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
-    integer   :: lda, ldb, ldc, ka, im, in
+    integer :: lda, ldb, ldc, ka, im, in
     character :: iUplo
     real(rdp) :: iAlpha, iBeta
 
@@ -917,39 +917,39 @@ contains
   subroutine gemm_real(C,A,B,alpha,beta,transA,transB,n,m,k)
 
     !> general matrix output
-    real(rsp), intent(inout)           :: C(:,:)
+    real(rsp), intent(inout) :: C(:,:)
 
     !> symmetric matrix
-    real(rsp), intent(in)              :: A(:,:)
+    real(rsp), intent(in) :: A(:,:)
 
     !> general matrix
-    real(rsp), intent(in)              :: B(:,:)
+    real(rsp), intent(in) :: B(:,:)
 
     !> defaults to 1 if not set
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
     !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transA
+    character, intent(in), optional :: transA
 
     !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transB
+    character, intent(in), optional :: transB
 
     !> specifies the number of columns of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> specifies the number of rows of the matrix C
-    integer, intent(in), optional      :: m
+    integer, intent(in), optional :: m
 
     !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldb, ldc
-    integer   :: in, im, ik
+    integer :: lda, ldb, ldc
+    integer :: in, im, ik
     character :: iTransA, iTransB
     real(rsp) :: iAlpha, iBeta
 
@@ -1031,39 +1031,39 @@ contains
   subroutine gemm_dble(C,A,B,alpha,beta,transA,transB,n,m,k)
 
     !> general matrix output
-    real(rdp), intent(inout)           :: C(:,:)
+    real(rdp), intent(inout) :: C(:,:)
 
     !> symmetric matrix
-    real(rdp), intent(in)              :: A(:,:)
+    real(rdp), intent(in) :: A(:,:)
 
     !> general matrix
-    real(rdp), intent(in)              :: B(:,:)
+    real(rdp), intent(in) :: B(:,:)
 
     !> defaults to 1 if not set
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
     !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transA
+    character, intent(in), optional :: transA
 
     !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transB
+    character, intent(in), optional :: transB
 
     !> specifies the number of columns of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> specifies the number of rows of the matrix C
-    integer, intent(in), optional      :: m
+    integer, intent(in), optional :: m
 
     !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldb, ldc
-    integer   :: in, im, ik
+    integer :: lda, ldb, ldc
+    integer :: in, im, ik
     character :: iTransA, iTransB
     real(rdp) :: iAlpha, iBeta
 
@@ -1145,39 +1145,39 @@ contains
   subroutine gemm_cmplx(C,A,B,alpha,beta,transA,transB,n,m,k)
 
     !> general matrix output
-    complex(rsp), intent(inout)           :: C(:,:)
+    complex(rsp), intent(inout) :: C(:,:)
 
     !> symmetric matrix
-    complex(rsp), intent(in)              :: A(:,:)
+    complex(rsp), intent(in) :: A(:,:)
 
     !> general matrix
-    complex(rsp), intent(in)              :: B(:,:)
+    complex(rsp), intent(in) :: B(:,:)
 
     !> defaults to 1 if not set
-    complex(rsp), intent(in), optional    :: alpha
+    complex(rsp), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    complex(rsp), intent(in), optional    :: beta
+    complex(rsp), intent(in), optional :: beta
 
     !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transA
+    character, intent(in), optional :: transA
 
     !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transB
+    character, intent(in), optional :: transB
 
     !> specifies the number of columns of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> specifies the number of rows of the matrix C
-    integer, intent(in), optional      :: m
+    integer, intent(in), optional :: m
 
     !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldb, ldc
-    integer   :: in, im, ik
+    integer :: lda, ldb, ldc
+    integer :: in, im, ik
     character :: iTransA, iTransB
     complex(rsp) :: iAlpha, iBeta
 
@@ -1259,39 +1259,39 @@ contains
   subroutine gemm_dblecmplx(C,A,B,alpha,beta,transA,transB,n,m,k)
 
     !> general matrix output
-    complex(rdp), intent(inout)           :: C(:,:)
+    complex(rdp), intent(inout) :: C(:,:)
 
     !> symmetric matrix
-    complex(rdp), intent(in)              :: A(:,:)
+    complex(rdp), intent(in) :: A(:,:)
 
     !> general matrix
-    complex(rdp), intent(in)              :: B(:,:)
+    complex(rdp), intent(in) :: B(:,:)
 
     !> defaults to 1 if not set
-    complex(rdp), intent(in), optional    :: alpha
+    complex(rdp), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    complex(rdp), intent(in), optional    :: beta
+    complex(rdp), intent(in), optional :: beta
 
     !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transA
+    character, intent(in), optional :: transA
 
     !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
-    character, intent(in), optional    :: transB
+    character, intent(in), optional :: transB
 
     !> specifies the number of columns of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> specifies the number of rows of the matrix C
-    integer, intent(in), optional      :: m
+    integer, intent(in), optional :: m
 
     !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldb, ldc
-    integer   :: in, im, ik
+    integer :: lda, ldb, ldc
+    integer :: in, im, ik
     character :: iTransA, iTransB
     complex(rdp) :: iAlpha, iBeta
 
@@ -1373,32 +1373,32 @@ contains
   subroutine herk_real(C,A,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
-    real(rsp), intent(inout)           :: C(:,:)
+    real(rsp), intent(inout) :: C(:,:)
 
     !> contains the matrix to update
-    real(rsp), intent(in)              :: A(:,:)
+    real(rsp), intent(in) :: A(:,:)
 
     !> scaling value for the update contribution, defaults to 1
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> scaling value for the original C, defaults to 0
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
     !> for the real cases)
-    character, intent(in), optional    :: trans
+    character, intent(in), optional :: trans
 
     !> order of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> internal order of A summation
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldc
-    integer   :: in, ik
+    integer :: lda, ldc
+    integer :: in, ik
     character :: iTrans, iUplo
     real(rsp) :: iAlpha, iBeta
 
@@ -1464,32 +1464,32 @@ contains
   subroutine herk_dble(C,A,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
-    real(rdp), intent(inout)           :: C(:,:)
+    real(rdp), intent(inout) :: C(:,:)
 
     !> contains the matrix to update
-    real(rdp), intent(in)              :: A(:,:)
+    real(rdp), intent(in) :: A(:,:)
 
     !> scaling value for the update contribution, defaults to 1
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> scaling value for the original C, defaults to 0
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
     !> for the real cases)
-    character, intent(in), optional    :: trans
+    character, intent(in), optional :: trans
 
     !> order of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> internal order of A summation
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldc
-    integer   :: in, ik
+    integer :: lda, ldc
+    integer :: in, ik
     character :: iTrans, iUplo
     real(rdp) :: iAlpha, iBeta
 
@@ -1555,32 +1555,32 @@ contains
   subroutine herk_cmplx(C,A,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
-    complex(rsp), intent(inout)           :: C(:,:)
+    complex(rsp), intent(inout) :: C(:,:)
 
     !> contains the matrix to update
-    complex(rsp), intent(in)              :: A(:,:)
+    complex(rsp), intent(in) :: A(:,:)
 
     !> scaling value for the update contribution, defaults to 1
-    real(rsp), intent(in), optional    :: alpha
+    real(rsp), intent(in), optional :: alpha
 
     !> scaling value for the original C, defaults to 0
-    real(rsp), intent(in), optional    :: beta
+    real(rsp), intent(in), optional :: beta
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
     !> for the real cases)
-    character, intent(in), optional    :: trans
+    character, intent(in), optional :: trans
 
     !> order of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> internal order of A summation
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldc
-    integer   :: in, ik
+    integer :: lda, ldc
+    integer :: in, ik
     character :: iTrans, iUplo
     real(rsp) :: iAlpha, iBeta
 
@@ -1643,32 +1643,32 @@ contains
   subroutine herk_dblecmplx(C,A,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
-    complex(rdp), intent(inout)           :: C(:,:)
+    complex(rdp), intent(inout) :: C(:,:)
 
     !> contains the matrix to update
-    complex(rdp), intent(in)              :: A(:,:)
+    complex(rdp), intent(in) :: A(:,:)
 
     !> scaling value for the update contribution, defaults to 1
-    real(rdp), intent(in), optional    :: alpha
+    real(rdp), intent(in), optional :: alpha
 
     !> scaling value for the original C, defaults to 0
-    real(rdp), intent(in), optional    :: beta
+    real(rdp), intent(in), optional :: beta
 
     !> optional upper, 'U', or lower 'L' triangle, defaults to lower
-    character, intent(in), optional    :: uplo
+    character, intent(in), optional :: uplo
 
     !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T' (and 'C' or 'c'
     !> for the real cases)
-    character, intent(in), optional    :: trans
+    character, intent(in), optional :: trans
 
     !> order of the matrix C
-    integer, intent(in), optional      :: n
+    integer, intent(in), optional :: n
 
     !> internal order of A summation
-    integer, intent(in), optional      :: k
+    integer, intent(in), optional :: k
 
-    integer   :: lda, ldc
-    integer   :: in, ik
+    integer :: lda, ldc
+    integer :: in, ik
     character :: iTrans, iUplo
     real(rdp) :: iAlpha, iBeta
 
@@ -1758,7 +1758,7 @@ contains
     !> specifies the number of columns of the matrix C
     integer, intent(in), optional :: n
 
-    integer   :: lda, ldb, ldc, ka, im, in
+    integer :: lda, ldb, ldc, ka, im, in
     character :: iUplo
     complex(rsp) :: iAlpha, iBeta
 
@@ -1846,7 +1846,7 @@ contains
     !> specifies the number of columns of the matrix C
     integer, intent(in), optional :: n
 
-    integer   :: lda, ldb, ldc, ka, im, in
+    integer :: lda, ldb, ldc, ka, im, in
     character :: iUplo
     complex(rdp) :: iAlpha, iBeta
 

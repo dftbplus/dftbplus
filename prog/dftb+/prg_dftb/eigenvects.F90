@@ -50,29 +50,29 @@ contains
     real(dp), intent(out) :: eigen(:)
 
     !> The sparse represented Hamiltonian in real space
-    real(dp), intent(in)  :: ham(:)
+    real(dp), intent(in) :: ham(:)
 
     !> The sparse represented overlap matrix in real space
-    real(dp), intent(in)  :: over(:)
+    real(dp), intent(in) :: over(:)
 
     !> List of atomic neighbors for each central cell atom
-    integer,  intent(in)  :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Number of atomic neighbors for each central cell atom
-    integer,  intent(in)  :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Indexing array for the large square matrices to relate atom number to position in the matrix
-    integer,  intent(in)  :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
-    integer,  intent(in)  :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Array to relate image atoms outside the central cell to their real counterpart inside the
     !> cell
-    integer,  intent(in)  :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer,  intent(in)  :: iSolver
+    integer, intent(in) :: iSolver
 
     !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
@@ -121,44 +121,44 @@ contains
     complex(dp), intent(out) :: SSqrCplx(:,:)
 
     !> The eigenvalues of the matrices
-    real(dp), intent(out)    :: eigen(:)
+    real(dp), intent(out) :: eigen(:)
 
     !> The sparse represented Hamiltonian in real space
-    real(dp), intent(in)     :: ham(:)
+    real(dp), intent(in) :: ham(:)
 
     !> The sparse represented overlap matrix in real space
-    real(dp), intent(in)     :: over(:)
+    real(dp), intent(in) :: over(:)
 
     !> The k-point to evaluate the phase factors for
-    real(dp), intent(in)     :: kpoint(3)
+    real(dp), intent(in) :: kpoint(3)
 
     !> List of atomic neighbors for each central cell atom
-    integer,  intent(in)     :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Number of atomic neighbors for each central cell atom
-    integer,  intent(in)     :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Index of the cell translation vector for each atom.
-    integer,  intent(in)     :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in)     :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Indexing array for the large square matrices to relate atom number to position in the matrix
-    integer,  intent(in)     :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
-    integer,  intent(in)     :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Array to relate image atoms outside the central cell to their real counterpart inside the
     !> cell
-    integer,  intent(in)     :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer,  intent(in)     :: iSolver
+    integer, intent(in) :: iSolver
 
     !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
-    character, intent(in)    :: jobz
+    character, intent(in) :: jobz
 
     integer :: nOrb
     @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
@@ -204,48 +204,48 @@ contains
     complex(dp), intent(out) :: SSqrCplx(:,:)
 
     !> The eigenvalues of the matrices
-    real(dp), intent(out)    :: eigen(:)
+    real(dp), intent(out) :: eigen(:)
 
     !> The sparse represented Hamiltonian in real space
-    real(dp), intent(in)     :: ham(:,:)
+    real(dp), intent(in) :: ham(:,:)
 
     !> The sparse represented overlap matrix in real space
-    real(dp), intent(in)     :: over(:)
+    real(dp), intent(in) :: over(:)
 
     !> List of atomic neighbors for each central cell atom
-    integer,  intent(in)     :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Number of atomic neighbors for each central cell atom iAtomStart Indexing array for the large
     !> square matrices to relate atom number to position in the matrix
-    integer,  intent(in)     :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Indexing array for the large square matrices to relate atom number to position in the matrix
-    integer,  intent(in)     :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
-    integer,  intent(in)     :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Array to relate image atoms outside the central cell to their real counterpart inside the
     !> cell
-    integer,  intent(in)     :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer,  intent(in)     :: iSolver
+    integer, intent(in) :: iSolver
 
     !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
-    character, intent(in)    :: jobz
+    character, intent(in) :: jobz
 
     !> optional spin orbit constants for each shell of each species (incompatible with iHam)
-    real(dp), intent(in), optional        :: xi(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
 
     !> Contains information about the atomic orbitals in the system (required for xi)
     type(TOrbitals), intent(in), optional :: orb
 
     !> atomic species (required for xi)
-    integer, intent(in), optional         :: species(:)
+    integer, intent(in), optional :: species(:)
 
     !> coefficients for imaginary part of the Hamiltonian (incompatible with xi)
-    real(dp), intent(in), optional        :: iHam(:,:)
+    real(dp), intent(in), optional :: iHam(:,:)
 
     integer :: nOrb, nSpin, ii, jj, kk
     real(dp), allocatable :: work(:,:)
@@ -437,57 +437,57 @@ contains
     complex(dp), intent(out) :: SSqrCplx(:,:)
 
     !> The eigenvalues of the matrices
-    real(dp), intent(out)    :: eigen(:)
+    real(dp), intent(out) :: eigen(:)
 
     !> The sparse Hamiltonian in real space
-    real(dp), intent(in)     :: ham(:,:)
+    real(dp), intent(in) :: ham(:,:)
 
     !> The sparse overlap matrix in real space
-    real(dp), intent(in)     :: over(:)
+    real(dp), intent(in) :: over(:)
 
     !> The k-point at which to evaluate phase factors
-    real(dp), intent(in)     :: kpoint(3)
+    real(dp), intent(in) :: kpoint(3)
 
     !> List of atomic neighbors for each central cell atom
-    integer,  intent(in)     :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Number of atomic neighbors for each central cell atom
-    integer,  intent(in)     :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Array to relate image atoms outside the central cell to their real counterpart inside the
     !> cell
-    integer,  intent(in)     :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in)     :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Indexing array for the large square matrices to relate atom number to position in the matrix
-    integer,  intent(in)     :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
-    integer,  intent(in)     :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Array to relate image atoms outside the central cell to their real counterpart inside the
     !> cell
-    integer,  intent(in)     :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer,  intent(in)     :: iSolver
+    integer, intent(in) :: iSolver
 
     !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
-    character, intent(in)    :: jobz
+    character, intent(in) :: jobz
 
     !> optional spin orbit constants for each shell of each species (incompatible with iHam)
-    real(dp), intent(in), optional        :: xi(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
 
     !> Contains information about the atomic orbitals in the system (required for xi)
     type(TOrbitals), intent(in), optional :: orb
 
     !> atomic species  (required for xi)
-    integer, intent(in), optional         :: species(:)
+    integer, intent(in), optional :: species(:)
 
     !> coefficients for imaginary part of the Hamiltonian (incompatible with xi)
-    real(dp), intent(in), optional        :: iHam(:,:)
+    real(dp), intent(in), optional :: iHam(:,:)
 
     integer :: nOrb, nSpin, ii, jj, kk
     complex(dp), allocatable :: work(:,:)

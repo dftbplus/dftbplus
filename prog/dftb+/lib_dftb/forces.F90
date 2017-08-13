@@ -84,11 +84,11 @@ contains
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    integer   :: iOrig, ii
-    integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    integer :: iOrig, ii
+    integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
@@ -187,9 +187,9 @@ contains
     !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
-    integer  :: iOrig, iSpin, ii, nSpin, nAtom
-    integer  :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer  :: nOrb1, nOrb2
+    integer :: iOrig, iSpin, ii, nSpin, nAtom
+    integer :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
+    integer :: nOrb1, nOrb2
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
@@ -316,15 +316,15 @@ contains
     !> imaginary block shift from the potential
     real(dp), intent(in) :: iShift(:,:,:,:)
 
-    integer  :: iOrig, iSpin, ii, nSpin, nAtom
-    integer  :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer  :: nOrb1, nOrb2
+    integer :: iOrig, iSpin, ii, nSpin, nAtom
+    integer :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
+    integer :: nOrb1, nOrb2
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)    :: sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: sqrEDMTmp(orb%mOrb,orb%mOrb)
     complex(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
-    real(dp)    :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp)    :: derivTmp(3)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    real(dp) :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
 
     nAtom = size(orb%nOrbAtom)

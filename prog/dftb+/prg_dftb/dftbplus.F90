@@ -62,31 +62,31 @@ program dftbplus
 
 
   !> Contains the parsed input2
-  type(inputData), allocatable  :: input
+  type(inputData), allocatable :: input
 
-  integer                  :: nk, iEgy, nSpin2, nK2, iSpin2, iK2
+  integer :: nk, iEgy, nSpin2, nK2, iSpin2, iK2
   complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
   real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:), HSqrReal2(:,:)
   real(dp),    allocatable :: eigen(:,:,:), eigen2(:,:,:)
-  real(dp), allocatable    :: rhoPrim(:,:)
-  real(dp), allocatable    :: iRhoPrim(:,:)
-  real(dp), allocatable    :: ERhoPrim(:), ERhoPrim2(:)
-  real(dp), allocatable    :: h0(:)
+  real(dp), allocatable :: rhoPrim(:,:)
+  real(dp), allocatable :: iRhoPrim(:,:)
+  real(dp), allocatable :: ERhoPrim(:), ERhoPrim2(:)
+  real(dp), allocatable :: h0(:)
 
   ! variables for derivatives using the Hellmann-Feynman theorem:
 
   !> for derivatives of H wrt external perturbation
-  real(dp), allocatable    :: hprime(:,:)
+  real(dp), allocatable :: hprime(:,:)
 
   !> for derivatives of V
-  real(dp), allocatable    :: potentialDerivative(:,:)
+  real(dp), allocatable :: potentialDerivative(:,:)
 
   !> temporary dipole data
-  real(dp), allocatable    :: dipoleTmp(:,:)
+  real(dp), allocatable :: dipoleTmp(:,:)
 
 
   !> electronic filling
-  real(dp), allocatable    :: filling(:,:,:)
+  real(dp), allocatable :: filling(:,:,:)
 
   !> band structure energy
   real(dp), allocatable :: Eband(:)
@@ -107,11 +107,11 @@ program dftbplus
   !> Potentials for orbitals
   type(TPotentials), allocatable :: potential
 
-  real(dp), allocatable    :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
-  real(dp), allocatable    :: chrgForces(:,:)
+  real(dp), allocatable :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
+  real(dp), allocatable :: chrgForces(:,:)
 
   !> excited state force addition
-  real(dp), allocatable    :: excitedDerivs(:,:)
+  real(dp), allocatable :: excitedDerivs(:,:)
 
 
   !> Stress tensors for various contribution in periodic calculations
@@ -134,12 +134,12 @@ program dftbplus
   !> hold total angular momentum vector
   real(dp) :: angularMomentum(3)
 
-  integer                  :: ii, jj, kk
+  integer :: ii, jj, kk
 
-  logical                  :: tConverged
+  logical :: tConverged
 
-  logical, parameter       :: tDensON2 = .false.  ! O(N^2) density mtx creation
-  logical, parameter       :: tAppendDetailedOut = .false.
+  logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
+  logical, parameter :: tAppendDetailedOut = .false.
 
   character(len=*), parameter :: formatEnergy = '(8f12.5)'
   character(len=*), parameter :: formatEigen = '(8f14.8)'
@@ -259,7 +259,7 @@ program dftbplus
   real(dp), allocatable :: tmpDerivs(:)
   real(dp), allocatable :: tmpMatrix(:,:)
   real(dp), allocatable :: orbitalL(:,:,:), orbitalLPart(:,:,:)
-  real(dp), allocatable    :: rVecTemp(:)
+  real(dp), allocatable :: rVecTemp(:)
   character(lc) :: lcTmp
 
 
@@ -3236,7 +3236,7 @@ contains
 
 
     !> Whether each K-point should be filled separately (individual Fermi-level for each k-point)
-    logical, intent(in) ::  tFillKSep
+    logical, intent(in) :: tFillKSep
 
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)

@@ -41,10 +41,10 @@ module velocityverlet
     type(OThermostat), allocatable :: pThermostat
 
     !> do we have the v(t-.5) internal velocity state?
-    logical           :: vHalfPresent = .false.
+    logical :: vHalfPresent = .false.
 
     !> do we have a barostat?
-    logical  :: tBarostat
+    logical :: tBarostat
 
     !> Strength of Berendsen coupling
     real(dp) :: BarostatStrength
@@ -53,7 +53,7 @@ module velocityverlet
     real(dp) :: Pressure(3,3)
 
     !> is the cell scaling isotropic
-    logical  :: tIsotropic = .true.
+    logical :: tIsotropic = .true.
   end type OVelocityVerlet
 
 
@@ -93,10 +93,10 @@ contains
     type(OVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
-    real(dp), intent(in)                 :: deltaT
+    real(dp), intent(in) :: deltaT
 
     !> Position of the atoms.
-    real(dp), intent(in)                 :: positions(:,:)
+    real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
@@ -129,16 +129,16 @@ contains
     type(OVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
-    real(dp), intent(in)                 :: deltaT
+    real(dp), intent(in) :: deltaT
 
     !> Position of the atoms.
-    real(dp), intent(in)                 :: positions(:,:)
+    real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
     !> List of initial velocities
-    real(dp), intent(in)                 :: velocities(:,:)
+    real(dp), intent(in) :: velocities(:,:)
 
     @:ASSERT(size(positions, dim=1) == 3)
 
@@ -169,22 +169,22 @@ contains
     type(OVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
-    real(dp), intent(in)                 :: deltaT
+    real(dp), intent(in) :: deltaT
 
     !> Position of the atoms.
-    real(dp), intent(in)                 :: positions(:,:)
+    real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
     !> Coupling strength.
-    real(dp), intent(in)                 :: Barostat
+    real(dp), intent(in) :: Barostat
 
     !> Target isotropic pressure
-    real(dp), intent(in)                 :: Pressure
+    real(dp), intent(in) :: Pressure
 
     !> Is this an isotropic barostat, or can the cell shape change?
-    logical, intent(in)                  :: tIsotropic
+    logical, intent(in) :: tIsotropic
 
     integer :: ii
 
@@ -224,25 +224,25 @@ contains
     type(OVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
-    real(dp), intent(in)                 :: deltaT
+    real(dp), intent(in) :: deltaT
 
     !> Position of the atoms.
-    real(dp), intent(in)                 :: positions(:,:)
+    real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
     !> List of initial velocities
-    real(dp), intent(in)                 :: velocities(:,:)
+    real(dp), intent(in) :: velocities(:,:)
 
     !> Coupling strength
-    real(dp), intent(in)                 :: Barostat
+    real(dp), intent(in) :: Barostat
 
     !> Target isotropic pressure
-    real(dp), intent(in)                 :: Pressure
+    real(dp), intent(in) :: Pressure
 
     !> Is this an isotropic barostat, or can the cell shape change?
-    logical, intent(in)                  :: tIsotropic
+    logical, intent(in) :: tIsotropic
 
     integer :: ii
 
@@ -345,17 +345,17 @@ contains
     type(OVelocityVerlet), intent(inout) :: self
 
     !> Atom coordinates to rescale
-    real(dp),intent(inout)         :: coord(:,:)
+    real(dp),intent(inout) :: coord(:,:)
 
     !> Lattice vectors to rescale
-    real(dp),intent(inout)         :: latVecs(3,3)
+    real(dp),intent(inout) :: latVecs(3,3)
 
     !> System stress tensor
-    real(dp),intent(in)            :: pressureTensor(3,3)
+    real(dp),intent(in) :: pressureTensor(3,3)
 
     real(dp) :: scale(3,3)
     real(dp) :: scaleIso, Pext, P
-    integer  :: ii
+    integer :: ii
 
     @:ASSERT(self%tBarostat)
 
@@ -394,7 +394,7 @@ contains
     type(OVelocityVerlet), intent(in) :: self
 
     !> filehandle to write out to
-    integer,intent(in)             :: fd
+    integer,intent(in) :: fd
 
     if (allocated(self%pThermostat)) then
       call state(self%pThermostat,fd)

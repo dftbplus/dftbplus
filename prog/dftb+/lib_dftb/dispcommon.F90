@@ -332,7 +332,7 @@ contains
 
     real(dp), parameter :: rInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
-    integer  :: iError, iIter
+    integer :: iError, iIter
     character(lc) :: strError
 
     iError = 0

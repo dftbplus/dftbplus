@@ -122,13 +122,13 @@ contains
   function unquote(string, optLower) result(unquoted)
 
     !> String to remove the quotation marks from
-    character(len=*), intent(in)  :: string
+    character(len=*), intent(in) :: string
 
     !> Should unquoted part of string be converted to lowercase?
     logical, intent(in), optional :: optLower
 
     !> Unquoted string
-    character(len=len(string))    :: unquoted
+    character(len=len(string)) :: unquoted
 
     integer :: quoteStart, quoteEnd, shift
     integer :: tmp

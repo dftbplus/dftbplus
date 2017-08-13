@@ -34,22 +34,22 @@ contains
   subroutine onsite(Eatom, rho, iAtomStart, xi, orb, species)
 
     !> returned energy for each atom
-    real(dp), intent(out)       :: Eatom(:)
+    real(dp), intent(out) :: Eatom(:)
 
     !> Density matrix in Packed format
-    complex(dp), intent(in)     :: rho(:,:)
+    complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix.
-    integer,  intent(in)        :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> spin orbit constants for each shell of each species
-    real(dp), intent(in)        :: xi(:,:)
+    real(dp), intent(in) :: xi(:,:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     integer :: nAtom, nSpecies, nOrb
     integer :: ii, jj, kk, ll
@@ -135,19 +135,19 @@ contains
   subroutine dual(Eatom, qBlockSkew, xi, orb, species)
 
     !> returned energy for each atom
-    real(dp), intent(out)       :: Eatom(:)
+    real(dp), intent(out) :: Eatom(:)
 
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
-    real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
 
     !> spin orbit constants for each shell of each species
-    real(dp), intent(in)        :: xi(:,:)
+    real(dp), intent(in) :: xi(:,:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     real(dp) :: total
     integer :: nAtom, nSpecies, iSp
@@ -221,22 +221,22 @@ contains
   subroutine shiftLS(shift, xi, orb, species)
 
     !> block shift from the potential
-    real(dp), intent(inout)       :: shift(:,:,:,:)
+    real(dp), intent(inout) :: shift(:,:,:,:)
 
     !> spin orbit constants for each shell of each species
-    real(dp), intent(in)        :: xi(:,:)
+    real(dp), intent(in) :: xi(:,:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     integer :: nAtom, nSpecies
     integer :: ii, jj, kk, iSpin
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
-    real(dp), allocatable    :: tmpShift(:,:,:,:)
+    real(dp), allocatable :: tmpShift(:,:,:,:)
 
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
     @:ASSERT(size(shift,dim=2)==orb%mOrb)

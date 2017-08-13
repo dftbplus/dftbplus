@@ -28,7 +28,7 @@ contains
     character(*), intent(in) :: fileName
 
     !> Nr. of the line at which the error occured.
-    integer,      intent(in) :: lineNr
+    integer, intent(in) :: lineNr
 
     write (*, '(A)') "!!! UNFULLFILLED ASSERTION"
     write (*, '(A,A)') "!!! FILE:      ", fileName

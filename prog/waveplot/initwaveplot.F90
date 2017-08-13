@@ -128,7 +128,7 @@ module InitWaveplot
   integer, allocatable, public :: plottedSpins(:)
 
   !> Nr. of cached grids
-  integer  :: nCached
+  integer :: nCached
 
   !> Box vectors for the plotted region
   real(dp), public :: boxVecs(3, 3)
@@ -302,7 +302,7 @@ contains
     type(fnode), pointer :: detailed
 
     !> look for ground state occupations (T) or excited (F)
-    logical, intent(in)  :: tGroundState
+    logical, intent(in) :: tGroundState
 
     type(fnode), pointer :: tmp, occ, spin
     integer :: iSpin, iK

@@ -18,22 +18,22 @@ module typegeometry
   type TGeometry
 
     !> number of atoms
-    integer           :: nAtom
+    integer :: nAtom
 
     !> is this periodic
-    logical           :: tPeriodic
+    logical :: tPeriodic
 
     !> if periodic, is this in fractional units?
-    logical           :: tFracCoord
+    logical :: tFracCoord
 
     !> atomic species
-    integer,  allocatable :: species(:)
+    integer, allocatable :: species(:)
 
     !> coordinates of atoms
     real(dp), allocatable :: coords(:,:)
 
     !> number of different atomic species
-    integer           :: nSpecies
+    integer :: nSpecies
 
     !> geometry origin (GEN file requirement)
     real(dp), allocatable :: origin(:)

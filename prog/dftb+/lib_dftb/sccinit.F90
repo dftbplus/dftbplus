@@ -44,13 +44,13 @@ contains
     real(dp), intent(out) :: fOrb(:,:,:)
 
     !> The charges per atom.
-    real(dp), intent(in)  :: qAtom(:)
+    real(dp), intent(in) :: qAtom(:)
 
     !> Occupation of each shell in the neutral atom.
     real(dp), intent(in) :: fRefShell(:,:)
 
     !> List of chemical species for each atom
-    integer,   intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Names of the species (for error messages)
     character(len=*), intent(in) :: speciesNames(:)
@@ -106,10 +106,10 @@ contains
     real(dp), intent(out) :: qq(:,:,:)
 
     !> The reference charges per shell
-    real(dp), intent(in)  :: qShell(:,:)
+    real(dp), intent(in) :: qShell(:,:)
 
     !> List of chemical species for each atom
-    integer,   intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
@@ -147,16 +147,16 @@ contains
   subroutine initQFromFile(qq, fileName, orb, magnetisation, nEl, qBlock, qiBlock)
 
     !> The charges per lm,atom,spin
-    real(dp), intent(out)          :: qq(:,:,:)
+    real(dp), intent(out) :: qq(:,:,:)
 
     !> The external file of charges for the orbitals, currently stored with each line containing the
     !> per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
 
     !> present)
-    character(*), intent(in)       :: fileName
+    character(*), intent(in) :: fileName
 
     !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in)    :: orb
+    type(TOrbitals), intent(in) :: orb
 
     !> Nr. of electrons for each spin channel
     real(dp), intent(in), optional :: nEl
@@ -170,15 +170,15 @@ contains
     !> block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(out), optional :: qiBlock(:,:,:,:)
 
-    integer  :: nOrb, nAtom, nSpin ! nr. of orbitals / atoms / spin channels
-    integer  :: iErr               ! error returned by the io commands
+    integer :: nOrb, nAtom, nSpin ! nr. of orbitals / atoms / spin channels
+    integer :: iErr               ! error returned by the io commands
     integer, save :: file = -1     ! file unit number
-    integer  :: iOrb, iAtom, iSpin, ii
-    integer  :: fileFormat
+    integer :: iOrb, iAtom, iSpin, ii
+    integer :: fileFormat
     real(dp) :: CheckSum(size(qq, dim=3)) ! total charge is present at the top
     ! of the file
     real(dp) :: sumQ
-    logical  :: tBlockPresent, tiBlockPresent
+    logical :: tBlockPresent, tiBlockPresent
 
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
@@ -338,13 +338,13 @@ contains
   subroutine writeQToFile(qq, fileName, orb, qBlock, qiBlock)
 
     !> Array containing the charges
-    real(dp), intent(in)           :: qq(:,:,:)
+    real(dp), intent(in) :: qq(:,:,:)
 
     !> Name of the file to write the charges
-    character(*), intent(in)       :: fileName
+    character(*), intent(in) :: fileName
 
     !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in)    :: orb
+    type(TOrbitals), intent(in) :: orb
 
     !> block Mulliken population for LDA+U etc.
     real(dp), intent(in), optional :: qBlock(:,:,:,:)

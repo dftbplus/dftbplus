@@ -27,7 +27,7 @@ contains
   !> figures out how much larger an array should be to minimize reallocations in future if the array
   !> grows more
   function incrmntOfArray(currentSize)
-    integer             :: incrmntOfArray
+    integer :: incrmntOfArray
 
     !> current array size
     integer, intent(in) :: currentSize

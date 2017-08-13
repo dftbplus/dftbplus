@@ -117,7 +117,7 @@ contains
     type(ODummyThermostat), intent(in) :: self
 
     !> file unit
-    integer,intent(in)                  :: fd
+    integer,intent(in) :: fd
 
   end subroutine DummyThermostat_state
 

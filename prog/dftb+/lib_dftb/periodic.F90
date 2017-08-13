@@ -71,10 +71,10 @@ module periodic
     real(dp), allocatable :: neighDist2(:,:)
 
     !> cutoff it was generated for
-    real(dp)            :: cutoff
+    real(dp) :: cutoff
 
     !> initialised data
-    logical             :: initialized = .false.
+    logical :: initialized = .false.
   end type TNeighborList
 
 contains
@@ -87,10 +87,10 @@ contains
     type(TNeighborList), intent(out) :: neighborList
 
     !> Nr. of atoms in the system.
-    integer,             intent(in)  :: nAtom
+    integer, intent(in) :: nAtom
 
     !> Expected nr. of neighbors per atom.
-    integer,             intent(in)  :: nInitNeighbor
+    integer, intent(in) :: nInitNeighbor
 
     @:ASSERT(.not. neighborList%initialized)
     @:ASSERT(nAtom > 0)
@@ -128,7 +128,7 @@ contains
     !> Global cutoff for the diatomic interactions
     real(dp), intent(in) :: cutoff
 
-    integer  :: ii
+    integer :: ii
 
     @:ASSERT(all(shape(latVec) == [3, 3]))
     @:ASSERT(all(shape(recVec2p) == [3, 3]))
@@ -197,10 +197,10 @@ contains
     real(dp), intent(in) :: dist
 
     !> Extend the set along the positive lattice vectors with that many additional lattice vectors.
-    integer,  intent(in), optional :: posExtension
+    integer, intent(in), optional :: posExtension
 
     !> Same as posExtension for negative lattice vectors
-    integer,  intent(in), optional :: negExtension
+    integer, intent(in), optional :: negExtension
 
     !> Return only those lattice points which are really not outside the given distance.
     logical,  intent(in), optional :: onlyInside
@@ -211,11 +211,11 @@ contains
     !> whether to exclude the (0,0,0) point
     logical,  intent(in), optional :: withoutOrigin
 
-    integer  :: imgRange(2, 3)
-    integer  :: negExt, posExt
-    integer  :: ii, jj, kk, ind, ii0, jj0, kk0
+    integer :: imgRange(2, 3)
+    integer :: negExt, posExt
+    integer :: ii, jj, kk, ind, ii0, jj0, kk0
     real(dp) :: ri, rj, rk, rTmp, dist2
-    logical  :: tAll, tOrig, tNoInv
+    logical :: tAll, tOrig, tNoInv
     real(dp), allocatable :: tmpLatPoint(:,:)
 
     @:ASSERT(all(shape(latVec) == (/3, 3/)))
@@ -320,19 +320,19 @@ contains
     real(dp), intent(inout) :: coord(:,:)
 
     !> Lattice vectors (column format).
-    real(dp), intent(in)    :: latVec(:,:)
+    real(dp), intent(in) :: latVec(:,:)
 
     !> Reciprocal vectors in units of 2pi (column format).
-    real(dp), intent(in)    :: recVec2p(:,:)
+    real(dp), intent(in) :: recVec2p(:,:)
 
     !> Contains difference vectors old_coords - new_coords.
     real(dp), intent(out), optional :: invShift(:,:)
 
 
     !> Nr. of atoms in the cell.
-    integer  :: nAtom
+    integer :: nAtom
 
-    integer  :: ii, jj
+    integer :: ii, jj
     real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3)
 
     nAtom = size(coord, dim=2)
@@ -371,31 +371,31 @@ contains
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> Species of all interacting atoms on exit.
-    integer,  allocatable, intent(inout) :: species(:)
+    integer, allocatable, intent(inout) :: species(:)
 
     !> Mapping on atoms in the central cell
-    integer,  allocatable, intent(inout) :: img2CentCell(:)
+    integer, allocatable, intent(inout) :: img2CentCell(:)
 
     !> Shift vector index for every interacting atom
-    integer,  allocatable, intent(inout) :: iCellVec(:)
+    integer, allocatable, intent(inout) :: iCellVec(:)
 
     !> Updated neighbor list.
     type(TNeighborList), intent(inout) :: neigh
 
     !> Number of all interacting atoms
-    integer,  intent(out)              :: nAllAtom
+    integer, intent(out) :: nAllAtom
 
     !> Coordinates of the atoms in the central cell
-    real(dp), intent(in)               :: coord0(:,:)
+    real(dp), intent(in) :: coord0(:,:)
 
     !> Species of the atoms in the central cell
-    integer,  intent(in)               :: species0(:)
+    integer, intent(in) :: species0(:)
 
     !> Cutoff until neighborlist should be created
-    real(dp), intent(in)               :: cutoff
+    real(dp), intent(in) :: cutoff
 
     !> Cell vector for the translated cells to consider.
-    real(dp), intent(in)               :: rCellVec(:,:)
+    real(dp), intent(in) :: rCellVec(:,:)
 
     call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
@@ -420,39 +420,39 @@ contains
 
     !> Returns for all objects the index of an object in the central cell which the object is mapped
     !> on to.
-    integer,  allocatable, intent(inout) :: img2CentCell(:)
+    integer, allocatable, intent(inout) :: img2CentCell(:)
 
     !> Returns the index of the translating superlattice vector for each object.
-    integer,  allocatable, intent(inout) :: iCellVec(:)
+    integer, allocatable, intent(inout) :: iCellVec(:)
 
     !> Neighborlist.
     type(TNeighborList), intent(inout) :: neigh
 
     !> Returns the nr. of all objects (including those in the translated cells.)
-    integer,  intent(out)              :: nAllAtom
+    integer, intent(out) :: nAllAtom
 
     !> Coordinates of the objects in the central cell.
-    real(dp), intent(in)               :: coord0(:,:)
+    real(dp), intent(in) :: coord0(:,:)
 
     !> Cutoff radius for the interactions.
-    real(dp), intent(in)               :: cutoff
+    real(dp), intent(in) :: cutoff
 
     !> Absolute coordinates of the shifted supercells which could have interacting atoms with the
     !> central cell.
-    real(dp), intent(in)               :: rCellVec(:,:)
+    real(dp), intent(in) :: rCellVec(:,:)
 
 
     !> Nr. of atoms in the system
-    integer  :: nAtom
+    integer :: nAtom
 
     !> Max. nr. of atom without reallocation
-    integer  :: mAtom
+    integer :: mAtom
 
     !> Max. nr. of neighbors without reallocation
-    integer  :: maxNeighbor
+    integer :: maxNeighbor
 
     !> Nr. of cell translation vectors
-    integer  :: nCellVec
+    integer :: nCellVec
 
 
     !> Square of the diatomic interaction cutoffs
@@ -460,11 +460,11 @@ contains
 
     real(dp) :: dist2
     real(dp) :: rCell(3), rr(3)
-    integer  :: ii, iAtom1, oldIAtom1, iAtom2
-    integer  :: nn1
+    integer :: ii, iAtom1, oldIAtom1, iAtom2
+    integer :: nn1
 
-    integer,  allocatable :: indx(:)
-    character(len=100)    :: strError
+    integer, allocatable :: indx(:)
+    character(len=100) :: strError
 
     nAtom = size(neigh%nNeighbor, dim=1)
     mAtom = size(coord, dim=2)
@@ -575,15 +575,15 @@ contains
   subroutine getNrOfNeighborsForAll(nNeighbor, neigh, cutoff)
 
     !> Contains the nr. of neighbors for each atom on exit.
-    integer,             intent(out) :: nNeighbor(:)
+    integer, intent(out) :: nNeighbor(:)
 
     !> Initialized neighborlist
-    type(TNeighborList), intent(in)  :: neigh
+    type(TNeighborList), intent(in) :: neigh
 
     !> Maximal neighbor distance to consider.
-    real(dp),            intent(in)  :: cutoff
+    real(dp),            intent(in) :: cutoff
 
-    integer  :: nAtom, iAtom
+    integer :: nAtom, iAtom
 
     nAtom = size(nNeighbor)
 
@@ -605,13 +605,13 @@ contains
   function getNrOfNeighbors(neigh, cutoff, iAtom) result(nNeighbor)
 
     !> Intialised neihgborlist.
-    type(TNeighborList), intent(in)  :: neigh
+    type(TNeighborList), intent(in) :: neigh
 
     !> Maximal neighbor distance to consider.
-    real(dp),            intent(in)  :: cutoff
+    real(dp),            intent(in) :: cutoff
 
     !> Index of the atom to get the nr. of neighbors for.
-    integer,             intent(in)  :: iAtom
+    integer, intent(in) :: iAtom
 
     !> Nr. of neighbors for the specified atom.
     integer :: nNeighbor
@@ -641,18 +641,18 @@ contains
   subroutine reallocateArrays1(img2CentCell, iCellVec, coord, mNewAtom)
 
     !> array mapping images of atoms to originals in the central cell
-    integer,  allocatable, intent(inout) :: img2CentCell(:)
+    integer, allocatable, intent(inout) :: img2CentCell(:)
 
     !> Index of unit cell containing atom
-    integer,  allocatable, intent(inout) :: iCellVec(:)
+    integer, allocatable, intent(inout) :: iCellVec(:)
 
     !> coordinates of all atoms (actual and image)
     real(dp), allocatable, intent(inout) :: coord(:, :)
 
     !> maximum number of new atoms
-    integer,  intent(in) :: mNewAtom
+    integer, intent(in) :: mNewAtom
 
-    integer               :: mAtom
+    integer :: mAtom
     integer, allocatable :: tmpIntR1(:)
     real(dp), allocatable :: tmpRealR2(:, :)
 
@@ -689,10 +689,10 @@ contains
     real(dp), allocatable, intent(inout) :: neighDist2(:,:)
 
     !> maximum number of new atoms
-    integer,  intent(in) :: mNewNeighbor
+    integer, intent(in) :: mNewNeighbor
 
-    integer               :: mNeighbor, mAtom
-    integer,  allocatable :: tmpIntR2(:,:)
+    integer :: mNeighbor, mAtom
+    integer, allocatable :: tmpIntR2(:,:)
     real(dp), allocatable :: tmpRealR2(:,:)
 
     mNeighbor = ubound(iNeighbor, dim=1)
@@ -729,10 +729,10 @@ contains
     integer, allocatable, intent(inout) :: iPair(:,:)
 
     !> List of neighbors for each atom in the central cell. (Note: first index runs from 0!)
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom in the central cell.
-    integer,  intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -808,7 +808,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom in the central cell.
-    integer,  intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -882,10 +882,10 @@ contains
     integer, allocatable, intent(inout) :: iPair(:,:)
 
     !> List of neighbors for each atom in the central cell. (Note: first index runs from 0!)
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom in the central cell.
-    integer,  intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -1106,7 +1106,7 @@ contains
     real(dp), intent(inout) :: cartCoords(:,:)
 
     !> periodic lattice vectors
-    real(dp), intent(in)  :: latvecs(3,3)
+    real(dp), intent(in) :: latvecs(3,3)
 
     @:ASSERT(size(cartCoords,dim=1) == 3)
 
@@ -1122,7 +1122,7 @@ contains
     real(dp), intent(inout) :: cartCoords(:,:)
 
     !> periodic lattice vectors
-    real(dp), intent(in)  :: latvecs(3,3)
+    real(dp), intent(in) :: latvecs(3,3)
 
     real(dp) :: invLatVecs(3,3)
 

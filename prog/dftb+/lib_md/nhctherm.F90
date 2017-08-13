@@ -235,11 +235,11 @@ contains
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
-    integer         :: nnos1, iresn, iyosh, inos
-    real(dp)        :: qmass(self%nnos)
-    real(dp)        :: wdti(self%nyosh), wdti2(self%nyosh)
-    real(dp)        :: wdti4(self%nyosh), wdti8(self%nyosh)
-    real(dp)        :: scaling, gkt, gnkt, akin, aa
+    integer :: nnos1, iresn, iyosh, inos
+    real(dp) :: qmass(self%nnos)
+    real(dp) :: wdti(self%nyosh), wdti2(self%nyosh)
+    real(dp) :: wdti4(self%nyosh), wdti8(self%nyosh)
+    real(dp) :: scaling, gkt, gnkt, akin, aa
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
@@ -314,7 +314,7 @@ contains
     type(ONHCThermostat), intent(in) :: self
 
     !> filehandle to write out to
-    integer,intent(in)                  :: fd
+    integer,intent(in) :: fd
 
     write(fd,*)'Nose-Hoover chain variables'
     write(fd,*)'x:'

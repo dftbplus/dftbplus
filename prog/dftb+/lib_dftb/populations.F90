@@ -116,12 +116,12 @@ contains
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: sqrTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: mulTmp(orb%mOrb**2)
+    integer :: iOrig
+    integer :: iNeigh
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: sqrTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: mulTmp(orb%mOrb**2)
 
     nAtom = size(orb%nOrbAtom)
 
@@ -185,12 +185,12 @@ contains
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: STmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: rhoTmp(orb%mOrb,orb%mOrb)
+    integer :: iOrig
+    integer :: iNeigh
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: STmp(orb%mOrb,orb%mOrb)
+    real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
 
     nAtom = size(orb%nOrbAtom)
 
@@ -257,12 +257,12 @@ contains
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: STmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: rhoTmp(orb%mOrb,orb%mOrb)
+    integer :: iOrig
+    integer :: iNeigh
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: STmp(orb%mOrb,orb%mOrb)
+    real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
 
     nAtom = size(orb%nOrbAtom)
 

@@ -87,40 +87,40 @@ contains
     complex(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
-    real(dp),    intent(in)  :: orig(:)
+    real(dp),    intent(in) :: orig(:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
-    real(dp),    intent(in)  :: kPoint(:)
+    real(dp),    intent(in) :: kPoint(:)
 
     !> Neighbor list for each atom (First index from 0!)
-    integer,     intent(in)  :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom (incl. itself).
-    integer,     intent(in)  :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Index of the cell translation vector for each atom.
-    integer,     intent(in)  :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp),    intent(in)  :: cellVec(:,:)
+    real(dp),    intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared Hamiltonian
-    integer,     intent(in)  :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,     intent(in)  :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Atomic mapping indexes.
-    integer,     intent(in)  :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj
-    integer     :: iNeigh
-    integer     :: iOldVec, iVec
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2
-    real(dp)    :: kPoint2p(3)
+    integer :: nAtom
+    integer :: iOrig, ii, jj
+    integer :: iNeigh
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: kPoint2p(3)
 
     nAtom = size(iNeighbor, dim=2)
 
@@ -171,39 +171,39 @@ contains
     real(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
-    real(dp), intent(in)  :: orig(:)
+    real(dp), intent(in) :: orig(:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
-    real(dp), intent(in)  :: kPoint(:)
+    real(dp), intent(in) :: kPoint(:)
 
     !> Neighbor list for each atom (First index from 0!)
-    integer,  intent(in)  :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom (incl. itself).
-    integer,  intent(in)  :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Index of the cell translation vector for each atom.
-    integer,  intent(in)  :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in)  :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared Hamiltonian
-    integer,  intent(in)  :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,     intent(in)  :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Index from images of atoms to the central cell.
-    integer,  intent(in)  :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     real(dp) :: phase
-    integer  :: nAtom
-    integer  :: iOrig, ii, jj
-    integer  :: iNeigh
-    integer  :: iOldVec, iVec
-    integer  :: iAtom1, iAtom2, iAtom2f
-    integer  :: nOrb1, nOrb2
+    integer :: nAtom
+    integer :: iOrig, ii, jj
+    integer :: iNeigh
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
 
     nAtom = size(iNeighbor, dim=2)
@@ -252,28 +252,28 @@ contains
     real(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
-    real(dp), intent(in)  :: orig(:)
+    real(dp), intent(in) :: orig(:)
 
     !> Neighbor list for each atom (First index from 0!)
-    integer,  intent(in)  :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom (incl. itself).
-    integer,  intent(in)  :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Atom offset for the squared Hamiltonian
-    integer,  intent(in)  :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,     intent(in)  :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Atomic mapping indexes.
-    integer,  intent(in)  :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj
-    integer     :: iNeigh
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2
+    integer :: nAtom
+    integer :: iOrig, ii, jj
+    integer :: iNeigh
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
 
     nAtom = size(iNeighbor, dim=2)
 
@@ -312,46 +312,46 @@ contains
     real(dp),    intent(inout) :: primitive(:)
 
     !> Squared form matrix
-    complex(dp), intent(in)    :: square(:,:)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
-    real(dp),    intent(in)    :: kPoint(:)
+    real(dp),    intent(in) :: kPoint(:)
 
     !> Weight of the K-point
-    real(dp),    intent(in)    :: kweight
+    real(dp),    intent(in) :: kweight
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,     intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,     intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,     intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Index of the cell translation vector for each atom.
-    integer,     intent(in)    :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp),    intent(in)    :: cellVec(:,:)
+    real(dp),    intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared matrix
-    integer,     intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,     intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,     intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh
-    integer     :: iOldVec, iVec
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2
-    real(dp)    :: kPoint2p(3)
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -417,32 +417,32 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Squared form matrix
-    real(dp), intent(in)    :: square(:,:)
+    real(dp), intent(in) :: square(:,:)
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Atom offset for the squared matrix
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2
-    real(dp)    :: tmpSqr(mOrb,mOrb)
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
 #:endcall ASSERT_CODE
@@ -490,34 +490,34 @@ contains
       & img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout)   :: primitive(:,:)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Atom offset for the squared matrix
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh, iBlock
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2, nOrb
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh, iBlock
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -605,7 +605,7 @@ contains
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout)   :: primitive(:,:)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
@@ -617,37 +617,37 @@ contains
     real(dp),    intent(in) :: kweight
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Index of the cell translation vector for each atom.
-    integer,     intent(in) :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
     real(dp),    intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared matrix
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh, iBlock
-    integer     :: iOldVec, iVec
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2, nOrb
-    real(dp)    :: kPoint2p(3)
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh, iBlock
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb
+    real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -777,34 +777,34 @@ contains
       & img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout)   :: primitive(:,:)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Atom offset for the squared matrix
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh, iBlock
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2, nOrb
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh, iBlock
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -904,37 +904,37 @@ contains
     real(dp),    intent(in) :: kweight
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Index of the cell translation vector for each atom.
-    integer,     intent(in) :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
     real(dp),    intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared matrix
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh, iBlock
-    integer     :: iOldVec, iVec
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2, nOrb
-    real(dp)    :: kPoint2p(3)
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh, iBlock
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb
+    real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -1053,34 +1053,34 @@ contains
       & img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout)   :: primitive(:)
+    real(dp), intent(inout) :: primitive(:)
 
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
 
     !> Neighbor list for the atoms (First index from 0!)
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for the atoms.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Atom offset for the squared matrix
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh, iBlock
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2, nOrb
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh, iBlock
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -1136,7 +1136,7 @@ contains
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout)   :: primitive(:)
+    real(dp), intent(inout) :: primitive(:)
 
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
@@ -1148,35 +1148,35 @@ contains
     real(dp),    intent(in) :: kweight
 
     !> Maximal number of orbitals on an atom.
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Index of the cell translation vector for each atom.
-    integer,  intent(in)    :: nNeighbor(:)
+    integer, intent(in) :: nNeighbor(:)
 
     !> Relative coordinates of the cell translation vectors.
-    integer,  intent(in)    :: mOrb
+    integer, intent(in) :: mOrb
 
     !> Atom offset for the squared matrix
-    integer,     intent(in) :: iCellVec(:)
+    integer, intent(in) :: iCellVec(:)
 
     !> indexing array for the sparse Hamiltonian
     real(dp),    intent(in) :: cellVec(:,:)
 
     !> Mapping between image atoms and correspondent atom in the central cell.
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
-    integer,  intent(in)    :: iPair(0:,:)
+    integer, intent(in) :: iPair(0:,:)
 
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
-    integer     :: nAtom
-    integer     :: iOrig, ii, jj, kk
-    integer     :: iNeigh, iBlock
-    integer     :: iOldVec, iVec
-    integer     :: iAtom1, iAtom2, iAtom2f
-    integer     :: nOrb1, nOrb2, nOrb
-    real(dp)    :: kPoint2p(3)
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh, iBlock
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, nOrb
+    real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb,mOrb)
 #:call ASSERT_CODE
     integer :: sizePrim
@@ -1248,7 +1248,7 @@ contains
     !> Returns the offset array for each atom.
     integer, intent(in) :: iAtomStart(:)
 
-    integer     :: nAtom, iAtom, iStart, iEnd, mOrb
+    integer :: nAtom, iAtom, iStart, iEnd, mOrb
 
     nAtom = size(iAtomStart, dim=1) - 1
     mOrb = iAtomStart(nAtom+1) - 1
@@ -1277,7 +1277,7 @@ contains
     !> Returns the offset array for each atom.
     integer, intent(in) :: iAtomStart(:)
 
-    integer     :: nAtom, iAtom, iStart, iEnd, mOrb
+    integer :: nAtom, iAtom, iStart, iEnd, mOrb
 
     nAtom = size(iAtomStart, dim=1) - 1
     mOrb = iAtomStart(nAtom+1) - 1
@@ -1304,9 +1304,9 @@ contains
     real(dp), intent(inout) :: square(:,:)
 
     !> Returns the offset array for each atom.
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
-    integer     :: nAtom, iAtom, iStart, iEnd, mOrb
+    integer :: nAtom, iAtom, iStart, iEnd, mOrb
 
     nAtom = size(iAtomStart) - 1
     mOrb = iAtomStart(nAtom+1) - 1
@@ -1332,9 +1332,9 @@ contains
     real(dp), intent(inout) :: square(:,:)
 
     !> Contains the offset in the array for each atom.
-    integer,  intent(in)    :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
-    integer     :: nAtom, iAtom, iStart, iEnd, mOrb
+    integer :: nAtom, iAtom, iStart, iEnd, mOrb
 
     nAtom = size(iAtomStart) - 1
     mOrb = iAtomStart(nAtom+1) - 1

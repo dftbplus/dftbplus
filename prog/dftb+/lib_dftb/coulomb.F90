@@ -77,7 +77,7 @@ contains
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates.
-    real(dp), intent(in)  :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     integer :: ii, jj
     real(dp) :: dist, vect(3)
@@ -113,13 +113,13 @@ contains
     integer, intent(in) :: nAtom1
 
     !> Coordinates of the first group of objects (atoms)
-    real(dp), intent(in)  :: coord0(:,:)
+    real(dp), intent(in) :: coord0(:,:)
 
     !> Coordinates of the 2nd group of objects (point charges)
-    real(dp), intent(in)  :: coord1(:,:)
+    real(dp), intent(in) :: coord1(:,:)
 
     !> Charges of the 2nd group of objects
-    real(dp), intent(in)  :: charges1(:)
+    real(dp), intent(in) :: charges1(:)
 
     !> Gaussian blur widht of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
@@ -189,26 +189,26 @@ contains
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates (all atoms).
-    real(dp), intent(in)  :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Nr. of neighbors for each atom for real part of Ewald.
-    integer,  intent(in)  :: nNeighborEwald(:)
+    integer, intent(in) :: nNeighborEwald(:)
 
     !> List of neighbors for the real space part of Ewald.
-    integer,  intent(in)  :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Image index for each atom in the central cell.
-    integer,  intent(in)  :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Contains the points included in the reciprocal sum.  The set should not include the origin or
     !> inversion related points.
-    real(dp), intent(in)  :: recPoint(:,:)
+    real(dp), intent(in) :: recPoint(:,:)
 
     !> Parameter for Ewald summation.
-    real(dp), intent(in)  :: alpha
+    real(dp), intent(in) :: alpha
 
     !> Volume of the real space unit cell.
-    real(dp), intent(in)  :: volume
+    real(dp), intent(in) :: volume
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
 
@@ -262,25 +262,25 @@ contains
     integer, intent(in) :: nAtom1
 
     !> Coordinates of the first group of objects (atoms)
-    real(dp), intent(in)  :: coord0(:,:)
+    real(dp), intent(in) :: coord0(:,:)
 
     !> Coordinates of the 2nd group of objects (point charges)
-    real(dp), intent(in)  :: coord1(:,:)
+    real(dp), intent(in) :: coord1(:,:)
 
     !> Charges of the 2nd group of objects
-    real(dp), intent(in)  :: charges1(:)
+    real(dp), intent(in) :: charges1(:)
 
     !> Lattice vectors to be used for the real Ewald summation
-    real(dp), intent(in)  :: rLat(:,:)
+    real(dp), intent(in) :: rLat(:,:)
 
     !> Lattice vectors to be used for the reciprocal Ewald summation.
-    real(dp), intent(in)  :: gLat(:,:)
+    real(dp), intent(in) :: gLat(:,:)
 
     !> Parameter of the Ewald summation
-    real(dp), intent(in)  :: alpha
+    real(dp), intent(in) :: alpha
 
     !> Volume of the supercell.
-    real(dp), intent(in)  :: volume
+    real(dp), intent(in) :: volume
 
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
@@ -318,10 +318,10 @@ contains
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates.
-    real(dp), intent(in)  :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> List of charges on each atom.
-    real(dp), intent(in)  :: deltaQAtom(:)
+    real(dp), intent(in) :: deltaQAtom(:)
 
     integer :: ii, jj
     real(dp) :: dist, vect(3), fTmp
@@ -410,19 +410,19 @@ contains
     integer, intent(in) :: nAtom1
 
     !> List of atomic coordinates.
-    real(dp), intent(in)  :: coord0(:,:)
+    real(dp), intent(in) :: coord0(:,:)
 
     !> List of the point charge coordinates
-    real(dp), intent(in)  :: coord1(:,:)
+    real(dp), intent(in) :: coord1(:,:)
 
     !> Charge of the atoms.
-    real(dp), intent(in)  :: charge0(:)
+    real(dp), intent(in) :: charge0(:)
 
     !> Charge of the point charges.
-    real(dp), intent(in)  :: charge1(:)
+    real(dp), intent(in) :: charge1(:)
 
     !> if gaussian distribution for the charge
-    real(dp), intent(in), optional  :: blurWidths1(:)
+    real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
@@ -497,29 +497,29 @@ contains
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates (all atoms).
-    real(dp), intent(in)    :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Nr. of neighbors for each atom for real part ofEwald.
-    integer,  intent(in)    :: nNeighborEwald(:)
+    integer, intent(in) :: nNeighborEwald(:)
 
     !> list of neighbours for each atom
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> mapping from image atoms to central cell
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
     !> inversion related points.
-    real(dp), intent(in)    :: recPoint(:,:)
+    real(dp), intent(in) :: recPoint(:,:)
 
     !> Parameter for Ewald summation.
-    real(dp), intent(in)    :: alpha
+    real(dp), intent(in) :: alpha
 
     !> Volume of the real space unit cell.
-    real(dp), intent(in)    :: volume
+    real(dp), intent(in) :: volume
 
     !> List of charges on each atom
-    real(dp), intent(in)    :: deltaQAtom(:)
+    real(dp), intent(in) :: deltaQAtom(:)
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
     real(dp) :: r(3)
@@ -578,13 +578,13 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Nr. of neighbors for each atom for real part of Ewald
-    integer,  intent(in) :: nNeighborEwald(:)
+    integer, intent(in) :: nNeighborEwald(:)
 
     !> List of neighbors for the real space part of Ewald.
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Image of each atom in the central cell.
-    integer,  intent(in) :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
     !> inversion related points.
@@ -668,28 +668,28 @@ contains
     integer, intent(in) :: nAtom1
 
     !> List of atomic coordinates (first group)
-    real(dp), intent(in)    :: coord0(:,:)
+    real(dp), intent(in) :: coord0(:,:)
 
     !> List of the point charge coordinates (second group)
-    real(dp), intent(in)    :: coord1(:,:)
+    real(dp), intent(in) :: coord1(:,:)
 
     !> Charge of the atoms in group 1.
-    real(dp), intent(in)    :: charge0(:)
+    real(dp), intent(in) :: charge0(:)
 
     !> Charge of the point charges.
-    real(dp), intent(in)    :: charge1(:)
+    real(dp), intent(in) :: charge1(:)
 
     !> Lattice vectors to be used for the real Ewald summation
-    real(dp), intent(in)    :: rVec(:,:)
+    real(dp), intent(in) :: rVec(:,:)
 
     !> Lattice vectors to be used for the reciprocal Ewald summation.
-    real(dp), intent(in)    :: gVec(:,:)
+    real(dp), intent(in) :: gVec(:,:)
 
     !> Parameter of the Ewald summation
-    real(dp), intent(in)    :: alpha
+    real(dp), intent(in) :: alpha
 
     !> Volume of the supercell.
-    real(dp), intent(in)    :: vol
+    real(dp), intent(in) :: vol
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
@@ -752,8 +752,8 @@ contains
     real(dp), parameter :: alphaInit = 1.0e-8_dp
 
     real(dp) :: minG, minR, diff
-    integer  :: iIter
-    integer  :: iError
+    integer :: iIter
+    integer :: iError
 
     @:ASSERT(all(shape(latVec) == (/3, 3/)))
     @:ASSERT(all(shape(recVec) == (/3, 3/)))
@@ -899,7 +899,7 @@ contains
 
     real(dp), parameter :: rInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
-    integer  :: iError, iIter
+    integer :: iError, iIter
 
     iError = 0
     xx = rInit
@@ -998,7 +998,7 @@ contains
     real(dp) :: recSum
 
     real(dp) :: gg(3), g2
-    integer  :: iG
+    integer :: iG
 
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
@@ -1036,7 +1036,7 @@ contains
     real(dp) :: recSum(3)
 
     real(dp) :: gg(3), g2
-    integer  :: iG
+    integer :: iG
 
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
@@ -1071,7 +1071,7 @@ contains
     real(dp) :: realSum
 
     real(dp) :: absRR
-    integer  :: iR
+    integer :: iR
 
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
@@ -1105,7 +1105,7 @@ contains
 
     real(dp) :: rNew(3)
     real(dp) :: rr
-    integer  :: iR
+    integer :: iR
 
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(rdiff) == 3)
@@ -1231,31 +1231,31 @@ contains
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates (all atoms).
-    real(dp), intent(in)  :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Nr. of neighbors for each atom for real part of Ewald.
-    integer,  intent(in)  :: nNeighborEwald(:)
+    integer, intent(in) :: nNeighborEwald(:)
 
     !> List of neighbors for the real space part of Ewald.
-    integer,  intent(in)  :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Image of each atom in the central cell.
-    integer,  intent(in)  :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
     !> inversion related points.
-    real(dp), intent(in)  :: recPoint(:,:)
+    real(dp), intent(in) :: recPoint(:,:)
 
     !> Parameter for Ewald summation.
-    real(dp), intent(in)  :: alpha
+    real(dp), intent(in) :: alpha
 
     !> Volume of the real space unit cell.
-    real(dp), intent(in)  :: volume
+    real(dp), intent(in) :: volume
 
     !> charges in the cell
-    real(dp), intent(in)  :: q(:)
+    real(dp), intent(in) :: q(:)
 
-    integer  :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
+    integer :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
     real(dp) :: r(3), f(3), g(3), g2, intermed, intermed2
     real(dp) :: stressTmp(3,3)
 

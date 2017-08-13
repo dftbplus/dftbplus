@@ -182,7 +182,7 @@ contains
 
   !> write single real values
   subroutine writeTaggedRealR0(file, tag, value, optForm)
-    integer,                    intent(in) :: file
+    integer, intent(in) :: file
     character(len=*),           intent(in) :: tag
     real(dp),                   intent(in) :: value
     character(len=*), optional, intent(in) :: optForm
@@ -206,7 +206,7 @@ contains
 
   !> write real vectors
   subroutine writeTaggedRealR1(file, tag, value, optForm)
-    integer,                    intent(in) :: file
+    integer, intent(in) :: file
     character(len=*),           intent(in) :: tag
     real(dp),                   intent(in) :: value(:)
     character(len=*), optional, intent(in) :: optForm
@@ -230,7 +230,7 @@ contains
 
   !> write real arrays
   subroutine writeTaggedRealR2(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     real(dp),         intent(in) :: value(:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -257,7 +257,7 @@ contains
 
   !> write 3d real arrays
   subroutine writeTaggedRealR3(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     real(dp),         intent(in) :: value(:,:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -285,7 +285,7 @@ contains
 
   !> write 4d real arrays
   subroutine writeTaggedRealR4(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     real(dp),         intent(in) :: value(:,:,:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -315,7 +315,7 @@ contains
 
   !> single complex values
   subroutine writeTaggedComplexR0(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     complex(dp),      intent(in) :: value
     character(len=*), optional, intent(in) :: optForm
@@ -339,7 +339,7 @@ contains
 
   !> complex vectors
   subroutine writeTaggedComplexR1(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     complex(dp),      intent(in) :: value(:)
     character(len=*), optional, intent(in) :: optForm
@@ -363,7 +363,7 @@ contains
 
   !> complex arrays
   subroutine writeTaggedComplexR2(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     complex(dp),      intent(in) :: value(:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -390,7 +390,7 @@ contains
 
   !> complex 3d arrays
   subroutine writeTaggedComplexR3(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     complex(dp),      intent(in) :: value(:,:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -418,7 +418,7 @@ contains
 
   !> complex 4d arrays
   subroutine writeTaggedComplexR4(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     complex(dp),      intent(in) :: value(:,:,:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -448,9 +448,9 @@ contains
 
   !> write integer values
   subroutine writeTaggedIntegerR0(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
-    integer,          intent(in) :: value
+    integer, intent(in) :: value
     character(len=*), optional, intent(in) :: optForm
 
     character(len=20) :: form
@@ -472,9 +472,9 @@ contains
 
   !> write integer vectors
   subroutine writeTaggedIntegerR1(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
-    integer,          intent(in) :: value(:)
+    integer, intent(in) :: value(:)
     character(len=*), optional, intent(in) :: optForm
 
     integer :: ii
@@ -496,9 +496,9 @@ contains
 
   !> write integer arrays
   subroutine writeTaggedIntegerR2(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
-    integer,          intent(in) :: value(:,:)
+    integer, intent(in) :: value(:,:)
     character(len=*), optional, intent(in) :: optForm
 
     integer :: ii, jj
@@ -523,9 +523,9 @@ contains
 
   !> write 3d integer arrays
   subroutine writeTaggedIntegerR3(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
-    integer,          intent(in) :: value(:,:,:)
+    integer, intent(in) :: value(:,:,:)
     character(len=*), optional, intent(in) :: optForm
 
     integer :: ii, jj, kk
@@ -551,9 +551,9 @@ contains
 
   !> write 4d integer arrays
   subroutine writeTaggedIntegerR4(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
-    integer,          intent(in) :: value(:,:,:,:)
+    integer, intent(in) :: value(:,:,:,:)
     character(len=*), optional, intent(in) :: optForm
 
     integer :: ii, jj, kk, ll
@@ -581,7 +581,7 @@ contains
 
   !> write logical values
   subroutine writeTaggedLogicalR0(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     logical,          intent(in) :: value
     character(len=*), optional, intent(in) :: optForm
@@ -605,7 +605,7 @@ contains
 
   !> write logical vectors
   subroutine writeTaggedLogicalR1(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     logical,          intent(in) :: value(:)
     character(len=*), optional, intent(in) :: optForm
@@ -629,7 +629,7 @@ contains
 
   !> write logical arrays
   subroutine writeTaggedLogicalR2(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     logical,          intent(in) :: value(:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -656,7 +656,7 @@ contains
 
   !> write 3d logical arrays
   subroutine writeTaggedLogicalR3(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     logical,          intent(in) :: value(:,:,:)
     character(len=*), optional, intent(in) :: optForm
@@ -684,7 +684,7 @@ contains
 
   !> write 4d logical arrays
   subroutine writeTaggedLogicalR4(file, tag, value, optForm)
-    integer,          intent(in) :: file
+    integer, intent(in) :: file
     character(len=*), intent(in) :: tag
     logical,          intent(in) :: value(:,:,:,:)
     character(len=*), optional, intent(in) :: optForm

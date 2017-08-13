@@ -26,10 +26,10 @@ contains
     real(dp), intent(out) :: res(3)
 
     !> First vector.
-    real(dp), intent(in)  :: v1(3)
+    real(dp), intent(in) :: v1(3)
 
     !> Second vector.
-    real(dp), intent(in)  :: v2(3)
+    real(dp), intent(in) :: v2(3)
 
     res(1) = v1(2) * v2(3) - v1(3) * v2(2)
     res(2) = v1(3) * v2(1) - v1(1) * v2(3)
@@ -70,7 +70,7 @@ contains
     real(dp), intent(out) :: deriv(3, 3)
 
     !> The matrix from which to calculate the determinant.
-    real(dp), intent(in)  :: matrix(3, 3)
+    real(dp), intent(in) :: matrix(3, 3)
 
     deriv(1,1) = matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3)
     deriv(1,2) = matrix(2, 3) * matrix(3, 1) - matrix(3, 3) * matrix(2, 1)
@@ -91,10 +91,10 @@ contains
   subroutine invert33(inverted, orig, optDet)
 
     !> Contains the inverted matrix on return.
-    real(dp), intent(out)          :: inverted(:, :)
+    real(dp), intent(out) :: inverted(:, :)
 
     !> Matrix to invert.
-    real(dp), intent(in)           :: orig(:, :)
+    real(dp), intent(in) :: orig(:, :)
 
     !> Determinant of the matrix, if already known.
     real(dp), intent(in), optional :: optDet

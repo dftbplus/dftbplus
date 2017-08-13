@@ -51,21 +51,21 @@ contains
   subroutine addSpinShift(shift,chargePerShell,species,orb,spinW)
 
     !> resulting shell-shifts for the system
-    real(dp), intent(inout)     :: shift(:,:,0:)
+    real(dp), intent(inout) :: shift(:,:,0:)
 
     !> spin resolved charges for each shell
-    real(dp), intent(in)        :: chargePerShell(:,:,0:)
+    real(dp), intent(in) :: chargePerShell(:,:,0:)
 
     !> Species of each atom
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     !>  Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
     !> Spin coupling constants.
-    real(dp), intent(in)        :: spinW(:,:,:)
+    real(dp), intent(in) :: spinW(:,:,:)
 
-    integer  :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
+    integer :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
 
     nAtom = size(chargePerShell,dim=2)
     @:ASSERT(nAtom > 0)
@@ -98,10 +98,10 @@ contains
     real(dp), intent(out) :: rslt
 
     !> spin resolved charges for each shell
-    real(dp), intent(in)  :: chargePerShell(:,:,:)
+    real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> spin shift for each shell
-    real(dp), intent(in)  :: shiftPerShell(:,:,:)
+    real(dp), intent(in) :: shiftPerShell(:,:,:)
 
     @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
     @:ASSERT(size(chargePerShell,dim=3)>1 .and. size(chargePerShell,dim=3)<5)
@@ -119,10 +119,10 @@ contains
     real(dp), intent(out) :: rslt(:)
 
     !> spin resolved charges for each shell
-    real(dp), intent(in)  :: chargePerShell(:,:,:)
+    real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> spin shift for each shell
-    real(dp), intent(in)  :: shiftPerShell(:,:,:)
+    real(dp), intent(in) :: shiftPerShell(:,:,:)
 
     @:ASSERT(size(rslt)==size(chargePerShell,dim=2))
     @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))

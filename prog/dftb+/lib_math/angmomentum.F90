@@ -45,7 +45,7 @@ contains
     complex(dp),intent(out) :: Lz(0:,0:)
 
     !> value of the orbital momentum to construct these matrices
-    integer, intent(in)     :: l
+    integer, intent(in) :: l
 
     ! magnetic quantum number
     integer :: m
@@ -92,19 +92,19 @@ contains
   subroutine onsite(Lshell, rho, iAtomStart, orb, species)
 
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
-    real(dp), intent(out)       :: Lshell(:,:,:)
+    real(dp), intent(out) :: Lshell(:,:,:)
 
     !> Density matrix
-    complex(dp), intent(in)     :: rho(:,:)
+    complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix
-    integer,  intent(in)        :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     integer :: nAtom, nSpecies, nOrb, iSp
     integer :: ii, jj, kk, ll, iStart, iEnd
@@ -183,16 +183,16 @@ contains
   subroutine dual(Lshell, qBlockSkew, orb, species)
 
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
-    real(dp), intent(out)       :: Lshell(:,:,:)
+    real(dp), intent(out) :: Lshell(:,:,:)
 
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
-    real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms
-    integer, intent(in)         :: species(:)
+    integer, intent(in) :: species(:)
 
     integer :: nAtom, nSpecies, iSp
     integer :: ii, jj, kk, ll, mm, iStart, iEnd

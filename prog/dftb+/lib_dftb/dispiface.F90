@@ -55,7 +55,7 @@ module dispiface
       real(dp), intent(in) :: coords(:,:)
 
       !> central cell chemical species
-      integer, intent(in) ::  species0(:)
+      integer, intent(in) :: species0(:)
     end subroutine updateCoordsIface
 
 

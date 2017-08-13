@@ -188,7 +188,7 @@ contains
     real(dp), intent(inout) :: qInpResult(:)
 
     !> Charge difference between output and input charges
-    real(dp), intent(in)    :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
 
     self%iIter = self%iIter + 1
     if (self%iIter > self%mIter) then

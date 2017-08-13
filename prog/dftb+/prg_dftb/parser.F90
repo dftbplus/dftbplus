@@ -866,12 +866,12 @@ contains
     type(control), intent(inout) :: ctrl
 
     !> Total number of all atoms
-    integer, intent(in)  :: nAtom
+    integer, intent(in) :: nAtom
 
     type(fnode), pointer :: value, child
     type(string) :: buffer, modifier
     type(listRealR1) :: realBuffer
-    integer          :: nVelocities
+    integer :: nVelocities
     real(dp), allocatable :: tmpVelocities(:,:)
 
     call getChildValue(node, "Velocities", value, "", child=child, &
@@ -1022,9 +1022,9 @@ contains
     real(dp), allocatable :: tmpR1(:)
     real(dp), allocatable :: tmpR2(:,:)
     real(dp) :: rTmp, rTmp3(3)
-    integer, allocatable  :: iTmpN(:)
+    integer, allocatable :: iTmpN(:)
     real(dp) :: coeffsAndShifts(3, 4)
-    integer  :: nShell, skInterMeth
+    integer :: nShell, skInterMeth
     character(1) :: tmpCh
     logical :: tShellIncl(4), tFound
     integer :: angShell(maxL+1), angShellOrdered(maxL+1)
@@ -2086,7 +2086,7 @@ contains
     type(ListCharLc), intent(inout) :: skFiles(:,:)
 
     !> Nr. of species in the system
-    integer, intent(in)    :: nSpecies
+    integer, intent(in) :: nSpecies
 
     !> Data type for slako information
     type(slater), intent(inout) :: slako
@@ -2102,7 +2102,7 @@ contains
     logical, intent(in) :: orbRes
 
     !> Method of the sk interpolation
-    integer, intent(in)  :: skInterMeth
+    integer, intent(in) :: skInterMeth
 
     !> is this a polynomial or spline repulsive?
     logical, intent(in) :: repPoly(:,:)
@@ -3160,10 +3160,10 @@ contains
   subroutine readSpinConstants(hamNode, geo, slako, ctrl)
 
     !> node for Hamitonian data
-    type(fnode), pointer         :: hamNode
+    type(fnode), pointer :: hamNode
 
     !> geometry of the system
-    type(TGeometry), intent(in)  :: geo
+    type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure
     type(slater), intent(in) :: slako
@@ -3224,7 +3224,7 @@ contains
     type(fnode), pointer, intent(in) :: node
 
     !> geometry of the system
-    type(TGeometry), intent(in)  :: geo
+    type(TGeometry), intent(in) :: geo
 
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb

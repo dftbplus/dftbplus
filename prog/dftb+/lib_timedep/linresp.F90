@@ -101,33 +101,33 @@ module linresp_module
 
   !> Data type for linear response internal settings
   type :: linresp
-    integer   :: nExc, nStat
-    logical   :: tEnergyWindow
-    real(dp)  :: energyWindow
-    logical   :: tOscillatorWindow
-    real(dp)  :: oscillatorWindow
-    integer   :: nOcc, nVir, nAtom
-    real(dp)  :: nEl
+    integer :: nExc, nStat
+    logical :: tEnergyWindow
+    real(dp) :: energyWindow
+    logical :: tOscillatorWindow
+    real(dp) :: oscillatorWindow
+    integer :: nOcc, nVir, nAtom
+    real(dp) :: nEl
     character :: symmetry
     real(dp), allocatable :: spinW(:)
     real(dp), allocatable :: HubbardU(:)
-    integer   :: fdXplusY = -1
-    integer   :: fdCoeffs = -1
-    logical   :: tGrndState = .true.
-    integer   :: fdMulliken = -1
-    integer   :: fdTrans = -1
-    integer   :: fdSPTrans = -1
-    integer   :: fdExc = -1
-    integer   :: fdTradip = -1
-    logical   :: tArnoldi
+    integer :: fdXplusY = -1
+    integer :: fdCoeffs = -1
+    logical :: tGrndState = .true.
+    integer :: fdMulliken = -1
+    integer :: fdTrans = -1
+    integer :: fdSPTrans = -1
+    integer :: fdExc = -1
+    integer :: fdTradip = -1
+    logical :: tArnoldi
 
 
     !> file unit for Arnoldi solver file unit for tests on output of Arnoldi solver
-    integer   :: fdArnoldi = -1
+    integer :: fdArnoldi = -1
 
-    integer   :: fdArnoldiDiagnosis = -1
-    logical   :: tPrintEigVecs
-    logical   :: tInit = .false.
+    integer :: fdArnoldiDiagnosis = -1
+    logical :: tPrintEigVecs
+    logical :: tInit = .false.
   end type linresp
 
 

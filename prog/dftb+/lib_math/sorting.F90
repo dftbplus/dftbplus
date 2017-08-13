@@ -79,12 +79,12 @@ contains
   subroutine heap_sort_real(array, tolerance)
 
     !> Array of values to be sorted
-    real(dp), intent(inout)        :: array(:)
+    real(dp), intent(inout) :: array(:)
 
     !> Tolerance for equality of two elements
     real(dp), intent(in), optional :: tolerance
 
-    integer  :: n, ir, ij, il, ii, ik
+    integer :: n, ir, ij, il, ii, ik
     real(dp) :: tmpReal
     real(dp) :: tol
 
@@ -190,10 +190,10 @@ contains
   subroutine index_heap_sort_real(indx, array, tolerance)
 
     !> Indexing array on return
-    integer,  intent(out)          :: indx(:)
+    integer, intent(out) :: indx(:)
 
     !> Array of values to be sorted
-    real(dp), intent(in)           :: array(:)
+    real(dp), intent(in) :: array(:)
 
     !> Tolerance for equality of two elements
     real(dp), intent(in), optional :: tolerance
@@ -336,19 +336,19 @@ contains
   subroutine merge_int(NA,NB,NC,A,B,C)
 
     !> first array of values
-    integer, intent(in)    :: NA
+    integer, intent(in) :: NA
 
     !> elements in A
-    integer, intent(in)    :: NB
+    integer, intent(in) :: NB
 
     !> second array of values
-    integer, intent(in)    :: NC
+    integer, intent(in) :: NC
 
     !> elements in A
-    integer, intent(in)    :: A(NA)
+    integer, intent(in) :: A(NA)
 
     !> array to merge onto
-    integer, intent(in)    :: B(NB)
+    integer, intent(in) :: B(NB)
 
     !> elements in C
     integer, intent(inout) :: C(NC)
@@ -384,10 +384,10 @@ contains
     integer, intent(inout) :: A(:)
 
     !> number of elements in array
-    integer, intent(in)    :: N
+    integer, intent(in) :: N
 
     !> workspace of at least (N+1)/2 size
-    integer, intent (out)  :: T(:)
+    integer, intent (out) :: T(:)
 
     integer :: NA, NB, V
 
@@ -423,7 +423,7 @@ contains
     integer, intent(out) :: indx(:)
 
     !> vector to sort
-    integer, intent(in)  :: array(:)
+    integer, intent(in) :: array(:)
 
     integer, allocatable :: work(:,:), tmp(:,:)
     integer :: ii, n
@@ -448,19 +448,19 @@ contains
   subroutine merge_indx_int(NA,NB,NC,A,B,C)
 
     !> first array of values
-    integer, intent(in)    :: NA
+    integer, intent(in) :: NA
 
     !> elements in A
-    integer, intent(in)    :: NB
+    integer, intent(in) :: NB
 
     !> second array of values
-    integer, intent(in)    :: NC
+    integer, intent(in) :: NC
 
     !> elements in A
-    integer, intent(in)    :: A(NA,2)
+    integer, intent(in) :: A(NA,2)
 
     !> array to merge onto
-    integer, intent(in)    :: B(NB,2)
+    integer, intent(in) :: B(NB,2)
 
     !> elements in C
     integer, intent(inout) :: C(NC,2)
@@ -497,10 +497,10 @@ contains
     integer, intent(inout) :: A(:,:)
 
     !> N number of elements in array
-    integer, intent(in)    :: N
+    integer, intent(in) :: N
 
     !> workspace of at least (N+1)/2 size
-    integer, intent (out)  :: T(:,:)
+    integer, intent (out) :: T(:,:)
 
     integer :: NA, NB, V(2)
 
@@ -553,24 +553,24 @@ contains
   subroutine merge_real(NA,NB,NC,A,B,C)
 
     !> first array of values
-    integer, intent(in)    :: NA
+    integer, intent(in) :: NA
 
     !> elements in A
-    integer, intent(in)    :: NB
+    integer, intent(in) :: NB
 
     !> second array of values
-    integer, intent(in)    :: NC
+    integer, intent(in) :: NC
 
     !> elements in A
-    real(dp), intent(in)    :: A(NA)
+    real(dp), intent(in) :: A(NA)
 
     !> array to merge onto
-    real(dp), intent(in)    :: B(NB)
+    real(dp), intent(in) :: B(NB)
 
     !> elements in C
     real(dp), intent(inout) :: C(NC)
 
-    integer  :: I, J, K
+    integer :: I, J, K
 
     @:ASSERT((na+nb)==nc)
 
@@ -602,12 +602,12 @@ contains
     real(dp), intent(inout) :: A(:)
 
     !> number of elements in array
-    integer, intent(in)     :: N
+    integer, intent(in) :: N
 
     !> workspace of at least (N+1)/2 size
-    real(dp), intent (out)  :: T(:)
+    real(dp), intent (out) :: T(:)
 
-    integer  :: NA, NB
+    integer :: NA, NB
     real(dp) :: V
 
     if (N < 2) return
@@ -671,19 +671,19 @@ contains
   subroutine merge_indx_real(NA,NB,NC,A,B,C, tol)
 
     !> first array of values
-    integer, intent(in)    :: NA
+    integer, intent(in) :: NA
 
     !> elements in A
-    integer, intent(in)    :: NB
+    integer, intent(in) :: NB
 
     !> second array of values
-    integer, intent(in)    :: NC
+    integer, intent(in) :: NC
 
     !> elements in A
-    real(dp), intent(in)    :: A(NA,2)
+    real(dp), intent(in) :: A(NA,2)
 
     !> array to merge onto
-    real(dp), intent(in)    :: B(NB,2)
+    real(dp), intent(in) :: B(NB,2)
 
     !> elements in C
     real(dp), intent(inout) :: C(NC,2)
@@ -722,10 +722,10 @@ contains
     real(dp), intent(inout) :: A(:,:)
 
     !> number of elements in array
-    integer, intent(in)    :: N
+    integer, intent(in) :: N
 
     !> workspace of at least (N+1)/2 size
-    real(dp), intent (out)  :: T(:,:)
+    real(dp), intent (out) :: T(:,:)
 
     !> tolerance for comparisions
     real(dp), intent(in) :: tol

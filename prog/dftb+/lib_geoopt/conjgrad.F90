@@ -95,7 +95,7 @@ module conjgrad
 
 
   !> State of the conjugate gradient cycle
-  integer, parameter  :: st_1 = 1, st_2 = 2
+  integer, parameter :: st_1 = 1, st_2 = 2
 
 contains
 
@@ -162,10 +162,10 @@ contains
     type(OConjGrad), intent(inout) :: self
 
     !> Function value for last point returned by this routine
-    real(dp), intent(in)  :: fx
+    real(dp), intent(in) :: fx
 
     !> Gradient in the last point
-    real(dp), intent(in)  :: dx(:)
+    real(dp), intent(in) :: dx(:)
 
     !> New proposed point
     real(dp), intent(out) :: xNew(:)
@@ -206,7 +206,7 @@ contains
     logical,  intent(inout) :: tConverged
 
     !> cut out tollerance for optimisation
-    real(dp), intent(in)    :: tolerance
+    real(dp), intent(in) :: tolerance
 
     !> Line minimizer
     type(OLineMin), intent(inout) :: pLinMin
@@ -219,7 +219,7 @@ contains
 
     real(dp) :: ggAbs, dgAbs, rTmp
     logical :: tConvLine
-    real(dp), allocatable  :: xi(:)
+    real(dp), allocatable :: xi(:)
 
     if (state == st_1) then
       !! If first gradient converged: Reuse internal variables to store results

@@ -156,7 +156,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Species of the atoms in the unit cell.
-    integer, intent(in) ::  species0(:)
+    integer, intent(in) :: species0(:)
 
     @:ASSERT(allocated(this%calculator))
 

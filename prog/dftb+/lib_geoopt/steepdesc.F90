@@ -21,7 +21,7 @@ module steepdesc
     private
 
     !> Dimensionality of the space
-    integer  :: nElem
+    integer :: nElem
 
     !> Previous coordinate
     real(dp), allocatable :: xOld(:)
@@ -128,7 +128,7 @@ contains
     type(OSteepDesc), intent(inout) :: self
 
     !> Gradient in the last point
-    real(dp), intent(in)  :: dx(:)
+    real(dp), intent(in) :: dx(:)
 
     !> New proposed point
     real(dp), intent(out) :: xNew(:)

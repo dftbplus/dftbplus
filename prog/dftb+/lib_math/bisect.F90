@@ -25,21 +25,21 @@ contains
   subroutine bisection_real(j,xx,x, tol)
 
     !> located element such that xx(j) < x < xx(j+1)
-    integer,  intent(out)          :: j
+    integer, intent(out) :: j
 
     !> array of values in monotonic order to search through
-    real(dp), intent(in)           :: xx(:)
+    real(dp), intent(in) :: xx(:)
 
     !> value to locate j for
-    real(dp), intent(in)           :: x
+    real(dp), intent(in) :: x
 
     !> Tolerance for equality comparision
     real(dp), intent(in), optional :: tol
 
-    integer  :: n
-    integer  :: jlower,jupper,jcurr
+    integer :: n
+    integer :: jlower,jupper,jcurr
     real(dp) :: rTol      !! real tolerance
-    logical  :: ascending
+    logical :: ascending
 
     n = size(xx)
     if (n == 0) then

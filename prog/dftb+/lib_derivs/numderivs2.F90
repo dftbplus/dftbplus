@@ -31,23 +31,23 @@ module numderivs2
 
 
     !> How many derivates are needed
-    integer           :: nDerivs
+    integer :: nDerivs
 
 
     !> Which atom are we currently differentiating with respect to?
-    integer           :: iAtom
+    integer :: iAtom
 
 
     !> Which component, x,y,z are we currently differentiating with respect to?
-    integer           :: iComponent
+    integer :: iComponent
 
 
     !> displacement along + or - for central difference
-    real(dp)          :: iDelta
+    real(dp) :: iDelta
 
 
     !> Step size for derivative
-    real(dp)          :: Delta
+    real(dp) :: Delta
   end type OnumDerivs
 
 
@@ -116,13 +116,13 @@ contains
     type(OnumDerivs), intent(inout) :: self
 
     !> New coordinates for the next step
-    real(dp), intent(out)     :: xNew(:,:)
+    real(dp), intent(out) :: xNew(:,:)
 
     !> Forces for the previous geometry
-    real(dp), intent(in)      :: fOld(:,:)
+    real(dp), intent(in) :: fOld(:,:)
 
     !> Has the process terminated? If so internally calculate the Hessian matrix.
-    logical, intent(out)      :: tGeomEnd
+    logical, intent(out) :: tGeomEnd
 
     integer :: ii, jj
 

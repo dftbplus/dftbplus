@@ -33,25 +33,25 @@ contains
     real(dp), intent(out) :: st(3,3)
 
     !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in)  :: coords(:,:)
+    real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbors for atoms in the central cell
-    integer, intent(in)   :: nNeighbors(:)
+    integer, intent(in) :: nNeighbors(:)
 
     !> Index of neighbors for a given atom.
-    integer, intent(in)   :: iNeighbors(0:,:)
+    integer, intent(in) :: iNeighbors(0:,:)
 
     !> Species of atoms in the central cell.
-    integer, intent(in)   :: species(:)
+    integer, intent(in) :: species(:)
 
     !> indexing array for periodic image atoms
-    integer, intent(in)   :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont
 
     !> cell volume.
-    real(dp), intent(in)  :: cellVol
+    real(dp), intent(in) :: cellVol
 
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii
     real(dp) :: vect(3), intermed(3), prefac
@@ -87,16 +87,16 @@ contains
     real(dp), intent(out) :: st(3,3)
 
     !> particle masses
-    real(dp), intent(in)  :: mass(:)
+    real(dp), intent(in) :: mass(:)
 
     !> Species of atoms in the central cell.
-    integer, intent(in)   :: species(:)
+    integer, intent(in) :: species(:)
 
     !> particle velocities
-    real(dp), intent(in)  :: velo(:,:)
+    real(dp), intent(in) :: velo(:,:)
 
     !> cell volume.
-    real(dp), intent(in)  :: cellVol
+    real(dp), intent(in) :: cellVol
 
     integer :: ii, jj, iAtom, nAtom
 
@@ -164,14 +164,14 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> cell volume.
-    real(dp), intent(in)  :: cellVol
+    real(dp), intent(in) :: cellVol
 
-    integer   :: iOrig, ii, jj
-    integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp)  :: vect(3), intermed(3)
+    integer :: iOrig, ii, jj
+    integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    real(dp) :: vect(3), intermed(3)
 
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
 
@@ -276,15 +276,15 @@ contains
     real(dp), intent(in) :: shift(:,:,:,:)
 
     !> cell volume.
-    real(dp), intent(in)  :: cellVol
+    real(dp), intent(in) :: cellVol
 
-    integer   :: iOrig, iSpin, nSpin, ii, jj
-    integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2, iSp1, iSp2
-    real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp)  :: shiftSprime(orb%mOrb,orb%mOrb)
-    real(dp)  :: vect(3), intermed(3)
+    integer :: iOrig, iSpin, nSpin, ii, jj
+    integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, iSp1, iSp2
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
+    real(dp) :: vect(3), intermed(3)
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -420,15 +420,15 @@ contains
   real(dp), intent(in) :: iShift(:,:,:,:)
 
   !> cell volume.
-  real(dp), intent(in)  :: cellVol
+  real(dp), intent(in) :: cellVol
 
-  integer   :: iOrig, iSpin, nSpin, ii, jj
-  integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-  integer   :: nOrb1, nOrb2, iSp1, iSp2
-  real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-  real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-  real(dp)  :: shiftSprime(orb%mOrb,orb%mOrb)
-  real(dp)  :: vect(3), intermed(3)
+  integer :: iOrig, iSpin, nSpin, ii, jj
+  integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+  integer :: nOrb1, nOrb2, iSp1, iSp2
+  real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+  real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+  real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
+  real(dp) :: vect(3), intermed(3)
 
   nAtom = size(orb%nOrbAtom)
   nSpin = size(shift,dim=4)

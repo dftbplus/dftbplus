@@ -361,7 +361,7 @@ contains
     real(dp) :: interSk(getMIntegrals(skCont))
     
     real(dp) :: vect(3), dist
-    integer  :: ii, jj
+    integer :: ii, jj
     integer :: sp1, sp2
     real(dp) :: tmp(size(deriv,dim=1), size(deriv,dim=2),2,3)
 
@@ -401,20 +401,20 @@ contains
     integer, intent(in) :: atomI, atomJ
     type(TOrbitals), intent(in) :: orb
 
-    integer, parameter  :: maxrows = 20
-    integer, parameter  :: maxcolumns = 3
+    integer, parameter :: maxrows = 20
+    integer, parameter :: maxcolumns = 3
     real(dp), parameter :: tol = 1.0E-11_dp ! epsilon ?
 
     real(dp) :: interSk(getMIntegrals(skCont))  ! interpolated S integs.
     real(dp) :: vect(3), dist
-    integer  :: sp1, sp2
+    integer :: sp1, sp2
     real(dp) :: tmp(size(deriv, dim=1), size(deriv, dim=2),2)
     real(dp) :: diff
     real(dp) :: dd(size(deriv, dim=1), size(deriv, dim=2), 0:maxcolumns,&
         & 0:maxrows)
-    logical  :: tConverged(size(deriv, dim=1), size(deriv, dim=2))
+    logical :: tConverged(size(deriv, dim=1), size(deriv, dim=2))
     real(dp) :: hh
-    integer  :: ii, iCart, kk, ll, mm, nk
+    integer :: ii, iCart, kk, ll, mm, nk
 
     @:ASSERT(size(deriv, dim=3) == 3)
 
@@ -511,8 +511,8 @@ contains
 
     real(dp) :: interSk(getMIntegrals(skCont))   ! interpolated integs.
     real(dp) :: vect(3), dist
-    integer  :: ii, jj, kk, ll
-    integer  :: sp1, sp2
+    integer :: ii, jj, kk, ll
+    integer :: sp1, sp2
     real(dp) :: tmp(size(deriv, dim=1), size(deriv, dim=2))
 
     ! second derivative weights for d2 F /dx2

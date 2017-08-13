@@ -124,18 +124,18 @@ contains
   subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
 
     !> Root element of the tree to investigate
-    type(fnode), pointer               :: node
+    type(fnode), pointer :: node
 
     !> if anything left after processing should be flagged
-    logical, intent(in), optional      :: tIgnoreUnprocessed
+    logical, intent(in), optional :: tIgnoreUnprocessed
 
     !> list of left over nodes (if present)
     type(fnodeList), pointer, optional :: nodeList
 
     type(fnodeList), pointer :: list
-    type(fnode), pointer     :: child
-    type(string)             :: msg
-    integer                  :: ii, ll
+    type(fnode), pointer :: child
+    type(string) :: msg
+    integer :: ii, ll
     logical :: tIgnoreUnprocessed0
 
     call getUnprocessedNodes(node, list)
@@ -254,7 +254,7 @@ contains
     type(fnode), pointer :: node
 
     !> Contains the node name for an associated node or empty string for an unassociated one.
-    type(string), intent(inout)  :: nodeName
+    type(string), intent(inout) :: nodeName
 
     if (.not. associated(node)) then
       nodeName = ""

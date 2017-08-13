@@ -227,7 +227,7 @@ contains
     type(OSlaterOrbital), intent(in) :: self
 
     !> Distance, where STO should be calculated
-    real(dp), intent(in)  :: rr
+    real(dp), intent(in) :: rr
 
     !> Contains the value of the function on return
     real(dp), intent(out) :: sto
@@ -269,7 +269,7 @@ contains
     real(dp), intent(in) :: alpha(:)
 
     !> Distance, where the STO should be calculated
-    real(dp), intent(in)  :: rr
+    real(dp), intent(in) :: rr
 
     !> Value of the STO on return
     real(dp), intent(out) :: sto

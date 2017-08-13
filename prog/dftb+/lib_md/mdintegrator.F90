@@ -109,13 +109,13 @@ contains
     type(OMDIntegrator), intent(inout) :: self
 
     !> coordinates of atoms
-    real(dp),intent(inout)       :: coord(:,:)
+    real(dp),intent(inout) :: coord(:,:)
 
     !> lattice vectors
-    real(dp),intent(inout)       :: latVecs(3,3)
+    real(dp),intent(inout) :: latVecs(3,3)
 
     !> stress tensor
-    real(dp),intent(in)          :: stress(3,3)
+    real(dp),intent(in) :: stress(3,3)
 
     call rescale(self%pVelocityVerlet,coord,latVecs,stress)
 
@@ -129,7 +129,7 @@ contains
     type(OMDIntegrator), intent(in) :: self
 
     !> file handle to write to
-    integer,intent(in)           :: fd
+    integer,intent(in) :: fd
 
     call state(self%pVelocityVerlet,fd)
 

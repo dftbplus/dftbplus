@@ -82,16 +82,16 @@ contains
     real(dp), intent(out) :: reslt(:)
 
     !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in)  :: coords(:,:)
+    real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbors for atoms in the central cell
-    integer, intent(in)   :: nNeighbors(:)
+    integer, intent(in) :: nNeighbors(:)
 
     !> Index of neighbors for a given atom.
-    integer, intent(in)   :: iNeighbors(0:,:)
+    integer, intent(in) :: iNeighbors(0:,:)
 
     !> Species of atoms in the central cell.
-    integer, intent(in)   :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Container for repulsive potentials.
     type(ORepCont), intent(in) :: repCont

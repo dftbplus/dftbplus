@@ -269,36 +269,36 @@ contains
       & curLine, parsedTypes, tNew) result (tFinished)
 
     !> Node which should contain parsed input
-    type(fnode), pointer             :: curNode
+    type(fnode), pointer :: curNode
 
     !> Number of open blocks/assignments.
-    integer, intent(in)              :: depth
+    integer, intent(in) :: depth
 
     !> Unparsed text from the previous line
     character(len=lc), intent(inout) :: residual
 
     !> Is next parsed token a right value of an assignment?
-    logical, intent(in)              :: tRightValue
+    logical, intent(in) :: tRightValue
 
     !> File descriptor of the input
-    integer, intent(in)              :: fd
+    integer, intent(in) :: fd
 
     !> Name of the current input file
-    character(len=lc), intent(in)    :: curFile
+    character(len=lc), intent(in) :: curFile
 
     !> Number of open files
-    integer, intent(in)              :: fileDepth
+    integer, intent(in) :: fileDepth
 
     !> Number of current line in the current file
-    integer, intent(inout)           :: curLine
+    integer, intent(inout) :: curLine
 
     !> True for those separators, which should be parsed
-    logical, intent(in)              :: parsedTypes(nSeparator)
+    logical, intent(in) :: parsedTypes(nSeparator)
 
     !> True, if parsing is done
-    logical, intent(in)              :: tNew
+    logical, intent(in) :: tNew
 
-    logical                          :: tFinished
+    logical :: tFinished
 
     character(len=lc) :: strLine, word
 
@@ -578,19 +578,19 @@ contains
   function createChildNode(parentNode, childName, curLine, file) result(newChild)
 
     !> Parent node containing of the child to be created
-    type(fnode), pointer          :: parentNode
+    type(fnode), pointer :: parentNode
 
     !> Name of the new child
     character(len=lc), intent(in) :: childName
 
     !> Number of the current line
-    integer, intent(in)           :: curLine
+    integer, intent(in) :: curLine
 
     !> Name of the current file
     character(len=lc), intent(in) :: file
 
     !> Pointer to the new (appended) child node
-    type(fnode), pointer          :: newChild
+    type(fnode), pointer :: newChild
 
     type(fnode), pointer :: dummy, sameChild
     character(len=lc) :: lowerName, truncName, modifier
@@ -898,16 +898,16 @@ contains
   recursive subroutine dumpHSD_recursive(node, indent, fd, tRightValue, buffer)
 
     !> Node to dump
-    type(fnode),      pointer       :: node
+    type(fnode),      pointer :: node
 
     !> Current indentation level
-    integer,          intent(in)    :: indent
+    integer, intent(in) :: indent
 
     !> File descriptor for an open file where output should go
-    integer,          intent(in)    :: fd
+    integer, intent(in) :: fd
 
     !> Is current node the right hand side of an assignment?
-    logical,          intent(in)    :: tRightValue
+    logical,          intent(in) :: tRightValue
 
     !> Buffer for storing temporary strings
     type(string),     intent(inout) :: buffer

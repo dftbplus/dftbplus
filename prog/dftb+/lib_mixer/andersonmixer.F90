@@ -189,7 +189,7 @@ contains
     real(dp), intent(inout) :: qInpResult(:)
 
     !> Charge difference
-    real(dp), intent(in)    :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
 
     real(dp), allocatable :: qInpMiddle(:), qDiffMiddle(:)
     real(dp) :: mixParam
@@ -257,16 +257,16 @@ contains
     real(dp), intent(out) :: qDiffMiddle(:)
 
     !> Input charge in the last iteration
-    real(dp), intent(in)  :: qInput(:)
+    real(dp), intent(in) :: qInput(:)
 
     !> Charge difference in the last iteration
-    real(dp), intent(in)  :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
 
     !> Input charges of the previous iterations
-    real(dp), intent(in)  :: prevQInp(:,:)
+    real(dp), intent(in) :: prevQInp(:,:)
 
     !> Charge differences of the previous iterations
-    real(dp), intent(in)  :: prevQDiff(:,:)
+    real(dp), intent(in) :: prevQDiff(:,:)
 
     !> Nr. of elements in the charge vectors
     integer, intent(in) :: nElem

@@ -45,19 +45,19 @@ module linemin
     private
 
     !> Number of vector elements
-    integer  :: nElem
+    integer :: nElem
 
     !> If initialized
-    logical  :: tInitialized
+    logical :: tInitialized
 
     !> State of the object
-    integer  :: state
+    integer :: state
 
     !> Max. nr. of iterations
-    integer  :: mIter
+    integer :: mIter
 
     !> Nr. of performed steps
-    integer  :: iIter
+    integer :: iIter
 
     !> Starting point
     real(dp), allocatable :: x0(:)
@@ -87,7 +87,7 @@ module linemin
     real(dp) :: firstStep
 
     !> If converged
-    logical  :: tConverged
+    logical :: tConverged
 
   end type OLineMin
 
@@ -151,10 +151,10 @@ contains
     type(OLineMin), intent(out) :: self
 
     !> Nr. of elements in the coordinate/gradient vectors
-    integer,  intent(in) :: nElem
+    integer, intent(in) :: nElem
 
     !> Nr. of maximal iterations to perform (>3)
-    integer,  intent(in) :: mIter
+    integer, intent(in) :: mIter
 
     !> Convergence criteria for the projected derivative
     real(dp), intent(in) :: tolerance
@@ -225,10 +225,10 @@ contains
     type(OLineMin), intent(inout) :: self
 
     !> Function value for the last returned point
-    real(dp), intent(in)  :: fx
+    real(dp), intent(in) :: fx
 
     !> Gradient for the last returned point
-    real(dp), intent(in)  :: dx(:)
+    real(dp), intent(in) :: dx(:)
 
     !> New point to calculate
     real(dp), intent(out) :: xNew(:)
@@ -258,13 +258,13 @@ contains
       &tConverged, tolerance, maxX, firstStep, fu, du, uu)
 
     !> State of the minimizer
-    integer,  intent(inout) :: state
+    integer, intent(inout) :: state
 
     !> Nr. of maximal iterations
-    integer,  intent(inout) :: mIter
+    integer, intent(inout) :: mIter
 
     !> Nr. of iterations so far
-    integer,  intent(inout) :: iIter
+    integer, intent(inout) :: iIter
 
     !> Coordinate of the current point
     real(dp), intent(inout) :: xCur
@@ -285,27 +285,27 @@ contains
     logical,  intent(inout) :: tConverged
 
     !> Tolerance criteria for the projected derivative
-    real(dp), intent(in)    :: tolerance
+    real(dp), intent(in) :: tolerance
 
     !> Maximal movement along one component in one step
-    real(dp), intent(in)    :: maxX
+    real(dp), intent(in) :: maxX
 
     !> Length of the first step along the line.
-    real(dp), intent(in)    :: firstStep
+    real(dp), intent(in) :: firstStep
 
     !> Function value of the current point
-    real(dp), intent(in)    :: fu
+    real(dp), intent(in) :: fu
 
     !> Gradient in the current point
-    real(dp), intent(in)    :: du(:)
+    real(dp), intent(in) :: du(:)
 
     !> Suggested coordinate of the next point on exit
-    real(dp), intent(out)   :: uu(:)
+    real(dp), intent(out) :: uu(:)
 
     real(dp) :: dCur, xNew
     real(dp) :: tmp, qq, aa, bb, cc
-    logical  :: tDone
-    integer  :: nextState
+    logical :: tDone
+    integer :: nextState
 
     @:ASSERT(size(uu) == size(x0))
     @:ASSERT(size(uu) == size(d0))

@@ -161,7 +161,7 @@ contains
     real(dp), intent(in) :: kPointCoords(:,:)
 
     !> If grids and eigenvectors are real
-    logical, intent(in)  :: tReal
+    logical, intent(in) :: tReal
 
     !> Molecular orbital calculator
     type(OMolecularOrbital), pointer, intent(in) :: molorb

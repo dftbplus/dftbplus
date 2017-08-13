@@ -399,13 +399,13 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Species of the atoms (should not change during run)
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Neighbor list for the atoms.
     type(TNeighborList), intent(in) :: neighList
 
     !> Mapping to the central cell for the atoms
-    integer,  intent(in) :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(tInitialised_)
 
@@ -647,10 +647,10 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> List of the species for each atom.
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Index of neighboring atoms for each atom.
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, u1, u2
@@ -729,16 +729,16 @@ contains
     real(dp), intent(inout) :: force(:,:)
 
     !> list of coordinates
-    real(dp), intent(in)    :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> List of the species for each atom.
-    integer,  intent(in)    :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Index of neighboring atoms for each atom.
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Image of each atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
@@ -787,21 +787,21 @@ contains
   subroutine addSTGammaPrime_(st, coord, species, iNeighbor, img2CentCell)
 
     !> Stress tensor component to add the short-range part of the gamma contribution
-    real(dp), intent(out)   :: st(:,:)
+    real(dp), intent(out) :: st(:,:)
 
     !> list of coordinates
-    real(dp), intent(in)    :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> List of the species for each atom.
-    integer,  intent(in)    :: species(:)
+    integer, intent(in) :: species(:)
 
     !> Index of neighboring atoms for each atom.
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Image of each atom in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
-    integer  :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
+    integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
     real(dp) :: intermed(3), vect(3)
 
@@ -901,7 +901,7 @@ contains
     real(dp), intent(in) :: qOut(:,:,:)
 
     !> reference charges
-    real(dp), intent(in) ::  q0(:,:,:)
+    real(dp), intent(in) :: q0(:,:,:)
 
     !> energy contributions
     real(dp), intent(out) :: eSCC(:)
@@ -946,16 +946,16 @@ contains
     real(dp), intent(inout) :: force(:,:)
 
     !> Species for each atom.
-    integer,  intent(in)    :: species(:)
+    integer, intent(in) :: species(:)
 
     !> List of neighbors for each atom.
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Indexing of images of the atoms in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> List of coordinates
-    real(dp), intent(in)    :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Force contribution due to the external charges, which is not contained in the term with the
     !> shift vectors.
@@ -995,16 +995,16 @@ contains
     real(dp), intent(inout) :: st(:,:)
 
     !> Species for each atom.
-    integer,  intent(in)    :: species(:)
+    integer, intent(in) :: species(:)
 
     !> List of neighbors for each atom.
-    integer,  intent(in)    :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Indexing of images of the atoms in the central cell.
-    integer,  intent(in)    :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> List of coordinates
-    real(dp), intent(in)    :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: stTmp(3,3)
 
@@ -1044,13 +1044,13 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> List of the species for each atom.
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> List of surrounding neighbours for each atom.
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Image of each atom in the central cell.
-    integer,  intent(in) :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> Net population per atom.
     real(dp), intent(in) :: dQAtom(:)
@@ -1184,16 +1184,16 @@ contains
       & coord, qOrbitalOut, q0, force)
 
     !> atomic species
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> neighbours surrounding each atom
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> index from image atoms to central cell
-    integer,  intent(in) :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> coordinates of all atoms
     real(dp), intent(in) :: coord(:,:)
@@ -1258,13 +1258,13 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> chemical species
-    integer,  intent(in) :: species(:)
+    integer, intent(in) :: species(:)
 
     !> neighbours around atoms
-    integer,  intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> image to real atom indexing
-    integer,  intent(in) :: img2CentCell(:)
+    integer, intent(in) :: img2CentCell(:)
 
     !> term to add force contributions to
     real(dp), intent(inout) :: force(:,:)

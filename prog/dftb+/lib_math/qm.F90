@@ -46,10 +46,10 @@ contains
     complex(dp), intent(out) :: C(:,:)
 
     !> first matrix
-    complex(dp), intent(in)  :: A(:,:)
+    complex(dp), intent(in) :: A(:,:)
 
     !> second matrix
-    complex(dp), intent(in)  :: B(:,:)
+    complex(dp), intent(in) :: B(:,:)
 
     @:ASSERT(all(shape(C)==shape(A)))
     @:ASSERT(all(shape(C)==shape(B)))

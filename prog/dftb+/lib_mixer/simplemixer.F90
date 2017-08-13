@@ -88,7 +88,7 @@ contains
     real(dp), intent(inout) :: qInpResult(:)
 
     !> Charge difference
-    real(dp), intent(in)    :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
 
     @:ASSERT(size(qInpResult) == size(qDiff))
 

@@ -35,7 +35,7 @@ contains
     real(dp), intent(inout) :: sposz(:)
 
     !> index array for transitions to single particle transitions
-    integer, intent(inout)  :: win(:)
+    integer, intent(inout) :: win(:)
 
     !> dipole moments (to be ordered on first index according to sposz sorting)
     real(dp), intent(inout) :: transd(:,:)
@@ -70,24 +70,24 @@ contains
     real(dp), intent(inout) :: sposz(:)
 
     !> index array for transitions to single particle transitions
-    integer, intent(inout)  :: win(:)
+    integer, intent(inout) :: win(:)
 
     !> transition dipole matrix elements for each atom
     real(dp), intent(inout) :: transd(:,:)
 
     !> number of excitations in space
-    integer, intent(out)    :: nxov_r
+    integer, intent(out) :: nxov_r
 
     !> threshold for dipole cutoff
-    real(dp), intent(in)    :: threshold
+    real(dp), intent(in) :: threshold
 
     !> ground state eigenvalues
-    real(dp), intent(in)    :: grndEigVal(:,:)
+    real(dp), intent(in) :: grndEigVal(:,:)
 
     !> Index array of transitions
-    integer, intent(in)     :: getij(:,:)
+    integer, intent(in) :: getij(:,:)
 
-    integer  :: nxov, ii, jj, iOcc, iVrt, iStart
+    integer :: nxov, ii, jj, iOcc, iVrt, iStart
     real(dp) :: eOcc, eExc, mu
 
     nxov = size(wij)
@@ -212,13 +212,13 @@ contains
   subroutine indxoo(nocc, nocc_r, indx, ii, jj)
 
     !> number of occupied states
-    integer, intent(in) ::  nocc
+    integer, intent(in) :: nocc
 
     !> number of required occupied-occupied transitions states
-    integer, intent(in) ::  nocc_r
+    integer, intent(in) :: nocc_r
 
     !> Compound excitation index.
-    integer, intent(in) ::  indx
+    integer, intent(in) :: indx
 
     !> Initial state.
     integer, intent(out) :: ii
@@ -235,10 +235,10 @@ contains
   subroutine indxvv(nocc, indx, ii, jj)
 
     !> Compund excitation index.
-    integer, intent(in) ::  nocc
+    integer, intent(in) :: nocc
 
     !> Number of occupied states.
-    integer, intent(in) ::  indx
+    integer, intent(in) :: indx
 
     !> Initial state.
     integer, intent(out) :: ii
@@ -288,16 +288,16 @@ contains
   subroutine rindxov_array(win, nocc, nxov, getij, iatrans)
 
     !> array for indexing excitations
-    integer, intent(in)  :: win(:)
+    integer, intent(in) :: win(:)
 
     !> number of occupied states
-    integer, intent(in)  :: nocc
+    integer, intent(in) :: nocc
 
     !> Number of transitions from occupied to virtual
-    integer, intent(in)  :: nxov
+    integer, intent(in) :: nxov
 
     !> array of the occupied->virtual pairs
-    integer, intent(in)  :: getij(:,:)
+    integer, intent(in) :: getij(:,:)
 
     !> resulting index array from orbital pairs to compound index
     integer, intent(out) :: iatrans(:,nocc+1:)
@@ -438,49 +438,49 @@ contains
       & occNr, getij, gamma, species0, spinW )
 
     !> logical spin polarization
-    logical, intent(in)   :: spin
+    logical, intent(in) :: spin
 
     !> Vector to multiply with. (nmat)
-    real(dp), intent(in)  :: vin(:)
+    real(dp), intent(in) :: vin(:)
 
     !> Vector containing the result on exit. (nmat,)
     real(dp), intent(out) :: vout(:)
 
     !> Excitation energies (wij = epsion_j - epsilon_i)
-    real(dp), intent(in)  :: wij(:)
+    real(dp), intent(in) :: wij(:)
 
     !> Symmetry flag (singlet or triplet)
     character, intent(in) :: sym
 
     !> Sorting index of the excitation energies.
-    integer, intent(in)   :: win(:)
+    integer, intent(in) :: win(:)
 
     !> number of same-spin transitions
-    integer, intent(in)   :: nmatup
+    integer, intent(in) :: nmatup
 
     !> Starting position of each atom in the list of orbitals.
-    integer, intent(in)   :: iAtomStart(:)
+    integer, intent(in) :: iAtomStart(:)
 
     !> overlap times eigenvector. (nOrb, nOrb)
-    real(dp), intent(in)  :: stimc(:,:,:)
+    real(dp), intent(in) :: stimc(:,:,:)
 
     !> Eigenvectors (nOrb, nOrb)
-    real(dp), intent(in)  :: grndEigVecs(:,:,:)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> Occupation numbers
-    real(dp), intent(in)  :: occNr(:,:)
+    real(dp), intent(in) :: occNr(:,:)
 
     !> index array for excitations
-    real(dp), intent(in)  :: gamma(:,:)
+    real(dp), intent(in) :: gamma(:,:)
 
     !> DFTB gamma matrix (nAtm, nAtom)
-    integer,  intent(in)  :: getij(:,:)
+    integer, intent(in) :: getij(:,:)
 
     !> Chemical species of the atoms
-    integer, intent(in)   :: species0(:)
+    integer, intent(in) :: species0(:)
 
     !> ground state spin constants for each species
-    real(dp), intent(in)  :: spinW(:)
+    real(dp), intent(in) :: spinW(:)
 
     integer :: nmat, natom
     integer :: ia, ii, jj
@@ -690,7 +690,7 @@ contains
     real(dp), intent(out) :: wij(:)
 
     !> index of pairs of KS states for the transitions in wij
-    integer,  intent(out) :: getij(:,:)
+    integer, intent(out) :: getij(:,:)
 
     integer :: ind, ii, jj
     integer :: norb, iSpin, nSpin
@@ -781,10 +781,10 @@ contains
   function countSPexcitations(nOrb,nSpin,filling) result(nxov)
 
     !> Number of ground state orbitals
-    integer, intent(in)  :: nOrb
+    integer, intent(in) :: nOrb
 
     !> Number of spin channels
-    integer, intent(in)  :: nSpin
+    integer, intent(in) :: nSpin
 
     !> occupations of ground state SP levels
     real(dp), intent(in) :: filling(:,:)

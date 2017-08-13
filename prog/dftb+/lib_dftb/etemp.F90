@@ -72,22 +72,22 @@ contains
     real(dp), intent(out) :: filling(:,:,:)
 
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(in)  :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Number of electrons
-    real(dp), intent(in)  :: nElectrons
+    real(dp), intent(in) :: nElectrons
 
     !> Thermal energy in atomic units
-    real(dp), intent(in)  :: kT
+    real(dp), intent(in) :: kT
 
     !> k-point weightings
-    real(dp), intent(in)  :: kWeight(:)
+    real(dp), intent(in) :: kWeight(:)
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
 
     !> scheme
-    integer, intent(in)   :: distrib
+    integer, intent(in) :: distrib
 
     real(dp) :: upperEf, lowerEf
     real(dp) :: nElec

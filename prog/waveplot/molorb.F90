@@ -389,7 +389,7 @@ contains
     integer :: nNonZero
     integer, target :: nonZeroIndContainer(nOrb)
     integer, pointer :: nonZeroIndices(:)
-    real(dp), allocatable ::  atomOrbValReal(:)
+    real(dp), allocatable :: atomOrbValReal(:)
     complex(dp), allocatable :: atomOrbValCmpl(:)
     complex(dp) :: phases(nCell, size(kPoints, dim=2))
     real(dp) :: xx, val
