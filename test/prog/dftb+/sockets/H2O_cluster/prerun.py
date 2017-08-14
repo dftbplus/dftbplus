@@ -7,8 +7,9 @@ import numpy as np
 import numpy.linalg as la
 from sockettools import frac2cart, readgen, receive_all, a0
 
-# Expecting two geometry steps of communication with DFTB+
-NR_STEPS = 2
+# Expecting five geometry steps of communication with DFTB+, sending
+# the same structure each time
+NR_STEPS = 5
 
 def connect():
     server_address = '/tmp/ipi_dftb'
@@ -31,22 +32,31 @@ def connect():
 
 def main():
 
-    specienames, species, coords, origin, latvecs = readgen("ice.gen")
+    specienames, species, coords, origin, latvecs = readgen("geo.gen")
     coords /= a0
-    latvecs /= a0
+    if (latvecs):
+        latvecs /= a0
+        tPeriodic = 1
+    else:
+        latvecs = np.empty((3, 3), dtype=float)
+        tPeriodic = None
 
     connection = connect()
 
-    for iStep in range(NR_STEPS):
+    for iStep in range(NR_STEPS+1):
         print("Step %i" % iStep)
         connection.sendall('POSDATA     ')
         connection.sendall(latvecs)
 
-        connection.sendall(la.inv(latvecs))
+        if tPeriodic:
+           connection.sendall(la.inv(latvecs))
+        else:
+           connection.sendall(np.empty((3, 3), dtype=float))
+
         connection.sendall(np.int32(len(coords)))
         connection.sendall(coords)
-
         connection.sendall('GETFORCE    ')
+
         # needs work:
         buf = receive_all(connection, 12)
         if (buf != 'FORCEREADY  '):

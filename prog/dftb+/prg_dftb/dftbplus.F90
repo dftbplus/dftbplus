@@ -417,24 +417,27 @@ program dftbplus
   lpGeomOpt: do while (iGeoStep <= nGeoSteps)
 
     if (tSocket) then
-      call socket%receive(coord0, latvec)
-      cellVol = determinant33(latVec)
-      recVec2p = latVec(:,:)
-      call matinv(recVec2p)
-      recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-      recVec = 2.0_dp * pi * recVec2p
-      recCellVol = determinant33(recVec)
+      call socket%receive(coord0, tmpLat3Vecs)
+      if (tPeriodic) then
+        latVec(:,:) = tmpLat3Vecs
+        cellVol = determinant33(latVec)
+        recVec2p = latVec(:,:)
+        call matinv(recVec2p)
+        recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
+        recVec = 2.0_dp * pi * recVec2p
+        recCellVol = determinant33(recVec)
 
-      if (tSCC) then
-        call updateLatVecs_SCC(latVec, recVec, cellVol)
-        mCutoff = max(mCutoff, getSCCCutoff())
+        if (tSCC) then
+          call updateLatVecs_SCC(latVec, recVec, cellVol)
+          mCutoff = max(mCutoff, getSCCCutoff())
+        end if
+        if (tDispersion) then
+          call dispersion%updateLatVecs(latVec)
+          mCutoff = max(mCutoff, dispersion%getRCutoff())
+        end if
+        call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
+            & mCutoff)
       end if
-      if (tDispersion) then
-        call dispersion%updateLatVecs(latVec)
-        mCutoff = max(mCutoff, dispersion%getRCutoff())
-      end if
-      call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
-          & mCutoff)
     end if
 
     if (restartFreq > 0 .and. (tGeoOpt .or. tMD)) then
@@ -1917,8 +1920,9 @@ program dftbplus
       end if
 
       if (tSocket) then
-        ! stress was computed above in the force evaluation block
-        call socket%send(energy%EMermin, -totalDeriv, totalStress * cellVol)
+        ! stress was computed above in the force evaluation block or is 0 if aperiodic
+        call socket%send(energy%ETotal - sum(TS), -totalDeriv, &
+            & totalStress * cellVol)
       end if
 
       !! If geometry minimizer finished and the last calculated geometry is the
