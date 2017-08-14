@@ -7,11 +7,11 @@
 
 #:include 'common.fypp'
 
-!!* Program for calculating system normal modes from a Hessian
+!> Program for calculating system normal modes from a Hessian
 program modes
   use assert
   use io
-  use InitProgram
+  use InitModes
   use accuracy, only : dp, lc
   use constants, only : Hartree__cm, Bohr__AA, pi
   use TypeGeometry
@@ -19,14 +19,14 @@ program modes
   use TaggedOutput
   implicit none
 
-  integer  :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
-  integer  :: iCount, jCount
+  integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
+  integer :: iCount, jCount
   real(dp), allocatable :: eigenValues(:)
   real(dp), allocatable :: displ(:,:,:)
 
   character(lc) :: lcTmp, lcTmp2
 
-  !! Allocate resources
+  ! Allocate resources
   call initProgramVariables()
   write(stdout, "(/,A,/)") "Starting main program"
 
@@ -133,15 +133,16 @@ program modes
         iMode = ModesToPlot(ii)
         write(123,*)nAtom
         write(123,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
-        if (tXmakeMol) then ! need to account for its non-standard xyz vector
-          ! format:
+        if (tXmakeMol) then
+          ! need to account for its non-standard xyz vector format:
           do iAt = 1, nAtom
             write(123,'(A3,T4,3F10.6,A,3F10.6)') &
                 & geo%speciesNames(geo%species(iAt)), &
                 & geo%coords(:,iAt)* Bohr__AA, ' atom_vector ',&
                 & displ(:,iAt,ii)
           end do
-        else ! genuine xyz format
+        else
+          ! genuine xyz format
           do iAt = 1, nAtom
             write(123,'(A3,T4,6F10.6)') &
                 & geo%speciesNames(geo%species(iAt)), &
@@ -154,6 +155,5 @@ program modes
     end if
 
   end if
-
 
 end program modes

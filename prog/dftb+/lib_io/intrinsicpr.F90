@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> Module to print data types
 module intrinsicpr
   use accuracy
   use io
@@ -14,6 +15,7 @@ module intrinsicpr
   public :: printContent
 
 
+  !> Print various types of array
   interface printContent
     module procedure printArrayRealR1
     module procedure printArrayRealR2
@@ -29,17 +31,20 @@ module intrinsicpr
     module procedure printArrayIntR4
     module procedure printArrayCharR1
     module procedure printArrayCharR2
-  end interface
-
+  end interface printContent
 
 contains
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Real arrays
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Real arrays
 
+
+  !> print real values
   subroutine printArrayRealR1(array, omitHeader)
-    real(dp), intent(in)           :: array(:)
+
+    !> data to print
+    real(dp), intent(in) :: array(:)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -52,9 +57,13 @@ contains
   end subroutine printArrayRealR1
 
 
-
+  !> print real values
   subroutine printArrayRealR2(array, omitHeader)
-    real(dp), intent(in)           :: array(:, :)
+
+    !> data to print
+    real(dp), intent(in) :: array(:, :)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -70,9 +79,13 @@ contains
   end subroutine printArrayRealR2
 
 
-
+  !> print real values
   subroutine printArrayRealR3(array, omitHeader)
-    real(dp), intent(in)           :: array(:, :, :)
+
+    !> data to print
+    real(dp), intent(in) :: array(:, :, :)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -88,9 +101,13 @@ contains
   end subroutine printArrayRealR3
 
 
-
+  !> print real values
   subroutine printArrayRealR4(array, omitHeader)
-    real(dp), intent(in)           :: array(:, :, :, :)
+
+    !> data to print
+    real(dp), intent(in) :: array(:, :, :, :)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -105,14 +122,17 @@ contains
 
   end subroutine printArrayRealR4
 
+  ! Complex arrays
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Complex arrays
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  !> print complex values
   subroutine printArrayComplexR1(array, omitHeader)
-    complex(dp), intent(in)        :: array(:)
+
+    !> data to print
+    !> data to print
+    complex(dp), intent(in) :: array(:)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -125,9 +145,13 @@ contains
   end subroutine printArrayComplexR1
 
 
-
+  !> print complex values
   subroutine printArrayComplexR2(array, omitHeader)
-    complex(dp), intent(in)        :: array(:, :)
+
+    !> data to print
+    complex(dp), intent(in) :: array(:, :)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -143,9 +167,13 @@ contains
   end subroutine printArrayComplexR2
 
 
-
+  !> print complex values
   subroutine printArrayComplexR3(array, omitHeader)
-    complex(dp), intent(in)        :: array(:, :, :)
+
+    !> data to print
+    complex(dp), intent(in) :: array(:, :, :)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -161,9 +189,13 @@ contains
   end subroutine printArrayComplexR3
 
 
-
+  !> print complex values
   subroutine printArrayComplexR4(array, omitHeader)
-    complex(dp), intent(in)        :: array(:, :, :, :)
+
+    !> data to print
+    complex(dp), intent(in) :: array(:, :, :, :)
+
+    !> leave out header information
     logical,  intent(in), optional :: omitHeader
 
     integer :: ii
@@ -178,14 +210,16 @@ contains
 
   end subroutine printArrayComplexR4
 
+  ! Integer arrays
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Integer arrays
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  !> print integer values
   subroutine printArrayIntR1(array, omitHeader)
-    integer, intent(in)           :: array(:)
+
+    !> data to print
+    integer, intent(in) :: array(:)
+
+    !> leave out header information
     logical, intent(in), optional :: omitHeader
 
     integer :: ii
@@ -198,9 +232,13 @@ contains
   end subroutine printArrayIntR1
 
 
-
+  !> print integer values
   subroutine printArrayIntR2(array, omitHeader)
-    integer, intent(in)           :: array(:, :)
+
+    !> data to print
+    integer, intent(in) :: array(:, :)
+
+    !> leave out header information
     logical, intent(in), optional :: omitHeader
 
     integer :: ii
@@ -216,9 +254,13 @@ contains
   end subroutine printArrayIntR2
 
 
-
+  !> print integer values
   subroutine printArrayIntR3(array, omitHeader)
-    integer, intent(in)           :: array(:, :, :)
+
+    !> data to print
+    integer, intent(in) :: array(:, :, :)
+
+    !> leave out header information
     logical, intent(in), optional :: omitHeader
 
     integer :: ii
@@ -234,9 +276,13 @@ contains
   end subroutine printArrayIntR3
 
 
-
+  !> print integer values
   subroutine printArrayIntR4(array, omitHeader)
-    integer, intent(in)           :: array(:, :, :, :)
+
+    !> data to print
+    integer, intent(in) :: array(:, :, :, :)
+
+    !> leave out header information
     logical, intent(in), optional :: omitHeader
 
     integer :: ii
@@ -251,14 +297,16 @@ contains
 
   end subroutine printArrayIntR4
 
+  ! Character arrays
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!   Character arrays
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  !> print character values
   subroutine printArrayCharR1(array, omitHeader)
-    character(lc), intent(in)           :: array(:)
+
+    !> data to print
+    character(lc), intent(in) :: array(:)
+
+    !> leave out header information
     logical,       intent(in), optional :: omitHeader
 
     integer :: ii
@@ -271,9 +319,13 @@ contains
   end subroutine printArrayCharR1
 
 
-
+  !> print character values
   subroutine printArrayCharR2(array, omitHeader)
-    character(lc), intent(in)           :: array(:, :)
+
+    !> data to print
+    character(lc), intent(in) :: array(:, :)
+
+    !> leave out header information
     logical,       intent(in), optional :: omitHeader
 
     integer :: ii
@@ -288,6 +340,4 @@ contains
 
   end subroutine printArrayCharR2
 
-
 end module intrinsicpr
-

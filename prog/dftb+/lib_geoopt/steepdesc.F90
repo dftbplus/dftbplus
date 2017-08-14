@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Function minimization with steepest descent algorithm
+!> Function minimization with steepest descent algorithm
 module steepdesc
   use assert
   use accuracy
@@ -16,53 +16,72 @@ module steepdesc
   private
 
 
-  !!* Contains data for the steepest descent minimizer
+  !> Contains data for the steepest descent minimizer
   type OSteepDesc
     private
-    integer  :: nElem                  !* Dimensionality of the space
+
+    !> Dimensionality of the space
+    integer :: nElem
+
+    !> Previous coordinate
     real(dp), allocatable :: xOld(:)
+
+    !> Weights for the coordinates
     real(dp), allocatable :: weight(:)
-    real(dp) :: tolerance              !* Tolerance criteria for convergence
-    real(dp) :: maxDisp                !* Maximal displacement along one
-                                       !* coordinate in one step
-    logical :: tConverged              !* If CG converged
-    logical :: tInitialized            !* If object is initialized
+
+    !> Tolerance criteria for convergence
+    real(dp) :: tolerance
+
+    !> Maximal displacement along one coordinate in one step
+    real(dp) :: maxDisp
+
+    !> If CG converged
+    logical :: tConverged
+
+    !> If object is initialized
+    logical :: tInitialized
   end type OSteepDesc
 
 
-  !!* Creates SD instance
+  !> Creates SD instance
   interface init
     module procedure SteepDesc_init
   end interface
 
-  !!* Resets the SD instance
+
+  !> Resets the SD instance
   interface reset
     module procedure SteepDesc_reset
   end interface
 
-  !!* Passes calculated gradient to the minimizer and returns a new point
+
+  !> Passes calculated gradient to the minimizer and returns a new point
   interface next
     module procedure SteepDesc_next
   end interface
 
-
   public :: OSteepDesc
   public :: init, reset, next
 
-
 contains
 
-  !!* Initialises a steepest descent instance
-  !!* @param self    Steepest descent instance on exit
-  !!* @param nElem   Nr. of elements in the vectors
-  !!* @param tol     Tolerance for the gradient
-  !!* @param maxDisp Maximal displacement in one element in one step
-  !!* @param weight  The weights of the gradient components
+
+  !> Initialises a steepest descent instance
   subroutine SteepDesc_init(self, nElem, tol, maxDisp, weight)
+
+    !> Steepest descent instance on exit
     type(OSteepDesc), intent(out) :: self
+
+    !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
+
+    !> Tolerance for the gradient
     real(dp), intent(in) :: tol
+
+    !> Maximal displacement in one element in one step
     real(dp), intent(in) :: maxDisp
+
+    !> The weights of the gradient components
     real(dp), intent(in) :: weight(:)
 
     @:ASSERT(nElem > 0)
@@ -81,11 +100,13 @@ contains
   end subroutine SteepDesc_init
 
 
-  !!* Resets CG minimizer
-  !!* @param self CG minimizer
-  !!* @param x0   Point to start from
+  !> Resets CG minimizer
   subroutine SteepDesc_reset(self, x0)
+
+    !> minimizer object
     type(OSteepDesc), intent(inout) :: self
+
+    !> Point to start from
     real(dp), intent(in) :: x0(:)
 
     @:ASSERT(size(x0) == self%nElem)
@@ -97,20 +118,22 @@ contains
   end subroutine SteepDesc_reset
 
 
-
-  !!* Passes calculated function value and gradient to the minimizare and
-  !!* gives a new coordinate back.
-  !!* @param self       CG minimizer
-  !!* @param fx         Function value for last point returned by this routine
-  !!* @param dx         Gradient in the last point
-  !!* @param xNew       New proposed point
-  !!* @param tConverged True, if gradient got below the specified tolerance.
-  !!* @note When calling the first time, gradient for the starting point of the
-  !!*    minimization should be passed.
+  !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
+  !> back.
+  !> When calling the first time, gradient for the starting point of the minimization should be
+  !> passed.
   subroutine SteepDesc_next(self, dx, xNew, tConverged)
+
+    !> CG minimizer
     type(OSteepDesc), intent(inout) :: self
-    real(dp), intent(in)  :: dx(:)
+
+    !> Gradient in the last point
+    real(dp), intent(in) :: dx(:)
+
+    !> New proposed point
     real(dp), intent(out) :: xNew(:)
+
+    !> True, if gradient got below the specified tolerance.
     logical,  intent(out) :: tConverged
 
     @:ASSERT(self%tInitialized)
@@ -128,21 +151,29 @@ contains
   end subroutine SteepDesc_next
 
 
-
-  !!* Working horse for the SD minimizer
-  !!* @param xNew    Coordinates of the new point on exit
-  !!* @param xOld    Coordinates of the previous point
-  !!* @param grad    Gradient in xOld
-  !!* @param weight  Weighting factors for the gradient components
-  !!* @param maxDisp Maximal displacement along one component
+  !> Workhorse for the SD minimizer
   subroutine next_local(xNew, xOld, grad, weight, maxDisp, tolerance, &
       &tConverged)
+
+    !> Coordinates of the new point on exit
     real(dp), intent(out) :: xNew(:)
+
+    !> Coordinates of the previous point
     real(dp), intent(inout) :: xOld(:)
+
+    !> Gradient at xOld
     real(dp), intent(in) :: grad(:)
+
+    !> Weighting factors for the gradient components
     real(dp), intent(in) :: weight(:)
+
+    !> Maximal displacement along one component
     real(dp), intent(in) :: maxDisp
+
+    !> Termination tolerance
     real(dp), intent(in) :: tolerance
+
+    !> Completion of the minimiser
     logical,  intent(out) :: tConverged
 
     real(dp) :: maxX
@@ -171,6 +202,5 @@ contains
     xOld(:) = xNew(:)
 
   end subroutine next_local
-
 
 end module steepdesc

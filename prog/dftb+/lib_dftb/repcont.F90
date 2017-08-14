@@ -7,11 +7,11 @@
 
 #:include 'common.fypp'
 
-!!* Container module for the repulsive data
-!!* @desc This module contains the repulsive functions. It decides, which
-!!* one to call for which type pairs. It can be easily extended to contain
-!!* different repulsive schemes for different pairs. At the moment,
-!!* it handles only repulsive with spline interpolation.
+!> Container module for the repulsive data
+!>
+!> This module contains the repulsive functions. It decides, which one to call for which type
+!> pairs. It can be easily extended to contain different repulsive schemes for different pairs. At
+!> the moment, it handles only repulsive with spline interpolation.
 module repcont
   use assert
   use accuracy
@@ -23,11 +23,14 @@ module repcont
   public :: ORepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
 
+
+  !> Types of repulsive currently supported
   integer, parameter :: typeRepInvalid = 0
   integer, parameter :: typeRepSpline = 1
   integer, parameter :: typeRepPoly = 2
 
-  !!* Contains repulsive types.
+
+  !> Contains repulsive types.
   type PRep_
     integer :: iType = typeRepInvalid
     type(ORepSpline), allocatable :: pRepSpline
@@ -35,51 +38,67 @@ module repcont
   end type PRep_
 
 
-  !!* Contains the repulsive interactions for the species pairs.
+  !> Contains the repulsive interactions for the species pairs.
   type ORepCont
     private
-    type(PRep_), allocatable :: repulsives(:,:)   ! repulsive functions
+
+    !> repulsive functions
+    type(PRep_), allocatable :: repulsives(:,:)
+
+    !> number of chemical species
     integer :: nSpecies
-    real(dp) :: cutoff                        ! Max. cutoff among all repulsives
-    logical :: tDataOK                        ! All repulsives added.
+
+    !> Max. cutoff among all repulsives
+    real(dp) :: cutoff
+
+    !> All repulsives added.
+    logical :: tDataOK
+
+    !> Is structure initialised?
     logical :: tInit = .false.
   end type ORepCont
 
 
-  !!* Initialises the repulsive container.
+  !> Initialises the repulsive container.
   interface init
     module procedure RepCont_init
-  end interface
+  end interface init
 
-  !!* Adds a new repulsive function for a given pair.
+
+  !> Adds a new repulsive function for a given pair.
   interface addRepulsive
     module procedure RepCont_addRepSpline
     module procedure RepCont_addRepPoly
-  end interface
+  end interface addRepulsive
 
-  !!* Returns global repulsive cutoff.
+
+  !> Returns global repulsive cutoff.
   interface getCutoff
     module procedure RepCont_getCutoff
-  end interface
+  end interface getCutoff
 
-  !!* Returns the repulsive energy for a given distance and species pair.
+
+  !> Returns the repulsive energy for a given distance and species pair.
   interface getEnergy
     module procedure RepCont_getEnergy
-  end interface
+  end interface getEnergy
 
-  !!* Returns the repulsive gradient for a given distance and species pair.
+
+  !> Returns the repulsive gradient for a given distance and species pair.
   interface getEnergyDeriv
     module procedure RepCont_getEnergyDeriv
-  end interface
-
+  end interface getEnergyDeriv
 
 contains
 
-  !!* Initialises the repulsive container.
-  !!* @param self Repulsive container.
-  !!* @param nSpecies Nr. of species.
+
+  !> Initialises the repulsive container.
   subroutine RepCont_init(self, nSpecies)
+
+    !> Repulsive container.
     type(ORepCont), intent(out) :: self
+
+    !> Nr. of species.
     integer, intent(in) :: nSpecies
 
     @:ASSERT(.not. self%tInit)
@@ -93,16 +112,20 @@ contains
   end subroutine RepCont_init
 
 
-  !!* Adds a spline repulsive function to the container for a given species
-  !!* pair.
-  !!* @param self Repulsive container.
-  !!* @param pRep Repulsive function to add.
-  !!* @param iSp1 Nr. of the first interacting species.
-  !!* @param iSp2 Nr. of the second interacting species.
+  !> Adds a spline repulsive function to the container for a given species pair.
   subroutine RepCont_addRepSpline(self, pRep, iSp1, iSp2)
+
+    !> Repulsive container.
     type(ORepCont), intent(inout) :: self
+
+    !> Repulsive function to add.
     type(ORepSpline), intent(in) :: pRep
-    integer, intent(in) :: iSp1, iSp2
+
+    !> Nr. of the first interacting species.
+    integer, intent(in) :: iSp1
+
+    !> Nr. of the second interacting species.
+    integer, intent(in) :: iSp2
 
     @:ASSERT(self%tInit)
     self%repulsives(iSp2, iSp1)%iType = typeRepSpline
@@ -113,17 +136,20 @@ contains
   end subroutine RepCont_addRepSpline
 
 
-
-  !!* Adds a polynomial repulsive function to the container for a given species
-  !!* pair.
-  !!* @param self Repulsive container.
-  !!* @param pRep Repulsive function to add.
-  !!* @param iSp1 Nr. of the first interacting species.
-  !!* @param iSp2 Nr. of the second interacting species.
+  !> Adds a polynomial repulsive function to the container for a given species pair.
   subroutine RepCont_addRepPoly(self, pRep, iSp1, iSp2)
+
+    !> Repulsive container.
     type(ORepCont), intent(inout) :: self
+
+    !> Repulsive function to add.
     type(ORepPoly), intent(in) :: pRep
-    integer, intent(in) :: iSp1, iSp2
+
+    !> Nr. of the first interacting species.
+    integer, intent(in) :: iSp1
+
+    !> Nr. of the second interacting species.
+    integer, intent(in) :: iSp2
 
     @:ASSERT(self%tInit)
     self%repulsives(iSp2, iSp1)%iType = typeRepPoly
@@ -134,12 +160,13 @@ contains
   end subroutine RepCont_addRepPoly
 
 
-
-  !!* Returns a global cutoff for all repulive functions.
-  !!* @param self Repulsive container.
-  !!* @return Global cutoff.
+  !> Returns a global cutoff for all repulive functions.
   function RepCont_getCutoff(self) result(cutoff)
+
+    !> Repulsive container.
     type(ORepCont), intent(in) :: self
+
+    !> Global cutoff.
     real(dp) :: cutoff
 
     @:ASSERT(self%tInit .and. self%tDataOK)
@@ -148,18 +175,23 @@ contains
   end function RepCont_getCutoff
 
 
-
-  !!* Returns the repulsive energy for a given distance and species pair.
-  !!* @param self Repulsive container.
-  !!* @param res Energy contribution.
-  !!* @param rr Distance between the atoms
-  !!* @param sp1 Type of the first interacting atom
-  !!* @param sp2 Type of the second interacting atom
+  !> Returns the repulsive energy for a given distance and species pair.
   subroutine RepCont_getEnergy(self, res, rr, sp1, sp2)
+
+    !> Repulsive container.
     type(ORepCont), intent(in) :: self
+
+    !> Energy contribution.
     real(dp), intent(out) :: res
+
+    !> Distance between the atoms
     real(dp), intent(in) :: rr
-    integer, intent(in) :: sp1, sp2
+
+    !> Type of the first interacting atom
+    integer, intent(in) :: sp1
+
+    !> Type of the second interacting atom
+    integer, intent(in) :: sp2
 
     @:ASSERT(self%tInit .and. self%tDataOK)
 
@@ -173,18 +205,23 @@ contains
   end subroutine RepCont_getEnergy
 
 
-
-  !!* Returns the repulsive gradient for a given distance and species pair.
-  !!* @param self Repulsive container.
-  !!* @param res Gradient on exit.
-  !!* @param xx Difference vector between the interacting atoms
-  !!* @param sp1 Type of the first interacting atom
-  !!* @param sp2 Type of the second interacting atom
+  !> Returns the repulsive gradient for a given distance and species pair.
   subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2)
+
+    !> Repulsive container.
     type(ORepCont), intent(in) :: self
+
+    !> Gradient on exit.
     real(dp), intent(out) :: res(:)
+
+    !> Difference vector between the interacting atoms
     real(dp), intent(in) :: xx(:)
-    integer, intent(in) :: sp1, sp2
+
+    !> Type of the first interacting atom
+    integer, intent(in) :: sp1
+
+    !> Type of the second interacting atom
+    integer, intent(in) :: sp2
 
     @:ASSERT(self%tInit .and. self%tDataOK)
     @:ASSERT(size(res) == 3)
@@ -198,6 +235,5 @@ contains
     end select
 
   end subroutine RepCont_getEnergyDeriv
-
 
 end module repcont

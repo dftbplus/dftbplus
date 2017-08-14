@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Module for initializing SCC part of the calculation
+!> Module for initializing SCC part of the calculation
 module sccinit
   use assert
   use accuracy
@@ -21,30 +21,42 @@ module sccinit
 
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
 
+
+  !> read stored charges in binary format?
   logical :: tReadBinary = .true.
+
+  !> store charges in binary format?
   logical :: tWriteBinary = .true.
 
-  character(len=120) :: error_string !* Used to return runtime diagnostics
-  integer, parameter :: restartFormat = 3 !* version number for restart format
-  !* please increment if you change the interface.
 
+  !> Used to return runtime diagnostics
+  character(len=120) :: error_string
+
+  !> version number for restart format, please increment if you change the interface.
+  integer, parameter :: restartFormat = 3
 
 contains
 
-  !!* Initialise the charge vector from the reference atomic charges
-  !!* @param fOrb The number of electrons per lm,atom,spin
-  !!* @param qAtom The charges per atom.
-  !!* @param fRefShell Occupation of each shell in the neutral atom.
-  !!* @param species List of chemical species for each atom
-  !!* @param speciesNames  Names of the species (for error messages)
-  !!* @param orb Information about the orbitals.
-  subroutine initQFromAtomChrg(fOrb, qAtom, fRefShell, species, speciesNames, &
-      & orb)
+
+  !> Initialise the charge vector from the reference atomic charges
+  subroutine initQFromAtomChrg(fOrb, qAtom, fRefShell, species, speciesNames, orb)
+
+    !> The number of electrons per lm,atom,spin
     real(dp), intent(out) :: fOrb(:,:,:)
-    real(dp), intent(in)  :: qAtom(:)
+
+    !> The charges per atom.
+    real(dp), intent(in) :: qAtom(:)
+
+    !> Occupation of each shell in the neutral atom.
     real(dp), intent(in) :: fRefShell(:,:)
-    integer,   intent(in) :: species(:)
+
+    !> List of chemical species for each atom
+    integer, intent(in) :: species(:)
+
+    !> Names of the species (for error messages)
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
 
     integer :: iAt, iSp, iSh1, nAtom, iShL, iShR, nSh
@@ -61,7 +73,7 @@ contains
     @:ASSERT(size(speciesNames) == size(orb%nShell))
 
     fOrb = 0.0_dp
-    !! fill degenerately over m for each shell l
+    ! fill degenerately over m for each shell l
     do iAt = 1, nAtom
       iSp = species(iAt)
       ! nr. of electrons = number of electrons in all shells - net charge
@@ -86,19 +98,21 @@ contains
   end subroutine initQFromAtomChrg
 
 
-  !!* Initialise the charge vector from the reference atomic charges
-  !!* results in a set of charges appropriate for the neutral spin unpolarised
-  !!* atom reference system that DFTB assumes for SCC/spin extensions
-  !!* @param qq The charges per lm,atom,spin
-  !!* @param qShell The reference charges per shell
-  !!* @param species List of chemical species for each atom
-  !!* @param orb Information about the orbitals.
-  !!* @todo Generalise initialization to include other cases than the
-  !!* atomic closed shell
+  !> Initialise the charge vector from the reference atomic charges results in a set of charges
+  !> appropriate for the neutral spin unpolarised atom reference system that DFTB assumes for
+  !> SCC/spin extensions
   subroutine initQFromShellChrg(qq, qShell, species, orb)
+
+    !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
-    real(dp), intent(in)  :: qShell(:,:)
-    integer,   intent(in) :: species(:)
+
+    !> The reference charges per shell
+    real(dp), intent(in) :: qShell(:,:)
+
+    !> List of chemical species for each atom
+    integer, intent(in) :: species(:)
+
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
     integer :: iAt1, iSp1, iSh1, nAtom, iSh1l, iSh1r, nSh1
@@ -113,7 +127,7 @@ contains
     @:ASSERT(size(species) == nAtom)
 
     qq(:,:,:) = 0.0_dp
-    !! fill degenerately over m for each shell l
+    ! fill degenerately over m for each shell l
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iSh1 = 1, orb%nShell(iSp1)
@@ -127,48 +141,52 @@ contains
   end subroutine initQFromShellChrg
 
 
-  !!* Initialise the charge vector from a named external file. Check the total
-  !!* charge matches that expected for the calculation.
-  !!* @param qq The charges per lm,atom,spin
-  !!* @param fileName The external file of charges for the orbitals, currently
-  !!*   stored with each line containing the per-orbital charges in order of
-  !!*   increasing m and l. Alternating lines give the spin case (if present)
-  !!* @param nEl Nr. of electrons for each spin channel
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param magnetisation checksum for regular spinpolarization total magnetic
-  !!*  moment
-  !!* @param qBlock block Mulliken population for LDA+U etc.
-  !!* @param qiBlock block Mulliken imagninary population for LDA+U and L.S
-  !!* @todo XML format for external file/option of charges data in input file
-  !!*  in XML. Also further test of the input, if the number of orbital charges
-  !!*  per atom match the number from the angular momentum.
-  subroutine initQFromFile(qq, fileName, orb, magnetisation, nEl, qBlock, &
-      & qiBlock)
-    real(dp), intent(out)          :: qq(:,:,:)
-    character(*), intent(in)       :: fileName
-    type(TOrbitals), intent(in)    :: orb
+  !> Initialise the charge vector from a named external file. Check the total
+  !> charge matches that expected for the calculation.
+  !> Should test of the input, if the number of orbital charges per atom match the number from the
+  !> angular momentum.
+  subroutine initQFromFile(qq, fileName, orb, magnetisation, nEl, qBlock, qiBlock)
+
+    !> The charges per lm,atom,spin
+    real(dp), intent(out) :: qq(:,:,:)
+
+    !> The external file of charges for the orbitals, currently stored with each line containing the
+    !> per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
+
+    !> present)
+    character(*), intent(in) :: fileName
+
+    !> Information about the orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Nr. of electrons for each spin channel
     real(dp), intent(in), optional :: nEl
+
+    !> magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation
+
+    !> block Mulliken population for LDA+U etc
     real(dp), intent(out), optional :: qBlock(:,:,:,:)
+
+    !> block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(out), optional :: qiBlock(:,:,:,:)
 
-    integer  :: nOrb, nAtom, nSpin ! nr. of orbitals / atoms / spin channels
-    integer  :: iErr               ! error returned by the io commands
+    integer :: nOrb, nAtom, nSpin ! nr. of orbitals / atoms / spin channels
+    integer :: iErr               ! error returned by the io commands
     integer, save :: file = -1     ! file unit number
-    integer  :: iOrb, iAtom, iSpin, ii
-    integer  :: fileFormat
+    integer :: iOrb, iAtom, iSpin, ii
+    integer :: fileFormat
     real(dp) :: CheckSum(size(qq, dim=3)) ! total charge is present at the top
     ! of the file
     real(dp) :: sumQ
-    logical  :: tBlockPresent, tiBlockPresent
-
+    logical :: tBlockPresent, tiBlockPresent
 
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
 
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-  #:call ASSERT_CODE
+#:call ASSERT_CODE
     if (present(magnetisation)) then
       @:ASSERT(nSpin==2)
     end if
@@ -181,7 +199,7 @@ contains
       @:ASSERT(present(qBlock))
       @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
     end if
-  #:endcall ASSERT_CODE
+#:endcall ASSERT_CODE
 
     if (file == -1) then
       file = getFileId()
@@ -317,17 +335,22 @@ contains
   end subroutine initQFromFile
 
 
-  !!* Write the current charges to an external file
-  !!* @param qq       Array containing the charges
-  !!* @param fileName Name of the file to write the charges
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param qBlock block Mulliken population for LDA+U etc.
-  !!* @param qiBlock block Mulliken imagninary population for LDA+U and L.S
+  !> Write the current charges to an external file
   subroutine writeQToFile(qq, fileName, orb, qBlock, qiBlock)
-    real(dp), intent(in)           :: qq(:,:,:)
-    character(*), intent(in)       :: fileName
-    type(TOrbitals), intent(in)    :: orb
+
+    !> Array containing the charges
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> Name of the file to write the charges
+    character(*), intent(in) :: fileName
+
+    !> Information about the orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    !> block Mulliken population for LDA+U etc.
     real(dp), intent(in), optional :: qBlock(:,:,:,:)
+
+    !> block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
     integer :: nAtom, nOrb, nSpin
@@ -345,7 +368,7 @@ contains
     tqBlock = present(qBlock)
     tqiBlock = present(qiBlock)
 
-  #:call ASSERT_CODE
+#:call ASSERT_CODE
     if (tqBlock) then
       @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
     end if
@@ -354,7 +377,7 @@ contains
       @:ASSERT(present(qBlock))
       @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
     end if
-  #:endcall ASSERT_CODE
+#:endcall ASSERT_CODE
 
     if (file == -1) then
       file = getFileId()

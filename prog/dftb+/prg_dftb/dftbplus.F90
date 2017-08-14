@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* The main dftb+ program
+!> The main dftb+ program
 program dftbplus
   use assert
   use constants
@@ -22,9 +22,8 @@ program dftbplus
   use densitymatrix
   use forces
   use stress
-  use lapackroutines, only : matinv ! reguired to calculate lattice derivs
-  ! from stress tensors
-  use simplealgebra, only : determinant33 ! required for cell volumes
+  use lapackroutines, only : matinv
+  use simplealgebra, only : determinant33
   use taggedoutput
   use scc
   use externalcharges
@@ -51,152 +50,247 @@ program dftbplus
   use elecconstraints
   use pmlocalisation
   use linresp_module
-!  use emfields
   use mainio
   use xmlf90
   implicit none
 
-  !! Revision control strings
+
+  !> Revision control strings
   character(len=*), parameter :: RELEASE_VERSION = '17.1'
+
+  !> Release year string
   integer, parameter :: RELEASE_YEAR = 2017
 
-  type(inputData), allocatable  :: input             ! Contains the parsed input
+
+  !> Contains the parsed input
+  type(inputData), allocatable :: input
 
   integer                  :: nk, nSpin2, nK2, iSpin2, iK2
+
   complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
   real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:), HSqrReal2(:,:)
   real(dp),    allocatable :: eigen(:,:,:), eigen2(:,:,:)
-  real(dp), allocatable    :: rhoPrim(:,:)
-  real(dp), allocatable    :: iRhoPrim(:,:)
-  real(dp), allocatable    :: ERhoPrim(:), ERhoPrim2(:)
-  real(dp), allocatable    :: h0(:)
+  real(dp), allocatable :: rhoPrim(:,:)
+  real(dp), allocatable :: iRhoPrim(:,:)
+  real(dp), allocatable :: ERhoPrim(:), ERhoPrim2(:)
+  real(dp), allocatable :: h0(:)
 
   ! variables for derivatives using the Hellmann-Feynman theorem:
-  real(dp), allocatable    :: hprime(:,:) ! for derivatives of H wrt external
-  real(dp), allocatable    :: potentialDerivative(:,:) ! for derivatives of V
-  real(dp), allocatable    :: dipoleTmp(:,:) ! temporary dipole data
 
-  real(dp), allocatable    :: filling(:,:,:)
-  real(dp), allocatable :: Eband(:), TS(:), E0(:), Eold
+  !> for derivatives of H wrt external perturbation
+  real(dp), allocatable :: hprime(:,:)
 
+  !> for derivatives of V
+  real(dp), allocatable :: potentialDerivative(:,:)
+
+  !> temporary dipole data
+  real(dp), allocatable :: dipoleTmp(:,:)
+
+
+  !> electronic filling
+  real(dp), allocatable :: filling(:,:,:)
+
+  !> band structure energy
+  real(dp), allocatable :: Eband(:)
+
+  !> entropy of electrons at temperature T
+  real(dp), allocatable :: TS(:)
+
+  !> zero temperature electronic energy
+  real(dp), allocatable :: E0(:)
+
+  !> energy in previous scc cycles
+  real(dp), allocatable :: Eold
+
+
+  !> Total energy components
   type(TEnergies), allocatable :: energy
+
+  !> Potentials for orbitals
   type(TPotentials), allocatable :: potential
 
-  real(dp), allocatable    :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
-  real(dp), allocatable    :: chrgForces(:,:)
-  real(dp), allocatable    :: excitedDerivs(:,:) ! excited state force addition
+  real(dp), allocatable :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
+  real(dp), allocatable :: chrgForces(:,:)
 
-  ! Stress tensors for various contribution in periodic calculations
+  !> excited state force addition
+  real(dp), allocatable :: excitedDerivs(:,:)
+
+
+  !> Stress tensors for various contribution in periodic calculations
   real(dp) :: elecStress(3,3), repulsiveStress(3,3), kineticStress(3,3)
   real(dp) :: dispStress(3,3), totalStress(3,3)
 
-  ! Derivatives of lattice vectors in periodic calculations
+
+  !> Derivatives of lattice vectors in periodic calculations
   real(dp) :: elecLatDeriv(3,3), repulsiveLatDeriv(3,3)
   real(dp) :: dispLatDeriv(3,3), totalLatDeriv(3,3)
-  ! derivative of cell volume wrt to lattice vectors, needed for pV term
+
+  !> derivative of cell volume wrt to lattice vectors, needed for pV term
   real(dp) :: derivCellVol(3,3)
 
+
+  !> dipole moments when available
   real(dp) :: dipoleMoment(3)
 
-  integer                  :: ii, jj
+  integer :: ii, jj
 
-  logical                  :: tConverged
+  logical :: tConverged
 
-  logical, parameter       :: tDensON2 = .false.  ! O(N^2) density mtx creation
-  logical, parameter       :: tAppendDetailedOut = .false.
+  logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
+  logical, parameter :: tAppendDetailedOut = .false.
 
   real(dp) :: cellPressure
 
-  !! Variables for the geometry optimization
-  integer :: iGeoStep                      !* Geometry steps so far
-  integer :: iLatGeoStep                   !* Lattice geometry steps so far
-  logical :: tGeomEnd                      !* Do we have the final geometry?
-  logical :: tCoordEnd                     !* Has this completed?
-  logical :: tCoordStep                    !* do we take an optimization step
-  !* on the lattice or the internal coordinates if optimizing both in a
-  !* periodic geometry
+  ! Variables for the geometry optimization
+
+  !> Geometry steps so far
+  integer :: iGeoStep
+
+  !> Lattice geometry steps so far
+  integer :: iLatGeoStep
+
+  !> Do we have the final geometry?
+  logical :: tGeomEnd
+
+  !> Has this completed?
+  logical :: tCoordEnd
+
+  !> do we take an optimization step on the lattice or the internal coordinates if optimizing both
+  !> in a periodic geometry
+  logical :: tCoordStep
+
+  !> inverse of the lattice vector matrix
   real(dp) :: invLatVec(3,3)
-  real(dp), allocatable, target :: coord0Fold(:,:) !* Folded coords (3, nAtom)
-  real(dp), pointer :: pCoord0Out(:,:)  ! Coordinates to print out
-  real(dp), allocatable :: new3Coord(:,:)     !* New coordinates returned by
-  !* the MD routines
-  real(dp) :: tmpLatVecs(9), newLatVecs(9) !* lattice vectors returned by
-  ! the optimizer
+
+  !> Folded coords (3, nAtom)
+  real(dp), allocatable, target :: coord0Fold(:,:)
+
+  !> Coordinates to print out
+  real(dp), pointer :: pCoord0Out(:,:)
+
+  !> New coordinates returned by the MD routines
+  real(dp), allocatable :: new3Coord(:,:)
+
+  !> lattice vectors returned by the optimizer
+  real(dp) :: tmpLatVecs(9), newLatVecs(9)
   real(dp) :: tmpLat3Vecs(3,3)
-  real(dp), allocatable :: velocities(:,:) !* MD velocities
-  real(dp), allocatable :: movedVelo(:,:)  !* MD velocities for moved atoms
-  real(dp), allocatable :: movedAccel(:,:) !* MD acceleration for moved atoms
-  real(dp), allocatable :: movedMass(:,:)  !* Mass of the moved atoms
-  real(dp) :: kT                           !* MD instantaneous thermal energy
 
-  real(dp) :: Efield(3), absEfield !* external electric field
+  !> MD velocities
+  real(dp), allocatable :: velocities(:,:)
 
-  real(dp) :: diffGeo                      !* Difference between last calculated
-  !* and new geometry.
+  !> MD velocities for moved atoms
+  real(dp), allocatable :: movedVelo(:,:)
 
-  !!* Loop variables
+  !> MD acceleration for moved atoms
+  real(dp), allocatable :: movedAccel(:,:)
+
+  !> Mass of the moved atoms
+  real(dp), allocatable :: movedMass(:,:)
+
+  !> MD instantaneous thermal energy
+  real(dp) :: kT
+
+  !> external electric field
+  real(dp) :: Efield(3), absEfield
+
+  !> Difference between last calculated and new geometry.
+  real(dp) :: diffGeo
+
+
+  !> Loop variables
   integer :: iSCCIter, iSpin, iAtom, iNeigh
 
-  integer :: fdAutotest  !!* File descriptor for the tagged writer
-  integer :: fdUser    !!* File descriptor for the human readable output
-  integer :: fdBand    !!* File descriptor for the band structure output
-  integer :: fdEigvec  !!* File descriptor for the eigenvector output
-  integer :: fdResultsTag !!* File descriptor for detailed.tag
-  integer :: fdMD      !!* File descriptor for extra MD output
-  integer :: fdHessian !!* File descriptor for numerical Hessian
+  !> File descriptor for the tagged writer
+  integer :: fdAutotest
 
-  !!* Name of the human readable file
+  !> File descriptor for the human readable output
+  integer :: fdUser
+
+  !> File descriptor for the band structure output
+  integer :: fdBand
+
+  !> File descriptor for the eigenvector output
+  integer :: fdEigvec
+
+  !> File descriptor for detailed.tag
+  integer :: fdResultsTag
+
+  !> File descriptor for extra MD output
+  integer :: fdMD
+
+  !> File descriptor for numerical Hessian
+  integer :: fdHessian
+
+
+  !> Name of the human readable file
   character(*), parameter :: autotestTag = "autotest.tag"
+
   character(*), parameter :: userOut = "detailed.out"
   character(*), parameter :: bandOut = "band.out"
   character(*), parameter :: mdOut = "md.out"
   character(*), parameter :: resultsTag = "results.tag"
   character(*), parameter :: hessianOut = "hessian.out"
 
-
+  !> Charge error in the last iterations
   real(dp) :: sccErrorQ, diffElec
   real(dp), allocatable :: tmpDerivs(:)
   real(dp), allocatable :: tmpMatrix(:,:)
   real(dp), allocatable :: orbitalL(:,:,:), orbitalLPart(:,:,:)
-  real(dp), allocatable    :: rVecTemp(:)
+  real(dp), allocatable :: rVecTemp(:)
   character(lc) :: lcTmp
 
-  character(lc) :: tmpStr  !!* temporary character variable
+
+  !> temporary character variable
+  character(lc) :: tmpStr
 
   real(dp), pointer :: pDynMatrix(:,:)
 
-  logical :: tWriteRestart = .false. !* flag to write out geometries (and
-  !* charge data if scc) when moving atoms about - in the case of conjugate
-  !* gradient/steepest descent the geometries are written anyway
-  integer :: minSCCIter                   !* Minimal number of SCC iterations
 
-  logical :: tStopSCC, tStopDriver   ! if scf/geometry driver should be stopped
+  !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case of
+  !> conjugate gradient/steepest descent the geometries are written anyway
+  logical :: tWriteRestart = .false.
+
+  !> Minimal number of SCC iterations
+  integer :: minSCCIter
+
+  !> if scf/geometry driver should be stopped
+  logical :: tStopSCC, tStopDriver
   integer :: iSh1, iSp1
 
   real(dp), allocatable :: shift3rd(:)
   real(dp), allocatable :: orbresshift3rd(:,:)
 
-  real(dp), allocatable :: dqAtom(:) ! net charge on each atom
+  !> net charge on each atom
+  real(dp), allocatable :: dqAtom(:)
 
-  real(dp), allocatable :: rhoSqrReal(:,:,:) ! density matrix
 
-  ! Natural orbitals for excited state density matrix, if requested
+  !> density matrix
+  real(dp), allocatable :: rhoSqrReal(:,:,:)
+
+
+  !> Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
 
   real(dp), allocatable :: invJacobian(:,:)
 
-  real(dp) :: localisation ! locality measure for the wavefunction
 
-  integer :: nFilledLev ! temporary variable for number of occupied levels
+  !> locality measure for the wavefunction
+  real(dp) :: localisation
 
-  integer :: nSpinHams  ! Nr. of different spin Hamiltonians
-  integer :: sqrHamSize  ! Size of the sqr Hamiltonian
+  !> temporary variable for number of occupied levels
+  integer :: nFilledLev
+
+  !> Nr. of different spin Hamiltonians
+  integer :: nSpinHams
+
+  !> Size of the sqr Hamiltonian
+  integer :: sqrHamSize
 
   call printDFTBHeader(RELEASE_VERSION, RELEASE_YEAR)
   write(stdOut, '(/A/)') "***  Parsing and initializing"
 
-  !! Parse input and set the variables in the local scope according the input.
-  !! These variables are defined in the initprogram module.
+  ! Parse input and set the variables in the local scope according the input.
+  ! These variables are defined in the initprogram module.
 
   allocate(input)
   call parseHSDInput(input)
@@ -297,7 +391,6 @@ program dftbplus
     pCoord0Out => coord0
   end if
 
-
   if (tMD.or.tDerivs) then
     allocate(new3Coord(3, nMovedAtom))
   end if
@@ -379,10 +472,7 @@ program dftbplus
     velocities(:,:) = 0.0_dp
   end if
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !! Geometry loop
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Geometry loop
 
   tGeomEnd = nGeoSteps == 0
 
@@ -451,7 +541,7 @@ program dftbplus
       call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
     end if
     
-    !! Write out geometry information
+    ! Write out geometry information
     write(stdOut, '(/, A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
       write(stdOut, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
@@ -459,7 +549,6 @@ program dftbplus
     else
       write(stdOut, "(/, A, I0, /)") '***  Geometry step: ', iGeoStep
     end if
-
 
     if (tPeriodic) then
       invLatVec = transpose(latVec)
@@ -474,25 +563,25 @@ program dftbplus
 
     end if
 
-    !! Save old coordinates and fold coords to unit cell
+    ! Save old coordinates and fold coords to unit cell
     coord0Fold(:,:) = coord0
     if (tPeriodic) then
       call foldCoordToUnitCell(coord0Fold, latVec, recVec2p)
     end if
 
-    !! Initialize neighborlists
+    ! Initialize neighborlists
     call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, &
         &neighborList, nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
 
-    !! Calculate neighborlist for SK and repulsive calculation
+    ! Calculate neighborlist for SK and repulsive calculation
     call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
 
-    !! Reallocate Hamiltonian and overlap based on the new neighbor list
+    ! Reallocate Hamiltonian and overlap based on the new neighbor list
     call reallocateHS(ham, over, iPair, neighborList%iNeighbor, nNeighbor, &
         &orb, img2CentCell)
 
-    !! Reallocate density matrixes if necessary
+    ! Reallocate density matrixes if necessary
     if (size(ham, dim=1) > size(rhoPrim, dim=1)) then
       deallocate(H0)
       allocate(H0(size(ham,dim=1)))
@@ -512,12 +601,12 @@ program dftbplus
       end if
     end if
 
-    !! (Re)Initialize mixer
+    ! (Re)Initialize mixer
     if (tSCC) then
       call reset(pChrgMixer, nMixElements)
     end if
 
-    !! Notify various modules about coordinate changes
+    ! Notify various modules about coordinate changes
     if (tSCC) then
       call updateCoords_SCC(coord, species, neighborList, img2CentCell)
     end if
@@ -529,13 +618,13 @@ program dftbplus
       call thirdOrd%updateCoords(neighborList, species)
     end if
 
-    !! Build non-scc Hamiltonian and overlap
+    ! Build non-scc Hamiltonian and overlap
     call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor,&
         &  neighborList%iNeighbor, species, iPair, orb)
     call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor,&
         & species, iPair, orb)
 
-    !! Adapt electron temperature to MD, if necessary
+    ! Adapt electron temperature to MD, if necessary
     if (tSetFillingTemp) then
       call getTemperature(temperatureProfile, tempElec)
     end if
@@ -554,7 +643,7 @@ program dftbplus
     energy%ETotal = 0.0_dp
     energy%atomTotal(:) = 0.0_dp
 
-    !! Calculate repulsive energy
+    ! Calculate repulsive energy
     call getERep(energy%atomRep, coord, nNeighbor, neighborList%iNeighbor, &
         &species, pRepCont, img2CentCell)
     energy%Erep = sum(energy%atomRep)
@@ -568,7 +657,6 @@ program dftbplus
     potential%extAtom = 0.0_dp
     potential%extShell = 0.0_dp
     potential%extBlock = 0.0_dp
-
 
     if (tEField) then
       Efield(:) = EFieldStrength * EfieldVector(:)
@@ -609,9 +697,8 @@ program dftbplus
     call total_shift(potential%extShell, potential%extAtom, orb, species)
     call total_shift(potential%extBlock, potential%extShell, orb, species)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !! SCC-loop
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! SCC-loop
+
     iSCCIter = 1
     tStopSCC = .false.
 
@@ -626,7 +713,7 @@ program dftbplus
         ham(ii,1) = h0(ii)
       end do
 
-      !! Build various contribution to the Hamiltonian
+      ! Build various contribution to the Hamiltonian
 
       ! Reset this in case DFTB+U terms are added to
       ! potential%iorbitalBlock later in loop:
@@ -670,14 +757,14 @@ program dftbplus
         end if
 
         call total_shift(potential%intShell, potential%intAtom, orb, species)
-        !! Build spin contribution (if necessary)
+        ! Build spin contribution (if necessary)
         if (tSpin) then
           call addSpinShift(potential%intShell,chargePerShell,species,orb,spinW)
         end if
 
         call total_shift(potential%intBlock, potential%intShell, orb, species)
 
-        if (tDFTBU) then !! Apply LDA+U correction (if necessary)
+        if (tDFTBU) then ! Apply LDA+U correction (if necessary)
           potential%orbitalBlock = 0.0_dp
           if (tImHam) then
             call shift_DFTBU(potential%orbitalBlock,potential%iorbitalBlock, &
@@ -949,10 +1036,9 @@ program dftbplus
 
       end if ! end of nSpin == 4 case
 
-
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !! Mulliken analysis
-      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      
+      ! Mulliken analysis
+      
 
       if (tMulliken) then
         qOutput(:,:,:) = 0.0_dp
@@ -1007,7 +1093,7 @@ program dftbplus
 
         ! recalculate the SCC shifts for the output charge.
 
-        !! SCC contribution is calculated with the output charges.
+        ! SCC contribution is calculated with the output charges.
         call updateCharges_SCC(qOutput, q0, orb, species, &
             &neighborList%iNeighbor, img2CentCell)
 
@@ -1025,7 +1111,7 @@ program dftbplus
 
         call total_shift(potential%intShell, potential%intAtom, orb, species)
 
-        !! Build spin contribution (if necessary)
+        ! Build spin contribution (if necessary)
         if (tSpin) then
           call addSpinShift(potential%intShell,chargePerShell,species,orb,spinW)
         end if
@@ -1033,8 +1119,7 @@ program dftbplus
         call total_shift(potential%intBlock, potential%intShell, orb, species)
       end if
 
-
-      !! Calculate energies
+      ! Calculate energies
 
       ! non-SCC part
       energy%EnonSCC = 0.0_dp
@@ -1081,7 +1166,6 @@ program dftbplus
         end if
       end if
 
-
       potential%iorbitalBlock = 0.0_dp
       if (tDualSpinOrbit) then
         call shiftLS(potential%iorbitalBlock,xi,orb,species)
@@ -1111,7 +1195,6 @@ program dftbplus
         energy%Edftbu = 0.0_dp
       end if
 
-
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin &
           & + energy%ELS + energy%Edftbu + energy%Eext + energy%e3rd
 
@@ -1126,8 +1209,8 @@ program dftbplus
       energy%EMermin = energy%Etotal - sum(TS)
       energy%EGibbs = energy%EMermin + cellVol * pressure
 
-      !! Stop SCC if appropriate stop file is present (We need this query here
-      !! since the following block contains a check iSCCIter /= nSCCIter)
+      ! Stop SCC if appropriate stop file is present (We need this query here
+      ! since the following block contains a check iSCCIter /= nSCCIter)
       inquire(file=fStopSCC, exist=tStopSCC)
       if (tStopSCC) then
         write(stdOut, "(3A)") "Stop file '" // fStopSCC // "' found."
@@ -1135,8 +1218,7 @@ program dftbplus
         write(stdOut, "(A)") "Setting max number of scc cycles to current cycle."
       end if
 
-
-      !! Mix charges
+      ! Mix charges
       if (tSCC) then
         qOutRed = 0.0_dp
         if (nSpin == 2) then
@@ -1168,10 +1250,10 @@ program dftbplus
         tConverged = (sccErrorQ < sccTol) .and. &
             & (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
         if ((.not. tConverged) .and. iSCCiter /= nSCCiter) then
-          !! Avoid mixing of spin unpolarised density for spin polarised
-          !! cases, this is only a problem in iteration 1, as there is
-          !! only the (spin unpolarised!) atomic input density at that
-          !! point. (Unless charges had been initialized externally)
+          ! Avoid mixing of spin unpolarised density for spin polarised
+          ! cases, this is only a problem in iteration 1, as there is
+          ! only the (spin unpolarised!) atomic input density at that
+          ! point. (Unless charges had been initialized externally)
           if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1.or.tDFTBU) &
               & .and. .not.tReadChrg) then
             qInput(:,:,:) = qOutput(:,:,:)
@@ -1231,9 +1313,8 @@ program dftbplus
         end if
       end if
 
-
-      !! Not writing any restarting info if not converged and minimal number of
-      !! SCC iterations not done.
+      ! Not writing any restarting info if not converged and minimal number of
+      ! SCC iterations not done.
       if (restartFreq > 0 .and. .not.(tMD .or. tGeoOpt .or. tDerivs) .and. nSCCIter > 1) then
         if (tConverged .or. ((iSCCIter >= minSCCIter &
             & .or. tReadChrg .or. iGeoStep > 0) &
@@ -1262,11 +1343,20 @@ program dftbplus
 
     end do lpSCC
 
-    !! Linear response
+    ! Linear response
     energy%Eexcited = 0.0_dp
     excitedDerivs = 0.0_dp
     if (tLinResp) then
-      @:ASSERT(.not. t3rd .and. tRealHS)
+      if (t3rd) then
+        call error("Third order currently incompatible with excited state")
+      end if
+      if (.not.tRealHS) then
+        call error("Only real systems are supported for excited state calculations")
+      end if
+      if (tPeriodic .and. tForces) then
+        call error("Forces in the excited state for periodic geometries are currently unavailable")
+      end if
+      
       dqAtom = sum( qOutput(:,:,1) - q0(:,:,1) , dim=1)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor,&
           & iAtomStart, iPair, img2CentCell)
@@ -1288,7 +1378,7 @@ program dftbplus
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
               & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
-              & fdAutotest, energy%Eexcited, tForces, excitedDerivs, &
+              & fdAutotest, energy%Eexcited, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal, occNatural=occNatural(:,1), &
               & naturalOrbs=naturalOrbs(:,:,1))
 
@@ -1302,7 +1392,7 @@ program dftbplus
               & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
               & dqAtom, species0, neighborList%iNeighbor, &
               & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
-              & fdAutotest, energy%Eexcited, tForces, excitedDerivs, &
+              & fdAutotest, energy%Eexcited, excitedDerivs, &
               & nonSccDeriv, rhoSqrReal)
         end if
       else
@@ -1387,9 +1477,6 @@ program dftbplus
         end if
       end if
     end if
-
-
-
 
     if (tProjEigenvecs) then
       if (.not.tRealHS .or. (nSpin == 4)) then
@@ -1509,7 +1596,7 @@ program dftbplus
       dipoleMoment(:) = 0.0_dp
     end if
 
-    !! Calculate energy weighted density matrix
+    ! Calculate energy weighted density matrix
     if (tForces) then
 
       !if (tXLBOMD) then
@@ -1528,7 +1615,7 @@ program dftbplus
       !      & potential%intBlock + potential%extBlock)
       !end if
 
-      !! Calculate the identity part of the energy weighted density matrix
+      ! Calculate the identity part of the energy weighted density matrix
       ERhoPrim(:) = 0.0_dp
 
       if (nSpin == 4) then
@@ -1590,8 +1677,8 @@ program dftbplus
                 call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), &
                     & filling(:,1,iSpin), eigen2(:,1,iSpin))
               case(2)
-                !! Correct force for XLBOMD for T=0K (DHD)
-                !! Eigenvectors stored in HSqrReal are overwritten
+                ! Correct force for XLBOMD for T=0K (DHD)
+                ! Eigenvectors stored in HSqrReal are overwritten
                 call unpackHS(SSqrReal, ham(:,iSpin), neighborlist%iNeighbor, &
                     & nNeighbor, iAtomStart, iPair, img2CentCell)
                 call blockSymmetrizeHS(SSqrReal, iAtomStart)
@@ -1632,9 +1719,9 @@ program dftbplus
             end if
 
             do nK = 1, nKPoint
-              !! Calculate eigenvectors, if necessary. Eigenvectors for the last
-              !! spin in the last k-points are still there, so use those
-              !! directly
+              ! Calculate eigenvectors, if necessary. Eigenvectors for the last
+              ! spin in the last k-points are still there, so use those
+              ! directly
               if (tStoreEigvecs) then
                 iK2 = 1
                 call get(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2, iSpin2))
@@ -1656,8 +1743,8 @@ program dftbplus
                 case (1)
                   call error("Force type 1 not implemented for complex H")
                 case(2)
-                  !! Correct force for XLBOMD for T=0K (DHD)
-                  !! Eigenvectors stored in HSqrCplx are overwritten
+                  ! Correct force for XLBOMD for T=0K (DHD)
+                  ! Eigenvectors stored in HSqrCplx are overwritten
                   call makeDensityMatrix(HSqrCplx2, HSqrCplx(:,:,iK2,iSpin2), &
                       &filling(:,nK,iSpin))
                   call unpackHS(SSqrCplx, ham(:,iSpin), kPoint(:,nK), &
@@ -1879,7 +1966,7 @@ program dftbplus
 
 
     if (tForces) then
-      !! Set force components along constraint vectors zero
+      ! Set force components along constraint vectors zero
       do ii = 1, nGeoConstr
         iAtom = conAtom(ii)
         totalDeriv(:,iAtom) = totalDeriv(:,iAtom) &
@@ -1925,10 +2012,10 @@ program dftbplus
             & totalStress * cellVol)
       end if
 
-      !! If geometry minimizer finished and the last calculated geometry is the
-      !! minimal one (not necessary the case, depends on the optimizer!)
-      !! -> we are finished.
-      !! Otherwise we have to recalc everything in the converged geometry.
+      ! If geometry minimizer finished and the last calculated geometry is the
+      ! minimal one (not necessary the case, depends on the optimizer!)
+      ! -> we are finished.
+      ! Otherwise we have to recalc everything in the converged geometry.
 
       if (tGeomEnd) then
         exit lpGeomOpt
@@ -2153,10 +2240,10 @@ program dftbplus
       call writeDetailedOut4(fdUser, tMD, energy, kT)
     end if
 
-    !! Stop reading of initial charges/block populations again
+    ! Stop reading of initial charges/block populations again
     tReadChrg = .false.
 
-    !! Stop SCC if appropriate stop file is present
+    ! Stop SCC if appropriate stop file is present
     if (.not. tStopSCC) then
       inquire(file=fStopDriver, exist=tStopDriver)
       if (tStopDriver) then
@@ -2326,7 +2413,8 @@ program dftbplus
 
 contains
 
-  ! Invokes the writing routines for the Hamiltonian and overlap matrices.
+
+  !> Invokes the writing routines for the Hamiltonian and overlap matrices.
   subroutine writeHS(tWriteHS, tWriteRealHS, ham, over, iNeighbor, &
       &nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, &
       &cellVec, iHam)
@@ -2379,49 +2467,62 @@ contains
 
 
   !> Calculates electron fillings and resulting band energy terms.
-  !!
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
+
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
+
     !> Nr. of electrons for each spin channel
     real(dp), intent(in) :: nElectrons(:)
+
 
     !> Nr. of spin blocks in the Hamiltonian (1 - spin avg, 2 - colinear, 4 - non-colinear)
     integer, intent(in) :: nSpinBlocks
 
+
     !> Electronic temperature
     real(dp), intent(in) :: tempElec
+
 
     !> Weight of the k-points.
     real(dp), intent(in) :: kWeights(:)
 
+
     !> Whether for colinear spin a common Fermi level for both spin channels should be used
     logical, intent(in) :: tSpinSharedEf
 
+
     !> Whether each K-point should be filled separately (individual Fermi-level for each k-point)
-    logical, intent(in) ::  tFillKSep
+    logical, intent(in) :: tFillKSep
+
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
 
+
     !> Selector for the distribution function
     integer, intent(in) :: iDistribFn
 
+
     !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
-    !! given number of electrons on exit
+    !> given number of electrons on exit
     real(dp), intent(inout) :: Ef(:)
+
 
     !> Fillings
     real(dp), intent(out) :: fillings(:,:,:)
 
+
     !> Band energies
     real(dp), intent(out) :: Eband(:)
 
+
     !> Band entropies
     real(dp), intent(out) :: TS(:)
+
 
     !> Band energies extrapolated to zero Kelvin
     real(dp), intent(out) :: E0(:)

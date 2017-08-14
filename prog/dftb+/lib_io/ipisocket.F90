@@ -18,7 +18,6 @@ module ipisocket
   implicit none
   private
 
-
   public :: IpiSocketCommInp
   public :: IpiSocketComm, IpiSocketComm_init
   public :: IPI_PROTOCOLS
@@ -26,18 +25,23 @@ module ipisocket
 
   !> Input for initialising IpiSocketComm.
   type :: IpiSocketCommInp
+
     !> Number of atoms for which data is exchanged
     integer :: nAtom
+
 
     !> Host name
     character(:), allocatable :: host
 
+
     !> Verbosity level of detail on communication.
     integer :: verbosity
+
 
     !> Protocol type of message headers and data to use (currently only
     !! IPI_PROTOCOL1 understood).
     integer :: protocol
+
 
     !> Port to connect to if using an internet protocol, if -1, its a file
     !! system connection
@@ -48,16 +52,33 @@ module ipisocket
   !> Communicator for i-Pi communication via sockets
   type :: IpiSocketComm
     private
-    type(LogWriter) :: logger   ! used to log messages
-    integer :: verbosity   ! level of verbosity
-    integer :: socket   ! socket number
-    integer :: nAtom   ! expected number of atoms
-    logical :: tInit = .false.   ! Initialisation of variables
+
+    !> used to log messages
+    type(LogWriter) :: logger
+
+    !> level of verbosity
+    integer :: verbosity
+
+    !> socket number
+    integer :: socket
+
+    !> expected number of atoms
+    integer :: nAtom
+
+    !> Initialisation of variables
+    logical :: tInit = .false.
   contains
+
+    !> send data out
     procedure :: send
+
+    !> receive data in
     procedure :: receive
+
+    !> shut the socket down
     procedure :: shutdown
   end type IpiSocketComm
+
 
   !> Constructor for IpiSocketComm.
   interface IpiSocketComm
@@ -65,7 +86,7 @@ module ipisocket
   end interface IpiSocketComm
 
 
-  ! Enum containig possible protocols
+  !> Enumerate possible protocols
   type :: IpiProtocolsEnum
     integer :: IPI_1
   end type IpiProtocolsEnum
@@ -75,22 +96,24 @@ module ipisocket
   type(IpiProtocolsEnum), parameter :: IPI_PROTOCOLS =&
       & IpiProtocolsEnum(1)
 
-  ! Length of strings expected for i-pi messages
+
+  !> Length of strings expected for i-pi messages
   integer, parameter :: IPI_MSGLEN = 12
 
-
 contains
+
 
   !> Construct IpiSocketComm instance.
   !!
   subroutine IpiSocketComm_init(this, input)
 
+
     !> Instance.
     type(IpiSocketComm), intent(out) :: this
 
+
     !> Input data.
     type(IpiSocketCommInp), intent(in) :: input
-
 
     logical :: tUnix
     character(lc) :: msg
@@ -133,8 +156,10 @@ contains
   !!
   function construct(input) result(this)
 
+
     !> Input data
     type(IpiSocketCommInp), intent(in) :: input
+
 
     !> Instance
     type(IpiSocketComm) :: this
@@ -151,15 +176,17 @@ contains
   !!
   subroutine receive(this, coord, cell)
 
+
     !> Instance.
     class(IpiSocketComm), intent(inout) :: this
+
 
     !> Atomic coordinates.
     real(dp), intent(out) :: coord(:,:)
 
+
     !> Cell lattice vectors.
     real(dp), intent(out) :: cell(3, 3)
-
 
     character(lc) :: msg
     character(len=IPI_MSGLEN) :: header, buffer
@@ -182,8 +209,8 @@ contains
     allocate(commsBuffer1(this%nAtom * 3))
     call this%logger%write('socketRetrieve: Retrieving data from socket... ', 1)
 
-    ! wait for anything other than 'STATUS' state from the interface,
-    ! returning state 'READY' in the meanwhile
+    ! wait for anything other than 'STATUS' state from the interface, returning state 'READY' in the
+    ! meanwhile
     do while (.true.)
       call readbuffer(this%socket, header)
       call this%logger%write('ipisocket%receive: read from socket: ' // trim(header), 3)
@@ -241,18 +268,21 @@ contains
   !!
   subroutine send(this, energy, forces, stress)
 
+
     !> Instance
     class(IpiSocketComm), intent(inout) :: this
+
 
     !> Total energy
     real(dp), intent(in) :: energy
 
+
     !> Total forces
     real(dp), intent(in) :: forces(:,:)
 
+
     !> Cell stresses
     real(dp), intent(in) :: stress(3, 3)
-
 
     character(len=IPI_MSGLEN) :: header, buffer
     character(lc) :: msg
@@ -315,11 +345,10 @@ contains
     call this%logger%write('ipisocket%send: write to socket: stress', 3)
     call this%logger%write(stress, 4, '(f12.6)')
 
-    ! i-pi can also receive an arbitrary string, that will be printed
-    ! out to the 'extra' trajectory file. this is useful if you want
-    ! to return additional information, e.g.  atomic charges, wannier
-    ! centres, etc. one must return the number of characters, then the
-    ! string. here we just send back zero characters.
+    ! i-pi can also receive an arbitrary string, that will be printed out to the 'extra' trajectory
+    ! file. this is useful if you want to return additional information, e.g.  atomic charges,
+    ! wannier centres, etc. one must return the number of characters, then the string. here we just
+    ! send back zero characters.
     call writebuffer(this%socket, 0)
     call this%logger%write('ipisocket%send: 0: nothing else to send', 3)
     call this%logger%write('ipisocket%send: Done', 1)
@@ -334,6 +363,7 @@ contains
   !!
   subroutine shutdown(this)
 
+
     !> Instance
     class(IpiSocketComm), intent(inout) :: this
 
@@ -341,6 +371,5 @@ contains
     this%tInit = .false.
 
   end subroutine shutdown
-
 
 end module ipisocket

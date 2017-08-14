@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Dummy thermostat, delivers only initial velocities according to the
-!!* Maxwell-Boltzmann statistics.
+!> Dummy thermostat, delivers only initial velocities according to the Maxwell-Boltzmann statistics.
 module dummytherm
   use assert
   use accuracy
@@ -20,39 +19,62 @@ module dummytherm
   public :: ODummyThermostat
   public :: init, getInitVelocities, state
 
-  !!* Data for dummy thermostat
+
+  !> Data for dummy thermostat
   type ODummyThermostat
     private
-    integer :: nAtom                  !* Nr. of atoms
-    real(dp) :: kT                    !* Temperature
-    real(dp), allocatable :: mass(:)      !* Mass of the atoms
-    type(ORanlux), allocatable :: pRanlux !* Random number generator.
-    type(OMDCommon) :: pMDFrame !* MD Framwork
+
+    !> Nr. of atoms
+    integer :: nAtom
+
+    !> Temperature
+    real(dp) :: kT
+
+    !> Mass of the atoms
+    real(dp), allocatable :: mass(:)
+
+    !> Random number generator.
+    type(ORanlux), allocatable :: pRanlux
+
+    !> MD Framwork
+    type(OMDCommon) :: pMDFrame
   end type ODummyThermostat
 
+  
+  !> Initialise thermostat object
   interface init
     module procedure DummyThermostat_init
   end interface
 
+
+  !> Velocities at start of calculation
   interface getInitVelocities
     module procedure DummyThermostat_getInitVelos
   end interface
 
+
+  !> write state to disc
   interface state
     module procedure DummyThermostat_state
   end interface
 
 contains
 
-  !!* Creates a DummyThermostat instance.
-  !!* @param self Initialised DummyThermostat instance on return.
-  !!* @param kT Temperature of the thermostat
-  !!* @param pRanlux Random generator
+
+  !> Creates a DummyThermostat instance.
   subroutine DummyThermostat_init(self, kT, mass, pRanlux, pMDFrame)
     type(ODummyThermostat), intent(out) :: self
+
+    !> Initialised DummyThermostat instance on return.
     real(dp), intent(in) :: kT
+
+    !> Temperature of the thermostat
     real(dp), intent(in) :: mass(:)
+
+    !> Random generator
     type(ORanlux), allocatable, intent(inout) :: pRanlux
+
+    !> thermostat object
     type(OMDCommon), intent(in) :: pMDFrame
 
     self%kT = kT
@@ -65,11 +87,13 @@ contains
   end subroutine DummyThermostat_init
 
 
-  !!* Returns the initial velocities.
-  !!* @param self Thermostat instance.
-  !!* @param velocities Contains the velocities on return.
+  !> Returns the initial velocities.
   subroutine DummyThermostat_getInitVelos(self, velocities)
+
+    !> Thermostat instance.
     type(ODummyThermostat), intent(inout) :: self
+
+    !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
     integer :: ii
@@ -85,11 +109,15 @@ contains
 
   end subroutine DummyThermostat_getInitVelos
 
-  subroutine DummyThermostat_state(self, fd)
-    type(ODummyThermostat), intent(in) :: self
-    integer,intent(in)                  :: fd
 
-    ! no internal state, nothing to do
+  !> no internal state, nothing to do
+  subroutine DummyThermostat_state(self, fd)
+
+    !> thermostat object
+    type(ODummyThermostat), intent(in) :: self
+
+    !> file unit
+    integer,intent(in) :: fd
 
   end subroutine DummyThermostat_state
 

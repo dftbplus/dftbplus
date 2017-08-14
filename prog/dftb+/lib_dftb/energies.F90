@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Module to wrap around the different energy components in the DFTB
-!!* total energy expression
+!> Module to wrap around the different energy components in the DFTB total energy expression
 module energies
   use assert
   use accuracy
@@ -18,52 +17,115 @@ module energies
   public :: TEnergies, init
 
 
-  !!* Data type to store components of the energy as named variables
+  !> Data type to store components of the energy as named variables instead of
+  !> in the old arrays - makes extending energy expression easier.
   type TEnergies
-    real(dp) :: Erep    = 0.0_dp !* repulsive energy
-    real(dp) :: EnonSCC = 0.0_dp !* Non-SCC energy
-    real(dp) :: ESCC    = 0.0_dp !* SCC energy
-    real(dp) :: Espin   = 0.0_dp !* spin energy
-    real(dp) :: ELS     = 0.0_dp !* spin orbit energy
-    real(dp) :: Edftbu  = 0.0_dp !* DFTB+U energy
-    real(dp) :: Eext    = 0.0_dp !* energy in external field
-    real(dp) :: Eelec   = 0.0_dp !* total electronic energy
-    real(dp) :: EDisp   = 0.0_dp !* Dispersion energy
-    real(dp) :: E3rd    = 0.0_dp !* Total 3rd order
-    real(dp) :: Eexcited = 0.0_dp !* Excitation energy
-    real(dp) :: Etotal  = 0.0_dp !* total energy (Erep + Etotal)
-    real(dp) :: EMermin = 0.0_dp !* Total Mermin energy
-    real(dp) :: EGibbs = 0.0_dp  !* Gibbs free energy
-    real(dp) :: EKin = 0.0_dp    !* Kinetic energy
-    real(dp) :: EMerminKin = 0.0_dp  !* Total Mermin energy including kinetic energy
-    real(dp) :: EGibbsKin = 0.0_dp  !* Gibbs free energy including kinetic energy
 
-    real(dp), allocatable :: atomRep(:)      !* atom resolved repulsive
-    real(dp), allocatable :: atomNonSCC(:)   !* atom resolved non-SCC
-    real(dp), allocatable :: atomSCC(:)      !* atom resolved SCC
-    real(dp), allocatable :: atomSpin(:)     !* atom resolved spin
-    real(dp), allocatable :: atomLS(:)       !* atom resolved spin orbit
-    real(dp), allocatable :: atomDftbu(:)    !* atom resolved DFTB+U
-    real(dp), allocatable :: atomExt(:)      !* atom resolved external field
-    real(dp), allocatable :: atomElec(:)     !* atom resolved electronic total
-    real(dp), allocatable :: atomDisp(:)     !* atom resolved dispersion
-    real(dp), allocatable :: atom3rd(:)      !* atom resolved 3rd order
-    real(dp), allocatable :: atomTotal(:)    !* atom resolved total
+    !> repulsive energy
+    real(dp) :: Erep    = 0.0_dp
+
+    !> Non-SCC energy
+    real(dp) :: EnonSCC = 0.0_dp
+
+    !> SCC energy
+    real(dp) :: ESCC    = 0.0_dp
+
+    !> spin energy
+    real(dp) :: Espin   = 0.0_dp
+
+    !> spin orbit energy
+    real(dp) :: ELS     = 0.0_dp
+
+    !> DFTB+U energy
+    real(dp) :: Edftbu  = 0.0_dp
+
+    !> energy in external field
+    real(dp) :: Eext    = 0.0_dp
+
+    !> total electronic energy
+    real(dp) :: Eelec   = 0.0_dp
+
+    !> Dispersion energy
+    real(dp) :: eDisp   = 0.0_dp
+
+    !> Total 3rd order
+    real(dp) :: e3rd    = 0.0_dp
+
+    !> Excitation energy
+    real(dp) :: Eexcited = 0.0_dp
+
+    !> total energy (Erep+Etotal)
+    real(dp) :: Etotal  = 0.0_dp
+
+    !> Total Mermin energy
+    real(dp) :: EMermin = 0.0_dp
+
+    !> Gibbs free energy
+    real(dp) :: EGibbs = 0.0_dp
+
+    !> Kinetic energy
+    real(dp) :: EKin = 0.0_dp
+
+    !> Total Mermin energy including kinetic energy
+    real(dp) :: EMerminKin = 0.0_dp
+
+    !> Gibbs free energy including kinetic energy
+    real(dp) :: EGibbsKin = 0.0_dp
+
+    !> atom resolved repulsive
+    real(dp), allocatable :: atomRep(:)
+
+    !> atom resolved non-SCC
+    real(dp), allocatable :: atomNonSCC(:)
+
+    !> atom resolved SCC
+    real(dp), allocatable :: atomSCC(:)
+
+    !> atom resolved spin
+    real(dp), allocatable :: atomSpin(:)
+
+    !> atom resolved spin orbit
+    real(dp), allocatable :: atomLS(:)
+
+    !> atom resolved DFTB+U
+    real(dp), allocatable :: atomDftbu(:)
+
+    !> atom resolved external field
+    real(dp), allocatable :: atomExt(:)
+
+    !> atom resolved electronic total
+    real(dp), allocatable :: atomElec(:)
+
+    !> atom resolved dispersion
+    real(dp), allocatable :: atomDisp(:)
+
+    !> atom resolved 3rd order
+    real(dp), allocatable :: atom3rd(:)
+
+    !> atom resolved total
+    real(dp), allocatable :: atomTotal(:)
+
+    !> data structure initialised
+    logical :: tInitialised = .false.
+
   end type TEnergies
 
 
+  !> initialise the data type for storing energies
   interface init
     module procedure Energies_init
   end interface init
 
-
 contains
 
-  !!* Allocates storage for the energy components
-  !!* @param self data structure to allocate
-  !!* @param nAtom number of atoms needed for atom resolved arrays
+
+  !> Allocates storage for the energy components
   subroutine Energies_init(self, nAtom)
+
+    !> data structure to allocate
     type(TEnergies), intent(out) :: self
+
+    !> number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
 
     allocate(self%atomRep(nAtom))
@@ -107,6 +169,5 @@ contains
     self%EGibbsKin = 0.0_dp
 
   end subroutine Energies_init
-
 
 end module energies

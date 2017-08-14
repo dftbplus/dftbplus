@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Functions and local variables for the SCC calculation.
+!> Functions and local variables for the SCC calculation.
 module scc
   use assert
   use accuracy
@@ -34,84 +34,168 @@ module scc
   public :: getAtomicGammaMatrix
   public :: addForceDCSCC_Xlbomd
 
-  !!* Data necessary for initialize the SCC module
+
+  !> Data necessary for initialize the SCC module
   type TSCCInit
+
+    !> atomic orbital information
     type(TOrbitals), pointer :: orb
+
+    !> hubbard U values
     real(dp), allocatable :: hubbU(:,:)
+
+    !> use damping of short range part
     logical, allocatable :: tDampedShort(:)
+
+    !> exponent if damping used
     real(dp) :: dampExp = 0.0_dp
+
+    !> lattice vectors
     real(dp), allocatable :: latVecs(:,:)
+
+    !> reciprocal lattice vectors
     real(dp), allocatable :: recVecs(:,:)
+
+    !> cell volume
     real(dp) :: volume = 0.0_dp
+
+    !> external charges
     real(dp), allocatable :: extCharges(:,:)
+
+    !> if broadened out
     real(dp), allocatable :: blurWidths(:)
+
+    !> any constraints on atomic charges
     real(dp), allocatable :: chrgConstraints(:,:)
+
+    !> third order energy contributions
     real(dp), allocatable :: thirdOrderOn(:,:)
-    real(dp) :: ewaldAlpha = 0.0_dp    ! if > 0 -> manual setting for alpha
+
+    !> if > 0 -> manual setting for alpha
+    real(dp) :: ewaldAlpha = 0.0_dp
   end type TSCCInit
 
-  real(dp), parameter :: tolEwald = 1.0e-9_dp !* tolerance for Ewald
+
+  !> tolerance for Ewald
+  real(dp), parameter :: tolEwald = 1.0e-9_dp
+
+  ! Private module variables (suffixed with "_" for clarity)
 
 
-  !! Private module variables (suffixed with "_" for clarity)
-  logical :: tInitialised_ = .false.      ! If module is initialised
-  logical :: tCoordUp_                    ! If coordinates updated at least once
-  logical :: tChrgUp_                     ! If charges updated at least once
-  integer :: nAtom_, nSpecies_             ! Nr. of atoms and species
-  integer :: mOrb_, mShell_       ! Max nr. of orbitals/shells per atom
-  integer :: mHubbU_    ! Maximal number of unique U values
-  real(dp), allocatable :: invRMat_(:,:)  ! Stores 1/r between atom pairs
-  real(dp), allocatable :: shiftPerAtom_(:)      ! Shift vector per atom
-  real(dp), allocatable :: shiftPerL_(:,:)       ! Shift vector per l-shell
-  real(dp), allocatable :: shortGamma_(:,:,:,:)  ! Short range interaction
-  real(dp), allocatable :: shortCutoff_(:,:,:,:) ! Cutoff for short range int.
-  real(dp) :: cutoff_                            ! Maximal cutoff
-  real(dp), allocatable :: gLatPoint_(:,:) ! Lattice points for reciprocal Ewald
-  integer, allocatable :: nNeighShort_(:,:,:,:) ! Nr. of neighbors for short
-                                                ! range interaction
-  integer, allocatable :: nNeighEwald_(:)       ! Nr. of neigh for real Ewald
-  real(dp) :: maxREwald_                        ! Cutoff for real Ewald
-  real(dp) :: alpha_                            ! Parameter for Ewald
-  real(dp) :: volume_                           ! Cell volume
-  real(dp), allocatable :: uniqHubbU_(:,:)      ! Uniq Us per species
-  integer, allocatable :: nHubbU_(:)            ! Nr. of uniq Us per species
-  integer, allocatable :: iHubbU_(:,:)          ! Mapping L-shell -> uniq U
-  logical :: tExtChrg_                          ! Are external charges present?
+  !> If module is initialised
+  logical :: tInitialised_ = .false.
 
-  real(dp), allocatable :: deltaQ_(:,:)          ! Negative net charge
-  real(dp), allocatable :: deltaQPerLShell_(:,:) ! Negative net charge per shell
-  real(dp), allocatable :: deltaQAtom_(:)        ! Negative net charge per atom
-  real(dp), allocatable :: deltaQUniqU_(:,:)     ! Negative net charge per U
+  !> If coordinates updated at least once
+  logical :: tCoordUp_
 
-  logical, allocatable :: tDampedShort_(:)      ! Damped short range? (nSpecies)
-  real(dp) :: dampExp_                          ! Damping exponent
+  !> If charges updated at least once
+  logical :: tChrgUp_
 
-  logical :: tPeriodic_                          ! Is the system periodic?
+  !> Nr. of atoms and species
+  integer :: nAtom_, nSpecies_
 
-  logical :: tChrgConstr_                       ! Shifts due charge constrains?
-  type(OChrgConstr), allocatable, save :: chrgConstr_        ! Object for charge constraints
-  logical :: tThirdOrder_                       ! Shifts due to 3rd order
+  !> Max nr. of orbitals/shells per atom
+  integer :: mOrb_, mShell_
+
+  !> Maximal number of unique U values
+  integer :: mHubbU_
+
+  !> Stores 1/r between atom pairs
+  real(dp), allocatable :: invRMat_(:,:)
+
+  !> Shift vector per atom
+  real(dp), allocatable :: shiftPerAtom_(:)
+
+  !> Shift vector per l-shell
+  real(dp), allocatable :: shiftPerL_(:,:)
+
+  !> Short range interaction
+  real(dp), allocatable :: shortGamma_(:,:,:,:)
+
+  !> Cutoff for short range int.
+  real(dp), allocatable :: shortCutoff_(:,:,:,:)
+
+  !> Maximal cutoff
+  real(dp) :: cutoff_
+
+  !> Lattice points for reciprocal Ewald
+  real(dp), allocatable :: gLatPoint_(:,:)
+
+  !> Nr. of neighbors for short range interaction
+  integer, allocatable :: nNeighShort_(:,:,:,:)
+
+  !> Nr. of neigh for real Ewald
+  integer, allocatable :: nNeighEwald_(:)
+
+  !> Cutoff for real Ewald
+  real(dp) :: maxREwald_
+
+  !> Parameter for Ewald
+  real(dp) :: alpha_
+
+  !> Cell volume
+  real(dp) :: volume_
+
+  !> Uniq Us per species
+  real(dp), allocatable :: uniqHubbU_(:,:)
+
+  !> Nr. of uniq Us per species
+  integer, allocatable :: nHubbU_(:)
+
+  !> Mapping L-shell -> uniq U
+  integer, allocatable :: iHubbU_(:,:)
+
+  !> Are external charges present?
+  logical :: tExtChrg_
+
+
+  !> Negative net charge
+  real(dp), allocatable :: deltaQ_(:,:)
+
+  !> Negative net charge per shell
+  real(dp), allocatable :: deltaQPerLShell_(:,:)
+
+  !> Negative net charge per atom
+  real(dp), allocatable :: deltaQAtom_(:)
+
+  !> Negative net charge per U
+  real(dp), allocatable :: deltaQUniqU_(:,:)
+
+
+  !> Damped short range? (nSpecies)
+  logical, allocatable :: tDampedShort_(:)
+
+  !> Damping exponent
+  real(dp) :: dampExp_
+
+
+  !> Is the system periodic?
+  logical :: tPeriodic_
+
+  !> Shifts due charge constrains?
+  logical :: tChrgConstr_
+
+  !> Object for charge constraints
+  type(OChrgConstr), allocatable, save :: chrgConstr_
+
+
+  !> use third order contributions
+  logical :: tThirdOrder_
+
+  !> Shifts due to 3rd order
   type(OChrgConstr), allocatable, save :: thirdOrder_
-  logical :: tAutoEwald_
 
+
+  !> evaluate Ewald parameter
+  logical :: tAutoEwald_
 
 contains
 
-  !!* Initialises the SCC module
-  !!* @param nAtom Number of atoms in the system
-  !!* @param nSpecies Number of species in the system
-  !!* @param nShell Nr. of shells for each species
-  !!* @param mShell Maximal nr. of shells for any species
-  !!* @param mOrb   Maximal nr. of orbitals for any species
-  !!* @param hubbU The Hubbard Us read from the SK files
-  !!* @param tDampedShort True for species which needs damped interaction
-  !!* @param latVec Lattice vectors (if the system is periodic)
-  !!* @param recVec Reciprocal vectors (if the system is periodic)
-  !!* @param volume Volume of the supercell (if the system is periodic)
-  !!* @param extCharges Coordinate and charge of external point charges.
-  !!* @param blurWidths widths of Gaussian blurring on charges (non-periodic
-  !!* only)
+
+  !> Initialises the SCC module
   subroutine init_SCC(inp)
+
+    !> SCC ADT
     type(TSCCInit), intent(inout) :: inp
 
     integer :: iSp1, iSp2, iU1, iU2, iL
@@ -129,12 +213,12 @@ contains
     @:ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
     @:ASSERT(size(inp%tDampedShort) == nSpecies_)
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
-  #:call ASSERT_CODE
+#:call ASSERT_CODE
     if (allocated(inp%extCharges)) then
       @:ASSERT(size(inp%extCharges, dim=1) == 4)
       @:ASSERT(size(inp%extCharges, dim=2) > 0)
     end if
-  #:endcall ASSERT_CODE
+#:endcall ASSERT_CODE
 
     allocate(invRMat_(nAtom_, nAtom_))
     allocate(shiftPerAtom_(nAtom_))
@@ -143,7 +227,7 @@ contains
     tPeriodic_ = allocated(inp%latVecs)
     tExtChrg_ = allocated(inp%extCharges)
 
-    !! Initialize Hubbard U's
+    ! Initialize Hubbard U's
     allocate(uniqHubbU_(mShell_, nSpecies_))
     allocate(nHubbU_(nSpecies_))
     allocate(iHubbU_(mShell_, nSpecies_))
@@ -169,7 +253,7 @@ contains
     end do
     mHubbU_ = maxval(nHubbU_)
 
-    !! Get cutoff for short range coulomb
+    ! Get cutoff for short range coulomb
     allocate(shortCutoff_(mHubbU_, mHubbU_, nSpecies_, nSpecies_))
     shortCutoff_(:,:,:,:) = 0.0_dp
     do iSp1 = 1, nSpecies_
@@ -186,7 +270,7 @@ contains
     end do
     cutoff_ = maxval(shortCutoff_)
 
-    !! Initialize Ewald summation for the periodic case
+    ! Initialize Ewald summation for the periodic case
     if (tPeriodic_) then
       volume_ = inp%volume
       tAutoEwald_ = inp%ewaldAlpha <= 0.0_dp
@@ -205,13 +289,13 @@ contains
       cutoff_ = max(cutoff_, maxREwald_)
     end if
 
-    !! Number of neighbors for short range cutoff and real part of Ewald
+    ! Number of neighbors for short range cutoff and real part of Ewald
     allocate(nNeighShort_(mHubbU_, mHubbU_, nSpecies_, nAtom_))
     if (tPeriodic_) then
       allocate(nNeighEwald_(nAtom_))
     end if
 
-    !! Initialise external charges
+    ! Initialise external charges
     if (tExtChrg_) then
       if (tPeriodic_) then
         call init_ExtChrg(inp%extCharges, nAtom_, inp%latVecs, inp%recVecs, &
@@ -234,13 +318,13 @@ contains
       call init(thirdOrder_, inp%thirdOrderOn / 6.0_dp, 3)
     end if
 
-    !! Initialise arrays for charge differences
+    ! Initialise arrays for charge differences
     allocate(deltaQ_(mOrb_, nAtom_))
     allocate(deltaQPerLShell_(mShell_, nAtom_))
     allocate(deltaQAtom_(nAtom_))
     allocate(deltaQUniqU_(mHubbU_, nAtom_))
 
-    !! Initialise short range damping
+    ! Initialise short range damping
     allocate(tDampedShort_(nSpecies_))
     tDampedShort_(:) = inp%tDampedShort(:)
     dampExp_ = inp%dampExp
@@ -252,11 +336,12 @@ contains
   end subroutine init_SCC
 
 
-  !!* Returns a minimal cutoff for the neighborlist, which must be passed
-  !!* to various functions in this module.
-  !!* @return cutoff The neighborlists, passed to scc routines, should contain
-  !!*   neigbhor information at least up to that cutoff.
+  !> Returns a minimal cutoff for the neighborlist, which must be passed to various functions in
+  !> this module.
   function getSCCCutoff() result(cutoff)
+
+    !> cutoff The neighborlists, passed to scc routines, should contain neigbhor information at
+    !> least up to that cutoff.
     real(dp) :: cutoff
 
     @:ASSERT(tInitialised_)
@@ -265,9 +350,10 @@ contains
   end function getSCCCutoff
 
 
-  !!* Returns the currenty used alpha parameter of the Ewald-summation
-  !!* @return Parameter in the Ewald summation.
+  !> Returns the currenty used alpha parameter of the Ewald-summation
   function getSCCEwaldPar() result(alpha)
+
+    !> Parameter in the Ewald summation.
     real(dp) :: alpha
 
     @:ASSERT(tInitialised_)
@@ -276,11 +362,13 @@ contains
   end function getSCCEwaldPar
 
 
-  !!* Updates the number of neighbors for the SCC module (local).
-  !!* @param species Species for each atom
-  !!* @param neighList Neighbor list for the atoms in the system.
+  !> Updates the number of neighbors for the SCC module (local).
   subroutine updateNNeigh_(species, neighList)
+
+    !> Species for each atom
     integer, intent(in) :: species(:)
+
+    !> Neighbor list for the atoms in the system.
     type(TNeighborList), intent(in) :: neighList
 
     integer :: iAt1, iSp2, iU1, iU2
@@ -304,19 +392,20 @@ contains
   end subroutine updateNNeigh_
 
 
-
-  !!* Updates the atom coordinates for the SCC module.
-  !!* @param coord New coordinates of the atoms
-  !!* @param species Species of the atoms (should not change during run)
-  !!* @param mAngSpecies Maximal angular momentum of the species (should not
-  !!* change during run)
-  !!* @param neighList Neighbor list for the atoms.
-  !!* @param img2CentCell Mapping to the central cell for the atoms
+  !> Updates the atom coordinates for the SCC module.
   subroutine updateCoords_SCC(coord, species, neighList, img2CentCell)
+
+    !> New coordinates of the atoms
     real(dp), intent(in) :: coord(:,:)
-    integer,  intent(in) :: species(:)
+
+    !> Species of the atoms (should not change during run)
+    integer, intent(in) :: species(:)
+
+    !> Neighbor list for the atoms.
     type(TNeighborList), intent(in) :: neighList
-    integer,  intent(in) :: img2CentCell(:)
+
+    !> Mapping to the central cell for the atoms
+    integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(tInitialised_)
 
@@ -343,12 +432,16 @@ contains
   end subroutine updateCoords_SCC
 
 
-  !!* Updates the SCC module, if the lattice vectors had been changed
-  !!* @param latVec  New lattice vectors
-  !!* @param recVec  New reciprocal lattice vectors
-  !!* @param vol  New volume
+  !> Updates the SCC module, if the lattice vectors had been changed
   subroutine updateLatVecs_SCC(latVec, recVec, vol)
-    real(dp), intent(in) :: latVec(:,:), recVec(:,:)
+
+    !> New lattice vectors
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> New reciprocal lattice vectors
+    real(dp), intent(in) :: recVec(:,:)
+
+    !> New volume
     real(dp), intent(in) :: vol
 
     real(dp) :: maxGEwald
@@ -377,22 +470,26 @@ contains
   end subroutine updateLatVecs_SCC
 
 
-  !!* Updates the SCC module, if the charges have been changed
-  !!* @param qOrbital Orbital resolved charges
-  !!* @param q0 Reference charge distribution (neutral atoms)
-  !!* @param mAngSpecies Maximal angular momentum of the species (should not
-  !!* change during run)
-  !!* @param orb Contains information about the atomic orbitals in the system
-  !!* @param species Species of the atoms (should not change during run)
-  !!* @param iNeighbor Neighbor indexes
-  !!* @param img2CentCell Mapping on atoms in the centrall cell
+  !> Updates the SCC module, if the charges have been changed
   subroutine updateCharges_SCC(qOrbital, q0, orb, species, iNeighbor, &
       &img2CentCell)
+
+    !> Orbital resolved charges
     real(dp), intent(in) :: qOrbital(:,:,:)
+
+    !> Reference charge distribution (neutral atoms)
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
+    !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
+
+    !> Neighbor indexes
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Mapping on atoms in the central cell
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(tInitialised_)
@@ -415,13 +512,31 @@ contains
 
 
   !> Calculates various net charges needed by the SCC module.
-  !!
   subroutine getNetCharges_(species, orb, qOrbital, q0, dQ, dQAtom, dQShell, &
       & dQUniqU)
+
+    !> chemical species for atoms
     integer, intent(in) :: species(:)
+
+    !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: qOrbital(:,:,:), q0(:,:,:)
-    real(dp), intent(out) :: dQ(:,:), dQAtom(:), dQShell(:,:)
+
+    !> Orbital resolved charges
+    real(dp), intent(in) :: qOrbital(:,:,:)
+
+    !> Reference charge distribution (neutral atoms)
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> net charge for each orbital
+    real(dp), intent(out) :: dQ(:,:)
+
+    !> net charge for each atom
+    real(dp), intent(out) :: dQAtom(:)
+
+    !> net charge for each atomic shell
+    real(dp), intent(out) :: dQShell(:,:)
+
+    !> net charge for shells with the same U value on atoms
     real(dp), intent(out), optional :: dQUniqU(:,:)
 
     call getNetChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
@@ -434,9 +549,16 @@ contains
   end subroutine getNetCharges_
 
 
-
+  !> net charges for each atomic orbital
   subroutine getNetChargesPerOrbital_(qOrbital, q0, deltaQ)
-    real(dp), intent(in) :: qOrbital(:,:), q0(:,:)
+
+    !> orbital charges
+    real(dp), intent(in) :: qOrbital(:,:)
+
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:)
+
+    !> resulting net charges
     real(dp), intent(out) :: deltaQ(:,:)
 
     deltaQ(:,:) = qOrbital(:,:) - q0(:,:)
@@ -444,9 +566,13 @@ contains
   end subroutine getNetChargesPerOrbital_
 
 
-
+  !> net charges per atom
   subroutine getNetChargesPerAtom_(deltaQ, deltaQAtom)
+
+    !> net charges
     real(dp), intent(in) :: deltaQ(:,:)
+
+    !> net charge per atom
     real(dp), intent(out) :: deltaQAtom(:)
 
     deltaQAtom(:) = sum(deltaQ(:,:), dim=1)
@@ -454,11 +580,19 @@ contains
   end subroutine getNetChargesPerAtom_
 
 
-
+  !> net charge per atomic shell
   subroutine getNetChargesPerLShell_(species, orb, deltaQ, deltaQPerLShell)
+
+    !> species of atom
     integer, intent(in) :: species(:)
+
+    !> orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> net charge for orbitals
     real(dp), intent(in) :: deltaQ(:,:)
+
+    !> net charge per atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
     integer :: iAt, iSp, iSh, iStart, iend
@@ -476,11 +610,19 @@ contains
   end subroutine getNetChargesPerLShell_
 
 
-
+  !> net charges for orbitals with the same hubard U value on an atom
   subroutine getNetChargesPerUniqU_(species, orb, deltaQPerLShell, deltaQUniqU)
+
+    !> chemical species
     integer, intent(in) :: species(:)
+
+    !> orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Net charge per l-shell of atom
     real(dp), intent(in) :: deltaQPerLShell(:,:)
+
+    !> Net charge for unique groups of orbitals
     real(dp), intent(out) :: deltaQUniqU(:,:)
 
     integer :: iAt, iSp, iSh
@@ -498,15 +640,17 @@ contains
   end subroutine getNetChargesPerUniqU_
 
 
-
-  !!* Set up the storage and internal values for the short range part of Gamma.
-  !!* @param coord        List of coordinates
-  !!* @param species       List of the species for each atom.
-  !!* @param iNeighbor    Index of neighboring atoms for each atom.
+  !> Set up the storage and internal values for the short range part of Gamma.
   subroutine initGamma_(coord, species, iNeighbor)
+
+    !> List of coordinates
     real(dp), intent(in) :: coord(:,:)
-    integer,  intent(in) :: species(:)
-    integer,  intent(in) :: iNeighbor(0:,:)
+
+    !> List of the species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> Index of neighboring atoms for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
 
     integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, u1, u2
@@ -545,13 +689,18 @@ contains
 
   end subroutine initGamma_
 
-  !!* Routine for lower triangle of atomic resolved gamma as a matrix
-  !!* @param gammamat Atom resolved gamma
-  !!* @param iNeighbor neighbours of atoms
-  !!* @param img2CentCell index array to fold images to central cell
+
+  !> Routine for lower triangle of atomic resolved gamma as a matrix
   subroutine getAtomicGammaMatrix(gammamat, iNeighbor, img2CentCell)
+
+    !> Atom resolved gamma
     real(dp), intent(out) :: gammamat(:,:)
-    integer, intent(in) :: iNeighbor(0:,:), img2CentCell(:)
+
+    !> neighbours of atoms
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> index array to fold images to central cell
+    integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
 
@@ -573,19 +722,23 @@ contains
   end subroutine getAtomicGammaMatrix
 
 
-  !!* Calculate  the derivative of the short range part of Gamma.
-  !!* @param force        force vector to add the short-range part of gamma
-  !!* contribution
-  !!* @param coord        list of coordinates
-  !!* @param species       List of the species for each atom.
-  !!* @param iNeighbor    Index of neighboring atoms for each atom.
-  !!* @param img2CentCell Image of each atom in the central cell.
+  !> Calculate  the derivative of the short range part of Gamma.
   subroutine addGammaPrime_(force, coord, species, iNeighbor, img2CentCell)
+
+    !> force vector to add the short-range part of gamma contribution
     real(dp), intent(inout) :: force(:,:)
-    real(dp), intent(in)    :: coord(:,:)
-    integer,  intent(in)    :: species(:)
-    integer,  intent(in)    :: iNeighbor(0:,:)
-    integer,  intent(in)    :: img2CentCell(:)
+
+    !> list of coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of the species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> Index of neighboring atoms for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
@@ -630,21 +783,25 @@ contains
   end subroutine addGammaPrime_
 
 
-  !!* Calculate  the derivative of the short range part of Gamma.
-  !!* @param st           Stress tensor component to add the short-range
-  !!*  part of the gamma contribution
-  !!* @param coord        list of coordinates
-  !!* @param species       List of the species for each atom.
-  !!* @param iNeighbor    Index of neighboring atoms for each atom.
-  !!* @param img2CentCell Image of each atom in the central cell.
+  !> Calculate  the derivative of the short range part of Gamma.
   subroutine addSTGammaPrime_(st, coord, species, iNeighbor, img2CentCell)
-    real(dp), intent(out)   :: st(:,:)
-    real(dp), intent(in)    :: coord(:,:)
-    integer,  intent(in)    :: species(:)
-    integer,  intent(in)    :: iNeighbor(0:,:)
-    integer,  intent(in)    :: img2CentCell(:)
 
-    integer  :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
+    !> Stress tensor component to add the short-range part of the gamma contribution
+    real(dp), intent(out) :: st(:,:)
+
+    !> list of coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of the species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> Index of neighboring atoms for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
     real(dp) :: intermed(3), vect(3)
 
@@ -703,13 +860,10 @@ contains
   end subroutine addSTGammaPrime_
 
 
-  !!* Calculates the contribution of the charge consistent part to the energy
-  !!* per atom.
-  !!* @param eSCC         The SCC contribution to the energy
-  !!* @param species       Species for each atom.
-  !!* @param iNeighbor    List of neighbors for each atom.
-  !!* @param img2CentCell Image of the atoms in the central cell.
+  !> Calculates the contribution of the charge consistent part to the energy per atom.
   subroutine getEnergyPerAtom_SCC(eSCC)
+
+    !> The SCC contribution to the energy
     real(dp), intent(out) :: eSCC(:)
 
     @:ASSERT(tInitialised_)
@@ -731,17 +885,25 @@ contains
 
 
   !> Calculates SCC energy contribution using the linearized XLBOMD form.
-  !!
-  !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated
-  !! after diagonalizing the Hamiltonian, so the charge stored in the module are
-  !! the ingoing (auxiliary) charges, used to build the Hamiltonian.  However,
-  !! the linearized energy expession needs also the outgoing ones,
-  !! therefore, there must be passed extra.
-  !!
+  !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
+  !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
+  !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
+  !> therefore these are passed in as an extra variable.
   subroutine getEnergyPerAtom_SCC_Xlbomd(species, orb, qOut, q0, eSCC)
+
+    !> atomic species
     integer, intent(in) :: species(:)
+
+    !> orbital information
     type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: qOut(:,:,:), q0(:,:,:)
+
+    !> output charges
+    real(dp), intent(in) :: qOut(:,:,:)
+
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> energy contributions
     real(dp), intent(out) :: eSCC(:)
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:), dQOutShell(:,:)
@@ -775,27 +937,29 @@ contains
   end subroutine getEnergyPerAtom_SCC_Xlbomd
 
 
-
-  !!* Calculates the contribution of the charge consitent part to the forces
-  !!* for molecules/clusters, which is not covered in the term with the shift
-  !!* vectors.
-  !!* @param force        Force contribution
-  !!* @param mAngSpecies   Maximal angular momentum per species.
-  !!* @param species       Species for each atom.
-  !!* @param iNeighbor    List of neighbors for each atom.
-  !!* @param img2CentCell Image of the atoms in the central cell.
-  !!* @param coord        List of coordinates
-  !!* @param chrgForce    Force contribution due to the external charges, which
-  !!* is not contained in the term with the shift vectors.
+  !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
+  !> which is not covered in the term with the shift vectors.
   subroutine addForceDCSCC(force, species, iNeighbor, img2CentCell, &
       & coord,chrgForce)
-    real(dp), intent(inout) :: force(:,:)
-    integer,  intent(in)    :: species(:)
-    integer,  intent(in)    :: iNeighbor(0:,:)
-    integer,  intent(in)    :: img2CentCell(:)
-    real(dp), intent(in)    :: coord(:,:)
-    real(dp), intent(inout), optional :: chrgForce(:,:)
 
+    !> has force contribution added
+    real(dp), intent(inout) :: force(:,:)
+
+    !> Species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> List of neighbors for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> List of coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Force contribution due to the external charges, which is not contained in the term with the
+    !> shift vectors.
+    real(dp), intent(inout), optional :: chrgForce(:,:)
 
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == nAtom_)
@@ -822,23 +986,25 @@ contains
   end subroutine addForceDCSCC
 
 
-
-  !!* Calculates the contribution of the charge consitent part to the forces
-  !!* for molecules/clusters, which is not covered in the term with the shift
-  !!* vectors.
-  !!* @param force        Force contribution
-  !!* @param mAngSpecies   Maximal angular momentum per species.
-  !!* @param species       Species for each atom.
-  !!* @param iNeighbor    List of neighbors for each atom.
-  !!* @param img2CentCell Image of the atoms in the central cell.
-  !!* @param coord        List of coordinates
+  !> Calculates the contribution of the stress tensor which is not covered in the term with the
+  !> shift vectors.
   subroutine addStressDCSCC(st, species, iNeighbor, img2CentCell, &
       & coord)!,chrgForce)
+
+    !> Add stress tensor contribution to this
     real(dp), intent(inout) :: st(:,:)
-    integer,  intent(in)    :: species(:)
-    integer,  intent(in)    :: iNeighbor(0:,:)
-    integer,  intent(in)    :: img2CentCell(:)
-    real(dp), intent(in)    :: coord(:,:)
+
+    !> Species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> List of neighbors for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> List of coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: stTmp(3,3)
 
@@ -869,36 +1035,45 @@ contains
   end subroutine addStressDCSCC
 
 
-  !> Constructs the shift vectors for the SCC contributions
-  !! \param orb  Contains information about the atomic orbitals in the system
-  !! \param species  List of the species for each atom.
-  !! \param iNeighbor  List of surrounding neighbours for each atom.
-  !! \param img2CentCell  Image of each atom in the central cell.
-  !! \param dQAtom  Net population per atom.
-  !! \param dQShell  Net population per l-shell.
-  !! \param shiftAtom  Shift vector for each atom.
-  !! \param shiftShell  Shift vector per l-shell.
-  !!
-  !! \note The full shift vector must be constructed by adding shiftAtom
-  !! and shiftShell accordingly.
-  !!
+  !> Constructs the shift vectors for the SCC contributions.
+  !> The full shift vector must be constructed by adding shiftAtom and shiftShell accordingly.
   subroutine buildShifts_(orb, species, iNeighbor, img2CentCell, dQAtom, &
       & dQShell, shiftAtom, shiftShell)
+
+    !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
-    integer,  intent(in) :: species(:), iNeighbor(0:,:), img2CentCell(:)
-    real(dp), intent(in) :: dQAtom(:), dQShell(:,:)
-    real(dp), intent(out) :: shiftAtom(:), shiftShell(:,:)
+
+    !> List of the species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> List of surrounding neighbours for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Net population per atom.
+    real(dp), intent(in) :: dQAtom(:)
+
+    !> Net population per l-shell.
+    real(dp), intent(in) :: dQShell(:,:)
+
+    !> Shift vector for each atom.
+    real(dp), intent(out) :: shiftAtom(:)
+
+    !> Shift vector per l-shell.
+    real(dp), intent(out) :: shiftShell(:,:)
 
     integer :: iAt1, iSp1, iSh1, iU1, iNeigh, iAt2f, iSp2, iSh2, iU2
 
     @:ASSERT(tInitialised_)
 
-    !! 1/R contribution [shiftAtom(A) = \sum_B 1/R_AB * (Q_B - Q0_B)]
+    ! 1/R contribution [shiftAtom(A) = \sum_B 1/R_AB * (Q_B - Q0_B)]
     shiftAtom(:) = 0.0_dp
     call hemv(shiftAtom, invRMat_, dQAtom,'L')
 
-    !! Contribution of the short range part of gamma to the shift
-    !! sgamma'_{A,l} = sum_B sum_{u\in B} S(U(A,l),u)*q_u
+    ! Contribution of the short range part of gamma to the shift
+    ! sgamma'_{A,l} = sum_B sum_{u\in B} S(U(A,l),u)*q_u
     shiftShell(:,:) = 0.0_dp
     do iAt1 = 1, nAtom_
       iSp1 = species(iAt1)
@@ -923,11 +1098,10 @@ contains
   end subroutine buildShifts_
 
 
-
-  !!* Returns the shift per atom coming from the SCC part (with a spin
-  !!* index)
-  !!* @param shift Contains the shift on exit.
+  !> Returns the shift per atom coming from the SCC part (with a spin index)
   subroutine getShiftPerAtom(shift)
+
+    !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:,:)
 
     @:ASSERT(size(shift,dim=1) == size(shiftPerAtom_,dim=1))
@@ -947,10 +1121,10 @@ contains
   end subroutine getShiftPerAtom
 
 
-
-  !!* Returns the shift per L contribution of the SCC. (with a spin index)
-  !!* @param shift Contains the shift on exit.
+  !> Returns the shift per L contribution of the SCC. (with a spin index)
   subroutine getShiftPerL(shift)
+
+    !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:,:,:)
 
     @:ASSERT(size(shift,dim=1) == size(shiftPerL_,dim=1))
@@ -962,14 +1136,17 @@ contains
   end subroutine getShiftPerL
 
 
-
-  !!* Returns the equivalency relations between the orbitals of the atoms.
-  !!* @param orb Contains information about the atomic orbitals in the system
-  !!* @param species Type of each atom (nAtom).
-  !!* @param equiv The vector describing the equivalence on return.
+  !> Returns the equivalency relations between orbitals of the atoms. If transfering charge between
+  !> the orbitals does not change the electrostatic energy, they are considered equivalent.
   subroutine SCC_getOrbitalEquiv(orb, species, equiv)
+
+    !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
+    !> Type of each atom (nAtom).
     integer, intent(in) :: species(:)
+
+    !> The vector describing the equivalence on return.
     integer, intent(out) :: equiv(:,:,:)
 
     integer :: iAt, iOrb, iS, iSp
@@ -999,22 +1176,35 @@ contains
 
 
   !> Calculate the "double counting" force term using linearized XLBOMD form.
-  !!
-  !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated
-  !! after diagonalizing the Hamiltonian, so the charge stored in the module are
-  !! the ingoing (auxiliary) charges, used to build the Hamiltonian.  However,
-  !! the force double counting expession needs also the outgoing ones,
-  !! therefore, there must be passed extra.
-  !!
+  !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
+  !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
+  !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
+  !> therefore these are passed in as an extra variable.
   subroutine addForceDCSCC_Xlbomd(species, orb, iNeighbor, img2CentCell, &
       & coord, qOrbitalOut, q0, force)
-    integer,  intent(in) :: species(:)
+
+    !> atomic species
+    integer, intent(in) :: species(:)
+
+    !> orbital information
     type(TOrbitals), intent(in) :: orb
-    integer,  intent(in) :: iNeighbor(0:,:)
-    integer,  intent(in) :: img2CentCell(:)
+
+    !> neighbours surrounding each atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> index from image atoms to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> coordinates of all atoms
     real(dp), intent(in) :: coord(:,:)
+
+    !> output charges
     real(dp), intent(in) :: qOrbitalOut(:,:,:)
+
+    !> reference charges
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Force terms are added to this
     real(dp), intent(inout) :: force(:,:)
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
@@ -1053,14 +1243,30 @@ contains
   end subroutine addForceDCSCC_Xlbomd
 
 
-  !> Calculate  the derivative of the short range using the
-  !! linearized XLBOMD formulation with auxiliary charges.
-  !!
+  !> Calculate the derivative of the short range contributions using the linearized XLBOMD
+  !> formulation with auxiliary charges.
   subroutine addGammaPrimeXlbomd_(dQInUniqU, dQOutUniqU, coord, species, &
       & iNeighbor, img2CentCell, force)
-    real(dp), intent(in) :: dQInUniqU(:,:), dQOutUniqU(:,:)
+
+    !> Input charges
+    real(dp), intent(in) :: dQInUniqU(:,:)
+
+    !> output charges
+    real(dp), intent(in) :: dQOutUniqU(:,:)
+
+    !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
-    integer,  intent(in) :: species(:), iNeighbor(0:,:), img2CentCell(:)
+
+    !> chemical species
+    integer, intent(in) :: species(:)
+
+    !> neighbours around atoms
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> image to real atom indexing
+    integer, intent(in) :: img2CentCell(:)
+
+    !> term to add force contributions to
     real(dp), intent(inout) :: force(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, iSp1, iSp2
@@ -1101,6 +1307,5 @@ contains
     end do
 
   end subroutine addGammaPrimeXlbomd_
-
 
 end module scc

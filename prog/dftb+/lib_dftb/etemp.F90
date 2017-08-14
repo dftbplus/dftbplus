@@ -7,11 +7,11 @@
 
 #:include 'common.fypp'
 
-!!* Contains routines related to finite electron temperature, including
-!!* Fermi, Gaussian and Methfessel-Paxton broadening functions.
-!!* @todo Add other methods, including possibly Pederson and Jackson method
-!!* PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
-!!* interpolation instead of bisection.
+!> Contains routines related to finite electron temperature, including Fermi, Gaussian and
+!> Methfessel-Paxton broadening functions.
+!> To do: Add other methods, including possibly Pederson and Jackson method
+!> PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
+!> interpolation instead of bisection.
 module etemp
   use assert
   use accuracy, only : dp, elecTol, elecTolMax, mExpArg
@@ -27,54 +27,67 @@ module etemp
   public :: Efilling, electronFill, Fermi, Gaussian, Methfessel
 
 
-  !* Definition of a type of broadening function - Fermi-Dirac in this case
+  !> Definition of a type of broadening function - Fermi-Dirac in this case
   integer, parameter :: Fermi = 0
 
-  !* Definition of a type of broadening function - Gaussian in this case
+
+  !> Definition of a type of broadening function - Gaussian in this case
   integer, parameter :: Gaussian = 1
 
-  !* Definition of a type of broadening function - Methfessel-Paxton, for higher orders use
-  !* Methfessel + n as a value
+
+  !> Definition of a type of broadening function - Methfessel-Paxton, for higher orders use
+  !> Methfessel + n as a value
   integer, parameter :: Methfessel = 1
 
 
+  !> Twice the machine precision
   real(dp), parameter :: epsilon2 = 2.0_dp * epsilon(1.0_dp)
-
 
 contains
 
-  !!* Driver to calculate electron filling, the band-structure energy at T and
-  !!* extrapolated to T=0K, and the entropy of the electron energy for the
-  !!* Mermin free energy, returning band energy and entropy for each channel but
-  !!* common Fermi level
-  !!* @param Ebs Band structure energy at T
-  !!* @param Ef Fermi energy for given distribution
-  !!* @param TS Entropy
-  !!* @param E0 Band structure energy extrapolated to T=0K
-  !!* @param filling Electron occupancies
-  !!* @param eigenvals The eigenvalues of the levels, 1st index is energy
-  !!*   2nd index is k-point and 3nd index is spin
-  !!* @param nelectrons Number of electrons
-  !!* @param kT Thermal energy in atomic units
-  !!* @param kWeight k-point weightings
-  !!* @param distrib Choice of distribution functions, currently
-  !!*   Fermi, Gaussian and Methfessle-Paxton supported. The flags is defined
-  !!*   symbolically, so (Methfessel + 2) gives the 2nd order M-P scheme
-  !!* @note use slices of eigenvalues and other input arrays if you want a
-  !!*   different Fermi energy and filling for different k-points and/or spins.
-  !!* @note If no electrons are present, the Fermi energy is set to zero per
-  !!*   default.
+
+  !> Driver to calculate electron filling, the band-structure energy at T and extrapolated to T=0K,
+  !> and the entropy of the electron energy for the Mermin free energy, returning band energy and
+  !> entropy for each channel but common Fermi level
+  !>
+  !> Note: use slices of eigenvalues and other input arrays if you want a different Fermi energy and
+  !> filling for different k-points and/or spins.
+  !>
+  !> Note: If no electrons are present, the Fermi energy is set to zero per default.
   subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib)
+
+    !> Band structure energy at T
     real(dp), intent(out) :: Ebs(:)
+
+    !> Fermi energy for given distribution
     real(dp), intent(out) :: Ef
+
+    !> Entropy
     real(dp), intent(out) :: TS(:)
+
+    !> Band structure energy extrapolated to T=0K
     real(dp), intent(out) :: E0(:)
+
+    !> Electron occupancies
     real(dp), intent(out) :: filling(:,:,:)
-    real(dp), intent(in)  :: eigenvals(:,:,:)
-    real(dp), intent(in)  :: nElectrons
-    real(dp), intent(in)  :: kT
-    real(dp), intent(in)  :: kWeight(:)
-    integer, intent(in)   :: distrib
+
+    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
+    real(dp), intent(in) :: eigenvals(:,:,:)
+
+    !> Number of electrons
+    real(dp), intent(in) :: nElectrons
+
+    !> Thermal energy in atomic units
+    real(dp), intent(in) :: kT
+
+    !> k-point weightings
+    real(dp), intent(in) :: kWeight(:)
+
+    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
+    !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+
+    !> scheme
+    integer, intent(in) :: distrib
 
     real(dp) :: upperEf, lowerEf
     real(dp) :: nElec
@@ -86,8 +99,10 @@ contains
     @:ASSERT(size(eigenvals, dim=3) == size(TS))
     @:ASSERT(size(eigenvals, dim=3) == size(E0))
     @:ASSERT(nElectrons >= 0.0_dp)
+
     ! Not a tight enough bound ? :
     @:ASSERT(ceiling(nElectrons) <= 2 * size(eigenvals, dim=1) * size(eigenvals, dim=3))
+
     @:ASSERT(kT > 0.0_dp)
     @:ASSERT(size(kWeight) > 0)
     @:ASSERT(all(kWeight >= 0.0_dp))
@@ -121,9 +136,8 @@ contains
     upperEf = maxEig + 0.01_dp
     lowerEf = minEig - 0.01_dp
 
-    ! but just to be on the safe side if the temperature is
-    ! BIG compared to the bandwidth, or if the system has
-    ! a fully filled band structure:
+    ! but just to be on the safe side if the temperature is BIG compared to the bandwidth, or if the
+    ! system has a fully filled band structure:
     nElecMax = electronCount(upperEf, eigenvals, kT, distrib, kWeight)
     nElecMin = electronCount(lowerEf, eigenvals, kT, distrib, kWeight)
     do while (nElecMin > nElectrons)
@@ -138,9 +152,9 @@ contains
     Ef = 0.5_dp * (upperEf + lowerEf)
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
 
-    ! Bisection as long as nr. electrons is not accurate enough or
-    ! next change in the Fermi level would go below precision
-    do while (abs(nElectrons - nElec) > elecTol&
+    ! Bisection as long as nr. electrons is not accurate enough or next change in the Fermi level
+    ! would go below precision
+    do while (abs(nElectrons - nElec) > elecTol &
         & .and. abs(upperEf - lowerEf) >= max(abs(Ef) * epsilon2, epsilon2))
       if ((nElecMax >= nElecMin) .eqv. (nElectrons >= nElec)) then
         lowerEf = Ef
@@ -193,22 +207,27 @@ contains
   end subroutine Efilling
 
 
-  !!* Calculates the number of electrons for a given Fermi energy and
-  !!* distribution function
-  !!* @param Ef Fermi energy for given distribution
-  !!* @param eigenvals The eigenvalues of the levels, 1st index is energy
-  !!* 2nd index is k-point and 3nd index is spin
-  !!* @param kT Thermal energy in atomic units
-  !!* @param distrib Choice of distribution functions, currently
-  !!* Fermi, Gaussian and Methfessle-Paxton supported. The flags is defined
-  !!* sumbolically, so (Methfessel + 2) gives the 2nd order M-P scheme
-  !!* @param kWeight k-point weightings
+  !> Calculates the number of electrons for a given Fermi energy and distribution function
   function electronCount(Ef,eigenvals,kT,distrib,kWeight)
+
+    !> Fermi energy for given distribution
     real(dp) :: electronCount
+
+    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: Ef
+
+    !> Thermal energy in atomic units
     real(dp), intent(in) :: eigenvals(:,:,:)
+
+    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
+    !> supported. The flags is defined sumbolically, so (Methfessel + 2) gives the 2nd order M-P
+
+    !> scheme
     real(dp), intent(in) :: kT
+
+    !> k-point weightings
     integer, intent(in) :: distrib
+
     real(dp), intent(in) :: kWeight(:)
 
     integer :: MPorder
@@ -253,15 +272,15 @@ contains
         do i = 1, size(kWeight)
           do j = 1, size(eigenvals,dim=1)
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
-            ! Where the compiler does not handle inf gracefully, trap the
-            ! exponential function for small input values
-            #:if EXP_TRAP
-              if (x <= mExpArg) then
-                electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-              end if
-            #:else
+            ! Where the compiler does not handle inf gracefully, trap the exponential function for
+            ! small input values
+#:if EXP_TRAP
+            if (x <= mExpArg) then
               electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-            #:endif
+            end if
+#:else
+            electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
+#:endif
           end do
         end do
       end do
@@ -269,24 +288,31 @@ contains
   end function electronCount
 
 
-  !!* Calculates the derivative of the number of electrons for a given Fermi
-  !!* energy and distribution function
-  !!* @param Ef Fermi energy for given distribution
-  !!* @param eigenvals The eigenvalues of the levels, 1st index is energy
-  !!* 2nd index is k-point and 3nd index is spin
-  !!* @param kT Thermal energy in atomic units
-  !!* @param distrib Choice of distribution functions, currently
-  !!* Fermi supported.
-  !!* @param kWeight k-point weightings
-  !!* @todo support MP
+  !> Calculates the derivative of the number of electrons for a given Fermi energy and distribution
+  !> function
+  !>
+  !> To do: support Methfestle-Paxton
   function derivElectronCount(Ef,eigenvals,kT,distrib,kWeight)
+
+    !> Fermi energy for given distribution
     real(dp) :: derivElectronCount
+
+    !> The eigenvalues of the levels, 1st index is energy
     real(dp), intent(in) :: Ef
+
+    !> 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: eigenvals(:,:,:)
+
+    !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
+
+    !> Choice of distribution functions, currently
     integer, intent(in) :: distrib
+
+    !> Fermi supported.
     real(dp), intent(in) :: kWeight(:)
 
+    !> k-point weightings
     real(dp) :: w
     integer i, j, ispin
     real(dp) :: x
@@ -301,17 +327,17 @@ contains
           do j = 1, size(eigenvals,dim=1)
             x = ( eigenvals(j,i,ispin) - Ef ) * w
             if (x<10.0_dp) then
-              ! Where the compiler does not handle inf gracefully,
-              ! trap the exponential function for small input values
-            #:if EXP_TRAP
+              ! Where the compiler does not handle inf gracefully, trap the exponential function for
+              ! small input values
+#:if EXP_TRAP
               if (x <= mExpArg) then
                 derivElectronCount = derivElectronCount + &
                     & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
               end if
-            #:else
+#:else
               derivElectronCount = derivElectronCount + &
                   & (w*kWeight(i)) * (exp(x)/((1.0_dp + exp(x))**2))
-            #:endif
+#:endif
             end if
           end do
         end do
@@ -320,34 +346,42 @@ contains
   end function derivElectronCount
 
 
-  !!* Calculate filling and TS for the given eigenspectrum and distribution
-  !!* function and Fermi energy, for two spin channels
-  !!* @ref G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169
-  !!* (1996).
-  !!* @ref M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989)
-  !!* @ref F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp
-  !!* 2102 (1998)
-  !!* @param Eband Band structure energy at T
-  !!* @param filling Electron occupancies
-  !!* @param TS Entropy
-  !!* @param E0 Band structure energy extrapolated to T=0K
-  !!* @param Ef Fermi energy for given distribution
-  !!* @param eigenvals The eigenvalues of the levels, 1st index is energy
-  !!* 2nd index is k-point and 3nd index is spin
-  !!* @param kT Thermal energy in atomic units
-  !!* @param distrib Choice of distribution functions, currently
-  !!* Fermi, Gaussian and Methfessle-Paxton supported. The flags is defined
-  !!* sumbolically, so (Methfessel + 2) gives the 2nd order M-P scheme
-  !!* @param kWeight k-point weightings
+  !> Calculate filling and TS for the given eigenspectrum and distribution function and Fermi
+  !> energy, for two spin channels
+  !>
+  !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
+  !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
+  !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
   subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
+
+    !> Band structure energy at T
     real(dp), intent(out) :: Eband(:)
+
+    !> Electron occupancies
     real(dp), intent(out) :: filling(:,:,:)
+
+    !> Entropy * temperature
     real(dp), intent(out) :: TS(:)
+
+    !> Band structure energy extrapolated to T=0K
     real(dp), intent(out) :: E0(:)
+
+    !> Fermi energy for given distribution
     real(dp), intent(in) :: Ef
+
+    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: eigenvals(:,:,:)
+
+    !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
+
+    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
+    !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+
+    !> scheme
     integer, intent(in) :: distrib
+
+    !> k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
     integer :: MPorder
@@ -419,17 +453,17 @@ contains
         do i = 1, kpts
           do j = 1, size(eigenvals, dim=1)
             x = (eigenvals(j, i, iSpin) - Ef) / kT
-            ! Where the compiler does not handle inf gracefully, trap the
-            ! exponential function for small values
-          #:if EXP_TRAP
+            ! Where the compiler does not handle inf gracefully, trap the exponential function for
+            ! small values
+#:if EXP_TRAP
             if (x > mExpArg) then
               filling(j, i, iSpin) = 0.0_dp
             else
               filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
             endif
-          #:else
+#:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
-          #:endif
+#:endif
             if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if
@@ -451,14 +485,17 @@ contains
   end subroutine electronFill
 
 
-  !!* Calculate the weighting factors for the Methfessel-Paxton smearing scheme
-  !!* @param A returned weighting values for the scheme, given by
-  !!* $A_n = \frac{(-1)^n}{n!4^n\sqrt{\pi]}$
-  !!* @param n the required order to calculate $A_n$ up to
-  !!* @ref M. Methfessel and A. T. Paxton, Phys. Rev. B Vol 40, pp 3616 (1989)
+  !> Calculate the weighting factors for the Methfessel-Paxton smearing scheme
+  !>
+  !> Ref: M. Methfessel and A. T. Paxton, Phys. Rev. B Vol 40, pp 3616 (1989)
   subroutine Aweights(A,n)
+
+    !> returned weighting values for the scheme
     real(dp), intent(out) :: A(0:)
+
+    !> the required order to calculate A_n up to
     integer, intent(in) :: n
+
     real(dp) :: nbang(0:n)
     integer i
     @:ASSERT(n>=0)
@@ -471,11 +508,19 @@ contains
   end subroutine Aweights
 
 
-  !! Middle gap position, assuming aufbau principle for the filling
+  !> Middle gap position, assuming aufbau principle for the filling
   function middleGap(eigenvals, kWeight, nElectrons)
+
+    !> Eigenvalues of states
     real(dp), intent(in) :: eigenvals(:,:,:)
+
+    !> Weights of k-points
     real(dp), intent(in) :: kWeight(:)
+
+    !> Number of electrons to fill in
     real(dp), intent(in) :: nElectrons
+
+    !> Resulting mid gap position
     real(dp) :: middleGap
 
     integer, allocatable :: tmpIndx(:)
@@ -504,6 +549,5 @@ contains
     middleGap = 0.5_dp * (eigenvals(jOrb, jKpt, jSpin) + eigenvals(iOrb, iKpt, iSpin))
 
   end function middleGap
-
 
 end module etemp

@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Auxiliary subroutines for the ASSERT command
+!> Auxiliary subroutines for the ASSERT command
 module assert
   use io
   implicit none
@@ -21,12 +21,15 @@ contains
 
 #:call ASSERT_CODE
 
-  !!* Prints assertion error and abort program execution.
-  !!* @param fileName Name of the file in which the error occured.
-  !!* @param lineNr   Nr. of the line at which the error occured.
+
+  !> Prints assertion error and abort program execution.
   subroutine assertError(fileName, lineNr)
+
+    !> Name of the file in which the error occured.
     character(*), intent(in) :: fileName
-    integer,      intent(in) :: lineNr
+
+    !> Nr. of the line at which the error occured.
+    integer, intent(in) :: lineNr
 
     write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
     write(stdout, '(A,A)') "!!! FILE:      ", fileName

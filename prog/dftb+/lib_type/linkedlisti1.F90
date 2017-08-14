@@ -7,6 +7,7 @@
 
 #:include 'linkedlist.fypp'
 
+!> Linked list for single real vectors
 module linkedlisti1
   use accuracy, only : dp
   implicit none

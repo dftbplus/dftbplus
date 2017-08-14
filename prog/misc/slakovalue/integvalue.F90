@@ -39,6 +39,7 @@ program integvalue
 
 contains
 
+
   !> Prints help and stops.
   subroutine printHelp()
 
@@ -61,12 +62,20 @@ contains
   end subroutine printHelp
 
 
-
   !> Process program arguments.
   !!
   subroutine processArguments(fname, homo, extended, col)
+
+    !> File name  
     character(*), intent(out) :: fname
-    logical, intent(out) :: homo, extended
+
+    !> homonuclear?
+    logical, intent(out) :: homo
+
+    !> extended format
+    logical, intent(out) :: extended
+
+    !> column to extract
     integer, intent(out) :: col
 
     character(lc) :: arg
@@ -104,13 +113,20 @@ contains
   end subroutine processArguments
 
 
-
   !> Returns the appropriate column of the SK-table.
   !!
   subroutine getSkColumnData(extended, skData, col, data)
+
+    !> extended format
     logical, intent(in) :: extended
+
+    !> Slater-Koster data
     type(TOldSKData), intent(in), target :: skData
+
+    !> Column to extract
     integer, intent(in) :: col
+
+    !> resulting data
     real(dp), pointer, intent(out) :: data(:,:)
 
     integer :: mycol
@@ -142,12 +158,20 @@ contains
   end subroutine getSkColumnData
 
 
-
   !> Writes values on a given grid.
   !!
   subroutine writeValues(skgrid, rStart, dr, nPoint)
+
+    !> SK data grid
     type(OSlakoEqGrid), intent(in) :: skgrid
-    real(dp), intent(in) :: rStart, dr
+
+    !> starting distance
+    real(dp), intent(in) :: rStart
+
+    !> separation
+    real(dp), intent(in) :: dr
+
+    !> Number of points
     integer, intent(in) :: nPoint
 
     integer :: ii
@@ -163,8 +187,5 @@ contains
     end do
 
   end subroutine writeValues
-
-
-
 
 end program integvalue

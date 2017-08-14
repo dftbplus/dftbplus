@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Routines to read/write a TGeometry type in HSD and XML format.
+!> Routines to read/write a TGeometry type in HSD and XML format.
 module typegeometryhsd
   use typegeometry
   use hsdutils
@@ -19,26 +19,31 @@ module typegeometryhsd
   implicit none
   private
 
-  !!* Writes the content of a geometry object to a dom tree or to an xml-writer
+
+  !> Writes the content of a geometry object to a dom tree or to an xml-writer
   interface writeTGeometryHSD
     module procedure writeTGeometryHSD_dom
     module procedure writeTGeometryHSD_xmlf
   end interface
 
-  !! Types/subroutines from TypeGeometry
+
+  !> Types/subroutines from TypeGeometry
   public :: TGeometry, normalize
 
-  !! Locally defined subroutines
-  public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
 
+  !> Locally defined subroutines
+  public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
 
 contains
 
-  !!* Write the geometry in HSD format to a specified node
-  !!* @param node Node in the HSD-tree which should contain the geometry
-  !!* @param geo  The geometry
+
+  !> Write the geometry in HSD format to a specified node
   subroutine writeTGeometryHSD_dom(node, geo)
+
+    !> Node in the HSD-tree which should contain the geometry
     type(fnode), pointer :: node
+
+    !> The geometry
     type(TGeometry), intent(in) :: geo
 
     call setChildValue(node, "TypeNames", geo%speciesNames, .false.)
@@ -52,12 +57,13 @@ contains
   end subroutine writeTGeometryHSD_dom
 
 
-
-  !!* Write the geometry in HSD format to an xml writer
-  !!* @param node Node in the HSD-tree which should contain the geometry
-  !!* @param geo  The geometry
+  !> Write the geometry in HSD format to an xml writer
   subroutine writeTGeometryHSD_xmlf(xf, geo)
+
+    !> Node in the HSD-tree which should contain the geometry
     type(xmlf_t), intent(inout) :: xf
+
+    !> The geometry
     type(TGeometry), intent(in) :: geo
 
     call writeChildValue(xf, "TypeNames", geo%speciesNames)
@@ -71,12 +77,13 @@ contains
   end subroutine writeTGeometryHSD_xmlf
 
 
-
-  !!* Read the geometry from a node in a HSD tree.
-  !!* @param node Node in the HSD tree containing the geomery
-  !!* @param geo  Contains the geometry on exit
+  !> Read the geometry from a node in a HSD tree.
   subroutine readTGeometryHSD(node, geo)
+
+    !> Node in the HSD tree containing the geomery
     type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
     type(string) :: modifier
@@ -131,7 +138,7 @@ contains
         geo%tFracCoord = .true.
       case default
         ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
-        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%value
+        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%convertValue
         call setChildValue(typesAndCoords, "", &
             &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
             &replace=.true.)
@@ -144,14 +151,11 @@ contains
       geo%latVecs(:,:) = reshape(latvec, (/3, 3/))
       if (len(modifier) > 0) then
         ind = getModifierIndex(char(modifier), lengthUnits, child)
-        geo%latVecs = geo%latVecs(:,:) * lengthUnits(ind)%value
+        geo%latVecs = geo%latVecs(:,:) * lengthUnits(ind)%convertValue
         call setChildValue(child, "", geo%latVecs, .true.)
       end if
       if (geo%tFracCoord) then
         geo%coords = matmul(geo%latVecs, geo%coords)
-        !call setChildValue(typesAndCoords, "", &
-        !    &reshape(geo%species, (/ 1, size(geo%species) /)), &
-        !    &geo%coords, replace=.true.)
       end if
       allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
@@ -166,12 +170,13 @@ contains
   end subroutine readTGeometryHSD
 
 
-
-  !!* Reads the geometry from a node in a HSD tree in GEN format
-  !!* @param node Node containing the geometry in Gen format
-  !!* @param geo  Contains the geometry on exit
+  !> Reads the geometry from a node in a HSD tree in GEN format
   subroutine readTGeometryGen(node, geo)
+
+    !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
     type(string) :: text
@@ -182,14 +187,16 @@ contains
   end subroutine readTGeometryGen
 
 
-
-  !!* Helping routine for reading geometry from a HSD tree in GEN format
-  !!* @param node Node to parse (only needed to produce proper error messages)
-  !!* @param geo  Contains the geometry on exit
-  !!* @param text Text content of the node
+  !> Helping routine for reading geometry from a HSD tree in GEN format
   subroutine readTGeometryGen_help(node, geo, text)
+
+    !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
+
+    !> Text content of the node
     character(len=*), intent(in) :: text
 
     type(string) :: txt
@@ -198,7 +205,7 @@ contains
     real(dp) :: coords(3), rTmp, det
     type(listString) :: speciesNames
 
-    !! Read first line of the gen file: Number of atoms, boundary conditions
+    ! Read first line of the gen file: Number of atoms, boundary conditions
     iStart = 1
     call getNextToken(text, geo%nAtom, iStart, iErr)
     call checkError(node, iErr, "Bad number of atoms.")
@@ -218,9 +225,9 @@ contains
           &// char(txt) // "'")
     end select
 
-    !! Reading the 2nd line of a gen file.
-    !! Since we can not rely on line breaks, we try to read in integers. If it
-    !! fails, we had a species name, so it will be read as string.
+    ! Reading the 2nd line of a gen file.
+    ! Since we cannot rely on line breaks, we try to read in integers. If that fails, we had a
+    ! species name instead so it will be read as string.
     call init(speciesNames)
     iErr = TOKEN_ERROR
     iOldStart = iStart
@@ -242,7 +249,7 @@ contains
     call asArray(speciesNames, geo%speciesNames)
     call destruct(speciesNames)
 
-    !! Read in sequential and species indices.
+    ! Read in sequential and species indices.
     allocate(geo%species(geo%nAtom))
     allocate(geo%coords(3, geo%nAtom))
     iStart = iOldStart
@@ -260,7 +267,7 @@ contains
           &"Nr. of species and nr. of specified elements do not match.")
     end if
 
-    !! Read in origin an lattice vectors, if the structure is periodic
+    ! Read in origin an lattice vectors, if the structure is periodic
     if (geo%tPeriodic) then
       allocate(geo%origin(3))
       allocate(geo%latVecs(3, 3))
@@ -298,7 +305,5 @@ contains
     call normalize(geo)
 
   end subroutine readTGeometryGen_help
-
-
 
 end module typegeometryhsd

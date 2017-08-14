@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains the Van der Waal parameters for the UFF force field.
+!> Contains the Van der Waal parameters for the UFF force field.
 module dispuffdata
   use accuracy
   use message, only : error
@@ -16,16 +16,26 @@ module dispuffdata
 
   public :: getUffValues
 
-  ! Contains UFF data (chemical symbol, vdW distance, depth of the LJ potential)
+
+  !> Contains UFF data (chemical symbol, vdW distance, depth of the LJ potential)
   type TUFF
+
+    !> Chemical symbol
     character(2) :: symbol
+
+    !> vdW minimum distance 
     real(dp) :: distance
+
+    !> depth of minimum
     real(dp) :: energy
   end type TUFF
 
-  ! Values are in AA and kcal/mol
-  ! (Data is awfully compressed, as F95 only allows 32 continuation lines and
-  ! 132 characters per one line!)
+
+  !> Values are in AA and kcal/mol
+  !>
+
+  !> (Data is awfully compressed, as F95 only allows 32 continuation lines and 132 characters per
+  !> one line!)
   type(TUFF) :: database(103) = (/&
 TUFF("h ", 2.886_dp, 0.044_dp), TUFF("he", 2.362_dp, 0.056_dp), TUFF("li", 2.451_dp, 0.025_dp), TUFF("be", 2.745_dp, 0.085_dp), &
 TUFF("b ", 4.083_dp, 0.180_dp), TUFF("c ", 3.851_dp, 0.105_dp), TUFF("n ", 3.660_dp, 0.069_dp), TUFF("o ", 3.500_dp, 0.060_dp), &
@@ -54,18 +64,23 @@ TUFF("np", 3.424_dp, 0.019_dp), TUFF("pu", 3.424_dp, 0.016_dp), TUFF("am", 3.381
 TUFF("bk", 3.339_dp, 0.013_dp), TUFF("cf", 3.313_dp, 0.013_dp), TUFF("es", 3.299_dp, 0.012_dp), TUFF("fm", 3.286_dp, 0.012_dp), &
 TUFF("md", 3.274_dp, 0.011_dp), TUFF("no", 3.248_dp, 0.011_dp), TUFF("lw", 3.236_dp, 0.011_dp) /)
 
-
 contains
 
-  !!* Returns distance and energy parameters of the UFF field.
-  !!* @param name Name of the element for look for.
-  !!* @param distance Distance (in Bohr) at return.
-  !!* @param energy Energy (in Hartree) at return.
-  !!* @param found Flags if the element has been found. If this parameter is
-  !!* not specified and the element is not found, the program stops.
+
+  !> Returns distance and energy parameters of the UFF field.
   subroutine getUffValues(name, distance, energy, found)
+
+    !> Name of the element for look for.
     character(len=*), intent(in) :: name
-    real(dp), intent(out) :: distance, energy
+
+    !> Distance (in Bohr) at return.    
+    real(dp), intent(out) :: distance
+
+    !> Energy (in Hartree) at return.
+    real(dp), intent(out) :: energy
+
+    !> Flags if the element has been found. If this parameter is not specified and the element is
+  !> not found, the program stops.
     logical, intent(out), optional :: found
 
     character(2) :: symbol

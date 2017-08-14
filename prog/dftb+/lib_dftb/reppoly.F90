@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Implements a repulsive potential between two atoms represented by
-!!* a polynomial of 9th degree
+!> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
 module reppoly
   use assert
   use accuracy
@@ -20,58 +19,77 @@ module reppoly
   public :: TRepPolyIn, ORepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv
 
-  !! Minimal and maximal power appearing in the polynomial
+
+  !> Minimal power appearing in the polynomial
   integer, parameter :: powMin = 2
+
+  !> Maximal power appearing in the polynomial
   integer, parameter :: powMax = 9
+
+  !> smallest power between 1 and powMin
   integer, parameter :: powMin1 = max(powMin, 1)
 
 
-  !!* Initialisation type for ORepPoly
+  !> Initialisation type for ORepPoly
   type TRepPolyIn
-    real(dp) :: polyCoeffs(powMin:powMax)         !* Polynomial coefficients
-    real(dp) :: cutoff                            !* Cutoff distance
+
+    !> Polynomial coefficients
+    real(dp) :: polyCoeffs(powMin:powMax)
+
+    !> Cutoff distance
+    real(dp) :: cutoff
   end type TRepPolyIn
 
 
-  !!* Contains the polynomial representation of a repulsive.
+  !> Contains the polynomial representation of a repulsive.
   type ORepPoly
     private
+
+    !> coefficients of the polynomial
     real(dp) :: polyCoeffs(powMin:powMax)
+
+    !> Cutoff distance
     real(dp) :: cutoff
+
+    !> initialised the repulsive
     logical :: tInit = .false.
   end type ORepPoly
 
 
-  !!* Initialises polynomial repulsive.
+  !> Initialises polynomial repulsive.
   interface init
     module procedure RepPoly_init
   end interface
 
-  !!* Returns cutoff of the repulsive.
+
+  !> Returns cutoff of the repulsive.
   interface getCutoff
     module procedure RepPoly_getCutoff
   end interface
 
-  !!* Returns energy of the repulsive for a given distance.
+
+  !> Returns energy of the repulsive for a given distance.
   interface getEnergy
     module procedure RepPoly_getEnergy
   end interface
 
-  !!* Returns gradient of the repulsive for a given distance.
+
+  !> Returns gradient of the repulsive for a given distance.
   interface getEnergyDeriv
     module procedure RepPoly_getEnergyDeriv
   end interface
 
-
 contains
 
-  !!* Initialises polynomial repulsive.
-  !!* @param self Polynomial repulsive.
-  !!* @param inp Input parameters for the polynomial repulsive.
-  subroutine RepPoly_init(self, inp)
-    type(ORepPoly), intent(out) :: self
-    type(TRepPolyIn), intent(in) :: inp
 
+  !> Initialises polynomial repulsive
+  subroutine RepPoly_init(self, inp)
+
+    !> Polynomial repulsive
+    type(ORepPoly), intent(out) :: self
+
+    !> Input parameters for the polynomial repulsive
+    type(TRepPolyIn), intent(in) :: inp
 
     @:ASSERT(.not. self%tInit)
     @:ASSERT(inp%cutoff >= 0.0_dp)
@@ -83,12 +101,13 @@ contains
   end subroutine RepPoly_init
 
 
-
-  !!* Returns cutoff of the repulsive.
-  !!* @param self Polynomial repulsive.
-  !!* @return Cutoff.
+  !> Returns cutoff of the repulsive
   function RepPoly_getCutoff(self) result(cutoff)
+
+    !> self Polynomial repulsive
     type(ORepPoly), intent(in) :: self
+
+    !> Cutoff
     real(dp) :: cutoff
 
     @:ASSERT(self%tInit)
@@ -97,13 +116,16 @@ contains
   end function RepPoly_getCutoff
 
 
-
-  !!* Returns energy of the repulsive for a given distance.
-  !!* @param self Polynomial repulsive.
-  !!* @param rr Distance between interacting atoms.
+  !> Returns energy of the repulsive for a given distance
   subroutine RepPoly_getEnergy(self, res, rr)
+
+    !> Polynomial repulsive
     type(ORepPoly), intent(in) :: self
+
+    !> Energy contribution
     real(dp), intent(out) :: res
+
+    !> Distance between interacting atoms
     real(dp), intent(in) :: rr
 
     real(dp) :: rrr
@@ -127,15 +149,19 @@ contains
   end subroutine RepPoly_getEnergy
 
 
-
-  !!* Returns gradient of the repulsive for a given distance.
-  !!* @param self Polynomial repulsive.
-  !!* @param res Resulting contribution
-  !!* @param x Actual vector between atoms
+  !> Returns gradient of the repulsive for a given distance.
   subroutine RepPoly_getEnergyDeriv(self, res, xx, d2)
+
+    !> Polynomial repulsive.
     type(ORepPoly), intent(in) :: self
+
+    !> Resulting contribution
     real(dp), intent(out) :: res(3)
+
+    !> Actual vector between atoms
     real(dp), intent(in) :: xx(3)
+
+    !> second derivative in direction of repulsive derivative
     real(dp), intent(out), optional :: d2
 
     integer :: ii
@@ -178,6 +204,5 @@ contains
     end if
 
   end subroutine RepPoly_getEnergyDeriv
-
 
 end module reppoly

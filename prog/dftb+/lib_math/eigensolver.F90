@@ -7,10 +7,9 @@
 
 #:include 'common.fypp'
 
-!!* Contains F90 wrapper functions for some commonly used lapack calls needed
-!!* in the code
-!!* @caveat contains some fixes for lapack 3.0 bugs, if this gets corrected in
-!!* lapack 4.x they should be removed
+!> Contains F90 wrapper functions for some commonly used lapack calls needed in the code.
+!> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
+!> removed.
 module eigensolver
   use assert
   use message
@@ -22,15 +21,13 @@ module eigensolver
 
   public :: heev, hegv, hegvd, gvr, bgv
 
-  character(len=100) :: error_string !* Used to return runtime diagnostics
 
-  !!* Simple eigensolver for a symmetric/Hermitian matrix
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @caveat the matrix a is overwritten
+  !> Used to return runtime diagnostics
+  character(len=100) :: error_string
+
+
+  !> Simple eigensolver for a symmetric/Hermitian matrix
+  !> Caveat: the matrix a is overwritten
   interface heev
     module procedure real_ssyev
     module procedure dble_dsyev
@@ -38,34 +35,10 @@ module eigensolver
     module procedure dblecmplx_zheev
   end interface heev
 
-!  !!* Simple eigensolver for a general matrix
-!  !!* @param a contains the matrix for the solver, returns eigenvalues if
-!  !!* requested
-!  !!* @param w eigenvalues
-!  !!* @param vr
-!  !!* @param vl
-!  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-!  !!* @caveat the matrix a is overwritten
-!  interface geev
-!    module procedure real_sgeev
-!    module procedure dble_dgeev
-!    module procedure cmplx_cgeev
-!    module procedure dblecmplx_zgeev
-!  end interface geev
 
-  !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param b contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved
-  !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
-  !!* default is 1
-  !!* @caveat the matrix a is overwritten
-  !!* @caveat the matrix b is overwritted with Cholesky factorization if
-  !!* eigenvalues are computed
+  !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem
+  !> caveat: the matrix a is overwritten
+  !> caveat: the matrix b is overwritten with Cholesky factorization
   interface hegv
     module procedure real_ssygv
     module procedure dble_dsygv
@@ -73,20 +46,11 @@ module eigensolver
     module procedure dblecmplx_zhegv
   end interface hegv
 
-  !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
-  !!* using divide and conquer
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param b contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved
-  !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
-  !!* default is 1
-  !!* @caveat the matrix a is overwritten
-  !!* @caveat the matrix b is overwritted with Cholesky factorization if
-  !!* eigenvalues are computed
+
+  !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem using divide and
+  !> conquer eigensolver
+  !> caveat: the matrix a is overwritten
+  !> caveat: the matrix b is overwritten with Cholesky factorization
   interface hegvd
     module procedure real_ssygvd
     module procedure dble_dsygvd
@@ -94,25 +58,11 @@ module eigensolver
     module procedure dblecmplx_zhegvd
   end interface hegvd
 
-  !!* Simple eigensolver for a symmetric/Hermitian generalized matrix problem
-  !!* using the lapack relatively robust representation solver, based on the
-  !!* SYGV source. If the requested number of eigenvalues is lower than
-  !!* the size of H/S suspace mode is used (optionally the range can be
-  !!* set using il and ul) to return the lowest eigenvalues/vectors of number
-  !!* size(w)
-  !!* @param a contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param b contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param jobz compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-  !!* @param itype optional specifies the problem type to be solved
-  !!* 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x, 3:B*A*x=(lambda)*x
-  !!* default is 1
-  !!* @param il optional lower range
-  !!* @param ul optional upper range
-  !!* @caveat the matrix a is overwritten
-  !!* @caveat the matrix b is overwritten
+
+  !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem using the lapack
+  !> relatively robust representation solver, based on the SYGV source. If the requested number of
+  !> eigenvalues is lower than the size of H/S suspace mode is used (optionally the range can be set
+  !> using il and ul) to return the lowest eigenvalues/vectors of number size(w)
   interface gvr
     module procedure real_ssygvr
     module procedure dble_dsygvr
@@ -120,16 +70,9 @@ module eigensolver
     module procedure dblecmplx_zhegvr
   end interface
 
-  !!* Simple eigensolver for a symmetric/Hermitian banded generalized matrix
-  !!* problem of the form A*x=(lambda)*B*x
-  !!* @param ab contains the matrix for the solver, returns eigenvalues if
-  !!* requested
-  !!* @param bb contains the second matrix for the solver
-  !!* @param w eigenvalues
-  !!* @param uplo upper or lower triangle of the matrix
-  !!* @param itype optional specifies the problem type to be solved
-  !!* @caveat the matrix ab is overwritten
-  !!* @caveat the matrix bb is overwritted with a split Cholesky factorization
+
+  !> Eigensolver for a symmetric/Hermitian banded generalized matrix
+  !> problem of the form A*x=(lambda)*B*x
   interface bgv
     module procedure real_ssbgv
     module procedure dble_dsbgv
@@ -139,13 +82,24 @@ module eigensolver
 
 contains
 
-  !!* Real eigensolver for a symmetric matrix
+
+  !> Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
+
+    !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
-    real(rsp), allocatable :: work(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    real(rsp), allocatable :: work(:)
     integer n, info
     integer :: int_idealwork
     real(rsp) :: idealwork(1)
@@ -160,7 +114,7 @@ contains
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
-    call SSYEV(jobz, uplo, n, a, n, w, work, int_idealwork, info)
+    call ssyev(jobz, uplo, n, a, n, w, work, int_idealwork, info)
     if (info/=0) then
       if (info<0) then
 99000 format ('Failure in diagonalisation routine ssyev,', &
@@ -175,15 +129,26 @@ contains
       endif
     endif
 
-  End Subroutine real_ssyev
+  end subroutine real_ssyev
 
-  !!* Double precision eigensolver for a symmetric matrix
-  Subroutine dble_dsyev(a,w,uplo,jobz)
+
+  !> Double precision eigensolver for a symmetric matrix
+  subroutine dble_dsyev(a,w,uplo,jobz)
+
+    !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
-    real(rdp), allocatable :: work(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    real(rdp), allocatable :: work(:)
     integer n, info
     integer :: int_idealwork
     real(rdp) :: idealwork(1)
@@ -198,7 +163,7 @@ contains
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
-    call DSYEV(jobz, uplo, n, a, n, w, work, int_idealwork, info)
+    call dsyev(jobz, uplo, n, a, n, w, work, int_idealwork, info)
     if (info/=0) then
       if (info<0) then
 99020 format ('Failure in diagonalisation routine dsyev,', &
@@ -213,14 +178,25 @@ contains
       endif
     endif
 
-  End Subroutine dble_dsyev
+  end subroutine dble_dsyev
 
-  !!* Complex eigensolver for a Hermitian matrix
-  Subroutine cmplx_cheev(a,w,uplo,jobz)
+
+  !> Complex eigensolver for a Hermitian matrix
+  subroutine cmplx_cheev(a,w,uplo,jobz)
+
+    !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     real(rsp), allocatable :: rwork(:)
     complex(rsp), allocatable :: work(:)
     integer n, info
@@ -232,13 +208,13 @@ contains
     n=size(a,dim=1)
     @:ASSERT(n>0)
     allocate(rwork(3*n-2))
-    call CHEEV(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
+    call cheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
       call error("Failue in CHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
-    call CHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
+    call cheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
       if (info<0) then
 99040 format ('Failure in diagonalisation routine cheev,', &
@@ -253,14 +229,25 @@ contains
       endif
     endif
 
-  End Subroutine cmplx_cheev
+  end subroutine cmplx_cheev
 
-  !!* Double complex eigensolver for a Hermitian matrix
-  Subroutine dblecmplx_zheev(a,w,uplo,jobz)
+
+  !> Double complex eigensolver for a Hermitian matrix
+  subroutine dblecmplx_zheev(a,w,uplo,jobz)
+
+    !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
     real(rdp), allocatable :: rwork(:)
     complex(rdp), allocatable :: work(:)
     integer n, info
@@ -272,13 +259,13 @@ contains
     n=size(a,dim=1)
     @:ASSERT(n>0)
     allocate(rwork(3*n-2))
-    call ZHEEV(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
+    call zheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
       call error("Failue in ZHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
-    call ZHEEV(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
+    call zheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
       if (info<0) then
 99060 format ('Failure in diagonalisation routine zheev,', &
@@ -293,17 +280,32 @@ contains
       endif
     endif
 
-  End Subroutine dblecmplx_zheev
+  end subroutine dblecmplx_zheev
 
 
-  !!* Real eigensolver for generalized symmetric matrix problem
-  Subroutine real_ssygv(a,b,w,uplo,jobz,itype)
+  !> Real eigensolver for generalized symmetric matrix problem
+  subroutine real_ssygv(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rsp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     real(rsp), allocatable :: work(:)
     integer n, info, iitype
     integer :: int_idealwork
@@ -320,13 +322,13 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call SSYGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
+    call ssygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
        call error("Failue in SSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
-    call SSYGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
+    call ssygv(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
     if (info/=0) then
        if (info<0) then
 99160 format ('Failure in diagonalisation routine ssygv,', &
@@ -346,16 +348,32 @@ contains
        endif
     endif
 
-  End Subroutine real_ssygv
+  end subroutine real_ssygv
 
-  !!* Double precision eigensolver for generalized symmetric matrix problem
-  Subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
+
+  !> Double precision eigensolver for generalized symmetric matrix problem
+  subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rdp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     real(rdp), allocatable :: work(:)
     integer n, info, iitype
     integer :: int_idealwork
@@ -372,13 +390,13 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call DSYGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
+    call dsygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
        call error("Failue in DSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
-    call DSYGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
+    call dsygv(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
     if (info/=0) then
        if (info<0) then
 99190 format ('Failure in diagonalisation routine dsygv,', &
@@ -398,20 +416,35 @@ contains
        endif
     endif
 
-  End Subroutine dble_dsygv
+  end subroutine dble_dsygv
 
-  !!* Complex eigensolver for generalized Hermitian matrix problem
-  Subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
+
+  !> Complex eigensolver for generalized Hermitian matrix problem
+  subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rsp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     complex(rsp), allocatable :: work(:)
     real(rsp), allocatable :: rwork(:)
-    integer n, info, iitype
-    integer :: int_idealwork
+    integer n, info, iitype, int_idealwork
     complex(rsp) :: idealwork(1)
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
@@ -434,7 +467,7 @@ contains
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, rwork, info)
+    call chegv(iitype, 'V', 'L', n, a, n, b, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
        if (info<0) then
 99220 format ('Failure in diagonalisation routine chegv,', &
@@ -454,22 +487,37 @@ contains
        endif
     endif
 
-  End Subroutine cmplx_chegv
+  end subroutine cmplx_chegv
 
-  !!* Double complex eigensolver for generalized Hermitian matrix problem
-  Subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
+
+  !> Double complex eigensolver for generalized Hermitian matrix problem
+  subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rdp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     complex(rdp), allocatable :: work(:)
     real(rdp), allocatable :: rwork(:)
-    integer n, info, iitype
-    integer :: int_idealwork
+    integer n, info, iitype, int_idealwork
     complex(rdp) :: idealwork(1)
-
+    
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))
@@ -490,7 +538,7 @@ contains
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, rwork, info)
+    call zhegv(iitype, 'V', 'L', n, a, n, b, n, w, work, int_idealwork, rwork, info)
     if (info/=0) then
        if (info<0) then
 99250 format ('Failure in diagonalisation routine zhegv,', &
@@ -510,17 +558,32 @@ contains
        endif
     endif
 
-  End Subroutine dblecmplx_zhegv
+  end subroutine dblecmplx_zhegv
 
-  !!* Real eigensolver for generalized symmetric matrix problem - divide and
-  !!* conquer
-  Subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
+
+  !> Real eigensolver for generalized symmetric matrix problem - divide and conquer
+  subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rsp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     real(rsp), allocatable :: work(:)
     integer n, info, iitype
     integer :: int_idealwork, iidealwork(1)
@@ -538,7 +601,7 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call SSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
+    call ssygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
          & iidealwork, -1, info)
     if (info/=0) then
        call error("Failue in SSYGVD to determine optimum workspace")
@@ -546,7 +609,7 @@ contains
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
     allocate(iwork(iidealwork(1)))
-    call SSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
+    call ssygvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
          & iwork, iidealwork(1), info)
     if (info/=0) then
        if (info<0) then
@@ -567,17 +630,32 @@ contains
        endif
     endif
 
-  End Subroutine real_ssygvd
+  end subroutine real_ssygvd
 
-  !!* Double precision eigensolver for generalized symmetric matrix problem
-  !!* divide and conquer
-  Subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
+
+  !> Double precision eigensolver for generalized symmetric matrix problem divide and conquer
+  subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
-    real(rdp), intent(inout) ::  b(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
+    real(rdp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     real(rdp), allocatable :: work(:)
     integer n, info, iitype
     integer :: int_idealwork, iidealwork(1)
@@ -595,7 +673,7 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call DSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
+    call dsygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & iidealwork, -1, info)
     if (info/=0) then
       call error("Failue in DSYGVD to determine optimum workspace")
@@ -603,7 +681,7 @@ contains
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
     allocate(iwork(iidealwork(1)))
-    call DSYGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
+    call dsygvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
         & iwork, iidealwork(1), info)
     if (info/=0) then
       if (info<0) then
@@ -624,17 +702,32 @@ contains
       endif
     endif
 
-  End Subroutine dble_dsygvd
+  end subroutine dble_dsygvd
 
-  !!* Complex eigensolver for generalized Hermitian matrix problem divide and
-  !!* conquer
-  Subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
+
+  !> Complex eigensolver for generalized Hermitian matrix problem divide and conquer
+  subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rsp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     complex(rsp), allocatable :: work(:)
     real(rsp), allocatable :: rwork(:)
     integer n, info, iitype
@@ -654,7 +747,7 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call CHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
+    call chegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
       call error("Failue in CHEGVD to determine optimum workspace")
@@ -664,7 +757,7 @@ contains
     allocate(work(int_idealwork))
     allocate(rwork(int_ridealwork))
     allocate(iwork(iidealwork(1)))
-    call CHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork,&
+    call chegvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork,&
         & rwork, int_ridealwork, iwork, iidealwork(1), info)
     if (info/=0) then
       if (info<0) then
@@ -685,17 +778,32 @@ contains
       endif
     endif
 
-  End Subroutine cmplx_chegvd
+  end subroutine cmplx_chegvd
 
-  !!* Double complex eigensolver for generalized Hermitian matrix problem
-  !!* divide and conquer
-  Subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
+
+  !> Double complex eigensolver for generalized Hermitian matrix problem divide and conquer
+  subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rdp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
     complex(rdp), allocatable :: work(:)
     real(rdp), allocatable :: rwork(:)
     integer n, info, iitype
@@ -715,7 +823,7 @@ contains
       iitype = 1
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call ZHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
+    call zhegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
       call error("Failue in ZHEGVD to determine optimum workspace")
@@ -725,7 +833,7 @@ contains
     allocate(work(int_idealwork))
     allocate(rwork(int_ridealwork))
     allocate(iwork(iidealwork(1)))
-    call ZHEGVD(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
+    call zhegvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
         & rwork, int_ridealwork, iwork, iidealwork(1), info)
     if (info/=0) then
       if (info<0) then
@@ -746,23 +854,41 @@ contains
       endif
     endif
 
-  End Subroutine dblecmplx_zhegvd
+  end subroutine dblecmplx_zhegvd
 
-  !!* Real eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* This version re-uses a triangle of a matrix (saving an additional
-  !!* allocation that was in the previous version)
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+
+  !> Real eigensolver for generalized symmetric matrix problem - Relatively Robust
+  !> Representation, optionally use the subspace form if w is smaller than the size of a and b, then
+  !> only the first n eigenvalues/eigenvectors are found.
+  !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
+  !> previous version).
+  !> Based in part on deMon routine from T. Heine
   subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rsp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rsp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
+    !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
+    !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
     real(rsp), allocatable :: work(:)
@@ -831,10 +957,10 @@ contains
     info = 0
 
     if (subspace) then
-      call SSYEVR(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call ssyevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
     else
-      call SSYEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call ssyevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
     end if
 
@@ -847,7 +973,7 @@ contains
     allocate(iwork(liwork))
 
     ! Form a Cholesky factorization of B.
-    call SPOTRF( uplo, n, b, n, info )
+    call spotrf( uplo, n, b, n, info )
     if( info /= 0 ) then
       info = n + info
 99400 format ('Failure in diagonalisation routine SSYGVR,', &
@@ -944,21 +1070,39 @@ contains
 
   end subroutine real_ssygvr
 
-  !!* Double precision  eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* This version re-uses a triangle of a matrix (saving an additional
-  !!* allocation that was in the previous version)
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+
+  !> Double precision eigensolver for generalized symmetric matrix problem - Relatively Robust
+  !> Representation, optionally use the subspace form if w is smaller than the size of a and b, then
+  !> only the first n eigenvalues/eigenvectors are found.
+  !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
+  !> previous version).
+  !> Based in part on deMon routine from T. Heine
   subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     real(rdp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     real(rdp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
+    !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
+    !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
     real(rdp), allocatable :: work(:)
@@ -1027,10 +1171,10 @@ contains
     info = 0
 
     if (subspace) then
-      call DSYEVR(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call dsyevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
     else
-      call DSYEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call dsyevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
     end if
 
@@ -1043,7 +1187,7 @@ contains
     allocate(iwork(liwork))
 
     ! Form a Cholesky factorization of B.
-    call DPOTRF( uplo, n, b, n, info )
+    call dpotrf( uplo, n, b, n, info )
     if( info /= 0 ) then
       info = n + info
 99400 format ('Failure in diagonalisation routine DSYGVR,', &
@@ -1140,19 +1284,39 @@ contains
 
   end subroutine dble_dsygvr
 
-  !!* Complex eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+
+  !> Complex precision eigensolver for generalized symmetric matrix problem - Relatively Robust
+  !> Representation, optionally use the subspace form if w is smaller than the size of a and b, then
+  !> only the first n eigenvalues/eigenvectors are found.
+  !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
+  !> previous version).
+  !> Based in part on deMon routine from T. Heine
   subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rsp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rsp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
+    !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
+    !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
     complex(rsp), allocatable :: work(:)
@@ -1223,10 +1387,10 @@ contains
     info = 0
 
     if (subspace) then
-      call CHEEVR(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call cheevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
     else
-      call CHEEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call cheevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
     end if
 
@@ -1241,7 +1405,7 @@ contains
     allocate(rwork(lrwork))
 
     ! Form a Cholesky factorization of B.
-    call CPOTRF( uplo, n, b, n, info )
+    call cpotrf( uplo, n, b, n, info )
     if( info /= 0 ) then
       info = n + info
 99400 format ('Failure in diagonalisation routine CHEGVR,', &
@@ -1250,7 +1414,7 @@ contains
       call error(error_string)
     end if
     ! Transform problem to standard eigenvalue problem and solve.
-    call CHEGST( iitype, uplo, n, a, n, b, n, info )
+    call chegst( iitype, uplo, n, a, n, b, n, info )
 
     if( info /= 0 ) then
       write(error_string, *)'Failure in CHEGST to transform to standard',info
@@ -1278,11 +1442,11 @@ contains
     end if
 
     if (subspace) then
-      call CHEEVR( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
+      call cheevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     else
-      call CHEEVR( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
+      call cheevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     end if
@@ -1319,7 +1483,7 @@ contains
         else
           trans = 'C'
         end if
-        call CTRSM('Left',uplo_new,trans,'Non-unit',n,neig, &
+        call ctrsm('Left',uplo_new,trans,'Non-unit',n,neig, &
             & cmplx(1.0,0.0,rsp),A,n, B,n)
       else if( iitype == 3 ) then
         ! For B*A*x=(lambda)*x;
@@ -1329,7 +1493,7 @@ contains
         else
           trans = 'N'
         end if
-        call CTRMM('Left',uplo_new,trans,'Non-unit',n,neig, &
+        call ctrmm('Left',uplo_new,trans,'Non-unit',n,neig, &
             & cmplx(1.0,0.0,rsp),a,n, b,n)
       end if
       do ii = 1,m
@@ -1340,19 +1504,39 @@ contains
 
   end subroutine cmplx_chegvr
 
-  !!* Double complex eigensolver for generalized symmetric matrix problem -
-  !!* Relatively Robust Representation, optionally use the subspace form if w
-  !!* is smaller than the  size of a and b, then only the first n
-  !!* eigenvalues/eigenvectors are found
-  !!* @author B. Hourahine, based in part on deMon routine from T. Heine
+
+  !> Double complex precision eigensolver for generalized symmetric matrix problem - Relatively
+  !> Robust Representation, optionally use the subspace form if w is smaller than the size of a and
+  !> b, then only the first n eigenvalues/eigenvectors are found.
+  !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
+  !> previous version).
+  !> Based in part on deMon routine from T. Heine
   subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
     complex(rdp), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
     complex(rdp), intent(inout) :: b(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+
+    !> lower range of eigenstates
     integer, optional, intent(in) :: ilIn
+
+    !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
     complex(rdp), allocatable :: work(:)
@@ -1423,10 +1607,10 @@ contains
     info = 0
 
     if (subspace) then
-      call ZHEEVR(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call zheevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
     else
-      call ZHEEVR(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
+      call zheevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
           & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
     end if
 
@@ -1441,7 +1625,7 @@ contains
     allocate(rwork(lrwork))
 
     ! Form a Cholesky factorization of B.
-    call ZPOTRF( uplo, n, b, n, info )
+    call zpotrf( uplo, n, b, n, info )
     if( info /= 0 ) then
       info = n + info
 99400 format ('Failure in diagonalisation routine ZHEEVR,', &
@@ -1450,7 +1634,7 @@ contains
       call error(error_string)
     end if
     ! Transform problem to standard eigenvalue problem and solve.
-    call ZHEGST( iitype, uplo, n, a, n, b, n, info )
+    call zhegst( iitype, uplo, n, a, n, b, n, info )
 
     if( info /= 0 ) then
       write(error_string, *)'Failure in ZHEGST to transform to standard',info
@@ -1478,11 +1662,11 @@ contains
     end if
 
     if (subspace) then
-      call ZHEEVR( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
+      call zheevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     else
-      call ZHEEVR( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
+      call zheevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
           & liwork, info )
     end if
@@ -1519,7 +1703,7 @@ contains
         else
           trans = 'C'
         end if
-        call ZTRSM('Left',uplo_new,trans,'Non-unit',n,neig, &
+        call ztrsm('Left',uplo_new,trans,'Non-unit',n,neig, &
             & cmplx(1.0,0.0,rdp),A,n, B,n)
       else if( iitype == 3 ) then
         ! For B*A*x=(lambda)*x;
@@ -1529,7 +1713,7 @@ contains
         else
           trans = 'N'
         end if
-        call ZTRMM('Left',uplo_new,trans,'Non-unit',n,neig, &
+        call ztrmm('Left',uplo_new,trans,'Non-unit',n,neig, &
             & cmplx(1.0,0.0,rdp),a,n, b,n)
       end if
       do ii = 1,m
@@ -1541,13 +1725,22 @@ contains
   end subroutine dblecmplx_zhegvr
 
 
-
-    !!* simple single precision banded matrix eigensolver
+  !> Single precision banded symmetric generalised matrix eigensolver
   subroutine real_ssbgv(ab, bb, w, uplo, z)
+
+    !> contains the matrix for the solver (overwritten before exit)
     real(rsp), intent(inout) :: ab(:,:)
+
+    !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     real(rsp), intent(inout) :: bb(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> returns calculated eigenvectors if present
     real(rsp), optional, intent(out) :: z(:,:)
 
     real(rsp), allocatable :: work(:)
@@ -1583,9 +1776,9 @@ contains
     allocate(work(3*n))
 
     if (present(z)) then
-      call SSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
+      call ssbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
     else
-      call SSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,info )
+      call ssbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,info )
     end if
 
     if (info/=0) then
@@ -1609,12 +1802,23 @@ contains
 
   end subroutine real_ssbgv
 
-  !!* Simple double precision banded matrix eigen solver
+
+  !> Double precision banded symmetric generalised matrix eigensolver
   subroutine dble_dsbgv(ab, bb, w, uplo, z)
+
+    !> contains the matrix for the solver (overwritten before exit)
     real(rdp), intent(inout) :: ab(:,:)
+
+    !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     real(rdp), intent(inout) :: bb(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> returns calculated eigenvectors if present
     real(rdp), optional, intent(out) :: z(:,:)
 
     real(rdp), allocatable :: work(:)
@@ -1650,9 +1854,9 @@ contains
     allocate(work(3*n))
 
     if (present(z)) then
-      call DSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
+      call dsbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,info )
     else
-      call DSBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,info )
+      call dsbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,info )
     end if
 
     if (info/=0) then
@@ -1676,12 +1880,23 @@ contains
 
   end subroutine dble_dsbgv
 
-  !!* Simple complex precision banded matrix eigen solver
+
+  !> Complex banded symmetric generalised matrix eigensolver
   subroutine cmplx_chbgv(ab, bb, w, uplo, z)
+
+    !> contains the matrix for the solver (overwritten before exit)
     complex(rsp), intent(inout) :: ab(:,:)
+
+    !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     complex(rsp), intent(inout) :: bb(:,:)
+
+    !> eigenvalues
     real(rsp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> returns calculated eigenvectors if present
     complex(rsp), optional, intent(out) :: z(:,:)
 
     complex(rsp), allocatable :: work(:)
@@ -1719,9 +1934,9 @@ contains
     allocate(rwork(3*n))
 
     if (present(z)) then
-      call CHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
+      call chbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
     else
-      call CHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,rwork, &
+      call chbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,rwork, &
           & info )
     end if
 
@@ -1746,12 +1961,23 @@ contains
 
   end subroutine cmplx_chbgv
 
-  !!* Simple double complex precision banded matrix eigen solver
+
+  !> Complex double precision banded symmetric generalised matrix eigensolver
   subroutine dblecmplx_zhbgv(ab, bb, w, uplo, z)
+
+    !> contains the matrix for the solver (overwritten before exit)
     complex(rdp), intent(inout) :: ab(:,:)
+
+    !> contains the second matrix for the solver (overwritten by split Cholesky factorization)
     complex(rdp), intent(inout) :: bb(:,:)
+
+    !> eigenvalues
     real(rdp), intent(out) :: w(:)
+
+    !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
+
+    !> returns calculated eigenvectors if present
     complex(rdp), optional, intent(out) :: z(:,:)
 
     complex(rdp), allocatable :: work(:)
@@ -1789,9 +2015,9 @@ contains
     allocate(rwork(3*n))
 
     if (present(z)) then
-      call ZHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
+      call zhbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,z,ldz,work,rwork,info )
     else
-      call ZHBGV( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,rwork, &
+      call zhbgv( jobz,uplo,n,ka,kb,ab,ldab,bb,ldbb,w,zTmp,ldz,work,rwork, &
           & info )
     end if
 
