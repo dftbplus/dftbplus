@@ -16,8 +16,8 @@ inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_ipisocket) $
 _mod_inputdata_module: inputdata.o
 _mod_inputdata_module = $(inputdata.o)
 
-mainio.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_charmanip _mod_energies _mod_blasroutines _mod_mdintegrator _mod_assert _mod_taggedoutput _mod_fifo _mod_linkedlist _mod_spin _mod_periodic _mod_xmlf90 _mod_accuracy _mod_hsdutils
-mainio.o = mainio.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_charmanip) $(_mod_energies) $(_mod_blasroutines) $(_mod_mdintegrator) $(_mod_assert) $(_mod_taggedoutput) $(_mod_fifo) $(_mod_linkedlist) $(_mod_spin) $(_mod_periodic) $(_mod_xmlf90) $(_mod_accuracy) $(_mod_hsdutils)
+mainio.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_charmanip _mod_energies _mod_blasroutines _mod_mdintegrator _mod_formatout _mod_assert _mod_taggedoutput _mod_fifo _mod_linkedlist _mod_spin _mod_periodic _mod_xmlf90 _mod_accuracy _mod_hsdutils
+mainio.o = mainio.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_charmanip) $(_mod_energies) $(_mod_blasroutines) $(_mod_mdintegrator) $(_mod_formatout) $(_mod_assert) $(_mod_taggedoutput) $(_mod_fifo) $(_mod_linkedlist) $(_mod_spin) $(_mod_periodic) $(_mod_xmlf90) $(_mod_accuracy) $(_mod_hsdutils)
 _mod_mainio: mainio.o
 _mod_mainio = $(mainio.o)
 

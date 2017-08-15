@@ -806,11 +806,11 @@ program dftbplus
         if (tWriteRealHS .or. tWriteHS) then
           ! Write out matrices if necessary and quit.
           if (tImHam) then
-            call writeHS(tWriteHS, tWriteRealHS, ham, over, &
+            call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, &
                 & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, &
                 & img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
           else
-            call writeHS(tWriteHS, tWriteRealHS, ham, over, &
+            call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, &
                 & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, &
                 & img2CentCell, kPoint, iCellVec, cellVec)
           end if
@@ -1525,7 +1525,8 @@ program dftbplus
         write(tmpStr,"(A, I0)") 'Geometry Step: ', iGeoStep
       end if
       ! save geometry in gen format
-      call writeGenGeometry()
+      call writeGenGeometry(tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic, geoOutFile,&
+          & pCoord0Out, species0, speciesName, latVec)
 
       if (tPrintMulliken) then
         if (nSpin == 4) then
@@ -2079,7 +2080,8 @@ program dftbplus
           if (tWriteRestart) then
             write(tmpStr, "(A, I0)") 'MD iter: ', iGeoStep
             ! save geometry in gen format
-            call writeGenGeometry()
+            call writeGenGeometry(tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic, geoOutFile,&
+                & pCoord0Out, species0, speciesName, latVec)
             if (tMulliken) then
               call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, &
                   &speciesName, charges=sum(qOutput(:,:,1), dim=1),&
@@ -2414,58 +2416,6 @@ program dftbplus
 contains
 
 
-  !> Invokes the writing routines for the Hamiltonian and overlap matrices.
-  subroutine writeHS(tWriteHS, tWriteRealHS, ham, over, iNeighbor, &
-      &nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, &
-      &cellVec, iHam)
-    logical, intent(in) :: tWriteHS, tWriteRealHS
-    real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
-    integer, intent(in) :: iAtomStart(:), iPair(0:,:), img2CentCell(:)
-    real(dp), intent(in) :: kPoint(:,:)
-    integer, intent(in) :: iCellVec(:)
-    real(dp), intent(in) :: cellVec(:,:)
-    real(dp), intent(in), optional :: iHam(:,:)
-
-    integer :: iS, nSpin
-
-    nSpin = size(ham, dim=2)
-
-    if (tWriteRealHS) then
-      do iS = 1, nSpin
-        call writeSparse("hamreal" // i2c(iS) // ".dat", ham(:,iS), iNeighbor, &
-            &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
-        if (present(iHam)) then
-          call writeSparse("hamimag" // i2c(iS) // ".dat", iHam(:,iS),&
-              & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,iCellVec,&
-              & cellVec)
-        end if
-      end do
-      call writeSparse("overreal.dat", over, iNeighbor, &
-          &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
-    end if
-    if (tWriteHS) then
-      if (tRealHS) then
-        do iS = 1, nSpin
-          call writeSparseAsSquare("hamsqr" // i2c(iS) // ".dat", ham(:,iS), &
-              &iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
-        end do
-        call writeSparseAsSquare("oversqr.dat", over, iNeighbor, nNeighbor, &
-            &iAtomStart, iPair, img2CentCell)
-      else
-        do iS = 1, nSpin
-          call writeSparseAsSquare("hamsqr" // i2c(iS) // ".dat", ham(:,iS), &
-              &kPoint, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
-              &iCellVec, cellVec)
-        end do
-        call writeSparseAsSquare("oversqr.dat", over, kPoint, iNeighbor, &
-            &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
-      end if
-    end if
-
-  end subroutine writeHS
-
-
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
@@ -2587,25 +2537,6 @@ contains
     end if
 
   end subroutine getFillingsAndBandEnergies
-
-
-  !> Write out geometry in gen format if needed
-  subroutine writeGenGeometry()
-    character(lc) :: lcTmpLocal
-    if (tGeoOpt .or. tMD) then
-      if (tWriteRestart) then
-        write (lcTmpLocal, "(A,A)") trim(geoOutFile), ".gen"
-        call clearFile(trim(lcTmpLocal))
-        if (tPeriodic) then
-          call writeGenFormat(trim(lcTmpLocal), pCoord0Out, species0, speciesName, &
-              &latVec, tFracCoord)
-        else
-          call writeGenFormat(trim(lcTmpLocal), coord0, species0, speciesName)
-        end if
-      end if
-    end if
-  end subroutine writeGenGeometry
-
 
 
 end program dftbplus

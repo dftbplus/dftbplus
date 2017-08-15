@@ -26,6 +26,7 @@ module mainio
   use xmlf90
   use hsdutils, only : writeChildValue
   use mdintegrator, only : OMdIntegrator, state
+  use formatout
   implicit none
   private
 
@@ -35,6 +36,7 @@ module mainio
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
+  public :: writeHS, writeGenGeometry
   public :: format1U, format2U, format1Ue, format2Ue, format1U1e
 
 
@@ -1698,6 +1700,89 @@ contains
     close(fd)
 
   end subroutine writeMdOut3
+
+
+
+  !> Invokes the writing routines for the Hamiltonian and overlap matrices.
+  subroutine writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
+      & iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
+    logical, intent(in) :: tWriteHS, tWriteRealHS, tRealHS
+    real(dp), intent(in) :: ham(:,:), over(:)
+    integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:), iPair(0:,:), img2CentCell(:)
+    real(dp), intent(in) :: kPoint(:,:)
+    integer, intent(in) :: iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    real(dp), intent(in), optional :: iHam(:,:)
+
+    integer :: iS, nSpin
+
+    nSpin = size(ham, dim=2)
+
+    if (tWriteRealHS) then
+      do iS = 1, nSpin
+        call writeSparse("hamreal" // i2c(iS) // ".dat", ham(:,iS), iNeighbor, &
+            &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+        if (present(iHam)) then
+          call writeSparse("hamimag" // i2c(iS) // ".dat", iHam(:,iS),&
+              & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,iCellVec,&
+              & cellVec)
+        end if
+      end do
+      call writeSparse("overreal.dat", over, iNeighbor, &
+          &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+    end if
+    if (tWriteHS) then
+      if (tRealHS) then
+        do iS = 1, nSpin
+          call writeSparseAsSquare("hamsqr" // i2c(iS) // ".dat", ham(:,iS), &
+              &iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
+        end do
+        call writeSparseAsSquare("oversqr.dat", over, iNeighbor, nNeighbor, &
+            &iAtomStart, iPair, img2CentCell)
+      else
+        do iS = 1, nSpin
+          call writeSparseAsSquare("hamsqr" // i2c(iS) // ".dat", ham(:,iS), &
+              &kPoint, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
+              &iCellVec, cellVec)
+        end do
+        call writeSparseAsSquare("oversqr.dat", over, kPoint, iNeighbor, &
+            &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+      end if
+    end if
+
+  end subroutine writeHS
+
+
+  !> Write out geometry in gen format if needed
+  subroutine writeGenGeometry(tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic, geoOutFile,&
+      & coords0, species0, speciesNames, latVecs)
+    logical, intent(in) :: tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic
+    character(*), intent(in) :: geoOutFile
+    real(dp), intent(in) :: coords0(:,:)
+    integer, intent(in) :: species0(:)
+    character(*), intent(in) :: speciesNames(:)
+    real(dp), intent(in) :: latVecs(:,:)
+
+    character(lc) :: lcTmpLocal
+
+    if (tGeoOpt .or. tMD) then
+      if (tWriteRestart) then
+        write(lcTmpLocal, "(A, A)") trim(geoOutFile), ".gen"
+        call clearFile(trim(lcTmpLocal))
+        if (tPeriodic) then
+          call writeGenFormat(trim(lcTmpLocal), coords0, species0, speciesNames, latVecs,&
+              & tFracCoord)
+        else
+          call writeGenFormat(trim(lcTmpLocal), coords0, species0, speciesNames)
+        end if
+      end if
+    end if
+
+  end subroutine writeGenGeometry
+
+
+
   
 
 end module mainio
