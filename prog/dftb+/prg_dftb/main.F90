@@ -50,11 +50,20 @@ module main
   use pmlocalisation
   use linresp_module
   use mainio
+  use commontypes
   use xmlf90
   implicit none
   private
 
   public :: runDftbPlus
+
+  ! Name of the human readable files
+  character(*), parameter :: autotestTag = "autotest.tag"
+  character(*), parameter :: userOut = "detailed.out"
+  character(*), parameter :: bandOut = "band.out"
+  character(*), parameter :: mdOut = "md.out"
+  character(*), parameter :: resultsTag = "results.tag"
+  character(*), parameter :: hessianOut = "hessian.out"
 
   
 contains
@@ -63,7 +72,7 @@ contains
     use initprogram
     
     
-    integer                  :: nk, nSpin2, nK2, iSpin2, iK2
+    integer                  :: nk, iSpin2, iK2
 
     complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
     real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:), HSqrReal2(:,:)
@@ -102,10 +111,10 @@ contains
 
 
     !> Total energy components
-    type(TEnergies), allocatable :: energy
+    type(TEnergies) :: energy
 
     !> Potentials for orbitals
-    type(TPotentials), allocatable :: potential
+    type(TPotentials) :: potential
 
     real(dp), allocatable :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
     real(dp), allocatable :: chrgForces(:,:)
@@ -220,14 +229,6 @@ contains
     integer :: fdHessian
 
 
-    !> Name of the human readable file
-    character(*), parameter :: autotestTag = "autotest.tag"
-
-    character(*), parameter :: userOut = "detailed.out"
-    character(*), parameter :: bandOut = "band.out"
-    character(*), parameter :: mdOut = "md.out"
-    character(*), parameter :: resultsTag = "results.tag"
-    character(*), parameter :: hessianOut = "hessian.out"
 
     !> Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
@@ -278,186 +279,28 @@ contains
     !> temporary variable for number of occupied levels
     integer :: nFilledLev
 
-    !> Nr. of different spin Hamiltonians
-    integer :: nSpinHams
-
-    !> Size of the sqr Hamiltonian
-    integer :: sqrHamSize
-
-    elecStress = 0.0_dp
-    repulsiveStress = 0.0_dp
-    kineticStress = 0.0_dp
-    dispStress = 0.0_dp
-    totalStress = 0.0_dp
-    elecLatDeriv = 0.0_dp
-    repulsiveLatDeriv = 0.0_dp
-    dispLatDeriv = 0.0_dp
-    totalLatDeriv = 0.0_dp
-    derivCellVol = 0.0_dp
-
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
-    call initTaggedWriter()
-    if (tWriteAutotest) then
-      call initOutputFile(autotestTag, fdAutotest)
-    end if
-    if (tWriteResultsTag) then
-      call initOutputFile(resultsTag, fdResultsTag)
-    end if
-    if (tWriteBandDat) then
-      call initOutputFile(bandOut, fdBand)
-    end if
-    fdEigvec = getFileId()
-    if (tDerivs) then
-      call initOutputFile(hessianOut, fdHessian)
-    end if
-    if (tWriteDetailedOut) then
-      call initOutputFile(userOut, fdUser)
-    end if
-    if (tMD) then
-      call initOutputFile(mdOut, fdMD)
-    end if
+    call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+        & tWriteDetailedOut, tMd, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser,&
+        & fdMd)
 
-    allocate(rhoPrim(0, nSpin))
-    allocate(h0(0))
-    allocate(iRhoPrim(0, nSpin))
+    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
+      & tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
+      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
+      & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
+      & ERhoPrim, ERhoPrim2, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
+      & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
+      & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
+      & SSqrReal, rhoSqrReal, dqAtom, naturalOrbs, occNatural, velocities, movedVelo, movedAccel,&
+      & movedMass)
 
-    allocate(excitedDerivs(0, 0))
-
-    if (tForces) then
-      allocate(ERhoPrim(0))
-      allocate(ERhoPrim2(0))
-    end if
-
-    if (tForces) then
-      allocate(derivs(3,nAtom))
-      allocate(repulsiveDerivs(3,nAtom))
-      allocate(totalDeriv(3,nAtom))
-      if (tExtChrg) then
-        allocate(chrgForces(3, nExtChrg))
-      end if
-      if (tLinResp) then
-        deallocate(excitedDerivs)
-        allocate(excitedDerivs(3, nAtom))
-      end if
-    end if
-
-    allocate(energy)
-    call init(energy,nAtom)
-
-    allocate(potential)
-    call init(potential, orb, nAtom, nSpin)
-    allocate(shift3rd(nAtom))
-    allocate(orbresshift3rd(orb%mShell,nAtom))
-
-    ! Nr. of independent spin Hamiltonians
-    select case (nSpin)
-    case (1)
-      nSpinHams = 1
-      sqrHamSize = nOrb
-    case (2)
-      nSpinHams = 2
-      sqrHamSize = nOrb
-    case (4)
-      nSpinHams = 1
-      sqrHamSize = 2 * nOrb
-    end select
-
-    allocate(TS(nSpinHams))
-    allocate(E0(nSpinHams))
-    allocate(Eband(nSpinHams))
-    allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
-    allocate(eigen2(sqrHamSize, nKPoint, nSpinHams))
-    allocate(filling(sqrHamSize, nKpoint, nSpinHams))
-
-    allocate(coord0Fold(3, nAtom))
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
     else
       pCoord0Out => coord0
-    end if
-
-    if (tMD.or.tDerivs) then
-      allocate(new3Coord(3, nMovedAtom))
-    end if
-
-    if (tCoordOpt) then
-      allocate(tmpDerivs(size(tmpCoords)))
-    else
-      allocate(tmpDerivs(0))
-    end if
-
-    if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
-      allocate(orbitalL(3,orb%mShell,nAtom))
-      orbitalL = 0.0_dp
-    else
-      allocate(orbitalL(0,0,0))
-    end if
-
-    if ((tMulliken .and. tSpinOrbit) .and. .not.  tDualSpinOrbit) then
-      allocate(orbitalLPart(3,orb%mShell,nAtom))
-      orbitalLPart = 0.0_dp
-    else
-      allocate(orbitalLPart(0,0,0))
-    end if
-    eigen(:,:,:) = 0.0_dp
-    eigen2(:,:,:) = 0.0_dp
-
-    if (tStoreEigvecs) then
-      nSpin2 = 1
-      nK2 = 1
-    else
-      nSpin2 = nSpin
-      nK2 = nKPoint
-    end if
-
-    ! If only H/S should be printed, no allocation for square HS is needed
-    if (.not. (tWriteRealHS .or. tWriteHS)) then
-      if (t2Component) then
-        allocate(HSqrCplx(sqrHamSize, sqrHamSize, nK2, 1))
-        allocate(SSqrCplx(sqrHamSize, sqrHamSize))
-      elseif (tRealHS) then
-        allocate(HSqrReal(sqrHamSize, sqrHamSize, nSpin2))
-        if (any(forceType == [ 1, 2, 3 ])) then
-          allocate(HSqrReal2(sqrHamSize, sqrHamSize))
-        end if
-        allocate(SSqrReal(sqrHamSize, sqrHamSize))
-      else
-        allocate(HSqrCplx(sqrHamSize, sqrHamSize, nK2, nSpin2))
-        if (any(forceType == [ 1, 2, 3 ])) then
-          allocate(HSqrCplx2(sqrHamSize, sqrHamSize))
-        end if
-        allocate(SSqrCplx(sqrHamSize, sqrHamSize))
-      end if
-    end if
-
-    allocate(rhoSqrReal(0,0,0))
-    allocate(dqAtom(0))
-    if (tLinResp) then
-      deallocate(dqAtom)
-      allocate(dqAtom(nAtom))
-      if (tLinRespZVect) then
-        deallocate(rhoSqrReal)
-        allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
-      end if
-    end if
-
-    if (tLinResp .and. tPrintExcitedEigVecs) then
-      ALLOCATE(naturalOrbs(nOrb, nOrb, 1))
-      ALLOCATE(occNatural(nOrb, 1))
-      naturalOrbs(:,:,:) = 0.0_dp
-      occNatural(:,:) = 0.0_dp
-    end if
-
-    if (tMD) then
-      allocate(velocities(3,nAtom))
-      allocate(movedVelo(3, nMovedAtom))
-      allocate(movedAccel(3, nMovedAtom))
-      allocate(movedMass(3, nMovedAtom))
-      movedMass(:,:) = spread(mass(indMovedAtom),1,3)
-      velocities(:,:) = 0.0_dp
     end if
 
     ! Geometry loop
@@ -544,9 +387,11 @@ contains
         CellVol = abs(determinant33(latVec))
 
         ! derivative of pV term in Gibbs energy
-        if (tStress.and.pressure/=0.0_dp) then
-          call derivDeterminant33(derivCellVol,latVec)
-          derivCellVol(:,:) = pressure * derivCellVol(:,:)
+        if (tStress .and. pressure /= 0.0_dp) then
+          call derivDeterminant33(derivCellVol, latVec)
+          derivCellVol(:,:) = pressure * derivCellVol
+        else
+          derivCellVol(:,:) = 0.0_dp
         end if
 
       end if
@@ -818,7 +663,7 @@ contains
               call diagonalize(HSqrReal(:,:,iSpin2), SSqrReal, eigen(:,1,iSpin), ham(:,iSpin), over,&
                   & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V')
               if (tStoreEigvecs) then
-                call reset(storeEigvecsReal(iSpin), [sqrHamSize, sqrHamSize])
+                call reset(storeEigvecsReal(iSpin), [size(HSqrReal, dim=1), size(HSqrReal, dim=2)])
                 call push(storeEigvecsReal(iSpin), HSqrReal(:,:,iSpin2))
               end if
             else
@@ -832,7 +677,7 @@ contains
                     & over,kPoint(:,nk), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
                     & iAtomStart, iPair, img2CentCell, solver, 'V')
                 if (tStoreEigvecs) then
-                  call reset(storeEigvecsCplx(iSpin), [sqrHamSize, sqrHamSize])
+                  call reset(storeEigvecsCplx(iSpin), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
                   call push(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2,iSpin2))
                 end if
               end do
@@ -920,7 +765,7 @@ contains
                   & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V')
             end if
             if (tStoreEigvecs) then
-              call reset(storeEigvecsCplx(1), [sqrHamSize, sqrHamSize])
+              call reset(storeEigvecsCplx(1), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
               call push(storeEigvecsCplx(1), HSqrCplx(:,:,1,1))
             end if
           else
@@ -944,7 +789,7 @@ contains
                     & iPair, img2CentCell, solver, 'V')
               end if
               if (tStoreEigvecs) then
-                call reset(storeEigvecsCplx(1), [sqrHamSize, sqrHamSize])
+                call reset(storeEigvecsCplx(1), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
                 call push(storeEigvecsCplx(1), HSqrCplx(:,:,iK2,1))
               end if
             end do
@@ -1896,10 +1741,12 @@ contains
           if (tDispersion) then
             call dispersion%getStress(dispStress)
             dispLatDeriv = -CellVol * matmul(dispStress,invLatVec)
+          else
+            dispLatDeriv(:,:) = 0.0_dp
           end if
 
           if (tEField) then
-            elecLatDeriv = 0.0_dp
+            elecLatDeriv(:,:) = 0.0_dp
             call cart2frac(coord0,latVec)
             do iAtom = 1, nAtom
               do ii = 1, 3
@@ -2402,6 +2249,205 @@ contains
     call destructProgramVariables()
 
   end subroutine runDftbPlus
+
+
+  subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+      & tWriteDetailedOut, tMd, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser, fdMd)
+    logical, intent(in) :: tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs
+    logical, intent(in) :: tWriteDetailedOut, tMd
+    integer, intent(out) :: fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser, fdMd
+    
+    call initTaggedWriter()
+    if (tWriteAutotest) then
+      call initOutputFile(autotestTag, fdAutotest)
+    end if
+    if (tWriteResultsTag) then
+      call initOutputFile(resultsTag, fdResultsTag)
+    end if
+    if (tWriteBandDat) then
+      call initOutputFile(bandOut, fdBand)
+    end if
+    fdEigvec = getFileId()
+    if (tDerivs) then
+      call initOutputFile(hessianOut, fdHessian)
+    end if
+    if (tWriteDetailedOut) then
+      call initOutputFile(userOut, fdUser)
+    end if
+    if (tMD) then
+      call initOutputFile(mdOut, fdMD)
+    end if
+
+  end subroutine initOutputFiles
+
+
+  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
+      & tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
+      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
+      & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
+      & ERhoPrim, ERhoPrim2, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
+      & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
+      & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
+      & SSqrReal, rhoSqrReal, dqAtom, naturalOrbs, occNatural, velocities, movedVelo, movedAccel,&
+      & movedMass)
+    logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs
+    logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs
+    logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, forceType
+    integer, intent(in) :: indMovedAtom(:)
+    real(dp), intent(in) :: mass(:)
+    real(dp), intent(out), allocatable :: rhoPrim(:,:), h0(:), iRhoPrim(:,:), excitedDerivs(:,:)
+    real(dp), intent(out), allocatable :: ERhoPrim(:), ERhoPrim2(:)
+    real(dp), intent(out), allocatable :: derivs(:,:), repulsiveDerivs(:,:), totalDeriv(:,:)
+    real(dp), intent(out), allocatable :: chrgForces(:,:)
+    type(TEnergies), intent(out) :: energy
+    type(TPotentials), intent(out) :: potential
+    real(dp), intent(out), allocatable :: shift3rd(:), orbResShift3rd(:,:), TS(:), E0(:), Eband(:)
+    real(dp), intent(out), allocatable :: eigen(:,:,:), eigen2(:,:,:), filling(:,:,:)
+    real(dp), intent(out), allocatable :: coord0Fold(:,:), new3Coord(:,:), tmpDerivs(:)
+    real(dp), intent(out), allocatable :: orbitalL(:,:,:), orbitalLPart(:,:,:)
+    complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), HSqrCplx2(:,:), SSqrCplx(:,:)
+    real(dp), intent(out), allocatable :: HSqrReal(:,:,:), HSqrReal2(:,:), SSqrReal(:,:)
+    real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
+    real(dp), intent(out), allocatable :: dqAtom(:), naturalOrbs(:,:,:), occNatural(:,:)
+    real(dp), intent(out), allocatable :: velocities(:,:), movedVelo(:,:), movedAccel(:,:)
+    real(dp), intent(out), allocatable :: movedMass(:,:)
+
+    integer :: nSpinHams, sqrHamSize
+    integer :: nSpinStored, nKPointStored
+
+    allocate(rhoPrim(0, nSpin))
+    allocate(h0(0))
+    allocate(iRhoPrim(0, nSpin))
+
+    allocate(excitedDerivs(0, 0))
+    if (tForces) then
+      allocate(ERhoPrim(0))
+      allocate(ERhoPrim2(0))
+      allocate(derivs(3, nAtom))
+      allocate(repulsiveDerivs(3, nAtom))
+      allocate(totalDeriv(3, nAtom))
+      if (tExtChrg) then
+        allocate(chrgForces(3, nExtChrg))
+      end if
+      if (tLinResp) then
+        deallocate(excitedDerivs)
+        allocate(excitedDerivs(3, nAtom))
+      end if
+    end if
+    
+    call init(energy, nAtom)
+    call init(potential, orb, nAtom, nSpin)
+
+    if (t3rdFull) then
+      allocate(shift3rd(nAtom))
+      allocate(orbresshift3rd(orb%mShell,nAtom))
+    end if
+
+    ! Nr. of independent spin Hamiltonians
+    select case (nSpin)
+    case (1)
+      nSpinHams = 1
+      sqrHamSize = orb%nOrb
+    case (2)
+      nSpinHams = 2
+      sqrHamSize = orb%nOrb
+    case (4)
+      nSpinHams = 1
+      sqrHamSize = 2 * orb%nOrb
+    end select
+
+    allocate(TS(nSpinHams))
+    allocate(E0(nSpinHams))
+    allocate(Eband(nSpinHams))
+    allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
+    allocate(eigen2(sqrHamSize, nKPoint, nSpinHams))
+    allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+
+    allocate(coord0Fold(3, nAtom))
+
+    if (tMD.or.tDerivs) then
+      allocate(new3Coord(3, nMovedAtom))
+    end if
+
+    if (tCoordOpt) then
+      allocate(tmpDerivs(3 * nMovedAtom))
+    else
+      allocate(tmpDerivs(0))
+    end if
+
+    if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
+      allocate(orbitalL(3,orb%mShell,nAtom))
+      orbitalL = 0.0_dp
+    else
+      allocate(orbitalL(0,0,0))
+    end if
+
+    if ((tMulliken .and. tSpinOrbit) .and. .not.  tDualSpinOrbit) then
+      allocate(orbitalLPart(3,orb%mShell,nAtom))
+      orbitalLPart = 0.0_dp
+    else
+      allocate(orbitalLPart(0,0,0))
+    end if
+
+    if (tStoreEigvecs) then
+      nSpinStored = 1
+      nKPointStored = 1
+    else
+      nSpinStored = nSpin
+      nKPointStored = nKPoint
+    end if
+
+    ! If only H/S should be printed, no allocation for square HS is needed
+    if (.not. (tWriteRealHS .or. tWriteHS)) then
+      if (t2Component) then
+        allocate(HSqrCplx(sqrHamSize, sqrHamSize, nKPointStored, 1))
+        allocate(SSqrCplx(sqrHamSize, sqrHamSize))
+      elseif (tRealHS) then
+        allocate(HSqrReal(sqrHamSize, sqrHamSize, nSpinStored))
+        if (any(forceType == [ 1, 2, 3 ])) then
+          allocate(HSqrReal2(sqrHamSize, sqrHamSize))
+        end if
+        allocate(SSqrReal(sqrHamSize, sqrHamSize))
+      else
+        allocate(HSqrCplx(sqrHamSize, sqrHamSize, nKPointStored, nSpinStored))
+        if (any(forceType == [ 1, 2, 3 ])) then
+          allocate(HSqrCplx2(sqrHamSize, sqrHamSize))
+        end if
+        allocate(SSqrCplx(sqrHamSize, sqrHamSize))
+      end if
+    end if
+
+    allocate(rhoSqrReal(0,0,0))
+    allocate(dqAtom(0))
+    if (tLinResp) then
+      deallocate(dqAtom)
+      allocate(dqAtom(nAtom))
+      if (tLinRespZVect) then
+        deallocate(rhoSqrReal)
+        allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
+      end if
+    end if
+
+    if (tLinResp .and. tPrintExcitedEigVecs) then
+      ALLOCATE(naturalOrbs(orb%nOrb, orb%nOrb, 1))
+      ALLOCATE(occNatural(orb%nOrb, 1))
+      naturalOrbs(:,:,:) = 0.0_dp
+      occNatural(:,:) = 0.0_dp
+    end if
+
+    if (tMD) then
+      allocate(velocities(3,nAtom))
+      allocate(movedVelo(3, nMovedAtom))
+      allocate(movedAccel(3, nMovedAtom))
+      allocate(movedMass(3, nMovedAtom))
+      movedMass(:,:) = spread(mass(indMovedAtom),1,3)
+      velocities(:,:) = 0.0_dp
+    end if
+
+
+  end subroutine initArrays
 
 
   !> Calculates electron fillings and resulting band energy terms.
