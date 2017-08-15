@@ -810,8 +810,8 @@ contains
 
 
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, totalDeriv,&
-      & chrgForces, tLinResp, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy,&
-      & pressure, gibbsFree, endCoords, tLocalise, localisation)
+      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
+      & gibbsFree, endCoords, tLocalise, localisation)
     integer, intent(in) :: fd
     character(*), intent(in) :: fileName
     logical, intent(in) :: tPeriodic
@@ -820,8 +820,7 @@ contains
     real(dp), intent(inout) :: qOutput(:,:,:)
     real(dp), allocatable, intent(in) :: totalDeriv(:,:)
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
-    logical, intent(in) :: tLinResp
-    real(dp), intent(in) :: excitedDerivs(:,:)
+    real(dp), allocatable, intent(in) :: excitedDerivs(:,:)
     logical, intent(in) :: tStress
     real(dp), intent(in) :: totalStress(:,:)
     real(dp), pointer, intent(in) ::  pDynMatrix(:,:)
@@ -846,7 +845,7 @@ contains
       if (allocated(chrgForces)) then
         call writeTagged(fd, tag_chrgForces, -chrgForces)
       end if
-      if (tLinResp) then
+      if (allocated(excitedDerivs)) then
         call writeTagged(fd, tag_excForce, -excitedDerivs)
       end if
       if (tStress) then
@@ -1070,7 +1069,7 @@ contains
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: species(:)
     logical, intent(in) :: tDFTBU, tImHam, tPrintMulliken
-    real(dp), intent(in) :: orbitalL(:,:,:)
+    real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
     real(dp), intent(inout) :: qBlockOut(:,:,:,:)
     real(dp), intent(in) :: Ef(:), EBand(:), TS(:), E0(:)
     real(dp), intent(in) :: pressure, cellVol

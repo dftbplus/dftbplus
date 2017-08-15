@@ -79,7 +79,7 @@ contains
     real(dp),    allocatable :: eigen(:,:,:), eigen2(:,:,:)
     real(dp), allocatable :: rhoPrim(:,:)
     real(dp), allocatable :: iRhoPrim(:,:)
-    real(dp), allocatable :: ERhoPrim(:), ERhoPrim2(:)
+    real(dp), allocatable :: ERhoPrim(:)
     real(dp), allocatable :: h0(:)
 
     ! variables for derivatives using the Hellmann-Feynman theorem:
@@ -291,7 +291,7 @@ contains
       & tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
       & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
       & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
-      & ERhoPrim, ERhoPrim2, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
+      & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
       & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
       & SSqrReal, rhoSqrReal, dqAtom, naturalOrbs, occNatural, velocities, movedVelo, movedAccel,&
@@ -305,7 +305,7 @@ contains
 
     ! Geometry loop
 
-    tGeomEnd = nGeoSteps == 0
+    tGeomEnd = (nGeoSteps == 0)
 
     tCoordStep = .false.
     if (tCoordOpt) then
@@ -429,8 +429,6 @@ contains
         if (tForces) then
           deallocate(ERhoPrim)
           allocate(ERhoPrim(size(ham,dim=1)))
-          deallocate(ERhoPrim2)
-          allocate(ERhoPrim2(size(ham, dim=1)))
         end if
       end if
 
@@ -1178,7 +1176,6 @@ contains
 
       ! Linear response
       energy%Eexcited = 0.0_dp
-      excitedDerivs = 0.0_dp
       if (tLinResp) then
         if (t3rd) then
           call error("Third order currently incompatible with excited state")
@@ -1703,9 +1700,6 @@ contains
         end if
 
         if (tStress) then
-          repulsiveStress = 0.0_dp
-          elecStress = 0.0_dp
-          dispStress = 0.0_dp
           call getRepulsiveStress(repulsiveStress, coord, nNeighbor, &
               & neighborList%iNeighbor, species, img2CentCell, pRepCont, CellVol)
           if (tSCC) then
@@ -1742,6 +1736,7 @@ contains
             call dispersion%getStress(dispStress)
             dispLatDeriv = -CellVol * matmul(dispStress,invLatVec)
           else
+            dispStress(:,:) = 0.0_dp
             dispLatDeriv(:,:) = 0.0_dp
           end if
 
@@ -1909,6 +1904,7 @@ contains
             end if
             call evalKE(energy%Ekin, movedVelo, movedMass(1,:))
             call evalkT(pMDFrame, kT, movedVelo, movedMass(1,:))
+            velocities(:,:) = 0.0_dp
             velocities(:, indMovedAtom) = movedVelo(:,:)
             energy%EMerminKin = energy%EMermin + energy%Ekin
             energy%EGibbsKin = energy%EGibbs + energy%Ekin
@@ -1929,12 +1925,9 @@ contains
             end if
 
             if (tStress) then
-
               ! contribution from kinetic energy in MD, now that velocities for
               ! this geometry step are available
-              call getKineticStress(kineticStress, mass, species0, velocities, &
-                  & CellVol)
-
+              call getKineticStress(kineticStress, mass, species0, velocities, CellVol)
               totalStress = totalStress + kineticStress
               cellPressure = ( totalStress(1,1) + totalStress(2,2) &
                   & + totalStress(3,3) )/3.0_dp
@@ -2233,7 +2226,7 @@ contains
         energy%EGibbs = energy%EMermin + pressure * cellVol
       end if
       call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
-          & totalDeriv, chrgForces, tLinResp, excitedDerivs, tStress, totalStress, pDynMatrix,&
+          & totalDeriv, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
           & energy%EMermin, pressure, energy%EGibbs, coord0, tLocalise, localisation)
     end if
     if (tWriteResultsTag) then
@@ -2285,7 +2278,7 @@ contains
       & tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
       & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
       & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
-      & ERhoPrim, ERhoPrim2, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
+      & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
       & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
       & SSqrReal, rhoSqrReal, dqAtom, naturalOrbs, occNatural, velocities, movedVelo, movedAccel,&
@@ -2298,7 +2291,7 @@ contains
     integer, intent(in) :: indMovedAtom(:)
     real(dp), intent(in) :: mass(:)
     real(dp), intent(out), allocatable :: rhoPrim(:,:), h0(:), iRhoPrim(:,:), excitedDerivs(:,:)
-    real(dp), intent(out), allocatable :: ERhoPrim(:), ERhoPrim2(:)
+    real(dp), intent(out), allocatable :: ERhoPrim(:)
     real(dp), intent(out), allocatable :: derivs(:,:), repulsiveDerivs(:,:), totalDeriv(:,:)
     real(dp), intent(out), allocatable :: chrgForces(:,:)
     type(TEnergies), intent(out) :: energy
@@ -2319,22 +2312,21 @@ contains
 
     allocate(rhoPrim(0, nSpin))
     allocate(h0(0))
-    allocate(iRhoPrim(0, nSpin))
+    if (tImHam) then
+      allocate(iRhoPrim(0, nSpin))
+    end if
 
-    allocate(excitedDerivs(0, 0))
     if (tForces) then
       allocate(ERhoPrim(0))
-      allocate(ERhoPrim2(0))
       allocate(derivs(3, nAtom))
       allocate(repulsiveDerivs(3, nAtom))
       allocate(totalDeriv(3, nAtom))
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-      if (tLinResp) then
-        deallocate(excitedDerivs)
-        allocate(excitedDerivs(3, nAtom))
-      end if
+    end if
+    if (tLinRespZVect) then
+      allocate(excitedDerivs(3, nAtom))
     end if
     
     call init(energy, nAtom)
@@ -2373,22 +2365,13 @@ contains
 
     if (tCoordOpt) then
       allocate(tmpDerivs(3 * nMovedAtom))
-    else
-      allocate(tmpDerivs(0))
     end if
 
     if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
-      allocate(orbitalL(3,orb%mShell,nAtom))
-      orbitalL = 0.0_dp
-    else
-      allocate(orbitalL(0,0,0))
+      allocate(orbitalL(3, orb%mShell, nAtom))
     end if
-
     if ((tMulliken .and. tSpinOrbit) .and. .not.  tDualSpinOrbit) then
-      allocate(orbitalLPart(3,orb%mShell,nAtom))
-      orbitalLPart = 0.0_dp
-    else
-      allocate(orbitalLPart(0,0,0))
+      allocate(orbitalLPart(3, orb%mShell, nAtom))
     end if
 
     if (tStoreEigvecs) then
@@ -2419,33 +2402,25 @@ contains
       end if
     end if
 
-    allocate(rhoSqrReal(0,0,0))
-    allocate(dqAtom(0))
     if (tLinResp) then
-      deallocate(dqAtom)
       allocate(dqAtom(nAtom))
       if (tLinRespZVect) then
-        deallocate(rhoSqrReal)
         allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
       end if
     end if
-
+    
     if (tLinResp .and. tPrintExcitedEigVecs) then
-      ALLOCATE(naturalOrbs(orb%nOrb, orb%nOrb, 1))
-      ALLOCATE(occNatural(orb%nOrb, 1))
-      naturalOrbs(:,:,:) = 0.0_dp
-      occNatural(:,:) = 0.0_dp
+      allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
+      allocate(occNatural(orb%nOrb, 1))
     end if
 
     if (tMD) then
-      allocate(velocities(3,nAtom))
+      allocate(velocities(3, nAtom))
       allocate(movedVelo(3, nMovedAtom))
       allocate(movedAccel(3, nMovedAtom))
       allocate(movedMass(3, nMovedAtom))
       movedMass(:,:) = spread(mass(indMovedAtom),1,3)
-      velocities(:,:) = 0.0_dp
     end if
-
 
   end subroutine initArrays
 
@@ -2454,59 +2429,45 @@ contains
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
 
-
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
-
 
     !> Nr. of electrons for each spin channel
     real(dp), intent(in) :: nElectrons(:)
 
-
     !> Nr. of spin blocks in the Hamiltonian (1 - spin avg, 2 - colinear, 4 - non-colinear)
     integer, intent(in) :: nSpinBlocks
-
 
     !> Electronic temperature
     real(dp), intent(in) :: tempElec
 
-
     !> Weight of the k-points.
     real(dp), intent(in) :: kWeights(:)
-
 
     !> Whether for colinear spin a common Fermi level for both spin channels should be used
     logical, intent(in) :: tSpinSharedEf
 
-
     !> Whether each K-point should be filled separately (individual Fermi-level for each k-point)
     logical, intent(in) :: tFillKSep
-
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
 
-
     !> Selector for the distribution function
     integer, intent(in) :: iDistribFn
-
 
     !> Fixed Fermi levels on entry, if tFixEf is .true., otherwise the Fermi levels found for the
     !> given number of electrons on exit
     real(dp), intent(inout) :: Ef(:)
 
-
     !> Fillings
     real(dp), intent(out) :: fillings(:,:,:)
-
 
     !> Band energies
     real(dp), intent(out) :: Eband(:)
 
-
     !> Band entropies
     real(dp), intent(out) :: TS(:)
-
 
     !> Band energies extrapolated to zero Kelvin
     real(dp), intent(out) :: E0(:)
