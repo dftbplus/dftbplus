@@ -9,6 +9,7 @@
 
 !> Various I/O routines for the main program.
 module mainio
+  use io
   use assert
   use accuracy
   use constants
@@ -37,6 +38,7 @@ module mainio
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeHS, writeGenGeometry
+  public :: printGeoStepInfo
   public :: format1U, format2U, format1Ue, format2Ue, format1U1e
 
 
@@ -1781,7 +1783,20 @@ contains
   end subroutine writeGenGeometry
 
 
+  !> Writes out geometry step information
+  subroutine printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+    logical, intent(in) :: tCoordOpt, tLatOpt
+    integer, intent(in) :: iGeoStep, iLatGeoStep
+    
+    write(stdOut, '(/, A)') repeat('-', 80)
+    if (tCoordOpt .and. tLatOpt) then
+      write(stdOut, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
+          & iLatGeoStep
+    else
+      write(stdOut, "(/, A, I0, /)") '***  Geometry step: ', iGeoStep
+    end if
 
+  end subroutine printGeoStepInfo
   
 
 end module mainio

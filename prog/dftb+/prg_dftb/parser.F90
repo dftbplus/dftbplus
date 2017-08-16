@@ -87,6 +87,8 @@ contains
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
+    write(stdOut, "(/, A, /)") "***  Parsing and initializing"
+
     ! Read in the input
     call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, tHSD, &
         &missing)

@@ -26,6 +26,7 @@ module main
   use taggedoutput
   use scc
   use externalcharges
+  use periodic
   use mixer
   use geoopt
   use numderivs2
@@ -51,6 +52,7 @@ module main
   use linresp_module
   use mainio
   use commontypes
+  use dispersions, only : DispersionIface
   use xmlf90
   implicit none
   private
@@ -279,10 +281,6 @@ contains
     !> temporary variable for number of occupied levels
     integer :: nFilledLev
 
-    write(stdOut, "(/, A, /)") "***  Parsing and initializing"
-    write(stdOut, "(/, A)") "Starting initialization..."
-    write(stdOut, "(A80)") repeat("-", 80)
-
     call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
         & tWriteDetailedOut, tMd, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser,&
         & fdMd)
@@ -303,34 +301,10 @@ contains
       pCoord0Out => coord0
     end if
 
-    ! Geometry loop
+    call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tCoordEnd, tStopDriver,&
+        & iGeoStep, iLatGeoStep)
 
-    tGeomEnd = (nGeoSteps == 0)
-
-    tCoordStep = .false.
-    if (tCoordOpt) then
-      tCoordStep = .true.
-      tCoordEnd = .false.
-    end if
-
-    iGeoStep = 0
-    iLatGeoStep = 0
-    tStopDriver = .false.
-
-    if (tSCC) then
-      if (tDFTBU) then
-        minSCCIter = 2
-      else
-        if (nSpin == 1) then
-          minSCCIter = 1
-        else
-          minSCCIter = 2
-        end if
-      end if
-    else
-      minSCCIter = 1
-    end if
-
+    minSccIter = getMinSccIters(tScc, tDftbU, nSpin)
     if (tXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, nSCCiter, sccTol)
     end if
@@ -341,45 +315,17 @@ contains
         call socket%receive(coord0, tmpLat3Vecs)
         if (tPeriodic) then
           latVec(:,:) = tmpLat3Vecs
-          cellVol = determinant33(latVec)
-          recVec2p = latVec(:,:)
-          call matinv(recVec2p)
-          recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-          recVec = 2.0_dp * pi * recVec2p
-          recCellVol = determinant33(recVec)
-
-          if (tSCC) then
-            call updateLatVecs_SCC(latVec, recVec, cellVol)
-            mCutoff = max(mCutoff, getSCCCutoff())
-          end if
-          if (tDispersion) then
-            call dispersion%updateLatVecs(latVec)
-            mCutoff = max(mCutoff, dispersion%getRCutoff())
-          end if
-          call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
-              & mCutoff)
+          call handleLatticeVectorUpdate(latVec, tScc, mCutoff, dispersion, recVec, recVec2p,&
+              & cellVol, recCellVol, cellVec, rCellVec)
         end if
       end if
 
-      if (restartFreq > 0 .and. (tGeoOpt .or. tMD)) then
-        tWriteRestart = (iGeoStep == nGeoSteps .or. &
-            & (mod(iGeoStep, restartFreq) == 0 ))
-      else
-        tWriteRestart = .false.
-      end if
-
+      tWriteRestart = needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       if (tMD .and. tWriteRestart) then
         call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
       end if
 
-      ! Write out geometry information
-      write(stdOut, '(/, A)') repeat('-', 80)
-      if (tCoordOpt .and. tLatOpt) then
-        write(stdOut, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
-            & iLatGeoStep
-      else
-        write(stdOut, "(/, A, I0, /)") '***  Geometry step: ', iGeoStep
-      end if
+      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
       if (tPeriodic) then
         invLatVec = transpose(latVec)
@@ -2423,6 +2369,97 @@ contains
     end if
 
   end subroutine initArrays
+
+
+  !> Initialises some parameters before geometry loop starts.
+  subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGEomEnd, tCoordStep, tCoordEnd,&
+      & tStopDriver, iGeoStep, iLatGeoStep)
+    logical, intent(in) :: tCoordOpt
+    integer, intent(in) :: nGeoSteps
+    logical, intent(out) :: tGeomEnd, tCoordStep, tCoordEnd, tStopDriver
+    integer, intent(out) :: iGeoStep, iLatGeoStep
+    
+    tGeomEnd = (nGeoSteps == 0)
+
+    tCoordStep = .false.
+    if (tCoordOpt) then
+      tCoordStep = .true.
+      tCoordEnd = .false.
+    end if
+
+    iGeoStep = 0
+    iLatGeoStep = 0
+    tStopDriver = .false.
+
+  end subroutine initGeoOptParameters
+
+
+  !> Initialises SCC related parameters before geometry loop starts
+  function getMinSccIters(tScc, tDftbU, nSpin) result(minSccIter)
+    logical, intent(in) :: tScc, tDftbU
+    integer, intent(in) :: nSpin
+    integer :: minSccIter
+    
+    if (tScc) then
+      if (tDftbU) then
+        minSccIter = 2
+      else
+        if (nSpin == 1) then
+          minSccIter = 1
+        else
+          minSccIter = 2
+        end if
+      end if
+    else
+      minSccIter = 1
+    end if
+
+  end function getMinSccIters
+
+
+  !> Does the steps necessary after a lattice vector update
+  subroutine handleLatticeVectorUpdate(latVecs, tScc, mCutoff, dispersion, recVecs, recVecs2p,&
+      & cellVol, recCellVol, cellVecs, rCellVecs)
+    real(dp), intent(in) :: latVecs(:,:)
+    logical, intent(in) :: tScc
+    real(dp), intent(inout) :: mCutoff
+    class(DispersionIface), allocatable, intent(inout) :: dispersion
+    real(dp), intent(out) :: recVecs(:,:), recVecs2p(:,:)
+    real(dp), intent(out) :: cellVol, recCellVol
+    real(dp), allocatable, intent(out) :: cellVecs(:,:), rCellVecs(:,:)
+    
+    cellVol = abs(determinant33(latVecs))
+    recVecs2p(:,:) = latVecs
+    call matinv(recVecs2p)
+    recVecs2p = transpose(recVecs2p)
+    recVecs = 2.0_dp * pi * recVecs2p
+    recCellVol = abs(determinant33(recVecs))
+    if (tSCC) then
+      call updateLatVecs_SCC(latVecs, recVecs, cellVol)
+      mCutoff = max(mCutoff, getSCCCutoff())
+    end if
+    if (allocated(dispersion)) then
+      call dispersion%updateLatVecs(latVecs)
+      mCutoff = max(mCutoff, dispersion%getRCutoff())
+    end if
+    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
+  
+  end subroutine handleLatticeVectorUpdate
+
+
+  !> Decides, whether restart file should be written during the run.
+  function needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq) result(tWriteRestart)
+    logical, intent(in) :: tGeoOpt, tMd
+    integer, intent(in) :: iGeoStep, nGeoSteps, restartFreq
+    logical :: tWriteRestart
+    
+    if (restartFreq > 0 .and. (tGeoOpt .or. tMD)) then
+      tWriteRestart = (iGeoStep == nGeoSteps .or. (mod(iGeoStep, restartFreq) == 0))
+    else
+      tWriteRestart = .false.
+    end if
+
+  end function needsRestartWriting
 
 
   !> Calculates electron fillings and resulting band energy terms.
