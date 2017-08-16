@@ -166,7 +166,7 @@ module initprogram
 
 
   !> reciprocal vectors in 2 pi units
-  real(dp), allocatable :: recVec2p(:,:)
+  real(dp), allocatable :: invLatVec(:,:)
 
   !> cell volume
   real(dp) :: CellVol
@@ -821,17 +821,17 @@ contains
       @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
       allocate(recVec(3, 3))
-      allocate(recVec2p(3, 3))
-      recVec2p = latVec(:,:)
-      call matinv(recVec2p)
-      recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-      recVec = 2.0_dp * pi * recVec2p
+      allocate(invLatVec(3, 3))
+      invLatVec = latVec(:,:)
+      call matinv(invLatVec)
+      invLatVec = reshape(invLatVec, (/3, 3/), order=(/2, 1/))
+      recVec = 2.0_dp * pi * invLatVec
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else
       allocate(latVec(0, 0))
       allocate(recVec(0, 0))
-      allocate(recVec2p(0, 0))
+      allocate(invLatVec(0, 0))
       CellVol = 0.0_dp
       recCellVol = 0.0_dp
     end if
@@ -2002,7 +2002,7 @@ contains
 
     ! Initalize images (translations)
     if (tPeriodic) then
-      call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, mCutoff)
+      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutoff)
     else
       allocate(cellVec(3, 1))
       allocate(rCellVec(3, 1))

@@ -168,9 +168,6 @@ contains
     !> in a periodic geometry
     logical :: tCoordStep
 
-    !> inverse of the lattice vector matrix
-    real(dp) :: invLatVec(3,3)
-
     !> Folded coords (3, nAtom)
     real(dp), allocatable, target :: coord0Fold(:,:)
 
@@ -315,7 +312,7 @@ contains
         call socket%receive(coord0, tmpLat3Vecs)
         if (tPeriodic) then
           latVec(:,:) = tmpLat3Vecs
-          call handleLatticeVectorUpdate(latVec, tScc, mCutoff, dispersion, recVec, recVec2p,&
+          call handleLatticeVectorUpdate(latVec, tScc, mCutoff, dispersion, recVec, invLatVec,&
               & cellVol, recCellVol, cellVec, rCellVec)
         end if
       end if
@@ -345,7 +342,7 @@ contains
       ! Save old coordinates and fold coords to unit cell
       coord0Fold(:,:) = coord0
       if (tPeriodic) then
-        call foldCoordToUnitCell(coord0Fold, latVec, recVec2p)
+        call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
       end if
 
       ! Initialize neighborlists
@@ -1680,7 +1677,7 @@ contains
 
           if (tDispersion) then
             call dispersion%getStress(dispStress)
-            dispLatDeriv = -CellVol * matmul(dispStress,invLatVec)
+            dispLatDeriv = -CellVol * matmul(dispStress, invLatVec)
           else
             dispStress(:,:) = 0.0_dp
             dispLatDeriv(:,:) = 0.0_dp
@@ -1950,10 +1947,10 @@ contains
                 call cart2frac(coord0,latVec)
                 latVec = reshape(newLatVecs, (/3,3/))
                 call frac2cart(coord0,latVec)
-                recVec2p = latVec(:,:)
-                call matinv(recVec2p)
-                recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-                recVec = 2.0_dp * pi * recVec2p
+                invLatVec = latVec(:,:)
+                call matinv(invLatVec)
+                invLatVec = reshape(invLatVec, (/3, 3/), order=(/2, 1/))
+                recVec = 2.0_dp * pi * invLatVec
                 CellVol = abs(determinant33(latVec))
                 recCellVol = abs(determinant33(recVec))
                 if (tSCC) then
@@ -1964,7 +1961,7 @@ contains
                   call dispersion%updateLatVecs(latVec)
                   mCutoff = max(mCutoff, dispersion%getRCutoff())
                 end if
-                call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
+                call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, &
                     & mCutoff)
                 if (tCoordOpt) then
                   tCoordStep = .true.
@@ -1981,10 +1978,10 @@ contains
               if (tBarostat) then ! apply a Barostat
                 call rescale(pMDIntegrator,coord0,latVec,totalStress)
                 !cellVol = abs(determinant33(latVec))
-                recVec2p = latVec(:,:)
-                call matinv(recVec2p)
-                recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-                recVec = 2.0_dp * pi * recVec2p
+                invLatVec = latVec(:,:)
+                call matinv(invLatVec)
+                invLatVec = reshape(invLatVec, (/3, 3/), order=(/2, 1/))
+                recVec = 2.0_dp * pi * invLatVec
                 recCellVol = abs(determinant33(recVec))
                 if (tSCC) then
                   call updateLatVecs_SCC(latVec, recVec, CellVol)
@@ -1994,7 +1991,7 @@ contains
                   call dispersion%updateLatVecs(latVec)
                   mCutoff = max(mCutoff, dispersion%getRCutoff())
                 end if
-                call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, &
+                call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, &
                     & mCutoff)
               end if
 
