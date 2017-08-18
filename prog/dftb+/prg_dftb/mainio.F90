@@ -38,7 +38,7 @@ module mainio
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeHS, writeGenGeometry
-  public :: printGeoStepInfo
+  public :: printGeoStepInfo, printSccHeader
   public :: format1U, format2U, format1Ue, format2Ue, format1U1e
 
 
@@ -1783,7 +1783,7 @@ contains
   end subroutine writeGenGeometry
 
 
-  !> Writes out geometry step information
+  !> Prints geometry step information
   subroutine printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
     logical, intent(in) :: tCoordOpt, tLatOpt
     integer, intent(in) :: iGeoStep, iLatGeoStep
@@ -1797,6 +1797,13 @@ contains
     end if
 
   end subroutine printGeoStepInfo
+
+
+  subroutine printSccHeader()
+
+    write(stdOut, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
+        & "     SCC error    "
+  end subroutine printSccHeader
   
 
 end module mainio

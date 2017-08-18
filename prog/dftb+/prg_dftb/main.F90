@@ -22,7 +22,6 @@ module main
   use forces
   use stress
   use lapackroutines, only : matinv
-  use simplealgebra, only : determinant33
   use taggedoutput
   use scc
   use externalcharges
@@ -57,6 +56,8 @@ module main
   use ipisocket, only : IpiSocketComm
   use thirdorder_module, only : ThirdOrder
   use simplealgebra
+  use message
+  use repcont
   implicit none
   private
 
@@ -207,7 +208,7 @@ contains
 
 
     !> Loop variables
-    integer :: iSCCIter, iSpin, iAtom, iNeigh
+    integer :: iSCCIter, iSpin, iAtom
 
     !> File descriptor for the tagged writer
     integer :: fdAutotest
@@ -354,72 +355,28 @@ contains
         call xlbomdIntegrator%getSCCParameters(minSCCIter, nSCCiter, sccTol)
       end if
 
-      if (tSCC .and. (.not. tAppendDetailedOut)) then
-        write(stdOut, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", &
-            & "  Diff electronic ", "     SCC error    "
+      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList,&
+          & pRepCont, energy%atomRep, energy%ERep)
+
+      if (tDispersion) then
+        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
+      end if
+
+      call resetExternalPotentials(potential)
+
+      if (tEField) then
+        call setUpExternalElectricField(tTDEField, tPeriodic, EFieldStrength, EFieldVector,&
+            & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec,&
+            & deltaT, iGeoStep, coord0Fold, coord, EField, potential%extAtom, absEField)
+      end if
+
+      call mergeExternalPotentials(orb, species, potential)
+
+      if (tScc) then
+        call printSccHeader()
       end if
 
       tConverged = .false.
-
-      energy%ETotal = 0.0_dp
-      energy%atomTotal(:) = 0.0_dp
-
-      ! Calculate repulsive energy
-      call getERep(energy%atomRep, coord, nNeighbor, neighborList%iNeighbor, &
-          &species, pRepCont, img2CentCell)
-      energy%Erep = sum(energy%atomRep)
-      if (tDispersion) then
-        call dispersion%getEnergies(energy%atomDisp)
-        energy%eDisp = sum(energy%atomDisp)
-      else
-        energy%atomDisp(:) = 0.0_dp
-      end if
-
-      potential%extAtom = 0.0_dp
-      potential%extShell = 0.0_dp
-      potential%extBlock = 0.0_dp
-
-      if (tEField) then
-        Efield(:) = EFieldStrength * EfieldVector(:)
-        if (tTDEfield) then
-          Efield(:) = Efield(:) &
-              & * sin(EfieldOmega*deltaT*real(iGeoStep+EfieldPhase,dp))
-        end if
-        absEfield = sqrt(sum(Efield**2))
-        if (tPeriodic) then
-          do iAtom = 1, nAtom
-            do iNeigh = 1, nNeighbor(iAtom)
-              ii = neighborList%iNeighbor(iNeigh,iAtom)
-              if (iCellVec(ii) /= 0) then ! overlap between atom in central
-                !  cell and non-central cell
-                if (abs(dot_product(cellVec(:,iCellVec(ii)),EfieldVector))&
-                    & /= 0.0_dp) then ! component of electric field projects
-                  ! onto vector between cells
-                  write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAtom, ' and ',&
-                      & img2centcell(ii),&
-                      & ' crosses the saw-tooth discontinuity in the electric field.'
-                  call error(tmpStr)
-                end if
-              end if
-            end do
-          end do
-          do iAtom = 1, nAtom
-            potential%extAtom(iAtom,1)=dot_product(coord0Fold(:,iAtom),Efield)
-          end do
-        else
-          do iAtom = 1, nAtom
-            potential%extAtom(iAtom,1)=dot_product(coord(:,iAtom),Efield)
-          end do
-        end if
-      else
-        Efield = 0.0_dp
-      end if
-
-      call total_shift(potential%extShell, potential%extAtom, orb, species)
-      call total_shift(potential%extBlock, potential%extShell, orb, species)
-
-      ! SCC-loop
-
       iSCCIter = 1
       tStopSCC = .false.
 
@@ -2516,6 +2473,111 @@ contains
     end if
 
   end subroutine reallocateSparseArrays
+
+
+  !> Calculates repulsive energy for current geometry
+  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList,&
+      & pRepCont, Eatom, Etotal)
+    real(dp), intent(in) :: coord(:,:)
+    integer, intent(in) :: species(:), img2CentCell(:), nNeighbor(:)
+    type(TNeighborList), intent(in) :: neighborList
+    type(ORepCont), intent(in) :: pRepCont
+    real(dp), intent(out) :: Eatom(:), Etotal
+    
+    call getERep(Eatom, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont, img2CentCell)
+    Etotal = sum(Eatom)
+
+  end subroutine calcRepulsiveEnergy
+
+
+  !> Calculates dispersion energy for current geometry.
+  subroutine calcDispersionEnergy(dispersion, Eatom, Etotal)
+    class(DispersionIface), intent(inout) :: dispersion
+    real(dp), intent(out) :: Eatom(:), Etotal
+
+    call dispersion%getEnergies(Eatom)
+    Etotal = sum(Eatom)
+
+  end subroutine calcDispersionEnergy
+
+
+  !> Sets the external potential components to zero
+  subroutine resetExternalPotentials(potential)
+    type(TPotentials), intent(inout) :: potential
+    
+    potential%extAtom(:,:) = 0.0_dp
+    potential%extShell(:,:,:) = 0.0_dp
+    potential%extBlock(:,:,:,:) = 0.0_dp
+
+  end subroutine resetExternalPotentials
+
+
+  !> Merges atomic and shell resolved external potentials into blocked one
+  subroutine mergeExternalPotentials(orb, species, potential)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+    type(TPotentials), intent(inout) :: potential
+    
+    call total_shift(potential%extShell, potential%extAtom, orb, species)
+    call total_shift(potential%extBlock, potential%extShell, orb, species)
+
+  end subroutine mergeExternalPotentials
+
+
+  !> Sets up electric external field
+  subroutine setUpExternalElectricField(tTimeDepEField, tPeriodic, EFieldStrength, EFieldVector,&
+      & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec, deltaT,&
+      & iGeoStep, coord0Fold, coord, EField, extAtomPot, absEField)
+    logical, intent(in) :: tTimeDepEField, tPeriodic
+    real(dp), intent(in) :: EFieldStrength, EFieldVector(:), EFieldOmega
+    integer, intent(in) :: EFieldPhase
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iCellVec(:), img2CentCell(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: deltaT
+    integer, intent(in) :: iGeoStep
+    real(dp), allocatable, intent(in) :: coord0Fold(:,:)
+    real(dp), intent(in) :: coord(:,:)
+    real(dp), intent(out) :: EField(:), extAtomPot(:,:)
+    real(dp), intent(out) :: absEField
+
+    integer :: nAtom
+    integer :: iAt1, iAt2, iNeigh
+    character(lc) :: tmpStr
+
+    nAtom = size(nNeighbor)
+    
+    Efield(:) = EFieldStrength * EfieldVector
+    if (tTimeDepEField) then
+      Efield(:) = Efield * sin(EfieldOmega * deltaT * real(iGeoStep + EfieldPhase, dp))
+    end if
+    absEfield = sqrt(sum(Efield**2))
+    if (tPeriodic) then
+      do iAt1 = 1, nAtom
+        do iNeigh = 1, nNeighbor(iAt1)
+          iAt2 = neighborList%iNeighbor(iNeigh, iAt1)
+          ! overlap between atom in central cell and non-central cell
+          if (iCellVec(iAt2) /= 0) then
+            ! component of electric field projects onto vector between cells
+            if (abs(dot_product(cellVec(:, iCellVec(iAt2)), EfieldVector)) > epsilon(1.0_dp)) then
+              write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAt1, ' and ',&
+                  & img2CentCell(iAt2),&
+                  & ' crosses the saw-tooth discontinuity in the electric field.'
+              call error(tmpStr)
+            end if
+          end if
+        end do
+      end do
+      do iAt1 = 1, nAtom
+        extAtomPot(iAt1, 1) = dot_product(coord0Fold(:, iAt1), Efield)
+      end do
+    else
+      do iAt1 = 1, nAtom
+        extAtomPot(iAt1, 1) = dot_product(coord(:, iAt1), Efield)
+      end do
+    end if
+
+  end subroutine setUpExternalElectricField
 
 
   !> Calculates electron fillings and resulting band energy terms.
