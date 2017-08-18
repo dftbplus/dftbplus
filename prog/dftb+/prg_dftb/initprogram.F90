@@ -663,10 +663,14 @@ module initprogram
   !> XLBOMD related parameters
   type(Xlbomd), allocatable :: xlbomdIntegrator
 
-
   !> Differentiation method for (H^0,S)
   type(NonSccDiff), save :: nonSccDeriv
 
+  !> Whether lattice has changed since last geometry iteration
+  logical :: tLatticeChanged
+
+  !> Whether atomic coordindates have changed since last geometry iteration
+  logical :: tCoordsChanged
 
   !> First guess for nr. of neighbors.
   integer, parameter :: nInitNeighbor = 40
@@ -817,6 +821,7 @@ contains
     end if
 
     if (tPeriodic) then
+      tLatticeChanged = .true.
       allocate(latVec(3, 3))
       @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
@@ -834,6 +839,7 @@ contains
       allocate(invLatVec(0, 0))
       CellVol = 0.0_dp
       recCellVol = 0.0_dp
+      tLatticeChanged = .false.
     end if
 
     orb = input%slako%orb
@@ -1017,6 +1023,8 @@ contains
     allocate(coord0(3, nAtom))
     @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
+    tCoordsChanged = .true.
+    
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)

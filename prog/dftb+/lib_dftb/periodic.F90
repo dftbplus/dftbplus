@@ -30,6 +30,7 @@ module periodic
   public :: getNrOfNeighbors, getNrOfNeighborsForAll
   public :: getImgRange, getSuperSampling
   public :: frac2cart, cart2frac
+  public :: getSparseDescriptor
 
 
   !> resize sparse arrays
@@ -714,6 +715,42 @@ contains
   end subroutine reallocateArrays3
 
 
+  subroutine getSparseDescriptor(iNeighbor, nNeighbor, img2CentCell, orb, iPair, sparseSize)
+    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: img2CentCell(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, allocatable, intent(inout) :: iPair(:,:)
+    integer, intent(out) :: sparseSize
+
+    integer :: nAtom, mNeighbor
+    integer :: ind, iAt1, nOrb1, iNeigh1, nOrb2
+    
+    nAtom = size(iNeighbor, dim=2)
+    mNeighbor = size(iNeighbor, dim=1)
+
+    @:ASSERT(allocated(iPair))
+    @:ASSERT(size(iPair, dim=2) == nAtom)
+
+    if (mNeighbor > size(iPair, dim=1)) then
+      deallocate(iPair)
+      allocate(iPair(0 : mNeighbor - 1, nAtom))
+      iPair(:,:) = 0
+    end if
+    ind = 0
+    do iAt1 = 1, nAtom
+      nOrb1 = orb%nOrbAtom(iAt1)
+      do iNeigh1 = 0, nNeighbor(iAt1)
+        iPair(iNeigh1, iAt1) = ind
+        nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbor(iNeigh1, iAt1)))
+        ind = ind + nOrb1 * nOrb2
+      end do
+    end do
+    sparseSize = ind
+
+  end subroutine getSparseDescriptor
+
+
   !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
   subroutine reallocateHS_1(ham, over, iPair, iNeighbor, nNeighbor, orb, &
       &img2Centcell)
@@ -739,7 +776,6 @@ contains
 
     !> array mapping images of atoms to originals in the central cell
     integer, intent(in) :: img2CentCell(:)
-
 
     !> nr. atoms in the central cell
     integer :: nAtom

@@ -54,6 +54,9 @@ module main
   use commontypes
   use dispersions, only : DispersionIface
   use xmlf90
+  use ipisocket, only : IpiSocketComm
+  use thirdorder_module, only : ThirdOrder
+  use simplealgebra
   implicit none
   private
 
@@ -244,8 +247,8 @@ contains
     real(dp), pointer :: pDynMatrix(:,:)
 
 
-    !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case of
-    !> conjugate gradient/steepest descent the geometries are written anyway
+    !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case
+    !> of conjugate gradient/steepest descent the geometries are written anyway
     logical :: tWriteRestart = .false.
 
     !> Minimal number of SCC iterations
@@ -306,99 +309,43 @@ contains
       call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, nSCCiter, sccTol)
     end if
 
-    lpGeomOpt: do while (iGeoStep <= nGeoSteps)
+    tLatticeChanged = tPeriodic
+    tCoordsChanged = .true.
 
-      if (tSocket) then
-        call socket%receive(coord0, tmpLat3Vecs)
-        if (tPeriodic) then
-          latVec(:,:) = tmpLat3Vecs
-          call handleLatticeVectorUpdate(latVec, tScc, mCutoff, dispersion, recVec, invLatVec,&
-              & cellVol, recCellVol, cellVec, rCellVec)
-        end if
-      end if
+    ! Belongs into initprogram where initial geometry is set up
+    if (tSocket) then
+      call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+          & tLatticeChanged)
+    end if
 
+    lpGeomOpt: do iGeoStep = 0, nGeoSteps
+
+      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+      
       tWriteRestart = needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       if (tMD .and. tWriteRestart) then
         call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
       end if
 
-      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
-
-      if (tPeriodic) then
-        invLatVec = transpose(latVec)
-        call matinv(invLatVec)
-        CellVol = abs(determinant33(latVec))
-
-        ! derivative of pV term in Gibbs energy
-        if (tStress .and. pressure /= 0.0_dp) then
-          call derivDeterminant33(derivCellVol, latVec)
-          derivCellVol(:,:) = pressure * derivCellVol
-        else
-          derivCellVol(:,:) = 0.0_dp
-        end if
-
+      if (tLatticeChanged) then
+        call handleLatticeChange(latVec, tScc, tStress, pressure, mCutoff, dispersion,&
+            & recVec, invLatVec, cellVol, recCellVol, derivCellVol, cellVec, rCellVec)
       end if
-
-      ! Save old coordinates and fold coords to unit cell
-      coord0Fold(:,:) = coord0
-      if (tPeriodic) then
-        call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
+      if (tCoordsChanged) then
+        call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
+            & tPeriodic, tScc, tDispersion, t3rdFull, dispersion, thirdOrd,&
+            & img2CentCell, iCellVec, neighborList, nAllAtom, coord0Fold, coord, species,&
+            & rCellVec, nAllOrb, nNeighbor, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
       end if
-
-      ! Initialize neighborlists
-      call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, &
-          &neighborList, nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
-      nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
-
-      ! Calculate neighborlist for SK and repulsive calculation
-      call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
-
-      ! Reallocate Hamiltonian and overlap based on the new neighbor list
-      call reallocateHS(ham, over, iPair, neighborList%iNeighbor, nNeighbor, &
-          &orb, img2CentCell)
-
-      ! Reallocate density matrixes if necessary
-      if (size(ham, dim=1) > size(rhoPrim, dim=1)) then
-        deallocate(H0)
-        allocate(H0(size(ham,dim=1)))
-        deallocate(rhoPrim)
-        allocate(rhoPrim(size(ham,dim=1),nSpin))
-        if (tImHam) then
-          deallocate(iRhoPrim)
-          allocate(iRhoPrim(size(ham,dim=1),nSpin))
-          deallocate(iHam)
-          allocate(iHam(size(ham,dim=1),nSpin))
-        end if
-        if (tForces) then
-          deallocate(ERhoPrim)
-          allocate(ERhoPrim(size(ham,dim=1)))
-        end if
-      end if
-
-      ! (Re)Initialize mixer
+      
       if (tSCC) then
         call reset(pChrgMixer, nMixElements)
       end if
 
-      ! Notify various modules about coordinate changes
-      if (tSCC) then
-        call updateCoords_SCC(coord, species, neighborList, img2CentCell)
-      end if
-      if (tDispersion) then
-        call dispersion%updateCoords(neighborList, img2CentCell, coord, &
-            & species0)
-      end if
-      if (t3rdFull) then
-        call thirdOrd%updateCoords(neighborList, species)
-      end if
+      call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor, species,&
+          & iPair, orb)
+      call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species, iPair, orb)
 
-      ! Build non-scc Hamiltonian and overlap
-      call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor,&
-          &  neighborList%iNeighbor, species, iPair, orb)
-      call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor,&
-          & species, iPair, orb)
-
-      ! Adapt electron temperature to MD, if necessary
       if (tSetFillingTemp) then
         call getTemperature(temperatureProfile, tempElec)
       end if
@@ -601,8 +548,9 @@ contains
 
             ! Solve eigenproblem for real or complex Hamiltionian
             if (tRealHS) then
-              call diagonalize(HSqrReal(:,:,iSpin2), SSqrReal, eigen(:,1,iSpin), ham(:,iSpin), over,&
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V')
+              call diagonalize(HSqrReal(:,:,iSpin2), SSqrReal, eigen(:,1,iSpin), ham(:,iSpin),&
+                  & over, neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,&
+                  & solver, 'V')
               if (tStoreEigvecs) then
                 call reset(storeEigvecsReal(iSpin), [size(HSqrReal, dim=1), size(HSqrReal, dim=2)])
                 call push(storeEigvecsReal(iSpin), HSqrReal(:,:,iSpin2))
@@ -614,11 +562,12 @@ contains
                 else
                   iK2 = nK
                 end if
-                call diagonalize(HSqrCplx(:,:,iK2,iSpin2), SSqrCplx, eigen(:,nk,iSpin), ham(:,iSpin),&
-                    & over,kPoint(:,nk), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
-                    & iAtomStart, iPair, img2CentCell, solver, 'V')
+                call diagonalize(HSqrCplx(:,:,iK2,iSpin2), SSqrCplx, eigen(:,nk,iSpin),&
+                    & ham(:,iSpin), over,kPoint(:,nk), neighborList%iNeighbor, nNeighbor,&
+                    & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, solver, 'V')
                 if (tStoreEigvecs) then
-                  call reset(storeEigvecsCplx(iSpin), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
+                  call reset(storeEigvecsCplx(iSpin),&
+                      & [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
                   call push(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2,iSpin2))
                 end if
               end do
@@ -695,12 +644,12 @@ contains
           if (tRealHS) then
             if (tImHam) then
               call diagonalize(HSqrCplx(:,:,1,1), SSqrCplx, eigen(:,1,1), ham, over,&
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V', &
-                  & iHam=iHam)
+                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver,&
+                  & 'V', iHam=iHam)
             else if (tSpinOrbit) then
               call diagonalize(HSqrCplx(:,:,1,1), SSqrCplx, eigen(:,1,1), ham, over,&
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V', &
-                  & xi,orb,species)
+                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver,&
+                  & 'V', xi,orb,species)
             else
               call diagonalize(HSqrCplx(:,:,1,1), SSqrCplx, eigen(:,1,1), ham, over,&
                   & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V')
@@ -718,16 +667,16 @@ contains
               end if
               if (tImHam) then
                 call diagonalize(HSqrCplx(:,:,iK2,1), SSqrCplx, eigen(:,nk,1), ham, over,&
-                    & kPoint(:,nk), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart,&
-                    & iPair, img2CentCell, solver, 'V', iHam=iHam)
+                    & kPoint(:,nk), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
+                    & iAtomStart, iPair, img2CentCell, solver, 'V', iHam=iHam)
               else if (tSpinOrbit) then
                 call diagonalize(HSqrCplx(:,:,iK2,1), SSqrCplx, eigen(:,nK,1), ham, over,&
-                    & kPoint(:,nK), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart,&
-                    & iPair, img2CentCell, solver, 'V', xi,orb,species)
+                    & kPoint(:,nK), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
+                    & iAtomStart, iPair, img2CentCell, solver, 'V', xi,orb,species)
               else
                 call diagonalize(HSqrCplx(:,:,iK2,1), SSqrCplx, eigen(:,nK,1), ham, over,&
-                    & kPoint(:,nK), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart,&
-                    & iPair, img2CentCell, solver, 'V')
+                    & kPoint(:,nK), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
+                    & iAtomStart, iPair, img2CentCell, solver, 'V')
               end if
               if (tStoreEigvecs) then
                 call reset(storeEigvecsCplx(1), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
@@ -1072,11 +1021,11 @@ contains
 
         if (tWriteDetailedOut) then
           call writeDetailedOut1(fdUser, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
-              & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec,&
-              & sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling, orb,&
-              & species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
-              & pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit,&
-              & tScc)
+              & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
+              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
+              & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
+              & E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
+              & tSpinOrbit, tScc)
         end if
 
         if (tSCC) then
@@ -1127,7 +1076,8 @@ contains
           call error("Only real systems are supported for excited state calculations")
         end if
         if (tPeriodic .and. tForces) then
-          call error("Forces in the excited state for periodic geometries are currently unavailable")
+          call error("Forces in the excited state for periodic geometries are currently&
+              & unavailable")
         end if
 
         dqAtom = sum( qOutput(:,:,1) - q0(:,:,1) , dim=1)
@@ -1794,6 +1744,8 @@ contains
         if (tGeomEnd) then
           exit lpGeomOpt
         else
+          tCoordsChanged = .false.
+          tLatticeChanged = .false.
           if (tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs .and. nSCCIter > 1) then
             if (tDFTBU) then
               if (tSpinOrbit) then
@@ -1810,12 +1762,15 @@ contains
             call next(derivDriver, new3Coord, totalDeriv(:,indMovedAtom), tGeomEnd)
             coord0(:,indMovedAtom) = new3Coord(:,:)
             if (tGeomEnd) exit lpGeomOpt
-          elseif (tGeoOpt) then
+            tCoordsChanged = .true.
+          else if (tGeoOpt) then
             if (tCoordStep) then
               call next(pGeoCoordOpt, energy%EMermin, tmpDerivs, tmpCoords,tCoordEnd)
+              tCoordsChanged = .true.
               if (.not.tLatOpt) tGeomEnd = tCoordEnd
             else
               call next(pGeoLatOpt, energy%EGibbs, tmpLatVecs, newLatVecs,tGeomEnd)
+              tLatticeChanged = .true.
               if (tLatOptFixAng) then ! optimization uses scaling factor of
                 !  lattice vectors
                 if (any(tLatOptFixLen)) then
@@ -1839,9 +1794,10 @@ contains
               end if
               iLatGeoStep = iLatGeoStep + 1
             end if
-          elseif(tMD) then
+          else if (tMD) then
             movedAccel(:,:) = -totalDeriv(:,indMovedAtom) / movedMass
             call next(pMDIntegrator, movedAccel ,new3Coord, movedVelo)
+            tCoordsChanged = .true.
             if (allocated(temperatureProfile)) then
               call next(temperatureProfile)
             end if
@@ -1892,7 +1848,8 @@ contains
             write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H", &
                 & Hartree__eV * energy%EMerminKin, "eV"
             if (tPeriodic) then
-              write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+              write(stdOut, format2Ue) 'Pressure', cellPressure, 'au',&
+                  & cellPressure * au__pascal, 'Pa'
               if (pressure /= 0.0_dp) then
                 write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
                     & Hartree__eV * energy%EGibbsKin,'eV'
@@ -1903,6 +1860,10 @@ contains
               call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
                   & totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
             end if
+          else if (tSocket .and. iGeoStep < nGeoSteps) then
+            ! Only receive geometry from socket, if there are still geometry iterations left
+            call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+                & tLatticeChanged)
           end if
 
           if (tGeomEnd.and.tGeoOpt) then
@@ -1936,38 +1897,21 @@ contains
                   end if
                 end if
                 if (nMovedCoord > 0) then
-                  ! Workaround for NAG
-                  !coord0(:,indMovedAtom) = reshape(tmpCoords(:), (/3, nMovedAtom&
-                  !    &/))
+                  ! Workaround NAG (6.1)
+                  !coord0(:,indMovedAtom) = reshape(tmpCoords, [3, nMovedAtom])
                   do ii = 1, nMovedAtom
                     coord0(:,indMovedAtom(ii)) = tmpCoords((ii-1)*3+1:ii*3)
-                  end do
+                  end do                  
                 end if
               else
-                call cart2frac(coord0,latVec)
-                latVec = reshape(newLatVecs, (/3,3/))
-                call frac2cart(coord0,latVec)
-                invLatVec = latVec(:,:)
-                call matinv(invLatVec)
-                invLatVec = reshape(invLatVec, (/3, 3/), order=(/2, 1/))
-                recVec = 2.0_dp * pi * invLatVec
-                CellVol = abs(determinant33(latVec))
-                recCellVol = abs(determinant33(recVec))
-                if (tSCC) then
-                  call updateLatVecs_SCC(latVec, recVec, CellVol)
-                  mCutoff = max(mCutoff, getSCCCutoff())
-                end if
-                if (tDispersion) then
-                  call dispersion%updateLatVecs(latVec)
-                  mCutoff = max(mCutoff, dispersion%getRCutoff())
-                end if
-                call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, &
-                    & mCutoff)
+                call cart2frac(coord0, latVec)
+                latVec(:,:) = reshape(newLatVecs, [3, 3])
+                call frac2cart(coord0, latVec)
+                tCoordsChanged = .true.
                 if (tCoordOpt) then
                   tCoordStep = .true.
                   tCoordEnd = .false.
-                  tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), &
-                      & (/ nMovedCoord /))
+                  tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), [nMovedCoord])
                   call reset(pGeoCoordOpt, tmpCoords)
                 end if
               end if
@@ -1977,22 +1921,8 @@ contains
 
               if (tBarostat) then ! apply a Barostat
                 call rescale(pMDIntegrator,coord0,latVec,totalStress)
-                !cellVol = abs(determinant33(latVec))
-                invLatVec = latVec(:,:)
-                call matinv(invLatVec)
-                invLatVec = reshape(invLatVec, (/3, 3/), order=(/2, 1/))
-                recVec = 2.0_dp * pi * invLatVec
-                recCellVol = abs(determinant33(recVec))
-                if (tSCC) then
-                  call updateLatVecs_SCC(latVec, recVec, CellVol)
-                  mCutoff = max(mCutoff, getSCCCutoff())
-                end if
-                if (tDispersion) then
-                  call dispersion%updateLatVecs(latVec)
-                  mCutoff = max(mCutoff, dispersion%getRCutoff())
-                end if
-                call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, &
-                    & mCutoff)
+                tCoordsChanged = .true.
+                tLatticeChanged = .true.
               end if
 
               if (tWriteRestart) then
@@ -2000,15 +1930,15 @@ contains
                   cellVol = abs(determinant33(latVec))
                   energy%EGibbs = energy%EMermin + pressure * cellVol
                 end if
-                call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-                    & tDipole, energy, latVec, cellVol, cellPressure, pressure, kT, absEField,&
-                    & dipoleMoment, qOutput, q0)
+                call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf,&
+                    & tPrintMulliken, tDipole, energy, latVec, cellVol, cellPressure, pressure, kT,&
+                    & absEField, dipoleMoment, qOutput, q0)
               end if
             end if
           end if
         end if
       end if
-
+      
       if (tWriteDetailedOut) then
         call writeDetailedOut4(fdUser, tMD, energy, kT)
       end if
@@ -2028,7 +1958,6 @@ contains
         write(stdOut, "(A)") "Setting max number of geometry steps to current step number."
       end if
 
-      iGeoStep = iGeoStep + 1
     end do lpGeomOpt
 
     if (tSocket) then
@@ -2391,6 +2320,27 @@ contains
   end subroutine initGeoOptParameters
 
 
+  !> Receives geometry from socket.
+  subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
+      & tLatticeChanged)
+    type(IpiSocketComm), allocatable, intent(inout) :: socket
+    logical, intent(in) :: tPeriodic
+    real(dp), intent(out) :: coord0(:,:)
+    real(dp), intent(out) :: latVecs(:,:)
+    logical, intent(out) :: tCoordsChanged, tLatticeChanged
+
+    real(dp) :: tmpLatVecs(3, 3)
+    
+    call socket%receive(coord0, tmpLatVecs)
+    tCoordsChanged = .true.
+    if (tPeriodic) then
+      latVecs(:,:) = tmpLatVecs
+    end if
+    tLatticeChanged = tPeriodic
+
+  end subroutine receiveGeometryFromSocket
+
+
   !> Initialises SCC related parameters before geometry loop starts
   function getMinSccIters(tScc, tDftbU, nSpin) result(minSccIter)
     logical, intent(in) :: tScc, tDftbU
@@ -2415,22 +2365,28 @@ contains
 
 
   !> Does the steps necessary after a lattice vector update
-  subroutine handleLatticeVectorUpdate(latVecs, tScc, mCutoff, dispersion, recVecs, recVecs2p,&
-      & cellVol, recCellVol, cellVecs, rCellVecs)
+  subroutine handleLatticeChange(latVecs, tScc, tStress, pressure, mCutoff, dispersion,&
+      & recVecs, recVecs2p, cellVol, recCellVol, derivCellVol, cellVecs, rCellVecs)
     real(dp), intent(in) :: latVecs(:,:)
-    logical, intent(in) :: tScc
+    logical, intent(in) :: tScc, tStress
+    real(dp), intent(in) :: pressure
     real(dp), intent(inout) :: mCutoff
     class(DispersionIface), allocatable, intent(inout) :: dispersion
     real(dp), intent(out) :: recVecs(:,:), recVecs2p(:,:)
     real(dp), intent(out) :: cellVol, recCellVol
+    real(dp), intent(out) :: derivCellVol(:,:)
     real(dp), allocatable, intent(out) :: cellVecs(:,:), rCellVecs(:,:)
-    
+
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
     call matinv(recVecs2p)
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
     recCellVol = abs(determinant33(recVecs))
+    if (tStress) then
+      call derivDeterminant33(derivCellVol, latVecs)
+      derivCellVol(:,:) = pressure * derivCellVol
+    end if
     if (tSCC) then
       call updateLatVecs_SCC(latVecs, recVecs, cellVol)
       mCutoff = max(mCutoff, getSCCCutoff())
@@ -2441,7 +2397,61 @@ contains
     end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
   
-  end subroutine handleLatticeVectorUpdate
+  end subroutine handleLatticeChange
+
+
+  !> Does necessary steps when ionic coordinates change
+  subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
+      & orb, tPeriodic, tScc, tDispersion, t3rdFull, dispersion, thirdOrd,&
+      & img2CentCell, iCellVec, neighborList, nAllAtom, coord0Fold, coord, species,&
+      & rCellVec, nAllOrb, nNeighbor, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
+    real(dp), intent(in) :: coord0(:,:), latVec(:,:), invLatVec(:,:)
+    integer, intent(in) :: species0(:)
+    real(dp), intent(in) :: mCutoff, skRepCutoff
+    type(TOrbitals), intent(in) :: orb
+    logical, intent(in) :: tPeriodic, tScc, tDispersion, t3rdFull
+    class(DispersionIface), allocatable, intent(inout) :: dispersion
+    type(ThirdOrder), intent(inout) :: thirdOrd
+    integer, allocatable, intent(inout) :: img2CentCell(:), iCellVec(:)
+    type(TNeighborList), intent(inout) :: neighborList
+    integer, intent(out) :: nAllAtom, nAllOrb
+    real(dp), intent(out) :: coord0Fold(:,:)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+    integer, allocatable, intent(inout) :: species(:)
+    real(dp), allocatable, intent(inout) :: rCellVec(:,:)
+    integer, intent(out) :: nNeighbor(:)
+    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), h0(:)
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), iRhoPrim(:,:), iHam(:,:), ERhoPrim(:)
+    integer, allocatable, intent(inout) :: iPair(:,:)
+
+    integer :: sparseSize
+
+    coord0Fold(:,:) = coord0
+    if (tPeriodic) then
+      call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
+    end if
+
+    call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, &
+        &neighborList, nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
+    nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
+    call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
+    call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iPair,&
+        & sparseSize)
+    call reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
+
+    ! Notify various modules about coordinate changes
+    if (tSCC) then
+      call updateCoords_SCC(coord, species, neighborList, img2CentCell)
+    end if
+    if (tDispersion) then
+      call dispersion%updateCoords(neighborList, img2CentCell, coord, &
+          & species0)
+    end if
+    if (t3rdFull) then
+      call thirdOrd%updateCoords(neighborList, species)
+    end if
+    
+  end subroutine handleCoordinateChange
 
 
   !> Decides, whether restart file should be written during the run.
@@ -2457,6 +2467,55 @@ contains
     end if
 
   end function needsRestartWriting
+
+
+  !> Ensures that sparse array have enough storage to hold all necessary elements.
+  subroutine reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
+    integer, intent(in) :: sparseSize
+    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), H0(:), rhoPrim(:,:)
+    real(dp), allocatable, intent(inout) :: iHam(:,:), iRhoPrim(:,:), ERhoPrim(:)
+
+    integer :: nSpin
+
+    #:call ASSERT_CODE
+      @:ASSERT(size(over) == size(ham, dim=1))
+      @:ASSERT(size(H0) == size(ham, dim=1))
+      @:ASSERT(all(shape(rhoPrim) == shape(ham)))
+      if (allocated(iRhoPrim)) then
+        @:ASSERT(all(shape(iRhoPrim) == shape(ham)))
+        @:ASSERT(all(shape(iHam) == shape(ham)))
+      end if
+      if (allocated(ERhoPrim)) then
+        @:ASSERT(all(shape(ERhoPrim) == shape(ham)))
+      end if
+    #:endcall ASSERT_CODE
+      
+    if (size(ham, dim=1) >= sparseSize) then
+      ! Sparse matrices are big enough
+      return
+    end if
+
+    nSpin = size(ham, dim=2)
+    deallocate(ham)
+    deallocate(over)
+    deallocate(H0)
+    deallocate(rhoPrim)
+    allocate(ham(sparseSize, nSpin))
+    allocate(over(sparseSize))
+    allocate(H0(sparseSize))
+    allocate(rhoPrim(sparseSize, nSpin))
+    if (allocated(iRhoPrim)) then
+      deallocate(iRhoPrim)
+      deallocate(iHam)
+      allocate(iRhoPrim(sparseSize, nSpin))
+      allocate(iHam(sparseSize, nSpin))
+    end if
+    if (allocated(ERhoPrim)) then
+      deallocate(ERhoPrim)
+      allocate(ERhoPrim(sparseSize))
+    end if
+
+  end subroutine reallocateSparseArrays
 
 
   !> Calculates electron fillings and resulting band energy terms.
