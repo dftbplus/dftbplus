@@ -13,53 +13,55 @@ import optparse
 import numpy as np
 from dptools.gen import Gen
 
-USAGE = """usage: %prog [options] INPUT
+USAGE = """usage: %prog [options] INPUT N
 
 Strains the geometry found in INPUT by N percent, writing the
 resulting geometries to standard output.
 """
 
-# voight convention for 2 index to 1 of tensors
-voight = [[0,0],[1,1],[2,2],[1,2],[0,2],[0,1]]
+# Voight convention for 2 index to 1 of tensors
+VOIGHT = [[0, 0], [1, 1], [2, 2], [1, 2], [0, 2], [0, 1]]
 
 def main():
     '''Main driver for straingen.'''
-    
+
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option("-o", "--output", action="store", dest="output",
                       help="override the name of the output file (use '-' for "
                       "standard out")
-    parser.add_option("-s", "--strain", action="store", dest="strain",
-                      type=float, default=0.0, help="percentage strain "
-                      "for the geometries (default: 0)")
     parser.add_option("-c", "--component", action="store", dest="component",
                       type=int, default=1, help="strain to apply"
                       "(default: 1 = xx)")
-    
+
     (options, args) = parser.parse_args()
-    
-    if len(args) != 1:
-        parser.error("You must specify exactly one argument (input file).")
+
+    if len(args) != 2:
+        parser.error("You must specify exactly two arguments (input file \
+        then strain).")
     infile = args[0]
-    
-    options.component -= 1;
-    if (options.component < 0 or options.component > 5):
+    percentage = args[1]
+
+    options.component -= 1
+    if options.component < 0 or options.component > 5:
         parser.error("Only strain components 1 - 6 are possible.")
-    
+
     gen = Gen.fromfile(infile)
     geometry = gen.geometry
-    
-    strainTensor = np.zeros((3,3), dtype = float)
-    for jj in range (3) :
-      strainTensor[jj][jj] = 1.0
-    strainTensor[voight[options.component][0]][voight[options.component][1]] += 0.005*options.strain
-    strainTensor[voight[options.component][1]][voight[options.component][0]] += 0.005*options.strain
-    
+
+    strain = np.zeros((3, 3), dtype=float)
+
+    for jj in range(3):
+        strain[jj][jj] = 1.0
+    strain[VOIGHT[options.component][0]][VOIGHT[options.component][1]] \
+        += 0.005*percentage
+    strain[VOIGHT[options.component][1]][VOIGHT[options.component][0]] \
+        += 0.005*percentage
+
     if geometry.latvecs is not None:
-        geometry.latvecs = np.dot(geometry.latvecs,strainTensor)
-    
-    geometry.coords = np.dot(geometry.coords,strainTensor)
-    
+        geometry.latvecs = np.dot(geometry.latvecs, strain)
+
+    geometry.coords = np.dot(geometry.coords, strain)
+
     if options.output:
         if options.output == "-":
             outfile = sys.stdout
@@ -70,8 +72,8 @@ def main():
             outfile = infile
         else:
             outfile = infile + ".gen"
-    
-    gen = Gen(geometry, fractional=gen.fractional)     
+
+    gen = Gen(geometry, fractional=gen.fractional)
     gen.tofile(outfile)
 
 if __name__ == "__main__":
