@@ -1793,7 +1793,7 @@ program dftbplus
               & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
               & potential%intBlock, potential%iorbitalBlock)
         else
-          call derivative_nonscc(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim,&
+          call derivative_shift(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim,&
               & skHamCont, skOverCont, coord, species, neighborList%iNeighbor,&
               & nNeighbor, img2CentCell, iPair, orb)
         end if

@@ -19,7 +19,7 @@ module forces
 
   private
 
-  public :: derivative_nonSCC, derivative_shift
+  public :: derivative_shift
 
 
   !> forces with shift vectors present
