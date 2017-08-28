@@ -1098,40 +1098,40 @@ contains
   end subroutine buildShifts_
 
 
-  !> Returns the shift per atom coming from the SCC part (with a spin index)
+  !> Returns the shift per atom coming from the SCC part.
   subroutine getShiftPerAtom(shift)
 
     !> Contains the shift on exit.
-    real(dp), intent(out) :: shift(:,:)
+    real(dp), intent(out) :: shift(:)
 
-    @:ASSERT(size(shift,dim=1) == size(shiftPerAtom_,dim=1))
+    @:ASSERT(size(shift) == size(shiftPerAtom_))
 
-    shift(:,:) = 0.0_dp
-    shift(:,1) = shiftPerAtom_
+    shift(:) = 0.0_dp
+    shift(:) = shiftPerAtom_
     if (tExtChrg_) then
-      call addShiftPerAtom_ExtChrg(shift(:,1))
+      call addShiftPerAtom_ExtChrg(shift)
     end if
     if (tChrgConstr_) then
-      call addShiftPerAtom(chrgConstr_, shift(:,1))
+      call addShiftPerAtom(chrgConstr_, shift)
     end if
     if (tThirdOrder_) then
-      call addShiftPerAtom(thirdOrder_, shift(:,1))
+      call addShiftPerAtom(thirdOrder_, shift)
     end if
 
   end subroutine getShiftPerAtom
 
 
-  !> Returns the shift per L contribution of the SCC. (with a spin index)
+  !> Returns the shift per L contribution of the SCC.
   subroutine getShiftPerL(shift)
 
     !> Contains the shift on exit.
-    real(dp), intent(out) :: shift(:,:,:)
+    real(dp), intent(out) :: shift(:,:)
 
-    @:ASSERT(size(shift,dim=1) == size(shiftPerL_,dim=1))
-    @:ASSERT(size(shift,dim=2) == size(shiftPerL_,dim=2))
-    @:ASSERT(size(shift,dim=3) > 0)
-    shift(:,:,:) = 0.0_dp
-    shift(:,:,1) = shiftPerL_(:,:)
+    @:ASSERT(size(shift, dim=1) == size(shiftPerL_, dim=1))
+    @:ASSERT(size(shift, dim=2) == size(shiftPerL_, dim=2))
+
+    shift(:,:) = 0.0_dp
+    shift(:,:) = shiftPerL_
 
   end subroutine getShiftPerL
 

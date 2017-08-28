@@ -72,8 +72,7 @@ module thirdorder_module
     procedure :: getCutoff
     procedure :: updateCoords
     procedure :: updateCharges
-    procedure :: getShiftPerAtom
-    procedure :: getShiftPerShell
+    procedure :: getShifts
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
     procedure :: addGradientDc
@@ -301,49 +300,29 @@ contains
 
   !> Returns shifts per atom.
   !!
-  subroutine getShiftPerAtom(this, shift)
-
+  subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
-
 
     !> Shift per atom.
-    real(dp), intent(out) :: shift(:)
-
-    @:ASSERT(size(shift) == this%nAtoms)
-
-    if (this%shellResolved) then
-      shift(:) = this%shift3
-    else
-      shift(:) = this%shift1(1,:) + this%shift2(1,:) + this%shift3
-    end if
-
-  end subroutine getShiftPerAtom
-
-
-  !> Returns shifts per shell.
-  !!
-  subroutine getShiftPerShell(this, shift)
-
-
-    !> Instance.
-    class(ThirdOrder), intent(inout) :: this
-
+    real(dp), intent(out) :: shiftPerAtom(:)
 
     !> Shift per shell.
-    real(dp), intent(out) :: shift(:,:)
+    real(dp), intent(out) :: shiftPerShell(:,:)
 
-    @:ASSERT(size(shift, dim=1) == this%mShellsReal)
-    @:ASSERT(size(shift, dim=2) == this%nAtoms)
+    @:ASSERT(size(shiftPerAtom) == this%nAtoms)
+    @:ASSERT(size(shiftPerShell, dim=1) == this%mShellsReal)
 
     if (this%shellResolved) then
-      shift(:,:) = this%shift1 + this%shift2
+      shiftPerAtom(:) = this%shift3
+      shiftPerShell(:,:) = this%shift1 + this%shift2
     else
-      shift(:,:) = 0.0_dp
+      shiftPerAtom(:) = this%shift1(1,:) + this%shift2(1,:) + this%shift3
+      shiftPerShell(:,:) = 0.0_dp
     end if
 
-  end subroutine getShiftPerShell
+  end subroutine getShifts
 
 
   !> Returns energy per atom.

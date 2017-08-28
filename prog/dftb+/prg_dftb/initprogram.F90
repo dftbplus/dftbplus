@@ -333,8 +333,8 @@ module initprogram
   !> eigensolver
   integer :: solver
 
-  !> number of SCC iterations
-  integer :: nSCCIter
+  !> maximal number of SCC iterations
+  integer :: maxSccIter
 
 
   !> is this a spin polarized calculation?
@@ -591,7 +591,7 @@ module initprogram
   logical :: t3rdFull
 
   !> data structure for 3rd order
-  type(ThirdOrder) :: thirdOrd
+  type(ThirdOrder), allocatable :: thirdOrd
 
 
   !> Calculate Casida linear response excitations
@@ -815,9 +815,9 @@ contains
     tFracCoord = input%geom%tFracCoord
     solver = input%ctrl%iSolver
     if (tSCC) then
-      nSCCIter = input%ctrl%maxIter
+      maxSccIter = input%ctrl%maxIter
     else
-      nSCCIter = 1
+      maxSccIter = 1
     end if
 
     if (tPeriodic) then
@@ -872,8 +872,6 @@ contains
           end do
         end do
       end do
-    else
-      allocate(spinW(0,0,0))
     end if
 
     if (tSpinOrbit) then
@@ -1014,6 +1012,7 @@ contains
         thirdInp%damped(:) = tDampedShort
         thirdInp%dampExp = input%ctrl%dampExp
         thirdInp%shellResolved = input%ctrl%tOrbResolved
+        allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
         mCutoff = max(mCutoff, thirdOrd%getCutoff())
       end if
@@ -1213,7 +1212,7 @@ contains
         call init(pChrgMixer, pAndersonMixer)
       case (3)
         allocate(pBroydenMixer)
-        call init(pBroydenMixer, nSCCIter, mixParam, input%ctrl%broydenOmega0,&
+        call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
       case(4)
@@ -2149,7 +2148,7 @@ contains
     if (tSCC) then
       write(stdout, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdout, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
-      write(stdout, "(A,':',T30,I14)") "Max. scc iterations", nSCCIter
+      write(stdout, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
       write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdout, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
@@ -2211,7 +2210,7 @@ contains
       end select
       write(stdout, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
       write(stdout, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-      write(stdout, "(A,':',T30,I14)") "Maximal SCC-cycles", nSCCIter
+      write(stdout, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
       select case (iMixer)
       case(2)
         write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration

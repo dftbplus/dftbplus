@@ -19,15 +19,15 @@ module dftbplusu
   implicit none
   private
 
-  public :: shift_DFTBU, AppendBlock_reduce, Block_expand
+  public :: getDftbUShift, AppendBlock_reduce, Block_expand
   public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
 
 
   !> Potential shift from LDA+U type potentials
-  interface shift_DFTBU
+  interface getDftbUShift
     module procedure shift_U
     module procedure shift_iU
-  end interface shift_DFTBU
+  end interface getDftbUShift
 
 contains
 

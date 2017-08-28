@@ -393,16 +393,16 @@ contains
 
 #:if WITH_ARPACK
 
-    real(dp), allocatable :: shiftPerAtom(:,:), shiftPerL(:,:,:)
+    real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
     @:ASSERT(self%tInit)
     @:ASSERT(self%nAtom == size(orb%nOrbAtom))
     ! BA: SCC is currently ugly, it gives back an array with an additional dimension (spin),
     ! however, fills always the first channel only!
-    ALLOCATE(shiftPerAtom(self%nAtom, 1))
-    ALLOCATE(shiftPerL(orb%mShell, self%nAtom, 1))
+    allocate(shiftPerAtom(self%nAtom))
+    allocate(shiftPerL(orb%mShell, self%nAtom))
     call getShiftPerAtom(shiftPerAtom)
     call getShiftPerL(shiftPerL)
-    shiftPerAtom = shiftPerAtom + shiftPerL(1,:,:)
+    shiftPerAtom(:) = shiftPerAtom + shiftPerL(1,:)
 
     call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, dqAt, coords0, self%nExc, &
         & self%nStat, self%symmetry, SSqrReal, filling, species0, self%HubbardU, self%spinW, &
@@ -410,7 +410,7 @@ contains
         & self%fdCoeffs, self%tGrndState, self%fdXplusY, self%fdTrans, self%fdSPTrans, &
         & self%fdTradip, self%tArnoldi, self%fdArnoldi, self%fdArnoldiDiagnosis, self%fdExc, &
         & self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, self%oscillatorWindow, &
-        & excEnergy, shiftPerAtom(:,1), skHamCont, skOverCont, excgradient, derivator, rhoSqr, &
+        & excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, derivator, rhoSqr, &
         & occNatural, naturalOrbs)
 
 #:else

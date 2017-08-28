@@ -58,6 +58,7 @@ module main
   use simplealgebra
   use message
   use repcont
+  use xlbomd_module
   implicit none
   private
 
@@ -76,6 +77,9 @@ contains
 
   subroutine runDftbPlus()
     use initprogram
+
+    real(dp), allocatable :: orbResShift3rd(:,:)
+    real(dp), allocatable :: shift3rd(:)
     
     
     integer                  :: nk, iSpin2, iK2
@@ -257,10 +261,6 @@ contains
 
     !> if scf/geometry driver should be stopped
     logical :: tStopSCC, tStopDriver
-    integer :: iSh1, iSp1
-
-    real(dp), allocatable :: shift3rd(:)
-    real(dp), allocatable :: orbresshift3rd(:,:)
 
     !> net charge on each atom
     real(dp), allocatable :: dqAtom(:)
@@ -293,8 +293,8 @@ contains
       & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
       & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
-      & SSqrReal, rhoSqrReal, dqAtom, naturalOrbs, occNatural, velocities, movedVelo, movedAccel,&
-      & movedMass)
+      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, naturalOrbs, occNatural, velocities,&
+      & movedVelo, movedAccel, movedMass)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -307,7 +307,7 @@ contains
 
     minSccIter = getMinSccIters(tScc, tDftbU, nSpin)
     if (tXlbomd) then
-      call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, nSCCiter, sccTol)
+      call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, maxSccIter, sccTol)
     end if
 
     tLatticeChanged = tPeriodic
@@ -334,9 +334,9 @@ contains
       end if
       if (tCoordsChanged) then
         call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
-            & tPeriodic, tScc, tDispersion, t3rdFull, dispersion, thirdOrd,&
-            & img2CentCell, iCellVec, neighborList, nAllAtom, coord0Fold, coord, species,&
-            & rCellVec, nAllOrb, nNeighbor, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
+            & tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
+            & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
+            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
       end if
       
       if (tSCC) then
@@ -351,12 +351,8 @@ contains
         call getTemperature(temperatureProfile, tempElec)
       end if
 
-      if (tXlbomd) then
-        call xlbomdIntegrator%getSCCParameters(minSCCIter, nSCCiter, sccTol)
-      end if
-
-      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList,&
-          & pRepCont, energy%atomRep, energy%ERep)
+      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
+          & energy%atomRep, energy%ERep)
 
       if (tDispersion) then
         call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
@@ -372,92 +368,25 @@ contains
 
       call mergeExternalPotentials(orb, species, potential)
 
-      if (tScc) then
-        call printSccHeader()
-      end if
+      call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tStopScc)
 
-      tConverged = .false.
-      iSCCIter = 1
-      tStopSCC = .false.
+      lpSCC: do iSccIter = 1, maxSccIter
 
-      lpSCC: do while (iSCCiter <= nSCCIter)
-        rhoPrim(:,:) = 0.0_dp
-        if (tImHam) then
-          iRhoPrim(:,:) = 0.0_dp
+        call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+        
+        if (tScc) then
+          call getChargePerShell(qInput, orb, species, chargePerShell)
+          call addChargePotentials(qInput, q0, chargePerShell, orb, species, species0,&
+              & neighborList, img2CentCell, spinW, thirdOrd, potential)
+          call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
+              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
         end if
-
+        potential%intBlock = potential%intBlock + potential%extBlock
+        
         ham(:,:) = 0.0_dp
         do ii = 1, size(H0)
-          ham(ii,1) = h0(ii)
+          ham(ii, 1) = h0(ii)
         end do
-
-        ! Build various contribution to the Hamiltonian
-
-        ! Reset this in case DFTB+U terms are added to
-        ! potential%iorbitalBlock later in loop:
-        potential%iorbitalBlock = 0.0_dp
-        if (tDualSpinOrbit) then
-          call shiftLS(potential%iorbitalBlock,xi,orb,species)
-        end if
-
-        if (.not. tSCC) then
-          tConverged = .true.
-          potential%intBlock = 0.0_dp
-        else
-          chargePerShell(:,:,:) = 0.0_dp ! hack for the moment to get charge
-          ! and magnetization
-          do iAtom = 1, nAtom
-            iSp1 = species(iAtom)
-            do iSh1 = 1, orb%nShell(iSp1)
-              chargePerShell(iSh1,iAtom,1:nSpin) = &
-                  & chargePerShell(iSh1,iAtom,1:nSpin) + &
-                  & sum(qInput(orb%posShell(iSh1,iSp1): &
-                  & orb%posShell(iSh1+1,iSp1)-1,iAtom,1:nSpin),dim=1)
-            end do
-          end do
-
-          potential%intAtom = 0.0_dp
-          potential%intShell = 0.0_dp
-          potential%intBlock = 0.0_dp
-          call updateCharges_SCC(qInput, q0, orb, species, &
-              &neighborList%iNeighbor, img2CentCell)
-          call getShiftPerAtom(potential%intAtom)
-          call getShiftPerL(potential%intShell)
-
-          if (t3rdFull) then
-            call thirdOrd%updateCharges(species0, neighborList, qInput, q0,&
-                & img2CentCell, orb)
-            call thirdOrd%getShiftPerAtom(shift3rd)
-            potential%intAtom(:,1) = potential%intAtom(:,1) + shift3rd
-            call thirdOrd%getShiftPerShell(orbresshift3rd)
-            potential%intShell(:,:,1) = potential%intShell(:,:,1)&
-                & + orbresshift3rd(:,:)
-          end if
-
-          call total_shift(potential%intShell, potential%intAtom, orb, species)
-          ! Build spin contribution (if necessary)
-          if (tSpin) then
-            call addSpinShift(potential%intShell,chargePerShell,species,orb,spinW)
-          end if
-
-          call total_shift(potential%intBlock, potential%intShell, orb, species)
-
-          if (tDFTBU) then ! Apply LDA+U correction (if necessary)
-            potential%orbitalBlock = 0.0_dp
-            if (tImHam) then
-              call shift_DFTBU(potential%orbitalBlock,potential%iorbitalBlock, &
-                  & qBlockIn, qiBlockIn, species,orb, nDFTBUfunc, &
-                  & UJ, nUJ, niUJ, iUJ)
-            else
-              call shift_DFTBU(potential%orbitalBlock,qBlockIn,species,orb, &
-                  & nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
-            end if
-            potential%intBlock = potential%intBlock + potential%orbitalBlock
-          end if
-
-        end if
-
-        potential%intBlock = potential%intBlock + potential%extBlock
 
         call add_shift(ham,over,nNeighbor, neighborList%iNeighbor, &
             & species,orb,iPair,nAtom,img2CentCell,potential%intBlock)
@@ -468,7 +397,7 @@ contains
               & species,orb,iPair,nAtom,img2CentCell,potential%iorbitalBlock)
           iHam(:,:) = 2.0_dp*iHam(:,:)
         end if
-
+        
         ! hack due to not using Pauli-type structure for diagonalisation
         ! etc.
         if (nSpin > 1) then
@@ -541,6 +470,10 @@ contains
             else
               iSpin2 = iSpin
             end if
+            rhoPrim(:, iSpin) = 0.0_dp
+            if (tImHam) then
+              iRhoPrim(:, iSpin) = 0.0_dp
+            end if
 
             if (tRealHS) then
               if (tStoreEigvecs) then
@@ -597,6 +530,12 @@ contains
           call ud2qm(rhoPrim)
 
         else !  (nSpin == 4) then
+
+          rhoPrim(:,:) = 0.0_dp
+          if (tImHam) then
+            iRhoPrim(:,:) = 0.0_dp
+          end if
+
 
           if (tRealHS) then
             if (tImHam) then
@@ -754,49 +693,13 @@ contains
         ! Note: if XLBOMD is active, potential created with ingoing charges
         ! is needed later, therefore it should not be zeroed out.
         if (tSCC .and. .not. tXlbomd) then
-
-          potential%intAtom = 0.0_dp
-          potential%intShell = 0.0_dp
-          potential%intBlock = 0.0_dp
-
-          chargePerShell(:,:,:) = 0.0_dp ! hack for the moment to get charge
-          ! and magnetization
-          do iAtom = 1, nAtom
-            iSp1 = species(iAtom)
-            do iSh1 = 1, orb%nShell(iSp1)
-              chargePerShell(iSh1,iAtom,1:nSpin) = &
-                  & chargePerShell(iSh1,iAtom,1:nSpin) + &
-                  & sum(qOutput(orb%posShell(iSh1,iSp1): &
-                  & orb%posShell(iSh1+1,iSp1)-1,iAtom,1:nSpin),dim=1)
-            end do
-          end do
-
-          ! recalculate the SCC shifts for the output charge.
-
-          ! SCC contribution is calculated with the output charges.
-          call updateCharges_SCC(qOutput, q0, orb, species, &
-              &neighborList%iNeighbor, img2CentCell)
-
-          call getShiftPerAtom(potential%intAtom)
-          call getShiftPerL(potential%intShell)
-          if (t3rdFull) then
-            call thirdOrd%updateCharges(species0, neighborList, qOutput, q0,&
-                & img2CentCell, orb)
-            call thirdOrd%getShiftPerAtom(shift3rd)
-            potential%intAtom(:,1) = potential%intAtom(:,1) + shift3rd
-            call thirdOrd%getShiftPerShell(orbresshift3rd)
-            potential%intShell(:,:,1) = potential%intShell(:,:,1)&
-                & + orbresshift3rd(:,:)
-          end if
-
-          call total_shift(potential%intShell, potential%intAtom, orb, species)
-
-          ! Build spin contribution (if necessary)
-          if (tSpin) then
-            call addSpinShift(potential%intShell,chargePerShell,species,orb,spinW)
-          end if
-
-          call total_shift(potential%intBlock, potential%intShell, orb, species)
+          call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+          call getChargePerShell(qOutput, orb, species, chargePerShell)
+          call addChargePotentials(qOutput, q0, chargePerShell, orb, species, species0,&
+              & neighborList, img2CentCell, spinW, thirdOrd, potential)
+          call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
+              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+          potential%intBlock = potential%intBlock + potential%extBlock
         end if
 
         ! Calculate energies
@@ -846,11 +749,6 @@ contains
           end if
         end if
 
-        potential%iorbitalBlock = 0.0_dp
-        if (tDualSpinOrbit) then
-          call shiftLS(potential%iorbitalBlock,xi,orb,species)
-        end if
-
         if (tDFTBU) then
           energy%atomDftbu(:) = 0.0_dp
           if (.not. tImHam) then
@@ -861,16 +759,6 @@ contains
                 & nDFTBUfunc, UJ, nUJ, niUJ, iUJ, qiBlockOut)
           end if
           energy%Edftbu = sum(energy%atomDftbu(:))
-          potential%orbitalBlock = 0.0_dp
-
-          if (tImHam) then
-            call shift_DFTBU(potential%orbitalBlock,potential%iorbitalBlock, &
-                & qBlockOut,qiBlockOut, species,orb, nDFTBUfunc, UJ, nUJ, niUJ, &
-                & iUJ)
-          else
-            call shift_DFTBU(potential%orbitalBlock,qBlockOut,species,orb, &
-                & nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
-          end if
         else
           energy%Edftbu = 0.0_dp
         end if
@@ -890,11 +778,11 @@ contains
         energy%EGibbs = energy%EMermin + cellVol * pressure
 
         ! Stop SCC if appropriate stop file is present (We need this query here
-        ! since the following block contains a check iSCCIter /= nSCCIter)
+        ! since the following block contains a check iSCCIter /= maxSccIter)
         inquire(file=fStopSCC, exist=tStopSCC)
         if (tStopSCC) then
           write(stdOut, "(3A)") "Stop file '" // fStopSCC // "' found."
-          nSCCIter = iSCCIter
+          maxSccIter = iSCCIter
           write(stdOut, "(A)") "Setting max number of scc cycles to current cycle."
         end if
 
@@ -929,7 +817,7 @@ contains
 
           tConverged = (sccErrorQ < sccTol) .and. &
               & (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
-          if ((.not. tConverged) .and. iSCCiter /= nSCCiter) then
+          if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
             ! Avoid mixing of spin unpolarised density for spin polarised
             ! cases, this is only a problem in iteration 1, as there is
             ! only the (spin unpolarised!) atomic input density at that
@@ -995,10 +883,10 @@ contains
 
         ! Not writing any restarting info if not converged and minimal number of
         ! SCC iterations not done.
-        if (restartFreq > 0 .and. .not.(tMD .or. tGeoOpt .or. tDerivs) .and. nSCCIter > 1) then
+        if (restartFreq > 0 .and. .not.(tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1) then
           if (tConverged .or. ((iSCCIter >= minSCCIter &
               & .or. tReadChrg .or. iGeoStep > 0) &
-              &.and. (iSCCIter == nSCCIter .or. mod(iSCCIter, restartFreq) ==&
+              &.and. (iSCCIter == maxSccIter .or. mod(iSCCIter, restartFreq) ==&
               & 0))) then
             if (tMulliken.and.tSCC) then
               if (tDFTBU) then
@@ -1018,8 +906,6 @@ contains
         if (tConverged) then
           exit lpSCC
         end if
-
-        iSCCIter = iSCCIter + 1
 
       end do lpSCC
 
@@ -1479,15 +1365,15 @@ contains
                 & nNeighbor, img2CentCell, iPair, orb)
           end if
         else
-          if (tSCC) then
-            potential%intBlock = potential%intBlock + potential%extBlock
-          else
-            potential%intBlock = potential%extBlock
-          end if
+          !if (tSCC) then
+          !  potential%intBlock = potential%intBlock + potential%extBlock
+          !else
+          !  potential%intBlock = potential%extBlock
+          !end if
 
-          if (tDFTBU) then
-            potential%intBlock = potential%orbitalBlock + potential%intBlock
-          end if
+          !if (tDFTBU) then
+          !  potential%intBlock = potential%orbitalBlock + potential%intBlock
+          !end if
 
           if (tImHam) then
             call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim,&
@@ -1703,7 +1589,8 @@ contains
         else
           tCoordsChanged = .false.
           tLatticeChanged = .false.
-          if (tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs .and. nSCCIter > 1) then
+          if (tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs .and. maxSccIter > 1)&
+              & then
             if (tDFTBU) then
               if (tSpinOrbit) then
                 call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
@@ -2110,8 +1997,8 @@ contains
       & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
       & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
-      & SSqrReal, rhoSqrReal, dqAtom, naturalOrbs, occNatural, velocities, movedVelo, movedAccel,&
-      & movedMass)
+      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, naturalOrbs, occNatural, velocities,&
+      & movedVelo, movedAccel, movedMass)
     logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs
     logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
@@ -2132,7 +2019,8 @@ contains
     complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), HSqrCplx2(:,:), SSqrCplx(:,:)
     real(dp), intent(out), allocatable :: HSqrReal(:,:,:), HSqrReal2(:,:), SSqrReal(:,:)
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
-    real(dp), intent(out), allocatable :: dqAtom(:), naturalOrbs(:,:,:), occNatural(:,:)
+    real(dp), intent(out), allocatable :: dqAtom(:), chargePerShell(:,:,:)
+    real(dp), intent(out), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
     real(dp), intent(out), allocatable :: velocities(:,:), movedVelo(:,:), movedAccel(:,:)
     real(dp), intent(out), allocatable :: movedMass(:,:)
 
@@ -2237,6 +2125,7 @@ contains
         allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
       end if
     end if
+    allocate(chargePerShell(orb%mShell, nAtom, nSpin))
     
     if (tLinResp .and. tPrintExcitedEigVecs) then
       allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
@@ -2359,16 +2248,16 @@ contains
 
   !> Does necessary steps when ionic coordinates change
   subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
-      & orb, tPeriodic, tScc, tDispersion, t3rdFull, dispersion, thirdOrd,&
-      & img2CentCell, iCellVec, neighborList, nAllAtom, coord0Fold, coord, species,&
-      & rCellVec, nAllOrb, nNeighbor, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
+      & orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
+      & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
+      & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
     real(dp), intent(in) :: coord0(:,:), latVec(:,:), invLatVec(:,:)
     integer, intent(in) :: species0(:)
     real(dp), intent(in) :: mCutoff, skRepCutoff
     type(TOrbitals), intent(in) :: orb
-    logical, intent(in) :: tPeriodic, tScc, tDispersion, t3rdFull
+    logical, intent(in) :: tPeriodic, tScc, tDispersion
     class(DispersionIface), allocatable, intent(inout) :: dispersion
-    type(ThirdOrder), intent(inout) :: thirdOrd
+    type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
     integer, allocatable, intent(inout) :: img2CentCell(:), iCellVec(:)
     type(TNeighborList), intent(inout) :: neighborList
     integer, intent(out) :: nAllAtom, nAllOrb
@@ -2404,7 +2293,7 @@ contains
       call dispersion%updateCoords(neighborList, img2CentCell, coord, &
           & species0)
     end if
-    if (t3rdFull) then
+    if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighborList, species)
     end if
     
@@ -2578,6 +2467,148 @@ contains
     end if
 
   end subroutine setUpExternalElectricField
+
+
+  !> Initialise basic variables before the scc loop.
+  subroutine initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+      & tStopScc)
+    logical, intent(in) :: tScc
+    type(Xlbomd), allocatable, intent(inout) :: xlbomdIntegrator
+    integer, intent(inout) :: minSccIter, maxSccIter
+    real(dp), intent(inout) :: sccTol
+    logical, intent(out) :: tConverged, tStopScc
+    
+    if (allocated(xlbomdIntegrator)) then
+      call xlbomdIntegrator%getSCCParameters(minSCCIter, maxSccIter, sccTol)
+    end if
+
+    tConverged = (.not. tScc)
+    tStopSCC = .false.
+
+    if (tScc) then
+      call printSccHeader()
+    end if
+    
+  end subroutine initSccLoop
+
+
+  !> Calculate the number of charges per shell.
+  subroutine getChargePerShell(qq, orb, species, chargePerShell)
+    real(dp), intent(in) :: qq(:,:,:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+    real(dp), intent(out) :: chargePerShell(:,:,:)
+
+    integer :: iAt, iSp, iSh
+    integer :: nAtom, nSpin
+
+    nAtom = size(chargePerShell, dim=2)
+    nSpin = size(chargePerShell, dim=3)
+    chargePerShell(:,:,:) = 0.0_dp 
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      do iSh = 1, orb%nShell(iSp)
+        chargePerShell(iSh, iAt, 1:nSpin) = chargePerShell(iSh, iAt, 1:nSpin)&
+            & + sum(qq(orb%posShell(iSh, iSp) : orb%posShell(iSh + 1, iSp) - 1, iAt, 1:nSpin),&
+            & dim=1)
+      end do
+    end do
+
+  end subroutine getChargePerShell
+
+
+  !> Reset internal potential related quantities
+  subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+    logical, intent(in) :: tDualSpinOrbit
+    real(dp), intent(in) :: xi(:,:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+    type(TPotentials), intent(inout) :: potential
+
+    potential%intAtom(:,:) = 0.0_dp
+    potential%intShell(:,:,:) = 0.0_dp
+    potential%intBlock(:,:,:,:) = 0.0_dp
+    potential%orbitalBlock(:,:,:,:) = 0.0_dp
+    potential%iOrbitalBlock(:,:,:,:) = 0.0_dp
+    if (tDualSpinOrbit) then
+      call shiftLS(potential%iOrbitalBlock, xi, orb, species)
+    end if
+
+  end subroutine resetInternalPotentials
+
+
+  !> Add potentials comming from point charges.
+  subroutine addChargePotentials(qInput, q0, chargePerShell, orb, species, species0, neighborList,&
+      & img2CentCell, spinW, thirdOrd, potential)
+    real(dp), intent(in) :: qInput(:,:,:), q0(:,:,:), chargePerShell(:,:,:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:), species0(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: img2CentCell(:)
+    real(dp), intent(in), allocatable :: spinW(:,:,:)
+    type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
+    type(TPotentials), intent(inout) :: potential
+
+    real(dp), allocatable :: atomPot(:,:)
+    real(dp), allocatable :: shellPot(:,:,:)
+    integer :: nAtom, nSpin
+
+    nAtom = size(qInput, dim=2)
+    nSpin = size(qInput, dim=3)
+
+    allocate(atomPot(nAtom, nSpin))
+    allocate(shellPot(orb%mShell, nAtom, nSpin))
+
+    call updateCharges_SCC(qInput, q0, orb, species, neighborList%iNeighbor, img2CentCell)
+    call getShiftPerAtom(atomPot(:,1))
+    call getShiftPerL(shellPot(:,:,1))
+    potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
+    potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+
+    if (allocated(thirdOrd)) then
+      call thirdOrd%updateCharges(species0, neighborList, qInput, q0, img2CentCell, orb)
+      call thirdOrd%getShifts(atomPot(:,1), shellPot(:,:,1))
+      potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
+      potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+    end if
+    
+    if (allocated(spinW)) then
+      call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
+      potential%intShell = potential%intShell + shellPot
+    end if
+
+    call total_shift(potential%intShell, potential%intAtom, orb, species)
+    call total_shift(potential%intBlock, potential%intShell, orb, species)
+
+  end subroutine addChargePotentials
+
+
+  !> Add potentials comming from on-site block of the dual density matrix.
+  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
+      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+    real(dp), intent(in) :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
+    logical, intent(in) :: tDftbU, tImHam
+    integer, intent(in) :: species(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nDftbUFunc
+    real(dp), allocatable, intent(in) :: UJ(:,:)
+    integer, allocatable, intent(in) :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
+    type(TPotentials), intent(inout) :: potential
+
+    
+    if (tDFTBU) then
+      if (tImHam) then
+        call getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn, qiBlockIn,&
+            & species,orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
+      else
+        call getDftbUShift(potential%orbitalBlock, qBlockIn, species, orb, nDFTBUfunc, UJ, nUJ,&
+            & niUJ, iUJ)
+      end if
+      potential%intBlock = potential%intBlock + potential%orbitalBlock
+    end if
+
+  end subroutine addBlockChargePotentials
+
 
 
   !> Calculates electron fillings and resulting band energy terms.
