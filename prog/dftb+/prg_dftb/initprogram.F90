@@ -1811,27 +1811,17 @@ contains
     if (tDFTBU) then
       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qBlockIn = 0.0_dp
-      qBlockOut = 0.0_dp
+      qBlockIn(:,:,:,:) = 0.0_dp
+      qBlockOut(:,:,:,:) = 0.0_dp
       if (tImHam) then
         allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        qiBlockIn = 0.0_dp
-      else
-        allocate(qiBlockIn(0, 0, 0, 0))
-        qiBlockIn = 0.0_dp
+        qiBlockIn(:,:,:,:) = 0.0_dp
       end if
-    else
-      allocate(qBlockIn(0, 0, 0, 0))
-      allocate(qBlockOut(0, 0, 0, 0))
-      allocate(qiBlockIn(0, 0, 0, 0))
-      qiBlockIn = 0.0_dp
-      qBlockIn = 0.0_dp
-      qBlockOut = 0.0_dp
     end if
 
     if (tImHam) then
       allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qiBlockOut = 0.0_dp
+      qiBlockOut(:,:,:,:) = 0.0_dp
     end if
 
     if (tSCC) then
@@ -2149,7 +2139,7 @@ contains
       write(stdout, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdout, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdout, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
-      write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
+      !write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdout, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
         write(stdout, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !

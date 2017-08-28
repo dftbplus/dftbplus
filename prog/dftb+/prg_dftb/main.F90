@@ -359,17 +359,15 @@ contains
       end if
 
       call resetExternalPotentials(potential)
-
       if (tEField) then
         call setUpExternalElectricField(tTDEField, tPeriodic, EFieldStrength, EFieldVector,&
             & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec,&
-            & deltaT, iGeoStep, coord0Fold, coord, EField, potential%extAtom, absEField)
+            & deltaT, iGeoStep, coord0Fold, coord, EField, potential%extAtom(:,1), absEField)
       end if
 
       call mergeExternalPotentials(orb, species, potential)
 
       call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tStopScc)
-
       lpSCC: do iSccIter = 1, maxSccIter
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
@@ -379,7 +377,7 @@ contains
           call addChargePotentials(qInput, q0, chargePerShell, orb, species, species0,&
               & neighborList, img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)          
         end if
         potential%intBlock = potential%intBlock + potential%extBlock
         
@@ -679,7 +677,6 @@ contains
             call getEnergySpinOrbit(energy%atomLS,qiBlockOut,xi,orb,species)
             energy%ELS = sum(energy%atomLS(:))
           end if
-          qBlockOut(:,:,:,:) = 0.0_dp
         end if
 
         if (tDFTBU) then
@@ -2427,7 +2424,7 @@ contains
     integer, intent(in) :: iGeoStep
     real(dp), allocatable, intent(in) :: coord0Fold(:,:)
     real(dp), intent(in) :: coord(:,:)
-    real(dp), intent(out) :: EField(:), extAtomPot(:,:)
+    real(dp), intent(out) :: EField(:), extAtomPot(:)
     real(dp), intent(out) :: absEField
 
     integer :: nAtom
@@ -2458,11 +2455,11 @@ contains
         end do
       end do
       do iAt1 = 1, nAtom
-        extAtomPot(iAt1, 1) = dot_product(coord0Fold(:, iAt1), Efield)
+        extAtomPot(iAt1) = dot_product(coord0Fold(:, iAt1), Efield)
       end do
     else
       do iAt1 = 1, nAtom
-        extAtomPot(iAt1, 1) = dot_product(coord(:, iAt1), Efield)
+        extAtomPot(iAt1) = dot_product(coord(:, iAt1), Efield)
       end do
     end if
 
@@ -2586,7 +2583,7 @@ contains
   !> Add potentials comming from on-site block of the dual density matrix.
   subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
       & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-    real(dp), intent(in) :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
+    real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
     logical, intent(in) :: tDftbU, tImHam
     integer, intent(in) :: species(:)
     type(TOrbitals), intent(in) :: orb

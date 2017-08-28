@@ -45,7 +45,6 @@ module mainio
   !> output file names
   character(*), parameter :: eigvecOut = "eigenvec.out"
   character(*), parameter :: eigvecBin = "eigenvec.bin"
-  character(*), parameter :: regionOut = "region_"
 
   character(len=*), parameter :: formatHessian = '(4f16.10)'
   character(len=*), parameter :: formatEnergy = '(8f12.5)'
@@ -1072,7 +1071,7 @@ contains
     integer, intent(in) :: species(:)
     logical, intent(in) :: tDFTBU, tImHam, tPrintMulliken
     real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
-    real(dp), intent(inout) :: qBlockOut(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: qBlockOut(:,:,:,:)
     real(dp), intent(in) :: Ef(:), EBand(:), TS(:), E0(:)
     real(dp), intent(in) :: pressure, cellVol
     logical, intent(in) :: tAtomicEnergy, tDispersion, tEfield, tPeriodic
