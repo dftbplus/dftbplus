@@ -380,28 +380,10 @@ contains
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)          
         end if
         potential%intBlock = potential%intBlock + potential%extBlock
+
+        call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iPair,&
+            & img2CentCell, potential, ham, iHam)
         
-        ham(:,:) = 0.0_dp
-        do ii = 1, size(H0)
-          ham(ii, 1) = h0(ii)
-        end do
-
-        call add_shift(ham,over,nNeighbor, neighborList%iNeighbor, &
-            & species,orb,iPair,nAtom,img2CentCell,potential%intBlock)
-
-        if (tImHam) then
-          iHam = 0.0_dp
-          call add_shift(iHam,over,nNeighbor, neighborList%iNeighbor, &
-              & species,orb,iPair,nAtom,img2CentCell,potential%iorbitalBlock)
-          iHam(:,:) = 2.0_dp*iHam(:,:)
-        end if
-        
-        ! hack due to not using Pauli-type structure for diagonalisation
-        ! etc.
-        if (nSpin > 1) then
-          ham(:,:) = 2.0_dp * ham
-        end if
-
         if (nSpin /= 4) then
 
           if (nSpin == 2) then
@@ -2605,6 +2587,44 @@ contains
     end if
 
   end subroutine addBlockChargePotentials
+
+
+
+  !> Returns the Hamiltonian for the given scc iteration
+  subroutine getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iPair,&
+      & img2CentCell, potential, ham, iHam)
+    real(dp), intent(in) :: H0(:), over(:)
+    integer, intent(in) :: nNeighbor(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: species(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iPair(:,:), img2CentCell(:)
+    type(TPotentials), intent(in) :: potential
+    real(dp), intent(out) :: ham(:,:)
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    integer :: nAtom, nSpin
+
+    nAtom = size(orb%nOrbAtom)
+    nSpin = size(ham, dim=2)
+
+    ham(:,:) = 0.0_dp
+    ham(:, 1) = h0
+    call add_shift(ham, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
+        & img2CentCell, potential%intBlock)
+    ! hack due to not using Pauli-type structure for diagonalisation
+    if (nSpin > 1) then
+      ham(:,:) = 2.0_dp * ham
+    end if
+
+    if (allocated(iHam)) then
+      iHam(:,:) = 0.0_dp
+      call add_shift(iHam, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
+          & img2CentCell, potential%iorbitalBlock)
+      iHam(:,:) = 2.0_dp * iHam
+    end if
+    
+  end subroutine getSccHamiltonian
 
 
 

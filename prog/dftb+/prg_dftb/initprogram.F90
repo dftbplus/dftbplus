@@ -1051,13 +1051,16 @@ contains
     call buildSquaredAtomIndex(iAtomStart, orb)
 
     ! Intialize Hamilton and overlap
+    tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
     if (tSCC) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
        allocate(chargePerShell(0,0,0))
     end if
     allocate(ham(0, nSpin))
-    allocate(iHam(0, nSpin))
+    if (tImHam) then
+      allocate(iHam(0, nSpin))
+    end if
     allocate(over(0))
     allocate(iPair(0, nAtom))
 
@@ -1133,7 +1136,6 @@ contains
     tempAtom = input%ctrl%tempAtom
     deltaT = input%ctrl%deltaT
 
-    tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
 
     ! Create equivalency relations
     if (tSCC) then
