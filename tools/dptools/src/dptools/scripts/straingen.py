@@ -14,11 +14,10 @@ import numpy as np
 from dptools.gen import Gen
 from dptools.scripts.common import ScriptError
 
-USAGE = """usage: %prog [options] INPUT N
+USAGE = """usage: %prog [options] INPUT
 
-Strains the geometry found in INPUT by N percent, writing the
-resulting geometries to standard output.
-"""
+Strains the geometry found in INPUT, writing the resulting geometries
+to standard output."""
 
 # Voight convention for 1 index to 2 index for strain tensors
 VOIGHT = [[0, 0], [1, 1], [2, 2], [1, 2], [0, 2], [0, 1]]
@@ -34,8 +33,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed. (Default: None)
     '''
-    infile, percentage, options = parse_cmdline_args(cmdlineargs)
-    straingen(infile, percentage, options)
+    infile, options = parse_cmdline_args(cmdlineargs)
+    straingen(infile, options)
 
 def parse_cmdline_args(cmdlineargs=None):
     '''Parses command line arguments.
@@ -48,6 +47,9 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_option("-o", "--output", action="store", dest="output",
                       help="override the name of the output file (use '-' for "
                       "standard out")
+    parser.add_option("-s", "--strain", action="store", dest="strain",
+                      type=float, default=0.0, help="percentage strain "
+                      "for the geometries (default: 0)")
     parser.add_option("-c", "--component", action="store", dest="component",
                       type=str, default='I', help="strain type to apply"
                       "(default: I)")
@@ -58,24 +60,17 @@ def parse_cmdline_args(cmdlineargs=None):
         msg = "Invalid strain component '" + options.component + "'"
         raise ScriptError(msg)
 
-    if len(args) != 2:
-        parser.error("You must specify exactly two arguments (input file \
-        then strain amount).")
+    if len(args) != 1:
+        parser.error("You must specify exactly one argument (input file).")
     infile = args[0]
 
-    try:
-        percentage = float(args[1])
-    except ValueError:
-        msg = "Invalid scaling '" + args[1] + "'"
-        raise ScriptError(msg)
-    return infile, percentage, options
+    return infile, options
 
-def straingen(infile, percent, options):
+def straingen(infile, options):
     '''Strains a geometry from a gen file.
 
     Args:
         infile: File containing the gen-formatted geometry
-        percent: Percentage strain of geometry.
         options: Options (e.g. as returned by the command line parser)
     '''
 
@@ -89,8 +84,8 @@ def straingen(infile, percent, options):
     components = LABELS[options.component.lower()]
 
     for ii in components:
-        strain[VOIGHT[ii][0]][VOIGHT[ii][1]] += 0.005*percent
-        strain[VOIGHT[ii][1]][VOIGHT[ii][0]] += 0.005*percent
+        strain[VOIGHT[ii][0]][VOIGHT[ii][1]] += 0.005*options.strain
+        strain[VOIGHT[ii][1]][VOIGHT[ii][0]] += 0.005*options.strain
 
     if geometry.latvecs is not None:
         geometry.latvecs = np.dot(geometry.latvecs, strain)
