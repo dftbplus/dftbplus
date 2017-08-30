@@ -53,7 +53,7 @@ module mainio
   character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71,A)"
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
-  
+
   !> Private module variables (suffixed with "_" for clarity)
   logical :: EigVecsAsTxt_ = .false.
 
@@ -894,11 +894,6 @@ contains
     real(dp), intent(in) :: cellVol
 
     open(fd, file=fileName, action="write", status="replace")
-    call writeTagged(fd, tag_egyTotal, energy%Etotal)
-    if (tAtomicEnergy) then
-      call writeTagged(fd, tag_egyTotalAt, energy%atomTotal)
-    end if
-    call writeTagged(fd, tag_forces, allocated(totalDeriv))
     if (allocated(totalDeriv)) then
       call writeTagged(fd, tag_forceTot, -totalDeriv)
       if (allocated(chrgForces)) then
@@ -910,25 +905,6 @@ contains
     end if
     if (associated(pDynMatrix)) then
       call writeTagged(fd, tag_HessianNum, pDynMatrix)
-    end if
-    call writeTagged(fd, tag_scc, tScc)
-    if (tScc) then
-      call writeTagged(fd, tag_nScc, iSccIter)
-      call writeTagged(fd, tag_sccConv, tConverged)
-    end if
-    if (tPrintMulliken) then
-      call writeTagged(fd, tag_qOutputAt, sum(qOutput, dim=1))
-      call writeTagged(fd, tag_qOutAtNet, sum(q0(:,:,1) - qOutput(:,:,1), dim=1))
-    end if
-    call writeTagged(fd, tag_eigenVal, eigen)
-    call writeTagged(fd, tag_filling, filling)
-    call writeTagged(fd, tag_efermi, Ef)
-    if (size(nEl) == 1) then
-      call writeTagged(fd, tag_nElUp, 0.5_dp*nEl(1))
-      call writeTagged(fd, tag_nElDown, 0.5_dp*nEl(1))
-    else
-      call writeTagged(fd, tag_nElUp, nEl(1))
-      call writeTagged(fd, tag_nElDown, nEl(2))
     end if
     if (tPeriodic) then
       call writeTagged(fd, tag_volume, cellVol)
@@ -955,7 +931,7 @@ contains
     real(dp), intent(in) :: kWeight(:)
     real(dp), intent(in) :: filling(:,:,:)
     real(dp), allocatable, intent(in) :: occNatural(:,:)
-    
+
     type(xmlf_t) :: xf
     real(dp), allocatable :: bufferRealR2(:,:)
     integer :: ii, jj
@@ -1075,7 +1051,7 @@ contains
     logical, intent(in) :: tAtomicEnergy, tDispersion, tEfield, tPeriodic
     integer, intent(in) :: nSpin
     logical, intent(in) :: tSpinOrbit, tScc
-    
+
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
@@ -1133,7 +1109,7 @@ contains
       write(fd, "(A)") repeat("*", 80)
       write(fd, *)
     end if
-      
+
     if (nMovedAtom > 0 .and. .not. tDerivs) then
       write(fd, "(A)") "Coordinates of moved atoms (au):"
       do iAt = 1, nMovedAtom
@@ -1252,7 +1228,7 @@ contains
                 & sqrt(sum(orbitalL(1:3, iSh, iAt)**2)), -orbitalL(1:3, iSh, iAt)
           end do
         end do
-        
+
         write(fd, *)
         write(fd, "(A)") 'Total angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
@@ -1437,7 +1413,7 @@ contains
   end subroutine writeDetailedOut1
 
 
-  
+
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, totalDeriv, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile)
@@ -1452,7 +1428,7 @@ contains
     character(*), intent(in) :: geoOutFile
 
     integer :: iAt, ii
-  
+
     if (tScc) then
       if (tConverged) then
         write(fd, "(A)") "SCC converged"
@@ -1467,18 +1443,18 @@ contains
       write(fd, "(A)") "Non-SCC calculation"
       write(fd, *)
     end if
-    
+
     if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
       write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
           & Hartree__eV * energy%Eexcited, "eV"
       write(fd, *)
     end if
-  
+
     if (tGeoOpt .or. tMd) then
       write(fd, "(3A)") "Full geometry written in ", trim(geoOutFile), ".{xyz|gen}"
       write(fd, *)
     end if
-    
+
     if (tPrintForces) then
       write(fd, "(A)") 'Total Forces'
       do iAt = 1, size(totalDeriv, dim=2)
@@ -1497,14 +1473,14 @@ contains
         end do
         write(fd, *)
       end if
-  
+
       write(fd, format1Ue) "Maximal derivative component", maxval(abs(totalDeriv)), 'au'
       if (size(indMovedAtom) > 0) then
         write(fd, format1Ue) "Max force for moved atoms:",&
             & maxval(abs(totalDeriv(:, indMovedAtom))), 'au'
       end if
       write(fd, *)
-  
+
       if (allocated(chrgForces)) then
         write(fd, "(A)") "Forces on external charges"
         do ii = 1, size(chrgForces, dim=2)
@@ -1512,7 +1488,7 @@ contains
         end do
         write(fd, *)
       end if
-  
+
       if (tPeriodic .and. .not. tMd) then
         write(fd, format1Ue) 'Volume', cellVol, 'au^3'
         if (tStress) then
@@ -1521,7 +1497,7 @@ contains
         write(fd, *)
       end if
     end if
-  
+
   end subroutine writeDetailedOut2
 
 
@@ -1571,7 +1547,7 @@ contains
     logical, intent(in) :: tMd
     type(TEnergies), intent(in) :: energy
     real(dp), intent(in) :: kT
-    
+
     if (tMd) then
       write(fd, format1U) "MD Kinetic Energy", energy%Ekin, "H"
       write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
@@ -1589,17 +1565,17 @@ contains
     logical, intent(in) :: tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, tDipole
     real(dp), intent(in) :: absEField
     real(dp), intent(in) :: dipoleMoment(:)
-    
+
     if (tEfield) then
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
-    
+
     if (tDipole) then
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment, ' au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye, ' Debye'
       write(fd, *)
     end if
-    
+
     if (tGeoOpt) then
       if (tGeomEnd) then
         write(fd, "(A)") "Geometry converged"
@@ -1636,7 +1612,7 @@ contains
     end if
     write(fd, "(A, 1X, I0)") "MD step:", iGeoStep
     call state(pMdIntegrator, fd)
-    
+
   end subroutine writeMdOut1
 
 
@@ -1652,7 +1628,7 @@ contains
     real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
 
     integer :: ii
-    
+
     if (tStress) then
       if (tBarostat) then
         write(fd, "(A)") 'Lattice vectors (A)'
@@ -1698,6 +1674,7 @@ contains
     close(fd)
 
   end subroutine writeMdOut3
-  
+
+
 
 end module mainio
