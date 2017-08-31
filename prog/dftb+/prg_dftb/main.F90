@@ -38,8 +38,7 @@ module main
   use potentials
   use orbitalequiv
   use parser
-  use sparse2dense, only : unpackHS, packHS, packERho, iPackHS,&
-      & blockSymmetrizeHS, blockHermitianHS
+  use sparse2dense
   use blasroutines, only : symm, hemm
   use hsdutils
   use charmanip
@@ -59,6 +58,7 @@ module main
   use message
   use repcont
   use xlbomd_module
+  use fifo
   implicit none
   private
 
@@ -71,6 +71,10 @@ module main
   character(*), parameter :: mdOut = "md.out"
   character(*), parameter :: resultsTag = "results.tag"
   character(*), parameter :: hessianOut = "hessian.out"
+
+  logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
+  logical, parameter :: tAppendDetailedOut = .false.
+
 
   
 contains
@@ -153,8 +157,6 @@ contains
 
     logical :: tConverged
 
-    logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
-    logical, parameter :: tAppendDetailedOut = .false.
 
     real(dp) :: cellPressure
 
@@ -241,8 +243,7 @@ contains
     real(dp) :: sccErrorQ, diffElec
     real(dp), allocatable :: tmpDerivs(:)
     real(dp), allocatable :: tmpMatrix(:,:)
-    real(dp), allocatable :: orbitalL(:,:,:), orbitalLPart(:,:,:)
-    real(dp), allocatable :: rVecTemp(:)
+    real(dp), allocatable :: orbitalL(:,:,:)
     character(lc) :: lcTmp
 
 
@@ -287,12 +288,12 @@ contains
         & fdMd)
 
     call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
-      & tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
+      & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
       & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
       & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
       & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
-      & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
+      & tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
       & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, naturalOrbs, occNatural, velocities,&
       & movedVelo, movedAccel, movedMass)
 
@@ -383,257 +384,23 @@ contains
 
         call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iPair,&
             & img2CentCell, potential, ham, iHam)
-        
-        if (nSpin /= 4) then
 
-          if (nSpin == 2) then
-            call qm2ud(ham)
-          end if
+        if (tWriteRealHS .or. tWriteHS) then
+          call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
+              & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+        end if
 
-          if (tWriteRealHS .or. tWriteHS) then
-            ! Write out matrices if necessary and quit.
-            if (tImHam) then
-              call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, &
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, &
-                  & img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
-            else
-              call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, &
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, &
-                  & img2CentCell, kPoint, iCellVec, cellVec)
-            end if
-            write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
-            stop
-          end if
+        call getDensity(ham, over, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell,&
+            & iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS, tSpinSharedEf,&
+            & tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl,&
+            & Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal,&
+            & SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx, rhoSqrReal, storeEigvecsReal,&
+            & storeEigvecsCplx)
 
-          spinDiag: do iSpin = 1, nSpin
-            if (tStoreEigvecs) then
-              iSpin2 = 1
-            else
-              iSpin2 = iSpin
-            end if
+        if (tWriteBandDat) then
+          call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
+        end if
 
-            ! Solve eigenproblem for real or complex Hamiltionian
-            if (tRealHS) then
-              call diagonalize(HSqrReal(:,:,iSpin2), SSqrReal, eigen(:,1,iSpin), ham(:,iSpin),&
-                  & over, neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,&
-                  & solver, 'V')
-              if (tStoreEigvecs) then
-                call reset(storeEigvecsReal(iSpin), [size(HSqrReal, dim=1), size(HSqrReal, dim=2)])
-                call push(storeEigvecsReal(iSpin), HSqrReal(:,:,iSpin2))
-              end if
-            else
-              do nk = 1, nKPoint
-                if (tStoreEigvecs) then
-                  iK2 = 1
-                else
-                  iK2 = nK
-                end if
-                call diagonalize(HSqrCplx(:,:,iK2,iSpin2), SSqrCplx, eigen(:,nk,iSpin),&
-                    & ham(:,iSpin), over,kPoint(:,nk), neighborList%iNeighbor, nNeighbor,&
-                    & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, solver, 'V')
-                if (tStoreEigvecs) then
-                  call reset(storeEigvecsCplx(iSpin),&
-                      & [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
-                  call push(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2,iSpin2))
-                end if
-              end do
-            end if
-          end do spinDiag
-
-          call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-              & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
-
-          ! Create density matrices
-          spinDensMat: do iSpin = 1, nSpin
-            if (tStoreEigvecs) then
-              iSpin2 = 1
-            else
-              iSpin2 = iSpin
-            end if
-            rhoPrim(:, iSpin) = 0.0_dp
-            if (tImHam) then
-              iRhoPrim(:, iSpin) = 0.0_dp
-            end if
-
-            if (tRealHS) then
-              if (tStoreEigvecs) then
-                call get(storeEigvecsReal(iSpin), HSqrReal(:,:,iSpin2))
-              end if
-
-              if (tDensON2) then
-                call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), filling(:,1,iSpin),&
-                    & neighborlist%iNeighbor, nNeighbor, orb, iAtomStart, img2CentCell)
-              else
-                call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), filling(:,1,iSpin))
-              end if
-
-              if (tLinResp .and. tLinRespZVect) then
-                rhoSqrReal(:,:,iSpin) = SSqrReal
-              end if
-
-              call packHS(rhoPrim(:,iSpin), SSqrReal, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
-                  & iAtomStart, iPair, img2CentCell)
-
-              ! Store density matrix for later use if using linear response
-              if (tLinResp .and. tForces) then
-                rhoSqrReal(:,:,iSpin) = SSqrReal
-              end if
-
-            else
-
-              do nk = 1, nKPoint
-                if (tStoreEigvecs) then
-                  iK2 = 1
-                  call get(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2, iSpin2))
-                else
-                  iK2 = nK
-                end if
-
-                if (tDensON2) then
-                  call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iSpin2), filling(:,nK,iSpin),&
-                      & neighborlist%iNeighbor, nNeighbor, orb, iAtomStart, img2CentCell)
-                else
-                  call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iSpin2), filling(:,nK,iSpin))
-                end if
-                call packHS(rhoPrim(:,iSpin), SSqrCplx, kPoint(:,nK), kWeight(nk),&
-                    & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart,&
-                    & iPair, img2CentCell)
-              end do
-            end if
-          end do spinDensMat
-
-          if (tWriteBandDat) then
-            call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
-          end if
-
-
-          call ud2qm(rhoPrim)
-
-        else !  (nSpin == 4) then
-
-          rhoPrim(:,:) = 0.0_dp
-          if (tImHam) then
-            iRhoPrim(:,:) = 0.0_dp
-          end if
-
-
-          if (tRealHS) then
-            if (tImHam) then
-              call diagonalize(HSqrCplx(:,:,1,1), SSqrCplx, eigen(:,1,1), ham, over,&
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver,&
-                  & 'V', iHam=iHam)
-            else if (tSpinOrbit) then
-              call diagonalize(HSqrCplx(:,:,1,1), SSqrCplx, eigen(:,1,1), ham, over,&
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver,&
-                  & 'V', xi,orb,species)
-            else
-              call diagonalize(HSqrCplx(:,:,1,1), SSqrCplx, eigen(:,1,1), ham, over,&
-                  & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'V')
-            end if
-            if (tStoreEigvecs) then
-              call reset(storeEigvecsCplx(1), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
-              call push(storeEigvecsCplx(1), HSqrCplx(:,:,1,1))
-            end if
-          else
-            do nk = 1, nKPoint
-              if (tStoreEigvecs) then
-                iK2 = 1
-              else
-                iK2 = nK
-              end if
-              if (tImHam) then
-                call diagonalize(HSqrCplx(:,:,iK2,1), SSqrCplx, eigen(:,nk,1), ham, over,&
-                    & kPoint(:,nk), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
-                    & iAtomStart, iPair, img2CentCell, solver, 'V', iHam=iHam)
-              else if (tSpinOrbit) then
-                call diagonalize(HSqrCplx(:,:,iK2,1), SSqrCplx, eigen(:,nK,1), ham, over,&
-                    & kPoint(:,nK), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
-                    & iAtomStart, iPair, img2CentCell, solver, 'V', xi,orb,species)
-              else
-                call diagonalize(HSqrCplx(:,:,iK2,1), SSqrCplx, eigen(:,nK,1), ham, over,&
-                    & kPoint(:,nK), neighborList%iNeighbor, nNeighbor, iCellVec, cellVec,&
-                    & iAtomStart, iPair, img2CentCell, solver, 'V')
-              end if
-              if (tStoreEigvecs) then
-                call reset(storeEigvecsCplx(1), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
-                call push(storeEigvecsCplx(1), HSqrCplx(:,:,iK2,1))
-              end if
-            end do
-          end if
-
-          call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-              & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
-
-          ! Pauli structure of eigenvectors
-          filling(:,1:nKPoint,1) = 2.0_dp * filling(:,1:nKPoint,1)
-
-          SSqrCplx = 0.0_dp
-          if (tSpinOrbit) then
-            energy%atomLS = 0.0_dp
-            if (.not.tDualSpinOrbit) then
-              allocate(rVecTemp(nAtom))
-            end if
-          end if
-          if (tImHam .and. tMulliken) then
-            orbitalL = 0.0_dp
-          end if
-          nkLoop4: do nk = 1, nKPoint
-            if (tStoreEigvecs) then
-              iK2 = 1
-              call get(storeEigvecsCplx(1), HSqrCplx(:,:,iK2,1))
-            else
-              iK2 = nK
-            end if
-            if (tDensON2) then
-              call error("Currently missing.")
-            else
-              call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,1), &
-                  &filling(:,nK,1))
-            end if
-
-            if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-              rVecTemp = 0.0_dp
-              call getEnergySpinOrbit(rVecTemp,SSqrCplx,iAtomStart, &
-                  & xi, orb, species)
-              energy%atomLS = energy%atomLS + kWeight(nk)*rVecTemp
-              if (tMulliken) then
-                orbitalLPart = 0.0_dp
-                call getL(orbitalLPart,SSqrCplx,iAtomStart, orb, species)
-                orbitalL = orbitalL + kWeight(nk) * orbitalLPart
-              end if
-            end if
-
-            if (tRealHS) then
-              call packHS(rhoPrim(:,:), SSqrCplx, neighborlist%iNeighbor, &
-                  &nNeighbor, orb%mOrb, iAtomStart, iPair, img2CentCell)
-              if (tImHam) then
-                call iPackHS(iRhoPrim(:,:), SSqrCplx, neighborlist%iNeighbor, &
-                    &nNeighbor, orb%mOrb, iAtomStart, iPair, img2CentCell)
-              end if
-            else
-              call packHS(rhoPrim, SSqrCplx, kPoint(:,nK), &
-                  &kWeight(nk), neighborList%iNeighbor, nNeighbor, orb%mOrb, &
-                  &iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
-              if (tImHam) then
-                call iPackHS(iRhoPrim, SSqrCplx, kPoint(:,nK), &
-                    & kWeight(nk), neighborlist%iNeighbor, &
-                    & nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart, &
-                    & iPair, img2CentCell)
-              end if
-            end if
-
-          end do nkLoop4
-          if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-            deallocate(rVecTemp)
-            energy%ELS = sum(energy%atomLS(:))
-          end if
-          filling(:,1:nKPoint,1) = 0.5_dp * filling(:,1:nKPoint,1)
-
-          if (tWriteBandDat) then
-            call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
-          end if
-
-        end if ! end of nSpin == 4 case
 
 
         ! Mulliken analysis
@@ -1970,16 +1737,16 @@ contains
 
 
   subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
-      & tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
+      & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
       & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
       & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
       & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
-      & tmpDerivs, orbitalL, orbitalLPart, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
+      & tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
       & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, naturalOrbs, occNatural, velocities,&
       & movedVelo, movedAccel, movedMass)
     logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs
-    logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tDualSpinOrbit, tImHam, tStoreEigvecs
+    logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, forceType
@@ -1994,7 +1761,7 @@ contains
     real(dp), intent(out), allocatable :: shift3rd(:), orbResShift3rd(:,:), TS(:), E0(:), Eband(:)
     real(dp), intent(out), allocatable :: eigen(:,:,:), eigen2(:,:,:), filling(:,:,:)
     real(dp), intent(out), allocatable :: coord0Fold(:,:), new3Coord(:,:), tmpDerivs(:)
-    real(dp), intent(out), allocatable :: orbitalL(:,:,:), orbitalLPart(:,:,:)
+    real(dp), intent(out), allocatable :: orbitalL(:,:,:)
     complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), HSqrCplx2(:,:), SSqrCplx(:,:)
     real(dp), intent(out), allocatable :: HSqrReal(:,:,:), HSqrReal2(:,:), SSqrReal(:,:)
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
@@ -2065,9 +1832,6 @@ contains
 
     if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
       allocate(orbitalL(3, orb%mShell, nAtom))
-    end if
-    if ((tMulliken .and. tSpinOrbit) .and. .not.  tDualSpinOrbit) then
-      allocate(orbitalLPart(3, orb%mShell, nAtom))
     end if
 
     if (tStoreEigvecs) then
@@ -2499,10 +2263,12 @@ contains
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
     logical, intent(in) :: tDualSpinOrbit
-    real(dp), intent(in) :: xi(:,:)
+    real(dp), allocatable, intent(in) :: xi(:,:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: species(:)
     type(TPotentials), intent(inout) :: potential
+
+    @:ASSERT(tDualSpinOrbit .eqv. allocate(xi))
 
     potential%intAtom(:,:) = 0.0_dp
     potential%intShell(:,:,:) = 0.0_dp
@@ -2603,29 +2369,530 @@ contains
     real(dp), intent(out) :: ham(:,:)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
-    integer :: nAtom, nSpin
+    integer :: nAtom
 
     nAtom = size(orb%nOrbAtom)
-    nSpin = size(ham, dim=2)
 
     ham(:,:) = 0.0_dp
-    ham(:, 1) = h0
+    ham(:,1) = h0
     call add_shift(ham, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
         & img2CentCell, potential%intBlock)
-    ! hack due to not using Pauli-type structure for diagonalisation
-    if (nSpin > 1) then
-      ham(:,:) = 2.0_dp * ham
-    end if
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp
       call add_shift(iHam, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
           & img2CentCell, potential%iorbitalBlock)
-      iHam(:,:) = 2.0_dp * iHam
     end if
     
   end subroutine getSccHamiltonian
 
+
+  !> Writes Hamiltonian and overlap matrices and stops program execution.
+  subroutine writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
+      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+    logical, intent(in) :: tWriteHS, tWriteRealHS, tRealHS
+    real(dp), intent(in) :: over(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:)
+    real(dp), intent(in) :: kPoint(:,:)
+    integer, intent(in) :: iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    real(dp), intent(inout) :: ham(:,:)
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    integer :: nSpin
+
+    nSpin = size(ham, dim=2)
+
+    ! Sanity check, although this must have been caught in initprogram already.
+    if (nSpin == 4) then
+      call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
+    end if
+
+    if (nSpin == 2) then
+      call qm2ud(ham)
+    end if
+
+          ! Write out matrices if necessary and quit.
+    if (allocated(iHam)) then
+      call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
+    else
+      call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec)
+    end if
+    write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
+    stop
+  
+  end subroutine writeHSAndStop
+
+
+  !> Returns the sparse density matrix.
+  !>
+  !> All operations (e.g. spin orbit coupling), which need access to full (unpacked) Hamiltonian or
+  !> the full unpacked density matrix (before it is multiplied by the overlap and packed), are also
+  !> invoked from within this routine, as those unpacked quantities do not exist elsewhere.
+  !>
+  subroutine getDensity(ham, over, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell,&
+      & iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS, tSpinSharedEf,&
+      & tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, &
+      & iDistribFn, tempElec, nEl, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
+      & orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx, rhoSqrReal, storeEigvecsReal,&
+      & storeEigvecsCplx)
+    real(dp), intent(inout) :: ham(:,:)
+    real(dp), intent(in) :: over(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:), kPoint(:,:), kWeight(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+    integer, intent(in) :: solver
+    logical, intent(in) :: tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf
+    logical, intent(in) :: tMulliken
+    integer, intent(in) :: iDistribFn
+    real(dp), intent(in) :: tempElec, nEl(:)
+    real(dp), intent(inout) :: Ef(:)
+    type(TEnergies), intent(inout) :: energy
+    real(dp), intent(out) :: eigen(:,:,:), filling(:,:,:), rhoPrim(:,:)
+    real(dp), intent(out) :: Eband(:), TS(:), E0(:)
+    real(dp), intent(inout), optional :: iHam(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(out), optional :: orbitalL(:,:,:)
+    real(dp), intent(out), optional :: iRhoPrim(:,:), HSqrReal(:,:,:), SSqrReal(:,:)
+    complex(dp), intent(out), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(out), optional :: rhoSqrReal(:,:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    integer :: nSpin
+
+    nSpin = size(ham, dim=2)
+
+    ! Hack due to not using Pauli-type structure for diagonalisation
+    if (nSpin > 1) then
+      ham(:,:) = 2.0_dp * ham
+      if (present(iHam)) then
+        iHam(:,:) = 2.0_dp * iHam
+      end if
+    end if
+
+    if (nSpin /= 4) then
+      call qm2ud(ham)
+      if (tRealHS) then
+        call buildAndDiagDenseHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
+            & img2CentCell, solver, HSqrReal, SSqrReal, eigen(:,1,:))
+      else
+        call buildAndDiagDenseKDepHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
+            & iPair, img2CentCell, iCellVec, cellVec, solver, HSqrCplx, SSqrCplx, eigen)
+      end if
+    else
+      if (tRealHS) then
+        call buildAndDiagDensePauliHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
+            & img2CentCell, solver, eigen(:,1,1), HSqrCplx(:,:,1,1), SSqrCplx, iHam, xi, species,&
+            & orb, storeEigvecsCplx)
+      else
+        call buildAndDiagDenseKDepPauliHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
+            & iPair, img2CentCell, iCellVec, cellVec, solver, eigen(:,:,1), HSqrCplx(:,:,:,1),&
+            & SSqrCplx, iHam, xi, species, orb, storeEigvecsCplx)
+      end if
+    end if
+
+    call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
+    
+    if (nSpin /= 4) then
+      if (tRealHS) then
+        call getDensityFromEigvecs(filling(:,1,:), neighborList, nNeighbor, iPair, iAtomStart,&
+            & img2CentCell, orb, HSqrReal, rhoPrim, SSqrReal, rhoSqrReal, storeEigvecsReal)
+      else
+        call getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor, iPair,&
+            & iAtomStart, img2CentCell, iCellVec, cellVec, orb, HSqrCplx, rhoPrim, SSqrCplx,&
+            & storeEigvecsCplx)
+      end if
+      call ud2qm(rhoPrim)
+    else
+      ! Pauli structure of eigenvectors
+      filling(:,:,1) = 2.0_dp * filling(:,:,1)
+      call getDensityFromPauliEigvecs(tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, kPoint,&
+          & kWeight, filling(:,:,1), neighborList, nNeighbor, orb, iAtomStart, iPair,&
+          & img2CentCell, iCellVec, cellVec, species, HSqrCplx(:,:,:,1), SSqrCplx, energy, rhoPrim,&
+          & xi, orbitalL, iRhoPrim, storeEigvecsCplx)
+      filling(:,:,1) = 0.5_dp * filling(:,:,1)
+    end if
+    
+  end subroutine getDensity
+  
+
+  !> Builds and diagonalises dense Hamiltonians.
+  subroutine buildAndDiagDenseHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
+      & img2CentCell, solver, HSqrReal, SSqrReal, eigen, storeEigvecsReal)
+    real(dp), intent(in) :: ham(:,:), over(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), solver
+    real(dp), intent(out) :: HSqrReal(:,:,:), SSqrReal(:,:), eigen(:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+
+    logical :: tStoreEigvecs
+    integer :: nSpin
+    integer :: iSpin, iSpin2
+
+    nSpin = size(ham, dim=2)
+    tStoreEigvecs = present(storeEigvecsReal)
+
+    #:call ASSERT_CODE
+      @:ASSERT(size(HSqrReal, dim=3) == nSpin .or. (tStoreEigvecs .and. size(HSqrReal, dim=3) == 1))
+      if (tStoreEigvecs) then
+        @:ASSERT(size(storeEigvecsReal) == nSpin)
+      end if
+    #:endcall ASSERT_CODE
+
+    do iSpin = 1, nSpin
+      if (tStoreEigvecs) then
+        iSpin2 = 1
+      else
+        iSpin2 = iSpin
+      end if
+      call unpackHS(HSqrReal(:,:,iSpin2), ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell)
+      call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, iAtomStart, iPair,&
+          & img2CentCell)
+      call diagonalizeDenseMtx(solver, 'V', HSqrReal(:,:,iSpin2), SSqrReal, eigen(:,iSpin))
+      if (tStoreEigvecs) then
+        call reset(storeEigvecsReal(iSpin), [size(HSqrReal, dim=1), size(HSqrReal, dim=2)])
+        call push(storeEigvecsReal(iSpin), HSqrReal(:,:,iSpin2))
+      end if
+    end do
+
+  end subroutine buildAndDiagDenseHam
+
+
+  !> Builds and diagonalises dense K-dependent Hamiltonians.
+  subroutine buildAndDiagDenseKDepHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
+      & iPair, img2CentCell, iCellVec, cellVec, solver, HSqrCplx, SSqrCplx, eigen, storeEigvecsCplx)
+    real(dp), intent(in) :: ham(:,:), over(:), kPoint(:,:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    integer, intent(in) :: solver
+    complex(dp), intent(out) :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(out) :: eigen(:,:,:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    integer :: nSpin, nKPoint
+    integer :: iK, iK2, iSpin, iSpin2
+    logical :: tStoreEigvecs
+
+    nSpin = size(ham, dim=2)
+    nKPoint = size(kPoint, dim=2)
+    tStoreEigvecs = present(storeEigvecsCplx)
+
+    #:call ASSERT_CODE
+      @:ASSERT((size(HSqrCplx, dim=2) == nKPoint .and. size(HSqrReal, dim=3) == nSpin)&
+          & .or. (tStoreEigvecs .and. size(HSqrReal, dim=2) == 1 .and. size(HSqrReal, dim=3) == 1))
+      if (tStoreEigvecs) then
+        @:ASSERT(size(storeEigvecsCplx) == nSpin)
+      end if
+    #:endcall ASSERT_CODE
+  
+    do iSpin = 1, nSpin
+      do iK = 1, nKPoint
+        if (tStoreEigvecs) then
+          iSpin2 = 1
+          iK2 = 1
+        else
+          iSpin2 = iSpin
+          iK2 = iK
+        end if
+        call unpackHS(HSqrCplx(:,:,iK2,iSpin2), ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor,&
+            & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+        call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
+            & cellVec, iAtomStart, iPair, img2CentCell)
+        call diagonalizeDenseMtx(solver, 'V', HSqrCplx(:,:,iK2,iSpin2), SSqrCplx, eigen(:,iK,iSpin))
+        if (tStoreEigvecs) then
+          call reset(storeEigvecsCplx(iSpin), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
+          call push(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2,iSpin2))
+        end if
+      end do
+    end do
+    
+  end subroutine buildAndDiagDenseKDepHam
+
+
+  !> Builds and diagonalizes Pauli two-component Hamiltonians.
+  subroutine buildAndDiagDensePauliHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
+      & img2CentCell, solver, eigen, HSqrCplx, SSqrCplx, iHam, xi, species, orb, storeEigvecsCplx)
+    real(dp), intent(in) :: ham(:,:), over(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), solver
+    real(dp), intent(out) :: eigen(:)
+    complex(dp), intent(out) :: HSqrCplx(:,:), SSqrCplx(:,:)
+    real(dp), intent(in), optional :: iHam(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
+    integer, intent(in), optional :: species(:)
+    type(TOrbitals), intent(in), optional :: orb
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    logical :: tStoreEigvecs
+
+    tStoreEigvecs = present(storeEigvecsCplx)
+
+    #:call ASSERT_CODE
+      @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
+      if (tStoreEigvecs) then
+        @:ASSERT(size(storeEigvecsCplx) == 1)
+      end if
+    #:endcall ASSERT_CODE
+      
+    call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iPair, iAtomStart,&
+        & img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
+    if (present(xi) .and. .not. present(iHam)) then
+      call addSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx)
+    end if
+    call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
+    if (tStoreEigvecs) then
+      call reset(storeEigvecsCplx(1), shape(HSqrCplx))
+      call push(storeEigvecsCplx(1), HSqrCplx)
+    end if
+    
+  end subroutine buildAndDiagDensePauliHam
+
+
+  !> Builds and diagonalizes k-dependent Pauli two-component Hamiltonians.
+  subroutine buildAndDiagDenseKDepPauliHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
+      & iPair, img2CentCell, iCellVec, cellVec, solver, eigen, HSqrCplx, SSqrCplx, iHam, xi,&
+      & species, orb, storeEigvecsCplx)
+    real(dp), intent(in) :: ham(:,:), over(:), kPoint(:,:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    integer, intent(in) :: solver
+    real(dp), intent(out) :: eigen(:,:)
+    complex(dp), intent(out) :: HSqrCplx(:,:,:), SSqrCplx(:,:)
+    real(dp), intent(in), optional :: iHam(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
+    integer, intent(in), optional :: species(:)
+    type(TOrbitals), intent(in), optional :: orb
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    integer :: nKPoint
+    integer :: iK, iK2
+    logical :: tStoreEigvecs
+    
+    nKPoint = size(kPoint, dim=2)
+    tStoreEigvecs = present(storeEigvecsCplx)
+    
+    #:call ASSERT_CODE
+      @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
+      if (tStoreEigvecs) then
+        @:ASSERT(size(storeEigvecsCplx) == 1)
+      end if
+    #:endcall ASSERT_CODE
+
+    do iK = 1, nKPoint
+      if (tStoreEigvecs) then
+        iK2 = 1
+      else
+        iK2 = iK
+      end if
+      call unpackHSPauliK(ham, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, HSqrCplx(:,:,iK2),&
+          & SSqrCplx, iHam=iHam)
+      if (present(xi) .and. .not. present(iHam)) then
+        call addSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx(:,:,iK))
+      end if
+      call diagonalizeDenseMtx(solver, 'V', HSqrCplx(:,:,iK2), SSqrCplx, eigen(:,iK))
+      if (tStoreEigvecs) then
+        call reset(storeEigvecsCplx(1), [size(HSqrCplx, dim=1), size(HSqrCplx, dim=2)])
+        call push(storeEigvecsCplx(1), HSqrCplx(:,:,iK2))
+      end if
+    end do
+
+  end subroutine buildAndDiagDenseKDepPauliHam
+
+
+  !> Creates sparse density matrix from real eigenvectors.
+  !>
+  subroutine getDensityFromEigvecs(filling, neighborList, nNeighbor, iPair, iAtomStart,&
+      & img2CentCell, orb, eigvecs, rhoPrim, work, rhoSqrReal, storeEigvecsReal)
+    real(dp), intent(in) :: filling(:,:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iPair(:,:), iAtomStart(:), img2CentCell(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(inout) :: eigvecs(:,:,:)
+    real(dp), intent(out) :: rhoPrim(:,:), work(:,:)
+    real(dp), intent(out), optional  :: rhoSqrReal(:,:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+
+    integer :: nSpin
+    integer :: iSpin, iSpin2
+    logical :: tStoreEigvecs
+
+    nSpin = size(filling, dim=2)
+    tStoreEigvecs = present(storeEigvecsReal)
+    
+    rhoPrim(:,:) = 0.0_dp
+    do iSpin = 1, nSpin
+      if (tStoreEigvecs) then
+        iSpin2 = 1
+        call get(storeEigvecsReal(iSpin), eigvecs(:,:,iSpin2))
+      else
+        iSpin2 = iSpin
+      end if
+
+      if (tDensON2) then
+        call makeDensityMatrix(work, eigvecs(:,:,iSpin2), filling(:,iSpin),&
+            & neighborlist%iNeighbor, nNeighbor, orb, iAtomStart, img2CentCell)
+      else
+        call makeDensityMatrix(work, eigvecs(:,:,iSpin2), filling(:,iSpin))
+      end if
+      call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb, iAtomStart,&
+          & iPair, img2CentCell)
+
+      if (present(rhoSqrReal)) then
+        rhoSqrReal(:,:,iSpin) = work
+      end if
+    end do
+
+  end subroutine getDensityFromEigvecs
+
+  
+  !> Creates sparse density matrix from complex eigenvectors.
+  !>
+  subroutine getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor, iPair,&
+      & iAtomStart, img2CentCell, iCellVec, cellVec, orb, eigvecs, rhoPrim, work, storeEigvecsCplx)
+    real(dp), intent(in) :: filling(:,:,:), kPoint(:,:), kWeight(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iPair(:,:), iAtomStart(:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    type(TOrbitals), intent(in) :: orb
+    complex(dp), intent(inout) :: eigvecs(:,:,:,:)
+    real(dp), intent(out) :: rhoPrim(:,:)
+    complex(dp), intent(out) :: work(:,:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    integer :: nSpin
+    integer :: iK, iK2, iSpin, iSpin2
+    logical :: tStoreEigvecs
+
+    nSpin = size(filling, dim=3)
+    tStoreEigvecs = present(storeEigvecsCplx)
+
+    rhoPrim(:,:) = 0.0_dp
+    
+    do iSpin = 1, nSpin
+      do iK = 1, size(kPoint, dim=2)
+        if (tStoreEigvecs) then
+          iSpin2 = 1
+          iK2 = 1
+          call get(storeEigvecsCplx(iSpin), eigvecs(:,:,iK2,iSpin2))
+        else
+          iSpin2 = iSpin
+          iK2 = iK
+        end if
+
+        if (tDensON2) then
+          call makeDensityMatrix(work, eigvecs(:,:,iK2,iSpin2), filling(:,iK,iSpin),&
+              & neighborlist%iNeighbor, nNeighbor, orb, iAtomStart, img2CentCell)
+        else
+          call makeDensityMatrix(work, eigvecs(:,:,iK2,iSpin2), filling(:,iK,iSpin))
+        end if
+        call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
+            & nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      end do
+    end do
+    
+  end subroutine getDensityFromKDepEigvecs
+
+  
+  !> Creates sparse density matrix from two component complex eigenvectors.
+  subroutine getDensityFromPauliEigvecs(tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken,&
+      & kPoint, kWeight, filling, neighborList, nNeighbor, orb, iAtomStart, iPair,&
+      & img2CentCell, iCellVec, cellVec, species, eigvecs, work, &
+      & energy, rhoPrim, xi, orbitalL, iRhoPrim, eigvecsFifo)
+    logical, intent(in) :: tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken
+    real(dp), intent(in) :: kPoint(:,:), kWeight(:), filling(:,:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    integer, intent(in) :: species(:)
+    complex(dp), intent(inout) :: eigvecs(:,:,:), work(:,:)
+    type(TEnergies), intent(inout) :: energy
+    real(dp), intent(out) :: rhoPrim(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(out), optional :: orbitalL(:,:,:)
+    real(dp), intent(out), optional :: iRhoPrim(:,:)
+    type(OFifoCplxR2), intent(inout), optional :: eigvecsFifo(:)
+
+
+    real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
+    integer :: nKPoint, nAtom
+    integer :: iK, iK2
+    logical :: tStoreEigvecs, tImHam
+
+    nAtom = size(orb%nOrbAtom)
+    tImHam = present(iRhoPrim)
+    tStoreEigvecs = present(eigvecsFifo)
+    nKPoint = size(kWeight)
+
+    rhoPrim(:,:) = 0.0_dp
+    if (present(iRhoPrim)) then
+      iRhoPrim(:,:) = 0.0_dp
+    end if
+
+    work(:,:) = 0.0_dp
+    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+      energy%atomLS(:) = 0.0_dp
+      allocate(rVecTemp(nAtom))
+    end if
+    
+    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
+      allocate(orbitalLPart(3, orb%mShell, nAtom))
+      orbitalL(:,:,:) = 0.0_dp
+    end if
+
+    do iK = 1, nKPoint
+      if (tStoreEigvecs) then
+        iK2 = 1
+        call get(eigvecsFifo(1), eigvecs(:,:,iK2))
+      else
+        iK2 = iK
+      end if
+      call makeDensityMatrix(work, eigvecs(:,:,iK2), filling(:,iK))
+      if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+        rVecTemp(:) = 0.0_dp
+        call getEnergySpinOrbit(rVecTemp, work, iAtomStart, xi, orb, species)
+        energy%atomLS = energy%atomLS + kWeight(iK) * rVecTemp
+        if (tMulliken) then
+          orbitalLPart(:,:,:) = 0.0_dp
+          call getL(orbitalLPart, work, iAtomStart, orb, species)
+          orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
+        end if
+      end if
+
+      if (tRealHS) then
+        call packHSPauli(rhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb, iAtomStart,&
+            & iPair, img2CentCell)
+        if (tImHam) then
+          call packHSPauliImag(iRhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
+              & iAtomStart, iPair, img2CentCell)
+        end if
+      else
+        call packHS(rhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor, nNeighbor,&
+            & orb%mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+        if (tImHam) then
+          call iPackHS(iRhoPrim, work, kPoint(:,iK), kWeight(iK), neighborlist%iNeighbor, &
+              & nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+        end if
+      end if
+    end do
+
+    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+      energy%ELS = sum(energy%atomLS)
+    end if
+    
+  end subroutine getDensityFromPauliEigvecs
 
 
   !> Calculates electron fillings and resulting band energy terms.
@@ -2735,6 +3002,65 @@ contains
     end if
 
   end subroutine getFillingsAndBandEnergies
+
+
+  !> Adds spin-orbit contribution to dense Hamiltonian (for non-dual spin-orbit model).
+  subroutine addSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx)
+    real(dp), intent(in) :: xi(:,:)
+    integer, intent(in) :: species(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iAtomStart(:)
+    complex(dp), intent(inout) :: HSqrCplx(:,:)
+
+    complex(dp), allocatable :: atomZ(:,:,:), atomPlus(:,:,:), Lz(:,:), Lplus(:,:)
+    integer :: nAtom, nSpecies, nOrb
+    integer :: iSp, iOrb, iAt, ll
+
+    nAtom = size(orb%nOrbAtom)
+    nSpecies = maxval(species(1:nAtom))
+    nOrb = size(HSqrCplx, dim=1) / 2
+    allocate(atomZ(orb%mOrb, orb%mOrb, nSpecies))
+    allocate(atomPlus(orb%mOrb, orb%mOrb, nSpecies))
+    atomZ(:,:,:) = 0.0_dp
+    atomPlus(:,:,:) = 0.0_dp
+    allocate(Lz(orb%mOrb, orb%mOrb))
+    allocate(Lplus(orb%mOrb, orb%mOrb))
+
+    do iSp = 1, nSpecies
+      do iOrb = 1, orb%nShell(iSp)
+        Lz(:,:) = 0.0_dp
+        Lplus(:,:) = 0.0_dp
+        ll = orb%angShell(iOrb,iSp)
+        call loperators(Lplus(1:2*ll+1,1:2*ll+1), Lz(1:2*ll+1,1:2*ll+1), ll)
+        atomZ(orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, &
+            & orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, iSp) =&
+            & 0.5_dp * xi(iOrb, iSp) * Lz(1 : 2 * ll + 1, 1 : 2 * ll + 1)
+        atomPlus(orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, &
+            & orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, iSp) =&
+            & 0.5_dp * xi(iOrb, iSp) * Lplus(1 : 2 * ll + 1, 1 : 2 * ll + 1)
+      end do
+    end do
+    
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      HSqrCplx(iAtomStart(iAt) : iAtomStart(iAt + 1) - 1, &
+          & iAtomStart(iAt) : iAtomStart(iAt + 1) - 1) = &
+          & HSqrCplx(iAtomStart(iAt) : iAtomStart(iAt + 1) - 1, &
+          & iAtomStart(iAt) : iAtomStart(iAt + 1) - 1) &
+          & + atomZ(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
+      HSqrCplx(nOrb + iAtomStart(iAt) : nOrb + iAtomStart(iAt + 1) - 1, &
+          & nOrb + iAtomStart(iAt) : nOrb + iAtomStart(iAt + 1) - 1) = &
+          & HSqrCplx(nOrb + iAtomStart(iAt) : nOrb + iAtomStart(iAt + 1) - 1, &
+          & nOrb + iAtomStart(iAt) : nOrb + iAtomStart(iAt + 1) - 1) &
+          & - atomZ(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
+      HSqrCplx(nOrb+ iAtomStart(iAt) : nOrb + iAtomStart(iAt + 1) - 1, &
+          & iAtomStart(iAt) : iAtomStart(iAt + 1) - 1) = &
+          & HSqrCplx(nOrb + iAtomStart(iAt) : nOrb + iAtomStart(iAt + 1) - 1, &
+          & iAtomStart(iAt) : iAtomStart(iAt + 1) - 1) &
+          & + atomPlus(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
+    end do
+
+  end subroutine addSpinOrbitContrib
 
 
 end module main

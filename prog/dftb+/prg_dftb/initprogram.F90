@@ -882,8 +882,6 @@ contains
           xi(jj,iSp)=input%ctrl%xi(jj,iSp)
         end do
       end do
-    else
-      allocate(xi(0,0))
     end if
 
     ! DFTB+U parameters
@@ -2046,9 +2044,6 @@ contains
           end do
         end if
       end if
-    else
-      allocate(storeEigvecsReal(0))
-      allocate(storeEigvecsCplx(0))
     end if
 
     ! Check if stopfiles already exist and quit if yes
@@ -2546,12 +2541,16 @@ contains
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
-    do ii = 1, size(storeEigvecsReal)
-      call destruct(storeEigvecsReal(ii))
-    end do
-    do ii = 1, size(storeEigvecsCplx)
-      call destruct(storeEigvecsCplx(ii))
-    end do
+    if (allocated(storeEigvecsReal)) then
+      do ii = 1, size(storeEigvecsReal)
+        call destruct(storeEigvecsReal(ii))
+      end do
+    end if
+    if (allocated(storeEigvecsCplx)) then
+      do ii = 1, size(storeEigvecsCplx)
+        call destruct(storeEigvecsCplx(ii))
+      end do
+    end if
 
   end subroutine destructProgramVariables
 

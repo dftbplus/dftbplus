@@ -19,7 +19,7 @@ module eigenvects
   use angmomentum
   implicit none
 
-  public :: diagonalize
+  public :: diagonalize, diagonalizeDenseMtx
   private
 
 
@@ -31,7 +31,91 @@ module eigenvects
     module procedure cmplx2CmpntKpts
   end interface diagonalize
 
+  interface diagonalizeDenseMtx
+    module procedure diagDenseRealMtx
+    module procedure diagDenseComplexMtx
+  end interface diagonalizeDenseMtx
+
 contains
+
+  !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
+  !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
+  subroutine diagDenseRealMtx(iSolver, jobz, HSqrReal, SSqrReal, eigen)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
+
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(inout) :: HSqrReal(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
+    real(dp), intent(inout) :: SSqrReal(:,:)
+
+    !> Eigen values.
+    real(dp), intent(out) :: eigen(:)
+
+
+    @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
+    @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
+    @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+    select case(iSolver)
+    case(1)
+      call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case(2)
+      call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case(3)
+      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case default
+      call error('Unknown eigensolver')
+    end select
+
+  end subroutine diagDenseRealMtx
+
+
+  !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
+  !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
+  !> effect of lapack)
+  subroutine diagDenseComplexMtx(iSolver, jobz, HSqrCplx, SSqrCplx, eigen)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
+
+    !> Large square matrix for the resulting eigenvectors
+    complex(dp), intent(inout) :: HSqrCplx(:,:)
+
+    !> Large square matrix for the overlap workspace, overwritten with the Cholesky factorized form.
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> The eigenvalues of the matrices
+    real(dp), intent(out) :: eigen(:)
+
+
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+    select case(iSolver)
+    case(1)
+      call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case(2)
+      call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case(3)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case default
+      call error('Unknown eigensolver')
+    end select
+
+  end subroutine diagDenseComplexMtx
 
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
