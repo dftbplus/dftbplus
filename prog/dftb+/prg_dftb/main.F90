@@ -72,6 +72,7 @@ module main
   character(*), parameter :: resultsTag = "results.tag"
   character(*), parameter :: hessianOut = "hessian.out"
 
+
   logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
   logical, parameter :: tAppendDetailedOut = .false.
 
@@ -404,15 +405,11 @@ contains
         if (tMulliken) then
           call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
               & iPair, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+        end if
 
-          if (tImHam) then
-            energy%atomLS(:) = 0.0_dp
-            call getL(orbitalL,qiBlockOut,orb,species)
-            if (tDualSpinOrbit) then
-              call getEnergySpinOrbit(energy%atomLS, qiBlockOut,xi,orb,species)
-              energy%ELS = sum(energy%atomLS)
-            end if
-          end if
+        ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
+        if (tDualSpinOrbit) then
+          call getL(orbitalL, qiBlockOut, orb, species)
         end if
 
         ! Note: if XLBOMD is active, potential created with ingoing charges is needed later,
@@ -427,89 +424,12 @@ contains
           potential%intBlock = potential%intBlock + potential%extBlock
         end if
 
-        ! Calculate energies
+        call getEnergies(qOutput, q0, chargePerShell, species, tEField, tScc, tXlbomd, tDftbU,&
+            & tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell, iPair,&
+            & cellVol, pressure, TS, potential, energy, thirdOrd, qBlockOut, qiBlockOut,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
-        ! non-SCC part
-        energy%EnonSCC = 0.0_dp
-        energy%atomNonSCC(:) = 0.0_dp
-
-        call mulliken(energy%atomNonSCC(:), rhoPrim(:,1), H0,orb,&
-            &neighborList%iNeighbor, nNeighbor, img2CentCell, iPair)
-        energy%EnonSCC =  sum(energy%atomNonSCC)
-
-        if (tEfield) then ! energy in external field
-          energy%atomExt = -sum( q0(:, :, 1) - qOutput(:, :, 1),dim=1) &
-              & * potential%extAtom(:,1)
-          energy%Eext =  sum(energy%atomExt)
-        else
-          energy%Eext = 0.0_dp
-          energy%atomExt = 0.0_dp
-        end if
-
-        if (tSCC) then
-          if (tXlbomd) then
-            call getEnergyPerAtom_SCC_Xlbomd(species, orb, qOutput, q0, &
-                & energy%atomSCC)
-          else
-            call getEnergyPerAtom_SCC(energy%atomSCC)
-          end if
-          energy%eSCC = sum(energy%atomSCC)
-          if (t3rdFull) then
-            if (tXlbomd) then
-              call thirdOrd%getEnergyPerAtomXlbomd(qOutput, q0, species, orb,&
-                  & energy%atom3rd)
-            else
-              call thirdOrd%getEnergyPerAtom(energy%atom3rd)
-            end if
-            energy%e3rd = sum(energy%atom3rd)
-          end if
-
-          if (nSpin > 1) then
-            energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
-                & * chargePerShell(:,:,2:nSpin), dim=1),dim=2)
-            energy%Espin = sum(energy%atomSpin)
-          else
-            energy%atomSpin(:) = 0.0_dp
-            energy%eSpin = 0.0_dp
-          end if
-        end if
-
-        if (tDFTBU) then
-          energy%atomDftbu(:) = 0.0_dp
-          if (.not. tImHam) then
-            call E_DFTBU(energy%atomDftbu,qBlockOut,species,orb, &
-                & nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
-          else
-            call E_DFTBU(energy%atomDftbu,qBlockOut,species,orb, &
-                & nDFTBUfunc, UJ, nUJ, niUJ, iUJ, qiBlockOut)
-          end if
-          energy%Edftbu = sum(energy%atomDftbu(:))
-        else
-          energy%Edftbu = 0.0_dp
-        end if
-
-        energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin &
-            & + energy%ELS + energy%Edftbu + energy%Eext + energy%e3rd
-
-        energy%atomElec(:) = energy%atomNonSCC(:) &
-            & + energy%atomSCC(:) + energy%atomSpin(:) + energy%atomDftbu(:) &
-            & + energy%atomLS(:) + energy%atomExt(:) + energy%atom3rd(:)
-
-        energy%atomTotal(:) = energy%atomElec(:) + energy%atomRep(:) + &
-            & energy%atomDisp(:)
-
-        energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
-        energy%EMermin = energy%Etotal - sum(TS)
-        energy%EGibbs = energy%EMermin + cellVol * pressure
-
-        ! Stop SCC if appropriate stop file is present (We need this query here
-        ! since the following block contains a check iSCCIter /= maxSccIter)
-        inquire(file=fStopSCC, exist=tStopSCC)
-        if (tStopSCC) then
-          write(stdOut, "(3A)") "Stop file '" // fStopSCC // "' found."
-          maxSccIter = iSCCIter
-          write(stdOut, "(A)") "Setting max number of scc cycles to current cycle."
-        end if
+        tStopScc = hasStopFile(fStopScc)
 
         ! Mix charges
         if (tSCC) then
@@ -542,7 +462,7 @@ contains
 
           tConverged = (sccErrorQ < sccTol) .and. &
               & (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
-          if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
+          if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
             ! Avoid mixing of spin unpolarised density for spin polarised
             ! cases, this is only a problem in iteration 1, as there is
             ! only the (spin unpolarised!) atomic input density at that
@@ -611,7 +531,7 @@ contains
         if (restartFreq > 0 .and. .not.(tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1) then
           if (tConverged .or. ((iSCCIter >= minSCCIter &
               & .or. tReadChrg .or. iGeoStep > 0) &
-              &.and. (iSCCIter == maxSccIter .or. mod(iSCCIter, restartFreq) ==&
+              &.and. ((iSCCIter == maxSccIter .or. tStopScc) .or. mod(iSCCIter, restartFreq) ==&
               & 0))) then
             if (tMulliken.and.tSCC) then
               if (tDFTBU) then
@@ -628,7 +548,7 @@ contains
           end if
         end if
 
-        if (tConverged) then
+        if (tConverged .or. tStopScc) then
           exit lpSCC
         end if
 
@@ -3077,5 +2997,102 @@ contains
 
   end subroutine getMullikenPopulation
 
+  
+  !> Calculates various energy contributions
+  subroutine getEnergies(qOrb, q0, chargePerShell, species, tEField, tScc, tXlbomd, tDftbU,&
+      & tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell, iPair, cellVol,&
+      & pressure, TS, potential, energy, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+      & xi)
+    real(dp), intent(in) :: qOrb(:,:,:), q0(:,:,:), chargePerShell(:,:,:)
+    integer, intent(in) :: species(:)
+    logical, intent(in) :: tEField, tScc, tXlbomd, tDftbU, tDualSpinOrbit
+    real(dp), intent(in) :: rhoPRim(:,:), H0(:)
+    type(TOrbitals), intent(in) :: orb
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), img2CentCell(:), iPair(:,:)
+    real(dp), intent(in) :: cellVol, pressure, TS(:)
+    type(TPotentials), intent(in) :: potential
+    type(TEnergies), intent(inout) :: energy
+    type(ThirdOrder), intent(inout), optional :: thirdOrd
+    real(dp), intent(in), optional :: qBlock(:,:,:,:), qiBlock(:,:,:,:)
+    integer, intent(in), optional :: nDftbUFunc
+    real(dp), intent(in), optional :: UJ(:,:)
+    integer, intent(in), optional :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
+    real(dp), intent(in), optional :: xi(:,:)
+
+    integer :: nSpin
+
+    nSpin = size(rhoPrim, dim=2)
+
+    ! Tr[H0 * Rho] needs the same algorithm as Mulliken-analysis
+    energy%atomNonSCC(:) = 0.0_dp
+    call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighborList%iNeighbor, nNeighbor,&
+        & img2CentCell, iPair)
+    energy%EnonSCC =  sum(energy%atomNonSCC)
+
+    if (tEfield) then
+      energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
+      energy%Eext = sum(energy%atomExt)
+    end if
+
+    if (tSCC) then
+      if (tXlbomd) then
+        call getEnergyPerAtom_SCC_Xlbomd(species, orb, qOrb, q0, energy%atomSCC)
+      else
+        call getEnergyPerAtom_SCC(energy%atomSCC)
+      end if
+      energy%Escc = sum(energy%atomSCC)
+      if (present(thirdOrd)) then
+        if (tXlbomd) then
+          call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
+        else
+          call thirdOrd%getEnergyPerAtom(energy%atom3rd)
+        end if
+        energy%e3rd = sum(energy%atom3rd)
+      end if
+
+      if (nSpin > 1) then
+        energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
+            & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
+        energy%Espin = sum(energy%atomSpin)
+      end if
+
+    end if
+
+    if (tDftbU) then
+      call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ, qiBlock)
+      energy%Edftbu = sum(energy%atomDftbu)
+    end if
+    
+    if (tDualSpinOrbit) then
+      energy%atomLS(:) = 0.0_dp
+      call getEnergySpinOrbit(energy%atomLS, qiBlock, xi, orb, species)
+      energy%ELS = sum(energy%atomLS)
+    end if
+    
+    energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
+        & + energy%Eext + energy%e3rd
+    energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
+        & + energy%atomLS + energy%atomExt + energy%atom3rd
+    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
+    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
+    energy%EMermin = energy%Etotal - sum(TS)
+    energy%EGibbs = energy%EMermin + cellVol * pressure
+    
+  end subroutine getEnergies
+
+  
+  !> Checks for the presence of a stop file.
+  function hasStopFile(fileName) result(tStop)
+    character(*), intent(in) :: fileName
+    logical :: tStop
+
+    inquire(file=fileName, exist=tStop)
+    if (tStop) then
+      write(stdOut, "(3A)") "Stop file '" // fileName // "' found."
+    end if
+
+  end function hasStopFile
+  
   
 end module main

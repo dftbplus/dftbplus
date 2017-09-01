@@ -243,7 +243,7 @@ contains
   subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
 
     !> energy contribution
-    real(dp), intent(inout) :: egy(:)
+    real(dp), intent(out) :: egy(:)
 
     !> charge block populations
     real(dp), intent(in) :: qBlock(:,:,:,:)
@@ -293,6 +293,8 @@ contains
 
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(egy)==nAtom)
+
+    egy(:) = 0.0_dp
 
     if (present(functional)) then
       iFunctional = functional
