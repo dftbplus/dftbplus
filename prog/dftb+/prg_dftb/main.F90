@@ -401,43 +401,22 @@ contains
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
         end if
 
-
-
-        ! Mulliken analysis
-
-
         if (tMulliken) then
-          qOutput(:,:,:) = 0.0_dp
-          do iSpin = 1, nSpin
-            call mulliken(qOutput(:,:,iSpin), over, rhoPrim(:,iSpin), &
-                &orb, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair)
-          end do
-        end if
+          call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
+              & iPair, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
 
-        if (tImHam) then
-          qiBlockOut(:,:,:,:) = 0.0_dp
-          energy%atomLS = 0.0_dp
-          do iSpin = 1, nSpin
-            call skewMulliken(qiBlockOut(:,:,:,iSpin), over, iRhoPrim(:,iSpin), &
-                &orb, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair)
-          end do
-          call getL(orbitalL,qiBlockOut,orb,species)
-          if (tDualSpinOrbit) then
-            call getEnergySpinOrbit(energy%atomLS,qiBlockOut,xi,orb,species)
-            energy%ELS = sum(energy%atomLS(:))
+          if (tImHam) then
+            energy%atomLS(:) = 0.0_dp
+            call getL(orbitalL,qiBlockOut,orb,species)
+            if (tDualSpinOrbit) then
+              call getEnergySpinOrbit(energy%atomLS, qiBlockOut,xi,orb,species)
+              energy%ELS = sum(energy%atomLS)
+            end if
           end if
         end if
 
-        if (tDFTBU) then
-          qBlockOut(:,:,:,:) = 0.0_dp
-          do iSpin = 1, nSpin
-            call mulliken(qBlockOut(:,:,:,iSpin), over, rhoPrim(:,iSpin), &
-                &orb, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair)
-          end do
-        end if
-
-        ! Note: if XLBOMD is active, potential created with ingoing charges
-        ! is needed later, therefore it should not be zeroed out.
+        ! Note: if XLBOMD is active, potential created with ingoing charges is needed later,
+        ! therefore it should not be overwritten here.
         if (tSCC .and. .not. tXlbomd) then
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
@@ -2430,8 +2409,8 @@ contains
   !> Returns the sparse density matrix.
   !>
   !> All operations (e.g. spin orbit coupling), which need access to full (unpacked) Hamiltonian or
-  !> the full unpacked density matrix (before it is multiplied by the overlap and packed), are also
-  !> invoked from within this routine, as those unpacked quantities do not exist elsewhere.
+  !> the full (unpacked) density matrix, must also invoked from within this routine, as those
+  !> unpacked quantities do not exist elsewhere.
   !>
   subroutine getDensity(ham, over, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell,&
       & iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS, tSpinSharedEf,&
@@ -2711,7 +2690,6 @@ contains
 
 
   !> Creates sparse density matrix from real eigenvectors.
-  !>
   subroutine getDensityFromEigvecs(filling, neighborList, nNeighbor, iPair, iAtomStart,&
       & img2CentCell, orb, eigvecs, rhoPrim, work, rhoSqrReal, storeEigvecsReal)
     real(dp), intent(in) :: filling(:,:)
@@ -2757,7 +2735,6 @@ contains
 
   
   !> Creates sparse density matrix from complex eigenvectors.
-  !>
   subroutine getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor, iPair,&
       & iAtomStart, img2CentCell, iCellVec, cellVec, orb, eigvecs, rhoPrim, work, storeEigvecsCplx)
     real(dp), intent(in) :: filling(:,:,:), kPoint(:,:), kWeight(:)
@@ -3063,4 +3040,42 @@ contains
   end subroutine addSpinOrbitContrib
 
 
+  !> Calculate Mulliken population form density matrix.
+  subroutine getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
+      & iPair, qOrb, iRhoPrim, qBlock, qiBlock)
+    real(dp), intent(in) :: rhoPrim(:,:), over(:)
+    type(TOrbitals), intent(in) :: orb
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), img2CentCell(:), iPair(:,:)
+    real(dp), intent(out) :: qOrb(:,:,:)
+    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    real(dp), intent(out), optional :: qBlock(:,:,:,:), qiBlock(:,:,:,:)
+
+    integer :: iSpin
+
+    qOrb(:,:,:) = 0.0_dp
+    do iSpin = 1, size(qOrb, dim=3)
+      call mulliken(qOrb(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighborList%iNeighbor,&
+          & nNeighbor, img2CentCell, iPair)
+    end do
+
+    if (present(qBlock)) then
+      qBlock(:,:,:,:) = 0.0_dp
+      do iSpin = 1, size(qBlock, dim=4)
+        call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighborList%iNeighbor,&
+            & nNeighbor, img2CentCell, iPair)
+      end do
+    end if
+    
+    if (present(qiBlock)) then
+      qiBlock(:,:,:,:) = 0.0_dp
+      do iSpin = 1, size(qiBlock, dim=4)
+        call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
+            & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair)
+      end do
+    end if
+
+  end subroutine getMullikenPopulation
+
+  
 end module main
