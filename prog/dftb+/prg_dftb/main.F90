@@ -280,9 +280,6 @@ contains
     !> Natural orbitals for excited state density matrix, if requested
     real(dp), allocatable, target :: occNatural(:)
 
-    real(dp), allocatable :: invJacobian(:,:)
-
-
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
@@ -479,32 +476,9 @@ contains
       end if
 
       if (tXlbomd) then
-        if (xlbomdIntegrator%needsInverseJacobian()) then
-          write(stdOut, "(A)") ">> Updating XLBOMD Inverse Jacobian"
-          allocate(invJacobian(nIneqOrb, nIneqOrb))
-          call getInverseJacobian(pChrgMixer, invJacobian)
-          call xlbomdIntegrator%setInverseJacobian(invJacobian)
-          deallocate(invJacobian)
-        end if
-
-        call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), &
-            & qInpRed(1:nIneqOrb))
-        call OrbitalEquiv_expand(qInpRed(1:nIneqOrb), iEqOrbitals, orb, qInput)
-        if (tDFTBU) then
-          qBlockIn = 0.0_dp
-          call Block_expand(qInpRed ,iEqBlockDFTBU, orb, qBlockIn, species0, nUJ, &
-              & niUJ, iUJ, orbEquiv=iEqOrbitals)
-          if (tSpinOrbit) then
-            call Block_expand(qInpRed ,iEqBlockDFTBULS, orb, qiBlockIn, species0, &
-                & nUJ, niUJ, iUJ, skew=.true.)
-          end if
-        end if
-        if (nSpin == 2) then
-          call ud2qm(qInput)
-          if (tDFTBU) then
-            call ud2qm(qBlockIn)
-          end if
-        end if
+        call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
+            & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
+            & qiBlockIn)
       end if
 
       if (tPrintEigVecs) then
@@ -2999,14 +2973,15 @@ contains
         end if
       else
         call mix(pChrgMixer, qInpRed, qDiffRed)
-        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, tDftbu, qInput, qBlockIn,&
-            & iEqBlockDftbu, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
+        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
+            & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
       end if
     end if
     
   end subroutine getNextInputCharges
 
 
+  !> Reduce charges according to orbital equivalency rules.
   subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu,&
       & qiBlock, iEqBlockDftbuLS)
     type(TOrbitals), intent(in) :: orb
@@ -3038,12 +3013,12 @@ contains
   end subroutine reduceCharges
 
 
-  subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, tDftbu, qOrb, qBlock, iEqBlockDftbu,&
-      & species0, nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS)
+  !> Expand reduced charges according orbital equivalency rules.
+  subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, qOrb, qBlock, iEqBlockDftbu, species0,&
+      & nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS)
     real(dp), intent(in) :: qRed(:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
-    logical, intent(in) :: tDftbu
     real(dp), intent(out) :: qOrb(:,:,:)
     real(dp), intent(inout), optional :: qBlock(:,:,:,:)
     integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:)
@@ -3074,7 +3049,7 @@ contains
     end if
     if (nSpin == 2) then
       call ud2qm(qOrb)
-      if (tDftbu) then
+      if (present(qBlock)) then
         call ud2qm(qBlock)
       end if
     end if
@@ -3082,6 +3057,7 @@ contains
   end subroutine expandCharges
 
 
+  !> Get some info about scc convergence.
   subroutine getSccInfo(iSccIter, Eelec, EelecOld, diffElec)
     integer, intent(in) :: iSccIter
     real(dp), intent(in) :: Eelec
@@ -3097,7 +3073,8 @@ contains
 
   end subroutine getSccInfo
 
-  
+
+  !> Print info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
     logical, intent(in) :: tDftbU
     integer, intent(in) :: iSccIter
@@ -3112,6 +3089,7 @@ contains
   end subroutine printSccInfo
 
 
+  !> Whether restart information needs to be written in the current scc loop.
   function needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter, tMd,&
       & tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc) result(tRestart)
     integer, intent(in) :: restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter
@@ -3127,6 +3105,7 @@ contains
   end function needsSccRestartWriting
 
 
+  !> Write restart information.
   subroutine writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
     character(*), intent(in) :: fChargeIn
     type(TOrbitals), intent(in) :: orb
@@ -3147,6 +3126,7 @@ contains
   end subroutine writeRestart
 
 
+  !> Stop if linear response module can not be invoked due to unimplemented issues.
   subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
     logical, intent(in) :: t3rd, tRealHs, tPeriodic, tForces
 
@@ -3164,6 +3144,7 @@ contains
   end subroutine ensureLinRespConditions
   
 
+  !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(lresp, qOutput, q0, over, HSqrReal, eigen, filling,&
       & coord0, species, species0, speciesName, orb, skHamCont, skOverCont, fdAutotest, fdEigvec,&
       & runId, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, tWriteAutotest, tForces,&
@@ -3243,6 +3224,37 @@ contains
 
   end subroutine calculateLinRespExcitations
 
+
+  !> Get the XLBOMD charges for the current geometry.
+  subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
+      & qInput, qInpRed, iEqBlockDftbu, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLS,&
+      & qiBlockIn)
+    type(Xlbomd), intent(inout) :: xlbomdIntegrator
+    real(dp), intent(in) :: qOutRed(:)
+    type(OMixer), intent(inout) :: pChrgMixer
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
+    real(dp), intent(out) :: qInput(:,:,:), qInpRed(:)
+    integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:), species0(:)
+    real(dp), intent(out), optional :: qBlockIn(:,:,:,:)
+    integer, intent(in), optional :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
+    integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
+    real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
+    
+    real(dp), allocatable :: invJacobian(:,:)
+    
+    if (xlbomdIntegrator%needsInverseJacobian()) then
+      write(stdOut, "(A)") ">> Updating XLBOMD Inverse Jacobian"
+      allocate(invJacobian(nIneqOrb, nIneqOrb))
+      call getInverseJacobian(pChrgMixer, invJacobian)
+      call xlbomdIntegrator%setInverseJacobian(invJacobian)
+      deallocate(invJacobian)
+    end if
+    call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), qInpRed(1:nIneqOrb))
+    call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
+        & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
+
+  end subroutine getXlbomdCharges
   
   
 end module main
