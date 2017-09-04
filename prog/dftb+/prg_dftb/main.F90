@@ -24,6 +24,7 @@ module main
   use lapackroutines, only : matinv
   use taggedoutput
   use scc
+  use sccinit
   use externalcharges
   use periodic
   use mixer
@@ -122,7 +123,7 @@ contains
     real(dp), allocatable :: E0(:)
 
     !> energy in previous scc cycles
-    real(dp), allocatable :: Eold
+    real(dp) :: Eold
 
 
     !> Total energy components
@@ -264,6 +265,9 @@ contains
     !> if scf/geometry driver should be stopped
     logical :: tStopSCC, tStopDriver
 
+    !> Whether scc restart info should be written in current iteration
+    logical :: tWriteSccRestart
+
     !> net charge on each atom
     real(dp), allocatable :: dqAtom(:)
 
@@ -370,6 +374,7 @@ contains
       call mergeExternalPotentials(orb, species, potential)
 
       call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tStopScc)
+
       lpSCC: do iSccIter = 1, maxSccIter
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
@@ -431,82 +436,21 @@ contains
 
         tStopScc = hasStopFile(fStopScc)
 
-        ! Mix charges
-        if (tSCC) then
-          qOutRed = 0.0_dp
-          if (nSpin == 2) then
-            call qm2ud(qOutput)
-            if (tDFTBU) then
-              call qm2ud(qBlockOut)
-            end if
-          end if
-          call OrbitalEquiv_reduce(qOutput, iEqOrbitals, orb, &
-              & qOutRed(1:nIneqOrb))
-          if (tDFTBU) then
-            call AppendBlock_reduce( qBlockOut, iEqBlockDFTBU, orb, &
-                & qOutRed )
-            if (tImHam) then
-              call AppendBlock_reduce( qiBlockOut, iEqBlockDFTBULS, orb, &
-                  & qOutRed, skew=.true. )
-            end if
-          end if
-          if (nSpin == 2) then
-            call ud2qm(qOutput)
-            if (tDFTBU) then
-              call ud2qm(qBlockOut)
-            end if
-          end if
-
-          qDiffRed(:) = qOutRed(:) - qInpRed(:)
-          sccErrorQ = maxval(abs(qDiffRed))
-
-          tConverged = (sccErrorQ < sccTol) .and. &
-              & (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
-          if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
-            ! Avoid mixing of spin unpolarised density for spin polarised
-            ! cases, this is only a problem in iteration 1, as there is
-            ! only the (spin unpolarised!) atomic input density at that
-            ! point. (Unless charges had been initialized externally)
-            if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1.or.tDFTBU) &
-                & .and. .not.tReadChrg) then
-              qInput(:,:,:) = qOutput(:,:,:)
-              qInpRed(:) = qOutRed(:)
-              if (tDFTBU) then
-                qBlockIn(:,:,:,:) = qBlockOut(:,:,:,:)
-                if (tSpinOrbit) then
-                  qiBlockIn(:,:,:,:) = qiBlockOut(:,:,:,:)
-                end if
-              end if
-            else
-              call mix(pChrgMixer, qInpRed, qDiffRed)
-              call OrbitalEquiv_expand(qInpRed(1:nIneqOrb), iEqOrbitals, &
-                  & orb, qInput)
-              if (tDFTBU) then
-                qBlockIn = 0.0_dp
-                call Block_expand( qInpRed ,iEqBlockDFTBU, orb, &
-                    & qBlockIn, species0, nUJ, niUJ, iUJ, orbEquiv=iEqOrbitals )
-                if (tSpinOrbit) then
-                  call Block_expand( qInpRed ,iEqBlockDFTBULS, orb, &
-                      & qiBlockIn, species0, nUJ, niUJ, iUJ, skew=.true. )
-                end if
-              end if
-              if (nSpin == 2) then
-                call ud2qm(qInput)
-                if (tDFTBU) then
-                  call ud2qm(qBlockIn)
-                end if
-              end if
-            end if
-          end if
+        if (tScc) then
+          call getNextInputCharges(pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
+              & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
+              & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
         end if
 
         if (tSCC) then
-          if (iSCCiter > 1) then
-            diffElec = energy%Eelec - Eold
-          else
-            diffElec = 0.0_dp
+          call getSccInfo(iSccIter, energy%Eelec, diffElec, Eold)
+          call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
+          tWriteSccRestart = needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter,&
+              & maxSccIter, tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
+          if (tWriteSccRestart) then
+            call writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
           end if
-          Eold = energy%Eelec
         end if
 
         if (tWriteDetailedOut) then
@@ -516,36 +460,6 @@ contains
               & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpinOrbit, tScc)
-        end if
-
-        if (tSCC) then
-          if (tDFTBU) then
-            write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, diffElec, sccErrorQ
-          else
-            write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, energy%Eelec, diffElec, sccErrorQ
-          end if
-        end if
-
-        ! Not writing any restarting info if not converged and minimal number of
-        ! SCC iterations not done.
-        if (restartFreq > 0 .and. .not.(tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1) then
-          if (tConverged .or. ((iSCCIter >= minSCCIter &
-              & .or. tReadChrg .or. iGeoStep > 0) &
-              &.and. ((iSCCIter == maxSccIter .or. tStopScc) .or. mod(iSCCIter, restartFreq) ==&
-              & 0))) then
-            if (tMulliken.and.tSCC) then
-              if (tDFTBU) then
-                if (tSpinOrbit) then
-                  call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
-                else
-                  call writeQToFile(qInput, fChargeIn, orb, qBlockIn)
-                end if
-              else
-                call writeQToFile(qInput, fChargeIn, orb)
-              end if
-              print "('>> Charges saved for restart in ',A)", fChargeIn
-            end if
-          end if
         end if
 
         if (tConverged .or. tStopScc) then
@@ -3093,6 +3007,202 @@ contains
     end if
 
   end function hasStopFile
+
+
+  !> Returns input charges for next SCC iteration.
+  subroutine getNextInputCharges(pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+      & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg, qInput,&
+      & qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
+      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+    type(OMixer), intent(inout) :: pChrgMixer
+    real(dp), intent(inout) :: qOutput(:,:,:), qOutRed(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:), iGeoStep, iSccIter, minSccIter, maxSccIter
+    real(dp), intent(in) :: sccTol
+    logical, intent(in) :: tStopScc, tDftbU, tReadChrg
+    real(dp), intent(inout) :: qInput(:,:,:), qInpRed(:)
+    real(dp), intent(out) :: sccErrorQ
+    logical, intent(out) :: tConverged
+    real(dp), intent(inout), optional :: qBlockOut(:,:,:,:)
+    integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
+    real(dp), intent(out), optional ::qBlockIn(:,:,:,:)
+    real(dp), intent(in), optional :: qiBlockOut(:,:,:,:)
+    integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
+    integer, intent(in), optional :: species0(:), nUJ(:), iUJ(:,:,:), niUJ(:,:)
+    real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
+
+    real(dp), allocatable :: qDiffRed(:)
+    integer :: nSpin
+
+    nSpin = size(qOutput, dim=3)
+    call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
+        & qiBlockOut, iEqBlockDftbuLS)
+    qDiffRed = qOutRed - qInpRed
+    sccErrorQ = maxval(abs(qDiffRed))
+    tConverged = (sccErrorQ < sccTol)&
+        & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
+    if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
+      ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
+      ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
+      ! point. (Unless charges had been initialized externally)
+      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tDFTBU) .and. .not. tReadChrg) then
+        qInpRed(:) = qOutRed
+        qInput(:,:,:) = qOutput
+        if (present(qBlockIn)) then
+          qBlockIn(:,:,:,:) = qBlockOut
+          if (present(qiBlockIn)) then
+            qiBlockIn(:,:,:,:) = qiBlockOut
+          end if
+        end if
+      else
+        call mix(pChrgMixer, qInpRed, qDiffRed)
+        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, tDftbu, qInput, qBlockIn,&
+            & iEqBlockDftbu, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
+      end if
+    end if
+    
+  end subroutine getNextInputCharges
+
+
+  subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu,&
+      & qiBlock, iEqBlockDftbuLS)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
+    real(dp), intent(inout) :: qOrb(:,:,:)
+    real(dp), intent(out) :: qRed(:)
+    real(dp), intent(inout), optional :: qBlock(:,:,:,:)
+    integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
+    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+    integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
+
+    qRed(:) = 0.0_dp
+    call qm2ud(qOrb)
+    if (present(qBlock)) then
+      call qm2ud(qBlock)
+    end if
+    call OrbitalEquiv_reduce(qOrb, iEqOrbitals, orb, qRed(1:nIneqOrb))
+    if (present(qBlock)) then
+      call AppendBlock_reduce(qBlock, iEqBlockDFTBU, orb, qRed)
+      if (present(qiBlock)) then
+        call AppendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
+      end if
+    end if
+    call ud2qm(qOrb)
+    if (present(qBlock)) then
+      call ud2qm(qBlock)
+    end if
+    
+  end subroutine reduceCharges
+
+
+  subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, tDftbu, qOrb, qBlock, iEqBlockDftbu,&
+      & species0, nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS)
+    real(dp), intent(in) :: qRed(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
+    logical, intent(in) :: tDftbu
+    real(dp), intent(out) :: qOrb(:,:,:)
+    real(dp), intent(inout), optional :: qBlock(:,:,:,:)
+    integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:)
+    integer, intent(in), optional :: species0(:), nUJ(:), iUJ(:,:,:), niUJ(:,:)
+    real(dp), intent(inout), optional :: qiBlock(:,:,:,:)
+    integer, intent(in), optional :: iEqBlockDftbULS(:,:,:,:)
+
+    integer :: nSpin
+
+    @:ASSERT(present(qBlock) .eqv. present(iEqBlockDftbU))
+    @:ASSERT(present(qBlock) .eqv. present(species0))
+    @:ASSERT(present(qBlock) .eqv. present(nUJ))
+    @:ASSERT(present(qBlock) .eqv. present(iUJ))
+    @:ASSERT(present(qBlock) .eqv. present(niUJ))
+    @:ASSERT(.not. present(qiBlock) .or. present(qBlock))
+    @:ASSERT(present(qiBlock) .eqv. present(iEqBlockDftbuLS))
+
+    nSpin = size(qOrb, dim=3)
+    call OrbitalEquiv_expand(qRed(1:nIneqOrb), iEqOrbitals, orb, qOrb)
+    if (present(qBlock)) then
+      qBlock(:,:,:,:) = 0.0_dp
+      call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
+          & orbEquiv=iEqOrbitals)
+      if (present(qiBlock)) then
+        call Block_expand(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, nUJ, niUJ, iUJ,&
+            & skew=.true.)
+      end if
+    end if
+    if (nSpin == 2) then
+      call ud2qm(qOrb)
+      if (tDftbu) then
+        call ud2qm(qBlock)
+      end if
+    end if
+
+  end subroutine expandCharges
+
+
+  subroutine getSccInfo(iSccIter, Eelec, EelecOld, diffElec)
+    integer, intent(in) :: iSccIter
+    real(dp), intent(in) :: Eelec
+    real(dp), intent(inout) :: EelecOld
+    real(dp), intent(out) :: diffElec
+
+    if (iScciter > 1) then
+      diffElec = Eelec - EelecOld
+    else
+      diffElec = 0.0_dp
+    end if
+    EelecOld = Eelec
+
+  end subroutine getSccInfo
+
+  
+  subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+    logical, intent(in) :: tDftbU
+    integer, intent(in) :: iSccIter
+    real(dp), intent(in) :: Eelec, diffElec, sccErrorQ
+
+    if (tDFTBU) then
+      write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
+    else
+      write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
+    end if
+
+  end subroutine printSccInfo
+
+
+  function needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter, tMd,&
+      & tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc) result(tRestart)
+    integer, intent(in) :: restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter
+    logical, intent(in) :: tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc
+    logical :: tRestart
+
+    tRestart = ((restartFreq > 0 .and. .not. (tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1)&
+        & .and. (tConverged&
+        & .or. ((iSCCIter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)&
+        & .and. ((iSCCIter == maxSccIter .or. tStopScc)&
+        & .or. mod(iSCCIter, restartFreq) == 0))))
+
+  end function needsSccRestartWriting
+
+
+  subroutine writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
+    character(*), intent(in) :: fChargeIn
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: qInput(:,:,:)
+    real(dp), intent(in), optional :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
+
+    if (present(qBlockIn)) then
+      if (present(qiBlockIn)) then
+        call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+      else
+        call writeQToFile(qInput, fChargeIn, orb, qBlockIn)
+      end if
+    else
+      call writeQToFile(qInput, fChargeIn, orb)
+    end if
+    write(stdout, "(2A)") ">> Charges saved for restart in ", fChargeIn
+
+  end subroutine writeRestart
+
   
   
 end module main
