@@ -60,6 +60,7 @@ module main
   use repcont
   use xlbomd_module
   use fifo
+  use slakocont
   implicit none
   private
 
@@ -277,7 +278,7 @@ contains
 
 
     !> Natural orbitals for excited state density matrix, if requested
-    real(dp), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
+    real(dp), allocatable, target :: occNatural(:)
 
     real(dp), allocatable :: invJacobian(:,:)
 
@@ -299,8 +300,8 @@ contains
       & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
       & tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
-      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, naturalOrbs, occNatural, velocities,&
-      & movedVelo, movedAccel, movedMass)
+      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
+      & movedAccel, movedMass)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -468,70 +469,13 @@ contains
 
       end do lpSCC
 
-      ! Linear response
-      energy%Eexcited = 0.0_dp
       if (tLinResp) then
-        if (t3rd) then
-          call error("Third order currently incompatible with excited state")
-        end if
-        if (.not.tRealHS) then
-          call error("Only real systems are supported for excited state calculations")
-        end if
-        if (tPeriodic .and. tForces) then
-          call error("Forces in the excited state for periodic geometries are currently&
-              & unavailable")
-        end if
-
-        dqAtom = sum( qOutput(:,:,1) - q0(:,:,1) , dim=1)
-        call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor,&
-            & iAtomStart, iPair, img2CentCell)
-        call blockSymmetrizeHS(SSqrReal, iAtomStart)
-        if (tForces) then
-          @:ASSERT(.not. tPeriodic)
-          do iSpin = 1, nSpin
-            call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), iAtomStart)
-          end do
-        end if
-        if (tWriteAutotest) then
-          open(fdAutotest, file=autotestTag, position="append")
-        end if
-
-        if (tLinRespZVect) then
-          if (tPrintExcitedEigVecs) then
-
-            call addGradients(tSpin, lresp, iAtomStart, &
-                & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
-                & dqAtom, species0, neighborList%iNeighbor, &
-                & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
-                & fdAutotest, energy%Eexcited, excitedDerivs, &
-                & nonSccDeriv, rhoSqrReal, occNatural=occNatural(:,1), &
-                & naturalOrbs=naturalOrbs(:,:,1))
-
-            call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
-                & nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, &
-                & speciesName, over, naturalOrbs(:,:,1:1), SSqrReal, &
-                & fileName="excitedOrbs")
-
-          else
-            call addGradients(tSpin, lresp, iAtomStart, &
-                & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
-                & dqAtom, species0, neighborList%iNeighbor, &
-                & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
-                & fdAutotest, energy%Eexcited, excitedDerivs, &
-                & nonSccDeriv, rhoSqrReal)
-          end if
-        else
-          call calcExcitations(tSpin, lresp, iAtomStart,&
-              & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0,&
-              & dqAtom, species0, neighborList%iNeighbor,&
-              & img2CentCell, orb, tWriteAutotest, fdAutotest, energy%Eexcited)
-        end if
-        energy%Etotal = energy%Etotal + energy%Eexcited
-        energy%EMermin = energy%EMermin + energy%Eexcited
-        energy%EGibbs = energy%EGibbs + energy%Eexcited
-        if (tWriteAutotest) then
-          close(fdAutotest)
-        end if
+        call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
+        call calculateLinRespExcitations(lresp, qOutput, q0, over, HSqrReal, eigen(:,1,:),&
+            & filling(:,1,:), coord0, species, species0, speciesName, orb, skHamCont, skOverCont,&
+            & fdAutotest, fdEigvec, runId, neighborList, nNeighbor, iAtomStart, iPair,&
+            & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcitedEigvecs,&
+            & nonSccDeriv, energy, SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
       end if
 
       if (tXlbomd) then
@@ -1556,8 +1500,8 @@ contains
       & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
       & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
       & tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
-      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, naturalOrbs, occNatural, velocities,&
-      & movedVelo, movedAccel, movedMass)
+      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
+      & movedAccel, movedMass)
     logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs
     logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
@@ -1579,7 +1523,7 @@ contains
     real(dp), intent(out), allocatable :: HSqrReal(:,:,:), HSqrReal2(:,:), SSqrReal(:,:)
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
     real(dp), intent(out), allocatable :: dqAtom(:), chargePerShell(:,:,:)
-    real(dp), intent(out), allocatable :: naturalOrbs(:,:,:), occNatural(:,:)
+    real(dp), intent(out), allocatable :: occNatural(:)
     real(dp), intent(out), allocatable :: velocities(:,:), movedVelo(:,:), movedAccel(:,:)
     real(dp), intent(out), allocatable :: movedMass(:,:)
 
@@ -1684,8 +1628,7 @@ contains
     allocate(chargePerShell(orb%mShell, nAtom, nSpin))
     
     if (tLinResp .and. tPrintExcitedEigVecs) then
-      allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
-      allocate(occNatural(orb%nOrb, 1))
+      allocate(occNatural(orb%nOrb))
     end if
 
     if (tMD) then
@@ -3202,6 +3145,103 @@ contains
     write(stdout, "(2A)") ">> Charges saved for restart in ", fChargeIn
 
   end subroutine writeRestart
+
+
+  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
+    logical, intent(in) :: t3rd, tRealHs, tPeriodic, tForces
+
+    if (t3rd) then
+      call error("Third order currently incompatible with excited state")
+    end if
+    if (.not. tRealHS) then
+      call error("Only real systems are supported for excited state calculations")
+    end if
+    if (tPeriodic .and. tForces) then
+      call error("Forces in the excited state for periodic geometries are currently&
+          & unavailable")
+    end if
+
+  end subroutine ensureLinRespConditions
+  
+
+  subroutine calculateLinRespExcitations(lresp, qOutput, q0, over, HSqrReal, eigen, filling,&
+      & coord0, species, species0, speciesName, orb, skHamCont, skOverCont, fdAutotest, fdEigvec,&
+      & runId, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, tWriteAutotest, tForces,&
+      & tLinRespZVect, tPrintExcitedEigvecs, nonSccDeriv, energy, SSqrReal, rhoSqrReal,&
+      & excitedDerivs, occNatural)
+    type(LinResp), intent(inout) :: lresp
+    real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
+    real(dp), intent(in) :: over(:), HSqrReal(:,:,:), eigen(:,:), filling(:,:), coord0(:,:)
+    integer, intent(in) :: species(:), species0(:)
+    character(*), intent(in) :: speciesName(:)
+    type(TOrbitals), intent(in) :: orb
+    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    integer, intent(in) :: fdAutotest, fdEigvec, runId
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:)
+    logical, intent(in) :: tWriteAutotest, tForces, tLinRespZVect, tPrintExcitedEigvecs
+    type(NonSccDiff), intent(in) :: nonSccDeriv
+    type(TEnergies), intent(inout) :: energy
+    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(inout), optional :: rhoSqrReal(:,:,:)
+    real(dp), intent(out), optional :: excitedDerivs(:,:), occNatural(:)
+    
+    real(dp), allocatable :: dQAtom(:)
+    real(dp), allocatable, target :: naturalOrbs(:)
+    real(dp), pointer :: pNaturalOrbs2(:,:), pNaturalOrbs3(:,:,:)
+    integer :: iSpin, nSpin, nAtom
+    logical :: tSpin
+
+    nAtom = size(qOutput, dim=2)
+    nSpin = size(eigen, dim=2)
+    tSpin = (nSpin == 2)
+    
+    energy%Eexcited = 0.0_dp
+    allocate(dQAtom(nAtom))
+    dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
+    call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, iAtomStart, iPair,&
+        & img2CentCell)
+    call blockSymmetrizeHS(SSqrReal, iAtomStart)
+    if (tForces) then
+      do iSpin = 1, nSpin
+        call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), iAtomStart)
+      end do
+    end if
+    if (tWriteAutotest) then
+      open(fdAutotest, file=autotestTag, position="append")
+    end if
+
+    if (tLinRespZVect) then
+      if (tPrintExcitedEigVecs) then
+        allocate(naturalOrbs(orb%nOrb * orb%nOrb))
+        pNaturalOrbs2(1:orb%nOrb, 1:orb%nOrb) => naturalOrbs
+        pNaturalOrbs3(1:orb%nOrb, 1:orb%nOrb, 1:1) => naturalOrbs
+      else
+        pNaturalOrbs2 => null()
+        pNaturalOrbs3 => null()
+      end if
+      call addGradients(tSpin, lresp, iAtomStart, HSqrReal, eigen, SSqrReal,&
+          & filling, coord0, dQAtom, species0, neighborList%iNeighbor, img2CentCell, orb,&
+          & skHamCont, skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs, &
+          & nonSccDeriv, rhoSqrReal, occNatural=occNatural, naturalOrbs=pNaturalOrbs2)
+      if (tPrintExcitedEigvecs) then
+        call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart,&
+            & iPair, img2CentCell, orb, species, speciesName, over, pNaturalOrbs3, SSqrReal,&
+            & fileName="excitedOrbs")
+      end if
+    else
+      call calcExcitations(tSpin, lresp, iAtomStart, HSqrReal, eigen, SSqrReal, filling, coord0,&
+          & dQAtom, species0, neighborList%iNeighbor, img2CentCell, orb, tWriteAutotest,&
+          & fdAutotest, energy%Eexcited)
+    end if
+    energy%Etotal = energy%Etotal + energy%Eexcited
+    energy%EMermin = energy%EMermin + energy%Eexcited
+    energy%EGibbs = energy%EGibbs + energy%Eexcited
+    if (tWriteAutotest) then
+      close(fdAutotest)
+    end if
+
+  end subroutine calculateLinRespExcitations
 
   
   

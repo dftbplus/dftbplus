@@ -956,11 +956,12 @@ contains
     real(dp), intent(in) :: kPoint(:,:)
     real(dp), intent(in) :: kWeight(:)
     real(dp), intent(in) :: filling(:,:,:)
-    real(dp), allocatable, intent(in) :: occNatural(:,:)
+    real(dp), allocatable, target, intent(in) :: occNatural(:)
     
     type(xmlf_t) :: xf
     real(dp), allocatable :: bufferRealR2(:,:)
     integer :: ii, jj
+    real(dp), pointer :: pOccNatural(:,:)
 
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
     call xml_ADDXMLDeclaration(xf)
@@ -996,7 +997,8 @@ contains
     if (allocated(occNatural)) then
       call xml_NewElement(xf, "excitedoccupations")
       call xml_NewElement(xf, "spin" // i2c(1))
-      call writeChildValue(xf, "k" // i2c(1), occNatural)
+      pOccNatural(1:size(occNatural), 1:1) => occNatural
+      call writeChildValue(xf, "k" // i2c(1), pOccNatural)
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")
     end if
