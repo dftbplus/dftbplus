@@ -61,6 +61,7 @@ module main
   use xlbomd_module
   use fifo
   use slakocont
+  use linkedlist
   implicit none
   private
 
@@ -240,18 +241,10 @@ contains
     !> File descriptor for numerical Hessian
     integer :: fdHessian
 
-
-
     !> Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
     real(dp), allocatable :: tmpDerivs(:)
-    real(dp), allocatable :: tmpMatrix(:,:)
     real(dp), allocatable :: orbitalL(:,:,:)
-    character(lc) :: lcTmp
-
-
-    !> temporary character variable
-    character(lc) :: tmpStr
 
     real(dp), pointer :: pDynMatrix(:,:)
 
@@ -287,8 +280,8 @@ contains
     integer :: nFilledLev
 
     call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-        & tWriteDetailedOut, tMd, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser,&
-        & fdMd)
+        & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
+        & fdUser, fdMd, geoOutFile)
 
     call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
       & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
@@ -482,123 +475,26 @@ contains
       end if
 
       if (tPrintEigVecs) then
-        if (tRealHS) then
-          if (nSpin == 4) then
-            if (tStoreEigvecs) then
-              call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList,&
-                  & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, &
-                  & img2CentCell, orb, species, speciesName, over, &
-                  & reshape([0.0_dp,0.0_dp,0.0_dp],(/3,1/)), HSqrCplx, SSqrCplx,&
-                  & storeEigvecsCplx)
-            else
-              call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList,&
-                  & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, &
-                  & img2CentCell, orb, species, speciesName, over, &
-                  & reshape([0.0_dp,0.0_dp,0.0_dp],(/3,1/)), HSqrCplx, SSqrCplx)
-            end if
-          else
-            if (tStoreEigvecs) then
-              call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
-                  &nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, &
-                  &speciesName, over, HSqrReal, SSqrReal, storeEigvecsReal)
-            else
-              call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
-                  &nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, &
-                  &speciesName, over, HSqrReal, SSqrReal)
-            end if
-          end if
-        else
-          if (tStoreEigvecs) then
-            call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
-                &nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell,&
-                &orb, species, speciesName, over, kpoint, HSqrCplx, SSqrCplx, &
-                &storeEigvecsCplx)
-          else
-            call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList,&
-                &nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell,&
-                &orb, species, speciesName, over, kpoint, HSqrCplx, SSqrCplx)
-          end if
-        end if
+        call writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
+            & iCellVEc, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
+            & HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
       end if
 
       if (tProjEigenvecs) then
-        if (.not.tRealHS .or. (nSpin == 4)) then
-          if (tStoreEigvecs) then
-            call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, &
-                & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, &
-                & img2CentCell, orb, over, kpoint, kWeight, HSqrCplx, &
-                & SSqrCplx, iOrbRegion, storeEigvecsCplx)
-          else
-            call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, &
-                & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, &
-                & img2CentCell, orb, over, kpoint, kWeight, HSqrCplx, &
-                & SSqrCplx, iOrbRegion)
-          end if
-        else
-          if (tStoreEigvecs) then
-            call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, &
-                & nNeighbor, iAtomStart, iPair, img2CentCell, orb, over, &
-                & HSqrReal, SSqrReal, iOrbRegion, storeEigvecsReal)
-          else
-            call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, &
-                & nNeighbor, iAtomStart, iPair, img2CentCell, orb, over, &
-                & HSqrReal, SSqrReal, iOrbRegion)
-          end if
-        end if
+        call writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
+            & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kPoint,&
+            & kWeight, iOrbRegion, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal,&
+            & storeEigvecsCplx)
       end if
 
-      if (tGeoOpt .or. tMD) then
-        if (iGeoStep == 0) then
-          write (lcTmp, "(A,A)") trim(geoOutFile), ".gen"
-          call clearFile(trim(lcTmp))
-          write (lcTmp, "(A,A)") trim(geoOutFile), ".xyz"
-          call clearFile(trim(lcTmp))
-        end if
-        write (lcTmp, "(A,A)") trim(geoOutFile), ".xyz"
+      ! MD geometry files are written only later, once velocities for current geometry are known
+      if (tGeoOpt .and. tWriteRestart) then
+        call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
+            & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+            & nSpin, qOutput, velocities)
       end if
 
-      if (tGeoOpt) then
-        if (.not. tAppendGeo) then
-          call clearFile(trim(lcTmp))
-        end if
-        if (tLatOpt) then
-          write (tmpStr, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
-              & iLatGeoStep
-        else
-          write(tmpStr,"(A, I0)") 'Geometry Step: ', iGeoStep
-        end if
-        ! save geometry in gen format
-        call writeGenGeometry(tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic, geoOutFile,&
-            & pCoord0Out, species0, speciesName, latVec)
-
-        if (tPrintMulliken) then
-          if (nSpin == 4) then
-            allocate(tmpMatrix(3,nAtom))
-            do jj = 1, nAtom
-              do ii = 1, 3
-                tmpMatrix(ii,jj) = sum(qOutput(:,jj,ii+1))
-              end do
-            end do
-            ! convert by the inverse of the scaling used in writeXYZFormat :
-            tmpMatrix(:,:) = tmpMatrix(:,:) * au__fs / (1000_dp * Bohr__AA)
-            call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
-                &charges=sum(qOutput(:,:,1),dim=1), velocities = tmpMatrix, &
-                & comment=trim(tmpStr))
-            deallocate(tmpMatrix)
-          else
-            call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
-                &charges=sum(qOutput(:,:,1),dim=1),comment=trim(tmpStr))
-          end if
-        else
-          call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, speciesName, &
-              &comment=trim(tmpStr))
-        end if
-      end if
-
-      write(stdOut, *)
-      write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-          & Hartree__eV * energy%EMermin,"eV"
+      call printEnergies(energy)
 
       if (tDipole) then
         dipoleMoment(:) = 0.0_dp
@@ -1129,19 +1025,9 @@ contains
             energy%EMerminKin = energy%EMermin + energy%Ekin
             energy%EGibbsKin = energy%EGibbs + energy%Ekin
             if (tWriteRestart) then
-              write(tmpStr, "(A, I0)") 'MD iter: ', iGeoStep
-              ! save geometry in gen format
-              call writeGenGeometry(tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic, geoOutFile,&
-                  & pCoord0Out, species0, speciesName, latVec)
-              if (tMulliken) then
-                call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, &
-                    &speciesName, charges=sum(qOutput(:,:,1), dim=1),&
-                    &velocities=velocities, comment=trim(tmpStr))
-              else
-                call writeXYZFormat(trim(lcTmp), pCoord0Out, species0, &
-                    &speciesName, velocities=velocities, &
-                    &comment=trim(tmpStr))
-              end if
+              call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true.,&
+                  & tFracCoord, tPeriodic, tPrintMulliken, species0, speciesName, latVec,&
+                  & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
             end if
 
             if (tStress) then
@@ -1438,10 +1324,12 @@ contains
 
 
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser, fdMd)
+      & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
+      & fdUser, fdMd, geoOutFile)
     logical, intent(in) :: tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs
-    logical, intent(in) :: tWriteDetailedOut, tMd
+    logical, intent(in) :: tWriteDetailedOut, tMd, tGeoOpt
     integer, intent(out) :: fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser, fdMd
+    character(*), intent(in) :: geoOutFile
     
     call initTaggedWriter()
     if (tWriteAutotest) then
@@ -1462,6 +1350,10 @@ contains
     end if
     if (tMD) then
       call initOutputFile(mdOut, fdMD)
+    end if
+    if (tGeoOpt .or. tMD) then
+      call clearFile(trim(geoOutFile) // ".gen")
+      call clearFile(trim(geoOutFile) // ".xyz")
     end if
 
   end subroutine initOutputFiles
@@ -3255,6 +3147,158 @@ contains
         & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
 
   end subroutine getXlbomdCharges
-  
+
+
+  !> Writes the eigenvectors to disc.
+  subroutine writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
+      & iCellVec, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
+      & HSqrReal,&
+      & SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+    integer, intent(in) :: nSpin, fdEigvec, runId, nAtom
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iCellVec(:), img2CentCell(:), iAtomStart(:), iPair(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
+    integer, intent(in) :: species(:)
+    character(*), intent(in) :: speciesName(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: kPoint(:,:), over(:)
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:), SSqrReal(:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
+    @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
+    
+    if (present(HSqrCplx)) then
+      !> Complex Pauli-Hamiltonian without k-points
+      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec, iCellVec,&
+          & iAtomStart, iPair, img2CentCell, orb, species, speciesName, over, kPoint, HSqrCplx,&
+          & SSqrCplx, storeEigvecsCplx)
+    else
+      !> Real Hamiltonian
+      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart, iPair,&
+          & img2CentCell, orb, species, speciesName, over, HSqrReal, SSqrReal, storeEigvecsReal)
+    end if
+      
+  end subroutine writeEigenvectors
+
+
+  !> Write projected eigenvectors.
+  subroutine writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
+      & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kPoint, kWeight,&
+      & iOrbRegion, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+    type(ListCharLc), intent(inout) :: regionLabels
+    integer, intent(in) :: fdProjEig(:)
+    real(dp), intent(in) :: eigen(:,:,:)
+    integer, intent(in) :: nSpin
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    integer, intent(in) :: iCellVec(:), iAtomStart(:), iPair(:,:), img2CentCell(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: over(:), kPoint(:,:), kWeight(:)
+    type(ListIntR1), intent(inout) :: iOrbRegion
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:), SSqrReal(:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+    
+    @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
+    @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
+    
+
+    if (present(SSqrCplx)) then
+      call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
+          & cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kpoint, kWeight,&
+          & HSqrCplx, SSqrCplx, iOrbRegion, storeEigvecsCplx)
+    else
+      call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, orb, over, HSqrReal, SSqrReal, iOrbRegion,&
+          & storeEigvecsReal)
+    end if
+
+  end subroutine writeProjectedEigenvectors
+
+
+  !> Write current geomety.
+  subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
+      & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
+      & qOutput, velocities)
+    character(*), intent(in) :: geoOutFile
+    real(dp), intent(in) :: pCoord0Out(:,:)
+    logical, intent(in) :: tLatOpt, tMd, tAppendGeo, tFracCoord, tPeriodic, tPrintMulliken
+    integer, intent(in) :: species0(:)
+    character(*), intent(in) :: speciesName(:)
+    real(dp), intent(in) :: latVec(:,:)
+    integer, intent(in) :: iGeoStep, iLatGeoStep, nSpin
+    real(dp), intent(in), optional :: qOutput(:,:,:), velocities(:,:)
+
+    real(dp), allocatable :: tmpMatrix(:,:)
+    integer :: nAtom
+    integer :: ii, jj
+    character(lc) :: comment, fname
+
+    nAtom = size(pCoord0Out, dim=2)
+
+    fname = trim(geoOutFile) // ".gen"
+    if (tPeriodic) then
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
+    else
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName)
+    end if
+
+    fname = trim(geoOutFile) // ".xyz"
+    if (tLatOpt) then
+      write (comment, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
+          & iLatGeoStep
+    elseif (tMD) then
+      write(comment, "(A, I0)") 'MD iter: ', iGeoStep
+    else
+      write(comment,"(A, I0)") 'Geometry Step: ', iGeoStep
+    end if
+
+    if (tPrintMulliken) then
+      ! For non-colinear spin without velocities write magnetisation into the velocity field
+      if (nSpin == 4 .and. .not. present(velocities)) then
+        allocate(tmpMatrix(3, nAtom))
+        do jj = 1, nAtom
+          do ii = 1, 3
+            tmpMatrix(ii,jj) = sum(qOutput(:, jj, ii + 1))
+          end do
+        end do
+        ! convert by the inverse of the scaling used in writeXYZFormat
+        tmpMatrix(:,:) = tmpMatrix * au__fs / (1000_dp * Bohr__AA)
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1), dim=1), velocities=tmpMatrix, comment=comment,&
+            & append=tAppendGeo)
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & append=tAppendGeo)
+      end if
+    else
+      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+          & comment=comment, append=tAppendGeo)
+    end if
+
+  end subroutine writeCurrentGeometry
+
+
+  !> Prints current energies.
+  subroutine printEnergies(energy)
+    type(TEnergies), intent(in) :: energy
+
+    write(stdOut, *)
+    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+        & Hartree__eV * energy%EMermin," eV"
+
+  end subroutine printEnergies
+
   
 end module main
