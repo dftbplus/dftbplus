@@ -1587,18 +1587,18 @@ contains
   end subroutine writeDetailedOut4
 
 
-  subroutine writeDetailedOut5(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, tDipole, absEField,&
+  subroutine writeDetailedOut5(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
       & dipoleMoment)
     integer, intent(in) :: fd
-    logical, intent(in) :: tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, tDipole
+    logical, intent(in) :: tGeoOpt, tGeomEnd, tMd, tDerivs, tEField
     real(dp), intent(in) :: absEField
-    real(dp), intent(in) :: dipoleMoment(:)
+    real(dp), intent(in), optional :: dipoleMoment(:)
     
     if (tEfield) then
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
     
-    if (tDipole) then
+    if (present(dipoleMoment)) then
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment, ' au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye, ' Debye'
       write(fd, *)
@@ -1645,15 +1645,14 @@ contains
 
 
   subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-      & tDipole, energy, latVec, cellVol, cellPressure, pressure, kT, absEField, dipoleMoment,&
-      & qOutput, q0)
+      & energy, latVec, cellVol, cellPressure, pressure, kT, absEField, qOutput, q0, dipoleMoment)
     integer, intent(in) :: fd
-    logical, intent(in) :: tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken, tDipole
+    logical, intent(in) :: tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken
     type(TEnergies), intent(in) :: energy
     real(dp), intent(in) :: latVec(:,:)
     real(dp), intent(in) :: cellVol, cellPressure, pressure, kT, absEField
-    real(dp), intent(in) :: dipoleMoment(:)
     real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
+    real(dp), intent(in), optional :: dipoleMoment(:)
 
     integer :: ii
     
@@ -1688,7 +1687,7 @@ contains
     if (tFixEf .and. tPrintMulliken) then
       write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
-    if (tDipole) then
+    if (present(dipoleMoment)) then
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment,  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye,  'Debye'
     end if

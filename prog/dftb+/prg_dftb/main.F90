@@ -100,18 +100,6 @@ contains
     real(dp), allocatable :: ERhoPrim(:)
     real(dp), allocatable :: h0(:)
 
-    ! variables for derivatives using the Hellmann-Feynman theorem:
-
-    !> for derivatives of H wrt external perturbation
-    real(dp), allocatable :: hprime(:,:)
-
-    !> for derivatives of V
-    real(dp), allocatable :: potentialDerivative(:,:)
-
-    !> temporary dipole data
-    real(dp), allocatable :: dipoleTmp(:,:)
-
-
     !> electronic filling
     real(dp), allocatable :: filling(:,:,:)
 
@@ -155,7 +143,7 @@ contains
 
 
     !> dipole moments when available
-    real(dp) :: dipoleMoment(3)
+    real(dp), allocatable :: dipoleMoment(:)
 
     integer :: ii, jj
 
@@ -285,13 +273,13 @@ contains
 
     call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
       & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
-      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
-      & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
-      & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
-      & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
-      & tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
+      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom,&
+      & nKPoint, nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim,&
+      & excitedDerivs, ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy,&
+      & potential, shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold,&
+      & new3Coord, tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
       & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
-      & movedAccel, movedMass)
+      & movedAccel, movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -474,6 +462,14 @@ contains
             & qiBlockIn)
       end if
 
+      if (tDipole) then
+        call getDipoleMoment(qOutput, q0, coord, dipoleMoment)
+      #:call DEBUG_CODE
+        call checkDipoleViaHellmannFeynman(size(h0), rhoPrim, q0, coord0, over, orb, neighborList,&
+            & nNeighbor, species, iPair, img2CentCell)
+      #:endcall DEBUG_CODE
+      end if
+      
       if (tPrintEigVecs) then
         call writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
             & iCellVEc, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
@@ -495,46 +491,6 @@ contains
       end if
 
       call printEnergies(energy)
-
-      if (tDipole) then
-        dipoleMoment(:) = 0.0_dp
-        do iAtom = 1, nAtom
-          dipoleMoment(:) = dipoleMoment(:) &
-              & + sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * coord(:,iAtom)
-        end do
-
-#:call DEBUG_CODE
-        ! extra test for the potential in the code, does the dipole from
-        ! charge positions match the derivative of energy wrt an external E field?
-        allocate(hprime(size(h0),1))
-        allocate(dipoleTmp(size(qOutput,dim=1),nAtom))
-        allocate(potentialDerivative(nAtom,1))
-        write(stdOut, "(A)", advance='no') 'Hellmann Feynman dipole:'
-        do ii = 1, 3 ! loop over directions
-          potentialDerivative = 0.0_dp
-          potentialDerivative(:,1) = -coord(ii,:) ! Potential from dH/dE
-          hprime = 0.0_dp
-          dipoleTmp = 0.0_dp
-          call add_shift(hprime,over,nNeighbor, neighborList%iNeighbor, &
-              & species,orb,iPair,nAtom,img2CentCell,potentialDerivative)
-          ! evaluate <psi| dH/dE | psi>
-          call mulliken(dipoleTmp, hprime(:,1), rhoPrim(:,1), &
-              &orb, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair)
-          ! add nuclei term for derivative wrt E
-          do iAtom = 1, nAtom
-            dipoleTmp(1,iAtom) = dipoleTmp(1,iAtom) &
-                & + sum(q0(:,iAtom,1))*coord0(ii,iAtom)
-          end do
-          write(stdOut, "(F12.8)", advance='no') sum(dipoleTmp)
-        end do
-        write(stdOut, *) " au"
-        deallocate(potentialDerivative)
-        deallocate(hprime)
-        deallocate(dipoleTmp)
-#:endcall DEBUG_CODE
-      else
-        dipoleMoment(:) = 0.0_dp
-      end if
 
       ! Calculate energy weighted density matrix
       if (tForces) then
@@ -1138,8 +1094,8 @@ contains
                   energy%EGibbs = energy%EMermin + pressure * cellVol
                 end if
                 call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf,&
-                    & tPrintMulliken, tDipole, energy, latVec, cellVol, cellPressure, pressure, kT,&
-                    & absEField, dipoleMoment, qOutput, q0)
+                    & tPrintMulliken, energy, latVec, cellVol, cellPressure, pressure, kT,&
+                    & absEField, qOutput, q0, dipoleMoment)
               end if
             end if
           end if
@@ -1174,7 +1130,7 @@ contains
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
     if (tWriteDetailedOut) then
-      call writeDetailedOut5(fdUser, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, tDipole, absEField,&
+      call writeDetailedOut5(fdUser, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
           & dipoleMoment)
     end if
 
@@ -1361,16 +1317,17 @@ contains
 
   subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
       & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
-      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, orb, nAtom, nMovedAtom, nKPoint,&
-      & nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
-      & ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy, potential,&
-      & shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold, new3Coord,&
-      & tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
+      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom,&
+      & nKPoint, nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim,&
+      & excitedDerivs, ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy,&
+      & potential, shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold,&
+      & new3Coord, tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
       & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
-      & movedAccel, movedMass)
+      & movedAccel, movedMass, dipoleMoment)
     logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs
     logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
+    logical, intent(in) :: tDipole
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, forceType
     integer, intent(in) :: indMovedAtom(:)
@@ -1392,6 +1349,7 @@ contains
     real(dp), intent(out), allocatable :: occNatural(:)
     real(dp), intent(out), allocatable :: velocities(:,:), movedVelo(:,:), movedAccel(:,:)
     real(dp), intent(out), allocatable :: movedMass(:,:)
+    real(dp), intent(out), allocatable :: dipoleMoment(:)
 
     integer :: nSpinHams, sqrHamSize
     integer :: nSpinStored, nKPointStored
@@ -1503,6 +1461,10 @@ contains
       allocate(movedAccel(3, nMovedAtom))
       allocate(movedMass(3, nMovedAtom))
       movedMass(:,:) = spread(mass(indMovedAtom),1,3)
+    end if
+
+    if (tDipole) then
+      allocate(dipoleMoment(3))
     end if
 
   end subroutine initArrays
@@ -3299,6 +3261,68 @@ contains
         & Hartree__eV * energy%EMermin," eV"
 
   end subroutine printEnergies
+
+
+  !> Calculates dipole moment.
+  subroutine getDipoleMoment(qOutput, q0, coord, dipoleMoment)
+    real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
+    real(dp), intent(in) :: coord(:,:)
+    real(dp), intent(out) :: dipoleMoment(:)
+
+    integer :: nAtom, iAtom
+
+    nAtom = size(qOutput, dim=2)
+    dipoleMoment(:) = 0.0_dp
+    do iAtom = 1, nAtom
+      dipoleMoment(:) = dipoleMoment(:) &
+          & + sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * coord(:,iAtom)
+    end do
+
+  end subroutine getDipoleMoment
+
+
+  !> Prints dipole moment calcululated by the derivative of H with respect of the external field.
+  subroutine checkDipoleViaHellmannFeynman(sparseSize, rhoPrim, q0, coord0, over, orb,&
+      & neighborList, nNeighbor, species, iPair, img2CentCell)
+    integer, intent(in) :: sparseSize
+    real(dp), intent(in) :: rhoPrim(:,:), q0(:,:,:), coord0(:,:), over(:)
+    type(TOrbitals), intent(in) :: orb
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), species(:), iPair(:,:), img2CentCell(:)
+
+    real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
+    integer :: nAtom
+    integer :: iAt, ii
+
+    nAtom = size(q0, dim=2)
+    allocate(hprime(sparseSize, 1))
+    allocate(dipole(size(q0, dim=1), nAtom))
+    allocate(potentialDerivative(nAtom, 1))
+    write(stdOut, "(A)", advance='no') 'Hellmann Feynman dipole:'
+
+    ! loop over directions
+    do ii = 1, 3
+      potentialDerivative(:,:) = 0.0_dp
+      ! Potential from dH/dE
+      potentialDerivative(:,1) = -coord0(ii,:) 
+      hprime(:,:) = 0.0_dp
+      dipole(:,:) = 0.0_dp
+      call add_shift(hprime, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
+          & img2CentCell, potentialDerivative)
+
+      ! evaluate <psi| dH/dE | psi>
+      call mulliken(dipole, hprime(:,1), rhoPrim(:,1), orb, neighborList%iNeighbor, nNeighbor,&
+          & img2CentCell, iPair)
+
+      ! add nuclei term for derivative wrt E
+      do iAt = 1, nAtom
+        dipole(1, iAt) = dipole(1, iAt) + sum(q0(:, iAt, 1)) * coord0(ii, iAt)
+      end do
+      write(stdOut, "(F12.8)", advance='no') sum(dipole)
+    end do
+    write(stdOut, *) " au"
+
+  end subroutine checkDipoleViaHellmannFeynman
 
   
 end module main
