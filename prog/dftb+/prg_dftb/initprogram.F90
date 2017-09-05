@@ -2027,18 +2027,15 @@ contains
     if (tStoreEigvecs) then
       if (tRealHS.and.(.not.t2Component)) then
         allocate(storeEigvecsReal(nSpin))
-        allocate(storeEigvecsCplx(0))
         do iS = 1, nSpin
           call init(storeEigvecsReal(iS), 0, "tmp_eigvr_")
         end do
       else
         if (t2Component) then
           allocate(storeEigvecsCplx(1))
-          allocate(storeEigvecsReal(0))
           call init(storeEigvecsCplx(1), 0, "tmp_eigvc_")
         else
           allocate(storeEigvecsCplx(nSpin))
-          allocate(storeEigvecsReal(0))
           do iS = 1, nSpin
             call init(storeEigvecsCplx(iS), 0, "tmp_eigvc_")
           end do

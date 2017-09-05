@@ -21,7 +21,6 @@ module main
   use densitymatrix
   use forces
   use stress
-  use lapackroutines, only : matinv
   use taggedoutput
   use scc
   use sccinit
@@ -62,6 +61,7 @@ module main
   use fifo
   use slakocont
   use linkedlist
+  use lapackroutines
   implicit none
   private
 
@@ -90,8 +90,6 @@ contains
     real(dp), allocatable :: shift3rd(:)
     
     
-    integer                  :: nk, iSpin2, iK2
-
     complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
     real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:), HSqrReal2(:,:)
     real(dp),    allocatable :: eigen(:,:,:), eigen2(:,:,:)
@@ -130,13 +128,7 @@ contains
 
 
     !> Stress tensors for various contribution in periodic calculations
-    real(dp) :: elecStress(3,3), repulsiveStress(3,3), kineticStress(3,3)
-    real(dp) :: dispStress(3,3), totalStress(3,3)
-
-
-    !> Derivatives of lattice vectors in periodic calculations
-    real(dp) :: elecLatDeriv(3,3), repulsiveLatDeriv(3,3)
-    real(dp) :: dispLatDeriv(3,3), totalLatDeriv(3,3)
+    real(dp) :: totalStress(3,3), kineticStress(3,3), totalLatDeriv(3,3)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp) :: derivCellVol(3,3)
@@ -145,7 +137,7 @@ contains
     !> dipole moments when available
     real(dp), allocatable :: dipoleMoment(:)
 
-    integer :: ii, jj
+    integer :: ii
 
     logical :: tConverged
 
@@ -492,357 +484,28 @@ contains
 
       call printEnergies(energy)
 
-      ! Calculate energy weighted density matrix
       if (tForces) then
-
-        !if (tXLBOMD) then
-        !  if (nSpin == 4 .or. tDFTBU) then
-        !    call warning("XLBOMD does not work correctly with noncollinear spin&
-        !        & or DFTB+U so far. Your forces will be incorrect !!!")
-        !
-        !  end if
-        !  ! Rebuild Hamiltonian
-        !  ! (ONLY WORKS FOR SCC AND SPIN BUT NOT FOR DFTB+U as the only
-        !  ! those shift vectors are updated from qOutput)
-        !  ham(:,:) = 0.0_dp
-        !  ham(:,1) = h0
-        !  call add_shift(ham, over, nNeighbor, neighborList%iNeighbor, &
-        !      & species, orb, iPair, nAtom, img2CentCell, &
-        !      & potential%intBlock + potential%extBlock)
-        !end if
-
-        ! Calculate the identity part of the energy weighted density matrix
-        ERhoPrim(:) = 0.0_dp
-
-        if (nSpin == 4) then
-          do nK = 1, nKPoint
-            ! get eigenvectors out o storage if neccessary
-            if (tStoreEigvecs) then
-              iK2 = 1
-              call get(storeEigvecsCplx(1), HSqrCplx(:,:,iK2, 1))
-            else
-              iK2 = nK
-            end if
-
-            if (tDensON2) then
-              call error("Currently missing.")
-            else
-              call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,1), &
-                  &filling(:,nk,1), eigen(:,nk,1))
-            end if
-            if (tRealHS) then
-              call packERho(ERhoPrim(:), SSqrCplx, neighborList%iNeighbor, &
-                  &nNeighbor, orb%mOrb, iAtomStart, iPair, img2CentCell)
-            else
-              call packERho(ERhoPrim(:), SSqrCplx, kPoint(:,nk), &
-                  &kWeight(nk), neighborList%iNeighbor, nNeighbor, orb%mOrb, &
-                  &iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
-            end if
-          end do
-        else
-          if (tRealHS) then
-            do iSpin = 1, nSpin
-
-              if (tStoreEigvecs) then
-                iSpin2 = 1
-                call get(storeEigvecsReal(mod(iSpin,3)), &
-                    & HSqrReal(:,:,mod(iSpin2,3)))
-              else
-                iSpin2 = iSpin
-              end if
-
-              ! Build energy weighted density matrix
-              if (tDensON2) then
-                call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), &
-                    &filling(:,1,iSpin), eigen(:,1,iSpin), &
-                    & neighborlist%iNeighbor, nNeighbor, orb, iAtomStart, &
-                    & img2CentCell)
-              else
-                select case (forceType)
-                case(0)
-                  ! Original (nonconsistent) scheme
-                  call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), &
-                      & filling(:,1,iSpin), eigen(:,1,iSpin))
-                case(1)
-                  ! Recreate eigenvalues for a consistent energy weighted
-                  ! density matrix (yields, however, incorrect forces for XLBOMD)
-                  call diagonalize(HSqrReal2, SSqrReal, &
-                      & eigen2(:,1,iSpin), ham(:,iSpin), over, &
-                      & neighborList%iNeighbor, nNeighbor, &
-                      & iAtomStart, iPair, img2CentCell, solver, 'N')
-                  call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), &
-                      & filling(:,1,iSpin), eigen2(:,1,iSpin))
-                case(2)
-                  ! Correct force for XLBOMD for T=0K (DHD)
-                  ! Eigenvectors stored in HSqrReal are overwritten
-                  call unpackHS(SSqrReal, ham(:,iSpin), neighborlist%iNeighbor, &
-                      & nNeighbor, iAtomStart, iPair, img2CentCell)
-                  call blockSymmetrizeHS(SSqrReal, iAtomStart)
-                  call makeDensityMatrix(HSqrReal2, HSqrReal(:,:,iSpin2), &
-                      &filling(:,1,iSpin))
-                  ! D H
-                  call symm(HSqrReal(:,:,iSpin2), "L", HSqrReal2, SSqrReal)
-                  ! (D H) D
-                  call symm(SSqrReal, "R", HSqrReal2, HSqrReal(:,:,iSpin2), &
-                      &alpha=0.5_dp)
-                case(3)
-                  ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
-                  ! Eigenvectors stored in HSqrReal are overwritten
-                  call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iSpin2), &
-                      &filling(:,1,iSpin))
-                  call unpackHS(HSqrReal2, ham(:,iSpin), &
-                      & neighborlist%iNeighbor, nNeighbor, iAtomStart, iPair, &
-                      & img2CentCell)
-                  call blocksymmetrizeHS(HSqrReal2, iAtomStart)
-                  call symm(HSqrReal(:,:,iSpin2), "L", SSqrReal, HSqrReal2)
-                  call unpackHS(SSqrReal, over, neighborlist%iNeighbor, &
-                      & nNeighbor, iAtomStart, iPair, img2CentCell)
-                  call symmatinv(SSqrReal)
-                  call symm(HSqrReal2, "R", SSqrReal, HSqrReal(:,:,iSpin2), &
-                      & alpha=0.5_dp)
-                  SSqrReal = HSqrReal2 + transpose(HSqrReal2)
-                end select
-              end if
-              call packHS(ERhoPrim, SSqrReal, neighborList%iNeighbor, &
-                  &nNeighbor, orb%mOrb, iAtomStart, iPair, img2CentCell)
-            end do
-          else
-            do iSpin = 1, nSpin
-              if (tStoreEigvecs) then
-                iSpin2 = 1
-              else
-                iSpin2 = iSpin
-              end if
-
-              do nK = 1, nKPoint
-                ! Calculate eigenvectors, if necessary. Eigenvectors for the last
-                ! spin in the last k-points are still there, so use those
-                ! directly
-                if (tStoreEigvecs) then
-                  iK2 = 1
-                  call get(storeEigvecsCplx(iSpin), HSqrCplx(:,:,iK2, iSpin2))
-                else
-                  iK2 = nK
-                end if
-
-                if (tDensON2) then
-                  call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iSpin2), &
-                      &filling(:,nK,iSpin), eigen(:,nK, iSpin), &
-                      &neighborlist%iNeighbor, nNeighbor, orb, iAtomStart,&
-                      &img2CentCell)
-                else
-                  select case (forceType)
-                  case(0)
-                    ! Original (nonconsistent) scheme
-                    call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iSpin2), &
-                        &filling(:,nK,iSpin), eigen(:,nK, iSpin))
-                  case (1)
-                    call error("Force type 1 not implemented for complex H")
-                  case(2)
-                    ! Correct force for XLBOMD for T=0K (DHD)
-                    ! Eigenvectors stored in HSqrCplx are overwritten
-                    call makeDensityMatrix(HSqrCplx2, HSqrCplx(:,:,iK2,iSpin2), &
-                        &filling(:,nK,iSpin))
-                    call unpackHS(SSqrCplx, ham(:,iSpin), kPoint(:,nK), &
-                        & neighborlist%iNeighbor, nNeighbor, iCellVec, cellVec, &
-                        & iAtomStart, iPair, img2CentCell)
-                    call blockHermitianHS(SSqrCplx, iAtomStart)
-                    call hemm(HSqrCplx(:,:,iK2,iSpin2), "L", HSqrCplx2, SSqrCplx)
-                    call hemm(SSqrCplx, "R", HSqrCplx2, &
-                        & HSqrCplx(:,:,iK2,iSpin2), alpha=(0.5_dp, 0.0_dp))
-                  case(3)
-                    ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
-                    ! Eigenvectors stored in HSqrReal are overwritten
-                    call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iSpin2), &
-                        &filling(:,nK,iSpin))
-                    call unpackHS(HSqrCplx2, ham(:,iSpin), kPoint(:,nK), &
-                        & neighborlist%iNeighbor, nNeighbor, iCellVec, cellVec, &
-                        & iAtomStart, iPair, img2CentCell)
-                    call blockHermitianHS(HSqrCplx2, iAtomStart)
-                    call hemm(HSqrCplx(:,:,iK2,iSpin2), "L", SSqrCplx, HSqrCplx2)
-                    call unpackHS(SSqrCplx, over, kPoint(:,nK), &
-                        & neighborlist%iNeighbor, nNeighbor, iCellVec, cellVec, &
-                        & iAtomStart, iPair, img2CentCell)
-                    call hermatinv(SSqrCplx)
-                    call hemm(HSqrCplx2, "R", SSqrCplx, &
-                        & HSqrCplx(:,:,iK2,iSpin2), alpha=(0.5_dp, 0.0_dp))
-                    SSqrCplx = HSqrCplx2 + transpose(conjg(HSqrCplx2))
-                  end select
-                end if
-                call packHS(ERhoPrim(:), SSqrCplx, kPoint(:,nk), &
-                    &kWeight(nk), neighborList%iNeighbor, nNeighbor, orb%mOrb, &
-                    &iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
-              end do
-            end do
-          end if
-        end if
-
-        derivs(:,:) = 0.0_dp
-        if (tExtChrg) then
-          chrgForces(:,:) = 0.0_dp
-        end if
-
-        if (.not. (tSCC.or.tEField)) then ! no external or internal potentials
-          if (tImHam) then
-            call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim,&
-                & erhoPrim, skHamCont, skOverCont, coord, species, &
-                & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
-                & potential%intBlock, potential%iorbitalBlock)
-          else
-            call derivative_nonscc(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim,&
-                & skHamCont, skOverCont, coord, species, neighborList%iNeighbor,&
-                & nNeighbor, img2CentCell, iPair, orb)
-          end if
-        else
-          !if (tSCC) then
-          !  potential%intBlock = potential%intBlock + potential%extBlock
-          !else
-          !  potential%intBlock = potential%extBlock
-          !end if
-
-          !if (tDFTBU) then
-          !  potential%intBlock = potential%orbitalBlock + potential%intBlock
-          !end if
-
-          if (tImHam) then
-            call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim,&
-                & erhoPrim, skHamCont, skOverCont, coord, species,&
-                & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
-                & potential%intBlock, potential%iorbitalBlock)
-          else
-            call derivative_shift(derivs, nonSccDeriv, rhoPrim, erhoPrim,&
-                & skHamCont, skOverCont, coord, species, neighborList%iNeighbor,&
-                & nNeighbor, img2CentCell, iPair, orb, potential%intBlock)
-          end if
-
-          ! add double counting terms in force :
-          if (tExtChrg) then
-            if (tXlbomd) then
-              call error("XLBOMD does not work with external charges yet!")
-              !call addForceDCSCC_XLBOMD(species, orb, neighborList%iNeighbor, &
-              !    & img2CentCell, coord, qOutput, q0, derivs)
-            else
-              call addForceDCSCC(derivs, species, neighborList%iNeighbor, &
-                  & img2CentCell, coord, chrgForces)
-            end if
-          elseif (tSCC) then
-            if (tXlbomd) then
-              call addForceDCSCC_Xlbomd(species, orb, neighborList%iNeighbor, &
-                  & img2CentCell, coord, qOutput, q0, derivs)
-            else
-              call addForceDCSCC(derivs, species, neighborList%iNeighbor, &
-                  & img2CentCell, coord)
-            end if
-          end if
-          if (tEField) then
-            do ii = 1, 3
-              derivs(ii,:) = derivs(ii,:) - &
-                  & sum(q0(:, :, 1)-qOutput(:,:,1),dim=1)*EField(ii)
-            end do
-          end if
-          if (t3rdFull) then
-            if (tXlbomd) then
-              call thirdOrd%addGradientDcXlbomd(neighborList, species, coord, &
-                  & img2CentCell, qOutput, q0, orb, derivs)
-            else
-              call thirdOrd%addGradientDc(neighborList, species, coord, &
-                  & img2CentCell, derivs)
-            end if
-          end if
-        end if
-
-        call getERepDeriv(repulsiveDerivs, coord, nNeighbor, &
-            &neighborList%iNeighbor, species,pRepCont, img2CentCell)
-
-        totalDeriv(:,:) = repulsiveDerivs(:,:) + derivs(:,:)
-
+        call getEnergyWeightedDensityMtx(forceType, filling, eigen, kPoint, kWeight, neighborList,&
+            & nNeighbor, orb, iAtomStart, iPair, img2CentCell, iCellVEc, cellVec, tRealHS, ham,&
+            & over, solver, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal,&
+            & storeEigvecsCplx)
+        call getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
+            & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
+            & iPair, orb, potential, coord, dispersion, totalDeriv, iRhoPrim, thirdOrd, chrgForces)
         if (tLinResp) then
           totalDeriv(:,:) = totalDeriv(:,:) + excitedDerivs(:,:)
         end if
 
-        if (tDispersion) then
-          call dispersion%addGradients(totalDeriv)
-        end if
-
         if (tStress) then
-          call getRepulsiveStress(repulsiveStress, coord, nNeighbor, &
-              & neighborList%iNeighbor, species, img2CentCell, pRepCont, CellVol)
-          if (tSCC) then
-            if (tImHam) then
-              call getBlockiStress(elecStress, nonSccDeriv, rhoPrim, iRhoPrim,&
-                  & ERhoPrim, skHamCont, skOverCont, coord, species,&
-                  & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
-                  & potential%intBlock, potential%iorbitalBlock, CellVol)
-            else
-              call getBlockStress(elecStress, nonSccDeriv, rhoPrim, ERhoPrim,&
-                  & skHamCont, skOverCont, coord, species, neighborList%iNeighbor,&
-                  & nNeighbor, img2CentCell, iPair, orb, potential%intBlock,&
-                  & cellVol)
-            end if
-
-            call addStressDCSCC(elecStress,species,neighborList%iNeighbor, &
-                & img2CentCell,coord)
-
-          else
-            if (tImHam) then
-              call getBlockiStress(elecStress, nonSccDeriv, rhoPrim, iRhoPrim,&
-                  & ERhoPrim, skHamCont, skOverCont, coord, species, &
-                  & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
-                  & potential%intBlock, potential%iorbitalBlock, cellVol)
-            else
-              call getNonSCCStress(elecStress, nonSccDeriv, rhoPrim(:,1),&
-                  & ERhoPrim, skHamCont, skOverCont, coord, species,&
-                  & neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
-                  & cellVol)
-            end if
+          call getStress(tScc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
+              & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
+              & iPair, orb, potential, coord, latVec, invLatVec, cellVol, coord0, dispersion,&
+              & totalStress, totalLatDeriv, cellPressure, iRhoPrim)
+          call printVolume(cellVol)
+          ! MD case includes atomic kinetic energy contribution, so print that later
+          if (.not. tMD) then
+            call printPressureAndFreeEnergy(pressure, cellPressure, energy%EGibbs)
           end if
-
-          if (tDispersion) then
-            call dispersion%getStress(dispStress)
-            dispLatDeriv = -CellVol * matmul(dispStress, invLatVec)
-          else
-            dispStress(:,:) = 0.0_dp
-            dispLatDeriv(:,:) = 0.0_dp
-          end if
-
-          if (tEField) then
-            elecLatDeriv(:,:) = 0.0_dp
-            call cart2frac(coord0,latVec)
-            do iAtom = 1, nAtom
-              do ii = 1, 3
-                do jj = 1, 3
-                  elecLatDeriv(jj,ii) =  elecLatDeriv(jj,ii) - &
-                      & sum(q0(:, iAtom, 1)-qOutput(:,iAtom,1),dim=1) &
-                      & * EField(ii) * coord0(jj,iAtom)
-                end do
-              end do
-            end do
-            call frac2cart(coord0,latVec)
-            elecStress = elecStress &
-                & -matmul(elecLatDeriv,transpose(latVec))/CellVol
-          end if
-
-          totalStress = repulsiveStress + elecStress + dispStress
-
-          cellPressure = ( totalStress(1,1) + totalStress(2,2) &
-              & + totalStress(3,3) )/3.0_dp
-
-          repulsiveLatDeriv = -CellVol * matmul(repulsiveStress,invLatVec)
-          elecLatDeriv = -CellVol * matmul(elecStress,invLatVec)
-          totalLatDeriv = repulsiveLatDeriv + elecLatDeriv + dispLatDeriv
-
-          write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
-
-        end if
-
-      end if
-
-      ! MD case includes atomic kinetic energy contribution, so print that later
-      if (tStress .and. .not. tMD) then
-        write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-        if (pressure /= 0.0_dp) then
-          write(stdOut, format2U) "Gibbs free energy", energy%EGibbs, 'H',&
-              & Hartree__eV * energy%EGibbs, 'eV'
         end if
       end if
 
@@ -2928,7 +2591,7 @@ contains
   end subroutine getSccInfo
 
 
-  !> Print info about scc convergence.
+  !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
     logical, intent(in) :: tDftbU
     integer, intent(in) :: iSccIter
@@ -3324,5 +2987,480 @@ contains
 
   end subroutine checkDipoleViaHellmannFeynman
 
+
+  !> Calculate the energy weighted density matrix
+  !>
+  !> NOTE: Dense eigenvector and overlap matrices are overwritten.
+  !>
+  subroutine getEnergyWeightedDensityMtx(forceType, filling, eigen, kPoint, kWeight, neighborList,&
+      & nNeighbor, orb, iAtomStart, iPair, img2CentCell, iCellVEc, cellVec, tRealHS, ham, over,&
+      & solver, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal,&
+      & storeEigvecsCplx)
+    integer, intent(in) :: forceType
+    real(dp), intent(in) :: filling(:,:,:), eigen(:,:,:), kPoint(:,:), kWeight(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    logical, intent(in) :: tRealHS
+    real(dp), intent(in) :: ham(:,:), over(:)
+    integer, intent(in) :: solver
+    real(dp), intent(out) :: ERhoPrim(:)
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:), SSqrReal(:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    integer :: nSpin
+
+    nSpin = size(ham, dim=2)
+
+    if (nSpin == 4) then
+      call getEDensityMtxFromPauliEigvecs(filling, eigen, kPoint, kWeight, neighborList, nNeighbor,&
+          & orb, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, tRealHS, HSqrCplx, SSqrCplx,&
+          & ERhoPrim, storeEigvecsCplx)
+    else if (tRealHS) then
+      call getEDensityMtxFromRealEigvecs(forceType, filling, eigen, neighborList, nNeighbor, orb,&
+          & iAtomStart, iPair, img2CentCell, ham, over, solver, HSqrReal, SSqrReal, ERhoPrim,&
+          & storeEigvecsReal)
+    else
+      call getEDensityMtxFromComplexEigvecs(forceType, filling, eigen, kPoint, kWeight,&
+          & neighborList, nNeighbor, orb, iAtomStart, iPair, img2CentCell, iCellVEc, cellVec, ham,&
+          & over, HSqrCplx, SSqrCplx, ERhoPrim, storeEigvecsCplx)
+    end if
+
+  end subroutine getEnergyWeightedDensityMtx
+
+
+  !> Calculates density matrix from real eigenvectors.
+  subroutine getEDensityMtxFromRealEigvecs(forceType, filling, eigen, neighborList, nNeighbor, orb,&
+      & iAtomStart, iPair, img2CentCell, ham, over, solver, HSqrReal, SSqrReal, ERhoPrim,&
+      & storeEigvecsReal)
+    integer, intent(in) :: forceType
+    real(dp), intent(in) :: filling(:,:,:), eigen(:,:,:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:)
+    real(dp), intent(in) :: ham(:,:), over(:)
+    integer, intent(in) :: solver
+    real(dp), intent(inout) :: HSqrReal(:,:,:), SSqrReal(:,:)
+    real(dp), intent(out) :: ERhoPrim(:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+
+    real(dp), allocatable :: HSqrReal2(:,:), eigen2(:,:,:)
+    integer :: nSpin, sqrHamSize
+    integer :: iS, iS2
+
+    nSpin = size(eigen, dim=3)
+    sqrHamSize = size(HSqrReal, dim=1)
+    if (forceType == 1 .or. forceType == 2 .or. forceType == 3) then
+      allocate(HSqrReal2(sqrHamSize, sqrHamSize))
+      if (forceType == 2) then
+        allocate(eigen2(sqrHamSize, 1, nSpin))
+      end if
+    end if
+
+    ERhoPrim(:) = 0.0_dp
+    do iS = 1, nSpin
+      if (present(storeEigvecsReal)) then
+        call get(storeEigvecsReal(iS), HSqrReal(:,:,1))
+        iS2 = 1
+      else
+        iS2 = iS
+      end if
+
+      select case (forceType)
+        
+      case(0)
+        ! Original (nonconsistent) scheme
+        if (tDensON2) then
+          call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iS2), filling(:,1,iS), eigen(:,1,iS),&
+              & neighborlist%iNeighbor, nNeighbor, orb, iAtomStart, img2CentCell)
+        else
+          call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iS2), filling(:,1,iS), eigen(:,1,iS))
+        end if
+
+      case(1)
+        ! Recreate eigenvalues for a consistent energy weighted density matrix
+        ! (yields, however, incorrect forces for XLBOMD)
+        call diagonalize(HSqrReal2, SSqrReal, eigen2(:,1,iS), ham(:,iS), over, &
+            & neighborList%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, solver, 'N')
+        call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iS2), filling(:,1,iS), eigen2(:,1,iS))
+
+      case(2)
+        ! Correct force for XLBOMD for T=0K (DHD)
+        call unpackHS(SSqrReal, ham(:,iS), neighborlist%iNeighbor, nNeighbor, iAtomStart,&
+            & iPair, img2CentCell)
+        call blockSymmetrizeHS(SSqrReal, iAtomStart)
+        call makeDensityMatrix(HSqrReal2, HSqrReal(:,:,iS2), filling(:,1,iS))
+        ! D H
+        call symm(HSqrReal(:,:,iS2), "L", HSqrReal2, SSqrReal)
+        ! (D H) D
+        call symm(SSqrReal, "R", HSqrReal2, HSqrReal(:,:,iS2), alpha=0.5_dp)
+
+      case(3)
+        ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
+        call makeDensityMatrix(SSqrReal, HSqrReal(:,:,iS2), filling(:,1,iS))
+        call unpackHS(HSqrReal2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, iAtomStart, iPair,&
+            & img2CentCell)
+        call blocksymmetrizeHS(HSqrReal2, iAtomStart)
+        call symm(HSqrReal(:,:,iS2), "L", SSqrReal, HSqrReal2)
+        call unpackHS(SSqrReal, over, neighborlist%iNeighbor, nNeighbor, iAtomStart, iPair,&
+            & img2CentCell)
+        call symmatinv(SSqrReal)
+        call symm(HSqrReal2, "R", SSqrReal, HSqrReal(:,:,iS2), alpha=0.5_dp)
+        SSqrReal(:,:) = HSqrReal2 + transpose(HSqrReal2)
+      end select
+      call packHS(ERhoPrim, SSqrReal, neighborList%iNeighbor, nNeighbor, orb%mOrb, iAtomStart,&
+          & iPair, img2CentCell)
+    end do
+      
+  end subroutine getEDensityMtxFromRealEigvecs
+
+
+  !> Calculates density matrix from complex eigenvectors.
+  subroutine getEDensityMtxFromComplexEigvecs(forceType, filling, eigen, kPoint, kWeight,&
+      & neighborList, nNeighbor, orb, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, ham,&
+      & over, HSqrCplx, SSqrCplx, ERhoPrim, storeEigvecsCplx)
+    integer, intent(in) :: forceType
+    real(dp), intent(in) :: filling(:,:,:), eigen(:,:,:), kPoint(:,:), kWeight(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: ham(:,:), over(:)
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(out) :: ERhoPrim(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    complex(dp), allocatable :: HSqrCplx2(:,:)
+    integer :: nSpin, nKPoint, sqrHamSize
+    integer :: iS, iK, iS2, iK2
+
+    nKPoint = size(eigen, dim=2)
+    nSpin = size(eigen, dim=3)
+    sqrHamSize = size(HSqrCplx, dim=1)
+
+    if (forceType == 1 .or. forceType == 2 .or. forceType == 3) then
+      allocate(HSqrCplx2(sqrHamSize, sqrHamSize))
+    end if
+
+    ERhoPrim(:) = 0.0_dp
+    do iS = 1, nSpin
+      do iK = 1, nKPoint
+        if (present(storeEigvecsCplx)) then
+          iK2 = 1
+          iS2 = 1
+          call get(storeEigvecsCplx(iS), HSqrCplx(:,:,iK2, iS2))
+        else
+          iS2 = iS
+          iK2 = iK
+        end if
+
+        select case (forceType)
+
+        case(0)
+          ! Original (nonconsistent) scheme
+          if (tDensON2) then
+            call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iS2), filling(:,iK,iS),&
+                & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, iAtomStart,&
+                & img2CentCell)
+          else
+            call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iS2), filling(:,iK,iS),&
+                & eigen(:,iK, iS))
+          end if
+
+        case (1)
+          call error("Force type 1 not implemented for complex H")
+          
+        case(2)
+            ! Correct force for XLBOMD for T=0K (DHD)
+          call makeDensityMatrix(HSqrCplx2, HSqrCplx(:,:,iK2,iS2), filling(:,iK,iS))
+          call unpackHS(SSqrCplx, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
+              & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+          call blockHermitianHS(SSqrCplx, iAtomStart)
+          call hemm(HSqrCplx(:,:,iK2,iS2), "L", HSqrCplx2, SSqrCplx)
+          call hemm(SSqrCplx, "R", HSqrCplx2, HSqrCplx(:,:,iK2,iS2), alpha=(0.5_dp, 0.0_dp))
+
+        case(3)
+            ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
+          call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,iS2), filling(:,iK,iS))
+          call unpackHS(HSqrCplx2, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
+              & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+          call blockHermitianHS(HSqrCplx2, iAtomStart)
+          call hemm(HSqrCplx(:,:,iK2,iS2), "L", SSqrCplx, HSqrCplx2)
+          call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborlist%iNeighbor, nNeighbor, iCellVec,&
+              & cellVec, iAtomStart, iPair, img2CentCell)
+          call hermatinv(SSqrCplx)
+          call hemm(HSqrCplx2, "R", SSqrCplx, HSqrCplx(:,:,iK2,iS2), alpha=(0.5_dp, 0.0_dp))
+          SSqrCplx(:,:) = HSqrCplx2 + transpose(conjg(HSqrCplx2))
+        end select
+
+        call packHS(ERhoPrim, SSqrCplx, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
+            & nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      end do
+    end do
+
+  end subroutine getEDensityMtxFromComplexEigvecs
+
   
+  !> Calculates density matrix from Pauli-type two component eigenvectors.
+  subroutine getEDensityMtxFromPauliEigvecs(filling, eigen, kPoint, kWeight, neighborList,&
+      & nNeighbor, orb, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, tRealHS, HSqrCplx,&
+      & SSqrCplx, ERhoPrim, storeEigvecsCplx)
+    real(dp), intent(in) :: filling(:,:,:), eigen(:,:,:), kPoint(:,:), kWeight(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    logical, intent(in) :: tRealHS
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(out) :: ERhoPrim(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    integer :: nKPoint
+    integer :: iK, iK2
+
+    nKPoint = size(eigen, dim=2)
+
+    ERhoPrim(:) = 0.0_dp
+    do iK = 1, nKPoint
+      if (present(storeEigvecsCplx)) then
+        iK2 = 1
+        call get(storeEigvecsCplx(1), HSqrCplx(:,:,iK2,1))
+      else
+        iK2 = iK
+      end if
+      call makeDensityMatrix(SSqrCplx, HSqrCplx(:,:,iK2,1), filling(:,iK,1), eigen(:,iK,1))
+      if (tRealHS) then
+        call packERho(ERhoPrim, SSqrCplx, neighborList%iNeighbor, nNeighbor, orb%mOrb, iAtomStart,&
+            & iPair, img2CentCell)
+      else
+        call packERho(ERhoPrim, SSqrCplx, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
+            & nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      end if
+    end do
+
+  end subroutine getEDensityMtxFromPauliEigvecs
+
+  
+  !> Calculates the gradients
+  subroutine getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
+      & q0, skHamCont, skOverCont, pRepCont, neighborList,&
+      & nNeighbor, species, img2CentCell, iPair, orb, potential, coord, dispersion, &
+      & derivs, iRhoPrim, thirdOrd, chrgForces)
+    logical, intent(in) :: tScc, tEField, tXlbomd
+    type(NonSccDiff), intent(in) :: nonSccDeriv
+    real(dp), intent(in) :: Efield(:), rhoPrim(:,:), ERhoPrim(:), qOutput(:,:,:), q0(:,:,:)
+    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    type(ORepCont), intent(in) :: pRepCont
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), species(:), img2CentCell(:), iPair(:,:)
+    type(TOrbitals), intent(in) :: orb
+    type(TPotentials), intent(in) :: potential
+    real(dp), intent(in) :: coord(:,:)
+    ! Workaround:ifort 17.0: Pass as allocatable instead of optional to prevent segfault
+    class(DispersionIface), intent(inout), allocatable :: dispersion
+    real(dp), intent(out) :: derivs(:,:)
+    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    type(ThirdOrder), intent(inout), optional :: thirdOrd
+    real(dp), intent(out), optional :: chrgForces(:,:)
+
+    real(dp), allocatable :: tmpDerivs(:,:)
+    logical :: tImHam, tExtChrg
+    integer :: ii
+    
+    tImHam = present(iRhoPrim)
+    tExtChrg = present(chrgForces)
+
+    derivs(:,:) = 0.0_dp
+
+    if (.not. (tSCC .or. tEField)) then
+      ! No external or internal potentials
+      if (tImHam) then
+        call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
+            & iPair, orb, potential%intBlock, potential%iorbitalBlock)
+      else
+        call derivative_nonscc(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont, skOverCont,&
+            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb)
+      end if
+    else
+      if (tImHam) then
+        call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair,&
+            & orb, potential%intBlock, potential%iorbitalBlock)
+      else
+        call derivative_shift(derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont, coord,&
+            & species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
+            & potential%intBlock)
+      end if
+
+      if (tExtChrg) then
+        chrgForces(:,:) = 0.0_dp
+        if (tXlbomd) then
+          call error("XLBOMD does not work with external charges yet!")
+        else
+          call addForceDCSCC(derivs, species, neighborList%iNeighbor, img2CentCell, coord,&
+              & chrgForces)
+        end if
+      elseif (tSCC) then
+        if (tXlbomd) then
+          call addForceDCSCC_Xlbomd(species, orb, neighborList%iNeighbor, img2CentCell, coord,&
+              & qOutput, q0, derivs)
+        else
+          call addForceDCSCC(derivs, species, neighborList%iNeighbor, img2CentCell, coord)
+        end if
+      end if
+
+      if (present(thirdOrd)) then
+        if (tXlbomd) then
+          call thirdOrd%addGradientDcXlbomd(neighborList, species, coord, img2CentCell, qOutput,&
+              & q0, orb, derivs)
+        else
+          call thirdOrd%addGradientDc(neighborList, species, coord, img2CentCell, derivs)
+        end if
+      end if
+      
+      if (tEField) then
+        do ii = 1, 3
+          derivs(ii,:) = derivs(ii,:) - sum(q0(:,:,1) - qOutput(:,:,1), dim=1) * EField(ii)
+        end do
+      end if
+    end if
+
+    if (allocated(dispersion)) then
+      call dispersion%addGradients(derivs)
+    end if
+
+    allocate(tmpDerivs(3, size(q0, dim=2)))
+    call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
+        & img2CentCell)
+    derivs(:,:) = derivs + tmpDerivs
+
+  end subroutine getGradients
+
+
+  !> Calculates stress tensor and lattice derivatives.
+  subroutine getStress(tScc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
+      & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell, iPair,&
+      & orb, potential, coord, latVec, invLatVec, cellVol, coord0, dispersion, totalStress,&
+      & totalLatDeriv, cellPressure, iRhoPrim)
+    logical, intent(in) :: tScc, tEField
+    type(NonSccDiff), intent(in) :: nonSccDeriv
+    real(dp), intent(in) :: Efield(:), rhoPrim(:,:), ERhoPrim(:), qOutput(:,:,:), q0(:,:,:)
+    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    type(ORepCont), intent(in) :: pRepCont
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), species(:), img2CentCell(:), iPair(:,:)
+    type(TOrbitals), intent(in) :: orb
+    type(TPotentials), intent(in) :: potential
+    real(dp), intent(in) :: coord(:,:), latVec(:,:), invLatVec(:,:), cellVol
+    real(dp), intent(inout) :: coord0(:,:)
+    ! Workaround:ifort 17.0: Pass as allocatable instead of optional to prevent segfault
+    class(DispersionIface), allocatable, intent(inout) :: dispersion
+    real(dp), intent(out) :: totalStress(:,:), totalLatDeriv(:,:), cellPressure
+    real(dp), intent(in), optional :: iRhoPrim(:,:)
+
+    real(dp) :: tmpStress(3, 3)
+    logical :: tImHam
+
+    tImHam = present(iRhoPrim)
+    
+    if (tSCC) then
+      if (tImHam) then
+        call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair,&
+            & orb, potential%intBlock, potential%iorbitalBlock, cellVol)
+      else
+        call getBlockStress(totalStress, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
+            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb,&
+            & potential%intBlock, cellVol)
+      end if
+      call addStressDCSCC(totalStress,species,neighborList%iNeighbor, img2CentCell,coord)
+    else
+      if (tImHam) then
+        call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair,&
+            & orb, potential%intBlock, potential%iorbitalBlock, cellVol)
+      else
+        call getNonSCCStress(totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair,&
+            & orb, cellVol)
+      end if
+    end if
+
+    if (allocated(dispersion)) then
+      call dispersion%getStress(tmpStress)
+      totalStress(:,:) = totalStress + tmpStress
+    end if
+
+    if (tEField) then
+      call getEFieldStress(latVec, cellVol, q0, qOutput, Efield, coord0, tmpStress)
+      totalStress(:,:) = totalStress + tmpStress
+    end if
+
+    call getRepulsiveStress(tmpStress, coord, nNeighbor, neighborList%iNeighbor, species,&
+        & img2CentCell, pRepCont, cellVol)
+    totalStress(:,:) = totalStress + tmpStress
+
+    cellPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
+    totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+    
+  end subroutine getStress
+
+
+  !> Calculates stress from external electric field.
+  subroutine getEFieldStress(latVec, cellVol, q0, qOutput, Efield, coord0, stress)
+    real(dp), intent(in) :: latVec(:,:), cellVol, q0(:,:,:), qOutput(:,:,:), Efield(:)
+    real(dp), intent(inout) :: coord0(:,:)
+    real(dp), intent(out) :: stress(:,:)
+
+    real(dp) :: latDerivs(3,3)
+    integer :: nAtom
+    integer :: iAtom, ii, jj
+
+    nAtom = size(coord0, dim=2)
+    
+    latDerivs(:,:) = 0.0_dp
+    call cart2frac(coord0, latVec)
+    do iAtom = 1, nAtom
+      do ii = 1, 3
+        do jj = 1, 3
+          latDerivs(jj,ii) =  latDerivs(jj,ii)&
+              & - sum(q0(:,iAtom,1) - qOutput(:,iAtom,1), dim=1) * EField(ii) * coord0(jj,iAtom)
+        end do
+      end do
+    end do
+    call frac2cart(coord0, latVec)
+    stress(:,:) = -matmul(latDerivs, transpose(latVec)) / cellVol
+    
+  end subroutine getEFieldStress
+
+
+  !> Prints cell volume.
+  subroutine printVolume(cellVol)
+    real(dp), intent(in) :: cellVol
+    
+    write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+  end subroutine printVolume
+
+
+  !> Prints pressure and free energy.
+  subroutine printPressureAndFreeEnergy(pressure, cellPressure, EGibbs)
+    real(dp), intent(in) :: pressure, cellPressure, EGibbs
+    
+    write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+    if (abs(pressure) > epsilon(1.0_dp)) then
+      write(stdOut, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
+    end if
+
+  end subroutine printPressureAndFreeEnergy
+
+
+
 end module main
