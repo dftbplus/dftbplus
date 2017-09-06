@@ -62,6 +62,9 @@ module main
   use slakocont
   use linkedlist
   use lapackroutines
+  use mdcommon
+  use mdintegrator
+  use tempprofile
   implicit none
   private
 
@@ -123,7 +126,7 @@ contains
     real(dp), allocatable :: excitedDerivs(:,:)
 
     !> Stress tensors for various contribution in periodic calculations
-    real(dp) :: totalStress(3,3), kineticStress(3,3), totalLatDeriv(3,3)
+    real(dp) :: totalStress(3,3), totalLatDeriv(3,3)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp) :: derivCellVol(3,3)
@@ -166,8 +169,7 @@ contains
     real(dp), allocatable :: new3Coord(:,:)
 
     !> lattice vectors returned by the optimizer
-    real(dp) :: tmpLatVecs(9), newLatVecs(9)
-    real(dp) :: tmpLat3Vecs(3,3)
+    real(dp) :: constrLatDerivs(9)
 
     !> MD velocities
     real(dp), allocatable :: velocities(:,:)
@@ -190,9 +192,8 @@ contains
     !> Difference between last calculated and new geometry.
     real(dp) :: diffGeo
 
-
     !> Loop variables
-    integer :: iSCCIter, iSpin, iAtom
+    integer :: iSCCIter, iSpin
 
     !> File descriptor for the tagged writer
     integer :: fdAutotest
@@ -217,11 +218,9 @@ contains
 
     !> Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
-    real(dp), allocatable :: tmpDerivs(:)
     real(dp), allocatable :: orbitalL(:,:,:)
 
     real(dp), pointer :: pDynMatrix(:,:)
-
 
     !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case
     !> of conjugate gradient/steepest descent the geometries are written anyway
@@ -230,11 +229,14 @@ contains
     !> Minimal number of SCC iterations
     integer :: minSCCIter
 
-    !> if scf/geometry driver should be stopped
-    logical :: tStopSCC, tStopDriver
+    !> if scf driver should be stopped
+    logical :: tStopSCC
 
     !> Whether scc restart info should be written in current iteration
     logical :: tWriteSccRestart
+
+    !> Whether charges should be written
+    logical :: tWriteCharges
 
     !> net charge on each atom
     real(dp), allocatable :: dqAtom(:)
@@ -257,14 +259,13 @@ contains
         & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
         & fdUser, fdMd, geoOutFile)
 
-    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs,&
-      & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
-      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom,&
-      & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
-      & ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0, Eband, eigen, filling,&
-      & coord0Fold, new3Coord, tmpDerivs, orbitalL, HSqrCplx, SSqrCplx, HSqrReal, SSqrReal,&
-      & rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo, movedAccel,&
-      & movedMass, dipoleMoment)
+    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs, tMulliken,&
+        & tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+        & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+        & indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv,&
+        & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, new3Coord,&
+        & orbitalL, HSqrCplx, SSqrCplx, HSqrReal, SSqrReal, rhoSqrReal, dqAtom, chargePerShell,&
+        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -272,8 +273,7 @@ contains
       pCoord0Out => coord0
     end if
 
-    call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tCoordEnd, tStopDriver,&
-        & iGeoStep, iLatGeoStep)
+    call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, iGeoStep, iLatGeoStep)
 
     minSccIter = getMinSccIters(tScc, tDftbU, nSpin)
     if (tXlbomd) then
@@ -337,7 +337,7 @@ contains
 
       call mergeExternalPotentials(orb, species, potential)
 
-      call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tStopScc)
+      call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
 
       lpSCC: do iSccIter = 1, maxSccIter
 
@@ -405,9 +405,6 @@ contains
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
               & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
-        end if
-
-        if (tSCC) then
           call getSccInfo(iSccIter, energy%Eelec, diffElec, Eold)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
           tWriteSccRestart = needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter,&
@@ -517,44 +514,20 @@ contains
       end if
 
       if (tForces) then
-        ! Set force components along constraint vectors zero
-        do ii = 1, nGeoConstr
-          iAtom = conAtom(ii)
-          totalDeriv(:,iAtom) = totalDeriv(:,iAtom) &
-              &- conVec(:,ii) * dot_product(conVec(:,ii), totalDeriv(:,iAtom))
-        end do
+        if (allocated(conAtom)) then
+          call constrainForces(conAtom, conVec, totalDeriv)
+        end if
 
         if (tCoordOpt) then
-          tmpDerivs(1:nMovedCoord) = reshape(totalDeriv(:,indMovedAtom),(/ nMovedCoord /))
-          write(stdOut, "(A, ':', T30, E20.6)") "Maximal force component", maxval(abs(tmpDerivs))
+          call printMaxForce(maxval(abs(totalDeriv(:, indMovedAtom))))
         end if
 
         if (tLatOpt) then
-          ! Only include the derivCellVol contribution if not MD, as the barostat
-          ! would otherwise take care of this, hence add it here rather than to
-          ! totalLatDeriv itself
-          tmpLat3Vecs(:,:) = totalLatDeriv + derivCellVol
-          tmpLatVecs(1:9) = reshape(tmpLat3Vecs, [9])
-
-          if (tLatOptFixAng) then ! project forces to be along original lattice
-            tmpLat3Vecs = tmpLat3Vecs * normOrigLatVec
-            tmpLatVecs(:) = 0.0_dp
-            if (any(tLatOptFixLen)) then
-              tmpLatVecs(:) = 0.0_dp
-              do ii = 1, 3
-                if (.not.tLatOptFixLen(ii)) then
-                  tmpLatVecs(ii) = sum(tmpLat3Vecs(:,ii))
-                end if
-              end do
-            else
-              tmpLatVecs(1:3) = sum(tmpLat3Vecs,dim=1)
-            end if
-          elseif (tLatOptIsotropic) then
-            tmpLat3Vecs = tmpLat3Vecs * normOrigLatVec
-            tmpLatVecs(:) = 0.0_dp
-            tmpLatVecs(1) = sum(tmpLat3Vecs)
-          end if
-          write(stdOut, format1Ue) "Maximal Lattice force component", maxval(abs(tmpLatVecs)), 'au'
+          ! Only include the derivCellVol contribution if not MD, as the barostat would otherwise
+          ! take care of this, hence add it here rather than to totalLatDeriv itself
+          call constrainLatticeDerivs(totalLatDeriv + derivCellVol, normOrigLatVec,&
+              & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+          call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
         end if
 
         if (tSocket) then
@@ -562,197 +535,81 @@ contains
           call socket%send(energy%ETotal - sum(TS), -totalDeriv, totalStress * cellVol)
         end if
 
-        ! If geometry minimizer finished and the last calculated geometry is the
-        ! minimal one (not necessary the case, depends on the optimizer!)
-        ! -> we are finished.
-        ! Otherwise we have to recalc everything in the converged geometry.
+        ! If geometry minimizer finished and the last calculated geometry is the minimal one (not
+        ! necessary the case, depends on the optimizer!) we are finished.  Otherwise we have to
+        ! recalc everything in the converged geometry.
 
         if (tGeomEnd) then
           exit lpGeomOpt
-        else
-          tCoordsChanged = .false.
-          tLatticeChanged = .false.
-          if (tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs .and. maxSccIter > 1)&
-              & then
-            if (tDFTBU) then
-              if (tSpinOrbit) then
-                call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
-              else
-                call writeQToFile(qInput, fChargeIn, orb, qBlockIn)
-              end if
-            else
-              call writeQToFile(qInput, fChargeIn, orb)
-            end if
-            print "('>> Charges saved for restart in ',A)", fChargeIn
+        end if
+
+        tCoordsChanged = .false.
+        tLatticeChanged = .false.
+        tWriteCharges = tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs&
+            & .and. maxSccIter > 1
+        if (tWriteCharges) then
+          call writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+        end if
+        
+        if (tDerivs) then
+          call getNextDerivStep(derivDriver, totalDeriv, indMovedAtom, coord0, tGeomEnd)
+          if (tGeomEnd) then
+            exit lpGeomOpt
           end if
-          if (tDerivs) then
-            call next(derivDriver, new3Coord, totalDeriv(:,indMovedAtom), tGeomEnd)
-            coord0(:,indMovedAtom) = new3Coord(:,:)
-            if (tGeomEnd) exit lpGeomOpt
-            tCoordsChanged = .true.
-          else if (tGeoOpt) then
-            if (tCoordStep) then
-              call next(pGeoCoordOpt, energy%EMermin, tmpDerivs, tmpCoords,tCoordEnd)
-              tCoordsChanged = .true.
-              if (.not.tLatOpt) tGeomEnd = tCoordEnd
-            else
-              call next(pGeoLatOpt, energy%EGibbs, tmpLatVecs, newLatVecs,tGeomEnd)
-              tLatticeChanged = .true.
-              if (tLatOptFixAng) then ! optimization uses scaling factor of
-                !  lattice vectors
-                if (any(tLatOptFixLen)) then
-                  do ii = 3, 1, -1
-                    if (.not.tLatOptFixLen(ii)) then
-                      newLatVecs(3*ii-2:3*ii) =  newLatVecs(ii)*origLatVec(:,ii)
-                    else
-                      newLatVecs(3*ii-2:3*ii) =  origLatVec(:,ii)
-                    end if
-                  end do
-                else
-                  newLatVecs(7:9) =  newLatVecs(3)*origLatVec(:,3)
-                  newLatVecs(4:6) =  newLatVecs(2)*origLatVec(:,2)
-                  newLatVecs(1:3) =  newLatVecs(1)*origLatVec(:,1)
-                end if
-              else if (tLatOptIsotropic) then ! optimization uses scaling factor
-                !  unit cell
-                do ii = 3,1, -1 ! loop downwards as reusing newLatVecs
-                  newLatVecs(3*ii-2:3*ii) =  newLatVecs(1)*origLatVec(:,ii)
-                end do
-              end if
-              iLatGeoStep = iLatGeoStep + 1
+          tCoordsChanged = .true.
+        else if (tGeoOpt) then
+          tCoordsChanged = .true.
+          if (tCoordStep) then
+            call getNextCoordinateOptStep(pGeoCoordOpt, energy%EMermin, totalDeriv, indMovedAtom,&
+                & coord0, diffGeo, tCoordEnd)
+            if (.not. tLatOpt) then
+              tGeomEnd = tCoordEnd
             end if
-          else if (tMD) then
-            movedAccel(:,:) = -totalDeriv(:,indMovedAtom) / movedMass
-            call next(pMDIntegrator, movedAccel ,new3Coord, movedVelo)
-            tCoordsChanged = .true.
-            if (allocated(temperatureProfile)) then
-              call next(temperatureProfile)
+            if (.not. tGeomEnd .and. tCoordEnd .and. diffGeo < tolSameDist) then
+              tCoordStep = .false.
             end if
-            call evalKE(energy%Ekin, movedVelo, movedMass(1,:))
-            call evalkT(pMDFrame, kT, movedVelo, movedMass(1,:))
-            velocities(:,:) = 0.0_dp
-            velocities(:, indMovedAtom) = movedVelo(:,:)
-            energy%EMerminKin = energy%EMermin + energy%Ekin
-            energy%EGibbsKin = energy%EGibbs + energy%Ekin
-            if (tWriteRestart) then
-              call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true.,&
-                  & tFracCoord, tPeriodic, tPrintMulliken, species0, speciesName, latVec,&
-                  & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
+          else
+            call getNextLatticeOptStep(pGeoLatOpt, energy%EGibbs, constrLatDerivs, origLatVec,&
+                & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0,&
+                & diffGeo, tGeomEnd)
+            iLatGeoStep = iLatGeoStep + 1
+            tLatticeChanged = .true.
+            if (.not. tGeomEnd .and. tCoordOpt) then
+              tCoordStep = .true.
+              call reset(pGeoCoordOpt, reshape(coord0(:, indMovedAtom), [nMovedCoord]))
             end if
-
-            if (tStress) then
-              ! contribution from kinetic energy in MD, now that velocities for
-              ! this geometry step are available
-              call getKineticStress(kineticStress, mass, species0, velocities, CellVol)
-              totalStress = totalStress + kineticStress
-              cellPressure = ( totalStress(1,1) + totalStress(2,2) &
-                  & + totalStress(3,3) )/3.0_dp
-
-              totalLatDeriv = -CellVol * matmul(totalStress,invLatVec)
-            end if
-
-            if (tSetFillingTemp) then
-              write(stdOut, format2U) 'Electronic Temperature:', tempElec, 'H',&
-                  & tempElec/Boltzmann, 'K'
-            end if
-            if (tEfield) then
-              write(stdOut, format1U1e) 'External E field', absEField, 'au',&
-                  & absEField * au__V_m, 'V/m'
-            end if
-            write(stdOut, format2U) "MD Temperature:", kT, "H", kT / Boltzmann, "K"
-            write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H",&
-                & Hartree__eV * energy%Ekin, "eV"
-            write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H", &
-                & Hartree__eV * energy%EMerminKin, "eV"
+          end if
+          if (tGeomEnd .and. diffGeo < tolSameDist) then
+            exit lpGeomOpt
+          end if
+        else if (tMD) then
+          call getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, totalDeriv, movedMass,&
+              & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy,&
+              & coord0, latVec, cellPressure, totalStress, totalLatDeriv, velocities, kT)
+          tCoordsChanged = .true.
+          tLatticeChanged = tBarostat
+          call printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, kT,&
+              & cellPressure, pressure, energy)
+          if (tWriteRestart) then
             if (tPeriodic) then
-              write(stdOut, format2Ue) 'Pressure', cellPressure, 'au',&
-                  & cellPressure * au__pascal, 'Pa'
-              if (pressure /= 0.0_dp) then
-                write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-                    & Hartree__eV * energy%EGibbsKin,'eV'
-              end if
+              cellVol = abs(determinant33(latVec))
+              energy%EGibbs = energy%EMermin + pressure * cellVol
             end if
-
-            if (tWriteDetailedOut) then
-              call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
-                  & totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
-            end if
-          else if (tSocket .and. iGeoStep < nGeoSteps) then
-            ! Only receive geometry from socket, if there are still geometry iterations left
-            call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
-                & tLatticeChanged)
+            call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
+                & energy, latVec, cellVol, cellPressure, pressure, kT, absEField, qOutput, q0,&
+                & dipoleMoment)
+            call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
+                & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+                & nSpin, qOutput, velocities)
           end if
-
-          if (tGeomEnd.and.tGeoOpt) then
-            diffGeo = 0.0_dp
-            if (tLatOpt) then
-              diffGeo = max( maxval(abs(reshape(latVec,(/9/))- newLatVecs)), &
-                  & diffGeo)
-            end if
-
-            if (tCoordOpt) then
-              diffGeo = max(maxval(abs(reshape(coord0(:,indMovedAtom), &
-                  & (/nMovedCoord/))- tmpCoords)),diffGeo)
-            end if
-            if (diffGeo < tolSameDist) then
-              tGeomEnd = .true.
-              exit lpGeomOpt
-            end if
+          if (tWriteDetailedOut) then
+            call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
+                & totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
           end if
-
-          if (.not. tGeomEnd .and. .not. tSocket) then
-            if (tGeoOpt) then
-              if (tCoordStep) then
-                if (tCoordEnd) then
-                  diffGeo = maxval(abs(reshape(coord0(:,indMovedAtom), &
-                      & (/nMovedCoord/))- tmpCoords))
-                  if (diffGeo < tolSameDist) then
-                    tCoordStep = .false.
-                    if (tLatOpt) then
-                      tCoordEnd = .false.
-                    end if
-                  end if
-                end if
-                if (nMovedCoord > 0) then
-                  ! Workaround NAG (6.1)
-                  !coord0(:,indMovedAtom) = reshape(tmpCoords, [3, nMovedAtom])
-                  do ii = 1, nMovedAtom
-                    coord0(:,indMovedAtom(ii)) = tmpCoords((ii-1)*3+1:ii*3)
-                  end do                  
-                end if
-              else
-                call cart2frac(coord0, latVec)
-                latVec(:,:) = reshape(newLatVecs, [3, 3])
-                call frac2cart(coord0, latVec)
-                tCoordsChanged = .true.
-                if (tCoordOpt) then
-                  tCoordStep = .true.
-                  tCoordEnd = .false.
-                  tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), [nMovedCoord])
-                  call reset(pGeoCoordOpt, tmpCoords)
-                end if
-              end if
-            elseif (tMD) then
-
-              coord0(:,indMovedAtom) = new3Coord(:,:)
-
-              if (tBarostat) then ! apply a Barostat
-                call rescale(pMDIntegrator,coord0,latVec,totalStress)
-                tCoordsChanged = .true.
-                tLatticeChanged = .true.
-              end if
-
-              if (tWriteRestart) then
-                if (tPeriodic) then
-                  cellVol = abs(determinant33(latVec))
-                  energy%EGibbs = energy%EMermin + pressure * cellVol
-                end if
-                call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf,&
-                    & tPrintMulliken, energy, latVec, cellVol, cellPressure, pressure, kT,&
-                    & absEField, qOutput, q0, dipoleMoment)
-              end if
-            end if
-          end if
+        else if (tSocket .and. iGeoStep < nGeoSteps) then
+          ! Only receive geometry from socket, if there are still geometry iterations left
+          call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+              & tLatticeChanged)
         end if
       end if
       
@@ -760,19 +617,9 @@ contains
         call writeDetailedOut4(fdUser, tMD, energy, kT)
       end if
 
-      ! Stop reading of initial charges/block populations again
-      tReadChrg = .false.
-
       ! Stop SCC if appropriate stop file is present
-      if (.not. tStopSCC) then
-        inquire(file=fStopDriver, exist=tStopDriver)
-        if (tStopDriver) then
-          write(stdOut, "(3A)") "Stop file '" // fStopDriver // "' found."
-        end if
-      end if
-      if (tStopSCC .or. tStopDriver) then
-        nGeoSteps = iGeoStep
-        write(stdOut, "(A)") "Setting max number of geometry steps to current step number."
+      if (tStopScc .or. hasStopFile(fStopDriver)) then
+        exit lpGeomOpt
       end if
 
     end do lpGeomOpt
@@ -969,16 +816,15 @@ contains
   end subroutine initOutputFiles
 
 
-  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs,&
-      & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
-      & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom,&
-      & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
-      & ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0,&
-      & Eband, eigen, filling, coord0Fold, new3Coord, tmpDerivs, orbitalL,&
-      & HSqrCplx, SSqrCplx, HSqrReal, SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural,&
-      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs, tMulliken,&
+      & tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+      & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+      & indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv,&
+      & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, new3Coord,&
+      & orbitalL, HSqrCplx, SSqrCplx, HSqrReal, SSqrReal, rhoSqrReal, dqAtom, chargePerShell,&
+      & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
     logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs
-    logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
+    logical, intent(in) :: tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
     logical, intent(in) :: tDipole
     type(TOrbitals), intent(in) :: orb
@@ -993,7 +839,7 @@ contains
     type(TPotentials), intent(out) :: potential
     real(dp), intent(out), allocatable :: TS(:), E0(:), Eband(:)
     real(dp), intent(out), allocatable :: eigen(:,:,:), filling(:,:,:)
-    real(dp), intent(out), allocatable :: coord0Fold(:,:), new3Coord(:,:), tmpDerivs(:)
+    real(dp), intent(out), allocatable :: coord0Fold(:,:), new3Coord(:,:)
     real(dp), intent(out), allocatable :: orbitalL(:,:,:)
     complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
     real(dp), intent(out), allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
@@ -1052,10 +898,6 @@ contains
       allocate(new3Coord(3, nMovedAtom))
     end if
 
-    if (tCoordOpt) then
-      allocate(tmpDerivs(3 * nMovedAtom))
-    end if
-
     if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
       allocate(orbitalL(3, orb%mShell, nAtom))
     end if
@@ -1110,11 +952,10 @@ contains
 
 
   !> Initialises some parameters before geometry loop starts.
-  subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGEomEnd, tCoordStep, tCoordEnd,&
-      & tStopDriver, iGeoStep, iLatGeoStep)
+  subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, iGeoStep, iLatGeoStep)
     logical, intent(in) :: tCoordOpt
     integer, intent(in) :: nGeoSteps
-    logical, intent(out) :: tGeomEnd, tCoordStep, tCoordEnd, tStopDriver
+    logical, intent(out) :: tGeomEnd, tCoordStep
     integer, intent(out) :: iGeoStep, iLatGeoStep
     
     tGeomEnd = (nGeoSteps == 0)
@@ -1122,12 +963,10 @@ contains
     tCoordStep = .false.
     if (tCoordOpt) then
       tCoordStep = .true.
-      tCoordEnd = .false.
     end if
 
     iGeoStep = 0
     iLatGeoStep = 0
-    tStopDriver = .false.
 
   end subroutine initGeoOptParameters
 
@@ -1436,20 +1275,18 @@ contains
 
 
   !> Initialise basic variables before the scc loop.
-  subroutine initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
-      & tStopScc)
+  subroutine initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
     logical, intent(in) :: tScc
     type(Xlbomd), allocatable, intent(inout) :: xlbomdIntegrator
     integer, intent(inout) :: minSccIter, maxSccIter
     real(dp), intent(inout) :: sccTol
-    logical, intent(out) :: tConverged, tStopScc
+    logical, intent(out) :: tConverged
     
     if (allocated(xlbomdIntegrator)) then
       call xlbomdIntegrator%getSCCParameters(minSCCIter, maxSccIter, sccTol)
     end if
 
     tConverged = (.not. tScc)
-    tStopSCC = .false.
 
     if (tScc) then
       call printSccHeader()
@@ -3437,6 +3274,264 @@ contains
 
   end subroutine printPressureAndFreeEnergy
 
+
+  !> Removes forces components along constraint directions
+  subroutine constrainForces(conAtom, conVec, totalDerivs)
+    integer, intent(in) :: conAtom(:)
+    real(dp), intent(in) :: conVec(:,:)
+    real(dp), intent(inout) :: totalDerivs(:,:)
+
+    integer :: ii, iAtom
+    
+    ! Set force components along constraint vectors zero
+    do ii = 1, size(conAtom)
+      iAtom = conAtom(ii)
+      totalDerivs(:,iAtom) = totalDerivs(:,iAtom)&
+          & - conVec(:,ii) * dot_product(conVec(:,ii), totalDerivs(:,iAtom))
+    end do
+
+  end subroutine constrainForces
+
+
+  !> Writes maximal force component.
+  subroutine printMaxForce(maxForce)
+    real(dp), intent(in) :: maxForce
+    
+    write(stdOut, "(A, ':', T30, E20.6)") "Maximal force component", maxForce
+
+  end subroutine printMaxForce
+
+
+  !> Flattens lattice components and applies lattice optimisation constraints.
+  subroutine constrainLatticeDerivs(totalLatDerivs, normLatVecs, tLatOptFixAng,&
+      & tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+    real(dp), intent(in) :: totalLatDerivs(:,:), normLatVecs(:,:)
+    logical, intent(in) :: tLatOptFixAng, tLatOptFixLen(:), tLatOptIsotropic
+    real(dp), intent(out) :: constrLatDerivs(:)
+
+    real(dp) :: tmpLatDerivs(3, 3)
+    integer :: ii
+
+    tmpLatDerivs(:,:) = totalLatDerivs
+    constrLatDerivs = reshape(tmpLatDerivs, [9])
+    if (tLatOptFixAng) then
+      ! project forces to be along original lattice
+      tmpLatDerivs(:,:) = tmpLatDerivs * normLatVecs
+      constrLatDerivs(:) = 0.0_dp
+      if (any(tLatOptFixLen)) then
+        do ii = 1, 3
+          if (.not. tLatOptFixLen(ii)) then
+            constrLatDerivs(ii) = sum(tmpLatDerivs(:,ii))
+          end if
+        end do
+      else
+        constrLatDerivs(1:3) = sum(tmpLatDerivs, dim=1)
+      end if
+    elseif (tLatOptIsotropic) then
+      tmpLatDerivs(:,:) = tmpLatDerivs * normLatVecs
+      constrLatDerivs(:) = 0.0_dp
+      constrLatDerivs(1) = sum(tmpLatDerivs)
+    end if
+
+  end subroutine constrainLatticeDerivs
+
+  
+  !> Print maximal lattice force component
+  subroutine printMaxLatticeForce(maxLattForce)
+    real(dp), intent(in) :: maxLattForce
+  
+    write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
+
+  end subroutine printMaxLatticeForce
+
+
+  !> Write out charges.
+  subroutine writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+    real(dp), intent(in) :: qInput(:,:,:)
+    character(*), intent(in) :: fChargeIn
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in), optional :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
+    
+    call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+    write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fChargeIn)
+
+  end subroutine writeCharges
+
+
+  !> Unfold contrained lattice vectors to full one.
+  subroutine unconstrainLatticeVectors(constrLatVecs, origLatVecs, tLatOptFixAng, tLatOptFixLen,&
+      & tLatOptIsotropic, newLatVecs)
+    real(dp), intent(in) :: constrLatVecs(:), origLatVecs(:,:)
+    logical, intent(in) :: tLatOptFixAng, tLatOptFixLen(:), tLatOptIsotropic
+    real(dp), intent(out) :: newLatVecs(:,:)
+
+    real(dp) :: tmpLatVecs(9)
+    integer :: ii
+
+    tmpLatVecs(:) = constrLatVecs
+    if (tLatOptFixAng) then 
+      ! Optimization uses scaling factor of lattice vectors
+      if (any(tLatOptFixLen)) then
+        do ii = 3, 1, -1
+          if (.not. tLatOptFixLen(ii)) then
+            tmpLatVecs(3 * ii - 2 : 3 * ii) =  tmpLatVecs(ii) * origLatVecs(:,ii)
+          else
+            tmpLatVecs(3 * ii - 2 : 3 * ii) =  origLatVecs(:,ii)
+          end if
+        end do
+      else
+        tmpLatVecs(7:9) =  tmpLatVecs(3) * origLatVecs(:,3)
+        tmpLatVecs(4:6) =  tmpLatVecs(2) * origLatVecs(:,2)
+        tmpLatVecs(1:3) =  tmpLatVecs(1) * origLatVecs(:,1)
+      end if
+    else if (tLatOptIsotropic) then
+      ! Optimization uses scaling factor unit cell
+      do ii = 3, 1, -1
+        tmpLatVecs(3 * ii - 2 : 3 * ii) =  tmpLatVecs(1) * origLatVecs(:,ii)
+      end do
+    end if
+    newLatVecs(:,:) = reshape(tmpLatVecs, [3, 3])
+    
+  end subroutine unconstrainLatticeVectors
+
+
+  subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, coords, tGeomEnd)
+    type(OnumDerivs), intent(inout) :: derivDriver
+    real(dp), intent(in) :: derivs(:,:)
+    integer, intent(in) :: indMovedAtoms(:)
+    real(dp), intent(out) :: coords(:,:)
+    logical, intent(out) :: tGeomEnd
+
+    real(dp) :: newCoords(3, size(indMovedAtoms))
+
+    call next(derivDriver, newCoords, derivs(:, indMovedAtoms), tGeomEnd)
+    coords(:, indMovedAtoms) = newCoords
+
+  end subroutine getNextDerivStep
+
+
+  subroutine getNextCoordinateOptStep(pGeoCoordOpt, EMermin, totalDerivs, indMovedAtom, coords0,&
+      & diffGeo, tCoordEnd)
+    type(OGeoOpt), intent(inout) :: pGeoCoordOpt
+    real(dp), intent(in) :: EMermin, totalDerivs(:,:)
+    integer, intent(in) :: indMovedAtom(:)
+    real(dp), intent(inout) :: coords0(:,:)
+    real(dp), intent(out) :: diffGeo
+    logical, intent(out) :: tCoordEnd
+
+    real(dp) :: totalDerivsMoved(3 * size(indMovedAtom))
+    real(dp), target :: newCoordsMoved(3 * size(indMovedAtom))
+    real(dp), pointer :: pNewCoordsMoved(:,:)
+
+    totalDerivsMoved(:) = reshape(totalDerivs(:, indMovedAtom), [3 * size(indMovedAtom)])
+    call next(pGeoCoordOpt, EMermin, totalDerivsMoved, newCoordsMoved, tCoordEnd)
+    pNewCoordsMoved(1:3, 1:size(indMovedAtom)) => newCoordsMoved(1 : 3 * size(indMovedAtom))
+    diffGeo = maxval(abs(pNewCoordsMoved - coords0(:, indMovedAtom)))
+    coords0(:, indMovedAtom) = pNewCoordsMoved
+
+  end subroutine getNextCoordinateOptStep
+
+
+  subroutine getNextLatticeOptStep(pGeoLatOpt, EGibbs, constrLatDerivs, origLatVec, tLatOptFixAng,&
+      & tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo, tGeomEnd)
+    type(OGeoOpt), intent(inout) :: pGeoLatOpt
+    real(dp), intent(in) :: EGibbs, constrLatDerivs(:), origLatVec(:,:)
+    logical, intent(in) :: tLatOptFixAng, tLatOptFixLen(:), tLatOptIsotropic
+    integer, intent(in) :: indMovedAtom(:)
+    real(dp), intent(inout) :: latVec(:,:), coord0(:,:)
+    real(dp), intent(out) :: diffGeo
+    logical, intent(out) :: tGeomEnd
+
+    real(dp) :: newLatVecsFlat(9), newLatVecs(3, 3), oldMovedCoords(3, size(indMovedAtom))
+
+    call next(pGeoLatOpt, EGibbs, constrLatDerivs, newLatVecsFlat,tGeomEnd)
+    call unconstrainLatticeVectors(newLatVecsFlat, origLatVec, tLatOptFixAng, tLatOptFixLen,&
+        & tLatOptIsotropic, newLatVecs)
+    oldMovedCoords(:,:) = coord0(:, indMovedAtom)
+    call cart2frac(coord0, latVec)
+    latVec(:,:) = newLatVecs
+    call frac2cart(coord0, latVec)
+    diffGeo = max(maxval(abs(newLatVecs - latVec)),&
+        & maxval(abs(oldMovedCoords - coord0(:, indMovedAtom))))
+
+  end subroutine getNextLatticeOptStep
+
+
+  !> Delivers data for next MD step (and updates data depending on velocities of current step)
+  subroutine getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, totalDeriv, movedMass,&
+      & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy, coord0,&
+      & latVec, cellPressure, totalStress, totalLatDeriv, velocities, kT)
+    type(OMdIntegrator), intent(inout) :: pMdIntegrator
+    type(OMdCommon), intent(in) :: pMdFrame
+    type(OTempProfile), allocatable, intent(inout) :: temperatureProfile
+    real(dp), intent(in) :: totalDeriv(:,:), movedMass(:,:), mass(:), cellVol, invLatVec(:,:)
+    integer, intent(in) :: species0(:), indMovedAtom(:)
+    logical, intent(in) :: tStress, tBarostat
+    type(TEnergies), intent(inout) :: energy
+    real(dp), intent(inout) :: coord0(:,:), latVec(:,:)
+    real(dp), intent(inout) :: cellPressure, totalStress(:,:), totalLatDeriv(:,:)
+    real(dp), intent(out) :: velocities(:,:), kT
+
+    real(dp) :: movedAccel(3, size(indMovedAtom)), movedVelo(3, size(indMovedAtom))
+    real(dp) :: movedCoords(3, size(indMovedAtom))
+    real(dp) :: kineticStress(3, 3)
+    
+    movedAccel(:,:) = -totalDeriv(:, indMovedAtom) / movedMass
+    call next(pMdIntegrator, movedAccel, movedCoords, movedVelo)
+    coord0(:, indMovedAtom) = movedCoords
+    velocities(:,:) = 0.0_dp
+    velocities(:, indMovedAtom) = movedVelo(:,:)
+
+    if (allocated(temperatureProfile)) then
+      call next(temperatureProfile)
+    end if
+    call evalKE(energy%Ekin, movedVelo, movedMass(1,:))
+    call evalkT(pMdFrame, kT, movedVelo, movedMass(1,:))
+    energy%EMerminKin = energy%EMermin + energy%Ekin
+    energy%EGibbsKin = energy%EGibbs + energy%Ekin
+
+    if (tStress) then
+      ! contribution from kinetic energy in MD, now that velocities for this geometry step are
+      ! available
+      call getKineticStress(kineticStress, mass, species0, velocities, cellVol)
+      totalStress = totalStress + kineticStress
+      cellPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
+      totalLatDeriv = -cellVol * matmul(totalStress, invLatVec)
+    end if
+      
+    if (tBarostat) then
+      call rescale(pMDIntegrator, coord0, latVec, totalStress)
+    end if
+
+  end subroutine getNextMdStep
+
+
+  !> Prints out info about current MD step.
+  subroutine printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, kT,&
+      & cellPressure, pressure, energy)
+    logical, intent(in) :: tSetFillingTemp, tEFIeld, tPeriodic
+    real(dp), intent(in) :: tempElec, absEField, kT, cellPressure, pressure
+    type(TEnergies), intent(in) :: energy
+
+    if (tSetFillingTemp) then
+      write(stdOut, format2U) 'Electronic Temperature:', tempElec, 'H', tempElec / Boltzmann, 'K'
+    end if
+    if (tEfield) then
+      write(stdOut, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
+    end if
+    write(stdOut, format2U) "MD Temperature:", kT, "H", kT / Boltzmann, "K"
+    write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
+    write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
+        & Hartree__eV * energy%EMerminKin, "eV"
+    if (tPeriodic) then
+      write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+      if (abs(pressure) < epsilon(1.0_dp)) then
+        write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+            & Hartree__eV * energy%EGibbsKin, 'eV'
+      end if
+    end if
+
+  end subroutine printMdInfo
 
 
 end module main

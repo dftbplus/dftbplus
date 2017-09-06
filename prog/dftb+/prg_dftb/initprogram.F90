@@ -442,9 +442,6 @@ module initprogram
   !> Nr. of geo movements to do
   integer :: nGeoSteps
 
-  !> Nr. of geometry constraints
-  integer :: nGeoConstr
-
   !> Index of constrained atoms
   integer, allocatable :: conAtom(:)
 
@@ -1484,20 +1481,14 @@ contains
     end if
 
     ! Initialize constraints
-    nGeoConstr = input%ctrl%nrConstr
-    if (nGeoConstr > 0) then
+    if (input%ctrl%nrConstr > 0) then
       allocate(conAtom(input%ctrl%nrConstr))
       allocate(conVec(3, input%ctrl%nrConstr))
-      @:ASSERT(all(shape(conAtom) == shape(input%ctrl%conAtom)))
-      @:ASSERT(all(shape(conVec) == shape(input%ctrl%conVec)))
-      conAtom(:) = input%ctrl%conAtom(:)
-      conVec(:,:) = input%ctrl%conVec(:,:)
-      do ii = 1, nGeoConstr
+      conAtom(:) = input%ctrl%conAtom
+      conVec(:,:) = input%ctrl%conVec
+      do ii = 1, input%ctrl%nrConstr
         conVec(:,ii) = conVec(:,ii) / sqrt(sum(conVec(:,ii)**2))
       end do
-    else
-      allocate(conAtom(0))
-      allocate(conVec(3, 0))
     end if
 
     ! Dispersion
@@ -2102,7 +2093,7 @@ contains
         call error("Unknown thermostat mode")
       end select
     elseif (tGeoOpt) then
-      if (nGeoConstr > 0) then
+      if (allocated(conAtom)) then
         strTmp = "with constraints"
       else
         strTmp = ""
@@ -2229,9 +2220,9 @@ contains
     end if
 
     tFirst = .true.
-    if (nGeoConstr > 0) then
+    if (allocated(conAtom)) then
       do ii = 1, nAtom
-        do jj = 1, nGeoConstr
+        do jj = 1, size(conAtom)
           if (conAtom(jj) == ii) then
             if (tFirst) then
               write(strTmp, "(A,':')") "Geometry constraints"
