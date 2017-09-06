@@ -174,8 +174,7 @@ contains
   !! All data in atomic units, and currently assumes the number
   !! of atoms is the same as passed at construction/initialisation.
   !!
-  subroutine receive(this, coord, cell)
-
+  subroutine receive(this, coord, cell, tStop)
 
     !> Instance.
     class(IpiSocketComm), intent(inout) :: this
@@ -188,6 +187,9 @@ contains
     !> Cell lattice vectors.
     real(dp), intent(out) :: cell(3, 3)
 
+    !> Halt DFTB+
+    logical, intent(out) :: tStop
+
     character(lc) :: msg
     character(len=IPI_MSGLEN) :: header, buffer
     integer :: nAtom
@@ -198,6 +200,8 @@ contains
 
     @:ASSERT(this%tInit)
     @:ASSERT(size(coord, dim=1) == 3)
+
+    tStop = .false.
 
     nAtom = size(coord, dim=2)
     if (nAtom /= this%nAtom) then
@@ -224,10 +228,17 @@ contains
     end do
 
     ! expecting positions data
-    if (trim(header) /= 'POSDATA') then
-      call error("ipisocket%receive: Unexpected message from server (expected 'POSDATA'),&
-          & received '" // trim(header) // "'")
-    end if
+    select case (trim(header))
+    case ('POSDATA')
+      ! expected return during run
+    case ('EXIT')
+      call warning("ipisocket%receive: EXIT. Halting DFTB+.")
+      tStop = .true.
+      return
+    case default
+      call error("ipisocket%receive: Unexpected message from server, received '" &
+          & // trim(header) // "'")
+    end select
 
     ! lattice vector data
     call readbuffer(this%socket, commsBuffer2)

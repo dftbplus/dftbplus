@@ -507,7 +507,11 @@ program dftbplus
   lpGeomOpt: do while (iGeoStep <= nGeoSteps)
 
     if (tSocket) then
-      call socket%receive(coord0, tmpLat3Vecs)
+      call socket%receive(coord0, tmpLat3Vecs, tStopDriver)
+      if (tStopDriver) then       
+        nGeoSteps = iGeoStep
+        exit lpGeomOpt
+      end if
       if (tPeriodic) then
         latVec(:,:) = tmpLat3Vecs
         cellVol = determinant33(latVec)
