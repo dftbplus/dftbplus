@@ -86,13 +86,10 @@ contains
   subroutine runDftbPlus()
     use initprogram
 
-    real(dp), allocatable :: orbResShift3rd(:,:)
-    real(dp), allocatable :: shift3rd(:)
     
-    
-    complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:), HSqrCplx2(:,:)
-    real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:), HSqrReal2(:,:)
-    real(dp),    allocatable :: eigen(:,:,:), eigen2(:,:,:)
+    complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
+    real(dp),    allocatable :: eigen(:,:,:)
     real(dp), allocatable :: rhoPrim(:,:)
     real(dp), allocatable :: iRhoPrim(:,:)
     real(dp), allocatable :: ERhoPrim(:)
@@ -113,26 +110,23 @@ contains
     !> energy in previous scc cycles
     real(dp) :: Eold
 
-
     !> Total energy components
     type(TEnergies) :: energy
 
     !> Potentials for orbitals
     type(TPotentials) :: potential
 
-    real(dp), allocatable :: derivs(:,:),repulsiveDerivs(:,:),totalDeriv(:,:)
+    real(dp), allocatable :: totalDeriv(:,:)
     real(dp), allocatable :: chrgForces(:,:)
 
     !> excited state force addition
     real(dp), allocatable :: excitedDerivs(:,:)
-
 
     !> Stress tensors for various contribution in periodic calculations
     real(dp) :: totalStress(3,3), kineticStress(3,3), totalLatDeriv(3,3)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp) :: derivCellVol(3,3)
-
 
     !> dipole moments when available
     real(dp), allocatable :: dipoleMoment(:)
@@ -263,15 +257,14 @@ contains
         & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
         & fdUser, fdMd, geoOutFile)
 
-    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
+    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs,&
       & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
       & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom,&
-      & nKPoint, nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim,&
-      & excitedDerivs, ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy,&
-      & potential, shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold,&
-      & new3Coord, tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
-      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
-      & movedAccel, movedMass, dipoleMoment)
+      & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
+      & ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0, Eband, eigen, filling,&
+      & coord0Fold, new3Coord, tmpDerivs, orbitalL, HSqrCplx, SSqrCplx, HSqrReal, SSqrReal,&
+      & rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo, movedAccel,&
+      & movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -523,7 +516,6 @@ contains
         end if
       end if
 
-
       if (tForces) then
         ! Set force components along constraint vectors zero
         do ii = 1, nGeoConstr
@@ -567,8 +559,7 @@ contains
 
         if (tSocket) then
           ! stress was computed above in the force evaluation block or is 0 if aperiodic
-          call socket%send(energy%ETotal - sum(TS), -totalDeriv, &
-              & totalStress * cellVol)
+          call socket%send(energy%ETotal - sum(TS), -totalDeriv, totalStress * cellVol)
         end if
 
         ! If geometry minimizer finished and the last calculated geometry is the
@@ -978,35 +969,34 @@ contains
   end subroutine initOutputFiles
 
 
-  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs,&
+  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs,&
       & tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS,&
       & tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom,&
-      & nKPoint, nSpin, nExtChrg, forceType, indMovedAtom, mass, rhoPrim, h0, iRhoPrim,&
-      & excitedDerivs, ERhoPrim, derivs, repulsiveDerivs, totalDeriv, chrgForces, energy,&
-      & potential, shift3rd, orbResShift3rd, TS, E0, Eband, eigen, eigen2, filling, coord0Fold,&
-      & new3Coord, tmpDerivs, orbitalL, HSqrCplx, HSqrCplx2, SSqrCplx, HSqrReal, HsqrReal2,&
-      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
-      & movedAccel, movedMass, dipoleMoment)
-    logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, t3rdFull, tMd, tDerivs
+      & nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs,&
+      & ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0,&
+      & Eband, eigen, filling, coord0Fold, new3Coord, tmpDerivs, orbitalL,&
+      & HSqrCplx, SSqrCplx, HSqrReal, SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural,&
+      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+    logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs
     logical, intent(in) :: tCoordOpt, tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
     logical, intent(in) :: tDipole
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, forceType
+    integer, intent(in) :: nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg
     integer, intent(in) :: indMovedAtom(:)
     real(dp), intent(in) :: mass(:)
     real(dp), intent(out), allocatable :: rhoPrim(:,:), h0(:), iRhoPrim(:,:), excitedDerivs(:,:)
     real(dp), intent(out), allocatable :: ERhoPrim(:)
-    real(dp), intent(out), allocatable :: derivs(:,:), repulsiveDerivs(:,:), totalDeriv(:,:)
+    real(dp), intent(out), allocatable :: totalDeriv(:,:)
     real(dp), intent(out), allocatable :: chrgForces(:,:)
     type(TEnergies), intent(out) :: energy
     type(TPotentials), intent(out) :: potential
-    real(dp), intent(out), allocatable :: shift3rd(:), orbResShift3rd(:,:), TS(:), E0(:), Eband(:)
-    real(dp), intent(out), allocatable :: eigen(:,:,:), eigen2(:,:,:), filling(:,:,:)
+    real(dp), intent(out), allocatable :: TS(:), E0(:), Eband(:)
+    real(dp), intent(out), allocatable :: eigen(:,:,:), filling(:,:,:)
     real(dp), intent(out), allocatable :: coord0Fold(:,:), new3Coord(:,:), tmpDerivs(:)
     real(dp), intent(out), allocatable :: orbitalL(:,:,:)
-    complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), HSqrCplx2(:,:), SSqrCplx(:,:)
-    real(dp), intent(out), allocatable :: HSqrReal(:,:,:), HSqrReal2(:,:), SSqrReal(:,:)
+    complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(out), allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
     real(dp), intent(out), allocatable :: dqAtom(:), chargePerShell(:,:,:)
     real(dp), intent(out), allocatable :: occNatural(:)
@@ -1025,8 +1015,6 @@ contains
 
     if (tForces) then
       allocate(ERhoPrim(0))
-      allocate(derivs(3, nAtom))
-      allocate(repulsiveDerivs(3, nAtom))
       allocate(totalDeriv(3, nAtom))
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
@@ -1038,11 +1026,6 @@ contains
     
     call init(energy, nAtom)
     call init(potential, orb, nAtom, nSpin)
-
-    if (t3rdFull) then
-      allocate(shift3rd(nAtom))
-      allocate(orbresshift3rd(orb%mShell,nAtom))
-    end if
 
     ! Nr. of independent spin Hamiltonians
     select case (nSpin)
@@ -1061,7 +1044,6 @@ contains
     allocate(E0(nSpinHams))
     allocate(Eband(nSpinHams))
     allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
-    allocate(eigen2(sqrHamSize, nKPoint, nSpinHams))
     allocate(filling(sqrHamSize, nKpoint, nSpinHams))
 
     allocate(coord0Fold(3, nAtom))
@@ -1093,15 +1075,9 @@ contains
         allocate(SSqrCplx(sqrHamSize, sqrHamSize))
       elseif (tRealHS) then
         allocate(HSqrReal(sqrHamSize, sqrHamSize, nSpinStored))
-        if (any(forceType == [ 1, 2, 3 ])) then
-          allocate(HSqrReal2(sqrHamSize, sqrHamSize))
-        end if
         allocate(SSqrReal(sqrHamSize, sqrHamSize))
       else
         allocate(HSqrCplx(sqrHamSize, sqrHamSize, nKPointStored, nSpinStored))
-        if (any(forceType == [ 1, 2, 3 ])) then
-          allocate(HSqrCplx2(sqrHamSize, sqrHamSize))
-        end if
         allocate(SSqrCplx(sqrHamSize, sqrHamSize))
       end if
     end if
