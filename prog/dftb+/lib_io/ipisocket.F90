@@ -29,23 +29,20 @@ module ipisocket
     !> Number of atoms for which data is exchanged
     integer :: nAtom
 
-
     !> Host name
     character(:), allocatable :: host
 
-
     !> Verbosity level of detail on communication.
     integer :: verbosity
-
 
     !> Protocol type of message headers and data to use (currently only
     !! IPI_PROTOCOL1 understood).
     integer :: protocol
 
-
     !> Port to connect to if using an internet protocol, if -1, its a file
     !! system connection
     integer :: port
+
   end type IpiSocketCommInp
 
 
@@ -107,10 +104,8 @@ contains
   !!
   subroutine IpiSocketComm_init(this, input)
 
-
     !> Instance.
     type(IpiSocketComm), intent(out) :: this
-
 
     !> Input data.
     type(IpiSocketCommInp), intent(in) :: input
@@ -156,10 +151,8 @@ contains
   !!
   function construct(input) result(this)
 
-
     !> Input data
     type(IpiSocketCommInp), intent(in) :: input
-
 
     !> Instance
     type(IpiSocketComm) :: this
@@ -179,10 +172,8 @@ contains
     !> Instance.
     class(IpiSocketComm), intent(inout) :: this
 
-
     !> Atomic coordinates.
-    real(dp), intent(out) :: coord(:,:)
-
+    real(dp), intent(inout) :: coord(:,:)
 
     !> Cell lattice vectors.
     real(dp), intent(out) :: cell(3, 3)
