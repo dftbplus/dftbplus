@@ -223,8 +223,8 @@ contains
     !> Minimal number of SCC iterations
     integer :: minSCCIter
 
-    !> if scf driver should be stopped
-    logical :: tStopSCC
+    !> if scf/geometry driver should be stopped
+    logical :: tStopSCC, tStopDriver
 
     !> Whether scc restart info should be written in current iteration
     logical :: tWriteSccRestart
@@ -265,7 +265,8 @@ contains
       pCoord0Out => coord0
     end if
 
-    call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, iGeoStep, iLatGeoStep)
+    call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
+        & iLatGeoStep)
 
     minSccIter = getMinSccIters(tScc, tDftbU, nSpin)
     if (tXlbomd) then
@@ -278,7 +279,7 @@ contains
     ! Belongs into initprogram where initial geometry is set up
     if (tSocket) then
       call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
-          & tLatticeChanged)
+          & tLatticeChanged, tStopDriver)
     end if
 
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
@@ -605,7 +606,7 @@ contains
         else if (tSocket .and. iGeoStep < nGeoSteps) then
           ! Only receive geometry from socket, if there are still geometry iterations left
           call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
-              & tLatticeChanged)
+              & tLatticeChanged, tStopDriver)
         end if
       end if
       
@@ -613,8 +614,8 @@ contains
         call writeDetailedOut4(fdUser, tMD, energy, kT)
       end if
 
-      ! Stop SCC if appropriate stop file is present
-      if (tStopScc .or. hasStopFile(fStopDriver)) then
+      tStopDriver = tStopScc .or. tStopDriver .or. hasStopFile(fStopDriver)
+      if (tStopDriver) then
         exit lpGeomOpt
       end if
 
@@ -667,9 +668,8 @@ contains
           & energy%EMermin, pressure, energy%EGibbs, coord0, tLocalise, localisation)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(fdResultsTag, resultsTag, energy, tAtomicEnergy, totalDeriv, chrgForces,&
-          & tStress, totalStress, pDynMatrix, tScc, iSccIter, tConverged, tPrintMulliken, qOutput,&
-          & q0, eigen, filling, Ef, nEl, tPeriodic, cellVol)
+      call writeResultsTag(fdResultsTag, resultsTag, totalDeriv, chrgForces, tStress, totalStress,&
+          & pDynMatrix, tPeriodic, cellVol)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
@@ -855,10 +855,11 @@ contains
 
 
   !> Initialises some parameters before geometry loop starts.
-  subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, iGeoStep, iLatGeoStep)
+  subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
+      & iGeoStep, iLatGeoStep)
     logical, intent(in) :: tCoordOpt
     integer, intent(in) :: nGeoSteps
-    logical, intent(out) :: tGeomEnd, tCoordStep
+    logical, intent(out) :: tGeomEnd, tCoordStep, tStopDriver
     integer, intent(out) :: iGeoStep, iLatGeoStep
     
     tGeomEnd = (nGeoSteps == 0)
@@ -867,6 +868,7 @@ contains
     if (tCoordOpt) then
       tCoordStep = .true.
     end if
+    tStopDriver = .false.
 
     iGeoStep = 0
     iLatGeoStep = 0
@@ -876,18 +878,17 @@ contains
 
   !> Receives geometry from socket.
   subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
-      & tLatticeChanged)
+      & tLatticeChanged, tStopDriver)
     type(IpiSocketComm), allocatable, intent(inout) :: socket
     logical, intent(in) :: tPeriodic
-    real(dp), intent(out) :: coord0(:,:)
-    real(dp), intent(out) :: latVecs(:,:)
-    logical, intent(out) :: tCoordsChanged, tLatticeChanged
+    real(dp), intent(inout) :: coord0(:,:), latVecs(:,:)
+    logical, intent(out) :: tCoordsChanged, tLatticeChanged, tStopDriver
 
     real(dp) :: tmpLatVecs(3, 3)
-    
-    call socket%receive(coord0, tmpLatVecs)
+
+    call socket%receive(coord0, tmpLatVecs, tStopDriver)
     tCoordsChanged = .true.
-    if (tPeriodic) then
+    if (tPeriodic .and. .not. tStopDriver) then
       latVecs(:,:) = tmpLatVecs
     end if
     tLatticeChanged = tPeriodic
@@ -3002,7 +3003,7 @@ contains
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iPair, orb, potential%intBlock, potential%iorbitalBlock)
       else
-        call derivative_nonscc(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont, skOverCont,&
+        call derivative_shift(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont, skOverCont,&
             & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iPair, orb)
       end if
     else
