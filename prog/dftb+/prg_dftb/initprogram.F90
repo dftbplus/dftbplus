@@ -70,6 +70,7 @@ module initprogram
   use xlbomd_module
   use etemp, only : Fermi
   use ipisocket
+  use pmlocalisation
   implicit none
 
 
@@ -104,7 +105,6 @@ module initprogram
 
   !> data type for atomic orbital information
   type(TOrbitals), target :: orb
-
 
   !> nr. of orbitals in the system
   integer :: nOrb
@@ -390,22 +390,6 @@ module initprogram
   !> Calculate localised orbitals?
   logical :: tLocalise
 
-  !> Use PipekMezey localisation?
-  logical :: tPipekMezey
-
-  !> use a dense algorithm for Pipek-Mezey localisation?
-  logical :: tPipekDense
-
-  !> tollerances for element neglect if instead using a sparse version of Pipek-Mezey localisation
-  real(dp), allocatable :: sparsePipekTols(:)
-
-  !> halting tollerance for localisation
-  real(dp) :: PipekTol
-
-  !> number of localisation iterations
-  integer :: PipekMaxIter
-
-
   !> Do we need to show Mulliken charges?
   logical :: tPrintMulliken
 
@@ -448,6 +432,8 @@ module initprogram
   !> Constraint vectors
   real(dp), allocatable :: conVec(:,:)
 
+  !> Pipek-Mezey localisation calculator
+  type(TPipekMezey), allocatable :: pipekMezey
 
   !> use commands from socket communication to control the run
   logical :: tSocket
@@ -1272,7 +1258,7 @@ contains
 
     ! false if not set anywhere else
     call SetEigVecsTxtOutput(input%ctrl%tPrintEigVecsTxt &
-        & .or. input%ctrl%tPipekMezey)
+        & .or. allocated(input%ctrl%pipekMezeyInp))
 
     ! Projection of eigenstates onto specific regions of the system
     tProjEigenvecs = input%ctrl%tProjEigenvecs
@@ -1555,19 +1541,11 @@ contains
       call error("Localisation of electronic states currently unsupported for&
           & non-collinear and spin orbit calculations")
     end if
-    tPipekMezey = input%ctrl%tPipekMezey
-    PipekTol =  input%ctrl%PipekTol
-    PipekMaxIter =  input%ctrl%PipekMaxIter
-    tPipekDense = input%ctrl%tPipekDense
-    if (.not.tPipekDense.and.tPipekMezey) then
-      allocate(sparsePipekTols(size(input%ctrl%sparsePipekTols)))
-      sparsePipekTols(:) = input%ctrl%sparsePipekTols(:)
-      if (any(sparsePipekTols < epsilon(0.0_dp))) then
-        call error('Tollerances for sparse Pipek-Mezey localisation too small.')
-      end if
-    else
-      allocate(sparsePipekTols(0))
+    if (allocated(input%ctrl%pipekMezeyInp)) then
+      allocate(pipekMezey)
+      call initialise(pipekMezey, input%ctrl%pipekMezeyInp)
     end if
+    tLocalise = allocated(pipekMezey)
 
     ! Linear response
     tLinResp = input%ctrl%lrespini%tInit

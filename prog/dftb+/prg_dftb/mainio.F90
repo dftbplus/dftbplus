@@ -1045,6 +1045,7 @@ contains
       write(fd, formatHessian) pDynMatrix(:, ii)
     end do
     close(fd)
+    write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
 
   end subroutine writeHessianOut
 
@@ -1695,10 +1696,12 @@ contains
   end subroutine writeMdOut2
 
 
-  subroutine writeMdOut3(fd)
+  subroutine writeMdOut3(fd, fileName)
     integer, intent(in) :: fd
+    character(*), intent(in) :: fileName
 
     close(fd)
+    write(stdOut, "(2A)") 'MD information accumulated in ', fileName
 
   end subroutine writeMdOut3
 

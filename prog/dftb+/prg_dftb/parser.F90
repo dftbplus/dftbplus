@@ -3066,6 +3066,7 @@ contains
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(listRealR1) :: lr1
+    logical :: tPipekDense
 
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
@@ -3112,34 +3113,32 @@ contains
       ctrl%tLocalise = .true.
       call getChild(val, "PipekMezey", child=child2, requested=.false.)
       if (associated(child2)) then
-        ctrl%tPipekMezey = .true.
-        call getChildValue(child2, "Tollerance", ctrl%PipekTol, 1.0E-4_dp)
-        call getChildValue(child2, "MaxIterations", ctrl%PipekMaxIter, 100)
-        if (geo%tPeriodic) then
-          ctrl%tPipekDense = .true.
-        else
-          call getChildValue(child2, "Dense", ctrl%tPipekDense, .false.)
-          if (.not.ctrl%tPipekDense) then
-            call init(lr1)
-            call getChild(child2, "SparseTollerances", child=child3, &
-                & requested=.false.)
-            if (associated(child3)) then
-              call getChildValue(child3, "", 1, lr1)
-              if (len(lr1) < 1) then
-                call detailedError(child2, "Missing values of tollerances.")
+        allocate(ctrl%pipekMezeyInp)
+        associate(inp => ctrl%pipekMezeyInp)
+          call getChildValue(child2, "Tollerance", inp%tolerance, 1.0E-4_dp)
+          call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
+          if (.not. geo%tPeriodic) then
+            call getChildValue(child2, "Dense", tPipekDense, .false.)
+            if (tPipekDense) then
+              call init(lr1)
+              call getChild(child2, "SparseTollerances", child=child3, requested=.false.)
+              if (associated(child3)) then
+                call getChildValue(child3, "", 1, lr1)
+                if (len(lr1) < 1) then
+                  call detailedError(child2, "Missing values of tollerances.")
+                end if
+                allocate(inp%sparseTols(len(lr1)))
+                call asVector(lr1, inp%sparseTols)
+              else
+                allocate(inp%sparseTols(4))
+                inp%sparseTols = [0.1_dp, 0.01_dp, 1.0E-6_dp, 1.0E-12_dp]
+                call setChildValue(child2, "Tollerances", inp%sparseTols)
               end if
-              allocate(ctrl%sparsePipekTols(len(lr1)))
-              call asVector(lr1, ctrl%sparsePipekTols)
-            else
-              allocate(ctrl%sparsePipekTols(4))
-              ctrl%sparsePipekTols = (/0.1_dp,0.01_dp,1.0E-6_dp,1.0E-12_dp/)
-              call setChildValue(child2, "Tollerances", ctrl%sparsePipekTols)
+              call destruct(lr1)
             end if
-            call destruct(lr1)
           end if
-        end if
-      end if
-      if (.not.(ctrl%tPipekMezey)) then
+        end associate
+      else
         call detailedError(val, "No localisation method chosen")
       end if
     end if

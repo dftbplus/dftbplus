@@ -46,7 +46,7 @@ module main
   use spinorbit
   use angmomentum
   use elecconstraints
-  use pmlocalisation
+  use pmlocalisation, only : TPipekMezey
   use linresp_module
   use mainio
   use commontypes
@@ -78,10 +78,8 @@ module main
   character(*), parameter :: resultsTag = "results.tag"
   character(*), parameter :: hessianOut = "hessian.out"
 
-
   logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
   logical, parameter :: tAppendDetailedOut = .false.
-
 
   
 contains
@@ -89,7 +87,6 @@ contains
   subroutine runDftbPlus()
     use initprogram
 
-    
     complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
     real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
     real(dp),    allocatable :: eigen(:,:,:)
@@ -134,14 +131,11 @@ contains
     !> dipole moments when available
     real(dp), allocatable :: dipoleMoment(:)
 
-    integer :: ii
-
+    !> whether scc converged
     logical :: tConverged
 
-
+    !> pressure on the cell
     real(dp) :: cellPressure
-
-    ! Variables for the geometry optimization
 
     !> Geometry steps so far
     integer :: iGeoStep
@@ -193,7 +187,7 @@ contains
     real(dp) :: diffGeo
 
     !> Loop variables
-    integer :: iSCCIter, iSpin
+    integer :: iSCCIter
 
     !> File descriptor for the tagged writer
     integer :: fdAutotest
@@ -252,8 +246,6 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-    !> temporary variable for number of occupied levels
-    integer :: nFilledLev
 
     call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
         & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
@@ -635,125 +627,30 @@ contains
           & dipoleMoment)
     end if
 
-    if (tGeoOpt) then
-      if (tGeomEnd) then
-        write(stdOut, "(/, A)") "Geometry converged"
-      else
-        call warning("!!! Geometry did NOT converge!")
-      end if
-    elseif (tMD) then
-      if (tGeomEnd) then
-        write(stdOut, "(/, A)") "Molecular dynamics completed"
-      else
-        call warning("!!! Molecular dynamics terminated abnormally!")
-      end if
-    elseif (tDerivs) then
-      if (tGeomEnd) then
-        write(stdOut, "(/, A)") "Second derivatives completed"
-      else
-        call warning("!!! Second derivatives terminated abnormally!")
-      end if
-    end if
+    call writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
 
     if (tMD) then
-      call writeMdOut3(fdMd)
-      write(stdOut, "(2A)") 'MD information accumulated in ', mdOut
+      call writeMdOut3(fdMd, mdOut)
     end if
 
     if (tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
-      write(stdOut, "(2A)") 'Hessian matrix written to ', hessianOut
       call writeHessianOut(fdHessian, hessianOut, pDynMatrix)
     else
       nullify(pDynMatrix)
     end if
 
-    if (tLocalise) then ! warning the canonical DFTB ground state
-      ! orbitals are over-written after this point :
-      if (tPipekMezey) then
-
-        if (tStoreEigvecs) then
-          call error("Pipek-Mezey localisation not implemented for stored &
-              &eigenvectors")
-        end if
-
-        if (nSpin > 2) then
-          call error("Pipek-Mezey localisation not implemented for &
-              &non-colinear DFTB")
-        end if
-
-        if (any( abs(mod(filling,real(3-nSpin,dp))) > elecTolMax)) then
-          call warning("Fractional occupations present for electron &
-              &localisation")
-        end if
-
-        if (tRealHS) then
-
-          call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, &
-              &iAtomStart, iPair, img2CentCell)
-          do iSpin = 1, nSpin
-            nFilledLev = floor(nEl(iSpin)/real(3-nSpin,dp))
-            localisation = PipekMezeyLocalisation(HSqrReal(:,1:nFilledLev,iSpin),&
-                & SSqrReal,iAtomStart)
-
-            write(stdOut, *) 'Original localisation', localisation
-
-            if (tPipekDense) then
-              call PipekMezey(HSqrReal(:,1:nFilledLev,iSpin), SSqrReal, &
-                  & iAtomStart,PipekTol,PipekMaxIter)
-            else
-              do ii = 1, size(sparsePipekTols)
-                call PipekMezey(HSqrReal(:,1:nFilledLev,iSpin), SSqrReal, &
-                    & iAtomStart,PipekTol,PipekMaxIter,sparsePipekTols(ii))
-              end do
-            end if
-
-            localisation = PipekMezeyLocalisation(HSqrReal(:,1:nFilledLev,iSpin),&
-                & SSqrReal,iAtomStart)
-
-            write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
-
-          end do
-
-          call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
-              & nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, &
-              & speciesName, over, HSqrReal, SSqrReal, fileName="localOrbs")
-
-        else
-
-          do iSpin = 1, nSpin
-
-            nFilledLev = floor(nEl(iSpin)/real(3-nSpin,dp))
-
-            localisation = sum(PipekMezeyLocalisation( &
-                & HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint, &
-                & kweight, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, &
-                & iAtomStart, iPair, img2CentCell))
-
-            write(stdOut, "(A, E20.12)") 'Original localisation', localisation
-
-            call PipekMezey(HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, &
-                & over, kpoint, kweight, neighborList%iNeighbor, nNeighbor, &
-                & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, PipekTol, &
-                & PipekMaxIter)
-
-            localisation = sum(PipekMezeyLocalisation( &
-                & HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint, &
-                & kweight, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, &
-                & iAtomStart, iPair, img2CentCell))
-
-            write(stdOut, "(A, E20.12)") 'Final localisation', localisation
-
-          end do
-
-          call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, &
-              & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, &
-              & orb, species, speciesName, over, kpoint, HSqrCplx, SSqrCplx, &
-              & fileName="localOrbs")
-
-        end if
-
+    ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
+    if (allocated(pipekMezey)) then
+      if (tStoreEigvecs) then
+        call error("Pipek-Mezey localisation not implemented for stored eigenvectors")
       end if
+      if (nSpin > 2) then
+        call error("Pipek-Mezey localisation not implemented for non-colinear DFTB")
+      end if
+      call calcPipekMezeyLocalisation(pipekMezey, nEl, filling, over, kPoint, kWeight,&
+          & neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, fdEigvec,&
+          & runId, orb, species, speciesName, localisation, HSqrReal, SSqrReal, HsqrCplx, SSqrCplx)
     end if
 
     if (tWriteAutotest) then
@@ -780,6 +677,7 @@ contains
   end subroutine runDftbPlus
 
 
+  !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
       & fdUser, fdMd, geoOutFile)
@@ -816,6 +714,7 @@ contains
   end subroutine initOutputFiles
 
 
+  !> Allocates the global arrays needed during DFTB run.
   subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs, tMulliken,&
       & tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
       & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
@@ -3395,6 +3294,7 @@ contains
   end subroutine unconstrainLatticeVectors
 
 
+  !> Returns the coordinates for the next Hessian calculation step.
   subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, coords, tGeomEnd)
     type(OnumDerivs), intent(inout) :: derivDriver
     real(dp), intent(in) :: derivs(:,:)
@@ -3410,6 +3310,7 @@ contains
   end subroutine getNextDerivStep
 
 
+  !> Returns the coordinates for the next coordinate optimisation step.
   subroutine getNextCoordinateOptStep(pGeoCoordOpt, EMermin, totalDerivs, indMovedAtom, coords0,&
       & diffGeo, tCoordEnd)
     type(OGeoOpt), intent(inout) :: pGeoCoordOpt
@@ -3432,6 +3333,7 @@ contains
   end subroutine getNextCoordinateOptStep
 
 
+  !> Returns the coordinates and lattice vectors for the next lattice optimisation step.
   subroutine getNextLatticeOptStep(pGeoLatOpt, EGibbs, constrLatDerivs, origLatVec, tLatOptFixAng,&
       & tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo, tGeomEnd)
     type(OGeoOpt), intent(inout) :: pGeoLatOpt
@@ -3532,6 +3434,99 @@ contains
     end if
 
   end subroutine printMdInfo
+
+
+  !> Write out final status of the geometry driver.
+  subroutine writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
+    logical, intent(in) :: tGeoOpt, tGeomEnd, tMd, tDerivs
+
+    if (tGeoOpt) then
+      if (tGeomEnd) then
+        write(stdOut, "(/, A)") "Geometry converged"
+      else
+        call warning("!!! Geometry did NOT converge!")
+      end if
+    elseif (tMD) then
+      if (tGeomEnd) then
+        write(stdOut, "(/, A)") "Molecular dynamics completed"
+      else
+        call warning("!!! Molecular dynamics terminated abnormally!")
+      end if
+    elseif (tDerivs) then
+      if (tGeomEnd) then
+        write(stdOut, "(/, A)") "Second derivatives completed"
+      else
+        call warning("!!! Second derivatives terminated abnormally!")
+      end if
+    end if
+
+  end subroutine writeFinalDriverStatus
+
+
+  !> Calculates and prints Pipek-Mezey localisation
+  subroutine calcPipekMezeyLocalisation(pipekMezey, nEl, filling, over, kPoint, kWeight,&
+      & neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, fdEigvec,&
+      & runId, orb, species, speciesName, localisation, HSqrReal, SSqrReal, HsqrCplx, SSqrCplx)
+    type(TPipekMezey), intent(in) :: pipekMezey
+    real(dp), intent(in) :: nEl(:), filling(:,:,:), over(:), kPoint(:,:), kWeight(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    integer, intent(in) :: fdEigvec, runId
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+    character(*), intent(in) :: speciesName(:)
+    real(dp), intent(out) :: localisation
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:), SSqrReal(:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+
+    integer :: nFilledLev, nAtom, nSpin
+    integer :: iSpin
+
+    nAtom = size(orb%nOrbAtom)
+    nSpin = size(nEl)
+
+    if (any(abs(mod(filling, real(3 - nSpin, dp))) > elecTolMax)) then
+      call warning("Fractional occupations present for electron localisation")
+    end if
+
+    if (present(HSqrReal)) then
+      call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, iAtomStart, iPair,&
+          & img2CentCell)
+      do iSpin = 1, nSpin
+        nFilledLev = floor(nEl(iSpin) / real(3 - nSpin, dp))
+        localisation = pipekMezey%getLocalisation(HSqrReal(:, 1:nFilledLev, iSpin), SSqrReal,&
+            & iAtomStart)
+        write(stdOut, "(A, E15.8)") 'Original localisation', localisation
+        call pipekMezey%calcCoeffs(HSqrReal(:, 1:nFilledLev, iSpin), SSqrReal, iAtomStart)
+        localisation = pipekMezey%getLocalisation(HSqrReal(:,1:nFilledLev,iSpin), SSqrReal,&
+            & iAtomStart)
+        write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
+      end do
+
+      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart, iPair,&
+          & img2CentCell, orb, species, speciesName, over, HSqrReal, SSqrReal, fileName="localOrbs")
+    else
+      do iSpin = 1, nSpin
+        nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
+        localisation = sum(pipekMezey%getLocalisation(&
+            & HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint, kweight, neighborList,&
+            & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell))
+        write(stdOut, "(A, E20.12)") 'Original localisation', localisation
+        call pipekMezey%calcCoeffs(HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint,&
+            & kweight, neighborList, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+        localisation = sum(pipekMezey%getLocalisation(&
+            & HSqrCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint, kweight, neighborList,&
+            & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell))
+        write(stdOut, "(A, E20.12)") 'Final localisation', localisation
+      end do
+
+      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec, iCellVec,&
+          & iAtomStart, iPair, img2CentCell, orb, species, speciesName, over, kpoint, HSqrCplx,&
+          & SSqrCplx, fileName="localOrbs")
+    end if
+
+  end subroutine calcPipekMezeyLocalisation
 
 
 end module main
