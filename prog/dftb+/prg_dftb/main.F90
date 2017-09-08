@@ -596,8 +596,8 @@ contains
             call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
                 & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
                 & nSpin, qOutput, velocities)
-            coord0(:,:) = newCoords
           end if
+          coord0(:,:) = newCoords
           if (tWriteDetailedOut) then
             call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
                 & totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)

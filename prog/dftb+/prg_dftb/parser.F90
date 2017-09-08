@@ -3119,7 +3119,7 @@ contains
           call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
           if (.not. geo%tPeriodic) then
             call getChildValue(child2, "Dense", tPipekDense, .false.)
-            if (tPipekDense) then
+            if (.not. tPipekDense) then
               call init(lr1)
               call getChild(child2, "SparseTollerances", child=child3, requested=.false.)
               if (associated(child3)) then
