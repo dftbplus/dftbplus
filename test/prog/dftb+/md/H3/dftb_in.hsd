@@ -12,7 +12,6 @@ Driver = VelocityVerlet {
   Thermostat = None {
     InitialTemperature [Kelvin] = 273.150000000000
   }
-  OutputPrefix = "geom.out"
 }
 
 Hamiltonian = DFTB {

@@ -160,7 +160,7 @@ contains
     real(dp), pointer :: pCoord0Out(:,:)
 
     !> New coordinates returned by the MD routines
-    real(dp), allocatable :: new3Coord(:,:)
+    real(dp), allocatable :: newCoords(:,:)
 
     !> lattice vectors returned by the optimizer
     real(dp) :: constrLatDerivs(9)
@@ -251,13 +251,13 @@ contains
         & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
         & fdUser, fdMd, geoOutFile)
 
-    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs, tMulliken,&
-        & tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-        & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
-        & indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv,&
-        & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, new3Coord,&
-        & orbitalL, HSqrCplx, SSqrCplx, HSqrReal, SSqrReal, rhoSqrReal, dqAtom, chargePerShell,&
-        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam,&
+        & tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
+        & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim,&
+        & h0, iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0,&
+        & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
+        & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
+        & movedAccel, movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -397,7 +397,7 @@ contains
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
               & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
-          call getSccInfo(iSccIter, energy%Eelec, diffElec, Eold)
+          call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
           tWriteSccRestart = needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter,&
               & maxSccIter, tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
@@ -575,9 +575,12 @@ contains
             exit lpGeomOpt
           end if
         else if (tMD) then
+          ! New MD coordinates saved in a temporary variable, as writeCurrentGeometry() below
+          ! needs old the ones to write out consistent geometries and velocities.
+          newCoords(:,:) = coord0
           call getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, totalDeriv, movedMass,&
               & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy,&
-              & coord0, latVec, cellPressure, totalStress, totalLatDeriv, velocities, kT)
+              & newCoords, latVec, cellPressure, totalStress, totalLatDeriv, velocities, kT)
           tCoordsChanged = .true.
           tLatticeChanged = tBarostat
           call printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, kT,&
@@ -593,6 +596,7 @@ contains
             call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
                 & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
                 & nSpin, qOutput, velocities)
+            coord0(:,:) = newCoords
           end if
           if (tWriteDetailedOut) then
             call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
@@ -715,14 +719,14 @@ contains
 
 
   !> Allocates the global arrays needed during DFTB run.
-  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs, tMulliken,&
-      & tSpinOrbit, tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-      & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
-      & indMovedAtom, mass, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv,&
-      & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, new3Coord,&
-      & orbitalL, HSqrCplx, SSqrCplx, HSqrReal, SSqrReal, rhoSqrReal, dqAtom, chargePerShell,&
-      & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
-    logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tDerivs
+  subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit,&
+      & tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
+      & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0,&
+      & iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0,&
+      & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
+      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
+      & movedAccel, movedMass, dipoleMoment)
+    logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, tMd
     logical, intent(in) :: tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
     logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
     logical, intent(in) :: tDipole
@@ -738,7 +742,7 @@ contains
     type(TPotentials), intent(out) :: potential
     real(dp), intent(out), allocatable :: TS(:), E0(:), Eband(:)
     real(dp), intent(out), allocatable :: eigen(:,:,:), filling(:,:,:)
-    real(dp), intent(out), allocatable :: coord0Fold(:,:), new3Coord(:,:)
+    real(dp), intent(out), allocatable :: coord0Fold(:,:), newCoords(:,:)
     real(dp), intent(out), allocatable :: orbitalL(:,:,:)
     complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
     real(dp), intent(out), allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
@@ -793,8 +797,8 @@ contains
 
     allocate(coord0Fold(3, nAtom))
 
-    if (tMD.or.tDerivs) then
-      allocate(new3Coord(3, nMovedAtom))
+    if (tMD) then
+      allocate(newCoords(3, nAtom))
     end if
 
     if ((tMulliken .and. tSpinOrbit) .or. tImHam) then

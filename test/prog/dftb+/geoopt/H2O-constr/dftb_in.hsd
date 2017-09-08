@@ -10,7 +10,6 @@ Driver = ConjugateGradient {
   MovedAtoms = 1:3
   MaxForceComponent = 1.0E-008  # Extremely small!
   MaxSteps = 100
-  OutputPrefix = "geom.out"
   Constraints = {
  2 0.000000000000000E+000 0.000000000000000E+000 1.00000000000000
  3 0.000000000000000E+000 0.000000000000000E+000 1.00000000000000

@@ -16,7 +16,7 @@ if [ refdir = '-h' -o -z "$refdir" -o -z "$curdir" -o -z "$tests" ]; then
   exit
 fi
 
-files="output detailed.out band.out md.out hessian.out results.tag detailed.xml autotest.tag"
+files="output detailed.out band.out md.out hessian.out results.tag detailed.xml autotest.tag geo_end.xyz"
 
 for test in $tests; do
   echo "TEST: $test"
