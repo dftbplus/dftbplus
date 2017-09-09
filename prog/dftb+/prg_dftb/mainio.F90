@@ -37,27 +37,50 @@ module mainio
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
-  public :: writeHS, writeGenGeometry
+  public :: writeHS
   public :: printGeoStepInfo, printSccHeader
   public :: format1U, format2U, format1Ue, format2Ue, format1U1e
 
 
-  !> output file names
+  ! output file names
+
+  !> Ground state eigenvectors in text format
   character(*), parameter :: eigvecOut = "eigenvec.out"
+
+  !> Ground state eigenvectors in binary format
   character(*), parameter :: eigvecBin = "eigenvec.bin"
 
+  !> Format string for energy second derivative matrix
   character(len=*), parameter :: formatHessian = '(4f16.10)'
+
+  !> Format for energy values, typically band energies
   character(len=*), parameter :: formatEnergy = '(8f12.5)'
+
+  !> Format for eigenvalue energies
   character(len=*), parameter :: formatEigen = '(8f14.8)'
+
+  !> Atomic geometries format
   character(len=*), parameter :: formatGeoOut = "(I5, F16.8, F16.8, F16.8)"
+
+  !> Format for a single value with units
   character(len=*), parameter :: format1U = "(A, ':', T32, F18.10, T51, A)"
+
+  !> Format for two values with units
   character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
+  !> Format for a single value using exponential notation with units
   character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
+
+  !> Format for two using exponential notation values with units
   character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71,A)"
+
+  !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
 
-  !> Private module variables (suffixed with "_" for clarity)
+  ! Private module variables (suffixed with "_" for clarity)
+
+  !> Should eigenvectors be written as text format in addition to  binary data
   logical :: EigVecsAsTxt_ = .false.
 
 
@@ -87,8 +110,9 @@ contains
   !> Sets internal logical flag which controls whether to write a txt file for eigenvectors.
   subroutine SetEigVecsTxtOutput(tTxtWrite)
 
-    !> Is a txt file written out, as well as the binary data?
+    !> Is a txt file written out, as well as the binary data file?
     logical, intent(in) :: tTxtWrite
+
     EigVecsAsTxt_ = tTxtWrite
   end subroutine SetEigVecsTxtOutput
 
@@ -288,7 +312,7 @@ contains
     !> whatever is already there.
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
 
-    !> optional alternative file pre-fix
+    !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
     character(lc) :: tmpStr
@@ -699,8 +723,6 @@ contains
             call elemShape(iOrbRegion, valshape, ii)
             allocate(iOrbs(valshape(1)))
             call intoArray(iOrbRegion, iOrbs, dummy, ii)
-            !qState = real(sum(cVecTemp(iOrbs)), dp) &
-            !    & + real(sum(cVecTemp(iOrbs+nOrb)), dp)
             write(fdProjEig(ii), "(f13.6,4f10.6)") &
                 & Hartree__eV * ei(iLev,iK,iSpin), &
                 & real(sum( conjg(HSqrCplx(iOrbs, iLev, iK2, iSpin2)) &
@@ -798,9 +820,13 @@ contains
 
   end subroutine getHcmplx
 
-
+  !> Open an output file and return its unit number
   subroutine initOutputFile(fileName, fd)
+
+    !> File name
     character(*), intent(in) :: fileName
+
+    !> Associated file ID
     integer, intent(out) :: fd
 
     fd = getFileId()
@@ -810,27 +836,67 @@ contains
   end subroutine initOutputFile
 
 
+  !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
+  !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, totalDeriv,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
       & gibbsFree, endCoords, tLocalise, localisation)
+
+    !> File ID to write to
     integer, intent(in) :: fd
+
+    !> Name of output file
     character(*), intent(in) :: fileName
+
+    !> Is the geometry periodic
     logical, intent(in) :: tPeriodic
+
+    !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
+
+    !> Are Mulliken charges to be output
     logical, intent(in) :: tMulliken
+
+    !> Output Mulliken charges
     real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: totalDeriv(:,:)
+
+    !> Forces on external charges (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
+
+    !> Excited state forces on atoms (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: excitedDerivs(:,:)
+
+    !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
+
+    !> Stress tensor
     real(dp), intent(in) :: totalStress(:,:)
+
+    !> Hessian (dynamical) matrix
     real(dp), pointer, intent(in) ::  pDynMatrix(:,:)
+
+    !> Mermin electronic free energy
     real(dp), intent(in) :: freeEnergy
+
+    !> External pressure
     real(dp), intent(in) :: pressure
+
+    !> Gibbs free energy (includes pV term)
     real(dp), intent(in) :: gibbsFree
+
+    !> Final atomic coordinates
     real(dp), intent(in) :: endCoords(:,:)
+
+    !> Has localisation of single particle states been applied
     logical, intent(in) :: tLocalise
+
+    !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
+
+    @:ASSERT(tPeriodic .eqv. tSress)
 
     open(fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
@@ -869,18 +935,38 @@ contains
   end subroutine writeAutotestTag
 
 
-
+  !> Writes out machine readable data
   subroutine writeResultsTag(fd, fileName, totalDeriv, chrgForces, tStress, totalStress,&
       & pDynMatrix, tPeriodic, cellVol)
+
+    !> File ID to write to
     integer, intent(in) :: fd
+
+    !> Name of output file
     character(*), intent(in) :: fileName
+
+    !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: totalDeriv(:,:)
+
+    !> Forces on external charges
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
+
+    !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
+
+    !> Stress tensor
     real(dp), intent(in) :: totalStress(:,:)
+
+    !> Hessian (dynamical) matrix
     real(dp), pointer, intent(in) :: pDynMatrix(:,:)
+
+    !> Is the geometry periodic
     logical, intent(in) :: tPeriodic
+
+    !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
+
+    @:ASSERT(tPeriodic .eqv. tSress)
 
     open(fd, file=fileName, action="write", status="replace")
     if (allocated(totalDeriv)) then
@@ -903,22 +989,53 @@ contains
   end subroutine writeResultsTag
 
 
+  !> Write XML format of derived results
   subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, latVec, tRealHS,&
       & nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
+
+    !> Identifier for the run
     integer, intent(in) :: runId
+
+    !> Labels for the atomic species
     character(*), intent(in) :: speciesName(:)
+
+    !> Species numbers for central cell atoms
     integer, intent(in) :: species0(:)
+
+    !> coordinates of atoms
     real(dp), intent(in) :: coord0Out(:,:)
+
+    !> Periodic boundary conditions
     logical, intent(in) :: tPeriodic
+
+    !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Real Hamiltonian
     logical, intent(in) :: tRealHS
+
+    !> Number of k-points present
     integer, intent(in) :: nKPoint
+
+    !> Number of spin channels present
     integer, intent(in) :: nSpin
+
+    !> Number of eigen states in the system / dimension of the Hamiltonian
     integer, intent(in) :: nStates
+
+    !> Number of atomic orbitals (may not match nStates if non-collinear)
     integer, intent(in) :: nOrb
+
+    !> k-points in the system
     real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
+
+    !> Filling of the eigenstates
     real(dp), intent(in) :: filling(:,:,:)
+
+    !> Occupation numbers for natural orbitals
     real(dp), allocatable, target, intent(in) :: occNatural(:)
 
     type(xmlf_t) :: xf
@@ -972,11 +1089,22 @@ contains
   end subroutine writeDetailedXml
 
 
+  !> Write the band structure data out
   subroutine writeBandOut(fd, fileName, eigen, filling, kWeight)
+
+    !> File  ID
     integer, intent(in) :: fd
+
+    !> Name of file to write to
     character(*), intent(in) :: fileName
+
+    !> Eigenvalues for states, k-points and spin indices
     real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Fillings of the states
     real(dp), intent(in) :: filling(:,:,:)
+
+    !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
     integer :: iSpin, iK, iEgy
@@ -996,9 +1124,16 @@ contains
   end subroutine writeBandOut
 
 
+  !> Write the second derivative matrix
   subroutine writeHessianOut(fd, fileName, pDynMatrix)
+
+    !> File ID
     integer, intent(in) :: fd
+
+    !> File name
     character(*), intent(in) :: fileName
+
+    !> Dynamical (Hessian) matrix
     real(dp), intent(in) :: pDynMatrix(:,:)
 
     integer :: ii
@@ -1012,37 +1147,138 @@ contains
 
   end subroutine writeHessianOut
 
-
+  !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
       & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc)
+
+    !> File  ID
     integer, intent(in) :: fd
+
+    !> Name of file to write to
     character(*), intent(in) :: fileName
+
+    !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
+
+    !> Electron distribution choice
     integer, intent(in) :: iDistribFn
+
+    !> Total number of geometry steps
     integer, intent(in) :: nGeoSteps
+
+    !> Current geometry step
     integer, intent(in) :: iGeoStep
-    logical, intent(in) :: tMD, tDerivs, tCoordOpt, tLatOpt
-    integer, intent(in) :: iLatGeoStep, iSccIter
+
+    !> Is this an molecular dynamics run
+    logical, intent(in) :: tMD
+
+    !> Is this a finite difference derivative calculation
+    logical, intent(in) :: tDerivs
+
+    !> Are atomic coordinates being optimised?
+    logical, intent(in) :: tCoordOpt
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Which step of lattice optimisation is occuring
+    integer, intent(in) :: iLatGeoStep
+
+    !> Whic scc step is occuring
+    integer, intent(in) :: iSccIter
+
+    !> Energy terms in the system
     type(TEnergies), intent(in) :: energy
-    real(dp), intent(in) :: diffElec, sccErrorQ
+
+    !> Change in energy from previous SCC iteration
+    real(dp), intent(in) :: diffElec
+
+    !> Input/output charge error for SCC
+    real(dp), intent(in) :: sccErrorQ
+
+    !> Moving atoms
     integer, intent(in) :: indMovedAtom(:)
+
+    !> Output atomic coordinates
     real(dp), intent(in) :: coord0Out(:,:)
+
+    !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
-    real(dp), intent(inout) :: qInput(:,:,:), qOutput(:,:,:)
-    real(dp), intent(in) :: eigen(:,:,:), filling(:,:,:)
+
+    !> Input atomic charges (if SCC)
+    real(dp), intent(inout) :: qInput(:,:,:)
+
+    !> Output atomic charges (if SCC)
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Eigenvalues/single particle states
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Occupation numbers
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> Type containing atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Chemical species of atoms
     integer, intent(in) :: species(:)
-    logical, intent(in) :: tDFTBU, tImHam, tPrintMulliken
+
+    !> Are orbital potentials being used
+    logical, intent(in) :: tDFTBU
+
+    !> Does the Hamiltonian have an imaginary component (spin-orbit, magnetic field, ...)
+    logical, intent(in) :: tImHam
+
+    !> Should Mulliken populations be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> Orbital angular momentum (if available)
     real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
+
+    !> Output block (dual) Mulliken charges
     real(dp), allocatable, intent(inout) :: qBlockOut(:,:,:,:)
-    real(dp), intent(in) :: Ef(:), EBand(:), TS(:), E0(:)
-    real(dp), intent(in) :: pressure, cellVol
-    logical, intent(in) :: tAtomicEnergy, tDispersion, tEfield, tPeriodic
+
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    !> Band energy
+    real(dp), intent(in) :: EBand(:)
+
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
+    !> Zero temperature extrapolated electron energy
+    real(dp), intent(in) :: E0(:)
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Are atom resolved energies required
+    logical, intent(in) :: tAtomicEnergy
+
+    !> Are dispersion interactions included
+    logical, intent(in) :: tDispersion
+
+    !> Is there an external electric field
+    logical, intent(in) :: tEfield
+
+    !> Is the system periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
-    logical, intent(in) :: tSpinOrbit, tScc
+
+    !> Are spin orbit interactions present
+    logical, intent(in) :: tSpinOrbit
+
+    !> Is this a self consistent charge calculation
+    logical, intent(in) :: tScc
 
     real(dp) :: angularMomentum(3)
     integer :: ang
@@ -1110,7 +1346,7 @@ contains
       write(fd, *)
     end if
 
-    !! Write out atomic charges
+    ! Write out atomic charges
     if (tPrintMulliken) then
       write(fd, "(A, F14.8)") " Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
       write(fd, "(/,A)") " Net atomic charges (e)"
@@ -1405,18 +1641,66 @@ contains
   end subroutine writeDetailedOut1
 
 
-
+  !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, totalDeriv, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile)
+
+    !> File  ID
     integer, intent(in) :: fd
-    logical, intent(in) :: tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd
-    logical, intent(in) :: tPrintForces, tStress, tPeriodic
+
+    !> Charge self consistent?
+    logical, intent(in) :: tScc
+
+    !> Has the SCC cycle converged?
+    logical, intent(in) :: tConverged
+
+    !> Is the extended Lagrangian in use for MD
+    logical, intent(in) :: tXlbomd
+
+    !> Is the Casida excited state in use?
+    logical, intent(in) :: tLinResp
+
+    !> Is the geometry being optimised
+    logical, intent(in) :: tGeoOpt
+
+    !> Is this a molcular dynamics run
+    logical, intent(in) :: tMd
+
+    !> Should forces be printed out?
+    logical, intent(in) :: tPrintForces
+
+    !> Is the stress tensor to be printed?
+    logical, intent(in) :: tStress
+
+    !> Is the geometry periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Structure containing energy contributions
     type(TEnergies), intent(in) :: energy
-    real(dp), intent(in) :: totalStress(:,:), totalLatDeriv(:,:)
-    real(dp), intent(in), allocatable :: totalDeriv(:,:), chrgForces(:,:)
+
+    !> Stress tensor
+    real(dp), intent(in) :: totalStress(:,:)
+
+    !> Derivative with respect to lattice vectors
+    real(dp), intent(in) :: totalLatDeriv(:,:)
+
+    !> Energy derivative with respect to atomic coordinates
+    real(dp), intent(in), allocatable :: totalDeriv(:,:)
+
+    !> Forces on external charges
+    real(dp), intent(in), allocatable :: chrgForces(:,:)
+
+    !> Index of moving atoms
     integer, intent(in) :: indMovedAtom(:)
-    real(dp), intent(in) :: cellVol, cellPressure
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Internal pressure in the unit cell
+    real(dp), intent(in) :: cellPressure
+
+    !> File for geometry output
     character(*), intent(in) :: geoOutFile
 
     integer :: iAt, ii
@@ -1436,6 +1720,8 @@ contains
       write(fd, *)
     end if
 
+    ! only print excitation energy if 1) its been calculated and 2) its avaialable for a single
+    ! state
     if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
       write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
           & Hartree__eV * energy%Eexcited, "eV"
@@ -1493,13 +1779,45 @@ contains
   end subroutine writeDetailedOut2
 
 
+  !> Third group of data for detailed.out
   subroutine writeDetailedOut3(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
       & totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
+
+    !> File ID
     integer, intent(in) :: fd
-    logical, intent(in) :: tPrintForces, tSetFillingTemp, tPeriodic, tStress
-    real(dp), intent(in) :: totalStress(:,:), totalLatDeriv(:,:)
+
+    !> Print forces on atoms
+    logical, intent(in) :: tPrintForces
+
+    !> If the electronic temperature is being set during the run
+    logical, intent(in) :: tSetFillingTemp
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
+
+    !> Should the stress tensor/lattice derivatives be printed?
+    logical, intent(in) :: tStress
+
+    !> Stress tensor
+    real(dp), intent(in) :: totalStress(:,:)
+
+    !> Energy derivatives with respect to lattice vectors
+    real(dp), intent(in) :: totalLatDeriv(:,:)
+
+    !> Data structure for energy components
     type(TEnergies), intent(in) :: energy
-    real(dp), intent(in) :: tempElec, pressure, cellPressure, kT
+
+    !> electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Internal pressure in the unit cell
+    real(dp), intent(in) :: cellPressure
+
+    !> Atomic kinetic temperature
+    real(dp), intent(in) :: kT
 
     integer :: ii
 
@@ -1533,11 +1851,19 @@ contains
 
   end subroutine writeDetailedOut3
 
-
+  !> Fourth group of data for detailed.out
   subroutine writeDetailedOut4(fd, tMd, energy, kT)
+
+    !> File ID
     integer, intent(in) :: fd
+
+    !> Is this an MD calculation
     logical, intent(in) :: tMd
+
+    !> Energy contributions
     type(TEnergies), intent(in) :: energy
+
+    !> Atomic kinetic energy
     real(dp), intent(in) :: kT
 
     if (tMd) then
@@ -1550,18 +1876,38 @@ contains
 
   end subroutine writeDetailedOut4
 
-
+  !> Fifth group of data for detailed.out
   subroutine writeDetailedOut5(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
       & dipoleMoment)
+
+    !> File ID
     integer, intent(in) :: fd
-    logical, intent(in) :: tGeoOpt, tGeomEnd, tMd, tDerivs, tEField
+
+    !> Is the geometry changing during the run
+    logical, intent(in) :: tGeoOpt
+
+    !> Did the geometry changes sucessfully complete
+    logical, intent(in) :: tGeomEnd
+
+    !> Is this a molecular dynamics run
+    logical, intent(in) :: tMd
+
+    !> Are finite difference derivatives being computed
+    logical, intent(in) :: tDerivs
+
+    !> Is there an external electric field
+    logical, intent(in) :: tEField
+
+    !> What is the external E field magnitude
     real(dp), intent(in) :: absEField
+
+    !> What is the dipole moment (if available)
     real(dp), intent(in), optional :: dipoleMoment(:)
-    
+
     if (tEfield) then
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
-    
+
     if (present(dipoleMoment)) then
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment, ' au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye, ' Debye'
@@ -1592,11 +1938,19 @@ contains
 
   end subroutine writeDetailedOut5
 
-
+  !> First group of output data during molecular dynamics
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)
+
+    !> File ID
     integer, intent(in) :: fd
+
+    !> File name
     character(*), intent(in) :: fileName
+
+    !> Number of the current geometry step
     integer, intent(in) :: iGeoStep
+
+    !> Molecular dynamics integrator
     type(OMdIntegrator), intent(in) :: pMdIntegrator
 
     if (iGeoStep == 0) then
@@ -1607,15 +1961,59 @@ contains
 
   end subroutine writeMdOut1
 
-
+  !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
       & energy, latVec, cellVol, cellPressure, pressure, kT, absEField, qOutput, q0, dipoleMoment)
+
+    !> File ID
     integer, intent(in) :: fd
-    logical, intent(in) :: tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken
+
+    !> Is the stress tensor to be printed?
+    logical, intent(in) :: tStress
+
+    !> Is a barostat in use
+    logical, intent(in) :: tBarostat
+
+    !> Is linear response excitation being used
+    logical, intent(in) :: tLinResp
+
+    !> External electric field
+    logical, intent(in) :: tEField
+
+    !> Is the  Fermi level fixed
+    logical, intent(in) :: tFixEf
+
+    !> Should Mulliken charges be printed, hence total charge here
+    logical, intent(in) :: tPrintMulliken
+
+    !> energy contributions
     type(TEnergies), intent(in) :: energy
+
+    !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
-    real(dp), intent(in) :: cellVol, cellPressure, pressure, kT, absEField
-    real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Internal cell pressure
+    real(dp), intent(in) :: cellPressure
+
+    !> External applied pressure
+    real(dp), intent(in) :: pressure
+
+    !> Atomic kinetic energy
+    real(dp), intent(in) :: kT
+
+    !> magnitude of any applied electric field
+    real(dp), intent(in) :: absEField
+
+    !> Output atomic charges (if SCC)
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> dipole moment if available
     real(dp), intent(in), optional :: dipoleMoment(:)
 
     integer :: ii
@@ -1658,9 +2056,13 @@ contains
 
   end subroutine writeMdOut2
 
-
+  !> Third and final group of output data during molecular dynamics
   subroutine writeMdOut3(fd, fileName)
+
+    !> File ID
     integer, intent(in) :: fd
+
+    !> Output file name
     character(*), intent(in) :: fileName
 
     close(fd)
@@ -1672,13 +2074,47 @@ contains
   !> Invokes the writing routines for the Hamiltonian and overlap matrices.
   subroutine writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
       & iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
-    logical, intent(in) :: tWriteHS, tWriteRealHS, tRealHS
-    real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
-    integer, intent(in) :: iAtomStart(:), iPair(0:,:), img2CentCell(:)
+
+    !> Should the hamiltonian and overlap be written out as dense matrices
+    logical, intent(in) :: tWriteHS
+
+    !> Should the (sparse) real space storage hamiltonian and overlap
+    logical, intent(in) :: tWriteRealHS
+
+    !> Is the hamiltonian real?
+    logical, intent(in) :: tRealHS 
+
+    !> sparse hamitonian matrix
+    real(dp), intent(in) :: ham(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> number of atomic neighbours for each atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Index array for start of atomic block in sparse matrices
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Index array for images of atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> The kpoints in the system
     real(dp), intent(in) :: kPoint(:,:)
+
+    !> Index from atom to which unit cell it belongs
     integer, intent(in) :: iCellVec(:)
+
+    !> Vectors to specific unit cells
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> Imaginary part of the hamiltonian if present
     real(dp), intent(in), optional :: iHam(:,:)
 
     integer :: iS, nSpin
@@ -1748,11 +2184,21 @@ contains
   end subroutine writeGenGeometry
 
 
-  !> Prints geometry step information
+  !> Prints geometry step information to standard out
   subroutine printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
-    logical, intent(in) :: tCoordOpt, tLatOpt
-    integer, intent(in) :: iGeoStep, iLatGeoStep
-    
+
+    !> Are coordinates being optimised
+    logical, intent(in) :: tCoordOpt
+
+    !> Is the lattice being optimised
+    logical, intent(in) :: tLatOpt
+
+    !> Which geometry step is this
+    integer, intent(in) :: iGeoStep
+
+    !> How many lattice optimisation steps have occurred
+    integer, intent(in) :: iLatGeoStep
+
     write(stdOut, '(/, A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
       write(stdOut, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
@@ -1763,12 +2209,13 @@ contains
 
   end subroutine printGeoStepInfo
 
-
+  !> Prints the line above the start of the SCC cycle data
   subroutine printSccHeader()
 
     write(stdOut, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
         & "     SCC error    "
+
   end subroutine printSccHeader
-  
+
 
 end module mainio

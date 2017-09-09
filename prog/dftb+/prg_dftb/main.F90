@@ -71,28 +71,63 @@ module main
   public :: runDftbPlus
 
   ! Name of the human readable files
+
+  !> Tagged output files (machine readable)
   character(*), parameter :: autotestTag = "autotest.tag"
+
+  !> Detailed user output 
   character(*), parameter :: userOut = "detailed.out"
+
+  !> band structure and filling information
   character(*), parameter :: bandOut = "band.out"
+
+  !> File accumulating data during an MD run
   character(*), parameter :: mdOut = "md.out"
+
+  !> Machine readable tagged output
   character(*), parameter :: resultsTag = "results.tag"
+
+  !> Second derivative of the energy with respect to atomic positions
   character(*), parameter :: hessianOut = "hessian.out"
 
-  logical, parameter :: tDensON2 = .false.  ! O(N^2) density mtx creation
+  !> O(N^2) density matrix creation
+  logical, parameter :: tDensON2 = .false.
+
+  !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
   
 contains
 
+  !> The main DFTB program itself
   subroutine runDftbPlus()
     use initprogram
 
-    complex(dp), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
-    real(dp),    allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
-    real(dp),    allocatable :: eigen(:,:,:)
+    !> Square dense hamiltonian storage for cases with k-points
+    complex(dp), allocatable :: HSqrCplx(:,:,:,:)
+
+    !> Square dense overlap storage for cases with k-points
+    complex(dp), allocatable :: SSqrCplx(:,:)
+
+    !> Square dense hamiltonian storage
+    real(dp), allocatable :: HSqrReal(:,:,:)
+
+    !> Square dense overlap storage
+    real(dp), allocatable :: SSqrReal(:,:)
+
+    !> Eigenvalues
+    real(dp), allocatable :: eigen(:,:,:)
+
+    !> Sparse storage of density matrix
     real(dp), allocatable :: rhoPrim(:,:)
+
+    !> Imaginary part of density matrix in sparse storage
     real(dp), allocatable :: iRhoPrim(:,:)
+
+    !> Energy weighted density matrix
     real(dp), allocatable :: ERhoPrim(:)
+
+    !> Non-SCC part of the hamiltonian in sparse storage
     real(dp), allocatable :: h0(:)
 
     !> electronic filling
@@ -116,7 +151,10 @@ contains
     !> Potentials for orbitals
     type(TPotentials) :: potential
 
+    !> Energy derivative with respect to atomic positions
     real(dp), allocatable :: totalDeriv(:,:)
+
+    !> Forces on any external charges
     real(dp), allocatable :: chrgForces(:,:)
 
     !> excited state force addition
@@ -134,7 +172,7 @@ contains
     !> whether scc converged
     logical :: tConverged
 
-    !> pressure on the cell
+    !> internal pressure within the cell
     real(dp) :: cellPressure
 
     !> Geometry steps so far
@@ -214,6 +252,7 @@ contains
     real(dp) :: sccErrorQ, diffElec
     real(dp), allocatable :: orbitalL(:,:,:)
 
+    !> Dynamical (Hessian) matrix
     real(dp), pointer :: pDynMatrix(:,:)
 
     !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case
@@ -223,7 +262,7 @@ contains
     !> Minimal number of SCC iterations
     integer :: minSCCIter
 
-    !> if scf/geometry driver should be stopped
+    !> if scc/geometry driver should be stopped
     logical :: tStopSCC, tStopDriver
 
     !> Whether scc restart info should be written in current iteration
@@ -235,10 +274,8 @@ contains
     !> net charge on each atom
     real(dp), allocatable :: dqAtom(:)
 
-
     !> density matrix
     real(dp), allocatable :: rhoSqrReal(:,:,:)
-
 
     !> Natural orbitals for excited state density matrix, if requested
     real(dp), allocatable, target :: occNatural(:)
@@ -246,11 +283,12 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-
+    ! set up output
     call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
         & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
         & fdUser, fdMd, geoOutFile)
 
+    ! set up larger arrays
     call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam,&
         & tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
         & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim,&
@@ -269,19 +307,24 @@ contains
         & iLatGeoStep)
 
     minSccIter = getMinSccIters(tScc, tDftbU, nSpin)
+    
     if (tXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, maxSccIter, sccTol)
     end if
 
+    ! If the geometry is periodic, need to update lattice information in loop
     tLatticeChanged = tPeriodic
+
+    ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
 
-    ! Belongs into initprogram where initial geometry is set up
+    ! Belongs in initprogram where initial geometry is set up
     if (tSocket) then
       call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
           & tLatticeChanged, tStopDriver)
     end if
 
+    ! Main geometry loop
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
@@ -295,6 +338,7 @@ contains
         call handleLatticeChange(latVec, tScc, tStress, pressure, mCutoff, dispersion,&
             & recVec, invLatVec, cellVol, recCellVol, derivCellVol, cellVec, rCellVec)
       end if
+      
       if (tCoordsChanged) then
         call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
             & tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
@@ -374,7 +418,7 @@ contains
           call getL(orbitalL, qiBlockOut, orb, species)
         end if
 
-        ! Note: if XLBOMD is active, potential created with ingoing charges is needed later,
+        ! Note: if XLBOMD is active, potential created with input charges is needed later,
         ! therefore it should not be overwritten here.
         if (tSCC .and. .not. tXlbomd) then
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
@@ -458,7 +502,7 @@ contains
             & storeEigvecsCplx)
       end if
 
-      ! MD geometry files are written only later, once velocities for current geometry are known
+      ! MD geometry files are written only later, once velocities for the current geometry are known
       if (tGeoOpt .and. tWriteRestart) then
         call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
             & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
@@ -485,7 +529,7 @@ contains
               & iPair, orb, potential, coord, latVec, invLatVec, cellVol, coord0, dispersion,&
               & totalStress, totalLatDeriv, cellPressure, iRhoPrim)
           call printVolume(cellVol)
-          ! MD case includes atomic kinetic energy contribution, so print that later
+          ! MD case includes the atomic kinetic energy contribution, so print that later
           if (.not. tMD) then
             call printPressureAndFreeEnergy(pressure, cellPressure, energy%EGibbs)
           end if
@@ -536,13 +580,15 @@ contains
           exit lpGeomOpt
         end if
 
-        tCoordsChanged = .false.
-        tLatticeChanged = .false.
         tWriteCharges = tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs&
             & .and. maxSccIter > 1
         if (tWriteCharges) then
           call writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
         end if
+        
+        ! initially assume coordinates are not being updated
+        tCoordsChanged = .false.
+        tLatticeChanged = .false.
         
         if (tDerivs) then
           call getNextDerivStep(derivDriver, totalDeriv, indMovedAtom, coord0, tGeomEnd)
@@ -577,7 +623,7 @@ contains
           end if
         else if (tMD) then
           ! New MD coordinates saved in a temporary variable, as writeCurrentGeometry() below
-          ! needs old the ones to write out consistent geometries and velocities.
+          ! needs the old ones to write out consistent geometries and velocities.
           newCoords(:,:) = coord0
           call getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, totalDeriv, movedMass,&
               & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy,&
@@ -645,8 +691,9 @@ contains
       nullify(pDynMatrix)
     end if
 
-    ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
+
     if (allocated(pipekMezey)) then
+      ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
       if (tStoreEigvecs) then
         call error("Pipek-Mezey localisation not implemented for stored eigenvectors")
       end if
@@ -685,9 +732,50 @@ contains
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
       & fdUser, fdMd, geoOutFile)
-    logical, intent(in) :: tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs
-    logical, intent(in) :: tWriteDetailedOut, tMd, tGeoOpt
-    integer, intent(out) :: fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian, fdUser, fdMd
+
+    !> Should tagged regression test data be printed
+    logical, intent(in) :: tWriteAutotest
+
+    !> Write tagged output for machine readable results
+    logical, intent(in) :: tWriteResultsTag
+
+    !> Band structure and fillings
+    logical, intent(in) :: tWriteBandDat
+
+    !> Finite different second derivatives
+    logical, intent(in) :: tDerivs
+
+    !> Write detail on the calculation to file
+    logical, intent(in) :: tWriteDetailedOut
+
+    !> Is this a molecular dynamics calculation
+    logical, intent(in) :: tMd
+
+    !> Are atomic coodinates being optimised
+    logical, intent(in) :: tGeoOpt
+
+    !> File unit for autotest data
+    integer, intent(out) :: fdAutotest
+
+    !> File unit for tagged results data
+    integer, intent(out) :: fdResultsTag
+
+    !> File unit for band structure
+    integer, intent(out) :: fdBand
+
+    !> File unit for eigenvectors
+    integer, intent(out) :: fdEigvec
+
+    !> File unit for second derivatives information
+    integer, intent(out) :: fdHessian
+
+    !> File unit for detailed.out
+    integer, intent(out) :: fdUser
+
+    !> File unit for information during molecular dynamics
+    integer, intent(out) :: fdMd
+
+    !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
     
     call initTaggedWriter()
@@ -718,7 +806,7 @@ contains
   end subroutine initOutputFiles
 
 
-  !> Allocates the global arrays needed during DFTB run.
+  !> Allocates most of the large arrays needed during the DFTB run.
   subroutine initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit,&
       & tImHam, tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
       & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0,&
@@ -726,31 +814,164 @@ contains
       & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
       & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
       & movedAccel, movedMass, dipoleMoment)
-    logical, intent(in) :: tForces, tExtChrg, tLinResp, tLinRespZVect, tMd
-    logical, intent(in) :: tMulliken, tSpinOrbit, tImHam, tStoreEigvecs
-    logical, intent(in) :: tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs
+
+    !> Are forces required
+    logical, intent(in) :: tForces
+
+    !> Are the external charges
+    logical, intent(in) :: tExtChrg
+
+    !> Are excitation energies being calculated
+    logical, intent(in) :: tLinResp
+
+    !> Are excited state properties being calculated
+    logical, intent(in) :: tLinRespZVect
+
+    !> Is this a molecular dynamics calculation
+    logical, intent(in) :: tMd
+
+    !> Is Mulliken analysis being performed
+    logical, intent(in) :: tMulliken
+
+    !> Are there spin orbit interactions
+    logical, intent(in) :: tSpinOrbit
+
+    !> Are there imaginary parts to the hamiltonian
+    logical, intent(in) :: tImHam
+
+    !> Should eigenvectors be stored on disc
+    logical, intent(in) :: tStoreEigvecs
+
+    !> Should the sparse hamiltonian and overlap be writen to disc?
+    logical, intent(in) :: tWriteRealHS
+
+    !> Should the hamiltonian and overlap be written out as dense matrices
+    logical, intent(in) :: tWriteHS
+
+    !> Is the hamiltonian for a two component (Pauli) system
+    logical, intent(in) :: t2Component
+
+    !> Is the hamiltonian real?
+    logical, intent(in) :: tRealHS
+
+    !> Print the excited state eigenvectors
+    logical, intent(in) :: tPrintExcitedEigvecs
+
+    !> Print the dipole moment
     logical, intent(in) :: tDipole
+
+    !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Number of atoms moved about during the calculation
+    integer, intent(in) :: nMovedAtom
+
+    !> Number of k-points
+    integer, intent(in) :: nKPoint
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> Number of external charges
+    integer, intent(in) :: nExtChrg
+
+    !> Indices for any moving atoms
     integer, intent(in) :: indMovedAtom(:)
+
+    !> Masses of atoms
     real(dp), intent(in) :: mass(:)
-    real(dp), intent(out), allocatable :: rhoPrim(:,:), h0(:), iRhoPrim(:,:), excitedDerivs(:,:)
+
+    !> Sparse storage density matrix
+    real(dp), intent(out), allocatable :: rhoPrim(:,:)
+
+    !> Non-scc part of the hamiltonian
+    real(dp), intent(out), allocatable :: h0(:)
+
+    !> Imaginary part of the sparse density matrix
+    real(dp), intent(out), allocatable :: iRhoPrim(:,:)
+
+    !> Excitation energy derivatives with respect to atomic coordinates
+    real(dp), intent(out), allocatable :: excitedDerivs(:,:)
+
+    !> Energy weighted density matrix
     real(dp), intent(out), allocatable :: ERhoPrim(:)
+
+    !> Derivatives of total energy with respect to atomic coordinates
     real(dp), intent(out), allocatable :: totalDeriv(:,:)
+
+    !> Forces on (any) external charges
     real(dp), intent(out), allocatable :: chrgForces(:,:)
+
+    !> Energy terms
     type(TEnergies), intent(out) :: energy
+
+    !> Potentials acting on the system
     type(TPotentials), intent(out) :: potential
-    real(dp), intent(out), allocatable :: TS(:), E0(:), Eband(:)
-    real(dp), intent(out), allocatable :: eigen(:,:,:), filling(:,:,:)
-    real(dp), intent(out), allocatable :: coord0Fold(:,:), newCoords(:,:)
+
+    !> Electron entropy contribution at T
+    real(dp), intent(out), allocatable :: TS(:)
+
+    !> zero temperature extrapolated electronic energy
+    real(dp), intent(out), allocatable :: E0(:)
+
+    !> band  energy
+    real(dp), intent(out), allocatable :: Eband(:)
+
+    !> single particle energies (band structure)
+    real(dp), intent(out), allocatable :: eigen(:,:,:)
+
+    !> Occupations of single particle states
+    real(dp), intent(out), allocatable :: filling(:,:,:)
+
+    !> Coordinates in central cell
+    real(dp), intent(out), allocatable :: coord0Fold(:,:)
+
+    !> Updated coordinates
+    real(dp), intent(out), allocatable :: newCoords(:,:)
+
+    !> Orbital angular momentum
     real(dp), intent(out), allocatable :: orbitalL(:,:,:)
-    complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
-    real(dp), intent(out), allocatable :: HSqrReal(:,:,:), SSqrReal(:,:)
+
+    !> Complex dense hamiltonian
+    complex(dp), intent(out), allocatable :: HSqrCplx(:,:,:,:)
+
+    !> overlap matrix dense storage
+    complex(dp), intent(out), allocatable :: SSqrCplx(:,:)
+
+    !> real dense hamiltonian
+    real(dp), intent(out), allocatable :: HSqrReal(:,:,:)
+
+    !> overlap matrix dense storage
+    real(dp), intent(out), allocatable :: SSqrReal(:,:)
+
+    !> density matrix dense storage
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
-    real(dp), intent(out), allocatable :: dqAtom(:), chargePerShell(:,:,:)
+
+    !> Atomic net charges
+    real(dp), intent(out), allocatable :: dqAtom(:)
+
+    !> Number of electron in each atomic shell 
+    real(dp), intent(out), allocatable :: chargePerShell(:,:,:)
+
+    !> Occupations for natural orbitals
     real(dp), intent(out), allocatable :: occNatural(:)
-    real(dp), intent(out), allocatable :: velocities(:,:), movedVelo(:,:), movedAccel(:,:)
+
+    !> Atomic velocities
+    real(dp), intent(out), allocatable :: velocities(:,:)
+
+    !> Array for moving atom velocities
+    real(dp), intent(out), allocatable :: movedVelo(:,:)
+
+    !> moving atom accelerations
+    real(dp), intent(out), allocatable :: movedAccel(:,:)
+
+    !> moving atoms masses
     real(dp), intent(out), allocatable :: movedMass(:,:)
+
+    !> system dipole moment
     real(dp), intent(out), allocatable :: dipoleMoment(:)
 
     integer :: nSpinHams, sqrHamSize
@@ -857,10 +1078,27 @@ contains
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
       & iGeoStep, iLatGeoStep)
+
+    !> Are atomic coordinates changing
     logical, intent(in) :: tCoordOpt
+
+    !> Number of geometry steps
     integer, intent(in) :: nGeoSteps
-    logical, intent(out) :: tGeomEnd, tCoordStep, tStopDriver
-    integer, intent(out) :: iGeoStep, iLatGeoStep
+
+    !> Have the geometry changes terminated
+    logical, intent(out) :: tGeomEnd
+
+    !> Are the atomic coordinates changing
+    logical, intent(out) :: tCoordStep
+
+    !> Should the geometry driver stop
+    logical, intent(out) :: tStopDriver
+
+    !> Step of the geometry driver
+    integer, intent(out) :: iGeoStep
+
+    !> Number of steps changing the lattice vectors
+    integer, intent(out) :: iLatGeoStep
     
     tGeomEnd = (nGeoSteps == 0)
 
@@ -876,13 +1114,30 @@ contains
   end subroutine initGeoOptParameters
 
 
-  !> Receives geometry from socket.
+  !> Receives the geometry from socket communication.
   subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
       & tLatticeChanged, tStopDriver)
+
+    !> Socket communication object
     type(IpiSocketComm), allocatable, intent(inout) :: socket
+
+    !> Is the system periodic
     logical, intent(in) :: tPeriodic
-    real(dp), intent(inout) :: coord0(:,:), latVecs(:,:)
-    logical, intent(out) :: tCoordsChanged, tLatticeChanged, tStopDriver
+
+    !> Coordinates for atoms
+    real(dp), intent(inout) :: coord0(:,:)
+
+    !> Lattice vectors for the unit cell (not referenced if not periodic) 
+    real(dp), intent(inout) :: latVecs(:,:)
+
+    !> Have the atomic coordinates changed
+    logical, intent(out) :: tCoordsChanged
+
+    !> Have the lattice vectors changed
+    logical, intent(out) :: tLatticeChanged
+
+    !> Stop the geometry driver if true
+    logical, intent(out) :: tStopDriver
 
     real(dp) :: tmpLatVecs(3, 3)
 
@@ -898,8 +1153,17 @@ contains
 
   !> Initialises SCC related parameters before geometry loop starts
   function getMinSccIters(tScc, tDftbU, nSpin) result(minSccIter)
-    logical, intent(in) :: tScc, tDftbU
+
+    !> Is this a self consistent calculation
+    logical, intent(in) :: tScc
+
+    !> Are there orbital potentials present
+    logical, intent(in) :: tDftbU
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
+
+    !> Minimum possible number of self consistent iterations
     integer :: minSccIter
     
     if (tScc) then
@@ -919,18 +1183,48 @@ contains
   end function getMinSccIters
 
 
-  !> Does the steps necessary after a lattice vector update
+  !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, tScc, tStress, pressure, mCutoff, dispersion,&
       & recVecs, recVecs2p, cellVol, recCellVol, derivCellVol, cellVecs, rCellVecs)
+
+    !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
-    logical, intent(in) :: tScc, tStress
+
+    !> self consistent calculation?
+    logical, intent(in) :: tScc
+
+    !> evaluate stress
+    logical, intent(in) :: tStress
+
+    !> External presure
     real(dp), intent(in) :: pressure
+
+    !> Maximum distance for interactions 
     real(dp), intent(inout) :: mCutoff
+
+    !> Dispersion interactions object
     class(DispersionIface), allocatable, intent(inout) :: dispersion
-    real(dp), intent(out) :: recVecs(:,:), recVecs2p(:,:)
-    real(dp), intent(out) :: cellVol, recCellVol
+
+    !> Reciprocal lattice vectors
+    real(dp), intent(out) :: recVecs(:,:)
+
+    !> Reciprocal lattice vectors in units of 2 pi
+    real(dp), intent(out) :: recVecs2p(:,:)
+
+    !> Unit cell volume
+    real(dp), intent(out) :: cellVol
+
+    !> reciprocal lattice unit cell volume
+    real(dp), intent(out) :: recCellVol
+
+    !> derivative of pV term
     real(dp), intent(out) :: derivCellVol(:,:)
-    real(dp), allocatable, intent(out) :: cellVecs(:,:), rCellVecs(:,:)
+
+    !> translation vectors to lattice cells in units of lattice constants
+    real(dp), allocatable, intent(out) :: cellVecs(:,:)
+
+    !> Vectors to unit cells in absolute units
+    real(dp), allocatable, intent(out) :: rCellVecs(:,:)
 
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
@@ -955,7 +1249,7 @@ contains
   end subroutine handleLatticeChange
 
 
-  !> Does necessary steps when ionic coordinates change
+  !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
       & orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
       & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
@@ -1530,7 +1824,7 @@ contains
   end subroutine buildAndDiagDenseHam
 
 
-  !> Builds and diagonalises dense K-dependent Hamiltonians.
+  !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseKDepHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
       & iPair, img2CentCell, iCellVec, cellVec, solver, HSqrCplx, SSqrCplx, eigen, storeEigvecsCplx)
     real(dp), intent(in) :: ham(:,:), over(:), kPoint(:,:)
@@ -1610,7 +1904,7 @@ contains
     call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iPair, iAtomStart,&
         & img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
     if (present(xi) .and. .not. present(iHam)) then
-      call addSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx)
+      call addOnsiteSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx)
     end if
     call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
     if (tStoreEigvecs) then
@@ -1662,7 +1956,7 @@ contains
           & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, HSqrCplx(:,:,iK2),&
           & SSqrCplx, iHam=iHam)
       if (present(xi) .and. .not. present(iHam)) then
-        call addSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx(:,:,iK))
+        call addOnsiteSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx(:,:,iK))
       end if
       call diagonalizeDenseMtx(solver, 'V', HSqrCplx(:,:,iK2), SSqrCplx, eigen(:,iK))
       if (tStoreEigvecs) then
@@ -1921,7 +2215,7 @@ contains
     end if
 
     if (tFixEf) then
-      ! Fixed Fermi level for each spin channel
+      ! Fixed value of the Fermi level for each spin channel
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
             & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights)
@@ -1967,11 +2261,21 @@ contains
 
 
   !> Adds spin-orbit contribution to dense Hamiltonian (for non-dual spin-orbit model).
-  subroutine addSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx)
+  subroutine addOnsiteSpinOrbitContrib(xi, species, orb, iAtomStart, HSqrCplx)
+
+    !> Spin orbit constants for each species
     real(dp), intent(in) :: xi(:,:)
+
+    !> chemical species
     integer, intent(in) :: species(:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> index array for atomic blocks in dense matrices
     integer, intent(in) :: iAtomStart(:)
+
+    !> Dense hamitonian matrix (2 component)
     complex(dp), intent(inout) :: HSqrCplx(:,:)
 
     complex(dp), allocatable :: atomZ(:,:,:), atomPlus(:,:,:), Lz(:,:), Lplus(:,:)
@@ -2022,19 +2326,45 @@ contains
           & + atomPlus(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
     end do
 
-  end subroutine addSpinOrbitContrib
+  end subroutine addOnsiteSpinOrbitContrib
 
 
-  !> Calculate Mulliken population form density matrix.
+  !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
       & iPair, qOrb, iRhoPrim, qBlock, qiBlock)
-    real(dp), intent(in) :: rhoPrim(:,:), over(:)
+
+    !> sparse density matrix
+    real(dp), intent(in) :: rhoPrim(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Atomic neighbours
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), img2CentCell(:), iPair(:,:)
+
+    !> Number of neighbours for each atom within overlap distance
+    integer, intent(in) :: nNeighbor(:)
+
+    !> image to actual atom indexing
+    integer, intent(in) :: img2CentCell(:)
+
+    !> sparse matrix indexing array
+    integer, intent(in) :: iPair(:,:)
+
+    !> orbital charges
     real(dp), intent(out) :: qOrb(:,:,:)
+
+    !> imaginary part of density matrix
     real(dp), intent(in), optional :: iRhoPrim(:,:)
-    real(dp), intent(out), optional :: qBlock(:,:,:,:), qiBlock(:,:,:,:)
+
+    !> Dual atomic charges
+    real(dp), intent(out), optional :: qBlock(:,:,:,:)
+
+    !> Imaginary part of dual atomic charges
+    real(dp), intent(out), optional :: qiBlock(:,:,:,:)
 
     integer :: iSpin
 
@@ -2068,28 +2398,102 @@ contains
       & tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell, iPair, cellVol,&
       & pressure, TS, potential, energy, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
       & xi)
-    real(dp), intent(in) :: qOrb(:,:,:), q0(:,:,:), chargePerShell(:,:,:)
+
+    !> Electrons in each atomic orbital
+    real(dp), intent(in) :: qOrb(:,:,:)
+
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> electrons in each atomi shell
+    real(dp), intent(in) :: chargePerShell(:,:,:)
+
+    !> chemical species
     integer, intent(in) :: species(:)
-    logical, intent(in) :: tEField, tScc, tXlbomd, tDftbU, tDualSpinOrbit
-    real(dp), intent(in) :: rhoPRim(:,:), H0(:)
+
+    !> is an external electric field present
+    logical, intent(in) :: tEField
+
+    !> is this a self-consistent calculation
+    logical, intent(in) :: tScc
+
+    !> Is the extended Lagrangian being used for MD
+    logical, intent(in) :: tXlbomd
+
+    !> Are there orbital potentials present
+    logical, intent(in) :: tDftbU
+
+    !> Is dual spin orbit being used
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> density matrix in sparse storage
+    real(dp), intent(in) :: rhoPRim(:,:)
+
+    !> non-self-consistent hamiltonian
+    real(dp), intent(in) :: H0(:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> neighbour list
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), img2CentCell(:), iPair(:,:)
-    real(dp), intent(in) :: cellVol, pressure, TS(:)
+
+    !> Number of neighbours within cutoff for each atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> image to real atom mapping
+    integer, intent(in) :: img2CentCell(:)
+
+    !> index for sparse large matrices
+    integer, intent(in) :: iPair(:,:)
+
+    !> unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> external pressure
+    real(dp), intent(in) :: pressure
+
+    !> electron entropy contribution
+    real(dp), intent(in) :: TS(:)
+
+    !> potentials acting
     type(TPotentials), intent(in) :: potential
+
+    !> energy contributions
     type(TEnergies), intent(inout) :: energy
+
+    !> 3rd order settings
     type(ThirdOrder), intent(inout), optional :: thirdOrd
-    real(dp), intent(in), optional :: qBlock(:,:,:,:), qiBlock(:,:,:,:)
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), optional :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations 
+    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
+
+    !> U-J prefactors in DFTB+U
     real(dp), intent(in), optional :: UJ(:,:)
-    integer, intent(in), optional :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), optional :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), optional :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), optional :: niUJ(:,:)
+
+    !> Spin orbit constants
     real(dp), intent(in), optional :: xi(:,:)
 
     integer :: nSpin
 
     nSpin = size(rhoPrim, dim=2)
 
-    ! Tr[H0 * Rho] needs the same algorithm as Mulliken-analysis
+    ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
     energy%atomNonSCC(:) = 0.0_dp
     call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighborList%iNeighbor, nNeighbor,&
         & img2CentCell, iPair)
@@ -2147,9 +2551,13 @@ contains
   end subroutine getEnergies
 
   
-  !> Checks for the presence of a stop file.
+  !> Checks for the presence of a stop file on disc.
   function hasStopFile(fileName) result(tStop)
+
+    !> name of file to check for
     character(*), intent(in) :: fileName
+
+    !> Is the file present
     logical :: tStop
 
     inquire(file=fileName, exist=tStop)
@@ -2165,21 +2573,89 @@ contains
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg, qInput,&
       & qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
       & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+
+    !> Charge mixing object
     type(OMixer), intent(inout) :: pChrgMixer
-    real(dp), intent(inout) :: qOutput(:,:,:), qOutRed(:)
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Output electrons reduced by unique orbital types
+    real(dp), intent(inout) :: qOutRed(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:), iGeoStep, iSccIter, minSccIter, maxSccIter
+
+    !> Total number of inequivalent atomic orbitals
+    integer, intent(in) :: nIneqOrb
+
+    !> Equivalence relations between orbitals
+    integer, intent(in) :: iEqOrbitals(:,:,:)
+
+    !> Number of current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Number of current SCC step
+    integer, intent(in) :: iSccIter
+
+    !> minumum number of SCC iterations to perform
+    integer, intent(in) :: minSccIter
+
+    !> maximum number of SCC iterations before terminating loop
+    integer, intent(in) :: maxSccIter
+
+    !> Tolerance on SCC charges between input and output
     real(dp), intent(in) :: sccTol
-    logical, intent(in) :: tStopScc, tDftbU, tReadChrg
-    real(dp), intent(inout) :: qInput(:,:,:), qInpRed(:)
+
+    !> Should the SCC loop stop
+    logical, intent(in) :: tStopScc
+
+    !> are orbital potentials being used
+    logical, intent(in) :: tDftbU
+
+    !> Were intial charges read from disc?
+    logical, intent(in) :: tReadChrg
+
+    !> Resulting input charges for next SCC iteration
+    real(dp), intent(inout) :: qInput(:,:,:)
+
+    !> Equivalence reduced input charges
+    real(dp), intent(inout) :: qInpRed(:)
+
+    !> SCC error
     real(dp), intent(out) :: sccErrorQ
+
+    !> Has the calculation converged>
     logical, intent(out) :: tConverged
+
+    !> Dual output charges
     real(dp), intent(inout), optional :: qBlockOut(:,:,:,:)
+
+    !> equivalence mapping for dual charge blocks
     integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
+
+    !> block charge input (if needed for orbital potentials)
     real(dp), intent(out), optional ::qBlockIn(:,:,:,:)
+
+    !> Imaginary part of block charges
     real(dp), intent(in), optional :: qiBlockOut(:,:,:,:)
+
+    !> Equivalence mappings in the case of spin orbit and DFTB+U
     integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
-    integer, intent(in), optional :: species0(:), nUJ(:), iUJ(:,:,:), niUJ(:,:)
+
+    !> atomic species for atoms
+    integer, intent(in), optional :: species0(:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), optional :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), optional :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), optional :: niUJ(:,:)
+
+    !> Imaginary part of block atomic input populations 
     real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
 
     real(dp), allocatable :: qDiffRed(:)
@@ -2218,13 +2694,32 @@ contains
   !> Reduce charges according to orbital equivalency rules.
   subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu,&
       & qiBlock, iEqBlockDftbuLS)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
+
+    !> Number of unique types of atomic orbitals
+    integer, intent(in) :: nIneqOrb 
+
+    !> equivalence index
+    integer, intent(in) :: iEqOrbitals(:,:,:)
+
+    !> Electrons in atomic orbitals
     real(dp), intent(inout) :: qOrb(:,:,:)
+
+    !> Reduction of atomic populations
     real(dp), intent(out) :: qRed(:)
+
+    !> Block (dual) populations, if also being reduced
     real(dp), intent(inout), optional :: qBlock(:,:,:,:)
+
+    !> equivalences for block charges
     integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
+
+    !> Imaginary part of block charges if present
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+
+    !> Equivalences for spin orbit if needed
     integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
 
     qRed(:) = 0.0_dp
@@ -2250,14 +2745,44 @@ contains
   !> Expand reduced charges according orbital equivalency rules.
   subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, qOrb, qBlock, iEqBlockDftbu, species0,&
       & nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS)
+
+    !> Reduction of atomic populations
     real(dp), intent(in) :: qRed(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
+
+    !> Number of unique types of atomic orbitals
+    integer, intent(in) :: nIneqOrb
+
+    !> equivalence index
+    integer, intent(in) :: iEqOrbitals(:,:,:)
+
+    !> Electrons in atomic orbitals
     real(dp), intent(out) :: qOrb(:,:,:)
+
+    !> Block (dual) populations, if also stored in reduced form
     real(dp), intent(inout), optional :: qBlock(:,:,:,:)
+
+    !> equivalences for block charges
     integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:)
-    integer, intent(in), optional :: species0(:), nUJ(:), iUJ(:,:,:), niUJ(:,:)
+
+    !> species of central cell atoms
+    integer, intent(in), optional :: species0(:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), optional :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), optional :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), optional :: niUJ(:,:)
+
+    !> Imaginary part of block atomic populations 
     real(dp), intent(inout), optional :: qiBlock(:,:,:,:)
+
+    !> Equivalences for spin orbit if needed
     integer, intent(in), optional :: iEqBlockDftbULS(:,:,:,:)
 
     integer :: nSpin
@@ -2293,9 +2818,17 @@ contains
 
   !> Get some info about scc convergence.
   subroutine getSccInfo(iSccIter, Eelec, EelecOld, diffElec)
+
+    !> Iteration number
     integer, intent(in) :: iSccIter
+
+    !> Electronic energy
     real(dp), intent(in) :: Eelec
+
+    !> old electronic energy, overwritten on exit with current value
     real(dp), intent(inout) :: EelecOld
+
+    !> difference in electronic energies between iterations
     real(dp), intent(out) :: diffElec
 
     if (iScciter > 1) then
@@ -2310,9 +2843,21 @@ contains
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+
+    !> Are orbital potentials being used
     logical, intent(in) :: tDftbU
+
+    !> Iteration count
     integer, intent(in) :: iSccIter
-    real(dp), intent(in) :: Eelec, diffElec, sccErrorQ
+
+    !> electronic energy
+    real(dp), intent(in) :: Eelec
+
+    !> Difference in electronic energy between this iteration and the last
+    real(dp), intent(in) :: diffElec
+
+    !> Maximum charge difference between input and output
+    real(dp), intent(in) :: sccErrorQ
 
     if (tDFTBU) then
       write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
@@ -2326,8 +2871,41 @@ contains
   !> Whether restart information needs to be written in the current scc loop.
   function needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter, tMd,&
       & tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc) result(tRestart)
-    integer, intent(in) :: restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter
-    logical, intent(in) :: tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc
+
+    !> frequency of charge  write out
+    integer, intent(in) :: restartFreq
+
+    !> current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> current SCC step
+    integer, intent(in) :: iSccIter
+
+    !> minimum number of SCC cycles to perform
+    integer, intent(in) :: minSccIter
+
+    !> maximum number of SCC cycles to perform
+    integer, intent(in) :: maxSccIter
+
+    !> is this molecular dynamics
+    logical, intent(in) :: tMd
+
+    !> Is there geometry optimisation
+    logical, intent(in) :: tGeoOpt
+
+    !> are finite difference changes happening
+    logical, intent(in) :: tDerivs
+
+    !> Is this converged SCC
+    logical, intent(in) :: tConverged
+ 
+    !> have the charges been read from disc
+    logical, intent(in) :: tReadChrg
+
+    !> Has the SCC cycle been stopped?
+    logical, intent(in) :: tStopScc
+
+    !> resulting decision as to whether to write charges to disc
     logical :: tRestart
 
     tRestart = ((restartFreq > 0 .and. .not. (tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1)&
@@ -2341,10 +2919,21 @@ contains
 
   !> Write restart information.
   subroutine writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
+
+    !> File name for charge output
     character(*), intent(in) :: fChargeIn
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Input charges
     real(dp), intent(in) :: qInput(:,:,:)
-    real(dp), intent(in), optional :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
+
+    !> input block charges
+    real(dp), intent(in), optional :: qBlockIn(:,:,:,:)
+
+    !> imaginary part of input block charges
+    real(dp), intent(in), optional :: qiBlockIn(:,:,:,:)
 
     if (present(qBlockIn)) then
       if (present(qiBlockIn)) then
@@ -2360,9 +2949,21 @@ contains
   end subroutine writeRestart
 
 
-  !> Stop if linear response module can not be invoked due to unimplemented issues.
+  !> Stop if linear response module can not be invoked due to unimplemented combinations of
+  !> features.
   subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-    logical, intent(in) :: t3rd, tRealHs, tPeriodic, tForces
+
+    !> 3rd order hamiltonian contributions included
+    logical, intent(in) :: t3rd
+
+    !> a real hamiltonian
+    logical, intent(in) :: tRealHs
+
+    !> periodic boundary conditions
+    logical, intent(in) :: tPeriodic
+
+    !> forces being evaluated
+    logical, intent(in) :: tForces
 
     if (t3rd) then
       call error("Third order currently incompatible with excited state")
@@ -2385,21 +2986,37 @@ contains
       & tLinRespZVect, tPrintExcitedEigvecs, nonSccDeriv, energy, SSqrReal, rhoSqrReal,&
       & excitedDerivs, occNatural)
     type(LinResp), intent(inout) :: lresp
-    real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
-    real(dp), intent(in) :: over(:), HSqrReal(:,:,:), eigen(:,:), filling(:,:), coord0(:,:)
-    integer, intent(in) :: species(:), species0(:)
+    real(dp), intent(in) :: qOutput(:,:,:)
+    real(dp), intent(in) :: q0(:,:,:)
+    real(dp), intent(in) :: over(:)
+    real(dp), intent(in) :: HSqrReal(:,:,:)
+    real(dp), intent(in) :: eigen(:,:)
+    real(dp), intent(in) :: filling(:,:)
+    real(dp), intent(in) :: coord0(:,:)
+    integer, intent(in) :: species(:)
+    integer, intent(in) :: species0(:)
     character(*), intent(in) :: speciesName(:)
     type(TOrbitals), intent(in) :: orb
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
-    integer, intent(in) :: fdAutotest, fdEigvec, runId
+    type(OSlakoCont), intent(in) :: skHamCont
+    type(OSlakoCont), intent(in) :: skOverCont
+    integer, intent(in) :: fdAutotest
+    integer, intent(in) :: fdEigvec
+    integer, intent(in) :: runId
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:)
-    logical, intent(in) :: tWriteAutotest, tForces, tLinRespZVect, tPrintExcitedEigvecs
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    logical, intent(in) :: tWriteAutotest
+    logical, intent(in) :: tForces
+    logical, intent(in) :: tLinRespZVect
+    logical, intent(in) :: tPrintExcitedEigvecs
     type(NonSccDiff), intent(in) :: nonSccDeriv
     type(TEnergies), intent(inout) :: energy
     real(dp), intent(out) :: SSqrReal(:,:)
     real(dp), intent(inout), optional :: rhoSqrReal(:,:,:)
-    real(dp), intent(out), optional :: excitedDerivs(:,:), occNatural(:)
+    real(dp), intent(out), optional :: excitedDerivs(:,:)
+    real(dp), intent(out), optional :: occNatural(:)
     
     real(dp), allocatable :: dQAtom(:)
     real(dp), allocatable, target :: naturalOrbs(:)

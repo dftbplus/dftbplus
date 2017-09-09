@@ -10,8 +10,8 @@
 !> Contains the low level utilities for parsing xml-data into intrinsic Fortran types.
 !>
 !> This module contains the utilities which can parse a strings into Fortran intrinsic types. Tokens
-!> are assumed being separated by space, therefore strings with spaces inside can not be handled
-!> yet.
+!> are assumed to be separated by white space, therefore strings with spaces inside can not
+!> currently be handled.
 module tokenreader
   use assert
   use charmanip
@@ -85,7 +85,6 @@ contains
     integer, intent(out), optional :: iostat
 
     integer :: iStart, iError, tokStart, tokLen, tokEnd
-    integer :: iTmp
 
     tokenValue = 0
     iStart = start
@@ -198,7 +197,7 @@ contains
   end subroutine getNextToken_string
 
 
-  !> Returns the next token from the provided string as real.
+  !> Returns the next token from the provided string as a real value.
   subroutine getNextToken_real(str, tokenValue, start, iostat)
 
     !> String to parse

@@ -44,11 +44,21 @@ module parser
   public :: parseHSDInput, parserVersion
 
 
-  !> File names
+  ! Default file names
+
+  !> Main HSD input file
   character(len=*), parameter :: hsdInputName = "dftb_in.hsd"
+
+  !> XML input file
   character(len=*), parameter :: xmlInputName = "dftb_in.xml"
+
+  !> Processed HSD input
   character(len=*), parameter :: hsdProcInputName = "dftb_pin.hsd"
+
+  !> Processed  XML input
   character(len=*), parameter :: xmlProcInputName = "dftb_pin.xml"
+
+  !> Tag at the head of the input document tree
   character(len=*), parameter :: rootTag = "dftb_in"
 
 
@@ -56,7 +66,7 @@ module parser
   integer, parameter :: parserVersion = 5
 
 
-  !> Version of the oldest parser, for which compatibility is maintained
+  !> Version of the oldest parser for which compatibility is still maintained
   integer, parameter :: minVersion = 1
 
 
@@ -69,8 +79,11 @@ module parser
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
 
-    !> XML or HSD output?
-    logical :: tWriteXML, tWriteHSD
+    !> XML output?
+    logical :: tWriteXML
+
+    !> HSD output?
+    logical :: tWriteHSD
   end type TParserFlags
 
 contains
@@ -146,6 +159,7 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    ! input data strucutre has been initialised 
     input%tInitialized = .true.
 
     ! Issue warning about unprocessed nodes
@@ -179,7 +193,7 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in the case it must be converted for example because of compability
+    !> Root of the entire tree (in case it needs to be converted, for example because of compability
     !> options)
     type(fnode), pointer :: root
 
@@ -286,6 +300,7 @@ contains
     case ("none")
       continue
     case ("steepestdescent")
+      ! Steepest downhill optimisation
 
       ctrl%iGeoOpt = 1
       ctrl%tForces = .true.
@@ -342,6 +357,7 @@ contains
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case ("conjugategradient")
+      ! Conjugate gradient location optimisation
 
       ctrl%iGeoOpt = 2
       ctrl%tForces = .true.
@@ -394,6 +410,8 @@ contains
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case("gdiis")
+      ! Gradient DIIS optimisation, only stable in the quadratic region
+      
       ctrl%iGeoOpt = 3
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -443,8 +461,8 @@ contains
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
-    case("secondderivatives") ! currently only numerical derivatives of forces
-      !  implemented
+    case("secondderivatives")
+      ! currently only numerical derivatives of forces is implemented
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
@@ -462,6 +480,7 @@ contains
       ctrl%tConvrgForces = .true.
 
     case ("velocityverlet")
+      ! molecular dynamics
 
       ctrl%tForces = .true.
       ctrl%tMD = .true.
@@ -683,6 +702,7 @@ contains
       call getInputMasses(node, geom, ctrl%masses)
 
     case ("socket")
+      ! external socket control of the run (once initialised from input)
 
       ctrl%tForces = .true.
       allocate(ctrl%socketInput)
@@ -2047,11 +2067,12 @@ contains
       !> relevant node in input tree
       type(fnode), pointer, intent(in) :: node
 
-      !> control e to fill
+      !> control structure to fill
       type(control), intent(inout) :: ctrl
 
 
-      !> default of a reasonable choice for round off when using a second order formula
+      !> default of a reasonable choice for round off when using a second order finite difference
+      !> formula
       real(dp), parameter :: defDelta = epsilon(1.0_dp)**0.25_dp
 
       type(string) :: buffer
