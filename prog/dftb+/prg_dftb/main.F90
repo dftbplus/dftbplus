@@ -283,7 +283,7 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-    ! set up output
+    ! set up output files
     call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
         & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
         & fdUser, fdMd, geoOutFile)
@@ -312,7 +312,7 @@ contains
       call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, maxSccIter, sccTol)
     end if
 
-    ! If the geometry is periodic, need to update lattice information in loop
+    ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
 
     ! As first geometry iteration, require updates for coordinates in dependent routines
@@ -573,9 +573,9 @@ contains
         end if
 
         ! If geometry minimizer finished and the last calculated geometry is the minimal one (not
-        ! necessary the case, depends on the optimizer!) we are finished.  Otherwise we have to
-        ! recalc everything in the converged geometry.
-
+        ! necessarily the case, depends on the optimizer!) we are finished.  Otherwise we have to
+        ! recalculate everything at the converged geometry.
+        
         if (tGeomEnd) then
           exit lpGeomOpt
         end if
@@ -1254,23 +1254,95 @@ contains
       & orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
       & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
       & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
-    real(dp), intent(in) :: coord0(:,:), latVec(:,:), invLatVec(:,:)
+
+    !> Central cell coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> Lattice vectors if periodic
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Inverse of the lattice vectors
+    real(dp), intent(in) :: invLatVec(:,:)
+
+    !> chemical species of central cell atoms
     integer, intent(in) :: species0(:)
-    real(dp), intent(in) :: mCutoff, skRepCutoff
+
+    !> Longest cutoff distance that neighbour maps are generated
+    real(dp), intent(in) :: mCutoff
+
+    !> Cutoff for repulsive interaction from SK data
+    real(dp), intent(in) :: skRepCutoff
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    logical, intent(in) :: tPeriodic, tScc, tDispersion
+
+    !> Is the geometry periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Charge self consistent mode?
+    logical, intent(in) :: tScc
+
+    !> Is dispersion included
+    logical, intent(in) :: tDispersion
+
+    !> Dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
-    integer, allocatable, intent(inout) :: img2CentCell(:), iCellVec(:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> Index for which unit cell an atom is in
+    integer, allocatable, intent(inout) :: iCellVec(:)
+
+    !> List of neighbouring atoms
     type(TNeighborList), intent(inout) :: neighborList
-    integer, intent(out) :: nAllAtom, nAllOrb
+
+    !> Total number of atoms including images
+    integer, intent(out) :: nAllAtom
+
+    !> Total number of atomic orbitals including image atoms
+    integer, intent(out) :: nAllOrb
+
+    !> Central cell atomic coordinates, folded inside the central cell
     real(dp), intent(out) :: coord0Fold(:,:)
+
+    !> Coordinates of all atoms including images
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Species of all atoms including images
     integer, allocatable, intent(inout) :: species(:)
+
+    !> Vectors to units cells in absolute units
     real(dp), allocatable, intent(inout) :: rCellVec(:,:)
+
+    !> Number of neighbours of each real atom
     integer, intent(out) :: nNeighbor(:)
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), h0(:)
-    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), iRhoPrim(:,:), iHam(:,:), ERhoPrim(:)
+
+    !> Sparse hamiltonian storage
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> sparse overlap storage
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> Non-SCC hamitonian storage
+    real(dp), allocatable, intent(inout) :: h0(:)
+
+    !> Sparse density matrix storage
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
+
+    !> Imaginary part of sparse density matrix storage
+    real(dp), allocatable, intent(inout) :: iRhoPrim(:,:)
+
+    !> Imaginary part of sparse hamiltonian storage
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    !> energy weighted density matrix storage
+    real(dp), allocatable, intent(inout) :: ERhoPrim(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iPair(:,:)
 
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
@@ -1307,8 +1379,23 @@ contains
 
   !> Decides, whether restart file should be written during the run.
   function needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq) result(tWriteRestart)
-    logical, intent(in) :: tGeoOpt, tMd
-    integer, intent(in) :: iGeoStep, nGeoSteps, restartFreq
+    
+    !> Are geometries being optimised
+    logical, intent(in) :: tGeoOpt
+
+    !> Is this a molecular dynamics run
+    logical, intent(in) :: tMd
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Number of geometry steps in total
+    integer, intent(in) :: nGeoSteps
+
+    !> Frequency of restart in geometry steps
+    integer, intent(in) :: restartFreq
+
+    !> Should a restart file be written?
     logical :: tWriteRestart
 
     if (restartFreq > 0 .and. (tGeoOpt .or. tMD)) then
@@ -1322,9 +1409,32 @@ contains
 
   !> Ensures that sparse array have enough storage to hold all necessary elements.
   subroutine reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
+
+    !> Size of the sparse overlap
     integer, intent(in) :: sparseSize
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), H0(:), rhoPrim(:,:)
-    real(dp), allocatable, intent(inout) :: iHam(:,:), iRhoPrim(:,:), ERhoPrim(:)
+
+    !> Sparse storage for hamitonian (sparseSize,nSpin)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> Sparse storage for overlap
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> Sparse storage for non-SCC hamitonian
+    real(dp), allocatable, intent(inout) :: H0(:)
+
+    !> Sparse storage for density matrix
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
+
+    !> Sparse storage for imaginary hamitonian (not reallocated if not initially allocated)
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    !> Sparse storage for imaginary part of density matrix (not reallocated if not initially
+    !> allocated)
+    real(dp), allocatable, intent(inout) :: iRhoPrim(:,:)
+
+    !> Sparse storage for energy weighted density matrix (not reallocated if not initially
+    !> allocated)
+    real(dp), allocatable, intent(inout) :: ERhoPrim(:)
 
     integer :: nSpin
 
@@ -1372,11 +1482,30 @@ contains
   !> Calculates repulsive energy for current geometry
   subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList,&
       & pRepCont, Eatom, Etotal)
+
+    !> All atomic coordinates
     real(dp), intent(in) :: coord(:,:)
-    integer, intent(in) :: species(:), img2CentCell(:), nNeighbor(:)
+
+    !> All atoms chemical species 
+    integer, intent(in) :: species(:)
+
+    !> Image atom indices to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Number of neighbours for each actual atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> List of neighbours for each atom
     type(TNeighborList), intent(in) :: neighborList
+
+    !> Repulsive interaction data
     type(ORepCont), intent(in) :: pRepCont
-    real(dp), intent(out) :: Eatom(:), Etotal
+
+    !> Energy for each atom
+    real(dp), intent(out) :: Eatom(:)
+
+    !> Total energy
+    real(dp), intent(out) :: Etotal
 
     call getERep(Eatom, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont, img2CentCell)
     Etotal = sum(Eatom)
@@ -1386,8 +1515,15 @@ contains
 
   !> Calculates dispersion energy for current geometry.
   subroutine calcDispersionEnergy(dispersion, Eatom, Etotal)
+
+    !> dispersion interactions
     class(DispersionIface), intent(inout) :: dispersion
-    real(dp), intent(out) :: Eatom(:), Etotal
+
+    !> energy per atom
+    real(dp), intent(out) :: Eatom(:)
+
+    !> total energy
+    real(dp), intent(out) :: Etotal
 
     call dispersion%getEnergies(Eatom)
     Etotal = sum(Eatom)
@@ -1397,6 +1533,8 @@ contains
 
   !> Sets the external potential components to zero
   subroutine resetExternalPotentials(potential)
+
+    !> Potential contributions
     type(TPotentials), intent(inout) :: potential
 
     potential%extAtom(:,:) = 0.0_dp
@@ -1408,8 +1546,14 @@ contains
 
   !> Merges atomic and shell resolved external potentials into blocked one
   subroutine mergeExternalPotentials(orb, species, potential)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species for atoms
     integer, intent(in) :: species(:)
+
+    !> Potential energy contributions
     type(TPotentials), intent(inout) :: potential
 
     call total_shift(potential%extShell, potential%extAtom, orb, species)
@@ -1422,17 +1566,59 @@ contains
   subroutine setUpExternalElectricField(tTimeDepEField, tPeriodic, EFieldStrength, EFieldVector,&
       & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec, deltaT,&
       & iGeoStep, coord0Fold, coord, EField, extAtomPot, absEField)
-    logical, intent(in) :: tTimeDepEField, tPeriodic
-    real(dp), intent(in) :: EFieldStrength, EFieldVector(:), EFieldOmega
+
+    !> Is there an electric field that varies with geometry step during MD?
+    logical, intent(in) :: tTimeDepEField
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
+
+    !> What is the field strength
+    real(dp), intent(in) :: EFieldStrength
+
+    !> What is the field direction
+    real(dp), intent(in) :: EFieldVector(:)
+
+    !> Is there an angular frequency for the applied field
+    real(dp), intent(in) :: EFieldOmega
+
+    !> What is the phase of the field
     integer, intent(in) :: EFieldPhase
+
+    !> Atomi neighbours
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iCellVec(:), img2CentCell(:)
+
+    !> Number of neighbours for each atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index for unit cells
+    integer, intent(in) :: iCellVec(:)
+
+    !> Image atom to central cell atom number
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Vectors to image unit cells
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> Time step in MD
     real(dp), intent(in) :: deltaT
+
+    !> Number of the geometry step
     integer, intent(in) :: iGeoStep
+
+    !> Atomic coordinates in central cell
     real(dp), allocatable, intent(in) :: coord0Fold(:,:)
+
+    !> all coordinates
     real(dp), intent(in) :: coord(:,:)
-    real(dp), intent(out) :: EField(:), extAtomPot(:)
+
+    !> Resulting electric field
+    real(dp), intent(out) :: EField(:)
+
+    !> Potentials on atomic sites
+    real(dp), intent(out) :: extAtomPot(:)
+
+    !> Magnitude of the field
     real(dp), intent(out) :: absEField
 
     integer :: nAtom
@@ -1476,10 +1662,23 @@ contains
 
   !> Initialise basic variables before the scc loop.
   subroutine initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
+
+    !> Is this an SCC calculation?
     logical, intent(in) :: tScc
+
+    !> Details for extended Lagrange integrator (of used)
     type(Xlbomd), allocatable, intent(inout) :: xlbomdIntegrator
-    integer, intent(inout) :: minSccIter, maxSccIter
+
+    !> Minimum number of SCC cycles that can be used
+    integer, intent(inout) :: minSccIter
+
+    !> Maximum number of SCC cycles
+    integer, intent(inout) :: maxSccIter
+
+    !> Tollerance for SCC convergence
     real(dp), intent(inout) :: sccTol
+
+    !> Has SCC convergence been achieved?
     logical, intent(out) :: tConverged
 
     if (allocated(xlbomdIntegrator)) then
@@ -1497,9 +1696,17 @@ contains
 
   !> Calculate the number of charges per shell.
   subroutine getChargePerShell(qq, orb, species, chargePerShell)
+
+    !> charges in each orbital, for each atom and spin channel
     real(dp), intent(in) :: qq(:,:,:)
+
+    !> orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of each atom
     integer, intent(in) :: species(:)
+
+    !> Resulting charges in atomic shells
     real(dp), intent(out) :: chargePerShell(:,:,:)
 
     integer :: iAt, iSp, iSh
@@ -1522,10 +1729,20 @@ contains
 
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+
+    !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
+
+    !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> chemical species
     integer, intent(in) :: species(:)
+
+    !> potentials in the system
     type(TPotentials), intent(inout) :: potential
 
     @:ASSERT(tDualSpinOrbit .eqv. allocate(xi))
@@ -1545,13 +1762,38 @@ contains
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(qInput, q0, chargePerShell, orb, species, species0, neighborList,&
       & img2CentCell, spinW, thirdOrd, potential)
-    real(dp), intent(in) :: qInput(:,:,:), q0(:,:,:), chargePerShell(:,:,:)
+
+    !> Input atomic populations
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> charges per atomic shell
+    real(dp), intent(in) :: chargePerShell(:,:,:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: species(:), species0(:)
+
+    !> species of all atoms
+    integer, intent(in) :: species(:)
+    
+    !> species of central cell atoms
+    integer, intent(in) :: species0(:)
+
+    !> neighbours to atoms
     type(TNeighborList), intent(in) :: neighborList
+
+    !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
+
+    !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
+
+    !> third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
+
+    !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
     real(dp), allocatable :: atomPot(:,:)
@@ -1591,13 +1833,41 @@ contains
   !> Add potentials comming from on-site block of the dual density matrix.
   subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
       & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-    real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
-    logical, intent(in) :: tDftbU, tImHam
+
+    !> block input charges
+    real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
+
+    !> imaginary part
+    real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
+
+    !> is this a +U calculation
+    logical, intent(in) :: tDftbU
+
+    !> does the hamitonian have an imaginary part in real space?
+    logical, intent(in) :: tImHam
+
+    !> chemical species of all atoms
     integer, intent(in) :: species(:)
+
+    !> Orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> choice of +U functional 
     integer, intent(in) :: nDftbUFunc
+
+    !> prefactor for +U potential
     real(dp), allocatable, intent(in) :: UJ(:,:)
-    integer, allocatable, intent(in) :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), optional :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), optional :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), optional :: niUJ(:,:)
+
+    !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
 
 
@@ -1619,14 +1889,38 @@ contains
   !> Returns the Hamiltonian for the given scc iteration
   subroutine getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iPair,&
       & img2CentCell, potential, ham, iHam)
-    real(dp), intent(in) :: H0(:), over(:)
+
+    !> non-SCC hamitonian (sparse)
+    real(dp), intent(in) :: H0(:)
+
+    !> overlap (sparse)
+    real(dp), intent(in) :: over(:)
+
+    !> Number of atomic neighbours
     integer, intent(in) :: nNeighbor(:)
+
+    !> list of atomic neighbours
     type(TNeighborList), intent(in) :: neighborList
+
+    !> species of atoms
     integer, intent(in) :: species(:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: iPair(:,:), img2CentCell(:)
+
+    !> Index for atomic blocks in sparse data
+    integer, intent(in) :: iPair(:,:)
+
+    !> image atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> potential acting on sustem
     type(TPotentials), intent(in) :: potential
+
+    !> resulting hamitonian (sparse)
     real(dp), intent(out) :: ham(:,:)
+
+    !> imaginary part of hamitonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nAtom
@@ -1650,21 +1944,54 @@ contains
   !> Writes Hamiltonian and overlap matrices and stops program execution.
   subroutine writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
-    logical, intent(in) :: tWriteHS, tWriteRealHS, tRealHS
+
+    !> Write dense hamiltonian and overlap matrices
+    logical, intent(in) :: tWriteHS
+
+    !> write sparse hamitonian and overlap matrices
+    logical, intent(in) :: tWriteRealHS
+
+    !> Is the hamitonian real?
+    logical, intent(in) :: tRealHS
+
+    !> overlap in sparse storage
     real(dp), intent(in) :: over(:)
+
+    !> atomic neighbours
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:)
+
+    !> number of neighbours for each central cell atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> dense matrix indexing for atomic blocks
+    integer, intent(in) :: iAtomStart(:)
+
+    !> sparse matrix indexing for atomic blocks
+    integer, intent(in) :: iPair(:,:)
+
+    !> Image atoms to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> k-points
     real(dp), intent(in) :: kPoint(:,:)
+
+    !> index  for which unit cell an atom is in
     integer, intent(in) :: iCellVec(:)
+
+    !> vectors to unit cells, in lattice constant units
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> sparse hamitonian
     real(dp), intent(inout) :: ham(:,:)
+
+    !> imaginary part of hamitonian (used if allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
 
-    ! Sanity check, although this must have been caught in initprogram already.
+    ! Sanity check, although this should have been caught in initprogram already.
     if (nSpin == 4) then
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
@@ -1673,7 +2000,7 @@ contains
       call qm2ud(ham)
     end if
 
-          ! Write out matrices if necessary and quit.
+    ! Write out matrices if necessary and quit.
     if (allocated(iHam)) then
       call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
           & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
@@ -1689,37 +2016,54 @@ contains
 
   !> Returns the sparse density matrix.
   !>
-  !> All operations (e.g. spin orbit coupling), which need access to full (unpacked) Hamiltonian or
-  !> the full (unpacked) density matrix, must also invoked from within this routine, as those
-  !> unpacked quantities do not exist elsewhere.
+  !> All operations (e.g. non-dual spin orbit coupling), which need access to full (unpacked)
+  !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
+  !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(ham, over, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell,&
+  subroutine getDensity(ham, over, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, &
       & iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS, tSpinSharedEf,&
-      & tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, &
-      & iDistribFn, tempElec, nEl, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
-      & orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx, rhoSqrReal, storeEigvecsReal,&
-      & storeEigvecsCplx)
+      & tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, Ef, &
+      & energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, &
+      & iRhoPrim, HSqrCplx, SSqrCplx, rhoSqrReal, storeEigvecsReal, storeEigvecsCplx)
     real(dp), intent(inout) :: ham(:,:)
     real(dp), intent(in) :: over(:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
-    real(dp), intent(in) :: cellVec(:,:), kPoint(:,:), kWeight(:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iCellVec(:)
+    real(dp), intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: kPoint(:,:)
+    real(dp), intent(in) :: kWeight(:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: species(:)
     integer, intent(in) :: solver
-    logical, intent(in) :: tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf
+    logical, intent(in) :: tRealHS
+    logical, intent(in) :: tSpinSharedEf
+    logical, intent(in) :: tSpinOrbit
+    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: tFillKSep
+    logical, intent(in) :: tFixEf    
     logical, intent(in) :: tMulliken
     integer, intent(in) :: iDistribFn
     real(dp), intent(in) :: tempElec, nEl(:)
     real(dp), intent(inout) :: Ef(:)
     type(TEnergies), intent(inout) :: energy
-    real(dp), intent(out) :: eigen(:,:,:), filling(:,:,:), rhoPrim(:,:)
-    real(dp), intent(out) :: Eband(:), TS(:), E0(:)
+    real(dp), intent(out) :: eigen(:,:,:)
+    real(dp), intent(out) :: filling(:,:,:)
+    real(dp), intent(out) :: rhoPrim(:,:)
+    real(dp), intent(out) :: Eband(:)
+    real(dp), intent(out) :: TS(:)
+    real(dp), intent(out) :: E0(:)
     real(dp), intent(inout), optional :: iHam(:,:)
     real(dp), intent(in), optional :: xi(:,:)
     real(dp), intent(out), optional :: orbitalL(:,:,:)
-    real(dp), intent(out), optional :: iRhoPrim(:,:), HSqrReal(:,:,:), SSqrReal(:,:)
-    complex(dp), intent(out), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(out), optional :: iRhoPrim(:,:)
+    real(dp), intent(out), optional :: HSqrReal(:,:,:)
+    real(dp), intent(out), optional :: SSqrReal(:,:)
+    complex(dp), intent(out), optional :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(out), optional :: SSqrCplx(:,:)
     real(dp), intent(out), optional :: rhoSqrReal(:,:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
@@ -1786,10 +2130,17 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, solver, HSqrReal, SSqrReal, eigen, storeEigvecsReal)
-    real(dp), intent(in) :: ham(:,:), over(:)
+    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(in) :: over(:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), solver
-    real(dp), intent(out) :: HSqrReal(:,:,:), SSqrReal(:,:), eigen(:,:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: solver
+    real(dp), intent(out) :: HSqrReal(:,:,:)
+    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(out) :: eigen(:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
 
     logical :: tStoreEigvecs
@@ -1829,12 +2180,19 @@ contains
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseKDepHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
       & iPair, img2CentCell, iCellVec, cellVec, solver, HSqrCplx, SSqrCplx, eigen, storeEigvecsCplx)
-    real(dp), intent(in) :: ham(:,:), over(:), kPoint(:,:)
+    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(in) :: over(:)
+    real(dp), intent(in) :: kPoint(:,:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     integer, intent(in) :: solver
-    complex(dp), intent(out) :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    complex(dp), intent(out) :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(out) :: SSqrCplx(:,:)
     real(dp), intent(out) :: eigen(:,:,:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
@@ -1881,11 +2239,17 @@ contains
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
   subroutine buildAndDiagDensePauliHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, solver, eigen, HSqrCplx, SSqrCplx, iHam, xi, species, orb, storeEigvecsCplx)
-    real(dp), intent(in) :: ham(:,:), over(:)
+    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(in) :: over(:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), solver
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: solver
     real(dp), intent(out) :: eigen(:)
-    complex(dp), intent(out) :: HSqrCplx(:,:), SSqrCplx(:,:)
+    complex(dp), intent(out) :: HSqrCplx(:,:)
+    complex(dp), intent(out) :: SSqrCplx(:,:)
     real(dp), intent(in), optional :: iHam(:,:)
     real(dp), intent(in), optional :: xi(:,:)
     integer, intent(in), optional :: species(:)
@@ -1921,13 +2285,20 @@ contains
   subroutine buildAndDiagDenseKDepPauliHam(ham, over, kPoint, neighborList, nNeighbor, iAtomStart,&
       & iPair, img2CentCell, iCellVec, cellVec, solver, eigen, HSqrCplx, SSqrCplx, iHam, xi,&
       & species, orb, storeEigvecsCplx)
-    real(dp), intent(in) :: ham(:,:), over(:), kPoint(:,:)
+    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(in) :: over(:)
+    real(dp), intent(in) :: kPoint(:,:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     integer, intent(in) :: solver
     real(dp), intent(out) :: eigen(:,:)
-    complex(dp), intent(out) :: HSqrCplx(:,:,:), SSqrCplx(:,:)
+    complex(dp), intent(out) :: HSqrCplx(:,:,:)
+    complex(dp), intent(out) :: SSqrCplx(:,:)
     real(dp), intent(in), optional :: iHam(:,:)
     real(dp), intent(in), optional :: xi(:,:)
     integer, intent(in), optional :: species(:)
@@ -1975,10 +2346,14 @@ contains
       & img2CentCell, orb, eigvecs, rhoPrim, work, rhoSqrReal, storeEigvecsReal)
     real(dp), intent(in) :: filling(:,:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iPair(:,:), iAtomStart(:), img2CentCell(:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(inout) :: eigvecs(:,:,:)
-    real(dp), intent(out) :: rhoPrim(:,:), work(:,:)
+    real(dp), intent(out) :: rhoPrim(:,:)
+    real(dp), intent(out) :: work(:,:)
     real(dp), intent(out), optional  :: rhoSqrReal(:,:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
 
@@ -2018,9 +2393,15 @@ contains
   !> Creates sparse density matrix from complex eigenvectors.
   subroutine getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor, iPair,&
       & iAtomStart, img2CentCell, iCellVec, cellVec, orb, eigvecs, rhoPrim, work, storeEigvecsCplx)
-    real(dp), intent(in) :: filling(:,:,:), kPoint(:,:), kWeight(:)
+    real(dp), intent(in) :: filling(:,:,:)
+    real(dp), intent(in) :: kPoint(:,:)
+    real(dp), intent(in) :: kWeight(:)
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iPair(:,:), iAtomStart(:), img2CentCell(:), iCellVec(:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     type(TOrbitals), intent(in) :: orb
     complex(dp), intent(inout) :: eigvecs(:,:,:,:)
@@ -2067,15 +2448,24 @@ contains
       & kPoint, kWeight, filling, neighborList, nNeighbor, orb, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, species, eigvecs, work, &
       & energy, rhoPrim, xi, orbitalL, iRhoPrim, eigvecsFifo)
-    logical, intent(in) :: tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken
-    real(dp), intent(in) :: kPoint(:,:), kWeight(:), filling(:,:)
+    logical, intent(in) :: tRealHS
+    logical, intent(in) :: tSpinOrbit
+    logical, intent(in) :: tDualSpinOrbit
+    logical, intent(in) :: tMulliken
+    real(dp), intent(in) :: kPoint(:,:)
+    real(dp), intent(in) :: kWeight(:)
+    real(dp), intent(in) :: filling(:,:)
     type(TNeighborList), intent(in) :: neighborList
     integer, intent(in) :: nNeighbor(:)
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     integer, intent(in) :: species(:)
-    complex(dp), intent(inout) :: eigvecs(:,:,:), work(:,:)
+    complex(dp), intent(inout) :: eigvecs(:,:,:)
+    complex(dp), intent(inout) :: work(:,:)
     type(TEnergies), intent(inout) :: energy
     real(dp), intent(out) :: rhoPrim(:,:)
     real(dp), intent(in), optional :: xi(:,:)
@@ -3086,11 +3476,16 @@ contains
     real(dp), intent(in) :: qOutRed(:)
     type(OMixer), intent(inout) :: pChrgMixer
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nIneqOrb, iEqOrbitals(:,:,:)
-    real(dp), intent(out) :: qInput(:,:,:), qInpRed(:)
-    integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:), species0(:)
+    integer, intent(in) :: nIneqOrb
+    integer, intent(in) :: iEqOrbitals(:,:,:)
+    real(dp), intent(out) :: qInput(:,:,:)
+    real(dp), intent(out) :: qInpRed(:)
+    integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:)
+    integer, intent(in), optional :: species0(:)
     real(dp), intent(out), optional :: qBlockIn(:,:,:,:)
-    integer, intent(in), optional :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
+    integer, intent(in), optional :: nUJ(:)
+    integer, intent(in), optional :: iUJ(:,:,:)
+    integer, intent(in), optional :: niUJ(:,:)
     integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
     real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
 
@@ -3113,18 +3508,27 @@ contains
   !> Writes the eigenvectors to disc.
   subroutine writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
       & iCellVec, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
-      & HSqrReal,&
-      & SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
-    integer, intent(in) :: nSpin, fdEigvec, runId, nAtom
+      & HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+    integer, intent(in) :: nSpin
+    integer, intent(in) :: fdEigvec
+    integer, intent(in) :: runId
+    integer, intent(in) :: nAtom
     type(TNeighborList), intent(in) :: neighborList
-    integer, intent(in) :: nNeighbor(:), iCellVec(:), img2CentCell(:), iAtomStart(:), iPair(:,:)
+    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: iCellVec(:)
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
     real(dp), intent(in) :: cellVec(:,:)
     integer, intent(in) :: species(:)
     character(*), intent(in) :: speciesName(:)
     type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: kPoint(:,:), over(:)
-    real(dp), intent(inout), optional :: HSqrReal(:,:,:), SSqrReal(:,:)
-    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(in) :: kPoint(:,:)
+    real(dp), intent(in) :: over(:)
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:)
+    real(dp), intent(inout), optional :: SSqrReal(:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
@@ -3158,12 +3562,19 @@ contains
     type(TNeighborList), intent(in) :: neighborList
     integer, intent(in) :: nNeighbor(:)
     real(dp), intent(in) :: cellVec(:,:)
-    integer, intent(in) :: iCellVec(:), iAtomStart(:), iPair(:,:), img2CentCell(:)
+    integer, intent(in) :: iCellVec(:)
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: iPair(:,:)
+    integer, intent(in) :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: over(:), kPoint(:,:), kWeight(:)
+    real(dp), intent(in) :: over(:)
+    real(dp), intent(in) :: kPoint(:,:)
+    real(dp), intent(in) :: kWeight(:)
     type(ListIntR1), intent(inout) :: iOrbRegion
-    real(dp), intent(inout), optional :: HSqrReal(:,:,:), SSqrReal(:,:)
-    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:)
+    real(dp), intent(inout), optional :: SSqrReal(:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
@@ -3186,18 +3597,26 @@ contains
   end subroutine writeProjectedEigenvectors
 
 
-  !> Write current geomety.
+  !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
       & qOutput, velocities)
     character(*), intent(in) :: geoOutFile
     real(dp), intent(in) :: pCoord0Out(:,:)
-    logical, intent(in) :: tLatOpt, tMd, tAppendGeo, tFracCoord, tPeriodic, tPrintMulliken
+    logical, intent(in) :: tLatOpt
+    logical, intent(in) :: tMd
+    logical, intent(in) :: tAppendGeo
+    logical, intent(in) :: tFracCoord
+    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: tPrintMulliken
     integer, intent(in) :: species0(:)
     character(*), intent(in) :: speciesName(:)
     real(dp), intent(in) :: latVec(:,:)
-    integer, intent(in) :: iGeoStep, iLatGeoStep, nSpin
-    real(dp), intent(in), optional :: qOutput(:,:,:), velocities(:,:)
+    integer, intent(in) :: iGeoStep
+    integer, intent(in) :: iLatGeoStep
+    integer, intent(in) :: nSpin
+    real(dp), intent(in), optional :: qOutput(:,:,:)
+    real(dp), intent(in), optional :: velocities(:,:)
 
     real(dp), allocatable :: tmpMatrix(:,:)
     integer :: nAtom
@@ -3250,8 +3669,10 @@ contains
   end subroutine writeCurrentGeometry
 
 
-  !> Prints current energies.
+  !> Prints current total energies
   subroutine printEnergies(energy)
+
+    !> energy components
     type(TEnergies), intent(in) :: energy
 
     write(stdOut, *)
@@ -3264,7 +3685,8 @@ contains
 
   !> Calculates dipole moment.
   subroutine getDipoleMoment(qOutput, q0, coord, dipoleMoment)
-    real(dp), intent(in) :: qOutput(:,:,:), q0(:,:,:)
+    real(dp), intent(in) :: qOutput(:,:,:)
+    real(dp), intent(in) :: q0(:,:,:)
     real(dp), intent(in) :: coord(:,:)
     real(dp), intent(out) :: dipoleMoment(:)
 
