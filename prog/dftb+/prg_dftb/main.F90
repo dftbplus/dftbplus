@@ -1273,6 +1273,8 @@ contains
     real(dp), allocatable, intent(inout) :: rhoPrim(:,:), iRhoPrim(:,:), iHam(:,:), ERhoPrim(:)
     integer, allocatable, intent(inout) :: iPair(:,:)
 
+    !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
+    !> sparsity pattern
     integer :: sparseSize
 
     coord0Fold(:,:) = coord0

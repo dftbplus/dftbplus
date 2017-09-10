@@ -311,10 +311,11 @@ contains
   end subroutine getLatticePoints
 
 
-  !> Fold coordinates back in the central cell
+  !> Fold coordinates back in the central cell.
+  !>
   !> Throw away the integer part of the relative coordinates of every atom. If the resulting
   !> coordinate is very near to 1.0 (closer than 1e-12 in absolute length), fold it to 0.0 to make
-  !> the algorithm more predictable and independent of numeric noises.
+  !> the algorithm more predictable and independent of numerical noise.
   subroutine foldCoordToUnitCell(coord, latVec, recVec2p, invShift)
 
     !> Contains the original coordinates on call and the folded ones on return.
@@ -714,13 +715,25 @@ contains
 
   end subroutine reallocateArrays3
 
-
+  !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
   subroutine getSparseDescriptor(iNeighbor, nNeighbor, img2CentCell, orb, iPair, sparseSize)
+
+    !> Neighbours of each atom
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbor(:)
+
+    !> Indexing for mapping image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Sparse array indexing for the start of atomic blocks in data structures
     integer, allocatable, intent(inout) :: iPair(:,:)
+
+    !> Total number of elements in a sparse structure (ignoring extra indices like spin)
     integer, intent(out) :: sparseSize
 
     integer :: nAtom, mNeighbor
@@ -755,14 +768,14 @@ contains
   subroutine reallocateHS_1(ham, over, iPair, iNeighbor, nNeighbor, orb, &
       &img2Centcell)
 
-    !> Hamiltonian.
+    !> Hamiltonian
     real(dp), allocatable, intent(inout):: ham(:)
 
-    !> Overlap matrix.
+    !> Overlap matrix
     real(dp), allocatable, intent(inout) :: over(:)
 
     !> Pair indexing array (specifying the offset for the interaction between atoms in the central
-    !> cell and their neighbors).
+    !> cell and their neighbors)
     integer, allocatable, intent(inout) :: iPair(:,:)
 
     !> List of neighbors for each atom in the central cell. (Note: first index runs from 0!)
