@@ -2082,7 +2082,7 @@ contains
     logical, intent(in) :: tWriteRealHS
 
     !> Is the hamiltonian real?
-    logical, intent(in) :: tRealHS 
+    logical, intent(in) :: tRealHS
 
     !> sparse hamitonian matrix
     real(dp), intent(in) :: ham(:,:)

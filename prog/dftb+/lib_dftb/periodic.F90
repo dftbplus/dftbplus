@@ -725,7 +725,7 @@ contains
 
     integer :: nAtom, mNeighbor
     integer :: ind, iAt1, nOrb1, iNeigh1, nOrb2
-    
+
     nAtom = size(iNeighbor, dim=2)
     mNeighbor = size(iNeighbor, dim=1)
 

@@ -131,7 +131,7 @@ contains
 
 
   !> Construct the orbital contribution to the Hamiltonian
-  !> 
+  !>
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein Physical Review B 67, 153106 (2003)
   subroutine shift_iU(shiftR, shiftI, qBlockR, qBlockI, species, orb, functional, UJ, nUJ, niUJ, &
       & iUJ)
@@ -238,7 +238,7 @@ contains
 
 
   !> Calculates the energy contribution for the DFTB+U type functionals
-  !> 
+  !>
   !> Note: factor of 0.5 in expressions as using double the Pauli spinors
   subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
 

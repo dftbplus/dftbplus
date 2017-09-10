@@ -35,10 +35,10 @@ contains
 
   !> unitary transformation of a matrix X' = U X U^T*
   subroutine U_cmplx(xx, uu)
-    
+
     !> matrix in original basis, U X U^T* on return.
     complex(dp), intent(inout) :: xx(:,:)
-    
+
     !> unitary matrix
     complex(dp), intent(in) :: uu(:,:)
 

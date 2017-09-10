@@ -37,14 +37,14 @@ module pmlocalisation
     !> Optional tolerances for element neglect if instead using a sparse version of Pipek-Mezey
     !> localisation
     real(dp), allocatable :: sparseTols(:)
-    
+
   end type TPipekMezeyInp
-  
+
 
   !> Pipek-Mezey localisation calculator
   type :: TPipekMezey
     private
-    
+
     !> tolerances for element neglect if instead using a sparse version of Pipek-Mezey localisation
     real(dp), allocatable :: sparseTols(:)
 
@@ -74,7 +74,7 @@ module pmlocalisation
   interface initialise
     module procedure TPipekMezey_initialise
   end interface initialise
-    
+
 
 contains
 
@@ -122,7 +122,7 @@ contains
             & this%sparseTols(ii))
       end do
     else
-      call pipekMezeyOld_real(ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter)      
+      call pipekMezeyOld_real(ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter)
     end if
 
   end subroutine calcCoeffsReal

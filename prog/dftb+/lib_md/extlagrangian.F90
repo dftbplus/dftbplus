@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Extended Lagrangian dynamics 
+!> Extended Lagrangian dynamics
 module extlagrangian_module
   use assert
   use accuracy, only : dp

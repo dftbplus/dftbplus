@@ -159,7 +159,7 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
-    ! input data strucutre has been initialised 
+    ! input data strucutre has been initialised
     input%tInitialized = .true.
 
     ! Issue warning about unprocessed nodes
@@ -411,7 +411,7 @@ contains
 
     case("gdiis")
       ! Gradient DIIS optimisation, only stable in the quadratic region
-      
+
       ctrl%iGeoOpt = 3
       ctrl%tForces = .true.
       ctrl%restartFreq = 1

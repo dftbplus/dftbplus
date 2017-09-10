@@ -59,7 +59,7 @@ module dispdftd3_module
 
     !> are  the coordinates current?
     logical :: tCoordsUpdated = .false.
-    
+
   contains
 
     !> update internal store of coordinates

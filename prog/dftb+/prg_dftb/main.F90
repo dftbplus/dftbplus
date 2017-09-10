@@ -75,7 +75,7 @@ module main
   !> Tagged output files (machine readable)
   character(*), parameter :: autotestTag = "autotest.tag"
 
-  !> Detailed user output 
+  !> Detailed user output
   character(*), parameter :: userOut = "detailed.out"
 
   !> band structure and filling information
@@ -96,7 +96,7 @@ module main
   !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
-  
+
 contains
 
   !> The main DFTB program itself
@@ -307,7 +307,7 @@ contains
         & iLatGeoStep)
 
     minSccIter = getMinSccIters(tScc, tDftbU, nSpin)
-    
+
     if (tXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, maxSccIter, sccTol)
     end if
@@ -328,7 +328,7 @@ contains
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
-      
+
       tWriteRestart = needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       if (tMD .and. tWriteRestart) then
         call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
@@ -338,14 +338,14 @@ contains
         call handleLatticeChange(latVec, tScc, tStress, pressure, mCutoff, dispersion,&
             & recVec, invLatVec, cellVol, recCellVol, derivCellVol, cellVec, rCellVec)
       end if
-      
+
       if (tCoordsChanged) then
         call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
             & tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
             & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
             & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iPair)
       end if
-      
+
       if (tSCC) then
         call reset(pChrgMixer, nMixElements)
       end if
@@ -379,13 +379,13 @@ contains
       lpSCC: do iSccIter = 1, maxSccIter
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-        
+
         if (tScc) then
           call getChargePerShell(qInput, orb, species, chargePerShell)
           call addChargePotentials(qInput, q0, chargePerShell, orb, species, species0,&
               & neighborList, img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)          
+              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
         end if
         potential%intBlock = potential%intBlock + potential%extBlock
 
@@ -488,7 +488,7 @@ contains
             & nNeighbor, species, iPair, img2CentCell)
       #:endcall DEBUG_CODE
       end if
-      
+
       if (tPrintEigVecs) then
         call writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
             & iCellVEc, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
@@ -585,11 +585,11 @@ contains
         if (tWriteCharges) then
           call writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
         end if
-        
+
         ! initially assume coordinates are not being updated
         tCoordsChanged = .false.
         tLatticeChanged = .false.
-        
+
         if (tDerivs) then
           call getNextDerivStep(derivDriver, totalDeriv, indMovedAtom, coord0, tGeomEnd)
           if (tGeomEnd) then
@@ -655,7 +655,7 @@ contains
               & tLatticeChanged, tStopDriver)
         end if
       end if
-      
+
       if (tWriteDetailedOut) then
         call writeDetailedOut4(fdUser, tMD, energy, kT)
       end if
@@ -777,7 +777,7 @@ contains
 
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
-    
+
     call initTaggedWriter()
     if (tWriteAutotest) then
       call initOutputFile(autotestTag, fdAutotest)
@@ -953,7 +953,7 @@ contains
     !> Atomic net charges
     real(dp), intent(out), allocatable :: dqAtom(:)
 
-    !> Number of electron in each atomic shell 
+    !> Number of electron in each atomic shell
     real(dp), intent(out), allocatable :: chargePerShell(:,:,:)
 
     !> Occupations for natural orbitals
@@ -993,7 +993,7 @@ contains
     if (tLinRespZVect) then
       allocate(excitedDerivs(3, nAtom))
     end if
-    
+
     call init(energy, nAtom)
     call init(potential, orb, nAtom, nSpin)
 
@@ -1055,7 +1055,7 @@ contains
       end if
     end if
     allocate(chargePerShell(orb%mShell, nAtom, nSpin))
-    
+
     if (tLinResp .and. tPrintExcitedEigVecs) then
       allocate(occNatural(orb%nOrb))
     end if
@@ -1099,7 +1099,7 @@ contains
 
     !> Number of steps changing the lattice vectors
     integer, intent(out) :: iLatGeoStep
-    
+
     tGeomEnd = (nGeoSteps == 0)
 
     tCoordStep = .false.
@@ -1127,7 +1127,7 @@ contains
     !> Coordinates for atoms
     real(dp), intent(inout) :: coord0(:,:)
 
-    !> Lattice vectors for the unit cell (not referenced if not periodic) 
+    !> Lattice vectors for the unit cell (not referenced if not periodic)
     real(dp), intent(inout) :: latVecs(:,:)
 
     !> Have the atomic coordinates changed
@@ -1165,7 +1165,7 @@ contains
 
     !> Minimum possible number of self consistent iterations
     integer :: minSccIter
-    
+
     if (tScc) then
       if (tDftbU) then
         minSccIter = 2
@@ -1199,7 +1199,7 @@ contains
     !> External presure
     real(dp), intent(in) :: pressure
 
-    !> Maximum distance for interactions 
+    !> Maximum distance for interactions
     real(dp), intent(inout) :: mCutoff
 
     !> Dispersion interactions object
@@ -1245,7 +1245,7 @@ contains
       mCutoff = max(mCutoff, dispersion%getRCutoff())
     end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
-  
+
   end subroutine handleLatticeChange
 
 
@@ -1299,7 +1299,7 @@ contains
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighborList, species)
     end if
-    
+
   end subroutine handleCoordinateChange
 
 
@@ -1308,7 +1308,7 @@ contains
     logical, intent(in) :: tGeoOpt, tMd
     integer, intent(in) :: iGeoStep, nGeoSteps, restartFreq
     logical :: tWriteRestart
-    
+
     if (restartFreq > 0 .and. (tGeoOpt .or. tMD)) then
       tWriteRestart = (iGeoStep == nGeoSteps .or. (mod(iGeoStep, restartFreq) == 0))
     else
@@ -1338,7 +1338,7 @@ contains
         @:ASSERT(all(shape(ERhoPrim) == shape(ham)))
       end if
     #:endcall ASSERT_CODE
-      
+
     if (size(ham, dim=1) >= sparseSize) then
       ! Sparse matrices are big enough
       return
@@ -1375,7 +1375,7 @@ contains
     type(TNeighborList), intent(in) :: neighborList
     type(ORepCont), intent(in) :: pRepCont
     real(dp), intent(out) :: Eatom(:), Etotal
-    
+
     call getERep(Eatom, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont, img2CentCell)
     Etotal = sum(Eatom)
 
@@ -1396,7 +1396,7 @@ contains
   !> Sets the external potential components to zero
   subroutine resetExternalPotentials(potential)
     type(TPotentials), intent(inout) :: potential
-    
+
     potential%extAtom(:,:) = 0.0_dp
     potential%extShell(:,:,:) = 0.0_dp
     potential%extBlock(:,:,:,:) = 0.0_dp
@@ -1409,7 +1409,7 @@ contains
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: species(:)
     type(TPotentials), intent(inout) :: potential
-    
+
     call total_shift(potential%extShell, potential%extAtom, orb, species)
     call total_shift(potential%extBlock, potential%extShell, orb, species)
 
@@ -1438,7 +1438,7 @@ contains
     character(lc) :: tmpStr
 
     nAtom = size(nNeighbor)
-    
+
     Efield(:) = EFieldStrength * EfieldVector
     if (tTimeDepEField) then
       Efield(:) = Efield * sin(EfieldOmega * deltaT * real(iGeoStep + EfieldPhase, dp))
@@ -1479,7 +1479,7 @@ contains
     integer, intent(inout) :: minSccIter, maxSccIter
     real(dp), intent(inout) :: sccTol
     logical, intent(out) :: tConverged
-    
+
     if (allocated(xlbomdIntegrator)) then
       call xlbomdIntegrator%getSCCParameters(minSCCIter, maxSccIter, sccTol)
     end if
@@ -1489,7 +1489,7 @@ contains
     if (tScc) then
       call printSccHeader()
     end if
-    
+
   end subroutine initSccLoop
 
 
@@ -1505,7 +1505,7 @@ contains
 
     nAtom = size(chargePerShell, dim=2)
     nSpin = size(chargePerShell, dim=3)
-    chargePerShell(:,:,:) = 0.0_dp 
+    chargePerShell(:,:,:) = 0.0_dp
     do iAt = 1, nAtom
       iSp = species(iAt)
       do iSh = 1, orb%nShell(iSp)
@@ -1574,7 +1574,7 @@ contains
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
-    
+
     if (allocated(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
@@ -1598,7 +1598,7 @@ contains
     integer, allocatable, intent(in) :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
     type(TPotentials), intent(inout) :: potential
 
-    
+
     if (tDFTBU) then
       if (tImHam) then
         call getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn, qiBlockIn,&
@@ -1641,7 +1641,7 @@ contains
       call add_shift(iHam, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
           & img2CentCell, potential%iorbitalBlock)
     end if
-    
+
   end subroutine getSccHamiltonian
 
 
@@ -1681,7 +1681,7 @@ contains
     end if
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     stop
-  
+
   end subroutine writeHSAndStop
 
 
@@ -1757,7 +1757,7 @@ contains
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
-    
+
     if (nSpin /= 4) then
       if (tRealHS) then
         call getDensityFromEigvecs(filling(:,1,:), neighborList, nNeighbor, iPair, iAtomStart,&
@@ -1777,9 +1777,9 @@ contains
           & xi, orbitalL, iRhoPrim, storeEigvecsCplx)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
-    
+
   end subroutine getDensity
-  
+
 
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseHam(ham, over, neighborList, nNeighbor, iAtomStart, iPair,&
@@ -1851,7 +1851,7 @@ contains
         @:ASSERT(size(storeEigvecsCplx) == nSpin)
       end if
     #:endcall ASSERT_CODE
-  
+
     do iSpin = 1, nSpin
       do iK = 1, nKPoint
         if (tStoreEigvecs) then
@@ -1872,7 +1872,7 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine buildAndDiagDenseKDepHam
 
 
@@ -1900,7 +1900,7 @@ contains
         @:ASSERT(size(storeEigvecsCplx) == 1)
       end if
     #:endcall ASSERT_CODE
-      
+
     call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iPair, iAtomStart,&
         & img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
     if (present(xi) .and. .not. present(iHam)) then
@@ -1911,7 +1911,7 @@ contains
       call reset(storeEigvecsCplx(1), shape(HSqrCplx))
       call push(storeEigvecsCplx(1), HSqrCplx)
     end if
-    
+
   end subroutine buildAndDiagDensePauliHam
 
 
@@ -1935,10 +1935,10 @@ contains
     integer :: nKPoint
     integer :: iK, iK2
     logical :: tStoreEigvecs
-    
+
     nKPoint = size(kPoint, dim=2)
     tStoreEigvecs = present(storeEigvecsCplx)
-    
+
     #:call ASSERT_CODE
       @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
       if (tStoreEigvecs) then
@@ -1986,7 +1986,7 @@ contains
 
     nSpin = size(filling, dim=2)
     tStoreEigvecs = present(storeEigvecsReal)
-    
+
     rhoPrim(:,:) = 0.0_dp
     do iSpin = 1, nSpin
       if (tStoreEigvecs) then
@@ -2012,7 +2012,7 @@ contains
 
   end subroutine getDensityFromEigvecs
 
-  
+
   !> Creates sparse density matrix from complex eigenvectors.
   subroutine getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor, iPair,&
       & iAtomStart, img2CentCell, iCellVec, cellVec, orb, eigvecs, rhoPrim, work, storeEigvecsCplx)
@@ -2034,7 +2034,7 @@ contains
     tStoreEigvecs = present(storeEigvecsCplx)
 
     rhoPrim(:,:) = 0.0_dp
-    
+
     do iSpin = 1, nSpin
       do iK = 1, size(kPoint, dim=2)
         if (tStoreEigvecs) then
@@ -2056,10 +2056,10 @@ contains
             & nNeighbor, orb%mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
       end do
     end do
-    
+
   end subroutine getDensityFromKDepEigvecs
 
-  
+
   !> Creates sparse density matrix from two component complex eigenvectors.
   subroutine getDensityFromPauliEigvecs(tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken,&
       & kPoint, kWeight, filling, neighborList, nNeighbor, orb, iAtomStart, iPair,&
@@ -2102,7 +2102,7 @@ contains
       energy%atomLS(:) = 0.0_dp
       allocate(rVecTemp(nAtom))
     end if
-    
+
     if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
       allocate(orbitalLPart(3, orb%mShell, nAtom))
       orbitalL(:,:,:) = 0.0_dp
@@ -2147,7 +2147,7 @@ contains
     if (tSpinOrbit .and. .not. tDualSpinOrbit) then
       energy%ELS = sum(energy%atomLS)
     end if
-    
+
   end subroutine getDensityFromPauliEigvecs
 
 
@@ -2306,7 +2306,7 @@ contains
             & 0.5_dp * xi(iOrb, iSp) * Lplus(1 : 2 * ll + 1, 1 : 2 * ll + 1)
       end do
     end do
-    
+
     do iAt = 1, nAtom
       iSp = species(iAt)
       HSqrCplx(iAtomStart(iAt) : iAtomStart(iAt + 1) - 1, &
@@ -2381,7 +2381,7 @@ contains
             & nNeighbor, img2CentCell, iPair)
       end do
     end if
-    
+
     if (present(qiBlock)) then
       qiBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, size(qiBlock, dim=4)
@@ -2392,7 +2392,7 @@ contains
 
   end subroutine getMullikenPopulation
 
-  
+
   !> Calculates various energy contributions
   subroutine getEnergies(qOrb, q0, chargePerShell, species, tEField, tScc, tXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell, iPair, cellVol,&
@@ -2468,7 +2468,7 @@ contains
     !> block (dual) atomic populations
     real(dp), intent(in), optional :: qBlock(:,:,:,:)
 
-    !> Imaginary part of block atomic populations 
+    !> Imaginary part of block atomic populations
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
     !> which DFTB+U functional (if used)
@@ -2532,13 +2532,13 @@ contains
       call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ, qiBlock)
       energy%Edftbu = sum(energy%atomDftbu)
     end if
-    
+
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
       call getEnergySpinOrbit(energy%atomLS, qiBlock, xi, orb, species)
       energy%ELS = sum(energy%atomLS)
     end if
-    
+
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
@@ -2547,10 +2547,10 @@ contains
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
     energy%EMermin = energy%Etotal - sum(TS)
     energy%EGibbs = energy%EMermin + cellVol * pressure
-    
+
   end subroutine getEnergies
 
-  
+
   !> Checks for the presence of a stop file on disc.
   function hasStopFile(fileName) result(tStop)
 
@@ -2655,7 +2655,7 @@ contains
     !> Number of shells in each DFTB+U block
     integer, intent(in), optional :: niUJ(:,:)
 
-    !> Imaginary part of block atomic input populations 
+    !> Imaginary part of block atomic input populations
     real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
 
     real(dp), allocatable :: qDiffRed(:)
@@ -2687,7 +2687,7 @@ contains
             & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
       end if
     end if
-    
+
   end subroutine getNextInputCharges
 
 
@@ -2699,7 +2699,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Number of unique types of atomic orbitals
-    integer, intent(in) :: nIneqOrb 
+    integer, intent(in) :: nIneqOrb
 
     !> equivalence index
     integer, intent(in) :: iEqOrbitals(:,:,:)
@@ -2738,7 +2738,7 @@ contains
     if (present(qBlock)) then
       call ud2qm(qBlock)
     end if
-    
+
   end subroutine reduceCharges
 
 
@@ -2779,7 +2779,7 @@ contains
     !> Number of shells in each DFTB+U block
     integer, intent(in), optional :: niUJ(:,:)
 
-    !> Imaginary part of block atomic populations 
+    !> Imaginary part of block atomic populations
     real(dp), intent(inout), optional :: qiBlock(:,:,:,:)
 
     !> Equivalences for spin orbit if needed
@@ -2898,7 +2898,7 @@ contains
 
     !> Is this converged SCC
     logical, intent(in) :: tConverged
- 
+
     !> have the charges been read from disc
     logical, intent(in) :: tReadChrg
 
@@ -2977,7 +2977,7 @@ contains
     end if
 
   end subroutine ensureLinRespConditions
-  
+
 
   !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(lresp, qOutput, q0, over, HSqrReal, eigen, filling,&
@@ -3017,7 +3017,7 @@ contains
     real(dp), intent(inout), optional :: rhoSqrReal(:,:,:)
     real(dp), intent(out), optional :: excitedDerivs(:,:)
     real(dp), intent(out), optional :: occNatural(:)
-    
+
     real(dp), allocatable :: dQAtom(:)
     real(dp), allocatable, target :: naturalOrbs(:)
     real(dp), pointer :: pNaturalOrbs2(:,:), pNaturalOrbs3(:,:,:)
@@ -3027,7 +3027,7 @@ contains
     nAtom = size(qOutput, dim=2)
     nSpin = size(eigen, dim=2)
     tSpin = (nSpin == 2)
-    
+
     energy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom))
     dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
@@ -3091,9 +3091,9 @@ contains
     integer, intent(in), optional :: nUJ(:), iUJ(:,:,:), niUJ(:,:)
     integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
     real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
-    
+
     real(dp), allocatable :: invJacobian(:,:)
-    
+
     if (xlbomdIntegrator%needsInverseJacobian()) then
       write(stdOut, "(A)") ">> Updating XLBOMD Inverse Jacobian"
       allocate(invJacobian(nIneqOrb, nIneqOrb))
@@ -3130,7 +3130,7 @@ contains
     @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
     @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
     @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
-    
+
     if (present(HSqrCplx)) then
       !> Complex Pauli-Hamiltonian without k-points
       call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec, iCellVec,&
@@ -3141,7 +3141,7 @@ contains
       call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart, iPair,&
           & img2CentCell, orb, species, speciesName, over, HSqrReal, SSqrReal, storeEigvecsReal)
     end if
-      
+
   end subroutine writeEigenvectors
 
 
@@ -3164,12 +3164,12 @@ contains
     complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:), SSqrCplx(:,:)
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
-    
+
     @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
     @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
     @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
     @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
-    
+
 
     if (present(SSqrCplx)) then
       call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
@@ -3301,7 +3301,7 @@ contains
     do ii = 1, 3
       potentialDerivative(:,:) = 0.0_dp
       ! Potential from dH/dE
-      potentialDerivative(:,1) = -coord0(ii,:) 
+      potentialDerivative(:,1) = -coord0(ii,:)
       hprime(:,:) = 0.0_dp
       dipole(:,:) = 0.0_dp
       call add_shift(hprime, over, nNeighbor, neighborList%iNeighbor, species, orb, iPair, nAtom,&
@@ -3406,7 +3406,7 @@ contains
       end if
 
       select case (forceType)
-        
+
       case(0)
         ! Original (nonconsistent) scheme
         if (tDensON2) then
@@ -3450,7 +3450,7 @@ contains
       call packHS(ERhoPrim, SSqrReal, neighborList%iNeighbor, nNeighbor, orb%mOrb, iAtomStart,&
           & iPair, img2CentCell)
     end do
-      
+
   end subroutine getEDensityMtxFromRealEigvecs
 
 
@@ -3509,7 +3509,7 @@ contains
 
         case (1)
           call error("Force type 1 not implemented for complex H")
-          
+
         case(2)
             ! Correct force for XLBOMD for T=0K (DHD)
           call makeDensityMatrix(HSqrCplx2, HSqrCplx(:,:,iK2,iS2), filling(:,iK,iS))
@@ -3540,7 +3540,7 @@ contains
 
   end subroutine getEDensityMtxFromComplexEigvecs
 
-  
+
   !> Calculates density matrix from Pauli-type two component eigenvectors.
   subroutine getEDensityMtxFromPauliEigvecs(filling, eigen, kPoint, kWeight, neighborList,&
       & nNeighbor, orb, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, tRealHS, HSqrCplx,&
@@ -3581,7 +3581,7 @@ contains
 
   end subroutine getEDensityMtxFromPauliEigvecs
 
-  
+
   !> Calculates the gradients
   subroutine getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighborList,&
@@ -3607,7 +3607,7 @@ contains
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg
     integer :: ii
-    
+
     tImHam = present(iRhoPrim)
     tExtChrg = present(chrgForces)
 
@@ -3659,7 +3659,7 @@ contains
           call thirdOrd%addGradientDc(neighborList, species, coord, img2CentCell, derivs)
         end if
       end if
-      
+
       if (tEField) then
         do ii = 1, 3
           derivs(ii,:) = derivs(ii,:) - sum(q0(:,:,1) - qOutput(:,:,1), dim=1) * EField(ii)
@@ -3704,7 +3704,7 @@ contains
     logical :: tImHam
 
     tImHam = present(iRhoPrim)
-    
+
     if (tSCC) then
       if (tImHam) then
         call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
@@ -3744,7 +3744,7 @@ contains
 
     cellPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
     totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
-    
+
   end subroutine getStress
 
 
@@ -3759,7 +3759,7 @@ contains
     integer :: iAtom, ii, jj
 
     nAtom = size(coord0, dim=2)
-    
+
     latDerivs(:,:) = 0.0_dp
     call cart2frac(coord0, latVec)
     do iAtom = 1, nAtom
@@ -3772,14 +3772,14 @@ contains
     end do
     call frac2cart(coord0, latVec)
     stress(:,:) = -matmul(latDerivs, transpose(latVec)) / cellVol
-    
+
   end subroutine getEFieldStress
 
 
   !> Prints cell volume.
   subroutine printVolume(cellVol)
     real(dp), intent(in) :: cellVol
-    
+
     write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
   end subroutine printVolume
 
@@ -3787,7 +3787,7 @@ contains
   !> Prints pressure and free energy.
   subroutine printPressureAndFreeEnergy(pressure, cellPressure, EGibbs)
     real(dp), intent(in) :: pressure, cellPressure, EGibbs
-    
+
     write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
     if (abs(pressure) > epsilon(1.0_dp)) then
       write(stdOut, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
@@ -3803,7 +3803,7 @@ contains
     real(dp), intent(inout) :: totalDerivs(:,:)
 
     integer :: ii, iAtom
-    
+
     ! Set force components along constraint vectors zero
     do ii = 1, size(conAtom)
       iAtom = conAtom(ii)
@@ -3817,7 +3817,7 @@ contains
   !> Writes maximal force component.
   subroutine printMaxForce(maxForce)
     real(dp), intent(in) :: maxForce
-    
+
     write(stdOut, "(A, ':', T30, E20.6)") "Maximal force component", maxForce
 
   end subroutine printMaxForce
@@ -3856,11 +3856,11 @@ contains
 
   end subroutine constrainLatticeDerivs
 
-  
+
   !> Print maximal lattice force component
   subroutine printMaxLatticeForce(maxLattForce)
     real(dp), intent(in) :: maxLattForce
-  
+
     write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
 
   end subroutine printMaxLatticeForce
@@ -3872,7 +3872,7 @@ contains
     character(*), intent(in) :: fChargeIn
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in), optional :: qBlockIn(:,:,:,:), qiBlockIn(:,:,:,:)
-    
+
     call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
     write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fChargeIn)
 
@@ -3890,7 +3890,7 @@ contains
     integer :: ii
 
     tmpLatVecs(:) = constrLatVecs
-    if (tLatOptFixAng) then 
+    if (tLatOptFixAng) then
       ! Optimization uses scaling factor of lattice vectors
       if (any(tLatOptFixLen)) then
         do ii = 3, 1, -1
@@ -3912,7 +3912,7 @@ contains
       end do
     end if
     newLatVecs(:,:) = reshape(tmpLatVecs, [3, 3])
-    
+
   end subroutine unconstrainLatticeVectors
 
 
@@ -3999,7 +3999,7 @@ contains
     real(dp) :: movedAccel(3, size(indMovedAtom)), movedVelo(3, size(indMovedAtom))
     real(dp) :: movedCoords(3, size(indMovedAtom))
     real(dp) :: kineticStress(3, 3)
-    
+
     movedAccel(:,:) = -totalDeriv(:, indMovedAtom) / movedMass
     call next(pMdIntegrator, movedAccel, movedCoords, movedVelo)
     coord0(:, indMovedAtom) = movedCoords
@@ -4022,7 +4022,7 @@ contains
       cellPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
       totalLatDeriv = -cellVol * matmul(totalStress, invLatVec)
     end if
-      
+
     if (tBarostat) then
       call rescale(pMDIntegrator, coord0, latVec, totalStress)
     end if
