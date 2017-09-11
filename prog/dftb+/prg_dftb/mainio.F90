@@ -839,7 +839,7 @@ contains
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, totalDeriv,&
+  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
       & gibbsFree, endCoords, tLocalise, localisation)
 
@@ -862,7 +862,7 @@ contains
     real(dp), intent(in) :: qOutput(:,:,:)
 
     !> Atomic derivatives (allocation status used as a flag)
-    real(dp), allocatable, intent(in) :: totalDeriv(:,:)
+    real(dp), allocatable, intent(in) :: derivs(:,:)
 
     !> Forces on external charges (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
@@ -910,17 +910,17 @@ contains
       call qm2ud(qOutputUpDown)
       call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
     end if
-    if (allocated(totalDeriv)) then
-      call writeTagged(fd, tag_forceTot, -totalDeriv)
-      if (allocated(chrgForces)) then
-        call writeTagged(fd, tag_chrgForces, -chrgForces)
-      end if
-      if (allocated(excitedDerivs)) then
-        call writeTagged(fd, tag_excForce, -excitedDerivs)
-      end if
-      if (tStress) then
-        call writeTagged(fd, tag_stressTot, totalStress)
-      end if
+    if (allocated(derivs)) then
+      call writeTagged(fd, tag_forceTot, -derivs)
+    end if
+    if (allocated(chrgForces)) then
+      call writeTagged(fd, tag_chrgForces, -chrgForces)
+    end if
+    if (allocated(excitedDerivs)) then
+      call writeTagged(fd, tag_excForce, -excitedDerivs)
+    end if
+    if (tStress) then
+      call writeTagged(fd, tag_stressTot, totalStress)
     end if
     if (associated(pDynMatrix)) then
       call writeTagged(fd, tag_HessianNum, pDynMatrix)
@@ -939,7 +939,7 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fd, fileName, totalDeriv, chrgForces, tStress, totalStress,&
+  subroutine writeResultsTag(fd, fileName, derivs, chrgForces, tStress, totalStress,&
       & pDynMatrix, tPeriodic, cellVol)
 
     !> File ID to write to
@@ -949,7 +949,7 @@ contains
     character(*), intent(in) :: fileName
 
     !> Atomic derivatives (allocation status used as a flag)
-    real(dp), allocatable, intent(in) :: totalDeriv(:,:)
+    real(dp), allocatable, intent(in) :: derivs(:,:)
 
     !> Forces on external charges
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
@@ -972,11 +972,11 @@ contains
     @:ASSERT(tPeriodic .eqv. tSress)
 
     open(fd, file=fileName, action="write", status="replace")
-    if (allocated(totalDeriv)) then
-      call writeTagged(fd, tag_forceTot, -totalDeriv)
-      if (allocated(chrgForces)) then
-        call writeTagged(fd, tag_chrgForces, -chrgForces)
-      end if
+    if (allocated(derivs)) then
+      call writeTagged(fd, tag_forceTot, -derivs)
+    end if
+    if (allocated(chrgForces)) then
+      call writeTagged(fd, tag_chrgForces, -chrgForces)
     end if
     if (tStress) then
       call writeTagged(fd, tag_stressTot, totalStress)
@@ -1637,7 +1637,7 @@ contains
 
   !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
-      & tStress, tPeriodic, energy, totalStress, totalLatDeriv, totalDeriv, chrgForces,&
+      & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile)
 
     !> File  ID
@@ -1680,7 +1680,7 @@ contains
     real(dp), intent(in) :: totalLatDeriv(:,:)
 
     !> Energy derivative with respect to atomic coordinates
-    real(dp), intent(in), allocatable :: totalDeriv(:,:)
+    real(dp), intent(in), allocatable :: derivs(:,:)
 
     !> Forces on external charges
     real(dp), intent(in), allocatable :: chrgForces(:,:)
@@ -1729,8 +1729,8 @@ contains
 
     if (tPrintForces) then
       write(fd, "(A)") 'Total Forces'
-      do iAt = 1, size(totalDeriv, dim=2)
-        write(fd, "(3F20.12)") -totalDeriv(:, iAt)
+      do iAt = 1, size(derivs, dim=2)
+        write(fd, "(3F20.12)") -derivs(:, iAt)
       end do
       write(fd, *)
       if (tStress .and. .not. tMd) then
@@ -1746,10 +1746,10 @@ contains
         write(fd, *)
       end if
 
-      write(fd, format1Ue) "Maximal derivative component", maxval(abs(totalDeriv)), 'au'
+      write(fd, format1Ue) "Maximal derivative component", maxval(abs(derivs)), 'au'
       if (size(indMovedAtom) > 0) then
         write(fd, format1Ue) "Max force for moved atoms:",&
-            & maxval(abs(totalDeriv(:, indMovedAtom))), 'au'
+            & maxval(abs(derivs(:, indMovedAtom))), 'au'
       end if
       write(fd, *)
 
@@ -1775,7 +1775,7 @@ contains
 
   !> Third group of data for detailed.out
   subroutine writeDetailedOut3(fd, tPrintForces, tSetFillingTemp, tPeriodic, tStress, totalStress,&
-      & totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
+      & totalLatDeriv, energy, tempElec, pressure, cellPressure, tempIon)
 
     !> File ID
     integer, intent(in) :: fd
@@ -1811,7 +1811,7 @@ contains
     real(dp), intent(in) :: cellPressure
 
     !> Atomic kinetic temperature
-    real(dp), intent(in) :: kT
+    real(dp), intent(in) :: tempIon
 
     integer :: ii
 
@@ -1841,12 +1841,12 @@ contains
             & Hartree__eV * energy%EGibbsKin, 'eV'
       end if
     end if
-    write(fd, format2U) "MD Temperature", kT, "H", kT / Boltzmann, "K"
+    write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
 
   end subroutine writeDetailedOut3
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, tMd, energy, kT)
+  subroutine writeDetailedOut4(fd, tMd, energy, tempIon)
 
     !> File ID
     integer, intent(in) :: fd
@@ -1858,13 +1858,13 @@ contains
     type(TEnergies), intent(in) :: energy
 
     !> Atomic kinetic energy
-    real(dp), intent(in) :: kT
+    real(dp), intent(in) :: tempIon
 
     if (tMd) then
       write(fd, format1U) "MD Kinetic Energy", energy%Ekin, "H"
       write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
           & Hartree__eV * energy%EMerminKin, "eV"
-      write(fd, format2U) "MD Temperature", kT, "H", kT / Boltzmann, "K"
+      write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
       write(fd, *)
     end if
 
@@ -1957,7 +1957,8 @@ contains
 
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, latVec, cellVol, cellPressure, pressure, kT, absEField, qOutput, q0, dipoleMoment)
+      & energy, latVec, cellVol, cellPressure, pressure, tempIon, absEField, qOutput, q0,&
+      & dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
@@ -1996,7 +1997,7 @@ contains
     real(dp), intent(in) :: pressure
 
     !> Atomic kinetic energy
-    real(dp), intent(in) :: kT
+    real(dp), intent(in) :: tempIon
 
     !> magnitude of any applied electric field
     real(dp), intent(in) :: absEField
@@ -2036,7 +2037,7 @@ contains
     write(fd, format2U) 'MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV, 'eV'
     write(fd, format2U) 'Total MD Energy', energy%EMerminKin, 'H',&
         & energy%EMerminKin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Temperature', kT, 'au', kT / Boltzmann, 'K'
+    write(fd, format2U) 'MD Temperature', tempIon, 'au', tempIon / Boltzmann, 'K'
     if (tEfield) then
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
@@ -2685,7 +2686,7 @@ contains
 
 
   !> Prints out info about current MD step.
-  subroutine printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, kT,&
+  subroutine printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, tempIon,&
       & cellPressure, pressure, energy)
 
     !> Is the electronic temperature set by the thermostat method?
@@ -2704,7 +2705,7 @@ contains
     real(dp), intent(in) :: absEField
 
     !> Atomic kinetic energy
-    real(dp), intent(in) :: kT
+    real(dp), intent(in) :: tempIon
 
     !> Internal pressure
     real(dp), intent(in) :: cellPressure
@@ -2721,7 +2722,7 @@ contains
     if (tEfield) then
       write(stdOut, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
-    write(stdOut, format2U) "MD Temperature:", kT, "H", kT / Boltzmann, "K"
+    write(stdOut, format2U) "MD Temperature:", tempIon, "H", tempIon / Boltzmann, "K"
     write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
     write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
         & Hartree__eV * energy%EMerminKin, "eV"

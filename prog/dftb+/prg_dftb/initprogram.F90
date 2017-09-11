@@ -187,11 +187,11 @@ module initprogram
   integer, allocatable :: nNeighbor(:)
 
   !> H/S sparse matrices indexing array for atomic blocks
-  integer, allocatable :: iPair(:,:)
+  integer, allocatable :: iSparseStart(:,:)
 
 
-  !> atom start pos for squared H/S
-  integer, allocatable :: iAtomStart(:)
+  !> atom start pos for dense  H/S
+  integer, allocatable :: iDenseStart(:)
 
 
   !> Hubbard Us (orbital, atom)
@@ -254,7 +254,7 @@ module initprogram
 
 
   !> external pressure if periodic
-  real(dp) :: pressure
+  real(dp) :: extPressure
 
   !> Barostat used if MD and periodic
   logical :: tBarostat
@@ -1025,8 +1025,8 @@ contains
     allocate(species(nAllAtom))
     allocate(img2CentCell(nAllAtom))
     allocate(iCellVec(nAllAtom))
-    allocate(iAtomStart(nAtom + 1))
-    call buildSquaredAtomIndex(iAtomStart, orb)
+    allocate(iDenseStart(nAtom + 1))
+    call buildSquaredAtomIndex(iDenseStart, orb)
 
     ! Intialize Hamilton and overlap
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
@@ -1040,7 +1040,7 @@ contains
       allocate(iHam(0, nSpin))
     end if
     allocate(over(0))
-    allocate(iPair(0, nAtom))
+    allocate(iSparseStart(0, nAtom))
 
     ! Brillouin zone sampling
     if (tPeriodic) then
@@ -1228,7 +1228,7 @@ contains
         end do
       end if
     end if
-    pressure = input%ctrl%pressure
+    extPressure = input%ctrl%pressure
     tBarostat = input%ctrl%tBarostat
     BarostatStrength = input%ctrl%BarostatStrength
 
@@ -1281,7 +1281,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = iAtomStart(iAt) + iOrb - 1
+                tmpir1(ind) = iDenseStart(iAt) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)
@@ -1308,7 +1308,7 @@ contains
               do ii = 1, nAtomRegion
                 iAt = iAtomRegion(ii)
                 do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
-                  tmpir1(ind) = iAtomStart(iAt) + jj - 1
+                  tmpir1(ind) = iDenseStart(iAt) + jj - 1
                   ind = ind + 1
                 end do
               end do
@@ -1332,7 +1332,7 @@ contains
           do ii = 1, nAtomRegion
             iAt = iAtomRegion(ii)
             do jj = 1, orb%nOrbAtom(iAt)
-              tmpir1(ind) = iAtomStart(iAt) + jj - 1
+              tmpir1(ind) = iDenseStart(iAt) + jj - 1
               ind = ind + 1
             end do
           end do
@@ -1695,7 +1695,7 @@ contains
         if (tBarostat) then
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat,input%ctrl%initialVelocities, &
-              & BarostatStrength,pressure,input%ctrl%tIsotropic)
+              & BarostatStrength,extPressure,input%ctrl%tIsotropic)
         else
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat,input%ctrl%initialVelocities)
@@ -1703,7 +1703,7 @@ contains
       else
         if (tBarostat) then
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
-              & pThermostat, BarostatStrength,pressure,input%ctrl%tIsotropic)
+              & pThermostat, BarostatStrength,extPressure,input%ctrl%tIsotropic)
         else
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat)
         end if
@@ -2129,7 +2129,7 @@ contains
       write(stdout, "(A,':',T30,A)") "Periodic boundaries", "Yes"
       if (tLatOpt) then
         write(stdout, "(A,':',T30,A)") "Lattice optimisation", "Yes"
-        write(stdout, "(A,':',T30,f12.6)") "Pressure", pressure
+        write(stdout, "(A,':',T30,f12.6)") "Pressure", extPressure
       end if
     else
       write(stdout, "(A,':',T30,A)") "Periodic boundaries", "No"
