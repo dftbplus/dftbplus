@@ -389,7 +389,7 @@ contains
 
     !> the natural orbitals of the excited state transition density matrix or the total density
     !> matrix in the excited state
-    real(dp), intent(out), optional :: naturalOrbs(:,:)
+    real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
 #:if WITH_ARPACK
 

@@ -376,8 +376,8 @@ contains
 
         if (tScc) then
           call getChargePerShell(qInput, orb, species, chargePerShell)
-          call addChargePotentials(qInput, q0, chargePerShell, orb, species, species0,&
-              & neighborList, img2CentCell, spinW, thirdOrd, potential)
+          call addChargePotentials(qInput, q0, chargePerShell, orb, species, neighborList,&
+              & img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
         end if
@@ -417,8 +417,8 @@ contains
         if (tSCC .and. .not. tXlbomd) then
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
-          call addChargePotentials(qOutput, q0, chargePerShell, orb, species, species0,&
-              & neighborList, img2CentCell, spinW, thirdOrd, potential)
+          call addChargePotentials(qOutput, q0, chargePerShell, orb, species, neighborList,&
+              & img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
           potential%intBlock = potential%intBlock + potential%extBlock
@@ -1723,7 +1723,7 @@ contains
 
 
   !> Add potentials comming from point charges.
-  subroutine addChargePotentials(qInput, q0, chargePerShell, orb, species, species0, neighborList,&
+  subroutine addChargePotentials(qInput, q0, chargePerShell, orb, species, neighborList,&
       & img2CentCell, spinW, thirdOrd, potential)
 
     !> Input atomic populations
@@ -1739,10 +1739,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> species of all atoms
-    integer, intent(in) :: species(:)
-
-    !> species of central cell atoms
-    integer, intent(in) :: species0(:)
+    integer, target, intent(in) :: species(:)
 
     !> neighbours to atoms
     type(TNeighborList), intent(in) :: neighborList
@@ -1761,10 +1758,12 @@ contains
 
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
+    integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
+    pSpecies0 => species(1:nAtom)
 
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
@@ -1776,7 +1775,7 @@ contains
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
 
     if (allocated(thirdOrd)) then
-      call thirdOrd%updateCharges(species0, neighborList, qInput, q0, img2CentCell, orb)
+      call thirdOrd%updateCharges(pSpecies0, neighborList, qInput, q0, img2CentCell, orb)
       call thirdOrd%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
@@ -3626,8 +3625,7 @@ contains
     real(dp), intent(out), optional :: occNatural(:)
 
     real(dp), allocatable :: dQAtom(:)
-    real(dp), allocatable, target :: naturalOrbs(:)
-    real(dp), pointer :: pNaturalOrbs2(:,:), pNaturalOrbs3(:,:,:)
+    real(dp), allocatable :: naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
     integer :: iSpin, nSpin, nAtom
     logical :: tSpin
@@ -3654,20 +3652,15 @@ contains
 
     if (tLinRespZVect) then
       if (tPrintExcitedEigVecs) then
-        allocate(naturalOrbs(orb%nOrb * orb%nOrb))
-        pNaturalOrbs2(1:orb%nOrb, 1:orb%nOrb) => naturalOrbs
-        pNaturalOrbs3(1:orb%nOrb, 1:orb%nOrb, 1:1) => naturalOrbs
-      else
-        pNaturalOrbs2 => null()
-        pNaturalOrbs3 => null()
+        allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
       call addGradients(tSpin, lresp, iDenseStart, HSqrReal, eigen, SSqrReal,&
           & filling, coord0, dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb,&
           & skHamCont, skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs, &
-          & nonSccDeriv, rhoSqrReal, occNatural=occNatural, naturalOrbs=pNaturalOrbs2)
+          & nonSccDeriv, rhoSqrReal, occNatural=occNatural, naturalOrbs=naturalOrbs)
       if (tPrintExcitedEigvecs) then
         call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iDenseStart,&
-            & iSparseStart, img2CentCell, orb, pSpecies0, speciesName, over, pNaturalOrbs3,&
+            & iSparseStart, img2CentCell, orb, pSpecies0, speciesName, over, naturalOrbs,&
             & SSqrReal, fileName="excitedOrbs")
       end if
     else

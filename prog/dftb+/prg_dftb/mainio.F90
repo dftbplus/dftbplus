@@ -22,7 +22,7 @@ module mainio
   use linkedlist
   use taggedoutput
   use fileid
-  use spin, only : qm2ud, ud2qm
+  use spin, only : qm2ud
   use energies
   use xmlf90
   use hsdutils, only : writeChildValue

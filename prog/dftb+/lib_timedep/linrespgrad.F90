@@ -213,7 +213,7 @@ contains
     real(dp), intent(out), optional :: occNatural(:)
 
     !> the single particle eigenvectors themselves for the excited state density matrix.
-    real(dp), intent(out), optional :: naturalOrbs(:,:)
+    real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
     real(dp) :: Ssq(nexc)
     real(dp), allocatable :: gammaMat(:,:), snglPartTransDip(:,:)
@@ -1758,7 +1758,7 @@ contains
     real(dp), allocatable :: dH0(:,:,:), dS(:,:,:)
     integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2
     integer :: indalpha, indalpha1, indbeta, indbeta1
-    integer :: nOrb1, nOrb2, iSp1, iSp2
+    integer :: iSp1, iSp2
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, rab
     real(dp) :: diffvec(3), dgab(3), tmp3a, tmp3b
 
@@ -1875,13 +1875,11 @@ contains
     ! BA: only for non-periodic systems!
     do iAt1 = 1, nAtom
       indalpha = iAtomStart(iAt1)
-      nOrb1 = iAtomStart(iAt1+1) - indalpha
       indalpha1 = iAtomStart(iAt1 + 1) -1
       iSp1 = species0(iAt1)
 
       do iAt2 = 1, iAt1 - 1
         indbeta = iAtomStart(iAt2)
-        nOrb2 = iAtomStart(iAt2+1) - indbeta
         indbeta1 = iAtomStart(iAt2 + 1) -1
         iSp2 = species0(iAt2)
 
@@ -1973,7 +1971,7 @@ contains
     real(dp), intent(out), optional :: occNatural(:)
 
     !> Natural orbitals
-    real(dp), intent(out), optional :: naturalOrbs(:,:)
+    real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
     real(dp), allocatable :: t2(:,:), occtmp(:)
     integer :: norb, ii, jj, mm
@@ -1991,8 +1989,8 @@ contains
       end if
 
       if (present(occNatural)) then
-        naturalOrbs = t2
-        call evalCoeffs(naturalOrbs,occNatural,grndEigVecs(:,:,1))
+        naturalOrbs(:,:,1) = t2
+        call evalCoeffs(naturalOrbs(:,:,1) ,occNatural,grndEigVecs(:,:,1))
         if (tCoeffs) then
           ALLOCATE(occtmp(size(occ)))
           occTmp = occNatural
