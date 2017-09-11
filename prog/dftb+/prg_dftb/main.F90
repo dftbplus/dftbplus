@@ -3289,11 +3289,11 @@ contains
     real(dp), allocatable :: qOrbUpDown(:,:,:), qBlockUpDown(:,:,:,:)
 
     qRed(:) = 0.0_dp
-    allocate(qOrbUpDown, source=qOrb)
+    qOrbUpDown = qOrb
     call qm2ud(qOrbUpDown)
     call orbitalEquiv_reduce(qOrbUpDown, iEqOrbitals, orb, qRed(1:nIneqOrb))
     if (present(qBlock)) then
-      allocate(qBlockUpDown, source=qBlock)
+      qBlockUpDown = qBlock
       call qm2ud(qBlockUpDown)
       call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
       if (present(qiBlock)) then

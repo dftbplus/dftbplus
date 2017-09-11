@@ -906,7 +906,7 @@ contains
       call writeTagged(fd, tag_volume, cellVol)
     end if
     if (tMulliken) then
-      allocate(qOutputUpDown, source=qOutput)
+      qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
       call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
     end if
@@ -1300,12 +1300,12 @@ contains
     nMovedAtom = size(indMovedAtom)
     tSpin = (nSpin == 2 .or. nSpin == 4)
 
-    allocate(qInputUpDown, source=qInput)
-    allocate(qOutputUpDown, source=qOutput)
+    qInputUpDown = qInput
     call qm2ud(qInputUpDown)
+    qOutputUpDown = qOutput
     call qm2ud(qOutputUpDown)
     if (allocated(qBlockOut)) then
-      allocate(qBlockOutUpDown, source=qBlockOut)
+      qBlockOutUpDown = qBlockOut
       call qm2ud(qBlockOutUpDown)
     end if
 
@@ -2149,7 +2149,7 @@ contains
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
 
-    allocate(hamUpDown, source=ham)
+    hamUpDown = ham
     call qm2ud(hamUpDown)
 
     ! Write out matrices if necessary and quit.
