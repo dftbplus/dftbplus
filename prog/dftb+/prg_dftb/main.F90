@@ -1656,40 +1656,7 @@ contains
 
   end subroutine initSccLoop
 
-
-  !> Calculate the number of charges per shell.
-  subroutine getChargePerShell(qq, orb, species, chargePerShell)
-
-    !> charges in each orbital, for each atom and spin channel
-    real(dp), intent(in) :: qq(:,:,:)
-
-    !> orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> species of each atom
-    integer, intent(in) :: species(:)
-
-    !> Resulting charges in atomic shells
-    real(dp), intent(out) :: chargePerShell(:,:,:)
-
-    integer :: iAt, iSp, iSh
-    integer :: nAtom, nSpin
-
-    nAtom = size(chargePerShell, dim=2)
-    nSpin = size(chargePerShell, dim=3)
-    chargePerShell(:,:,:) = 0.0_dp
-    do iAt = 1, nAtom
-      iSp = species(iAt)
-      do iSh = 1, orb%nShell(iSp)
-        chargePerShell(iSh, iAt, 1:nSpin) = chargePerShell(iSh, iAt, 1:nSpin)&
-            & + sum(qq(orb%posShell(iSh, iSp) : orb%posShell(iSh + 1, iSp) - 1, iAt, 1:nSpin),&
-            & dim=1)
-      end do
-    end do
-
-  end subroutine getChargePerShell
-
-
+  
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
