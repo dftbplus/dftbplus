@@ -28,6 +28,8 @@ module mainio
   use hsdutils, only : writeChildValue
   use mdintegrator, only : OMdIntegrator, state
   use formatout
+  use sccinit, only : writeQToFile
+  use message
   implicit none
   private
 
@@ -37,8 +39,12 @@ module mainio
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
-  public :: writeHS
-  public :: printGeoStepInfo, printSccHeader
+  public :: writeCharges, writeRestart, writeEigenvectors, writeProjectedEigenvectors
+  public :: writeCurrentGeometry, writeFinalDriverStatus
+  public :: writeHSAndStop, writeHS
+  public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
+  public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
+  public :: printMdInfo
   public :: format1U, format2U, format1Ue, format2Ue, format1U1e
 
 
@@ -2071,6 +2077,103 @@ contains
   end subroutine writeMdOut3
 
 
+  !> Write out charges.
+  subroutine writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+
+    !> input charges
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> File name for charges to be written to
+    character(*), intent(in) :: fChargeIn
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Block populations if present
+    real(dp), intent(in), optional :: qBlockIn(:,:,:,:)
+
+    !> Imaginary part of block populations if present
+    real(dp), intent(in), optional :: qiBlockIn(:,:,:,:)
+
+    call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+    write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fChargeIn)
+
+  end subroutine writeCharges
+
+
+  !> Writes Hamiltonian and overlap matrices and stops program execution.
+  subroutine writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
+      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+
+    !> Write dense hamiltonian and overlap matrices
+    logical, intent(in) :: tWriteHS
+
+    !> write sparse hamitonian and overlap matrices
+    logical, intent(in) :: tWriteRealHS
+
+    !> Is the hamitonian real?
+    logical, intent(in) :: tRealHS
+
+    !> overlap in sparse storage
+    real(dp), intent(in) :: over(:)
+
+    !> atomic neighbours
+    type(TNeighborList), intent(in) :: neighborList
+
+    !> number of neighbours for each central cell atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> dense matrix indexing for atomic blocks
+    integer, intent(in) :: iAtomStart(:)
+
+    !> sparse matrix indexing for atomic blocks
+    integer, intent(in) :: iPair(:,:)
+
+    !> Image atoms to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> index  for which unit cell an atom is in
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to unit cells, in lattice constant units
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> sparse hamitonian
+    real(dp), intent(inout) :: ham(:,:)
+
+    !> imaginary part of hamitonian (used if allocated)
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    integer :: nSpin
+
+    nSpin = size(ham, dim=2)
+
+    ! Sanity check, although this should have been caught in initprogram already.
+    if (nSpin == 4) then
+      call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
+    end if
+
+    if (nSpin == 2) then
+      call qm2ud(ham)
+    end if
+
+    ! Write out matrices if necessary and quit.
+    if (allocated(iHam)) then
+      call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
+    else
+      call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec)
+    end if
+    write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
+    stop
+
+  end subroutine writeHSAndStop
+
+
   !> Invokes the writing routines for the Hamiltonian and overlap matrices.
   subroutine writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
       & iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
@@ -2156,32 +2259,342 @@ contains
   end subroutine writeHS
 
 
-  !> Write out geometry in gen format if needed
-  subroutine writeGenGeometry(tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic, geoOutFile,&
-      & coords0, species0, speciesNames, latVecs)
-    logical, intent(in) :: tGeoOpt, tMd, tWriteRestart, tFracCoord, tPeriodic
+  !> Write restart information.
+  subroutine writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
+
+    !> File name for charge output
+    character(*), intent(in) :: fChargeIn
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Input charges
+    real(dp), intent(in) :: qInput(:,:,:)
+
+    !> input block charges
+    real(dp), intent(in), optional :: qBlockIn(:,:,:,:)
+
+    !> imaginary part of input block charges
+    real(dp), intent(in), optional :: qiBlockIn(:,:,:,:)
+
+    if (present(qBlockIn)) then
+      if (present(qiBlockIn)) then
+        call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+      else
+        call writeQToFile(qInput, fChargeIn, orb, qBlockIn)
+      end if
+    else
+      call writeQToFile(qInput, fChargeIn, orb)
+    end if
+    write(stdout, "(2A)") ">> Charges saved for restart in ", fChargeIn
+
+  end subroutine writeRestart
+
+
+  !> Writes the eigenvectors to disc.
+  subroutine writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
+      & iCellVec, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
+      & HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> File ID for ground state eigenvectors
+    integer, intent(in) :: fdEigvec
+
+    !> Job ID for future identification
+    integer, intent(in) :: runId
+
+    !> Number of real atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> list of neighbours for each atom
+    type(TNeighborList), intent(in) :: neighborList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index of start of atom blocks in dense matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iPair(:,:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> label for each atomic chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Storage for dense hamiltonian matrix
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:)
+
+    !> Storage for dense overlap matrix
+    real(dp), intent(inout), optional :: SSqrReal(:,:)
+
+    !> Storage for dense hamitonian matrix (complex case)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:)
+
+    !> Storage for dense overlap matrix (complex case)
+    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
+    @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
+
+    if (present(HSqrCplx)) then
+      !> Complex Pauli-Hamiltonian without k-points
+      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec, iCellVec,&
+          & iAtomStart, iPair, img2CentCell, orb, species, speciesName, over, kPoint, HSqrCplx,&
+          & SSqrCplx, storeEigvecsCplx)
+    else
+      !> Real Hamiltonian
+      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart, iPair,&
+          & img2CentCell, orb, species, speciesName, over, HSqrReal, SSqrReal, storeEigvecsReal)
+    end if
+
+  end subroutine writeEigenvectors
+
+
+  !> Write projected eigenvectors.
+  subroutine writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
+      & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kPoint, kWeight,&
+      & iOrbRegion, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+    type(ListCharLc), intent(inout) :: regionLabels
+    integer, intent(in) :: fdProjEig(:)
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> list of neighbours for each atom
+    type(TNeighborList), intent(in) :: neighborList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Index of start of atom blocks in dense matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iPair(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+    type(ListIntR1), intent(inout) :: iOrbRegion
+
+    !> Storage for dense hamiltonian matrix
+    real(dp), intent(inout), optional :: HSqrReal(:,:,:)
+
+    !> Storage for dense overlap matrix
+    real(dp), intent(inout), optional :: SSqrReal(:,:)
+
+    !> Storage for dense hamitonian matrix (complex case)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:)
+
+    !> Storage for dense overlap matrix (complex case)
+    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
+    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
+    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
+
+    @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
+    @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
+
+
+    if (present(SSqrCplx)) then
+      call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
+          & cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kpoint, kWeight,&
+          & HSqrCplx, SSqrCplx, iOrbRegion, storeEigvecsCplx)
+    else
+      call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, orb, over, HSqrReal, SSqrReal, iOrbRegion,&
+          & storeEigvecsReal)
+    end if
+
+  end subroutine writeProjectedEigenvectors
+
+
+  !> Write current geometry to disc
+  subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
+      & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
+      & qOutput, velocities)
+
+    !>  file for geometry output
     character(*), intent(in) :: geoOutFile
-    real(dp), intent(in) :: coords0(:,:)
+
+    !> How central cell atoms are represented
+    real(dp), intent(in) :: pCoord0Out(:,:)
+
+    !> is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> should the geometry be added to the end, or the file cleared first
+    logical, intent(in) :: tAppendGeo
+
+    !> are fractional GEN files expected
+    logical, intent(in) :: tFracCoord
+
+    !> Is the geometry periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> should Mulliken charges be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> species of atoms in the central cell
     integer, intent(in) :: species0(:)
-    character(*), intent(in) :: speciesNames(:)
-    real(dp), intent(in) :: latVecs(:,:)
 
-    character(lc) :: lcTmpLocal
+    !> label for each atomic chemical species
+    character(*), intent(in) :: speciesName(:)
 
-    if (tGeoOpt .or. tMD) then
-      if (tWriteRestart) then
-        write(lcTmpLocal, "(A, A)") trim(geoOutFile), ".gen"
-        call clearFile(trim(lcTmpLocal))
-        if (tPeriodic) then
-          call writeGenFormat(trim(lcTmpLocal), coords0, species0, speciesNames, latVecs,&
-              & tFracCoord)
-        else
-          call writeGenFormat(trim(lcTmpLocal), coords0, species0, speciesNames)
-        end if
+    !> lattice vectors
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> current lattice step
+    integer, intent(in) :: iLatGeoStep
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> charges
+    real(dp), intent(in), optional :: qOutput(:,:,:)
+
+    !> atomic velocities
+    real(dp), intent(in), optional :: velocities(:,:)
+
+    real(dp), allocatable :: tmpMatrix(:,:)
+    integer :: nAtom
+    integer :: ii, jj
+    character(lc) :: comment, fname
+
+    nAtom = size(pCoord0Out, dim=2)
+
+    fname = trim(geoOutFile) // ".gen"
+    if (tPeriodic) then
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
+    else
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName)
+    end if
+
+    fname = trim(geoOutFile) // ".xyz"
+    if (tLatOpt) then
+      write (comment, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
+          & iLatGeoStep
+    elseif (tMD) then
+      write(comment, "(A, I0)") 'MD iter: ', iGeoStep
+    else
+      write(comment,"(A, I0)") 'Geometry Step: ', iGeoStep
+    end if
+
+    if (tPrintMulliken) then
+      ! For non-colinear spin without velocities write magnetisation into the velocity field
+      if (nSpin == 4 .and. .not. present(velocities)) then
+        allocate(tmpMatrix(3, nAtom))
+        do jj = 1, nAtom
+          do ii = 1, 3
+            tmpMatrix(ii,jj) = sum(qOutput(:, jj, ii + 1))
+          end do
+        end do
+        ! convert by the inverse of the scaling used in writeXYZFormat
+        tmpMatrix(:,:) = tmpMatrix * au__fs / (1000_dp * Bohr__AA)
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1), dim=1), velocities=tmpMatrix, comment=comment,&
+            & append=tAppendGeo)
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & append=tAppendGeo)
+      end if
+    else
+      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+          & comment=comment, append=tAppendGeo)
+    end if
+
+  end subroutine writeCurrentGeometry
+
+
+  !> Write out final status of the geometry driver.
+  subroutine writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
+
+    !> Is the geometry being optimised?
+    logical, intent(in) :: tGeoOpt
+
+    !> Has the optimisation terminated?
+    logical, intent(in) :: tGeomEnd
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Are finite difference derivatives being calculated?
+    logical, intent(in) :: tDerivs
+
+    if (tGeoOpt) then
+      if (tGeomEnd) then
+        write(stdOut, "(/, A)") "Geometry converged"
+      else
+        call warning("!!! Geometry did NOT converge!")
+      end if
+    elseif (tMD) then
+      if (tGeomEnd) then
+        write(stdOut, "(/, A)") "Molecular dynamics completed"
+      else
+        call warning("!!! Molecular dynamics terminated abnormally!")
+      end if
+    elseif (tDerivs) then
+      if (tGeomEnd) then
+        write(stdOut, "(/, A)") "Second derivatives completed"
+      else
+        call warning("!!! Second derivatives terminated abnormally!")
       end if
     end if
 
-  end subroutine writeGenGeometry
+  end subroutine writeFinalDriverStatus
 
 
   !> Prints geometry step information to standard out
@@ -2209,6 +2622,7 @@ contains
 
   end subroutine printGeoStepInfo
 
+
   !> Prints the line above the start of the SCC cycle data
   subroutine printSccHeader()
 
@@ -2216,6 +2630,151 @@ contains
         & "     SCC error    "
 
   end subroutine printSccHeader
+
+
+  !> Prints info about scc convergence.
+  subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+
+    !> Are orbital potentials being used
+    logical, intent(in) :: tDftbU
+
+    !> Iteration count
+    integer, intent(in) :: iSccIter
+
+    !> electronic energy
+    real(dp), intent(in) :: Eelec
+
+    !> Difference in electronic energy between this iteration and the last
+    real(dp), intent(in) :: diffElec
+
+    !> Maximum charge difference between input and output
+    real(dp), intent(in) :: sccErrorQ
+
+    if (tDFTBU) then
+      write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
+    else
+      write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
+    end if
+
+  end subroutine printSccInfo
+
+
+  !> Prints current total energies
+  subroutine printEnergies(energy)
+
+    !> energy components
+    type(TEnergies), intent(in) :: energy
+
+    write(stdOut, *)
+    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+        & Hartree__eV * energy%EMermin," eV"
+
+  end subroutine printEnergies
+
+
+  !> Prints cell volume.
+  subroutine printVolume(cellVol)
+
+    !> unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+  end subroutine printVolume
+
+
+  !> Prints pressure and free energy.
+  subroutine printPressureAndFreeEnergy(pressure, cellPressure, EGibbs)
+
+    !> applied external pressure
+    real(dp), intent(in) :: pressure
+
+    !> internal cell pressure
+    real(dp), intent(in) :: cellPressure
+
+    !> Gibbs free energy (E -TS_elec +pV)
+    real(dp), intent(in) :: EGibbs
+
+    write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+    if (abs(pressure) > epsilon(1.0_dp)) then
+      write(stdOut, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
+    end if
+
+  end subroutine printPressureAndFreeEnergy
+
+
+  !> Writes maximal force component.
+  subroutine printMaxForce(maxForce)
+
+    !> maximum of the atomic forces
+    real(dp), intent(in) :: maxForce
+
+    write(stdOut, "(A, ':', T30, E20.6)") "Maximal force component", maxForce
+
+  end subroutine printMaxForce
+
+
+  !> Print maximal lattice force component
+  subroutine printMaxLatticeForce(maxLattForce)
+
+    !> Maximum energy derivative with respect to lattice vectors
+    real(dp), intent(in) :: maxLattForce
+
+    write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
+
+  end subroutine printMaxLatticeForce
+
+
+  !> Prints out info about current MD step.
+  subroutine printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, kT,&
+      & cellPressure, pressure, energy)
+
+    !> Is the electronic temperature set by the thermostat method?
+    logical, intent(in) :: tSetFillingTemp
+
+    !> Is an electric field being applied?
+    logical, intent(in) :: tEFIeld
+
+    !> Is the geometry periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> Electronic temperature
+    real(dp), intent(in) :: tempElec
+
+    !> magnitude of applied electric field
+    real(dp), intent(in) :: absEField
+
+    !> Atomic kinetic energy
+    real(dp), intent(in) :: kT
+
+    !> Internal pressure
+    real(dp), intent(in) :: cellPressure
+
+    !> External pressure (applied)
+    real(dp), intent(in) :: pressure
+
+    !> data type for energy components and total
+    type(TEnergies), intent(in) :: energy
+
+    if (tSetFillingTemp) then
+      write(stdOut, format2U) 'Electronic Temperature:', tempElec, 'H', tempElec / Boltzmann, 'K'
+    end if
+    if (tEfield) then
+      write(stdOut, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
+    end if
+    write(stdOut, format2U) "MD Temperature:", kT, "H", kT / Boltzmann, "K"
+    write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
+    write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
+        & Hartree__eV * energy%EMerminKin, "eV"
+    if (tPeriodic) then
+      write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+      if (abs(pressure) < epsilon(1.0_dp)) then
+        write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+            & Hartree__eV * energy%EGibbsKin, 'eV'
+      end if
+    end if
+
+  end subroutine printMdInfo
 
 
 end module mainio
