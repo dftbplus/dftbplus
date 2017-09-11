@@ -52,7 +52,6 @@ module main
   use commontypes
   use dispersions, only : DispersionIface
   use xmlf90
-  use ipisocket, only : IpiSocketComm
   use thirdorder_module, only : ThirdOrder
   use simplealgebra
   use message
@@ -231,7 +230,7 @@ contains
     integer :: fdAutotest
 
     !> File descriptor for the human readable output
-    integer :: fdUser
+    integer :: fdDetailedOut
 
     !> File descriptor for the band structure output
     integer :: fdBand
@@ -248,6 +247,9 @@ contains
     !> File descriptor for numerical Hessian
     integer :: fdHessian
 
+    !> File descriptor for charge restart file
+    integer :: fdCharges
+
     !> Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
     real(dp), allocatable :: orbitalL(:,:,:)
@@ -257,7 +259,7 @@ contains
 
     !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case
     !> of conjugate gradient/steepest descent the geometries are written anyway
-    logical :: tWriteRestart = .false.
+    logical :: tWriteRestart
 
     !> Minimal number of SCC iterations
     integer :: minSCCIter
@@ -271,9 +273,6 @@ contains
     !> Whether charges should be written
     logical :: tWriteCharges
 
-    !> net charge on each atom
-    real(dp), allocatable :: dqAtom(:)
-
     !> density matrix
     real(dp), allocatable :: rhoSqrReal(:,:,:)
 
@@ -285,8 +284,8 @@ contains
 
     ! set up output files
     call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-        & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
-        & fdUser, fdMd, geoOutFile)
+        & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
+        & fdHessian, fdDetailedOut, fdMd, fdCharges)
 
     ! set up larger arrays
     call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam,&
@@ -294,8 +293,8 @@ contains
         & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim,&
         & h0, iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0,&
         & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
-        & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
-        & movedAccel, movedMass, dipoleMoment)
+        & SSqrReal, rhoSqrReal, chargePerShell, occNatural, velocities, movedVelo, movedAccel,&
+        & movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -317,12 +316,6 @@ contains
 
     ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
-
-    ! Belongs in initprogram where initial geometry is set up
-    if (tSocket) then
-      call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
-          & tLatticeChanged, tStopDriver)
-    end if
 
     ! Main geometry loop
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
@@ -447,12 +440,12 @@ contains
           tWriteSccRestart = needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter,&
               & maxSccIter, tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
-            call writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
+            call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
           end if
         end if
 
         if (tWriteDetailedOut) then
-          call writeDetailedOut1(fdUser, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
+          call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
               & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
@@ -469,10 +462,10 @@ contains
       if (tLinResp) then
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
         call calculateLinRespExcitations(lresp, qOutput, q0, over, HSqrReal, eigen(:,1,:),&
-            & filling(:,1,:), coord0, species, species0, speciesName, orb, skHamCont, skOverCont,&
-            & fdAutotest, fdEigvec, runId, neighborList, nNeighbor, iAtomStart, iPair,&
-            & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcitedEigvecs,&
-            & nonSccDeriv, energy, SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
+            & filling(:,1,:), coord0, species, speciesName, orb, skHamCont, skOverCont, fdAutotest,&
+            & fdEigvec, runId, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell,&
+            & tWriteAutotest, tForces, tLinRespZVect, tPrintExcitedEigvecs, nonSccDeriv, energy,&
+            & SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
       end if
 
       if (tXlbomd) then
@@ -537,7 +530,7 @@ contains
       end if
 
       if (tWriteDetailedOut) then
-        call writeDetailedOut2(fdUser, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMD,&
+        call writeDetailedOut2(fdDetailedOut, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMD,&
             & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, totalDeriv, &
             & chrgForces, indMovedAtom, cellVol, cellPressure, geoOutFile)
       end if
@@ -583,7 +576,7 @@ contains
         tWriteCharges = tWriteRestart .and. tMulliken .and. tSCC .and. .not. tDerivs&
             & .and. maxSccIter > 1
         if (tWriteCharges) then
-          call writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
+          call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
         end if
 
         ! initially assume coordinates are not being updated
@@ -646,8 +639,8 @@ contains
           end if
           coord0(:,:) = newCoords
           if (tWriteDetailedOut) then
-            call writeDetailedOut3(fdUser, tPrintForces, tSetFillingTemp, tPeriodic, tStress,&
-                & totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
+            call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic,&
+                & tStress, totalStress, totalLatDeriv, energy, tempElec, pressure, cellPressure, kT)
           end if
         else if (tSocket .and. iGeoStep < nGeoSteps) then
           ! Only receive geometry from socket, if there are still geometry iterations left
@@ -657,7 +650,7 @@ contains
       end if
 
       if (tWriteDetailedOut) then
-        call writeDetailedOut4(fdUser, tMD, energy, kT)
+        call writeDetailedOut4(fdDetailedOut, tMD, energy, kT)
       end if
 
       tStopDriver = tStopScc .or. tStopDriver .or. hasStopFile(fStopDriver)
@@ -674,7 +667,7 @@ contains
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
     if (tWriteDetailedOut) then
-      call writeDetailedOut5(fdUser, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
+      call writeDetailedOut5(fdDetailedOut, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
           & dipoleMoment)
     end if
 
@@ -730,8 +723,8 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, fdAutotest, fdResultsTag, fdBand, fdEigvec, fdHessian,&
-      & fdUser, fdMd, geoOutFile)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
+      & fdHessian, fdDetailedOut, fdMd, fdChargeBin)
 
     !> Should tagged regression test data be printed
     logical, intent(in) :: tWriteAutotest
@@ -754,6 +747,9 @@ contains
     !> Are atomic coodinates being optimised
     logical, intent(in) :: tGeoOpt
 
+    !> Filename for geometry output
+    character(*), intent(in) :: geoOutFile
+
     !> File unit for autotest data
     integer, intent(out) :: fdAutotest
 
@@ -770,13 +766,14 @@ contains
     integer, intent(out) :: fdHessian
 
     !> File unit for detailed.out
-    integer, intent(out) :: fdUser
+    integer, intent(out) :: fdDetailedOut
 
     !> File unit for information during molecular dynamics
     integer, intent(out) :: fdMd
 
-    !> Filename for geometry output
-    character(*), intent(in) :: geoOutFile
+    !> File descriptor for charge restart file
+    integer, intent(out) :: fdChargeBin
+
 
     call initTaggedWriter()
     if (tWriteAutotest) then
@@ -793,7 +790,7 @@ contains
       call initOutputFile(hessianOut, fdHessian)
     end if
     if (tWriteDetailedOut) then
-      call initOutputFile(userOut, fdUser)
+      call initOutputFile(userOut, fdDetailedOut)
     end if
     if (tMD) then
       call initOutputFile(mdOut, fdMD)
@@ -802,6 +799,7 @@ contains
       call clearFile(trim(geoOutFile) // ".gen")
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
+    fdChargeBin = getFileId()
 
   end subroutine initOutputFiles
 
@@ -812,8 +810,8 @@ contains
       & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim, h0,&
       & iRhoPrim, excitedDerivs, ERhoPrim, totalDeriv, chrgForces, energy, potential, TS, E0,&
       & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
-      & SSqrReal, rhoSqrReal, dqAtom, chargePerShell, occNatural, velocities, movedVelo,&
-      & movedAccel, movedMass, dipoleMoment)
+      & SSqrReal, rhoSqrReal, chargePerShell, occNatural, velocities, movedVelo, movedAccel,&
+      & movedMass, dipoleMoment)
 
     !> Are forces required
     logical, intent(in) :: tForces
@@ -950,9 +948,6 @@ contains
     !> density matrix dense storage
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
 
-    !> Atomic net charges
-    real(dp), intent(out), allocatable :: dqAtom(:)
-
     !> Number of electron in each atomic shell
     real(dp), intent(out), allocatable :: chargePerShell(:,:,:)
 
@@ -1049,7 +1044,6 @@ contains
     end if
 
     if (tLinResp) then
-      allocate(dqAtom(nAtom))
       if (tLinRespZVect) then
         allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
       end if
@@ -1112,43 +1106,6 @@ contains
     iLatGeoStep = 0
 
   end subroutine initGeoOptParameters
-
-
-  !> Receives the geometry from socket communication.
-  subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
-      & tLatticeChanged, tStopDriver)
-
-    !> Socket communication object
-    type(IpiSocketComm), allocatable, intent(inout) :: socket
-
-    !> Is the system periodic
-    logical, intent(in) :: tPeriodic
-
-    !> Coordinates for atoms
-    real(dp), intent(inout) :: coord0(:,:)
-
-    !> Lattice vectors for the unit cell (not referenced if not periodic)
-    real(dp), intent(inout) :: latVecs(:,:)
-
-    !> Have the atomic coordinates changed
-    logical, intent(out) :: tCoordsChanged
-
-    !> Have the lattice vectors changed
-    logical, intent(out) :: tLatticeChanged
-
-    !> Stop the geometry driver if true
-    logical, intent(out) :: tStopDriver
-
-    real(dp) :: tmpLatVecs(3, 3)
-
-    call socket%receive(coord0, tmpLatVecs, tStopDriver)
-    tCoordsChanged = .true.
-    if (tPeriodic .and. .not. tStopDriver) then
-      latVecs(:,:) = tmpLatVecs
-    end if
-    tLatticeChanged = tPeriodic
-
-  end subroutine receiveGeometryFromSocket
 
 
   !> Initialises SCC related parameters before geometry loop starts
@@ -3337,13 +3294,13 @@ contains
     integer, intent(in) :: iEqOrbitals(:,:,:)
 
     !> Electrons in atomic orbitals
-    real(dp), intent(inout) :: qOrb(:,:,:)
+    real(dp), intent(in) :: qOrb(:,:,:)
 
     !> Reduction of atomic populations
     real(dp), intent(out) :: qRed(:)
 
     !> Block (dual) populations, if also being reduced
-    real(dp), intent(inout), optional :: qBlock(:,:,:,:)
+    real(dp), intent(in), optional :: qBlock(:,:,:,:)
 
     !> equivalences for block charges
     integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
@@ -3354,21 +3311,19 @@ contains
     !> Equivalences for spin orbit if needed
     integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
 
+    real(dp), allocatable :: qOrbUpDown(:,:,:), qBlockUpDown(:,:,:,:)
+
     qRed(:) = 0.0_dp
-    call qm2ud(qOrb)
+    allocate(qOrbUpDown, source=qOrb)
+    call qm2ud(qOrbUpDown)
+    call orbitalEquiv_reduce(qOrbUpDown, iEqOrbitals, orb, qRed(1:nIneqOrb))
     if (present(qBlock)) then
-      call qm2ud(qBlock)
-    end if
-    call OrbitalEquiv_reduce(qOrb, iEqOrbitals, orb, qRed(1:nIneqOrb))
-    if (present(qBlock)) then
-      call AppendBlock_reduce(qBlock, iEqBlockDFTBU, orb, qRed)
+      allocate(qBlockUpDown, source=qBlock)
+      call qm2ud(qBlockUpDown)
+      call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
       if (present(qiBlock)) then
-        call AppendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
+        call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
       end if
-    end if
-    call ud2qm(qOrb)
-    if (present(qBlock)) then
-      call ud2qm(qBlock)
     end if
 
   end subroutine reduceCharges
@@ -3513,11 +3468,20 @@ contains
     !> resulting decision as to whether to write charges to disc
     logical :: tRestart
 
-    tRestart = ((restartFreq > 0 .and. .not. (tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1)&
-        & .and. (tConverged&
-        & .or. ((iSCCIter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)&
-        & .and. ((iSCCIter == maxSccIter .or. tStopScc)&
-        & .or. mod(iSCCIter, restartFreq) == 0))))
+    logical :: tEnoughIters, tRestartIter
+
+    ! Do we need restart at all?
+    tRestart = (restartFreq > 0 .and. .not. (tMD .or. tGeoOpt .or. tDerivs) .and. maxSccIter > 1)
+    if (tRestart) then
+
+      ! Do we have enough iterations already?
+      tEnoughIters = (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
+
+      ! Is current iteration the right one for writing a restart file?
+      tRestartIter = (iSccIter == maxSccIter .or. tStopScc .or. mod(iSccIter, restartFreq) == 0)
+
+      tRestart = (tConverged .or. (tEnoughIters .and. tRestartIter))
+    end if
 
   end function needsSccRestartWriting
 
@@ -3554,8 +3518,8 @@ contains
 
   !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(lresp, qOutput, q0, over, HSqrReal, eigen, filling,&
-      & coord0, species, species0, speciesName, orb, skHamCont, skOverCont, fdAutotest, fdEigvec,&
-      & runId, neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, tWriteAutotest, tForces,&
+      & coord0, species, speciesName, orb, skHamCont, skOverCont, fdAutotest, fdEigvec, runId,&
+      & neighborList, nNeighbor, iAtomStart, iPair, img2CentCell, tWriteAutotest, tForces,&
       & tLinRespZVect, tPrintExcitedEigvecs, nonSccDeriv, energy, SSqrReal, rhoSqrReal,&
       & excitedDerivs, occNatural)
 
@@ -3584,10 +3548,7 @@ contains
     real(dp), intent(in) :: coord0(:,:)
 
     !> species of all atoms in the system
-    integer, intent(in) :: species(:)
-
-    !> species of atoms in the central cell
-    integer, intent(in) :: species0(:)
+    integer, target, intent(in) :: species(:)
 
     !> label for each atomic chemical species
     character(*), intent(in) :: speciesName(:)
@@ -3658,12 +3619,14 @@ contains
     real(dp), allocatable :: dQAtom(:)
     real(dp), allocatable, target :: naturalOrbs(:)
     real(dp), pointer :: pNaturalOrbs2(:,:), pNaturalOrbs3(:,:,:)
+    integer, pointer :: pSpecies0(:)
     integer :: iSpin, nSpin, nAtom
     logical :: tSpin
 
     nAtom = size(qOutput, dim=2)
     nSpin = size(eigen, dim=2)
     tSpin = (nSpin == 2)
+    pSpecies0 => species(1:nAtom)
 
     energy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom))
@@ -3690,17 +3653,17 @@ contains
         pNaturalOrbs3 => null()
       end if
       call addGradients(tSpin, lresp, iAtomStart, HSqrReal, eigen, SSqrReal,&
-          & filling, coord0, dQAtom, species0, neighborList%iNeighbor, img2CentCell, orb,&
+          & filling, coord0, dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb,&
           & skHamCont, skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs, &
           & nonSccDeriv, rhoSqrReal, occNatural=occNatural, naturalOrbs=pNaturalOrbs2)
       if (tPrintExcitedEigvecs) then
         call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart,&
-            & iPair, img2CentCell, orb, species, speciesName, over, pNaturalOrbs3, SSqrReal,&
+            & iPair, img2CentCell, orb, pSpecies0, speciesName, over, pNaturalOrbs3, SSqrReal,&
             & fileName="excitedOrbs")
       end if
     else
       call calcExcitations(tSpin, lresp, iAtomStart, HSqrReal, eigen, SSqrReal, filling, coord0,&
-          & dQAtom, species0, neighborList%iNeighbor, img2CentCell, orb, tWriteAutotest,&
+          & dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb, tWriteAutotest,&
           & fdAutotest, energy%Eexcited)
     end if
     energy%Etotal = energy%Etotal + energy%Eexcited

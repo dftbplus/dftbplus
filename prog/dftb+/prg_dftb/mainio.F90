@@ -30,6 +30,7 @@ module mainio
   use formatout
   use sccinit, only : writeQToFile
   use message
+  use ipisocket
   implicit none
   private
 
@@ -39,15 +40,15 @@ module mainio
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
-  public :: writeCharges, writeRestart, writeEigenvectors, writeProjectedEigenvectors
+  public :: writeCharges, writeEigenvectors, writeProjectedEigenvectors
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo
-  public :: format1U, format2U, format1Ue, format2Ue, format1U1e
+  public :: receiveGeometryFromSocket
 
-
+  
   ! output file names
 
   !> Ground state eigenvectors in text format
@@ -58,12 +59,6 @@ module mainio
 
   !> Format string for energy second derivative matrix
   character(len=*), parameter :: formatHessian = '(4f16.10)'
-
-  !> Format for energy values, typically band energies
-  character(len=*), parameter :: formatEnergy = '(8f12.5)'
-
-  !> Format for eigenvalue energies
-  character(len=*), parameter :: formatEigen = '(8f14.8)'
 
   !> Atomic geometries format
   character(len=*), parameter :: formatGeoOut = "(I5, F16.8, F16.8, F16.8)"
@@ -864,7 +859,7 @@ contains
     logical, intent(in) :: tMulliken
 
     !> Output Mulliken charges
-    real(dp), intent(inout) :: qOutput(:,:,:)
+    real(dp), intent(in) :: qOutput(:,:,:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: totalDeriv(:,:)
@@ -902,6 +897,8 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    real(dp), allocatable :: qOutputUpDown(:,:,:)
+
     @:ASSERT(tPeriodic .eqv. tSress)
 
     open(fd, file=fileName, action="write", status="old", position="append")
@@ -909,9 +906,9 @@ contains
       call writeTagged(fd, tag_volume, cellVol)
     end if
     if (tMulliken) then
-      call qm2ud(qOutput)
-      call writeTagged(fd, tag_qOutput, qOutput(:,:,1))
-      call ud2qm(qOutput)
+      allocate(qOutputUpDown, source=qOutput)
+      call qm2ud(qOutputUpDown)
+      call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
     end if
     if (allocated(totalDeriv)) then
       call writeTagged(fd, tag_forceTot, -totalDeriv)
@@ -1120,7 +1117,7 @@ contains
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
-          write(fd, formatEnergy) Hartree__eV * eigen(iEgy, iK, iSpin), filling(iEgy, iK, iSpin)
+          write(fd, "(2f12.5)") Hartree__eV * eigen(iEgy, iK, iSpin), filling(iEgy, iK, iSpin)
         end do
         write(fd,*)
       end do
@@ -1215,10 +1212,10 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Input atomic charges (if SCC)
-    real(dp), intent(inout) :: qInput(:,:,:)
+    real(dp), intent(in) :: qInput(:,:,:)
 
     !> Output atomic charges (if SCC)
-    real(dp), intent(inout) :: qOutput(:,:,:)
+    real(dp), intent(in) :: qOutput(:,:,:)
 
     !> Eigenvalues/single particle states
     real(dp), intent(in) :: eigen(:,:,:)
@@ -1245,7 +1242,7 @@ contains
     real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
 
     !> Output block (dual) Mulliken charges
-    real(dp), allocatable, intent(inout) :: qBlockOut(:,:,:,:)
+    real(dp), allocatable, intent(in) :: qBlockOut(:,:,:,:)
 
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
@@ -1286,11 +1283,15 @@ contains
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
 
+    real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
     integer :: iAt, iSpin, iEgy, iK, iSp, iSh, iOrb, kk
     logical :: tSpin
+
+    character(*), parameter :: formatEigen = "(F14.8)"
+    character(*), parameter :: formatFilling = "(F12.5)"
 
     nAtom = size(q0, dim=2)
     nLevel = size(eigen, dim=1)
@@ -1298,6 +1299,15 @@ contains
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
     tSpin = (nSpin == 2 .or. nSpin == 4)
+    
+    allocate(qInputUpDown, source=qInput)
+    allocate(qOutputUpDown, source=qOutput)
+    call qm2ud(qInputUpDown)
+    call qm2ud(qOutputUpDown)
+    if (allocated(qBlockOut)) then
+      allocate(qBlockOutUpDown, source=qBlockOut)
+      call qm2ud(qBlockOutUpDown)
+    end if
 
     if (iGeoStep == 0 .and. iSccIter == 1) then
       open(fd, file=fileName, status="replace", action="write")
@@ -1379,7 +1389,7 @@ contains
       end do
       write(fd, "(/, A)") 'Fillings'
       do iEgy = 1, nLevel
-        write(fd, formatEnergy) (filling(iEgy, iK, iSpin), iK = 1, nKPoint)
+        write(fd, formatFilling) (filling(iEgy, iK, iSpin), iK = 1, nKPoint)
       end do
       write(fd, *)
     end do lpSpinPrint
@@ -1488,20 +1498,14 @@ contains
         write(fd, *)
       end if
     else
-      if (nSpin == 2) then
-        call qm2ud(qOutput)
-        if (tDFTBU) then
-          call qm2ud(qBlockOut)
-        end if
-      end if
       lpSpinPrint2: do iSpin = 1, nSpin
         if (tPrintMulliken) then
           write(fd, "(3A, F16.8)") 'Nr. of electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qOutput(:, :, iSpin))
+              & sum(qOutputUpDown(:, :, iSpin))
           write(fd, "(3A)") 'Atom populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
           do iAt = 1, nAtom
-            write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
+            write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutputUpDown(:, iAt, iSpin))
           end do
           write(fd, *)
           write(fd, "(3A)") 'l-shell populations (', trim(spinName(iSpin)), ')'
@@ -1511,7 +1515,7 @@ contains
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
-                  & sum(qOutput(orb%posShell(iSh, iSp):orb%posShell(iSh + 1, iSp)-1, iAt,&
+                  & sum(qOutputUpDown(orb%posShell(iSh, iSp):orb%posShell(iSh + 1, iSp)-1, iAt,&
                   & iSpin))
             end do
           end do
@@ -1525,7 +1529,7 @@ contains
               ang = orb%angShell(iSh, iSp)
               do kk = 0, 2 * ang
                 write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
-                    &iAt, iSh, ang, kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
+                    &iAt, iSh, ang, kk - ang, qOutputUpDown(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
               end do
             end do
           end do
@@ -1537,23 +1541,12 @@ contains
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
-              write(fd, "(16F8.4)") qBlockOut(1:orb%nOrbSpecies(iSp), iOrb, iAt, iSpin)
+              write(fd, "(16F8.4)") qBlockOutUpDown(1:orb%nOrbSpecies(iSp), iOrb, iAt, iSpin)
             end do
           end do
           write(fd, *)
         end if
       end do lpSpinPrint2
-      if (nSpin == 2) then
-        call ud2qm(qOutput)
-        if (tDFTBU) then
-          call ud2qm(qBlockOut)
-        end if
-      end if
-    end if
-
-    if (nSpin == 2) then
-      call qm2ud(qOutput)
-      call qm2ud(qInput)
     end if
 
     lpSpinPrint3: do iSpin = 1, nSpinHams
@@ -1569,19 +1562,14 @@ contains
       if (tPrintMulliken) then
         if (nSpin == 2) then
           write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qInput(:, :, iSpin)), sum(qOutput(:, :, iSpin))
+              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
         else
           write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
-              & sum(qInput(:, :, iSpin)), sum(qOutput(:, :, iSpin))
+              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
         end if
       end if
       write(fd, *)
     end do lpSpinPrint3
-
-    if (nSpin == 2) then
-      call ud2qm(qOutput)
-      call ud2qm(qInput)
-    end if
 
     write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
 
@@ -2078,16 +2066,19 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
-
-    !> input charges
-    real(dp), intent(in) :: qInput(:,:,:)
+  subroutine writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
 
     !> File name for charges to be written to
-    character(*), intent(in) :: fChargeIn
+    character(*), intent(in) :: fCharges
+
+    !> File descriptor for charge output
+    integer, intent(in) :: fdCharges
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> input charges
+    real(dp), intent(in) :: qInput(:,:,:)
 
     !> Block populations if present
     real(dp), intent(in), optional :: qBlockIn(:,:,:,:)
@@ -2095,8 +2086,8 @@ contains
     !> Imaginary part of block populations if present
     real(dp), intent(in), optional :: qiBlockIn(:,:,:,:)
 
-    call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
-    write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fChargeIn)
+    call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn, qiBlockIn)
+    write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)
 
   end subroutine writeCharges
 
@@ -2142,11 +2133,12 @@ contains
     real(dp), intent(in) :: cellVec(:,:)
 
     !> sparse hamitonian
-    real(dp), intent(inout) :: ham(:,:)
+    real(dp), intent(in) :: ham(:,:)
 
     !> imaginary part of hamitonian (used if allocated)
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
+    real(dp), allocatable, intent(in) :: iHam(:,:)
 
+    real(dp), allocatable :: hamUpDown(:,:)
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -2156,17 +2148,16 @@ contains
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
 
-    if (nSpin == 2) then
-      call qm2ud(ham)
-    end if
+    allocate(hamUpDown, source=ham)
+    call qm2ud(hamUpDown)
 
     ! Write out matrices if necessary and quit.
     if (allocated(iHam)) then
-      call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
-          & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
+      call writeHS(tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighborList%iNeighbor,&
+          & nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
     else
-      call writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, neighborList%iNeighbor, nNeighbor,&
-          & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec)
+      call writeHS(tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighborList%iNeighbor,&
+          & nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec)
     end if
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     stop
@@ -2257,38 +2248,6 @@ contains
     end if
 
   end subroutine writeHS
-
-
-  !> Write restart information.
-  subroutine writeRestart(fChargeIn, orb, qInput, qBlockIn, qiBlockIn)
-
-    !> File name for charge output
-    character(*), intent(in) :: fChargeIn
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Input charges
-    real(dp), intent(in) :: qInput(:,:,:)
-
-    !> input block charges
-    real(dp), intent(in), optional :: qBlockIn(:,:,:,:)
-
-    !> imaginary part of input block charges
-    real(dp), intent(in), optional :: qiBlockIn(:,:,:,:)
-
-    if (present(qBlockIn)) then
-      if (present(qiBlockIn)) then
-        call writeQToFile(qInput, fChargeIn, orb, qBlockIn, qiBlockIn)
-      else
-        call writeQToFile(qInput, fChargeIn, orb, qBlockIn)
-      end if
-    else
-      call writeQToFile(qInput, fChargeIn, orb)
-    end if
-    write(stdout, "(2A)") ">> Charges saved for restart in ", fChargeIn
-
-  end subroutine writeRestart
 
 
   !> Writes the eigenvectors to disc.
@@ -2775,6 +2734,45 @@ contains
     end if
 
   end subroutine printMdInfo
+
+
+  !> Receives the geometry from socket communication.
+  subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
+      & tLatticeChanged, tStopDriver)
+
+    !> Socket communication object
+    type(IpiSocketComm), allocatable, intent(in) :: socket
+
+    !> Is the system periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Coordinates for atoms
+    real(dp), intent(inout) :: coord0(:,:)
+
+    !> Lattice vectors for the unit cell (not referenced if not periodic)
+    real(dp), intent(inout) :: latVecs(:,:)
+
+    !> Have the atomic coordinates changed
+    logical, intent(out) :: tCoordsChanged
+
+    !> Have the lattice vectors changed
+    logical, intent(out) :: tLatticeChanged
+
+    !> Stop the geometry driver if true
+    logical, intent(out) :: tStopDriver
+
+    real(dp) :: tmpLatVecs(3, 3)
+
+    call socket%receive(coord0, tmpLatVecs, tStopDriver)
+    tCoordsChanged = .true.
+    if (tPeriodic .and. .not. tStopDriver) then
+      latVecs(:,:) = tmpLatVecs
+    end if
+    tLatticeChanged = tPeriodic
+
+  end subroutine receiveGeometryFromSocket
+
+
 
 
 end module mainio

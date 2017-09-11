@@ -170,7 +170,7 @@ contains
   subroutine receive(this, coord, cell, tStop)
 
     !> Instance.
-    class(IpiSocketComm), intent(inout) :: this
+    class(IpiSocketComm), intent(in) :: this
 
     !> Atomic coordinates.
     real(dp), intent(inout) :: coord(:,:)

@@ -20,7 +20,7 @@ module initprogram
   use coulomb
   use message
 
-  use mainio, only : SetEigVecsTxtOutput
+  use mainio, only : SetEigVecsTxtOutput, receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -51,14 +51,10 @@ module initprogram
   use sccinit
   use slakocont
   use repcont
-
   use fileid
-
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
-
   use dispersions
-
   use thirdorder_module
   use linresp_module
   use stress
@@ -75,7 +71,7 @@ module initprogram
 
 
   !> file name for charge data
-  character(*), parameter :: fChargeIn = "charges.bin"
+  character(*), parameter :: fCharges = "charges.bin"
 
   !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
@@ -731,6 +727,7 @@ contains
     logical :: tFirst
 
     real(dp) :: rTmp
+    logical :: tDummy
 
 
     !> Flag if some files do exist or not
@@ -1244,6 +1241,8 @@ contains
       tForces = .true.
       tGeoOpt = .false.
       tMD = .false.
+      call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+          & tLatticeChanged, tDummy)
     end if
 
     tAppendGeo = input%ctrl%tAppendGeo
@@ -1820,25 +1819,25 @@ contains
         if (tDFTBU) then
           if (nSpin == 2) then
             if (tFixEf) then ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fChargeIn, orb, qBlock=qBlockIn)
+              call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
             else
-              call initQFromFile(qInput, fChargeIn, orb, nEl = sum(nEl), &
+              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl), &
                   & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
             end if
           else
             if (tImHam) then
               if (tFixEf) then
-                call initQFromFile(qInput, fChargeIn, orb, &
+                call initQFromFile(qInput, fCharges, orb, &
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
-                call initQFromFile(qInput, fChargeIn, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
               if (tFixEf) then
-                call initQFromFile(qInput, fChargeIn, orb, qBlock=qBlockIn)
+                call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
               else
-                call initQFromFile(qInput, fChargeIn, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
                     & qBlock=qBlockIn)
               end if
             end if
@@ -1847,16 +1846,16 @@ contains
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
             if (tFixEf) then
-              call initQFromFile(qInput, fChargeIn, orb)
+              call initQFromFile(qInput, fCharges, orb)
             else
-              call initQFromFile(qInput, fChargeIn, orb, nEl = sum(nEl),&
+              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
             if (tFixEf) then
-              call initQFromFile(qInput, fChargeIn, orb)
+              call initQFromFile(qInput, fCharges, orb)
             else
-              call initQFromFile(qInput, fChargeIn, orb, nEl = nEl(1))
+              call initQFromFile(qInput, fCharges, orb, nEl = nEl(1))
             end if
           end if
         end if
@@ -2233,7 +2232,7 @@ contains
 
     if (tSCC) then
       if (input%ctrl%tReadChrg) then
-        write (strTmp, "(A,A,A)") "Read in from '", trim(fChargeIn), "'"
+        write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", &
             &input%ctrl%nrChrg, ")"
