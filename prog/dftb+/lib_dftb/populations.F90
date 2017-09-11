@@ -299,7 +299,7 @@ contains
   end subroutine skewMullikenPerBlock
 
 
-  !> Calculate the number of charges per shell.
+  !> Calculate the number of charges per shell given the orbital charges.
   subroutine getChargePerShell(qq, orb, species, chargePerShell)
 
     !> charges in each orbital, for each atom and spin channel

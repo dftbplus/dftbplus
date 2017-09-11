@@ -1656,7 +1656,7 @@ contains
 
   end subroutine initSccLoop
 
-  
+
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
