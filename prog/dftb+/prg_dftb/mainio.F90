@@ -48,7 +48,7 @@ module mainio
   public :: printMdInfo
   public :: receiveGeometryFromSocket
 
-  
+
   ! output file names
 
   !> Ground state eigenvectors in text format
@@ -1299,7 +1299,7 @@ contains
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
     tSpin = (nSpin == 2 .or. nSpin == 4)
-    
+
     allocate(qInputUpDown, source=qInput)
     allocate(qOutputUpDown, source=qOutput)
     call qm2ud(qInputUpDown)

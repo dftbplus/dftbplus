@@ -3746,7 +3746,7 @@ contains
 
   end subroutine getXlbomdCharges
 
-  
+
   !> Calculates dipole moment.
   subroutine getDipoleMoment(qOutput, q0, coord, dipoleMoment)
 
