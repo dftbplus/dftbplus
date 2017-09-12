@@ -30,8 +30,8 @@ module scc
   public :: SCC_getOrbitalEquiv, updateCoords_SCC, updateLatVecs_SCC, updateCharges_SCC
   public :: getSCCCutoff, getEnergyPerAtom_SCC, getEnergyPerAtom_SCC_Xlbomd
   public :: addForceDCSCC, addForceDCSCC_Xlbomd, addStressDCSCC
-  public ::  getShiftPerAtom, getShiftPerL, getSCCEwaldPar
-  public :: getAtomicGammaMatrix
+  public :: getShiftPerAtom, getShiftPerL
+  public :: getSCCEwaldPar, getAtomicGammaMatrix
 
   !> tolerance for Ewald - should be changed to be possible to override it
   real(dp), parameter :: tolEwald = 1.0e-9_dp
@@ -82,112 +82,112 @@ module scc
     private
 
     !> If module is initialised
-    logical :: tInitialised_ = .false.
+    logical :: tInitialised = .false.
 
     !> If coordinates updated at least once
-    logical :: tCoordUp_
+    logical :: tCoordUp
 
     !> If charges updated at least once
-    logical :: tChrgUp_
+    logical :: tChrgUp
 
     !> Nr. of atoms
-    integer :: nAtom_
+    integer :: nAtom
 
     !> Nr. of species
-    integer :: nSpecies_
+    integer :: nSpecies
 
     !> Max nr. of orbitals per atom
-    integer :: mOrb_
+    integer :: mOrb
 
     !> Max nr. of shells per atom
-    integer :: mShell_
+    integer :: mShell
 
     !> Maximal number of unique U values
-    integer :: mHubbU_
+    integer :: mHubbU
 
     !> Stores 1/r between atom pairs
-    real(dp), allocatable :: invRMat_(:,:)
+    real(dp), allocatable :: invRMat(:,:)
 
     !> Shift vector per atom
-    real(dp), allocatable :: shiftPerAtom_(:)
+    real(dp), allocatable :: shiftPerAtom(:)
 
     !> Shift vector per l-shell
-    real(dp), allocatable :: shiftPerL_(:,:)
+    real(dp), allocatable :: shiftPerL(:,:)
 
     !> Short range interaction
-    real(dp), allocatable :: shortGamma_(:,:,:,:)
+    real(dp), allocatable :: shortGamma(:,:,:,:)
 
     !> Cutoff for short range int.
-    real(dp), allocatable :: shortCutoff_(:,:,:,:)
+    real(dp), allocatable :: shortCutoff(:,:,:,:)
 
     !> Maximal cutoff
-    real(dp) :: cutoff_
+    real(dp) :: cutoff
 
     !> Lattice points for reciprocal Ewald
-    real(dp), allocatable :: gLatPoint_(:,:)
+    real(dp), allocatable :: gLatPoint(:,:)
 
     !> Nr. of neighbors for short range interaction
-    integer, allocatable :: nNeighShort_(:,:,:,:)
+    integer, allocatable :: nNeighShort(:,:,:,:)
 
     !> Nr. of neigh for real Ewald
-    integer, allocatable :: nNeighEwald_(:)
+    integer, allocatable :: nNeighEwald(:)
 
     !> Cutoff for real Ewald
-    real(dp) :: maxREwald_
+    real(dp) :: maxREwald
 
     !> Parameter for Ewald
-    real(dp) :: alpha_
+    real(dp) :: alpha
 
     !> Cell volume
-    real(dp) :: volume_
+    real(dp) :: volume
 
     !> Uniq Us per species
-    real(dp), allocatable :: uniqHubbU_(:,:)
+    real(dp), allocatable :: uniqHubbU(:,:)
 
     !> Nr. of uniq Us per species
-    integer, allocatable :: nHubbU_(:)
+    integer, allocatable :: nHubbU(:)
 
     !> Mapping L-shell -> uniq U
-    integer, allocatable :: iHubbU_(:,:)
+    integer, allocatable :: iHubbU(:,:)
 
     !> Are external charges present?
-    logical :: tExtChrg_
+    logical :: tExtChrg
 
     !> Negative net charge
-    real(dp), allocatable :: deltaQ_(:,:)
+    real(dp), allocatable :: deltaQ(:,:)
 
     !> Negative net charge per shell
-    real(dp), allocatable :: deltaQPerLShell_(:,:)
+    real(dp), allocatable :: deltaQPerLShell(:,:)
 
     !> Negative net charge per atom
-    real(dp), allocatable :: deltaQAtom_(:)
+    real(dp), allocatable :: deltaQAtom(:)
 
     !> Negative net charge per U
-    real(dp), allocatable :: deltaQUniqU_(:,:)
+    real(dp), allocatable :: deltaQUniqU(:,:)
 
     !> Damped short range? (nSpecies)
-    logical, allocatable :: tDampedShort_(:)
+    logical, allocatable :: tDampedShort(:)
 
     !> Damping exponent
-    real(dp) :: dampExp_
+    real(dp) :: dampExp
 
     !> Is the system periodic?
-    logical :: tPeriodic_
+    logical :: tPeriodic
 
     !> Shifts due charge constrains?
-    logical :: tChrgConstr_
+    logical :: tChrgConstr
 
     !> Object for charge constraints
-    type(OChrgConstr), allocatable :: chrgConstr_
+    type(OChrgConstr), allocatable :: chrgConstr
 
     !> use third order contributions
-    logical :: tThirdOrder_
+    logical :: tThirdOrder
 
     !> Shifts due to 3rd order
-    type(OChrgConstr), allocatable :: thirdOrder_
+    type(OChrgConstr), allocatable :: thirdOrder
 
     !> evaluate Ewald parameter
-    logical :: tAutoEwald_
+    logical :: tAutoEwald
 
   end type typSCC
 
@@ -207,18 +207,18 @@ contains
     integer :: iSp1, iSp2, iU1, iU2, iL
     real(dp) :: maxGEwald
 
-    @:ASSERT(.not. OSCC%tInitialised_)
+    @:ASSERT(.not. OSCC%tInitialised)
 
-    OSCC%nSpecies_ = size(inp%orb%nOrbSpecies)
-    OSCC%nAtom_ = size(inp%orb%nOrbAtom)
-    OSCC%mShell_ = inp%orb%mShell
-    OSCC%mOrb_ = inp%orb%mOrb
+    OSCC%nSpecies = size(inp%orb%nOrbSpecies)
+    OSCC%nAtom = size(inp%orb%nOrbAtom)
+    OSCC%mShell = inp%orb%mShell
+    OSCC%mOrb = inp%orb%mOrb
 
     @:ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
     @:ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
-    @:ASSERT(size(inp%hubbU, dim=1) == OSCC%mShell_)
-    @:ASSERT(size(inp%hubbU, dim=2) == OSCC%nSpecies_)
-    @:ASSERT(size(inp%tDampedShort) == OSCC%nSpecies_)
+    @:ASSERT(size(inp%hubbU, dim=1) == OSCC%mShell)
+    @:ASSERT(size(inp%hubbU, dim=2) == OSCC%nSpecies)
+    @:ASSERT(size(inp%tDampedShort) == OSCC%nSpecies)
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
 #:call ASSERT_CODE
     if (allocated(inp%extCharges)) then
@@ -227,115 +227,115 @@ contains
     end if
 #:endcall ASSERT_CODE
 
-    allocate(OSCC%invRMat_(OSCC%nAtom_, OSCC%nAtom_))
-    allocate(OSCC%shiftPerAtom_(OSCC%nAtom_))
-    allocate(OSCC%shiftPerL_(OSCC%mShell_, OSCC%nAtom_))
-    allocate(OSCC%shortGamma_(0, 0, 0, 0))
-    OSCC%tPeriodic_ = allocated(inp%latVecs)
-    OSCC%tExtChrg_ = allocated(inp%extCharges)
+    allocate(OSCC%invRMat(OSCC%nAtom, OSCC%nAtom))
+    allocate(OSCC%shiftPerAtom(OSCC%nAtom))
+    allocate(OSCC%shiftPerL(OSCC%mShell, OSCC%nAtom))
+    allocate(OSCC%shortGamma(0, 0, 0, 0))
+    OSCC%tPeriodic = allocated(inp%latVecs)
+    OSCC%tExtChrg = allocated(inp%extCharges)
 
     ! Initialize Hubbard U's
-    allocate(OSCC%uniqHubbU_(OSCC%mShell_, OSCC%nSpecies_))
-    allocate(OSCC%nHubbU_(OSCC%nSpecies_))
-    allocate(OSCC%iHubbU_(OSCC%mShell_, OSCC%nSpecies_))
-    OSCC%iHubbU_(:,:) = 0
-    OSCC%iHubbU_(1,:) = 1
-    OSCC%nHubbU_(:) = 1
-    OSCC%uniqHubbU_(:,:) = 0.0_dp
-    OSCC%uniqHubbU_(1,:) = inp%hubbU(1,:)
-    do iSp1 = 1, OSCC%nSpecies_
+    allocate(OSCC%uniqHubbU(OSCC%mShell, OSCC%nSpecies))
+    allocate(OSCC%nHubbU(OSCC%nSpecies))
+    allocate(OSCC%iHubbU(OSCC%mShell, OSCC%nSpecies))
+    OSCC%iHubbU(:,:) = 0
+    OSCC%iHubbU(1,:) = 1
+    OSCC%nHubbU(:) = 1
+    OSCC%uniqHubbU(:,:) = 0.0_dp
+    OSCC%uniqHubbU(1,:) = inp%hubbU(1,:)
+    do iSp1 = 1, OSCC%nSpecies
       do iL = 2, inp%orb%nShell(iSp1)
-        do iU1 = 1, OSCC%nHubbU_(iSp1)
-          if (abs(inp%hubbU(iL,iSp1) - OSCC%uniqHubbU_(iU1,iSp1)) < MinHubDiff) then
-            OSCC%iHubbU_(iL,iSp1) = iU1
+        do iU1 = 1, OSCC%nHubbU(iSp1)
+          if (abs(inp%hubbU(iL,iSp1) - OSCC%uniqHubbU(iU1,iSp1)) < MinHubDiff) then
+            OSCC%iHubbU(iL,iSp1) = iU1
             exit
           end if
         end do
-        if (OSCC%iHubbU_(iL,iSp1) == 0) then
-          OSCC%nHubbU_(iSp1) = OSCC%nHubbU_(iSp1) + 1
-          OSCC%uniqHubbU_(OSCC%nHubbU_(iSp1),iSp1) = inp%hubbU(iL,iSp1)
-          OSCC%iHubbU_(iL,iSp1) = OSCC%nHubbU_(iSp1)
+        if (OSCC%iHubbU(iL,iSp1) == 0) then
+          OSCC%nHubbU(iSp1) = OSCC%nHubbU(iSp1) + 1
+          OSCC%uniqHubbU(OSCC%nHubbU(iSp1),iSp1) = inp%hubbU(iL,iSp1)
+          OSCC%iHubbU(iL,iSp1) = OSCC%nHubbU(iSp1)
         end if
       end do
     end do
-    OSCC%mHubbU_ = maxval(OSCC%nHubbU_)
+    OSCC%mHubbU = maxval(OSCC%nHubbU)
 
     ! Get cutoff for short range coulomb
-    allocate(OSCC%shortCutoff_(OSCC%mHubbU_, OSCC%mHubbU_, OSCC%nSpecies_, OSCC%nSpecies_))
-    OSCC%shortCutoff_(:,:,:,:) = 0.0_dp
-    do iSp1 = 1, OSCC%nSpecies_
-      do iSp2 = iSp1, OSCC%nSpecies_
-        do iU1 = 1, OSCC%nHubbU_(iSp1)
-          do iU2 = 1, OSCC%nHubbU_(iSp2)
-            OSCC%shortCutoff_(iU2, iU1, iSp2, iSp1) = &
-                & expGammaCutoff(OSCC%uniqHubbU_(iU2, iSp2), OSCC%uniqHubbU_(iU1, iSp1))
-            OSCC%shortCutoff_(iU1, iU2, iSp1, iSp2) = OSCC%shortCutoff_(iU2, iU1, iSp2, iSp1)
+    allocate(OSCC%shortCutoff(OSCC%mHubbU, OSCC%mHubbU, OSCC%nSpecies, OSCC%nSpecies))
+    OSCC%shortCutoff(:,:,:,:) = 0.0_dp
+    do iSp1 = 1, OSCC%nSpecies
+      do iSp2 = iSp1, OSCC%nSpecies
+        do iU1 = 1, OSCC%nHubbU(iSp1)
+          do iU2 = 1, OSCC%nHubbU(iSp2)
+            OSCC%shortCutoff(iU2, iU1, iSp2, iSp1) = &
+                & expGammaCutoff(OSCC%uniqHubbU(iU2, iSp2), OSCC%uniqHubbU(iU1, iSp1))
+            OSCC%shortCutoff(iU1, iU2, iSp1, iSp2) = OSCC%shortCutoff(iU2, iU1, iSp2, iSp1)
           end do
         end do
       end do
     end do
-    OSCC%cutoff_ = maxval(OSCC%shortCutoff_)
+    OSCC%cutoff = maxval(OSCC%shortCutoff)
 
     ! Initialize Ewald summation for the periodic case
-    if (OSCC%tPeriodic_) then
-      OSCC%volume_ = inp%volume
-      OSCC%tAutoEwald_ = inp%ewaldAlpha <= 0.0_dp
-      if (OSCC%tAutoEwald_) then
-        OSCC%alpha_ = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, OSCC%volume_, tolEwald)
+    if (OSCC%tPeriodic) then
+      OSCC%volume = inp%volume
+      OSCC%tAutoEwald = inp%ewaldAlpha <= 0.0_dp
+      if (OSCC%tAutoEwald) then
+        OSCC%alpha = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, OSCC%volume, tolEwald)
       else
-        OSCC%alpha_ = inp%ewaldAlpha
+        OSCC%alpha = inp%ewaldAlpha
       end if
-      OSCC%maxREwald_ = getMaxREwald(OSCC%alpha_, tolEwald)
-      maxGEwald = getMaxGEwald(OSCC%alpha_, OSCC%volume_, tolEwald)
-      call getLatticePoints(OSCC%gLatPoint_, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald, &
+      OSCC%maxREwald = getMaxREwald(OSCC%alpha, tolEwald)
+      maxGEwald = getMaxGEwald(OSCC%alpha, OSCC%volume, tolEwald)
+      call getLatticePoints(OSCC%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald, &
           & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-      OSCC%gLatPoint_(:,:) = matmul(inp%recVecs, OSCC%gLatPoint_)
-      OSCC%cutoff_ = max(OSCC%cutoff_, OSCC%maxREwald_)
+      OSCC%gLatPoint(:,:) = matmul(inp%recVecs, OSCC%gLatPoint)
+      OSCC%cutoff = max(OSCC%cutoff, OSCC%maxREwald)
     end if
 
     ! Number of neighbors for short range cutoff and real part of Ewald
-    allocate(OSCC%nNeighShort_(OSCC%mHubbU_, OSCC%mHubbU_, OSCC%nSpecies_, OSCC%nAtom_))
-    if (OSCC%tPeriodic_) then
-      allocate(OSCC%nNeighEwald_(OSCC%nAtom_))
+    allocate(OSCC%nNeighShort(OSCC%mHubbU, OSCC%mHubbU, OSCC%nSpecies, OSCC%nAtom))
+    if (OSCC%tPeriodic) then
+      allocate(OSCC%nNeighEwald(OSCC%nAtom))
     end if
 
     ! Initialise external charges
-    if (OSCC%tExtChrg_) then
-      if (OSCC%tPeriodic_) then
-        call init_ExtChrg(inp%extCharges, OSCC%nAtom_, inp%latVecs, inp%recVecs, OSCC%maxREwald_)
+    if (OSCC%tExtChrg) then
+      if (OSCC%tPeriodic) then
+        call init_ExtChrg(inp%extCharges, OSCC%nAtom, inp%latVecs, inp%recVecs, OSCC%maxREwald)
       else
         @:ASSERT(allocated(inp%blurWidths))
-        call init_ExtChrg(inp%extCharges, OSCC%nAtom_, blurWidths=inp%blurWidths)
+        call init_ExtChrg(inp%extCharges, OSCC%nAtom, blurWidths=inp%blurWidths)
       end if
     end if
 
-    OSCC%tChrgConstr_ = allocated(inp%chrgConstraints)
-    if (OSCC%tChrgConstr_) then
-      allocate(OSCC%chrgConstr_)
-      call init(OSCC%chrgConstr_, inp%chrgConstraints, 2)
+    OSCC%tChrgConstr = allocated(inp%chrgConstraints)
+    if (OSCC%tChrgConstr) then
+      allocate(OSCC%chrgConstr)
+      call init(OSCC%chrgConstr, inp%chrgConstraints, 2)
     end if
-    OSCC%tThirdOrder_ = allocated(inp%thirdOrderOn)
-    if (OSCC%tThirdOrder_) then
-      allocate(OSCC%thirdOrder_)
+    OSCC%tThirdOrder = allocated(inp%thirdOrderOn)
+    if (OSCC%tThirdOrder) then
+      allocate(OSCC%thirdOrder)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives
-      call init(OSCC%thirdOrder_, inp%thirdOrderOn / 6.0_dp, 3)
+      call init(OSCC%thirdOrder, inp%thirdOrderOn / 6.0_dp, 3)
     end if
 
     ! Initialise arrays for charge differences
-    allocate(OSCC%deltaQ_(OSCC%mOrb_, OSCC%nAtom_))
-    allocate(OSCC%deltaQPerLShell_(OSCC%mShell_, OSCC%nAtom_))
-    allocate(OSCC%deltaQAtom_(OSCC%nAtom_))
-    allocate(OSCC%deltaQUniqU_(OSCC%mHubbU_, OSCC%nAtom_))
+    allocate(OSCC%deltaQ(OSCC%mOrb, OSCC%nAtom))
+    allocate(OSCC%deltaQPerLShell(OSCC%mShell, OSCC%nAtom))
+    allocate(OSCC%deltaQAtom(OSCC%nAtom))
+    allocate(OSCC%deltaQUniqU(OSCC%mHubbU, OSCC%nAtom))
 
     ! Initialise short range damping
-    allocate(OSCC%tDampedShort_(OSCC%nSpecies_))
-    OSCC%tDampedShort_(:) = inp%tDampedShort(:)
-    OSCC%dampExp_ = inp%dampExp
+    allocate(OSCC%tDampedShort(OSCC%nSpecies))
+    OSCC%tDampedShort(:) = inp%tDampedShort(:)
+    OSCC%dampExp = inp%dampExp
 
-    OSCC%tCoordUp_ = .false.
-    OSCC%tChrgUp_ = .false.
+    OSCC%tCoordUp = .false.
+    OSCC%tChrgUp = .false.
 
-    OSCC%tInitialised_ = .true.
+    OSCC%tInitialised = .true.
 
   end subroutine init_SCC
 
@@ -351,8 +351,8 @@ contains
     !> least up to that cutoff.
     real(dp) :: cutoff
 
-    @:ASSERT(OSCC%tInitialised_)
-    cutoff = OSCC%cutoff_
+    @:ASSERT(OSCC%tInitialised)
+    cutoff = OSCC%cutoff
 
   end function getSCCCutoff
 
@@ -366,8 +366,8 @@ contains
     !> Parameter in the Ewald summation.
     real(dp) :: alpha
 
-    @:ASSERT(OSCC%tInitialised_)
-    alpha = OSCC%alpha_
+    @:ASSERT(OSCC%tInitialised)
+    alpha = OSCC%alpha
 
   end function getSCCEwaldPar
 
@@ -386,19 +386,19 @@ contains
 
     integer :: iAt1, iSp2, iU1, iU2
 
-    OSCC%nNeighShort_(:,:,:,:) = 0
-    do iAt1 = 1, OSCC%nAtom_
-      do iSp2 = 1, OSCC%nSpecies_
-        do iU1 = 1, OSCC%nHubbU_(species(iAt1))
-          do iU2 = 1, OSCC%nHubbU_(iSp2)
-            OSCC%nNeighShort_(iU2, iU1, iSp2, iAt1) = &
-                &getNrOfNeighbors(neighList, OSCC%shortCutoff_(iU2, iU1, iSp2, species(iAt1)), iAt1)
+    OSCC%nNeighShort(:,:,:,:) = 0
+    do iAt1 = 1, OSCC%nAtom
+      do iSp2 = 1, OSCC%nSpecies
+        do iU1 = 1, OSCC%nHubbU(species(iAt1))
+          do iU2 = 1, OSCC%nHubbU(iSp2)
+            OSCC%nNeighShort(iU2, iU1, iSp2, iAt1) = &
+                &getNrOfNeighbors(neighList, OSCC%shortCutoff(iU2, iU1, iSp2, species(iAt1)), iAt1)
           end do
         end do
       end do
     end do
-    if (OSCC%tPeriodic_) then
-      call getNrOfNeighborsForAll(OSCC%nNeighEwald_, neighList, OSCC%maxREwald_)
+    if (OSCC%tPeriodic) then
+      call getNrOfNeighborsForAll(OSCC%nNeighEwald, neighList, OSCC%maxREwald)
     end if
 
   end subroutine updateNNeigh_
@@ -422,27 +422,27 @@ contains
     !> Module variables
     type(typSCC), intent(inout) :: OSCC
 
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(OSCC%tInitialised)
 
     call updateNNeigh_(species, neighList, OSCC)
-    if (OSCC%tPeriodic_) then
-      call invR(OSCC%invRMat_, OSCC%nAtom_, coord, OSCC%nNeighEwald_, neighList%iNeighbor, &
-          &img2CentCell, OSCC%gLatPoint_, OSCC%alpha_, OSCC%volume_)
+    if (OSCC%tPeriodic) then
+      call invR(OSCC%invRMat, OSCC%nAtom, coord, OSCC%nNeighEwald, neighList%iNeighbor, &
+          &img2CentCell, OSCC%gLatPoint, OSCC%alpha, OSCC%volume)
     else
-      call invR(OSCC%invRMat_, OSCC%nAtom_, coord)
+      call invR(OSCC%invRMat, OSCC%nAtom, coord)
     end if
     call initGamma_(OSCC, coord, species, neighList%iNeighbor)
 
-    if (OSCC%tExtChrg_) then
-      if (OSCC%tPeriodic_) then
-        call updateCoords_ExtChrg(coord, OSCC%gLatPoint_, OSCC%alpha_, OSCC%volume_)
+    if (OSCC%tExtChrg) then
+      if (OSCC%tPeriodic) then
+        call updateCoords_ExtChrg(coord, OSCC%gLatPoint, OSCC%alpha, OSCC%volume)
       else
         call updateCoords_ExtChrg(coord)
       end if
     end if
 
-    OSCC%tCoordUp_ = .true.
-    OSCC%tChrgUp_ = .false.
+    OSCC%tCoordUp = .true.
+    OSCC%tChrgUp = .false.
 
   end subroutine updateCoords_SCC
 
@@ -464,26 +464,26 @@ contains
 
     real(dp) :: maxGEwald
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(OSCC%tPeriodic_)
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(OSCC%tPeriodic)
 
-    OSCC%volume_ = vol
-    if (OSCC%tAutoEwald_) then
-      OSCC%alpha_ = getOptimalAlphaEwald(latVec, recVec, OSCC%volume_, tolEwald)
-      OSCC%maxREwald_ = getMaxREwald(OSCC%alpha_, tolEwald)
+    OSCC%volume = vol
+    if (OSCC%tAutoEwald) then
+      OSCC%alpha = getOptimalAlphaEwald(latVec, recVec, OSCC%volume, tolEwald)
+      OSCC%maxREwald = getMaxREwald(OSCC%alpha, tolEwald)
     end if
-    maxGEwald = getMaxGEwald(OSCC%alpha_, OSCC%volume_, tolEwald)
-    call getLatticePoints(OSCC%gLatPoint_, recVec, latVec/(2.0_dp*pi), maxGEwald, &
+    maxGEwald = getMaxGEwald(OSCC%alpha, OSCC%volume, tolEwald)
+    call getLatticePoints(OSCC%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald, &
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-    OSCC%gLatPoint_ = matmul(recVec, OSCC%gLatPoint_)
-    OSCC%cutoff_ = max(OSCC%cutoff_, OSCC%maxREwald_)
+    OSCC%gLatPoint = matmul(recVec, OSCC%gLatPoint)
+    OSCC%cutoff = max(OSCC%cutoff, OSCC%maxREwald)
 
-    if (OSCC%tExtChrg_) then
-      call updateLatVecs_extChrg(latVec, recVec, OSCC%maxREwald_)
+    if (OSCC%tExtChrg) then
+      call updateLatVecs_extChrg(latVec, recVec, OSCC%maxREwald)
     end if
 
-    OSCC%tCoordUp_ = .false.
-    OSCC%tChrgUp_ = .false.
+    OSCC%tCoordUp = .false.
+    OSCC%tChrgUp = .false.
 
   end subroutine updateLatVecs_SCC
 
@@ -512,21 +512,21 @@ contains
     !> Resulting module variables
     type(typSCC), intent(inout) :: OSCC
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(OSCC%tCoordUp_)
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(OSCC%tCoordUp)
 
-    call getNetCharges_(OSCC%nAtom_, OSCC%iHubbU_, species, orb, qOrbital, q0, OSCC%deltaQ_, &
-        & OSCC%deltaQAtom_, OSCC%deltaQPerLShell_, OSCC%deltaQUniqU_)
-    call buildShifts_(OSCC, orb, species, iNeighbor, img2CentCell, OSCC%deltaQAtom_, &
-        & OSCC%deltaQPerLShell_, OSCC%shiftPerAtom_, OSCC%shiftPerL_)
-    if (OSCC%tChrgConstr_) then
-      call buildShift(OSCC%chrgConstr_, OSCC%deltaQAtom_)
+    call getNetCharges_(OSCC%nAtom, OSCC%iHubbU, species, orb, qOrbital, q0, OSCC%deltaQ, &
+        & OSCC%deltaQAtom, OSCC%deltaQPerLShell, OSCC%deltaQUniqU)
+    call buildShifts_(OSCC, orb, species, iNeighbor, img2CentCell, OSCC%deltaQAtom, &
+        & OSCC%deltaQPerLShell, OSCC%shiftPerAtom, OSCC%shiftPerL)
+    if (OSCC%tChrgConstr) then
+      call buildShift(OSCC%chrgConstr, OSCC%deltaQAtom)
     end if
-    if (OSCC%tThirdOrder_) then
-      call buildShift(OSCC%thirdOrder_, OSCC%deltaQAtom_)
+    if (OSCC%tThirdOrder) then
+      call buildShift(OSCC%thirdOrder, OSCC%deltaQAtom)
     end if
 
-    OSCC%tChrgUp_ = .true.
+    OSCC%tChrgUp = .true.
 
   end subroutine updateCharges_SCC
 
@@ -691,34 +691,34 @@ contains
     integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, u1, u2
 
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(OSCC%tInitialised)
 
     ! Reallocate shortGamma, if it does not contain enough neighbors
-    if (size(OSCC%shortGamma_, dim=3) < maxval(OSCC%nNeighShort_)+1) then
-      deallocate(OSCC%shortGamma_)
-      allocate(OSCC%shortGamma_(OSCC%mHubbU_, OSCC%mHubbU_, 0:maxval(OSCC%nNeighShort_), &
-          & OSCC%nAtom_))
+    if (size(OSCC%shortGamma, dim=3) < maxval(OSCC%nNeighShort)+1) then
+      deallocate(OSCC%shortGamma)
+      allocate(OSCC%shortGamma(OSCC%mHubbU, OSCC%mHubbU, 0:maxval(OSCC%nNeighShort), &
+          & OSCC%nAtom))
     end if
-    OSCC%shortGamma_(:,:,:,:) = 0.0_dp
+    OSCC%shortGamma(:,:,:,:) = 0.0_dp
 
     ! some additional symmetry not used, as the value of gamma for atoms
     ! interacting with themselves is the same for all atoms of the same species
-    do iAt1 = 1, OSCC%nAtom_
+    do iAt1 = 1, OSCC%nAtom
       iSp1 = species(iAt1)
-      do iNeigh = 0, maxval(OSCC%nNeighShort_(:,:,:, iAt1))
+      do iNeigh = 0, maxval(OSCC%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbor(iNeigh, iAt1)
         iSp2 = species(iAt2)
         rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
-        do iU1 = 1, OSCC%nHubbU_(species(iAt1))
-          u1 = OSCC%uniqHubbU_(iU1, iSp1)
-          do iU2 = 1, OSCC%nHubbU_(species(iAt2))
-            u2 = OSCC%uniqHubbU_(iU2, iSp2)
-            if (iNeigh <= OSCC%nNeighShort_(iU2,iU1,iSp2,iAt1)) then
-              if (OSCC%tDampedShort_(iSp1) .or. OSCC%tDampedShort_(iSp2)) then
-                OSCC%shortGamma_(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, &
-                    & OSCC%dampExp_)
+        do iU1 = 1, OSCC%nHubbU(species(iAt1))
+          u1 = OSCC%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, OSCC%nHubbU(species(iAt2))
+            u2 = OSCC%uniqHubbU(iU2, iSp2)
+            if (iNeigh <= OSCC%nNeighShort(iU2,iU1,iSp2,iAt1)) then
+              if (OSCC%tDampedShort(iSp1) .or. OSCC%tDampedShort(iSp2)) then
+                OSCC%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, &
+                    & OSCC%dampExp)
               else
-                OSCC%shortGamma_(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
+                OSCC%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
               end if
             end if
           end do
@@ -746,17 +746,17 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(OSCC%tCoordUp_)
-    @:ASSERT(all(shape(gammamat) == [ OSCC%nAtom_, OSCC%nAtom_ ]))
-    @:ASSERT(all(OSCC%nHubbU_ == 1))
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(OSCC%tCoordUp)
+    @:ASSERT(all(shape(gammamat) == [ OSCC%nAtom, OSCC%nAtom ]))
+    @:ASSERT(all(OSCC%nHubbU == 1))
 
-    gammamat(:,:) = OSCC%invRMat_
-    do iAt1 = 1, OSCC%nAtom_
-      do iNeigh = 0, maxval(OSCC%nNeighShort_(:,:,:, iAt1))
+    gammamat(:,:) = OSCC%invRMat
+    do iAt1 = 1, OSCC%nAtom
+      do iNeigh = 0, maxval(OSCC%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
-        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - OSCC%shortGamma_(1, 1, iNeigh, iAt1)
+        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - OSCC%shortGamma(1, 1, iNeigh, iAt1)
       end do
     end do
 
@@ -788,33 +788,33 @@ contains
     real(dp) :: rab, tmpGammaPrime, u1, u2
 
     @:ASSERT(size(force,dim=1) == 3)
-    @:ASSERT(size(force,dim=2) == OSCC%nAtom_)
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(size(force,dim=2) == OSCC%nAtom)
+    @:ASSERT(OSCC%tInitialised)
 
     ! some additional symmetry not used
-    do iAt1 = 1, OSCC%nAtom_
+    do iAt1 = 1, OSCC%nAtom
       iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(OSCC%nNeighShort_(:,:,:, iAt1))
+      do iNeigh = 1, maxval(OSCC%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
-        do iU1 = 1, OSCC%nHubbU_(species(iAt1))
-          u1 = OSCC%uniqHubbU_(iU1, iSp1)
-          do iU2 = 1, OSCC%nHubbU_(species(iAt2f))
-            u2 = OSCC%uniqHubbU_(iU2, species(iAt2f))
-            if (iNeigh <= OSCC%nNeighShort_(iU2,iU1,species(iAt2f),iAt1)) then
-              if (OSCC%tDampedShort_(iSp1) .or. OSCC%tDampedShort_(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, OSCC%dampExp_)
+        do iU1 = 1, OSCC%nHubbU(species(iAt1))
+          u1 = OSCC%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, OSCC%nHubbU(species(iAt2f))
+            u2 = OSCC%uniqHubbU(iU2, species(iAt2f))
+            if (iNeigh <= OSCC%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (OSCC%tDampedShort(iSp1) .or. OSCC%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, OSCC%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
               do ii = 1,3
-                force(ii,iAt1) = force(ii,iAt1) - OSCC%deltaQUniqU_(iU1,iAt1) * &
-                    & OSCC%deltaQUniqU_(iU2,iAt2f)*tmpGammaPrime*(coord(ii,iAt1) &
+                force(ii,iAt1) = force(ii,iAt1) - OSCC%deltaQUniqU(iU1,iAt1) * &
+                    & OSCC%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(coord(ii,iAt1) &
                     & - coord(ii,iAt2))/rab
-                force(ii,iAt2f) = force(ii,iAt2f) + OSCC%deltaQUniqU_(iU1,iAt1) * &
-                    & OSCC%deltaQUniqU_(iU2,iAt2f)*tmpGammaPrime*(coord(ii,iAt1) &
+                force(ii,iAt2f) = force(ii,iAt2f) + OSCC%deltaQUniqU(iU1,iAt1) * &
+                    & OSCC%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(coord(ii,iAt1) &
                     & - coord(ii,iAt2))/rab
               end do
             end if
@@ -852,32 +852,32 @@ contains
     real(dp) :: intermed(3), vect(3)
 
     @:ASSERT(all(shape(st)==(/3,3/)))
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(OSCC%tInitialised)
 
     st(:,:) = 0.0_dp
     ! some additional symmetry not used
-    do iAt1 = 1, OSCC%nAtom_
+    do iAt1 = 1, OSCC%nAtom
       iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(OSCC%nNeighShort_(:,:,:, iAt1))
+      do iNeigh = 1, maxval(OSCC%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         vect(:) = coord(:,iAt1) - coord(:,iAt2)
         rab = sqrt(sum((vect)**2))
         intermed(:) = 0.0_dp
-        do iU1 = 1, OSCC%nHubbU_(species(iAt1))
-          u1 = OSCC%uniqHubbU_(iU1, iSp1)
-          do iU2 = 1, OSCC%nHubbU_(species(iAt2f))
-            u2 = OSCC%uniqHubbU_(iU2, species(iAt2f))
-            if (iNeigh <= OSCC%nNeighShort_(iU2,iU1,species(iAt2f),iAt1)) then
-              if (OSCC%tDampedShort_(iSp1) .or. OSCC%tDampedShort_(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, OSCC%dampExp_)
+        do iU1 = 1, OSCC%nHubbU(species(iAt1))
+          u1 = OSCC%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, OSCC%nHubbU(species(iAt2f))
+            u2 = OSCC%uniqHubbU(iU2, species(iAt2f))
+            if (iNeigh <= OSCC%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (OSCC%tDampedShort(iSp1) .or. OSCC%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, OSCC%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
               do ii = 1,3
                 intermed(ii) = intermed(ii) &
-                    & - OSCC%deltaQUniqU_(iU1,iAt1) * OSCC%deltaQUniqU_(iU2,iAt2f) &
+                    & - OSCC%deltaQUniqU(iU1,iAt1) * OSCC%deltaQUniqU(iU2,iAt2f) &
                     & *tmpGammaPrime*vect(ii)/rab
               end do
             end if
@@ -899,7 +899,7 @@ contains
       end do
     end do
 
-    st(:,:) = st(:,:) / OSCC%volume_
+    st(:,:) = st(:,:) / OSCC%volume
 
   end subroutine addSTGammaPrime_
 
@@ -913,19 +913,19 @@ contains
     !> Resulting module variables
     type(typSCC), intent(in) :: OSCC
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(size(eSCC) == OSCC%nAtom_)
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(size(eSCC) == OSCC%nAtom)
 
-    eSCC(:) = 0.5_dp * (OSCC%shiftPerAtom_ * OSCC%deltaQAtom_ &
-        & + sum(OSCC%shiftPerL_ * OSCC%deltaQPerLShell_, dim=1))
-    if (OSCC%tExtChrg_) then
-      call addEnergyPerAtom_ExtChrg(OSCC%deltaQAtom_, eSCC)
+    eSCC(:) = 0.5_dp * (OSCC%shiftPerAtom * OSCC%deltaQAtom &
+        & + sum(OSCC%shiftPerL * OSCC%deltaQPerLShell, dim=1))
+    if (OSCC%tExtChrg) then
+      call addEnergyPerAtom_ExtChrg(OSCC%deltaQAtom, eSCC)
     end if
-    if (OSCC%tChrgConstr_) then
-      call addEnergyPerAtom(OSCC%chrgConstr_, eSCC, OSCC%deltaQAtom_)
+    if (OSCC%tChrgConstr) then
+      call addEnergyPerAtom(OSCC%chrgConstr, eSCC, OSCC%deltaQAtom)
     end if
-    if (OSCC%tThirdOrder_) then
-      call addEnergyPerAtom(OSCC%thirdOrder_, eSCC, OSCC%deltaQAtom_)
+    if (OSCC%tThirdOrder) then
+      call addEnergyPerAtom(OSCC%thirdOrder, eSCC, OSCC%deltaQAtom)
     end if
 
   end subroutine getEnergyPerAtom_SCC
@@ -958,31 +958,31 @@ contains
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:), dQOutShell(:,:)
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(size(eSCC) == OSCC%nAtom_)
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(size(eSCC) == OSCC%nAtom)
 
-    allocate(dQOut(orb%mOrb, OSCC%nAtom_))
-    allocate(dQOutAtom(OSCC%nAtom_))
-    allocate(dQOutShell(OSCC%mShell_, OSCC%nAtom_))
+    allocate(dQOut(orb%mOrb, OSCC%nAtom))
+    allocate(dQOutAtom(OSCC%nAtom))
+    allocate(dQOutShell(OSCC%mShell, OSCC%nAtom))
 
-    call getNetCharges_(OSCC%nAtom_, OSCC%iHubbU_, species, orb, qOut, q0, dQOut, dQOutAtom, &
+    call getNetCharges_(OSCC%nAtom, OSCC%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom, &
         & dQOutShell)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
-    eSCC(:) = 0.5_dp * (OSCC%shiftPerAtom_ * (2.0_dp * dQOutAtom - OSCC%deltaQAtom_) &
-        & + sum(OSCC%shiftPerL_ * (2.0_dp * dQOutShell - OSCC%deltaQPerLShell_), dim=1))
+    eSCC(:) = 0.5_dp * (OSCC%shiftPerAtom * (2.0_dp * dQOutAtom - OSCC%deltaQAtom) &
+        & + sum(OSCC%shiftPerL * (2.0_dp * dQOutShell - OSCC%deltaQPerLShell), dim=1))
 
-    if (OSCC%tExtChrg_) then
+    if (OSCC%tExtChrg) then
       call error("XLBOMD not working with external charges yet")
-      !call addEnergyPerAtom_ExtChrg(OSCC%deltaQAtom_, eSCC)
+      !call addEnergyPerAtom_ExtChrg(OSCC%deltaQAtom, eSCC)
     end if
-    if (OSCC%tChrgConstr_) then
+    if (OSCC%tChrgConstr) then
       call error("XLBOMD not working with charge constraints yet")
-      !call addEnergyPerAtom(OSCC%chrgConstr_, eSCC, OSCC%deltaQAtom_)
+      !call addEnergyPerAtom(OSCC%chrgConstr, eSCC, OSCC%deltaQAtom)
     end if
-    if (OSCC%tThirdOrder_) then
+    if (OSCC%tThirdOrder) then
       call error("XLBOMD not working with third order yet")
-      !call addEnergyPerAtom(OSCC%thirdOrder_, eSCC, OSCC%deltaQAtom_)
+      !call addEnergyPerAtom(OSCC%thirdOrder, eSCC, OSCC%deltaQAtom)
     end if
 
   end subroutine getEnergyPerAtom_SCC_Xlbomd
@@ -1014,26 +1014,26 @@ contains
     !> shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(OSCC%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
-    @:ASSERT(size(force,dim=2) == OSCC%nAtom_)
-    @:ASSERT(present(chrgForce) .eqv. OSCC%tExtChrg_)
+    @:ASSERT(size(force,dim=2) == OSCC%nAtom)
+    @:ASSERT(present(chrgForce) .eqv. OSCC%tExtChrg)
 
     ! Short-range part of gamma contribution
     call addGammaPrime_(force,OSCC,coord,species,iNeighbor,img2CentCell)
 
     ! 1/R contribution
-    if (OSCC%tPeriodic_) then
-      call addInvRPrime(force, OSCC%nAtom_, coord, OSCC%nNeighEwald_, iNeighbor, &
-          & img2CentCell, OSCC%gLatPoint_, OSCC%alpha_, OSCC%volume_, OSCC%deltaQAtom_)
-      if (OSCC%tExtChrg_) then
-        call addForceDCSCC_ExtChrg(force, chrgForce, coord, OSCC%deltaQAtom_, OSCC%gLatPoint_, &
-            & OSCC%alpha_, OSCC%volume_)
+    if (OSCC%tPeriodic) then
+      call addInvRPrime(force, OSCC%nAtom, coord, OSCC%nNeighEwald, iNeighbor, &
+          & img2CentCell, OSCC%gLatPoint, OSCC%alpha, OSCC%volume, OSCC%deltaQAtom)
+      if (OSCC%tExtChrg) then
+        call addForceDCSCC_ExtChrg(force, chrgForce, coord, OSCC%deltaQAtom, OSCC%gLatPoint, &
+            & OSCC%alpha, OSCC%volume)
       end if
     else
-      call addInvRPrime(force, OSCC%nAtom_, coord, OSCC%deltaQAtom_)
-      if (OSCC%tExtChrg_) then
-        call addForceDCSCC_ExtChrg(force, chrgForce, coord, OSCC%deltaQAtom_)
+      call addInvRPrime(force, OSCC%nAtom, coord, OSCC%deltaQAtom)
+      if (OSCC%tExtChrg) then
+        call addForceDCSCC_ExtChrg(force, chrgForce, coord, OSCC%deltaQAtom)
       end if
     end if
 
@@ -1064,8 +1064,8 @@ contains
 
     real(dp) :: stTmp(3,3)
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(OSCC%tPeriodic_)
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(OSCC%tPeriodic)
     @:ASSERT(all(shape(st)==(/3,3/)))
 
     stTmp = 0.0_dp
@@ -1079,8 +1079,8 @@ contains
     ! call invRstress
 
     stTmp = 0.0_dp
-    call invR_stress(stTmp, OSCC%nAtom_, coord, OSCC%nNeighEwald_, iNeighbor,img2CentCell, &
-        & OSCC%gLatPoint_, OSCC%alpha_, OSCC%volume_, OSCC%deltaQAtom_)
+    call invR_stress(stTmp, OSCC%nAtom, coord, OSCC%nNeighEwald, iNeighbor,img2CentCell, &
+        & OSCC%gLatPoint, OSCC%alpha, OSCC%volume, OSCC%deltaQAtom)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
@@ -1125,29 +1125,29 @@ contains
 
     integer :: iAt1, iSp1, iSh1, iU1, iNeigh, iAt2f, iSp2, iSh2, iU2
 
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(OSCC%tInitialised)
 
     ! 1/R contribution [shiftAtom(A) = \sum_B 1/R_AB * (Q_B - Q0_B)]
     shiftAtom(:) = 0.0_dp
-    call hemv(shiftAtom, OSCC%invRMat_, dQAtom,'L')
+    call hemv(shiftAtom, OSCC%invRMat, dQAtom,'L')
 
     ! Contribution of the short range part of gamma to the shift
     ! sgamma'_{A,l} = sum_B sum_{u\in B} S(U(A,l),u)*q_u
     shiftShell(:,:) = 0.0_dp
-    do iAt1 = 1, OSCC%nAtom_
+    do iAt1 = 1, OSCC%nAtom
       iSp1 = species(iAt1)
       do iSh1 = 1, orb%nShell(iSp1)
-        iU1 = OSCC%iHubbU_(iSh1, iSp1)
-        do iNeigh = 0, maxval(OSCC%nNeighShort_(:,:,:,iAt1))
+        iU1 = OSCC%iHubbU(iSh1, iSp1)
+        do iNeigh = 0, maxval(OSCC%nNeighShort(:,:,:,iAt1))
           iAt2f = img2CentCell(iNeighbor(iNeigh, iAt1))
           iSp2 = species(iAt2f)
           do iSh2 = 1, orb%nShell(iSp2)
-            iU2 = OSCC%iHubbU_(iSh2, iSp2)
+            iU2 = OSCC%iHubbU(iSh2, iSp2)
             shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1) &
-                &- OSCC%shortGamma_(iU2, iU1, iNeigh, iAt1) * dQShell(iSh2, iAt2f)
+                &- OSCC%shortGamma(iU2, iU1, iNeigh, iAt1) * dQShell(iSh2, iAt2f)
             if (iAt2f /= iAt1) then
               shiftShell(iSh2, iAt2f) = shiftShell(iSh2, iAt2f) &
-                  &- OSCC%shortGamma_(iU2, iU1, iNeigh, iAt1) * dQShell(iSh1, iAt1)
+                  &- OSCC%shortGamma(iU2, iU1, iNeigh, iAt1) * dQShell(iSh1, iAt1)
             end if
           end do
         end do
@@ -1166,19 +1166,19 @@ contains
     !> Module variables
     type(typSCC), intent(in) :: OSCC
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(size(shift) == size(OSCC%shiftPerAtom_))
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(size(shift) == size(OSCC%shiftPerAtom))
 
     shift = 0.0_dp
-    shift = OSCC%shiftPerAtom_
-    if (OSCC%tExtChrg_) then
+    shift = OSCC%shiftPerAtom
+    if (OSCC%tExtChrg) then
       call addShiftPerAtom_ExtChrg(shift)
     end if
-    if (OSCC%tChrgConstr_) then
-      call addShiftPerAtom(OSCC%chrgConstr_, shift)
+    if (OSCC%tChrgConstr) then
+      call addShiftPerAtom(OSCC%chrgConstr, shift)
     end if
-    if (OSCC%tThirdOrder_) then
-      call addShiftPerAtom(OSCC%thirdOrder_, shift)
+    if (OSCC%tThirdOrder) then
+      call addShiftPerAtom(OSCC%thirdOrder, shift)
     end if
 
   end subroutine getShiftPerAtom
@@ -1193,11 +1193,11 @@ contains
     !> Module variables
     type(typSCC), intent(in) :: OSCC
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(size(shift,dim=1) == size(OSCC%shiftPerL_,dim=1))
-    @:ASSERT(size(shift,dim=2) == size(OSCC%shiftPerL_,dim=2))
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(size(shift,dim=1) == size(OSCC%shiftPerL,dim=1))
+    @:ASSERT(size(shift,dim=2) == size(OSCC%shiftPerL,dim=2))
     shift = 0.0_dp
-    shift = OSCC%shiftPerL_
+    shift = OSCC%shiftPerL
 
   end subroutine getShiftPerL
 
@@ -1223,19 +1223,19 @@ contains
 
     nSpin = size(equiv, dim=3)
 
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(size(species) == OSCC%nAtom_)
+    @:ASSERT(OSCC%tInitialised)
+    @:ASSERT(size(species) == OSCC%nAtom)
     @:ASSERT(size(equiv, dim=1) == orb%mOrb)
-    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, OSCC%nAtom_, nSpin /)))
+    @:ASSERT(all(shape(equiv) == (/ orb%mOrb, OSCC%nAtom, nSpin /)))
 
     equiv(:,:,:) = 0
     shift = 0
-    do iAt = 1, OSCC%nAtom_
+    do iAt = 1, OSCC%nAtom
       iSp = species(iAt)
       do iOrb = 1, orb%nOrbSpecies(iSp)
-        equiv(iOrb, iAt, 1) = OSCC%iHubbU_(orb%iShellOrb(iOrb, iSp), iSp) + shift
+        equiv(iOrb, iAt, 1) = OSCC%iHubbU(orb%iShellOrb(iOrb, iSp), iSp) + shift
       end do
-      shift = shift + maxval(OSCC%iHubbU_(:, iSp))
+      shift = shift + maxval(OSCC%iHubbU(:, iSp))
     end do
     do iS = 2, nSpin
       equiv(:,:,iS) = equiv(:,:,1)
@@ -1282,30 +1282,30 @@ contains
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
     real(dp), allocatable :: dQOutLShell(:,:), dQOutUniqU(:,:)
 
-    allocate(dQOut(OSCC%mOrb_, OSCC%nAtom_))
-    allocate(dQOutAtom(OSCC%nAtom_))
-    allocate(dQOutLShell(OSCC%mShell_, OSCC%nAtom_))
-    allocate(dQOutUniqU(OSCC%mHubbU_, OSCC%nAtom_))
+    allocate(dQOut(OSCC%mOrb, OSCC%nAtom))
+    allocate(dQOutAtom(OSCC%nAtom))
+    allocate(dQOutLShell(OSCC%mShell, OSCC%nAtom))
+    allocate(dQOutUniqU(OSCC%mHubbU, OSCC%nAtom))
 
-    call getNetCharges_(OSCC%nAtom_, OSCC%iHubbU_, species, orb, qOrbitalOut, q0, dQOut, &
+    call getNetCharges_(OSCC%nAtom, OSCC%iHubbU, species, orb, qOrbitalOut, q0, dQOut, &
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
-    call addGammaPrimeXlbomd_(OSCC, OSCC%deltaQUniqU_, dQOutUniqU, coord, species, iNeighbor, &
+    call addGammaPrimeXlbomd_(OSCC, OSCC%deltaQUniqU, dQOutUniqU, coord, species, iNeighbor, &
         & img2CentCell, force)
 
     ! 1/R contribution
-    if (OSCC%tPeriodic_) then
-      call addInvRPrimeXlbomd(OSCC%nAtom_, coord, OSCC%nNeighEwald_, iNeighbor, img2CentCell, &
-          & OSCC%gLatPoint_, OSCC%alpha_, OSCC%volume_, OSCC%deltaQAtom_, dQOutAtom, force)
-      if (OSCC%tExtChrg_) then
+    if (OSCC%tPeriodic) then
+      call addInvRPrimeXlbomd(OSCC%nAtom, coord, OSCC%nNeighEwald, iNeighbor, img2CentCell, &
+          & OSCC%gLatPoint, OSCC%alpha, OSCC%volume, OSCC%deltaQAtom, dQOutAtom, force)
+      if (OSCC%tExtChrg) then
         call error("XLBOMD with external charges does not work yet!")
         !call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_, gLatPoint_, alpha_, &
         !& volume_)
       end if
     else
-      call addInvRPrimeXlbomd(OSCC%nAtom_, coord, OSCC%deltaQAtom_, dQOutAtom, force)
-      if (OSCC%tExtChrg_) then
+      call addInvRPrimeXlbomd(OSCC%nAtom, coord, OSCC%deltaQAtom, dQOutAtom, force)
+      if (OSCC%tExtChrg) then
         call error("XLBOMD with external charges does not work yet!")
         !call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_)
       end if
@@ -1347,24 +1347,24 @@ contains
     real(dp) :: rab, tmpGammaPrime, u1, u2, prefac
     real(dp) :: contrib(3)
 
-    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(OSCC%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
-    @:ASSERT(size(force,dim=2) == OSCC%nAtom_)
+    @:ASSERT(size(force,dim=2) == OSCC%nAtom)
 
-    do iAt1 = 1, OSCC%nAtom_
+    do iAt1 = 1, OSCC%nAtom
       iSp1 = species(iAt1)
-      do iNeigh = 1, maxval(OSCC%nNeighShort_(:,:,:, iAt1))
+      do iNeigh = 1, maxval(OSCC%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
-        do iU1 = 1, OSCC%nHubbU_(species(iAt1))
-          u1 = OSCC%uniqHubbU_(iU1, iSp1)
-          do iU2 = 1, OSCC%nHubbU_(species(iAt2f))
-            u2 = OSCC%uniqHubbU_(iU2, species(iAt2f))
-            if (iNeigh <= OSCC%nNeighShort_(iU2,iU1,species(iAt2f),iAt1)) then
-              if (OSCC%tDampedShort_(iSp1) .or. OSCC%tDampedShort_(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, OSCC%dampExp_)
+        do iU1 = 1, OSCC%nHubbU(species(iAt1))
+          u1 = OSCC%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, OSCC%nHubbU(species(iAt2f))
+            u2 = OSCC%uniqHubbU(iU2, species(iAt2f))
+            if (iNeigh <= OSCC%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (OSCC%tDampedShort(iSp1) .or. OSCC%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, OSCC%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
