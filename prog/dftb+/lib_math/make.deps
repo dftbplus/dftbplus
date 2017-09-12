@@ -13,11 +13,6 @@ blasroutines.o = blasroutines.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $
 _mod_blasroutines: blasroutines.o
 _mod_blasroutines = $(blasroutines.o)
 
-csrmatrix.o: _mod_accuracy common.fypp _mod_assert
-csrmatrix.o = csrmatrix.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
-_mod_csrmatrix: csrmatrix.o
-_mod_csrmatrix = $(csrmatrix.o)
-
 eigensolver.o: common.fypp _mod_message _mod_lapack _mod_assert _mod_blas _mod_accuracy
 eigensolver.o = eigensolver.o $(common.fypp) $(_mod_message) $(_mod_lapack) $(_mod_assert) $(_mod_blas) $(_mod_accuracy)
 _mod_eigensolver: eigensolver.o

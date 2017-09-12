@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Routines for spin orbit coupling
+!> Routines for spin orbit coupling
 module spinorbit
   use assert
   use accuracy, only : dp
@@ -19,29 +19,37 @@ module spinorbit
   private
   public :: getEnergySpinOrbit, shiftLS
 
-  !!* Interfaces for spin orbit energies in either the onsite (just local part
-  !!* of the density matrix) or dual (Mulliken projected density matrix)
+
+  !> Interfaces for spin orbit energies in either the onsite (just local part of the density matrix)
+  !> or dual (Mulliken projected density matrix)
   interface  getEnergySpinOrbit
     module procedure onsite
     module procedure dual
-  end interface
+  end interface getEnergySpinOrbit
 
 contains
 
-  !!* Calculates the spin orbit energy for on-site L.S coupling
-  !!* @param Eatom returned energy for each atom
-  !!* @param rho Density matrix in Packed format
-  !!* @param iAtomStart Offset array in the square matrix.
-  !!* @param xi spin orbit constants for each shell of each species
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param species Species of the atoms
+
+  !> Calculates the spin orbit energy for on-site L.S coupling
   subroutine onsite(Eatom, rho, iAtomStart, xi, orb, species)
-    real(dp), intent(out)       :: Eatom(:)
-    complex(dp), intent(in)     :: rho(:,:)
-    integer,  intent(in)        :: iAtomStart(:)
-    real(dp), intent(in)        :: xi(:,:)
+
+    !> returned energy for each atom
+    real(dp), intent(out) :: Eatom(:)
+
+    !> Density matrix in Packed format
+    complex(dp), intent(in) :: rho(:,:)
+
+    !> Offset array in the square matrix.
+    integer, intent(in) :: iAtomStart(:)
+
+    !> spin orbit constants for each shell of each species
+    real(dp), intent(in) :: xi(:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
+
+    !> Species of the atoms
+    integer, intent(in) :: species(:)
 
     integer :: nAtom, nSpecies, nOrb
     integer :: ii, jj, kk, ll
@@ -122,20 +130,24 @@ contains
 
   end subroutine onsite
 
-  !!* Calculates the spin orbit energy and angular momentum for dual L.S
-  !!* coupling
-  !!* @param Eatom returned energy for each atom
-  !!* @param qBlockSkew Antisymmetric Mulliken block populations for imaginary
-  !!* coefficients of Pauli matrics
-  !!* @param xi spin orbit constants for each shell of each species
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param species Species of the atoms
+
+  !> Calculates the spin orbit energy and angular momentum for dual L.S coupling
   subroutine dual(Eatom, qBlockSkew, xi, orb, species)
-    real(dp), intent(out)       :: Eatom(:)
-    real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
-    real(dp), intent(in)        :: xi(:,:)
+
+    !> returned energy for each atom
+    real(dp), intent(out) :: Eatom(:)
+
+    !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
+    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
+    !> spin orbit constants for each shell of each species
+    real(dp), intent(in) :: xi(:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
+
+    !> Species of the atoms
+    integer, intent(in) :: species(:)
 
     real(dp) :: total
     integer :: nAtom, nSpecies, iSp
@@ -204,22 +216,27 @@ contains
 
   end subroutine dual
 
-  !!* Constructs shift potential for spin-orbit
-  !!* @param shift block shift from the potential
-  !!* @param xi spin orbit constants for each shell of each species
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param species Species of the atoms
+
+  !> Constructs shift potential for spin-orbit
   subroutine shiftLS(shift, xi, orb, species)
-    real(dp), intent(inout)       :: shift(:,:,:,:)
-    real(dp), intent(in)        :: xi(:,:)
+
+    !> block shift from the potential
+    real(dp), intent(inout) :: shift(:,:,:,:)
+
+    !> spin orbit constants for each shell of each species
+    real(dp), intent(in) :: xi(:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
+
+    !> Species of the atoms
+    integer, intent(in) :: species(:)
 
     integer :: nAtom, nSpecies
     integer :: ii, jj, kk, iSpin
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
-    real(dp), allocatable    :: tmpShift(:,:,:,:)
+    real(dp), allocatable :: tmpShift(:,:,:,:)
 
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
     @:ASSERT(size(shift,dim=2)==orb%mOrb)

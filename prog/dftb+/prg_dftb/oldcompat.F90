@@ -5,8 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains routines to convert HSD input for old parser to the current format.
-!!* @note parserVersion is set in parser.F90
+!> Contains routines to convert HSD input for old parser to the current format.
+!> Note: parserVersion is set in parser.F90
 module oldcompat
   use accuracy, only : dp
   use message
@@ -20,16 +20,19 @@ module oldcompat
 
   public :: convertOldHSD
 
-
 contains
 
-  !!* Converts an HSD input for an older parser to the current format.
-  !!* @param root Root tag of the HSD-tree
-  !!* @param oldVersion Version number of the old parser
-  !!* @param curVersion Version number of the current parser
+
+  !> Converts an HSD input for an older parser to the current format
   subroutine convertOldHSD(root, oldVersion, curVersion)
+
+    !> Root tag of the HSD-tree
     type(fnode), pointer :: root
+
+    !> Version number of the old parser
     integer, intent(in) :: oldVersion
+
+    !> Version number of the current parser
     integer, intent(in) :: curVersion
 
     integer :: version
@@ -53,9 +56,8 @@ contains
       end select
     end do
 
-    ! increase the parser version number in the tree - resulting
-    ! dftb_pin would not work with the old parser as the options have
-    ! changed to the new form by now
+    ! increase the parser version number in the tree - since the resulting dftb_pin would not work
+    ! with the old parser as the options have changed to the new parser by now
     call getChildValue(root, "ParserOptions", ch1, "", child=par, &
         &allowEmptyValue=.true.)
     call getChildValue(par, "ParserVersion", version, child=ch2)
@@ -64,10 +66,10 @@ contains
   end subroutine convertOldHSD
 
 
-
-  !!* Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
-  !!* @param root Root tag.
+  !> Converts input from version 1 to 2. (Version 2 introcuded in August 2006)
   subroutine convert_1_2(root)
+
+    !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
     type(fnode), pointer :: child1, child2
@@ -85,8 +87,10 @@ contains
   end subroutine convert_1_2
 
 
-  !!* Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
+  !> Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
   subroutine convert_2_3(root)
+
+    !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
     type(fnode), pointer :: ch1, ch2, par
@@ -157,16 +161,17 @@ contains
   end subroutine convert_2_3
 
 
-
-  !!* Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
+  !> Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
   subroutine convert_3_4(root)
+
+    !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
     type(fnode),pointer :: node, node2, node3
     type(fnodeList), pointer :: children
     integer :: ii
 
-    !! Replace range operator with short start:end syntax
+    ! Replace range operator with short start:end syntax
     call getDescendant(root, "Driver/SteepestDescent/MovedAtoms", node)
     call replaceRange(node)
     call getDescendant(root, "Driver/ConjugateGradient/MovedAtoms", node)
@@ -194,11 +199,13 @@ contains
       call setNodeName(node, "InitialSpins")
     end if
 
-
   contains
 
-    ! Helper function
+
+    !> Helper function for Range keyword
     subroutine replaceRange(node)
+
+      !> node to process
       type(fnode), pointer :: node
 
       type(fnode), pointer :: node2
@@ -220,8 +227,11 @@ contains
 
   end subroutine convert_3_4
 
-  !!* Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
+
+  !> Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
   subroutine convert_4_5(root)
+
+    !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
     type(fnode), pointer :: ch1, ch2, ch3, par, dummy

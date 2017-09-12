@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> Socket interface library
 module fsockets
   use f90sockets
   implicit none

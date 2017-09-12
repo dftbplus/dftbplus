@@ -12,6 +12,7 @@ module emfields
   use assert
   use accuracy, only : dp
   use constants
+  use io
   use angmomentum, only : Loperators
   use simplealgebra, only : cross3
   use commontypes, only : TOrbitals
@@ -66,7 +67,7 @@ contains
 !            & coords(:,iAt2)+coords(:,iAt1))
 !        phase = -.025_dp * alpha_fs &
 !            & *dot_product(tmpA(:,2),BField)
-!        write(*,*)'phase :',phase
+!        write(stdout, *)'phase :',phase
 !        iH0(iOrig+1:iOrig+nOrb2*nOrb1) = sin(phase) * &
 !            & H0(iOrig+1:iOrig+nOrb2*nOrb1)
 !        H0(iOrig+1:iOrig+nOrb2*nOrb1) = cos(phase) * &

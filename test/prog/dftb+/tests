@@ -101,7 +101,9 @@ dispersion/DNA_dftd3_zero
 #:endif
 
 sockets/diamond
+sockets/diamond_exit
 sockets/H2O
+sockets/H2O_cluster
 spinorbit/GaAs_2
 geoopt/Si_2_latconst
 md/SiH-surface

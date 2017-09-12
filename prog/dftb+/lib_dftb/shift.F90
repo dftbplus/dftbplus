@@ -7,8 +7,8 @@
 
 #:include 'common.fypp'
 
-!!* Contains routines to calculate contributions to typical DFTB Hamiltonian
-!!* parts using various generalisations of H_mu,nu = 0.5*S_mu,nu*(V_mu + V_nu)
+!> Contains routines to calculate contributions to typical DFTB Hamiltonian parts using various
+!> generalisations of H_mu,nu = 0.5*S_mu,nu*(V_mu + V_nu)
 module shift
   use assert
   use accuracy
@@ -19,43 +19,56 @@ module shift
   private
   public :: add_shift, total_shift
 
-  ! add shifts to a given Hamiltonian
+
+  !> add shifts to a given Hamiltonian
   interface add_shift
     module procedure add_shift_atom
     module procedure add_shift_lshell
     module procedure add_shift_block
-  end interface
+  end interface add_shift
 
-  !!* Totals together shifts to get composites
+
+  !> Totals together shifts to get composites
   interface total_shift
     module procedure addatom_shell
     module procedure addshell_block
-  end interface
+  end interface total_shift
 
 contains
 
-  !!* Regular atomic shift (potential is only dependent on number of atom)
-  !!* @param ham          The resulting Hamiltonian contribution.
-  !!* @param over         The overlap matrix.
-  !!* @param nNeighbour   Number of neighbours surrounding each atom.
-  !!* @param iNeighbour   List of neighbours for each atom.
-  !!* @param species      List of the species of each atom.
-  !!* @param orb Contains Information about the atomic orbitals in the system
-  !!* @param iPair        Indexing array for the Hamiltonian.
-  !!* @parma img2CentCell Index mapping atoms onto the central cell atoms.
-  !!* @param shift        Shift to add at atom sites
-  subroutine add_shift_atom(ham,over,nNeighbour,iNeighbour,species,orb,iPair, &
-      & nAtom,img2CentCell,shift)
-    real(dp), intent(inout)     :: ham(:,:)
-    real(dp), intent(in)        :: over(:)
-    integer, intent(in)         :: nNeighbour(:)
-    integer, intent(in)         :: iNeighbour(0:,:)
-    integer, intent(in)         :: species(:)
+
+  !> Regular atomic shift (potential is only dependent on number of atom)
+  subroutine add_shift_atom(ham,over,nNeighbour,iNeighbour,species,orb,iPair, nAtom,img2CentCell, &
+      & shift)
+
+    !> The resulting Hamiltonian contribution.
+    real(dp), intent(inout) :: ham(:,:)
+
+    !> The overlap matrix.
+    real(dp), intent(in) :: over(:)
+
+    !> Number of neighbours surrounding each atom.
+    integer, intent(in) :: nNeighbour(:)
+
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> List of the species of each atom.
+    integer, intent(in) :: species(:)
+
+    !> Contains Information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: iPair(0:,:)
-    integer, intent(in)         :: nAtom
-    integer, intent(in)         :: img2CentCell(:)
-    real(dp), intent(in)        :: shift(:,:)
+
+    !> Indexing array for the Hamiltonian.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Index mapping atoms onto the central cell atoms.
+    integer, intent(in) :: nAtom
+
+    !> Shift to add at atom sites
+    integer, intent(in) :: img2CentCell(:)
+
+    real(dp), intent(in) :: shift(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iNeigh, iSpin, nSpin
@@ -93,32 +106,42 @@ contains
 
   end subroutine add_shift_atom
 
-  !!* l-dependent shift (potential is dependent on number of atom and l-shell)
-  !!* @param ham          The resulting Hamiltonian contribution.
-  !!* @param over         The overlap matrix.
-  !!* @param nNeighbour   Number of neighbours surrounding each atom.
-  !!* @param iNeighbour   List of neighbours for each atom.
-  !!* @param species      List of the species of each atom.
-  !!* @param orb Contains Information about the atomic orbitals in the system
-  !!* @param iPair        Indexing array for the Hamiltonian.
-  !!* @parma img2CentCell Index mapping atoms onto the central cell atoms.
-  !!* @param shift        Shift to add for each l-shell on all atom sites,
-  !!* (0:lmax,1:nAtom)
-  subroutine add_shift_lshell( ham,over,nNeighbour,iNeighbour,species,orb, &
-      & iPair,nAtom,img2CentCell,shift )
-    real(dp), intent(inout)     :: ham(:,:)
-    real(dp), intent(in)        :: over(:)
-    integer, intent(in)         :: nNeighbour(:)
-    integer, intent(in)         :: iNeighbour(0:,:)
-    integer, intent(in)         :: species(:)
-    type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: iPair(0:,:)
-    integer, intent(in)         :: nAtom
-    integer, intent(in)         :: img2CentCell(:)
-    real(dp), intent(in)        :: shift(:,:,:)
 
-    integer  :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer  :: iSh1, iSh2, iNeigh, iSpin, nSpin
+  !> l-dependent shift (potential is dependent on number of atom and l-shell)
+  subroutine add_shift_lshell( ham,over,nNeighbour,iNeighbour,species,orb,iPair,nAtom,img2CentCell,&
+      & shift )
+
+    !> The resulting Hamiltonian contribution.
+    real(dp), intent(inout) :: ham(:,:)
+
+    !> The overlap matrix.
+    real(dp), intent(in) :: over(:)
+
+    !> Number of neighbours surrounding each atom.
+    integer, intent(in) :: nNeighbour(:)
+
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> List of the species of each atom.
+    integer, intent(in) :: species(:)
+
+    !> Contains Information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Indexing array for the Hamiltonian.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Index mapping atoms onto the central cell atoms.
+    integer, intent(in) :: nAtom
+
+    !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
+    integer, intent(in) :: img2CentCell(:)
+
+    real(dp), intent(in) :: shift(:,:,:)
+
+    integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
+    integer :: iSh1, iSh2, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), rTmp
 
     @:ASSERT(size(ham,dim=1)==size(over))
@@ -161,32 +184,42 @@ contains
 
   end subroutine add_shift_lshell
 
-  !!* shift depending on occupation-matrix like potentials. To use this for
-  !!* lm-dependent potentials, use a diagonal shift matrix
-  !!* @param ham          The resulting Hamiltonian contribution.
-  !!* @param over         The overlap matrix.
-  !!* @param nNeighbour   Number of neighbours surrounding each atom.
-  !!* @param iNeighbour   List of neighbours for each atom.
-  !!* @param species      List of the species of each atom.
-  !!* @param orb Contains Information about the atomic orbitals in the system
-  !!* @param iPair        Indexing array for the Hamiltonian.
-  !!* @parma img2CentCell Index mapping atoms onto the central cell atoms.
-  !!* @param shift        Shift to add at atom sites, listed as
-  !!* (0:nOrb,0:nOrb,1:nAtom)
-  subroutine add_shift_block( ham,over,nNeighbour,iNeighbour,species,orb, &
-      & iPair,nAtom,img2CentCell,shift )
-    real(dp), intent(inout)     :: ham(:,:)
-    real(dp), intent(in)        :: over(:)
-    integer, intent(in)         :: nNeighbour(:)
-    integer, intent(in)         :: iNeighbour(0:,:)
-    integer, intent(in)         :: species(:)
-    type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: iPair(0:,:)
-    integer, intent(in)         :: nAtom
-    integer, intent(in)         :: img2CentCell(:)
-    real(dp), intent(in)        :: shift(:,:,:,:)
 
-    integer  :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
+  !> shift depending on occupation-matrix like potentials. To use this for lm-dependent potentials,
+  !> use a diagonal shift matrix
+  subroutine add_shift_block( ham,over,nNeighbour,iNeighbour,species,orb,iPair,nAtom,img2CentCell, &
+      & shift )
+
+    !> The resulting Hamiltonian contribution.
+    real(dp), intent(inout) :: ham(:,:)
+
+    !> The overlap matrix.
+    real(dp), intent(in) :: over(:)
+
+    !> Number of neighbours surrounding each atom.
+    integer, intent(in) :: nNeighbour(:)
+
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> List of the species of each atom.
+    integer, intent(in) :: species(:)
+
+    !> Contains Information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Indexing array for the Hamiltonian.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Index mapping atoms onto the central cell atoms.
+    integer, intent(in) :: nAtom
+
+    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    integer, intent(in) :: img2CentCell(:)
+
+    real(dp), intent(in) :: shift(:,:,:,:)
+
+    integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), tmpS(orb%mOrb,orb%mOrb)
 
@@ -231,10 +264,19 @@ contains
   end subroutine add_shift_block
 
 
+  !> Add a shift for atom resolved potetial to shell resolved potential
   subroutine addatom_shell(shiftshell, atom, orb, species)
+
+    !> Shift to add at atomic shells
     real(dp), intent(inout) :: shiftshell(:,:,:)
+
+    !> Atomic part of shift
     real(dp), intent(in) :: atom(:,:)
+
+    !> Contains Information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
+    !> List of the species of each atom.
     integer, intent(in) :: species(:)
 
     integer iAtom, iSpin, nAtom, nSpin
@@ -258,10 +300,19 @@ contains
   end subroutine addatom_shell
 
 
+  !> Add a shift for shell resolved potetial to block resolved potential
   subroutine addshell_block(shiftblock, shell, orb, species)
+
+    !> block resolved shift
     real(dp), intent(inout) :: shiftblock(:,:,:,:)
+
+    !> Shell shift to add in
     real(dp), intent(in) :: shell(:,:,:)
+
+    !> Contains Information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
+    !> List of the species of each atom.
     integer, intent(in) :: species(:)
 
     integer iAt, iSpin, nAtom, nSpin, iSh, iSp, iOrb
@@ -289,6 +340,5 @@ contains
     end do
 
   end subroutine addshell_block
-
 
 end module shift

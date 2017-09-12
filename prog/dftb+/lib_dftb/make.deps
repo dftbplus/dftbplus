@@ -33,14 +33,14 @@ dispdftd3.o = dispdftd3.o $(_mod_dispiface) $(_mod_accuracy) $(common.fypp) $(_m
 _mod_dispdftd3_module: dispdftd3.o
 _mod_dispdftd3_module = $(dispdftd3.o)
 
-#:if WITH_DFTD3  
-dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw _mod_dispuffdata _mod_dispdftd3_module
-dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(_mod_dispuffdata) $(_mod_dispdftd3_module)
+#:if WITH_DFTD3
+dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw common.fypp _mod_dispuffdata _mod_dispdftd3_module
+dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(common.fypp) $(_mod_dispuffdata) $(_mod_dispdftd3_module)
 _mod_dispersions: dispersions.o
 _mod_dispersions = $(dispersions.o)
 #:else
-dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw _mod_dispuffdata
-dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(_mod_dispuffdata)
+dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw common.fypp _mod_dispuffdata
+dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(common.fypp) $(_mod_dispuffdata)
 _mod_dispersions: dispersions.o
 _mod_dispersions = $(dispersions.o)
 #:endif
@@ -70,8 +70,8 @@ elecconstraints.o = elecconstraints.o $(_mod_accuracy) $(_mod_commontypes) $(com
 _mod_elecconstraints: elecconstraints.o
 _mod_elecconstraints = $(elecconstraints.o)
 
-emfields.o: _mod_commontypes common.fypp _mod_constants _mod_angmomentum _mod_assert _mod_simplealgebra _mod_accuracy
-emfields.o = emfields.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_angmomentum) $(_mod_assert) $(_mod_simplealgebra) $(_mod_accuracy)
+emfields.o: _mod_commontypes common.fypp _mod_constants _mod_angmomentum _mod_assert _mod_simplealgebra _mod_accuracy _mod_io
+emfields.o = emfields.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_angmomentum) $(_mod_assert) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_io)
 _mod_emfields: emfields.o
 _mod_emfields = $(emfields.o)
 
@@ -110,8 +110,8 @@ periodic.o = periodic.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod
 _mod_periodic: periodic.o
 _mod_periodic = $(periodic.o)
 
-pmlocalisation.o: _mod_sparse2dense common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_accuracy
-pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy)
+pmlocalisation.o: _mod_sparse2dense common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_periodic _mod_accuracy _mod_io
+pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_io)
 _mod_pmlocalisation: pmlocalisation.o
 _mod_pmlocalisation = $(pmlocalisation.o)
 
@@ -150,8 +150,8 @@ scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 
-sccinit.o: _mod_commontypes common.fypp _mod_charmanip _mod_fileid _mod_assert _mod_message _mod_accuracy
-sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_charmanip) $(_mod_fileid) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
+sccinit.o: _mod_commontypes common.fypp _mod_charmanip _mod_fileid _mod_assert _mod_message _mod_accuracy _mod_io
+sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_charmanip) $(_mod_fileid) $(_mod_assert) $(_mod_message) $(_mod_accuracy) $(_mod_io)
 _mod_sccinit: sccinit.o
 _mod_sccinit = $(sccinit.o)
 

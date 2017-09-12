@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains routines to calculate the coulombic interaction in non periodic
-!!* and periodic systems.
+!> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module coulomb
   use assert
   use accuracy
@@ -23,48 +22,62 @@ module coulomb
   public :: getMaxREwald, ewald, invR_stress
   public :: addInvRPrimeXlbomd
 
+
+  !> 1/r interaction for all atoms with another group
   interface sumInvR
     module procedure sumInvR_cluster_asymm
     module procedure sumInvR_periodic_asymm
-  end interface
+  end interface sumInvR
 
+
+  !> 1/r interaction
   interface invR
     module procedure invR_cluster
     module procedure invR_periodic
-  end interface
+  end interface invR
 
+
+  !> 1/r^2
   interface addInvRPrime
     module procedure addInvRPrime_cluster
     module procedure addInvRPrime_cluster_asymm
     module procedure addInvRPrime_periodic
     module procedure addInvRPrime_periodic_asymm
-  end interface
+  end interface addInvRPrime
 
+
+  !> 1/r^2 term for extended lagrangian
   interface addInvRPrimeXlbomd
     module procedure addInvRPrimeXlbomd_cluster
     module procedure addInvRPrimeXlbomd_periodic
   end interface addInvRPrimeXlbomd
 
-  character(len=100) :: error_string     !* Used to return runtime diagnostics
+
+  !> Used to return runtime diagnostics
+  character(len=100) :: error_string
   character(len=*), parameter :: ftTooClose = &
       &"('The objects with the following indexes are too close to each other',&
       &I5,I5)"
 
-  !! Maximal argument value of erf, after which it is constant
-  real(dp), parameter :: erfArgLimit = 10.0_dp
 
+  !> Maximal argument value of erf, after which it is constant
+  real(dp), parameter :: erfArgLimit = 10.0_dp
 
 contains
 
 
-  !!* Calculates the 1/R Matrix for all atoms for the non-periodic case.
-  !!* @param invRMat Matrix of 1/R values for each atom pair.
-  !!* @param coord   List of atomic coordinates.
-  !!* @note Only the lower triangle is constructed.
+  !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
+  !> constructed.
   subroutine invR_cluster(invRMat, nAtom, coord)
+
+    !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
+
+    !> number of atoms
     integer, intent(in) :: nAtom
-    real(dp), intent(in)  :: coord(:,:)
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     integer :: ii, jj
     real(dp) :: dist, vect(3)
@@ -85,24 +98,30 @@ contains
   end subroutine invR_cluster
 
 
-
-  !!* Calculates the summed 1/R vector for all atoms for the non-periodic case
-  !!* asymmmetric case (like interaction of atoms with point charges).
-  !!* @param invRVec Vector of sum_i q_i/|R_atom - R_i] values for each atom
-  !!* @param nAtom0 Number of atoms in the first group
-  !!* @param nAtom1 Number of atoms in the second group
-  !!* @param coord0 Coordinates of the first group of objects (atoms)
-  !!* @param coord1 Coordinates of the 2nd group of objects (point charges)
-  !!* @param charges1 Charges of the 2nd group of objects
-  !!* @param blurWidths1 Gaussian blur widht of the charges in the 2nd group
+  !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
+  !> interaction of atoms with point charges).
   subroutine sumInvR_cluster_asymm(invRVec, nAtom0, nAtom1, coord0, &
       &coord1, charges1, blurWidths1)
+
+    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
+
+    !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
+
+    !> Number of atoms in the second group
     integer, intent(in) :: nAtom1
-    real(dp), intent(in)  :: coord0(:,:)
-    real(dp), intent(in)  :: coord1(:,:)
-    real(dp), intent(in)  :: charges1(:)
+
+    !> Coordinates of the first group of objects (atoms)
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> Coordinates of the 2nd group of objects (point charges)
+    real(dp), intent(in) :: coord1(:,:)
+
+    !> Charges of the 2nd group of objects
+    real(dp), intent(in) :: charges1(:)
+
+    !> Gaussian blur widht of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
@@ -114,11 +133,11 @@ contains
     @:ASSERT(size(coord1, dim=2) >= nAtom1)
     @:ASSERT(size(coord1, dim=1) == 3)
     @:ASSERT(size(charges1) == nAtom1)
-  #:call ASSERT_CODE
+#:call ASSERT_CODE
     if (present(blurWidths1)) then
       @:ASSERT(size(blurWidths1) == nAtom1)
     end if
-  #:endcall ASSERT_CODE
+#:endcall ASSERT_CODE
 
     !! Doing blurring and non blurring case separately in order to avoid
     !! the if branch deep in the loop
@@ -158,32 +177,38 @@ contains
   end subroutine sumInvR_cluster_asymm
 
 
-
-  !!* Calculates the 1/R Matrix for all atoms for the periodic case.
-  !!* @param invRMat      Matrix of 1/R values for each atom pair.
-  !!* @param nAtom  Number of atoms.
-  !!* @param coord        List of atomic coordinates (all atoms).
-  !!* @param nNeighborEwald Nr. of neighbors for each atom for real part of
-  !!* Ewald.
-  !!* @param iNeighbor    List of neighbors for the real space part of Ewald.
-  !!* @param img2CentCell Image of each atom in the central cell.
-  !!* @param recPoint     Contains the points included in the reciprocal sum.
-  !!*                     The set should not include the origin or
-  !!*                     inversion related points.
-  !!* @param alpha        Parameter for Ewald summation.
-  !!* @param volume       Volume of the real space unit cell.
-  !!* @note Only the lower triangle is constructed.
+  !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
+  !> constructed.
   subroutine invR_periodic(invRMat, nAtom, coord, nNeighborEwald, iNeighbor, &
       &img2CentCell, recPoint, alpha, volume)
+
+    !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
+
+    !> Number of atoms.
     integer, intent(in) :: nAtom
-    real(dp), intent(in)  :: coord(:,:)
-    integer,  intent(in)  :: nNeighborEwald(:)
-    integer,  intent(in)  :: iNeighbor(0:,:)
-    integer,  intent(in)  :: img2CentCell(:)
-    real(dp), intent(in)  :: recPoint(:,:)
-    real(dp), intent(in)  :: alpha
-    real(dp), intent(in)  :: volume
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image index for each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum.  The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
 
@@ -223,31 +248,39 @@ contains
   end subroutine invR_periodic
 
 
-
-  !!* Calculates summed 1/R vector for two groups of objects for the
-  !!* periodic case.
-  !!* @param invRVec Vector of sum_i q_i/|R_atom - R_i] values for each atom
-  !!* @param nAtom0 Number of atoms in the first group
-  !!* @param nAtom1 Number of atoms in the second group
-  !!* @param coord0 Coordinates of the first group of objects (atoms)
-  !!* @param coord1 Coordinates of the 2nd group of objects (point charges)
-  !!* @param charges1 Charges of the 2nd group of objects
-  !!* @param rLat Lattice vectors to be used for the real Ewald summation
-  !!* @param gLat Lattice vectors to be used for the reciprocal Ewald summation.
-  !!* @param alpha Parameter of the Ewald summation
-  !!* @param vol Volume of the supercell.
+  !> Calculates summed 1/R vector for two groups of objects for the periodic case.
   subroutine sumInvR_periodic_asymm(invRVec, nAtom0, nAtom1, coord0, &
       &coord1, charges1, rLat, gLat, alpha, volume)
+
+    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
+
+    !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
+
+    !> Number of atoms in the second group
     integer, intent(in) :: nAtom1
-    real(dp), intent(in)  :: coord0(:,:)
-    real(dp), intent(in)  :: coord1(:,:)
-    real(dp), intent(in)  :: charges1(:)
-    real(dp), intent(in)  :: rLat(:,:)
-    real(dp), intent(in)  :: gLat(:,:)
-    real(dp), intent(in)  :: alpha
-    real(dp), intent(in)  :: volume
+
+    !> Coordinates of the first group of objects (atoms)
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> Coordinates of the 2nd group of objects (point charges)
+    real(dp), intent(in) :: coord1(:,:)
+
+    !> Charges of the 2nd group of objects
+    real(dp), intent(in) :: charges1(:)
+
+    !> Lattice vectors to be used for the real Ewald summation
+    real(dp), intent(in) :: rLat(:,:)
+
+    !> Lattice vectors to be used for the reciprocal Ewald summation.
+    real(dp), intent(in) :: gLat(:,:)
+
+    !> Parameter of the Ewald summation
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the supercell.
+    real(dp), intent(in) :: volume
 
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
@@ -274,18 +307,21 @@ contains
   end subroutine sumInvR_periodic_asymm
 
 
-
-  !!* Calculates the -1/R**2 deriv contribution for all atoms for the
-  !!* non-periodic case, without storing anything.
-  !!* @param deriv Contains the derivative on exit.
-  !!* @param nAtom Number of atoms
-  !!* @param coord List of atomic coordinates.
-  !!* @param deltaQAtom List of charges on each atom
+  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
+  !> storing anything.
   subroutine addInvRPrime_cluster(deriv, nAtom, coord, deltaQAtom)
+
+    !> Contains the derivative on exit.
     real(dp), intent(inout) :: deriv(:,:)
+
+    !> Number of atoms.
     integer, intent(in) :: nAtom
-    real(dp), intent(in)  :: coord(:,:)
-    real(dp), intent(in)  :: deltaQAtom(:)
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of charges on each atom.
+    real(dp), intent(in) :: deltaQAtom(:)
 
     integer :: ii, jj
     real(dp) :: dist, vect(3), fTmp
@@ -302,8 +338,7 @@ contains
         dist = sqrt(sum(vect(:)**2))
         fTmp = -deltaQAtom(ii) * deltaQAtom(jj) / (dist**3)
         deriv(:,ii) = deriv(:,ii) + vect(:)*fTmp
-        !! Skew-symmetric 1/r2 interaction, so the other triangle is
-        !! calculated :
+        !! Skew-symmetric 1/r2 interaction, so the other triangle is calculated :
         deriv(:,jj) = deriv(:,jj) - vect(:)*fTmp
       end do
     end do
@@ -311,11 +346,23 @@ contains
   end subroutine addInvRPrime_cluster
 
 
+  !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
+  !> geometry
+  subroutine addInvRPrimeXlbomd_cluster(nAtom, coord, dQInAtom, dQOutAtom, deriv)
 
-  subroutine addInvRPrimeXlbomd_cluster(nAtom, coord, dQInAtom, dQOutAtom, &
-      & deriv)
+    !> number of atoms
     integer, intent(in) :: nAtom
-    real(dp), intent(in) :: coord(:,:), dQInAtom(:), dQOutAtom(:)
+
+    !> coordinates of atoms
+    real(dp), intent(in) :: coord(:,:)
+
+    !> input charge fluctuations
+    real(dp), intent(in) :: dQInAtom(:)
+
+    !> output charge fluctuations
+    real(dp), intent(in) :: dQOutAtom(:)
+
+    !> energy derivative to add contribution to
     real(dp), intent(inout) :: deriv(:,:)
 
     integer :: iAt1, iAt2
@@ -345,29 +392,37 @@ contains
   end subroutine addInvRPrimeXlbomd_cluster
 
 
-
-  !!* Calculates the -1/R**2 deriv contribution for charged atoms interacting
-  !!* with a group of charged objects (like point charges) for the non-periodic
-  !!* case, without storing anything.
-  !!* @param deriv0 Contains the derivative for the first group
-  !!* @param deriv1 Contains the derivative for the second group
-  !!* @param nAtom0 Number of atoms in the first group
-  !!* @param nAtom1 Number of atoms in the second group
-  !!* @param coord0 List of atomic coordinates.
-  !!* @param coord1 List of the point charge coordinates
-  !!* @param charge0 Charge of the atoms.
-  !!* @param charge1 Charge of the point charges.
+  !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
+  !> objects (like point charges) for the non-periodic case, without storing anything.
   subroutine addInvRPrime_cluster_asymm(deriv0, deriv1, nAtom0, nAtom1, &
       &coord0, coord1, charge0, charge1, blurWidths1)
+
+    !> Contains the derivative for the first group
     real(dp), intent(inout) :: deriv0(:,:)
+
+    !> Contains the derivative for the second group
     real(dp), intent(inout) :: deriv1(:,:)
+
+    !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
+
+    !> Number of atoms in the second group
     integer, intent(in) :: nAtom1
-    real(dp), intent(in)  :: coord0(:,:)
-    real(dp), intent(in)  :: coord1(:,:)
-    real(dp), intent(in)  :: charge0(:)
-    real(dp), intent(in)  :: charge1(:)
-    real(dp), intent(in), optional  :: blurWidths1(:)
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> List of the point charge coordinates
+    real(dp), intent(in) :: coord1(:,:)
+
+    !> Charge of the atoms.
+    real(dp), intent(in) :: charge0(:)
+
+    !> Charge of the point charges.
+    real(dp), intent(in) :: charge1(:)
+
+    !> if gaussian distribution for the charge
+    real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
@@ -382,11 +437,11 @@ contains
     @:ASSERT(size(coord1, dim=2) >= nAtom1)
     @:ASSERT(size(charge0) == nAtom0)
     @:ASSERT(size(charge1) == nAtom1)
-  #:call ASSERT_CODE
+#:call ASSERT_CODE
     if (present(blurWidths1)) then
       @:ASSERT(size(blurWidths1) == nAtom1)
     end if
-  #:endcall ASSERT_CODE
+#:endcall ASSERT_CODE
 
     !! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
@@ -431,34 +486,40 @@ contains
   end subroutine addInvRPrime_cluster_asymm
 
 
-
-  !!* Calculates the -1/R**2 deriv contribution for the periodic case, without
-  !!* storing anything.
-  !!* @param deriv          Derivative on exit
-  !!* @param nAtom          Number of atoms
-  !!* @param coord          List of atomic coordinates (all atoms).
-  !!* @param nNeighborEwald Nr. of neighbors for each atom for real part
-  !!*   ofEwald.
-  !!* @param iNeighbor      List of neighbors for the real space part of Ewald.
-  !!* @param img2CentCell   Image of each atom in the central cell.
-  !!* @param recPoint       Contains the points included in the reciprocal sum.
-  !!*                       The set should not include the origin or
-  !!*                       inversion related points.
-  !!* @param alpha          Parameter for Ewald summation.
-  !!* @param volume         Volume of the real space unit cell.
-  !!* @param deltaQAtom     List of charges on each atom
+  !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
   subroutine addInvRPrime_periodic(deriv, nAtom, coord, nNeighborEwald, &
       &iNeighbor, img2CentCell, recPoint, alpha, volume,deltaQAtom)
+
+    !> Derivative on exit
     real(dp), intent(inout) :: deriv(:,:)
+
+    !> Number of atoms
     integer, intent(in) :: nAtom
-    real(dp), intent(in)    :: coord(:,:)
-    integer,  intent(in)    :: nNeighborEwald(:)
-    integer,  intent(in)    :: iNeighbor(0:,:)
-    integer,  intent(in)    :: img2CentCell(:)
-    real(dp), intent(in)    :: recPoint(:,:)
-    real(dp), intent(in)    :: alpha
-    real(dp), intent(in)    :: volume
-    real(dp), intent(in)    :: deltaQAtom(:)
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part ofEwald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> list of neighbours for each atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> mapping from image atoms to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum. The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
+
+    !> List of charges on each atom
+    real(dp), intent(in) :: deltaQAtom(:)
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
     real(dp) :: r(3)
@@ -481,11 +542,11 @@ contains
         if (iAtom2f /= iAtom1) then
           r(:) = coord(:,iAtom1)-coord(:,iAtom2)
           deriv(:,iAtom1) = deriv(:,iAtom1) &
-            & + derivRTerm(r,alpha) * &
-            & deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
+              & + derivRTerm(r,alpha) * &
+              & deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
           deriv(:,iAtom2f) = deriv(:,iAtom2f) &
-            & - derivRTerm(r,alpha) * &
-            & deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
+              & - derivRTerm(r,alpha) * &
+              & deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
         end if
       end do
 
@@ -505,16 +566,43 @@ contains
   end subroutine addInvRPrime_periodic
 
 
-
+  !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
   subroutine addInvRPrimeXlbomd_periodic(nAtom, coord, nNeighborEwald, &
       &iNeighbor, img2CentCell, recPoint, alpha, volume, dQInAtom, &
       & dQOutAtom, deriv)
+
+    !> number of atoms
     integer, intent(in) :: nAtom
+
+    !> coordinates of atoms
     real(dp), intent(in) :: coord(:,:)
-    integer,  intent(in) :: nNeighborEwald(:), iNeighbor(0:,:), img2CentCell(:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum. The set should not include the origin or
+    !> inversion related points.
     real(dp), intent(in) :: recPoint(:,:)
-    real(dp), intent(in) :: alpha, volume
-    real(dp), intent(in) :: dQInAtom(:), dQOutAtom(:)
+
+    !> Ewald parameter
+    real(dp), intent(in) :: alpha
+
+    !> cell volume
+    real(dp), intent(in) :: volume
+
+    !> input charge fluctuations
+    real(dp), intent(in) :: dQInAtom(:)
+
+    !> output charge fluctuations
+    real(dp), intent(in) :: dQOutAtom(:)
+
+    !> energy derivative to add contribution to
     real(dp), intent(inout) :: deriv(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
@@ -562,37 +650,46 @@ contains
   end subroutine addInvRPrimeXlbomd_periodic
 
 
-
-  !!* Calculates the -1/R**2 deriv contribution for charged atoms interacting
-  !!* with a group of charged objects (like point charges) for the periodic
-  !!* case, without storing anything.
-  !!* @param deriv0 Contains the derivative for the first group on exit
-  !!* @param deriv1 Contains the derivative for the second group on exit
-  !!* @param nAtom0 Number of atoms in the first group
-  !!* @param nAtom1 Number of atoms in the second group
-  !!* @param coord0 List of atomic coordinates.
-  !!* @param coord1 List of the point charge coordinates
-  !!* @param charge0 Charge of the atoms.
-  !!* @param charge1 Charge of the point charges.
-  !!* @param deltaQAtom     List of charges on each atom
-  !!* @param rVec Lattice vectors to be used for the real Ewald summation
-  !!* @param gVec Lattice vectors to be used for the reciprocal Ewald summation.
-  !!* @param alpha Parameter of the Ewald summation
-  !!* @param vol Volume of the supercell.
+  !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
+  !> objects (like point charges) for the periodic case, without storing anything.
   subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, nAtom0, nAtom1, &
       &coord0, coord1, charge0, charge1, rVec, gVec, alpha, vol)
+
+    !> Contains the derivative for the first group on exit
     real(dp), intent(inout) :: deriv0(:,:)
+
+    !> Contains the derivative for the second group on exit
     real(dp), intent(inout) :: deriv1(:,:)
+
+    !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
+
+    !> Number of atoms in the second group
     integer, intent(in) :: nAtom1
-    real(dp), intent(in)    :: coord0(:,:)
-    real(dp), intent(in)    :: coord1(:,:)
-    real(dp), intent(in)    :: charge0(:)
-    real(dp), intent(in)    :: charge1(:)
-    real(dp), intent(in)    :: rVec(:,:)
-    real(dp), intent(in)    :: gVec(:,:)
-    real(dp), intent(in)    :: alpha
-    real(dp), intent(in)    :: vol
+
+    !> List of atomic coordinates (first group)
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> List of the point charge coordinates (second group)
+    real(dp), intent(in) :: coord1(:,:)
+
+    !> Charge of the atoms in group 1.
+    real(dp), intent(in) :: charge0(:)
+
+    !> Charge of the point charges.
+    real(dp), intent(in) :: charge1(:)
+
+    !> Lattice vectors to be used for the real Ewald summation
+    real(dp), intent(in) :: rVec(:,:)
+
+    !> Lattice vectors to be used for the reciprocal Ewald summation.
+    real(dp), intent(in) :: gVec(:,:)
+
+    !> Parameter of the Ewald summation
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the supercell.
+    real(dp), intent(in) :: vol
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
@@ -631,28 +728,32 @@ contains
   end subroutine addInvRPrime_periodic_asymm
 
 
-
-  !!* Get optimal alpha-parameter for the Ewald summation by finding alpha,
-  !!* where decline of real and reciprocal part of Ewald are equal.
-  !!* @param latVec    Lattice vectors.
-  !!* @param recVec    Reciprocal vectors.
-  !!* @param volume    Volume of the unit cell.
-  !!* @param tolerance Tolerance for difference in real and rec. part.
-  !!* @return Optimal alpha.
-  !!* @note The function stops, if the optimal alpha cannot be found.
+  !> Get optimal alpha-parameter for the Ewald summation by finding alpha, where decline of real and
+  !> reciprocal part of Ewald are equal.
+  !> The function stops, if the optimal alpha cannot be found.
   function getOptimalAlphaEwald(latVec, recVec, volume, tolerance) result(alpha)
+
+    !> Lattice vectors.
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Reciprocal vectors.
     real(dp), intent(in) :: recVec(:,:)
+
+    !> Volume of the unit cell.
     real(dp), intent(in) :: volume
+
+    !> Tolerance for difference in real and rec. part.
     real(dp), intent(in) :: tolerance
+
+    !> Optimal alpha.
     real(dp) :: alpha
 
     real(dp) :: alphaLeft, alphaRight
     real(dp), parameter :: alphaInit = 1.0e-8_dp
 
     real(dp) :: minG, minR, diff
-    integer  :: iIter
-    integer  :: iError
+    integer :: iIter
+    integer :: iError
 
     @:ASSERT(all(shape(latVec) == (/3, 3/)))
     @:ASSERT(all(shape(recVec) == (/3, 3/)))
@@ -717,16 +818,20 @@ contains
   end function getOptimalAlphaEwald
 
 
-
-  !!* Returns the longest reciprocal vector which gives a bigger contribution
-  !!* to the Ewald sum to a certain tolerance.
-  !!* @param alpha     Parameter of the ewald summation.
-  !!* @param volume    Volume of the unit cell.
-  !!* @param minValue  Tolerance value.
+  !> Returns the longest reciprocal vector which gives a bigger contribution to the Ewald sum than a
+  !> certain tolerance.
   function getMaxGEwald(alpha, volume, minValue) result(xx)
+
+    !> Parameter of the ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Volume of the unit cell.
     real(dp), intent(in) :: volume
+
+    !> Tolerance value.
     real(dp), intent(in) :: minValue
+
+    !> magnitude of reciprocal vector
     real(dp) :: xx
 
     real(dp), parameter :: gInit = 1.0e-8_dp
@@ -779,19 +884,22 @@ contains
   end function getMaxGEwald
 
 
-
-  !!* Returns the longest real space vector which gives a bigger contribution
-  !!* to the Ewald sum to a certain tolerance.
-  !!* @param alpha     Parameter of the ewald summation.
-  !!* @param minValue  Tolerance value.
+  !> Returns the longest real space vector which gives a bigger contribution to the Ewald sum than a
+  !> certain tolerance.
   function getMaxREwald(alpha, minValue) result(xx)
+
+    !> Parameter of the ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Tolerance value.
     real(dp), intent(in) :: minValue
+
+    !> Magnitude of real space vector
     real(dp) :: xx
 
     real(dp), parameter :: rInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
-    integer  :: iError, iIter
+    integer :: iError, iIter
 
     iError = 0
     xx = rInit
@@ -839,20 +947,26 @@ contains
   end function getMaxREwald
 
 
-
-  !!* Returns the Ewald sum for a given lattice in a given point.
-  !!* @param rr    Vector where to calculate the Ewald sum.
-  !!* @param rVec  Real space vectors to sum over. (Should contain origin).
-  !!* @param gVec  Reciprocal space vectors to sum over (Should not contain
-  !!*   either origin nor inversion related points).
-  !!* @param alpha Parameter for the Ewald summation.
-  !!* @param vol   Volume of the real space unit cell.
+  !> Returns the Ewald sum for a given lattice in a given point.
   function ewald(rr, rVec, gVec, alpha, vol)
+
+    !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
+
+    !> Real space vectors to sum over. (Should contain origin).
     real(dp), intent(in) :: rVec(:,:)
+
+    !> Reciprocal space vectors to sum over (Should not contain either origin nor inversion related
+    !> points).
     real(dp), intent(in) :: gVec(:,:)
+
+    !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
+
+    !> Result
     real(dp) :: ewald
 
     ewald = ewaldReciprocal(rr, gVec, alpha, vol) &
@@ -864,22 +978,27 @@ contains
   end function ewald
 
 
-
-  !!* Returns the reciprocal part of the Ewald sum.
-  !!* @param rr    Vector where to calculate the Ewald sum.
-  !!* @param gVec  Reciprocal space vectors to sum over (Should not contain
-  !!*   either origin nor inversion related points).
-  !!* @param alpha Parameter for the Ewald summation.
-  !!* @param vol   Volume of the real space unit cell.
+  !> Returns the reciprocal part of the Ewald sum.
   function ewaldReciprocal(rr, gVec, alpha, vol) result(recSum)
+
+    !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
+
+    !> Reciprocal space vectors to sum over (Should not contain either origin nor inversion related
+    !> points).
     real(dp), intent(in) :: gVec(:,:)
+
+    !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
+
+    !> contribution to the sum
     real(dp) :: recSum
 
     real(dp) :: gg(3), g2
-    integer  :: iG
+    integer :: iG
 
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
@@ -897,22 +1016,27 @@ contains
   end function ewaldReciprocal
 
 
-
-  !!* Returns the derivative of the reciprocal part of the Ewald sum.
-  !!* @param rr    Vector where to calculate the Ewald sum.
-  !!* @param gVec  Reciprocal space vectors to sum over (Should not contain
-  !!*   either origin nor inversion related points).
-  !!* @param alpha Parameter for the Ewald summation.
-  !!* @param vol   Volume of the real space unit cell.
+  !> Returns the derivative of the reciprocal part of the Ewald sum.
   function derivEwaldReciprocal(rr, gVec, alpha, vol) result(recSum)
+
+    !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
+
+    !> Reciprocal space vectors to sum over (Should not contain either origin nor inversion related
+    !> points).
     real(dp), intent(in) :: gVec(:,:)
+
+    !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
+
+    !> contribution to the derivative value
     real(dp) :: recSum(3)
 
     real(dp) :: gg(3), g2
-    integer  :: iG
+    integer :: iG
 
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
@@ -931,20 +1055,23 @@ contains
   end function derivEwaldReciprocal
 
 
-
-  !!* Returns the real space part of the Ewald sum.
-  !!* @param rr    Vector where to calculate the Ewald sum.
-  !!* @param rVec  Real space vectors to sum over. (Should contain origin).
-  !!* @param alpha Parameter for the Ewald summation.
+  !> Returns the real space part of the Ewald sum.
   function ewaldReal(rr, rVec, alpha) result(realSum)
+
+    !> Real space vectors to sum over. (Should contain origin).
     real(dp), intent(in) :: rVec(:,:)
+
+    !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
+
+    !> contribution to sum
     real(dp) :: realSum
 
     real(dp) :: absRR
-    integer  :: iR
-
+    integer :: iR
 
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
@@ -961,20 +1088,24 @@ contains
   end function ewaldReal
 
 
-
-  !!* Returns the derivative of the real space part of the Ewald sum.
-  !!* @param rr    Vector where to calculate the Ewald sum.
-  !!* @param rVec  Real space vectors to sum over. (Should contain origin).
-  !!* @param alpha Parameter for the Ewald summation.
+  !> Returns the derivative of the real space part of the Ewald sum.
   function derivEwaldReal(rdiff, rVec, alpha) result(dewr)
+
+    !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rdiff(:)
+
+    !> Real space vectors to sum over. (Should contain origin).
     real(dp), intent(in) :: rVec(:,:)
+
+    !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> contribution to derivative
     real(dp) :: dewr(3)
 
     real(dp) :: rNew(3)
     real(dp) :: rr
-    integer  :: iR
+    integer :: iR
 
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(rdiff) == 3)
@@ -994,21 +1125,24 @@ contains
   end function derivEwaldReal
 
 
-
-  !!* Returns the difference in the decrease of the real and reciprocal parts
-  !!* of the Ewald sum.
-  !!* @param alpha  Parameter for the Ewald summation.
-  !!* @param minG   Length of the shortest reciprocal space vector in the sum.
-  !!* @param minR   Length of the shortest real space vector in the sum.
-  !!* @param volume Volume of the real space unit cell.
-  !!* @note In order to make the real space part shorter as the reciprocal
-  !!*   space part, the inclinations are taken at different points for the
-  !!*   the real space and the reciprocal space part.
+  !> Returns the difference in the decrease of the real and reciprocal parts of the Ewald sum.
+  !> In order to make the real space part shorter as the reciprocal space part, the inclinations are
+  !> taken at different points for the the real space and the reciprocal space part.
   function diffRecReal(alpha, minG, minR, volume) result(diff)
+
+    !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Length of the shortest reciprocal space vector in the sum.
     real(dp), intent(in) :: minG
+
+    !> Length of the shortest real space vector in the sum.
     real(dp), intent(in) :: minR
+
+    !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
+
+    !> difference between changes in the two terms
     real(dp) :: diff
 
     @:ASSERT(volume > 0.0_dp)
@@ -1020,16 +1154,20 @@ contains
   end function diffRecReal
 
 
-
-  !!* Returns the max. value of a term in the reciprocal space part of the
-  !!* Ewald summation for a given vector length.
-  !!* @param gg    Length of the reciprocal space vector.
-  !!* @param alpha Parameter of the Ewald summation.
-  !!* @param vol   Volume of the real space unit cell.
+  !> Returns the max. value of a term in the reciprocal space part of the Ewald summation for a
+  !> given vector length.
   function gTerm(gg, alpha, vol)
+
+    !> Length of the reciprocal space vector.
     real(dp), intent(in) :: gg
+
+    !> Parameter of the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
+
+    !> reciprocal term
     real(dp) :: gTerm
 
     gTerm = 4.0_dp*pi*(exp(-0.25_dp*gg**2/(alpha**2))/(vol*gg**2))
@@ -1037,14 +1175,17 @@ contains
   end function gTerm
 
 
-
-  !!* Returns the max. value of a term in the real space part of the
-  !!* Ewald summation for a given vector length.
-  !!* @param rr    Length of the real space vector.
-  !!* @param alpha Parameter of the Ewald summation.
+  !> Returns the max. value of a term in the real space part of the Ewald summation for a given
+  !> vector length.
   function rTerm(rr, alpha)
+
+    !> Length of the real space vector.
     real(dp), intent(in) :: rr
+
+    !> Parameter of the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> real space term
     real(dp) :: rTerm
 
     @:ASSERT(rr >= epsilon(1.0_dp))
@@ -1054,13 +1195,17 @@ contains
   end function rTerm
 
 
-  !!* Returns the derivative of a term in the real space part of the
-  !!* Ewald summation for a given vector length.
-  !!* @param rr    Length of the real space vector.
-  !!* @param alpha Parameter of the Ewald summation.
+  !> Returns the derivative of a term in the real space part of the Ewald summation for a given
+  !> vector length.
   function derivRTerm(r, alpha)
+
+    !> Length of the real space vector.
     real(dp), intent(in) :: r(3)
+
+    !> Parameter of the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> real space derivative term
     real(dp) :: derivRTerm(3)
 
     real(dp) :: rr
@@ -1074,35 +1219,43 @@ contains
   end function derivRTerm
 
 
-  !!* Calculates the stress tensor derivatives of the Ewald electrostatics
-  !!* @param stress       Stress tensor
-  !!* @param nAtom        Number of atoms.
-  !!* @param coord        List of atomic coordinates (all atoms).
-  !!* @param nNeighborEwald Nr. of neighbors for each atom for real part of
-  !!* Ewald.
-  !!* @param iNeighbor    List of neighbors for the real space part of Ewald.
-  !!* @param img2CentCell Image of each atom in the central cell.
-  !!* @param recPoint     Contains the points included in the reciprocal sum.
-  !!*                     The set should not include the origin or
-  !!*                     inversion related points.
-  !!* @param alpha        Parameter for Ewald summation.
-  !!* @param volume       Volume of the real space unit cell.
-  !!* @param q            charges in the cell
-  !!* @ref Aguard and Madden J Chem Phys 119 7471 (2003)
+  !> Calculates the stress tensor derivatives of the Ewald electrostatics
+  !> Aguard and Madden J Chem Phys 119 7471 (2003)
   subroutine invR_stress(stress, nAtom, coord, nNeighborEwald, iNeighbor, &
       & img2CentCell, recPoint, alpha, volume, q)
-    real(dp), intent(out) :: stress(:,:)
-    integer, intent(in) :: nAtom
-    real(dp), intent(in)  :: coord(:,:)
-    integer,  intent(in)  :: nNeighborEwald(:)
-    integer,  intent(in)  :: iNeighbor(0:,:)
-    integer,  intent(in)  :: img2CentCell(:)
-    real(dp), intent(in)  :: recPoint(:,:)
-    real(dp), intent(in)  :: alpha
-    real(dp), intent(in)  :: volume
-    real(dp), intent(in)  :: q(:)
 
-    integer  :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
+    !> Stress tensor
+    real(dp), intent(out) :: stress(:,:)
+
+    !> Number of atoms.
+    integer, intent(in) :: nAtom
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum. The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
+
+    !> charges in the cell
+    real(dp), intent(in) :: q(:)
+
+    integer :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
     real(dp) :: r(3), f(3), g(3), g2, intermed, intermed2
     real(dp) :: stressTmp(3,3)
 
@@ -1172,6 +1325,5 @@ contains
     stress = stress / volume
 
   end subroutine invR_stress
-
 
 end module coulomb

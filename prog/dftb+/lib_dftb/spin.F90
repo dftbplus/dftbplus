@@ -7,8 +7,8 @@
 
 #:include 'common.fypp'
 
-!!* Module containing various routines for spin polarised calculations
-!!* Intended to be used with SCC switched on !
+!> Module containing various routines for spin polarised calculations. Intended to be used with SCC
+!> switched on!
 module spin
   use assert
   use accuracy
@@ -18,77 +18,90 @@ module spin
   implicit none
   private
 
-  public :: getEnergySpin, addSpinShift
+  public :: getEnergySpin, getSpinShift
   public :: Spin_getOrbitalEquiv, ud2qm, qm2ud
 
+
+  !> Get the spin contribution to the energy
   interface getEnergySpin
     module procedure getEnergySpin_total
     module procedure getEnergySpin_atom
-  end interface
+  end interface getEnergySpin
 
-  !!* swap from up/down to charge/magnetisation
+
+  !> swap from up/down to charge/magnetisation
   interface ud2qm
     module procedure ud2qm2
     module procedure ud2qm3
     module procedure ud2qm4
-  end interface
+  end interface ud2qm
 
-  !!* swap from charge/magnetisation to up/down
+
+  !> swap from charge/magnetisation to up/down
   interface qm2ud
     module procedure qm2ud2
     module procedure qm2ud3
     module procedure qm2ud4
-  end interface
+  end interface qm2ud
 
 contains
 
-  !!* Constructs the spin-polarised shell shift from
-  !!* shift_l = sum_l' W_ll' p_l'
-  !!* @param shift resulting shell-shifts for the system
-  !!* @param chargePerShell spin resolved charges for each shell
-  !!* @param species Species of each atom
-  !!* @param orb  Information about the orbitals and their angular momenta
-  !!* @param spinW Spin coupling constants.
-  !!* @todo Add more asserts
-  subroutine addSpinShift(shift,chargePerShell,species,orb,spinW)
-    real(dp), intent(inout)     :: shift(:,:,0:)
-    real(dp), intent(in)        :: chargePerShell(:,:,0:)
-    integer, intent(in)         :: species(:)
-    type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in)        :: spinW(:,:,:)
 
-    integer  :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
+  !> Constructs the spin-polarised shell shift from shift_l = sum_l' W_ll' p_l'
+  subroutine getSpinShift(shift, chargePerShell, species, orb, spinW)
+
+    !> resulting shell-shifts for the system
+    real(dp), intent(out) :: shift(:,:,0:)
+
+    !> spin resolved charges for each shell
+    real(dp), intent(in) :: chargePerShell(:,:,0:)
+
+    !> Species of each atom
+    integer, intent(in) :: species(:)
+
+    !>  Information about the orbitals and their angular momenta
+    type(TOrbitals), intent(in) :: orb
+
+    !> Spin coupling constants.
+    real(dp), intent(in) :: spinW(:,:,:)
+
+    integer :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
 
     nAtom = size(chargePerShell,dim=2)
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(shift,dim=2)==nAtom)
     @:ASSERT(all(shape(chargePerShell)==shape(shift)))
-    nSpin = size(chargePerShell,dim=3) - 1 ! counts from 0
+    ! counts from 0 for unpolarized
+    nSpin = size(chargePerShell,dim=3) - 1
     @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
+    shift(:,:,:) = 0.0_dp
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         iSpecies = species(iAtom)
         do iShell = 1, orb%nShell(iSpecies)
           do iShell2 = 1, orb%nShell(iSpecies)
-            shift(iShell,iAtom,iSpin) =  shift(iShell,iAtom,iSpin) + &
-                & spinW(iShell,iShell2,iSpecies) * &
-                & chargePerShell(iShell2,iAtom,iSpin)
+            shift(iShell, iAtom, iSpin) =  shift(iShell, iAtom, iSpin) + &
+                & spinW(iShell, iShell2, iSpecies) * chargePerShell(iShell2, iAtom, iSpin)
           end do
         end do
       end do
     end do
 
-  end subroutine addSpinShift
+  end subroutine getSpinShift
 
-  !!* Returns the total energy contribution of the spin polarisation
-  !!* @param rslt Contains the atomic contributions on exit
-  !!* @param chargePerShell spin resolved charges for each shell
-  !!* @param shiftPerShell spin shift for each shell
+
+  !> Returns the total energy contribution of the spin polarisation
   subroutine getEnergySpin_total(rslt, chargePerShell, shiftPerShell)
+
+    !> Contains the atomic contributions on exit
     real(dp), intent(out) :: rslt
-    real(dp), intent(in)  :: chargePerShell(:,:,:)
-    real(dp), intent(in)  :: shiftPerShell(:,:,:)
+
+    !> spin resolved charges for each shell
+    real(dp), intent(in) :: chargePerShell(:,:,:)
+
+    !> spin shift for each shell
+    real(dp), intent(in) :: shiftPerShell(:,:,:)
 
     @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
     @:ASSERT(size(chargePerShell,dim=3)>1 .and. size(chargePerShell,dim=3)<5)
@@ -98,14 +111,18 @@ contains
 
   end subroutine getEnergySpin_total
 
-  !!* Atom resolved part of the spin energy
-  !!* @param rslt Contains the atomic contributions on exit
-  !!* @param chargePerShell spin resolved charges for each shell
-  !!* @param shiftPerShell spin shift for each shell
+
+  !> Atom resolved part of the spin energy
   subroutine getEnergySpin_atom(rslt, chargePerShell, shiftPerShell)
+
+    !> Contains the atomic contributions on exit
     real(dp), intent(out) :: rslt(:)
-    real(dp), intent(in)  :: chargePerShell(:,:,:)
-    real(dp), intent(in)  :: shiftPerShell(:,:,:)
+
+    !> spin resolved charges for each shell
+    real(dp), intent(in) :: chargePerShell(:,:,:)
+
+    !> spin shift for each shell
+    real(dp), intent(in) :: shiftPerShell(:,:,:)
 
     @:ASSERT(size(rslt)==size(chargePerShell,dim=2))
     @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
@@ -116,17 +133,20 @@ contains
 
   end subroutine getEnergySpin_atom
 
-  !!* Returns the equivalence between the orbitals in the spin interaction.
-  !!* @param orb  Information about the orbitals and their angular momenta
-  !!* @param species Species of each atom
-  !!* @param equiv The equivalence vector on return.
-  !!* @note The current version assumes, that no shells only the orbitals
-  !!* inside each shell are equivalent, which is in most cases true anyway.
-  !!* @todo Proper analysis of the spin coupling constants to watch for
-  !!*   eventual equivalence.
+
+  !> Returns the equivalence between the orbitals in the spin interaction.
+  !> To do: Proper analysis of the spin coupling constants to watch for eventual equivalence:
+  !> The current version assumes that no shells, only the orbitals inside each shell are equivalent,
+  !> which is in most cases true anyway.
   subroutine Spin_getOrbitalEquiv(orb, species, equiv)
+
+    !>  Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
     integer, intent(in) :: species(:)
+
+    !> The equivalence vector on return.
     integer, intent(out) :: equiv(:,:,:)
 
     integer :: nAtom, nSpin
@@ -157,9 +177,11 @@ contains
 
   end subroutine Spin_getOrbitalEquiv
 
-  !!* converts a charge/magnetization set into a up/down
-  !!* @param x array of data, last index spin
+
+  !> converts a charge/magnetization set into a up/down
   subroutine qm2ud2(x)
+
+    !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:)
 
     integer :: nSpin, nElements, ii
@@ -182,9 +204,11 @@ contains
 
   end subroutine qm2ud2
 
-  !!* converts a charge/magnetization set into a up/down
-  !!* @param x array of data, last index spin
+
+  !> converts a charge/magnetization set into a up/down
   subroutine qm2ud3(x)
+
+    !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:)
 
     integer :: nSpin, ii, jj
@@ -211,9 +235,11 @@ contains
 
   end subroutine qm2ud3
 
-  !!* converts a charge/magnetization set into a up/down
-  !!* @param x array of data, last index spin
+
+  !> converts a charge/magnetization set into a up/down
   subroutine qm2ud4(x)
+
+    !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:,:)
 
     integer :: nSpin, ii, jj, kk
@@ -243,9 +269,11 @@ contains
 
   end subroutine qm2ud4
 
-  !!* converts a up/down set into a charge/magnetization
-  !!* @param x array of data, last index spin
+
+  !> converts a up/down set into a charge/magnetization
   subroutine ud2qm2(x)
+
+    !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:)
 
     integer :: nSpin, nElements, ii
@@ -268,9 +296,11 @@ contains
 
   end subroutine ud2qm2
 
-  !!* converts a up/down set into a charge/magnetization
-  !!* @param x array of data, last index spin
+
+  !> converts a up/down set into a charge/magnetization
   subroutine ud2qm3(x)
+
+    !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:)
 
     integer :: nSpin, ii, jj
@@ -297,9 +327,11 @@ contains
 
   end subroutine ud2qm3
 
-  !!* converts a charge/magnetization set into a up/down
-  !!* @param x array of data, last index spin
+
+  !> converts a charge/magnetization set into a up/down
   subroutine ud2qm4(x)
+
+    !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:,:)
 
     integer :: nSpin, ii, jj, kk

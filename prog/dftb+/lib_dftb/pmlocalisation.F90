@@ -7,60 +7,283 @@
 
 #:include 'common.fypp'
 
-!> Construct Pipek-Mezey localised orbitals, either for
-!! molecules/gamma point periodic, or for each k-point separately
-!! \note for the k-point case these are NOT localised Wannier functions
+!> Construct Pipek-Mezey localised orbitals, either for molecules/gamma point periodic, or for each
+!> k-point separately. Note that for the k-point case these are NOT localised Wannier functions as
+!> each k-point is localised independently
 module pmlocalisation
   use assert
   use accuracy, only : dp
+  use io
   use blasroutines
   use sparse2dense, only :unpackHS
   use sorting
   use message
-
+  use periodic, only : TNeighborList
   implicit none
-
   private
-  public :: PipekMezey, PipekMezeyLocalisation
 
-  interface PipekMezey
-    module procedure PipekMezeyOld_real
-    module procedure PipekMezeySuprtRegion_real
-    module procedure PipekMezeyOld_kpoints
-  end interface PipekMezey
+  public :: TPipekMezeyInp, TPipekMezey, initialise
 
-  interface PipekMezeyLocalisation
-    module procedure PipekMezyLocality_real
-    module procedure PipekMezyLocality_kpoints
-  end interface PipekMezeyLocalisation
+
+  !> Input data for Pipek-Mezey calculator
+  type :: TPipekMezeyInp
+
+    !> halting tollerance for localisation
+    real(dp) :: tolerance
+
+    !> number of localisation iterations
+    integer :: maxIter
+
+    !> Optional tolerances for element neglect if instead using a sparse version of Pipek-Mezey
+    !> localisation
+    real(dp), allocatable :: sparseTols(:)
+
+  end type TPipekMezeyInp
+
+
+  !> Pipek-Mezey localisation calculator
+  type :: TPipekMezey
+    private
+
+    !> tolerances for element neglect if instead using a sparse version of Pipek-Mezey localisation
+    real(dp), allocatable :: sparseTols(:)
+
+    !> halting tollerance for localisation
+    real(dp) :: tolerance
+
+    !> number of localisation iterations
+    integer :: maxIter
+
+  contains
+    private
+    procedure :: calcCoeffsReal
+    procedure :: calcCoeffsKPoints
+    procedure, nopass :: getLocalisationReal
+    procedure, nopass :: getLocalisationKPoints
+
+    !> Performs localisation on orbitals
+    generic, public :: calcCoeffs => calcCoeffsReal, calcCoeffsKPoints
+
+    !> Value of the localisation measure for orbitals
+    generic, public :: getLocalisation => getLocalisationReal, getLocalisationKPoints
+
+  end type TPipekMezey
+
+
+  !> Initializes calculator instance.
+  interface initialise
+    module procedure TPipekMezey_initialise
+  end interface initialise
+
 
 contains
 
-  !> Performs conventional Pipek-Mezey localisation for a molecule given the
-  !! square overlap matrix using iterative sweeps over each pair of orbitals
-  !! \param ci wavefunction coefficients
-  !! \param S overlap matrix in square form
-  !! \param iAtomStart Atom offset for the squared Hamiltonian
-  !! \param convergence tollerance for halting localisation iterations
-  !! \param mIter maximum number of iterations to use
-  subroutine PipekMezeyOld_real(ci, S, iAtomStart, convergence, mIter)
-    real(dp), intent(inout)       :: ci(:,:)
-    real(dp), intent(in)          :: S(:,:)
-    integer,  intent(in)          :: iAtomStart(:)
-    real(dp), intent(in)          :: convergence
+  !> Initialises calculator instance.
+  subroutine TPipekMezey_initialise(this, input)
+
+    !> Instance.
+    type(TPipekMezey), intent(out) :: this
+
+    !> Input data.
+    type(TPipekMezeyInp), intent(inout) :: input
+
+    this%tolerance = input%tolerance
+    this%maxIter = input%maxIter
+    call move_alloc(input%sparseTols, this%sparseTols)
+    if (allocated(this%sparseTols)) then
+      if (any(this%sparseTols < epsilon(0.0_dp))) then
+        call error('Tolerances for sparse Pipek-Mezey localisation too small.')
+      end if
+    end if
+
+  end subroutine TPipekMezey_initialise
+
+
+  !> Performs Pipek-Mezey localisation for a molecule.
+  subroutine calcCoeffsReal(this, ci, SSqrReal, iAtomStart)
+
+    !> Instance
+    class(TPipekMezey), intent(in) :: this
+
+    !> wavefunction coefficients
+    real(dp), intent(inout) :: ci(:,:)
+
+    !> overlap matrix in square form
+    real(dp), intent(in) :: SSqrReal(:,:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    integer :: ii
+
+    if (allocated(this%sparseTols)) then
+      do ii = 1, size(this%sparseTols)
+        call PipekMezeySuprtRegion_real(ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter,&
+            & this%sparseTols(ii))
+      end do
+    else
+      call pipekMezeyOld_real(ci, SSqrReal, iAtomStart, this%tolerance, this%maxIter)
+    end if
+
+  end subroutine calcCoeffsReal
+
+
+  !> Performs Pipek-Mezey localisation for a periodic system.
+  subroutine calcCoeffsKPoints(this, ci, SSqrCplx, over, kPoints, kWeights, neighborList,&
+      & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+
+    !> Instance.
+    class(TPipekMezey), intent(in) :: this
+
+    !> wavefunction coefficients
+    complex(dp), intent(inout) :: ci(:,:,:)
+
+    !> overlap matrix, used as workspace
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> full set of k-points
+    real(dp), intent(in) :: kPoints(:,:)
+
+    !> weights for each k-point
+    real(dp), intent(in) :: kWeights(:)
+
+    !> neighbour list
+    type(TNeighborList), intent(in) :: neighborList
+
+    !> number of neighbours
+    integer, intent(in) :: nNeighbor(:)
+
+    !> list of which image cells atoms outside the central cell fall into
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to the image cells
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> index for the square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index for the sparse matrices
+    integer, intent(in) :: iPair(0:,:)
+
+    !> index array back to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    call PipekMezeyOld_kpoints(ci, SSqrCplx, over, kPoints, kWeights, neighborList%iNeighbor,&
+        & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance,&
+        & this%maxIter)
+
+  end subroutine calcCoeffsKPoints
+
+
+  !> Localisation value of square of Mulliken charges summed over all levels
+  function getLocalisationReal(ci, SSqrReal, iAtomStart) result(locality)
+
+    !> wavefunction coefficients
+    real(dp), intent(in) :: ci(:,:)
+
+    !> overlap matrix
+    real(dp), intent(in) :: SSqrReal(:,:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Calculated locality
+    real(dp) :: locality
+
+    locality = PipekMezyLocality_real(ci, SSqrReal, iAtomStart)
+
+  end function getLocalisationReal
+
+
+
+  !> Localisation value of square of Mulliken charges summed over all levels for each k-point.
+  function getLocalisationKPoints(ci, SSqrCplx, over, kpoints, kweights, neighborList, nNeighbor, &
+      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (locality)
+
+    !> wavefunction coefficients
+    complex(dp), intent(in) :: ci(:,:,:)
+
+    !> overlap matrix, used as workspace
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> full set of k-points
+    real(dp), intent(in) :: kpoints(:,:)
+
+    !> weights for each k-point
+    real(dp), intent(in) :: kweights(:)
+
+    !> neighbour list
+    type(TNeighborList), intent(in) :: neighborList
+
+    !> number of neighbours
+    integer, intent(in) :: nNeighbor(:)
+
+    !> list of which image cells atoms outside the central cell fall into
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to the image cells
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> index for the square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index for the sparse matrices
+    integer, intent(in) :: iPair(0:,:)
+
+    !> index array back to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Locality for each k-point
+    real(dp) :: locality(size(kweights))
+
+    locality = PipekMezyLocality_kpoints(ci, SSqrCplx, over, kpoints, kweights,&
+        & neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+
+  end function getLocalisationKPoints
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Private functions
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+  !> Performs conventional Pipek-Mezey localisation for a molecule given the square overlap matrix
+  !> using iterative sweeps over each pair of orbitals
+  subroutine PipekMezeyOld_real(ci, S, iAtomStart, pipekTol, mIter)
+
+    !> wavefunction coefficients
+    real(dp), intent(inout) :: ci(:,:)
+
+    !> overlap matrix in square form
+    real(dp), intent(in) :: S(:,:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> tollerance for halting localisation iterations
+    real(dp), intent(in) :: pipekTol
+
+    !> maximum number of iterations to use
     integer, intent(in), optional :: mIter
 
-    integer  :: iLev1, iLev2, nLev
-    integer  :: iAtom1, nAtom, nIter
-    integer  :: iOrb1, iOrb2, nOrb
-    integer  :: iIter
+    integer :: iLev1, iLev2, nLev
+    integer :: iAtom1, nAtom, nIter
+    integer :: iOrb1, iOrb2, nOrb
+    integer :: iIter
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa, Pst, Pss, Ptt
     real(dp), allocatable :: Sci1(:), Sci2(:,:), ciTmp1(:), ciTmp2(:)
 
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
-    logical  :: tConverged = .false.
+    logical :: tConverged = .false.
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     @:ASSERT(size(ci,dim=1)==size(S,dim=1))
@@ -87,7 +310,7 @@ contains
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
       ! Sweep over all pairs of levels
-      write(*,*)'Iter', iIter
+      write(stdout, *)'Iter', iIter
       do iLev1 = 1, nLev
 
         if (iLev1 < nLev) then
@@ -140,7 +363,7 @@ contains
       end do
 
       conv = abs(alphamax) - abs(alphalast)
-      if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
+      if (iIter > 2 .and. ((abs(conv)<pipekTol) .or. alphamax == 0.0)) then
         tConverged = .true.
         exit
       end if
@@ -154,36 +377,41 @@ contains
 
   end subroutine PipekMezeyOld_real
 
-  !> performs Pipek-Mezey localisation for a molecule given the square overlap
-  !! matrix, using a support region for each molecular orbital
-  !! \param ci wavefunction coefficients
-  !! \param S overlap matrix in square form
-  !! \param iAtomStart Atom offset for the squared Hamiltonian
-  !! \param convergence tollerance for halting localisation iterations
-  !! \param mIter maximum number of iterations to use
-  !! \param RegionTol Number of electrons per site to consider it within a
-  !! domain.
-  subroutine PipekMezeySuprtRegion_real(ci, S, iAtomStart, convergence, mIter, &
-      & RegionTol)
-    real(dp), intent(inout)       :: ci(:,:)
-    real(dp), intent(in)          :: S(:,:)
-    integer,  intent(in)          :: iAtomStart(:)
-    real(dp), intent(in)          :: convergence
+
+  !> performs Pipek-Mezey localisation for a molecule given the square overlap matrix, using a
+  subroutine PipekMezeySuprtRegion_real(ci, S, iAtomStart, convergence, mIter, RegionTol)
+
+    !> support region for each molecular orbital
+    real(dp), intent(inout) :: ci(:,:)
+
+    !> wavefunction coefficients
+    real(dp), intent(in) :: S(:,:)
+
+    !> overlap matrix in square form
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Atom offset for the squared Hamiltonian
+    real(dp), intent(in) :: convergence
+
+    !> tollerance for halting localisation iterations
     integer, intent(in), optional :: mIter
+
+    !> maximum number of iterations to use
     real(dp), intent(in) :: RegionTol
 
-    integer  :: iLev1, iLev2, nLev
-    integer  :: iAtom1, nAtom, nIter
-    integer  :: iOrb1, iOrb2, nOrb
-    integer  :: iIter
+    !> Number of electrons per site to consider it within a domain.
+    integer :: iLev1, iLev2, nLev
+    integer :: iAtom1, nAtom, nIter
+    integer :: iOrb1, iOrb2, nOrb
+    integer :: iIter
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa, Pst, Pss, Ptt
     real(dp), allocatable :: Sci1(:,:), Sci2(:,:), ciTmp1(:), ciTmp2(:)
     integer, allocatable :: LevAtAtom(:,:), nLevAtAtom(:)
     integer, allocatable :: SitesLev(:,:), nSitesLev(:)
     integer, allocatable :: LevPairs(:)
-    integer  :: ii, jj, kk, ll, ij, iLev, nLevPairs
-    logical  :: tPair, tPresent
+    integer :: ii, jj, kk, ll, ij, iLev, nLevPairs
+    logical :: tPair, tPresent
 
     integer, allocatable :: oldSites(:,:)
     integer :: nOldSites(2)
@@ -191,15 +419,15 @@ contains
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
     real(dp) :: rCount
-    logical  :: tConverged = .false.
+    logical :: tConverged = .false.
 
     real(dp) :: Localisation, oldLocalisation
     integer, allocatable :: union(:)
 
-    write(*,*)'Pipek Mezey localisation'
+    write(stdout, *)'Pipek Mezey localisation'
 
-    Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
-    write(*,*)'Initial', Localisation
+    Localisation = PipekMezyLocality_real(ci,S,iAtomStart)
+    write(stdout, *)'Initial', Localisation
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
     @:ASSERT(size(ci,dim=1)==size(S,dim=1))
@@ -267,13 +495,13 @@ contains
     lpLocalise: do iIter = 1, nIter
       alphamax = 0.0_dp
 
-      write(*,"(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
+      write(stdout, "(' Iter:',I0,', tol:',E10.2)")iIter,RegionTol
       rCount = 0.0
 
       do iLev1 = 1, nLev
 
         if (real(iLev1)/real(nLev) > rCount) then
-          write(*,"(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
+          write(stdout, "(1X,I0,'%')")int(100*real(iLev1)/real(nLev))
           rCount = rCount + 0.1 ! every 10%
         end if
 
@@ -434,48 +662,54 @@ contains
       end do
 
       oldLocalisation = Localisation
-      Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
-      write(*,"(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
+      Localisation = PipekMezyLocality_real(ci,S,iAtomStart)
+      write(stdout, "(A,F12.6,1X,A,E20.12)")'Current localisation ',Localisation,&
           & 'change ',Localisation-oldLocalisation
 
       conv = abs(alphamax) - abs(alphalast)
       if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
-        write(*,*)'Converged on rotation angle'
+        write(stdout, *)'Converged on rotation angle'
         tConverged = .true.
         exit
       end if
 
       conv = abs(Localisation-oldLocalisation)
       if (abs(conv)<convergence) then
-        write(*,*)'Converged on localization value.'
+        write(stdout, *)'Converged on localization value.'
         tConverged = .true.
         exit
       end if
 
       alphalast = alphamax
-      write(*,"(' max(alpha)',E10.2)")alphamax
+      write(stdout, "(' max(alpha)',E10.2)")alphamax
 
     end do lpLocalise
 
-    Localisation = PipekMezeyLocalisation(ci,S,iAtomStart)
-    write(*,*)'Final',Localisation
+    Localisation = PipekMezyLocality_real(ci,S,iAtomStart)
+    write(stdout, *)'Final',Localisation
 
     if (.not.tConverged) then
-      write(*,*)alphamax
+      write(stdout, *)alphamax
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
 
   end subroutine PipekMezeySuprtRegion_real
 
-  !!* Localisation value of square of Mulliken charges summed over all levels
-  !!* \param ci wavefunction coefficients
-  !!* \param S overlap matrix
-  !!* \param iAtomStart Atom offset for the squared Hamiltonian
+
+  !> Localisation value of square of Mulliken charges summed over all levels
   function PipekMezyLocality_real(ci,S,iAtomStart) result(PipekMezyLocality)
+
+    !> Localisation
     real(dp) :: PipekMezyLocality
-    real(dp), intent(in)  :: ci(:,:)
-    real(dp), intent(in)  :: S(:,:)
-    integer,  intent(in)  :: iAtomStart(:)
+
+    !> wavefunction coefficients
+    real(dp), intent(in) :: ci(:,:)
+
+    !> overlap matrix
+    real(dp), intent(in) :: S(:,:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
 
     real(dp), allocatable :: Sci(:,:)
     integer :: nAtom, iAtom, iOrbStart, iOrbEnd, nOrb, nLev
@@ -500,35 +734,48 @@ contains
 
   end function PipekMezyLocality_real
 
+
   !> Localisation value of square of Mulliken charges summed over all levels
-  !! \param ci wavefunction coefficients
-  !! \param S overlap matrix, used as workspace
-  !! \param overlap sparse overlap matrix
-  !! \param kpoints full set of k-points
-  !! \param kweights weights for each k-point
-  !! \param iNeighbor neighbour list
-  !! \param nNeighbor number of neighbours
-  !! \param iCellVec list of which image cells atoms outside the
-  !! central cell are in
-  !! \param cellVec vectors to the image cells
-  !! \param iAtomStart index for the square matrices
-  !! \param iPair index for the sparse matrices
-  !! \param img2CentCell index array back to central cell
-  function PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
-      & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
-      & img2CentCell)  result (PipekMezyLocality)
-    complex(dp), intent(in)     :: ci(:,:,:)
-    complex(dp), intent(inout)  :: S(:,:)
-    real(dp), intent(in)        :: over(:)
-    real(dp), intent(in)        :: kpoints(:,:)
-    real(dp), intent(in)        :: kweights(:)
-    integer,  intent(in)        :: iNeighbor(0:,:)
-    integer,  intent(in)        :: nNeighbor(:)
-    integer,  intent(in)        :: iCellVec(:)
-    real(dp), intent(in)        :: cellVec(:,:)
-    integer,  intent(in)        :: iAtomStart(:)
-    integer,  intent(in)        :: iPair(0:,:)
-    integer,  intent(in)        :: img2CentCell(:)
+  function PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, iNeighbor, nNeighbor, &
+      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
+
+    !> wavefunction coefficients
+    complex(dp), intent(in) :: ci(:,:,:)
+
+    !> overlap matrix, used as workspace
+    complex(dp), intent(inout) :: S(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> full set of k-points
+    real(dp), intent(in) :: kpoints(:,:)
+
+    !> weights for each k-point
+    real(dp), intent(in) :: kweights(:)
+
+    !> neighbour list
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> number of neighbours
+    integer, intent(in) :: nNeighbor(:)
+
+    !> list of which image cells atoms outside the central cell fall into
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to the image cells
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> index for the square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index for the sparse matrices
+    integer, intent(in) :: iPair(0:,:)
+
+    !> index array back to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Locality for each k-point
     real(dp) :: PipekMezyLocality(size(kweights))
 
     complex(dp), allocatable :: Sci(:,:)
@@ -575,45 +822,58 @@ contains
 
   end function PipekMezyLocality_kpoints
 
-  !> Performs conventional Pipek-Mezey localisation for a supercell
-  !! using iterative sweeps over each pair of orbitals
-  !! \param ci wavefunction coefficients
-  !! \param S overlap matrix, used as workspace
-  !! \param overlap sparse overlap matrix
-  !! \param kpoints full set of k-points
-  !! \param kweights weights for each k-point
-  !! \param iNeighbor neighbour list
-  !! \param nNeighbor number of neighbours
-  !! \param iCellVec list of which image cells atoms outside the
-  !! central cell are in
-  !! \param cellVec vectors to the image cells
-  !! \param iAtomStart index for the square matrices
-  !! \param iPair index for the sparse matrices
-  !! \param img2CentCell index array back to central cell
-  !! \param convergence tollerance for halting localisation iterations
-  !! \param mIter maximum number of iterations to use
-  subroutine PipekMezeyOld_kpoints(ci, S, over, kpoints, kweights, &
-      & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
-      & img2CentCell, convergence, mIter)
-    complex(dp), intent(inout)    :: ci(:,:,:)
-    complex(dp), intent(inout)    :: S(:,:)
-    real(dp), intent(in)          :: over(:)
-    real(dp), intent(in)          :: kpoints(:,:)
-    real(dp), intent(in)          :: kweights(:)
-    integer,  intent(in)          :: iNeighbor(0:,:)
-    integer,  intent(in)          :: nNeighbor(:)
-    integer,  intent(in)          :: iCellVec(:)
-    real(dp), intent(in)          :: cellVec(:,:)
-    integer,  intent(in)          :: iAtomStart(:)
-    integer,  intent(in)          :: iPair(0:,:)
-    integer,  intent(in)          :: img2CentCell(:)
-    real(dp), intent(in)          :: convergence
+
+  !> Performs conventional Pipek-Mezey localisation for a supercell using iterative sweeps over each
+  !> pair of orbitals
+  subroutine PipekMezeyOld_kpoints(ci, S, over, kpoints, kweights, iNeighbor, nNeighbor, iCellVec, &
+      & cellVec, iAtomStart, iPair, img2CentCell, convergence, mIter)
+
+    !> wavefunction coefficients
+    complex(dp), intent(inout) :: ci(:,:,:)
+
+    !> overlap matrix, used as workspace
+    complex(dp), intent(inout) :: S(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> full set of k-points
+    real(dp), intent(in) :: kpoints(:,:)
+
+    !> weights for each k-point
+    real(dp), intent(in) :: kweights(:)
+
+    !> neighbour list
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> number of neighbours
+    integer, intent(in) :: nNeighbor(:)
+
+    !> list of which image cells atoms outside the central cell fall into
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to the image cells
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> index for the square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index for the sparse matrices
+    integer, intent(in) :: iPair(0:,:)
+
+    !> index array back to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> tollerance for halting localisation iterations
+    real(dp), intent(in) :: convergence
+
+    !> maximum number of iterations to use
     integer, intent(in), optional :: mIter
 
-    integer  :: iLev1, iLev2, nLev, nKpt
-    integer  :: iAtom1, nAtom, nIter
-    integer  :: iOrb1, iOrb2, nOrb
-    integer  :: iIter, iKpt, iLoc(1), ii
+    integer :: iLev1, iLev2, nLev, nKpt
+    integer :: iAtom1, nAtom, nIter
+    integer :: iOrb1, iOrb2, nOrb
+    integer :: iIter, iKpt, iLoc(1), ii
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa
     complex(dp) :: Pst, Pss, Ptt
@@ -624,7 +884,7 @@ contains
 
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
-    logical  :: tConverged(size(kweights))
+    logical :: tConverged(size(kweights))
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
 
@@ -654,7 +914,7 @@ contains
 
     lpLocalise: do iIter = 1, nIter
 
-      write(*,*)'Iter', iIter
+      write(stdout, *)'Iter', iIter
 
       ! Sweep over all pairs of levels in all k-points
       lpKpoints: do iKpt = 1, nKpt
@@ -731,13 +991,13 @@ contains
 
       end do lpKpoints
 
-      write(*,*)'Localisations at each k-point'
-      write(*,"(6E12.4)") &
-          & PipekMezeyLocalisation(ci, S, over, kpoints, kweights, &
+      write(stdout, *)'Localisations at each k-point'
+      write(stdout, "(6E12.4)") &
+          & PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
           & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
           & img2CentCell)
-      write(*,"(1X,A,E12.4)")'Total', &
-          & sum(PipekMezeyLocalisation(ci, S, over, kpoints, kweights, &
+      write(stdout, "(1X,A,E12.4)")'Total', &
+          & sum(PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
           & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
           & img2CentCell))
 

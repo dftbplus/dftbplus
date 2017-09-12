@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Simple algebraic stuff for simple cases, where LAPACK would be an overkill
+!> Simple algebraic stuff for cases where LAPACK would be overkill
 module simplealgebra
   use assert
   use accuracy
@@ -18,14 +18,18 @@ module simplealgebra
 
 contains
 
-  !!* Cross product. (Only temporary!)
-  !!* @param res  Resulting vector.
-  !!* @param v1   First vector.
-  !!* @param v2   Second vector.
+
+  !> Cross product
   subroutine cross3(res, v1, v2)
+
+    !> Resulting vector.
     real(dp), intent(out) :: res(3)
-    real(dp), intent(in)  :: v1(3)
-    real(dp), intent(in)  :: v2(3)
+
+    !> First vector.
+    real(dp), intent(in) :: v1(3)
+
+    !> Second vector.
+    real(dp), intent(in) :: v2(3)
 
     res(1) = v1(2) * v2(3) - v1(3) * v2(2)
     res(2) = v1(3) * v2(1) - v1(1) * v2(3)
@@ -34,12 +38,14 @@ contains
   end subroutine cross3
 
 
+  !> Signed determinant of a 3x3 matrix
+  function  determinant33(matrix)
 
-  !!* Determinant of a 3x3 matrix (Only temporary!)
-  !!* @param matrix The matrix for which to calculate the determinant.
-  !!* @return       Determinant of the matrix.
-  real(dp) function  determinant33(matrix)
-    real(dp), intent(in) :: matrix(:, :)
+    !> The matrix for which to calculate the determinant.
+    real(dp), intent(in) :: matrix(:,:)
+
+    !> Resulting det(matrix)
+    real(dp) :: determinant33
 
     real(dp) :: tmp
 
@@ -52,17 +58,19 @@ contains
     tmp = tmp + matrix(1, 3) &
         &* (matrix(2, 1) * matrix(3, 2) - matrix(3, 1) * matrix(2, 2))
 
-!    determinant33 = abs(tmp) -- should be a signed determinant
     determinant33 = tmp
 
   end function determinant33
 
-  !!* Derivative of determinant of a 3x3 matrix (Only temporary!)
-  !!* @param deriv  derivative of the determinant
-  !!* @param matrix The matrix from which to calculate the determinant.
+
+  !> Derivative of determinant of a 3x3 matrix
   subroutine  derivDeterminant33(deriv,matrix)
+
+    !> derivative of the determinant
     real(dp), intent(out) :: deriv(3, 3)
-    real(dp), intent(in)  :: matrix(3, 3)
+
+    !> The matrix from which to calculate the determinant.
+    real(dp), intent(in) :: matrix(3, 3)
 
     deriv(1,1) = matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3)
     deriv(1,2) = matrix(2, 3) * matrix(3, 1) - matrix(3, 3) * matrix(2, 1)
@@ -74,20 +82,21 @@ contains
     deriv(3,2) = matrix(1, 3) * matrix(2, 1) - matrix(1, 1) * matrix(2, 3)
     deriv(3,3) = matrix(1, 1) * matrix(2, 2) - matrix(1, 2) * matrix(2, 1)
 
-!    deriv = abs(deriv)
     deriv = deriv * sign(1.0_dp,determinant33(matrix))
 
   end subroutine derivDeterminant33
 
 
-
-  !!* Inverts a 3x3 matrix (Only temporary!)
-  !!* @param inverted Contains the inverted matrix on return.
-  !!* @param orig     Matrix to invert.
-  !!* @param optDet   Determinant of the matrix, if already known.
+  !> Inverts a 3x3 matrix
   subroutine invert33(inverted, orig, optDet)
-    real(dp), intent(out)          :: inverted(:, :)
-    real(dp), intent(in)           :: orig(:, :)
+
+    !> Contains the inverted matrix on return.
+    real(dp), intent(out) :: inverted(:, :)
+
+    !> Matrix to invert.
+    real(dp), intent(in) :: orig(:, :)
+
+    !> Determinant of the matrix, if already known.
     real(dp), intent(in), optional :: optDet
 
     real(dp) :: det

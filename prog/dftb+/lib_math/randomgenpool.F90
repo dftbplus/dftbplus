@@ -7,12 +7,9 @@
 
 #:include 'common.fypp'
 
-!> Implements a random generator pool.
-!!
-!! A random generator pool returns random generators on request. The status of the subsequently
-!! returned random generators (and hence the random numbers they will produce) is uniquely
-!! determined by the seed value used to initialise the random generator pool itself.
-!!
+!> Implements a random generator pool, returning random generators on request. The status of the
+!> subsequently returned random generators (and hence the random numbers they will produce) is
+!> uniquely determined by the seed value used to initialise the random generator pool itself.
 module randomgenpool
   use accuracy, only : dp
   use ranlux
@@ -21,22 +18,33 @@ module randomgenpool
 
   public :: ORandomGenPool, init
 
+
   !> Random generator pool
   type :: ORandomGenPool
     private
+
+    !> random number generator for pool
     type(ORanlux), allocatable :: generator
+
+    !> Random values that have been generated
     integer :: served = -1
+
+    !> Compatibility to old behaviour
     logical :: oldCompat = .false.
   contains
+
+    !> returns a random generator
     procedure :: getGenerator
   end type ORandomGenPool
 
 
+  !> initialise the generator
   interface init
     module procedure RandomGenPool_init
   end interface init
 
-  ! Size of random pool necessary in order to emulate the old global random generator.
+
+  !> Size of random pool necessary in order to emulate the old global random generator.
   integer, parameter :: OLDCOMPAT_POOL_SIZE = 10
 
 contains
@@ -45,20 +53,26 @@ contains
   !> Intialises a random generator pool.
   subroutine RandomGenPool_init(this, seed, oldCompat)
 
+
     !> Instance.
     class(ORandomGenPool), intent(out) :: this
 
+
     !> Seed to use for initialisation of the random generator pool.
-    !!
-    !! If value is less than one, a random seed will be chosen (and passed back to the calling
-    !! routine).
+    !> If value is less than one, a random seed will be chosen (and passed back to the calling
+    !> routine).
     integer, intent(inout) :: seed
 
+
     !> Whether the first random generator returned should deliver the same random number sequence
-    !! as the old global random generator in DFTB+ (default: .false.)
+    !> as the old global random generator in DFTB+ (default: .false.)
     logical, intent(in), optional :: oldCompat
 
+
+    !> system time if available
     integer :: timeValues(8)
+
+    !> real temporary
     real(dp) :: rTmp
 
     if (seed < 1) then
@@ -91,11 +105,12 @@ contains
 
 
   !> Returns a random generator.
-  !!
   subroutine getGenerator(this, randomGenerator)
+
 
     !> Instance.
     class(ORandomGenPool), intent(inout) :: this
+
 
     !> Initialised random generator.
     type(ORanlux), allocatable, intent(out) :: randomGenerator
@@ -122,7 +137,8 @@ contains
     end if
     this%served = this%served + 1
 
-  end subroutine getGenerator
+    @:ASSERT(this%served < huge(this%served))
 
+  end subroutine getGenerator
 
 end module randomgenpool

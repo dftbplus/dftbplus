@@ -7,6 +7,7 @@
 
 #:include 'linkedlist.fypp'
 
+!> Linked list for real arrays
 module linkedlistr2
   use accuracy, only : dp
   implicit none

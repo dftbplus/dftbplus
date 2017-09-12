@@ -5,19 +5,24 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains rudimentary warning and error functions for the code to report
-!!* problems during run time.
-!!* @desc Provides routines to call with a string or array of strings if
-!!*   problems occur of a fatal (error) or recoverable (warning) nature.
+!> Contains rudimentary functions for warnings and error functions for the code to report problems
+!> during run time.
+!> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
+!> or recoverable (warning) nature.
 module message
+  use io
   implicit none
   private
 
+
+  !> recoverable error warnings
   interface warning
     module procedure warning_single
     module procedure warning_array
   end interface
 
+
+  !> fatal error warnings, terminating the code
   interface error
     module procedure error_single
     module procedure error_array
@@ -27,59 +32,63 @@ module message
 
 contains
 
-  !!* Gives a warning message.
-  !!* @param message Warning message to print to standard out.
+
+  !> Gives a warning message.
   subroutine warning_single(message)
+
+    !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
-    write(*, '(1a)') 'WARNING!'
-    write(*, '(2a)') '-> ', trim(message)
+
+    write(stdout, '(1a)') 'WARNING!'
+    write(stdout, '(2a)') '-> ', trim(message)
+
   end subroutine warning_single
 
 
-
-  !!* Gives a warning message.
-  !!* @param messages Lines of the error message to print to standard out.
+  !> Gives a warning message.
   subroutine warning_array(messages)
+
+    !> Lines of the error message to print to standard out.
     character(len=*), intent(in) :: messages(:)
 
     integer :: ii
 
-    write(*,'(1a)') 'WARNING!'
+    write(stdout, '(1a)') 'WARNING!'
     do ii = 1, size(messages)
-      write(*,'(2a)') '-> ', trim(messages(ii))
+      write(stdout, '(2a)') '-> ', trim(messages(ii))
     end do
     stop
 
   end subroutine warning_array
 
 
-
-  !!* Gives an error message and stops the code.
-  !!* @param message Error message to print to standard out.
+  !> Gives an error message and stops the code.
   subroutine error_single(message)
+
+    !> Error message to print to standard out.
     character (len=*), intent(in) :: message
-    write(*,'(1a)') 'ERROR!'
-    write(*,'(2a)') '-> ', trim(message)
+
+    write(stdout, '(1a)') 'ERROR!'
+    write(stdout, '(2a)') '-> ', trim(message)
     stop
+
   end subroutine error_single
 
 
-
-  !!* Gives an error messages and stops the code.
-  !!* @param messages Lines of the error message to print to standard out.
+  !> Gives an error messages and stops the code.
   subroutine error_array(messages)
+
+    !> Lines of the error message to print to standard out.
     character(len=*), intent(in) :: messages(:)
 
     integer :: ii
 
-    write(*,'(1a)') 'ERROR!'
+    write(stdout, '(1a)') 'ERROR!'
     do ii = 1, size(messages)
-      write(*,'(2a)') '-> ', trim(messages(ii))
+      write(stdout, '(2a)') '-> ', trim(messages(ii))
     end do
     stop
 
   end subroutine error_array
 
 end module message
-
-

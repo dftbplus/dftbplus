@@ -7,8 +7,8 @@
 
 #:include 'common.fypp'
 
-!!* Contains Types and subroutine to build up and query a Slater-Koster table
-!!* where the integrals are specified on an equidistant grid.
+!> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
+!> specified on an equidistant grid.
 module slakoeqgrid
   use assert
   use accuracy
@@ -21,7 +21,8 @@ module slakoeqgrid
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew
 
-  !!* Represents an equally spaced Slater-Koster grid
+
+  !> Represents an equally spaced Slater-Koster grid
   type OSlakoEqGrid
     private
     integer :: nGrid
@@ -32,61 +33,78 @@ module slakoeqgrid
     logical :: tInit = .false.
   end type OSlakoEqGrid
 
-  !!* Initialises SlakoEqGrid.
+
+  !> Initialises SlakoEqGrid.
   interface init
     module procedure SlakoEqGrid_init
-  end interface
+  end interface init
 
-  !!* Returns the integrals for a given distance.
+
+  !> Returns the integrals for a given distance.
   interface getSKIntegrals
     module procedure SlakoEqGrid_getSKIntegrals
-  end interface
+  end interface getSKIntegrals
 
-  !!* Returns the number of integrals the table contains
+
+  !> Returns the number of integrals the table contains
   interface getNIntegrals
     module procedure SlakoEqGrid_getNIntegrals
-  end interface
+  end interface getNIntegrals
 
-  !!* Returns the cutoff of the interaction.
+
+  !> Returns the cutoff of the interaction.
   interface getCutoff
     module procedure SlakoEqGrid_getCutoff
-  end interface
+  end interface getCutoff
 
+  ! Interpolation methods
 
-  !! Interpolation methods
+  !> Historical method
   integer, parameter :: skEqGridOld = 1
+
+  !> Current method
   integer, parameter :: skEqGridNew = 2
 
+  ! Nr. of grid points to use for the polynomial interpolation
 
-  !! Nr. of grid points to use for the polynomial interpolation
+  !> Historical choice
   integer, parameter :: nInterOld_ = 3
+
+  !> Present choice
   integer, parameter :: nInterNew_ = 8
 
-  !! Nr. of grid points on the right of the interpolated point
-  !! For odd nr. of intervals, nr. of right points should be bigger than
-  !! nr. of left points, to remain compatible with the old code.
+  ! Nr. of grid points on the right of the interpolated point.
 
-  !! value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
+  ! For an odd number of intervals, the number of right points should be bigger than the number of
+  ! left points, to remain compatible with the old code.
+
+
+  !> value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterOld_ = 2
-  !! value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
+
+  !> value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterNew_ = 4
 
-  !! Displacement for deriving interpolated polynomials
+
+  !> Displacement for deriving interpolated polynomials
   real(dp), parameter :: deltaR_ = 1e-5_dp
-
-
 
 contains
 
-  !!* Initialises SlakoEqGrid.
-  !!* @param self SlakoEqGrid instance.
-  !!* @param dist Distance between the grid points.
-  !!* @param table Slater-Koster table (first entry belongs to first grid point)
-  !!* @param skIntMethod Method for the interpolation between the entries.
+
+  !> Initialises SlakoEqGrid.
   subroutine SlakoEqGrid_init(self, dist, table, skIntMethod)
+
+    !> SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(out) :: self
+
+    !> Distance between the grid points.
     real(dp), intent(in) :: dist
+
+    !> Slater-Koster table (first entry belongs to first grid point)
     real(dp), intent(in) :: table(:,:)
+
+    !> Method for the interpolation between the entries.
     integer, intent(in) :: skintMethod
 
     @:ASSERT(.not. self%tInit)
@@ -104,14 +122,16 @@ contains
   end subroutine SlakoEqGrid_init
 
 
-
-  !!* Returns the integrals for a given distance.
-  !!* @param self SlakoEqGrid instance.
-  !!* @param sk Contains the interpolated integrals on exit
-  !!* @param dist Distance for which the integrals should be interpolated.
+  !> Returns the integrals for a given distance.
   subroutine SlakoEqGrid_getSKIntegrals(self, sk, dist)
+
+    !> SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(in) :: self
+
+    !> Contains the interpolated integrals on exit
     real(dp), intent(out) :: sk(:)
+
+    !> Distance for which the integrals should be interpolated.
     real(dp), intent(in) :: dist
 
     @:ASSERT(self%tInit)
@@ -127,12 +147,13 @@ contains
   end subroutine SlakoEqGrid_getSKIntegrals
 
 
-
-  !!* Returns the number of intgrals the table contains
-  !!* @param self SlakoEqGrid instance.
-  !!* @return Number of integrals.
+  !> Returns the number of intgrals the table contains
   function SlakoEqGrid_getNIntegrals(self) result(nInt)
+
+    !> SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(in) :: self
+
+    !> Number of integrals.
     integer :: nInt
 
     nInt = self%nInteg
@@ -140,12 +161,13 @@ contains
   end function SlakoEqGrid_getNIntegrals
 
 
-
-  !!* Returns the cutoff of the interaction.
-  !!* @param self  SlakoEqGrid instance.
-  !!* @return Cutoff.
+  !> Returns the cutoff of the interaction.
   function SlakoEqGrid_getCutoff(self) result(cutoff)
+
+    !>  SlakoEqGrid instance.
     type(OSlakoEqGrid), intent(in) :: self
+
+    !> grid cutoff
     real(dp) :: cutoff
 
     cutoff = real(self%nGrid, dp) * self%dist
@@ -158,21 +180,22 @@ contains
   end function SlakoEqGrid_getCutoff
 
 
-
-  !!* Inter- and extrapolation for SK-tables, new method.
-  !!* @param self SlakoEqGrid table on equiv. grid
-  !!* @param dd Output table of interpolated values.
-  !!* @param rr distance bewteen two atoms of interest
+  !> Inter- and extrapolation for SK-tables, new method.
   subroutine SlakoEqGrid_interNew_(self, dd, rr)
+
+    !> SlakoEqGrid table on equiv. grid
     type(OSlakoEqGrid), intent(in) :: self
+
+    !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
+
+    !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterNew_), ya(nInterNew_), y0, y1, y2, y1p, y1pp
     real(dp) :: incr, dr, rMax
     integer :: leng, ind, iLast
     integer :: ii
-
 
     leng = self%nGrid
     incr = self%dist
@@ -221,24 +244,16 @@ contains
   end subroutine SlakoEqGrid_interNew_
 
 
-
-  !!* Inter- and extrapolation for SK-tables like in the old DFTB code.
-  !!* @param iSp1 Atom species for the first atom of interest.
-  !!* @param iSp2 Atom species for the second atom of interest.
-  !!* @param rr distance bewteen two atoms of interest
-  !!* @param dd Output table of interpolated values.
-  !!* @param skIncr Increment between elements in the SK table for species pairs
-  !!* @param skLen Number of elements in the SK table for species pairs
-  !!* @param mAngSpecies Maximum values of l for the species of atoms
-  !!* @param skTab Input SK table
-  !!* @param llmIndx index array to convert from l1,l2,m value into column in
-  !!*   the SK table
-  !!* @param off ofset for counting in llm interpolation =0 for all table
-  !!*   =1 for heteronuclear second call - then only l1!=l2 case is calculated
-  !!* @desc If the point is between the 1st
+  !> Inter- and extra-polation for SK-tables equivalent to the old DFTB code.
   subroutine SlakoEqGrid_interOld_(self, dd, rr)
+
+    !> Data structure for SK interpolation
     type(OSlakoEqGrid), intent(in) :: self
+
+    !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
+
+    !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterOld_), ya(nInterOld_), y0, y1, y2, y1p, y1pp
@@ -299,6 +314,5 @@ contains
     end if
 
   end subroutine SlakoEqGrid_interOld_
-
 
 end module slakoeqgrid

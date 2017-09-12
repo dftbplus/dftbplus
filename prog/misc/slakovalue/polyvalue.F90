@@ -9,6 +9,7 @@
 !! and second derivatives.
 program polyvalue
   use accuracy
+  use io
   use reppoly
   use fileid
   use message
@@ -27,7 +28,7 @@ program polyvalue
   end if
   call get_command_argument(1, arg)
   if (arg == "-h" .or. arg == "--help") then
-    write(*, "(A)") &
+    write(stdout, "(A)") &
         & "Usage: polyvalue  homo | hetero  skfile",&
         & "",&
         & "Reads an SK-file, extracts the polynomial repulsive from it and &
@@ -67,7 +68,7 @@ program polyvalue
     rr(1) = rStart + real(ii, dp) * dr
     call getenergy(pRepPoly, energy, rr(1))
     call getenergyderiv(pRepPoly, grad, rr, d2)
-    write(*, "(4E23.15)") rr(1), energy, grad(1), d2
+    write(stdout, "(4E23.15)") rr(1), energy, grad(1), d2
   end do
 
 end program polyvalue

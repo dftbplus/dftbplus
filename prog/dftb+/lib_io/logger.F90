@@ -6,53 +6,66 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a simple logger which helps to avoid direct write statements.
-!!
 module logger
   use accuracy, only : dp
+  use io
   use optarg
   implicit none
   private
-
 
   public :: LogWriter, LogWriter_init
 
 
   !> Logger
-  !!
   type :: LogWriter
     private
     integer :: verbosity
   contains
+    ! internal write procedures
+
+    !> write a string
     procedure :: writeStr
+
+    !> write an integer
     procedure :: writeInt
+
+    !> write a real
     procedure :: writeReal
+
+    !> write a real vector
     procedure :: writeReal1
+
+    !> write a real array
     procedure :: writeReal2
+
+    !> generic for all of these
     generic :: write => writeStr, writeInt, writeReal, writeReal1, writeReal2
   end type LogWriter
 
 
   !> Constructor for LogWriter
-  !!
   interface LogWriter
     module procedure construct
   end interface LogWriter
 
 
-  ! Default verbosity level
+  !> Default verbosity level
   integer, parameter :: DEFAULT_VERBOSITY = 1
 
-  ! Maximal line length
+
+  !> Maximum line length
   integer, parameter :: MAX_LEN = 80
 
-
 contains
+
 
   !> Initialises a logger
   subroutine LogWriter_init(this, verbosity)
 
+
     !> Initialised instance on exit
     type(LogWriter), intent(out) :: this
+
 
     !> verbosity level
     integer, intent(in), optional :: verbosity
@@ -69,8 +82,10 @@ contains
   !> Constructs a logger.
   function construct(verbosity) result(this)
 
+
     !> verbosity level
     integer, intent(in), optional :: verbosity
+
 
     !> Initialised instance on exit
     type(LogWriter) :: this
@@ -81,21 +96,23 @@ contains
 
 
   !> Writes a message into the log (string).
-  !!
   subroutine writeStr(this, msg, verbosity, formStr)
 
+
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
+
 
     !> Message to write
     character(*), intent(in) :: msg
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
 
+
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
-
 
     character(*), parameter :: DEFAULT_FORM_STR = '(A)'
     character(:), allocatable :: formStr0
@@ -104,28 +121,30 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(*, formStr0) msg
+      write(stdout, formStr0) msg
     end if
 
   end subroutine writeStr
 
 
   !> Writes a message into the log (int).
-  !!
   subroutine writeInt(this, msg, verbosity, formStr)
 
+
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
+
 
     !> Message to write
     integer, intent(in) :: msg
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
 
+
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
-
 
     character(*), parameter :: DEFAULT_FORM_STR = '(I0)'
     character(:), allocatable :: formStr0
@@ -134,28 +153,30 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(*, formStr0) msg
+      write(stdout, formStr0) msg
     end if
 
   end subroutine writeInt
 
 
   !> Writes a message into the log (real).
-  !!
   subroutine writeReal(this, msg, verbosity, formStr)
 
+
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
+
 
     !> Message to write
     real(dp), intent(in) :: msg
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
 
+
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
-
 
     character(*), parameter :: DEFAULT_FORM_STR = '(ES23.15)'
     character(:), allocatable :: formStr0
@@ -164,31 +185,34 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(*, formStr0) msg
+      write(stdout, formStr0) msg
     end if
 
   end subroutine writeReal
 
 
   !> Writes a message into the log (real1).
-  !!
   subroutine writeReal1(this, msg, verbosity, formStr, columnwise)
 
+
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
+
 
     !> Message to write
     real(dp), intent(in) :: msg(:)
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
+
 
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
 
+
     !> Whether column vectors should be written columnwise (default: rowwise)
     logical, intent(in), optional :: columnwise
-
 
     character(*), parameter :: DEFAULT_FORM_STR = '(ES23.15)'
     character(:), allocatable :: formStr0, formStrRow
@@ -202,10 +226,10 @@ contains
     if (verbosity0 <= this%verbosity) then
       if (columnwise0) then
         call getRowFormat(formStr0, 1, formStrRow)
-        write(*, formStrRow) msg
+        write(stdout, formStrRow) msg
       else
         call getRowFormat(formStr0, size(msg), formStrRow)
-        write(*, formStrRow) msg
+        write(stdout, formStrRow) msg
       end if
     end if
 
@@ -213,20 +237,24 @@ contains
 
 
   !> Writes a message into the log (real2).
-  !!
   subroutine writeReal2(this, msg, verbosity, formStr, columnwise)
 
+
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
+
 
     !> Message to write
     real(dp), intent(in) :: msg(:,:)
 
+
     !> Verbosity level
     integer, intent(in), optional :: verbosity
 
+
     !> Format string for a single item
     character(*), intent(in), optional :: formStr
+
 
     !> Whether column vectors should be written columnwise (default: rowwise)
     logical, intent(in), optional :: columnwise
@@ -253,13 +281,7 @@ contains
   end subroutine writeReal2
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-  !! Returns the format string for an entire row.
-  !!
+  !> Returns the format string for an entire row.
   subroutine getRowFormat(formStr, nItems, formStrRow)
     character(*), intent(in) :: formStr
     integer, intent(in) :: nItems
@@ -274,6 +296,5 @@ contains
     write(formStrRow, '(A,I0,A,A)') '(', nItems, trim(formStr), ')'
 
   end subroutine getRowFormat
-
 
 end module logger

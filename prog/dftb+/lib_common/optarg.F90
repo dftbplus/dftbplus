@@ -5,17 +5,17 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> Module for filling in optional arguments if suplied to a call, otherwise suplying a default
+!> value.
 module optarg
   use accuracy, only : dp
   implicit none
   private
 
-
   public :: getOptionalArg
 
 
   !> Optional argument processor
-  !!
   interface getOptionalArg
     module procedure getOptionalArgInt
     module procedure getOptionalArgReal
@@ -23,12 +23,10 @@ module optarg
     module procedure getOptionalArgLogical
   end interface getOptionalArg
 
-
 contains
 
 
   !> Return optional argument or default value if not present (int).
-  !!
   subroutine getOptionalArgInt(defArg, outArg, optArg)
 
     !> Default value for optional argument.
@@ -40,7 +38,6 @@ contains
     !> Optional argument to check
     integer, intent(in), optional :: optArg
 
-
     if (present(optArg)) then
       outArg = optArg
     else
@@ -51,7 +48,6 @@ contains
 
 
   !> Return optional argument or default value if not present (real).
-  !!
   subroutine getOptionalArgReal(defArg, outArg, optArg)
 
     !> Default value for optional argument.
@@ -63,7 +59,6 @@ contains
     !> Optional argument to check
     real(dp), intent(in), optional :: optArg
 
-
     if (present(optArg)) then
       outArg = optArg
     else
@@ -74,7 +69,6 @@ contains
 
 
   !> Return optional argument or default value if not present (str).
-  !!
   subroutine getOptionalArgString(defArg, outArg, optArg)
 
     !> Default value for optional argument.
@@ -96,7 +90,6 @@ contains
 
 
   !> Return optional argument or default value if not present (logical).
-  !!
   subroutine getOptionalArgLogical(defArg, outArg, optArg)
 
     !> Default value for optional argument.

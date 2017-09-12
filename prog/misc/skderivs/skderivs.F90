@@ -7,9 +7,10 @@
 
 #:include 'common.fypp'
 
-!!* Calculates the first and second derivatives of matrix elements
+!> Calculates the first and second derivatives of matrix elements
 program skderivs
   use assert
+  use io
   use Accuracy
   use Constants
   use Message
@@ -24,7 +25,8 @@ program skderivs
   use FileId
   implicit none
 
-  !! Contains the data necessary for the main program
+
+  !> Contains the data necessary for the main program
   type TInputData
     type(OSlakoEqGrid), pointer :: skHam, skOver
     integer, allocatable :: iHam(:), iOver(:)
@@ -35,16 +37,19 @@ program skderivs
   end type TInputData
 
 
+  !> input data for the calculation of the derivatives
   type(TInputData) :: inp
 
   call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in.xml", "skderivs_in")
   call main(inp)
 
-
 contains
 
-  !!* Does the main job of calculating derivatives and writing them to disc
+
+  !> Does the main job of calculating derivatives and writing them to disc
   subroutine main(inp)
+
+    !> instance
     type(TInputData), intent(inout) :: inp
 
     real(dp), allocatable :: sk(:,:), ham(:,:), over(:,:)
@@ -62,20 +67,20 @@ contains
     allocate(fpHam(size(inp%iHam)))
     allocate(fpOver(size(inp%iOver)))
 
-    write (*, "(A)") ""
-    write (*, "(A)") "Following files will be created:"
+    write(stdout, "(A)") ""
+    write(stdout, "(A)") "Following files will be created:"
     call resize_string(buffer, 1024)
     do ii = 1, size(inp%iHam)
       fpHam(ii) = getFileId()
       strTmp = trim(inp%output) // ".ham." // i2c(ii)
       open(fpHam(ii), file=strTmp, status="replace", position="rewind")
-      write (*, "(2X,A)") trim(strTmp)
+      write(stdout, "(2X,A)") trim(strTmp)
     end do
     do ii = 1, size(inp%iOver)
       fpOver(ii) = getFileId()
       strTmp = trim(inp%output) // ".ovr." // i2c(ii)
       open(fpOver(ii), file=strTmp, status="replace", position="rewind")
-      write (*, "(2X,A)") trim(strTmp)
+      write(stdout, "(2X,A)") trim(strTmp)
     end do
 
     do ii = 1, nGrid
@@ -142,11 +147,20 @@ contains
   end subroutine main
 
 
-
-  !!* Parses the HSD input
+  !> Parses the HSD input
   subroutine parseHSDInput(inp, hsdInputName, xmlInputName, rootTag)
+
+    !> parsed data
     type(TInputData), intent(out) :: inp
-    character(*), intent(in) :: hsdInputName, xmlInputName, rootTag
+
+    !> file name for HSD input
+    character(*), intent(in) :: hsdInputName
+
+    !> file name for XML input
+    character(*), intent(in) :: xmlInputName
+
+    !> name of the tag at the root of the tree
+    character(*), intent(in) :: rootTag
 
     type(fnode), pointer :: hsdTree, root, dummy, child
     type(TOldSKData) :: skData12(1,1), skData21(1,1)
@@ -166,11 +180,11 @@ contains
       call error("No input file found.")
     end if
 
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") repeat("-", 80)
     if (isHSD) then
-      write (*, "(A)") "Interpreting input file '" // hsdInputName // "'"
+      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
     else
-      write (*, "(A)") "Interpreting input file '" // xmlInputName //  "'"
+      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
     end if
 
     do ii = 1, maxL+1
@@ -270,25 +284,33 @@ contains
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root)
-    write (*, "(A)") "Done."
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") "Done."
+    write(stdout, "(A)") repeat("-", 80)
 
   end subroutine parseHSDInput
 
 
-  !!* Creates from the columns of the Slater-Koster files for A-B and B-A
-  !!* a full table for A-B, containing all integrals.
-  !!* @param skHam Resulting table of H integrals
-  !!* @param skOver Resulting table of S integrals
-  !!* @param skData12 Contains all SK files describing interactions for A-B
-  !!* @param skData21 Contains all SK files describing interactions for B-A
-  !!* @param angShells1 Angular momenta to pick from the SK-files for species A
-  !!* @param angShells2 Angular momenta to pick from the SK-files for species B
-  subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
-      &angShells2)
-    real(dp), intent(out) :: skHam(:,:), skOver(:,:)
-    type(TOldSKData), intent(in), target :: skData12(:,:), skData21(:,:)
-    type(listIntR1), intent(inout) :: angShells1, angShells2
+  !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
+  !> containing all integrals.
+  subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, angShells2)
+
+    !> Resulting table of H integrals
+    real(dp), intent(out) :: skOver(:,:)
+
+    !> Resulting table of S integrals
+    real(dp), intent(out) :: skHam(:,:)
+
+    !> Contains all SK files describing interactions for A-B
+    type(TOldSKData), intent(in), target :: skData12(:,:)
+
+    !> Contains all SK files describing interactions for B-A
+    type(TOldSKData), intent(in), target :: skData21(:,:)
+
+    !> Angular momenta to pick from the SK-files for species A
+    type(listIntR1), intent(inout) :: angShells1
+
+    !> Angular momenta to pick from the SK-files for species B
+    type(listIntR1), intent(inout) :: angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
     integer :: angShell1(maxL+1), angShell2(maxL+1)
@@ -341,11 +363,17 @@ contains
   end subroutine getFullTable
 
 
-
-  !!* Returns the nr. of Slater-Koster integrals necessary to describe the
-  !!* interactions between two species.
+  !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
+  !> species.
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
-    type(listIntR1), intent(inout) :: angShells1, angShells2
+
+    !> list of shells for species B
+    type(listIntR1), intent(inout) :: angShells2
+
+    !> list of shells for species A
+    type(listIntR1), intent(inout) :: angShells1
+
+    !> count of integrals
     integer :: nInt
 
     integer :: iSh1, iSh2, nSh1, nSh2, ang1, ang2
@@ -363,6 +391,5 @@ contains
     end do
 
   end function getNSKIntegrals
-
 
 end program skderivs

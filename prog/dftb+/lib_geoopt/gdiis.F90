@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Contains a geometry DIIS optimizer interface.
+!> Contains a geometry DIIS optimizer interface.
 module gdiis
   use assert
   use accuracy
@@ -16,27 +16,41 @@ module gdiis
 
   private
 
-  !!* Contains data for the DIIS mimimizer
+
+  !> Contains data for the DIIS mimimizer
   type ODIIS
     private
+
+    !> DIIS object itself
     type(ODIISMixer) :: pDIIS
+
+    !> Vector of current coordinate
     real(dp), allocatable :: x(:)
-    integer  :: nElem
-    real(dp) :: tolerance    !* Tolerance criteria for convergence
-    logical  :: tInitialized !* If object is initialized
+
+    !> Number of elements in vector
+    integer :: nElem
+
+    !> Tolerance criteria for convergence
+    real(dp) :: tolerance
+
+    !> If object is initialized
+    logical :: tInitialized
   end type ODIIS
 
-  !!* Creates gDIIS instance
+
+  !> Creates gDIIS instance
   interface init
     module procedure gDIIS_init
   end interface
 
-  !!* Resets the gDIIS instance
+
+  !> Resets the gDIIS instance
   interface reset
     module procedure gDIIS_reset
   end interface
 
-  !!* Passes calculated gradient to the minimizer and returns a new point
+
+  !> Passes calculated gradient to the minimizer and returns a new point
   interface next
     module procedure gDIIS_next
   end interface
@@ -44,15 +58,26 @@ module gdiis
   public :: ODIIS
   public :: init, reset, next
 
-
 contains
 
+
+  !> Creates a DIIS geometry optimiser instance
   subroutine gDIIS_init(self, nElem, tol, alpha, nGens)
+
+    !> DIIS instance on exit
     type(ODIIS), intent(out) :: self
-    integer, intent(in)  :: nElem
+
+    !> Nr. of elements in the vectors
+    integer, intent(in) :: nElem
+
+    !> Termination tolerance for the gradient
     real(dp), intent(in) :: tol
+
+    !> initial value for mixing in gradient information to DIIS space
     real(dp), intent(in) :: alpha
-    integer, intent(in)  :: nGens
+
+    !> Number of vectors to use in building DIIS space
+    integer, intent(in) :: nGens
 
     self%nElem = nElem
     self%tolerance = tol
@@ -63,8 +88,13 @@ contains
   end subroutine gDIIS_init
 
 
+  !> Resets optimiser
   subroutine gDIIS_reset(self,x)
+
+    !> Minimiser
     type(ODIIS), intent(inout) :: self
+
+    !> Point to start from
     real(dp) :: x(:)
 
     call reset(self%pDIIS, self%nElem)
@@ -73,10 +103,21 @@ contains
   end subroutine gDIIS_reset
 
 
+  !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
+  !> back.  When calling the first time, funciton value and gradient for the starting point of the
+  !> minimization should be passed.
   subroutine gDIIS_next(self,dx, xNew, tConverged)
+
+    !> minimiser
     type(ODIIS), intent(inout) :: self
-    real(dp), intent(in)  :: dx(:)
+
+    !> Gradient in the last point
+    real(dp), intent(in) :: dx(:)
+
+    !> New proposed point
     real(dp), intent(out) :: xNew(:)
+
+    !> True, if gradient goes below the specified tolerance
     logical,  intent(out) :: tConverged
 
     @:ASSERT(self%tInitialized)

@@ -7,9 +7,10 @@
 
 #:include 'common.fypp'
 
-!!* Contains the routines for initialising modes.
-module InitProgram
+!> Contains the routines for initialising modes.
+module InitModes
   use assert
+  use io
   use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
   use XMLUtils
   use HSDUtils
@@ -29,42 +30,86 @@ module InitProgram
   private
   save
 
+
+  !> program version
   character(len=*), parameter :: version =  "0.01"
+
+  !> root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
+
+  !> input file name
   character(len=*), parameter :: hsdInput = "modes_in.hsd"
+
+  !> parsed output name
   character(len=*), parameter :: hsdParsedInput = "modes_pin.hsd"
+
+  !> xml input file name
   character(len=*), parameter :: xmlInput = "modes_in.xml"
+
+  !> parsed xml name
   character(len=*), parameter :: xmlParsedInput = "modes_pin.xml"
+
+  !> version of the input document
   integer, parameter :: parserVersion = 3
 
-  public :: initProgramVariables, destructProgramVariables
-
+  public :: initProgramVariables
 
   !! Variables from detailed.xml
-  integer, public :: identity          ! Identity of the run
-  type(TGeometry), public :: geo       ! Geometry
+
+
+  !> Unique identifier of the run
+  integer, public :: identity
+
+  !> Geometry
+  type(TGeometry), public :: geo
 
   !! Variables from the Option block
-  logical, public :: tVerbose          ! If program should be verbose
 
+
+  !> If program should be verbose
+  logical, public :: tVerbose
+
+
+  !> atomic masses to build dynamical matrix
   real(dp), allocatable, public :: atomicMasses(:)
+
+  !> dynamical matrix
   real(dp), allocatable, public :: dynMatrix(:,:)
 
+
+  !> produce plots of modes, orjust eigenvalues
   logical, public :: tPlotModes
+
+  !> animate mode  or as vectors
   logical, public :: tAnimateModes
+
+  !> use xmakemol dialect xyz
   logical, public :: tXmakeMol
+
+  !> modes to produce xyz file for
   integer, allocatable, public :: modesToPlot(:)
+
+  !> number of modes being plotted
   integer, public :: nModesToPlot
+
+  !> if animating, number of cycles to show in an animation
   integer, public :: nCycles
+
+  !> steps in an animation cycle
   integer, public, parameter :: nSteps = 10
-  integer, public :: nMovedAtom  ! Number of atoms which should be moved.
+
+  !> Number of atoms which should be moved.
+  integer, public :: nMovedAtom
+
+  !> list of atoms in dynamical matrix
   integer, allocatable, public :: iMovedAtoms(:)
 
   !! Locally created variables
 
 contains
 
-  !!* Initialise program variables
+
+  !> Initialise program variables
   subroutine initProgramVariables()
 
     type(TOldSKData) :: skData
@@ -84,18 +129,18 @@ contains
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
 
     !! Write header
-    write (*, "(A)") repeat("=", 80)
-    write (*, "(A)") "     MODES  " // version
-    write (*, "(A,/)") repeat("=", 80)
+    write(stdout, "(A)") repeat("=", 80)
+    write(stdout, "(A)") "     MODES  " // version
+    write(stdout, "(A,/)") repeat("=", 80)
 
     !! Read in input file as HSD or XML.
     call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
     if (tHSD) then
-      write (*, "(A)") "Interpreting input file '" // hsdInput // "'"
+      write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
     else
-      write (*, "(A)") "Interpreting input file '" // xmlInput //  "'"
+      write(stdout, "(A)") "Interpreting input file '" // xmlInput //  "'"
     end if
-    write (*, "(A)") repeat("-", 80)
+    write(stdout, "(A)") repeat("-", 80)
     call getChild(input, rootTag, root)
 
     !! Check if input version is the one, which we can handle
@@ -104,7 +149,6 @@ contains
       call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
           &// i2c(parserVersion) // ") do not match")
     end if
-
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
@@ -230,18 +274,17 @@ contains
     if (tWriteHSD) then
       call dumpHSD(input, hsdParsedInput)
 
-      write (*, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
+      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
           &//"'"
     end if
     if (tWriteXML) then
       call dumpHSDAsXML(input, xmlParsedInput)
-      write (*, "(A)") "Processed input written as XML to '" // xmlParsedInput &
+      write(stdout, "(A)") "Processed input written as XML to '" // xmlParsedInput &
           &//"'"
     end if
-    write (*, "(A)") repeat("-", 80)
-    write (*,*)
+    write(stdout, "(A)") repeat("-", 80)
+    write(stdout, *)
     call destroyNode(input)
-
 
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
@@ -250,18 +293,14 @@ contains
 
   end subroutine initProgramVariables
 
-  !!* Destroy the program variables created in initProgramVariables
-  subroutine destructProgramVariables()
 
-    write (*, "(/,A)") repeat("=", 80)
-
-  end subroutine destructProgramVariables
-
-  !!* Read in the geometry stored as xml in internal or gen format.
-  !!* @param geonode Node containing the geometry
-  !!* @param geo     Contains the geometry information on exit
+  !> Read in the geometry stored as xml in internal or gen format.
   subroutine readGeometry(geonode, geo)
+
+    !> Node containing the geometry
     type(fnode), pointer :: geonode
+
+    !> Contains the geometry information on exit
     type(TGeometry), intent(out) :: geo
 
     type(fnode), pointer :: child
@@ -280,4 +319,4 @@ contains
 
   end subroutine readGeometry
 
-end module InitProgram
+end module InitModes

@@ -9,6 +9,7 @@
 !! and second derivatives.
 program splvalue
   use accuracy
+  use io
   use repspline
   use oldskdata, only : readsplinerep
   use fileid
@@ -28,7 +29,7 @@ program splvalue
   end if
   call get_command_argument(1, arg)
   if (arg == "-h" .or. arg == "--help") then
-    write(*, "(A)") &
+    write(stdout, "(A)") &
         & "Usage: splvalue [ options ] skfile",&
         & "",&
         & "Reads an SK-file, extracts the spline repulsive from it and prints &
@@ -54,7 +55,7 @@ program splvalue
     rr(1) = rstart + real(ii, dp) * dr
     call getenergy(prepspline, energy, rr(1))
     call getenergyderiv(prepspline, grad, rr, d2)
-    write(*, "(4E23.15)") rr(1), energy, grad(1), d2
+    write(stdout, "(4E23.15)") rr(1), energy, grad(1), d2
   end do
 
 end program splvalue

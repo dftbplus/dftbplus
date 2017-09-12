@@ -7,13 +7,12 @@
 
 #:include 'linkedlist.fypp'
 
+!> Linked list of single strings
 module linkedlists0
   use assert
   use xmlf90
   implicit none
   private
-
-
 
   $:define_list(&
       & TYPE_NAME='listString',&

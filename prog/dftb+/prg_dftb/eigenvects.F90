@@ -7,8 +7,8 @@
 
 #:include 'common.fypp'
 
-!!* Module to wrap around the process of converting from a Hamiltonian and
-!!* overlap in sparse form into eigenvectors
+!> Module to wrap around the process of converting from a Hamiltonian and overlap in sparse form
+!> into eigenvectors
 module eigenvects
   use assert
   use accuracy
@@ -19,53 +19,147 @@ module eigenvects
   use angmomentum
   implicit none
 
-  public :: diagonalize
+  public :: diagonalize, diagonalizeDenseMtx
   private
 
+
+  !> diagonalise sparse hamiltonian, returning eigenvectors and values
   interface diagonalize
     module procedure realH
     module procedure cmplxH
     module procedure cmplx2Cmpnt
     module procedure cmplx2CmpntKpts
-  end interface
+  end interface diagonalize
+
+  interface diagonalizeDenseMtx
+    module procedure diagDenseRealMtx
+    module procedure diagDenseComplexMtx
+  end interface diagonalizeDenseMtx
 
 contains
 
-  !!* Diagonalizes a sparse represented Hamiltonian and overlap to give
-  !!* the eigenvectors and values, as well as often the Cholesky factorized
-  !!* overlap matrix (due to a side effect of lapack)
-  !!* @param HSqrReal Large square matrix for the resulting eigenvectors
-  !!* @param SSqrReal Large square matrix for the overlap workspace, often
-  !!* overwritten with the  Cholesky factorized form.
-  !!* @param eigen The eigenvalues of the matrices
-  !!* @param ham The sparse represented Hamiltonian in real space
-  !!* @param over The sparse represented overlap matrix in real space
-  !!* @param iNeighbor List of atomic neighbors for each central cell atom
-  !!* @param nNeighbor Number of atomic neighbors for each central cell atom
-  !!* @param iAtomStart Indexing array for the large square matrices to relate
-  !!* atom number to position in the matrix
-  !!* @param img2CentCell Array to relate image atoms outside the central cell
-  !!* to their real counterpart inside the cell
-  !!* @param iSolver Choice of eigensolver, 4 lapack dense solvers currently
-  !!* supported
-  !!* @param jobz type of eigen-problem, either 'V'/'v' vectors or 'N'/'n'
-  !!* eigenvalues only
-  subroutine realH(HSqrReal, SSqrReal, eigen, ham, over, iNeighbor, nNeighbor, &
-      &iAtomStart, iPair, img2CentCell, iSolver, jobz)
-    real(dp), intent(out) :: HSqrReal(:,:)
-    real(dp), intent(out) :: SSqrReal(:,:)
-    real(dp), intent(out) :: eigen(:)
-    real(dp), intent(in)  :: ham(:)
-    real(dp), intent(in)  :: over(:)
-    integer,  intent(in)  :: iNeighbor(0:,:)
-    integer,  intent(in)  :: nNeighbor(:)
-    integer,  intent(in)  :: iAtomStart(:)
-    integer,  intent(in)  :: iPair(0:,:)
-    integer,  intent(in)  :: img2CentCell(:)
-    integer,  intent(in)  :: iSolver
+  !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
+  !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
+  subroutine diagDenseRealMtx(iSolver, jobz, HSqrReal, SSqrReal, eigen)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
 
-    integer :: nOrb
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(inout) :: HSqrReal(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
+    real(dp), intent(inout) :: SSqrReal(:,:)
+
+    !> Eigen values.
+    real(dp), intent(out) :: eigen(:)
+
+
+    @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
+    @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
+    @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+    select case(iSolver)
+    case(1)
+      call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case(2)
+      call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case(3)
+      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case default
+      call error('Unknown eigensolver')
+    end select
+
+  end subroutine diagDenseRealMtx
+
+
+  !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
+  !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
+  !> effect of lapack)
+  subroutine diagDenseComplexMtx(iSolver, jobz, HSqrCplx, SSqrCplx, eigen)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
+
+    !> Large square matrix for the resulting eigenvectors
+    complex(dp), intent(inout) :: HSqrCplx(:,:)
+
+    !> Large square matrix for the overlap workspace, overwritten with the Cholesky factorized form.
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
+
+    !> The eigenvalues of the matrices
+    real(dp), intent(out) :: eigen(:)
+
+
+    @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
+    @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
+    @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+    select case(iSolver)
+    case(1)
+      call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case(2)
+      call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case(3)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case default
+      call error('Unknown eigensolver')
+    end select
+
+  end subroutine diagDenseComplexMtx
+
+
+  !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
+  !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
+  subroutine realH(HSqrReal, SSqrReal, eigen, ham, over, iNeighbor, nNeighbor, &
+      & iAtomStart, iPair, img2CentCell, iSolver, jobz)
+
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(out) :: HSqrReal(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
+    real(dp), intent(out) :: SSqrReal(:,:)
+
+    !> The eigenvalues of the matrices
+    real(dp), intent(out) :: eigen(:)
+
+    !> The sparse represented Hamiltonian in real space
+    real(dp), intent(in) :: ham(:)
+
+    !> The sparse represented overlap matrix in real space
+    real(dp), intent(in) :: over(:)
+
+    !> List of atomic neighbors for each central cell atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of atomic neighbors for each central cell atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Indexing array for the large square matrices to relate atom number to position in the matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Array to relate image atoms outside the central cell to their real counterpart inside the
+    !> cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
 
     @:ASSERT(size(HSqrReal, dim=1) == size(HSqrReal, dim=2))
     @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
@@ -76,8 +170,6 @@ contains
 
     call unpackHS(HSqrReal,ham,iNeighbor,nNeighbor,iAtomStart,iPair, &
         &img2CentCell)
-    !print *, "HSQRREAL:"
-    !print *, HSqrReal
     call unpackHS(SSqrReal,over,iNeighbor,nNeighbor,iAtomStart,iPair, &
         & img2CentCell)
 
@@ -87,9 +179,7 @@ contains
     case(2)
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(3)
-      ! use subspace for all eigenstates
-      nOrb = size(eigen)
-      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz,ilIn=1,iuIn=nOrb)
+      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
@@ -97,49 +187,59 @@ contains
   end subroutine realH
 
 
-
-  !!* Diagonalizes a sparse represented Hamiltonian and overlap to give
-  !!* the eigenvectors and values, as well as often the Cholesky factorized
-  !!* overlap matrix (due to a side effect of lapack)
-  !!* @param HSqrCplx Large square matrix for the resulting eigenvectors
-  !!* @param SSqrCplx Large square matrix for the overlap workspace, often
-  !!* overwritten with the  Cholesky factorized form.
-  !!* @param eigen The eigenvalues of the matrices
-  !!* @param ham The sparse represented Hamiltonian in real space
-  !!* @param over The sparse represented overlap matrix in real space
-  !!* @param kpoint The k-point to evaluate the phase factors for
-  !!* @param iNeighbor List of atomic neighbors for each central cell atom
-  !!* @param nNeighbor Number of atomic neighbors for each central cell atom
-  !!* @param iCellVec Index of the cell translation vector for each atom.
-  !!& @param cellVec Relative coordinates of the cell translation vectors.
-  !!* @param iAtomStart Indexing array for the large square matrices to relate
-  !!* atom number to position in the matrix
-  !!* @param img2CentCell Array to relate image atoms outside the central cell
-  !!* to their real counterpart inside the cell
-  !!* @param iSolver Choice of eigensolver, 4 lapack dense solvers currently
-  !!* supported
-  !!* @param jobz type of eigen-problem, either 'V'/'v' vectors or 'N'/'n'
-  !!* eigenvalues only
+  !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
+  !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
+  !> effect of lapack)
   subroutine cmplxH(HSqrCplx, SSqrCplx, eigen, ham, over, kpoint, iNeighbor, &
       &nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, &
       &iSolver, jobz)
-    complex(dp), intent(out) :: HSqrCplx(:,:)
-    complex(dp), intent(out) :: SSqrCplx(:,:)
-    real(dp), intent(out)    :: eigen(:)
-    real(dp), intent(in)     :: ham(:)
-    real(dp), intent(in)     :: over(:)
-    real(dp), intent(in)     :: kpoint(3)
-    integer,  intent(in)     :: iNeighbor(0:,:)
-    integer,  intent(in)     :: nNeighbor(:)
-    integer,  intent(in)     :: iCellVec(:)
-    real(dp), intent(in)     :: cellVec(:,:)
-    integer,  intent(in)     :: iAtomStart(:)
-    integer,  intent(in)     :: iPair(0:,:)
-    integer,  intent(in)     :: img2CentCell(:)
-    integer,  intent(in)     :: iSolver
-    character, intent(in)    :: jobz
 
-    integer :: nOrb
+    !> Large square matrix for the resulting eigenvectors
+    complex(dp), intent(out) :: HSqrCplx(:,:)
+
+    !> Large square matrix for the overlap workspace, overwritten with the Cholesky factorized form.
+    complex(dp), intent(out) :: SSqrCplx(:,:)
+
+    !> The eigenvalues of the matrices
+    real(dp), intent(out) :: eigen(:)
+
+    !> The sparse represented Hamiltonian in real space
+    real(dp), intent(in) :: ham(:)
+
+    !> The sparse represented overlap matrix in real space
+    real(dp), intent(in) :: over(:)
+
+    !> The k-point to evaluate the phase factors for
+    real(dp), intent(in) :: kpoint(3)
+
+    !> List of atomic neighbors for each central cell atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of atomic neighbors for each central cell atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index of the cell translation vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Indexing array for the large square matrices to relate atom number to position in the matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Array to relate image atoms outside the central cell to their real counterpart inside the
+    !> cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
+
     @:ASSERT(size(HSqrCplx, dim=1) == size(HSqrCplx, dim=2))
     @:ASSERT(all(shape(HSqrCplx) == shape(SSqrCplx)))
     @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
@@ -158,58 +258,71 @@ contains
     case(2)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(3)
-      ! use subspace for all eigenstates
-      nOrb = size(eigen)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz,ilIn=1,iuIn=nOrb)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
 
   end subroutine cmplxH
 
-  !!* Diagonalizes a sparse represented Hamiltonian and overlap to give
-  !!* the eigenvectors and values, as well as often the Cholesky factorized
-  !!* overlap matrix (due to a side effect of lapack)
-  !!* @param HSqrCplx Large square matrix for the resulting eigenvectors
-  !!* @param SSqrCplx Large square matrix for the overlap workspace, often
-  !!* overwritten with the  Cholesky factorized form.
-  !!* @param eigen The eigenvalues of the matrices
-  !!* @param ham The sparse represented Hamiltonian in real space
-  !!* @param over The sparse represented overlap matrix in real space
-  !!* @param iNeighbor List of atomic neighbors for each central cell atom
-  !!* @param nNeighbor Number of atomic neighbors for each central cell atom
-  !!* @param iAtomStart Indexing array for the large square matrices to relate
-  !!* atom number to position in the matrix
-  !!* @param img2CentCell Array to relate image atoms outside the central cell
-  !!* to their real counterpart inside the cell
-  !!* @param iSolver Choice of eigensolver, 4 lapack dense solvers currently
-  !!* supported
-  !!* @param jobz type of eigen-problem, either 'V'/'v' vectors or 'N'/'n'
-  !!* eigenvalues only
-  !!* @param xi optional spin orbit constants for each shell of each species
-  !!* @param orb Contains information about the atomic orbitals in the system
-  !!* @param species optional atomic species
-  !!* @param iHam optional coefficients for imaginary part of the Hamiltonian
+
+  !> Diagonalizes a sparse represented two component Hamiltonian and overlap to give the
+  !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
+  !> effect of lapack)
   subroutine cmplx2Cmpnt(HSqrCplx, SSqrCplx, eigen, ham, over, iNeighbor, &
       & nNeighbor, iAtomStart, iPair, img2CentCell, iSolver, jobz,xi,orb, &
       & species, iHam)
 
+    !> Large square matrix for the resulting eigenvectors
     complex(dp), intent(out) :: HSqrCplx(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
     complex(dp), intent(out) :: SSqrCplx(:,:)
-    real(dp), intent(out)    :: eigen(:)
-    real(dp), intent(in)     :: ham(:,:)
-    real(dp), intent(in)     :: over(:)
-    integer,  intent(in)     :: iNeighbor(0:,:)
-    integer,  intent(in)     :: nNeighbor(:)
-    integer,  intent(in)     :: iAtomStart(:)
-    integer,  intent(in)     :: iPair(0:,:)
-    integer,  intent(in)     :: img2CentCell(:)
-    integer,  intent(in)     :: iSolver
-    character, intent(in)    :: jobz
-    real(dp), intent(in), optional        :: xi(:,:)
+
+    !> The eigenvalues of the matrices
+    real(dp), intent(out) :: eigen(:)
+
+    !> The sparse represented Hamiltonian in real space
+    real(dp), intent(in) :: ham(:,:)
+
+    !> The sparse represented overlap matrix in real space
+    real(dp), intent(in) :: over(:)
+
+    !> List of atomic neighbors for each central cell atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of atomic neighbors for each central cell atom iAtomStart Indexing array for the large
+    !> square matrices to relate atom number to position in the matrix
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Indexing array for the large square matrices to relate atom number to position in the matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Array to relate image atoms outside the central cell to their real counterpart inside the
+    !> cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
+
+    !> optional spin orbit constants for each shell of each species (incompatible with iHam)
+    real(dp), intent(in), optional :: xi(:,:)
+
+    !> Contains information about the atomic orbitals in the system (required for xi)
     type(TOrbitals), intent(in), optional :: orb
-    integer, intent(in), optional         :: species(:)
-    real(dp), intent(in), optional        :: iHam(:,:)
+
+    !> atomic species (required for xi)
+    integer, intent(in), optional :: species(:)
+
+    !> coefficients for imaginary part of the Hamiltonian (incompatible with xi)
+    real(dp), intent(in), optional :: iHam(:,:)
 
     integer :: nOrb, nSpin, ii, jj, kk
     real(dp), allocatable :: work(:,:)
@@ -376,7 +489,7 @@ contains
     case(2)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(3)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz,ilIn=1,iuIn=2*nOrb)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select
@@ -385,51 +498,73 @@ contains
 
   end subroutine cmplx2Cmpnt
 
-  !!* Diagonalizes a sparse represented Hamiltonian and overlap to give
-  !!* the eigenvectors and values, as well as often the Cholesky factorized
-  !!* overlap matrix (due to a side effect of lapack)
-  !!* @param HSqrCplx Large square matrix for the resulting eigenvectors
-  !!* @param SSqrCplx Large square matrix for the overlap workspace, often
-  !!* overwritten with the  Cholesky factorized form.
-  !!* @param eigen The eigenvalues of the matrices
-  !!* @param ham The sparse represented Hamiltonian in real space
-  !!* @param over The sparse represented overlap matrix in real space
-  !!* @param iNeighbor List of atomic neighbors for each central cell atom
-  !!* @param nNeighbor Number of atomic neighbors for each central cell atom
-  !!* @param iAtomStart Indexing array for the large square matrices to relate
-  !!* atom number to position in the matrix
-  !!* @param img2CentCell Array to relate image atoms outside the central cell
-  !!* to their real counterpart inside the cell
-  !!* @param iSolver Choice of eigensolver, 4 lapack dense solvers currently
-  !!* supported
-  !!* @param jobz type of eigen-problem, either 'V'/'v' vectors or 'N'/'n'
-  !!* eigenvalues only
-  !!* @param xi optional spin orbit constants for each shell of each species
-  !!* @param orb Contains information about the atomic orbitals in the system
-  !!* @param species optional atomic species
-  !!* @param iHam optional coefficients for imaginary part of the Hamiltonian
+
+  !> Diagonalizes a sparse represented two component Hamiltonian and overlap with k-points to give
+  !> the eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a
+  !> side effect of lapack)
   subroutine cmplx2CmpntKpts(HSqrCplx, SSqrCplx, eigen, ham, over, kpoint, &
       & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
       & img2CentCell, iSolver, jobz,xi,orb, species, iHam)
+
+    !> Large square matrix for the resulting eigenvectors
     complex(dp), intent(out) :: HSqrCplx(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
     complex(dp), intent(out) :: SSqrCplx(:,:)
-    real(dp), intent(out)    :: eigen(:)
-    real(dp), intent(in)     :: ham(:,:)
-    real(dp), intent(in)     :: over(:)
-    real(dp), intent(in)     :: kpoint(3)
-    integer,  intent(in)     :: iNeighbor(0:,:)
-    integer,  intent(in)     :: nNeighbor(:)
-    integer,  intent(in)     :: iCellVec(:)
-    real(dp), intent(in)     :: cellVec(:,:)
-    integer,  intent(in)     :: iAtomStart(:)
-    integer,  intent(in)     :: iPair(0:,:)
-    integer,  intent(in)     :: img2CentCell(:)
-    integer,  intent(in)     :: iSolver
-    character, intent(in)    :: jobz
-    real(dp), intent(in), optional        :: xi(:,:)
+
+    !> The eigenvalues of the matrices
+    real(dp), intent(out) :: eigen(:)
+
+    !> The sparse Hamiltonian in real space
+    real(dp), intent(in) :: ham(:,:)
+
+    !> The sparse overlap matrix in real space
+    real(dp), intent(in) :: over(:)
+
+    !> The k-point at which to evaluate phase factors
+    real(dp), intent(in) :: kpoint(3)
+
+    !> List of atomic neighbors for each central cell atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of atomic neighbors for each central cell atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Array to relate image atoms outside the central cell to their real counterpart inside the
+    !> cell
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Indexing array for the large square matrices to relate atom number to position in the matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Indexing array for sparse arrays to map atom and neighbour number to position in the matrix
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Array to relate image atoms outside the central cell to their real counterpart inside the
+    !> cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
+    character, intent(in) :: jobz
+
+    !> optional spin orbit constants for each shell of each species (incompatible with iHam)
+    real(dp), intent(in), optional :: xi(:,:)
+
+    !> Contains information about the atomic orbitals in the system (required for xi)
     type(TOrbitals), intent(in), optional :: orb
-    integer, intent(in), optional         :: species(:)
-    real(dp), intent(in), optional        :: iHam(:,:)
+
+    !> atomic species  (required for xi)
+    integer, intent(in), optional :: species(:)
+
+    !> coefficients for imaginary part of the Hamiltonian (incompatible with xi)
+    real(dp), intent(in), optional :: iHam(:,:)
 
     integer :: nOrb, nSpin, ii, jj, kk
     complex(dp), allocatable :: work(:,:)
@@ -459,7 +594,7 @@ contains
     @:ASSERT(nSpin == 4)
     @:ASSERT(mod(nOrb,2)==0)
     nOrb = nOrb / 2
-     ! for the moment, but will use S as workspace in the future
+    ! for the moment, but will use S as workspace in the future
     allocate(work(nOrb,nOrb))
     SSqrCplx(:,:) = 0.0_dp
     HSqrCplx(:,:) = 0.0_dp
@@ -480,7 +615,7 @@ contains
     if (present(iHam)) then
       work(:,:) = 0.0_dp
       call unpackHS(work,iHam(:,1),kPoint,iNeighbor,nNeighbor,iCellVec, &
-        & cellVec,iAtomStart,iPair, img2CentCell)
+          & cellVec,iAtomStart,iPair, img2CentCell)
       HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
           & + 0.5_dp*cmplx(0,1,dp)*work(1:nOrb,1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
@@ -502,14 +637,13 @@ contains
     if (present(iHam)) then
       work(:,:) = 0.0_dp
       call unpackHS(work,iHam(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
-         & cellVec,iAtomStart,iPair, img2CentCell)
+          & cellVec,iAtomStart,iPair, img2CentCell)
       do ii = 1, nOrb
         work(ii,ii+1:) = -conjg(work(ii+1:,ii))
       end do
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
     end if
-
 
     ! 0 -i y part
     ! i  0
@@ -537,7 +671,6 @@ contains
           & - 0.5_dp * work(1:nOrb,1:nOrb)
     end if
 
-
     ! 1  0 z part
     ! 0 -1
     work(:,:) = 0.0_dp
@@ -551,7 +684,7 @@ contains
     if (present(iHam)) then
       work(:,:) = 0.0_dp
       call unpackHS(work,iHam(:,4),kPoint,iNeighbor,nNeighbor,iCellVec, &
-        & cellVec,iAtomStart,iPair, img2CentCell)
+          & cellVec,iAtomStart,iPair, img2CentCell)
       HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
           & + 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
@@ -611,7 +744,7 @@ contains
     case(2)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(3)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz,ilIn=1,iuIn=2*nOrb)
+      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
     end select

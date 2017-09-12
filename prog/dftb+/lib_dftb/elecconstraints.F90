@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Constraints on the electronic ground state
 module elecconstraints
   use assert
   use accuracy, only : dp
@@ -18,65 +19,109 @@ module elecconstraints
   private
   public :: constrainQ, constrainS, constrainL, constrainJ, constrainMj
 
+
+  !> Optional constraining potential on atomic charges
   interface constrainQ
     module procedure constrainQ_
-  end interface
+  end interface constrainQ
 
+
+  !> Optional constraining potential on shell spins
   interface constrainS
     module procedure constrainS_
-  end interface
+  end interface constrainS
 
+
+  !> Optional constraining potential on orbital moment of atomic shells
   interface constrainL
     module procedure constrainL_
-  end interface
+  end interface constrainL
 
+
+  !> Optional constraining potential on total angular momentum of shells
   interface constrainJ
     module procedure constrainJ_
-  end interface
+  end interface constrainJ
 
+
+  !> Optional constraining potential on projection of total angular momentum of shells
   interface constrainMj
     module procedure constrainMj_
-  end interface
+  end interface constrainMj
 
 contains
 
-  subroutine constrainQ_(shift, qIn, orb, species, conAt, conSh, Qtarget, &
-      & V)
-    real(dp), intent(inout)     :: shift(:,:,:,:)
-    real(dp), intent(in)        :: qIn(:,:,:)
+
+  !> Quadratic constraint on atomic charge
+  subroutine constrainQ_(shift, qIn, orb, species, conAt, conSh, Qtarget, V)
+
+    !> shift to append contribution
+    real(dp), intent(inout) :: shift(:,:,:,:)
+
+    !> charges
+    real(dp), intent(in) :: qIn(:,:,:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
-    integer, intent(in)         :: conAt
-    integer, intent(in)         :: conSh
-    real(dp), intent(in)        :: Qtarget
-    real(dp), intent(in)        :: V
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> atom to be constrained
+    integer, intent(in) :: conAt
+
+    !> shell of atom to be constrained
+    integer, intent(in) :: conSh
+
+    !> target value
+    real(dp), intent(in) :: Qtarget
+
+    !> weight of the constraint
+    real(dp), intent(in) :: V
 
     integer :: iOrb
     real(dp) :: Qshell
 
-    Qshell = sum(qIn(orb%posShell(conSh,species(conAt)): &
-        & orb%posShell(conSh+1,species(conAt))-1,conAt,1))
+    Qshell = sum(qIn(orb%posShell(conSh,species(conAt)):orb%posShell(conSh+1,species(conAt))-1, &
+        & conAt,1))
 
     ! Push q towards required value
-    do iOrb = orb%posShell(conSh,species(conAt)), &
-        & orb%posShell(conSh+1,species(conAt))-1
-      shift(iOrb,iOrb,conAt,1) = shift(iOrb,iOrb,conAt,1) &
-          & + V * 0.5_dp*(Qshell - Qtarget)
+    do iOrb = orb%posShell(conSh,species(conAt)), orb%posShell(conSh+1,species(conAt))-1
+      shift(iOrb,iOrb,conAt,1) = shift(iOrb,iOrb,conAt,1) + V * 0.5_dp*(Qshell - Qtarget)
     end do
 
   end subroutine constrainQ_
 
-  subroutine constrainS_(shift, qIn, orb, species, conAt, conSh, Starget, &
-      & V, vec)
-    real(dp), intent(inout)     :: shift(:,:,:,:)
-    real(dp), intent(in)        :: qIn(:,:,:)
+
+  !> Quadratic constraint on local spin (non-colinear)
+  subroutine constrainS_(shift, qIn, orb, species, conAt, conSh, Starget, V, vec)
+
+    !> shift to append contribution
+    real(dp), intent(inout) :: shift(:,:,:,:)
+
+    !> charges
+    real(dp), intent(in) :: qIn(:,:,:)
+
+    !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
-    integer, intent(in)         :: conAt
-    integer, intent(in)         :: conSh
-    real(dp), intent(in)        :: Starget
-    real(dp), intent(in)        :: V
-    real(dp), intent(in)        :: vec(3)
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> atom to be constrained
+    integer, intent(in) :: conAt
+
+    !> shell of atom to be constrained
+    integer, intent(in) :: conSh
+
+    !> target value
+    real(dp), intent(in) :: Starget
+
+    !> weight of the constraint
+    real(dp), intent(in) :: V
+
+    !> direction of spin
+    real(dp), intent(in) :: vec(3)
 
     integer :: iOrb, nSpin, iSpin
     real(dp) :: Sshell(3), W, vecNorm(3)
@@ -85,8 +130,8 @@ contains
 
     vecNorm = vec / sqrt(sum(vec**2))
 
-    Sshell = sum(qIn(orb%posShell(conSh,species(conAt)): &
-        & orb%posShell(conSh+1,species(conAt))-1,conAt,2:4),dim=1)
+    Sshell = sum(qIn(orb%posShell(conSh,species(conAt)):orb%posShell(conSh+1,species(conAt))-1, &
+        & conAt,2:4),dim=1)
 
     if (sqrt(sum(Sshell**2)) < 1.0E-8_dp) then
       Sshell = Sshell + 1.0E-8_dp*(/1,1,1/)
@@ -95,40 +140,47 @@ contains
     vecNorm = Sshell  / sqrt(sum(Sshell**2))
 
     ! Push S towards required value
-
     w = V * 0.5_dp*(dot_product(Sshell,vecNorm) - Starget)
 
     do iSpin = 2, nSpin
-      do iOrb = orb%posShell(conSh,species(conAt)), &
-          & orb%posShell(conSh+1,species(conAt))-1
-        shift(iOrb,iOrb,conAt,iSpin) = shift(iOrb,iOrb,conAt,iSpin) &
-            & + w * vecNorm(iSpin-1)
+      do iOrb = orb%posShell(conSh,species(conAt)),orb%posShell(conSh+1,species(conAt))-1
+        shift(iOrb,iOrb,conAt,iSpin) = shift(iOrb,iOrb,conAt,iSpin) + w * vecNorm(iSpin-1)
       end do
     end do
 
   end subroutine constrainS_
 
-  !!* @param shift block shift
-  !!* @param qBlockSkew Antisymmetric Mulliken block populations for imaginary
-  !!* coefficients of Pauli matrics
-  !!* @param orb Information about the orbitals in the system.
-  !!* @param species Species of the atoms
-  !!* @param conAt Atom for constraint
-  !!* @param conSh Shell for constraint
-  !!* @param Ltarget value of L
-  !!* @param V strength of constraint
-  !!* @param vec direction of constrain
-  subroutine constrainL_(iShift,qBlockSkew, orb, species, conAt, conSh, &
-      & Ltarget, V, vec)
-    real(dp), intent(inout)     :: iShift(:,:,:,:)
-    real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+
+  !> Quadratic constraint on orbital angular momentum
+  subroutine constrainL_(iShift,qBlockSkew, orb, species, conAt, conSh, Ltarget, V, vec)
+
+    !> shift block shift
+    real(dp), intent(inout) :: iShift(:,:,:,:)
+
+    !> Antisymmetric Mulliken block populations for imaginary coefficients of
+  !> Pauli matrics
+    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
-    integer, intent(in)         :: conAt
-    integer, intent(in)         :: conSh
-    real(dp), intent(in)        :: Ltarget
-    real(dp), intent(in)        :: V
-    real(dp), intent(in)        :: vec(3)
+
+    !> Species of the atoms
+    integer, intent(in) :: species(:)
+
+    !> Atom for constraint
+    integer, intent(in) :: conAt
+
+    !> Shell for constraint
+    integer, intent(in) :: conSh
+
+    !> value of L
+    real(dp), intent(in) :: Ltarget
+
+    !> strength of constraint
+    real(dp), intent(in) :: V
+
+    !> direction of constrain
+    real(dp), intent(in) :: vec(3)
 
     integer :: ii, iSp, iSh, iOrb, iStart, iEnd
     real(dp), allocatable :: SpeciesL(:,:,:)
@@ -151,15 +203,12 @@ contains
     Lplus = 0.0_dp
     iSh = orb%angShell(conSh,iSp)
     call loperators(Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1),iSh)
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,1) &
-        & = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,2) &
-        & = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
-        & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,2) = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,3) = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
 
     allocate(tmpBlock(orb%mOrb,orb%mOrb))
 
@@ -167,7 +216,8 @@ contains
 
     iOrb = orb%nOrbSpecies(iSp)
     tmpBlock(:,:) = 0.0_dp
-    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1) ! identity part
+    ! identity part
+    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1)
     iStart = orb%posShell(conSh,iSp)
     iEnd = orb%posShell(conSh+1,iSp)-1
     do ii = 1, 3
@@ -183,7 +233,6 @@ contains
     vecNorm = Lshell / sqrt(sum(Lshell**2))
 
     ! Push L towards required value
-
     w = V * 0.5_dp*(dot_product(lshell,vecNorm)-Ltarget)
 
     do ii = 1, 3
@@ -195,19 +244,40 @@ contains
   end subroutine constrainL_
 
 
-  subroutine constrainJ_(shift, qIn, iShift, qBlockSkew, orb, species, &
-      & conAt, conSh, Jtarget, V, vec)
-    real(dp), intent(inout)     :: shift(:,:,:,:)
-    real(dp), intent(in)        :: qIn(:,:,:)
-    real(dp), intent(inout)     :: iShift(:,:,:,:)
-    real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+  !> Quadratic constraint on total angular momentum
+  subroutine constrainJ_(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, Jtarget, V, &
+      & vec)
+    real(dp), intent(inout) :: shift(:,:,:,:)
+
+    !> charges
+    real(dp), intent(in) :: qIn(:,:,:)
+
+    !> Imaginary block shift
+    real(dp), intent(inout) :: iShift(:,:,:,:)
+
+    !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
+    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
-    integer, intent(in)         :: conAt
-    integer, intent(in)         :: conSh
-    real(dp), intent(in)        :: Jtarget
-    real(dp), intent(in)        :: V
-    real(dp), intent(in)        :: vec(3)
+
+    !> Species of the atoms
+    integer, intent(in) :: species(:)
+
+    !> Atom for constraint
+    integer, intent(in) :: conAt
+
+    !> Shell for constraint
+    integer, intent(in) :: conSh
+
+    !> value of J
+    real(dp), intent(in) :: Jtarget
+
+    !> strength of constraint
+    real(dp), intent(in) :: V
+
+    !> direction of constrain
+    real(dp), intent(in) :: vec(3)
 
     integer :: ii, iSp, iSh, iOrb, iStart, iEnd, nSpin, iSpin
     real(dp), allocatable :: SpeciesL(:,:,:)
@@ -232,15 +302,12 @@ contains
     Lplus = 0.0_dp
     iSh = orb%angShell(conSh,iSp)
     call loperators(Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1),iSh)
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,1) &
-        & = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,2) &
-        & = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
-        & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,2) = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,3) = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
 
     allocate(tmpBlock(orb%mOrb,orb%mOrb))
 
@@ -248,13 +315,14 @@ contains
 
     iOrb = orb%nOrbSpecies(iSp)
     tmpBlock(:,:) = 0.0_dp
-    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1) ! identity part
+
+    ! identity part
+    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1)
     iStart = orb%posShell(conSh,iSp)
     iEnd = orb%posShell(conSh+1,iSp)-1
     do ii = 1, 3
-      Lshell(ii) = &
-          & - sum(SpeciesL(iStart:iEnd,iStart:iEnd,ii) &
-          &  * transpose(tmpBlock(iStart:iEnd,iStart:iEnd)))
+      Lshell(ii) = -sum(SpeciesL(iStart:iEnd,iStart:iEnd,ii) &
+          & * transpose(tmpBlock(iStart:iEnd,iStart:iEnd)))
     end do
 
     Sshell = sum(qIn(orb%posShell(conSh,species(conAt)): &
@@ -267,7 +335,6 @@ contains
     vecNorm = (lshell + 0.5_dp*Sshell) / sqrt(sum((lshell + 0.5_dp*Sshell)**2))
 
     ! Push J towards required value
-
     w = V * 0.5_dp*(dot_product(lshell,vecNorm)+ &
         & 0.5_dp*dot_product(Sshell,vecNorm) -Jtarget)
 
@@ -277,7 +344,6 @@ contains
           & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
     end do
 
-
     do iSpin = 2, nSpin
       do iOrb = orb%posShell(conSh,species(conAt)), &
           & orb%posShell(conSh+1,species(conAt))-1
@@ -286,22 +352,45 @@ contains
       end do
     end do
 
-
   end subroutine constrainJ_
 
-  subroutine constrainMj_(shift, qIn, iShift, qBlockSkew, orb, species, &
-      & conAt, conSh, Jtarget, V, vec)
-    real(dp), intent(inout)     :: shift(:,:,:,:)
-    real(dp), intent(in)        :: qIn(:,:,:)
-    real(dp), intent(inout)     :: iShift(:,:,:,:)
-    real(dp), intent(in)        :: qBlockSkew(:,:,:,:)
+
+  !> Quadratic constraint on projection of angular momentum
+  subroutine constrainMj_(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, MjTarget, V, &
+      & vec)
+
+    !> block shift
+    real(dp), intent(inout) :: shift(:,:,:,:)
+
+    !> charges
+    real(dp), intent(in) :: qIn(:,:,:)
+
+    !> Imaginary block shift
+    real(dp), intent(inout) :: iShift(:,:,:,:)
+
+    !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
+    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in)         :: species(:)
-    integer, intent(in)         :: conAt
-    integer, intent(in)         :: conSh
-    real(dp), intent(in)        :: Jtarget
-    real(dp), intent(in)        :: V
-    real(dp), intent(in)        :: vec(3)
+
+    !> Species of the atoms
+    integer, intent(in) :: species(:)
+
+    !> Atom for constraint
+    integer, intent(in) :: conAt
+
+    !> Shell for constraint
+    integer, intent(in) :: conSh
+
+    !> value of Mj
+    real(dp), intent(in) :: MjTarget
+
+    !> strength of constraint
+    real(dp), intent(in) :: V
+
+    !> direction of constrain
+    real(dp), intent(in) :: vec(3)
 
     integer :: ii, iSp, iSh, iOrb, iStart, iEnd, nSpin, iSpin
     real(dp), allocatable :: SpeciesL(:,:,:)
@@ -326,15 +415,12 @@ contains
     Lplus = 0.0_dp
     iSh = orb%angShell(conSh,iSp)
     call loperators(Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1),iSh)
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,1) &
-        & = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,2) &
-        & = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1, &
-        & orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,3) &
-        & = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,2) = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
+    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
+        & orb%posShell(conSh+1,iSp)-1,3) = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
 
     allocate(tmpBlock(orb%mOrb,orb%mOrb))
 
@@ -342,7 +428,9 @@ contains
 
     iOrb = orb%nOrbSpecies(iSp)
     tmpBlock(:,:) = 0.0_dp
-    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1) ! identity part
+
+    ! identity part
+    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1)
     iStart = orb%posShell(conSh,iSp)
     iEnd = orb%posShell(conSh+1,iSp)-1
     do ii = 1, 3
@@ -354,10 +442,9 @@ contains
     Sshell = sum(qIn(orb%posShell(conSh,species(conAt)): &
         & orb%posShell(conSh+1,species(conAt))-1,conAt,2:4),dim=1)
 
-    ! Push J towards required value
-
+    ! Push Mj towards required value
     w = V * 0.5_dp*(dot_product(lshell,vecNorm)+ &
-        & 0.5_dp*dot_product(Sshell,vecNorm) -Jtarget)
+        & 0.5_dp*dot_product(Sshell,vecNorm)-MjTarget)
 
     do ii = 1, 3
       iShift(iStart:iEnd,iStart:iEnd,conAt,1) = &

@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!!* Code to calculate forces for several different types of calculation
-!!* (non-scc, scc, sDFTB etc)
+!> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
 module forces
   use assert
   use accuracy
@@ -20,58 +19,76 @@ module forces
 
   private
 
-  public :: derivative_nonSCC, derivative_shift
+  public :: derivative_shift
 
+
+  !> forces with shift vectors present
   interface derivative_shift
-    module procedure derivative_nonSCC !* derivatives without any shift
-    module procedure derivative_block  !* derivatives with shift
-    module procedure derivative_iBlock !* derivatives with complex shift
+
+    !> derivatives without any shift
+    module procedure derivative_nonSCC
+
+    !> derivatives with shift
+    module procedure derivative_block
+
+    !> derivatives with complex shift
+    module procedure derivative_iBlock
 
   end interface
 
 contains
 
-  !!* The non-SCC electronic force contribution for all atoms, calculated from
-  !!* $F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial
-  !!* R_\alpha} - \rho^E_{\mu\xonu}\frac{S_{\mu\nu}}{\partial R_\alpha}$
-  !!* with $\rho$ and $\rho^E$ being the density and energy-density
-  !!* matrices
-  !!*
-  !!* @param deriv x,y,z derivatives for each real atom in the system
-  !!* @param derivator Differentiatior for the non-scc components.
-  !!* @param DM density matrix in packed format
-  !!* @param EDM energy-weighted density matrix in packed format
-  !!* @param skHamCont Container for SK Hamiltonian integrals
-  !!* @param skOverCont Container for SK overlap integrals
-  !!* @param coords list of all atomic coordinates
-  !!* @param species list of all atomic species
-  !!* @param iNeighbor neighbor list for atoms
-  !!* @param nNeighbor number of neighbors of each atom
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @param orb Information about the shells and orbitals in the system.
-  !!*
+
+  !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
+  !> density and energy-density matrices
   subroutine derivative_nonSCC(deriv, derivator, DM, EDM, skHamCont,&
       & skOverCont, coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
       & orb)
+
+    !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
+
+    !> Differentiatior for the non-scc components
     class(NonSccDiff), intent(in) :: derivator
+
+    !> density matrix in packed format
     real(dp), intent(in) :: DM(:)
+
+    !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+
+    !> Container for SK Hamiltonian integrals
+    type(OSlakoCont), intent(in) :: skHamCont
+
+    !> Container for SK overlap integrals
+    type(OSlakoCont), intent(in) :: skOverCont
+
+    !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> list of all atomic species
     integer, intent(in) :: species(:)
+
+    !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    integer   :: iOrig, ii
-    integer   :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    integer :: iOrig, ii
+    integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
@@ -99,8 +116,7 @@ contains
               & iAtom1, iAtom2, orb)
           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
               & iAtom1, iAtom2, orb)
-          ! note factor of 2 for implicit summation over lower triangle of
-          ! density matrix:
+          ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             deriv(ii,iAtom1) = deriv(ii,iAtom1) &
                 &+ sum(sqrDMTmp(1:nOrb2,1:nOrb1)&
@@ -108,9 +124,8 @@ contains
                 &- sum(sqrEDMTmp(1:nOrb2,1:nOrb1)&
                 &* 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
           end do
-          !! Add contribution to the force from atom 1 onto atom 2f using the
-          !! symmetry in the blocks, and also the skew symmetry in the
-          !! derivatives
+          ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the blocks,
+          ! and note that the skew symmetry in the derivatives is being used
           do ii = 1, 3
             deriv(ii,iAtom2f) = deriv(ii,iAtom2f) &
                 &- sum(sqrDMTmp(1:nOrb2,1:nOrb1) &
@@ -125,49 +140,56 @@ contains
   end subroutine derivative_nonSCC
 
 
-  !!* The SCC and spin electronic force contribution for all atoms, calculated
-  !!* from
-  !!* $F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial
-  !!* R_\alpha} - (\rho^E_{\mu\nu}-\frac{H^1_{\mu\nu}}{S_{\mu\nu}}
-  !!* \rho_{\mu\nu})\frac{S_{\mu\nu}}{\partial R_\alpha}$
-  !!* with $\rho$ and $\rho^E$ being the density and energy-density
-  !!* matrices
-  !!*
-  !!* @param deriv x,y,z derivatives for each real atom in the system
-  !!* @param derivator  Differentiatior for the non-scc components.
-  !!* @param DM density matrix in packed format
-  !!* @param EDM energy-weighted density matrix in packed format
-  !!* @param skHamCont Container for SK Hamiltonian integrals
-  !!* @param skOverCont Container for SK overlap integrals
-  !!* @param coords list of all atomic coordinates
-  !!* @param species list of all atomic species
-  !!* @param iNeighbor neighbor list for atoms
-  !!* @param nNeighbor number of neighbors of each atom
-  !!* @param nAtom number of real atoms
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @param orb Information about the orbitals
-  !!* @param shift block shift from the potential
-  !!*
+  !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
+  !> consistent potential and the density and energy-density matrices
   subroutine derivative_block(deriv, derivator, DM, EDM, skHamCont, skOverCont,&
       & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
+
+    !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
+
+    !> Differentiatior for the non-scc components
     class(NonSccDiff), intent(in) :: derivator
+
+    !> density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
+
+    !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
-    type(OSlakoCont) :: skHamCont, skOverCont
+
+    !> Container for SK Hamiltonian integrals
+    type(OSlakoCont) :: skHamCont
+
+    !> Container for SK overlap integrals
+    type(OSlakoCont) :: skOverCont
+
+    !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> list of all atomic species
     integer, intent(in) :: species(:)
+
+    !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
+    !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
-    integer  :: iOrig, iSpin, ii, nSpin, nAtom
-    integer  :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer  :: nOrb1, nOrb2
+    integer :: iOrig, iSpin, ii, nSpin, nAtom
+    integer :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
+    integer :: nOrb1, nOrb2
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
@@ -207,8 +229,7 @@ contains
               & iAtom1, iAtom2, orb)
 
           derivTmp(:) = 0.0_dp
-          ! note factor of 2 for implicit summation over lower triangle of
-          ! density matrix:
+          ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             derivTmp(ii) = 2.0_dp * (&
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
@@ -222,8 +243,7 @@ contains
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
                   & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-              ! again factor of 2 from lower triangle, cf published force
-              ! expressions for SCC:
+              ! again factor of 2 from lower triangle, cf published force expressions for SCC:
               derivTmp(ii) = derivTmp(ii) + 2.0_dp * ( &
                   &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
                   &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
@@ -242,60 +262,69 @@ contains
   end subroutine derivative_block
 
 
-  !!* The SCC and spin electronic force contribution for all atoms, calculated
-  !!* from
-  !!* $F_\alpha = \sum_{\mu\nu} \rho_{\mu\nu}\frac{H^0_{\mu\nu}}{\partial
-  !!* R_\alpha} - (\rho^E_{\mu\nu}-\frac{H^1_{\mu\nu}}{S_{\mu\nu}}
-  !!* \rho_{\mu\nu})\frac{S_{\mu\nu}}{\partial R_\alpha}$
-  !!* with $\rho$ and $\rho^E$ being the density and energy-density
-  !!* matrices
-  !!*
-  !!* @param deriv x,y,z derivatives for each real atom in the system
-  !!* @param derivator  Differentiatior for the non-scc components.
-  !!* @param DM density matrix in packed format
-  !!* @param iDM imaginary part of density matrix in packed format
-  !!* @param EDM energy-weighted density matrix in packed format
-  !!* @param skHamCont Container for SK Hamiltonian integrals
-  !!* @param skOverCont Container for SK overlap integrals
-  !!* @param coords list of all atomic coordinates
-  !!* @param species list of all atomic species
-  !!* @param iNeighbor neighbor list for atoms
-  !!* @param nNeighbor number of neighbors of each atom
-  !!* @param nAtom number of real atoms
-  !!* @param img2CentCell indexing array for periodic image atoms
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @param orb Information about the orbitals
-  !!* @param shift block shift from the potential
-  !!* @param iShift imaginary block shift from the potential
-  !!*
+  !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
+  !> for example from spin-orbit
   subroutine derivative_iBlock(deriv, derivator, DM, iDM, EDM, skHamCont,&
       & skOverCont,coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
       & orb, shift, iShift)
+
+    !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
+
+    !> Differentiatior for the non-scc components
     class(NonSccDiff), intent(in) :: derivator
+
+    !> density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
+
+    !> imaginary part of the density matrix in packed format
     real(dp), intent(in) :: iDM(:,:)
+
+    !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
-    type(OSlakoCont) :: skHamCont, skOverCont
+
+    !> Container for SK Hamiltonian integrals
+    type(OSlakoCont) :: skHamCont
+
+    !> Container for SK overlap integrals
+    type(OSlakoCont) :: skOverCont
+
+    !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> list of all atomic species
     integer, intent(in) :: species(:)
+
+    !> neighbor list for atoms
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> number of neighbors of each atom
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
+    !> block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
+
+    !> imaginary block shift from the potential
     real(dp), intent(in) :: iShift(:,:,:,:)
 
-    integer  :: iOrig, iSpin, ii, nSpin, nAtom
-    integer  :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
-    integer  :: nOrb1, nOrb2
+    integer :: iOrig, iSpin, ii, nSpin, nAtom
+    integer :: iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
+    integer :: nOrb1, nOrb2
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb)
-    real(dp)    :: sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: sqrEDMTmp(orb%mOrb,orb%mOrb)
     complex(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
-    real(dp)    :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp)    :: derivTmp(3)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    real(dp) :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
 
     nAtom = size(orb%nOrbAtom)
@@ -333,8 +362,7 @@ contains
               & iAtom1, iAtom2, orb)
 
           derivTmp(:) = 0.0_dp
-          ! note factor of 2 for implicit summation over lower triangle of
-          ! density matrix:
+          ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             derivTmp(ii) = 2.0_dp * (&
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&

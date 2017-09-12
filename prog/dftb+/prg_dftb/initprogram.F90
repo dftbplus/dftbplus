@@ -7,9 +7,10 @@
 
 #:include 'common.fypp'
 
-!!* Global variables and initialization for the main program
+!> Global variables and initialization for the main program.
 module initprogram
   use assert
+  use io
   use inputdata_module
   use constants
   use periodic
@@ -19,7 +20,7 @@ module initprogram
   use coulomb
   use message
 
-  use mainio, only : SetEigVecsTxtOutput
+  use mainio, only : SetEigVecsTxtOutput, receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -50,14 +51,10 @@ module initprogram
   use sccinit
   use slakocont
   use repcont
-
   use fileid
-
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
-
   use dispersions
-
   use thirdorder_module
   use linresp_module
   use stress
@@ -69,303 +66,635 @@ module initprogram
   use xlbomd_module
   use etemp, only : Fermi
   use ipisocket
+  use pmlocalisation
   implicit none
 
 
-  character(*), parameter :: fChargeIn = "charges.bin"
+  !> file name for charge data
+  character(*), parameter :: fCharges = "charges.bin"
+
+  !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
+
+  !> file to stop code during scc cycle
   character(*), parameter :: fStopSCC = "stop_scc"
 
-  logical               :: tSCC            !* Is the calculation SCC?
-  integer,  parameter   :: nCutoff = 1     !* Nr. of different cutoffs
 
-  integer               :: nAtom           !* nr. of atoms
-  integer               :: nAllAtom        !* nr. of all (image and orig) atoms
-  integer, allocatable :: Img2CentCell(:) !* nr. of original atom in centre
-  integer               :: nType           !* nr of different types (nAtom)
+  !> Is the calculation SCC?
+  logical :: tSCC
 
+  !> Nr. of different cutoffs
+  integer, parameter :: nCutoff = 1
+
+  !> nr. of atoms
+  integer :: nAtom
+
+  !> nr. of all (boundary condition images and original) atoms
+  integer :: nAllAtom
+
+  !> nr. of original atom in central cell
+  integer, allocatable :: Img2CentCell(:)
+
+  !> nr of different types (nAtom)
+  integer :: nType
+
+
+  !> data type for atomic orbital information
   type(TOrbitals), target :: orb
 
-  integer               :: nOrb            !* nr. of orbitals in the system
-  integer               :: nAllOrb         !* nr. of orbitals for all atoms
-  integer, allocatable :: species(:)       !* types of the atoms (nAllAtom)
-  integer,  allocatable :: species0(:)      !* type of the atoms (nAtom)
-  real(dp), allocatable :: coord(:,:)      !* Coords of the atoms (3, nAllAtom)
-  real(dp), allocatable, target :: coord0(:,:)   !* Coords (3, nAtom)
-  real(dp), allocatable :: tmpCoords(:)    !* temporary array of coords
-  real(dp), allocatable :: tmpWeight(:)    !* temporary weights
-  real(dp), allocatable :: tmp3Coords(:,:) !* temporary array of coords (3,:)
-  logical               :: tPeriodic       !* if calculation is periodic
-  logical               :: tShowFoldedCoord!* Should central cell coordinates
-  !* be output?
-  integer :: forceType  ! How to calculate forces
-  logical               :: tFracCoord      !* are atomic coordinates fractional?
-  real(dp)              :: sccTol          !* Tollerance for SCC cycle
+  !> nr. of orbitals in the system
+  integer :: nOrb
 
-  real(dp), allocatable, target :: latVec(:,:)  !* lattice vectors as columns
-  real(dp), allocatable, target :: recVec(:,:)  !* reciprocal vecs as columns
+  !> nr. of orbitals for all atoms
+  integer :: nAllOrb
 
-  !* original lattice vectors used for optimizing
-  real(dp)              :: origLatVec(3,3)
-  ! normalized vectors in those directions
-  real(dp)              :: normOrigLatVec(3,3)
+  !> types of the atoms (nAllAtom)
+  integer, allocatable :: species(:)
 
-  real(dp), allocatable :: recVec2p(:,:)   !* reciprocal vectors in 2pi units
-  real(dp)              :: CellVol          !* cell volume
-  real(dp)              :: recCellVol       !* reciprocal cell volume
-  real(dp), allocatable :: cellVec(:,:)    !* translation vecs for interacting
-                                           !* image cells (3, nImgCell + 1)
-  real(dp), allocatable :: rCellVec(:,:)   !* cell vectors in absolute units
-  integer, allocatable :: iCellVec(:)     !* index in cellVec for each atom
+  !> type of the atoms (nAtom)
+  integer, allocatable :: species0(:)
 
-  !!* ADT for neighbor parameters
+  !> Coords of the atoms (3, nAllAtom)
+  real(dp), allocatable :: coord(:,:)
+
+  !> Coords in central cell (3, nAtom)
+  real(dp), allocatable, target :: coord0(:,:)
+
+  !> temporary coordinates
+  real(dp), allocatable :: tmpCoords(:)
+
+  !> temporary weights
+  real(dp), allocatable :: tmpWeight(:)
+
+  !> temporary array of coords (3,:)
+  real(dp), allocatable :: tmp3Coords(:,:)
+
+
+  !> if calculation is periodic
+  logical :: tPeriodic
+
+  !> Should central cell coordinates be output?
+  logical :: tShowFoldedCoord
+
+
+  !> How to calculate forces
+  integer :: forceType
+
+  !> are atomic coordinates fractional?
+  logical :: tFracCoord
+
+  !> Tollerance for SCC cycle
+  real(dp) :: sccTol
+
+
+  !> lattice vectors as columns
+  real(dp), allocatable, target :: latVec(:,:)
+
+  !> reciprocal lattice vectors as columns
+  real(dp), allocatable, target :: recVec(:,:)
+
+
+  !> original lattice vectors used for optimizing
+  real(dp) :: origLatVec(3,3)
+
+  !> normalized vectors in those directions
+  real(dp) :: normOrigLatVec(3,3)
+
+
+  !> reciprocal vectors in 2 pi units
+  real(dp), allocatable :: invLatVec(:,:)
+
+  !> cell volume
+  real(dp) :: CellVol
+
+  !> reciprocal cell volume
+  real(dp) :: recCellVol
+
+  !> translation vecs for interacting image cells (3, nImgCell + 1)
+  real(dp), allocatable :: cellVec(:,:)
+
+  !> cell vectors in absolute units
+  real(dp), allocatable :: rCellVec(:,:)
+
+  !> index in cellVec for each atom
+  integer, allocatable :: iCellVec(:)
+
+
+  !> ADT for neighbor parameters
   type(TNeighborList), allocatable, save :: neighborList
-  integer,  allocatable :: nNeighbor(:)    !* nr. of neighbors for SK + rep
-  integer, allocatable :: iPair(:,:)      !* H/S indexing array
 
-  integer,  allocatable :: iAtomStart(:)   !* atom start pos for squared H/S
+  !> nr. of neighbors for atoms out to SK + rep distance
+  integer, allocatable :: nNeighbor(:)
 
-  real(dp), allocatable, target :: hubbU(:,:)      !* Hubbard Us (orbital, atom)
-  real(dp), allocatable :: atomEigVal(:,:) !* self energy (orbital, atom)
-  real(dp), allocatable :: referenceN0(:,:)!* reference n_0 charges for each
-                                           !* atom
-  real(dp), allocatable :: mass(:)         !* list of atomic masses
-  real(dp), allocatable :: speciesMass(:)  !* list of atomic masses for each species
+  !> H/S sparse matrices indexing array for atomic blocks
+  integer, allocatable :: iSparseStart(:,:)
 
-  type(OSlakoCont)  :: skHamCont
+
+  !> atom start pos for dense  H/S
+  integer, allocatable :: iDenseStart(:)
+
+
+  !> Hubbard Us (orbital, atom)
+  real(dp), allocatable, target :: hubbU(:,:)
+
+  !> self energy (orbital, atom)
+  real(dp), allocatable :: atomEigVal(:,:)
+
+  !> reference n_0 charges for each atom
+  real(dp), allocatable :: referenceN0(:,:)
+
+  !> list of atomic masses
+  real(dp), allocatable :: mass(:)
+
+  !> list of atomic masses for each species
+  real(dp), allocatable :: speciesMass(:)
+
+
+  !> Raw H^0 hamiltonian data
+  type(OSlakoCont) :: skHamCont
+
+  !> Raw overlap hamiltonian data
   type(OSlakoCont) :: skOverCont
+
+  !> Repulsive interaction raw data
   type(ORepCont) :: pRepCont
+
+  !> Cut off distance for Slater-Koster interactions
   real(dp) :: skCutoff
+
+  !> Cut off distance for repulsive interactions
   real(dp) :: skRepCutoff
 
-  real(dp)              :: mCutoff        !* longest pair interaction
 
-  real(dp), allocatable :: ham(:,:)       !* Hamiltonian
-  real(dp), allocatable :: iHam(:,:)      !* imaginary part of the Hamiltonian
+  !> longest pair interaction
+  real(dp) :: mCutoff
+
+
+  !> Sparse hamiltonian matrix
+  real(dp), allocatable :: ham(:,:)
+
+  !> imaginary part of the Hamiltonian
+  real(dp), allocatable :: iHam(:,:)
+
+  !> Charge per atomic shell (shell, atom, spin channel)
   real(dp), allocatable :: chargePerShell(:,:,:)
-  real(dp), allocatable :: over(:)        !* Overlap
+
+  !> sparse overlap
+  real(dp), allocatable :: over(:)
 
 
-  integer               :: nKPoint        !* nr. of K-points
-  real(dp), allocatable :: kPoint(:,:)    !* K-points
-  real(dp), allocatable :: KWeight(:)     !* weight of the K-Points
+  !> nr. of K-points
+  integer :: nKPoint
 
-  real(dp)              :: pressure        !* external pressure if periodic
-  logical               :: tBarostat
-  real(dp)              :: BarostatStrength
+  !> K-points
+  real(dp), allocatable :: kPoint(:,:)
 
-  logical               :: tRealHS        !* H and S are real
+  !> weight of the K-Points
+  real(dp), allocatable :: KWeight(:)
 
-  real(dp), allocatable :: nEl(:)         !* nr. of electrons
-  real(dp)              :: nEl0           !* Nr. of all electrons if neutral
-  real(dp), allocatable :: spinW(:,:,:)       !* Spin W's    !'
-  real(dp), allocatable :: xi(:,:)        !* Spin orbit constants
 
-  logical               :: tDFTBU         !* is this a DFTB+U calculation?
-  integer               :: nDFTBUfunc     !* Choice of orbital functional
-  real(dp), allocatable :: UJ(:,:)        !* list of U-J for species
-  integer, allocatable  :: nUJ(:)         !* How many U-J for each species
-  integer, allocatable  :: niUJ(:,:)      !* number of l-values of U-J for each
-  !* block
-  integer, allocatable  :: iUJ(:,:,:)     !* l-values of U-J for each block
+  !> external pressure if periodic
+  real(dp) :: extPressure
 
-  real(dp) :: tempElec                    !* electron temperature
-  logical :: tFillKSep                    !* If K points should filled
-                                          !* separately
-  logical :: tFixEf                       !* Fix Fermi energy at specified value
-  real(dp) :: Ef(2)                       !* Fermi energy
+  !> Barostat used if MD and periodic
+  logical :: tBarostat
 
-  logical :: tSetFillingTemp              !* Filling temp updated by MD.
-  integer  :: iDistribFn = 0              !* Choice of electron distribution
-                                          !* function, defaults to Fermi
-  real(dp) :: tempAtom                    !* atomic temperature
-  real(dp) :: deltaT                      !* MD stepsize
-  integer :: solver                       !* eigensolver
-  integer :: nSCCIter                     !* number of SCC iterations
-  integer :: nSpin                        !* Number of spin components, 1
-                                          !* is unpolarised, 2 is polarised, 4
-  !* is noncolinear / spin-orbit
-  logical :: tSpin                        !* is this a spin polarized
-  !* calculation?
-  logical :: tSpinOrbit                   !* is there spin-orbit coupling
-  logical :: tDualSpinOrbit               !* Use block like dual representation
-  logical :: tImHam                       !* complex hamiltonian in real space
-  logical :: t2Component                  !* is this a two component
-  !* calculation (spin orbit or non-collinear spin)
+  !> Barostat coupling strength
+  real(dp) :: BarostatStrength
 
-  logical :: tSpinSharedEf ! Common Fermi level accross spin channels
 
-  real(dp) :: almix
+  !> H and S are real
+  logical :: tRealHS
 
-  logical               :: tGeoOpt          !* Geometry optimization needed?
-  logical               :: tCoordOpt        !* optimize internal coordinates?
-  logical               :: tLatOpt          !* optimize lattice constants?
-  logical               :: tLatOptFixAng    !* Fix angles between lattice
-  !!* vectors when optimizing?
-  logical               :: tLatOptFixLen(3)
-  logical               :: tLatOptIsotropic
-  logical               :: tMD              !* Is this a MD calculation?
-  logical               :: tDerivs          !* Is this a derivatives calc?
-  logical               :: tMulliken        !* Do we need Mulliken charges?
-  logical               :: tLocalise        !* Calculate localised orbitals?
-  logical               :: tPipekMezey      !* Use PipekMezey localisation?
-  logical               :: tPipekDense      !* use a dense algorithm
-                                            !* for Pipek-Mezey
-                                            !* localisation?
-  real(dp), allocatable :: sparsePipekTols(:) !* tollerances if
-                                              !* instead using a
-                                              !* sparse version
-  real(dp)              :: PipekTol         ! halting tollerance for
-                                            ! localisation
-  integer               :: PipekMaxIter     ! number of localisation iterations
-  logical               :: tPrintMulliken   !* Do we need to show
-                                            !* Mulliken charges?
-  logical               :: tDipole          !* calculate an electric dipole?
-  logical               :: tAtomicEnergy    !* Do we need atom resolved E?
-  logical               :: tPrintEigVecs    !* Print out eigenvectors?
-  logical               :: tPrintEigVecsTxt !* Store as a text file
-  logical               :: tProjEigenvecs   !* Print eigenvector projections?
-  logical               :: tForces          !* Do we need forces?
-  logical               :: tPrintForces     !* are forces being returned
-  integer               :: nMovedAtom       !* Number of moved atoms
-  integer, allocatable  :: indMovedAtom(:)  !* Index of the moved atoms
-  integer               :: nMovedCoord      !* Nr. of moved coordinates
-  integer               :: nGeoSteps        !* Nr. of geo movements to do
-  integer               :: nGeoConstr       !* Nr. of geometry constraints
-  integer,  allocatable :: conAtom(:)       !* Index of constrained atoms
-  real(dp), allocatable :: conVec(:,:)      !* Constraint vectors
 
-  logical :: tSocket         !* use commands from a socket
+  !> nr. of electrons
+  real(dp), allocatable :: nEl(:)
+
+  !> Nr. of all electrons if neutral
+  real(dp) :: nEl0
+
+
+  !> Spin W values
+  real(dp), allocatable :: spinW(:,:,:)
+
+  !> Spin orbit constants
+  real(dp), allocatable :: xi(:,:)
+
+
+  !> is this a DFTB+U calculation?
+  logical :: tDFTBU
+
+  !> Choice of orbital functional
+  integer :: nDFTBUfunc
+
+  !> list of U-J for species
+  real(dp), allocatable :: UJ(:,:)
+
+  !> How many U-J for each species
+  integer, allocatable :: nUJ(:)
+
+  !> number of l-values of U-J for each block
+  integer, allocatable :: niUJ(:,:)
+
+  !> l-values of U-J for each block
+  integer, allocatable :: iUJ(:,:,:)
+
+
+  !> electron temperature
+  real(dp) :: tempElec
+
+  !> If K points should filled separately
+  logical :: tFillKSep
+
+  !> Fix Fermi energy at specified value
+  logical :: tFixEf
+
+  !> Fermi energy
+  real(dp) :: Ef(2)
+
+
+  !> Filling temp updated by MD.
+  logical :: tSetFillingTemp
+
+  !> Choice of electron distribution function, defaults to Fermi
+  integer :: iDistribFn = 0
+
+  !> atomic kinetic temperature
+  real(dp) :: tempAtom
+
+  !> MD stepsize
+  real(dp) :: deltaT
+
+
+  !> eigensolver
+  integer :: solver
+
+  !> maximal number of SCC iterations
+  integer :: maxSccIter
+
+
+  !> is this a spin polarized calculation?
+  logical :: tSpin
+
+  !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+  integer :: nSpin
+
+  !> is there spin-orbit coupling
+  logical :: tSpinOrbit
+
+  !> Use block like dual representation for spin orbit
+  logical :: tDualSpinOrbit
+
+  !> Is there a complex hamiltonian contribution in real space
+  logical :: tImHam
+
+  !> is this a two component calculation (spin orbit or non-collinear spin)
+  logical :: t2Component
+
+
+  !> Common Fermi level accross spin channels
+  logical :: tSpinSharedEf
+
+
+  !> Geometry optimization needed?
+  logical :: tGeoOpt
+
+  !> optimize coordinates inside unit cell (periodic)?
+  logical :: tCoordOpt
+
+  !> optimize lattice constants?
+  logical :: tLatOpt
+
+  !> Fix angles between lattice vectors when optimizing?
+  logical :: tLatOptFixAng
+
+  !> Fix length of specified lattice vectors when optimizing?
+  logical :: tLatOptFixLen(3)
+
+  !> Optimise lattice isotropically
+  logical :: tLatOptIsotropic
+
+  !> Is this a MD calculation?
+  logical :: tMD
+
+  !> Is this a derivatives calc?
+  logical :: tDerivs
+
+  !> Do we need Mulliken charges?
+  logical :: tMulliken
+
+  !> Calculate localised orbitals?
+  logical :: tLocalise
+
+  !> Do we need to show Mulliken charges?
+  logical :: tPrintMulliken
+
+  !> calculate an electric dipole?
+  logical :: tDipole
+
+  !> Do we need atom resolved E?
+  logical :: tAtomicEnergy
+
+  !> Print out eigenvectors?
+  logical :: tPrintEigVecs
+
+  !> Store as a text file
+  logical :: tPrintEigVecsTxt
+
+  !> Print eigenvector projections?
+  logical :: tProjEigenvecs
+
+  !> Do we need forces?
+  logical :: tForces
+
+  !> are forces being returned
+  logical :: tPrintForces
+
+  !> Number of moved atoms
+  integer :: nMovedAtom
+
+  !> Index of the moved atoms
+  integer, allocatable :: indMovedAtom(:)
+
+  !> Nr. of moved coordinates
+  integer :: nMovedCoord
+
+  !> Nr. of geo movements to do
+  integer :: nGeoSteps
+
+  !> Index of constrained atoms
+  integer, allocatable :: conAtom(:)
+
+  !> Constraint vectors
+  real(dp), allocatable :: conVec(:,:)
+
+  !> Pipek-Mezey localisation calculator
+  type(TPipekMezey), allocatable :: pipekMezey
+
+  !> use commands from socket communication to control the run
+  logical :: tSocket
+
+  !> socket details
   type(IpiSocketComm), allocatable :: socket
 
 
-  character(lc) :: geoOutFile     !* File containing end geometry
+  !> File containing output geometry
+  character(lc) :: geoOutFile
 
-  logical               :: tAppendGeo       !* Append geometries in the output?
+
+  !> Append geometries in the output?
+  logical :: tAppendGeo
+
+
+  !> Only use converged forces if SCC
   logical :: tConvrgForces
+
+
+  !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
 
-  logical            :: tInitialized = .false.
-  private :: tInitialized
+  !> General geometry optimizer
+  type(OGeoOpt), allocatable :: pGeoCoordOpt
 
-  type(OGeoOpt), allocatable :: pGeoCoordOpt  !* General geometry optimizer
-  type(OGeoOpt), allocatable :: pGeoLatOpt    !* Geometry optimizer for lattice
-                                          !* consts
+  !> Geometry optimizer for lattice consts
+  type(OGeoOpt), allocatable :: pGeoLatOpt
 
-  type(OMixer), allocatable :: pChrgMixer    !* Charge mixer
 
-  type(OMDCommon), allocatable :: pMDFrame  !* MD Framework
-  type(OMDIntegrator), allocatable :: pMDIntegrator !* MD integrator
+  !> Charge mixer
+  type(OMixer), allocatable :: pChrgMixer
+
+
+  !> MD Framework
+  type(OMDCommon), allocatable :: pMDFrame
+
+  !> MD integrator
+  type(OMDIntegrator), allocatable :: pMDIntegrator
+
+  !> Temperature profile driver in MD
   type(OTempProfile), allocatable, target :: temperatureProfile
 
+  !> geometry optimiser
   type(OnumDerivs), allocatable, target :: derivDriver
 
-  !! Charge related variables
-  real(dp), allocatable    :: q0(:, :, :)
-  real(dp), allocatable    :: qShell0(:,:)
-  real(dp), allocatable    :: qInput(:, :, :)
-  real(dp), allocatable    :: qOutput(:, :, :)
-  real(dp), allocatable    :: qBlockIn(:, :, :, :)
-  real(dp), allocatable    :: qBlockOut(:, :, :, :)
-  real(dp), allocatable    :: qiBlockIn(:, :, :, :)
-  real(dp), allocatable    :: qiBlockOut(:, :, :, :)
-  real(dp), allocatable    :: qInpRed(:), qOutRed(:), qDiffRed(:)
-  integer, allocatable     :: iEqOrbitals(:,:,:)  !* Orbital equiv. relations
-  integer :: nIneqOrb !* nr. of inequivalent orbitals
-  integer :: nMixElements !* nr. of elements to go through the mixer - may
-  ! contain reduced orbitals and also orbital blocks (if tDFTBU)
-  integer, allocatable :: iEqBlockDFTBU(:,:,:,:) !* Orbital equivalency for
-  !* orbital blocks
-  integer, allocatable :: iEqBlockDFTBULS(:,:,:,:) !* Orbital equivalency for
-  !* orbital blocks with spin-orbit
+  !> reference neutral atomic occupations
+  real(dp), allocatable :: q0(:, :, :)
+
+  !> shell resolved neutral reference
+  real(dp), allocatable :: qShell0(:,:)
+
+  !> input charges (for potentials)
+  real(dp), allocatable :: qInput(:, :, :)
+
+  !> output charges
+  real(dp), allocatable :: qOutput(:, :, :)
+
+  !> input Mulliken block charges (diagonal part == Mulliken charges)
+  real(dp), allocatable :: qBlockIn(:, :, :, :)
+
+  !> Output Mulliken block charges
+  real(dp), allocatable :: qBlockOut(:, :, :, :)
+
+  !> Imaginary part of input Mulliken block charges
+  real(dp), allocatable :: qiBlockIn(:, :, :, :)
+
+  !> Imaginary part of output Mulliken block charges
+  real(dp), allocatable :: qiBlockOut(:, :, :, :)
+
+  !> input charges packed into unique equivalence elements
+  real(dp), allocatable :: qInpRed(:)
+
+  !> output charges packed into unique equivalence elements
+  real(dp), allocatable :: qOutRed(:)
+
+  !> charge differences packed into unique equivalence elements
+  real(dp), allocatable :: qDiffRed(:)
+
+  !> Orbital equivalence relations
+  integer, allocatable :: iEqOrbitals(:,:,:)
+
+  !> nr. of inequivalent orbitals
+  integer :: nIneqOrb
+
+  !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
+  !> (if tDFTBU)
+  integer :: nMixElements
+
+  !> Orbital equivalency for orbital blocks
+  integer, allocatable :: iEqBlockDFTBU(:,:,:,:)
+
+  !> Orbital equivalency for orbital blocks with spin-orbit
+  integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
+
+  ! External charges
+
+  !> If external charges must be considered
+  logical :: tExtChrg
+
+  !> Nr. of external charges
+  integer :: nExtChrg
 
 
-  !! External charges
-  integer :: nExtChrg   !* Nr. of external charges
-  logical :: tExtChrg   !* If external charges must be considered
+  !> external electric field
+  logical :: tEField = .false.
 
-  logical  :: tEField = .false. ! external electric field
-  real(dp) :: EFieldStrength = 0.0_dp ! field strength
-  real(dp) :: EfieldVector(3) = 0.0_dp ! field direction
-  logical  :: tTDEfield = .false. ! time dependent
-  real(dp) :: EfieldOmega = 0.0_dp ! angular frequency
-  integer  :: EfieldPhase = 0 ! phase of field at step 0
+  !> field strength
+  real(dp) :: EFieldStrength = 0.0_dp
 
-  ! PDOS projection
+  !> field direction
+  real(dp) :: EfieldVector(3) = 0.0_dp
+
+  !> time dependent
+  logical :: tTDEfield = .false.
+
+  !> angular frequency
+  real(dp) :: EfieldOmega = 0.0_dp
+
+  !> phase of field at step 0
+  integer :: EfieldPhase = 0
+
+
+  !> Partial density of states (PDOS) projection regions
   type(listIntR1), save :: iOrbRegion
+
+  !> PDOS region labels
   type(listCharLc), save :: regionLabels
-  integer, allocatable, save :: fdProjEig(:) ! file units for results
 
-  !! Third order
-  logical :: t3rd, t3rdFull
-  type(ThirdOrder) :: thirdOrd
+  !> file units for PDOS results
+  integer, allocatable, save :: fdProjEig(:)
 
-  !! Linear response
-  logical :: tLinResp, tLinRespZVect
+
+  !> Third order DFTB
+  logical :: t3rd
+
+  !> Full 3rd order or only atomic site
+  logical :: t3rdFull
+
+  !> data structure for 3rd order
+  type(ThirdOrder), allocatable :: thirdOrd
+
+
+  !> Calculate Casida linear response excitations
+  logical :: tLinResp
+
+  !> calculate Z vector for excited properties
+  logical :: tLinRespZVect
+
+  !> Print eigenvectors
   logical :: tPrintExcitedEigVecs = .false.
+
+  !> data type for linear response
   type(linresp), save :: lresp
 
-  !! Other stuff
-  logical :: tReadChrg    !* If initial charges/dens mtx. from external file.
-  logical :: tWriteTagged !* produce tagged output?
-  logical :: tWriteDetailedXML !* Produce detailed.xml
-  logical :: tWriteResultsTag !* Produce detailed.tag
-  logical :: tWriteDetailedOut !* Produce detailed.out
-  logical :: tWriteBandDat !* Produce band.dat
-  logical :: tWriteHS, tWriteRealHS  !* Should HS (square and real) be printed?
-  logical :: tMinMemory, tStoreEigvecs
+  !> If initial charges/dens mtx. from external file.
+  logical :: tReadChrg
 
+  !> produce tagged output?
+  logical :: tWriteAutotest
 
-  integer :: runId !* Program run id
+  !> Produce detailed.xml
+  logical :: tWriteDetailedXML
 
-  integer :: restartFreq    !* Frequency for saving restart info
+  !> Produce detailed.tag
+  logical :: tWriteResultsTag
 
-  logical :: tDispersion  !* If dispersion should be calculated
-  logical :: tStress = .true. !* Can stress be calculated? - start by
-  !* assuming it can
+  !> Produce detailed.out
+  logical :: tWriteDetailedOut
+
+  !> Produce band.dat
+  logical :: tWriteBandDat
+
+  !> Should HS (square) be printed?
+  logical :: tWriteHS
+
+  !> Should HS (sparse) be printed?
+  logical :: tWriteRealHS
+
+  !> try to reduce  memory by storing large arrays to disc
+  logical :: tMinMemory
+
+  !> store eigenvectors on disc instead of memory
+  logical :: tStoreEigvecs
+
+  !> Program run id
+  integer :: runId
+
+  !> Frequency for saving restart info
+  integer :: restartFreq
+
+  !> If dispersion should be calculated
+  logical :: tDispersion
+
+  !> dispersion data and calculations
   class(DispersionIface), allocatable :: dispersion
 
+  !> Can stress be calculated? - start by assuming it can
+  logical :: tStress = .true.
+
+  !> FIFO for storing eigenvectors in real case
   type(OFifoRealR2), allocatable :: storeEigvecsReal(:)
+
+  !> FIFO for storing eigenvectors in complex
   type(OFifoCplxR2), allocatable :: storeEigvecsCplx(:)
 
-  ! XLBOMD related parameters
-  type(Xlbomd), allocatable :: xlbomdIntegrator
+  !> should XLBOMD be used in MD
   logical :: tXlbomd
 
+  !> XLBOMD related parameters
+  type(Xlbomd), allocatable :: xlbomdIntegrator
+
+  !> Differentiation method for (H^0,S)
   type(NonSccDiff), save :: nonSccDeriv
 
-  integer, parameter :: nInitNeighbor = 40  !* First guess for nr. of neighbors.
+  !> Whether lattice has changed since last geometry iteration
+  logical :: tLatticeChanged
+
+  !> Whether atomic coordindates have changed since last geometry iteration
+  logical :: tCoordsChanged
+
+  !> First guess for nr. of neighbors.
+  integer, parameter :: nInitNeighbor = 40
   private :: nInitNeighbor
 
   private :: createRandomGenerators
 
-
-
 contains
 
 
-  !!* Initializes the variables in the module based on the parsed input
-  !!* @param input Holds the parsed input data.
+  !> Initializes the variables in the module based on the parsed input
   subroutine initProgramVariables(input)
+
+    !> Holds the parsed input data.
     type(inputData), intent(inout), target :: input
 
-    !! Mixer related local variables
-    integer  :: nGeneration
+    ! Mixer related local variables
+    integer :: nGeneration
     real(dp) :: mixParam
-    integer :: iMixer        !* mixer number
+
+    !> mixer number
+    integer :: iMixer
     type(OSimpleMixer), allocatable :: pSimpleMixer
     type(OAndersonMixer), allocatable :: pAndersonMixer
     type(OBroydenMixer), allocatable :: pBroydenMixer
     type(ODIISMixer), allocatable :: pDIISMixer
 
-    !! Geometry optimizer related local variables
-    type(OConjGrad), allocatable :: pConjGrad    !* Conjugate gradient driver
-    type(OSteepDesc), allocatable :: pSteepDesc  !* Steepest descent driver
-    type(OConjGrad), allocatable :: pConjGradLat   !* Conjugate gradient driver
-    type(OSteepDesc), allocatable :: pSteepDescLat !* Steepest descent driver
-    type(ODIIS), allocatable :: pDIIS    !* gradient DIIS driver
+    ! Geometry optimizer related local variables
 
-    !! MD related local variables
+    !> Conjugate gradient driver
+    type(OConjGrad), allocatable :: pConjGrad
+
+    !> Steepest descent driver
+    type(OSteepDesc), allocatable :: pSteepDesc
+
+    !> Conjugate gradient driver
+    type(OConjGrad), allocatable :: pConjGradLat
+
+    !> Steepest descent driver
+    type(OSteepDesc), allocatable :: pSteepDescLat
+
+    !> gradient DIIS driver
+    type(ODIIS), allocatable :: pDIIS
+
+    ! MD related local variables
     type(OThermostat), allocatable :: pThermostat
     type(ODummyThermostat), allocatable :: pDummyTherm
     type(OAndersenThermostat), allocatable :: pAndersenTherm
@@ -381,44 +710,57 @@ contains
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
     integer :: iStart, iEnd
 
-    !! Dispersion
+    ! Dispersion
     type(DispSlaKirk), allocatable :: slaKirk
     type(DispUFF), allocatable :: uff
   #:if WITH_DFTD3
     type(DispDftD3), allocatable :: dftd3
   #:endif
 
-    character(lc) :: strTmp, strTmp2
-    logical :: tFirst ! flag to check for first cycle through a loop
-    real(dp) :: rTmp
-
-    logical :: tExist ! Flag if some files do exist or not
-
-    !! Orbital equivalency for SCC and Spin
-    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-    !! Orbital equivalency for orbital potentials
-    integer, allocatable :: iEqOrbDFTBU(:,:,:)
-
-    !! Damped interactions
-    logical, allocatable, target :: tDampedShort(:)
-    type(ThirdOrderInp) :: thirdInp
-
-    !! PDOS stuff
-    integer :: iReg, nAtomRegion, nOrbRegion, iTmp
-    integer, allocatable :: iAtomRegion(:)
-    integer :: valshape(1)
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
 
+    character(lc) :: strTmp, strTmp2
+
+
+    !> flag to check for first cycle through a loop
+    logical :: tFirst
+
+    real(dp) :: rTmp
+    logical :: tDummy
+
+
+    !> Flag if some files do exist or not
+    logical :: tExist
+
+    ! Orbital equivalency for SCC and Spin
+    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
+    ! Orbital equivalency for orbital potentials
+    integer, allocatable :: iEqOrbDFTBU(:,:,:)
+
+    ! Damped interactions
+    logical, allocatable, target :: tDampedShort(:)
+    type(ThirdOrderInp) :: thirdInp
+
+    ! PDOS stuff
+    integer :: iReg, nAtomRegion, nOrbRegion, iTmp
+    integer, allocatable :: iAtomRegion(:)
+    integer :: valshape(1)
+
+
+    !> Is SCC cycle initialised
     type(TSCCInit), allocatable :: sccInit
 
-    ! Used for indexing linear response
-    integer :: homoLoc(1)
 
+    !> Used for indexing linear response
+    integer :: homoLoc(1)
 
     @:ASSERT(input%tInitialized)
 
-    !! Basic variables
+    write(stdOut, "(/, A)") "Starting initialization..."
+    write(stdOut, "(A80)") repeat("-", 80)
+
+    ! Basic variables
     tSCC = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
@@ -432,7 +774,6 @@ contains
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
 
-
     if (t2Component) then
       nSpin = 4
     end if
@@ -441,7 +782,6 @@ contains
       call error("Colinear spin polarization required for shared Ef over spin&
           & channels")
     end if
-
 
     sccTol = input%ctrl%sccTol
     nAtom = input%geom%nAtom
@@ -455,34 +795,36 @@ contains
     tFracCoord = input%geom%tFracCoord
     solver = input%ctrl%iSolver
     if (tSCC) then
-      nSCCIter = input%ctrl%maxIter
+      maxSccIter = input%ctrl%maxIter
     else
-      nSCCIter = 1
+      maxSccIter = 1
     end if
 
     if (tPeriodic) then
+      tLatticeChanged = .true.
       allocate(latVec(3, 3))
       @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
       allocate(recVec(3, 3))
-      allocate(recVec2p(3, 3))
-      recVec2p = latVec(:,:)
-      call matinv(recVec2p)
-      recVec2p = reshape(recVec2p, (/3, 3/), order=(/2, 1/))
-      recVec = 2.0_dp * pi * recVec2p
+      allocate(invLatVec(3, 3))
+      invLatVec = latVec(:,:)
+      call matinv(invLatVec)
+      invLatVec = reshape(invLatVec, (/3, 3/), order=(/2, 1/))
+      recVec = 2.0_dp * pi * invLatVec
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else
       allocate(latVec(0, 0))
       allocate(recVec(0, 0))
-      allocate(recVec2p(0, 0))
+      allocate(invLatVec(0, 0))
       CellVol = 0.0_dp
       recCellVol = 0.0_dp
+      tLatticeChanged = .false.
     end if
 
     orb = input%slako%orb
 
-    !! Slater-Koster tables
+    ! Slater-Koster tables
     skHamCont = input%slako%skHamCont
     skOverCont = input%slako%skOverCont
     pRepCont = input%slako%repCont
@@ -510,8 +852,6 @@ contains
           end do
         end do
       end do
-    else
-      allocate(spinW(0,0,0))
     end if
 
     if (tSpinOrbit) then
@@ -522,8 +862,6 @@ contains
           xi(jj,iSp)=input%ctrl%xi(jj,iSp)
         end do
       end do
-    else
-      allocate(xi(0,0))
     end if
 
     ! DFTB+U parameters
@@ -553,12 +891,12 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    !! Cutoffs from SlaKo and repulsive
+    ! Cutoffs from SlaKo and repulsive
     skCutoff = max(getCutoff(skHamCont), getCutoff(skOverCont))
     skRepCutoff = max(skCutoff, getCutoff(pRepCont))
     mCutoff = skRepCutoff
 
-    !! Get species names and output file
+    ! Get species names and output file
     geoOutFile = input%ctrl%outFile
     allocate(speciesName(size(input%geom%speciesNames)))
     speciesName(:) = input%geom%speciesNames(:)
@@ -573,10 +911,9 @@ contains
       end do
     end do
 
-
-    !! Initialise the SCC module (the two copies of the Hubbard Us are rather
-    !! artifical, since the copy for the main program is only used for dumping
-    !! into the tagged format for autotest)
+    ! Initialise the SCC module (the two copies of the Hubbard Us are rather
+    ! artifical, since the copy for the main program is only used for dumping
+    ! into the tagged format for autotest)
     allocate(hubbU(orb%mShell, nType))
     @:ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
     @:ASSERT(size(input%slako%skHubbU, dim=2) == nType)
@@ -653,15 +990,18 @@ contains
         thirdInp%damped(:) = tDampedShort
         thirdInp%dampExp = input%ctrl%dampExp
         thirdInp%shellResolved = input%ctrl%tOrbResolved
+        allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
         mCutoff = max(mCutoff, thirdOrd%getCutoff())
       end if
     end if
 
-    !! Initial coordinates
+    ! Initial coordinates
     allocate(coord0(3, nAtom))
     @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
+    tCoordsChanged = .true.
+
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
@@ -676,7 +1016,7 @@ contains
     end if
 
     if (tPeriodic) then
-      !! Make some guess for the nr. of all interacting atoms
+      ! Make some guess for the nr. of all interacting atoms
       nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
     else
       nAllAtom = nAtom
@@ -685,21 +1025,24 @@ contains
     allocate(species(nAllAtom))
     allocate(img2CentCell(nAllAtom))
     allocate(iCellVec(nAllAtom))
-    allocate(iAtomStart(nAtom + 1))
-    call buildSquaredAtomIndex(iAtomStart, orb)
+    allocate(iDenseStart(nAtom + 1))
+    call buildSquaredAtomIndex(iDenseStart, orb)
 
-    !! Intialize Hamilton and overlap
+    ! Intialize Hamilton and overlap
+    tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
     if (tSCC) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
        allocate(chargePerShell(0,0,0))
     end if
     allocate(ham(0, nSpin))
-    allocate(iHam(0, nSpin))
+    if (tImHam) then
+      allocate(iHam(0, nSpin))
+    end if
     allocate(over(0))
-    allocate(iPair(0, nAtom))
+    allocate(iSparseStart(0, nAtom))
 
-    !! Brillouin zone sampling
+    ! Brillouin zone sampling
     if (tPeriodic) then
       nKPoint = input%ctrl%nKPoint
       allocate(kPoint(3, nKPoint))
@@ -726,7 +1069,7 @@ contains
       tRealHS = .false.
     end if
 
-    !! Other usefull quantities
+    ! Other usefull quantities
     nOrb = orb%nOrb
 
     if (nSpin == 4) then
@@ -771,9 +1114,8 @@ contains
     tempAtom = input%ctrl%tempAtom
     deltaT = input%ctrl%deltaT
 
-    tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
 
-    !! Create equivalency relations
+    ! Create equivalency relations
     if (tSCC) then
       allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
       allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
@@ -824,10 +1166,9 @@ contains
       allocate(iEqBlockDFTBULS(0, 0, 0, 0))
     end if
 
-
-    !! Initialize mixer
-    !! (at the moment, the mixer does not need to know about the size of the
-    !! vector to mix.)
+    ! Initialize mixer
+    ! (at the moment, the mixer does not need to know about the size of the
+    ! vector to mix.)
     if (tSCC) then
       allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
@@ -851,7 +1192,7 @@ contains
         call init(pChrgMixer, pAndersonMixer)
       case (3)
         allocate(pBroydenMixer)
-        call init(pBroydenMixer, nSCCIter, mixParam, input%ctrl%broydenOmega0,&
+        call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
       case(4)
@@ -863,7 +1204,7 @@ contains
       end select
     end if
 
-    !! initialise in cases where atoms move
+    ! initialise in cases where atoms move
     tGeoOpt = input%ctrl%tGeoOpt
     tCoordOpt = input%ctrl%tCoordOpt
     tLatOpt = (input%ctrl%tLatOpt .and. tPeriodic)
@@ -887,19 +1228,21 @@ contains
         end do
       end if
     end if
-    pressure = input%ctrl%pressure
+    extPressure = input%ctrl%pressure
     tBarostat = input%ctrl%tBarostat
     BarostatStrength = input%ctrl%BarostatStrength
 
     tSocket = allocated(input%ctrl%socketInput)
     if (tSocket) then
-      write(*,*) "Initialising for socket communication to host ", &
+      write(stdout, *) "Initialising for socket communication to host ", &
           & trim(input%ctrl%socketInput%host)
       input%ctrl%socketInput%nAtom = nAtom
       socket = IpiSocketComm(input%ctrl%socketInput)
       tForces = .true.
       tGeoOpt = .false.
       tMD = .false.
+      call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+          & tLatticeChanged, tDummy)
     end if
 
     tAppendGeo = input%ctrl%tAppendGeo
@@ -914,7 +1257,7 @@ contains
 
     ! false if not set anywhere else
     call SetEigVecsTxtOutput(input%ctrl%tPrintEigVecsTxt &
-        & .or. input%ctrl%tPipekMezey)
+        & .or. allocated(input%ctrl%pipekMezeyInp))
 
     ! Projection of eigenstates onto specific regions of the system
     tProjEigenvecs = input%ctrl%tProjEigenvecs
@@ -938,7 +1281,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = iAtomStart(iAt) + iOrb - 1
+                tmpir1(ind) = iDenseStart(iAt) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)
@@ -965,7 +1308,7 @@ contains
               do ii = 1, nAtomRegion
                 iAt = iAtomRegion(ii)
                 do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
-                  tmpir1(ind) = iAtomStart(iAt) + jj - 1
+                  tmpir1(ind) = iDenseStart(iAt) + jj - 1
                   ind = ind + 1
                 end do
               end do
@@ -989,7 +1332,7 @@ contains
           do ii = 1, nAtomRegion
             iAt = iAtomRegion(ii)
             do jj = 1, orb%nOrbAtom(iAt)
-              tmpir1(ind) = iAtomStart(iAt) + jj - 1
+              tmpir1(ind) = iDenseStart(iAt) + jj - 1
               ind = ind + 1
             end do
           end do
@@ -1122,24 +1465,18 @@ contains
       nGeoSteps = 0
     end if
 
-    !! Initialize constraints
-    nGeoConstr = input%ctrl%nrConstr
-    if (nGeoConstr > 0) then
+    ! Initialize constraints
+    if (input%ctrl%nrConstr > 0) then
       allocate(conAtom(input%ctrl%nrConstr))
       allocate(conVec(3, input%ctrl%nrConstr))
-      @:ASSERT(all(shape(conAtom) == shape(input%ctrl%conAtom)))
-      @:ASSERT(all(shape(conVec) == shape(input%ctrl%conVec)))
-      conAtom(:) = input%ctrl%conAtom(:)
-      conVec(:,:) = input%ctrl%conVec(:,:)
-      do ii = 1, nGeoConstr
+      conAtom(:) = input%ctrl%conAtom
+      conVec(:,:) = input%ctrl%conVec
+      do ii = 1, input%ctrl%nrConstr
         conVec(:,ii) = conVec(:,ii) / sqrt(sum(conVec(:,ii)**2))
       end do
-    else
-      allocate(conAtom(0))
-      allocate(conVec(3, 0))
     end if
 
-    !! Dispersion
+    ! Dispersion
     tDispersion = allocated(input%ctrl%dispInp)
     if (tDispersion) then
       if (allocated(input%ctrl%dispInp%slakirk)) then
@@ -1203,19 +1540,11 @@ contains
       call error("Localisation of electronic states currently unsupported for&
           & non-collinear and spin orbit calculations")
     end if
-    tPipekMezey = input%ctrl%tPipekMezey
-    PipekTol =  input%ctrl%PipekTol
-    PipekMaxIter =  input%ctrl%PipekMaxIter
-    tPipekDense = input%ctrl%tPipekDense
-    if (.not.tPipekDense.and.tPipekMezey) then
-      allocate(sparsePipekTols(size(input%ctrl%sparsePipekTols)))
-      sparsePipekTols(:) = input%ctrl%sparsePipekTols(:)
-      if (any(sparsePipekTols < epsilon(0.0_dp))) then
-        call error('Tollerances for sparse Pipek-Mezey localisation too small.')
-      end if
-    else
-      allocate(sparsePipekTols(0))
+    if (allocated(input%ctrl%pipekMezeyInp)) then
+      allocate(pipekMezey)
+      call initialise(pipekMezey, input%ctrl%pipekMezeyInp)
     end if
+    tLocalise = allocated(pipekMezey)
 
     ! Linear response
     tLinResp = input%ctrl%lrespini%tInit
@@ -1233,6 +1562,8 @@ contains
         call error("Linear reponse does not work with non-colinear spin polarization yet")
       elseif (tSpin .and. tForces) then
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
+      elseif (tPeriodic .and. tForces) then
+        call error("excited state relaxation is not implemented yet periodic systems")
       elseif (tPeriodic .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular&
             & crystals")
@@ -1310,13 +1641,13 @@ contains
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
 
-    !! MD stuff
+    ! MD stuff
     if (tMD) then
-      !! Create MD framework.
+      ! Create MD framework.
       allocate(pMDFrame)
       call init(pMDFrame, nMovedAtom, nAtom, input%ctrl%tMDstill)
 
-      !! Create temperature profile, if thermostat is not the dummy one
+      ! Create temperature profile, if thermostat is not the dummy one
       if (input%ctrl%iThermostat /= 0) then
         allocate(temperatureProfile)
         call init(temperatureProfile, input%ctrl%tempMethods, input%ctrl%tempSteps,&
@@ -1326,7 +1657,7 @@ contains
         nullify(pTempProfile)
       end if
 
-      !! Create thermostat
+      ! Create thermostat
       allocate(pThermostat)
       select case (input%ctrl%iThermostat)
       case (0) ! No thermostat
@@ -1358,13 +1689,13 @@ contains
         call init(pThermostat, pNHCTherm)
       end select
 
-      !! Create MD integrator
+      ! Create MD integrator
       allocate(pVelocityVerlet)
       if (input%ctrl%tReadMDVelocities) then
         if (tBarostat) then
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat,input%ctrl%initialVelocities, &
-              & BarostatStrength,pressure,input%ctrl%tIsotropic)
+              & BarostatStrength,extPressure,input%ctrl%tIsotropic)
         else
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
               & pThermostat,input%ctrl%initialVelocities)
@@ -1372,7 +1703,7 @@ contains
       else
         if (tBarostat) then
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom),&
-              & pThermostat, BarostatStrength,pressure,input%ctrl%tIsotropic)
+              & pThermostat, BarostatStrength,extPressure,input%ctrl%tIsotropic)
         else
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat)
         end if
@@ -1428,7 +1759,7 @@ contains
       EfieldPhase = 0
     end if
 
-    !! Allocate charge arrays
+    ! Allocate charge arrays
     if (tMulliken) then ! automatically true if tSCC
       allocate(q0(orb%mOrb, nAtom, nSpin))
       q0(:,:,:) = 0.0_dp
@@ -1448,27 +1779,17 @@ contains
     if (tDFTBU) then
       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qBlockIn = 0.0_dp
-      qBlockOut = 0.0_dp
+      qBlockIn(:,:,:,:) = 0.0_dp
+      qBlockOut(:,:,:,:) = 0.0_dp
       if (tImHam) then
         allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        qiBlockIn = 0.0_dp
-      else
-        allocate(qiBlockIn(0, 0, 0, 0))
-        qiBlockIn = 0.0_dp
+        qiBlockIn(:,:,:,:) = 0.0_dp
       end if
-    else
-      allocate(qBlockIn(0, 0, 0, 0))
-      allocate(qBlockOut(0, 0, 0, 0))
-      allocate(qiBlockIn(0, 0, 0, 0))
-      qiBlockIn = 0.0_dp
-      qBlockIn = 0.0_dp
-      qBlockOut = 0.0_dp
     end if
 
     if (tImHam) then
       allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qiBlockOut = 0.0_dp
+      qiBlockOut(:,:,:,:) = 0.0_dp
     end if
 
     if (tSCC) then
@@ -1480,11 +1801,10 @@ contains
       qOutRed = 0.0_dp
     end if
 
-    !! Initialize Mulliken charges
+    ! Initialize Mulliken charges
     if (tMulliken .or. tLinResp) then
       call initQFromShellChrg(q0, referenceN0, species0, orb)
     end if
-
 
     tReadChrg = input%ctrl%tReadChrg
     if (tSCC) then
@@ -1499,25 +1819,25 @@ contains
         if (tDFTBU) then
           if (nSpin == 2) then
             if (tFixEf) then ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fChargeIn, orb, qBlock=qBlockIn)
+              call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
             else
-              call initQFromFile(qInput, fChargeIn, orb, nEl = sum(nEl), &
+              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl), &
                   & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
             end if
           else
             if (tImHam) then
               if (tFixEf) then
-                call initQFromFile(qInput, fChargeIn, orb, &
+                call initQFromFile(qInput, fCharges, orb, &
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
-                call initQFromFile(qInput, fChargeIn, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
               if (tFixEf) then
-                call initQFromFile(qInput, fChargeIn, orb, qBlock=qBlockIn)
+                call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
               else
-                call initQFromFile(qInput, fChargeIn, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
                     & qBlock=qBlockIn)
               end if
             end if
@@ -1526,16 +1846,16 @@ contains
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
             if (tFixEf) then
-              call initQFromFile(qInput, fChargeIn, orb)
+              call initQFromFile(qInput, fCharges, orb)
             else
-              call initQFromFile(qInput, fChargeIn, orb, nEl = sum(nEl),&
+              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
             if (tFixEf) then
-              call initQFromFile(qInput, fChargeIn, orb)
+              call initQFromFile(qInput, fCharges, orb)
             else
-              call initQFromFile(qInput, fChargeIn, orb, nEl = nEl(1))
+              call initQFromFile(qInput, fCharges, orb, nEl = nEl(1))
             end if
           end if
         end if
@@ -1558,16 +1878,15 @@ contains
         ! Rescaling to ensure correct number of electrons in the system
         qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
 
-
         select case (nSpin)
         case (1)
           ! nothing to do
         case (2)
           if (allocated(input%ctrl%initialSpins)) then
             do ii = 1, nAtom
-              !! does not actually matter if additional spin polarization pushes
-              !! charges to <0 as the initial charges are not mixed in to later
-              !! iterations
+              ! does not actually matter if additional spin polarization pushes
+              ! charges to <0 as the initial charges are not mixed in to later
+              ! iterations
               qInput(1:orb%nOrbAtom(ii),ii,2) = &
                   & qInput(1:orb%nOrbAtom(ii),ii,1) * &
                   & input%ctrl%initialSpins(1,ii) / &
@@ -1646,9 +1965,9 @@ contains
       end if
     end if
 
-    !! Initalize images (translations)
+    ! Initalize images (translations)
     if (tPeriodic) then
-      call getCellTranslations(cellVec, rCellVec, latVec, recVec2p, mCutoff)
+      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutoff)
     else
       allocate(cellVec(3, 1))
       allocate(rCellVec(3, 1))
@@ -1656,14 +1975,13 @@ contains
       rCellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
     end if
 
-    !! Initialize neighborlist.
+    ! Initialize neighborlist.
     allocate(neighborList)
     call init(neighborList, nAtom, nInitNeighbor)
     allocate(nNeighbor(nAtom))
 
-
-    !! Set various options
-    tWriteTagged = input%ctrl%tWriteTagged
+    ! Set various options
+    tWriteAutotest = input%ctrl%tWriteTagged
     tWriteDetailedXML = input%ctrl%tWriteDetailedXML
     tWriteResultsTag = input%ctrl%tWriteResultsTag
     tWriteDetailedOut = input%ctrl%tWriteDetailedOut
@@ -1671,35 +1989,29 @@ contains
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
 
-    !! Minimize memory usage?
+    ! Minimize memory usage?
     tMinMemory = input%ctrl%tMinMemory
     tStoreEigvecs = tMinMemory .and. (nKPoint > 1 .or. nSpin == 2 )
     if (tStoreEigvecs) then
       if (tRealHS.and.(.not.t2Component)) then
         allocate(storeEigvecsReal(nSpin))
-        allocate(storeEigvecsCplx(0))
         do iS = 1, nSpin
           call init(storeEigvecsReal(iS), 0, "tmp_eigvr_")
         end do
       else
         if (t2Component) then
           allocate(storeEigvecsCplx(1))
-          allocate(storeEigvecsReal(0))
           call init(storeEigvecsCplx(1), 0, "tmp_eigvc_")
         else
           allocate(storeEigvecsCplx(nSpin))
-          allocate(storeEigvecsReal(0))
           do iS = 1, nSpin
             call init(storeEigvecsCplx(iS), 0, "tmp_eigvc_")
           end do
         end if
       end if
-    else
-      allocate(storeEigvecsReal(0))
-      allocate(storeEigvecsCplx(0))
     end if
 
-    !! Check if stopfiles already exist and quit if yes
+    ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
     if (tExist) then
       call error("Stop file '" // fStopSCC // "' already present at startup")
@@ -1711,47 +2023,45 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    tInitialized = .true.
-
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
         if (tBarostat) then
-          write(*,"('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
               &velocities', '(a.k.a. "NPE" ensemble)'
         else
-          write(*,"('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
               &velocities', '(a.k.a. NVE ensemble)'
         end if
       case (1)
         if (tBarostat) then
-          write(*,"('Mode:',T30,A,/,T30,A)") &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") &
               & "MD with re-selection of velocities according to temperature", &
               & "(a.k.a. NPT ensemble using Andersen thermostating + Berensen&
               & barostat)"
         else
-          write(*,"('Mode:',T30,A,/,T30,A)") &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") &
               & "MD with re-selection of velocities according to temperature", &
               & "(a.k.a. NVT ensemble using Andersen thermostating)"
         end if
       case(2)
         if (tBarostat) then
-          write(*,"('Mode:',T30,A,/,T30,A)") &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to temperature", &
               & "(a.k.a. 'not' NVP ensemble using Berendsen thermostating and&
               & barostat)"
         else
-          write(*,"('Mode:',T30,A,/,T30,A)") &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to temperature", &
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
         end if
       case(3)
         if (tBarostat) then
-          write(*,"('Mode:',T30,A,/,T30,A)") &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to", &
               & "Nose-Hoover-Chain thermostat + Berensen barostat"
         else
-          write(*,"('Mode:',T30,A,/,T30,A)") &
+          write(stdout, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to", &
               & "Nose-Hoover-Chain thermostat"
         end if
@@ -1760,69 +2070,69 @@ contains
         call error("Unknown thermostat mode")
       end select
     elseif (tGeoOpt) then
-      if (nGeoConstr > 0) then
+      if (allocated(conAtom)) then
         strTmp = "with constraints"
       else
         strTmp = ""
       end if
       select case (input%ctrl%iGeoOpt)
       case (1)
-        write(*,"('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
+        write(stdout, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
       case (2)
-        write(*,"('Mode:',T30,A)") 'Conjugate gradient relaxation' &
+        write(stdout, "('Mode:',T30,A)") 'Conjugate gradient relaxation' &
             &// trim(strTmp)
       case (3)
-        write(*,"('Mode:',T30,A)") 'Modified gDIIS relaxation' &
+        write(stdout, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
             &// trim(strTmp)
       case default
         call error("Unknown optimisation mode")
       end select
     elseif (tDerivs) then
-      write (*,"('Mode:',T30,A)") "2nd derivatives calculation"
-      write (*,"('Mode:',T30,A)") "Calculated for atoms:"
-      write (*,*) indMovedAtom
+      write(stdout, "('Mode:',T30,A)") "2nd derivatives calculation"
+      write(stdout, "('Mode:',T30,A)") "Calculated for atoms:"
+      write(stdout, *) indMovedAtom
     elseif (tSocket) then
-      write (*,"('Mode:',T30,A)") "Socket controlled calculation"
+      write(stdout, "('Mode:',T30,A)") "Socket controlled calculation"
     else
-      write (*,"('Mode:',T30,A)") "Static calculation"
+      write(stdout, "('Mode:',T30,A)") "Static calculation"
     end if
 
     if (tSCC) then
-      write (*, "(A,':',T30,A)") "Self consistent charges", "Yes"
-      write (*, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
-      write (*, "(A,':',T30,I14)") "Max. scc iterations", nSCCIter
-      write (*, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
+      write(stdout, "(A,':',T30,A)") "Self consistent charges", "Yes"
+      write(stdout, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
+      write(stdout, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      !write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
-        write (*, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
-        write (*, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
+        write(stdout, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
+        write(stdout, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
         !  use module to reverse look up name
       end if
     else
-      write (*, "(A,':',T30,A)") "Self consistent charges", "No"
+      write(stdout, "(A,':',T30,A)") "Self consistent charges", "No"
     end if
 
     select case (nSpin)
     case(1)
-      write (*,"(A,':',T30,A)") "Spin polarisation", "No"
-      write (*, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
+      write(stdout, "(A,':',T30,A)") "Spin polarisation", "No"
+      write(stdout, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
           &0.5_dp*nEl(1), "Nr. of down electrons", 0.5_dp*nEl(1)
     case(2)
-      write (*,"(A,':',T30,A)") "Spin polarisation", "Yes"
-      write (*, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
+      write(stdout, "(A,':',T30,A)") "Spin polarisation", "Yes"
+      write(stdout, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
           &nEl(1), "Nr. of down electrons", nEl(2)
     case(4)
-      write (*,"(A,':',T30,A)") "Non-collinear calculation", "Yes"
-      write (*, "(A,':',T30,F12.6)") "Nr. of electrons", nEl(1)
+      write(stdout, "(A,':',T30,A)") "Non-collinear calculation", "Yes"
+      write(stdout, "(A,':',T30,F12.6)") "Nr. of electrons", nEl(1)
     end select
 
     if (tPeriodic) then
-      write (*, "(A,':',T30,A)") "Periodic boundaries", "Yes"
+      write(stdout, "(A,':',T30,A)") "Periodic boundaries", "Yes"
       if (tLatOpt) then
-        write (*, "(A,':',T30,A)") "Lattice optimisation", "Yes"
-        write (*, "(A,':',T30,f12.6)") "Pressure", pressure
+        write(stdout, "(A,':',T30,A)") "Lattice optimisation", "Yes"
+        write(stdout, "(A,':',T30,f12.6)") "Pressure", extPressure
       end if
     else
-      write (*, "(A,':',T30,A)") "Periodic boundaries", "No"
+      write(stdout, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
     select case (solver)
@@ -1837,7 +2147,7 @@ contains
     case default
       call error("Unknown eigensolver!")
     end select
-    write (*, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+    write(stdout, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
 
     if (tSCC) then
       select case (iMixer)
@@ -1850,27 +2160,27 @@ contains
       case(4)
         write (strTmp, "(A)") "DIIS"
       end select
-      write (*, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
-      write (*, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-      write (*, "(A,':',T30,I14)") "Maximal SCC-cycles", nSCCIter
+      write(stdout, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
+      write(stdout, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
+      write(stdout, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
       select case (iMixer)
       case(2)
-        write (*, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
+        write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       case(3)
-        write (*, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
+        write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
       case(4)
-        write (*, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
+        write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       end select
     end if
 
     if (tCoordOpt) then
-      write (*, "(A,':',T30,I14)") "Nr. of moved atoms", nMovedAtom
+      write(stdout, "(A,':',T30,I14)") "Nr. of moved atoms", nMovedAtom
     end if
     if (tGeoOpt) then
-      write (*, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
-      write (*, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
+      write(stdout, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
+      write(stdout, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == 1) then
-        write (*, "(A,':',T30,E14.6)") "Step size", deltaT
+        write(stdout, "(A,':',T30,E14.6)") "Step size", deltaT
       end if
     end if
 
@@ -1883,13 +2193,13 @@ contains
       case(3)
         strTmp = "Dynamics, finite electronic temp."
       end select
-      write(*, "(A,':',T30,A)") "Force evaluation method", strTmp
+      write(stdout, "(A,':',T30,A)") "Force evaluation method", strTmp
     end if
 
     tFirst = .true.
-    if (nGeoConstr > 0) then
+    if (allocated(conAtom)) then
       do ii = 1, nAtom
-        do jj = 1, nGeoConstr
+        do jj = 1, size(conAtom)
           if (conAtom(jj) == ii) then
             if (tFirst) then
               write(strTmp, "(A,':')") "Geometry constraints"
@@ -1897,7 +2207,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(*, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), &
+            write(stdout, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), &
                 &ii, (conVec(kk,jj), kk=1,3)
           end if
         end do
@@ -1905,29 +2215,29 @@ contains
     end if
 
     if (.not.input%ctrl%tSetFillingTemp) then
-      write (*, "(A,':',T30,E14.6)") "Electronic temperature", tempElec
+      write(stdout, "(A,':',T30,E14.6)") "Electronic temperature", tempElec
     end if
     if (tMD) then
-      write (*, "(A,':',T30,E14.6)") "Time step", deltaT
+      write(stdout, "(A,':',T30,E14.6)") "Time step", deltaT
       if (input%ctrl%iThermostat == 0 .and. .not.input%ctrl%tReadMDVelocities)&
           & then
-        write (*, "(A,':',T30,E14.6)") "Temperature", tempAtom
+        write(stdout, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write (*, "(A,':',T30,I14)") "Random seed", iSeed
+      write(stdout, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
-        write (*, "(A,':',T30,E14.6)") "Rescaling probability", &
+        write(stdout, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
       end if
     end if
 
     if (tSCC) then
       if (input%ctrl%tReadChrg) then
-        write (strTmp, "(A,A,A)") "Read in from '", trim(fChargeIn), "'"
+        write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", &
             &input%ctrl%nrChrg, ")"
       end if
-      write (*, "(A,':',T30,A)") "Initial charges", trim(strTmp)
+      write(stdout, "(A,':',T30,A)") "Initial charges", trim(strTmp)
     end if
 
     do iSp = 1, nType
@@ -1944,7 +2254,7 @@ contains
               &// trim(orbitalNames(orb%angShell(jj, iSp) + 1))
         end if
       end do
-      write (*, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), &
+      write(stdout, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), &
           &trim(strTmp2)
     end do
 
@@ -1955,7 +2265,7 @@ contains
         else
           write(strTmp, "(A)") ""
         end if
-        write(*,"(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
+        write(stdout, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
             & (kPoint(jj, ii), jj=1, 3), kWeight(ii)
       end do
     end if
@@ -1963,12 +2273,12 @@ contains
     if (tDispersion) then
       select type (dispersion)
       type is (DispSlaKirk)
-        write(*,"(A)") "Using Slater-Kirkwood dispersion corrections"
+        write(stdout, "(A)") "Using Slater-Kirkwood dispersion corrections"
       type is (DispUff)
-        write(*,"(A)") "Using Lennard-Jones dispersion corrections"
+        write(stdout, "(A)") "Using Lennard-Jones dispersion corrections"
     #:if WITH_DFTD3
       type is (DispDftD3)
-        write(*,"(A)") "Using DFT-D3 dispersion corrections"
+        write(stdout, "(A)") "Using DFT-D3 dispersion corrections"
     #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
@@ -1991,7 +2301,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(*, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp), jj, &
+            write(stdout, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp), jj, &
                 & orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
           end do
         end do
@@ -2009,7 +2319,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(*, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)") &
+            write(stdout, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)") &
                 &trim(strTmp), speciesName(iSp), &
                 &jj, orbitalNames(orb%angShell(jj, iSp)+1), &
                 &kk, orbitalNames(orb%angShell(kk, iSp)+1), &
@@ -2022,7 +2332,7 @@ contains
     tFirst = .true.
     if (tSpinOrbit) then
       if (tDualSpinOrbit) then
-        write(*,"(A)")"Dual representation spin orbit"
+        write(stdout, "(A)")"Dual representation spin orbit"
       end if
       do iSp = 1, nType
         do jj = 1, orb%nShell(iSp)
@@ -2032,7 +2342,7 @@ contains
           else
             write(strTmp, "(A)") ""
           end if
-          write(*, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") &
+          write(stdout, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") &
                 &trim(strTmp), speciesName(iSp), &
                 &jj, orbitalNames(orb%angShell(jj, iSp)+1), &
                 &xi(jj, iSp)
@@ -2046,50 +2356,50 @@ contains
 
     if (tSCC) then
       if (t3rdFull) then
-        write (*, "(A,T30,A)") "Full 3rd order correction", "Yes"
+        write(stdout, "(A,T30,A)") "Full 3rd order correction", "Yes"
         if (input%ctrl%tOrbResolved) then
-          write (*, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
-          write(*, "(A30)") "Shell-resolved Hubbard derivs:"
-          write(*, "(A)") "        s-shell   p-shell   d-shell   f-shell"
+          write(stdout, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
+          write(stdout, "(A30)") "Shell-resolved Hubbard derivs:"
+          write(stdout, "(A)") "        s-shell   p-shell   d-shell   f-shell"
           do iSp = 1, nType
-            write(*,"(A3,A3,4F10.4)") "  ", trim(speciesName(iSp)),&
+            write(stdout, "(A3,A3,4F10.4)") "  ", trim(speciesName(iSp)),&
                 & input%ctrl%hubDerivs(:orb%nShell(iSp),iSp)
           end do
         end if
       end if
 
       if (any(tDampedShort)) then
-        write(*, "(A,T30,A)") "Damped SCC", "Yes"
+        write(stdout, "(A,T30,A)") "Damped SCC", "Yes"
         ii = count(tDampedShort)
         write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-        write(*, strTmp) "Damped species(s):", pack(speciesName, tDampedShort)
+        write(stdout, strTmp) "Damped species(s):", pack(speciesName, tDampedShort)
         deallocate(tDampedShort)
       end if
     end if
 
-    write (*, "(A,':')") "Extra options"
+    write(stdout, "(A,':')") "Extra options"
     if (tPrintMulliken) then
-      write (*, "(T30,A)") "Mulliken analysis"
+      write(stdout, "(T30,A)") "Mulliken analysis"
     end if
     if (tPrintForces .and. .not. (tMD .or. tGeoOpt .or. tDerivs)) then
-      write (*, "(T30,A)") "Force calculation"
+      write(stdout, "(T30,A)") "Force calculation"
     end if
     if (tPrintEigVecs) then
-      write (*, "(T30,A)") "Eigenvector printing"
+      write(stdout, "(T30,A)") "Eigenvector printing"
     end if
     if (tExtChrg) then
-      write (*, "(T30,A)") "External charges specified"
+      write(stdout, "(T30,A)") "External charges specified"
     end if
 
     if (tEField) then
       if (tTDEfield) then
-        write (*, "(T30,A)") "External electric field specified"
-        write (*, "(A,':',T30,E14.6)") "Angular frequency", EfieldOmega
+        write(stdout, "(T30,A)") "External electric field specified"
+        write(stdout, "(A,':',T30,E14.6)") "Angular frequency", EfieldOmega
       else
-        write (*, "(T30,A)") "External static electric field specified"
+        write(stdout, "(T30,A)") "External static electric field specified"
       end if
-      write (*, "(A,':',T30,E14.6)") "Field strength", EFieldStrength
-      write (*, "(A,':',T30,3F9.6)") "Direction", EfieldVector
+      write(stdout, "(A,':',T30,E14.6)") "Field strength", EFieldStrength
+      write(stdout, "(A,':',T30,3F9.6)") "Direction", EfieldVector
       if (tPeriodic) then
         call warning("Saw tooth potential used for periodic geometry &
             &- make sure there is a vacuum region!")
@@ -2100,10 +2410,10 @@ contains
       do iSp = 1, nType
         if (nUJ(iSp)>0) then
           write(strTmp, "(A,':')") "U-J coupling constants"
-          write(*, "(A,T25,A2)")trim(strTmp), speciesName(iSp)
+          write(stdout, "(A,T25,A2)")trim(strTmp), speciesName(iSp)
           do jj = 1, nUJ(iSp)
             write(strTmp, "(A,I1,A)")'(A,',niUJ(jj,iSp),'I2,T25,A,F6.4)'
-            write(*,trim(strTmp))'Shells:',iUJ(1:niUJ(jj,iSp),jj,iSp),'UJ:', &
+            write(stdout, trim(strTmp))'Shells:',iUJ(1:niUJ(jj,iSp),jj,iSp),'UJ:', &
                 & UJ(jj,iSp)
           end do
         end if
@@ -2122,14 +2432,14 @@ contains
 
     select case (forceType)
     case(0)
-      write(*, "(A,T30,A)") "Force type", "original"
+      write(stdout, "(A,T30,A)") "Force type", "original"
     case(1)
-      write(*, "(A,T30,A)") "Force type", "erho with re-diagonalized &
+      write(stdout, "(A,T30,A)") "Force type", "erho with re-diagonalized &
           & eigenvalues"
     case(2)
-      write(*, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+      write(stdout, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
     case(3)
-      write(*, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+      write(stdout, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
 
     if ((tSpinOrbit .and. tDFTBU) .and. tForces)  then
@@ -2184,12 +2494,10 @@ contains
 
     end if
 
-    tInitialized = .true.
-
   end subroutine initProgramVariables
 
 
-
+  !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
 
     integer :: ii
@@ -2198,31 +2506,36 @@ contains
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
-    do ii = 1, size(storeEigvecsReal)
-      call destruct(storeEigvecsReal(ii))
-    end do
-    do ii = 1, size(storeEigvecsCplx)
-      call destruct(storeEigvecsCplx(ii))
-    end do
+    if (allocated(storeEigvecsReal)) then
+      do ii = 1, size(storeEigvecsReal)
+        call destruct(storeEigvecsReal(ii))
+      end do
+    end if
+    if (allocated(storeEigvecsCplx)) then
+      do ii = 1, size(storeEigvecsCplx)
+        call destruct(storeEigvecsCplx(ii))
+      end do
+    end if
 
   end subroutine destructProgramVariables
-
 
 
   !> Creates all random generators needed in the code.
   !!
   subroutine createRandomGenerators(seed, randomInit, randomThermostat)
 
+
     !> Global seed used for initialisation of the random generator pool. If less than one, random
     !! initialisation of the seed will occur.
     integer, intent(inout) :: seed
 
+
     !> Random generator for initprogram.
     type(ORanlux), allocatable, intent(out) :: randomInit
 
+
     !> Random generator for the actual thermostat.
     type(ORanlux), allocatable, intent(out) :: randomThermostat
-
 
     type(ORandomGenPool) :: randGenPool
 
@@ -2236,6 +2549,5 @@ contains
     call randGenPool%getGenerator(randomInit)
 
   end subroutine createRandomGenerators
-
 
 end module initprogram
