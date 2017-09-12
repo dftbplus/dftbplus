@@ -119,7 +119,7 @@ contains
   subroutine ChrgConstr_addShiftPerAtom(sf, shiftPerAtom)
 
     !> Instance of a constraint
-    type(OChrgConstr), intent(inout) :: sf
+    type(OChrgConstr), intent(in) :: sf
 
     !> Shift to append onto
     real(dp), intent(inout) :: shiftPerAtom(:)
@@ -136,7 +136,7 @@ contains
   subroutine ChrgConstr_addEnergyPerAtom(sf, energyPerAtom, chargesPerAtom)
 
     !> Instance of a constraint
-    type(OChrgConstr), intent(inout) :: sf
+    type(OChrgConstr), intent(in) :: sf
 
     !> Energy per atom from constraint
     real(dp), intent(inout) :: energyPerAtom(:)

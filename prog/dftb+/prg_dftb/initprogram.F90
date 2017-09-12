@@ -86,6 +86,9 @@ module initprogram
   !> Is the calculation SCC?
   logical :: tSCC
 
+  !> SCC module internal variables
+  type(typSCC), allocatable :: oSCC
+  
   !> Nr. of different cutoffs
   integer, parameter :: nCutoff = 1
 
@@ -766,8 +769,7 @@ contains
 
     !> Is SCC cycle initialised
     type(TSCCInit), allocatable :: sccInit
-
-
+    
     !> Used for indexing linear response
     integer :: homoLoc(1)
 
@@ -940,6 +942,7 @@ contains
     end if
     if (tSCC) then
       allocate(sccInit)
+      allocate(oSCC)
       sccInit%orb => orb
       if (tPeriodic) then
         sccInit%latVecs = latVec
@@ -984,9 +987,9 @@ contains
       end if
 
       sccInit%ewaldAlpha = input%ctrl%ewaldAlpha
-      call init_SCC(sccInit)
+      call init_SCC(sccInit, oSCC)
       deallocate(sccInit)
-      mCutoff = max(mCutoff, getSCCCutoff())
+      mCutoff = max(mCutoff, getSCCCutoff(oSCC))
 
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
         call error("Onsite third order DFTB only compatible with orbital non&
@@ -1129,7 +1132,7 @@ contains
     if (tSCC) then
       allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
       allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
-      call SCC_getOrbitalEquiv(orb, species0, iEqOrbSCC)
+      call SCC_getOrbitalEquiv(oSCC, orb, species0, iEqOrbSCC)
       if (nSpin == 1) then
         iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
       else
@@ -2139,7 +2142,7 @@ contains
       write(stdout, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdout, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdout, "(A,':',T30,I14)") "Max. scc iterations", nSCCIter
-      write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
+      write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar(oSCC)
       if (tDFTBU) then
         write(stdout, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
         write(stdout, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !

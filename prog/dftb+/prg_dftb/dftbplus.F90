@@ -518,8 +518,8 @@ program dftbplus
         recCellVol = determinant33(recVec)
 
         if (tSCC) then
-          call updateLatVecs_SCC(latVec, recVec, cellVol)
-          mCutoff = max(mCutoff, getSCCCutoff())
+          call updateLatVecs_SCC(latVec, recVec, cellVol, oSCC)
+          mCutoff = max(mCutoff, getSCCCutoff(oSCC))
         end if
         if (tDispersion) then
           call dispersion%updateLatVecs(latVec)
@@ -608,7 +608,7 @@ program dftbplus
 
     ! Notify various modules about coordinate changes
     if (tSCC) then
-      call updateCoords_SCC(coord, species, neighborList, img2CentCell)
+      call updateCoords_SCC(coord, species, neighborList, img2CentCell, oSCC)
     end if
     if (tDispersion) then
       call dispersion%updateCoords(neighborList, img2CentCell, coord, &
@@ -741,10 +741,9 @@ program dftbplus
         potential%intAtom = 0.0_dp
         potential%intShell = 0.0_dp
         potential%intBlock = 0.0_dp
-        call updateCharges_SCC(qInput, q0, orb, species, &
-            &neighborList%iNeighbor, img2CentCell)
-        call getShiftPerAtom(potential%intAtom)
-        call getShiftPerL(potential%intShell)
+        call updateCharges_SCC(qInput, q0, orb, species, neighborList%iNeighbor, img2CentCell, oSCC)
+        call getShiftPerAtom(potential%intAtom, oSCC)
+        call getShiftPerL(potential%intShell, oSCC)
 
         if (t3rdFull) then
           call thirdOrd%updateCharges(species0, neighborList, qInput, q0,&
@@ -1094,11 +1093,11 @@ program dftbplus
         ! recalculate the SCC shifts for the output charge.
 
         ! SCC contribution is calculated with the output charges.
-        call updateCharges_SCC(qOutput, q0, orb, species, &
-            &neighborList%iNeighbor, img2CentCell)
+        call updateCharges_SCC(qOutput, q0, orb, species, neighborList%iNeighbor, img2CentCell, &
+            & oSCC)
 
-        call getShiftPerAtom(potential%intAtom)
-        call getShiftPerL(potential%intShell)
+        call getShiftPerAtom(potential%intAtom,oSCC)
+        call getShiftPerL(potential%intShell,oSCC)
         if (t3rdFull) then
           call thirdOrd%updateCharges(species0, neighborList, qOutput, q0,&
               & img2CentCell, orb)
@@ -1140,10 +1139,9 @@ program dftbplus
 
       if (tSCC) then
         if (tXlbomd) then
-          call getEnergyPerAtom_SCC_Xlbomd(species, orb, qOutput, q0, &
-              & energy%atomSCC)
+          call getEnergyPerAtom_SCC_Xlbomd(oSCC, species, orb, qOutput, q0, energy%atomSCC)
         else
-          call getEnergyPerAtom_SCC(energy%atomSCC)
+          call getEnergyPerAtom_SCC(energy%atomSCC, oSCC)
         end if
         energy%eSCC = sum(energy%atomSCC)
         if (t3rdFull) then
@@ -1375,7 +1373,7 @@ program dftbplus
         if (tPrintExcitedEigVecs) then
 
           call addGradients(tSpin, lresp, iAtomStart, &
-              & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
+              & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, oSCC, &
               & dqAtom, species0, neighborList%iNeighbor, &
               & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
               & fdAutotest, energy%Eexcited, excitedDerivs, &
@@ -1389,7 +1387,7 @@ program dftbplus
 
         else
           call addGradients(tSpin, lresp, iAtomStart, &
-              & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, &
+              & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, oSCC, &
               & dqAtom, species0, neighborList%iNeighbor, &
               & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, &
               & fdAutotest, energy%Eexcited, excitedDerivs, &
@@ -1397,7 +1395,7 @@ program dftbplus
         end if
       else
         call calcExcitations(tSpin, lresp, iAtomStart,&
-            & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0,&
+            & HSqrReal, eigen(:,1,:), SSqrReal, filling(:,1,:), coord0, oSCC, &
             & dqAtom, species0, neighborList%iNeighbor,&
             & img2CentCell, orb, tWriteAutotest, fdAutotest, energy%Eexcited)
       end if
@@ -1826,15 +1824,15 @@ program dftbplus
             !call addForceDCSCC_XLBOMD(species, orb, neighborList%iNeighbor, &
             !    & img2CentCell, coord, qOutput, q0, derivs)
           else
-            call addForceDCSCC(derivs, species, neighborList%iNeighbor, &
+            call addForceDCSCC(derivs, oSCC, species, neighborList%iNeighbor, &
                 & img2CentCell, coord, chrgForces)
           end if
         elseif (tSCC) then
           if (tXlbomd) then
-            call addForceDCSCC_Xlbomd(species, orb, neighborList%iNeighbor, &
+            call addForceDCSCC_Xlbomd(oSCC, species, orb, neighborList%iNeighbor, &
                 & img2CentCell, coord, qOutput, q0, derivs)
           else
-            call addForceDCSCC(derivs, species, neighborList%iNeighbor, &
+            call addForceDCSCC(derivs, oSCC, species, neighborList%iNeighbor, &
                 & img2CentCell, coord)
           end if
         end if
@@ -1887,7 +1885,7 @@ program dftbplus
                 & cellVol)
           end if
 
-          call addStressDCSCC(elecStress,species,neighborList%iNeighbor, &
+          call addStressDCSCC(elecStress,oSCC,species,neighborList%iNeighbor, &
               & img2CentCell,coord)
 
         else
@@ -2181,8 +2179,8 @@ program dftbplus
               CellVol = abs(determinant33(latVec))
               recCellVol = abs(determinant33(recVec))
               if (tSCC) then
-                call updateLatVecs_SCC(latVec, recVec, CellVol)
-                mCutoff = max(mCutoff, getSCCCutoff())
+                call updateLatVecs_SCC(latVec, recVec, CellVol, oSCC)
+                mCutoff = max(mCutoff, getSCCCutoff(oSCC))
               end if
               if (tDispersion) then
                 call dispersion%updateLatVecs(latVec)
@@ -2211,8 +2209,8 @@ program dftbplus
               recVec = 2.0_dp * pi * recVec2p
               recCellVol = abs(determinant33(recVec))
               if (tSCC) then
-                call updateLatVecs_SCC(latVec, recVec, CellVol)
-                mCutoff = max(mCutoff, getSCCCutoff())
+                call updateLatVecs_SCC(latVec, recVec, CellVol, oSCC)
+                mCutoff = max(mCutoff, getSCCCutoff(oSCC))
               end if
               if (tDispersion) then
                 call dispersion%updateLatVecs(latVec)
