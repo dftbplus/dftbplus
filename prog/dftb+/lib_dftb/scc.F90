@@ -646,7 +646,7 @@ contains
 
     !> Mapping L-shell -> uniq U
     integer, intent(in) :: iHubbU(:,:)
-    
+
     !> chemical species
     integer, intent(in) :: species(:)
 
@@ -1180,7 +1180,7 @@ contains
     if (OSCC%tThirdOrder_) then
       call addShiftPerAtom(OSCC%thirdOrder_, shift)
     end if
-    
+
   end subroutine getShiftPerAtom
 
 

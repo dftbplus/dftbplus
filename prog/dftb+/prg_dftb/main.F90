@@ -1698,10 +1698,10 @@ contains
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(oSCC, qInput, q0, chargePerShell, orb, species, neighborList,&
       & img2CentCell, spinW, thirdOrd, potential)
-    
+
     !> SCC module internal variables
     type(typSCC), intent(inout) :: oSCC
-    
+
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
 
@@ -3515,7 +3515,7 @@ contains
 
     !> SCC module internal variables
     type(typSCC), intent(in) :: oSCC
-    
+
     !> electrons in atomic orbitals
     real(dp), intent(in) :: qOutput(:,:,:)
 
@@ -4209,7 +4209,7 @@ contains
 
     !> SCC module internal variables
     type(typSCC), intent(in) :: oSCC
-    
+
     !> external electric field
     logical, intent(in) :: tEField
 
@@ -4369,7 +4369,7 @@ contains
 
     !> SCC module internal variables
     type(typSCC), intent(in) :: oSCC
-    
+
     !> External electric field
     logical, intent(in) :: tEField
 

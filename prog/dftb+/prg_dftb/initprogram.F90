@@ -85,7 +85,7 @@ module initprogram
 
   !> SCC module internal variables
   type(typSCC), allocatable :: oSCC
-  
+
   !> Nr. of different cutoffs
   integer, parameter :: nCutoff = 1
 
@@ -753,7 +753,7 @@ contains
 
     !> Is SCC cycle initialised
     type(TSCCInit), allocatable :: sccInit
-    
+
     !> Used for indexing linear response
     integer :: homoLoc(1)
 

@@ -96,7 +96,7 @@ contains
 
     !> Self-consistent charge module settings
     type(typSCC), intent(in) :: oSCC
-    
+
     !> converged ground state Mulliken net charges - atomic charges
     real(dp), intent(in) :: dq(:)
 

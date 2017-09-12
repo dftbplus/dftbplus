@@ -272,10 +272,10 @@ contains
 
     !> central cell atomic coordinates
     real(dp), intent(in) :: coords0(:,:)
-    
+
     !> Self-consistent charge module settings
     type(typSCC), intent(in) :: oSCC
-    
+
     !> net Mulliken atomic charges for ground state
     real(dp), intent(in) :: dqAt(:)
 
