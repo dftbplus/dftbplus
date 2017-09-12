@@ -21,6 +21,7 @@ module inputdata_module
   use linkedlist
   use xlbomd_module
   use ipisocket, only : IpiSocketCommInp
+  use pmlocalisation, only : TPipekMezeyInp
   implicit none
   private
   save
@@ -95,20 +96,7 @@ module inputdata_module
     !> Localise electronic states
     logical :: tLocalise   = .false.
 
-    !> use Givens rotations
-    logical :: tPipekMezey = .false.
-
-    !> dense or sparse algorithm
-    logical :: tPipekDense = .false.
-
-    !> tolerance on sparse region locating
-    real(dp), allocatable :: sparsePipekTols(:)
-
-    !> tolerance on termination
-    real(dp) :: PipekTol
-
-    !> cycles to localise charges
-    integer :: PipekMaxIter = 100
+    type(TPipekMezeyInp), allocatable :: pipekMezeyInp
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.

@@ -19,15 +19,15 @@ module dftbplusu
   implicit none
   private
 
-  public :: shift_DFTBU, AppendBlock_reduce, Block_expand
+  public :: getDftbUShift, AppendBlock_reduce, Block_expand
   public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
 
 
   !> Potential shift from LDA+U type potentials
-  interface shift_DFTBU
+  interface getDftbUShift
     module procedure shift_U
     module procedure shift_iU
-  end interface shift_DFTBU
+  end interface getDftbUShift
 
 contains
 
@@ -131,7 +131,7 @@ contains
 
 
   !> Construct the orbital contribution to the Hamiltonian
-  !> 
+  !>
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein Physical Review B 67, 153106 (2003)
   subroutine shift_iU(shiftR, shiftI, qBlockR, qBlockI, species, orb, functional, UJ, nUJ, niUJ, &
       & iUJ)
@@ -238,12 +238,12 @@ contains
 
 
   !> Calculates the energy contribution for the DFTB+U type functionals
-  !> 
+  !>
   !> Note: factor of 0.5 in expressions as using double the Pauli spinors
   subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
 
     !> energy contribution
-    real(dp), intent(inout) :: egy(:)
+    real(dp), intent(out) :: egy(:)
 
     !> charge block populations
     real(dp), intent(in) :: qBlock(:,:,:,:)
@@ -293,6 +293,8 @@ contains
 
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(egy)==nAtom)
+
+    egy(:) = 0.0_dp
 
     if (present(functional)) then
       iFunctional = functional

@@ -14,7 +14,7 @@ module blas
 
   interface
 
-    
+
     !> performs the symmetric rank 1 operation
     !> A := alpha*x*x**T + A
     subroutine ssyr(uplo, nn, alpha, xx, incx, aa, lda)

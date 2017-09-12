@@ -71,7 +71,7 @@ contains
     write(stdout, '(1a)') 'ERROR!'
     write(stdout, '(2a)') '-> ', trim(message)
     stop
-    
+
   end subroutine error_single
 
 

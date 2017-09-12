@@ -19,8 +19,7 @@ module stress
   implicit none
   private
 
-  public :: getRepulsiveStress, getKineticStress, getNonSCCStress,&
-      & getBlockStress, getBlockiStress
+  public :: getRepulsiveStress, getKineticStress, getNonSCCStress, getBlockStress, getBlockiStress
 
 contains
 
@@ -30,7 +29,7 @@ contains
       & cellVol)
 
     !> stress tensor
-    real(dp), intent(out) :: st(3,3)
+    real(dp), intent(out) :: st(:,:)
 
     !> coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
@@ -56,8 +55,9 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii
     real(dp) :: vect(3), intermed(3), prefac
 
-    st = 0.0_dp
+    @:ASSERT(all(shape(st) == [3, 3]))
 
+    st(:,:) = 0.0_dp
     do iAt1 = 1, size(nNeighbors)
       do iNeigh = 1, nNeighbors(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
@@ -84,7 +84,7 @@ contains
   subroutine getKineticStress(st, mass, species, velo, cellVol)
 
     !> stress tensor
-    real(dp), intent(out) :: st(3,3)
+    real(dp), intent(out) :: st(:,:)
 
     !> particle masses
     real(dp), intent(in) :: mass(:)
@@ -101,16 +101,15 @@ contains
     integer :: ii, jj, iAtom, nAtom
 
     nAtom = size(species)
+    @:ASSERT(all(shape(st) == [3, 3]))
     @:ASSERT(all(shape(velo) == (/3, nAtom/)))
     @:ASSERT(size(mass) == nAtom)
 
-    st = 0.0_dp
-
+    st(:,:) = 0.0_dp
     do iAtom = 1, nAtom
       do ii = 1, 3
         do jj = 1, 3
-          st(jj,ii) = st(jj,ii) &
-              & + mass(iAtom) * velo(jj,iAtom) * velo(ii,iAtom)
+          st(jj,ii) = st(jj,ii) + mass(iAtom) * velo(jj,iAtom) * velo(ii,iAtom)
         end do
       end do
     end do
@@ -125,7 +124,7 @@ contains
       & nNeighbor,img2CentCell,iPair,orb,cellVol)
 
     !> stress tensor
-    real(dp), intent(out) :: st(3,3)
+    real(dp), intent(out) :: st(:,:)
 
     !> Derivative calculator for (H0,S)
     class(NonSccDiff), intent(in) :: derivator
@@ -173,10 +172,11 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: vect(3), intermed(3)
 
+    @:ASSERT(all(shape(st) == [3, 3]))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
 
     nAtom = size(orb%nOrbAtom)
-    st = 0.0_dp
+    st(:,:) = 0.0_dp
 
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -234,7 +234,7 @@ contains
       & nNeighbor,img2CentCell,iPair,orb,shift,cellVol)
 
     !> stress tensor
-    real(dp), intent(out) :: st(3,3)
+    real(dp), intent(out) :: st(:,:)
 
     !> density matrix in packed format
     class(NonSccDiff), intent(in) :: derivator
@@ -289,6 +289,7 @@ contains
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
 
+    @:ASSERT(all(shape(st) == [3, 3]))
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
@@ -296,7 +297,7 @@ contains
     @:ASSERT(size(shift,dim=3)==nAtom)
     @:ASSERT(size(DM,dim=2)==nSpin)
 
-    st = 0.0_dp
+    st(:,:) = 0.0_dp
 
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
@@ -359,8 +360,8 @@ contains
           end if
 
         end if
-      enddo
-    enddo
+      end do
+    end do
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
@@ -371,155 +372,156 @@ contains
   subroutine getBlockiStress(st,derivator,DM,iDM,EDM,skHamCont,skOverCont,coords,species, &
       & iNeighbor,nNeighbor,img2CentCell,iPair,orb,shift,iShift,cellVol)
 
-  !> stress tensor
-  real(dp), intent(out) :: st(3,3)
+    !> stress tensor
+    real(dp), intent(out) :: st(:,:)
 
-  !> density matrix in packed format
-  class(NonSccDiff), intent(in) :: derivator
+    !> density matrix in packed format
+    class(NonSccDiff), intent(in) :: derivator
 
-  !> imaginary part of density matrix in packed format
-  real(dp), intent(in) :: DM(:,:)
+    !> imaginary part of density matrix in packed format
+    real(dp), intent(in) :: DM(:,:)
 
-  !> energy-weighted density matrix in packed format
-  real(dp), intent(in) :: iDM(:,:)
+    !> energy-weighted density matrix in packed format
+    real(dp), intent(in) :: iDM(:,:)
 
-  !> Container for SK Hamiltonian integrals
-  real(dp), intent(in) :: EDM(:)
+    !> Container for SK Hamiltonian integrals
+    real(dp), intent(in) :: EDM(:)
 
-  !> Container for SK overlap integrals
-  type(OSlakoCont), intent(in) :: skHamCont
+    !> Container for SK overlap integrals
+    type(OSlakoCont), intent(in) :: skHamCont
 
-  !> list of all atomic coordinates
-  type(OSlakoCont), intent(in) :: skOverCont
+    !> list of all atomic coordinates
+    type(OSlakoCont), intent(in) :: skOverCont
 
-  !> list of all atomic species
-  real(dp), intent(in) :: coords(:,:)
+    !> list of all atomic species
+    real(dp), intent(in) :: coords(:,:)
 
-  !> neighbor list for atoms
-  integer, intent(in) :: species(:)
+    !> neighbor list for atoms
+    integer, intent(in) :: species(:)
 
-  !> number of neighbors of each atom
-  integer, intent(in) :: iNeighbor(0:,:)
+    !> number of neighbors of each atom
+    integer, intent(in) :: iNeighbor(0:,:)
 
-  !> number of real atoms
-  integer, intent(in) :: nNeighbor(:)
+    !> number of real atoms
+    integer, intent(in) :: nNeighbor(:)
 
-  !> indexing array for periodic image atoms
-  integer, intent(in) :: img2CentCell(:)
+    !> indexing array for periodic image atoms
+    integer, intent(in) :: img2CentCell(:)
 
-  !> indexing array for the Hamiltonian
-  integer, intent(in) :: iPair(0:,:)
+    !> indexing array for the Hamiltonian
+    integer, intent(in) :: iPair(0:,:)
 
-  !> Information about the orbitals
-  type(TOrbitals), intent(in) :: orb
+    !> Information about the orbitals
+    type(TOrbitals), intent(in) :: orb
 
-  !> block shift from the potential
-  real(dp), intent(in) :: shift(:,:,:,:)
+    !> block shift from the potential
+    real(dp), intent(in) :: shift(:,:,:,:)
 
-  !> imaginary block shift from the potential
-  real(dp), intent(in) :: iShift(:,:,:,:)
+    !> imaginary block shift from the potential
+    real(dp), intent(in) :: iShift(:,:,:,:)
 
-  !> cell volume.
-  real(dp), intent(in) :: cellVol
+    !> cell volume.
+    real(dp), intent(in) :: cellVol
 
-  integer :: iOrig, iSpin, nSpin, ii, jj
-  integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
-  integer :: nOrb1, nOrb2, iSp1, iSp2
-  real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
-  real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-  real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
-  real(dp) :: vect(3), intermed(3)
+    integer :: iOrig, iSpin, nSpin, ii, jj
+    integer :: nAtom, iNeigh, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, iSp1, iSp2
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
+    real(dp) :: vect(3), intermed(3)
 
-  nAtom = size(orb%nOrbAtom)
-  nSpin = size(shift,dim=4)
+    nAtom = size(orb%nOrbAtom)
+    nSpin = size(shift,dim=4)
 
-  @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-  @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-  @:ASSERT(size(shift,dim=1)==orb%mOrb)
-  @:ASSERT(size(shift,dim=2)==orb%mOrb)
-  @:ASSERT(size(shift,dim=3)==nAtom)
-  @:ASSERT(size(DM,dim=2)==nSpin)
+    @:ASSERT(all(shape(st) == [3, 3]))
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
+    @:ASSERT(size(shift,dim=1)==orb%mOrb)
+    @:ASSERT(size(shift,dim=2)==orb%mOrb)
+    @:ASSERT(size(shift,dim=3)==nAtom)
+    @:ASSERT(size(DM,dim=2)==nSpin)
 
-  st = 0.0_dp
+    st = 0.0_dp
 
-  do iAtom1 = 1, nAtom
-    iSp1 = species(iAtom1)
-    nOrb1 = orb%nOrbSpecies(iSp1)
-    do iNeigh = 1, nNeighbor(iAtom1)
-      iAtom2 = iNeighbor(iNeigh, iAtom1)
-      iAtom2f = img2CentCell(iAtom2)
-      iSp2 = species(iAtom2f)
-      if (iAtom1 /= iAtom2) then
-        nOrb2 = orb%nOrbSpecies(iSp2)
-        iOrig = iPair(iNeigh,iAtom1) + 1
-        sqrDMTmp(1:nOrb2,1:nOrb1) = &
-            & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-        sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-            & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
-        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-            & iAtom1, iAtom2, orb)
-        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-            & iAtom1, iAtom2, orb)
+    do iAtom1 = 1, nAtom
+      iSp1 = species(iAtom1)
+      nOrb1 = orb%nOrbSpecies(iSp1)
+      do iNeigh = 1, nNeighbor(iAtom1)
+        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        iSp2 = species(iAtom2f)
+        if (iAtom1 /= iAtom2) then
+          nOrb2 = orb%nOrbSpecies(iSp2)
+          iOrig = iPair(iNeigh,iAtom1) + 1
+          sqrDMTmp(1:nOrb2,1:nOrb1) = &
+              & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
+              & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
+              & iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
+              & iAtom1, iAtom2, orb)
 
-        intermed(:) = 0.0_dp
-        do ii = 1, 3
-          ! again factor of 2 from lower triangle sum of DM
-          intermed(ii) = 2.0_dp * ( &
-              & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-              &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-              & )
-        end do
-
-        do iSpin = 1, nSpin
+          intermed(:) = 0.0_dp
           do ii = 1, 3
-            shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
             ! again factor of 2 from lower triangle sum of DM
-            intermed(ii) = intermed(ii) + 2.0_dp * ( &
-                &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
-                & ) )
+            intermed(ii) = 2.0_dp * ( &
+                & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                & )
           end do
-        end do
 
-        do iSpin = 1, nSpin
-          do ii = 1, 3
-            shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-            intermed(ii) = intermed(ii) + &
-                &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                &reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
-          end do
-        end do
-
-        vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
-        if (iAtom1/=iAtom2f) then
-          do ii = 1, 3
-            do jj = 1, 3
-              st(jj,ii) = st(jj,ii) &
-                  & + 2.0_dp * intermed(jj) * vect(ii)
+          do iSpin = 1, nSpin
+            do ii = 1, 3
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
+                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
+                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
+                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
+                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              ! again factor of 2 from lower triangle sum of DM
+              intermed(ii) = intermed(ii) + 2.0_dp * ( &
+                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
+                  & ) )
             end do
           end do
-        else
-          do ii = 1, 3
-            do jj = 1, 3
-              st(jj,ii) = st(jj,ii) &
-                  & + intermed(jj) * vect(ii)
+
+          do iSpin = 1, nSpin
+            do ii = 1, 3
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
+                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
+                  & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
+                  & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
+                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              intermed(ii) = intermed(ii) + &
+                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                  &reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
             end do
           end do
+
+          vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
+          if (iAtom1/=iAtom2f) then
+            do ii = 1, 3
+              do jj = 1, 3
+                st(jj,ii) = st(jj,ii) &
+                    & + 2.0_dp * intermed(jj) * vect(ii)
+              end do
+            end do
+          else
+            do ii = 1, 3
+              do jj = 1, 3
+                st(jj,ii) = st(jj,ii) &
+                    & + intermed(jj) * vect(ii)
+              end do
+            end do
+          end if
         end if
-      end if
-    enddo
-  enddo
+      end do
+    end do
 
-  st(:,:) = -0.5_dp * st(:,:) / cellVol
+    st(:,:) = -0.5_dp * st(:,:) / cellVol
 
-end subroutine getBlockiStress
+  end subroutine getBlockiStress
 
 end module stress

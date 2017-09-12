@@ -1157,48 +1157,47 @@ contains
   end subroutine buildShifts_
 
 
-  !> Returns the shift per atom coming from the SCC part (with a spin index)
+  !> Returns the shift per atom coming from the SCC part
   subroutine getShiftPerAtom(shift, OSCC)
+
+    !> Contains the shift on exit.
+    real(dp), intent(out) :: shift(:)
+
+    !> Module variables
+    type(typSCC), intent(in) :: OSCC
+
+    @:ASSERT(OSCC%tInitialised_)
+    @:ASSERT(size(shift) == size(OSCC%shiftPerAtom_))
+
+    shift = 0.0_dp
+    shift = OSCC%shiftPerAtom_
+    if (OSCC%tExtChrg_) then
+      call addShiftPerAtom_ExtChrg(shift)
+    end if
+    if (OSCC%tChrgConstr_) then
+      call addShiftPerAtom(OSCC%chrgConstr_, shift)
+    end if
+    if (OSCC%tThirdOrder_) then
+      call addShiftPerAtom(OSCC%thirdOrder_, shift)
+    end if
+    
+  end subroutine getShiftPerAtom
+
+
+  !> Returns the shift per L contribution of the SCC.
+  subroutine getShiftPerL(shift, OSCC)
 
     !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:,:)
 
-    !> Resulting module variables
-    type(typSCC), intent(in) :: OSCC
-
-    @:ASSERT(OSCC%tInitialised_)
-    @:ASSERT(size(shift,dim=1) == size(OSCC%shiftPerAtom_,dim=1))
-
-    shift(:,:) = 0.0_dp
-    shift(:,1) = OSCC%shiftPerAtom_
-    if (OSCC%tExtChrg_) then
-      call addShiftPerAtom_ExtChrg(shift(:,1))
-    end if
-    if (OSCC%tChrgConstr_) then
-      call addShiftPerAtom(OSCC%chrgConstr_, shift(:,1))
-    end if
-    if (OSCC%tThirdOrder_) then
-      call addShiftPerAtom(OSCC%thirdOrder_, shift(:,1))
-    end if
-
-  end subroutine getShiftPerAtom
-
-
-  !> Returns the shift per L contribution of the SCC. (with a spin index)
-  subroutine getShiftPerL(shift, OSCC)
-
-    !> Contains the shift on exit.
-    real(dp), intent(out) :: shift(:,:,:)
-
-    !> Resulting module variables
+    !> Module variables
     type(typSCC), intent(in) :: OSCC
 
     @:ASSERT(OSCC%tInitialised_)
     @:ASSERT(size(shift,dim=1) == size(OSCC%shiftPerL_,dim=1))
     @:ASSERT(size(shift,dim=2) == size(OSCC%shiftPerL_,dim=2))
-    @:ASSERT(size(shift,dim=3) > 0)
-    shift(:,:,:) = 0.0_dp
-    shift(:,:,1) = OSCC%shiftPerL_(:,:)
+    shift = 0.0_dp
+    shift = OSCC%shiftPerL_
 
   end subroutine getShiftPerL
 

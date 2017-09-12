@@ -396,20 +396,20 @@ contains
 
     !> the natural orbitals of the excited state transition density matrix or the total density
     !> matrix in the excited state
-    real(dp), intent(out), optional :: naturalOrbs(:,:)
+    real(dp), intent(out), optional :: naturalOrbs(:,:,:)
 
 #:if WITH_ARPACK
 
-    real(dp), allocatable :: shiftPerAtom(:,:), shiftPerL(:,:,:)
+    real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
     @:ASSERT(self%tInit)
     @:ASSERT(self%nAtom == size(orb%nOrbAtom))
     ! BA: SCC is currently ugly, it gives back an array with an additional dimension (spin),
     ! however, fills always the first channel only!
-    ALLOCATE(shiftPerAtom(self%nAtom, 1))
-    ALLOCATE(shiftPerL(orb%mShell, self%nAtom, 1))
+    ALLOCATE(shiftPerAtom(self%nAtom))
+    ALLOCATE(shiftPerL(orb%mShell, self%nAtom))
     call getShiftPerAtom(shiftPerAtom, oSCC)
     call getShiftPerL(shiftPerL, oSCC)
-    shiftPerAtom = shiftPerAtom + shiftPerL(1,:,:)
+    shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
     call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, oSCC, dqAt, coords0, &
         & self%nExc, self%nStat, self%symmetry, SSqrReal, filling, species0, self%HubbardU, &
@@ -417,7 +417,7 @@ contains
         & self%fdMulliken, self%fdCoeffs, self%tGrndState, self%fdXplusY, self%fdTrans, &
         & self%fdSPTrans, self%fdTradip, self%tArnoldi, self%fdArnoldi, self%fdArnoldiDiagnosis, &
         & self%fdExc, self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, &
-        & self%oscillatorWindow, excEnergy, shiftPerAtom(:,1), skHamCont, skOverCont, excgradient, &
+        & self%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, &
         & derivator, rhoSqr, occNatural, naturalOrbs)
 
 #:else

@@ -14,14 +14,8 @@ module qm
 
   implicit none
 
-  public
-
-
-  !> constructs a commutator
-  interface commutator
-    module procedure C_
-  end interface
-
+  private
+  public :: unitary
 
   !> perform a unitary transformation of a matrix X' = U X U^T*
   interface unitary
@@ -39,32 +33,13 @@ module qm
 contains
 
 
-  !> constructs a commutator for given matrices C = [A,B]
-  subroutine C_(C,A,B)
-
-    !> result of commutator
-    complex(dp), intent(out) :: C(:,:)
-
-    !> first matrix
-    complex(dp), intent(in) :: A(:,:)
-
-    !> second matrix
-    complex(dp), intent(in) :: B(:,:)
-
-    @:ASSERT(all(shape(C)==shape(A)))
-    @:ASSERT(all(shape(C)==shape(B)))
-    @:ASSERT(size(C,dim=1)==size(C,dim=2))
-
-    C = matmul(A,B) - matmul(B,A)
-
-  end subroutine C_
-
-
   !> unitary transformation of a matrix X' = U X U^T*
   subroutine U_cmplx(xx, uu)
-    !! matrix in original basis, U X U^T* on return.
+
+    !> matrix in original basis, U X U^T* on return.
     complex(dp), intent(inout) :: xx(:,:)
-    !! unitary matrix
+
+    !> unitary matrix
     complex(dp), intent(in) :: uu(:,:)
 
     complex(dp) :: work(size(xx,dim=1),size(xx,dim=2))

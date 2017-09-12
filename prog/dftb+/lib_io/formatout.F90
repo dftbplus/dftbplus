@@ -98,7 +98,7 @@ contains
     if (fd == -1) then
       fd = getFileId()
     end if
-    open(fd, file=fileName, position="append")
+    open(fd, file=fileName, form="formatted", action="write", status="replace")
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
 
@@ -188,7 +188,7 @@ contains
 
   !> Writes coordinates in the XYZ format
   subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities, &
-      & comment)
+      & comment, append)
 
     !> File name of a file to be created
     character(len=*), intent(in) :: fileName
@@ -211,14 +211,26 @@ contains
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
+    !> Whether geometry should be appended (default: it is overwritten)
+    logical, intent(in), optional :: append
+
     integer, save :: fd = -1
+    logical :: append0
 
     if (fd == -1) then
       fd = getFileId()
     end if
-    open(fd, file=fileName, position="append")
-    call writeXYZFormat(fd, coord, species, speciesName, charges, velocities, &
-        &comment)
+    if (present(append)) then
+      append0 = append
+    else
+      append0 = .false.
+    end if
+    if (append) then
+      open(fd, file=fileName, action="write", form="formatted", status="old", position="append")
+    else
+      open(fd, file=fileName, action="write", form="formatted", status="replace")
+    end if
+    call writeXYZFormat(fd, coord, species, speciesName, charges, velocities, comment)
     close(fd)
 
   end subroutine writeXYZFormat_fname

@@ -40,7 +40,7 @@ module dummytherm
     type(OMDCommon) :: pMDFrame
   end type ODummyThermostat
 
-  
+
   !> Initialise thermostat object
   interface init
     module procedure DummyThermostat_init

@@ -110,8 +110,8 @@ periodic.o = periodic.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod
 _mod_periodic: periodic.o
 _mod_periodic = $(periodic.o)
 
-pmlocalisation.o: _mod_sparse2dense common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_accuracy _mod_io
-pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy) $(_mod_io)
+pmlocalisation.o: _mod_sparse2dense common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_periodic _mod_accuracy _mod_io
+pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_io)
 _mod_pmlocalisation: pmlocalisation.o
 _mod_pmlocalisation = $(pmlocalisation.o)
 

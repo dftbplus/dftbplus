@@ -23,7 +23,7 @@ module dispuffdata
     !> Chemical symbol
     character(2) :: symbol
 
-    !> vdW minimum distance 
+    !> vdW minimum distance
     real(dp) :: distance
 
     !> depth of minimum
@@ -73,7 +73,7 @@ contains
     !> Name of the element for look for.
     character(len=*), intent(in) :: name
 
-    !> Distance (in Bohr) at return.    
+    !> Distance (in Bohr) at return.
     real(dp), intent(out) :: distance
 
     !> Energy (in Hartree) at return.

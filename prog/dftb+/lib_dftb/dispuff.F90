@@ -41,11 +41,11 @@ module dispuff_module
     real(dp), allocatable :: distances(:)
   end type DispUffInp
 
-  
+
   !> Internal state of the van der Waals dispersion module.
   type, extends(DispersionIface) :: DispUff
     private
-    
+
     !> Nr. of atoms, species
     integer :: nAtom, nSpecies
 
@@ -105,7 +105,7 @@ module dispuff_module
 
 contains
 
-  
+
   !> Inits a DispUff instance.
   subroutine DispUff_init(this, inp, nAtom, species0, latVecs)
 

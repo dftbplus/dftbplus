@@ -29,23 +29,20 @@ module ipisocket
     !> Number of atoms for which data is exchanged
     integer :: nAtom
 
-
     !> Host name
     character(:), allocatable :: host
 
-
     !> Verbosity level of detail on communication.
     integer :: verbosity
-
 
     !> Protocol type of message headers and data to use (currently only
     !! IPI_PROTOCOL1 understood).
     integer :: protocol
 
-
     !> Port to connect to if using an internet protocol, if -1, its a file
     !! system connection
     integer :: port
+
   end type IpiSocketCommInp
 
 
@@ -107,10 +104,8 @@ contains
   !!
   subroutine IpiSocketComm_init(this, input)
 
-
     !> Instance.
     type(IpiSocketComm), intent(out) :: this
-
 
     !> Input data.
     type(IpiSocketCommInp), intent(in) :: input
@@ -156,10 +151,8 @@ contains
   !!
   function construct(input) result(this)
 
-
     !> Input data
     type(IpiSocketCommInp), intent(in) :: input
-
 
     !> Instance
     type(IpiSocketComm) :: this
@@ -174,19 +167,19 @@ contains
   !! All data in atomic units, and currently assumes the number
   !! of atoms is the same as passed at construction/initialisation.
   !!
-  subroutine receive(this, coord, cell)
-
+  subroutine receive(this, coord, cell, tStop)
 
     !> Instance.
-    class(IpiSocketComm), intent(inout) :: this
-
+    class(IpiSocketComm), intent(in) :: this
 
     !> Atomic coordinates.
-    real(dp), intent(out) :: coord(:,:)
-
+    real(dp), intent(inout) :: coord(:,:)
 
     !> Cell lattice vectors.
-    real(dp), intent(out) :: cell(3, 3)
+    real(dp), intent(inout) :: cell(3, 3)
+
+    !> Halt DFTB+
+    logical, intent(out) :: tStop
 
     character(lc) :: msg
     character(len=IPI_MSGLEN) :: header, buffer
@@ -198,6 +191,8 @@ contains
 
     @:ASSERT(this%tInit)
     @:ASSERT(size(coord, dim=1) == 3)
+
+    tStop = .false.
 
     nAtom = size(coord, dim=2)
     if (nAtom /= this%nAtom) then
@@ -224,10 +219,17 @@ contains
     end do
 
     ! expecting positions data
-    if (trim(header) /= 'POSDATA') then
-      call error("ipisocket%receive: Unexpected message from server (expected 'POSDATA'),&
-          & received '" // trim(header) // "'")
-    end if
+    select case (trim(header))
+    case ('POSDATA')
+      ! expected return during run
+    case ('EXIT')
+      call warning("ipisocket%receive: EXIT. Halting DFTB+.")
+      tStop = .true.
+      return
+    case default
+      call error("ipisocket%receive: Unexpected message from server, received '" &
+          & // trim(header) // "'")
+    end select
 
     ! lattice vector data
     call readbuffer(this%socket, commsBuffer2)
