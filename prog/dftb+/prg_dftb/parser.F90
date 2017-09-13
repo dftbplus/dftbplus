@@ -2020,7 +2020,7 @@ contains
       real(dp), allocatable :: rTmp(:)
       integer :: ii, jj, iAt
 
-      @:ASSERT(nSpin == 2 .or. nSpin == 4)
+      @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
       call getChildValue(node, "InitialSpins", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)

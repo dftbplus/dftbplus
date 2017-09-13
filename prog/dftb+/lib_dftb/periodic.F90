@@ -344,7 +344,7 @@ contains
     @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
 #:call ASSERT_CODE
     if (present(invShift)) then
-      ASSERT(all(shape(invShift) == shape(coord)))
+      @:ASSERT(all(shape(invShift) == shape(coord)))
     end if
 #:endcall ASSERT_CODE
 

@@ -15,20 +15,13 @@ module qm
   implicit none
 
   private
-  public :: unitary
+  public :: makeSimiliarityTrans
 
-  !> perform a unitary transformation of a matrix X' = U X U^T*
-  interface unitary
+  !> perform a similarity (or unitary) transformation of a matrix X' = U X U^T*
+  interface makeSimiliarityTrans
     module procedure U_cmplx
     module procedure U_real
-  end interface
-
-
-  !> Test if a matrix is unitary (U U^T* = 1)
-  interface isunitary
-    module procedure isunitary_real
-    module procedure isunitary_cmplx
-  end interface isunitary
+  end interface makeSimiliarityTrans
 
 contains
 
@@ -46,8 +39,6 @@ contains
 
     @:ASSERT(all(shape(xx) == shape(uu)))
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
-
-    @:ASSERT(isunitary(uu,epsilon(1.0_rsp)))
 
     work = matmul(xx, transpose(conjg(uu)))
     xx = matmul(uu, work)
@@ -69,83 +60,9 @@ contains
     @:ASSERT(all(shape(xx) == shape(uu)))
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
 
-    @:ASSERT(isunitary(uu,epsilon(1.0_rsp)))
-
     work = matmul(xx, transpose(uu))
     xx = matmul(uu, work)
 
   end subroutine U_real
-
-
-  !> tests if a matrix is unitary to single precision
-  function isunitary_real(U,tol) result (unitary)
-
-    !> matrix to test
-    real(dp), intent(in) :: U(:,:)
-
-    !> tollerance for test
-    real(dp), intent(in) :: tol
-
-    !> test result
-    logical :: unitary
-
-    integer :: ii
-    real(dp) :: work(size(U,dim=1),size(U,dim=2))
-
-    @:ASSERT(size(U,dim=1) == size(U,dim=1))
-    @:ASSERT(size(U,dim=1)==size(U,dim=1))
-
-    work = matmul(U,transpose(U))
-
-    unitary = .true.
-    do ii = 1, size(work,dim=1)
-      if ( abs(work(ii,ii) -1.0_dp) > tol) then
-        unitary = .false.
-        return
-      end if
-      work(ii,ii) = 0.0_dp
-    end do
-    if (any(abs(work) > tol )) then
-      unitary = .false.
-      return
-    end if
-
-  end function isunitary_real
-
-
-  !> tests if a matrix is unitary to single precision
-  function isunitary_cmplx(U,tol) result (unitary)
-
-    !> matrix to test
-    complex(dp), intent(in) :: U(:,:)
-
-    !> tollerance for test
-    real(dp), intent(in) :: tol
-
-    !> test result
-    logical :: unitary
-
-    integer :: ii
-    complex(dp) :: work(size(U,dim=1),size(U,dim=2))
-
-    @:ASSERT(tol >= 0.0_dp)
-    @:ASSERT(size(U,dim=1)==size(U,dim=1))
-
-    work = matmul(U,transpose(conjg(U)))
-
-    unitary = .true.
-    do ii = 1, size(work,dim=1)
-      if ( abs(work(ii,ii) -1.0_dp) > tol) then
-        unitary = .false.
-        return
-      end if
-      work(ii,ii) = 0.0_dp
-    end do
-    if (any(abs(work) > tol )) then
-      unitary = .false.
-      return
-    end if
-
-  end function isunitary_cmplx
 
 end module qm

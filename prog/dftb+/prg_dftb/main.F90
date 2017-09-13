@@ -1410,7 +1410,7 @@ contains
         @:ASSERT(all(shape(iHam) == shape(ham)))
       end if
       if (allocated(ERhoPrim)) then
-        @:ASSERT(all(shape(ERhoPrim) == shape(ham)))
+        @:ASSERT(size(ERhoPrim) == size(ham, dim=1))
       end if
     #:endcall ASSERT_CODE
 
@@ -1677,7 +1677,7 @@ contains
     !> potentials in the system
     type(TPotentials), intent(inout) :: potential
 
-    @:ASSERT(tDualSpinOrbit .eqv. allocate(xi))
+    @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
 
     potential%intAtom(:,:) = 0.0_dp
     potential%intShell(:,:,:) = 0.0_dp
@@ -1753,7 +1753,7 @@ contains
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
 
-    if (allocated(spinW)) then
+    if (nSpin /= 1 .and. allocated(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
     end if
@@ -2210,8 +2210,8 @@ contains
     tStoreEigvecs = present(storeEigvecsCplx)
 
     #:call ASSERT_CODE
-      @:ASSERT((size(HSqrCplx, dim=2) == nKPoint .and. size(HSqrReal, dim=3) == nSpin)&
-          & .or. (tStoreEigvecs .and. size(HSqrReal, dim=2) == 1 .and. size(HSqrReal, dim=3) == 1))
+      @:ASSERT((size(HSqrCplx, dim=3) == nKPoint .and. size(HSqrCplx, dim=4) == nSpin)&
+          & .or. (tStoreEigvecs .and. size(HSqrCplx, dim=3) == 1 .and. size(HSqrCplx, dim=4) == 1))
       if (tStoreEigvecs) then
         @:ASSERT(size(storeEigvecsCplx) == nSpin)
       end if
@@ -3353,10 +3353,10 @@ contains
     integer :: nSpin
 
     @:ASSERT(present(qBlock) .eqv. present(iEqBlockDftbU))
-    @:ASSERT(present(qBlock) .eqv. present(species0))
-    @:ASSERT(present(qBlock) .eqv. present(nUJ))
-    @:ASSERT(present(qBlock) .eqv. present(iUJ))
-    @:ASSERT(present(qBlock) .eqv. present(niUJ))
+    @:ASSERT(.not. present(qBlock) .or. present(species0))
+    @:ASSERT(.not. present(qBlock) .or. present(nUJ))
+    @:ASSERT(.not. present(qBlock) .or. present(iUJ))
+    @:ASSERT(.not. present(qBlock) .or. present(niUJ))
     @:ASSERT(.not. present(qiBlock) .or. present(qBlock))
     @:ASSERT(present(qiBlock) .eqv. present(iEqBlockDftbuLS))
 

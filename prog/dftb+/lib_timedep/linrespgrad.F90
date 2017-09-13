@@ -610,7 +610,7 @@ contains
           & naturalOrbs)
 
       ! Make MO to AO transformation of the excited transition density matrix
-      call unitary(pc, grndEigVecs(:,:,1))
+      call makeSimiliarityTrans(pc, grndEigVecs(:,:,1))
 
       ! Muliken population for excited density matrix
       call getExcMulliken(iAtomStart, pc, SSqr, dqex)

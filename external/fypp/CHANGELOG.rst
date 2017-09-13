@@ -3,6 +3,16 @@ Change Log
 ==========
 
 
+2.1.1
+=====
+
+Fixed
+-----
+
+* Wrong _LINE_ and _FILE_ values when calling a macro during evaluation of the
+  arguments of a call directive.
+
+
 2.1
 ===
 
