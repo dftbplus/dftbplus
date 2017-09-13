@@ -3198,7 +3198,6 @@ contains
     logical :: tLRNeedsSpinConstants, tOrbResolvedW
     integer :: iSp1
 
-    print *, 'READSPIN:', ctrl%tSpin
     tLRNeedsSpinConstants = .false.
 
     if (ctrl%lrespini%tInit) then
@@ -3212,7 +3211,6 @@ contains
     end if
 
     if (tLRNeedsSpinConstants .or. ctrl%tSpin) then
-      print *, 'ALLOCA CTRL%SPIN'
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 

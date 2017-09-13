@@ -113,7 +113,6 @@ contains
     @:ASSERT(size(coordsAndCharges, dim=1) == 4)
     @:ASSERT(nChrg_ > 0)
     @:ASSERT(present(latVecs) .eqv. present(recVecs))
-    print *, present(latVecs), present(ewaldCutoff)
     @:ASSERT(present(latVecs) .eqv. present(ewaldCutoff))
     @:ASSERT(present(latVecs) .neqv. present(blurWidths))
 #:call ASSERT_CODE
