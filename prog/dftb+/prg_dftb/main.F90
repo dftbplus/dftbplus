@@ -328,15 +328,15 @@ contains
       end if
 
       if (tLatticeChanged) then
-        call handleLatticeChange(latVec, tSccCalc, sccCalc, tStress, extPressure, mCutoff,&
+        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutoff,&
             & dispersion, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
       end if
 
       if (tCoordsChanged) then
         call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
-            & tPeriodic, tSccCalc, sccCalc, tDispersion, dispersion, thirdOrd, img2CentCell,&
-            & iCellVec, neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb,&
-            & nNeighbor, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+            & tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
+            & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
+            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
       end if
 
       if (tSccCalc) then
@@ -424,7 +424,7 @@ contains
           potential%intBlock = potential%intBlock + potential%extBlock
         end if
 
-        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tSccCalc, tXlbomd,&
+        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
             & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
@@ -510,7 +510,7 @@ contains
             & nNeighbor, orb, iDenseStart, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS,&
             & ham, over, solver, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx,&
             & storeEigvecsReal, storeEigvecsCplx)
-        call getGradients(tSccCalc, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim,&
+        call getGradients(sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim,&
             & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor,&
             & species, img2CentCell, iSparseStart, orb, potential, coord, dispersion, derivs,&
             & iRhoPrim, thirdOrd, chrgForces)
@@ -519,8 +519,8 @@ contains
         end if
 
         if (tStress) then
-          call getStress(tSccCalc, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
-              & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+          call getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
+              & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
               & coord0, dispersion, totalStress, totalLatDeriv, intPressure, iRhoPrim)
           call printVolume(cellVol)
@@ -723,6 +723,11 @@ contains
     call destructProgramVariables()
 
   end subroutine runDftbPlus
+
+  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Privat routines
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
   !> Initialises (clears) output files.
@@ -1145,17 +1150,14 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, tSccCalc, sccCalc, tStress, extPressure, mCutoff,&
+  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutoff,&
       & dispersion, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    !> self consistent calculation?
-    logical, intent(in) :: tSccCalc
-
     !> Module variables
-    type(TScc), intent(inout) :: sccCalc
+    type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> evaluate stress
     logical, intent(in) :: tStress
@@ -1200,7 +1202,7 @@ contains
       call derivDeterminant33(extLatDerivs, latVecs)
       extLatDerivs(:,:) = extPressure * extLatDerivs
     end if
-    if (tSccCalc) then
+    if (allocated(sccCalc)) then
       call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
       mCutoff = max(mCutoff, sccCalc%getCutoff())
     end if
@@ -1215,9 +1217,9 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
-      & orb, tPeriodic, tSccCalc, sccCalc, tDispersion, dispersion, thirdOrd, img2CentCell,&
-      & iCellVec, neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb,&
-      & nNeighbor, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+      & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
+      & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0, rhoPrim,&
+      & iRhoPrim, iHam, ERhoPrim, iSparseStart)
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -1244,13 +1246,7 @@ contains
     logical, intent(in) :: tPeriodic
 
     !> SCC module internal variables
-    type(TScc), intent(inout) :: sccCalc
-
-    !> Charge self consistent mode?
-    logical, intent(in) :: tSccCalc
-
-    !> Is dispersion included
-    logical, intent(in) :: tDispersion
+    type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
@@ -1330,10 +1326,10 @@ contains
     call reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
 
     ! Notify various modules about coordinate changes
-    if (tSccCalc) then
+    if (allocated(sccCalc)) then
       call sccCalc%updateCoords(coord, species, neighborList, img2CentCell)
     end if
-    if (tDispersion) then
+    if (allocated(dispersion)) then
       call dispersion%updateCoords(neighborList, img2CentCell, coord, &
           & species0)
     end if
@@ -2967,13 +2963,13 @@ contains
 
 
   !> Calculates various energy contributions
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tSccCalc, tXlbomd,&
+  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
       & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
       & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
     !> SCC module internal variables
-    type(TScc), intent(in) :: sccCalc
+    type(TScc), allocatable, intent(in) :: sccCalc
 
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
@@ -2989,9 +2985,6 @@ contains
 
     !> is an external electric field present
     logical, intent(in) :: tEField
-
-    !> is this a self-consistent calculation
-    logical, intent(in) :: tSccCalc
 
     !> Is the extended Lagrangian being used for MD
     logical, intent(in) :: tXlbomd
@@ -3080,28 +3073,26 @@ contains
       energy%Eext = sum(energy%atomExt)
     end if
 
-    if (tSccCalc) then
+    if (allocated(sccCalc)) then
       if (tXlbomd) then
         call sccCalc%getEnergyPerAtomXlbomd(species, orb, qOrb, q0, energy%atomSCC)
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
       energy%Escc = sum(energy%atomSCC)
-      if (present(thirdOrd)) then
-        if (tXlbomd) then
-          call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
-        else
-          call thirdOrd%getEnergyPerAtom(energy%atom3rd)
-        end if
-        energy%e3rd = sum(energy%atom3rd)
-      end if
-
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
         energy%Espin = sum(energy%atomSpin)
       end if
-
+    end if
+    if (present(thirdOrd)) then
+      if (tXlbomd) then
+        call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
+      else
+        call thirdOrd%getEnergyPerAtom(energy%atom3rd)
+      end if
+      energy%e3rd = sum(energy%atom3rd)
     end if
 
     if (tDftbU) then
@@ -4199,16 +4190,13 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(tSccCalc, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim,&
+  subroutine getGradients(sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim,&
       & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, &
       & img2CentCell, iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim, thirdOrd, &
       & chrgForces)
 
-    !> self consistent?
-    logical, intent(in) :: tSccCalc
-
     !> SCC module internal variables
-    type(TScc), intent(in) :: sccCalc
+    type(TScc), allocatable, intent(in) :: sccCalc
 
     !> external electric field
     logical, intent(in) :: tEField
@@ -4284,9 +4272,10 @@ contains
     real(dp), intent(out), optional :: chrgForces(:,:)
 
     real(dp), allocatable :: tmpDerivs(:,:)
-    logical :: tImHam, tExtChrg
+    logical :: tImHam, tExtChrg, tSccCalc
     integer :: ii
 
+    tSccCalc = allocated(sccCalc)
     tImHam = present(iRhoPrim)
     tExtChrg = present(chrgForces)
 
@@ -4359,16 +4348,13 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(tSccCalc, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
+  subroutine getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
       & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, dispersion,&
       & totalStress, totalLatDeriv, intPressure, iRhoPrim)
 
-    !> Self consistent calculation?
-    logical, intent(in) :: tSccCalc
-
     !> SCC module internal variables
-    type(TScc), intent(in) :: sccCalc
+    type(TScc), allocatable, intent(in) :: sccCalc
 
     !> External electric field
     logical, intent(in) :: tEField
@@ -4457,7 +4443,7 @@ contains
 
     tImHam = present(iRhoPrim)
 
-    if (tSccCalc) then
+    if (allocated(sccCalc)) then
       if (tImHam) then
         call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
