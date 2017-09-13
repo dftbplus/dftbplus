@@ -1,3 +1,4 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
-	url = git@github.com:dftbplus/mpifx.git
+	url = git@github.com:aradi/mpifx.git
+	branch = dpint
