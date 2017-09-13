@@ -1159,13 +1159,6 @@ contains
       nMixElements = 0
     end if
 
-    if (.not.tDFTBU) then
-      allocate(iEqBlockDFTBU(0, 0, 0, 0))
-    end if
-    if (.not.(tDFTBU.and.tImHam)) then
-      allocate(iEqBlockDFTBULS(0, 0, 0, 0))
-    end if
-
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)

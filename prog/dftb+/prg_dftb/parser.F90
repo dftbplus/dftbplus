@@ -2020,7 +2020,7 @@ contains
       real(dp), allocatable :: rTmp(:)
       integer :: ii, jj, iAt
 
-      @:ASSERT(nSpin == 2 .or. nSpin == 4)
+      @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
       call getChildValue(node, "InitialSpins", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)
@@ -3198,6 +3198,7 @@ contains
     logical :: tLRNeedsSpinConstants, tOrbResolvedW
     integer :: iSp1
 
+    print *, 'READSPIN:', ctrl%tSpin
     tLRNeedsSpinConstants = .false.
 
     if (ctrl%lrespini%tInit) then
@@ -3211,6 +3212,7 @@ contains
     end if
 
     if (tLRNeedsSpinConstants .or. ctrl%tSpin) then
+      print *, 'ALLOCA CTRL%SPIN'
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 

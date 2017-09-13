@@ -13,6 +13,7 @@
 module randomgenpool
   use accuracy, only : dp
   use ranlux
+  use assert
   implicit none
   private
 
@@ -128,7 +129,7 @@ contains
       seed = int(real(huge(seed) - 1, dp) * randompool(1)) + 1
       call move_alloc(this%generator, randomGenerator)
       allocate(this%generator)
-      call init(this%generator, seed)
+      call init(this%generator, initSeed=seed)
     else
       call getRandom(this%generator, rTmp)
       seed = int(real(huge(seed) - 1, dp) * rTmp) + 1

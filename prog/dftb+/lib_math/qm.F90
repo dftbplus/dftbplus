@@ -47,7 +47,7 @@ contains
     @:ASSERT(all(shape(xx) == shape(uu)))
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
 
-    @:ASSERT(isunitary(uu,epsilon(1.0_rsp)))
+    #!@:ASSERT(isunitary(uu, epsilon(1.0_dp)))
 
     work = matmul(xx, transpose(conjg(uu)))
     xx = matmul(uu, work)
@@ -69,7 +69,7 @@ contains
     @:ASSERT(all(shape(xx) == shape(uu)))
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
 
-    @:ASSERT(isunitary(uu,epsilon(1.0_rsp)))
+    #!@:ASSERT(isunitary(uu, epsilon(1.0_dp)))
 
     work = matmul(xx, transpose(uu))
     xx = matmul(uu, work)
