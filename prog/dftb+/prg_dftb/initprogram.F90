@@ -81,10 +81,10 @@ module initprogram
 
 
   !> Is the calculation SCC?
-  logical :: tSCC
+  logical :: tSccCalc
 
   !> SCC module internal variables
-  type(typSCC), allocatable :: oSCC
+  type(TScc), allocatable :: sccCalc
 
   !> Nr. of different cutoffs
   integer, parameter :: nCutoff = 1
@@ -752,7 +752,7 @@ contains
 
 
     !> Is SCC cycle initialised
-    type(TSCCInit), allocatable :: sccInit
+    type(TSccInp), allocatable :: sccInp
 
     !> Used for indexing linear response
     integer :: homoLoc(1)
@@ -763,7 +763,7 @@ contains
     write(stdOut, "(A80)") repeat("-", 80)
 
     ! Basic variables
-    tSCC = input%ctrl%tScc
+    tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
     if (tSpin) then
@@ -796,7 +796,7 @@ contains
     end if
     tFracCoord = input%geom%tFracCoord
     solver = input%ctrl%iSolver
-    if (tSCC) then
+    if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
       maxSccIter = 1
@@ -925,16 +925,16 @@ contains
         hubbU = input%ctrl%hubbU
       end where
     end if
-    if (tSCC) then
-      allocate(sccInit)
-      allocate(oSCC)
-      sccInit%orb => orb
+    if (tSccCalc) then
+      allocate(sccInp)
+      allocate(sccCalc)
+      sccInp%orb => orb
       if (tPeriodic) then
-        sccInit%latVecs = latVec
-        sccInit%recVecs = recVec
-        sccInit%volume = CellVol
+        sccInp%latVecs = latVec
+        sccInp%recVecs = recVec
+        sccInp%volume = CellVol
       end if
-      sccInit%hubbU = hubbU
+      sccInp%hubbU = hubbU
       allocate(tDampedShort(nType))
       if (input%ctrl%tDampH) then
         tDampedShort = (speciesMass < 3.5_dp * amu__au)
@@ -942,39 +942,39 @@ contains
       else
         tDampedShort(:) = .false.
       end if
-      sccInit%tDampedShort = tDampedShort
-      sccInit%dampExp = input%ctrl%dampExp
+      sccInp%tDampedShort = tDampedShort
+      sccInp%dampExp = input%ctrl%dampExp
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
       if (tExtChrg) then
-        if (.not.tSCC) then
+        if (.not.tSccCalc) then
           call error("External charges can only be used in an SCC calculation")
         end if
         tStress = .false. ! Stress calculations not allowed
         @:ASSERT(size(input%ctrl%extChrg, dim=1) == 4)
         @:ASSERT(size(input%ctrl%extChrg, dim=2) == nExtChrg)
-        sccInit%extCharges = input%ctrl%extChrg
+        sccInp%extCharges = input%ctrl%extChrg
         if (allocated(input%ctrl%extChrgBlurWidth)) then
-          sccInit%blurWidths = input%ctrl%extChrgblurWidth
+          sccInp%blurWidths = input%ctrl%extChrgblurWidth
         end if
       end if
       if (allocated(input%ctrl%chrgConstr)) then
         @:ASSERT(all(shape(input%ctrl%chrgConstr) == (/ nAtom, 2 /)))
         if (any(abs(input%ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
-          sccInit%chrgConstraints = input%ctrl%chrgConstr
+          sccInp%chrgConstraints = input%ctrl%chrgConstr
         end if
       end if
 
       if (allocated(input%ctrl%thirdOrderOn)) then
-        @:ASSERT(tSCC)
+        @:ASSERT(tSccCalc)
         @:ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
-        sccInit%thirdOrderOn = input%ctrl%thirdOrderOn
+        sccInp%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
-      sccInit%ewaldAlpha = input%ctrl%ewaldAlpha
-      call init_SCC(sccInit, oSCC)
-      deallocate(sccInit)
-      mCutoff = max(mCutoff, getSCCCutoff(oSCC))
+      sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      call initialize(sccCalc, sccInp)
+      deallocate(sccInp)
+      mCutoff = max(mCutoff, sccCalc%getCutoff())
 
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
         call error("Onsite third order DFTB only compatible with orbital non&
@@ -985,7 +985,7 @@ contains
       t3rd = input%ctrl%t3rd
       t3rdFull = input%ctrl%t3rdFull
       if (t3rdFull) then
-        @:ASSERT(tSCC)
+        @:ASSERT(tSccCalc)
         thirdInp%orb => orb
         thirdInp%hubbUs = hubbU
         thirdInp%hubbUDerivs = input%ctrl%hubDerivs
@@ -1033,7 +1033,7 @@ contains
 
     ! Intialize Hamilton and overlap
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
        allocate(chargePerShell(0,0,0))
@@ -1119,10 +1119,10 @@ contains
 
 
     ! Create equivalency relations
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
       allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
-      call SCC_getOrbitalEquiv(oSCC, orb, species0, iEqOrbSCC)
+      call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
       if (nSpin == 1) then
         iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
       else
@@ -1172,7 +1172,7 @@ contains
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
@@ -1249,7 +1249,7 @@ contains
     end if
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tConvrgForces = (input%ctrl%tConvrgForces .and. tSCC) ! no point if not SCC
+    tConvrgForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -1357,7 +1357,7 @@ contains
 
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
-    if (tSCC) then
+    if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
       if (input%ctrl%forceType /= 0) then
@@ -1558,7 +1558,7 @@ contains
     #:if not WITH_ARPACK
       call error("This binary has been compiled without support for linear response calculations.")
     #:endif
-      if (.not. tSCC) then
+      if (.not. tSccCalc) then
         call error("Linear response excitation requires SCC=Yes")
       end if
       if (nspin > 2) then
@@ -1763,7 +1763,7 @@ contains
     end if
 
     ! Allocate charge arrays
-    if (tMulliken) then ! automatically true if tSCC
+    if (tMulliken) then ! automatically true if tSccCalc
       allocate(q0(orb%mOrb, nAtom, nSpin))
       q0(:,:,:) = 0.0_dp
 
@@ -1795,7 +1795,7 @@ contains
       qiBlockOut(:,:,:,:) = 0.0_dp
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(qDiffRed(nMixElements))
       allocate(qInpRed(nMixElements))
       allocate(qOutRed(nMixElements))
@@ -1810,7 +1810,7 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
-    if (tSCC) then
+    if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
         do iSh = 1, orb%nShell(iSp)
@@ -2100,11 +2100,11 @@ contains
       write(stdout, "('Mode:',T30,A)") "Static calculation"
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       write(stdout, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdout, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdout, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
-      !write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar(oSCC)
+      !write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSccCalcEwaldPar(sccCalc)
       if (tDFTBU) then
         write(stdout, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
         write(stdout, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
@@ -2152,7 +2152,7 @@ contains
     end select
     write(stdout, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
 
-    if (tSCC) then
+    if (tSccCalc) then
       select case (iMixer)
       case(1)
         write (strTmp, "(A)") "Simple"
@@ -2233,7 +2233,7 @@ contains
       end if
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       if (input%ctrl%tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
@@ -2288,7 +2288,7 @@ contains
       end select
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       ! Have the SK values of U been replaced?
       if (allocated(input%ctrl%hubbU)) then
         strTmp = ""
@@ -2357,7 +2357,7 @@ contains
       end do
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       if (t3rdFull) then
         write(stdout, "(A,T30,A)") "Full 3rd order correction", "Yes"
         if (input%ctrl%tOrbResolved) then

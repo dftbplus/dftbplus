@@ -23,7 +23,7 @@ module linresp_module
   use commontypes
   use slakocont
   use fileid
-  use scc, only : getShiftPerAtom, getShiftPerL, typSCC
+  use scc, only : TScc
   use nonscc, only : NonSccDiff
 #:if WITH_ARPACK
   ! code is compiled with arpack available
@@ -246,7 +246,7 @@ contains
 
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine LinResp_calcExcitations(tSpin, self, iAtomStart, eigVec, eigVal, SSqrReal, filling, &
-      & coords0, oSCC, dqAt, species0, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
+      & coords0, sccCalc, dqAt, species0, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
       & excEnergy)
 
     !> is this a spin-polarized calculation
@@ -274,7 +274,7 @@ contains
     real(dp), intent(in) :: coords0(:,:)
 
     !> Self-consistent charge module settings
-    type(typSCC), intent(in) :: oSCC
+    type(TScc), intent(in) :: sccCalc
 
     !> net Mulliken atomic charges for ground state
     real(dp), intent(in) :: dqAt(:)
@@ -303,7 +303,7 @@ contains
 #:if WITH_ARPACK
     @:ASSERT(self%tInit)
     @:ASSERT(size(orb%nOrbAtom) == self%nAtom)
-    call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, oSCC, dqAt, coords0, &
+    call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
         & self%nExc, self%nStat, self%symmetry, SSqrReal, filling, species0, self%HubbardU, &
         & self%spinW, self%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
         & self%fdMulliken, self%fdCoeffs, self%tGrndState, self%fdXplusY, self%fdTrans, &
@@ -321,7 +321,7 @@ contains
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, self, iAtomStart, eigVec, eigVal, SSqrReal, filling, &
-      & coords0, oSCC, dqAt, species0, iNeighbor, img2CentCell, orb, skHamCont, skOverCont, &
+      & coords0, sccCalc, dqAt, species0, iNeighbor, img2CentCell, orb, skHamCont, skOverCont, &
       & tWriteTagged, fdTagged, excEnergy, excgradient, derivator, rhoSqr, occNatural, &
       & naturalOrbs)
 
@@ -350,7 +350,7 @@ contains
     real(dp), intent(in) :: coords0(:,:)
 
     !> Self-consistent charge module settings
-    type(typSCC), intent(in) :: oSCC
+    type(TScc), intent(in) :: sccCalc
 
     !> net atomic charges in ground state
     real(dp), intent(in) :: dqAt(:)
@@ -407,11 +407,11 @@ contains
     ! however, fills always the first channel only!
     ALLOCATE(shiftPerAtom(self%nAtom))
     ALLOCATE(shiftPerL(orb%mShell, self%nAtom))
-    call getShiftPerAtom(shiftPerAtom, oSCC)
-    call getShiftPerL(shiftPerL, oSCC)
+    call sccCalc%getShiftPerAtom(shiftPerAtom)
+    call sccCalc%getShiftPerL(shiftPerL)
     shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
-    call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, oSCC, dqAt, coords0, &
+    call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
         & self%nExc, self%nStat, self%symmetry, SSqrReal, filling, species0, self%HubbardU, &
         & self%spinW, self%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
         & self%fdMulliken, self%fdCoeffs, self%tGrndState, self%fdXplusY, self%fdTrans, &
