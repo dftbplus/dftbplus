@@ -10,7 +10,6 @@ Driver = ConjugateGradient {
   MovedAtoms = 1:-1
   MaxForceComponent = 1.000000000000000E-008  # Extremely small!
   MaxSteps = 100
-  OutputPrefix = "geom.out"
 }
 
 Hamiltonian = DFTB {

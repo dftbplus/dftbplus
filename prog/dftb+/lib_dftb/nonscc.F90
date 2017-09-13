@@ -359,7 +359,7 @@ contains
 
     ! interpolated H integs.
     real(dp) :: interSk(getMIntegrals(skCont))
-    
+
     real(dp) :: vect(3), dist
     integer :: ii, jj
     integer :: sp1, sp2

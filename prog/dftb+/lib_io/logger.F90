@@ -100,7 +100,7 @@ contains
 
 
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
 
 
     !> Message to write
@@ -132,7 +132,7 @@ contains
 
 
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
 
 
     !> Message to write
@@ -164,7 +164,7 @@ contains
 
 
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
 
 
     !> Message to write
@@ -196,7 +196,7 @@ contains
 
 
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
 
 
     !> Message to write
@@ -241,7 +241,7 @@ contains
 
 
     !> Instance
-    class(LogWriter), intent(inout) :: this
+    class(LogWriter), intent(in) :: this
 
 
     !> Message to write

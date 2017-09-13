@@ -336,13 +336,16 @@ contains
 
 
   !> Write the current charges to an external file
-  subroutine writeQToFile(qq, fileName, orb, qBlock, qiBlock)
+  subroutine writeQToFile(qq, fileName, fd, orb, qBlock, qiBlock)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
 
     !> Name of the file to write the charges
     character(*), intent(in) :: fileName
+
+    !> File descriptor to use for the file
+    integer, intent(in) :: fd
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -355,7 +358,6 @@ contains
 
     integer :: nAtom, nOrb, nSpin
     integer :: iAtom, iOrb, iSpin, ii
-    integer, save :: file = -1
     integer :: iErr
     logical :: tqBlock, tqiBlock
 
@@ -379,37 +381,31 @@ contains
     end if
 #:endcall ASSERT_CODE
 
-    if (file == -1) then
-      file = getFileId()
-    end if
     if (tWriteBinary) then
-      open(file, file=fileName, position="rewind", status="replace", &
-          & form="unformatted")
+      open(fd, file=fileName, position="rewind", status="replace", form="unformatted")
     else
-      open(file, file=fileName, position="rewind", status="replace")
+      open(fd, file=fileName, position="rewind", status="replace")
     end if
 
     if (tWriteBinary) then
-      write (file, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, &
-          & sum(sum(qq(:,:,:),dim=1),dim=1)
+      write(fd, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
     else
-      write (file, *, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, &
-          & sum(sum(qq(:,:,:),dim=1),dim=1)
+      write(fd, *, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
     end if
     if (iErr /= 0) then
-      write (error_string, *) "Failure to write file for external charges"
+      write(error_string, *) "Failure to write file for external charges"
       call error(error_string)
     end if
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         nOrb = orb%nOrbAtom(iAtom)
         if (tWriteBinary) then
-          write (file, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+          write(fd, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
         else
-          write (file, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+          write(fd, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
         end if
         if (iErr /= 0) then
-          write (error_string, *) "Failure to write file for external charges"
+          write(error_string, *) "Failure to write file for external charges"
           call error(error_string)
         end if
       end do
@@ -420,12 +416,12 @@ contains
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteBinary) then
-              write (file, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
             else
-              write (file, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
-              write (error_string, *) "Failure to write file for external block&
+              write(error_string, *) "Failure to write file for external block&
                   & charges"
               call error(error_string)
             end if
@@ -440,13 +436,12 @@ contains
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteBinary) then
-              write (file, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
             else
-              write (file, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
-              write (error_string, *) "Failure to write file for external block&
-                  & imaginary charges"
+              write(error_string, *) "Failure to write file for external block imaginary charges"
               call error(error_string)
             end if
           end do
@@ -454,7 +449,7 @@ contains
       end do
     end if
 
-    close(file)
+    close(fd)
 
   end subroutine writeQToFile
 

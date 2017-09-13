@@ -44,11 +44,21 @@ module parser
   public :: parseHSDInput, parserVersion
 
 
-  !> File names
+  ! Default file names
+
+  !> Main HSD input file
   character(len=*), parameter :: hsdInputName = "dftb_in.hsd"
+
+  !> XML input file
   character(len=*), parameter :: xmlInputName = "dftb_in.xml"
+
+  !> Processed HSD input
   character(len=*), parameter :: hsdProcInputName = "dftb_pin.hsd"
+
+  !> Processed  XML input
   character(len=*), parameter :: xmlProcInputName = "dftb_pin.xml"
+
+  !> Tag at the head of the input document tree
   character(len=*), parameter :: rootTag = "dftb_in"
 
 
@@ -56,7 +66,7 @@ module parser
   integer, parameter :: parserVersion = 5
 
 
-  !> Version of the oldest parser, for which compatibility is maintained
+  !> Version of the oldest parser for which compatibility is still maintained
   integer, parameter :: minVersion = 1
 
 
@@ -69,8 +79,11 @@ module parser
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
 
-    !> XML or HSD output?
-    logical :: tWriteXML, tWriteHSD
+    !> XML output?
+    logical :: tWriteXML
+
+    !> HSD output?
+    logical :: tWriteHSD
   end type TParserFlags
 
 contains
@@ -86,6 +99,8 @@ contains
     type(fnode), pointer :: root, tmp, hamNode, child, dummy
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
+
+    write(stdOut, "(/, A, /)") "***  Parsing and initializing"
 
     ! Read in the input
     call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, tHSD, &
@@ -144,6 +159,7 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    ! input data strucutre has been initialised
     input%tInitialized = .true.
 
     ! Issue warning about unprocessed nodes
@@ -177,7 +193,7 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in the case it must be converted for example because of compability
+    !> Root of the entire tree (in case it needs to be converted, for example because of compability
     !> options)
     type(fnode), pointer :: root
 
@@ -284,6 +300,7 @@ contains
     case ("none")
       continue
     case ("steepestdescent")
+      ! Steepest downhill optimisation
 
       ctrl%iGeoOpt = 1
       ctrl%tForces = .true.
@@ -340,6 +357,7 @@ contains
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case ("conjugategradient")
+      ! Conjugate gradient location optimisation
 
       ctrl%iGeoOpt = 2
       ctrl%tForces = .true.
@@ -392,6 +410,8 @@ contains
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case("gdiis")
+      ! Gradient DIIS optimisation, only stable in the quadratic region
+
       ctrl%iGeoOpt = 3
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -441,8 +461,8 @@ contains
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
-    case("secondderivatives") ! currently only numerical derivatives of forces
-      !  implemented
+    case("secondderivatives")
+      ! currently only numerical derivatives of forces is implemented
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
@@ -460,6 +480,7 @@ contains
       ctrl%tConvrgForces = .true.
 
     case ("velocityverlet")
+      ! molecular dynamics
 
       ctrl%tForces = .true.
       ctrl%tMD = .true.
@@ -681,6 +702,7 @@ contains
       call getInputMasses(node, geom, ctrl%masses)
 
     case ("socket")
+      ! external socket control of the run (once initialised from input)
 
       ctrl%tForces = .true.
       allocate(ctrl%socketInput)
@@ -1998,7 +2020,7 @@ contains
       real(dp), allocatable :: rTmp(:)
       integer :: ii, jj, iAt
 
-      @:ASSERT(nSpin == 2 .or. nSpin == 4)
+      @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
       call getChildValue(node, "InitialSpins", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)
@@ -2045,11 +2067,12 @@ contains
       !> relevant node in input tree
       type(fnode), pointer, intent(in) :: node
 
-      !> control e to fill
+      !> control structure to fill
       type(control), intent(inout) :: ctrl
 
 
-      !> default of a reasonable choice for round off when using a second order formula
+      !> default of a reasonable choice for round off when using a second order finite difference
+      !> formula
       real(dp), parameter :: defDelta = epsilon(1.0_dp)**0.25_dp
 
       type(string) :: buffer
@@ -3064,6 +3087,7 @@ contains
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(listRealR1) :: lr1
+    logical :: tPipekDense
 
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
@@ -3110,34 +3134,32 @@ contains
       ctrl%tLocalise = .true.
       call getChild(val, "PipekMezey", child=child2, requested=.false.)
       if (associated(child2)) then
-        ctrl%tPipekMezey = .true.
-        call getChildValue(child2, "Tollerance", ctrl%PipekTol, 1.0E-4_dp)
-        call getChildValue(child2, "MaxIterations", ctrl%PipekMaxIter, 100)
-        if (geo%tPeriodic) then
-          ctrl%tPipekDense = .true.
-        else
-          call getChildValue(child2, "Dense", ctrl%tPipekDense, .false.)
-          if (.not.ctrl%tPipekDense) then
-            call init(lr1)
-            call getChild(child2, "SparseTollerances", child=child3, &
-                & requested=.false.)
-            if (associated(child3)) then
-              call getChildValue(child3, "", 1, lr1)
-              if (len(lr1) < 1) then
-                call detailedError(child2, "Missing values of tollerances.")
+        allocate(ctrl%pipekMezeyInp)
+        associate(inp => ctrl%pipekMezeyInp)
+          call getChildValue(child2, "Tollerance", inp%tolerance, 1.0E-4_dp)
+          call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
+          if (.not. geo%tPeriodic) then
+            call getChildValue(child2, "Dense", tPipekDense, .false.)
+            if (.not. tPipekDense) then
+              call init(lr1)
+              call getChild(child2, "SparseTollerances", child=child3, requested=.false.)
+              if (associated(child3)) then
+                call getChildValue(child3, "", 1, lr1)
+                if (len(lr1) < 1) then
+                  call detailedError(child2, "Missing values of tollerances.")
+                end if
+                allocate(inp%sparseTols(len(lr1)))
+                call asVector(lr1, inp%sparseTols)
+              else
+                allocate(inp%sparseTols(4))
+                inp%sparseTols = [0.1_dp, 0.01_dp, 1.0E-6_dp, 1.0E-12_dp]
+                call setChildValue(child2, "Tollerances", inp%sparseTols)
               end if
-              allocate(ctrl%sparsePipekTols(len(lr1)))
-              call asVector(lr1, ctrl%sparsePipekTols)
-            else
-              allocate(ctrl%sparsePipekTols(4))
-              ctrl%sparsePipekTols = (/0.1_dp,0.01_dp,1.0E-6_dp,1.0E-12_dp/)
-              call setChildValue(child2, "Tollerances", ctrl%sparsePipekTols)
+              call destruct(lr1)
             end if
-            call destruct(lr1)
           end if
-        end if
-      end if
-      if (.not.(ctrl%tPipekMezey)) then
+        end associate
+      else
         call detailedError(val, "No localisation method chosen")
       end if
     end if

@@ -9,7 +9,7 @@
 
 !> Linked list for single real vectors
 module linkedlisti1
-  use accuracy, only : dp
+  use assert
   implicit none
   private
 

@@ -93,8 +93,8 @@ contains
         call getNextQuotationPos(string(shift+1:lenStr), quoteStart, quoteEnd)
         quoteStart = quoteStart + shift
         quoteEnd = quoteEnd + shift
-        
-        
+
+
         ! Substring occurs after quotation start but before quotation end -> Look for next
         ! occurance. (If not found, no unquoted occurance exists.)
       elseif (strPos > quoteStart) then
@@ -383,7 +383,7 @@ contains
 
     !> String to trim
     character(len=*), intent(in) :: string
-    
+
     character(:), allocatable :: trim2
 
     trim2 = string(:len_trim2(string))

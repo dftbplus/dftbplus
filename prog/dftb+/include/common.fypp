@@ -17,7 +17,7 @@
   #:set DEBUG = 0
 #:endif
 
-#:set WITH_ASSERT = defined('WITH_ASSERT')
+#:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG >= 1
 #:set WITH_DFTD3 = defined('WITH_DFTD3')
 #:set WITH_ARPACK = defined('WITH_ARPACK')
 #:set EXP_TRAP = defined('EXP_TRAP')

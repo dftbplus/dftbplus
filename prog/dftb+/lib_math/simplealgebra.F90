@@ -46,7 +46,7 @@ contains
 
     !> Resulting det(matrix)
     real(dp) :: determinant33
-    
+
     real(dp) :: tmp
 
     @:ASSERT(all(shape(matrix) == (/3, 3/)))

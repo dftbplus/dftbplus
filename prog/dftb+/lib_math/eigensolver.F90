@@ -517,7 +517,7 @@ contains
     real(rdp), allocatable :: rwork(:)
     integer n, info, iitype, int_idealwork
     complex(rdp) :: idealwork(1)
-    
+
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
     @:ASSERT(all(shape(a)==shape(b)))

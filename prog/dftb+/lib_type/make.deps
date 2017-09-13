@@ -13,38 +13,38 @@ linkedlist.o = linkedlist.o $(common.fypp) $(_mod_linkedlisti0) $(_mod_linkedlis
 _mod_linkedlist: linkedlist.o
 _mod_linkedlist = $(linkedlist.o)
 
-linkedlisti0.o: linkedlist.fypp
-linkedlisti0.o = linkedlisti0.o $(linkedlist.fypp)
+linkedlisti0.o: linkedlist.fypp _mod_assert
+linkedlisti0.o = linkedlisti0.o $(linkedlist.fypp) $(_mod_assert)
 _mod_linkedlisti0: linkedlisti0.o
 _mod_linkedlisti0 = $(linkedlisti0.o)
 
-linkedlisti1.o: linkedlist.fypp _mod_accuracy
-linkedlisti1.o = linkedlisti1.o $(linkedlist.fypp) $(_mod_accuracy)
+linkedlisti1.o: linkedlist.fypp _mod_assert
+linkedlisti1.o = linkedlisti1.o $(linkedlist.fypp) $(_mod_assert)
 _mod_linkedlisti1: linkedlisti1.o
 _mod_linkedlisti1 = $(linkedlisti1.o)
 
-linkedlistlc0.o: linkedlist.fypp _mod_accuracy
-linkedlistlc0.o = linkedlistlc0.o $(linkedlist.fypp) $(_mod_accuracy)
+linkedlistlc0.o: _mod_assert linkedlist.fypp _mod_accuracy
+linkedlistlc0.o = linkedlistlc0.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
 _mod_linkedlistlc0: linkedlistlc0.o
 _mod_linkedlistlc0 = $(linkedlistlc0.o)
 
-linkedlistmc0.o: linkedlist.fypp _mod_accuracy
-linkedlistmc0.o = linkedlistmc0.o $(linkedlist.fypp) $(_mod_accuracy)
+linkedlistmc0.o: _mod_assert linkedlist.fypp _mod_accuracy
+linkedlistmc0.o = linkedlistmc0.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
 _mod_linkedlistmc0: linkedlistmc0.o
 _mod_linkedlistmc0 = $(linkedlistmc0.o)
 
-linkedlistr0.o: linkedlist.fypp _mod_accuracy
-linkedlistr0.o = linkedlistr0.o $(linkedlist.fypp) $(_mod_accuracy)
+linkedlistr0.o: _mod_assert linkedlist.fypp _mod_accuracy
+linkedlistr0.o = linkedlistr0.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
 _mod_linkedlistr0: linkedlistr0.o
 _mod_linkedlistr0 = $(linkedlistr0.o)
 
-linkedlistr1.o: linkedlist.fypp _mod_accuracy
-linkedlistr1.o = linkedlistr1.o $(linkedlist.fypp) $(_mod_accuracy)
+linkedlistr1.o: _mod_assert linkedlist.fypp _mod_accuracy
+linkedlistr1.o = linkedlistr1.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
 _mod_linkedlistr1: linkedlistr1.o
 _mod_linkedlistr1 = $(linkedlistr1.o)
 
-linkedlistr2.o: linkedlist.fypp _mod_accuracy
-linkedlistr2.o = linkedlistr2.o $(linkedlist.fypp) $(_mod_accuracy)
+linkedlistr2.o: _mod_assert linkedlist.fypp _mod_accuracy
+linkedlistr2.o = linkedlistr2.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
 _mod_linkedlistr2: linkedlistr2.o
 _mod_linkedlistr2 = $(linkedlistr2.o)
 

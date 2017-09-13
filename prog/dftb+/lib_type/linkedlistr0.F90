@@ -10,6 +10,7 @@
 !> Linked list for single real values
 module linkedlistr0
   use accuracy, only : dp
+  use assert
   implicit none
   private
 

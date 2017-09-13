@@ -18,7 +18,7 @@ module spin
   implicit none
   private
 
-  public :: getEnergySpin, addSpinShift
+  public :: getEnergySpin, getSpinShift
   public :: Spin_getOrbitalEquiv, ud2qm, qm2ud
 
 
@@ -48,10 +48,10 @@ contains
 
 
   !> Constructs the spin-polarised shell shift from shift_l = sum_l' W_ll' p_l'
-  subroutine addSpinShift(shift,chargePerShell,species,orb,spinW)
+  subroutine getSpinShift(shift, chargePerShell, species, orb, spinW)
 
     !> resulting shell-shifts for the system
-    real(dp), intent(inout) :: shift(:,:,0:)
+    real(dp), intent(out) :: shift(:,:,0:)
 
     !> spin resolved charges for each shell
     real(dp), intent(in) :: chargePerShell(:,:,0:)
@@ -67,28 +67,28 @@ contains
 
     integer :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
 
-    nAtom = size(chargePerShell,dim=2)
+    nAtom = size(chargePerShell, dim=2)
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(shift,dim=2)==nAtom)
     @:ASSERT(all(shape(chargePerShell)==shape(shift)))
     ! counts from 0 for unpolarized
-    nSpin = size(chargePerShell,dim=3) - 1
+    nSpin = size(chargePerShell, dim=3) - 1
     @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
+    shift(:,:,:) = 0.0_dp
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         iSpecies = species(iAtom)
         do iShell = 1, orb%nShell(iSpecies)
           do iShell2 = 1, orb%nShell(iSpecies)
-            shift(iShell,iAtom,iSpin) =  shift(iShell,iAtom,iSpin) + &
-                & spinW(iShell,iShell2,iSpecies) * &
-                & chargePerShell(iShell2,iAtom,iSpin)
+            shift(iShell, iAtom, iSpin) =  shift(iShell, iAtom, iSpin) + &
+                & spinW(iShell, iShell2, iSpecies) * chargePerShell(iShell2, iAtom, iSpin)
           end do
         end do
       end do
     end do
 
-  end subroutine addSpinShift
+  end subroutine getSpinShift
 
 
   !> Returns the total energy contribution of the spin polarisation
