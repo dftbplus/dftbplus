@@ -11,7 +11,7 @@
 module angmomentum
   use assert
   use accuracy, only : dp
-  use qm, only : unitary
+  use qm
   use commontypes, only : TOrbitals
 
   implicit none
@@ -82,8 +82,8 @@ contains
     end do
     u(l,l) = 1.0_dp
 
-    call unitary(Lz,u)
-    call unitary(Lplus,u)
+    call makeSimiliarityTrans(Lz,u)
+    call makeSimiliarityTrans(Lplus,u)
 
   end subroutine operators
 
@@ -235,7 +235,7 @@ contains
       iSp = species(ii)
       mm = orb%nOrbSpecies(iSp)
       tmpBlock(:,:) = 0.0_dp
-      tmpBlock(1:mm,1:mm) = qBlockSkew(1:mm,1:mm,ii,1)! identity part
+      tmpBlock(1:mm,1:mm) = qBlockSkew(1:mm,1:mm,ii,1) ! identity part
       do jj = 1, orb%nShell(iSp)
         iStart = orb%posShell(jj,iSp)
         iEnd = orb%posShell(jj+1,iSp)-1
