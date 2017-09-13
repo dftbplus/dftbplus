@@ -80,12 +80,6 @@ module scc
     !> If module is initialised
     logical :: tInitialised = .false.
 
-    !> If coordinates updated at least once
-    logical :: tCoordUp
-
-    !> If charges updated at least once
-    logical :: tChrgUp
-
     !> Nr. of atoms
     integer :: nAtom
 
@@ -348,9 +342,6 @@ contains
     this%tDampedShort(:) = inp%tDampedShort(:)
     this%dampExp = inp%dampExp
 
-    this%tCoordUp = .false.
-    this%tChrgUp = .false.
-
     this%tInitialised = .true.
 
   end subroutine Scc_initialize
@@ -426,9 +417,6 @@ contains
       end if
     end if
 
-    this%tCoordUp = .true.
-    this%tChrgUp = .false.
-
   end subroutine updateCoords
 
 
@@ -468,9 +456,6 @@ contains
       call updateLatVecs_extChrg(latVec, recVec, this%maxREwald)
     end if
 
-    this%tCoordUp = .false.
-    this%tChrgUp = .false.
-
   end subroutine updateLatVecs
 
 
@@ -499,7 +484,6 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(this%tInitialised)
-    @:ASSERT(this%tCoordUp)
 
     call getNetCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ, &
         & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
@@ -511,8 +495,6 @@ contains
     if (this%tThirdOrder) then
       call buildShift(this%thirdOrder, this%deltaQAtom)
     end if
-
-    this%tChrgUp = .true.
 
   end subroutine updateCharges
 
@@ -535,7 +517,6 @@ contains
     integer :: iAt1, iAt2, iAt2f, iNeigh
 
     @:ASSERT(this%tInitialised)
-    @:ASSERT(this%tCoordUp)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
     @:ASSERT(all(this%nHubbU == 1))
 
