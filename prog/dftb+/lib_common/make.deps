@@ -13,6 +13,18 @@ constants.o = constants.o $(_mod_accuracy)
 _mod_constants: constants.o
 _mod_constants = $(constants.o)
 
+#:if WITH_MPI
+environment.o: common.fypp _mod_mpifx _mod_scalapackfx
+environment.o = environment.o $(common.fypp) $(_mod_mpifx) $(_mod_scalapackfx)
+_mod_environment: environment.o
+_mod_environment = $(environment.o)
+#:else
+environment.o: common.fypp
+environment.o = environment.o $(common.fypp)
+_mod_environment: environment.o
+_mod_environment = $(environment.o)
+#:endif
+
 memman.o: _mod_accuracy
 memman.o = memman.o $(_mod_accuracy)
 _mod_memman: memman.o

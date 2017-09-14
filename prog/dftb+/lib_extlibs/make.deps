@@ -23,6 +23,16 @@ lapack.o = lapack.o $(_mod_accuracy)
 _mod_lapack: lapack.o
 _mod_lapack = $(lapack.o)
 
+mpifx.o: _mod_libmpifx_module
+mpifx.o = mpifx.o $(_mod_libmpifx_module)
+_mod_mpifx: mpifx.o
+_mod_mpifx = $(mpifx.o)
+
+scalapackfx.o: _mod_libscalapackfx_module
+scalapackfx.o = scalapackfx.o $(_mod_libscalapackfx_module)
+_mod_scalapackfx: scalapackfx.o
+_mod_scalapackfx = $(scalapackfx.o)
+
 xmlf90.o: _mod_m_strings _mod_flib_dom _mod_flib_wxml
 xmlf90.o = xmlf90.o $(_mod_m_strings) $(_mod_flib_dom) $(_mod_flib_wxml)
 _mod_xmlf90: xmlf90.o

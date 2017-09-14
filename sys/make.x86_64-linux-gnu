@@ -3,6 +3,40 @@
 # gfortran/gcc 5.4 - 7.1
 ############################################################################
 
+ifeq ($(strip $(WITH_MPI)),1)
+############################################################################
+# MPI settings
+############################################################################
+
+# Compilers
+FXX = mpif90
+CC = gcc
+
+# Compiler options
+FXXOPT = -O2 -funroll-all-loops
+CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+
+# Linker
+LN = $(FXX)
+LNOPT =
+
+# How to link specific libraries
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(ATLASDIR) -llapack
+LIB_BLAS = -lf77blas -lcblas -latlas
+
+# Any other libraries to be linked
+OTHERLIBS =
+
+# M4 preprocessor settings
+M4 = m4
+M4OPT = 
+
+else
+############################################################################
+# NON-MPI settings
+############################################################################
+
 # Compilers
 FXX = gfortran
 CC = gcc
@@ -11,16 +45,9 @@ CC = gcc
 FXXOPT = -O2 -funroll-all-loops -fopenmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
-# Preprocessor
-FYPP = $(ROOT)/external/fypp/bin/fypp
-FYPPOPT =
-
 # Linker
 LN = $(FXX)
 LNOPT = -fopenmp
-
-# Library options in general
-LIBOPT = 
 
 # How to link specific libraries
 ATLASDIR = /usr/lib
@@ -31,7 +58,18 @@ LIB_BLAS = -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked
 OTHERLIBS = -lgomp -lpthread
+endif
 
+############################################################################
+# General settings
+############################################################################
+
+# Preprocessor
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT =
+
+# Library options in general
+LIBOPT = 
 
 ############################################################################
 # Developer settings

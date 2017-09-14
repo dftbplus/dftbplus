@@ -17,3 +17,9 @@ dftd3.o += _extlib_dftd3
 arpack.o: _extlib_arpack
 arpack.o += _extlib_arpack
 #:endif
+
+mpifx.o: _extlib_mpifx
+mpifx.o += _extlib_mpifx
+
+scalapackfx.o: _extlib_scalapackfx
+scalapackfx.o += _extlib_scalapackfx

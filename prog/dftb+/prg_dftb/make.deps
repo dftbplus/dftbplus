@@ -1,5 +1,5 @@
-dftbplus.o: _mod_main _mod_inputdata_module _mod_parser _mod_formatout _mod_initprogram
-dftbplus.o = dftbplus.o $(_mod_main) $(_mod_inputdata_module) $(_mod_parser) $(_mod_formatout) $(_mod_initprogram)
+dftbplus.o: _mod_main _mod_inputdata_module _mod_initprogram _mod_parser _mod_environment _mod_formatout
+dftbplus.o = dftbplus.o $(_mod_main) $(_mod_inputdata_module) $(_mod_initprogram) $(_mod_parser) $(_mod_environment) $(_mod_formatout)
 
 eigenvects.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_message _mod_angmomentum _mod_assert _mod_eigensolver _mod_accuracy
 eigenvects.o = eigenvects.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_angmomentum) $(_mod_assert) $(_mod_eigensolver) $(_mod_accuracy)
