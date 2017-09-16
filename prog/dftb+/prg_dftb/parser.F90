@@ -172,12 +172,12 @@ contains
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
-    if (env%tIO .and. parserFlags%tWriteHSD) then
+    if (env%tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
-    if (env%tIO .and. parserFlags%tWriteXML) then
+    if (env%tIoProc .and. parserFlags%tWriteXML) then
       call dumpHSDAsXML(hsdTree, xmlProcInputName)
       write(stdout, '(A,/)') "Processed input in XML format written to '" &
           &// xmlProcInputName // "'"
@@ -186,7 +186,7 @@ contains
     ! Stop, if only parsing is required
     if (parserFlags%tStop) then
     #:if WITH_MPI
-      !> Other processes should not abort while IO process dumps processed input above
+      ! No process should abort while IO process dumps processed input above
       call mpifx_barrier(env%mpiComm)
     #:endif
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")

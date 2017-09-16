@@ -22,18 +22,18 @@ program dftbplus
   type(TEnvironment) :: env
   type(inputData), allocatable :: input
 
-  call initializeGlobalEnv()
-  call initialize(env)
+  call initGlobalEnv()
+  call init(env)
   call printDftbHeader(RELEASE_VERSION, RELEASE_YEAR)
   allocate(input)
   call parseHsdInput(env, input)
+  call initProgramVariables(env, input)
+  deallocate(input)
 #:if WITH_MPI
   ! Following parts not MPI-aware -> stop here
   call abort(1)
 #:endif
-  call initProgramVariables(input)
-  deallocate(input)
   call runDftbPlus()
-  call finalizeGlobalEnv()
+  call destructGlobalEnv()
 
 end program dftbplus

@@ -10,7 +10,7 @@
 !> Global variables and initialization for the main program.
 module initprogram
   use assert
-  use io
+  use environment
   use inputdata_module
   use constants
   use periodic
@@ -661,7 +661,10 @@ contains
 
 
   !> Initializes the variables in the module based on the parsed input
-  subroutine initProgramVariables(input)
+  subroutine initProgramVariables(env, input)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Holds the parsed input data.
     type(inputData), intent(inout), target :: input
@@ -1636,7 +1639,7 @@ contains
     iSeed = input%ctrl%iSeed
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
-    call createRandomGenerators(iSeed, randomInit, randomThermostat)
+    call createRandomGenerators(env, iSeed, randomInit, randomThermostat)
 
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
@@ -2522,31 +2525,31 @@ contains
 
   !> Creates all random generators needed in the code.
   !!
-  subroutine createRandomGenerators(seed, randomInit, randomThermostat)
+  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
 
-
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> Global seed used for initialisation of the random generator pool. If less than one, random
     !! initialisation of the seed will occur.
     integer, intent(inout) :: seed
 
-
     !> Random generator for initprogram.
     type(ORanlux), allocatable, intent(out) :: randomInit
-
 
     !> Random generator for the actual thermostat.
     type(ORanlux), allocatable, intent(out) :: randomThermostat
 
     type(ORandomGenPool) :: randGenPool
 
-    call init(randGenPool, seed, oldCompat=.true.)
+    call init(randGenPool, env, seed, oldCompat=.true.)
 
     ! DO NOT CHANGE the ORDER of calls below, as this will destroy backwards compatibility and
     ! reproduciblity of random number sequences in the code. If further random generators are needed
     ! *append* similar getGenerator() calls. All random generators used within the code must be
     ! generated here.
-    call randGenPool%getGenerator(randomThermostat)
-    call randGenPool%getGenerator(randomInit)
+    call randGenPool%getGenerator(env, randomThermostat)
+    call randGenPool%getGenerator(env, randomInit)
 
   end subroutine createRandomGenerators
 
