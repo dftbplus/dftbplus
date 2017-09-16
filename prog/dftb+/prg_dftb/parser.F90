@@ -9,10 +9,13 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
+#:if WITH_MPI
+  use mpifx
+#:endif
   use assert
   use accuracy
   use constants
-  use io
+  use environment
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
@@ -41,7 +44,7 @@ module parser
 
   private
 
-  public :: parseHSDInput, parserVersion
+  public :: parseHsdInput, parserVersion
 
 
   ! Default file names
@@ -90,7 +93,10 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHSDInput(input)
+  subroutine parseHsdInput(env, input)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Returns initialised input variables on exit
     type(inputData), intent(out) :: input
@@ -166,12 +172,12 @@ contains
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
-    if (parserFlags%tWriteHSD) then
+    if (env%tIO .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
-    if (parserFlags%tWriteXML) then
+    if (env%tIO .and. parserFlags%tWriteXML) then
       call dumpHSDAsXML(hsdTree, xmlProcInputName)
       write(stdout, '(A,/)') "Processed input in XML format written to '" &
           &// xmlProcInputName // "'"
@@ -179,12 +185,16 @@ contains
 
     ! Stop, if only parsing is required
     if (parserFlags%tStop) then
+    #:if WITH_MPI
+      !> Other processes should not abort while IO process dumps processed input above
+      call mpifx_barrier(env%mpiComm)
+    #:endif
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
 
     call destroyNode(hsdTree)
 
-  end subroutine parseHSDInput
+  end subroutine parseHsdInput
 
 
   !> Read in parser options (options not passed to the main code)

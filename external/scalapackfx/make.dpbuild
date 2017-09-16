@@ -1,0 +1,32 @@
+############################################################################
+# Makefile to compile the package within DFTB+
+#
+# Receives:
+#     ROOT: Root of the source directory
+#     BUILDROOT: Root of the build directory
+#
+############################################################################
+
+include $(ROOT)/make.config
+
+OBJDIR := $(BUILDROOT)/external/scalapackfx
+SRCDIR := $(ROOT)/external/scalapackfx
+STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
+
+.PHONY: all clean libscalapackfx
+all: libscalapackfx
+	touch -r $(OBJDIR)/libscalapackfx.a $(STAMPFILE)
+
+libscalapackfx:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile.lib \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" \
+            M4="$(M4)" M4OPT="$(M4OPT)" SRCDIR="$(SRCDIR)/origin/src"
+
+clean:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile.lib \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" \
+            M4="$(M4)" M4OPT="$(M4OPT)" SRCDIR="$(SRCDIR)/origin/src" clean
+
+### Local Variables:
+### mode:makefile
+### End:
