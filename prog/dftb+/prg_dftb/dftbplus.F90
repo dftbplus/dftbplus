@@ -29,11 +29,7 @@ program dftbplus
   call parseHsdInput(env, input)
   call initProgramVariables(env, input)
   deallocate(input)
-#:if WITH_MPI
-  ! Following parts not MPI-aware -> stop here
-  call abort(1)
-#:endif
-  call runDftbPlus()
+  call runDftbPlus(env)
   call destructGlobalEnv()
 
 end program dftbplus

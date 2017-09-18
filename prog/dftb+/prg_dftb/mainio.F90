@@ -9,7 +9,10 @@
 
 !> Various I/O routines for the main program.
 module mainio
-  use io
+#:if WITH_MPI
+  use mpifx
+#:endif
+  use environment
   use assert
   use accuracy
   use constants
@@ -2738,8 +2741,11 @@ contains
 
 
   !> Receives the geometry from socket communication.
-  subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
+  subroutine receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
       & tLatticeChanged, tStopDriver)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Socket communication object
     type(IpiSocketComm), allocatable, intent(in) :: socket
@@ -2764,12 +2770,23 @@ contains
 
     real(dp) :: tmpLatVecs(3, 3)
 
-    call socket%receive(coord0, tmpLatVecs, tStopDriver)
+    @:ASSERT(env%tIoProc .eqv. allocated(socket))
+
+    if (env%tIoProc) then
+      call socket%receive(coord0, tmpLatVecs, tStopDriver)
+    end if
     tCoordsChanged = .true.
     if (tPeriodic .and. .not. tStopDriver) then
       latVecs(:,:) = tmpLatVecs
     end if
     tLatticeChanged = tPeriodic
+  #:if WITH_MPI
+    call mpifx_bcast(env%mpiComm, coord0)
+    call mpifx_bcast(env%mpiComm, latVecs)
+    call mpifx_bcast(env%mpiComm, tCoordsChanged)
+    call mpifx_bcast(env%mpiComm, tLatticeChanged)
+    call mpifx_bcast(env%mpiComm, tStopDriver)
+  #:endif
 
   end subroutine receiveGeometryFromSocket
 

@@ -11,7 +11,7 @@
 module main
   use assert
   use constants
-  use io
+  use environment
   use inputdata_module
   use nonscc
   use eigenvects
@@ -99,8 +99,11 @@ module main
 contains
 
   !> The main DFTB program itself
-  subroutine runDftbPlus()
+  subroutine runDftbPlus(env)
     use initprogram
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Square dense hamiltonian storage for cases with k-points
     complex(dp), allocatable :: HSqrCplx(:,:,:,:)
@@ -283,9 +286,11 @@ contains
     real(dp) :: localisation
 
     ! set up output files
-    call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-        & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-        & fdHessian, fdDetailedOut, fdMd, fdCharges)
+    if (env%tIoProc) then
+      call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
+          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
+    end if
 
     ! set up larger arrays
     call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam,&
@@ -322,7 +327,8 @@ contains
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
-      tWriteRestart = needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
+      tWriteRestart = env%tIoProc&
+          & .and. needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       if (tMD .and. tWriteRestart) then
         call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
       end if
@@ -438,8 +444,9 @@ contains
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
-          tWriteSccRestart = needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter,&
-              & maxSccIter, tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
+          tWriteSccRestart = env%tIoProc .and. &
+              & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
+              & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
             call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
           end if
@@ -483,13 +490,13 @@ contains
       #:endcall DEBUG_CODE
       end if
 
-      if (tPrintEigVecs) then
+      if (env%tIoProc .and. tPrintEigVecs) then
         call writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
             & iCellVEc, iDenseStart, iSparseStart, img2CentCell, species, speciesName, orb, kPoint,&
             & over, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
       end if
 
-      if (tProjEigenvecs) then
+      if (env%tIoProc .and. tProjEigenvecs) then
         call writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
             & nNeighbor, cellVec, iCellVec, iDenseStart, iSparseStart, img2CentCell, orb, over,&
             & kPoint, kWeight, iOrbRegion, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx,&
@@ -562,7 +569,7 @@ contains
           call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
         end if
 
-        if (tSocket) then
+        if (tSocket .and. env%tIoProc) then
           ! stress was computed above in the force evaluation block or is 0 if aperiodic
           call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
         end if
@@ -647,7 +654,7 @@ contains
           end if
         else if (tSocket .and. iGeoStep < nGeoSteps) then
           ! Only receive geometry from socket, if there are still geometry iterations left
-          call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+          call receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVec, tCoordsChanged,&
               & tLatticeChanged, tStopDriver)
         end if
       end if
@@ -663,24 +670,26 @@ contains
 
     end do lpGeomOpt
 
-    if (tSocket) then
+    if (tSocket .and. env%tIoProc) then
       call socket%shutdown()
     end if
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
-    if (tWriteDetailedOut) then
-      call writeDetailedOut5(fdDetailedOut, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-          & dipoleMoment)
+    if (env%tIoProc) then
+      if (tWriteDetailedOut) then
+        call writeDetailedOut5(fdDetailedOut, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
+            & dipoleMoment)
+      end if
+
+      call writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
+
+      if (tMD) then
+        call writeMdOut3(fdMd, mdOut)
+      end if
     end if
 
-    call writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
-
-    if (tMD) then
-      call writeMdOut3(fdMd, mdOut)
-    end if
-
-    if (tDerivs) then
+    if (env%tIoProc .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
       call writeHessianOut(fdHessian, hessianOut, pDynMatrix)
     else

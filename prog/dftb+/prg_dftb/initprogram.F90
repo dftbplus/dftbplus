@@ -730,8 +730,6 @@ contains
     logical :: tFirst
 
     real(dp) :: rTmp
-    logical :: tDummy
-
 
     !> Flag if some files do exist or not
     logical :: tExist
@@ -1237,15 +1235,12 @@ contains
 
     tSocket = allocated(input%ctrl%socketInput)
     if (tSocket) then
-      write(stdout, *) "Initialising for socket communication to host ", &
-          & trim(input%ctrl%socketInput%host)
       input%ctrl%socketInput%nAtom = nAtom
-      socket = IpiSocketComm(input%ctrl%socketInput)
+      call initSocket(env, input%ctrl%socketInput, tPeriodic, coord0, latVec, socket,&
+          & tCoordsChanged, tLatticeChanged)
       tForces = .true.
       tGeoOpt = .false.
       tMD = .false.
-      call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
-          & tLatticeChanged, tDummy)
     end if
 
     tAppendGeo = input%ctrl%tAppendGeo
@@ -1984,13 +1979,13 @@ contains
     allocate(nNeighbor(nAtom))
 
     ! Set various options
-    tWriteAutotest = input%ctrl%tWriteTagged
-    tWriteDetailedXML = input%ctrl%tWriteDetailedXML
-    tWriteResultsTag = input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = input%ctrl%tWriteDetailedOut
-    tWriteBandDat = input%ctrl%tWriteBandDat
-    tWriteHS = input%ctrl%tWriteHS
-    tWriteRealHS = input%ctrl%tWriteRealHS
+    tWriteAutotest = env%tIoProc .and. input%ctrl%tWriteTagged
+    tWriteDetailedXML = env%tIoProc .and. input%ctrl%tWriteDetailedXML
+    tWriteResultsTag = env%tIoProc .and. input%ctrl%tWriteResultsTag
+    tWriteDetailedOut = env%tIoProc .and. input%ctrl%tWriteDetailedOut
+    tWriteBandDat = env%tIoProc .and. input%ctrl%tWriteBandDat
+    tWriteHS = env%tIoProc .and. input%ctrl%tWriteHS
+    tWriteRealHS = env%tIoProc .and. input%ctrl%tWriteRealHS
 
     ! Minimize memory usage?
     tMinMemory = input%ctrl%tMinMemory
@@ -2552,5 +2547,46 @@ contains
     call randGenPool%getGenerator(env, randomInit)
 
   end subroutine createRandomGenerators
+
+
+  !> Initializes the socket and recieves and broadcasts initial geometry.
+  subroutine initSocket(env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
+      & tLatticeChanged)
+
+    !> Environment settings.
+    type(TEnvironment), intent(in) :: env
+
+    !> Input data for the socket.
+    type(IpiSocketCommInp), intent(inout) :: socketInput
+
+    !> Is the system periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> Received atom coordinates in the unit cell.
+    real(dp), intent(inout) :: coord0(:,:)
+
+    !> Received lattice vectors
+    real(dp), intent(inout) :: latVec(:,:)
+
+    !> Initialised socket.
+    type(IpiSocketComm), allocatable, intent(out) :: socket
+
+    !> Whether coordinates has been changed
+    logical, intent(out) :: tCoordsChanged
+
+    !> Whether lattice vectors has been changed
+    logical, intent(out) :: tLatticeChanged
+
+    logical :: tDummy
+    
+    if (env%tIoProc) then
+      write(stdout, "(A,1X,A)") "Initialising for socket communication to host",&
+          & trim(socketInput%host)
+      socket = IpiSocketComm(socketInput)
+    end if
+    call receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+        & tLatticeChanged, tDummy)
+  
+  end subroutine initSocket
 
 end module initprogram
