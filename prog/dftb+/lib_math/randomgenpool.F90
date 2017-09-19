@@ -106,7 +106,9 @@ contains
       end if
     end if
 
+  #:if WITH_MPI
     call mpifx_bcast(env%mpiComm, seed)
+  #:endif
 
     allocate(this%generator)
     call init(this%generator, 3, initSeed=seed)
