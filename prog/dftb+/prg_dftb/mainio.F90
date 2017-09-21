@@ -2781,11 +2781,11 @@ contains
     end if
     tLatticeChanged = tPeriodic
   #:if WITH_MPI
-    call mpifx_bcast(env%mpiComm, coord0)
-    call mpifx_bcast(env%mpiComm, latVecs)
-    call mpifx_bcast(env%mpiComm, tCoordsChanged)
-    call mpifx_bcast(env%mpiComm, tLatticeChanged)
-    call mpifx_bcast(env%mpiComm, tStopDriver)
+    call mpifx_bcast(env%mpiAll, coord0)
+    call mpifx_bcast(env%mpiAll, latVecs)
+    call mpifx_bcast(env%mpiAll, tCoordsChanged)
+    call mpifx_bcast(env%mpiAll, tLatticeChanged)
+    call mpifx_bcast(env%mpiAll, tStopDriver)
   #:endif
 
   end subroutine receiveGeometryFromSocket

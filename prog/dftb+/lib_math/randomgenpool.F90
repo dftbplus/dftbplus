@@ -107,7 +107,7 @@ contains
     end if
 
   #:if WITH_MPI
-    call mpifx_bcast(env%mpiComm, seed)
+    call mpifx_bcast(env%mpiAll, seed)
   #:endif
 
     allocate(this%generator)
@@ -146,7 +146,7 @@ contains
       call getRandom(this%generator, randompool)
       seed = int(real(huge(seed) - 1, dp) * randompool(1)) + 1
     #:if WITH_MPI
-      call mpifx_bcast(env%mpiComm, seed)
+      call mpifx_bcast(env%mpiAll, seed)
     #:endif
       call move_alloc(this%generator, randomGenerator)
       allocate(this%generator)
@@ -155,7 +155,7 @@ contains
       call getRandom(this%generator, rTmp)
       seed = int(real(huge(seed) - 1, dp) * rTmp) + 1
     #:if WITH_MPI
-      call mpifx_bcast(env%mpiComm, seed)
+      call mpifx_bcast(env%mpiAll, seed)
     #:endif
       allocate(randomGenerator)
       call init(randomGenerator, initSeed=seed)

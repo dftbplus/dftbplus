@@ -165,6 +165,8 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    call readParallel(root, input%ctrl%parallelOpts)
+
     ! input data strucutre has been initialised
     input%tInitialized = .true.
 
@@ -187,7 +189,7 @@ contains
     if (parserFlags%tStop) then
     #:if WITH_MPI
       ! No process should abort while IO process dumps processed input above
-      call mpifx_barrier(env%mpiComm)
+      call mpifx_barrier(env%mpiAll)
     #:endif
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
@@ -3290,5 +3292,61 @@ contains
     end if
 
   end subroutine readCustomisedHubbards
+
+
+  !> Reads the parallel block.
+  subroutine readParallel(root, parallelOpts)
+
+    !> Root node eventually containing the current block
+    type(fnode), pointer, intent(in) :: root
+
+    !> Parallel settings
+    type(TParallelOpts), allocatable, intent(out) :: parallelOpts
+
+    type(fnode), pointer :: node
+
+    call getChild(root, "Parallel", child=node, requested=.false.)
+    if (withMpi .and. .not. associated(node)) then
+      call setChild(root, "Parallel", node)
+    end if
+    if (associated(node)) then
+      if (.not. withMpi) then
+        call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
+            & support)")
+      end if
+      allocate(parallelOpts)
+      call readBlacs(node, parallelOpts%blacsOpts)
+    end if
+    
+  end subroutine readParallel
+
+
+  !> Reads the blacs block.
+  subroutine readBlacs(root, blacsOpts)
+
+    !> Root node eventually containing the current block
+    type(fnode), pointer, intent(in) :: root
+
+    !> Blacs settings
+    type(TBlacsOpts), intent(inout) :: blacsOpts
+
+    type(fnode), pointer :: node
+
+    call getChild(root, "Blacs", child=node, requested=.false.)
+    if (withScalapack .and. .not. associated(node)) then
+      call setChild(root, "Blacs", node)
+    end if
+    if (associated(node)) then
+      if (.not. withScalapack) then
+        call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
+            & support)")
+      end if
+      call getChildValue(root, "RowBlockSize", blacsOpts%rowBlockSize, 32)
+      call getChildValue(root, "ColumnBlockSize", blacsOpts%colBlockSize, 32)
+      call getChildValue(node, "Groups", blacsOpts%nGroups, 1)
+    end if
+      
+  end subroutine readBlacs
+
 
 end module parser

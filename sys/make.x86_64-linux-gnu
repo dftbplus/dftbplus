@@ -22,7 +22,8 @@ LNOPT =
 
 # How to link specific libraries
 ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack
+SCALAPACKDIR = /usr/lib
+LIB_LAPACK = -L$(SCALAPACKDIR) -lscalapack -L$(ATLASDIR) -llapack
 LIB_BLAS = -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked

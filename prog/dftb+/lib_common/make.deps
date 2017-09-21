@@ -14,8 +14,8 @@ _mod_constants: constants.o
 _mod_constants = $(constants.o)
 
 #:if WITH_MPI
-environment.o: common.fypp _mod_mpifx _mod_scalapackfx
-environment.o = environment.o $(common.fypp) $(_mod_mpifx) $(_mod_scalapackfx)
+environment.o: common.fypp _mod_mpifx
+environment.o = environment.o $(common.fypp) $(_mod_mpifx)
 _mod_environment: environment.o
 _mod_environment = $(environment.o)
 #:else

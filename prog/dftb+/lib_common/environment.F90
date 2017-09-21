@@ -4,7 +4,6 @@ module environment
   use, intrinsic :: iso_fortran_env
 #:if WITH_MPI
   use mpifx
-  use scalapackfx
 #:endif
   implicit none
   private
@@ -14,6 +13,7 @@ module environment
   public :: abort
   public :: stdOut, stdOut0
   public :: includesAllProcesses
+  public :: withMpi, withScalapack
 
   !> Standard out file handler
   integer, protected :: stdOut
@@ -40,16 +40,11 @@ module environment
     integer, public :: stdOut
 
   #:if WITH_MPI
-
     !> Rank of the process designated for I/O.
     integer, public :: ioProcId
 
-    !> MPI communicator
-    type(mpifx_comm), public :: mpiComm
-
-    !> BLACS communicator
-    type(blacsgrid), public :: blacsComm
-
+    !> Global MPI communicator
+    type(mpifx_comm), public :: mpiAll
   #:endif
 
   contains
@@ -61,6 +56,13 @@ module environment
   interface init
     module procedure Environment_init
   end interface init
+
+
+  !> Whether code was compiled with MPI support
+  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
+
+  !> Whether code was compiled with Scalapack
+  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
 
 contains
@@ -100,14 +102,14 @@ contains
     type(TEnvironment), intent(out) :: this
 
   #:if WITH_MPI
-  #! MPI settings
-    call this%mpiComm%init()
-    this%ioProcId = this%mpiComm%masterrank
-    this%tMaster = this%mpiComm%master
+    ! MPI settings
+    call this%mpiAll%init()
+    this%ioProcId = this%mpiAll%masterrank
+    this%tMaster = this%mpiAll%master
     this%tIoProc = this%tMaster
     this%stdOut = stdOut
   #:else
-  #! NON-MPI settings
+    ! NON-MPI settings
     this%tMaster = .true.
     this%tIoProc = .true.
     this%stdOut = stdOut0
@@ -146,7 +148,7 @@ contains
     logical :: tIncludesAll
 
   #:if WITH_MPI
-    tIncludesAll = (this%mpiComm%id == globalMpiComm%id)
+    tIncludesAll = (this%mpiAll%id == globalMpiComm%id)
   #:else
     tIncludesAll = .true.
   #:endif

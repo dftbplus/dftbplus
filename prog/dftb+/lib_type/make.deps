@@ -3,6 +3,18 @@ commontypes.o = commontypes.o $(_mod_accuracy)
 _mod_commontypes: commontypes.o
 _mod_commontypes = $(commontypes.o)
 
+#:if WITH_SCALAPACK
+densedescriptor.o: _mod_scalapackfx
+densedescriptor.o = densedescriptor.o $(_mod_scalapackfx)
+_mod_densedescriptor: densedescriptor.o
+_mod_densedescriptor = $(densedescriptor.o)
+#:else
+densedescriptor.o:
+densedescriptor.o = densedescriptor.o
+_mod_densedescriptor: densedescriptor.o
+_mod_densedescriptor = $(densedescriptor.o)
+#:endif
+
 fifo.o: _mod_accuracy common.fypp _mod_assert _mod_fileid
 fifo.o = fifo.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_fileid)
 _mod_fifo: fifo.o
@@ -52,6 +64,11 @@ linkedlists0.o: _mod_xmlf90 linkedlist.fypp _mod_assert
 linkedlists0.o = linkedlists0.o $(_mod_xmlf90) $(linkedlist.fypp) $(_mod_assert)
 _mod_linkedlists0: linkedlists0.o
 _mod_linkedlists0 = $(linkedlists0.o)
+
+matrixdescriptors.o:
+matrixdescriptors.o = matrixdescriptors.o
+_mod_matrixdescriptors: matrixdescriptors.o
+_mod_matrixdescriptors = $(matrixdescriptors.o)
 
 oldskdata.o: common.fypp _mod_fileid _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
 oldskdata.o = oldskdata.o $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)

@@ -11,6 +11,10 @@
 module initprogram
   use assert
   use environment
+  use parallel
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif
   use inputdata_module
   use constants
   use periodic
@@ -651,9 +655,12 @@ module initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
+#:if WITH_SCALAPACK
+  type(TBlacsGrids) :: blacsGrids
+#:endif
+
   !> First guess for nr. of neighbors.
-  integer, parameter :: nInitNeighbor = 40
-  private :: nInitNeighbor
+  integer, private, parameter :: nInitNeighbor = 40
 
   private :: createRandomGenerators
 
@@ -2009,6 +2016,14 @@ contains
       end if
     end if
 
+    ! Parallel settings
+  #:if WITH_SCALAPACK
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      call TBlacsGrids_init(blacsGrids, blacsOpts%rowBlockSize, blacsOpts%colBlockSize,&
+          & blacsOpts%nGroups, nOrb, nAtom, nKPoint, nSpin, t2Component)
+    end associate
+  #:endif
+    
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
     if (tExist) then
