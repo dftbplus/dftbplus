@@ -654,6 +654,9 @@ contains
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
 
+      !c3091013
+      call getChildValue(node, "Plumed", ctrl%tPlumed, .false.)
+
       if (geom%tPeriodic) then
 
         call getChild(node, "Barostat", child, requested=.false.)

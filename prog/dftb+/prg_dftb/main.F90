@@ -518,6 +518,24 @@ contains
           derivs(:,:) = derivs(:,:) + excitedDerivs(:,:)
         end if
 
+        !c3091013
+        ! Using plumed to modify forces IF plumed is used
+        if (tPlumed) then
+          derivs = -1 * derivs
+          call plumed_f_gcmd("setStep"//char(0),iGeoStep)
+          call plumed_f_gcmd("setForces"//char(0),derivs)
+          call plumed_f_gcmd("setEnergy"//char(0),energy)
+          call plumed_f_gcmd("setPositions"//char(0),coord0)
+          call plumed_f_gcmd("setMasses"//char(0),mass)
+          call plumed_f_gcmd("calc"//char(0))
+          derivs = -1 * derivs
+          ! Also, if this is the final geometry, kill plumed
+          if (iGeoStep >= nGeoSteps) then
+            call plumed_f_gfinalize()
+          end if
+
+        end if
+
         if (tStress) then
           call getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
               & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
