@@ -328,13 +328,13 @@ contains
       end if
 
       if (tLatticeChanged) then
-        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutoff,&
-            & dispersion, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
+        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutoff, recVec, invLatVec,&
+            & cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
       end if
 
       if (tCoordsChanged) then
         call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
-            & tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
+            & tPeriodic, sccCalc, thirdOrd, img2CentCell, iCellVec,&
             & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
             & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
       end if
@@ -352,13 +352,7 @@ contains
         call getTemperature(temperatureProfile, tempElec)
       end if
 
-      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
-          & energy%atomRep, energy%ERep)
-
-      if (tDispersion) then
-        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
-      end if
-
+      
       call resetExternalPotentials(potential)
       if (tEField) then
         call setUpExternalElectricField(tTDEField, tPeriodic, EFieldStrength, EFieldVector,&
@@ -424,10 +418,10 @@ contains
           potential%intBlock = potential%intBlock + potential%extBlock
         end if
 
-        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
-            & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
-            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+!        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
+!            & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
+!            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
+!            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -459,6 +453,16 @@ contains
         end if
 
       end do lpSCC
+
+      ! Update modules like dispersion and repulsive contributions that are outside of the SCC loop,
+      ! but may depend on output charges in future extensions.
+      call handlePostSccChanges(tLatticeChanged, nAtom, latVec, species, mCutoff, dispersion, &
+          & pRepCont, img2CentCell, nNeighbor, neighborList, coord, energy)
+      
+      call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
+          & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
+          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
+          & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
       if (tLinResp) then
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
@@ -1150,8 +1154,8 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutoff,&
-      & dispersion, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
+  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutoff, recVecs, &
+      & recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1167,9 +1171,6 @@ contains
 
     !> Maximum distance for interactions
     real(dp), intent(inout) :: mCutoff
-
-    !> Dispersion interactions object
-    class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -1206,10 +1207,6 @@ contains
       call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
       mCutoff = max(mCutoff, sccCalc%getCutoff())
     end if
-    if (allocated(dispersion)) then
-      call dispersion%updateLatVecs(latVecs)
-      mCutoff = max(mCutoff, dispersion%getRCutoff())
-    end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
 
   end subroutine handleLatticeChange
@@ -1217,7 +1214,7 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
-      & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
+      & orb, tPeriodic, sccCalc, thirdOrd, img2CentCell, iCellVec, neighborList,&
       & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0, rhoPrim,&
       & iRhoPrim, iHam, ERhoPrim, iSparseStart)
 
@@ -1247,9 +1244,6 @@ contains
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
-
-    !> Dispersion interactions
-    class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -1329,17 +1323,72 @@ contains
     if (allocated(sccCalc)) then
       call sccCalc%updateCoords(coord, species, neighborList, img2CentCell)
     end if
-    if (allocated(dispersion)) then
-      call dispersion%updateCoords(neighborList, img2CentCell, coord, &
-          & species0)
-    end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighborList, species)
     end if
 
   end subroutine handleCoordinateChange
 
+  !> Does the operations that are necessary after an SCC cycle, even if there is only one iteration
+  !> (i.e. non-SCC)
+  subroutine handlePostSccChanges(tLatticeChanged, nAtom, latVecs, species, mCutoff, dispersion, &
+      & pRepCont, img2CentCell, nNeighbor, neighborList, coord, energy)
 
+    !> Is there a  need to update lattice vectors (both periodic and they have changed)
+    logical, intent(in) :: tLatticeChanged
+
+    !> Number of actual (central cell) atoms
+    integer, intent(in) :: nAtom
+    
+    !> Lattice vectors if periodic
+    real(dp), intent(inout) :: latVecs(:,:)
+
+    !> chemical species of all atoms
+    integer, intent(inout) :: species(:)
+
+    !> Longest cutoff distance that neighbour maps are generated
+    real(dp), intent(inout) :: mCutoff
+
+    !> Dispersion interactions
+    class(DispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Repulsive interaction data
+    type(ORepCont), intent(in) :: pRepCont
+    
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> Number of neighbours for each actual atom
+    integer, intent(in) :: nNeighbor(:)
+    
+    !> List of neighbouring atoms
+    type(TNeighborList), intent(inout) :: neighborList
+
+    !> Coordinates of all atoms including images
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Energy contributions
+    type(TEnergies), intent(inout) :: energy
+    
+    ! Notify various relevant modules about current coordinates/boundary conditions
+
+    call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
+        & energy%atomRep, energy%ERep)
+    
+    if (allocated(dispersion)) then
+      if (tLatticeChanged) then
+        call dispersion%updateLatVecs(latVecs)
+        mCutoff = max(mCutoff, dispersion%getRCutoff())
+      end if
+      call dispersion%updateCoords(neighborList, img2CentCell, coord, species(1:nAtom))
+
+      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
+    end if
+
+  end subroutine handlePostSccChanges
+
+
+  
   !> Decides, whether restart file should be written during the run.
   function needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq) result(tWriteRestart)
 
