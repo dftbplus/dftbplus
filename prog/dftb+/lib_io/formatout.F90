@@ -367,7 +367,10 @@ contains
     integer, intent(in) :: nNeighbor(:)
 
     !> Offset array in the square matrix.
-    integer, intent(in) :: iAtomStart(:), iPair(0:,:)
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Offset array in the sparse matrix
+    integer, intent(in) :: iPair(0:,:)
 
     !> Pair indexing array.
     integer, intent(in) :: img2CentCell(:)
