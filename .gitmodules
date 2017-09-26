@@ -8,5 +8,5 @@
       branch = dpint
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
-	url = https://pecchia@bitbucket.org/gpenazzi/dev_libnegf.git/
+	url = git@bitbucket.org:gpenazzi/dev_libnegf.git
 	branch = restruct
