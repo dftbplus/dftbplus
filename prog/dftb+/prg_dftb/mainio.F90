@@ -899,7 +899,6 @@ contains
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
-    @:ASSERT(tPeriodic .eqv. tSress)
 
     open(fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
@@ -969,7 +968,7 @@ contains
     !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
 
-    @:ASSERT(tPeriodic .eqv. tSress)
+    @:ASSERT(tPeriodic .eqv. tStress)
 
     open(fd, file=fileName, action="write", status="replace")
     if (allocated(derivs)) then
@@ -2318,8 +2317,8 @@ contains
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
-    @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
-    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(present(HSqrReal) .neqv. present(HSqrCplx))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrCplx))
     @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
     @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
 
@@ -2396,8 +2395,8 @@ contains
     type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
     type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
-    @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
-    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(present(HSqrReal) .neqv. present(HSqrCplx))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrCplx))
     @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
     @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
 
