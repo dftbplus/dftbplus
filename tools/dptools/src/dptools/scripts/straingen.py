@@ -44,15 +44,16 @@ def parse_cmdline_args(cmdlineargs=None):
             sys.argv are parsed. (Default: None)
     '''
     parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-o", "--output", action="store", dest="output",
+    parser.add_option("-o", "--output", action="store", dest="output", default='-',
                       help="override the name of the output file (use '-' for "
                       "standard out")
     parser.add_option("-s", "--strain", action="store", dest="strain",
-                      type=float, default=0.0, help="percentage strain "
-                      "for the geometries (default: 0)")
+                      type=float, default=0.0, help="positive or negative "
+                      "percentage strain for the geometries (default: 0)")
     parser.add_option("-c", "--component", action="store", dest="component",
-                      type=str, default='I', help="strain type to apply"
-                      "(default: I)")
+                      type=str, default='I', help="strain type to apply "
+                      "posible values being xx, yy, zz, xz, xz, yz or I for "
+                      "isotropic (default value: I)")
 
     options, args = parser.parse_args(cmdlineargs)
 
@@ -61,7 +62,7 @@ def parse_cmdline_args(cmdlineargs=None):
         raise ScriptError(msg)
 
     if len(args) != 1:
-        parser.error("You must specify exactly one argument (input file).")
+        raise ScriptError("You must specify exactly one argument (input file).")
     infile = args[0]
 
     return infile, options

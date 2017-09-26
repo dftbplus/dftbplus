@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTHON_TESTS="grids repeatgen"
+PYTHON_TESTS="grids repeatgen straingen"
 
 function abspath() {
   cd $1
