@@ -109,6 +109,17 @@ module constants
   !>  a.u. to V/m
   real(dp), parameter :: au__V_m = 1.0_dp / V_m__au
 
+  !c3091013
+  !> hartree to kj/mol
+  real(dp), parameter :: Hartree__kJ_mol = 2.6255000e3_dp
+
+  !> bohr to nm
+  real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp
+
+  !> a.u. to ps
+  real(dp), parameter :: au__ps = au__fs / 1000.0_dp 
+
+
 
   !> Golden mean plus one
   real(dp), parameter :: goldenMeanP1 = 1.6180339887498949_dp

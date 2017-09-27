@@ -655,15 +655,8 @@ module initprogram
   logical :: tCoordsChanged
 
   !c3091013
-  !Are we using plumed?
+  !> Whether plumed is being used
   logical :: tPlumed
-  !conversion factors for plumed
-  !conversion factor from kj/mol to hartree
-  real(dp), parameter :: KJM_TO_H = 2.62635e3_dp
-  !conversion factor from nm to bohr
-  real(dp), parameter :: NM_TO_B = 5.29177e-2_dp
-  !converstion factor from ps to au
-  real(dp), parameter :: PS_TO_AU = 2.41888e-5_dp
 
   !> First guess for nr. of neighbors.
   integer, parameter :: nInitNeighbor = 40
@@ -1726,11 +1719,11 @@ contains
       call plumed_f_gcreate()
       call plumed_f_gcmd("setNatoms"//char(0),nAtom)
       call plumed_f_gcmd("setPlumedDat"//char(0),"plumed.dat"//char(0))
-      call plumed_f_gcmd("setNoVirial"//char(0))
+      call plumed_f_gcmd("setNoVirial"//char(0),0)
       call plumed_f_gcmd("setTimestep"//char(0),deltaT)
-      call plumed_f_gcmd("setMDEnergyUnits"//char(0),KJM_TO_H)
-      call plumed_f_gcmd("setMDLengthUnits"//char(0),NM_TO_B)
-      call plumed_f_gcmd("setMDTimeUnits"//char(0),PS_TO_AU)
+      call plumed_f_gcmd("setMDEnergyUnits"//char(0),Hartree__kJ_mol)
+      call plumed_f_gcmd("setMDLengthUnits"//char(0),Bohr__nm)
+      call plumed_f_gcmd("setMDTimeUnits"//char(0),au__ps)
       call plumed_f_gcmd("init"//char(0),0)
     end if
 

@@ -1,0 +1,47 @@
+Geometry = GenFormat {
+3  C
+ H
+     1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+     2    1    0.80000000000E+00   0.00000000000E+00   0.00000000000E+00
+     3    1    0.20000000000E+00   0.60000000000E+00   0.00000000000E+00
+}
+
+Driver = VelocityVerlet {
+  Steps = 500
+  TimeStep [Femtosecond] = 0.100000000000000
+  Plumed = Yes
+  Thermostat = None {
+    InitialTemperature [Kelvin] = 273.150000000000
+  }
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.000000000000000E-006
+  MaxSCCIterations = 1000
+  Mixer = Broyden {
+    MixingParameter = 5.000000000000000E-002
+  }
+  MaxAngularMomentum = {
+    H = "s"
+  }
+  Charge = 1.00000000000000
+  SpinPolarisation = {}
+  Eigensolver = Standard {}  # Slow!
+  Filling = Fermi {
+    Temperature [Kelvin] = 1.16045050000000
+  }
+  SlaterKosterFiles = {
+    H-H = "H-H.skf"
+  }
+  ReadInitialCharges = No
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  RandomSeed = 12321
+}
+
+ParserOptions = {
+  ParserVersion = 3
+}
