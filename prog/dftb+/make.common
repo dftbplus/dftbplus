@@ -132,6 +132,15 @@ ifeq ($(strip $(WITH_DFTD3)),1)
 endif
 
 
+ifeq ($(strip $(WITH_LIBNEGF)),1)
+  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf/libnegf -lnegf
+  LIBNEGF_LIBS += -L$(BUILDROOT)/external/libnegf/sparskit -lsparskit
+  LIBNEGF_LIBS += -L$(BUILDROOT)/external/mudpack/ -lmudpack
+  LIBNEGF_INCS := -I$(BUILDROOT)/external/libnegf/libnegf
+  L_LIBS += $(LIBNEGF_LIBS)
+  L_INCS += $(LIBNEGF_INCS)
+endif
+
 ifeq ($(strip $(WITH_MPI)),1)
   #
   # MPI settings
@@ -182,6 +191,7 @@ else
     L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
   endif
 endif
+
 
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@

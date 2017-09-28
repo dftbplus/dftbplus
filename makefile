@@ -47,7 +47,7 @@ ifeq ($(strip $(WITH_MPI)),1)
 dftb+: external_mpifx external_scalapackfx
 endif
 ifeq ($(strip $(WITH_LIBNEGF)),1)
-dftb+: external_mudpack external_sparskit 
+dftb+: external_mudpack external_libnegf
 endif
 modes: external_xmlf90
 waveplot: external_xmlf90
@@ -66,13 +66,15 @@ misc_skderivs: external_xmlf90
 EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx external_mudpack external_sparskit
+    external_scalapackfx external_mudpack external_libnegf
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)
 	$(MAKE) -C $(BUILDDIR)/external/$(EXTERNAL_NAME) \
           -f $(ROOT)/external/$(EXTERNAL_NAME)/make.dpbuild \
           ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
+external_libnegf: external_mpifx
 
 ################################################################################
 # Test targets
