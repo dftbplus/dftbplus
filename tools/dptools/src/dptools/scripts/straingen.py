@@ -14,10 +14,15 @@ import numpy as np
 from dptools.gen import Gen
 from dptools.scripts.common import ScriptError
 
-USAGE = """usage: %prog [options] INPUT
+USAGE = """usage: %prog [options] INPUT STRAIN
 
-Strains the geometry found in INPUT, writing the resulting geometries
-to standard output."""
+Strains the geometry found in INPUT, writing the resulting geometries to
+standard output. Possible values for strain type to apply are xx, yy, zz, xz,
+xz, yz or I for isotropic. STRAIN is specified as positive or negative
+percentage strain for the geometries.
+
+Note: in case of negative strain you have to separate prefix the argument block
+by '--', e.g. '%prog -- geo.gen I -5'"""
 
 # Voight convention for 1 index to 2 index for strain tensors
 VOIGHT = [[0, 0], [1, 1], [2, 2], [1, 2], [0, 2], [0, 1]]
@@ -33,8 +38,9 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed. (Default: None)
     '''
-    infile, options = parse_cmdline_args(cmdlineargs)
-    straingen(infile, options)
+    infile, strain, options = parse_cmdline_args(cmdlineargs)
+    straingen(infile, strain, options)
+
 
 def parse_cmdline_args(cmdlineargs=None):
     '''Parses command line arguments.
@@ -44,54 +50,57 @@ def parse_cmdline_args(cmdlineargs=None):
             sys.argv are parsed. (Default: None)
     '''
     parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-o", "--output", action="store", dest="output", default='-',
-                      help="override the name of the output file (use '-' for "
-                      "standard out")
-    parser.add_option("-s", "--strain", action="store", dest="strain",
-                      type=float, default=0.0, help="positive or negative "
-                      "percentage strain for the geometries (default: 0)")
+    parser.add_option("-o", "--output", action="store", dest="output",
+                      default='-', help="override the name of the output file "
+                      "(use '-' for standard out")
     parser.add_option("-c", "--component", action="store", dest="component",
                       type=str, default='I', help="strain type to apply "
                       "posible values being xx, yy, zz, xz, xz, yz or I for "
                       "isotropic (default value: I)")
-
     options, args = parser.parse_args(cmdlineargs)
 
     if options.component.lower() not in LABELS:
         msg = "Invalid strain component '" + options.component + "'"
         raise ScriptError(msg)
 
-    if len(args) != 1:
-        raise ScriptError("You must specify exactly one argument (input file).")
+    if len(args) != 2:
+        raise ScriptError("You must specify exactly two arguments "
+                          "(input file, strain).")
     infile = args[0]
+    try:
+        strain = float(args[1])
+    except ValueError:
+        raise ScriptError("Invalid strain value '" + args[1] + "'")
 
-    return infile, options
+    return infile, strain, options
 
-def straingen(infile, options):
+
+def straingen(infile, strain, options):
     '''Strains a geometry from a gen file.
 
     Args:
         infile: File containing the gen-formatted geometry
+        strain: Strain to apply
         options: Options (e.g. as returned by the command line parser)
     '''
 
     gen = Gen.fromfile(infile)
     geometry = gen.geometry
 
-    strain = np.zeros((3, 3), dtype=float)
+    strainmtx = np.zeros((3, 3), dtype=float)
     for jj in range(3):
-        strain[jj][jj] = 1.0
+        strainmtx[jj][jj] = 1.0
 
     components = LABELS[options.component.lower()]
 
     for ii in components:
-        strain[VOIGHT[ii][0]][VOIGHT[ii][1]] += 0.005*options.strain
-        strain[VOIGHT[ii][1]][VOIGHT[ii][0]] += 0.005*options.strain
+        strainmtx[VOIGHT[ii][0]][VOIGHT[ii][1]] += 0.005 * strain
+        strainmtx[VOIGHT[ii][1]][VOIGHT[ii][0]] += 0.005 * strain
 
     if geometry.latvecs is not None:
-        geometry.latvecs = np.dot(geometry.latvecs, strain)
+        geometry.latvecs = np.dot(geometry.latvecs, strainmtx)
 
-    geometry.coords = np.dot(geometry.coords, strain)
+    geometry.coords = np.dot(geometry.coords, strainmtx)
 
     if options.output:
         if options.output == "-":

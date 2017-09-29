@@ -32,7 +32,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.isostrain.gen')
         outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '10', infile]
+        cmdargs = ['-o', outfile, infile, '10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -41,7 +41,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.negisostrain.gen')
         outfile = self.get_output('h2o.negisostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '-10', infile]
+        cmdargs = ['-o', outfile, '--', infile, '-10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -50,7 +50,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.isostrain.gen')
         outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '10', '-c', 'I', infile]
+        cmdargs = ['-o', outfile, '-c', 'I', infile, '10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -59,7 +59,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.negisostrain.gen')
         outfile = self.get_output('h2o.negisostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '-10', '-c', 'I', infile]
+        cmdargs = ['-o', outfile, '-c', 'I', '--', infile, '-10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -68,7 +68,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.yy.gen')
         outfile = self.get_output('h2o.yy.gen')
-        cmdargs = ['-o', outfile, '-s', '10', '-c', 'yy', infile]
+        cmdargs = ['-o', outfile, '-c', 'yy', infile, '10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -77,7 +77,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.xz.gen')
         outfile = self.get_output('h2o.xz.gen')
-        cmdargs = ['-o', outfile, '-s', '10', '-c', 'xz', infile]
+        cmdargs = ['-o', outfile, '-c', 'xz', infile, '10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -86,16 +86,17 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('gaas.gen')
         reffile = self.get_input('gaas.isostrain.gen')
         outfile = self.get_output('gaas.isostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '10', infile]
+        cmdargs = ['-o', outfile, infile, '10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
     def test_FracSuperStrain(self):
-        '''Supercell (fractional) with positive isotropic strain (using default)'''
+        '''Supercell (fractional) with positive isotropic strain (using
+        default)'''
         infile = self.get_input('gaas-frac.gen')
         reffile = self.get_input('gaas-frac.isostrain.gen')
         outfile = self.get_output('gaas-frac.isostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '10', infile]
+        cmdargs = ['-o', outfile, infile, '10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -104,16 +105,25 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.isostrain.gen')
         outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-s', '10', infile]
+        cmdargs = [infile, '10']
         with common.OutputCatcher() as output:
             straingen.main(cmdargs)
         outfile = output.get_as_stringio()
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
-    def test_fail_missing_argument(self):
+    def test_fail_missing_one_argument(self):
         '''Failing due to missing argument.'''
+        infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '10']
+        cmdargs = ['-o', outfile, infile]
+        with self.assertRaises(ScriptError):
+            straingen.main(cmdargs)
+
+    def test_fail_missing_two_arguments(self):
+        '''Failing due to missing argument.'''
+        infile = self.get_input('h2o.gen')
+        outfile = self.get_output('h2o.isostrain.gen')
+        cmdargs = ['-o', outfile]
         with self.assertRaises(ScriptError):
             straingen.main(cmdargs)
 
@@ -121,7 +131,7 @@ class StraingenTest(common.TestWithWorkDir):
         '''Failing due to invalid option argument'''
         infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, '-c', 'zx', infile]
+        cmdargs = ['-o', outfile, '-c', 'zx', infile, '10']
         with self.assertRaises(ScriptError):
             straingen.main(cmdargs)
 
@@ -129,7 +139,7 @@ class StraingenTest(common.TestWithWorkDir):
         '''Failing due to superfluous arguments.'''
         infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.isostrain.gen')
-        cmdargs = ['-o', outfile, '-s', '10', infile, 'something']
+        cmdargs = ['-o', outfile, infile, '10', 'something']
         with self.assertRaises(ScriptError):
             straingen.main(cmdargs)
 
