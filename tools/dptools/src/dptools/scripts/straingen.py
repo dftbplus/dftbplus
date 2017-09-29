@@ -72,6 +72,9 @@ def parse_cmdline_args(cmdlineargs=None):
     except ValueError:
         raise ScriptError("Invalid strain value '" + args[1] + "'")
 
+    if options.component.lower() in ('xx', 'yy', 'zz', 'i') and strain <= -100:
+        raise ScriptError("compressive strain cannot exceed 100%")
+
     return infile, strain, options
 
 
