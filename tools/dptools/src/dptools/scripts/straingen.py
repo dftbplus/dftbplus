@@ -16,13 +16,13 @@ from dptools.scripts.common import ScriptError
 
 USAGE = """usage: %prog [options] INPUT STRAIN
 
-Strains the geometry found in INPUT, writing the resulting geometries to
-standard output. Possible values for strain type to apply are xx, yy, zz, xz,
-xz, yz or I for isotropic. STRAIN is specified as positive or negative
-percentage strain for the geometries.
+Strains the geometry found in INPUT, writing the resulting geometries
+to standard output. Possible values for the strain type to apply are
+xx, yy, zz, xz, xz, yz or I for isotropic. STRAIN is specified as
+positive or negative percentage for the geometries.
 
-Note: in case of negative strain you have to separate prefix the argument block
-by '--', e.g. '%prog -- geo.gen I -5'"""
+Note: in case of negative strain you have to separately prefix the
+argument block by '--', e.g. '%prog -c I -- geo.gen -5'"""
 
 # Voight convention for 1 index to 2 index for strain tensors
 VOIGHT = [[0, 0], [1, 1], [2, 2], [1, 2], [0, 2], [0, 1]]
