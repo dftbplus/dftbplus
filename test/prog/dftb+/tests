@@ -95,6 +95,7 @@ scc/C60_Fermi
 scc/10-0Ctube-extfield
 scc/SiC_64
 md/H3
+md/H3-plmd
 
 #:if WITH_DFTD3
 dispersion/DNA_dftd3_zero
@@ -125,6 +126,7 @@ dispersion/DNA
 spinorbit/Si2_dual
 md/Si_8
 md/Si_8-thermostat2
+md/Si_8-plmd
 geoopt/GaAs_8_latconst
 md/Si_8-thermostat
 md/ptcda-xlbomdfast-ldep
