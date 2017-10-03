@@ -1174,7 +1174,7 @@ contains
     !> Current geometry step
     integer, intent(in) :: iGeoStep
 
-    !> Is this an molecular dynamics run
+    !> Is this a molecular dynamics run
     logical, intent(in) :: tMD
 
     !> Is this a finite difference derivative calculation
