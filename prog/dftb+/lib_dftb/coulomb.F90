@@ -231,6 +231,7 @@ contains
     end do
 
     !! Reciprocal space part of the Ewald sum.
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2) SCHEDULE(RUNTIME)
     do iAtom1 = 1, nAtom
       do iAtom2 = iAtom1, nAtom
         invRMat(iAtom2, iAtom1) = invRMat(iAtom2, iAtom1) &
@@ -238,6 +239,7 @@ contains
             &alpha, volume) - pi / (volume * alpha**2)
       end do
     end do
+    !$OMP  END PARALLEL DO
 
     !! Extra contribution for self interaction.
     do iAtom1 = 1, nAtom
