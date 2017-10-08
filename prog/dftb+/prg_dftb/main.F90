@@ -564,7 +564,11 @@ contains
 
         if (tSocket) then
           ! stress was computed above in the force evaluation block or is 0 if aperiodic
+#:if WITH_SOCKETS
           call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
+#:else
+          call error("Should not be here - compiled without socket support")
+#:endif
         end if
 
         ! If geometry minimizer finished and the last calculated geometry is the minimal one (not
@@ -647,8 +651,12 @@ contains
           end if
         else if (tSocket .and. iGeoStep < nGeoSteps) then
           ! Only receive geometry from socket, if there are still geometry iterations left
+#:if WITH_SOCKETS
           call receiveGeometryFromSocket(socket, tPeriodic, coord0, latVec, tCoordsChanged,&
               & tLatticeChanged, tStopDriver)
+#:else
+          call error("Should not be here - compiled without socket support")
+#:endif
         end if
       end if
 
@@ -663,9 +671,13 @@ contains
 
     end do lpGeomOpt
 
+#:if WITH_SOCKETS
     if (tSocket) then
+
       call socket%shutdown()
+
     end if
+#:endif
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
@@ -724,7 +736,7 @@ contains
 
   end subroutine runDftbPlus
 
-  
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Privat routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

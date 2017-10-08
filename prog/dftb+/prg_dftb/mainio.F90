@@ -30,7 +30,9 @@ module mainio
   use formatout
   use sccinit, only : writeQToFile
   use message
+#:if WITH_SOCKETS
   use ipisocket
+#:endif
   implicit none
   private
 
@@ -46,8 +48,9 @@ module mainio
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo
+#:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
-
+#:endif
 
   ! output file names
 
@@ -2735,7 +2738,7 @@ contains
 
   end subroutine printMdInfo
 
-
+#:if WITH_SOCKETS
   !> Receives the geometry from socket communication.
   subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
       & tLatticeChanged, tStopDriver)
@@ -2771,7 +2774,7 @@ contains
     tLatticeChanged = tPeriodic
 
   end subroutine receiveGeometryFromSocket
-
+#:endif
 
 
 

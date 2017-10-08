@@ -359,10 +359,6 @@ contains
 
 
   !> Shuts down the socket.
-  !!
-  !! All data in atomic units, and currently assumes the number
-  !! of atoms is the same as passed at construction/initialisation.
-  !!
   subroutine shutdown(this)
 
 

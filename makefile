@@ -39,7 +39,10 @@ dftb+ modes waveplot:
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-dftb+: external_xmlf90 external_fsockets
+dftb+: external_xmlf90
+ifeq ($(strip $(WITH_SOCKETS)),1)
+dftb+: external_fsockets
+endif
 ifeq ($(strip $(COMPILE_DFTD3)),1)
 dftb+: external_dftd3
 endif

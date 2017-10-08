@@ -111,11 +111,14 @@ L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
 # FSOCKETS
-COMPILED_EXTERNALS += _extlib_fsockets
-LIB_FSOCKETS = -L$(BUILDROOT)/external/fsockets -lfsockets
-INC_FSOCKETS = -I$(BUILDROOT)/external/fsockets
-L_LIBS += $(if $(filter _extlib_fsockets, $^), $(LIB_FSOCKETS))
-L_INCS += $(INC_FSOCKETS)
+ifeq ($(strip $(WITH_SOCKETS)),1)
+  COMPILED_EXTERNALS += _extlib_fsockets
+  LIB_FSOCKETS = -L$(BUILDROOT)/external/fsockets -lfsockets
+  INC_FSOCKETS = -I$(BUILDROOT)/external/fsockets
+  L_LIBS += $(if $(filter _extlib_fsockets, $^), $(LIB_FSOCKETS))
+  L_INCS += $(INC_FSOCKETS)
+  FYPPOPT += -DWITH_SOCKETS
+endif
 
 # DFTD3
 ifeq ($(strip $(WITH_DFTD3)),1)

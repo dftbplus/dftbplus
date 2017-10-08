@@ -20,7 +20,9 @@ module inputdata_module
   use repcont
   use linkedlist
   use xlbomd_module
+#:if WITH_SOCKETS
   use ipisocket, only : IpiSocketCommInp
+#:endif
   use pmlocalisation, only : TPipekMezeyInp
   implicit none
   private
@@ -348,9 +350,10 @@ module inputdata_module
 
     type(linrespini) :: lrespini
 
-
+#:if WITH_SOCKETS
     !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
+#:endif
   end type control
 
 

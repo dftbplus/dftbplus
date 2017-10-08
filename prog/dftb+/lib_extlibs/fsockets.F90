@@ -10,4 +10,16 @@ module fsockets
   use f90sockets
   implicit none
 
+#:if WITH_SOCKETS
+
+  !> Whether code was built with socket support
+  logical, parameter :: withSOCKETS = .true.
+
+#:else
+
+  !> Whether code was built with socket support
+  logical, parameter :: withSOCKETS = .false.
+
+#:endif
+
 end module fsockets
