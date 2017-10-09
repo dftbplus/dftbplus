@@ -11,6 +11,7 @@
 module main
   use assert
   use constants
+  use globalenv
   use environment
   use inputdata_module
   use nonscc

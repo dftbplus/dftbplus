@@ -9,9 +9,8 @@
 
 !> Various I/O routines for the main program.
 module mainio
-#:if WITH_MPI
   use mpifx
-#:endif
+  use globalenv
   use environment
   use assert
   use accuracy
@@ -2781,11 +2780,11 @@ contains
     end if
     tLatticeChanged = tPeriodic
   #:if WITH_MPI
-    call mpifx_bcast(env%mpiAll, coord0)
-    call mpifx_bcast(env%mpiAll, latVecs)
-    call mpifx_bcast(env%mpiAll, tCoordsChanged)
-    call mpifx_bcast(env%mpiAll, tLatticeChanged)
-    call mpifx_bcast(env%mpiAll, tStopDriver)
+    call mpifx_bcast(env%mpi%all, coord0)
+    call mpifx_bcast(env%mpi%all, latVecs)
+    call mpifx_bcast(env%mpi%all, tCoordsChanged)
+    call mpifx_bcast(env%mpi%all, tLatticeChanged)
+    call mpifx_bcast(env%mpi%all, tStopDriver)
   #:endif
 
   end subroutine receiveGeometryFromSocket

@@ -5,17 +5,35 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-#:include 'common.fypp'
-
-!> Exports scalapackfx functionality if compiled with scalapack support, otherwise empty.
-module scalapackfx
-#:if WITH_SCALAPACK  
-  use libscalapackfx_module
-#:endif
+!> Contains MPI related einvironment settings
+module mpienv
+  use mpifx
   implicit none
-  public
+  private
 
-  !> Whether code was compiled with Scalapack
-  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
+  public :: TMpiEnv, TMpiEnv_init
+  
 
-end module scalapackfx
+  !> Contains MPI related einvironment settings
+  type :: TMpiEnv
+    private
+
+    !> Global MPI communicator
+    type(mpifx_comm), public :: all
+
+  end type TMpiEnv
+
+
+contains
+
+  !> Initializes MPI environment.
+  subroutine TMpiEnv_init(this)
+    type(TMpiEnv), intent(out) :: this
+
+    ! MPI settings
+    call this%all%init()
+
+  end subroutine TMpiEnv_init
+
+
+end module mpienv

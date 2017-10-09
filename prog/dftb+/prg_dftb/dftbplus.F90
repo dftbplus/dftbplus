@@ -8,6 +8,7 @@
 #:include 'common.fypp'
 
 program dftbplus
+  use globalenv
   use environment
   use main, only : runDftbPlus
   use inputdata_module, only : inputData
@@ -23,7 +24,9 @@ program dftbplus
   type(inputData), allocatable :: input
 
   call initGlobalEnv()
-  call init(env)
+#:if WITH_MPI
+  call env%initMpi()
+#:endif  
   call printDftbHeader(RELEASE_VERSION, RELEASE_YEAR)
   allocate(input)
   call parseHsdInput(env, input)

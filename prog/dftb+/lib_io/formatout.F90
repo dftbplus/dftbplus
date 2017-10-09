@@ -9,7 +9,7 @@
 
 !> Contains subroutines for formatted output of data
 module formatout
-  use environment
+  use globalenv
   use assert
   use accuracy
   use fileid

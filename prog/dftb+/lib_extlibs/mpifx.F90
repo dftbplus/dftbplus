@@ -5,10 +5,18 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
+
 !> Exporting mpifx functionality
 module mpifx
+#:if WITH_MPI  
   use libmpifx_module
+#:endif
   implicit none
   public
+
+  !> Whether code was compiled with MPI support
+  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
 
 end module mpifx

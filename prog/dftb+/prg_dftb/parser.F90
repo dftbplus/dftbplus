@@ -9,13 +9,13 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
-#:if WITH_MPI
+  use globalenv
+  use environment
   use mpifx
-#:endif
+  use scalapackfx, only : withScalapack
   use assert
   use accuracy
   use constants
-  use environment
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
@@ -189,7 +189,7 @@ contains
     if (parserFlags%tStop) then
     #:if WITH_MPI
       ! No process should abort while IO process dumps processed input above
-      call mpifx_barrier(env%mpiAll)
+      call mpifx_barrier(env%mpi%all)
     #:endif
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if

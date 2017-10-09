@@ -1,24 +1,26 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 #:include 'common.fypp'
 
-module parallel
-  use accuracy
-  use environment
+!> Contains BLACS environmental settings.
+module blacsenv
+  use globalenv, only : stdOut
   use message
-#:if WITH_SCALAPACK
   use scalapackfx
-#:endif
+  use accuracy, only : lc
   implicit none
   private
 
-#:if WITH_SCALAPACK
-  public :: TBlacsGrids, TBlacsGrids_init
-#:endif
+  public :: TBlacsEnv, TBlacsEnv_init
 
 
-#:if WITH_SCALAPACK
-
-  !> Contains various BLACS related options
-  type :: TBlacsGrids
+  !> Contains various BLACS related settings
+  type :: TBlacsEnv
 
     !> Grid containing all processes.
     type(blacsgrid) :: gridAll
@@ -38,21 +40,18 @@ module parallel
     !> Contains k-point (1, ii) and spin (2, ii) tuples to be processed in current group.
     integer, allocatable :: groupKS(:,:)
 
-  end type TBlacsGrids
-
-#:endif
+  end type TBlacsEnv
 
   
 contains
 
-#:if WITH_SCALAPACK
   
   !> Initializes BLACS grids
-  subroutine TBlacsGrids_init(this, rowBlock, colBlock, nGroup, nOrb, nAtom, nKpoint, nSpin,&
+  subroutine TBlacsEnv_init(this, rowBlock, colBlock, nGroup, nOrb, nAtom, nKpoint, nSpin,&
       & tPauliHS)
 
     !> Initialized instance at exit.
-    type(TBlacsGrids), intent(out) :: this
+    type(TBlacsEnv), intent(out) :: this
 
     !> Row block size
     integer, intent(in) :: rowBlock
@@ -78,7 +77,7 @@ contains
     !> Whether we need a 2x2 Pauli type Hamiltonian and overlap
     logical, intent(in) :: tPauliHS
 
-    integer :: nProcRow, nProcCol, maxDim, nProcRowmax, nProcColmax
+    integer :: nProcRow, nProcCol, maxDim, nProcRowMax, nProcColmax
     integer :: nProc, iProc, iGroup
     character(lc) :: buffer
 
@@ -105,11 +104,11 @@ contains
     else
       maxDim = nOrb
     end if
-    nProcRowmax = (maxDim - 1) / rowBlock + 1
+    nProcRowMax = (maxDim - 1) / rowBlock + 1
     nProcColmax = (maxDim - 1) / colblock + 1
-    if (nProcRow > nProcRowmax .or. nProcCol > nProcColmax) then
+    if (nProcRow > nProcRowMax .or. nProcCol > nProcColmax) then
       write(buffer, "(A,I0,A,I0,A,I0,A,I0,A)") "Processor grid (", nProcRow, " x ",  nProcCol,&
-          & ") too big (> ", nProcRowmax, " x ", nProcColmax, ")"
+          & ") too big (> ", nProcRowMax, " x ", nProcColmax, ")"
       call error(buffer)
     end if
 
@@ -123,16 +122,14 @@ contains
     write(stdOut, "(1X,2(A,I0))") "PGRID:ALLPROC: ", nProcRow, " x ", nProcCol
 
     ! Create grid for atomic quantities
-    nProcRowmax = (nAtom - 1) / rowBlock + 1
+    nProcRowMax = (nAtom - 1) / rowBlock + 1
     nProcColmax = (nAtom - 1) / colBlock + 1
-    nProcRow = min(nProcRow, nProcRowmax)
+    nProcRow = min(nProcRow, nProcRowMax)
     nProcCol = min(nProcCol, nProcColmax)
     call this%gridAtomSqr%initgrid(nProcRow, nProcCol)
     write(stdOut, "(1X,2(A,I0))") "PGRID:ATOM: ", nProcRow, " x ", nProcCol
 
-  end subroutine TBlacsGrids_init
-
-#:endif
+  end subroutine TBlacsEnv_init
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -151,7 +148,7 @@ contains
     !> Number of columns in the 2D processor grid
     integer, intent(out) :: nCol
 
-    do nRow = int(sqrt(real(nProc, dp))), 1, -1
+    do nRow = int(sqrt(real(nProc))), 1, -1
       if (mod(nProc, nRow) == 0) then
         exit
       end if
@@ -205,4 +202,4 @@ contains
   end subroutine getGroupKS_
 
 
-end module parallel
+end module blacsenv

@@ -10,11 +10,8 @@
 !> Global variables and initialization for the main program.
 module initprogram
   use assert
+  use globalenv
   use environment
-  use parallel
-#:if WITH_SCALAPACK
-  use scalapackfx
-#:endif
   use inputdata_module
   use constants
   use periodic
@@ -655,10 +652,6 @@ module initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
-#:if WITH_SCALAPACK
-  type(TBlacsGrids) :: blacsGrids
-#:endif
-
   !> First guess for nr. of neighbors.
   integer, private, parameter :: nInitNeighbor = 40
 
@@ -671,7 +664,7 @@ contains
   subroutine initProgramVariables(env, input)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Holds the parsed input data.
     type(inputData), intent(inout), target :: input
@@ -2016,11 +2009,11 @@ contains
       end if
     end if
 
-    ! Parallel settings
   #:if WITH_SCALAPACK
-    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call TBlacsGrids_init(blacsGrids, blacsOpts%rowBlockSize, blacsOpts%colBlockSize,&
-          & blacsOpts%nGroups, nOrb, nAtom, nKPoint, nSpin, t2Component)
+    associate(blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      ! Parallel BLACS settings
+      call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, blacsOpts%nGroups, nOrb,&
+          & nAtom, nKPoint, nSpin, t2Component)
     end associate
   #:endif
     
@@ -2040,41 +2033,41 @@ contains
       select case(input%ctrl%iThermostat)
       case (0)
         if (tBarostat) then
-          write(stdout, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
               &velocities', '(a.k.a. "NPE" ensemble)'
         else
-          write(stdout, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of &
               &velocities', '(a.k.a. NVE ensemble)'
         end if
       case (1)
         if (tBarostat) then
-          write(stdout, "('Mode:',T30,A,/,T30,A)") &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") &
               & "MD with re-selection of velocities according to temperature", &
               & "(a.k.a. NPT ensemble using Andersen thermostating + Berensen&
               & barostat)"
         else
-          write(stdout, "('Mode:',T30,A,/,T30,A)") &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") &
               & "MD with re-selection of velocities according to temperature", &
               & "(a.k.a. NVT ensemble using Andersen thermostating)"
         end if
       case(2)
         if (tBarostat) then
-          write(stdout, "('Mode:',T30,A,/,T30,A)") &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to temperature", &
               & "(a.k.a. 'not' NVP ensemble using Berendsen thermostating and&
               & barostat)"
         else
-          write(stdout, "('Mode:',T30,A,/,T30,A)") &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to temperature", &
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
         end if
       case(3)
         if (tBarostat) then
-          write(stdout, "('Mode:',T30,A,/,T30,A)") &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to", &
               & "Nose-Hoover-Chain thermostat + Berensen barostat"
         else
-          write(stdout, "('Mode:',T30,A,/,T30,A)") &
+          write(stdOut, "('Mode:',T30,A,/,T30,A)") &
               & "MD with scaling of velocities according to", &
               & "Nose-Hoover-Chain thermostat"
         end if
@@ -2090,62 +2083,62 @@ contains
       end if
       select case (input%ctrl%iGeoOpt)
       case (1)
-        write(stdout, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
+        write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
       case (2)
-        write(stdout, "('Mode:',T30,A)") 'Conjugate gradient relaxation' &
+        write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' &
             &// trim(strTmp)
       case (3)
-        write(stdout, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
+        write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
             &// trim(strTmp)
       case default
         call error("Unknown optimisation mode")
       end select
     elseif (tDerivs) then
-      write(stdout, "('Mode:',T30,A)") "2nd derivatives calculation"
-      write(stdout, "('Mode:',T30,A)") "Calculated for atoms:"
-      write(stdout, *) indMovedAtom
+      write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
+      write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
+      write(stdOut, *) indMovedAtom
     elseif (tSocket) then
-      write(stdout, "('Mode:',T30,A)") "Socket controlled calculation"
+      write(stdOut, "('Mode:',T30,A)") "Socket controlled calculation"
     else
-      write(stdout, "('Mode:',T30,A)") "Static calculation"
+      write(stdOut, "('Mode:',T30,A)") "Static calculation"
     end if
 
     if (tSCC) then
-      write(stdout, "(A,':',T30,A)") "Self consistent charges", "Yes"
-      write(stdout, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
-      write(stdout, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
-      !write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
+      write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
+      write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
+      write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      !write(stdOut, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
-        write(stdout, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
-        write(stdout, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
+        write(stdOut, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
+        write(stdOut, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
         !  use module to reverse look up name
       end if
     else
-      write(stdout, "(A,':',T30,A)") "Self consistent charges", "No"
+      write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
     end if
 
     select case (nSpin)
     case(1)
-      write(stdout, "(A,':',T30,A)") "Spin polarisation", "No"
-      write(stdout, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
+      write(stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
+      write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
           &0.5_dp*nEl(1), "Nr. of down electrons", 0.5_dp*nEl(1)
     case(2)
-      write(stdout, "(A,':',T30,A)") "Spin polarisation", "Yes"
-      write(stdout, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
+      write(stdOut, "(A,':',T30,A)") "Spin polarisation", "Yes"
+      write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", &
           &nEl(1), "Nr. of down electrons", nEl(2)
     case(4)
-      write(stdout, "(A,':',T30,A)") "Non-collinear calculation", "Yes"
-      write(stdout, "(A,':',T30,F12.6)") "Nr. of electrons", nEl(1)
+      write(stdOut, "(A,':',T30,A)") "Non-collinear calculation", "Yes"
+      write(stdOut, "(A,':',T30,F12.6)") "Nr. of electrons", nEl(1)
     end select
 
     if (tPeriodic) then
-      write(stdout, "(A,':',T30,A)") "Periodic boundaries", "Yes"
+      write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "Yes"
       if (tLatOpt) then
-        write(stdout, "(A,':',T30,A)") "Lattice optimisation", "Yes"
-        write(stdout, "(A,':',T30,f12.6)") "Pressure", extPressure
+        write(stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
+        write(stdOut, "(A,':',T30,f12.6)") "Pressure", extPressure
       end if
     else
-      write(stdout, "(A,':',T30,A)") "Periodic boundaries", "No"
+      write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
     select case (solver)
@@ -2160,7 +2153,7 @@ contains
     case default
       call error("Unknown eigensolver!")
     end select
-    write(stdout, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+    write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
 
     if (tSCC) then
       select case (iMixer)
@@ -2173,27 +2166,27 @@ contains
       case(4)
         write (strTmp, "(A)") "DIIS"
       end select
-      write(stdout, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
-      write(stdout, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-      write(stdout, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
+      write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
+      write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
+      write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
       select case (iMixer)
       case(2)
-        write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
+        write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       case(3)
-        write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
+        write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
       case(4)
-        write(stdout, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
+        write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       end select
     end if
 
     if (tCoordOpt) then
-      write(stdout, "(A,':',T30,I14)") "Nr. of moved atoms", nMovedAtom
+      write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", nMovedAtom
     end if
     if (tGeoOpt) then
-      write(stdout, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
-      write(stdout, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
+      write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
+      write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == 1) then
-        write(stdout, "(A,':',T30,E14.6)") "Step size", deltaT
+        write(stdOut, "(A,':',T30,E14.6)") "Step size", deltaT
       end if
     end if
 
@@ -2206,7 +2199,7 @@ contains
       case(3)
         strTmp = "Dynamics, finite electronic temp."
       end select
-      write(stdout, "(A,':',T30,A)") "Force evaluation method", strTmp
+      write(stdOut, "(A,':',T30,A)") "Force evaluation method", strTmp
     end if
 
     tFirst = .true.
@@ -2220,7 +2213,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdout, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), &
+            write(stdOut, "(A,T30,'At',I4,': ',3F10.6)") trim(strTmp), &
                 &ii, (conVec(kk,jj), kk=1,3)
           end if
         end do
@@ -2228,17 +2221,17 @@ contains
     end if
 
     if (.not.input%ctrl%tSetFillingTemp) then
-      write(stdout, "(A,':',T30,E14.6)") "Electronic temperature", tempElec
+      write(stdOut, "(A,':',T30,E14.6)") "Electronic temperature", tempElec
     end if
     if (tMD) then
-      write(stdout, "(A,':',T30,E14.6)") "Time step", deltaT
+      write(stdOut, "(A,':',T30,E14.6)") "Time step", deltaT
       if (input%ctrl%iThermostat == 0 .and. .not.input%ctrl%tReadMDVelocities)&
           & then
-        write(stdout, "(A,':',T30,E14.6)") "Temperature", tempAtom
+        write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write(stdout, "(A,':',T30,I14)") "Random seed", iSeed
+      write(stdOut, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
-        write(stdout, "(A,':',T30,E14.6)") "Rescaling probability", &
+        write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
       end if
     end if
@@ -2250,7 +2243,7 @@ contains
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", &
             &input%ctrl%nrChrg, ")"
       end if
-      write(stdout, "(A,':',T30,A)") "Initial charges", trim(strTmp)
+      write(stdOut, "(A,':',T30,A)") "Initial charges", trim(strTmp)
     end if
 
     do iSp = 1, nType
@@ -2267,7 +2260,7 @@ contains
               &// trim(orbitalNames(orb%angShell(jj, iSp) + 1))
         end if
       end do
-      write(stdout, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), &
+      write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), &
           &trim(strTmp2)
     end do
 
@@ -2278,7 +2271,7 @@ contains
         else
           write(strTmp, "(A)") ""
         end if
-        write(stdout, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
+        write(stdOut, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
             & (kPoint(jj, ii), jj=1, 3), kWeight(ii)
       end do
     end if
@@ -2286,12 +2279,12 @@ contains
     if (tDispersion) then
       select type (dispersion)
       type is (DispSlaKirk)
-        write(stdout, "(A)") "Using Slater-Kirkwood dispersion corrections"
+        write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
       type is (DispUff)
-        write(stdout, "(A)") "Using Lennard-Jones dispersion corrections"
+        write(stdOut, "(A)") "Using Lennard-Jones dispersion corrections"
     #:if WITH_DFTD3
       type is (DispDftD3)
-        write(stdout, "(A)") "Using DFT-D3 dispersion corrections"
+        write(stdOut, "(A)") "Using DFT-D3 dispersion corrections"
     #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
@@ -2314,7 +2307,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdout, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp), jj, &
+            write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp), jj, &
                 & orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
           end do
         end do
@@ -2332,7 +2325,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdout, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)") &
+            write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)") &
                 &trim(strTmp), speciesName(iSp), &
                 &jj, orbitalNames(orb%angShell(jj, iSp)+1), &
                 &kk, orbitalNames(orb%angShell(kk, iSp)+1), &
@@ -2345,7 +2338,7 @@ contains
     tFirst = .true.
     if (tSpinOrbit) then
       if (tDualSpinOrbit) then
-        write(stdout, "(A)")"Dual representation spin orbit"
+        write(stdOut, "(A)")"Dual representation spin orbit"
       end if
       do iSp = 1, nType
         do jj = 1, orb%nShell(iSp)
@@ -2355,7 +2348,7 @@ contains
           else
             write(strTmp, "(A)") ""
           end if
-          write(stdout, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") &
+          write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") &
                 &trim(strTmp), speciesName(iSp), &
                 &jj, orbitalNames(orb%angShell(jj, iSp)+1), &
                 &xi(jj, iSp)
@@ -2369,50 +2362,50 @@ contains
 
     if (tSCC) then
       if (t3rdFull) then
-        write(stdout, "(A,T30,A)") "Full 3rd order correction", "Yes"
+        write(stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
         if (input%ctrl%tOrbResolved) then
-          write(stdout, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
-          write(stdout, "(A30)") "Shell-resolved Hubbard derivs:"
-          write(stdout, "(A)") "        s-shell   p-shell   d-shell   f-shell"
+          write(stdOut, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
+          write(stdOut, "(A30)") "Shell-resolved Hubbard derivs:"
+          write(stdOut, "(A)") "        s-shell   p-shell   d-shell   f-shell"
           do iSp = 1, nType
-            write(stdout, "(A3,A3,4F10.4)") "  ", trim(speciesName(iSp)),&
+            write(stdOut, "(A3,A3,4F10.4)") "  ", trim(speciesName(iSp)),&
                 & input%ctrl%hubDerivs(:orb%nShell(iSp),iSp)
           end do
         end if
       end if
 
       if (any(tDampedShort)) then
-        write(stdout, "(A,T30,A)") "Damped SCC", "Yes"
+        write(stdOut, "(A,T30,A)") "Damped SCC", "Yes"
         ii = count(tDampedShort)
         write(strTmp, "(A,I0,A)") "(A,T30,", ii, "(A,1X))"
-        write(stdout, strTmp) "Damped species(s):", pack(speciesName, tDampedShort)
+        write(stdOut, strTmp) "Damped species(s):", pack(speciesName, tDampedShort)
         deallocate(tDampedShort)
       end if
     end if
 
-    write(stdout, "(A,':')") "Extra options"
+    write(stdOut, "(A,':')") "Extra options"
     if (tPrintMulliken) then
-      write(stdout, "(T30,A)") "Mulliken analysis"
+      write(stdOut, "(T30,A)") "Mulliken analysis"
     end if
     if (tPrintForces .and. .not. (tMD .or. tGeoOpt .or. tDerivs)) then
-      write(stdout, "(T30,A)") "Force calculation"
+      write(stdOut, "(T30,A)") "Force calculation"
     end if
     if (tPrintEigVecs) then
-      write(stdout, "(T30,A)") "Eigenvector printing"
+      write(stdOut, "(T30,A)") "Eigenvector printing"
     end if
     if (tExtChrg) then
-      write(stdout, "(T30,A)") "External charges specified"
+      write(stdOut, "(T30,A)") "External charges specified"
     end if
 
     if (tEField) then
       if (tTDEfield) then
-        write(stdout, "(T30,A)") "External electric field specified"
-        write(stdout, "(A,':',T30,E14.6)") "Angular frequency", EfieldOmega
+        write(stdOut, "(T30,A)") "External electric field specified"
+        write(stdOut, "(A,':',T30,E14.6)") "Angular frequency", EfieldOmega
       else
-        write(stdout, "(T30,A)") "External static electric field specified"
+        write(stdOut, "(T30,A)") "External static electric field specified"
       end if
-      write(stdout, "(A,':',T30,E14.6)") "Field strength", EFieldStrength
-      write(stdout, "(A,':',T30,3F9.6)") "Direction", EfieldVector
+      write(stdOut, "(A,':',T30,E14.6)") "Field strength", EFieldStrength
+      write(stdOut, "(A,':',T30,3F9.6)") "Direction", EfieldVector
       if (tPeriodic) then
         call warning("Saw tooth potential used for periodic geometry &
             &- make sure there is a vacuum region!")
@@ -2423,10 +2416,10 @@ contains
       do iSp = 1, nType
         if (nUJ(iSp)>0) then
           write(strTmp, "(A,':')") "U-J coupling constants"
-          write(stdout, "(A,T25,A2)")trim(strTmp), speciesName(iSp)
+          write(stdOut, "(A,T25,A2)")trim(strTmp), speciesName(iSp)
           do jj = 1, nUJ(iSp)
             write(strTmp, "(A,I1,A)")'(A,',niUJ(jj,iSp),'I2,T25,A,F6.4)'
-            write(stdout, trim(strTmp))'Shells:',iUJ(1:niUJ(jj,iSp),jj,iSp),'UJ:', &
+            write(stdOut, trim(strTmp))'Shells:',iUJ(1:niUJ(jj,iSp),jj,iSp),'UJ:', &
                 & UJ(jj,iSp)
           end do
         end if
@@ -2445,14 +2438,14 @@ contains
 
     select case (forceType)
     case(0)
-      write(stdout, "(A,T30,A)") "Force type", "original"
+      write(stdOut, "(A,T30,A)") "Force type", "original"
     case(1)
-      write(stdout, "(A,T30,A)") "Force type", "erho with re-diagonalized &
+      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized &
           & eigenvalues"
     case(2)
-      write(stdout, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
     case(3)
-      write(stdout, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
 
     if ((tSpinOrbit .and. tDFTBU) .and. tForces)  then
@@ -2595,7 +2588,7 @@ contains
     logical :: tDummy
     
     if (env%tIoProc) then
-      write(stdout, "(A,1X,A)") "Initialising for socket communication to host",&
+      write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
       socket = IpiSocketComm(socketInput)
     end if
