@@ -2738,7 +2738,9 @@ contains
 
   end subroutine printMdInfo
 
+
 #:if WITH_SOCKETS
+
   !> Receives the geometry from socket communication.
   subroutine receiveGeometryFromSocket(socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
       & tLatticeChanged, tStopDriver)
@@ -2774,8 +2776,8 @@ contains
     tLatticeChanged = tPeriodic
 
   end subroutine receiveGeometryFromSocket
-#:endif
 
+#:endif
 
 
 end module mainio
