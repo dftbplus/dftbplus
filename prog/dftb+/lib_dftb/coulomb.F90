@@ -143,7 +143,7 @@ contains
     ! the if branch deep in the loop
     invRVec(:) = 0.0_dp
     if (present(blurWidths1)) then
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,error_string) &
       !$OMP& SCHEDULE(RUNTIME)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
@@ -163,7 +163,7 @@ contains
       end do
       !$OMP  END PARALLEL DO
     else
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,error_string) &
       !$OMP& SCHEDULE(RUNTIME)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
@@ -466,7 +466,7 @@ contains
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp,sigma,rs) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -481,11 +481,11 @@ contains
           deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
           deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
         end do
-        !$OMP  END PARALLEL DO
       end do
+      !$OMP END PARALLEL DO
     else
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -731,7 +731,7 @@ contains
     @:ASSERT(vol > 0.0_dp)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
     do iAt0 = 1, nAtom0
       do iAt1 = 1, nAtom1
         vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
