@@ -20,6 +20,7 @@ module ExternalCharges
   private
 
   public :: TExtCharge, init_ExtChrg
+  public :: addShiftPerAtom_ExtChrg, updateCoords_ExtChrg, addForceDCSCC_ExtChrg
 
   !> Add the potential from the point charges
   interface addShiftPerAtom_ExtChrg
@@ -42,7 +43,7 @@ module ExternalCharges
 
   !> Private module variables
   type TExtCharge
-    
+
     !> Number of point charges
     integer :: nChrg
 
@@ -75,15 +76,12 @@ module ExternalCharges
 
     !> Real lattice points for Ewald-sum.
     real(dp), allocatable :: rCellVec(:,:)
-    
+
   contains
 
-    procedure :: updateCoords_ExtChrg
     procedure :: updateLatVecs_ExtChrg
-    procedure :: addShiftPerAtom_ExtChrg
     procedure :: addEnergyPerAtom_ExtChrg
-    procedure :: addForceDCSCC_ExtChrg
-    
+
   end type TExtCharge
 
 contains
@@ -96,7 +94,7 @@ contains
 
     !> External charge object
     type(TExtCharge), intent(out) :: this
-    
+
     !> (4, nAtom) array with coordinates and charges
     real(dp), intent(in) :: coordsAndCharges(:,:)
 
@@ -168,7 +166,7 @@ contains
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
-    
+
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
@@ -193,8 +191,8 @@ contains
   subroutine updateCoords_ExtChrg_cluster(this, atomCoords)
 
     !> External charges structure
-    class(TExtCharge), intent(inout) :: this
-    
+    type(TExtCharge), intent(inout) :: this
+
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
 
@@ -219,8 +217,8 @@ contains
   subroutine updateCoords_ExtChrg_periodic(this, atomCoords, gLat, alpha, volume)
 
     !> External charges structure
-    class(TExtCharge), intent(inout) :: this
-    
+    type(TExtCharge), intent(inout) :: this
+
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
 
@@ -251,8 +249,8 @@ contains
   subroutine addShift1(this, shift)
 
     !> External charges structure
-    class(TExtCharge), intent(in) :: this
-    
+    type(TExtCharge), intent(in) :: this
+
     !> Shift vector to add the contribution to.
     real(dp), intent(inout) :: shift(:)
 
@@ -268,8 +266,8 @@ contains
   subroutine addShift2(this, shift)
 
     !> External charges structure
-    class(TExtCharge), intent(in) :: this
-    
+    type(TExtCharge), intent(in) :: this
+
     !> Shift vector to add the contribution to.
     real(dp), intent(inout) :: shift(:,:)
 
@@ -286,7 +284,7 @@ contains
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
-    
+
     !> Charge of the atoms
     real(dp), intent(in) :: atomCharges(:)
 
@@ -307,8 +305,8 @@ contains
   subroutine addForceDCSCC_ExtChrg_cluster(this, atomForces, chrgForces, atomCoords, atomCharges)
 
     !> External charges structure
-    class(TExtCharge), intent(in) :: this
-    
+    type(TExtCharge), intent(in) :: this
+
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
 
@@ -343,8 +341,8 @@ contains
       & gVec, alpha, vol)
 
     !> External charges structure
-    class(TExtCharge), intent(in) :: this
-    
+    type(TExtCharge), intent(in) :: this
+
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
 
