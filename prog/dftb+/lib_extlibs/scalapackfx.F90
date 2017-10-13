@@ -15,7 +15,4 @@ module scalapackfx
   implicit none
   public
 
-  !> Whether code was compiled with Scalapack
-  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
-
 end module scalapackfx

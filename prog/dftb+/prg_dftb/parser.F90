@@ -12,7 +12,6 @@ module parser
   use globalenv
   use environment
   use mpifx
-  use scalapackfx, only : withScalapack
   use assert
   use accuracy
   use constants

@@ -34,11 +34,11 @@ module blacsenv
     !> Nr. of processor groups
     integer :: nGroup
 
+    !> Index of the group current process is in
+    integer :: iGroup
+
     !> Nr. of processor within each group
     integer :: groupSize
-
-    !> Contains k-point (1, ii) and spin (2, ii) tuples to be processed in current group.
-    integer, allocatable :: groupKS(:,:)
 
   end type TBlacsEnv
 
@@ -47,8 +47,7 @@ contains
 
   
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, rowBlock, colBlock, nGroup, nOrb, nAtom, nKpoint, nSpin,&
-      & tPauliHS)
+  subroutine TBlacsEnv_init(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
@@ -59,7 +58,7 @@ contains
     !> Column block size
     integer, intent(in) :: colBlock
 
-    !> Nr. of processor groups.
+    !> Nr. of processor groups
     integer, intent(in) :: nGroup
 
     !> Nr. of orbitals
@@ -68,17 +67,8 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    !> Nr. of K-points
-    integer, intent(in) :: nKpoint
-
-    !> Nr. of spin channels
-    integer, intent(in) :: nSpin
-
-    !> Whether we need a 2x2 Pauli type Hamiltonian and overlap
-    logical, intent(in) :: tPauliHS
-
-    integer :: nProcRow, nProcCol, maxDim, nProcRowMax, nProcColmax
-    integer :: nProc, iProc, iGroup
+    integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
+    integer :: nProc, iProc
     character(lc) :: buffer
 
     call blacsfx_pinfo(iProc, nProc)
@@ -88,27 +78,18 @@ contains
     if (mod(nProc, nGroup) /= 0) then
       call error("Nr. of groups must be a divisor of nr. of processes")
     end if
+
     this%nGroup = nGroup
     this%groupSize = nProc / nGroup
-    iGroup = iProc / this%groupSize
-    call getSquareGridParams_(this%groupSize, nProcRow, nProcCol)
-    if (.not. tPauliHS) then
-      call getGroupKS_(nGroup, nKpoint, nSpin, iGroup, this%groupKS)
-    else
-      call getGroupKS_(nGroup, nKpoint, 1, iGroup, this%groupKS)
-    end if
-    
+    this%iGroup = iProc / this%groupSize
+
     ! Check whether all processes have some portions of the H and S matrices
-    if (tPauliHS) then
-      maxDim = 2 * nOrb
-    else
-      maxDim = nOrb
-    end if
-    nProcRowMax = (maxDim - 1) / rowBlock + 1
-    nProcColmax = (maxDim - 1) / colblock + 1
-    if (nProcRow > nProcRowMax .or. nProcCol > nProcColmax) then
+    call getSquareGridParams(this%groupSize, nProcRow, nProcCol)
+    maxProcRow = (nOrb - 1) / rowBlock + 1
+    maxProcColMax = (nOrb - 1) / colblock + 1
+    if (nProcRow > maxProcRow .or. nProcCol > maxProcColMax) then
       write(buffer, "(A,I0,A,I0,A,I0,A,I0,A)") "Processor grid (", nProcRow, " x ",  nProcCol,&
-          & ") too big (> ", nProcRowMax, " x ", nProcColmax, ")"
+          & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       call error(buffer)
     end if
 
@@ -117,15 +98,15 @@ contains
     write(stdOut, "(1X,3(A,I0))") "PGRID:ORBITAL: ", nGroup, " x ", nProcRow, " x ", nProcCol
     
     ! Global grid for broadcasting messages to all processes
-    call getSquareGridParams_(nProc, nProcRow, nProcCol)
+    call getSquareGridParams(nProc, nProcRow, nProcCol)
     call this%gridAll%initgrid(nProcRow, nProcCol)
     write(stdOut, "(1X,2(A,I0))") "PGRID:ALLPROC: ", nProcRow, " x ", nProcCol
 
     ! Create grid for atomic quantities
-    nProcRowMax = (nAtom - 1) / rowBlock + 1
-    nProcColmax = (nAtom - 1) / colBlock + 1
-    nProcRow = min(nProcRow, nProcRowMax)
-    nProcCol = min(nProcCol, nProcColmax)
+    maxProcRow = (nAtom - 1) / rowBlock + 1
+    maxProcColMax = (nAtom - 1) / colBlock + 1
+    nProcRow = min(nProcRow, maxProcRow)
+    nProcCol = min(nProcCol, maxProcColMax)
     call this%gridAtomSqr%initgrid(nProcRow, nProcCol)
     write(stdOut, "(1X,2(A,I0))") "PGRID:ATOM: ", nProcRow, " x ", nProcCol
 
@@ -137,7 +118,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !> Returns rows and columns for a 2D processor grid closest possible to a square one.
-  subroutine getSquareGridParams_(nProc, nRow, nCol)
+  subroutine getSquareGridParams(nProc, nRow, nCol)
 
     !> Total number of processors
     integer, intent(in) :: nProc
@@ -155,51 +136,7 @@ contains
     end do
     nCol = nProc / nRow
 
-  end subroutine getSquareGridParams_
-
-
-  !> Returns the (k-point, spin) tuples to be processed by current processor grid.
-  subroutine getGroupKS_(nGroup, nKpoint, nSpin, iGroup, groupKS)
-
-    !> Number of processor groups
-    integer, intent(in) :: nGroup
-
-    !> Number of k-points in calculation.
-    integer, intent(in) :: nKpoint
-
-    !> Number of spin channels in calculation
-    integer, intent(in) :: nSpin
-
-    !> Group index of current group
-    integer, intent(in) :: iGroup
-
-    !> Array of (k-point, spin) tuples (groupKS(:, ii) = [iK, iS])
-    integer, intent(out), allocatable :: groupKS(:,:)
-
-    integer :: nHam, nHamAll, res
-    integer :: ind, iHam, iS, iK
-    
-    nHamAll = nKpoint * nSpin
-    nHam = nHamAll / nGroup
-    res = nHamAll - nHam * nGroup
-    if (iGroup < res) then
-      nHam = nHam + 1
-    end if
-    allocate(groupKS(2, nHam))
-    ind = 0
-    iHam = 1
-    do iS = 1, nSpin
-      do iK = 1, nKpoint
-        if (mod(ind, nGroup) == iGroup) then
-          groupKS(1, iHam) = iK
-          groupKS(2, iHam) = iS
-          iHam = iHam + 1
-        end if
-        ind = ind + 1
-      end do
-    end do
-
-  end subroutine getGroupKS_
+  end subroutine getSquareGridParams
 
 
 end module blacsenv

@@ -36,7 +36,7 @@ module mainio
   implicit none
   private
 
-  public :: writeEigvecs, writeProjEigvecs, getH, SetEigVecsTxtOutput
+  public :: writeEigvecs, writeRealEigvecs, writeCplxEigvecs, writeProjEigvecs, SetEigVecsTxtOutput
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
@@ -87,13 +87,6 @@ module mainio
   logical :: EigVecsAsTxt_ = .false.
 
 
-  !> Routines to get eigenvectors out of storage/memory
-  interface getH
-    module procedure getHreal
-    module procedure getHcmplx
-  end interface getH
-
-
   !> write eigenvectors to disc
   interface writeEigvecs
     module procedure writeRealEigvecs
@@ -121,9 +114,9 @@ contains
 
 
   !> Write the real eigenvectors into text and binary output files.
-  subroutine writeRealEigvecs(fdEigvec, runId, nAtom, nSpin, neighlist, &
-      &nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, speciesName, &
-      &over, HSqrReal, SSqrReal, storeEigvecs, fileName)
+  subroutine writeRealEigvecs(fdEigvec, runId, nAtom, nSpin, neighlist,&
+      & nNeighbor, iAtomStart, iPair, img2CentCell, orb, species, speciesName,&
+      & over, groupKS, HSqrReal, SSqrReal, fileName)
 
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fdEigvec
@@ -164,28 +157,27 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
+    !> K-points and spins to process
+    integer, intent(in) :: groupKS(:,:)
+ 
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: HSqrReal(:,:,:)
 
     !> Work array.
     real(dp), intent(inout) :: SSqrReal(:,:)
 
-    !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
-    !> whatever is already there.
-    type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
-
     !> optional alternative file pre-fix
     character(len=*), intent(in), optional :: fileName
 
     character(lc) :: tmpStr
-    integer :: iSpin, iSpin2, iAtom, iSp1, iSh1, iOrb, ang
+    integer :: iKS, iSpin, iAtom, iSp1, iSh1, iOrb, ang
     integer :: ii, jj
     real(dp), allocatable :: rVecTemp(:)
 
     @:ASSERT(nSpin == 1 .or. nSpin == 2)
 
-    close(fdEigvec) ! just to be on the safe side
-    ! Write eigenvalues in binary form
+    ! just to be on the safe side
+    close(fdEigvec)
     if (present(fileName)) then
       write (tmpStr, "(A,A)") trim(fileName), ".bin"
       open(fdEigvec, file=tmpStr, action="write", status="replace", &
@@ -195,10 +187,10 @@ contains
           &position="rewind", form="unformatted")
     end if
     write (fdEigVec) runId
-    do iSpin = 1, nSpin
-      call getH(iSpin, HSqrReal, iSpin2, storeEigvecs)
+    do iKS = 1, size(groupKS, dim=2)
+      iSpin = groupKS(2, iKS)
       do ii = 1, size(HSqrReal, dim=2)
-        write (fdEigvec) HSqrReal(:,ii,iSpin2)
+        write (fdEigvec) HSqrReal(:,ii,iSpin)
       end do
     end do
     close(fdEigvec)
@@ -214,14 +206,12 @@ contains
             &position="rewind")
       end if
       allocate(rVecTemp(size(HSqrReal, dim=1)))
-      call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, &
-          &iAtomStart, iPair, img2CentCell)
-      do iSpin = 1, nSpin
-        call getH(iSpin, HSqrReal, iSpin2, storeEigvecs)
+      call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
+      do iKS = 1, size(groupKS, dim=2)
+        iSpin = groupKS(2, iKS)
         do ii = 1, orb%nOrb
-          call hemv(rVecTemp, SSqrReal, HSqrReal(:,ii,iSpin2))
-          write(fdEigvec, "('Eigenvector:',I4,4X,'(',A,')'/)") ii, &
-              &trim(spinName(iSpin2))
+          call hemv(rVecTemp, SSqrReal, HSqrReal(:,ii,iSpin))
+          write(fdEigvec, "('Eigenvector:',I4,4X,'(',A,')'/)") ii, trim(spinName(iSpin))
           jj = 0
           do iAtom = 1, nAtom
             iSp1 = species(iAtom)
@@ -235,9 +225,8 @@ contains
               end if
               do iOrb = 1, 2 * ang + 1
                 jj = jj + 1
-                write(fdEigvec,"(A,I1,T15,F12.6,3X,F12.6)") trim(tmpStr),&
-                    &iOrb, HSqrReal(jj, ii, iSpin2), &
-                    & HSqrReal(jj, ii, iSpin2) * rVecTemp(jj)
+                write(fdEigvec,"(A,I1,T15,F12.6,3X,F12.6)") trim(tmpStr), iOrb,&
+                    & HSqrReal(jj, ii, iSpin), HSqrReal(jj, ii, iSpin) * rVecTemp(jj)
               end do
             end do
             write (fdEigvec,*)
@@ -254,8 +243,7 @@ contains
   !> Write the complex eigenvectors into text and binary output files.
   subroutine writeCplxEigvecs(fdEigvec, runId, nAtom, nSpin, neighlist, &
       &nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, &
-      &species, speciesName, over, kpoint, HSqrCplx, SSqrCplx, storeEigvecs, &
-      & fileName)
+      &species, speciesName, over, kpoint, groupKS, HSqrCplx, SSqrCplx, fileName)
 
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fdEigvec
@@ -305,26 +293,25 @@ contains
     !> KPoints.
     real(dp), intent(in) :: kpoint(:,:)
 
+    !> K-points and spins to process
+    integer, intent(in) :: groupKS(:,:)
+
     !> Square Hamiltonian (or work array)
-    complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:)
 
     !> Work array.
     complex(dp), intent(inout) :: SSqrCplx(:,:)
-
-    !> If present, Hamiltonian(s) are fetched from this storage into HSqrCplx, instead of using
-    !> whatever is already there.
-    type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
 
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
     character(lc) :: tmpStr
-    integer :: iSpin, iSpin2, iAtom, iSp1, iSh1, iOrb, ang, iK, iK2, nK
+    integer :: iSpin, iAtom, iSp1, iSh1, iOrb, ang, iKS, iK
     integer :: ii, jj, nOrb, nSpinChannel
     complex(dp), allocatable :: cVecTemp(:), work(:,:)
 
-    nK = size(kPoint, dim=2)
-    close(fdEigvec) ! just to be on the safe side
+    ! just to be on the safe side
+    close(fdEigvec)
     if (present(fileName)) then
       write (tmpStr, "(A,A)") trim(fileName), ".bin"
       open(fdEigvec, file=tmpStr, action="write", status="replace", &
@@ -339,15 +326,13 @@ contains
     else
       nSpinChannel = nSpin
     end if
-    do iSpin = 1, nSpinChannel
-      do iK = 1, nK
-        call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
-        do ii = 1, size(HSqrCplx, dim=2)
-          write (fdEigvec) HSqrCplx(:,ii,iK2, iSpin2)
-        end do
+    do iKS = 1, size(groupKS, dim=2)
+      iK = groupKS(1, iKS)
+      iSpin = groupKS(2, iKS)
+      do ii = 1, size(HSqrCplx, dim=2)
+        write (fdEigvec) HSqrCplx(:,ii,iKS)
       end do
     end do
-
     close(fdEigvec)
 
     if (EigVecsAsTxt_) then
@@ -369,8 +354,8 @@ contains
         allocate(cVecTemp(size(HSqrCplx, dim=1)))
         nOrb = size(HSqrCplx, dim=1) / 2
         allocate(work(nOrb,nOrb))
-        do iK = 1, nK
-          call getH(1, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
+        do iKS = 1, size(groupKS, dim=2)
+          iK = groupKS(1, iKS)
           SSqrCplx = 0.0_dp
           work = 0.0_dp
           call unpackHS(work, over, kPoint(:,iK), &
@@ -379,7 +364,7 @@ contains
           SSqrCplx(:nOrb,:nOrb) = work
           SSqrCplx(nOrb+1:,nOrb+1:) = work
           do ii = 1, 2*orb%nOrb
-            call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,ii,iK2,iSpin2))
+            call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,ii,iKS))
             write(fdEigvec, "(A,I4,4X,A,I4)") "K-point: ", ik, &
                 &"Eigenvector: ", ii
             jj = 0
@@ -399,25 +384,25 @@ contains
                       &"(A,I1,T15,'(',F12.6,',',F12.6,')', &
                       & '(',F12.6,',',F12.6,')',3X,4F12.6)") &
                       &trim(tmpStr), iOrb, &
-                      &real(HSqrCplx(jj, ii, iK2, iSpin2)), &
-                      &aimag(HSqrCplx(jj, ii, iK2, iSpin2)), &
-                      &real(HSqrCplx(jj+nOrb, ii, iK2, iSpin2)), &
-                      &aimag(HSqrCplx(jj+nOrb, ii, iK2, iSpin2)), &
-                      &real( conjg(HSqrCplx(jj, ii, iK2, iSpin2)) &
+                      &real(HSqrCplx(jj, ii, iKS)), &
+                      &aimag(HSqrCplx(jj, ii, iKS)), &
+                      &real(HSqrCplx(jj+nOrb, ii, iKS)), &
+                      &aimag(HSqrCplx(jj+nOrb, ii, iKS)), &
+                      &real( conjg(HSqrCplx(jj, ii, iKS)) &
                       & * cVecTemp(jj) + &
-                      & conjg(HSqrCplx(jj+nOrb, ii, iK2, iSpin2)) &
+                      & conjg(HSqrCplx(jj+nOrb, ii, iKS)) &
                       & * cVecTemp(jj+nOrb) ), &
-                      &real( conjg(HSqrCplx(jj+nOrb, ii, iK2, iSpin2)) &
+                      &real( conjg(HSqrCplx(jj+nOrb, ii, iKS)) &
                       & * cVecTemp(jj) + &
-                      & conjg(HSqrCplx(jj, ii, iK2, iSpin2)) &
+                      & conjg(HSqrCplx(jj, ii, iKS)) &
                       & * cVecTemp(jj+nOrb) ), &
-                      &aimag( conjg(HSqrCplx(jj, ii, iK2, iSpin2)) &
+                      &aimag( conjg(HSqrCplx(jj, ii, iKS)) &
                       & * cVecTemp(jj+nOrb) - &
-                      & conjg(HSqrCplx(jj+nOrb, ii, iK2, iSpin2)) &
+                      & conjg(HSqrCplx(jj+nOrb, ii, iKS)) &
                       & * cVecTemp(jj) ), &
-                      & real( conjg(HSqrCplx(jj, ii, iK2, iSpin2)) &
+                      & real( conjg(HSqrCplx(jj, ii, iKS)) &
                       & * cVecTemp(jj) - &
-                      & conjg(HSqrCplx(jj+nOrb, ii, iK2, iSpin2)) &
+                      & conjg(HSqrCplx(jj+nOrb, ii, iKS)) &
                       & * cVecTemp(jj+nOrb) )
                 end do
               end do
@@ -430,46 +415,43 @@ contains
       else
 
         allocate(cVecTemp(size(HSqrCplx, dim=1)))
-        do iSpin = 1, nSpin
-          do iK = 1, nK
-            call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
-            call unpackHS(SSqrCplx, over, kPoint(:,iK), neighlist%iNeighbor, &
-                &nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
-            do ii = 1, orb%nOrb
-              call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,ii,iK2,iSpin2))
-              write(fdEigvec, "(A,I4,4X,A,I4,4X,'(',A,')'/)") "K-point: ", ik, &
-                  &"Eigenvector: ", ii, trim(spinName(iSpin))
-              jj = 0
-              do iAtom = 1, nAtom
-                iSp1 = species(iAtom)
-                do iSh1 = 1, orb%nShell(iSp1)
-                  ang = orb%angShell(iSh1,iSp1)
-                  if (iSh1 == 1) then
-                    write(tmpStr, "(I5,1X,A2,2X,A1)") iAtom, speciesName(iSp1), &
-                        &orbitalNames(ang+1)
-                  else
-                    write(tmpStr, "(10X,A1)") orbitalNames(ang+1)
-                  end if
-                  do iOrb = 1, 2*ang+1
-                    jj = jj + 1
-                    write(fdEigvec,&
-                        &"(A,I1,T15,'(',F12.6,',',F12.6,')',3X,F12.6)") &
-                        &trim(tmpStr), iOrb, &
-                        &real(HSqrCplx(jj, ii, iK2, iSpin2)), &
-                        &aimag(HSqrCplx(jj, ii, iK2, iSpin2)), &
-                        & real( conjg(HSqrCplx(jj, ii, iK2, iSpin2)) &
-                        & * cVecTemp(jj))
-                  end do
+        do iKS = 1, size(groupKS, dim=2)
+          iK = groupKS(1, iKS)
+          iSpin = groupKS(2, iKS)
+          call unpackHS(SSqrCplx, over, kPoint(:,iK), neighlist%iNeighbor, &
+              &nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+          do ii = 1, orb%nOrb
+            call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,ii,iKS))
+            write(fdEigvec, "(A,I4,4X,A,I4,4X,'(',A,')'/)") "K-point: ", ik, &
+                &"Eigenvector: ", ii, trim(spinName(iSpin))
+            jj = 0
+            do iAtom = 1, nAtom
+              iSp1 = species(iAtom)
+              do iSh1 = 1, orb%nShell(iSp1)
+                ang = orb%angShell(iSh1,iSp1)
+                if (iSh1 == 1) then
+                  write(tmpStr, "(I5,1X,A2,2X,A1)") iAtom, speciesName(iSp1), &
+                      &orbitalNames(ang+1)
+                else
+                  write(tmpStr, "(10X,A1)") orbitalNames(ang+1)
+                end if
+                do iOrb = 1, 2*ang+1
+                  jj = jj + 1
+                  write(fdEigvec,&
+                      &"(A,I1,T15,'(',F12.6,',',F12.6,')',3X,F12.6)") &
+                      &trim(tmpStr), iOrb, &
+                      &real(HSqrCplx(jj, ii, iKS)), &
+                      &aimag(HSqrCplx(jj, ii, iKS)), &
+                      & real( conjg(HSqrCplx(jj, ii, iKS)) &
+                      & * cVecTemp(jj))
                 end do
-                write (fdEigvec,*)
               end do
+              write (fdEigvec,*)
             end do
           end do
         end do
       end if
-
       close(fdEigvec)
-
     end if
 
   end subroutine writeCplxEigvecs
@@ -478,7 +460,7 @@ contains
   !> Write the projected eigenstates into text files
   subroutine writeProjRealEigvecs(filenames, fdProjEig, ei, nSpin, neighlist, &
       &nNeighbor, iAtomStart, iPair, img2CentCell, orb, &
-      &over, HSqrReal, SSqrReal, iOrbRegion, storeEigvecs)
+      &over, groupKS, HSqrReal, SSqrReal, iOrbRegion)
 
     !> List with filenames for each region
     type(listCharLc), intent(inout) :: filenames
@@ -513,6 +495,9 @@ contains
     !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
+    !> K-points and spins to process
+    integer, intent(in) :: groupKS(:,:)
+
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: HSqrReal(:,:,:)
 
@@ -522,12 +507,8 @@ contains
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
 
-    !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
-    !> whatever is already there
-    type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
-
     integer, allocatable :: iOrbs(:)
-    integer :: iSpin, iSpin2, iLev, ii, nReg, dummy
+    integer :: iKS, iSpin, iLev, ii, nReg, dummy
     integer :: valshape(1)
     real(dp) :: qState
     real(dp), allocatable :: rVecTemp(:)
@@ -547,7 +528,8 @@ contains
     allocate(rVecTemp(size(HSqrReal, dim=1)))
     call unpackHS(SSqrReal, over, neighlist%iNeighbor, nNeighbor, &
         &iAtomStart, iPair, img2CentCell)
-    do iSpin = 1, nSpin
+    do iKS = 1, size(groupKS, dim=2)
+      iSpin = groupKS(2, iKS)
       do ii = 1, nReg
         if (nSpin <= 2) then
           write(fdProjEig(ii),*)' KPT',1,' SPIN ', iSpin
@@ -555,10 +537,9 @@ contains
           write(fdProjEig(ii),*)' KPT',1
         endif
       end do
-      call getH(iSpin, HSqrReal, iSpin2, storeEigvecs)
       do iLev = 1, orb%nOrb
-        call hemv(rVecTemp, SSqrReal, HSqrReal(:,iLev,iSpin2))
-        rVecTemp = rVecTemp * HSqrReal(:,iLev,iSpin2)
+        call hemv(rVecTemp, SSqrReal, HSqrReal(:,iLev,iKS))
+        rVecTemp = rVecTemp * HSqrReal(:,iLev,iKS)
         do ii = 1, nReg
           call elemShape(iOrbRegion, valshape, ii)
           allocate(iOrbs(valshape(1)))
@@ -586,7 +567,7 @@ contains
   !> Write the projected complex eigenstates into text files.
   subroutine writeProjCplxEigvecs(filenames, fdProjEig, ei, nSpin, neighlist, &
       & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, &
-      & over, kpoint, kweight, HSqrCplx, SSqrCplx, iOrbRegion, storeEigvecs)
+      & over, kpoint, kweight, groupKS, HSqrCplx, SSqrCplx, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: filenames
@@ -633,8 +614,11 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kweight(:)
 
+    !> K-points and spins to process
+    integer, intent(in) :: groupKS(:,:)
+
     !> Square Hamiltonian (or work array)
-    complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(inout) :: HSqrCplx(:,:,:)
 
     !> Work array.
     complex(dp), intent(inout) :: SSqrCplx(:,:)
@@ -642,12 +626,8 @@ contains
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
 
-    !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
-    !> whatever is already there.
-    type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
-
     integer, allocatable :: iOrbs(:)
-    integer :: iSpin, iSpin2, iK, iK2, nK, iLev, ii, nReg, dummy, nOrb
+    integer :: iKS, iSpin, iK, nK, iLev, ii, nReg, dummy, nOrb
     integer :: valshape(1)
     real(dp) :: qState
     complex(dp), allocatable :: cVecTemp(:), work(:,:)
@@ -670,50 +650,49 @@ contains
 
     if (nSpin <= 2) then
 
-      do iSpin = 1, nSpin
-        do iK = 1, nK
-
-          do ii = 1, nReg
-            write(fdProjEig(ii),*)'KPT ',iK,' SPIN ', iSpin, &
-                &' KWEIGHT ', kweight(iK)
-          end do
-
-          call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
-          call unpackHS(SSqrCplx, over, kPoint(:,iK), neighlist%iNeighbor, &
-              & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
-          do iLev = 1, orb%nOrb
-            call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,iLev,iK2,iSpin2))
-            cVecTemp = conjg(HSqrCplx(:,iLev,iK2,iSpin2)) * cVecTemp
-            do ii = 1, nReg
-              call elemShape(iOrbRegion, valshape, ii)
-              allocate(iOrbs(valshape(1)))
-              call intoArray(iOrbRegion, iOrbs, dummy, ii)
-              qState = real(sum(cVecTemp(iOrbs)), dp)
-              write(fdProjEig(ii), "(f13.6,f10.6)") &
-                  & Hartree__eV * ei(iLev,iK,iSpin), qState
-              deallocate(iOrbs)
-            end do
-          end do
-          if (iK < nK .or. iSpin < nSpin) then
-            do ii = 1, nReg
-              write(fdProjEig(ii),*)
-            end do
-          end if
+      do iKS = 1, size(groupKS, dim=2)
+        iK = groupKS(1, iKS)
+        iSpin = groupKS(2, iKS)
+        
+        do ii = 1, nReg
+          write(fdProjEig(ii),*)'KPT ',iK,' SPIN ', iSpin, &
+              &' KWEIGHT ', kweight(iK)
         end do
+
+        call unpackHS(SSqrCplx, over, kPoint(:,iK), neighlist%iNeighbor, &
+            & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+        do iLev = 1, orb%nOrb
+          call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,iLev,iKS))
+          cVecTemp = conjg(HSqrCplx(:,iLev,iKS)) * cVecTemp
+          do ii = 1, nReg
+            call elemShape(iOrbRegion, valshape, ii)
+            allocate(iOrbs(valshape(1)))
+            call intoArray(iOrbRegion, iOrbs, dummy, ii)
+            qState = real(sum(cVecTemp(iOrbs)), dp)
+            write(fdProjEig(ii), "(f13.6,f10.6)") &
+                & Hartree__eV * ei(iLev,iK,iSpin), qState
+            deallocate(iOrbs)
+          end do
+        end do
+        if (iK < nK .or. iSpin < nSpin) then
+          do ii = 1, nReg
+            write(fdProjEig(ii),*)
+          end do
+        end if
       end do
 
     else
 
-      iSpin = 1
       nOrb = orb%nOrb
       allocate(work(nOrb,nOrb))
 
-      do iK = 1, nK
+      do iKS = 1, size(groupKS, dim=2)
+        iK = groupKS(1, iKS)
+        iSpin = groupKS(2, iKS)
 
         do ii = 1, nReg
           write(fdProjEig(ii),*)'KPT ',iK, ' KWEIGHT ', kweight(iK)
         end do
-        call getH(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
         SSqrCplx = 0.0_dp
         work = 0.0_dp
         call unpackHS(work, over, kPoint(:,iK), neighlist%iNeighbor, &
@@ -721,28 +700,28 @@ contains
         SSqrCplx(:nOrb,:nOrb) = work
         SSqrCplx(nOrb+1:,nOrb+1:) = work
         do iLev = 1, 2*nOrb
-          call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,iLev,iK2,iSpin2))
+          call hemv(cVecTemp, SSqrCplx, HSqrCplx(:,iLev,iKS))
           do ii = 1, nReg
             call elemShape(iOrbRegion, valshape, ii)
             allocate(iOrbs(valshape(1)))
             call intoArray(iOrbRegion, iOrbs, dummy, ii)
             write(fdProjEig(ii), "(f13.6,4f10.6)") &
                 & Hartree__eV * ei(iLev,iK,iSpin), &
-                & real(sum( conjg(HSqrCplx(iOrbs, iLev, iK2, iSpin2)) &
+                & real(sum( conjg(HSqrCplx(iOrbs, iLev, iKS)) &
                 & * cVecTemp(iOrbs) + &
-                & conjg(HSqrCplx(iOrbs+nOrb, iLev, iK2, iSpin2)) &
+                & conjg(HSqrCplx(iOrbs+nOrb, iLev, iKS)) &
                 & * cVecTemp(iOrbs+nOrb) )), &
-                & real(sum( conjg(HSqrCplx(iOrbs+nOrb, iLev, iK2, iSpin2)) &
+                & real(sum( conjg(HSqrCplx(iOrbs+nOrb, iLev, iKS)) &
                 & * cVecTemp(iOrbs) + &
-                & conjg(HSqrCplx(iOrbs, iLev, iK2, iSpin2)) &
+                & conjg(HSqrCplx(iOrbs, iLev, iKS)) &
                 & * cVecTemp(iOrbs+nOrb) )), &
-                & aimag(sum( conjg(HSqrCplx(iOrbs, iLev, iK2, iSpin2)) &
+                & aimag(sum( conjg(HSqrCplx(iOrbs, iLev, iKS)) &
                 & * cVecTemp(iOrbs+nOrb) - &
-                & conjg(HSqrCplx(iOrbs+nOrb, iLev, iK2, iSpin2)) &
+                & conjg(HSqrCplx(iOrbs+nOrb, iLev, iKS)) &
                 & * cVecTemp(iOrbs) )), &
-                & real(sum( conjg(HSqrCplx(iOrbs, iLev, iK2, iSpin2)) &
+                & real(sum( conjg(HSqrCplx(iOrbs, iLev, iKS)) &
                 & * cVecTemp(iOrbs) - &
-                & conjg(HSqrCplx(iOrbs+nOrb, iLev, iK2, iSpin2)) &
+                & conjg(HSqrCplx(iOrbs+nOrb, iLev, iKS)) &
                 & * cVecTemp(iOrbs+nOrb) ))
             deallocate(iOrbs)
           end do
@@ -752,9 +731,7 @@ contains
             write(fdProjEig(ii),*)
           end do
         end if
-
       end do
-
     end if
 
     do ii = 1, nReg
@@ -763,65 +740,6 @@ contains
 
   end subroutine writeProjCplxEigvecs
 
-
-  !> Routines to get eigenvectors out of storage/memory
-  subroutine getHreal(iSpin, HSqrReal, iSpin2, storeEigvecs)
-
-    !> required spin index
-    integer, intent(in) :: iSpin
-
-    !> Square Hamiltonian
-    real(dp), intent(inout) :: HSqrReal(:,:,:)
-
-    !> spin index in returned HSqrReal
-    integer, intent(out) :: iSpin2
-
-    !> If present, Hamiltonian(s) are fetched from this storage into HSqrReal, instead of using
-    !> whatever is already there.
-    type(OFifoRealR2), intent(inout), optional :: storeEigvecs(:)
-
-    if (present(storeEigvecs)) then
-      iSpin2 = 1
-      call get(storeEigvecs(iSpin), HSqrReal(:,:,iSpin2))
-    else
-      iSpin2 = iSpin
-    end if
-
-  end subroutine getHreal
-
-
-  !> Routines to get eigenvectors out of storage/memory
-  subroutine getHcmplx(iSpin, iK, HSqrCplx, iSpin2, iK2, storeEigvecs)
-
-    !> required spin index
-    integer, intent(in) :: iSpin
-
-    !> required kpoint index
-    integer, intent(in) :: iK
-
-    !> Square Hamiltonian
-    complex(dp), intent(inout) :: HSqrCplx(:,:,:,:)
-
-    !> spin index in returned HSqrCplx
-    integer, intent(out) :: iSpin2
-
-    !> kpoint index in returned HSqrCplx
-    integer, intent(out) :: iK2
-
-    !> If present, Hamiltonian(s) are fetched from this storage into HSqrCplx, instead of using
-    !> whatever is already there.
-    type(OFifoCplxR2), intent(inout), optional :: storeEigvecs(:)
-
-    if (present(storeEigvecs)) then
-      iSpin2 = 1
-      iK2 = 1
-      call get(storeEigvecs(iSpin), HSqrCplx(:,:,iK2,iSpin2))
-    else
-      iSpin2 = iSpin
-      iK2 = iK
-    end if
-
-  end subroutine getHcmplx
 
   !> Open an output file and return its unit number
   subroutine initOutputFile(fileName, fd)
@@ -2117,7 +2035,7 @@ contains
     !> number of neighbours for each central cell atom
     integer, intent(in) :: nNeighbor(:)
 
-    !> dense matrix indexing for atomic blocks
+    !> Dense matrix indexing for atomic blocks
     integer, intent(in) :: iAtomStart(:)
 
     !> sparse matrix indexing for atomic blocks
@@ -2256,7 +2174,7 @@ contains
   !> Writes the eigenvectors to disc.
   subroutine writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
       & iCellVec, iAtomStart, iPair, img2CentCell, species, speciesName, orb, kPoint, over,&
-      & HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+      & groupKS, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
@@ -2306,6 +2224,9 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
+    !> K-points and spins to process
+    integer, intent(in) :: groupKS(:,:)
+
     !> Storage for dense hamiltonian matrix
     real(dp), intent(inout), optional :: HSqrReal(:,:,:)
 
@@ -2313,27 +2234,23 @@ contains
     real(dp), intent(inout), optional :: SSqrReal(:,:)
 
     !> Storage for dense hamitonian matrix (complex case)
-    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), optional :: SSqrCplx(:,:)
-    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
-    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
     @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
     @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
-    @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
-    @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
 
     if (present(HSqrCplx)) then
       !> Complex Pauli-Hamiltonian without k-points
-      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec, iCellVec,&
-          & iAtomStart, iPair, img2CentCell, orb, species, speciesName, over, kPoint, HSqrCplx,&
-          & SSqrCplx, storeEigvecsCplx)
+      call writeCplxEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec,&
+          & iCellVec, iAtomStart, iPair, img2CentCell, orb, species, speciesName, over, kPoint,&
+          & groupKS, HSqrCplx, SSqrCplx)
     else
       !> Real Hamiltonian
-      call writeEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart, iPair,&
-          & img2CentCell, orb, species, speciesName, over, HSqrReal, SSqrReal, storeEigvecsReal)
+      call writeRealEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iAtomStart,&
+          & iPair, img2CentCell, orb, species, speciesName, over, groupKS, HSqrReal, SSqrReal)
     end if
 
   end subroutine writeEigenvectors
@@ -2342,7 +2259,7 @@ contains
   !> Write projected eigenvectors.
   subroutine writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
       & nNeighbor, cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kPoint, kWeight,&
-      & iOrbRegion, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, storeEigvecsReal, storeEigvecsCplx)
+      & iOrbRegion, groupKS, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
     type(ListCharLc), intent(inout) :: regionLabels
     integer, intent(in) :: fdProjEig(:)
     real(dp), intent(in) :: eigen(:,:,:)
@@ -2384,6 +2301,9 @@ contains
     real(dp), intent(in) :: kWeight(:)
     type(ListIntR1), intent(inout) :: iOrbRegion
 
+    !> K-points and spins to process
+    integer, intent(in) :: groupKS(:,:)
+
     !> Storage for dense hamiltonian matrix
     real(dp), intent(inout), optional :: HSqrReal(:,:,:)
 
@@ -2391,27 +2311,21 @@ contains
     real(dp), intent(inout), optional :: SSqrReal(:,:)
 
     !> Storage for dense hamitonian matrix (complex case)
-    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:,:)
+    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), optional :: SSqrCplx(:,:)
-    type(OFifoRealR2), intent(inout), optional :: storeEigvecsReal(:)
-    type(OFifoCplxR2), intent(inout), optional :: storeEigvecsCplx(:)
 
     @:ASSERT(present(HSqrReal) .neqv. present(HSqrReal))
     @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
-    @:ASSERT(.not. present(storeEigvecsReal) .or. present(HSqrReal))
-    @:ASSERT(.not. present(storeEigvecsCplx) .or. present(HSqrCplx))
-
 
     if (present(SSqrCplx)) then
-      call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
+      call writeProjCplxEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
           & cellVec, iCellVec, iAtomStart, iPair, img2CentCell, orb, over, kpoint, kWeight,&
-          & HSqrCplx, SSqrCplx, iOrbRegion, storeEigvecsCplx)
+          & groupKS, HSqrCplx, SSqrCplx, iOrbRegion)
     else
-      call writeProjEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
-          & iAtomStart, iPair, img2CentCell, orb, over, HSqrReal, SSqrReal, iOrbRegion,&
-          & storeEigvecsReal)
+      call writeProjRealEigvecs(regionLabels, fdProjEig, eigen, nSpin, neighborList, nNeighbor,&
+          & iAtomStart, iPair, img2CentCell, orb, over, groupKS, HSqrReal, SSqrReal, iOrbRegion)
     end if
 
   end subroutine writeProjectedEigenvectors

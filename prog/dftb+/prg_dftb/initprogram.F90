@@ -9,10 +9,13 @@
 
 !> Global variables and initialization for the main program.
 module initprogram
+  use mainio, only : initOutputFile
   use assert
   use globalenv
   use environment
+  use scalapackfx
   use inputdata_module
+  use densedescr
   use constants
   use periodic
   use accuracy
@@ -68,8 +71,29 @@ module initprogram
   use etemp, only : Fermi
   use ipisocket
   use pmlocalisation
+  use energies
+  use potentials
+  use taggedoutput
+  use formatout
   implicit none
 
+  !> Tagged output files (machine readable)
+  character(*), parameter :: autotestTag = "autotest.tag"
+
+  !> Detailed user output
+  character(*), parameter :: userOut = "detailed.out"
+
+  !> band structure and filling information
+  character(*), parameter :: bandOut = "band.out"
+
+  !> File accumulating data during an MD run
+  character(*), parameter :: mdOut = "md.out"
+
+  !> Machine readable tagged output
+  character(*), parameter :: resultsTag = "results.tag"
+
+  !> Second derivative of the energy with respect to atomic positions
+  character(*), parameter :: hessianOut = "hessian.out"
 
   !> file name for charge data
   character(*), parameter :: fCharges = "charges.bin"
@@ -189,11 +213,6 @@ module initprogram
 
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iSparseStart(:,:)
-
-
-  !> atom start pos for dense  H/S
-  integer, allocatable :: iDenseStart(:)
-
 
   !> Hubbard Us (orbital, atom)
   real(dp), allocatable, target :: hubbU(:,:)
@@ -351,7 +370,6 @@ module initprogram
 
   !> is this a two component calculation (spin orbit or non-collinear spin)
   logical :: t2Component
-
 
   !> Common Fermi level accross spin channels
   logical :: tSpinSharedEf
@@ -610,12 +628,6 @@ module initprogram
   !> Should HS (sparse) be printed?
   logical :: tWriteRealHS
 
-  !> try to reduce  memory by storing large arrays to disc
-  logical :: tMinMemory
-
-  !> store eigenvectors on disc instead of memory
-  logical :: tStoreEigvecs
-
   !> Program run id
   integer :: runId
 
@@ -631,12 +643,6 @@ module initprogram
   !> Can stress be calculated? - start by assuming it can
   logical :: tStress = .true.
 
-  !> FIFO for storing eigenvectors in real case
-  type(OFifoRealR2), allocatable :: storeEigvecsReal(:)
-
-  !> FIFO for storing eigenvectors in complex
-  type(OFifoCplxR2), allocatable :: storeEigvecsCplx(:)
-
   !> should XLBOMD be used in MD
   logical :: tXlbomd
 
@@ -651,10 +657,133 @@ module initprogram
 
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
+  
+  !> Dense matrix descriptor for H and S
+  type(TDenseDescr) :: denseDesc
 
-  !> First guess for nr. of neighbors.
-  integer, private, parameter :: nInitNeighbor = 40
+  !> MD velocities
+  real(dp), allocatable :: velocities(:,:)
 
+  !> MD velocities for moved atoms
+  real(dp), allocatable :: movedVelo(:,:)
+
+  !> MD acceleration for moved atoms
+  real(dp), allocatable :: movedAccel(:,:)
+  
+  !> Mass of the moved atoms
+  real(dp), allocatable :: movedMass(:,:)
+
+  !> Sparse storage of density matrix
+  real(dp), allocatable :: rhoPrim(:,:)
+
+  !> Imaginary part of density matrix in sparse storage
+  real(dp), allocatable :: iRhoPrim(:,:)
+
+  !> Energy weighted density matrix
+  real(dp), allocatable :: ERhoPrim(:)
+
+  !> Non-SCC part of the hamiltonian in sparse storage
+  real(dp), allocatable :: h0(:)
+
+  !> electronic filling
+  real(dp), allocatable :: filling(:,:,:)
+
+  !> band structure energy
+  real(dp), allocatable :: Eband(:)
+
+  !> entropy of electrons at temperature T
+  real(dp), allocatable :: TS(:)
+
+  !> zero temperature electronic energy
+  real(dp), allocatable :: E0(:)
+
+  !> Square dense hamiltonian storage for cases with k-points
+  complex(dp), allocatable :: HSqrCplx(:,:)
+
+  !> Square dense overlap storage for cases with k-points
+  complex(dp), allocatable :: SSqrCplx(:,:)
+
+  !> Complex eigenvectors
+  complex(dp), allocatable :: eigvecsCplx(:,:,:)
+  
+  !> Square dense hamiltonian storage
+  real(dp), allocatable :: HSqrReal(:,:)
+  
+  !> Square dense overlap storage
+  real(dp), allocatable :: SSqrReal(:,:)
+  
+  !> Real eigenvectors
+  real(dp), allocatable :: eigvecsReal(:,:,:)
+  
+  !> Eigenvalues
+  real(dp), allocatable :: eigen(:,:,:)
+
+  !> density matrix
+  real(dp), allocatable :: rhoSqrReal(:,:,:)
+  
+  !> Total energy components
+  type(TEnergies) :: energy
+  
+  !> Potentials for orbitals
+  type(TPotentials) :: potential
+  
+  !> Energy derivative with respect to atomic positions
+  real(dp), allocatable :: derivs(:,:)
+  
+  !> Forces on any external charges
+  real(dp), allocatable :: chrgForces(:,:)
+  
+  !> excited state force addition
+  real(dp), allocatable :: excitedDerivs(:,:)
+  
+  !> dipole moments when available
+  real(dp), allocatable :: dipoleMoment(:)
+  
+  !> Coordinates to print out
+  real(dp), pointer :: pCoord0Out(:,:)
+  
+  !> Folded coords (3, nAtom)
+  real(dp), allocatable, target :: coord0Fold(:,:)
+  
+  !> New coordinates returned by the MD routines
+  real(dp), allocatable :: newCoords(:,:)
+  
+  !> Orbital angular momentum
+  real(dp), allocatable :: orbitalL(:,:,:)
+  
+  !> Natural orbitals for excited state density matrix, if requested
+  real(dp), allocatable, target :: occNatural(:)
+  
+  !> Dynamical (Hessian) matrix
+  real(dp), pointer :: pDynMatrix(:,:)
+
+  !> File descriptor for the tagged writer
+  integer :: fdAutotest
+  
+  !> File descriptor for the human readable output
+  integer :: fdDetailedOut
+  
+  !> File descriptor for the band structure output
+  integer :: fdBand
+
+  !> File descriptor for the eigenvector output
+  integer :: fdEigvec
+
+  !> File descriptor for detailed.tag
+  integer :: fdResultsTag
+
+  !> File descriptor for extra MD output
+  integer :: fdMD
+
+  !> File descriptor for numerical Hessian
+  integer :: fdHessian
+
+  !> File descriptor for charge restart file
+  integer :: fdCharges
+
+  !> Contains (iK, iS) tuples to be processed by current group
+  integer, allocatable :: groupKS(:,:)
+  
   private :: createRandomGenerators
 
 contains
@@ -725,9 +854,11 @@ contains
 
     character(lc) :: strTmp, strTmp2
 
-
     !> flag to check for first cycle through a loop
     logical :: tFirst
+
+    !> Nr. of Hamiltonians to diagonalise independently
+    integer :: nIndepHam
 
     real(dp) :: rTmp
 
@@ -748,13 +879,15 @@ contains
     integer, allocatable :: iAtomRegion(:)
     integer :: valshape(1)
 
-
     !> Is SCC cycle initialised
     type(TSCCInit), allocatable :: sccInit
 
-
     !> Used for indexing linear response
     integer :: homoLoc(1)
+
+    !> First guess for nr. of neighbors.
+    integer, parameter :: nInitNeighbor = 40
+
 
     @:ASSERT(input%tInitialized)
 
@@ -777,8 +910,10 @@ contains
 
     if (t2Component) then
       nSpin = 4
+      nIndepHam = 1
+    else
+      nIndepHam = nSpin
     end if
-
     if (nSpin /= 2 .and. tSpinSharedEf) then
       call error("Colinear spin polarization required for shared Ef over spin&
           & channels")
@@ -1026,8 +1161,6 @@ contains
     allocate(species(nAllAtom))
     allocate(img2CentCell(nAllAtom))
     allocate(iCellVec(nAllAtom))
-    allocate(iDenseStart(nAtom + 1))
-    call buildSquaredAtomIndex(iDenseStart, orb)
 
     ! Intialize Hamilton and overlap
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
@@ -1257,99 +1390,6 @@ contains
     call SetEigVecsTxtOutput(input%ctrl%tPrintEigVecsTxt &
         & .or. allocated(input%ctrl%pipekMezeyInp))
 
-    ! Projection of eigenstates onto specific regions of the system
-    tProjEigenvecs = input%ctrl%tProjEigenvecs
-    if (tProjEigenvecs) then
-      call init(iOrbRegion)
-      call init(regionLabels)
-      do iReg = 1, size(input%ctrl%tShellResInRegion)
-        call elemShape(input%ctrl%iAtInRegion, valshape, iReg)
-        nAtomRegion = valshape(1)
-        allocate(iAtomRegion(nAtomRegion))
-        call intoArray(input%ctrl%iAtInRegion, iAtomRegion, iTmp, iReg)
-        if (input%ctrl%tOrbResInRegion(iReg) .or. input%ctrl%tShellResInRegion(iReg)) then
-
-          if (input%ctrl%tOrbResInRegion(iReg)) then
-            iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
-            @:ASSERT(all(species0(iAtomRegion) == iSp))
-            nOrbRegion = nAtomRegion
-            ! Create orbital index.
-            allocate(tmpir1(nOrbRegion))
-            do iOrb = 1, orb%nOrbSpecies(iSp)
-              tmpir1 = 0
-              ind = 1
-              do iAt = 1, nAtomRegion
-                tmpir1(ind) = iDenseStart(iAt) + iOrb - 1
-                ind = ind + 1
-              end do
-              call append(iOrbRegion, tmpir1)
-              write(tmpStr, "(A,'.',I0,'.',I0,'.out')") &
-                  & trim(input%ctrl%RegionLabel(iReg)), orb%iShellOrb(iOrb,iSp), &
-                  & iOrb-orb%posShell(orb%iShellOrb(iOrb,iSp),iSp) &
-                  & -orb%angShell(orb%iShellOrb(iOrb,iSp),iSp)
-              call append(regionLabels, tmpStr)
-            end do
-            deallocate(tmpir1)
-          end if
-
-          if (input%ctrl%tShellResInRegion(iReg)) then
-            iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
-            @:ASSERT(all(species0(iAtomRegion) == iSp))
-            ! Create a separate region for each shell. It will contain
-            ! the orbitals of that given shell for each atom in the region.
-            do iSh = 1, orb%nShell(iSp)
-              nOrbRegion = nAtomRegion &
-                  &* (orb%posShell(iSh + 1, iSp) - orb%posShell(iSh, iSp))
-              ind = 1
-              ! Create orbital index.
-              allocate(tmpir1(nOrbRegion))
-              do ii = 1, nAtomRegion
-                iAt = iAtomRegion(ii)
-                do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
-                  tmpir1(ind) = iDenseStart(iAt) + jj - 1
-                  ind = ind + 1
-                end do
-              end do
-              call append(iOrbRegion, tmpir1)
-              deallocate(tmpir1)
-              write(tmpStr, "(A,'.',I0,'.out')") &
-                  &trim(input%ctrl%RegionLabel(iReg)), iSh
-              call append(regionLabels, tmpStr)
-            end do
-          end if
-
-        else
-          ! We take all orbitals from all atoms.
-          nOrbRegion = 0
-          do ii = 1, nAtomRegion
-            nOrbRegion = nOrbRegion + orb%nOrbAtom(iAtomRegion(ii))
-          end do
-          ind = 1
-          allocate(tmpir1(nOrbRegion))
-          ! Create an index of the orbitals
-          do ii = 1, nAtomRegion
-            iAt = iAtomRegion(ii)
-            do jj = 1, orb%nOrbAtom(iAt)
-              tmpir1(ind) = iDenseStart(iAt) + jj - 1
-              ind = ind + 1
-            end do
-          end do
-          call append(iOrbRegion, tmpir1)
-          deallocate(tmpir1)
-          write(tmpStr, "(A,'.out')") trim(input%ctrl%RegionLabel(iReg))
-          call append(regionLabels, tmpStr)
-        end if
-        deallocate(iAtomRegion)
-      end do
-
-      allocate(fdProjEig(len(iOrbRegion)))
-      do ii = 1, len(iOrbRegion)
-        fdProjEig(ii) = getFileId()
-      end do
-    else
-      allocate(fdProjEig(0))
-    end if
-
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
     if (tSCC) then
@@ -1530,10 +1570,6 @@ contains
     end if
 
     tLocalise = input%ctrl%tLocalise
-    if (tLocalise .and. tStoreEigvecs) then
-      call error("Localisation of electronic states currently unsupported when&
-          & storing data on disk due to fifo limitations")
-    end if
     if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
       call error("Localisation of electronic states currently unsupported for&
           & non-collinear and spin orbit calculations")
@@ -1987,36 +2023,6 @@ contains
     tWriteHS = env%tIoProc .and. input%ctrl%tWriteHS
     tWriteRealHS = env%tIoProc .and. input%ctrl%tWriteRealHS
 
-    ! Minimize memory usage?
-    tMinMemory = input%ctrl%tMinMemory
-    tStoreEigvecs = tMinMemory .and. (nKPoint > 1 .or. nSpin == 2 )
-    if (tStoreEigvecs) then
-      if (tRealHS.and.(.not.t2Component)) then
-        allocate(storeEigvecsReal(nSpin))
-        do iS = 1, nSpin
-          call init(storeEigvecsReal(iS), 0, "tmp_eigvr_")
-        end do
-      else
-        if (t2Component) then
-          allocate(storeEigvecsCplx(1))
-          call init(storeEigvecsCplx(1), 0, "tmp_eigvc_")
-        else
-          allocate(storeEigvecsCplx(nSpin))
-          do iS = 1, nSpin
-            call init(storeEigvecsCplx(iS), 0, "tmp_eigvc_")
-          end do
-        end if
-      end if
-    end if
-
-  #:if WITH_SCALAPACK
-    associate(blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      ! Parallel BLACS settings
-      call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, blacsOpts%nGroups, nOrb,&
-          & nAtom, nKPoint, nSpin, t2Component)
-    end associate
-  #:endif
-    
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
     if (tExist) then
@@ -2029,6 +2035,142 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
+  #:if WITH_SCALAPACK
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+  #:endif
+
+    call getGroupKS(env, nKPoint, nIndepHam, groupKS)
+    
+    if (env%tIoProc) then
+      call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
+          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
+    end if
+
+    call getDenseDescSerial(orb, nAtom, t2Component, denseDesc)
+    
+  #:if WITH_SCALAPACK
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      call getDenseDescScalapack(env, nOrb, t2Component, blacsOpts%rowBlockSize,&
+          & blacsOpts%colBlockSize, denseDesc)
+    end associate
+  #:endif
+
+    call initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit,&
+        & tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb,&
+        & nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
+        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS, E0, Eband,&
+        & eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx,&
+        & HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities,&
+        & movedVelo, movedAccel, movedMass, dipoleMoment)
+
+    if (tShowFoldedCoord) then
+      pCoord0Out => coord0Fold
+    else
+      pCoord0Out => coord0
+    end if
+
+    
+    ! Projection of eigenstates onto specific regions of the system
+    tProjEigenvecs = input%ctrl%tProjEigenvecs
+    if (tProjEigenvecs .and. withMpi) then
+      call error("Projecting eigenvectors not supported for MPI-binary yet")
+    end if
+  #:if not WITH_MPI
+    if (tProjEigenvecs) then
+      call init(iOrbRegion)
+      call init(regionLabels)
+      do iReg = 1, size(input%ctrl%tShellResInRegion)
+        call elemShape(input%ctrl%iAtInRegion, valshape, iReg)
+        nAtomRegion = valshape(1)
+        allocate(iAtomRegion(nAtomRegion))
+        call intoArray(input%ctrl%iAtInRegion, iAtomRegion, iTmp, iReg)
+        if (input%ctrl%tOrbResInRegion(iReg) .or. input%ctrl%tShellResInRegion(iReg)) then
+
+          if (input%ctrl%tOrbResInRegion(iReg)) then
+            iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
+            @:ASSERT(all(species0(iAtomRegion) == iSp))
+            nOrbRegion = nAtomRegion
+            ! Create orbital index.
+            allocate(tmpir1(nOrbRegion))
+            do iOrb = 1, orb%nOrbSpecies(iSp)
+              tmpir1 = 0
+              ind = 1
+              do iAt = 1, nAtomRegion
+                tmpir1(ind) = denseDesc%iDenseStart(iAt) + iOrb - 1
+                ind = ind + 1
+              end do
+              call append(iOrbRegion, tmpir1)
+              write(tmpStr, "(A,'.',I0,'.',I0,'.out')") &
+                  & trim(input%ctrl%RegionLabel(iReg)), orb%iShellOrb(iOrb,iSp), &
+                  & iOrb-orb%posShell(orb%iShellOrb(iOrb,iSp),iSp) &
+                  & -orb%angShell(orb%iShellOrb(iOrb,iSp),iSp)
+              call append(regionLabels, tmpStr)
+            end do
+            deallocate(tmpir1)
+          end if
+
+          if (input%ctrl%tShellResInRegion(iReg)) then
+            iSp = species0(iAtomRegion(1)) ! all atoms the same in the region
+            @:ASSERT(all(species0(iAtomRegion) == iSp))
+            ! Create a separate region for each shell. It will contain
+            ! the orbitals of that given shell for each atom in the region.
+            do iSh = 1, orb%nShell(iSp)
+              nOrbRegion = nAtomRegion &
+                  &* (orb%posShell(iSh + 1, iSp) - orb%posShell(iSh, iSp))
+              ind = 1
+              ! Create orbital index.
+              allocate(tmpir1(nOrbRegion))
+              do ii = 1, nAtomRegion
+                iAt = iAtomRegion(ii)
+                do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
+                  tmpir1(ind) = denseDesc%iDenseStart(iAt) + jj - 1
+                  ind = ind + 1
+                end do
+              end do
+              call append(iOrbRegion, tmpir1)
+              deallocate(tmpir1)
+              write(tmpStr, "(A,'.',I0,'.out')") &
+                  &trim(input%ctrl%RegionLabel(iReg)), iSh
+              call append(regionLabels, tmpStr)
+            end do
+          end if
+
+        else
+          ! We take all orbitals from all atoms.
+          nOrbRegion = 0
+          do ii = 1, nAtomRegion
+            nOrbRegion = nOrbRegion + orb%nOrbAtom(iAtomRegion(ii))
+          end do
+          ind = 1
+          allocate(tmpir1(nOrbRegion))
+          ! Create an index of the orbitals
+          do ii = 1, nAtomRegion
+            iAt = iAtomRegion(ii)
+            do jj = 1, orb%nOrbAtom(iAt)
+              tmpir1(ind) = denseDesc%iDenseStart(iAt) + jj - 1
+              ind = ind + 1
+            end do
+          end do
+          call append(iOrbRegion, tmpir1)
+          deallocate(tmpir1)
+          write(tmpStr, "(A,'.out')") trim(input%ctrl%RegionLabel(iReg))
+          call append(regionLabels, tmpStr)
+        end if
+        deallocate(iAtomRegion)
+      end do
+
+      allocate(fdProjEig(len(iOrbRegion)))
+      do ii = 1, len(iOrbRegion)
+        fdProjEig(ii) = getFileId()
+      end do
+    else
+      allocate(fdProjEig(0))
+    end if
+  #:endif
+
+
+    
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
@@ -2470,11 +2612,6 @@ contains
     end if
 
     if (tLinResp) then
-      if (tMinMemory) then
-        call error("Linear response is not compatible with MinimiseMemoryUsage&
-            & yet")
-      end if
-
       if (tDFTBU) then
         call error("Linear response is not compatible with Orbitally dependant&
             & functionals yet")
@@ -2506,21 +2643,9 @@ contains
   !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
 
-    integer :: ii
-
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
-    end if
-    if (allocated(storeEigvecsReal)) then
-      do ii = 1, size(storeEigvecsReal)
-        call destruct(storeEigvecsReal(ii))
-      end do
-    end if
-    if (allocated(storeEigvecsCplx)) then
-      do ii = 1, size(storeEigvecsCplx)
-        call destruct(storeEigvecsCplx(ii))
-      end do
     end if
 
   end subroutine destructProgramVariables
@@ -2596,5 +2721,502 @@ contains
         & tLatticeChanged, tDummy)
   
   end subroutine initSocket
+
+
+  !> Initialises (clears) output files.
+  subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
+      & fdHessian, fdDetailedOut, fdMd, fdChargeBin)
+
+    !> Should tagged regression test data be printed
+    logical, intent(in) :: tWriteAutotest
+
+    !> Write tagged output for machine readable results
+    logical, intent(in) :: tWriteResultsTag
+
+    !> Band structure and fillings
+    logical, intent(in) :: tWriteBandDat
+
+    !> Finite different second derivatives
+    logical, intent(in) :: tDerivs
+
+    !> Write detail on the calculation to file
+    logical, intent(in) :: tWriteDetailedOut
+
+    !> Is this a molecular dynamics calculation
+    logical, intent(in) :: tMd
+
+    !> Are atomic coodinates being optimised
+    logical, intent(in) :: tGeoOpt
+
+    !> Filename for geometry output
+    character(*), intent(in) :: geoOutFile
+
+    !> File unit for autotest data
+    integer, intent(out) :: fdAutotest
+
+    !> File unit for tagged results data
+    integer, intent(out) :: fdResultsTag
+
+    !> File unit for band structure
+    integer, intent(out) :: fdBand
+
+    !> File unit for eigenvectors
+    integer, intent(out) :: fdEigvec
+
+    !> File unit for second derivatives information
+    integer, intent(out) :: fdHessian
+
+    !> File unit for detailed.out
+    integer, intent(out) :: fdDetailedOut
+
+    !> File unit for information during molecular dynamics
+    integer, intent(out) :: fdMd
+
+    !> File descriptor for charge restart file
+    integer, intent(out) :: fdChargeBin
+
+
+    call initTaggedWriter()
+    if (tWriteAutotest) then
+      call initOutputFile(autotestTag, fdAutotest)
+    end if
+    if (tWriteResultsTag) then
+      call initOutputFile(resultsTag, fdResultsTag)
+    end if
+    if (tWriteBandDat) then
+      call initOutputFile(bandOut, fdBand)
+    end if
+    fdEigvec = getFileId()
+    if (tDerivs) then
+      call initOutputFile(hessianOut, fdHessian)
+    end if
+    if (tWriteDetailedOut) then
+      call initOutputFile(userOut, fdDetailedOut)
+    end if
+    if (tMD) then
+      call initOutputFile(mdOut, fdMD)
+    end if
+    if (tGeoOpt .or. tMD) then
+      call clearFile(trim(geoOutFile) // ".gen")
+      call clearFile(trim(geoOutFile) // ".xyz")
+    end if
+    fdChargeBin = getFileId()
+
+  end subroutine initOutputFiles
+
+
+  !> Allocates most of the large arrays needed during the DFTB run.
+  subroutine initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken,&
+      & tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
+      & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc,&
+      & rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS,&
+      & E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx,&
+      & eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural,&
+      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+
+    !> Current environment
+    type(TEnvironment), intent(in) :: env
+
+    !> Are forces required
+    logical, intent(in) :: tForces
+
+    !> Are the external charges
+    logical, intent(in) :: tExtChrg
+
+    !> Are excitation energies being calculated
+    logical, intent(in) :: tLinResp
+
+    !> Are excited state properties being calculated
+    logical, intent(in) :: tLinRespZVect
+
+    !> Is this a molecular dynamics calculation
+    logical, intent(in) :: tMd
+
+    !> Is Mulliken analysis being performed
+    logical, intent(in) :: tMulliken
+
+    !> Are there spin orbit interactions
+    logical, intent(in) :: tSpinOrbit
+
+    !> Are there imaginary parts to the hamiltonian
+    logical, intent(in) :: tImHam
+
+    !> Should the sparse hamiltonian and overlap be writen to disc?
+    logical, intent(in) :: tWriteRealHS
+
+    !> Should the hamiltonian and overlap be written out as dense matrices
+    logical, intent(in) :: tWriteHS
+
+    !> Is the hamiltonian for a two component (Pauli) system
+    logical, intent(in) :: t2Component
+
+    !> Is the hamiltonian real?
+    logical, intent(in) :: tRealHS
+
+    !> Print the excited state eigenvectors
+    logical, intent(in) :: tPrintExcitedEigvecs
+
+    !> Print the dipole moment
+    logical, intent(in) :: tDipole
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Number of atoms moved about during the calculation
+    integer, intent(in) :: nMovedAtom
+
+    !> Number of k-points
+    integer, intent(in) :: nKPoint
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> Number of external charges
+    integer, intent(in) :: nExtChrg
+
+    !> Indices for any moving atoms
+    integer, intent(in) :: indMovedAtom(:)
+
+    !> Masses of each species of atom
+    real(dp), intent(in) :: mass(:)
+
+    !> Dense matrix descriptor for H and S
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Sparse storage density matrix
+    real(dp), intent(out), allocatable :: rhoPrim(:,:)
+
+    !> Non-scc part of the hamiltonian
+    real(dp), intent(out), allocatable :: h0(:)
+
+    !> Imaginary part of the sparse density matrix
+    real(dp), intent(out), allocatable :: iRhoPrim(:,:)
+
+    !> Excitation energy derivatives with respect to atomic coordinates
+    real(dp), intent(out), allocatable :: excitedDerivs(:,:)
+
+    !> Energy weighted density matrix
+    real(dp), intent(out), allocatable :: ERhoPrim(:)
+
+    !> Derivatives of total energy with respect to atomic coordinates
+    real(dp), intent(out), allocatable :: derivs(:,:)
+
+    !> Forces on (any) external charges
+    real(dp), intent(out), allocatable :: chrgForces(:,:)
+
+    !> Energy terms
+    type(TEnergies), intent(out) :: energy
+
+    !> Potentials acting on the system
+    type(TPotentials), intent(out) :: potential
+
+    !> Electron entropy contribution at T
+    real(dp), intent(out), allocatable :: TS(:)
+
+    !> zero temperature extrapolated electronic energy
+    real(dp), intent(out), allocatable :: E0(:)
+
+    !> band  energy
+    real(dp), intent(out), allocatable :: Eband(:)
+
+    !> single particle energies (band structure)
+    real(dp), intent(out), allocatable :: eigen(:,:,:)
+
+    !> Occupations of single particle states
+    real(dp), intent(out), allocatable :: filling(:,:,:)
+
+    !> Coordinates in central cell
+    real(dp), intent(out), allocatable :: coord0Fold(:,:)
+
+    !> Updated coordinates
+    real(dp), intent(out), allocatable :: newCoords(:,:)
+
+    !> Orbital angular momentum
+    real(dp), intent(out), allocatable :: orbitalL(:,:,:)
+
+    !> Complex dense hamiltonian
+    complex(dp), intent(out), allocatable :: HSqrCplx(:,:)
+
+    !> overlap matrix dense storage
+    complex(dp), intent(out), allocatable :: SSqrCplx(:,:)
+
+    !> Complex eigenvectors
+    complex(dp), intent(out), allocatable :: eigvecsCplx(:,:,:)
+
+    !> real dense hamiltonian
+    real(dp), intent(out), allocatable :: HSqrReal(:,:)
+
+    !> overlap matrix dense storage
+    real(dp), intent(out), allocatable :: SSqrReal(:,:)
+
+    !> Real eigenvectors
+    real(dp), intent(out), allocatable :: eigvecsReal(:,:,:)
+
+    !> density matrix dense storage
+    real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
+
+    !> Number of electron in each atomic shell
+    real(dp), intent(out), allocatable :: chargePerShell(:,:,:)
+
+    !> Occupations for natural orbitals
+    real(dp), intent(out), allocatable :: occNatural(:)
+
+    !> Atomic velocities
+    real(dp), intent(out), allocatable :: velocities(:,:)
+
+    !> Array for moving atom velocities
+    real(dp), intent(out), allocatable :: movedVelo(:,:)
+
+    !> moving atom accelerations
+    real(dp), intent(out), allocatable :: movedAccel(:,:)
+
+    !> moving atoms masses
+    real(dp), intent(out), allocatable :: movedMass(:,:)
+
+    !> system dipole moment
+    real(dp), intent(out), allocatable :: dipoleMoment(:)
+    
+
+    integer :: nSpinHams, sqrHamSize
+
+    allocate(rhoPrim(0, nSpin))
+    allocate(h0(0))
+    if (tImHam) then
+      allocate(iRhoPrim(0, nSpin))
+    end if
+
+    if (tForces) then
+      allocate(ERhoPrim(0))
+      allocate(derivs(3, nAtom))
+      if (tExtChrg) then
+        allocate(chrgForces(3, nExtChrg))
+      end if
+    end if
+    if (tLinRespZVect) then
+      allocate(excitedDerivs(3, nAtom))
+    end if
+
+    call init(energy, nAtom)
+    call init(potential, orb, nAtom, nSpin)
+
+    ! Nr. of independent spin Hamiltonians
+    select case (nSpin)
+    case (1)
+      nSpinHams = 1
+    case (2)
+      nSpinHams = 2
+    case (4)
+      nSpinHams = 1
+    end select
+
+    sqrHamSize = denseDesc%fullSize
+    allocate(TS(nSpinHams))
+    allocate(E0(nSpinHams))
+    allocate(Eband(nSpinHams))
+    allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
+    allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+
+    allocate(coord0Fold(3, nAtom))
+
+    if (tMD) then
+      allocate(newCoords(3, nAtom))
+    end if
+
+    if ((tMulliken .and. tSpinOrbit) .or. tImHam) then
+      allocate(orbitalL(3, orb%mShell, nAtom))
+    end if
+
+    ! If only H/S should be printed, no allocation for square HS is needed
+    if (.not. (tWriteRealHS .or. tWriteHS)) then
+      call allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx, SSqrCplx,&
+          & eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+    end if
+ 
+    if (tLinResp) then
+      if (tLinRespZVect) then
+      #:if WITH_MPI
+        call error("Calculation of linear response Z-vector does not work with MPI yet")
+      #:endif
+        allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
+      end if
+    end if
+    allocate(chargePerShell(orb%mShell, nAtom, nSpin))
+
+    if (tLinResp .and. tPrintExcitedEigVecs) then
+      allocate(occNatural(orb%nOrb))
+    end if
+
+    if (tMD) then
+      allocate(velocities(3, nAtom))
+      allocate(movedVelo(3, nMovedAtom))
+      allocate(movedAccel(3, nMovedAtom))
+      allocate(movedMass(3, nMovedAtom))
+      movedMass(:,:) = spread(mass(indMovedAtom),1,3)
+    end if
+
+    if (tDipole) then
+      allocate(dipoleMoment(3))
+    end if
+
+  end subroutine initArrays
+
+
+  subroutine allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+    type(TEnvironment), intent(in) :: env
+    type(TDenseDescr), intent(in) :: denseDesc
+    integer, intent(in) :: groupKS(:,:)
+    logical, intent(in) :: t2Component
+    logical, intent(in) :: tRealHS
+    complex(dp), allocatable, intent(out) :: HSqrCplx(:,:)
+    complex(dp), allocatable, intent(out) :: SSqrCplx(:,:)
+    complex(dp), allocatable, intent(out) :: eigvecsCplx(:,:,:)
+    real(dp), allocatable, intent(out) :: HSqrReal(:,:)
+    real(dp), allocatable, intent(out) :: SSqrReal(:,:)
+    real(dp), allocatable, intent(out) :: eigvecsReal(:,:,:)
+
+    integer :: nLocalCols, nLocalRows, nLocalKS
+
+    nLocalKS = size(groupKS, dim=2)
+  #:if WITH_SCALAPACK
+    !call scalafx_getlocalshape(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
+    nLocalRows = denseDesc%fullSize
+    nLocalCols = denseDesc%fullSize
+  #:else
+    nLocalRows = denseDesc%fullSize
+    nLocalCols = denseDesc%fullSize
+  #:endif
+
+    if (t2Component .or. .not. tRealHS) then
+      allocate(HSqrCplx(nLocalRows, nLocalCols))
+      allocate(SSqrCplx(nLocalRows, nLocalCols))
+      allocate(eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
+    else
+      allocate(HSqrReal(nLocalRows, nLocalCols))
+      allocate(SSqrReal(nLocalRows, nLocalCols))
+      allocate(eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
+    end if
+
+  end subroutine allocateDenseMatrices
+
+  
+#:if WITH_SCALAPACK
+  #!
+  #! SCALAPACK related routines
+  #!
+  
+  subroutine initScalapack(blacsOpts, nOrb, t2Component, env)
+    type(TBlacsOpts), intent(in) :: blacsOpts
+    integer, intent(in) :: nOrb
+    logical, intent(in) :: t2Component
+    type(TEnvironment), intent(inout) :: env
+
+    integer :: sizeHS
+
+    if (t2Component) then
+      sizeHS = 2 * nOrb
+    else
+      sizeHS = nOrb
+    end if
+    call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, blacsOpts%nGroups, sizeHS,&
+        & nAtom)
+
+  end subroutine initScalapack
+
+
+  subroutine getDenseDescScalapack(env, nOrb, t2Component, rowBlock, colBlock, denseDesc)
+    type(TEnvironment), intent(in) :: env
+    integer, intent(in) :: nOrb
+    logical, intent(in) :: t2Component
+    integer, intent(in) :: rowBlock
+    integer, intent(in) :: colBlock
+    type(TDenseDescr), intent(inout) :: denseDesc
+
+    integer :: nn
+
+    if (t2Component) then
+      nn = 2 * nOrb
+    else
+      nn = nOrb
+    end if
+    call scalafx_getdescriptor(env%blacs%gridOrbSqr, nn, nn, rowBlock, colBlock,&
+        & denseDesc%blacsOrbSqr)
+    denseDesc%fullSize = nn
+
+  end subroutine getDenseDescScalapack
+  
+#:endif
+
+
+  subroutine getDenseDescSerial(orb, nAtom, t2Component, denseDesc)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nAtom
+    logical, intent(in) :: t2Component
+    type(TDenseDescr), intent(out) :: denseDesc
+
+    allocate(denseDesc%iDenseStart(nAtom + 1))
+    call buildSquaredAtomIndex(denseDesc%iDenseStart, orb)
+    if (t2Component) then
+      denseDesc%fullSize = 2 * orb%nOrb
+    else
+      denseDesc%fullSize = orb%nOrb
+    end if
+
+  end subroutine getDenseDescSerial
+
+
+  !> Returns the (k-point, spin) tuples to be processed by current processor grid.
+  subroutine getGroupKS(env, nKpoint, nSpin, groupKS)
+
+    !> Environenment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Number of k-points in calculation.
+    integer, intent(in) :: nKpoint
+
+    !> Number of spin channels in calculation
+    integer, intent(in) :: nSpin
+
+    !> Array of (k-point, spin) tuples (groupKS(:, ii) = [iK, iS])
+    integer, intent(out), allocatable :: groupKS(:,:)
+
+    integer :: nGroup, iGroup
+    integer :: nHam, nHamAll, res
+    integer :: ind, iHam, iS, iK
+
+  #:if WITH_SCALAPACK
+    nGroup = env%blacs%nGroup
+    iGroup = env%blacs%iGroup
+  #:else
+    nGroup = 1
+    iGroup = 0
+  #:endif
+
+    nHamAll = nKpoint * nSpin
+    nHam = nHamAll / nGroup
+    res = nHamAll - nHam * nGroup
+    if (iGroup < res) then
+      nHam = nHam + 1
+    end if
+    allocate(groupKS(2, nHam))
+    ind = 0
+    iHam = 1
+    do iS = 1, nSpin
+      do iK = 1, nKpoint
+        if (mod(ind, nGroup) == iGroup) then
+          groupKS(1, iHam) = iK
+          groupKS(2, iHam) = iS
+          iHam = iHam + 1
+        end if
+        ind = ind + 1
+      end do
+    end do
+
+  end subroutine getGroupKS
+
 
 end module initprogram

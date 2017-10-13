@@ -16,7 +16,4 @@ module mpifx
   implicit none
   public
 
-  !> Whether code was compiled with MPI support
-  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
-
 end module mpifx

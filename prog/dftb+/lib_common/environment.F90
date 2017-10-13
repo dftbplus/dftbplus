@@ -19,6 +19,7 @@ module environment
   private
 
   public :: TEnvironment
+  public :: withMpi, withScalapack
 
 
   !> Contains environment settings.
@@ -30,7 +31,7 @@ module environment
 
     !> Whether this process is supposed to do I/O
     logical, public :: tIoProc = .true.
-
+    
   #:if WITH_MPI
     !> Global mpi settings
     type(TMpiEnv), public :: mpi
@@ -51,7 +52,15 @@ module environment
   end type TEnvironment
 
 
+  !> Whether code was compiled with MPI support
+  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
+
+  !> Whether code was compiled with Scalapack
+  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
+
+  
 contains
+
 
 #:if WITH_MPI
   
@@ -72,7 +81,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine initBlacs(this, rowBlock, colBlock, nGroup, nOrb, nAtom, nKpoint, nSpin, tPauliHS)
+  subroutine initBlacs(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -92,17 +101,7 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    !> Nr. of K-points
-    integer, intent(in) :: nKpoint
-
-    !> Nr. of spin channels
-    integer, intent(in) :: nSpin
-
-    !> Whether we need a 2x2 Pauli type Hamiltonian and overlap
-    logical, intent(in) :: tPauliHS
-
-    call TBlacsEnv_init(this%blacs, rowBlock, colBlock, nGroup, nOrb, nAtom, nKpoint, nSpin,&
-        & tPauliHS)
+    call TBlacsEnv_init(this%blacs, rowBlock, colBlock, nGroup, nOrb, nAtom)
     
   end subroutine initBlacs
 
