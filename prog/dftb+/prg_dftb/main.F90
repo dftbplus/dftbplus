@@ -13,6 +13,7 @@ module main
   use constants
   use globalenv
   use environment
+  use densedescr
   use inputdata_module
   use nonscc
   use eigenvects
@@ -247,7 +248,7 @@ contains
         #:endif
         end if
 
-        call getDensity(ham, over, neighborList, nNeighbor, denseDesc%iDenseStart, iSparseStart,&
+        call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
             & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
             & tempElec, nEl, groupKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
@@ -376,8 +377,8 @@ contains
       call printEnergies(energy)
 
       if (tForces) then
-        call getEnergyWeightedDensityMtx(forceType, filling, eigen, kPoint, kWeight, neighborList,&
-            & nNeighbor, orb, denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVEc, cellVec,&
+        call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
+            & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec,&
             & tRealHS, ham, over, solver, groupKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
             & SSqrCplx)
         call getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
@@ -1398,12 +1399,18 @@ contains
   !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
   !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(ham, over, neighborList, nNeighbor, iDenseStart, iSparseStart,&
+  subroutine getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, groupKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> hamiltonian in sparse storage
     real(dp), intent(inout) :: ham(:,:)
@@ -1416,9 +1423,6 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1552,22 +1556,22 @@ contains
     if (nSpin /= 4) then
       call qm2ud(ham)
       if (tRealHS) then
-        call buildAndDiagDenseHam(ham, over, neighborList, nNeighbor, iDenseStart, iSparseStart,&
+        call buildAndDiagDenseHam(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
             & img2CentCell, solver, groupKS, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
       else
-        call buildAndDiagDenseKDepHam(ham, over, kPoint, neighborList, nNeighbor, iDenseStart,&
+        call buildAndDiagDenseKDepHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, HSqrCplx, SSqrCplx,&
             & eigVecsCplx, eigen)
       end if
     else
       if (tRealHS) then
-        call buildAndDiagDensePauliHam(ham, over, neighborList, nNeighbor, iDenseStart,&
+        call buildAndDiagDensePauliHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, solver, eigen(:,1,1), HSqrCplx, SSqrCplx, eigVecsCplx,&
             & iHam, xi, species, orb)
       else
-        call buildAndDiagDenseKDepPauliHam(ham, over, kPoint, neighborList, nNeighbor, iDenseStart,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, eigen(:,:,1),&
-            & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species, orb)
+        call buildAndDiagDenseKDepPauliHam(env, denseDesc, ham, over, kPoint, neighborList,&
+            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS,&
+            & eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species, orb)
       end if
     end if
 
@@ -1576,19 +1580,19 @@ contains
 
     if (nSpin /= 4) then
       if (tRealHS) then
-        call getDensityFromEigvecs(filling(:,1,:), neighborList, nNeighbor, iSparseStart,&
-            & iDenseStart, img2CentCell, orb, eigVecsReal, groupKS, rhoPrim, SSqrReal, rhoSqrReal)
+        call getDensityFromEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
+            & iSparseStart, img2CentCell, orb, eigVecsReal, groupKS, rhoPrim, SSqrReal, rhoSqrReal)
       else
-        call getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor,&
-            & iSparseStart, iDenseStart, img2CentCell, iCellVec, cellVec, orb, groupKS,&
-            & eigvecsCplx, rhoPrim, SSqrCplx)
+        call getDensityFromKDepEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
+            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, groupKS, eigvecsCplx,&
+            & rhoPrim, SSqrCplx)
       end if
       call ud2qm(rhoPrim)
     else
       ! Pauli structure of eigenvectors
       filling(:,:,1) = 2.0_dp * filling(:,:,1)
-      call getDensityFromPauliEigvecs(tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken, kPoint,&
-          & kWeight, filling(:,:,1), neighborList, nNeighbor, orb, iDenseStart, iSparseStart,&
+      call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
+          & tMulliken, kPoint, kWeight, filling(:,:,1), neighborList, nNeighbor, orb, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, species, groupKS, eigVecsCplx, SSqrCplx, energy,&
           & rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
@@ -1598,8 +1602,14 @@ contains
 
 
   !> Builds and diagonalises dense Hamiltonians.
-  subroutine buildAndDiagDenseHam(ham, over, neighborList, nNeighbor, iDenseStart, iSparseStart,&
+  subroutine buildAndDiagDenseHam(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, solver, groupKS, HSqrReal, SSqrReal, eigvecsReal, eigen)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> hamiltonian in sparse storage
     real(dp), intent(in) :: ham(:,:)
@@ -1612,9 +1622,6 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1644,10 +1651,10 @@ contains
 
     do iKS = 1, size(groupKS, dim=2)
       iSpin = groupKS(2, iKS)
-      call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor, iDenseStart,&
+      call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
+          & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+      call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
           & iSparseStart, img2CentCell)
-      call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, iDenseStart, iSparseStart,&
-          & img2CentCell)
       call diagonalizeDenseMtx(solver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
     end do
@@ -1656,9 +1663,15 @@ contains
 
 
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
-  subroutine buildAndDiagDenseKDepHam(ham, over, kPoint, neighborList, nNeighbor, iDenseStart,&
+  subroutine buildAndDiagDenseKDepHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, HSqrCplx, SSqrCplx,&
       & eigvecsCplx, eigen)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> hamiltonian in sparse storage
     real(dp), intent(in) :: ham(:,:)
@@ -1674,9 +1687,6 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1710,15 +1720,14 @@ contains
 
     integer :: iKS, iK, iSpin
 
-    print *, "GROUPKS:", groupKS
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
       iSpin = groupKS(2, iKS)
       
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+          & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
-          & cellVec, iDenseStart, iSparseStart, img2CentCell)
+          & cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
       call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     end do
@@ -1727,9 +1736,15 @@ contains
 
 
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
-  subroutine buildAndDiagDensePauliHam(ham, over, neighborList, nNeighbor, iDenseStart,&
+  subroutine buildAndDiagDensePauliHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
       & iSparseStart, img2CentCell, solver, eigen, HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi,&
       & species, orb)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> hamiltonian in sparse storage
     real(dp), intent(in) :: ham(:,:)
@@ -1742,9 +1757,6 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1781,10 +1793,10 @@ contains
 
     @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
 
-    call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iSparseStart, iDenseStart,&
-        & img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
+    call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
+        & denseDesc%iDenseStart, img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
     if (present(xi) .and. .not. present(iHam)) then
-      call addOnsiteSpinOrbitContrib(xi, species, orb, iDenseStart, HSqrCplx)
+      call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
     end if
     call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
     eigvecsCplx(:,:,1) = HSqrCplx
@@ -1793,9 +1805,15 @@ contains
 
 
   !> Builds and diagonalizes k-dependent Pauli two-component Hamiltonians.
-  subroutine buildAndDiagDenseKDepPauliHam(ham, over, kPoint, neighborList, nNeighbor, iDenseStart,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, eigen, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, iHam, xi, species, orb)
+  subroutine buildAndDiagDenseKDepPauliHam(env, denseDesc, ham, over, kPoint, neighborList,&
+      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, eigen, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, iHam, xi, species, orb)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> hamiltonian in sparse storage
     real(dp), intent(in) :: ham(:,:)
@@ -1811,9 +1829,6 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1864,10 +1879,10 @@ contains
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
       call unpackHSPauliK(ham, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, HSqrCplx, SSqrCplx,&
-          & iHam=iHam)
+          & denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, HSqrCplx,&
+          & SSqrCplx, iHam=iHam)
       if (present(xi) .and. .not. present(iHam)) then
-        call addOnsiteSpinOrbitContrib(xi, species, orb, iDenseStart, HSqrCplx)
+        call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
       end if
       call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
@@ -1877,8 +1892,16 @@ contains
 
 
   !> Creates sparse density matrix from real eigenvectors.
-  subroutine getDensityFromEigvecs(filling, neighborList, nNeighbor, iSparseStart, iDenseStart,&
+  subroutine getDensityFromEigvecs(env, denseDesc, filling, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, orb, eigvecs, groupKS, rhoPrim, work, rhoSqrReal)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
+    !> Filling
     real(dp), intent(in) :: filling(:,:)
 
     !> list of neighbours for each atom
@@ -1889,9 +1912,6 @@ contains
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
@@ -1922,12 +1942,12 @@ contains
 
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
-            & neighborlist%iNeighbor, nNeighbor, orb, iDenseStart, img2CentCell)
+            & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
       else
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
       end if
-      call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb, iDenseStart,&
-          & iSparseStart, img2CentCell)
+      call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
+          & denseDesc%iDenseStart, iSparseStart, img2CentCell)
 
       if (present(rhoSqrReal)) then
         rhoSqrReal(:,:,iSpin) = work
@@ -1938,9 +1958,15 @@ contains
 
 
   !> Creates sparse density matrix from complex eigenvectors.
-  subroutine getDensityFromKDepEigvecs(filling, kPoint, kWeight, neighborList, nNeighbor,&
-      & iSparseStart, iDenseStart, img2CentCell, iCellVec, cellVec, orb, groupKS, eigvecs,&
+  subroutine getDensityFromKDepEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
+      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, groupKS, eigvecs,&
       & rhoPrim, work)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Occupations of single particle states in the ground state
     real(dp), intent(in) :: filling(:,:,:)
@@ -1959,9 +1985,6 @@ contains
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
@@ -1997,22 +2020,29 @@ contains
       
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin), neighborlist%iNeighbor,&
-            & nNeighbor, orb, iDenseStart, img2CentCell)
+            & nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
       else
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
       end if
       call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
-          & nNeighbor, orb%mOrb, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+          & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+          & img2CentCell)
     end do
 
   end subroutine getDensityFromKDepEigvecs
 
 
   !> Creates sparse density matrix from two component complex eigenvectors.
-  subroutine getDensityFromPauliEigvecs(tRealHS, tSpinOrbit, tDualSpinOrbit, tMulliken,&
-      & kPoint, kWeight, filling, neighborList, nNeighbor, orb, iDenseStart, iSparseStart,&
+  subroutine getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
+      & tMulliken, kPoint, kWeight, filling, neighborList, nNeighbor, orb, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, species, groupKS, eigvecs, work, energy, rhoPrim, xi,&
       & orbitalL, iRhoPrim)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Is the hamitonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
@@ -2043,9 +2073,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -2117,28 +2144,29 @@ contains
       call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
       if (tSpinOrbit .and. .not. tDualSpinOrbit) then
         rVecTemp(:) = 0.0_dp
-        call getEnergySpinOrbit(rVecTemp, work, iDenseStart, xi, orb, species)
+        call getEnergySpinOrbit(rVecTemp, work, denseDesc%iDenseStart, xi, orb, species)
         energy%atomLS = energy%atomLS + kWeight(iK) * rVecTemp
         if (tMulliken) then
           orbitalLPart(:,:,:) = 0.0_dp
-          call getL(orbitalLPart, work, iDenseStart, orb, species)
+          call getL(orbitalLPart, work, denseDesc%iDenseStart, orb, species)
           orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
         end if
       end if
 
       if (tRealHS) then
-        call packHSPauli(rhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb, iDenseStart,&
-            & iSparseStart, img2CentCell)
+        call packHSPauli(rhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
+            & denseDesc%iDenseStart, iSparseStart, img2CentCell)
         if (tImHam) then
           call packHSPauliImag(iRhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
-              & iDenseStart, iSparseStart, img2CentCell)
+              & denseDesc%iDenseStart, iSparseStart, img2CentCell)
         end if
       else
         call packHS(rhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor, nNeighbor,&
-            & orb%mOrb, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+            & orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
         if (tImHam) then
           call iPackHS(iRhoPrim, work, kPoint(:,iK), kWeight(iK), neighborlist%iNeighbor, &
-              & nNeighbor, orb%mOrb, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+              & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+              & img2CentCell)
         end if
       end if
     end do
@@ -3247,14 +3275,26 @@ contains
   !>
   !> NOTE: Dense eigenvector and overlap matrices are overwritten.
   !>
-  subroutine getEnergyWeightedDensityMtx(forceType, filling, eigen, kPoint, kWeight, neighborList,&
-      & nNeighbor, orb, iDenseStart, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS, ham,&
+  subroutine getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
+      & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS, ham,&
       & over, solver, groupKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Force type
     integer, intent(in) :: forceType
 
     !> Occupations of single particle states in the ground state
     real(dp), intent(in) :: filling(:,:,:)
+
+    !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
+
+    !> K-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -3268,9 +3308,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -3286,7 +3323,11 @@ contains
 
     !> Is the hamitonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
+
+    !> Sparse Hamiltonian
     real(dp), intent(in) :: ham(:,:)
+
+    !> Sparse overlap
     real(dp), intent(in) :: over(:)
 
     !> Eigensolver choice
@@ -3314,26 +3355,32 @@ contains
     nSpin = size(ham, dim=2)
 
     if (nSpin == 4) then
-      call getEDensityMtxFromPauliEigvecs(filling, eigen, kPoint, kWeight, neighborList, nNeighbor,&
-          & orb, iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS, groupKS,&
-          & HSqrCplx, SSqrCplx, ERhoPrim)
+      call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
+          & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
+          & groupKS, HSqrCplx, SSqrCplx, ERhoPrim)
     else if (tRealHS) then
-      call getEDensityMtxFromRealEigvecs(forceType, filling, eigen, neighborList, nNeighbor, orb,&
-          & iDenseStart, iSparseStart, img2CentCell, ham, over, solver, groupKS, HSqrReal,&
+      call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
+          & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, solver, groupKS, HSqrReal,&
           & SSqrReal, ERhoPrim)
     else
-      call getEDensityMtxFromComplexEigvecs(forceType, filling, eigen, kPoint, kWeight,&
-          & neighborList, nNeighbor, orb, iDenseStart, iSparseStart, img2CentCell, iCellVec,&
-          & cellVec, ham, over, groupKS, HSqrCplx, SSqrCplx, ERhoPrim)
+      call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
+          & kWeight, neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+          & ham, over, groupKS, HSqrCplx, SSqrCplx, ERhoPrim)
     end if
 
-  end subroutine getEnergyWeightedDensityMtx
+  end subroutine getEnergyWeightedDensity
 
 
   !> Calculates density matrix from real eigenvectors.
-  subroutine getEDensityMtxFromRealEigvecs(forceType, filling, eigen, neighborList, nNeighbor, orb,&
-      & iDenseStart, iSparseStart, img2CentCell, ham, over, solver, groupKS, eigvecsReal, work,&
+  subroutine getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
+      & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, solver, groupKS, eigvecsReal, work,&
       & ERhoPrim)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> How to calculate the force
     integer, intent(in) :: forceType
@@ -3352,9 +3399,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -3402,7 +3446,7 @@ contains
         ! Original (nonconsistent) scheme
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS),&
-              & neighborlist%iNeighbor, nNeighbor, orb, iDenseStart, img2CentCell)
+              & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
         else
           call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS))
         end if
@@ -3411,15 +3455,15 @@ contains
         ! Recreate eigenvalues for a consistent energy weighted density matrix
         ! (yields, however, incorrect forces for XLBOMD)
         call diagonalize(work2, work, eigen2, ham(:,iS), over, &
-            & neighborList%iNeighbor, nNeighbor, iDenseStart, iSparseStart, img2CentCell, solver,&
-            & 'N')
+            & neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart, iSparseStart, img2CentCell,&
+            & solver, 'N')
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen2)
 
       case(2)
         ! Correct force for XLBOMD for T=0K (DHD)
-        call unpackHS(work, ham(:,iS), neighborlist%iNeighbor, nNeighbor, iDenseStart,&
+        call unpackHS(work, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
             & iSparseStart, img2CentCell)
-        call blockSymmetrizeHS(work, iDenseStart)
+        call blockSymmetrizeHS(work, denseDesc%iDenseStart)
         call makeDensityMatrix(work2, eigvecsReal(:,:,iKS), filling(:,1,iS))
         ! D H
         call symm(eigvecsReal(:,:,iKS), "L", work2, work)
@@ -3429,28 +3473,35 @@ contains
       case(3)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
-        call unpackHS(work2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, iDenseStart,&
+        call unpackHS(work2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
             & iSparseStart, img2CentCell)
-        call blocksymmetrizeHS(work2, iDenseStart)
+        call blocksymmetrizeHS(work2, denseDesc%iDenseStart)
         call symm(eigvecsReal(:,:,iKS), "L", work, work2)
-        call unpackHS(work, over, neighborlist%iNeighbor, nNeighbor, iDenseStart, iSparseStart,&
-            & img2CentCell)
+        call unpackHS(work, over, neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+            & iSparseStart, img2CentCell)
         call symmatinv(work)
         call symm(work2, "R", work, eigvecsReal(:,:,iKS), alpha=0.5_dp)
         work(:,:) = work2 + transpose(work2)
       end select
 
-      call packHS(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb, iDenseStart,&
-          & iSparseStart, img2CentCell)
+      call packHS(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb,&
+          & denseDesc%iDenseStart, iSparseStart, img2CentCell)
     end do
 
   end subroutine getEDensityMtxFromRealEigvecs
 
 
   !> Calculates density matrix from complex eigenvectors.
-  subroutine getEDensityMtxFromComplexEigvecs(forceType, filling, eigen, kPoint, kWeight,&
-      & neighborList, nNeighbor, orb, iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec,&
+  subroutine getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
+      & kWeight, neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
       & ham, over, groupKS, eigvecsCplx, work, ERhoPrim)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
     integer, intent(in) :: forceType
 
     !> Occupations of single particle states in the ground state
@@ -3469,9 +3520,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -3519,7 +3567,7 @@ contains
         ! Original (nonconsistent) scheme
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
-              & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, iDenseStart,&
+              & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart,&
               & img2CentCell)
         else
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
@@ -3533,8 +3581,8 @@ contains
         ! Correct force for XLBOMD for T=0K (DHD)
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
-            & iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
-        call blockHermitianHS(work, iDenseStart)
+            & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+        call blockHermitianHS(work, denseDesc%iDenseStart)
         call hemm(eigvecsCplx(:,:,iKS), "L", work2, work)
         call hemm(work, "R", work2, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
 
@@ -3542,31 +3590,42 @@ contains
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
-            & iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
-        call blockHermitianHS(work2, iDenseStart)
+            & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+        call blockHermitianHS(work2, denseDesc%iDenseStart)
         call hemm(eigvecsCplx(:,:,iKS), "L", work, work2)
         call unpackHS(work, over, kPoint(:,iK), neighborlist%iNeighbor, nNeighbor, iCellVec,&
-            & cellVec, iDenseStart, iSparseStart, img2CentCell)
+            & cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
         call hermatinv(work)
         call hemm(work2, "R", work, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
         work(:,:) = work2 + transpose(conjg(work2))
       end select
 
       call packHS(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
-          & nNeighbor, orb%mOrb, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+          & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+          & img2CentCell)
     end do
 
   end subroutine getEDensityMtxFromComplexEigvecs
 
 
   !> Calculates density matrix from Pauli-type two component eigenvectors.
-  subroutine getEDensityMtxFromPauliEigvecs(filling, eigen, kPoint, kWeight, neighborList,&
-      & nNeighbor, orb, iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
+  subroutine getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
+      & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
       & groupKS, eigvecsCplx, work, ERhoPrim)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Occupations of single particle states in the ground state
     real(dp), intent(in) :: filling(:,:,:)
+
+    !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
+
+    !> K-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -3580,9 +3639,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -3618,11 +3674,12 @@ contains
       iK = groupKS(1, iKS)
       call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,1), eigen(:,iK,1))
       if (tRealHS) then
-        call packERho(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb, iDenseStart,&
-            & iSparseStart, img2CentCell)
+        call packERho(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb,&
+            & denseDesc%iDenseStart, iSparseStart, img2CentCell)
       else
         call packERho(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
-            & nNeighbor, orb%mOrb, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+            & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+            & img2CentCell)
       end if
     end do
 

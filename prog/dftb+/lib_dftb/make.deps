@@ -180,10 +180,17 @@ slakoeqgrid.o = slakoeqgrid.o $(_mod_accuracy) $(_mod_message) $(common.fypp) $(
 _mod_slakoeqgrid: slakoeqgrid.o
 _mod_slakoeqgrid = $(slakoeqgrid.o)
 
-sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_assert _mod_periodic _mod_accuracy
-sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
+#:if WITH_SCALAPACK
+sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_densedescr _mod_assert _mod_periodic _mod_accuracy _mod_blacsenv _mod_scalapackfx
+sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_densedescr) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_blacsenv) $(_mod_scalapackfx)
 _mod_sparse2dense: sparse2dense.o
 _mod_sparse2dense = $(sparse2dense.o)
+#:else
+sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_densedescr _mod_assert _mod_periodic _mod_accuracy
+sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_densedescr) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
+_mod_sparse2dense: sparse2dense.o
+_mod_sparse2dense = $(sparse2dense.o)
+#:endif
 
 spin.o: _mod_commontypes common.fypp _mod_message _mod_shift _mod_assert _mod_accuracy
 spin.o = spin.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_shift) $(_mod_assert) $(_mod_accuracy)
