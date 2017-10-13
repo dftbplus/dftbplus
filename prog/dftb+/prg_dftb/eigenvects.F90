@@ -17,10 +17,16 @@ module eigenvects
   use message
   use commontypes, only : TOrbitals
   use angmomentum
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif  
   implicit none
-
-  public :: diagonalize, diagonalizeDenseMtx
   private
+
+  public :: diagonalize, diagDenseMtx
+#:if WITH_SCALAPACK
+  public :: diagDenseMtxBlacs
+#:endif
 
 
   !> diagonalise sparse hamiltonian, returning eigenvectors and values
@@ -31,10 +37,19 @@ module eigenvects
     module procedure cmplx2CmpntKpts
   end interface diagonalize
 
-  interface diagonalizeDenseMtx
+  interface diagDenseMtx
     module procedure diagDenseRealMtx
     module procedure diagDenseComplexMtx
-  end interface diagonalizeDenseMtx
+  end interface diagDenseMtx
+
+#:if WITH_SCALAPACK  
+
+  interface diagDenseMtxBlacs
+    module procedure diagDenseRealMtxBlacs
+    module procedure diagDenseCplxMtxBlacs
+  end interface diagDenseMtxBlacs
+
+#:endif  
 
 contains
 
@@ -116,6 +131,8 @@ contains
     end select
 
   end subroutine diagDenseComplexMtx
+
+
 
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
@@ -752,5 +769,100 @@ contains
     deallocate(work)
 
   end subroutine cmplx2CmpntKpts
+
+
+#:if WITH_SCALAPACK  
+
+  !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
+  !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
+  !> lapack)
+  subroutine diagDenseRealMtxBlacs(iSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
+    character, intent(in) :: jobz
+
+    !> Dense descriptor
+    integer, intent(in) :: desc(DLEN_)
+
+    !> Large square matrix with hamiltonian
+    real(dp), intent(inout) :: HSqr(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
+    real(dp), intent(inout) :: SSqr(:,:)
+
+    !> Eigenvalues.
+    real(dp), intent(out) :: eigenVals(:)
+
+    !> Eigenvectors
+    real(dp), intent(out) :: eigenVecs(:,:)
+
+
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+    select case(iSolver)
+    case(1)
+      call scalafx_psygv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
+    case(2)
+      call scalafx_psygvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
+          & allocfix=.true.)
+    !case(3)
+    !  call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
+    case default
+      call error('Unknown eigensolver')
+    end select
+
+  end subroutine diagDenseRealMtxBlacs
+
+
+
+  !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
+  !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
+  !> lapack)
+  subroutine diagDenseCplxMtxBlacs(iSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs)
+
+    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
+    integer, intent(in) :: iSolver
+
+    !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
+    character, intent(in) :: jobz
+
+    !> Dense descriptor
+    integer, intent(in) :: desc(DLEN_)
+
+    !> Large square matrix for the resulting eigenValsvectors
+    complex(dp), intent(inout) :: HSqr(:,:)
+
+    !> Large square matrix for the overlap workspace, often overwritten with the Cholesky factorized
+    !> form.
+    complex(dp), intent(inout) :: SSqr(:,:)
+
+    !> Eigenvalues.
+    real(dp), intent(out) :: eigenVals(:)
+
+    !> Eigenvectors
+    complex(dp), intent(out) :: eigenVecs(:,:)
+
+
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+
+    select case(iSolver)
+    case(1)
+      call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
+    case(2)
+      call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
+          & allocfix=.true.)
+    !case(3)
+    !  call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
+    case default
+      call error('Unknown eigensolver')
+    end select
+
+  end subroutine diagDenseCplxMtxBlacs
+
+#:endif
 
 end module eigenvects

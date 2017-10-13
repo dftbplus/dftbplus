@@ -17,7 +17,7 @@ module globalenv
   private
 
   public :: initGlobalEnv, destructGlobalEnv
-  public :: abort
+  public :: abort, synchronizeAll
   public :: stdOut
 
   !> Standard out file handler
@@ -86,6 +86,14 @@ contains
     error stop
 
   end subroutine abort
+
+
+  !> Waits until all processes reach this point
+  subroutine synchronizeAll()
+
+    call mpifx_barrier(globalMpiComm)
+
+  end subroutine synchronizeAll
 
 
 end module globalenv

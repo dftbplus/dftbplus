@@ -9,6 +9,9 @@
 
 !> The main routines for DFTB+
 module main
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif
   use assert
   use constants
   use globalenv
@@ -1566,12 +1569,12 @@ contains
     else
       if (tRealHS) then
         call buildAndDiagDensePauliHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, solver, eigen(:,1,1), HSqrCplx, SSqrCplx, eigVecsCplx,&
-            & iHam, xi, species, orb)
+            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, eigen(:,1,1), HSqrCplx,&
+            & SSqrCplx, eigVecsCplx(:,:,1), iHam, xi, species)
       else
         call buildAndDiagDenseKDepPauliHam(env, denseDesc, ham, over, kPoint, neighborList,&
-            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS,&
-            & eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species, orb)
+            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, groupKS,&
+            & eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
       end if
     end if
 
@@ -1649,16 +1652,32 @@ contains
 
     integer :: iKS, iSpin
 
+    eigen(:,:) = 0.0_dp
     do iKS = 1, size(groupKS, dim=2)
       iSpin = groupKS(2, iKS)
+    #:if WITH_SCALAPACK
+      call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
+          & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+      call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
+          & img2CentCell, denseDesc, SSqrReal)
+      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
+          & eigen(:,iSpin), eigvecsReal(:,:,iKS))
+    #:else
       call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
           & denseDesc%iDenseStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
           & iSparseStart, img2CentCell)
-      call diagonalizeDenseMtx(solver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
+      call diagDenseMtx(solver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
+    #:endif
     end do
-    
+
+  #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes via global summation
+    eigen(:,:) = eigen / real(env%blacs%gridOrbSqr%nRow * env%blacs%gridOrbSqr%nCol, dp)
+    call blacsfx_gsum(env%blacs%gridAll, eigen, cdest=-1, rdest=-1)
+  #:endif
+
   end subroutine buildAndDiagDenseHam
 
 
@@ -1720,25 +1739,42 @@ contains
 
     integer :: iKS, iK, iSpin
 
+    eigen(:,:,:) = 0.0_dp
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
       iSpin = groupKS(2, iKS)
-      
+    #:if WITH_SCALAPACK
+      call unpackHSCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor,&
+          & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
+      call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+          & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
+          & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
+    #:else
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
-      call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
+      call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
+    #:endif
     end do
+
+  #:if WITH_SCALAPACK
+    eigen(:,:,:) = eigen / real(env%blacs%gridOrbSqr%nRow * env%blacs%gridOrbSqr%nCol, dp)
+    do iSpin = 1, size(eigen, dim=3)
+      ! Distribute all eigenvalues to all nodes via global summation
+      call blacsfx_gsum(env%blacs%gridAll, eigen(:,:,iSpin), cdest=-1, rdest=-1)
+    end do
+  #:endif
 
   end subroutine buildAndDiagDenseKDepHam
 
 
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
   subroutine buildAndDiagDensePauliHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, solver, eigen, HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi,&
-      & species, orb)
+      & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, eigen, HSqrCplx, SSqrCplx,&
+      & eigvecsCplx, iHam, xi, species)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1764,6 +1800,15 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
     !> Eigensolver choice
     integer, intent(in) :: solver
 
@@ -1777,7 +1822,7 @@ contains
     complex(dp), intent(out) :: SSqrCplx(:,:)
 
     !> eigenvectors on exit
-    complex(dp), intent(out) :: eigvecsCplx(:,:,:)
+    complex(dp), intent(out) :: eigvecsCplx(:,:)
 
     !> imaginary part of the hamiltonian
     real(dp), intent(in), optional :: iHam(:,:)
@@ -1788,26 +1833,38 @@ contains
     !> species of atoms
     integer, intent(in), optional :: species(:)
 
-    !> atomic orbital information
-    type(TOrbitals), intent(in), optional :: orb
+    @:ASSERT(.not. present(xi) .or. present(species))
 
-    @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
-
+  #:if WITH_SCALAPACK
+    call unpackHPauliBlacs(env%blacs, ham, [0.0_dp, 0.0_dp, 0.0_dp], neighborList%iNeighbor,&
+        & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, &
+        & HSqrCplx, iorig=iHam)
+    call unpackSPauliBlacs(env%blacs, over, [0.0_dp, 0.0_dp, 0.0_dp], neighborList%iNeighbor,&
+        & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, &
+        & SSqrCplx)
+    call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen,&
+        & eigvecsCplx(:,:))
+    if (present(xi) .and. .not. present(iHam)) then
+      call error("On-site spin contrib does not work with MPI yet")
+      !call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
+    end if
+  #:else
     call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
         & denseDesc%iDenseStart, img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
     if (present(xi) .and. .not. present(iHam)) then
       call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
     end if
-    call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
+    call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
     eigvecsCplx(:,:,1) = HSqrCplx
+  #:endif
 
   end subroutine buildAndDiagDensePauliHam
 
 
   !> Builds and diagonalizes k-dependent Pauli two-component Hamiltonians.
   subroutine buildAndDiagDenseKDepPauliHam(env, denseDesc, ham, over, kPoint, neighborList,&
-      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, eigen, HSqrCplx,&
-      & SSqrCplx, eigvecsCplx, iHam, xi, species, orb)
+      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, groupKS, eigen,&
+      & HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi, species)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1842,6 +1899,9 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
     !> Eigensolver choice
     integer, intent(in) :: solver
 
@@ -1869,24 +1929,42 @@ contains
     !> species of atoms
     integer, intent(in), optional :: species(:)
 
-    !> atomic orbital information
-    type(TOrbitals), intent(in), optional :: orb
-
     integer :: iKS, iK
 
     @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
 
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
+
+    #:if WITH_SCALAPACK
+      call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+          & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx,&
+          & iorig=iHam)
+      call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+          & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
+      if (present(xi) .and. .not. present(iHam)) then
+        call error("On-site spin contrib does not work with MPI yet")
+        !call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
+      end if
+      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen(:,iK),&
+          & eigvecsCplx(:,:,iKS))
+    #:else
       call unpackHSPauliK(ham, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, HSqrCplx,&
           & SSqrCplx, iHam=iHam)
       if (present(xi) .and. .not. present(iHam)) then
         call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
       end if
-      call diagonalizeDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
+      call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
+    #:endif
     end do
+
+  #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes via global summation
+    eigen(:,:) = eigen / real(env%blacs%gridOrbSqr%nRow * env%blacs%gridOrbSqr%nCol, dp)
+    call blacsfx_gsum(env%blacs%gridAll, eigen, cdest=-1, rdest=-1)
+  #:endif
 
   end subroutine buildAndDiagDenseKDepPauliHam
 
@@ -1900,7 +1978,7 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-    
+
     !> Filling
     real(dp), intent(in) :: filling(:,:)
 
@@ -1940,6 +2018,12 @@ contains
     do iKS = 1, size(groupKS, dim=2)
       iSpin = groupKS(2, iKS)
 
+    #:if WITH_SCALAPACK
+      call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iSpin),&
+          & eigvecs(:,:,iKS), work)
+      call packRhoRealBlacs(env%blacs, denseDesc, work, neighborList%iNeighbor, nNeighbor,&
+          & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
+    #:else
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
             & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
@@ -1948,11 +2032,17 @@ contains
       end if
       call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
           & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+    #:endif
 
       if (present(rhoSqrReal)) then
         rhoSqrReal(:,:,iSpin) = work
       end if
     end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute density matrix contribution from each group
+    call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
+  #:endif
 
   end subroutine getDensityFromEigvecs
 
@@ -2017,7 +2107,13 @@ contains
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
       iSpin = groupKS(2, iKS)
-      
+    #:if WITH_SCALAPACK
+      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr,&
+          & filling(:,iK,iSpin), eigvecs(:,:,iKS), work)
+      call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+          & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, rhoPrim(:,iSpin))
+    #:else
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin), neighborlist%iNeighbor,&
             & nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
@@ -2027,8 +2123,14 @@ contains
       call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
           & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
           & img2CentCell)
+    #:endif
     end do
 
+  #:if WITH_SCALAPACK
+    ! Add up and distribute density matrix contribution from each group
+    call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
+  #:endif
+    
   end subroutine getDensityFromKDepEigvecs
 
 
@@ -2141,6 +2243,14 @@ contains
 
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
+
+    #:if WITH_SCALAPACK
+      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr,&
+          & filling(:,iK), eigvecs(:,:,iKS), work)
+      if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+        call error("On-site spin orbit does not work with MPI-binary yet")
+      end if
+    #:else
       call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
       if (tSpinOrbit .and. .not. tDualSpinOrbit) then
         rVecTemp(:) = 0.0_dp
@@ -2152,7 +2262,13 @@ contains
           orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
         end if
       end if
+    #:endif
 
+    #:if WITH_SCALAPACK
+      call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+          & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, rhoPrim, iRhoPrim)
+    #:else
       if (tRealHS) then
         call packHSPauli(rhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
             & denseDesc%iDenseStart, iSparseStart, img2CentCell)
@@ -2169,7 +2285,16 @@ contains
               & img2CentCell)
         end if
       end if
+    #:endif
     end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute density matrix contribution from each group
+    call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
+    if (present(iRhoPrim)) then
+      call blacsfx_gsum(env%blacs%gridAll, iRhoPrim, rdest=-1, cdest=-1)
+    end if
+  #:endif
 
     if (tSpinOrbit .and. .not. tDualSpinOrbit) then
       energy%ELS = sum(energy%atomLS)
@@ -3335,7 +3460,7 @@ contains
 
     !> K-points and spins to process
     integer, intent(in) :: groupKS(:,:)
- 
+
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense hamiltonian matrix
@@ -3444,22 +3569,34 @@ contains
 
       case(0)
         ! Original (nonconsistent) scheme
+      #:if WITH_SCALAPACK
+        call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+            & eigvecsReal(:,:,iKS), work, eigen(:,1,iS))
+      #:else
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS),&
               & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
         else
           call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS))
         end if
+      #:endif
 
       case(1)
         ! Recreate eigenvalues for a consistent energy weighted density matrix
         ! (yields, however, incorrect forces for XLBOMD)
+      #:if WITH_SCALAPACK
+        call error("Force type 1 does not work with MPI-binary yet")
+      #:else
         call diagonalize(work2, work, eigen2, ham(:,iS), over, &
             & neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart, iSparseStart, img2CentCell,&
             & solver, 'N')
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen2)
+      #:endif
 
       case(2)
+      #:if WITH_SCALAPACK
+        call error("Force type 2 does not work with MPI-binary yet")
+      #:else
         ! Correct force for XLBOMD for T=0K (DHD)
         call unpackHS(work, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
             & iSparseStart, img2CentCell)
@@ -3469,8 +3606,12 @@ contains
         call symm(eigvecsReal(:,:,iKS), "L", work2, work)
         ! (D H) D
         call symm(work, "R", work2, eigvecsReal(:,:,iKS), alpha=0.5_dp)
+      #:endif
 
       case(3)
+      #:if WITH_SCALAPACK
+        call error("Force type 3 does not work with MPI-binary yet")
+      #:else
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
         call unpackHS(work2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
@@ -3482,11 +3623,22 @@ contains
         call symmatinv(work)
         call symm(work2, "R", work, eigvecsReal(:,:,iKS), alpha=0.5_dp)
         work(:,:) = work2 + transpose(work2)
+      #:endif
       end select
 
+    #:if WITH_SCALAPACK
+      call packRhoRealBlacs(env%blacs, denseDesc, work, neighborList%iNeighbor, nNeighbor,&
+          & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+    #:else
       call packHS(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb,&
           & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+    #:endif
     end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute energy weighted density matrix contribution from each group
+    call blacsfx_gsum(env%blacs%gridAll, ERhoPrim, rdest=-1, cdest=-1)
+  #:endif
 
   end subroutine getEDensityMtxFromRealEigvecs
 
@@ -3565,6 +3717,10 @@ contains
 
       case(0)
         ! Original (nonconsistent) scheme
+      #:if WITH_SCALAPACK
+        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+            & eigvecsCplx(:,:,iKS), work, eigen(:,1,iS))
+      #:else
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
               & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart,&
@@ -3573,11 +3729,15 @@ contains
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
               & eigen(:,iK, iS))
         end if
+      #:endif
 
       case (1)
         call error("Force type 1 not implemented for complex H")
 
       case(2)
+      #:if WITH_SCALAPACK
+        call error("Force type 2 not implemented in MPI-binary yet")
+      #:else
         ! Correct force for XLBOMD for T=0K (DHD)
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
@@ -3585,8 +3745,12 @@ contains
         call blockHermitianHS(work, denseDesc%iDenseStart)
         call hemm(eigvecsCplx(:,:,iKS), "L", work2, work)
         call hemm(work, "R", work2, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
+      #:endif
 
       case(3)
+      #:if WITH_SCALAPACK
+        call error("Force type 3 not implemented in MPI-binary yet")
+      #:else
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
@@ -3598,12 +3762,24 @@ contains
         call hermatinv(work)
         call hemm(work2, "R", work, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
         work(:,:) = work2 + transpose(conjg(work2))
+      #:endif
       end select
 
+    #:if WITH_SCALAPACK
+      call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+          &neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, ERhoPrim)
+    #:else
       call packHS(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
           & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
           & img2CentCell)
+    #:endif
     end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute energy weighted density matrix contribution from each group
+    call blacsfx_gsum(env%blacs%gridAll, ERhoPrim, rdest=-1, cdest=-1)
+  #:endif
 
   end subroutine getEDensityMtxFromComplexEigvecs
 
@@ -3654,7 +3830,7 @@ contains
 
     !> Is the hamitonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
-    
+
     !> K-points and spins to process
     integer, intent(in) :: groupKS(:,:)
 
@@ -3672,6 +3848,13 @@ contains
     ERhoPrim(:) = 0.0_dp
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
+    #:if WITH_SCALAPACK
+      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,1),&
+          & eigvecsCplx(:,:,iKS), work, eigen(:,iK,1))
+      call packERhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+          & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, ERhoPrim)
+    #:else
       call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,1), eigen(:,iK,1))
       if (tRealHS) then
         call packERho(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb,&
@@ -3681,7 +3864,13 @@ contains
             & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
             & img2CentCell)
       end if
+    #:endif
     end do
+
+  #:if WITH_SCALAPACK
+    ! Add up and distribute energy weighted density matrix contribution from each group
+    call blacsfx_gsum(env%blacs%gridAll, ERhoPrim, rdest=-1, cdest=-1)
+  #:endif
 
   end subroutine getEDensityMtxFromPauliEigvecs
 
@@ -4369,7 +4558,7 @@ contains
 
   ! NOTE: Pipek-Mezey can not easily adapted to gropKS indexing of eigenvectors, so
   ! it has been disabled for the moment.
-  
+
   !!> Calculates and prints Pipek-Mezey localisation
   !subroutine calcPipekMezeyLocalisation(pipekMezey, nEl, filling, over, kPoint, kWeight,&
   !    & neighborList, nNeighbor, iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec,&

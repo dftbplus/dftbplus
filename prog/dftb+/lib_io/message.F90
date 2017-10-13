@@ -69,6 +69,7 @@ contains
 
     write(stdOut, '(1a)') 'ERROR!'
     write(stdOut, '(2a)') '-> ', trim(message)
+    call synchronizeAll()
     call abort()
 
   end subroutine error_single
@@ -86,6 +87,7 @@ contains
     do ii = 1, size(messages)
       write(stdOut, '(2a)') '-> ', trim(messages(ii))
     end do
+    call synchronizeAll()
     call abort()
 
   end subroutine error_array

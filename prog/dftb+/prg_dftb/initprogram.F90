@@ -2051,7 +2051,7 @@ contains
     
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescScalapack(env, nOrb, t2Component, blacsOpts%rowBlockSize,&
+      call getDenseDescBlacs(env, nOrb, t2Component, blacsOpts%rowBlockSize,&
           & blacsOpts%colBlockSize, denseDesc)
     end associate
   #:endif
@@ -3083,9 +3083,7 @@ contains
 
     nLocalKS = size(groupKS, dim=2)
   #:if WITH_SCALAPACK
-    !call scalafx_getlocalshape(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
-    nLocalRows = denseDesc%fullSize
-    nLocalCols = denseDesc%fullSize
+    call scalafx_getlocalshape(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
   #:else
     nLocalRows = denseDesc%fullSize
     nLocalCols = denseDesc%fullSize
@@ -3128,7 +3126,7 @@ contains
   end subroutine initScalapack
 
 
-  subroutine getDenseDescScalapack(env, nOrb, t2Component, rowBlock, colBlock, denseDesc)
+  subroutine getDenseDescBlacs(env, nOrb, t2Component, rowBlock, colBlock, denseDesc)
     type(TEnvironment), intent(in) :: env
     integer, intent(in) :: nOrb
     logical, intent(in) :: t2Component
@@ -3147,7 +3145,7 @@ contains
         & denseDesc%blacsOrbSqr)
     denseDesc%fullSize = nn
 
-  end subroutine getDenseDescScalapack
+  end subroutine getDenseDescBlacs
   
 #:endif
 

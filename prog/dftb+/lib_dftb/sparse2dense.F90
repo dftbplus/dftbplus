@@ -1605,8 +1605,8 @@ contains
 
 
   !> Unpacks sparse Hamiltonian to square form (Pauli-type Hamiltonian).
-  subroutine unpackHPauliBlacs(myBlacs, orig, iorig, kPoint, iNeighbor, nNeighbor, iCellVec,&
-      & cellVec, iPair, img2CentCell, mOrb, desc, square)
+  subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
+      & iPair, img2CentCell, mOrb, desc, square, iorig)
     type(TBlacsEnv), intent(in) :: myBlacs
     real(dp), intent(in) :: orig(:,:)
     real(dp), intent(in) :: kPoint(:)
@@ -1908,7 +1908,7 @@ contains
   !> Pack squared matrix into the sparse form (complex Pauli version).
   subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iPair, img2CentCell, primitive, iprimitive)
-    type(TBlacsEnv), intent(in) :: myblacs
+    type(TBlacsEnv), intent(in) :: myBlacs
     type(TDenseDescr), intent(in) :: desc
     complex(dp), intent(in) :: square(:,:)
     real(dp), intent(in) :: kPoint(:)
