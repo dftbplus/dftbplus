@@ -61,12 +61,12 @@ module ExternalCharges
 
   contains
     private
-    
+
     procedure :: updateCoordsCluster
     procedure :: updateCoordsPeriodic
     procedure :: addForceDcCluster
     procedure :: addForceDcPeriodic
-    
+
     !> Updates the stored coordinates for point charges
     generic, public :: updateCoords => updateCoordsCluster, updateCoordsPeriodic
 
