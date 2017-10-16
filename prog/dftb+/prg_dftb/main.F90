@@ -4228,11 +4228,11 @@ contains
     !> energy  weighted density matrix
     real(dp), intent(in) :: ERhoPrim(:)
 
-    !> electron populations
-    real(dp), intent(in) :: qOutput(:,:,:)
+    !> electron populations (may be unallocated for non-scc case)
+    real(dp), allocatable, intent(in) :: qOutput(:,:,:)
 
-    !> reference atomic charges
-    real(dp), intent(in) :: q0(:,:,:)
+    !> reference atomic charges (may be unallocated for non-scc case)
+    real(dp), allocatable, intent(in) :: q0(:,:,:)
 
     !> non-SCC hamiltonian information
     type(OSlakoCont), intent(in) :: skHamCont
@@ -4285,11 +4285,13 @@ contains
 
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
+    integer :: nAtom
     integer :: ii
 
     tSccCalc = allocated(sccCalc)
     tImHam = present(iRhoPrim)
     tExtChrg = present(chrgForces)
+    nAtom = size(derivs, dim=2)
 
     derivs(:,:) = 0.0_dp
 
@@ -4351,7 +4353,7 @@ contains
       call dispersion%addGradients(derivs)
     end if
 
-    allocate(tmpDerivs(3, size(q0, dim=2)))
+    allocate(tmpDerivs(3, nAtom))
     call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
         & img2CentCell)
     derivs(:,:) = derivs + tmpDerivs
