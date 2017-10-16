@@ -19,30 +19,12 @@ module ExternalCharges
 
   private
 
-  public :: TExtCharge, init_ExtChrg
-  public :: addShiftPerAtom_ExtChrg, updateCoords_ExtChrg, addForceDCSCC_ExtChrg
+  public :: TExtCharge, TExtCharge_init
 
-  !> Add the potential from the point charges
-  interface addShiftPerAtom_ExtChrg
-    module procedure addShift1
-    module procedure addShift2
-  end interface addShiftPerAtom_ExtChrg
-
-  !> Updates the stored coordinates for point charges
-  interface updateCoords_ExtChrg
-    module procedure updateCoords_ExtChrg_cluster
-    module procedure updateCoords_ExtChrg_periodic
-  end interface updateCoords_ExtChrg
-
-
-  !> force contributions from external charges
-  interface addForceDCSCC_ExtChrg
-    module procedure addForceDCSCC_ExtChrg_cluster
-    module procedure addForceDCSCC_ExtChrg_periodic
-  end interface addForceDCSCC_ExtChrg
 
   !> Private module variables
   type TExtCharge
+    private
 
     !> Number of point charges
     integer :: nChrg
@@ -78,11 +60,30 @@ module ExternalCharges
     real(dp), allocatable :: rCellVec(:,:)
 
   contains
+    private
+    
+    procedure :: updateCoordsCluster
+    procedure :: updateCoordsPeriodic
+    procedure :: addForceDcCluster
+    procedure :: addForceDcPeriodic
+    
+    !> Updates the stored coordinates for point charges
+    generic, public :: updateCoords => updateCoordsCluster, updateCoordsPeriodic
 
-    procedure :: updateLatVecs_ExtChrg
-    procedure :: addEnergyPerAtom_ExtChrg
+    !> Updates the lattice vectors
+    procedure, public :: updateLatVecs
+
+    !> Adds energy contributions per atom
+    procedure, public :: addEnergyPerAtom
+
+    !> Adds the potential from the point charges
+    procedure, public :: addShiftPerAtom
+
+    !> Adds force double counting component
+    generic, public :: addForceDc => addForceDcCluster, addForceDcPeriodic
 
   end type TExtCharge
+
 
 contains
 
@@ -90,7 +91,8 @@ contains
   !> Initializes the calculator for external charges
   !>
   !> Note: Blurring of point charges is currently not possible with periodic boundary conditions.
-  subroutine init_ExtChrg(this, coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff, blurWidths)
+  subroutine TExtCharge_init(this, coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff,&
+      & blurWidths)
 
     !> External charge object
     type(TExtCharge), intent(out) :: this
@@ -158,11 +160,11 @@ contains
     this%tUpdated = .false.
     this%tInitialized = .true.
 
-  end subroutine init_ExtChrg
+  end subroutine TExtCharge_init
 
 
   !> Updates the module, if the lattice vectors had been changed
-  subroutine updateLatVecs_ExtChrg(this, latVecs, recVecs, ewaldCutoff)
+  subroutine updateLatVecs(this, latVecs, recVecs, ewaldCutoff)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
@@ -184,14 +186,14 @@ contains
     call foldCoordToUnitCell(this%coords, latVecs, recVecs / (2.0_dp * pi))
     call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs / (2.0_dp * pi), ewaldCutoff)
 
-  end subroutine updateLatVecs_ExtChrg
+  end subroutine updateLatVecs
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoords_ExtChrg_cluster(this, atomCoords)
+  subroutine updateCoordsCluster(this, atomCoords)
 
     !> External charges structure
-    type(TExtCharge), intent(inout) :: this
+    class(TExtCharge), intent(inout) :: this
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -210,14 +212,14 @@ contains
 
     this%tUpdated = .true.
 
-  end subroutine updateCoords_ExtChrg_cluster
+  end subroutine updateCoordsCluster
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoords_ExtChrg_periodic(this, atomCoords, gLat, alpha, volume)
+  subroutine updateCoordsPeriodic(this, atomCoords, gLat, alpha, volume)
 
     !> External charges structure
-    type(TExtCharge), intent(inout) :: this
+    class(TExtCharge), intent(inout) :: this
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -242,14 +244,14 @@ contains
 
     this%tUpdated = .true.
 
-  end subroutine updateCoords_ExtChrg_periodic
+  end subroutine updateCoordsPeriodic
 
 
   !> Adds the contribution of the external charges to the shift vector
-  subroutine addShift1(this, shift)
+  subroutine addShiftPerAtom(this, shift)
 
     !> External charges structure
-    type(TExtCharge), intent(in) :: this
+    class(TExtCharge), intent(in) :: this
 
     !> Shift vector to add the contribution to.
     real(dp), intent(inout) :: shift(:)
@@ -257,30 +259,13 @@ contains
     @:ASSERT(this%tInitialized .and. this%tUpdated)
     @:ASSERT(size(shift) == this%nAtom)
 
-    shift(:) = shift(:) + this%invRVec(:)
+    shift(:) = shift + this%invRVec
 
-  end subroutine addShift1
-
-
-  !> Adds the contribution of the external charges to the shift vector
-  subroutine addShift2(this, shift)
-
-    !> External charges structure
-    type(TExtCharge), intent(in) :: this
-
-    !> Shift vector to add the contribution to.
-    real(dp), intent(inout) :: shift(:,:)
-
-    @:ASSERT(this%tInitialized .and. this%tUpdated)
-    @:ASSERT(size(shift) == this%nAtom)
-
-    shift(:,1) = shift(:,1) + this%invRVec(:)
-
-  end subroutine addShift2
+  end subroutine addShiftPerAtom
 
 
   !> Adds the atomic energy contribution do to the external charges.
-  subroutine addEnergyPerAtom_ExtChrg(this, atomCharges, energy)
+  subroutine addEnergyPerAtom(this, atomCharges, energy)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
@@ -297,15 +282,15 @@ contains
 
     energy(:) = energy(:) + this%invRVec(:) * atomCharges(:)
 
-  end subroutine addEnergyPerAtom_ExtChrg
+  end subroutine addEnergyPerAtom
 
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDCSCC_ExtChrg_cluster(this, atomForces, chrgForces, atomCoords, atomCharges)
+  subroutine addForceDcCluster(this, atomForces, chrgForces, atomCoords, atomCharges)
 
     !> External charges structure
-    type(TExtCharge), intent(in) :: this
+    class(TExtCharge), intent(in) :: this
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
@@ -332,16 +317,16 @@ contains
           & atomCharges, this%charges)
     end if
 
-  end subroutine addForceDCSCC_ExtChrg_cluster
+  end subroutine addForceDcCluster
 
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDCSCC_ExtChrg_periodic(this, atomForces, chrgForces, atomCoords, atomCharges,&
-      & gVec, alpha, vol)
+  subroutine addForceDcPeriodic(this, atomForces, chrgForces, atomCoords, atomCharges, gVec, alpha,&
+      & vol)
 
     !> External charges structure
-    type(TExtCharge), intent(in) :: this
+    class(TExtCharge), intent(in) :: this
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
@@ -372,6 +357,6 @@ contains
     call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
         & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
 
-  end subroutine addForceDCSCC_ExtChrg_periodic
+  end subroutine addForceDcPeriodic
 
 end module ExternalCharges

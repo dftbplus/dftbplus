@@ -315,11 +315,11 @@ contains
     ! Initialise external charges
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call init_ExtChrg(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs, inp%recVecs,&
+        call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs, inp%recVecs,&
             & this%maxREwald)
       else
         @:ASSERT(allocated(inp%blurWidths))
-        call init_ExtChrg(this%extCharge, inp%extCharges, this%nAtom, blurWidths=inp%blurWidths)
+        call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, blurWidths=inp%blurWidths)
       end if
     end if
 
@@ -415,9 +415,9 @@ contains
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call updateCoords_ExtChrg(this%extCharge, coord, this%gLatPoint, this%alpha, this%volume)
+        call this%extCharge%updateCoords(coord, this%gLatPoint, this%alpha, this%volume)
       else
-        call updateCoords_ExtChrg(this%extCharge, coord)
+        call this%extCharge%updateCoords(coord)
       end if
     end if
 
@@ -457,7 +457,7 @@ contains
     this%cutoff = max(this%cutoff, this%maxREwald)
 
     if (this%tExtChrg) then
-      call this%extCharge%updateLatVecs_extChrg(latVec, recVec, this%maxREwald)
+      call this%extCharge%updateLatVecs(latVec, recVec, this%maxREwald)
     end if
 
   end subroutine updateLatVecs
@@ -552,7 +552,7 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom &
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
     if (this%tExtChrg) then
-      call this%extCharge%addEnergyPerAtom_ExtChrg(this%deltaQAtom, eScc)
+      call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
     if (this%tChrgConstr) then
       call addEnergyPerAtom(this%chrgConstr, eScc, this%deltaQAtom)
@@ -660,13 +660,13 @@ contains
       call addInvRPrime(force, this%nAtom, coord, this%nNeighEwald, iNeighbor, &
           & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
       if (this%tExtChrg) then
-        call addForceDcScc_ExtChrg(this%extCharge, force, chrgForce, coord, this%deltaQAtom,&
-            & this%gLatPoint, this%alpha, this%volume)
+        call this%extCharge%addForceDc(force, chrgForce, coord, this%deltaQAtom, this%gLatPoint,&
+            & this%alpha, this%volume)
       end if
     else
       call addInvRPrime(force, this%nAtom, coord, this%deltaQAtom)
       if (this%tExtChrg) then
-        call addForceDcScc_ExtChrg(this%extCharge, force, chrgForce, coord, this%deltaQAtom)
+        call this%extCharge%addForceDc(force, chrgForce, coord, this%deltaQAtom)
       end if
     end if
 
@@ -738,7 +738,7 @@ contains
 
     shift = this%shiftPerAtom
     if (this%tExtChrg) then
-      call addShiftPerAtom_ExtChrg(this%extCharge, shift)
+      call this%extCharge%addShiftPerAtom(shift)
     end if
     if (this%tChrgConstr) then
       call addShiftPerAtom(this%chrgConstr, shift)
