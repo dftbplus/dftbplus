@@ -518,7 +518,6 @@ contains
           derivs(:,:) = derivs(:,:) + excitedDerivs(:,:)
         end if
 
-        !c3091013
         ! Using plumed to modify forces IF plumed is used
         if (tPlumed) then
           call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass)
@@ -4357,8 +4356,6 @@ contains
 
   end subroutine getGradients
 
-
-  !c3091013
   !> use plumed to update derivatives
   subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass)
 

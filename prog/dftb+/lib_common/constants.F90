@@ -109,12 +109,11 @@ module constants
   !>  a.u. to V/m
   real(dp), parameter :: au__V_m = 1.0_dp / V_m__au
 
-  !c3091013
-  !> Avagadros constant
-  real(dp), parameter :: avagadConst = 6.022140857e23_dp
+  !> Avogadros constant
+  real(dp), parameter :: avogadConst = 6.022140857e23_dp
 
   !> hartree to kj/mol
-  real(dp), parameter :: Hartree__kJ_mol = (Hartree__J * avagadConst) / 1000.0_dp
+  real(dp), parameter :: Hartree__kJ_mol = (Hartree__J * avogadConst) / 1000.0_dp
 
   !> bohr to nm
   real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp

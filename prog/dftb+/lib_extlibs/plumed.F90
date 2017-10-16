@@ -4,7 +4,7 @@
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
-!c3091013
+
 !> Interface with plumed routines.
 module plumed
 

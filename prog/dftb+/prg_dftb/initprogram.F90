@@ -654,7 +654,6 @@ module initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
-  !c3091013
   !> Whether plumed is being used
   logical :: tPlumed
 
@@ -1712,7 +1711,6 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
-    !c3091013
     ! Initialising plumed
     tPlumed = input%ctrl%tPlumed
     if (tPlumed) then

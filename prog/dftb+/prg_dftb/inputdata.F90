@@ -129,7 +129,6 @@ module inputdata_module
     !> Molecular dynamics
     logical :: tMD         = .false.
 
-    !c3091013
     !> Use Plumed
     logical :: tPlumed = .false.
 
