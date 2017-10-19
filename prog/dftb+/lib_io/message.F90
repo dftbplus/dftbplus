@@ -69,6 +69,7 @@ contains
 
     write(stdOut, '(1a)') 'ERROR!'
     write(stdOut, '(2a)') '-> ', trim(message)
+    flush(stdOut)
     call synchronizeAll()
     call abort()
 
@@ -87,6 +88,7 @@ contains
     do ii = 1, size(messages)
       write(stdOut, '(2a)') '-> ', trim(messages(ii))
     end do
+    flush(stdOut)
     call synchronizeAll()
     call abort()
 
