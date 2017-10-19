@@ -1855,7 +1855,7 @@ contains
       call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
     end if
     call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
-    eigvecsCplx(:,:,1) = HSqrCplx
+    eigvecsCplx(:,:) = HSqrCplx
   #:endif
 
   end subroutine buildAndDiagDensePauliHam

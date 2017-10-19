@@ -91,7 +91,9 @@ contains
   !> Waits until all processes reach this point
   subroutine synchronizeAll()
 
+  #:if WITH_MPI
     call mpifx_barrier(globalMpiComm)
+  #:endif
 
   end subroutine synchronizeAll
 

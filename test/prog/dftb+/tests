@@ -3,151 +3,137 @@
 
 #:include 'common.fypp'
 
-derivatives/Si_2_Delta
-legacy/Si2_oldSKinterp
-legacy/Si2_polyRep
-non-scc/Si_2
-non-scc/Si_2_independentk
-scc/H2O2_3rdfull-damp
-scc/H3
-spin/H2
-analysis/C2H4_localise
-dftb+u/CH3
-dispersion/2H2O
-dispersion/2H2O_uff
-geoopt/H2O-nonscc
-non-scc/CH4
-non-scc/decapentaene
-scc/2H2O-3rdorder
-scc/C2H6_3rdfull
-scc/C2H6_3rdfull-damp
-scc/H2O2_3rdfull
-scc/H2O2-3rdfull-ldep
-scc/H2O-extchrg
-scc/H2O-extchrg-blur
-scc/H2O-extchrg-direct
-scc/H2O-extchrg-periodic
-scc/H2O-extfield
-spin/H2O-periodic
-spin/OH_commonFermi
-derivatives/Si_2_Richardson
-geoopt/H2O-constr
-legacy/SiC_polyRep
-scc/C4H8_3rdfull
-scc/C4H8_3rdfull-damp
-spin/Fe4
-spin/Fe4_commonFermi
+derivatives/Si_2_Delta                 #? NPROC <= 1
+legacy/Si2_oldSKinterp                 #? NPROC <= 1
+legacy/Si2_polyRep                     #? NPROC <= 1
+non-scc/Si_2                           #? NPROC <= 1
+non-scc/Si_2_independentk              #? NPROC <= 1
+scc/H2O2_3rdfull-damp                  #? NPROC <= 1
+scc/H3                                 #? NPROC <= 1
+spin/H2                                #? NPROC <= 1
+analysis/C2H4_localise                 #? NPROC <= 1
+dftb+u/CH3                             #? NPROC <= 1
+dispersion/2H2O                        #? NPROC <= 1
+dispersion/2H2O_uff                    #? NPROC <= 1
+geoopt/H2O-nonscc                      #? NPROC <= 1
+non-scc/CH4                            #? NPROC <= 1
+non-scc/decapentaene                   #? NPROC <= 1
+scc/2H2O-3rdorder                      #? NPROC <= 1
+scc/C2H6_3rdfull                       #? NPROC <= 1
+scc/C2H6_3rdfull-damp                  #? NPROC <= 1
+scc/H2O2_3rdfull                       #? NPROC <= 1
+scc/H2O2-3rdfull-ldep                  #? NPROC <= 1
+scc/H2O-extchrg                        #? NPROC <= 1
+scc/H2O-extchrg-blur                   #? NPROC <= 1
+scc/H2O-extchrg-direct                 #? NPROC <= 1
+scc/H2O-extchrg-periodic               #? NPROC <= 1
+scc/H2O-extfield                       #? NPROC <= 1
+spin/H2O-periodic                      #? NPROC <= 1
+spin/OH_commonFermi                    #? NPROC <= 1
+derivatives/Si_2_Richardson            #? NPROC <= 1
+geoopt/H2O-constr                      #? NPROC <= 1
+legacy/SiC_polyRep                     #? NPROC <= 1
+scc/C4H8_3rdfull                       #? NPROC <= 1
+scc/C4H8_3rdfull-damp                  #? NPROC <= 1
+spin/Fe4                               #? NPROC <= 1
+spin/Fe4_commonFermi                   #? NPROC <= 1
 
-#:if WITH_ARPACK
-timedep/2CH3-Temp
-timedep/2CH3-Triplet-Temp
-timedep/NO
-timedep/propadiene_OscWindow
-#:endif
+timedep/2CH3-Temp                      #? WITH_ARPACK and NPROC <= 1
+timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and NPROC <= 1
+timedep/NO                             #? WITH_ARPACK and NPROC <= 1
+timedep/propadiene_OscWindow           #? WITH_ARPACK and NPROC <= 1
 
-geoopt/H2O
-md/Si_8_NHC_restart
-non-scc/GaAs_2
-scc/GaAs_2
-scc/GaAs_2_customU
-spinorbit/Fe2_dual
-spinorbit/Si_2
+geoopt/H2O                             #? NPROC <= 1
+md/Si_8_NHC_restart                    #? NPROC <= 1
+non-scc/GaAs_2                         #? NPROC <= 1
+scc/GaAs_2                             #? NPROC <= 1
+scc/GaAs_2_customU                     #? NPROC <= 1
+spinorbit/Fe2_dual                     #? NPROC <= 1
+spinorbit/Si_2                         #? NPROC <= 1
 
-#:if WITH_ARPACK
-timedep/C4H6-S1-Force
-timedep/C4H6-Singlet
-timedep/C4H6-Singlet_wfn
-timedep/C4H6-T1-Force
-timedep/C4H6-Triplet
-#:endif
+timedep/C4H6-S1-Force                  #? WITH_ARPACK and NPROC <= 1
+timedep/C4H6-Singlet                   #? WITH_ARPACK and NPROC <= 1
+timedep/C4H6-Singlet_wfn               #? WITH_ARPACK and NPROC <= 1
+timedep/C4H6-T1-Force                  #? WITH_ARPACK and NPROC <= 1
+timedep/C4H6-Triplet                   #? WITH_ARPACK and NPROC <= 1
 
-dftb+u/Fe4
-geoopt/Cchain_lattice
-scc/H2O+CH3COOH-3rdorder
-spinorbit/Fe2
-non-scc/10-0Ctube_Efield
-non-scc/10-10Ctube
-md/H2O-extfield
-non-scc/10-0Ctube
-spin/Fe4_noncolinear
-non-scc/HBDI-neutral
-non-scc/HBDI-cationic
-scc/C60
-spin/H2O
+dftb+u/Fe4                             #? NPROC <= 1
+geoopt/Cchain_lattice                  #? NPROC <= 1
+scc/H2O+CH3COOH-3rdorder               #? NPROC <= 1
+spinorbit/Fe2                          #? NPROC <= 1
+non-scc/10-0Ctube_Efield               #? NPROC <= 1
+non-scc/10-10Ctube                     #? NPROC <= 1
+md/H2O-extfield                        #? NPROC <= 1
+non-scc/10-0Ctube                      #? NPROC <= 1
+spin/Fe4_noncolinear                   #? NPROC <= 1
+non-scc/HBDI-neutral                   #? NPROC <= 1
+non-scc/HBDI-cationic                  #? NPROC <= 1
+scc/C60                                #? NPROC <= 1
+spin/H2O                               #? NPROC <= 1
+                                       #? NPROC <= 1
+timedep/cyclopentadienyl               #? WITH_ARPACK and NPROC <= 1
+timedep/C6H6-Sym                       #? WITH_ARPACK and NPROC <= 1
+timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and NPROC <= 1
+timedep/OCH2-S1-Opt                    #? WITH_ARPACK and NPROC <= 1
 
-#:if WITH_ARPACK
-timedep/cyclopentadienyl
-timedep/C6H6-Sym
-timedep/C6H6-Sym_Arnoldi
-timedep/OCH2-S1-Opt
-#:endif
+md/Si_8_restart                        #? NPROC <= 1
+spin/GaAs_2                            #? NPROC <= 1
+spin/GaAs-spin-ext                     #? NPROC <= 1
+spinorbit/As4S4                        #? NPROC <= 1
+dispersion/DNA-damped                  #? NPROC <= 1
+md/ice_Ic                              #? NPROC <= 1
+derivatives/C6H6_scc                   #? NPROC <= 1
+dftb+u/GaAs_2                          #? NPROC <= 1
+geoopt/diamond_presure                 #? NPROC <= 1
+scc/C60_Fermi                          #? NPROC <= 1
+scc/10-0Ctube-extfield                 #? NPROC <= 1
+scc/SiC_64                             #? NPROC <= 1
+md/H3                                  #? NPROC <= 1
 
-md/Si_8_restart
-spin/GaAs_2
-spin/GaAs-spin-ext
-spinorbit/As4S4
-dispersion/DNA-damped
-md/ice_Ic
-derivatives/C6H6_scc
-dftb+u/GaAs_2
-geoopt/diamond_presure
-scc/C60_Fermi
-scc/10-0Ctube-extfield
-scc/SiC_64
-md/H3
+dispersion/DNA_dftd3_zero              #? WITH_DFTD3 and NPROC <= 1
 
-#:if WITH_DFTD3
-dispersion/DNA_dftd3_zero
-#:endif
+sockets/diamond                        #? NPROC <= 1
+sockets/diamond_exit                   #? NPROC <= 1
+sockets/H2O                            #? NPROC <= 1
+sockets/H2O_cluster                    #? NPROC <= 1
+spinorbit/GaAs_2                       #? NPROC <= 1
+geoopt/Si_2_latconst                   #? NPROC <= 1
+md/SiH-surface                         #? NPROC <= 1
+geoopt/Si_2_lattice                    #? NPROC <= 1
+md/Si_8_NHC                            #? NPROC <= 1
 
-sockets/diamond
-sockets/diamond_exit
-sockets/H2O
-sockets/H2O_cluster
-spinorbit/GaAs_2
-geoopt/Si_2_latconst
-md/SiH-surface
-geoopt/Si_2_lattice
-md/Si_8_NHC
+timedep/C66O10N4H44_Ewindow            #? WITH_ARPACK and NPROC <= 1
 
-#:if WITH_ARPACK
-timedep/C66O10N4H44_Ewindow
-#:endif
+spin/Fe4_Fermi                         #? NPROC <= 1
+non-scc/Si41C23N35                     #? NPROC <= 1
+geoopt/diamond_isotropic               #? NPROC <= 1
+spinorbit/EuN                          #? NPROC <= 1
+geoopt/Si_6                            #? NPROC <= 1
+md/ptcda-xlbomdfast                    #? NPROC <= 1
+spinorbit/EuN_customU                  #? NPROC <= 1
+dispersion/DNA                         #? NPROC <= 1
+spinorbit/Si2_dual                     #? NPROC <= 1
+md/Si_8                                #? NPROC <= 1
+md/Si_8-thermostat2                    #? NPROC <= 1
+geoopt/GaAs_8_latconst                 #? NPROC <= 1
+md/Si_8-thermostat                     #? NPROC <= 1
+md/ptcda-xlbomdfast-ldep               #? NPROC <= 1
+md/Si_8-tempprofile                    #? NPROC <= 1
 
-spin/Fe4_Fermi
-non-scc/Si41C23N35
-geoopt/diamond_isotropic
-spinorbit/EuN
-geoopt/Si_6
-md/ptcda-xlbomdfast
-spinorbit/EuN_customU
-dispersion/DNA
-spinorbit/Si2_dual
-md/Si_8
-md/Si_8-thermostat2
-geoopt/GaAs_8_latconst
-md/Si_8-thermostat
-md/ptcda-xlbomdfast-ldep
-md/Si_8-tempprofile
+dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and NPROC <= 1
 
-#:if WITH_DFTD3
-dispersion/DNA_dftd3_bj
-#:endif
+geoopt/Vsi+O-nonscc                    #? NPROC <= 1
+non-scc/Si_384                         #? NPROC <= 1
+md/DNA                                 #? NPROC <= 1
+md/DNA_Berendsen2                      #? NPROC <= 1
+md/ptcda-xlbomd                        #? NPROC <= 1
+md/SiC64-xlbomdfast-T0                 #? NPROC <= 1
+md/SiC64-xlbomdfast                    #? NPROC <= 1
 
-geoopt/Vsi+O-nonscc
-non-scc/Si_384
-md/DNA
-md/DNA_Berendsen2
-md/ptcda-xlbomd
-md/SiC64-xlbomdfast-T0
-md/SiC64-xlbomdfast
+timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and NPROC <= 1
+timedep/C60_OscWindow                  #? WITH_ARPACK and NPROC <= 1
+timedep/C60_EandOsc                    #? WITH_ARPACK and NPROC <= 1
 
-#:if WITH_ARPACK
-timedep/C66O10N4H44_OscWindow
-timedep/C60_OscWindow
-timedep/C60_EandOsc
-#:endif
-
-non-scc/Si_216
-md/ptcda-xlbomd-ldep
-geoopt/Vsi+O
+non-scc/Si_216                         #? NPROC <= 1
+md/ptcda-xlbomd-ldep                   #? NPROC <= 1
+geoopt/Vsi+O                           #? NPROC <= 1   
