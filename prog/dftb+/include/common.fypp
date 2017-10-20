@@ -16,8 +16,10 @@
 #:if not defined('DEBUG')
   #:set DEBUG = 0
 #:endif
-
 #:set WITH_ASSERT = defined('WITH_ASSERT')
+#!#:if not defined('WITH_ASSERT')
+#!  #:set WITH_ASSERT = DEBUG > 0
+#!#:endif
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_DFTD3 = defined('WITH_DFTD3')

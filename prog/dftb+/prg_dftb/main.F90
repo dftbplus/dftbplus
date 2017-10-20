@@ -269,7 +269,7 @@ contains
 
         ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
         if (tDualSpinOrbit) then
-          call getL(orbitalL, qiBlockOut, orb, species)
+          call getLDual(orbitalL, qiBlockOut, orb, species)
         end if
 
         ! Note: if XLBOMD is active, potential created with input charges is needed later,
@@ -1209,7 +1209,7 @@ contains
     potential%orbitalBlock(:,:,:,:) = 0.0_dp
     potential%iOrbitalBlock(:,:,:,:) = 0.0_dp
     if (tDualSpinOrbit) then
-      call shiftLS(potential%iOrbitalBlock, xi, orb, species)
+      call getDualSpinOrbitShift(potential%iOrbitalBlock, xi, orb, species)
     end if
 
   end subroutine resetInternalPotentials
@@ -1852,7 +1852,7 @@ contains
     call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
         & denseDesc%iDenseStart, img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
     if (present(xi) .and. .not. present(iHam)) then
-      call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
+      call addOnsiteSpinOrbitHam(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
     end if
     call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
     eigvecsCplx(:,:) = HSqrCplx
@@ -1953,7 +1953,7 @@ contains
           & denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, HSqrCplx,&
           & SSqrCplx, iHam=iHam)
       if (present(xi) .and. .not. present(iHam)) then
-        call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
+        call addOnsiteSpinOrbitHam(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
       end if
       call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
@@ -2254,11 +2254,11 @@ contains
       call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
       if (tSpinOrbit .and. .not. tDualSpinOrbit) then
         rVecTemp(:) = 0.0_dp
-        call getEnergySpinOrbit(rVecTemp, work, denseDesc%iDenseStart, xi, orb, species)
+        call getOnsiteSpinOrbitEnergy(rVecTemp, work, denseDesc%iDenseStart, xi, orb, species)
         energy%atomLS = energy%atomLS + kWeight(iK) * rVecTemp
         if (tMulliken) then
           orbitalLPart(:,:,:) = 0.0_dp
-          call getL(orbitalLPart, work, denseDesc%iDenseStart, orb, species)
+          call getLOnsite(orbitalLPart, work, denseDesc%iDenseStart, orb, species)
           orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
         end if
       end if
@@ -2410,75 +2410,6 @@ contains
     end if
 
   end subroutine getFillingsAndBandEnergies
-
-
-  !> Adds spin-orbit contribution to dense Hamiltonian (for non-dual spin-orbit model).
-  subroutine addOnsiteSpinOrbitContrib(xi, species, orb, iDenseStart, HSqrCplx)
-
-    !> Spin orbit constants for each species
-    real(dp), intent(in) :: xi(:,:)
-
-    !> chemical species
-    integer, intent(in) :: species(:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> index array for atomic blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
-
-    !> Dense hamitonian matrix (2 component)
-    complex(dp), intent(inout) :: HSqrCplx(:,:)
-
-    complex(dp), allocatable :: atomZ(:,:,:), atomPlus(:,:,:), Lz(:,:), Lplus(:,:)
-    integer :: nAtom, nSpecies, nOrb
-    integer :: iSp, iOrb, iAt, ll
-
-    nAtom = size(orb%nOrbAtom)
-    nSpecies = maxval(species(1:nAtom))
-    nOrb = size(HSqrCplx, dim=1) / 2
-    allocate(atomZ(orb%mOrb, orb%mOrb, nSpecies))
-    allocate(atomPlus(orb%mOrb, orb%mOrb, nSpecies))
-    atomZ(:,:,:) = 0.0_dp
-    atomPlus(:,:,:) = 0.0_dp
-    allocate(Lz(orb%mOrb, orb%mOrb))
-    allocate(Lplus(orb%mOrb, orb%mOrb))
-
-    do iSp = 1, nSpecies
-      do iOrb = 1, orb%nShell(iSp)
-        Lz(:,:) = 0.0_dp
-        Lplus(:,:) = 0.0_dp
-        ll = orb%angShell(iOrb,iSp)
-        call loperators(Lplus(1:2*ll+1,1:2*ll+1), Lz(1:2*ll+1,1:2*ll+1), ll)
-        atomZ(orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, &
-            & orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, iSp) =&
-            & 0.5_dp * xi(iOrb, iSp) * Lz(1 : 2 * ll + 1, 1 : 2 * ll + 1)
-        atomPlus(orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, &
-            & orb%posShell(iOrb, iSp) : orb%posShell(iOrb + 1, iSp) - 1, iSp) =&
-            & 0.5_dp * xi(iOrb, iSp) * Lplus(1 : 2 * ll + 1, 1 : 2 * ll + 1)
-      end do
-    end do
-
-    do iAt = 1, nAtom
-      iSp = species(iAt)
-      HSqrCplx(iDenseStart(iAt) : iDenseStart(iAt + 1) - 1, &
-          & iDenseStart(iAt) : iDenseStart(iAt + 1) - 1) = &
-          & HSqrCplx(iDenseStart(iAt) : iDenseStart(iAt + 1) - 1, &
-          & iDenseStart(iAt) : iDenseStart(iAt + 1) - 1) &
-          & + atomZ(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
-      HSqrCplx(nOrb + iDenseStart(iAt) : nOrb + iDenseStart(iAt + 1) - 1, &
-          & nOrb + iDenseStart(iAt) : nOrb + iDenseStart(iAt + 1) - 1) = &
-          & HSqrCplx(nOrb + iDenseStart(iAt) : nOrb + iDenseStart(iAt + 1) - 1, &
-          & nOrb + iDenseStart(iAt) : nOrb + iDenseStart(iAt + 1) - 1) &
-          & - atomZ(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
-      HSqrCplx(nOrb+ iDenseStart(iAt) : nOrb + iDenseStart(iAt + 1) - 1, &
-          & iDenseStart(iAt) : iDenseStart(iAt + 1) - 1) = &
-          & HSqrCplx(nOrb + iDenseStart(iAt) : nOrb + iDenseStart(iAt + 1) - 1, &
-          & iDenseStart(iAt) : iDenseStart(iAt + 1) - 1) &
-          & + atomPlus(1 : orb%nOrbSpecies(iSp), 1 : orb%nOrbSpecies(iSp), iSp)
-    end do
-
-  end subroutine addOnsiteSpinOrbitContrib
 
 
   !> Calculate Mulliken population from sparse density matrix.
@@ -2687,7 +2618,7 @@ contains
 
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
-      call getEnergySpinOrbit(energy%atomLS, qiBlock, xi, orb, species)
+      call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
       energy%ELS = sum(energy%atomLS)
     end if
 
@@ -3587,9 +3518,11 @@ contains
       #:if WITH_SCALAPACK
         call error("Force type 1 does not work with MPI-binary yet")
       #:else
-        call diagonalize(work2, work, eigen2, ham(:,iS), over, &
-            & neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart, iSparseStart, img2CentCell,&
-            & solver, 'N')
+        call unpackHS(work, ham(:,iS), neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+            & iSparseStart, img2CentCell)
+        call unpackHS(work2, over, neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+            & iSparseStart, img2CentCell)
+        call diagDenseMtx(solver, 'N', work, work2, eigen2)
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen2)
       #:endif
 

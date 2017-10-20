@@ -13,10 +13,17 @@ coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_as
 _mod_coulomb: coulomb.o
 _mod_coulomb = $(coulomb.o)
 
+#:if WITH_SCALAPACK
+densitymatrix.o: _mod_commontypes common.fypp _mod_sorting _mod_blasroutines _mod_assert _mod_accuracy _mod_blacsenv _mod_scalapackfx
+densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy) $(_mod_blacsenv) $(_mod_scalapackfx)
+_mod_densitymatrix: densitymatrix.o
+_mod_densitymatrix = $(densitymatrix.o)
+#:else
 densitymatrix.o: _mod_commontypes common.fypp _mod_sorting _mod_blasroutines _mod_assert _mod_accuracy
 densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy)
 _mod_densitymatrix: densitymatrix.o
 _mod_densitymatrix = $(densitymatrix.o)
+#:endif
 
 dftbplusu.o: _mod_commontypes common.fypp _mod_fileid _mod_spin _mod_assert _mod_message _mod_accuracy
 dftbplusu.o = dftbplusu.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_spin) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
@@ -197,8 +204,8 @@ spin.o = spin.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_shift)
 _mod_spin: spin.o
 _mod_spin = $(spin.o)
 
-spinorbit.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert _mod_angmomentum
-spinorbit.o = spinorbit.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_angmomentum)
+spinorbit.o: _mod_commontypes common.fypp _mod_constants _mod_angmomentum _mod_assert _mod_accuracy
+spinorbit.o = spinorbit.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_angmomentum) $(_mod_assert) $(_mod_accuracy)
 _mod_spinorbit: spinorbit.o
 _mod_spinorbit = $(spinorbit.o)
 

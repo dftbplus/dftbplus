@@ -1,5 +1,5 @@
-angmomentum.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert _mod_qm
-angmomentum.o = angmomentum.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_qm)
+angmomentum.o: _mod_commontypes common.fypp _mod_constants _mod_assert _mod_qm _mod_accuracy
+angmomentum.o = angmomentum.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_qm) $(_mod_accuracy)
 _mod_angmomentum: angmomentum.o
 _mod_angmomentum = $(angmomentum.o)
 

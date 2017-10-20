@@ -132,4 +132,8 @@ module constants
   !> Names of quaternion directions
   character(len=1), parameter :: quaternionName(4) = ["q", "x", "y", "z"]
 
+  !> Imaginary unit
+  complex(dp), parameter :: imag = (0.0_dp,1.0_dp)
+
+
 end module constants
