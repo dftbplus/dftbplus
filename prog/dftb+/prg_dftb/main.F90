@@ -3718,8 +3718,8 @@ contains
       case(0)
         ! Original (nonconsistent) scheme
       #:if WITH_SCALAPACK
-        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
-            & eigvecsCplx(:,:,iKS), work, eigen(:,1,iS))
+        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
+            & eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
       #:else
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&

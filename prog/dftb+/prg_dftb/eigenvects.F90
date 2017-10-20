@@ -809,8 +809,8 @@ contains
     case(2)
       call scalafx_psygvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
           & allocfix=.true.)
-    !case(3)
-    !  call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
+    case(3)
+      call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
     case default
       call error('Unknown eigensolver')
     end select
@@ -855,8 +855,8 @@ contains
     case(2)
       call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
           & allocfix=.true.)
-    !case(3)
-    !  call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
+    case(3)
+      call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
     case default
       call error('Unknown eigensolver')
     end select

@@ -64,7 +64,7 @@ LIB_BLAS = -lf77blas -lcblas -latlas
 OTHERLIBS = -lgomp -lpthread
 
 # Command to run a binary
-RUNNER =
+TESTRUNNER =
 
 endif
 
