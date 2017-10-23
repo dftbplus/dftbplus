@@ -9,11 +9,16 @@
 
 !> Angular momentum related routines
 module angmomentum
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif
   use assert
   use accuracy, only : dp
   use constants, only : imag
   use qm, only : unitary
   use commontypes, only : TOrbitals
+  use environment
+  use densedescr
   implicit none
   private
   
@@ -92,7 +97,6 @@ contains
     !> Species specific L+ operator
     complex(dp), intent(out) :: speciesPlus(:,:)
 
-    complex(dp) :: Lz(orb%mOrb, orb%mOrb), Lplus(orb%mOrb, orb%mOrb)
     integer :: iShell, ll, nOrbShell, iOrbStart, iOrbEnd
 
     @:ASSERT(all(shape(speciesZ) == shape(speciesPlus)))
@@ -112,7 +116,10 @@ contains
 
 
   !> Calculates the on-site orbital angular momentum
-  subroutine getLOnsite(Lshell, rho, iAtomStart, orb, species)
+  subroutine getLOnsite(env, Lshell, rho, denseDesc, orb, species)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out) :: Lshell(:,:,:)
@@ -120,8 +127,8 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:)
 
-    !> Offset array in the square matrix
-    integer, intent(in) :: iAtomStart(:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -158,13 +165,21 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = iAtomStart(iAt)
-      iOrbEnd = iAtomStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iDenseStart(iAt)
+      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
 
       ! I block
       tmpBlock(:,:) = 0.0_dp
-      tmpBlock(1:nOrbSp, 1:nOrbSp) = 0.5_dp * (rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) &
-          & + rho(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd))
+    #:if WITH_SCALAPACK
+      call scalafx_addg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
+          & tmpBlock(1:nOrbSp, 1:nOrbSp))
+      call scalafx_addg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
+          & nOrb + iOrbStart, rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
+    #:else
+      tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) &
+          & + rho(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd)
+    #:endif
+      tmpBlock(:,:) = 0.5_dp * tmpBlock
       ! Hermitize
       do iOrb = 1, nOrbSp
         tmpBlock(iOrb, iOrb + 1 :) = conjg(tmpBlock(iOrb + 1 :, iOrb))
@@ -203,7 +218,6 @@ contains
     integer :: iAt, iSp, iOrb, iOrbStart, iOrbEnd, kk
     real(dp), allocatable :: speciesL(:,:,:,:)
     complex(dp) :: speciesPlus(orb%mOrb, orb%mOrb), speciesZ(orb%mOrb, orb%mOrb)
-    complex(dp), allocatable :: Lplus(:,:)
     real(dp), allocatable :: tmpBlock(:,:)
 
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)

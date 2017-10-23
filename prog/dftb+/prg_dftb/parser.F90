@@ -3340,8 +3340,8 @@ contains
         call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
             & support)")
       end if
-      call getChildValue(root, "RowBlockSize", blacsOpts%rowBlockSize, 32)
-      call getChildValue(root, "ColumnBlockSize", blacsOpts%colBlockSize, 32)
+      call getChildValue(node, "RowBlockSize", blacsOpts%rowBlockSize, 32)
+      call getChildValue(node, "ColumnBlockSize", blacsOpts%colBlockSize, 32)
       call getChildValue(node, "Groups", blacsOpts%nGroups, 1)
     end if
       

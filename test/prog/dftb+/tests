@@ -56,9 +56,7 @@ non-scc/GaAs_2                         #? NPROC <= 1
 scc/GaAs_2                             #? NPROC <= 1
 scc/GaAs_2_customU                     #? NPROC <= 1
 spinorbit/Fe2_dual                     #? NPROC <= 2
-
-#! On-site spin contrib broken
-spinorbit/Si_2                         #? not WITH_MPI
+spinorbit/Si_2                         #? NPROC <= 1
 
 timedep/C4H6-S1-Force                  #? WITH_ARPACK and NPROC <= 1
 timedep/C4H6-Singlet                   #? WITH_ARPACK and NPROC <= 1
@@ -69,10 +67,7 @@ timedep/C4H6-Triplet                   #? WITH_ARPACK and NPROC <= 1
 dftb+u/Fe4                             #? NPROC <= 2
 geoopt/Cchain_lattice                  #? NPROC <= 1
 scc/H2O+CH3COOH-3rdorder               #? NPROC <= 1
-
-#! On-site spin contrib broken
-spinorbit/Fe2                          #? not WITH_MPI
-
+spinorbit/Fe2                          #? NPROC <= 4
 non-scc/10-0Ctube_Efield               #? NPROC <= 4
 non-scc/10-10Ctube                     #? NPROC <= 4
 md/H2O-extfield                        #? NPROC <= 1
@@ -91,9 +86,7 @@ timedep/OCH2-S1-Opt                    #? WITH_ARPACK and NPROC <= 1
 md/Si_8_restart                        #? NPROC <= 1
 spin/GaAs_2                            #? NPROC <= 1
 spin/GaAs-spin-ext                     #? NPROC <= 1
-
-#! On-site spin contrib broken
-spinorbit/As4S4                        #? not WITH_MPI
+spinorbit/As4S4                        #? NPROC <= 8
 
 dispersion/DNA-damped                  #? NPROC <= 4
 md/ice_Ic                              #? NPROC <= 4
@@ -112,8 +105,7 @@ sockets/diamond_exit                   #? NPROC <= 1
 sockets/H2O                            #? NPROC <= 4
 sockets/H2O_cluster                    #? NPROC <= 1
 
-#! On-site spin contrib broken
-spinorbit/GaAs_2                       #? not WITH_MPI
+spinorbit/GaAs_2                       #? NPROC <= 1
 
 geoopt/Si_2_latconst                   #? NPROC <= 1
 md/SiH-surface                         #? NPROC <= 4

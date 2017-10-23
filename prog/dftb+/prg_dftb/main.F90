@@ -10,6 +10,7 @@
 !> The main routines for DFTB+
 module main
 #:if WITH_SCALAPACK
+  use mpifx
   use scalapackfx
 #:endif
   use assert
@@ -1842,18 +1843,17 @@ contains
     call unpackSPauliBlacs(env%blacs, over, [0.0_dp, 0.0_dp, 0.0_dp], neighborList%iNeighbor,&
         & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, &
         & SSqrCplx)
-    call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen,&
-        & eigvecsCplx(:,:))
-    if (present(xi) .and. .not. present(iHam)) then
-      call error("On-site spin contrib does not work with MPI yet")
-      !call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
-    end if
   #:else
     call unpackHSPauli(ham, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
         & denseDesc%iDenseStart, img2CentCell, HSqrCplx, SSqrCplx, iHam=iHam)
+  #:endif
     if (present(xi) .and. .not. present(iHam)) then
-      call addOnsiteSpinOrbitHam(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
+      call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
     end if
+  #:if WITH_SCALAPACK
+    call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen,&
+        & eigvecsCplx)
+  #:else
     call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen)
     eigvecsCplx(:,:) = HSqrCplx
   #:endif
@@ -1942,19 +1942,18 @@ contains
           & iorig=iHam)
       call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
-      if (present(xi) .and. .not. present(iHam)) then
-        call error("On-site spin contrib does not work with MPI yet")
-        !call addOnsiteSpinOrbitContrib(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
-      end if
-      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen(:,iK),&
-          & eigvecsCplx(:,:,iKS))
     #:else
       call unpackHSPauliK(ham, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, HSqrCplx,&
           & SSqrCplx, iHam=iHam)
+    #:endif
       if (present(xi) .and. .not. present(iHam)) then
-        call addOnsiteSpinOrbitHam(xi, species, orb, denseDesc%iDenseStart, HSqrCplx)
+        call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
       end if
+    #:if WITH_SCALAPACK
+      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen(:,iK),&
+          & eigvecsCplx(:,:,iKS))
+    #:else
       call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
@@ -2245,24 +2244,20 @@ contains
       iK = groupKS(1, iKS)
 
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr,&
-          & filling(:,iK), eigvecs(:,:,iKS), work)
-      if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-        call error("On-site spin orbit does not work with MPI-binary yet")
-      end if
+      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK),&
+          & eigvecs(:,:,iKS), work)
     #:else
       call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
+    #:endif
       if (tSpinOrbit .and. .not. tDualSpinOrbit) then
-        rVecTemp(:) = 0.0_dp
-        call getOnsiteSpinOrbitEnergy(rVecTemp, work, denseDesc%iDenseStart, xi, orb, species)
+        call getOnsiteSpinOrbitEnergy(env, rVecTemp, work, denseDesc, xi, orb, species)
         energy%atomLS = energy%atomLS + kWeight(iK) * rVecTemp
         if (tMulliken) then
           orbitalLPart(:,:,:) = 0.0_dp
-          call getLOnsite(orbitalLPart, work, denseDesc%iDenseStart, orb, species)
+          call getLOnsite(env, orbitalLPart, work, denseDesc, orb, species)
           orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
         end if
       end if
-    #:endif
 
     #:if WITH_SCALAPACK
       call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
@@ -2289,10 +2284,14 @@ contains
     end do
 
   #:if WITH_SCALAPACK
-    ! Add up and distribute density matrix contribution from each group
-    call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
+    ! Add up and distribute contributions from each group
+    call mpifx_allreduceip(env%mpi%all, rhoPrim, MPI_SUM)
     if (present(iRhoPrim)) then
-      call blacsfx_gsum(env%blacs%gridAll, iRhoPrim, rdest=-1, cdest=-1)
+      call mpifx_allreduceip(env%mpi%all, iRhoPrim, MPI_SUM)
+    end if
+    call mpifx_allreduceip(env%mpi%all, energy%atomLS, MPI_SUM)
+    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
+      call mpifx_allreduceip(env%mpi%all, orbitalL, MPI_SUM)
     end if
   #:endif
 

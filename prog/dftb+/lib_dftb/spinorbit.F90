@@ -9,11 +9,16 @@
 
 !> Routines for spin orbit coupling
 module spinorbit
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif
+  use environment
   use assert
   use accuracy, only : dp
   use constants, only : imag
   use angmomentum, only : getLOperators
   use commontypes, only : TOrbitals
+  use densedescr
   implicit none
   private
 
@@ -25,7 +30,10 @@ contains
 
 
   !> Calculates the spin orbit energy for on-site L.S coupling
-  subroutine getOnsiteSpinOrbitEnergy(Eatom, rho, iAtomStart, xi, orb, species)
+  subroutine getOnsiteSpinOrbitEnergy(env, Eatom, rho, denseDesc, xi, orb, species)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
@@ -34,7 +42,7 @@ contains
     complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix.
-    integer, intent(in) :: iAtomStart(:)
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> spin orbit constants for each shell of each species
     real(dp), intent(in) :: xi(:,:)
@@ -53,14 +61,13 @@ contains
 
     nAtom = size(Eatom, dim=1)
     nSpecies = maxval(species(1:nAtom))
-    nOrb = size(rho, dim=1)
+    nOrb = orb%nOrb
 
     @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(size(xi, dim=2) == nSpecies)
     @:ASSERT(size(xi, dim=1) == orb%mShell)
     @:ASSERT(mod(nOrb,2) == 0)
-    nOrb = nOrb / 2
     @:ASSERT(iAtomStart(nAtom + 1) == nOrb + 1)
 
     allocate(speciesZ(orb%mOrb, orb%mOrb, nSpecies))
@@ -75,11 +82,17 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = iAtomStart(iAt)
-      iOrbEnd = iAtomStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iDenseStart(iAt)
+      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
 
       ! uu block
-      tmpBlock(1:nOrbSp, 1:nOrbSp) = 0.5_dp * rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd)
+    #:if WITH_SCALAPACK
+      call scalafx_cpg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
+          & tmpBlock(1:nOrbSp, 1:nOrbSp))
+    #:else
+      tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd)
+    #:endif
+      tmpBlock(:,:) = 0.5_dp * tmpBlock
       do iOrb = 1, orb%nOrbSpecies(iSp)
         tmpBlock(iOrb, iOrb + 1 :) = conjg(tmpBlock(iOrb + 1 :, iOrb))
       end do
@@ -87,8 +100,14 @@ contains
           & * conjg(tmpBlock(1:nOrbSp, 1:nOrbSp))))
 
       ! dd block
-      tmpBlock(1:nOrbSp, 1:nOrbSp) = &
-          & 0.5_dp * rho(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd)
+    #:if WITH_SCALAPACK
+      call scalafx_cpg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
+          & nOrb + iOrbStart, rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
+    #:else
+      tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(nOrb + iOrbStart : nOrb + iOrbEnd,&
+          & nOrb + iOrbStart : nOrb + iOrbEnd)
+    #:endif
+      tmpBlock(:,:) = 0.5_dp * tmpBlock
       do iOrb = 1, orb%nOrbSpecies(iSp)
         tmpBlock(iOrb, iOrb + 1 :) = conjg(tmpBlock(iOrb + 1 :, iOrb))
       end do
@@ -97,8 +116,13 @@ contains
 
       ! ud block
       ! two ud/du blocks so omit 0.5 factor
+    #:if WITH_SCALAPACK
+      call scalafx_cpg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart,&
+          & rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
+    #:else
       tmpBlock(1:nOrbSp, 1:nOrbSp) = &
           & rho(nOrb + iOrbStart : nOrb + iOrbEnd, iOrbStart : iOrbEnd)
+    #:endif
       Eatom(iAt) = Eatom(iAt)&
           & + real(sum(speciesPlus(1:nOrbSp , 1:nOrbSp, iSp)&
           & * conjg(tmpBlock(1:nOrbSp, 1:nOrbSp))), dp)
@@ -108,7 +132,10 @@ contains
 
 
   !> Adds spin-orbit contribution to dense Hamiltonian (for non-dual spin-orbit model).
-  subroutine addOnsiteSpinOrbitHam(xi, species, orb, iDenseStart, HSqrCplx)
+  subroutine addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Spin orbit constants for each species
     real(dp), intent(in) :: xi(:,:)
@@ -120,7 +147,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> index array for atomic blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Dense hamitonian matrix (2 component)
     complex(dp), intent(inout) :: HSqrCplx(:,:)
@@ -131,7 +158,7 @@ contains
 
     nAtom = size(orb%nOrbAtom)
     nSpecies = maxval(species(1:nAtom))
-    nOrb = size(HSqrCplx, dim=1) / 2
+    nOrb = orb%nOrb
     allocate(speciesZ(orb%mOrb, orb%mOrb, nSpecies))
     allocate(speciesPlus(orb%mOrb, orb%mOrb, nSpecies))
 
@@ -141,9 +168,17 @@ contains
 
     do iAt = 1, nAtom
       iSp = species(iAt)
-      iOrbStart = iDenseStart(iAt)
-      iOrbEnd = iDenseStart(iAt + 1) - 1
       nOrbSp = orb%nOrbSpecies(iSp)
+      iOrbStart = denseDesc%iDenseStart(iAt)
+      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+    #:if WITH_SCALAPACK
+      call scalafx_addl2g(env%blacs%gridOrbSqr, speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
+          & denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, HSqrCplx)
+      call scalafx_addl2g(env%blacs%gridOrbSqr, -speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
+          & denseDesc%blacsOrbSqr, nOrb + iOrbStart, nOrb + iOrbStart, HSqrCplx)
+      call scalafx_addl2g(env%blacs%gridOrbSqr, speciesPlus(1:nOrbSp, 1:nOrbSp, iSp),&
+          & denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart, HSqrCplx)
+    #:else
       HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) = &
           & HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) + speciesZ(1:nOrbSp, 1:nOrbSp, iSp)
       HSqrCplx(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd) = &
@@ -152,6 +187,7 @@ contains
       HSqrCplx(nOrb + iOrbStart : nOrb + iOrbEnd, iOrbStart:iOrbEnd) = &
           & HSqrCplx(nOrb + iOrbStart : nOrb + iOrbEnd, iOrbStart:iOrbEnd)&
           & + speciesPlus(1:nOrbSp, 1:nOrbSp, iSp)
+    #:endif
     end do
 
   end subroutine addOnsiteSpinOrbitHam
