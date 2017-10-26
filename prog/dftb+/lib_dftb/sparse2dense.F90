@@ -12,7 +12,7 @@
 module sparse2dense
   use assert
   use accuracy
-  use constants, only : pi
+  use constants, only : pi, imag
   use commontypes
   use memman
   use periodic, only : TNeighborList
@@ -1504,7 +1504,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   
-  !> Unpacks sparse H or S into dense (real, blacs)
+  !> Unpacks sparse H or S into dense (real, blacs).
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
   subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbor, nNeighbor, iPair, img2CentCell, desc,&
       & square)
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1541,6 +1544,11 @@ contains
         call scalafx_addl2g(myBlacs%gridOrbSqr,&
             & reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
             & desc%blacsOrbSqr, jj, ii, square)
+        if (iAtom1 /= iAtom2f) then
+          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+              & transpose(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])),&
+              & desc%blacsOrbSqr, ii, jj, square)
+        end if
       end do
     end do
 
@@ -1548,6 +1556,9 @@ contains
 
 
   !> Unpacks sparse H into distributed dense matrix (complex)
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
   subroutine unpackHSCplxBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iPair, img2CentCell, desc, square)
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1598,13 +1609,21 @@ contains
         call scalafx_addl2g(myBlacs%gridOrbSqr, phase &
             & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]), &
             & desc%blacsOrbSqr, jj, ii, square)
+        if (iAtom1 /= iAtom2f) then
+          call scalafx_addl2g(myBlacs%gridOrbSqr, transpose(conjg(phase&
+              & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]))),&
+              & desc%blacsOrbSqr, ii, jj, square)
+        end if
       end do
     end do
-    
+  
   end subroutine unpackHSCplxBlacs
 
 
   !> Unpacks sparse Hamiltonian to square form (Pauli-type Hamiltonian).
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
   subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iPair, img2CentCell, mOrb, desc, square, iorig)
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1677,18 +1696,25 @@ contains
         nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:,iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:,iVec)))
           iOldVec = iVec
         end if
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
         ptmp(:,:,:) = 0.5_dp * phase &
             & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1,:), [nOrb2, nOrb1, 4])
-        ! up-up component
+        ! up-up component and down-down components
         call scalafx_addl2g(myBlacs%gridOrbSqr, imagPrefac * (ptmp(:,:,1) + ptmp(:,:,4)),&
             & desc%blacsOrbSqr, jj, ii, square)
-        ! down-down component
         call scalafx_addl2g(myBlacs%gridOrbSqr, imagPrefac * (ptmp(:,:,1) - ptmp(:,:,4)),&
             & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
+        if (iAtom1 /= iAtom2f) then
+          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,1) + ptmp(:,:,4)))),&
+              & desc%blacsOrbSqr, ii, jj, square)
+          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,1) - ptmp(:,:,4)))),&
+              & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
+        end if
         ! down-up component
         ! also upper triangle of the down-up component must be filled
         if (iAtom1 == iAtom2f) then
@@ -1697,15 +1723,24 @@ contains
             ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk,  2:3))
           end do
           call scalafx_addl2g(myBlacs%gridOrbSqr,&
-              & imagPrefac * (ptmp(:,:,2) + cmplx(0,1,dp) * ptmp(:,:,3)), desc%blacsOrbSqr,&
+              & imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
+          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)))),&
+              & desc%blacsOrbSqr, ii, jj + nOrb, square)
         else
           call scalafx_addl2g(myBlacs%gridOrbSqr, &
-              & imagPrefac * (ptmp(:,:,2) + cmplx(0,1,dp) * ptmp(:,:,3)), desc%blacsOrbSqr,&
+              & imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
+          call scalafx_addl2g(myBlacs%gridOrbSqr, &
+              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)))),&
+              & desc%blacsOrbSqr, ii, jj + nOrb, square)
           call scalafx_addl2g(myBlacs%gridOrbSqr, imagPrefac * hermPrefac &
-              & * conjg(transpose(ptmp(:,:,2) - cmplx(0,1,dp) * ptmp(:,:,3))), desc%blacsOrbSqr,&
+              & * conjg(transpose(ptmp(:,:,2) - imag * ptmp(:,:,3))), desc%blacsOrbSqr,&
               & ii + nOrb, jj, square)
+          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+              & transpose(conjg(imagPrefac * conjg(transpose(ptmp(:,:,2) - imag * ptmp(:,:,3))))),&
+              & desc%blacsOrbSqr, jj, ii + nOrb, square)
         end if
       end do
     end do
@@ -1714,6 +1749,9 @@ contains
 
 
   !> Unpacking the overlap for Pauli-type matrices.
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
   subroutine unpackSPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iPair, img2CentCell, mOrb, desc, square)
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1753,7 +1791,7 @@ contains
         nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:,iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:,iVec)))
           iOldVec = iVec
         end if
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
@@ -1763,6 +1801,12 @@ contains
         ! down-down component
         call scalafx_addl2g(myBlacs%gridOrbSqr, ptmp, desc%blacsOrbSqr, jj + nOrb, ii + nOrb,&
             & square)
+        if (iAtom1 /= iAtom2f) then
+          call scalafx_addl2g(myBlacs%gridOrbSqr, transpose(conjg(ptmp)), desc%blacsOrbSqr, ii, jj,&
+              & square)
+          call scalafx_addl2g(myBlacs%gridOrbSqr, transpose(conjg(ptmp)), desc%blacsOrbSqr,&
+              & ii + nOrb, jj + nOrb, square)
+        end if
       end do
     end do
     

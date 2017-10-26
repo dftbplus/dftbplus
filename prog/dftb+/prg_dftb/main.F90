@@ -12,6 +12,7 @@ module main
 #:if WITH_SCALAPACK
   use mpifx
   use scalapackfx
+  use scalafxext
 #:endif
   use assert
   use constants
@@ -3478,17 +3479,16 @@ contains
     !> Energy weighted density matrix
     real(dp), intent(out) :: ERhoPrim(:)
 
-    real(dp), allocatable :: work2(:,:), eigen2(:)
-    integer :: nSpin, sqrHamSize
+    real(dp), allocatable :: work2(:,:)
+    integer :: nSpin, nLocalRows, nLocalCols, nOrb
     integer :: iKS, iS
 
     nSpin = size(eigen, dim=3)
-    sqrHamSize = size(eigvecsReal, dim=1)
-    if (forceType == 1 .or. forceType == 2 .or. forceType == 3) then
-      allocate(work2(sqrHamSize, sqrHamSize))
-      if (forceType == 2) then
-        allocate(eigen2(sqrHamSize))
-      end if
+    nLocalRows = size(eigvecsReal, dim=1)
+    nLocalCols = size(eigvecsReal, dim=2)
+    nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
+    if (forceType == 2 .or. forceType == 3) then
+      allocate(work2(nLocalRows, nLocalCols))
     end if
 
     ERhoPrim(:) = 0.0_dp
@@ -3511,25 +3511,18 @@ contains
         end if
       #:endif
 
-      case(1)
-        ! Recreate eigenvalues for a consistent energy weighted density matrix
-        ! (yields, however, incorrect forces for XLBOMD)
-      #:if WITH_SCALAPACK
-        call error("Force type 1 does not work with MPI-binary yet")
-      #:else
-        call unpackHS(work, ham(:,iS), neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
-            & iSparseStart, img2CentCell)
-        call unpackHS(work2, over, neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
-            & iSparseStart, img2CentCell)
-        call diagDenseMtx(solver, 'N', work, work2, eigen2)
-        call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen2)
-      #:endif
-
       case(2)
-      #:if WITH_SCALAPACK
-        call error("Force type 2 does not work with MPI-binary yet")
-      #:else
         ! Correct force for XLBOMD for T=0K (DHD)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, ham(:,iS), neighborList%iNeighbor, nNeighbor,&
+            & iSparseStart, img2CentCell, denseDesc, work)
+        call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+            & eigVecsReal(:,:,iKS), work2)
+        call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
+            & eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
+        call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
+      #:else
         call unpackHS(work, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
             & iSparseStart, img2CentCell)
         call blockSymmetrizeHS(work, denseDesc%iDenseStart)
@@ -3541,10 +3534,23 @@ contains
       #:endif
 
       case(3)
-      #:if WITH_SCALAPACK
-        call error("Force type 3 does not work with MPI-binary yet")
-      #:else
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
+      #:if WITH_SCALAPACK
+        call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+            & eigVecsReal(:,:,iKS), work)
+        call unpackHSRealBlacs(env%blacs, ham(:,iS), neighborlist%iNeighbor, nNeighbor,&
+            & iSparseStart, img2CentCell, denseDesc, work2)
+        call pblasfx_psymm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
+            & eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
+        call unpackHSRealBlacs(env%blacs, over, neighborlist%iNeighbor, nNeighbor, iSparseStart,&
+            & img2CentCell, denseDesc, work)
+        call psymmatinv(denseDesc%blacsOrbSqr, work)
+        call pblasfx_psymm(work, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
+        work(:,:) = work2
+        call pblasfx_ptran(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, alpha=1.0_dp,&
+            & beta=1.0_dp)
+      #:else
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
         call unpackHS(work2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
             & iSparseStart, img2CentCell)
@@ -3631,13 +3637,15 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     complex(dp), allocatable :: work2(:,:)
-    integer :: sqrHamSize
+    integer :: nLocalRows, nLocalCols, nOrb
     integer :: iKS, iS, iK
 
-    sqrHamSize = size(eigvecsCplx, dim=1)
+    nLocalRows = size(eigvecsCplx, dim=1)
+    nLocalCols = size(eigvecsCplx, dim=2)
+    nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
 
-    if (forceType == 1 .or. forceType == 2 .or. forceType == 3) then
-      allocate(work2(sqrHamSize, sqrHamSize))
+    if (forceType == 2 .or. forceType == 3) then
+      allocate(work2(nLocalRows, nLocalCols))
     end if
 
     ERhoPrim(:) = 0.0_dp
@@ -3658,17 +3666,20 @@ contains
               & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart,&
               & img2CentCell)
         else
-          call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
-              & eigen(:,iK, iS))
+          call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS), eigen(:,iK, iS))
         end if
       #:endif
 
-      case (1)
-        call error("Force type 1 not implemented for complex H")
-
       case(2)
       #:if WITH_SCALAPACK
-        call error("Force type 2 not implemented in MPI-binary yet")
+        call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighborList%iNeighbor,&
+            & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
+        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+            & eigvecsCplx(:,:,iKS), work2)
+        call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
+            & eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
+        call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
       #:else
         ! Correct force for XLBOMD for T=0K (DHD)
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
@@ -3681,7 +3692,20 @@ contains
 
       case(3)
       #:if WITH_SCALAPACK
-        call error("Force type 3 not implemented in MPI-binary yet")
+        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
+            & eigVecsCplx(:,:,iKS), work)
+        call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor,&
+            & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work2)
+        call pblasfx_phemm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
+            & eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
+        call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighborlist%iNeighbor,&
+            & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
+        call phermatinv(denseDesc%blacsOrbSqr, work)
+        call pblasfx_phemm(work, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
+        work(:,:) = work2
+        call pblasfx_ptranc(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
+            & alpha=(1.0_dp, 0.0_dp), beta=(1.0_dp, 0.0_dp))
       #:else
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))

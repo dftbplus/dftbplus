@@ -145,7 +145,7 @@ md/DNA_Berendsen2                      #? NPROC <= 4
 
 #! Only ForceType = legacy works
 md/ptcda-xlbomd                        #? not WITH_MPI
-md/SiC64-xlbomdfast-T0                 #? not WITH_MPI
+md/SiC64-xlbomdfast-T0                 #? NPROC <= 4
 md/SiC64-xlbomdfast                    #? not WITH_MPI
 
 timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and NPROC <= 1
@@ -158,3 +158,4 @@ non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? not WITH_MPI
 
 geoopt/Vsi+O                           #? NPROC <= 4
+scc/SiC64+V_dynforce                   #? NPROC <= 4
