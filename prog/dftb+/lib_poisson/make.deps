@@ -1,0 +1,82 @@
+bulkpot.o: _mod_gewald _mod_gprecision _mod_structure _mod_mpi_poisson _mod_parameters _mod_gallocation _mod_gconstants _mod_fileid
+bulkpot.o = bulkpot.o $(_mod_gewald) $(_mod_gprecision) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_parameters) $(_mod_gallocation) $(_mod_gconstants) $(_mod_fileid)
+_mod_bulkpot: bulkpot.o
+_mod_bulkpot = $(bulkpot.o)
+
+fancybc.o: _mod_mpi_poisson _mod_bulkpot _mod_gprecision _mod_parameters
+fancybc.o = fancybc.o $(_mod_mpi_poisson) $(_mod_bulkpot) $(_mod_gprecision) $(_mod_parameters)
+_mod_fancybc: fancybc.o
+_mod_fancybc = $(fancybc.o)
+
+gallocation.o: _mod_gprecision
+gallocation.o = gallocation.o $(_mod_gprecision)
+_mod_gallocation: gallocation.o
+_mod_gallocation = $(gallocation.o)
+
+gclock.o:
+gclock.o = gclock.o
+_mod_gclock: gclock.o
+_mod_gclock = $(gclock.o)
+
+gconstants.o: _mod_gprecision
+gconstants.o = gconstants.o $(_mod_gprecision)
+_mod_gconstants: gconstants.o
+_mod_gconstants = $(gconstants.o)
+
+gewald.o: _mod_gprecision _mod_gconstants
+gewald.o = gewald.o $(_mod_gprecision) $(_mod_gconstants)
+_mod_gewald: gewald.o
+_mod_gewald = $(gewald.o)
+
+gprecision.o:
+gprecision.o = gprecision.o
+_mod_gprecision: gprecision.o
+_mod_gprecision = $(gprecision.o)
+
+gradient.o:
+gradient.o = gradient.o
+_mod_gradient: gradient.o
+_mod_gradient = $(gradient.o)
+
+#:if defined(WITH_MPI)
+mpi_poisson.o: _mod_mpi _mod_libmpifx_module
+mpi_poisson.o = mpi_poisson.o $(_mod_mpi) $(_mod_libmpifx_module)
+_mod_mpi_poisson: mpi_poisson.o
+_mod_mpi_poisson = $(mpi_poisson.o)
+#:else
+mpi_poisson.o:
+mpi_poisson.o = mpi_poisson.o
+_mod_mpi_poisson: mpi_poisson.o
+_mod_mpi_poisson = $(mpi_poisson.o)
+#:endif
+
+parameters.o: _mod_gprecision _mod_gconstants
+parameters.o = parameters.o $(_mod_gprecision) $(_mod_gconstants)
+_mod_parameters: parameters.o
+_mod_parameters = $(parameters.o)
+
+parcheck.o: _mod_mpi_poisson _mod_gconstants _mod_gprecision _mod_parameters _mod_structure
+parcheck.o = parcheck.o $(_mod_mpi_poisson) $(_mod_gconstants) $(_mod_gprecision) $(_mod_parameters) $(_mod_structure)
+_mod_parcheck: parcheck.o
+_mod_parcheck = $(parcheck.o)
+
+poisson.o: _mod_gewald _mod_gclock _mod_gprecision _mod_structure _mod_bulkpot _mod_mpi_poisson _mod_parameters _mod_gallocation _mod_gconstants _mod_fileid _mod_fancybc
+poisson.o = poisson.o $(_mod_gewald) $(_mod_gclock) $(_mod_gprecision) $(_mod_structure) $(_mod_bulkpot) $(_mod_mpi_poisson) $(_mod_parameters) $(_mod_gallocation) $(_mod_gconstants) $(_mod_fileid) $(_mod_fancybc)
+_mod_poisson: poisson.o
+_mod_poisson = $(poisson.o)
+
+poisson_int.o: _mod_libnegf_vars _mod_commontypes _mod_gprecision _mod_structure _mod_mpi_poisson _mod_poisson_vars _mod_parameters _mod_libmpifx_module _mod_gallocation _mod_gconstants _mod_parcheck _mod_poisson
+poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(_mod_gprecision) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_poisson_vars) $(_mod_parameters) $(_mod_libmpifx_module) $(_mod_gallocation) $(_mod_gconstants) $(_mod_parcheck) $(_mod_poisson)
+_mod_poisson_int: poisson_int.o
+_mod_poisson_int = $(poisson_int.o)
+
+poisson_vars.o: _mod_commontypes _mod_gprecision
+poisson_vars.o = poisson_vars.o $(_mod_commontypes) $(_mod_gprecision)
+_mod_poisson_vars: poisson_vars.o
+_mod_poisson_vars = $(poisson_vars.o)
+
+structure.o: _mod_gprecision _mod_gallocation
+structure.o = structure.o $(_mod_gprecision) $(_mod_gallocation)
+_mod_structure: structure.o
+_mod_structure = $(structure.o)
+

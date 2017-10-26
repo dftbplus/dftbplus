@@ -47,8 +47,13 @@ ifeq ($(strip $(WITH_MPI)),1)
 dftb+: external_mpifx external_scalapackfx
 endif
 ifeq ($(strip $(WITH_LIBNEGF)),1)
-dftb+: external_mudpack external_sparskit 
+dftb+: external_libnegf 
+external_libnegf: external_mpifx
+WITH_POISSON := 1
 endif
+ifeq ($(strip $(WITH_POISSON)),1)
+dftb+: external_mudpack
+endif	
 modes: external_xmlf90
 waveplot: external_xmlf90
 
@@ -66,7 +71,7 @@ misc_skderivs: external_xmlf90
 EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx external_mudpack external_sparskit
+    external_scalapackfx external_mudpack external_libnegf
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)

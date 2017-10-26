@@ -64,6 +64,7 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
+  use negf_int
   implicit none
   private
 

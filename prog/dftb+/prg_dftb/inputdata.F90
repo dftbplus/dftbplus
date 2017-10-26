@@ -22,6 +22,8 @@ module inputdata_module
   use xlbomd_module
   use ipisocket, only : IpiSocketCommInp
   use pmlocalisation, only : TPipekMezeyInp
+  use libnegf_vars
+  use poisson_vars
   implicit none
   private
   save
@@ -328,6 +330,9 @@ module inputdata_module
     logical :: tWriteRealHS = .false.
     logical :: tMinMemory = .false.
 
+    !> use Poisson solver for electrostatics
+    logical :: tPoisson = .false.
+
 
     !> Dispersion related stuff
     type(DispersionInp), allocatable :: dispInp
@@ -381,12 +386,21 @@ module inputdata_module
     type(TOrbitals), allocatable :: orb
   end type slater
 
+  !> container for data needed by libNEGF
+  type TNEGFInfo
+    type(TNEGFTunDos) :: tundos  !Transport section informations
+    type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
+  end type TNEGFInfo
+
 
   !> container for input data constituents
   type inputData
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
+    type(TTransPar) :: transpar
+    type(TNEGFInfo) :: ginfo
+    type(TPoissonInfo) :: poisson
     logical :: tInitialized = .false.
   end type inputData
 
@@ -404,6 +418,14 @@ module inputdata_module
 
   public :: control, TGeometry, slater, inputData, XLBOMDInp
   public :: init, destruct
+
+  !> Solver types (used like an enumerator)
+  integer, parameter, public :: solverQR = 1
+  integer, parameter, public :: solverDAC = 2
+  integer, parameter, public :: solverRR1 = 3
+  integer, parameter, public :: solverRR2 = 4
+  integer, parameter, public :: solverGF = 5
+  integer, parameter, public :: onlyTransport = 6
 
 contains
 

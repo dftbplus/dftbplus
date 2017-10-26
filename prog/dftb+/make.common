@@ -82,6 +82,7 @@ endef
 _mod_%:
 	@[ -f $< ] && touch $@
 
+.PRECIOUS: %.f90
 
 ############################################################################
 # External libraries
@@ -131,6 +132,16 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
+ifeq ($(strip $(WITH_LIBNEGF)),1)
+  COMPILED_EXTERNALS += _extlib_libnegf
+  L_INCS += $(LIBNEGF_INCS)
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
+endif
+
+ifeq ($(strip $(WITH_POISSON)),1)
+  COMPILED_EXTERNALS += _extlib_mudpack
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
+endif
 
 ifeq ($(strip $(WITH_MPI)),1)
   #

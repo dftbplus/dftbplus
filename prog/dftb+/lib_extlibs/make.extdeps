@@ -23,3 +23,6 @@ mpifx.o += _extlib_mpifx
 
 scalapackfx.o: _extlib_scalapackfx
 scalapackfx.o += _extlib_scalapackfx
+
+negf_int.o: _extlib_libnegf
+negf_int.o += _extlib_libnegf

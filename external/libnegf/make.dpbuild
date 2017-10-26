@@ -1,0 +1,34 @@
+############################################################################
+# Makefile to compile the package within DFTB+
+#
+# Receives:
+#     ROOT: Root of the source directory
+#     BUILDROOT: Root of the build directory
+#
+############################################################################
+
+include $(ROOT)/make.config
+
+OBJDIR := $(BUILDROOT)/external/libnegf
+SRCDIR := $(ROOT)/external/libnegf/origin
+STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
+
+.PHONY: all clean libnegf
+
+all: libnegf
+	touch -r $(OBJDIR)/libnegf.a $(STAMPFILE)
+
+libnegf:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile.lib \
+	    MPI="$(MPI)" FPP="$(FPP)" FPPOPT="$(FPPOPT)" \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)" \
+	    OBJDIR="$(OBJDIR)" INCLUDES="$(INCLUDES)"
+
+clean:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile.lib \
+	    MPI="$(MPI)" SRCDIR="$(SRCDIR)" OBJDIR="$(OBJDIR)" clean
+
+
+### Local Variables:
+### mode:makefile
+### End:
