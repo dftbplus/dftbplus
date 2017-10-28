@@ -16,7 +16,7 @@ module eigenvects
   use message
 #:if WITH_SCALAPACK
   use scalapackfx
-#:endif  
+#:endif
   implicit none
   private
 
@@ -31,14 +31,14 @@ module eigenvects
     module procedure diagDenseComplexMtx
   end interface diagDenseMtx
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 
   interface diagDenseMtxBlacs
     module procedure diagDenseRealMtxBlacs
     module procedure diagDenseCplxMtxBlacs
   end interface diagDenseMtxBlacs
 
-#:endif  
+#:endif
 
 contains
 
@@ -122,7 +122,7 @@ contains
   end subroutine diagDenseComplexMtx
 
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of

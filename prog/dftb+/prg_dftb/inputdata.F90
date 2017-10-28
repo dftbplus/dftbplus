@@ -36,7 +36,7 @@ module inputdata_module
 
     !> Block size for matrix rows.
     integer :: rowBlockSize
-    
+
     !> Block size for matrix columns.
     integer :: colBlockSize
 
@@ -51,7 +51,7 @@ module inputdata_module
 
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts
-    
+
   end type TParallelOpts
 
 

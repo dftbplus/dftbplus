@@ -3101,7 +3101,7 @@ contains
     !> Eigenvectors for complex eigenproblem
     complex(dp), allocatable, intent(out) :: eigvecsCplx(:,:,:)
 
-    !> Square H matrix    
+    !> Square H matrix
     real(dp), allocatable, intent(out) :: HSqrReal(:,:)
 
     !> Square S matrix
@@ -3183,7 +3183,7 @@ contains
     !> Number of matrix columns
     integer, intent(in) :: colBlock
 
-    !> Descriptor of the dense matrix 
+    !> Descriptor of the dense matrix
     type(TDenseDescr), intent(inout) :: denseDesc
 
     integer :: nn

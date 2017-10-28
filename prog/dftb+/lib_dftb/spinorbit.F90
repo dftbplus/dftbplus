@@ -290,7 +290,7 @@ contains
       tmpShift(:, :, iSp, 2) = aimag(speciesPlus)
       tmpShift(:, :, iSp, 3) = -real(speciesPlus)
     end do
-      
+
     shift(:,:,:,:) = 0.0_dp
     do iSpin = 2, 4
       do iSp = 1, nAtom
@@ -300,12 +300,12 @@ contains
 
   end subroutine getDualSpinOrbitShift
 
-  
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
+
   !> Returns 1/2 xi * Lz and 1/2 xi * Lplus for a given species.
   subroutine getLSOperatorsForSpecies(orb, xi, iSpecies, speciesZ, speciesPlus)
 
@@ -343,8 +343,8 @@ contains
       speciesPlus(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) =&
           & 0.5_dp * xi(iShell, iSpecies) * Lplus(1:nOrbShell, 1:nOrbShell)
     end do
-    
+
   end subroutine getLSOperatorsForSpecies
 
-    
+
 end module spinorbit

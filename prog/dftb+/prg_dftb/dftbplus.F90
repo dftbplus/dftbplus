@@ -26,7 +26,7 @@ program dftbplus
   call initGlobalEnv()
 #:if WITH_MPI
   call env%initMpi()
-#:endif  
+#:endif
   call printDftbHeader(RELEASE_VERSION, RELEASE_YEAR)
   allocate(input)
   call parseHsdInput(env, input)

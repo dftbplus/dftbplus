@@ -9,7 +9,7 @@
 
 !> Exporting mpifx functionality if compiled with mpi support, otherwise empty.
 module mpifx
-#:if WITH_MPI  
+#:if WITH_MPI
   use libmpifx_module
 #:endif
   implicit none

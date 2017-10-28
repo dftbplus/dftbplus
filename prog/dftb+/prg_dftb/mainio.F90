@@ -159,7 +159,7 @@ contains
 
     !> K-points and spins to process
     integer, intent(in) :: groupKS(:,:)
- 
+
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: HSqrReal(:,:,:)
 
@@ -653,7 +653,7 @@ contains
       do iKS = 1, size(groupKS, dim=2)
         iK = groupKS(1, iKS)
         iSpin = groupKS(2, iKS)
-        
+
         do ii = 1, nReg
           write(fdProjEig(ii),*)'KPT ',iK,' SPIN ', iSpin, &
               &' KWEIGHT ', kweight(iK)
@@ -2694,7 +2694,7 @@ contains
     end if
     tLatticeChanged = tPeriodic
   #:if WITH_MPI
-    ! update all nodes with the received information  
+    ! update all nodes with the received information
     call mpifx_bcast(env%mpi%all, coord0)
     call mpifx_bcast(env%mpi%all, latVecs)
     call mpifx_bcast(env%mpi%all, tCoordsChanged)

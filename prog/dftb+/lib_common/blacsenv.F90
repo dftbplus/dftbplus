@@ -42,10 +42,10 @@ module blacsenv
 
   end type TBlacsEnv
 
-  
+
 contains
 
-  
+
   !> Initializes BLACS grids
   subroutine TBlacsEnv_init(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
 
@@ -96,7 +96,7 @@ contains
     ! Subgrid for communication inside the groups
     call this%gridOrbSqr%initgrids(nGroup, nProcRow, nProcCol)
     write(stdOut, "(1X,3(A,I0))") "PGRID:ORBITAL: ", nGroup, " x ", nProcRow, " x ", nProcCol
-    
+
     ! Global grid for broadcasting messages to all processes
     call getSquareGridParams(nProc, nProcRow, nProcCol)
     call this%gridAll%initgrid(nProcRow, nProcCol)

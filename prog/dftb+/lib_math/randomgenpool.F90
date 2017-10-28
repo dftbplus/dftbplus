@@ -97,7 +97,7 @@ contains
           seed = 1000 * (60 * (60 * timeValues(5) + timeValues(6)) + timeValues(7)) + timeValues(8)
         end if
       end if
-      
+
       if (seed < 1) then
         call random_seed()
         call random_number(rTmp)

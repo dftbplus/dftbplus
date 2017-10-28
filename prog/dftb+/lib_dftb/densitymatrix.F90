@@ -715,7 +715,7 @@ contains
   end subroutine sp_energy_density_matrix_cmplx
 
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Scalapack routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -770,7 +770,7 @@ contains
         eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * sqrt(abs(myFilling(iGlob + jj) - beta))
       end do
     end do
-    
+
     ! Create matrix by rank-k update
     call pblasfx_psyrk(eigenVecs, desc, densityMtx, desc, kk=nLevel,&
         & alpha=alpha, beta=beta)
@@ -837,7 +837,7 @@ contains
         eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * sqrt(abs(myFilling(iGlob + jj) - beta))
       end do
     end do
-    
+
     ! Create matrix by rank-k update
     call pblasfx_pherk(eigenVecs, desc, densityMtx, desc, kk=nLevel,&
         & alpha=alpha, beta=beta)

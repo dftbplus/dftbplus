@@ -47,7 +47,7 @@ contains
       open(stdOut, file="/dev/null", action="write")
     end if
   #:else
-    stdOut = stdOut0  
+    stdOut = stdOut0
   #:endif
 
   end subroutine initGlobalEnv
@@ -59,7 +59,7 @@ contains
   #:if WITH_MPI
     call mpifx_finalize()
   #:endif
-    
+
   end subroutine destructGlobalEnv
 
 

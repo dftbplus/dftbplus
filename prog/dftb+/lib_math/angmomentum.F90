@@ -21,14 +21,14 @@ module angmomentum
   use densedescr
   implicit none
   private
-  
+
   public :: getLOperators, getLOperatorsForSpecies
   public :: getLOnsite, getLDual
 
 
 contains
 
-  
+
   !> Returns L^+ and L_z in the tesseral spherical Harmonics basis used in DFTB+
   subroutine getLOperators(ll, Lplus, Lz)
 
@@ -111,7 +111,7 @@ contains
       call getLOperators(ll, speciesPlus(1:nOrbShell, 1:nOrbShell),&
           & speciesZ(1:nOrbShell, 1:nOrbShell))
     end do
-    
+
   end subroutine getLOperatorsForSpecies
 
 
@@ -197,7 +197,7 @@ contains
     end do
 
   end subroutine getLOnsite
-  
+
 
   !> Calculates the on-site orbital angular momentum for dual populations
   subroutine getLDual(Lshell, qBlockSkew, orb, species)
@@ -232,7 +232,7 @@ contains
       speciesL(:, :, 2, iSp) = -real(speciesPlus)
       speciesL(:, :, 3, iSp) = aimag(speciesZ)
     end do
-    
+
     allocate(tmpBlock(orb%mOrb, orb%mOrb))
 
     Lshell(:,:,:) = 0.0_dp

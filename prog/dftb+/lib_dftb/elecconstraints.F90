@@ -15,7 +15,7 @@ module elecconstraints
   use angmomentum, only : getLOperators
   implicit none
   private
-  
+
   public :: constrainQ, constrainS, constrainL, constrainJ, constrainMj
 
 

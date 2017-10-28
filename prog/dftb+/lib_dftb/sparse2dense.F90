@@ -29,7 +29,7 @@ module sparse2dense
   public :: blockSymmetrizeHS,  blockHermitianHS, blockAntiSymmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHSPauli, unpackHSPauliK
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
   public :: packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs, packERhoPauliBlacs
 #:endif
@@ -87,7 +87,7 @@ module sparse2dense
   end interface blockAntiSymmetrizeHS
 
 contains
-  
+
   !> Unpacks sparse matrix to square form (complex version) @note The non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
@@ -1498,12 +1498,12 @@ contains
   end subroutine blockAntiSymmetrizeHS_real
 
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Scalapack routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
+
   !> Unpacks sparse H or S into dense (real, blacs).
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
@@ -1616,7 +1616,7 @@ contains
         end if
       end do
     end do
-  
+
   end subroutine unpackHSCplxBlacs
 
 
@@ -1744,7 +1744,7 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine unpackHPauliBlacsHelper
 
 
@@ -1809,7 +1809,7 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine unpackSPauliBlacs
 
 
@@ -1867,7 +1867,7 @@ contains
             & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2])
       end do
     end do
-    
+
   end subroutine packRhoRealBlacs
 
 
@@ -1931,7 +1931,7 @@ contains
         end if
         call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, jj, ii, square,&
             & tmpSqr(1:nOrb2, 1:nOrb1))
-        
+
         ! Hermitian the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
@@ -1976,8 +1976,8 @@ contains
     end if
 
   end subroutine packRhoPauliBlacs
-      
-  
+
+
   !> Helper routine for the Pauli packing.
   subroutine packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor,&
       & mOrb, iCellVec, cellVec, iPair, img2CentCell, imagprefac, symmetrize, primitive)
@@ -2012,7 +2012,7 @@ contains
   #:call ASSERT_CODE
     integer :: sizePrim
   #:endcall ASSERT_CODE
-    
+
     nAtom = size(iNeighbor, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = desc%iDenseStart(nAtom + 1) - 1
@@ -2069,7 +2069,7 @@ contains
         end do
       end do
     end do
-    
+
     ! sigma_x and sigma_y blocks
     iOldVec = 0
     phase = 1.0_dp
@@ -2196,9 +2196,9 @@ contains
         end do
       end do
     end do
-    
+
   end subroutine packERhoPauliBlacs
-  
-#:endif  
+
+#:endif
 
 end module sparse2dense

@@ -12,7 +12,7 @@ module mpienv
   private
 
   public :: TMpiEnv, TMpiEnv_init
-  
+
 
   !> Contains MPI related einvironment settings
   type :: TMpiEnv

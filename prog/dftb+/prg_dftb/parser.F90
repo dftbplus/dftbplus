@@ -3316,7 +3316,7 @@ contains
       allocate(parallelOpts)
       call readBlacs(node, parallelOpts%blacsOpts)
     end if
-    
+
   end subroutine readParallel
 
 
@@ -3344,7 +3344,7 @@ contains
       call getChildValue(node, "ColumnBlockSize", blacsOpts%colBlockSize, 32)
       call getChildValue(node, "Groups", blacsOpts%nGroups, 1)
     end if
-      
+
   end subroutine readBlacs
 
 
