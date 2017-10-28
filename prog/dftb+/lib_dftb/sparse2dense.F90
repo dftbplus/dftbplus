@@ -26,7 +26,7 @@ module sparse2dense
   private
 
   public :: unpackHS, packHS, iPackHS, packErho
-  public :: blockSymmetrizeHS,  blockHermitianHS, blockAntiSymmetrizeHS
+  public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHSPauli, unpackHSPauliK
 
 #:if WITH_SCALAPACK
@@ -88,7 +88,7 @@ module sparse2dense
 
 contains
 
-  !> Unpacks sparse matrix to square form (complex version) @note The non on-site blocks are only
+  !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
   subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, &
@@ -98,10 +98,10 @@ contains
     complex(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
-    real(dp),    intent(in) :: orig(:)
+    real(dp), intent(in) :: orig(:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
-    real(dp),    intent(in) :: kPoint(:)
+    real(dp), intent(in) :: kPoint(:)
 
     !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
@@ -113,7 +113,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp),    intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -121,7 +121,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Atomic mapping indexes.
+    !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
@@ -195,7 +195,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Atomic mapping indexes.
+    !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
@@ -232,13 +232,41 @@ contains
 
   end subroutine unpackHS_real
 
-
+  !> Unpacks sparse matrices to square form (2 component version for Gamma point)
+  !>
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
+  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHSPauli(ham, over, iNeighbor, nNeighbor, iPair, iAtomStart, img2CentCell,&
       & HSqrCplx, SSqrCplx, iHam)
-    real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
-    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:)
-    complex(dp), intent(out) :: HSqrCplx(:,:), SSqrCplx(:,:)
+
+    !> sparse hamiltonian
+    real(dp), intent(in) :: ham(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Neighbor list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for each atom (incl. itself).
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(:,:)
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(out) :: HSqrCplx(:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(out) :: SSqrCplx(:,:)
+
+    !> imaginary part of sparse hamiltonian
     real(dp), intent(in), optional :: iHam(:,:)
 
     real(dp), allocatable :: work(:,:)
@@ -332,14 +360,50 @@ contains
 
   end subroutine unpackHSPauli
 
-
+  !> Unpacks sparse matrices to square form (2 component version for k-points)
+  !>
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
+  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHSPauliK(ham, over, kPoint, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, HSqrCplx, SSqrCplx, iHam)
-    real(dp), intent(in) :: ham(:,:), over(:), kPoint(:)
-    integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
-    integer, intent(in) :: iAtomStart(:), iPair(:,:), img2CentCell(:), iCellVec(:)
+
+    !> sparse hamiltonian
+    real(dp), intent(in) :: ham(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> k-point at which to unpack
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbor list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for each atom (incl. itself).
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(:,:)
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> index to vector to unit cell containing specified atom
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to periodic unit cells
     real(dp), intent(in) :: cellVec(:,:)
-    complex(dp), intent(out) :: HSqrCplx(:,:), SSqrCplx(:,:)
+
+    !> dense hamiltonian matrix
+    complex(dp), intent(out) :: HSqrCplx(:,:)
+
+    !> dense overlap matrix
+    complex(dp), intent(out) :: SSqrCplx(:,:)
+
+    !> imaginary part of sparse hamiltonian
     real(dp), intent(in), optional :: iHam(:,:)
 
     complex(dp), allocatable :: work(:,:)
@@ -454,16 +518,16 @@ contains
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
-    real(dp),    intent(inout) :: primitive(:)
+    real(dp), intent(inout) :: primitive(:)
 
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
-    real(dp),    intent(in) :: kPoint(:)
+    real(dp), intent(in) :: kPoint(:)
 
     !> Weight of the K-point
-    real(dp),    intent(in) :: kweight
+    real(dp), intent(in) :: kweight
 
     !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
@@ -478,7 +542,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp),    intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared matrix
     integer, intent(in) :: iAtomStart(:)
@@ -486,7 +550,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
@@ -579,7 +643,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
@@ -655,7 +719,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
@@ -756,10 +820,10 @@ contains
     complex(dp), intent(in) :: square(:,:)
 
     !> location in the BZ in units of 2pi
-    real(dp),    intent(in) :: kPoint(:)
+    real(dp), intent(in) :: kPoint(:)
 
     !> Weight of the k-point
-    real(dp),    intent(in) :: kweight
+    real(dp), intent(in) :: kweight
 
     !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
@@ -774,7 +838,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp),    intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared matrix
     integer, intent(in) :: iAtomStart(:)
@@ -782,7 +846,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
@@ -942,7 +1006,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
@@ -1043,10 +1107,10 @@ contains
     complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
-    real(dp),    intent(in) :: kPoint(:)
+    real(dp), intent(in) :: kPoint(:)
 
     !> Weight of the K-point
-    real(dp),    intent(in) :: kweight
+    real(dp), intent(in) :: kweight
 
     !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
@@ -1061,7 +1125,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp),    intent(in) :: cellVec(:,:)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the squared matrix
     integer, intent(in) :: iAtomStart(:)
@@ -1069,7 +1133,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
@@ -1218,7 +1282,7 @@ contains
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
@@ -1286,32 +1350,34 @@ contains
     !> Squared form matrix
     complex(dp), intent(in) :: square(:,:)
 
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
+    real(dp), intent(in) :: kPoint(:)
+
+    !> weight for the k-point
+    real(dp), intent(in) :: kweight
+
     !> Neighbor list for the atoms (First index from 0!)
-    real(dp),    intent(in) :: kPoint(:)
-
-    !> Nr. of neighbors for the atoms.
-    real(dp),    intent(in) :: kweight
-
-    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: iNeighbor(0:,:)
 
-    !> Index of the cell translation vector for each atom.
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
 
-    !> Relative coordinates of the cell translation vectors.
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
 
-    !> Atom offset for the squared matrix
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
 
-    !> indexing array for the sparse Hamiltonian
-    real(dp),    intent(in) :: cellVec(:,:)
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:,:)
 
-    !> Mapping between image atoms and correspondent atom in the central cell.
+    !> Atom offset for the squared matrix
     integer, intent(in) :: iAtomStart(:)
 
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
     complex(dp) :: phase
@@ -1510,13 +1576,29 @@ contains
   !>
   subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbor, nNeighbor, iPair, img2CentCell, desc,&
       & square)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix
     real(dp), intent(in) :: orig(:)
+
+    !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> dense matrix part of distributed whole
     real(dp), intent(out) :: square(:,:)
 
     integer :: nAtom
@@ -1561,16 +1643,38 @@ contains
   !>
   subroutine unpackHSCplxBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iPair, img2CentCell, desc, square)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix
     real(dp), intent(in) :: orig(:)
+
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: nNeighbor(:)
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> dense matrix part of distributed whole
     complex(dp), intent(out) :: square(:,:)
 
     complex(dp) :: phase
@@ -1626,18 +1730,44 @@ contains
   !>
   subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iPair, img2CentCell, mOrb, desc, square, iorig)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix
     real(dp), intent(in) :: orig(:,:)
+
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> local part of distributed whole dense matrix
     complex(dp), intent(out) :: square(:,:)
+
+    !> imaginary part of sparse matrix
     real(dp), intent(in), optional :: iorig(:,:)
 
     square(:,:) = cmplx(0, 0, dp)
@@ -1658,19 +1788,47 @@ contains
   !!
   subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec,&
       & cellVec, iPair, img2CentCell, mOrb, imagPrefac, hermPrefac, desc, square)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:,:)
+
+    !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> prefactor for the imaginary related part of a block
     complex(dp), intent(in) :: imagPrefac
+
+    !> prefactor for the hermitian related part of a block
     complex(dp), intent(in) :: hermPrefac
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> local part of distributed whole dense matrix to add to
     complex(dp), intent(inout) :: square(:,:)
 
     integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb
@@ -1720,7 +1878,7 @@ contains
         if (iAtom1 == iAtom2f) then
           ! symmetrize/antisymmetrize onsite block
           do kk = 1, nOrb1
-            ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk,  2:3))
+            ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk, 2:3))
           end do
           call scalafx_addl2g(myBlacs%gridOrbSqr,&
               & imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)), desc%blacsOrbSqr,&
@@ -1754,17 +1912,41 @@ contains
   !>
   subroutine unpackSPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iPair, img2CentCell, mOrb, desc, square)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:)
+
+    !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> Local part of of distributed whole dense matrix
     complex(dp), intent(out) :: square(:,:)
 
     integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb
@@ -1816,14 +1998,32 @@ contains
   !> Packs distributed dense real matrix into sparse form (real).
   subroutine packRhoRealBlacs(myBlacs, desc, square, iNeighbor, nNeighbor, mOrb, iPair,&
       & img2CentCell, primitive)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> distributed dense matrix to pack
     real(dp), intent(in) :: square(:,:)
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> sparse matrix to add this contribution into
     real(dp), intent(inout) :: primitive(:)
 
     integer :: nAtom
@@ -1874,18 +2074,44 @@ contains
   !> Packs distributed dense real matrix into sparse form (real).
   subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iPair, img2CentCell, primitive)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> Distributed dense matrix to pack
     complex(dp), intent(in) :: square(:,:)
+
+    !> k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
+
+    !> weight for this k-point
     real(dp), intent(in) :: kWeight
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> sparse matrix to add this contribution into
     real(dp), intent(inout) :: primitive(:)
 
     complex(dp) :: phase
@@ -1952,26 +2178,54 @@ contains
   !> Pack squared matrix into the sparse form (complex Pauli version).
   subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iPair, img2CentCell, primitive, iprimitive)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> dense distributed matrix to pack
     complex(dp), intent(in) :: square(:,:)
+
+    !> k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
+
+    !> weight for this k-point
     real(dp), intent(in) :: kWeight
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> sparse matrix to pack into
     real(dp), intent(inout) :: primitive(:,:)
+
+    !> Imaginary part of sparse matrix
     real(dp), intent(inout), optional :: iprimitive(:,:)
 
     call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor,&
         & mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(1,0,dp), .true., primitive)
     if (present(iprimitive)) then
       call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor,&
-          & mOrb, iCellVec, cellVec, iPair, img2CentCell,  cmplx(0,-1,dp),&
+          & mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(0,-1,dp),&
           & .false., iprimitive)
     end if
 
@@ -1981,20 +2235,50 @@ contains
   !> Helper routine for the Pauli packing.
   subroutine packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor,&
       & mOrb, iCellVec, cellVec, iPair, img2CentCell, imagprefac, symmetrize, primitive)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> distributed sparse matrix to pack
     complex(dp), intent(in) :: square(:,:)
+
+    !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
+
+    !> weight for this k-point
     real(dp), intent(in) :: kWeight
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> prefactor for the imaginary related part of a block
     complex(dp), intent(in) :: imagprefac
+
+    !> symmetrisation of onsite blocks
     logical, intent(in) :: symmetrize
+
+    !> sparse matrix to add this contribution to
     real(dp), intent(inout) :: primitive(:,:)
 
     complex(dp) :: phase
@@ -2062,7 +2346,7 @@ contains
           ptmp(:,:) = 0.5_dp * imagprefac * phase * kWeight * ptmp
           primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1) =&
               & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1)&
-              & + reshape(real(ptmp),  [nOrb1 * nOrb2])
+              & + reshape(real(ptmp), [nOrb1 * nOrb2])
           primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4) =&
               & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 4)&
               & + zprefac * reshape(real(ptmp), [nOrb1 * nOrb2])
@@ -2122,18 +2406,44 @@ contains
   !> Pack only the charge (spin channel 1) part of a 2 component matrix.
   subroutine packERhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighbor,&
       & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive)
+
+    !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
+
+    !> local part of the distributed matrix
     complex(dp), intent(in) :: square(:,:)
+
+    !> k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
+
+    !> weight at this k-point
     real(dp), intent(in) :: kWeight
+
+    !> Neighbor list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Nr. of neighbors for the atoms.
     integer, intent(in) :: nNeighbor(:)
+
+    !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
+
+    !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> sparse matrix to add this contribution to
     real(dp), intent(inout) :: primitive(:)
 
     complex(dp) :: phase
