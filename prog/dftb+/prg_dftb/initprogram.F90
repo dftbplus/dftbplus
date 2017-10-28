@@ -657,7 +657,7 @@ module initprogram
 
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
-  
+
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
 
@@ -669,7 +669,7 @@ module initprogram
 
   !> MD acceleration for moved atoms
   real(dp), allocatable :: movedAccel(:,:)
-  
+
   !> Mass of the moved atoms
   real(dp), allocatable :: movedMass(:,:)
 
@@ -705,64 +705,64 @@ module initprogram
 
   !> Complex eigenvectors
   complex(dp), allocatable :: eigvecsCplx(:,:,:)
-  
+
   !> Square dense hamiltonian storage
   real(dp), allocatable :: HSqrReal(:,:)
-  
+
   !> Square dense overlap storage
   real(dp), allocatable :: SSqrReal(:,:)
-  
+
   !> Real eigenvectors
   real(dp), allocatable :: eigvecsReal(:,:,:)
-  
+
   !> Eigenvalues
   real(dp), allocatable :: eigen(:,:,:)
 
   !> density matrix
   real(dp), allocatable :: rhoSqrReal(:,:,:)
-  
+
   !> Total energy components
   type(TEnergies) :: energy
-  
+
   !> Potentials for orbitals
   type(TPotentials) :: potential
-  
+
   !> Energy derivative with respect to atomic positions
   real(dp), allocatable :: derivs(:,:)
-  
+
   !> Forces on any external charges
   real(dp), allocatable :: chrgForces(:,:)
-  
+
   !> excited state force addition
   real(dp), allocatable :: excitedDerivs(:,:)
-  
+
   !> dipole moments when available
   real(dp), allocatable :: dipoleMoment(:)
-  
+
   !> Coordinates to print out
   real(dp), pointer :: pCoord0Out(:,:)
-  
+
   !> Folded coords (3, nAtom)
   real(dp), allocatable, target :: coord0Fold(:,:)
-  
+
   !> New coordinates returned by the MD routines
   real(dp), allocatable :: newCoords(:,:)
-  
+
   !> Orbital angular momentum
   real(dp), allocatable :: orbitalL(:,:,:)
-  
+
   !> Natural orbitals for excited state density matrix, if requested
   real(dp), allocatable, target :: occNatural(:)
-  
+
   !> Dynamical (Hessian) matrix
   real(dp), pointer :: pDynMatrix(:,:)
 
   !> File descriptor for the tagged writer
   integer :: fdAutotest
-  
+
   !> File descriptor for the human readable output
   integer :: fdDetailedOut
-  
+
   !> File descriptor for the band structure output
   integer :: fdBand
 
@@ -783,7 +783,7 @@ module initprogram
 
   !> Contains (iK, iS) tuples to be processed by current group
   integer, allocatable :: groupKS(:,:)
-  
+
   private :: createRandomGenerators
 
 contains
@@ -804,9 +804,17 @@ contains
 
     !> mixer number
     integer :: iMixer
+
+    !> simple mixer (if used)
     type(OSimpleMixer), allocatable :: pSimpleMixer
+
+    !> Anderson mixer (if used)
     type(OAndersonMixer), allocatable :: pAndersonMixer
+
+    !> Broyden mixer (if used)
     type(OBroydenMixer), allocatable :: pBroydenMixer
+
+    !> DIIS mixer (if used)
     type(ODIISMixer), allocatable :: pDIISMixer
 
     ! Geometry optimizer related local variables
@@ -2040,7 +2048,7 @@ contains
   #:endif
 
     call getGroupKS(env, nKPoint, nIndepHam, groupKS)
-    
+
     if (env%tIoProc) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
@@ -2048,7 +2056,7 @@ contains
     end if
 
     call getDenseDescSerial(orb, nAtom, t2Component, denseDesc)
-    
+
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
       call getDenseDescBlacs(env, nOrb, t2Component, blacsOpts%rowBlockSize,&
@@ -2070,7 +2078,7 @@ contains
       pCoord0Out => coord0
     end if
 
-    
+
     ! Projection of eigenstates onto specific regions of the system
     tProjEigenvecs = input%ctrl%tProjEigenvecs
     if (tProjEigenvecs .and. withMpi) then
@@ -2170,7 +2178,7 @@ contains
   #:endif
 
 
-    
+
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
@@ -2449,8 +2457,8 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp), jj, &
-                & orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
+            write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp),&
+                & jj, orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
           end do
         end do
       end if
@@ -2657,7 +2665,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-    
+
     !> Global seed used for initialisation of the random generator pool. If less than one, random
     !! initialisation of the seed will occur.
     integer, intent(inout) :: seed
@@ -2711,7 +2719,7 @@ contains
     logical, intent(out) :: tLatticeChanged
 
     logical :: tDummy
-    
+
     if (env%tIoProc) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
@@ -2719,7 +2727,7 @@ contains
     end if
     call receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVec, tCoordsChanged,&
         & tLatticeChanged, tDummy)
-  
+
   end subroutine initSocket
 
 
@@ -2979,7 +2987,7 @@ contains
 
     !> system dipole moment
     real(dp), intent(out), allocatable :: dipoleMoment(:)
-    
+
 
     integer :: nSpinHams, sqrHamSize
 
@@ -3035,12 +3043,12 @@ contains
       call allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx, SSqrCplx,&
           & eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
- 
+
     if (tLinResp) then
+      if (withMpi) then
+        call error("Linear response calc. does not work with MPI yet")
+      end if
       if (tLinRespZVect) then
-      #:if WITH_MPI
-        call error("Calculation of linear response Z-vector does not work with MPI yet")
-      #:endif
         allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
       end if
     end if
@@ -3065,18 +3073,41 @@ contains
   end subroutine initArrays
 
 
+  !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
   subroutine allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+
+    !> Computing environment
     type(TEnvironment), intent(in) :: env
+
+    !> Descriptor of the large square matrices in the program
     type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Index array for spin and k-point index
     integer, intent(in) :: groupKS(:,:)
+
+    !> Is this a two component calculation
     logical, intent(in) :: t2Component
+
+    !> Is this a real hamiltonian
     logical, intent(in) :: tRealHS
+
+    !> Square H matrix
     complex(dp), allocatable, intent(out) :: HSqrCplx(:,:)
+
+    !> Square S matrix
     complex(dp), allocatable, intent(out) :: SSqrCplx(:,:)
+
+    !> Eigenvectors for complex eigenproblem
     complex(dp), allocatable, intent(out) :: eigvecsCplx(:,:,:)
+
+    !> Square H matrix    
     real(dp), allocatable, intent(out) :: HSqrReal(:,:)
+
+    !> Square S matrix
     real(dp), allocatable, intent(out) :: SSqrReal(:,:)
+
+    !> Eigenvectors for real eigenproblem
     real(dp), allocatable, intent(out) :: eigvecsReal(:,:,:)
 
     integer :: nLocalCols, nLocalRows, nLocalKS
@@ -3101,16 +3132,25 @@ contains
 
   end subroutine allocateDenseMatrices
 
-  
+
 #:if WITH_SCALAPACK
   #!
   #! SCALAPACK related routines
   #!
-  
+
+  !> Initialise parallel large matrix decomposition methods
   subroutine initScalapack(blacsOpts, nOrb, t2Component, env)
+
+    !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
+
+    !> Number of orbitals
     integer, intent(in) :: nOrb
+
+    !> Is this a two component calculation
     logical, intent(in) :: t2Component
+
+    !> Computing enviroment data
     type(TEnvironment), intent(inout) :: env
 
     integer :: sizeHS
@@ -3125,16 +3165,29 @@ contains
 
   end subroutine initScalapack
 
-
+  !> Generate descriptions of large dense matrices in BLACS decomposition
   subroutine getDenseDescBlacs(env, nOrb, t2Component, rowBlock, colBlock, denseDesc)
+
+    !> parallel environment
     type(TEnvironment), intent(in) :: env
+
+    !> number of basis functions
     integer, intent(in) :: nOrb
+
+    !> Is this a two component calculation
     logical, intent(in) :: t2Component
+
+    !> Number of matrix rows
     integer, intent(in) :: rowBlock
+
+    !> Number of matrix columns
     integer, intent(in) :: colBlock
+
+    !> Descriptor of the dense matrix 
     type(TDenseDescr), intent(inout) :: denseDesc
 
     integer :: nn
+    character(lc) :: tmpStr
 
     if (t2Component) then
       nn = 2 * nOrb
@@ -3143,17 +3196,31 @@ contains
     end if
     call scalafx_getdescriptor(env%blacs%gridOrbSqr, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
-    denseDesc%fullSize = nn
+    if (denseDesc%fullSize /= nn) then
+      write(tmpStr,"('Mismatch in matrix sizings between BLACS and orbitals ',I0,2X,I0)")&
+          & denseDesc%fullSize, nn
+      call error(tmpStr)
+    end if
 
   end subroutine getDenseDescBlacs
-  
+
 #:endif
 
 
+  !> Generate description of the total large square matrices, on the basis of atomic orbital
+  !> orderings
   subroutine getDenseDescSerial(orb, nAtom, t2Component, denseDesc)
+
+    !> Orbital information for species
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of atoms in the system
     integer, intent(in) :: nAtom
+
+    !> Is this a two component calculation
     logical, intent(in) :: t2Component
+
+    !> Resulting descriptor
     type(TDenseDescr), intent(out) :: denseDesc
 
     allocate(denseDesc%iDenseStart(nAtom + 1))
@@ -3167,7 +3234,8 @@ contains
   end subroutine getDenseDescSerial
 
 
-  !> Returns the (k-point, spin) tuples to be processed by current processor grid.
+  !> Returns the (k-point, spin) tuples to be processed by current processor grid (if parallel) or
+  !> put everything in one group if serial.
   subroutine getGroupKS(env, nKpoint, nSpin, groupKS)
 
     !> Environenment settings

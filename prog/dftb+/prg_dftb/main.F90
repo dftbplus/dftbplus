@@ -9,8 +9,10 @@
 
 !> The main routines for DFTB+
 module main
-#:if WITH_SCALAPACK
+#:if WITH_MPI
   use mpifx
+#:endif
+#:if WITH_SCALAPACK
   use scalapackfx
   use scalafxext
 #:endif
@@ -94,7 +96,10 @@ contains
     real(dp) :: Eold
 
     !> Stress tensors for various contribution in periodic calculations
-    real(dp) :: totalStress(3,3), totalLatDeriv(3,3)
+    real(dp) :: totalStress(3,3)
+
+    !> Derivative of total energy wrt to lattice vectors
+    real(dp) :: totalLatDeriv(3,3)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp) :: extLatDerivs(3,3)
@@ -324,6 +329,9 @@ contains
       end do lpSCC
 
       if (tLinResp) then
+        if (withMpi) then
+          call error("Linear response calc. does not work with MPI yet")
+        end if
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
         if (withMpi) then
           call error("Linear response calc. does not work with MPI yet")
@@ -2130,7 +2138,7 @@ contains
     ! Add up and distribute density matrix contribution from each group
     call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
   #:endif
-    
+
   end subroutine getDensityFromKDepEigvecs
 
 
@@ -3498,7 +3506,7 @@ contains
       select case (forceType)
 
       case(0)
-        ! Original (nonconsistent) scheme
+        ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
         call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigvecsReal(:,:,iKS), work, eigen(:,1,iS))
@@ -3656,7 +3664,7 @@ contains
       select case (forceType)
 
       case(0)
-        ! Original (nonconsistent) scheme
+        ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
         call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
             & eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
@@ -3671,6 +3679,7 @@ contains
       #:endif
 
       case(2)
+        ! Correct force for XLBOMD for T=0K (DHD)
       #:if WITH_SCALAPACK
         call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighborList%iNeighbor,&
             & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
@@ -3681,7 +3690,6 @@ contains
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
       #:else
-        ! Correct force for XLBOMD for T=0K (DHD)
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
             & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
@@ -3691,6 +3699,7 @@ contains
       #:endif
 
       case(3)
+        ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
         call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
             & eigVecsCplx(:,:,iKS), work)
@@ -3707,7 +3716,6 @@ contains
         call pblasfx_ptranc(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & alpha=(1.0_dp, 0.0_dp), beta=(1.0_dp, 0.0_dp))
       #:else
-        ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
             & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
@@ -4512,7 +4520,7 @@ contains
   end subroutine getNextMdStep
 
 
-  ! NOTE: Pipek-Mezey can not easily adapted to gropKS indexing of eigenvectors, so
+  ! NOTE: Pipek-Mezey can not easily be adapted to groupKS indexing of eigenvectors, so
   ! it has been disabled for the moment.
 
   !!> Calculates and prints Pipek-Mezey localisation

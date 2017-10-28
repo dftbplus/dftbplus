@@ -2694,6 +2694,7 @@ contains
     end if
     tLatticeChanged = tPeriodic
   #:if WITH_MPI
+    ! update all nodes with the received information  
     call mpifx_bcast(env%mpi%all, coord0)
     call mpifx_bcast(env%mpi%all, latVecs)
     call mpifx_bcast(env%mpi%all, tCoordsChanged)

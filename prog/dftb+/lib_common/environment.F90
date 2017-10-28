@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Contains environment settings
+!> Contains computer environment settings
 module environment
 #:if WITH_MPI
   use mpienv
@@ -31,7 +31,7 @@ module environment
 
     !> Whether this process is supposed to do I/O
     logical, public :: tIoProc = .true.
-    
+
   #:if WITH_MPI
     !> Global mpi settings
     type(TMpiEnv), public :: mpi
@@ -58,12 +58,12 @@ module environment
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
-  
+
 contains
 
 
 #:if WITH_MPI
-  
+
   !> Initializes MPI environment.
   subroutine initMpi(this)
     class(TEnvironment), intent(inout) :: this
@@ -85,7 +85,7 @@ contains
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
-    
+
     !> Row block size
     integer, intent(in) :: rowBlock
 
@@ -102,10 +102,10 @@ contains
     integer, intent(in) :: nAtom
 
     call TBlacsEnv_init(this%blacs, rowBlock, colBlock, nGroup, nOrb, nAtom)
-    
+
   end subroutine initBlacs
 
 #:endif
 
-  
+
 end module environment
