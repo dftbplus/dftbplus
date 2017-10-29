@@ -577,7 +577,7 @@ contains
     if (allocated(pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
       if (withMpi) then
-        call error("Pipek-Mezey localisation does not work with MPI yet")
+        call error("Pipek-Mezey localisation does not yet work with MPI")
       end if
       if (nSpin > 2) then
         call error("Pipek-Mezey localisation not implemented for non-colinear DFTB")
@@ -4601,7 +4601,7 @@ contains
     complex(dp), intent(inout), optional :: SSqrCplx(:,:)
   
     integer :: nFilledLev, nAtom, nSpin
-    integer :: iSpin, iKS
+    integer :: iSpin, iKS, iK
   
     nAtom = size(orb%nOrbAtom)
     nSpin = size(groupKS, dim=2)
@@ -4629,22 +4629,34 @@ contains
           & iSparseStart, img2CentCell, orb, species, speciesName, over, groupKS, eigvecsReal,&
           & SSqrReal, fileName="localOrbs")
     else
-      !do iKS = 1, size(groupKS, dim=2)
-      !  iSpin = groupKS(2, iKS)
-      !  nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
-      !  localisation = sum(pipekMezey%getLocalisation(&
-      !      & eigvecsCplx(:,:nFilledLev,:,iKS), SSqrCplx, over, kpoint, kweight, neighborList,&
-      !      & nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell))
-      !  write(stdOut, "(A, E20.12)") 'Original localisation', localisation
+
+      localisation = 0.0_dp
+      do iKS = 1, size(groupKS, dim=2)
+        iSpin = groupKS(2, iKS)
+        iK = groupKS(1, iKS)
+        nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
+        localisation = localisation + kweight(iK) * pipekMezey%getLocalisation( &
+            & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
+            & nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+      end do
+      write(stdOut, "(A, E20.12)") 'Original localisation', localisation
+      
       !  call pipekMezey%calcCoeffs(eigvecsCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint,&
       !      & kweight, neighborList, nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart,&
       !      & img2CentCell)
-      !  localisation = sum(pipekMezey%getLocalisation(&
-      !      & eigvecsCplx(:,:nFilledLev,:,iSpin), SSqrCplx, over, kpoint, kweight, neighborList,&
-      !      & nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell))
-      !  write(stdOut, "(A, E20.12)") 'Final localisation', localisation
-      !end do
-  
+
+      localisation = 0.0_dp
+      do iKS = 1, size(groupKS, dim=2)
+        iSpin = groupKS(2, iKS)
+        iK = groupKS(1, iKS)
+        nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
+        localisation = localisation + kweight(iK) * pipekMezey%getLocalisation( &
+            & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
+            & nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+      end do
+      
+      write(stdOut, "(A, E20.12)") 'Final localisation', localisation
+      
       call writeCplxEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec,&
           & iCellVec, iDenseStart, iSparseStart, img2CentCell, orb, species, speciesName, over,&
           & kpoint, groupKS, eigvecsCplx, SSqrCplx, fileName="localOrbs")

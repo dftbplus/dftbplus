@@ -200,11 +200,11 @@ contains
 
 
   !> Localisation value of square of Mulliken charges summed over all levels for each k-point.
-  function getLocalisationKPoints(ci, SSqrCplx, over, kpoints, kweights, neighborList, nNeighbor, &
+  function getLocalisationKPoints(ci, SSqrCplx, over, kpoint, neighborList, nNeighbor, &
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (locality)
 
     !> wavefunction coefficients
-    complex(dp), intent(in) :: ci(:,:,:)
+    complex(dp), intent(in) :: ci(:,:)
 
     !> overlap matrix, used as workspace
     complex(dp), intent(inout) :: SSqrCplx(:,:)
@@ -212,11 +212,8 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> full set of k-points
-    real(dp), intent(in) :: kpoints(:,:)
-
-    !> weights for each k-point
-    real(dp), intent(in) :: kweights(:)
+    !> current k-point
+    real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
     type(TNeighborList), intent(in) :: neighborList
@@ -239,11 +236,11 @@ contains
     !> index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Locality for each k-point
-    real(dp) :: locality(size(kweights))
+    !> Locality for current k-point
+    real(dp) :: locality
 
-    locality = PipekMezyLocality_kpoints(ci, SSqrCplx, over, kpoints, kweights,&
-        & neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+    locality = PipekMezyLocality_kpoints(ci, SSqrCplx, over, kpoint, neighborList%iNeighbor,&
+        & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
   end function getLocalisationKPoints
 
@@ -735,12 +732,12 @@ contains
   end function PipekMezyLocality_real
 
 
-  !> Localisation value of square of Mulliken charges summed over all levels
-  function PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, iNeighbor, nNeighbor, &
-      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
+  !> Localisation value of square of Mulliken charges at a k-point
+  function PipekMezyLocality_kpoints(ci, S, over, kpoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
+      & iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
 
     !> wavefunction coefficients
-    complex(dp), intent(in) :: ci(:,:,:)
+    complex(dp), intent(in) :: ci(:,:)
 
     !> overlap matrix, used as workspace
     complex(dp), intent(inout) :: S(:,:)
@@ -749,10 +746,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> full set of k-points
-    real(dp), intent(in) :: kpoints(:,:)
-
-    !> weights for each k-point
-    real(dp), intent(in) :: kweights(:)
+    real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
     integer, intent(in) :: iNeighbor(0:,:)
@@ -776,7 +770,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Locality for each k-point
-    real(dp) :: PipekMezyLocality(size(kweights))
+    real(dp) :: PipekMezyLocality
 
     complex(dp), allocatable :: Sci(:,:)
     real(dp), allocatable :: tmp(:,:)
@@ -787,39 +781,32 @@ contains
     nAtom = size(iAtomStart) -1
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
-    nKpt = size(ci,dim=3)
 
-    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
-    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(kpoint) == [3]))
     @:ASSERT(all(shape(S) == [nOrb,nOrb]))
 
     allocate(Sci(nOrb,nLev))
     allocate(tmp(nAtom,nLev))
 
     PipekMezyLocality = 0.0_dp
-
-    do iKpt = 1, nKpt
-
-      tmp = 0.0_dp
-
-      call unpackHS(S, over, kPoints(:,iKpt), iNeighbor, nNeighbor, iCellVec, &
-          & cellVec, iAtomStart, iPair, img2CentCell)
-
-      call hemm(Sci,'L',S,ci(:,:,iKpt),'L')
-      Sci = conjg(ci(:,:,iKpt)) * Sci
-
-      do iLev = 1, nLev
-        do iAtom = 1, nAtom
-          iOrbStart = iAtomStart(iAtom)
-          iOrbEnd = iAtomStart(iAtom+1) - 1
-          tmp(iAtom, iLev) = tmp(iAtom, iLev) + & ! kweights(iKpt) * &
-              & sum(real(Sci(iOrbStart:iOrbEnd,iLev)))
-        end do
+    
+    tmp = 0.0_dp
+    
+    call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart,&
+        & iPair, img2CentCell)
+    
+    call hemm(Sci,'L',S,ci,'L')
+    Sci = conjg(ci) * Sci
+    
+    do iLev = 1, nLev
+      do iAtom = 1, nAtom
+        iOrbStart = iAtomStart(iAtom)
+        iOrbEnd = iAtomStart(iAtom+1) - 1
+        tmp(iAtom, iLev) = tmp(iAtom, iLev) + sum(real(Sci(iOrbStart:iOrbEnd,iLev)))
       end do
-      PipekMezyLocality(iKpt) = sum(tmp**2)
-
     end do
-
+    PipekMezyLocality = sum(tmp**2)
+    
   end function PipekMezyLocality_kpoints
 
 
@@ -992,14 +979,14 @@ contains
       end do lpKpoints
 
       write(stdout, *)'Localisations at each k-point'
-      write(stdout, "(6E12.4)") &
-          & PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
-          & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
-          & img2CentCell)
-      write(stdout, "(1X,A,E12.4)")'Total', &
-          & sum(PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
-          & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
-          & img2CentCell))
+      !write(stdout, "(6E12.4)") &
+      !    & PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
+      !    & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
+      !    & img2CentCell)
+      !write(stdout, "(1X,A,E12.4)")'Total', &
+      !    & sum(PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
+      !    & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
+      !    & img2CentCell))
 
       if (all(tConverged .eqv. .true.)) then
         exit
