@@ -120,8 +120,7 @@ geoopt/diamond_isotropic               #? NPROC <= 1
 spinorbit/EuN                          #? NPROC <= 2
 geoopt/Si_6                            #? NPROC <= 1
 
-#! Only ForceType = legacy works
-md/ptcda-xlbomdfast                    #? not WITH_MPI
+md/ptcda-xlbomdfast                    #? NPROC <= 4
 
 spinorbit/EuN_customU                  #? NPROC <= 2
 dispersion/DNA                         #? NPROC <= 4
@@ -131,8 +130,7 @@ md/Si_8-thermostat2                    #? NPROC <= 1
 geoopt/GaAs_8_latconst                 #? NPROC <= 2
 md/Si_8-thermostat                     #? NPROC <= 1
 
-#! Only ForceType = legacy works
-md/ptcda-xlbomdfast-ldep               #? not WITH_MPI
+md/ptcda-xlbomdfast-ldep               #? NPROC <= 4
 
 md/Si_8-tempprofile                    #? NPROC <= 1
 
@@ -143,19 +141,15 @@ non-scc/Si_384                         #? NPROC <= 4
 md/DNA                                 #? NPROC <= 4
 md/DNA_Berendsen2                      #? NPROC <= 4
 
-#! Only ForceType = legacy works
-md/ptcda-xlbomd                        #? not WITH_MPI
+md/ptcda-xlbomd                        #? NPROC <= 4
 md/SiC64-xlbomdfast-T0                 #? NPROC <= 4
-md/SiC64-xlbomdfast                    #? not WITH_MPI
+md/SiC64-xlbomdfast                    #? NPROC <= 4
 
 timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and NPROC <= 1
 timedep/C60_OscWindow                  #? WITH_ARPACK and NPROC <= 1
 timedep/C60_EandOsc                    #? WITH_ARPACK and NPROC <= 1
 
 non-scc/Si_216                         #? NPROC <= 4
-
-#! Only ForceType = legacy works
-md/ptcda-xlbomd-ldep                   #? not WITH_MPI
-
+md/ptcda-xlbomd-ldep                   #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
 scc/SiC64+V_dynforce                   #? NPROC <= 4
