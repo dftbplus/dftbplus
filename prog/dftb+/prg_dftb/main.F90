@@ -244,13 +244,13 @@ contains
             & img2CentCell, potential, ham, iHam)
 
         if (tWriteRealHS .or. tWriteHS) then
-        #:if WITH_MPI
-          call error("Writing of HS not working with MPI yet")
-        #:else
-          call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
-              & denseDesc%iDenseStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec, ham,&
-              & iHam)
-        #:endif
+          if (withMpi) then
+            call error("Writing of HS not working with MPI yet")
+          else
+            call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
+                & denseDesc%iDenseStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec,&
+                & ham, iHam)
+          end if
         end if
 
         call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
@@ -325,16 +325,16 @@ contains
 
       if (tLinResp) then
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-      #:if WITH_MPI
-        call error("Linear response calc. does not work with MPI yet")
-      #:else
-        call calculateLinRespExcitations(lresp, qOutput, q0, over, eigvecsReal, eigen(:,1,:),&
-            & filling(:,1,:), coord0, species, speciesName, orb, skHamCont, skOverCont, fdAutotest,&
-            & autotestTag, fdEigvec, runId, neighborList, nNeighbor, denseDesc%iDenseStart,&
-            & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect,&
-            & tPrintExcitedEigvecs, nonSccDeriv, energy, SSqrReal, rhoSqrReal, excitedDerivs,&
-            & occNatural)
-      #:endif
+        if (withMpi) then
+          call error("Linear response calc. does not work with MPI yet")
+        else
+          call calculateLinRespExcitations(lresp, qOutput, q0, over, eigvecsReal, eigen(:,1,:),&
+              & filling(:,1,:), coord0, species, speciesName, orb, skHamCont, skOverCont,&
+              & fdAutotest, autotestTag, fdEigvec, runId, neighborList, nNeighbor,&
+              & denseDesc%iDenseStart, iSparseStart, img2CentCell, tWriteAutotest, tForces,&
+              & tLinRespZVect, tPrintExcitedEigvecs, nonSccDeriv, energy, SSqrReal, rhoSqrReal,&
+              & excitedDerivs, occNatural)
+        end if
       end if
 
       if (tXlbomd) then
@@ -352,24 +352,24 @@ contains
       end if
 
       if (env%tIoProc .and. tPrintEigVecs) then
-      #:if WITH_MPI
-        call error("Writing of eigenvectors does not work with MPI-binary yet")
-      #:else
-        call writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
-            & iCellVEc, denseDesc%iDenseStart, iSparseStart, img2CentCell, species, speciesName,&
-            & orb, kPoint, over, groupKS, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
-      #:endif
+        if (withMpi) then
+          call error("Writing of eigenvectors does not work with MPI-binary yet")
+        else
+          call writeEigenvectors(nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
+              & iCellVEc, denseDesc%iDenseStart, iSparseStart, img2CentCell, species, speciesName,&
+              & orb, kPoint, over, groupKS, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+        end if
       end if
 
       if (env%tIoProc .and. tProjEigenvecs) then
-      #:if WITH_MPI
-        call error("Writing of projected eigenvectors does not work with MPI-binary yet")
-      #:else
-        call writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
-            & nNeighbor, cellVec, iCellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell, orb,&
-            & over, kPoint, kWeight, iOrbRegion, groupKS, eigvecsReal, SSqrReal, eigvecsCplx,&
-            & SSqrCplx)
-      #:endif
+        if (withMpi) then
+          call error("Writing of projected eigenvectors does not work with MPI-binary yet")
+        else
+          call writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
+              & nNeighbor, cellVec, iCellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell,&
+              & orb, over, kPoint, kWeight, iOrbRegion, groupKS, eigvecsReal, SSqrReal,&
+              & eigvecsCplx, SSqrCplx)
+        end if
       end if
 
       ! MD geometry files are written only later, once velocities for the current geometry are known
