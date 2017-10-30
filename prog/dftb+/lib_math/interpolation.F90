@@ -116,8 +116,8 @@ contains
   end subroutine freeCubicSpline
 
 
-  !> Polynomial interpolation through given points
-  !> The algorithm is based on the one in Numerical recipes.
+  !> Polynomial interpolation through given points The algorithm is based on the one in Numerical
+  !> recipes, but assumes a uniform grid spacing.
   function polyInter1(xp, yp, xx, dy) result(yy)
 
     !> x-coordinates of the fit points
@@ -148,12 +148,7 @@ contains
 
     cc(:) = yp(:)
     dd(:) = yp(:)
-    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1))) - 1
-    dx = abs(xx - xp(iCl))
-    dxNew = abs(xx - xp(iCl+1))
-    if (dxNew < dx) then
-      iCl = iCl+1
-    end if
+    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1)))
     yy = yp(iCl)
     iCl = iCl - 1
     do mm = 1, nn - 1
@@ -178,8 +173,8 @@ contains
 
   end function polyInter1
 
-  !> Polynomial interpolation through given points
-  !> The algorithm is based on the one in Numerical recipes.
+  !> Polynomial interpolation through given points The algorithm is based on the one in Numerical
+  !> recipes, but assumes a uniform grid spacing and interpolates a vector of values.
   function polyInter2(xp, yp, xx, dy) result(yy)
 
     !> x-coordinates of the fit points
@@ -210,12 +205,7 @@ contains
 
     cc = yp
     dd = yp
-    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1))) - 1
-    dx = abs(xx - xp(iCl))
-    dxNew = abs(xx - xp(iCl+1))
-    if (dxNew < dx) then
-      iCl = iCl+1
-    end if
+    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1)))
     yy = yp(:,iCl)
     iCl = iCl - 1
     do mm = 1, nn - 1
