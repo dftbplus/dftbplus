@@ -17,6 +17,11 @@ module interpolation
 
   public :: poly5ToZero, freeCubicSpline, polyInter
 
+  interface polyInter
+    module procedure :: polyInter1
+    module procedure :: polyInter2
+  end interface polyInter
+  
 contains
 
 
@@ -113,7 +118,7 @@ contains
 
   !> Polynomial interpolation through given points
   !> The algorithm is based on the one in Numerical recipes.
-  function polyInter(xp, yp, xx, dy) result(yy)
+  function polyInter1(xp, yp, xx, dy) result(yy)
 
     !> x-coordinates of the fit points
     real(dp), intent(in) :: xp(:)
@@ -143,23 +148,17 @@ contains
 
     cc(:) = yp(:)
     dd(:) = yp(:)
-    iCl = 1
+    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1))) - 1
     dx = abs(xx - xp(iCl))
-    do ii = 2, nn
-      dxNew = abs(xx - xp(ii))
-      if (dxNew < dx) then
-        iCl = ii
-        dx = dxNew
-      end if
-    end do
+    dxNew = abs(xx - xp(iCl+1))
+    if (dxNew < dx) then
+      iCl = iCl+1
+    end if
     yy = yp(iCl)
     iCl = iCl - 1
     do mm = 1, nn - 1
       do ii = 1, nn - mm
         rTmp = xp(ii) - xp(ii+mm)
-        if (abs(rTmp) < epsilon(1.0_dp)) then
-          call error("Polint failed")
-        end if
         rTmp = (cc(ii+1) - dd(ii)) / rTmp
         cc(ii) = (xp(ii) - xx) * rTmp
         dd(ii) = (xp(ii+mm) - xx) * rTmp
@@ -177,6 +176,69 @@ contains
       dy = dyy
     end if
 
-  end function polyInter
+  end function polyInter1
 
+  !> Polynomial interpolation through given points
+  !> The algorithm is based on the one in Numerical recipes.
+  function polyInter2(xp, yp, xx, dy) result(yy)
+
+    !> x-coordinates of the fit points
+    real(dp), intent(in) :: xp(:)
+
+    !> y-coordinates of the fit points
+    real(dp), intent(in) :: yp(:,:)
+
+    !> The point, where the polynomial should be calculated
+    real(dp), intent(in) :: xx
+
+    !> Optional error estimate on calculated value
+    real(dp), intent(out), optional :: dy(:)
+
+    !> The value of the polynomial
+    real(dp) :: yy(size(yp,dim=1))
+
+    integer :: nn
+    integer :: iCl, ii, mm
+
+    real(dp) :: cc(size(yp,dim=1),size(xp)), dd(size(yp,dim=1),size(xp))
+    real(dp) :: dx, dxNew, dyy(size(yp,dim=1)), rTmp, r2Tmp(size(yp,dim=1))
+
+    nn = size(xp)
+
+    @:ASSERT(nn > 1)
+    @:ASSERT(size(yp,dim=2) == nn)
+
+    cc = yp
+    dd = yp
+    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1))) - 1
+    dx = abs(xx - xp(iCl))
+    dxNew = abs(xx - xp(iCl+1))
+    if (dxNew < dx) then
+      iCl = iCl+1
+    end if
+    yy = yp(:,iCl)
+    iCl = iCl - 1
+    do mm = 1, nn - 1
+      do ii = 1, nn - mm
+        rTmp = xp(ii) - xp(ii+mm)
+        r2Tmp = (cc(:,ii+1) - dd(:,ii)) / rTmp
+        cc(:,ii) = (xp(ii) - xx) * r2Tmp
+        dd(:,ii) = (xp(ii+mm) - xx) * r2Tmp
+      end do
+      if (2 * iCl < nn - mm) then
+        dyy = cc(:,iCl + 1)
+      else
+        dyy = dd(:,iCl)
+        iCl = iCl - 1
+      end if
+      yy = yy + dyy
+    end do
+
+    if (present(dy)) then
+      dy = dyy
+    end if
+
+  end function polyInter2
+
+  
 end module interpolation
