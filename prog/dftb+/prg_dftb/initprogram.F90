@@ -2055,12 +2055,11 @@ contains
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
     end if
 
-    call getDenseDescSerial(orb, nAtom, t2Component, denseDesc)
+    call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescBlacs(env, nOrb, t2Component, blacsOpts%rowBlockSize,&
-          & blacsOpts%colBlockSize, denseDesc)
+      call getDenseDescBlacs(env, blacsOpts%rowBlockSize, blacsOpts%colBlockSize, denseDesc)
     end associate
   #:endif
 
@@ -3165,17 +3164,15 @@ contains
 
   end subroutine initScalapack
 
+
   !> Generate descriptions of large dense matrices in BLACS decomposition
-  subroutine getDenseDescBlacs(env, nOrb, t2Component, rowBlock, colBlock, denseDesc)
+  !>
+  !> Note: It must be called after getDenseDescCommon() has been called.
+  !>
+  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc)
 
     !> parallel environment
     type(TEnvironment), intent(in) :: env
-
-    !> number of basis functions
-    integer, intent(in) :: nOrb
-
-    !> Is this a two component calculation
-    logical, intent(in) :: t2Component
 
     !> Number of matrix rows
     integer, intent(in) :: rowBlock
@@ -3187,20 +3184,10 @@ contains
     type(TDenseDescr), intent(inout) :: denseDesc
 
     integer :: nn
-    character(lc) :: tmpStr
 
-    if (t2Component) then
-      nn = 2 * nOrb
-    else
-      nn = nOrb
-    end if
+    nn = denseDesc%fullSize
     call scalafx_getdescriptor(env%blacs%gridOrbSqr, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
-    if (denseDesc%fullSize /= nn) then
-      write(tmpStr,"('Mismatch in matrix sizings between BLACS and orbitals ',I0,2X,I0)")&
-          & denseDesc%fullSize, nn
-      call error(tmpStr)
-    end if
 
   end subroutine getDenseDescBlacs
 
@@ -3209,7 +3196,8 @@ contains
 
   !> Generate description of the total large square matrices, on the basis of atomic orbital
   !> orderings
-  subroutine getDenseDescSerial(orb, nAtom, t2Component, denseDesc)
+  !>
+  subroutine getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
     !> Orbital information for species
     type(TOrbitals), intent(in) :: orb
@@ -3231,7 +3219,7 @@ contains
       denseDesc%fullSize = orb%nOrb
     end if
 
-  end subroutine getDenseDescSerial
+  end subroutine getDenseDescCommon
 
 
   !> Returns the (k-point, spin) tuples to be processed by current processor grid (if parallel) or
