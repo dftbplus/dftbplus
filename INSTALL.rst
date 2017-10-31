@@ -14,8 +14,6 @@ In order to install DFTB+, you need the following software components:
 
 * The C-preprocessor cpp
 
-* awk
-
 * GNU make (version >= 3.79.1)
 
 * LAPACK/BLAS libraries (or compatible equivalents)
