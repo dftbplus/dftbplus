@@ -16,11 +16,23 @@ module densedescr
     integer :: blacsOrbSqr(DLEN_)
   #:endif
 
-    !> Dense matrix indexing by the start of orbitals for each atom
+    !> Dense matrix indexing by the start of orbitals for each atom.
+    !>
+    !> Note: for Pauli matrix it contains the indexing of the left upper block only
+    !>
     integer, allocatable :: iDenseStart(:)
 
     !> Dimension of the matrix
     integer :: fullSize
+
+    !> Nr. of atomic orbitals represented in the matrix.
+    !>
+    !> Equals to fullSize for normal matrices and fullSize / 2 for Pauli matrices
+    !>
+    integer :: nOrb
+
+    !> Whether atomic matrix represents a two-component Pauli matrix.
+    logical :: t2Component
 
   end type TDenseDescr
 

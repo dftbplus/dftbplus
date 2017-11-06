@@ -24,7 +24,7 @@ module initprogram
   use coulomb
   use message
 
-  use mainio, only : SetEigVecsTxtOutput, receiveGeometryFromSocket
+  use mainio, only : receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -1393,10 +1393,7 @@ contains
     tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
-
-    ! false if not set anywhere else
-    call SetEigVecsTxtOutput(input%ctrl%tPrintEigVecsTxt &
-        & .or. allocated(input%ctrl%pipekMezeyInp))
+    tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
@@ -3211,12 +3208,17 @@ contains
     !> Resulting descriptor
     type(TDenseDescr), intent(out) :: denseDesc
 
+    integer :: nOrb
+
     allocate(denseDesc%iDenseStart(nAtom + 1))
     call buildSquaredAtomIndex(denseDesc%iDenseStart, orb)
+    nOrb = denseDesc%iDenseStart(nAtom + 1) - 1
+    denseDesc%t2Component = t2Component
+    denseDesc%nOrb = nOrb
     if (t2Component) then
-      denseDesc%fullSize = 2 * orb%nOrb
+      denseDesc%fullSize = 2 * nOrb
     else
-      denseDesc%fullSize = orb%nOrb
+      denseDesc%fullSize = nOrb
     end if
 
   end subroutine getDenseDescCommon

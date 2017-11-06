@@ -27,7 +27,7 @@ module sparse2dense
 
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
-  public :: packHSPauli, packHSPauliImag, unpackHSPauli, unpackHSPauliK
+  public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -39,8 +39,6 @@ module sparse2dense
   interface unpackHS
     module procedure unpackHS_real
     module procedure unpackHS_cmplx
-    module procedure unpackHSPauli
-    module procedure unpackHSPauliK
   end interface unpackHS
 
 
@@ -232,18 +230,19 @@ contains
 
   end subroutine unpackHS_real
 
-  !> Unpacks sparse matrices to square form (2 component version for Gamma point)
+    
+  !> Unpacks sparse matrices to square form (2 component version for k-points)
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHSPauli(ham, over, iNeighbor, nNeighbor, iPair, iAtomStart, img2CentCell,&
-      & HSqrCplx, SSqrCplx, iHam)
+  subroutine unpackHPauli(ham, kPoint, iNeighbor, nNeighbor, iPair, iAtomStart, img2CentCell,&
+      & iCellVec, cellVec, HSqrCplx, iHam)
 
     !> sparse hamiltonian
     real(dp), intent(in) :: ham(:,:)
 
-    !> sparse overlap matrix
-    real(dp), intent(in) :: over(:)
+    !> k-point at which to unpack
+    real(dp), intent(in) :: kPoint(:)
 
     !> Neighbor list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbor(0:,:)
@@ -251,50 +250,46 @@ contains
     !> Nr. of neighbors for each atom (incl. itself).
     integer, intent(in) :: nNeighbor(:)
 
-    !> Atom offset for the squared Hamiltonian
-    integer, intent(in) :: iAtomStart(:)
-
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(:,:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
+    !> index to vector to unit cell containing specified atom
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to periodic unit cells
+    real(dp), intent(in) :: cellVec(:,:)
+
     !> dense hamiltonian matrix
     complex(dp), intent(out) :: HSqrCplx(:,:)
-
-    !> dense overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
 
     !> imaginary part of sparse hamiltonian
     real(dp), intent(in), optional :: iHam(:,:)
 
-    real(dp), allocatable :: work(:,:)
+    complex(dp), allocatable :: work(:,:)
     integer :: nOrb
+    integer :: ii
 
-    nOrb = size(HSqrCplx, dim=2) / 2
+    nOrb = size(HSqrCplx, dim=1) / 2
+
+    ! for the moment, but will use S as workspace in the future
     allocate(work(nOrb,nOrb))
-
-    SSqrCplx(:,:) = 0.0_dp
     HSqrCplx(:,:) = 0.0_dp
-
-    work(:,:) = 0.0_dp
-    call unpackHS(work,over,iNeighbor,nNeighbor,iAtomStart,iPair, &
-        &img2CentCell)
-    SSqrCplx(1:nOrb,1:nOrb) = work(1:nOrb,1:nOrb)
-    SSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = work(1:nOrb,1:nOrb)
 
     ! 1 0 charge part
     ! 0 1
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,1),iNeighbor,nNeighbor,iAtomStart,iPair, &
-        &img2CentCell)
+    call unpackHS(work,ham(:,1),kPoint,iNeighbor,nNeighbor,iCellVec, &
+        & cellVec,iAtomStart,iPair, img2CentCell)
     HSqrCplx(1:nOrb,1:nOrb) = 0.5_dp*work(1:nOrb,1:nOrb)
     HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = 0.5_dp*work(1:nOrb,1:nOrb)
     if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,1),iNeighbor,nNeighbor,iAtomStart,iPair, &
-          &img2CentCell)
+      call unpackHS(work,iHam(:,1),kPoint,iNeighbor,nNeighbor,iCellVec, &
+          & cellVec,iAtomStart,iPair, img2CentCell)
       HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
           & + 0.5_dp*cmplx(0,1,dp)*work(1:nOrb,1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
@@ -304,52 +299,60 @@ contains
 
     ! 0 1 x part
     ! 1 0
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,2),iNeighbor,nNeighbor,iAtomStart,iPair, &
-        &img2CentCell)
-    call blockSymmetrizeHS(work,iAtomStart)
+    call unpackHS(work,ham(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
+        & cellVec,iAtomStart,iPair, img2CentCell)
+    do ii = 1, nOrb
+      work(ii,ii+1:) = conjg(work(ii+1:,ii))
+    end do
+
     HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
         & + 0.5_dp * work(1:nOrb,1:nOrb)
     if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,2),iNeighbor,nNeighbor,iAtomStart,iPair, &
-          &img2CentCell)
-      call blockAntiSymmetrizeHS(work,iAtomStart)
+      call unpackHS(work,iHam(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
+          & cellVec,iAtomStart,iPair, img2CentCell)
+      do ii = 1, nOrb
+        work(ii,ii+1:) = -conjg(work(ii+1:,ii))
+      end do
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
     end if
 
     ! 0 -i y part
     ! i  0
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,3),iNeighbor,nNeighbor,iAtomStart,iPair, &
-        &img2CentCell)
-    call blockSymmetrizeHS(work,iAtomStart)
+    call unpackHS(work,ham(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
+        & cellVec,iAtomStart,iPair, img2CentCell)
+    do ii = 1, nOrb
+      work(ii,ii+1:) = conjg(work(ii+1:,ii))
+    end do
+
     HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
         & + cmplx(0.0,0.5,dp) * work(1:nOrb,1:nOrb)
     if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,3),iNeighbor,nNeighbor,iAtomStart,iPair, &
-          &img2CentCell)
-      call blockAntiSymmetrizeHS(work,iAtomStart)
+      call unpackHS(work,iHam(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
+          & cellVec,iAtomStart,iPair, img2CentCell)
+      do ii = 1, nOrb
+        work(ii,ii+1:) = -conjg(work(ii+1:,ii))
+      end do
+      do ii = 1, nOrb
+        work(ii+1:,ii) = -conjg(work(ii,ii+1:))
+      end do
+
       HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
           & - 0.5_dp * work(1:nOrb,1:nOrb)
     end if
 
     ! 1  0 z part
     ! 0 -1
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,4),iNeighbor,nNeighbor,iAtomStart,iPair, &
-        &img2CentCell)
+    call unpackHS(work,ham(:,4),kPoint,iNeighbor,nNeighbor,iCellVec, &
+        & cellVec,iAtomStart,iPair, img2CentCell)
     HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
         & + 0.5_dp * work(1:nOrb,1:nOrb)
     HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
         & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
         & - 0.5_dp * work(1:nOrb,1:nOrb)
     if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,4),iNeighbor,nNeighbor,iAtomStart,iPair, &
-          &img2CentCell)
+      call unpackHS(work,iHam(:,4),kPoint,iNeighbor,nNeighbor,iCellVec, &
+          & cellVec,iAtomStart,iPair, img2CentCell)
       HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
           & + 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
@@ -357,18 +360,15 @@ contains
           & - 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
     end if
 
+  end subroutine unpackHPauli
 
-  end subroutine unpackHSPauli
 
-  !> Unpacks sparse matrices to square form (2 component version for k-points)
+  !> Unpacks sparse overlap matrices to square form (2 component version for k-points)
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHSPauliK(ham, over, kPoint, iNeighbor, nNeighbor, iAtomStart, iPair,&
-      & img2CentCell, iCellVec, cellVec, HSqrCplx, SSqrCplx, iHam)
-
-    !> sparse hamiltonian
-    real(dp), intent(in) :: ham(:,:)
+  subroutine unpackSPauli(over, kPoint, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,&
+      & iCellVec, cellVec, SSqrCplx)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
@@ -397,120 +397,21 @@ contains
     !> vectors to periodic unit cells
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> dense hamiltonian matrix
-    complex(dp), intent(out) :: HSqrCplx(:,:)
-
     !> dense overlap matrix
     complex(dp), intent(out) :: SSqrCplx(:,:)
 
-    !> imaginary part of sparse hamiltonian
-    real(dp), intent(in), optional :: iHam(:,:)
-
     complex(dp), allocatable :: work(:,:)
     integer :: nOrb
-    integer :: ii
 
-    nOrb = size(HSqrCplx, dim=1) / 2
-
-    ! for the moment, but will use S as workspace in the future
-    allocate(work(nOrb,nOrb))
+    nOrb = size(SSqrCplx, dim=1) / 2
+    allocate(work(nOrb, nOrb))
     SSqrCplx(:,:) = 0.0_dp
-    HSqrCplx(:,:) = 0.0_dp
+    call unpackHS(work, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair,&
+        & img2CentCell)
+    SSqrCplx(1:nOrb, 1:nOrb) = work(1:nOrb, 1:nOrb)
+    SSqrCplx(nOrb + 1 : 2 * nOrb, nOrb + 1 : 2 * nOrb) = work(1:nOrb, 1:nOrb)
 
-    work(:,:) = 0.0_dp
-    call unpackHS(work,over,kPoint, iNeighbor,nNeighbor,iCellVec, &
-        & cellVec, iAtomStart,iPair, img2CentCell)
-    SSqrCplx(1:nOrb,1:nOrb) = work(1:nOrb,1:nOrb)
-    SSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = work(1:nOrb,1:nOrb)
-
-    ! 1 0 charge part
-    ! 0 1
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,1),kPoint,iNeighbor,nNeighbor,iCellVec, &
-        & cellVec,iAtomStart,iPair, img2CentCell)
-    HSqrCplx(1:nOrb,1:nOrb) = 0.5_dp*work(1:nOrb,1:nOrb)
-    HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = 0.5_dp*work(1:nOrb,1:nOrb)
-    if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,1),kPoint,iNeighbor,nNeighbor,iCellVec, &
-          & cellVec,iAtomStart,iPair, img2CentCell)
-      HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
-          & + 0.5_dp*cmplx(0,1,dp)*work(1:nOrb,1:nOrb)
-      HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
-          & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
-          & + 0.5_dp*cmplx(0,1,dp)*work(1:nOrb,1:nOrb)
-    end if
-
-    ! 0 1 x part
-    ! 1 0
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
-        & cellVec,iAtomStart,iPair, img2CentCell)
-    do ii = 1, nOrb
-      work(ii,ii+1:) = conjg(work(ii+1:,ii))
-    end do
-
-    HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-        & + 0.5_dp * work(1:nOrb,1:nOrb)
-    if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
-          & cellVec,iAtomStart,iPair, img2CentCell)
-      do ii = 1, nOrb
-        work(ii,ii+1:) = -conjg(work(ii+1:,ii))
-      end do
-      HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-          & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
-    end if
-
-    ! 0 -i y part
-    ! i  0
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
-        & cellVec,iAtomStart,iPair, img2CentCell)
-    do ii = 1, nOrb
-      work(ii,ii+1:) = conjg(work(ii+1:,ii))
-    end do
-
-    HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-        & + cmplx(0.0,0.5,dp) * work(1:nOrb,1:nOrb)
-    if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
-          & cellVec,iAtomStart,iPair, img2CentCell)
-      do ii = 1, nOrb
-        work(ii,ii+1:) = -conjg(work(ii+1:,ii))
-      end do
-      do ii = 1, nOrb
-        work(ii+1:,ii) = -conjg(work(ii,ii+1:))
-      end do
-
-      HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-          & - 0.5_dp * work(1:nOrb,1:nOrb)
-    end if
-
-    ! 1  0 z part
-    ! 0 -1
-    work(:,:) = 0.0_dp
-    call unpackHS(work,ham(:,4),kPoint,iNeighbor,nNeighbor,iCellVec, &
-        & cellVec,iAtomStart,iPair, img2CentCell)
-    HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
-        & + 0.5_dp * work(1:nOrb,1:nOrb)
-    HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
-        & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
-        & - 0.5_dp * work(1:nOrb,1:nOrb)
-    if (present(iHam)) then
-      work(:,:) = 0.0_dp
-      call unpackHS(work,iHam(:,4),kPoint,iNeighbor,nNeighbor,iCellVec, &
-          & cellVec,iAtomStart,iPair, img2CentCell)
-      HSqrCplx(1:nOrb,1:nOrb) = HSqrCplx(1:nOrb,1:nOrb) &
-          & + 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
-      HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) = &
-          & HSqrCplx(nOrb+1:2*nOrb,nOrb+1:2*nOrb) &
-          & - 0.5_dp * cmplx(0,1,dp) * work(1:nOrb,1:nOrb)
-    end if
-
-  end subroutine unpackHSPauliK
+  end subroutine unpackSPauli
 
 
   !> Pack squared matrix in the sparse form (complex version).
