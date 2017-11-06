@@ -579,9 +579,9 @@ contains
       if (nSpin > 2) then
         call error("Pipek-Mezey localisation not implemented for non-colinear DFTB")
       end if
-      call calcPipekMezeyLocalisation(pipekMezey, nEl, filling, over, kPoint, kWeight,&
-          & neighborList, nNeighbor, denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVec,&
-          & cellVec, fdEigvec, runId, orb, species, speciesName, groupKS, localisation,&
+      call calcPipekMezeyLocalisation(env, pipekMezey, tPrintEigvecsTxt, nEl, filling, over,&
+          & kPoint, kWeight, neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell,&
+          & iCellVec, cellVec, fdEigvec, runId, orb, species, speciesName, groupKS, localisation,&
           & eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
     end if
 
@@ -2924,7 +2924,7 @@ contains
   end subroutine ensureLinRespConditions
 
 
-  !> Do the linear response excitation calculation.
+ !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(env, lresp, qOutput, q0, over, eigvecsReal, eigen,&
       & filling, coord0, species, speciesName, orb, skHamCont, skOverCont, fdAutotest, autotestTag,&
       & fdEigvec, runId, neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell,&
@@ -4433,13 +4433,19 @@ contains
 
 
   !> Calculates and prints Pipek-Mezey localisation
-  subroutine calcPipekMezeyLocalisation(pipekMezey, nEl, filling, over, kPoint, kWeight,&
-      & neighborList, nNeighbor, iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec,&
-      & fdEigvec, runId, orb, species, speciesName, groupKS, localisation, eigvecsReal, SSqrReal,&
-      & eigvecsCplx, SSqrCplx)
+  subroutine calcPipekMezeyLocalisation(env, pipekMezey, tPrintEigvecsTxt, nEl, filling, over,&
+      & kPoint, kWeight, neighborList, nNeighbor, denseDesc,  iSparseStart, img2CentCell, iCellVec,&
+      & cellVec, fdEigvec, runId, orb, species, speciesName, groupKS, localisation, eigvecsReal,&
+      & SSqrReal, eigvecsCplx, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Localisation methods for single electron states (if used)
     type(TPipekMezey), intent(in) :: pipekMezey
+
+    !> Store eigenvectors as a text file
+    logical, intent(in) :: tPrintEigVecsTxt
 
     !> Number of electrons
     real(dp), intent(in) :: nEl(:)
@@ -4462,8 +4468,8 @@ contains
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
 
-    !> Index of start of atom blocks in dense matrices
-    integer, intent(in) :: iDenseStart(:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -4521,23 +4527,24 @@ contains
     end if
 
     if (present(eigvecsReal)) then
-      call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, iDenseStart, iSparseStart,&
-          & img2CentCell)
+      call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+          & iSparseStart, img2CentCell)
       do iKS = 1, size(groupKS, dim=2)
         iSpin = groupKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real(3 - nSpin, dp))
         localisation = pipekMezey%getLocalisation(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
-            & iDenseStart)
+            & denseDesc%iDenseStart)
         write(stdOut, "(A, E15.8)") 'Original localisation', localisation
-        call pipekMezey%calcCoeffs(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal, iDenseStart)
+        call pipekMezey%calcCoeffs(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
+            & denseDesc%iDenseStart)
         localisation = pipekMezey%getLocalisation(eigvecsReal(:,1:nFilledLev,iKS), SSqrReal,&
-            & iDenseStart)
+            & denseDesc%iDenseStart)
         write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
       end do
 
-      call writeRealEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, iDenseStart,&
-          & iSparseStart, img2CentCell, orb, species, speciesName, over, groupKS, eigvecsReal,&
-          & SSqrReal, fileName="localOrbs")
+      call writeRealEigvecs(env, fdEigvec, runId, nAtom, neighborList, nNeighbor, denseDesc,&
+            & iSparseStart, img2CentCell, species(:nAtom), speciesName, orb, over, groupKS,&
+            & tPrintEigvecsTxt, eigvecsReal, SSqrReal, fileName="localOrbs")
     else
 
       localisation = 0.0_dp
@@ -4547,7 +4554,7 @@ contains
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation( &
             & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
-            & nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+            & nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
       end do
       write(stdOut, "(A, E20.12)") 'Original localisation', localisation
 
@@ -4557,7 +4564,8 @@ contains
         iK = groupKS(1, iKS)
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         call pipekMezey%calcCoeffs(eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK),&
-            & neighborList, nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+            & neighborList, nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+            & img2CentCell)
       end do
 
       localisation = 0.0_dp
@@ -4567,13 +4575,14 @@ contains
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation( &
             & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
-            & nNeighbor, iCellVec, cellVec, iDenseStart, iSparseStart, img2CentCell)
+            & nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
       end do
       write(stdOut, "(A, E20.12)") 'Final localisation', localisation
 
-      call writeCplxEigvecs(fdEigvec, runId, nAtom, nSpin, neighborList, nNeighbor, cellVec,&
-          & iCellVec, iDenseStart, iSparseStart, img2CentCell, orb, species, speciesName, over,&
-          & kpoint, groupKS, eigvecsCplx, SSqrCplx, fileName="localOrbs")
+      call writeCplxEigvecs(env, nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
+          & iCellVec, denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint,&
+          & over, groupKS, tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName="localOrbs")
+
     end if
 
   end subroutine calcPipekMezeyLocalisation

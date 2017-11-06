@@ -12,7 +12,7 @@ module mainio
   use iso_fortran_env, only : output_unit
 #:if WITH_MPI
   use mpifx
-#:endif  
+#:endif
 #:if WITH_SCALAPACK
   use scalapackfx
 #:endif
@@ -192,7 +192,7 @@ contains
           & img2CentCell, species, speciesName, orb, over, groupKS, tPrintEigvecsTxt, eigvecsReal,&
           & SSqrReal)
     end if
-      
+
   end subroutine writeEigenvectors
 
 
@@ -364,9 +364,9 @@ contains
     #:endif
 
     end subroutine writeCplxEigvecs
-    
 
-#:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]  
+
+#:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]
 
   !> Writes ${DTYPE}$ eigenvectors in binary format.
   subroutine write${NAME}$EigvecsBinSerial(eigvecs, fd, runId, groupKS, fileName)
@@ -388,7 +388,7 @@ contains
 
     integer :: iKS, iSpin
     integer :: ii
-    
+
     call prepareEigvecFileBin(fd, runId, fileName)
     do iKS = 1, size(groupKS, dim=2)
       iSpin = groupKS(2, iKS)
@@ -475,7 +475,7 @@ contains
 
 
   !> Writes complex eigenvectors in text form.
-  subroutine writeCplxEigvecsTxt(fd, runId, nAtom, neighlist, nNeighbor, denseDesc, iPair,&
+  subroutine writeCplxEigvecsTxtSerial(fd, runId, nAtom, neighlist, nNeighbor, denseDesc, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoints,&
       & eigvecs, SSqr, fileName)
 
@@ -543,7 +543,7 @@ contains
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
     allocate(cVecTemp(size(eigvecs, dim=1)))
     nEigvecs = size(eigvecs, dim=2)
-    
+
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
@@ -567,7 +567,7 @@ contains
     end do
     close(fd)
 
-  end subroutine writeCplxEigvecsTxt
+  end subroutine writeCplxEigvecsTxtSerial
 
 
   !> Write the projected eigenstates into text files
@@ -2767,7 +2767,7 @@ contains
     integer :: sender
     integer :: nKS, nOrb
     integer :: iKS, iGroup, iEig
-  
+
     nKS = size(groupKS, dim=2)
     nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
     allocate(localEigvec(nOrb))
@@ -2808,7 +2808,7 @@ contains
   end subroutine write${NAME}$EigvecsBinBlacs
 
 #:endfor
-  
+
 
   !> Write the real eigvectors into human readible output file (BLACS version).
   subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, runId, groupKS, orb, over,&
@@ -2865,7 +2865,7 @@ contains
     integer :: sender
     integer :: nKS, nOrb, nAtom
     integer :: iKS, iK, iS, iGroup, iEig, groupKSBuffer(2)
-  
+
     nKS = size(groupKS, dim=2)
     nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
     nAtom = size(nNeighbor)
@@ -2994,7 +2994,7 @@ contains
     integer :: sender
     integer :: nKS, nEigvec, nAtom
     integer :: iKS, iK, iS, iGroup, iEig, groupKSBuffer(2)
-  
+
     nKS = size(groupKS, dim=2)
     nEigvec = denseDesc%fullSize
     nAtom = size(nNeighbor)
@@ -3018,7 +3018,7 @@ contains
       end if
       call pblasfx_phemm(workS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
           & workSDotC, denseDesc%blacsOrbSqr)
-      if (env%mpi%all%master) then      
+      if (env%mpi%all%master) then
         group: do iGroup = 1, env%blacs%nGroup
           if (iGroup > 1) then
             sender = (iGroup - 1) * env%blacs%groupSize
@@ -3072,7 +3072,7 @@ contains
 
 #:endif
 
-  
+
   !> Prepares binary eigenvector file for writing.
   subroutine prepareEigvecFileBin(fd, runId, fileName)
 
@@ -3086,7 +3086,7 @@ contains
     character(*), intent(in), optional :: fileName
 
     character(lc) :: tmpStr
-    
+
     if (present(fileName)) then
       write(tmpStr, "(A,A)") trim(fileName), ".bin"
       open(fd, file=tmpStr, action="write", status="replace", form="unformatted")
@@ -3181,7 +3181,7 @@ contains
       end do
       write(fd,*)
     end do
-          
+
   end subroutine writeSingleRealEigvecTxt
 
 
@@ -3243,7 +3243,7 @@ contains
       end do
       write(fd,*)
     end do
-    
+
   end subroutine writeSingleCplxEigvecTxt
 
 
@@ -3259,7 +3259,7 @@ contains
 
     !> Overlap times the current eigenvector.
     complex(dp), intent(in) :: overDotEigvec(:)
-    
+
     !> K-point index of the eigenvector
     integer, intent(in) :: iK
 
