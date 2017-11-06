@@ -13,8 +13,8 @@ scc/H2O2_3rdfull-damp                  #? NPROC <= 1
 scc/H3                                 #? NPROC <= 1
 spin/H2                                #? NPROC <= 1
 
-#! Not working in any of the binaries as PM-localisation not compatible with indexing scheme of H
-analysis/C2H4_localise                 #? False
+#! MPI implementation not available
+analysis/C2H4_localise                 #? not WITH_MPI
 
 dftb+u/CH3                             #? NPROC <= 1
 dispersion/2H2O                        #? NPROC <= 1
