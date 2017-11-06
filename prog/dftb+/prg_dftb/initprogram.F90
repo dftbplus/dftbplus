@@ -417,7 +417,7 @@ module initprogram
   !> Print out eigenvectors?
   logical :: tPrintEigVecs
 
-  !> Store as a text file
+  !> Store eigenvectors as a text file
   logical :: tPrintEigVecsTxt
 
   !> Print eigenvector projections?
