@@ -47,8 +47,8 @@ module mainio
   public :: writeRealEigvecsBinBlacs, writeRealEigvecsTxtBlacs
   public :: writeCplxEigvecsBinBlacs, writeCplxEigvecsTxtBlacs
 #:else
-  public :: writeRealEigvecsBin, writeRealEigvecsTxt
-  public :: writeCplxEigvecsBin, writeCplxEigvecsTxt
+  public :: writeRealEigvecsBinSerial, writeRealEigvecsTxtSerial
+  public :: writeCplxEigvecsBinSerial, writeCplxEigvecsTxtSerial
 #:endif
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
@@ -245,9 +245,9 @@ contains
           & fileName=fileName)
     end if
   #:else
-    call writeRealEigvecsBin(eigvecsReal, fd, runId, groupKS, fileName=fileName)
+    call writeRealEigvecsBinSerial(eigvecsReal, fd, runId, groupKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
-      call writeRealEigvecsTxt(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+      call writeRealEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
           & orb, species, speciesName, over, groupKS, eigvecsReal, SSqrReal, fileName=fileName)
     end if
   #:endif
@@ -335,14 +335,14 @@ contains
       end if
     end if
   #:else
-    call writeCplxEigvecsBin(eigvecsCplx, fd, runId, groupKS, fileName=fileName)
+    call writeCplxEigvecsBinSerial(eigvecsCplx, fd, runId, groupKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
-        call writePauliEigvecsTxt(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
-            & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoint, eigvecsCplx,&
-            & SSqrCplx, fileName=fileName)
+        call writePauliEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair,&
+            & img2CentCell, iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoint,&
+            & eigvecsCplx, SSqrCplx, fileName=fileName)
       else
-        call writeCplxEigvecsTxt(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+        call writeCplxEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
             & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoint, eigvecsCplx,&
             & SSqrCplx, fileName=fileName)
       end if
@@ -351,10 +351,10 @@ contains
 
   end subroutine writeCplxEigvecs
 
-        
+
 #:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 
   !> Write the real eigvectors into binary output file (BLACS version).
   subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, fd, runId, groupKS, fileName)
@@ -428,7 +428,7 @@ contains
 #:else
 
   !> Writes ${DTYPE}$ eigenvectors in binary format.
-  subroutine write${NAME}$EigvecsBin(eigvecs, fd, runId, groupKS, fileName)
+  subroutine write${NAME}$EigvecsBinSerial(eigvecs, fd, runId, groupKS, fileName)
 
     !> Square Hamiltonian (or work array)
     ${DTYPE}$(dp), intent(in) :: eigvecs(:,:,:)
@@ -457,14 +457,14 @@ contains
     end do
     close(fd)
 
-  end subroutine write${NAME}$EigvecsBin
+  end subroutine write${NAME}$EigvecsBinSerial
 
 #:endif
 
 #:endfor
 
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
   subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, groupKS, orb, over, iNeighbor,&
@@ -587,8 +587,8 @@ contains
 #:else
 
     !> Writes real eigenvectors in text form.
-  subroutine writeRealEigvecsTxt(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell, orb,&
-      & species, speciesName, over, groupKS, eigvecs, SSqr, fileName)
+  subroutine writeRealEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+      & orb, species, speciesName, over, groupKS, eigvecs, SSqr, fileName)
 
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fd
@@ -651,13 +651,13 @@ contains
     end do
     close(fd)
 
-  end subroutine writeRealEigvecsTxt
+  end subroutine writeRealEigvecsTxtSerial
 
 #:endif
 
 
 #:if WITH_SCALAPACK
-  
+
   !> Write the complex eigvectors into human readible output file (BLACS version).
   subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, groupKS, orb, over,&
       & kPoints, iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
@@ -797,7 +797,7 @@ contains
 #:else
 
     !> Writes complex eigenvectors in text form.
-  subroutine writeCplxEigvecsTxt(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writeCplxEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
       & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoints, eigvecs, SSqr,&
       & fileName)
 
@@ -877,12 +877,12 @@ contains
     end do
     close(fd)
 
-  end subroutine writeCplxEigvecsTxt
+  end subroutine writeCplxEigvecsTxtSerial
 
 #:endif
 
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
   subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, groupKS, orb, over,&
@@ -1022,13 +1022,13 @@ contains
     if (env%mpi%all%master) then
       close(fdEigvec)
     end if
-    
+
   end subroutine writePauliEigvecsTxtBlacs
 
 #:else
 
     !> Writes complex eigenvectors in text form.
-  subroutine writePauliEigvecsTxt(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writePauliEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
       & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoints, eigvecs, SSqr,&
       & fileName)
 
@@ -1107,9 +1107,9 @@ contains
     end do
     close(fd)
 
-  end subroutine writePauliEigvecsTxt
+  end subroutine writePauliEigvecsTxtSerial
 
-#:endif  
+#:endif
 
 
   !> Write projected eigenvectors.
@@ -1199,23 +1199,23 @@ contains
   #:else
     if (present(eigvecsCplx)) then
       if (denseDesc%t2Component) then
-        call writeProjPauliEigvecs(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
+        call writeProjPauliEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, groupKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       else
-        call writeProjCplxEigvecs(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
+        call writeProjCplxEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, groupKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       end if
     else
-      call writeProjRealEigvecs(regionLabels, fd, eigen, neighborList, nNeighbor, denseDesc, iPair,&
-          & img2CentCell, over, groupKS, eigvecsReal, workReal, iOrbRegion)
+      call writeProjRealEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, denseDesc,&
+          & iPair, img2CentCell, over, groupKS, eigvecsReal, workReal, iOrbRegion)
     end if
   #:endif
 
   end subroutine writeProjectedEigenvectors
 
-  
+
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
@@ -1333,8 +1333,8 @@ contains
 #:else
 
     !> Write the projected eigenstates into text files
-  subroutine writeProjRealEigvecs(fileNames, fd, eigvals, neighlist, nNeighbor, denseDesc, iPair,&
-      & img2CentCell, over, groupKS, eigvecs, work, iOrbRegion)
+  subroutine writeProjRealEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, denseDesc,&
+      & iPair, img2CentCell, over, groupKS, eigvecs, work, iOrbRegion)
 
     !> List with fileNames for each region
     type(listCharLc), intent(inout) :: fileNames
@@ -1394,12 +1394,12 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
-  end subroutine writeProjRealEigvecs
+  end subroutine writeProjRealEigvecsSerial
 
 #:endif
 
 
-#:if WITH_SCALAPACK  
+#:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
   subroutine writeProjCplxEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
@@ -1533,8 +1533,9 @@ contains
 #:else
 
   !> Write the projected complex eigenstates into text files.
-  subroutine writeProjCplxEigvecs(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec, iCellVec,&
-      & denseDesc, iPair, img2CentCell, over, kPoints, kWeights, groupKS, eigvecs, work, iOrbRegion)
+  subroutine writeProjCplxEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
+      & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, groupKS, eigvecs, work,&
+      & iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
@@ -1611,13 +1612,13 @@ contains
 
     call finishProjEigvecFiles(fd)
 
-  end subroutine writeProjCplxEigvecs
+  end subroutine writeProjCplxEigvecsSerial
 
 #:endif
 
 
 #:if WITH_SCALAPACK
-  
+
   !> Write the complex eigvectors into human readible output file (BLACS version).
   subroutine writeProjPauliEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
       & eigvecs, orb, groupKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
@@ -1761,8 +1762,8 @@ contains
 #:else
 
   !> Write the projected complex eigenstates into text files.
-  subroutine writeProjPauliEigvecs(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec, iCellVec,&
-      & denseDesc, iPair, img2CentCell, over, kPoints, kWeights, groupKS, eigvecs, work,&
+  subroutine writeProjPauliEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
+      & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, groupKS, eigvecs, work,&
       & iOrbRegion)
 
     !> list of region names
@@ -1832,7 +1833,7 @@ contains
 
     allocate(cVecTemp(size(eigvecs, dim=1)))
     allocate(fracs(4, nOrb / 2))
-    
+
     do iKS = 1, size(groupKS, dim=2)
       iK = groupKS(1, iKS)
       call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
@@ -1847,8 +1848,8 @@ contains
     end do
 
     call finishProjEigvecFiles(fd)
-    
-  end subroutine writeProjPauliEigvecs
+
+  end subroutine writeProjPauliEigvecsSerial
 
 #:endif
 
@@ -3508,6 +3509,7 @@ contains
     real(dp), intent(in) :: cellVol
 
     write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
+
   end subroutine printVolume
 
 
