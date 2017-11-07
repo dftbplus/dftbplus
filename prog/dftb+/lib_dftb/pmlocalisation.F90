@@ -778,7 +778,7 @@ contains
 
     complex(dp), allocatable :: Sci(:,:)
     real(dp), allocatable :: tmp(:,:)
-    integer :: nAtom, iAtom, iKpt, nKpt, iOrbStart, iOrbEnd, nOrb, iLev, nLev
+    integer :: nAtom, iAtom, iOrbStart, iOrbEnd, nOrb, iLev, nLev
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
 
@@ -858,7 +858,7 @@ contains
     !> maximum number of iterations to use
     integer, intent(in), optional :: mIter
 
-    integer :: iLev1, iLev2, nLev, nKpt
+    integer :: iLev1, iLev2, nLev
     integer :: iAtom1, nAtom, nIter
     integer :: iOrb1, iOrb2, nOrb
     integer :: iIter, iLoc(1), ii
