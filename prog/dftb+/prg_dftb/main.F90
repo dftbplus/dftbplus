@@ -333,16 +333,12 @@ contains
           call error("Linear response calc. does not work with MPI yet")
         end if
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-        if (withMpi) then
-          call error("Linear response calc. does not work with MPI yet")
-        else
-          call calculateLinRespExcitations(env, lresp, qOutput, q0, over, eigvecsReal,&
-              & eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb, skHamCont,&
-              & skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList, nNeighbor,&
-              & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect,&
-              & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal,&
-              & rhoSqrReal, excitedDerivs, occNatural)
-        end if
+        call calculateLinRespExcitations(env, lresp, qOutput, q0, over, eigvecsReal,&
+            & eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb, skHamCont,&
+            & skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList, nNeighbor,&
+            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect,&
+            & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal,&
+            & rhoSqrReal, excitedDerivs, occNatural)
       end if
 
       if (tXlbomd) then
@@ -360,21 +356,15 @@ contains
       end if
 
       if (tPrintEigVecs) then
-        call writeEigenvectors(env, nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor,&
-            & cellVec, iCellVEc, denseDesc, iSparseStart, img2CentCell, species, speciesName,&
-            & orb, kPoint, over, groupKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx,&
-            & SSqrCplx)
+        call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVEc,&
+            & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
+            & groupKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
       end if
 
-      if (env%tIoProc .and. tProjEigenvecs) then
-        if (withMpi) then
-          call error("Writing of projected eigenvectors does not work with MPI-binary yet")
-        else
-          call writeProjectedEigenvectors(regionLabels, fdProjEig, eigen, nSpin, neighborList,&
-              & nNeighbor, cellVec, iCellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell,&
-              & orb, over, kPoint, kWeight, iOrbRegion, groupKS, eigvecsReal, SSqrReal,&
-              & eigvecsCplx, SSqrCplx)
-        end if
+      if (tProjEigenvecs) then
+        call writeProjectedEigenvectors(env, regionLabels, fdProjEig, eigen, neighborList,&
+              & nNeighbor, cellVec, iCellVec, denseDesc, iSparseStart, img2CentCell, orb, over,&
+              & kPoint, kWeight, iOrbRegion, groupKS, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
       end if
 
       ! MD geometry files are written only later, once velocities for the current geometry are known
@@ -389,8 +379,7 @@ contains
       if (tForces) then
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec,&
-            & tRealHS, ham, over, solver, groupKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
-            & SSqrCplx)
+            & tRealHS, ham, over, groupKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
         call getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
             & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
             & iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim, thirdOrd,&
@@ -3068,7 +3057,7 @@ contains
           & rhoSqrReal, occNatural=occNatural, naturalOrbs=naturalOrbs)
       if (tPrintExcEigvecs) then
         groupKS = reshape([1, 1], [2, 1])
-        call writeRealEigvecs(env, fdEigvec, runId, nAtom, neighborList, nNeighbor, denseDesc,&
+        call writeRealEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, denseDesc,&
             & iSparseStart, img2CentCell, pSpecies0, speciesName, orb, over, groupKS,&
             & tPrintExcEigvecsTxt, naturalOrbs, work, fileName="excitedOrbs")
       end if
@@ -3251,7 +3240,7 @@ contains
   !>
   subroutine getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS, ham,&
-      & over, solver, groupKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+      & over, groupKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3304,9 +3293,6 @@ contains
     !> Sparse overlap
     real(dp), intent(in) :: over(:)
 
-    !> Eigensolver choice
-    integer, intent(in) :: solver
-
     !> K-points and spins to process
     integer, intent(in) :: groupKS(:,:)
 
@@ -3334,8 +3320,8 @@ contains
           & groupKS, HSqrCplx, SSqrCplx, ERhoPrim)
     else if (tRealHS) then
       call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
-          & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, solver, groupKS, HSqrReal,&
-          & SSqrReal, ERhoPrim)
+          & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, groupKS, HSqrReal, SSqrReal,&
+          & ERhoPrim)
     else
       call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
           & kWeight, neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
@@ -3347,8 +3333,7 @@ contains
 
   !> Calculates density matrix from real eigenvectors.
   subroutine getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
-      & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, solver, groupKS, eigvecsReal, work,&
-      & ERhoPrim)
+      & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, groupKS, eigvecsReal, work, ERhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3379,11 +3364,12 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
-    real(dp), intent(in) :: ham(:,:)
-    real(dp), intent(in) :: over(:)
 
-    !> Eigensolver choice
-    integer, intent(in) :: solver
+    !> Sparse Hamiltonian
+    real(dp), intent(in) :: ham(:,:)
+
+    !> Sparse overlap
+    real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
     integer, intent(in) :: groupKS(:,:)

@@ -2077,10 +2077,6 @@ contains
 
     ! Projection of eigenstates onto specific regions of the system
     tProjEigenvecs = input%ctrl%tProjEigenvecs
-    if (tProjEigenvecs .and. withMpi) then
-      call error("Projecting eigenvectors not supported for MPI-binary yet")
-    end if
-  #:if not WITH_MPI
     if (tProjEigenvecs) then
       call init(iOrbRegion)
       call init(regionLabels)
@@ -2171,9 +2167,6 @@ contains
     else
       allocate(fdProjEig(0))
     end if
-  #:endif
-
-
 
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
@@ -3240,6 +3233,7 @@ contains
     !> Array of (k-point, spin) tuples (groupKS(:, ii) = [iK, iS])
     integer, intent(out), allocatable :: groupKS(:,:)
 
+    character(lc) :: tmpStr
     integer :: nGroup, iGroup
     integer :: nHam, nHamAll, res
     integer :: ind, iHam, iS, iK
@@ -3255,9 +3249,15 @@ contains
     nHamAll = nKpoint * nSpin
     nHam = nHamAll / nGroup
     res = nHamAll - nHam * nGroup
-    if (iGroup < res) then
-      nHam = nHam + 1
+    if (res /= 0) then
+      write(tmpStr, "(A,I0,A,I0,A)") "Number of groups (", nGroup,&
+          & ") is not a divisor of the number of independent Hamiltonians (", nHamAll, ")"
+      call error(tmpStr)
     end if
+    ! We can not handle currently different number of Hamiltonians per group.
+    !if (iGroup < res) then
+    !  nHam = nHam + 1
+    !end if
     allocate(groupKS(2, nHam))
     ind = 0
     iHam = 1
