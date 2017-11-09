@@ -330,6 +330,8 @@ module inputdata_module
     logical :: tWriteRealHS = .false.
     logical :: tMinMemory = .false.
 
+    !> potential shifts are read from file
+    logical :: tReadShift = .false.
     !> use Poisson solver for electrostatics
     logical :: tPoisson = .false.
 
@@ -417,6 +419,7 @@ module inputdata_module
   end interface destruct
 
   public :: control, TGeometry, slater, inputData, XLBOMDInp
+  public :: TNEGFInfo
   public :: init, destruct
 
   !> Solver types (used like an enumerator)

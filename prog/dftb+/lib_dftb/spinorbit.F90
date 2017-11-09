@@ -157,7 +157,7 @@ contains
     complex(dp), allocatable :: Lplus(:,:)
     complex(dp), allocatable :: tmpBlock(:,:)
 
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
+    complex(dp) :: i = cmplx(0.0,1.0,dp)
 
     nAtom = size(Eatom,dim=1)
     nSpecies = maxval(species(1:nAtom))

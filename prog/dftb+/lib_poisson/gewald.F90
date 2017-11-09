@@ -17,7 +17,7 @@ module gewald
 
     IMPLICIT NONE
 
-    REAL(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot	
+    REAL(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
     INTEGER i,j,k,nreal,nmax,nmin 
     REAL(kind=dp) :: rvec(3),R(3),lastshell,tmp,norm
 
@@ -36,7 +36,7 @@ module gewald
           DO k = -nreal,nreal
             ! /*only R belonging to outer shells are new ones */
             IF((nreal .eq. abs(i)) .or. (nreal .eq. abs(j))  .or. &
-              &	         (nreal.eq. abs(k)) ) THEN
+              &         (nreal.eq. abs(k)) ) THEN
 
               R(1)=i*basis(1,1)+j*basis(2,1)+k*basis(3,1) 
               R(2)=i*basis(1,2)+j*basis(2,2)+k*basis(3,2) 

@@ -735,7 +735,7 @@ contains
     integer :: dec
 
     call memstr(alloc_mem,dec,str)
-    write(iofile,'(A26,F8.2,A3)') 'current memory allocated: ',alloc_mem*1.0/dec,str
+    write(iofile,'(A26,F8.2,A3)') 'current memory allocated: ',real(alloc_mem)*1.0/dec,str
 
   end subroutine writeMemInfo
   ! ------------------------------------------------------------
@@ -746,7 +746,7 @@ contains
     integer :: dec
 
     call memstr(peak_mem,dec,str)
-    write(iofile,'(A26,F8.2,A3)') 'peak memory allocated: ',peak_mem*1.0/dec,str
+    write(iofile,'(A26,F8.2,A3)') 'peak memory allocated: ',real(peak_mem)*1.0/dec,str
 
   end subroutine writePeakInfo
 
@@ -761,7 +761,7 @@ contains
           stop
        endif
     endif
-    iolog=iofile	
+    iolog=iofile
 
   end subroutine openMemLog
 
@@ -788,12 +788,12 @@ integer :: dec
        return      
     endif
 
-    if(mem.lt.1e7) then
+    if(mem.lt.10000000) then
        str=' kb'; dec=1000
        return      
     endif
 
-    if(mem.ge.1e7) then
+    if(mem.ge.10000000) then
        str=' Mb'; dec=1000000
        return      
     endif

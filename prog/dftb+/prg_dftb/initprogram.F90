@@ -83,6 +83,8 @@ module initprogram
   !> file to stop code during scc cycle
   character(*), parameter :: fStopSCC = "stop_scc"
 
+  !> file name for shift data 
+  character(*), parameter :: fShifts = "shifts.dat"
 
   !> Is the calculation SCC?
   logical :: tSCC
@@ -191,10 +193,10 @@ module initprogram
   integer, allocatable :: nNeighbor(:)
 
   !> H/S sparse matrices indexing array for atomic blocks
-  integer, allocatable, target :: iSparseStart(:,:)
+  integer, allocatable :: iSparseStart(:,:)
 
   !> atom start pos for dense  H/S
-  integer, allocatable :: iDenseStart(:)
+  integer, allocatable, target :: iDenseStart(:)
 
 
   !> Hubbard Us (orbital, atom)
@@ -591,6 +593,9 @@ module initprogram
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
+  !> Whether potential shifts are read from file 
+  logical :: tReadShift
+
   !> produce tagged output?
   logical :: tWriteAutotest
 
@@ -845,6 +850,7 @@ contains
     else
       maxSccIter = 1
     end if
+  
 
     if (tPeriodic) then
       tLatticeChanged = .true.
@@ -1850,6 +1856,8 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+    tReadShift = input%ctrl%tReadShift
+
     if (tSCC) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -2645,8 +2653,8 @@ contains
     type(TEnvironment), intent(in) :: env
     type(inputData), intent(in) :: input
   
-  !> Wheter transport has been initialized
-  logical :: tInitialized
+    !> Wheter transport has been initialized
+    logical :: tInitialized
 
 
     tUpload = input%transpar%taskUpload
@@ -2712,7 +2720,7 @@ contains
 
     if (tNegf) then
       negfStr%nAtom = nAtom
-      negfStr%iAtomStart => iSparseStart(0, :)
+      negfStr%iAtomStart => iDenseStart
     end if
     ! Some sanity checks and initialization of GDFTB/NEGF
     if (tPoisson) then

@@ -853,6 +853,9 @@ contains
       input%nTransientSteps = 0
       call getChildValue(pRoot, 'MinSccIterations', input%minSCCIter, 1)
       call getChildValue(pRoot, 'MaxSccIterations', input%maxSCCIter, 200)
+      if (input%maxSCCIter <= 0) then
+        call detailedError(pRoot,"MaxSccIterations must be >= 1");
+      end if
       call getChildValue(pRoot, 'SccTolerance', input%sccTol, 1e-5_dp)
       input%scale = 1.0_dp
       input%useInverseJacobian = .false.
@@ -3652,7 +3655,7 @@ contains
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modif
     character(lc) :: strTmp
-    real(dp) :: denstol
+    real(dp) :: denstol, gatelength_l
     integer :: ii, ibc, bctype
     logical :: needsPoissonBox
 
@@ -3766,8 +3769,9 @@ contains
       call convertByMul(char(modif), lengthUnits, field, &
           &poisson%gateLength_l)
       
+      gatelength_l = poisson%gateLength_l !avoids a warning on intents
       call getChildValue(pTmp2, "GateLength_l", poisson%gateLength_l, &
-          & poisson%gateLength_l, modifier=modif, child=field)
+          & gateLength_l, modifier=modif, child=field)
       call convertByMul(char(modif), lengthUnits, field, &
           &poisson%gateLength_l)
 

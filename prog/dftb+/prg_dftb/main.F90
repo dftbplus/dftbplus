@@ -64,7 +64,9 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
+  use libnegf_vars
   use negf_int
+  use poisson_int
   implicit none
   private
 
@@ -100,11 +102,12 @@ module main
 contains
 
   !> The main DFTB program itself
-  subroutine runDftbPlus(env)
+  subroutine runDftbPlus(env, input)
     use initprogram
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+    type(inputdata), intent(in) :: input
 
     !> Square dense hamiltonian storage for cases with k-points
     complex(dp), allocatable :: HSqrCplx(:,:,:,:)
@@ -286,6 +289,23 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
+    !> Variables for Transport NEGF/Poisson solver
+    !> Tunneling, local DOS and current
+    real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:)
+
+    !> Poisson Derivatives (forces)
+    real(dp), allocatable :: poissonDerivs(:,:)
+
+    !> Shell-resolved Potential shifts uploaded from contacts 
+    real(dp), allocatable :: shiftPerLUp(:,:)
+    
+    !> Orbital-resolved charges uploaded from contacts
+    real(dp), allocatable :: chargeUp(:,:,:)
+
+    !> Details of energy interval for tunneling used in output
+    real(dp)              :: Emin, Emax, Estep
+
+
     ! set up output files
     if (env%tIoProc) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
@@ -301,6 +321,9 @@ contains
         & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
         & SSqrReal, rhoSqrReal, chargePerShell, occNatural, velocities, movedVelo, movedAccel,&
         & movedMass, dipoleMoment)
+
+    call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, shiftPerLUp, chargeUp, &
+        & poissonDerivs, orb, nAtom, nSpin)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -343,7 +366,13 @@ contains
         call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
             & tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
             & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
-            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, &
+            & tUpload, tPoisson, input%transpar, shiftPerLUp, chargeUp)
+      end if
+
+      if (tNegf) then
+        call initNegfStuff(negfStr, input%transpar, input%ginfo, neighborList, nNeighbor, &
+            & img2CentCell, iDenseStart, orb)
       end if
 
       if (tSCC) then
@@ -352,6 +381,7 @@ contains
 
       call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
+
       call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
 
@@ -367,6 +397,11 @@ contains
       end if
 
       call resetExternalPotentials(potential)
+
+      if (tReadShift) then
+        call uploadShiftPerL(fShifts, orb, nAtom, nSpin, potential%extShell)
+      end if
+
       if (tEField) then
         call setUpExternalElectricField(tTDEField, tPeriodic, EFieldStrength, EFieldVector,&
             & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec,&
@@ -383,8 +418,14 @@ contains
 
         if (tScc) then
           call getChargePerShell(qInput, orb, species, chargePerShell)
+          ! Overrides uploaded contact charges
+          if (tUpload) then
+            call overrideUploadedCharges(qInput, chargeUp, input%transpar)   
+          end if
+
           call addChargePotentials(qInput, q0, chargePerShell, orb, species, neighborList,&
-              & img2CentCell, spinW, thirdOrd, potential)
+              & img2CentCell, spinW, thirdOrd, potential, tPoisson, tUpload, shiftPerLUp)
+
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
         end if
@@ -424,10 +465,15 @@ contains
         if (tSCC .and. .not. tXlbomd) then
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
+          if (tUpload) then
+            call overrideUploadedCharges(qOutput, chargeUp, input%transpar)  
+          end if 
           call addChargePotentials(qOutput, q0, chargePerShell, orb, species, neighborList,&
-              & img2CentCell, spinW, thirdOrd, potential)
+              & img2CentCell, spinW, thirdOrd, potential, tPoisson, tUpload, shiftPerLUp)
+
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+ 
           potential%intBlock = potential%intBlock + potential%extBlock
         end if
 
@@ -1082,6 +1128,28 @@ contains
 
   end subroutine initArrays
 
+  
+  subroutine initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, shiftPerLUp, chargeUp, &
+              & poissonDerivs, orb, nAtom, nSpin)
+
+    logical, intent(in) :: tNegf, tUpload, tPoisson, tContCalc
+    real(dp), allocatable :: shiftPerLUp(:,:)
+    real(dp), allocatable :: chargeUp(:,:,:)
+    real(dp), allocatable :: poissonDerivs(:,:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nAtom
+    integer, intent(in) :: nSpin
+    
+    if (tUpload) then
+      allocate(shiftPerLUp(orb%mShell, nAtom))
+      allocate(chargeUp(orb%mOrb, nAtom, nSpin))
+    end if
+    if (tPoisson) then
+      allocate(poissonDerivs(3,nAtom))
+    end if
+
+  end subroutine initTransportArrays
+
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
@@ -1224,7 +1292,8 @@ contains
   subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
       & orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
       & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
-      & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+      & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart,&
+      & tUpload, tPoisson, transpar, shiftPerLUp, chargeUp)
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -1316,6 +1385,12 @@ contains
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iSparseStart(:,:)
 
+    !> Transport variables
+    logical, intent(in) :: tUpload, tPoisson
+    type(TTransPar), intent(in) :: transpar
+    real(dp), intent(inout) :: shiftPerLUp(:,:), chargeUp(:,:,:)
+
+
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
     integer :: sparseSize
@@ -1335,7 +1410,17 @@ contains
 
     ! Notify various modules about coordinate changes
     if (tSCC) then
-      call updateCoords_SCC(coord, species, neighborList, img2CentCell)
+      if (tUpload) then    
+        !! TODO: poiss_updcoords pass coord0 and not coord0Fold because the
+        !! folding can mess up the contact position. Could we have the supercell
+        !! centered on the input atomic structure?
+        call poiss_updcoords(coord0)
+        call uploadContShiftPerL(shiftPerLUp, chargeUp, transpar, orb, species0)
+      else if (tPoisson) then 
+        call poiss_updcoords(coord0)     
+      else 
+        call updateCoords_SCC(coord, species, neighborList, img2CentCell)
+      end if
     end if
     if (tDispersion) then
       call dispersion%updateCoords(neighborList, img2CentCell, coord, &
@@ -1346,6 +1431,131 @@ contains
     end if
 
   end subroutine handleCoordinateChange
+
+
+  !> Read the potential shifts from file
+  subroutine uploadShiftPerL(fShifts, orb, nAtom, nSpin, shiftPerL)
+    character(*), intent(in) :: fShifts
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nAtom, nSpin
+    real(dp), intent(inout) :: shiftPerL(:,:,:)
+
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt
+    integer, allocatable :: nOrbAtom(:)
+
+    shiftPerL = 0.0_dp
+    fdH = getFileId()
+
+    open(fdH, file=fShifts, form="formatted")
+    read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+
+    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell &
+        &.or. mOrbSt /= orb%mOrb) then
+      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+    end if
+    if (nSpin /= nSpinSt) then
+      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+    end if
+
+    allocate(nOrbAtom(nAtomSt))
+    read(fdH, *) nOrbAtom
+    read(fdH, *) shiftPerL(:,:,:)
+    close(fdH)
+
+    if (any(nOrbAtom /= orb%nOrbAtom(:))) then
+      call error("Incompatible orbitals in the upload file!")
+    end if
+
+    deallocate(nOrbAtom)
+
+  end subroutine uploadShiftPerL
+
+  !> Read contact potential shifts from file
+  subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
+    real(dp), intent(out) :: shiftPerL(:,:)
+    real(dp), intent(out) :: charges(:,:,:)
+    type(TTransPar), intent(in) :: tp
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+
+    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
+    integer, allocatable :: nOrbAtom(:)
+    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
+    integer :: iCont, iStart, iEnd, ii
+    integer :: fdH
+
+    nSpin = size(charges, dim=3)
+
+    if (size(shiftPerL,dim=2) /= size(charges, dim=2)) then
+      call error("Mismatch between array charges and shifts")
+    endif
+
+    shiftPerL = 0.0_dp
+    charges = 0.0_dp
+    fdH = getFileId()
+
+    do iCont = 1, tp%ncont
+      open(fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat", &
+          &form="formatted")
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      iStart = tp%contacts(iCont)%idxrange(1)
+      iEnd = tp%contacts(iCont)%idxrange(2)
+      nContAtom = iEnd - iStart + 1
+
+      if (nAtomSt /= nContAtom .or. mShellSt /= orb%mShell &
+          &.or. mOrbSt /= orb%mOrb) then
+        call error("Mismatch in number of atoms or max shell per atom.")
+      end if
+      if (nSpin /= nSpinSt) then
+        call error("Mismatch in number of atoms or max shell per atom.")
+      end if
+
+      allocate(nOrbAtom(nAtomSt))
+      read(fdH, *) nOrbAtom
+      allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
+      read(fdH, *) shiftPerLSt(:,:,:)
+      allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+      read(fdH, *) chargesSt
+      close(fdH)
+
+      if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
+        call error("Incompatible orbitals in the upload file!")
+      end if
+
+      !if (nSpin == 1) then
+      shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
+      !else
+      !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
+      !endif
+
+      charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
+      deallocate(nOrbAtom)
+      deallocate(shiftPerLSt)
+      deallocate(chargesSt)
+    end do
+
+  end subroutine uploadContShiftPerL
+
+
+  subroutine initNegfStuff(negfStr, transpar, ginfo, neighborList, nNeighbor, img2CentCell, &
+              & iAtomStart, orb)
+    type(TNegfStructure), intent(in) :: negfStr
+    type(TTransPar), intent(in) :: transpar
+    type(TNEGFInfo), intent(in) :: ginfo
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: img2CentCell(:)
+    integer, intent(in) :: iAtomStart(:)
+    type(TNeighborList), intent(in) :: neighborList
+    integer, intent(in) :: nNeighbor(:)
+  
+    ! known issue about the PLs: We need an authomatic partitioning
+    call negf_init_csr(iAtomStart, neighborList%iNeighbor, nNeighbor, img2CentCell, orb)
+        
+    call negf_init_str(negfStr, transpar, ginfo%greendens, neighborList%iNeighbor, nNeighbor, img2CentCell)
+        
+    call negf_init_dephasing(ginfo%tundos)  !? why tundos 
+
+  end subroutine initNegfStuff
 
 
   !> Decides, whether restart file should be written during the run.
@@ -1698,10 +1908,30 @@ contains
 
   end subroutine resetInternalPotentials
 
+  subroutine overrideUploadedCharges(qInput, chargeUp, transpar)
+    !> input charges
+    real(dp), intent(inout) :: qInput(:,:,:)
+
+    !> uploaded charges   
+    real(dp), intent(in) :: chargeUp(:,:,:)
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+
+    integer :: ii, iStart, iEnd
+
+    do ii = 1, transpar%ncont
+      iStart = transpar%contacts(ii)%idxrange(1)
+      iEnd = transpar%contacts(ii)%idxrange(2)
+      qInput(:,iStart:iEnd,:) = chargeUp(:,iStart:iEnd,:)
+    end do
+ 
+  end subroutine overrideUploadedCharges
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(qInput, q0, chargePerShell, orb, species, neighborList,&
-      & img2CentCell, spinW, thirdOrd, potential)
+      & img2CentCell, spinW, thirdOrd, potential, tPoisson, tUpload, shiftPerLUp)
 
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
@@ -1733,10 +1963,15 @@ contains
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
+    !> Poisson solver variables
+    logical, intent(in) :: tPoisson
+    logical, intent(in) :: tUpload
+    real(dp), intent(in) :: shiftPerLUp(:,:)
+    
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin
+    integer :: ii, nAtom, nSpin
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -1745,9 +1980,21 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call updateCharges_SCC(qInput, q0, orb, species, neighborList%iNeighbor, img2CentCell)
-    call getShiftPerAtom(atomPot(:,1))
-    call getShiftPerL(shellPot(:,:,1))
+    if (tPoisson) then
+      call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
+      if (tUpload) then
+        shellPot(:,:,1) = shiftPerLUp
+      end if
+      call poiss_getshift(shellPot(:,:,1))
+      do ii = 1, nAtom
+        atomPot(ii,1) = sum(shellPot(:,ii,1)) / orb%nOrbAtom(ii)
+      end do  
+    else
+      call updateCharges_SCC(qInput, q0, orb, species, neighborList%iNeighbor, img2CentCell)
+      call getShiftPerAtom(atomPot(:,1))
+      call getShiftPerL(shellPot(:,:,1))
+    end if
+
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
 
@@ -2025,6 +2272,14 @@ contains
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
+
+    !if (solver == solverGF) then
+    !  call calcdensity_green(iSCC, mympi, groupKS, ham, over, &
+    !      & descHS, neighborlist%iNeighbor, nNeighbor, iAtomStart, iPair, &
+    !      & img2CentCell, iCellVec, cellVec, orb, nEl, & 
+    !      & tempElec, kPoint, kWeight, rhoPrim, Eband, Ef, E0, TS, mu)
+    !  return
+    !end if
 
     ! Hack due to not using Pauli-type structure for diagonalisation
     if (nSpin > 1) then
