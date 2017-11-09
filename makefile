@@ -79,6 +79,8 @@ $(EXTERNALS):
           -f $(ROOT)/external/$(EXTERNAL_NAME)/make.dpbuild \
           ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
+external_libnegf: external_mpifx
+
 ################################################################################
 # Test targets
 ################################################################################
