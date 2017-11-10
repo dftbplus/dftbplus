@@ -781,8 +781,8 @@ module initprogram
   !> File descriptor for charge restart file
   integer :: fdCharges
 
-  !> Contains (iK, iS) tuples to be processed by current group
-  integer, allocatable :: groupKS(:,:)
+  !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
+  type(TParallelKS) :: parallelKS
 
   private :: createRandomGenerators
 
@@ -2044,7 +2044,7 @@ contains
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
   #:endif
 
-    call getGroupKS(env, nKPoint, nIndepHam, groupKS)
+    call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     if (env%tIoProc) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
@@ -3029,8 +3029,8 @@ contains
 
     ! If only H/S should be printed, no allocation for square HS is needed
     if (.not. (tWriteRealHS .or. tWriteHS)) then
-      call allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx, SSqrCplx,&
-          & eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+      call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
+          & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
     if (tLinResp) then
@@ -3063,7 +3063,7 @@ contains
 
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
-  subroutine allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx,&
+  subroutine allocateDenseMatrices(env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
 
     !> Computing environment
@@ -3073,7 +3073,7 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Index array for spin and k-point index
-    integer, intent(in) :: groupKS(:,:)
+    integer, intent(in) :: localKS(:,:)
 
     !> Is this a two component calculation
     logical, intent(in) :: t2Component
@@ -3101,7 +3101,7 @@ contains
 
     integer :: nLocalCols, nLocalRows, nLocalKS
 
-    nLocalKS = size(groupKS, dim=2)
+    nLocalKS = size(localKS, dim=2)
   #:if WITH_SCALAPACK
     call scalafx_getlocalshape(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
   #:else
@@ -3216,63 +3216,6 @@ contains
 
   end subroutine getDenseDescCommon
 
-
-  !> Returns the (k-point, spin) tuples to be processed by current processor grid (if parallel) or
-  !> put everything in one group if serial.
-  subroutine getGroupKS(env, nKpoint, nSpin, groupKS)
-
-    !> Environenment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Number of k-points in calculation.
-    integer, intent(in) :: nKpoint
-
-    !> Number of spin channels in calculation
-    integer, intent(in) :: nSpin
-
-    !> Array of (k-point, spin) tuples (groupKS(:, ii) = [iK, iS])
-    integer, intent(out), allocatable :: groupKS(:,:)
-
-    character(lc) :: tmpStr
-    integer :: nGroup, iGroup
-    integer :: nHam, nHamAll, res
-    integer :: ind, iHam, iS, iK
-
-  #:if WITH_SCALAPACK
-    nGroup = env%blacs%nGroup
-    iGroup = env%blacs%iGroup
-  #:else
-    nGroup = 1
-    iGroup = 0
-  #:endif
-
-    nHamAll = nKpoint * nSpin
-    nHam = nHamAll / nGroup
-    res = nHamAll - nHam * nGroup
-    if (res /= 0) then
-      write(tmpStr, "(A,I0,A,I0,A)") "Number of groups (", nGroup,&
-          & ") is not a divisor of the number of independent Hamiltonians (", nHamAll, ")"
-      call error(tmpStr)
-    end if
-    ! We can not handle currently different number of Hamiltonians per group.
-    !if (iGroup < res) then
-    !  nHam = nHam + 1
-    !end if
-    allocate(groupKS(2, nHam))
-    ind = 0
-    iHam = 1
-    do iS = 1, nSpin
-      do iK = 1, nKpoint
-        if (mod(ind, nGroup) == iGroup) then
-          groupKS(1, iHam) = iK
-          groupKS(2, iHam) = iS
-          iHam = iHam + 1
-        end if
-        ind = ind + 1
-      end do
-    end do
-
-  end subroutine getGroupKS
 
 
 end module initprogram

@@ -98,7 +98,7 @@ contains
 
   !> Writes the eigenvectors to disc.
   subroutine writeEigenvectors(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec,&
-      & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, groupKS,&
+      & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
       & tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
 
     !> Environment settings
@@ -147,7 +147,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
     logical, intent(in) :: tPrintEigvecsTxt
@@ -169,12 +169,12 @@ contains
 
     if (present(eigvecsCplx)) then
       call writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
-          & iPair, img2CentCell, species, speciesName, orb, kPoint, over, groupKS,&
+          & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
           & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx)
     else
       call writeRealEigvecs(env, fd, runId, neighborList, nNeighbor, denseDesc, iPair,&
-          & img2CentCell, species, speciesName, orb, over, groupKS, tPrintEigvecsTxt, eigvecsReal,&
-          & SSqrReal)
+          & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt,&
+          & eigvecsReal, SSqrReal)
     end if
 
   end subroutine writeEigenvectors
@@ -182,7 +182,7 @@ contains
 
   !> Writes real eigenvectors
   subroutine writeRealEigvecs(env, fd, runId, neighborList, nNeighbor, denseDesc, iPair,&
-      & img2CentCell, species, speciesName, orb, over, groupKS, tPrintEigvecsTxt, eigvecsReal,&
+      & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt, eigvecsReal,&
       & SSqrReal, fileName)
 
     !> Environment settings
@@ -222,7 +222,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
     logical, intent(in) :: tPrintEigvecsTxt
@@ -237,18 +237,18 @@ contains
     character(len=*), intent(in), optional :: fileName
 
   #:if WITH_SCALAPACK
-    call writeRealEigvecsBinBlacs(env, denseDesc, eigvecsReal, fd, runId, groupKS,&
+    call writeRealEigvecsBinBlacs(env, denseDesc, eigvecsReal, fd, runId, parallelKS,&
         & fileName=fileName)
     if (tPrintEigvecsTxt) then
-      call writeRealEigvecsTxtBlacs(env, denseDesc, eigvecsReal, fd, groupKS, orb, over,&
+      call writeRealEigvecsTxtBlacs(env, denseDesc, eigvecsReal, fd, parallelKS, orb, over,&
           & neighborList%iNeighbor, nNeighbor, iPair, img2CentCell, species, speciesName,&
           & fileName=fileName)
     end if
   #:else
-    call writeRealEigvecsBinSerial(eigvecsReal, fd, runId, groupKS, fileName=fileName)
+    call writeRealEigvecsBinSerial(eigvecsReal, fd, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       call writeRealEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
-          & orb, species, speciesName, over, groupKS, eigvecsReal, SSqrReal, fileName=fileName)
+          & orb, species, speciesName, over, parallelKS, eigvecsReal, SSqrReal, fileName=fileName)
     end if
   #:endif
 
@@ -257,7 +257,7 @@ contains
 
   !> Writes complex eigenvectors.
   subroutine writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec,&
-      & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, groupKS,&
+      & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
       & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName)
 
     !> Environment settings
@@ -306,7 +306,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
     logical, intent(in) :: tPrintEigvecsTxt
@@ -321,29 +321,29 @@ contains
     character(len=*), intent(in), optional :: fileName
 
   #:if WITH_SCALAPACK
-    call writeCplxEigvecsBinBlacs(env, denseDesc, eigvecsCplx, fd, runId, groupKS,&
+    call writeCplxEigvecsBinBlacs(env, denseDesc, eigvecsCplx, fd, runId, parallelKS,&
         & fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
-        call writePauliEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, groupKS, orb, over,&
+        call writePauliEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, parallelKS, orb, over,&
             & kPoint, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell,&
             & species, speciesName, fileName=fileName)
       else
-        call writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, groupKS, orb, over,&
+        call writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, parallelKS, orb, over,&
             & kPoint, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell,&
             & species, speciesName, fileName=fileName)
       end if
     end if
   #:else
-    call writeCplxEigvecsBinSerial(eigvecsCplx, fd, runId, groupKS, fileName=fileName)
+    call writeCplxEigvecsBinSerial(eigvecsCplx, fd, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
         call writePauliEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair,&
-            & img2CentCell, iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoint,&
+            & img2CentCell, iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint,&
             & eigvecsCplx, SSqrCplx, fileName=fileName)
       else
         call writeCplxEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
-            & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoint, eigvecsCplx,&
+            & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint, eigvecsCplx,&
             & SSqrCplx, fileName=fileName)
       end if
     end if
@@ -357,7 +357,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into binary output file (BLACS version).
-  subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, fd, runId, groupKS, fileName)
+  subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, fd, runId, parallelKS, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -375,7 +375,7 @@ contains
     integer, intent(in) :: runId
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
@@ -383,10 +383,9 @@ contains
     type(linecomm) :: collector
     ${DTYPE}$(dp), allocatable :: localEigvec(:)
     integer :: sender
-    integer :: nKS, nOrb
+    integer :: nOrb
     integer :: iKS, iGroup, iEig
 
-    nKS = size(groupKS, dim=2)
     nOrb = denseDesc%fullSize
     allocate(localEigvec(nOrb))
 
@@ -394,21 +393,29 @@ contains
       call prepareEigvecFileBin(fd, runId, fileName)
     end if
     call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    do iKS = 1, nKS
-      if (env%mpi%all%master) then
-        do iGroup = 1, env%blacs%nGroup
+
+    if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
+        group: do iGroup = 1, env%blacs%nGroup
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
+          end if
+          if (iGroup /= 1) then
+            sender = (iGroup - 1) * env%blacs%groupSize
+          end if
           do iEig = 1, nOrb
-            if (iGroup > 1) then
-              sender = (iGroup - 1) * env%blacs%groupSize
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-            else
+            if (iGroup == 1) then
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
+            else
+              call mpifx_recv(env%mpi%all, localEigvec, sender)
             end if
             write(fd) localEigvec
           end do
-        end do
-      else
+        end do group
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
         do iEig = 1, nOrb
           if (env%blacs%gridOrbSqr%master) then
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
@@ -417,8 +424,9 @@ contains
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
           end if
         end do
-      end if
-    end do
+      end do
+    end if
+    
     if (env%mpi%all%master) then
       close(fd)
     end if
@@ -428,7 +436,7 @@ contains
 #:else
 
   !> Writes ${DTYPE}$ eigenvectors in binary format.
-  subroutine write${NAME}$EigvecsBinSerial(eigvecs, fd, runId, groupKS, fileName)
+  subroutine write${NAME}$EigvecsBinSerial(eigvecs, fd, runId, parallelKS, fileName)
 
     !> Square Hamiltonian (or work array)
     ${DTYPE}$(dp), intent(in) :: eigvecs(:,:,:)
@@ -440,7 +448,7 @@ contains
     integer, intent(in) :: runId
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
@@ -449,8 +457,8 @@ contains
     integer :: ii
 
     call prepareEigvecFileBin(fd, runId, fileName)
-    do iKS = 1, size(groupKS, dim=2)
-      iSpin = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iSpin = parallelKS%localKS(2, iKS)
       do ii = 1, size(eigvecs, dim=2)
         write(fd) eigvecs(:,ii,iSpin)
       end do
@@ -467,8 +475,8 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
-  subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, groupKS, orb, over, iNeighbor,&
-      & nNeighbor, iSparseStart, img2CentCell, species, speciesName, fileName)
+  subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, parallelKS, orb, over,&
+      & iNeighbor, nNeighbor, iSparseStart, img2CentCell, species, speciesName, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -483,7 +491,7 @@ contains
     integer, intent(in) :: fd
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -516,11 +524,10 @@ contains
     real(dp), allocatable :: localEigvec(:), localFrac(:)
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:)
     integer :: sender
-    integer :: nKS, nOrb, nAtom
-    integer :: iKS, iS, iGroup, iEig, groupKSBuffer(2)
+    integer :: nOrb, nAtom
+    integer :: iKS, iS, iGroup, iEig
 
-    nKS = size(groupKS, dim=2)
-    nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
+    nOrb = denseDesc%fullSize
     nAtom = size(nNeighbor)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -533,39 +540,45 @@ contains
     if (env%mpi%all%master) then
       call prepareEigvecFileTxt(fd, .false., fileName)
     end if
-    KS: do iKS = 1, nKS
-      call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart, img2CentCell,&
-          & denseDesc, globalS)
-      call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
-          & globalFrac, denseDesc%blacsOrbSqr)
-      globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
-      if (env%mpi%all%master) then
+
+    masterSlave: if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 1, env%blacs%nGroup
-          if (iGroup > 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-            call mpifx_recv(env%mpi%all, groupKSBuffer, sender)
-            iS = groupKSBuffer(2)
-          else
-            iS = groupKS(2, iKS)
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
           end if
-          eigMaster: do iEig = 1, nOrb
-            if (iGroup > 1) then
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localFrac, sender)
-            else
+          iS = parallelKS%groupKS(2, iKS, iGroup)
+          if (iGroup == 1) then
+            call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart,&
+                & img2CentCell, denseDesc, globalS)
+            call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+                & denseDesc%blacsOrbSqr, globalFrac, denseDesc%blacsOrbSqr)
+            globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
+          else
+            sender = (iGroup - 1) * env%blacs%groupSize
+          end if
+          do iEig = 1, nOrb
+            if (iGroup == 1) then
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+            else
+              call mpifx_recv(env%mpi%all, localEigvec, sender)
+              call mpifx_recv(env%mpi%all, localFrac, sender)
             end if
             call writeSingleRealEigvecTxt(fd, localEigvec, localFrac, iS, iEig, orb, species,&
                 & speciesName, nAtom)
-          end do eigMaster
+          end do
         end do group
-      else
-        if (env%blacs%gridOrbSqr%master) then
-          call mpifx_send(env%mpi%all, groupKS(:, iKS), env%mpi%all%masterrank)
-        end if
-        eigSlave: do iEig = 1, nOrb
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
+        call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart, img2CentCell,&
+            & denseDesc, globalS)
+        call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
+            & globalFrac, denseDesc%blacsOrbSqr)
+        globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
+        do iEig = 1, nOrb
           if (env%blacs%gridOrbSqr%master) then
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
@@ -575,9 +588,10 @@ contains
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
           end if
-        end do eigSlave
-      end if
-    end do KS
+        end do
+      end do
+    end if masterSlave
+
     if (env%mpi%all%master) then
       close(fd)
     end if
@@ -588,7 +602,7 @@ contains
 
     !> Writes real eigenvectors in text form.
   subroutine writeRealEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
-      & orb, species, speciesName, over, groupKS, eigvecs, SSqr, fileName)
+      & orb, species, speciesName, over, parallelKS, eigvecs, SSqr, fileName)
 
     !> Fileid (file not yet opened) to use.
     integer, intent(in) :: fd
@@ -621,7 +635,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: eigvecs(:,:,:)
@@ -641,8 +655,8 @@ contains
     allocate(rVecTemp(size(eigvecs, dim=1)))
     call unpackHS(SSqr, over, neighlist%iNeighbor, nNeighbor, denseDesc%iDenseStart, iPair,&
         & img2CentCell)
-    do iKS = 1, size(groupKS, dim=2)
-      iS = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iS = parallelKS%localKS(2, iKS)
       do iEig = 1, denseDesc%nOrb
         call hemv(rVecTemp, SSqr, eigvecs(:,iEig,iS))
         call writeSingleRealEigvecTxt(fd, eigvecs(:,iEig,iS), rVecTemp, iS, iEig, orb, species,&
@@ -659,7 +673,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, groupKS, orb, over,&
+  subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, parallelKS, orb, over,&
       & kPoints, iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
       & speciesName, fileName)
 
@@ -676,7 +690,7 @@ contains
     integer, intent(in) :: fdEigvec
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -717,76 +731,78 @@ contains
     type(linecomm) :: collector
     complex(dp), allocatable :: localEigvec(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
-    real(dp), allocatable :: localFracs(:), globalFracs(:,:)
+    real(dp), allocatable :: localFrac(:), globalFrac(:,:)
     integer :: sender
-    integer :: nKS, nEigvec, nAtom
-    integer :: iKS, iK, iS, iGroup, iEig, groupKSBuffer(2)
+    integer :: nEigvec, nAtom
+    integer :: iKS, iK, iS, iGroup, iEig
 
-    nKS = size(groupKS, dim=2)
     nEigvec = denseDesc%nOrb
     nAtom = size(nNeighbor)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    allocate(globalFracs(size(eigvecs, dim=1), size(eigvecs, dim=2)))
+    allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     if (env%blacs%gridOrbSqr%master) then
       allocate(localEigvec(denseDesc%nOrb))
-      allocate(localFracs(denseDesc%nOrb))
+      allocate(localFrac(denseDesc%nOrb))
     end if
 
     call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
     if (env%mpi%all%master) then
       call prepareEigvecFileTxt(fdEigvec, .false., fileName)
     end if
-    KS: do iKS = 1, nKS
-      iK = groupKS(1, iKS)
-      call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
-          & cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
-      call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
-          & globalSDotC, denseDesc%blacsOrbSqr)
-      globalFracs(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
 
-      if (env%mpi%all%master) then
+    if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 1, env%blacs%nGroup
-          if (iGroup > 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-            call mpifx_recv(env%mpi%all, groupKSBuffer, sender)
-            iK = groupKSBuffer(1)
-            iS = groupKSBuffer(2)
-          else
-            iK = groupKS(1, iKS)
-            iS = groupKS(2, iKS)
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
           end if
-          eigMaster: do iEig = 1, nEigvec
-            if (iGroup > 1) then
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localFracs, sender)
-            else
+          iK = parallelKS%groupKS(1, iKS, iGroup)
+          iS = parallelKS%groupKS(2, iKS, iGroup)
+          if (iGroup == 1) then
+            call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
+                & cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+            call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+                & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+            globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
+          else
+            sender = (iGroup - 1) * env%blacs%groupSize
+          end if
+          do iEig = 1, nEigvec
+            if (iGroup == 1) then
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFracs, localFracs)
+              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+            else
+              call mpifx_recv(env%mpi%all, localEigvec, sender)
+              call mpifx_recv(env%mpi%all, localFrac, sender)
             end if
-            call writeSingleCplxEigvecTxt(fdEigvec, localEigvec, localFracs, iS, iK, iEig, orb,&
+            call writeSingleCplxEigvecTxt(fdEigvec, localEigvec, localFrac, iS, iK, iEig, orb,&
                 & species, speciesName, nAtom)
-          end do eigMaster
+          end do
         end do group
-      else
-        if (env%blacs%gridOrbSqr%master) then
-          call mpifx_send(env%mpi%all, groupKS(:, iKS), env%mpi%all%masterrank)
-        end if
-        eigSlave: do iEig = 1, nEigvec
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
+            & cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+        call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+        globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
+        do iEig = 1, nEigvec
           if (env%blacs%gridOrbSqr%master) then
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFracs, localFracs)
+            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
             call mpifx_send(env%mpi%all, localEigvec, env%mpi%all%masterrank)
-            call mpifx_send(env%mpi%all, localFracs, env%mpi%all%masterrank)
+            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
           else
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFracs)
+            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
           end if
-        end do eigSlave
-      end if
-
-    end do KS
+        end do
+      end do
+    end if
 
     if (env%mpi%all%master) then
       close(fdEigvec)
@@ -798,7 +814,7 @@ contains
 
     !> Writes complex eigenvectors in text form.
   subroutine writeCplxEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
-      & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoints, eigvecs, SSqr,&
+      & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoints, eigvecs, SSqr,&
       & fileName)
 
     !> Fileid (file not yet opened) to use.
@@ -838,7 +854,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
     real(dp), intent(in) :: kPoints(:,:)
@@ -863,9 +879,9 @@ contains
     nEigvecs = size(eigvecs, dim=2)
     allocate(fracs(nEigvecs))
 
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
-      iS = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
       call unpackHS(SSqr, over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iDenseStart, iPair, img2CentCell)
       do iEig = 1, nEigvecs
@@ -885,9 +901,9 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, groupKS, orb, over,&
-      & kPoints, iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
-      & speciesName, fileName)
+  subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, parallelKS, orb, over, kPoints,&
+      & iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species, speciesName,&
+      & fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -899,10 +915,10 @@ contains
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
     !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fdEigvec
+    integer, intent(in) :: fd
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -945,11 +961,10 @@ contains
     complex(dp), allocatable :: localEigvec(:), localSDotC(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: sender
-    integer :: nKS, nEigvec, nAtom
-    integer :: iKS, iK, iS, iGroup, iEig, groupKSBuffer(2)
+    integer :: nAtom, nOrb
+    integer :: iKS, iK, iGroup, iEig
 
-    nKS = size(groupKS, dim=2)
-    nEigvec = denseDesc%fullSize
+    nOrb = denseDesc%fullSize
     nAtom = size(nNeighbor)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -963,48 +978,47 @@ contains
 
     call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
     if (env%mpi%all%master) then
-      call prepareEigvecFileTxt(fdEigvec, .true., fileName)
+      call prepareEigvecFileTxt(fd, .true., fileName)
     end if
-    KS: do iKS = 1, nKS
-      iK = groupKS(1, iKS)
-      call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
-          & cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
-      call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
-          & globalSDotC, denseDesc%blacsOrbSqr)
 
-      if (env%mpi%all%master) then
-
+    masterSlave: if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 1, env%blacs%nGroup
-          if (iGroup > 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-            call mpifx_recv(env%mpi%all, groupKSBuffer, sender)
-            iK = groupKSBuffer(1)
-            iS = groupKSBuffer(2)
-          else
-            iK = groupKS(1, iKS)
-            iS = groupKS(2, iKS)
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
           end if
-          eigMaster: do iEig = 1, nEigvec
-            if (iGroup > 1) then
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localSDotC, sender)
-            else
+          iK = parallelKS%groupKS(1, iKS, iGroup)
+          if (iGroup == 1) then
+            call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
+                & cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
+            call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+                & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+          else
+            sender = (iGroup - 1) * env%blacs%groupSize
+          end if
+          do iEig = 1, nOrb
+            if (iGroup == 1) then
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
+            else
+              call mpifx_recv(env%mpi%all, localEigvec, sender)
+              call mpifx_recv(env%mpi%all, localSDotC, sender)
             end if
             call getPauliFractions(localEigvec, localSDotC, fracs)
-            call writeSinglePauliEigvecTxt(fdEigvec, localEigvec, fracs, iK, iEig, orb, species,&
+            call writeSinglePauliEigvecTxt(fd, localEigvec, fracs, iK, iEig, orb, species,&
                 & speciesName, nAtom, denseDesc%nOrb)
-          end do eigMaster
+          end do
         end do group
-
-      else
-
-        if (env%blacs%gridOrbSqr%master) then
-          call mpifx_send(env%mpi%all, groupKS(:, iKS), env%mpi%all%masterrank)
-        end if
-        eigSlave: do iEig = 1, nEigvec
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
+            & cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
+        call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+        do iEig = 1, nOrb
           if (env%blacs%gridOrbSqr%master) then
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
@@ -1014,13 +1028,12 @@ contains
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalSDotC)
           end if
-        end do eigSlave
-      end if
-
-    end do KS
+        end do
+      end do
+    end if masterSlave
 
     if (env%mpi%all%master) then
-      close(fdEigvec)
+      close(fd)
     end if
 
   end subroutine writePauliEigvecsTxtBlacs
@@ -1029,7 +1042,7 @@ contains
 
     !> Writes complex eigenvectors in text form.
   subroutine writePauliEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
-      & iCellVec, cellVec, orb, species, speciesName, over, groupKS, kPoints, eigvecs, SSqr,&
+      & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoints, eigvecs, SSqr,&
       & fileName)
 
     !> Fileid (file not yet opened) to use.
@@ -1069,7 +1082,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
     real(dp), intent(in) :: kPoints(:,:)
@@ -1094,8 +1107,8 @@ contains
     nEigvecs = size(eigvecs, dim=2)
     allocate(fracs(4, nEigvecs / 2))
 
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
       call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor,&
           & denseDesc%iDenseStart, iPair, img2CentCell, iCellVec, cellVec, SSqr)
       do iEig = 1, nEigvecs
@@ -1115,7 +1128,7 @@ contains
   !> Write projected eigenvectors.
   subroutine writeProjectedEigenvectors(env, regionLabels, fd, eigen, neighborList, nNeighbor,&
       & cellVec, iCellVec, denseDesc, iPair, img2CentCell, orb, over, kPoint, kWeight, iOrbRegion,&
-      & groupKS, eigvecsReal, workReal, eigvecsCplx, workCplx)
+      & parallelKS, eigvecsReal, workReal, eigvecsCplx, workCplx)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1164,7 +1177,7 @@ contains
     type(ListIntR1), intent(inout) :: iOrbRegion
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Storage for eigenvectors (real)
     real(dp), intent(inout), optional :: eigvecsReal(:,:,:)
@@ -1185,31 +1198,31 @@ contains
     if (present(eigvecsCplx)) then
       if (denseDesc%t2Component) then
         call writeProjPauliEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
-            & eigvecsCplx, orb, groupKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
+            & eigvecsCplx, orb, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
             & img2CentCell, iCellVec, cellVec)
       else
         call writeProjCplxEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen&
-            &,eigvecsCplx, groupKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
+            &,eigvecsCplx, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
             & img2CentCell, iCellVec, cellVec)
       end if
     else
       call writeProjRealEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
-          & eigvecsReal, groupKS, over, neighborList, nNeighbor, iPair, img2CentCell)
+          & eigvecsReal, parallelKS, over, neighborList, nNeighbor, iPair, img2CentCell)
     end if
   #:else
     if (present(eigvecsCplx)) then
       if (denseDesc%t2Component) then
         call writeProjPauliEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
-            & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, groupKS,&
+            & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       else
         call writeProjCplxEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
-            & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, groupKS,&
+            & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       end if
     else
       call writeProjRealEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, denseDesc,&
-          & iPair, img2CentCell, over, groupKS, eigvecsReal, workReal, iOrbRegion)
+          & iPair, img2CentCell, over, parallelKS, eigvecsReal, workReal, iOrbRegion)
     end if
   #:endif
 
@@ -1220,7 +1233,7 @@ contains
 
   !> Write the real eigvectors into human readible output file (BLACS version).
   subroutine writeProjRealEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
-      & eigvecs, groupKS, over, neighborList, nNeighbor, iSparseStart, img2CentCell)
+      & eigvecs, parallelKS, over, neighborList, nNeighbor, iSparseStart, img2CentCell)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1244,7 +1257,7 @@ contains
     real(dp), intent(in) :: eigvecs(:,:,:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Sparse overlap
     real(dp), intent(in) :: over(:)
@@ -1262,67 +1275,69 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     type(linecomm) :: collector
-    real(dp), allocatable :: globalS(:,:), globalFracs(:,:), localFracs(:)
+    real(dp), allocatable :: globalS(:,:), globalFrac(:,:), localFrac(:)
     integer :: sender
-    integer :: nKS, nOrb, nReg
-    integer :: iKS, iS, iGroup, iEig, groupKSBuffer(2)
+    integer :: nOrb, nReg
+    integer :: iKS, iS, iGroup, iEig
 
     nReg = size(fd)
-    nKS = size(groupKS, dim=2)
-    nOrb = denseDesc%nOrb
+    nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    allocate(globalFracs(size(eigvecs, dim=1), size(eigvecs, dim=2)))
+    allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     if (env%blacs%gridOrbSqr%master) then
-      allocate(localFracs(nOrb))
+      allocate(localFrac(nOrb))
     end if
 
     if (env%mpi%all%master) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
-
     call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    KS: do iKS = 1, nKS
-      call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
-          & img2CentCell, denseDesc, globalS)
-      call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
-          & globalFracs, denseDesc%blacsOrbSqr)
-      globalFracs(:,:) = eigvecs(:,:,iKS) * globalFracs
 
-      if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 1, env%blacs%nGroup
-          if (iGroup > 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-            call mpifx_recv(env%mpi%all, groupKSBuffer, sender)
-            iS = groupKSBuffer(2)
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
+          end if
+          iS = parallelKS%groupKS(2, iKS, iGroup)
+          if (iGroup == 1) then
+            call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor,&
+                & iSparseStart, img2CentCell, denseDesc, globalS)
+            call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+                & denseDesc%blacsOrbSqr, globalFrac, denseDesc%blacsOrbSqr)
+            globalFrac(:,:) = eigvecs(:,:,iKS) * globalFrac
           else
-            iS = groupKS(2, iKS)
+            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           call writeProjEigvecHeader(fd, iS)
-          eigMaster: do iEig = 1, nOrb
-            if (iGroup > 1) then
-              call mpifx_recv(env%mpi%all, localFracs, sender)
+          do iEig = 1, nOrb
+            if (iGroup == 1) then
+              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
             else
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFracs, localFracs)
+              call mpifx_recv(env%mpi%all, localFrac, sender)
             end if
-            call writeProjEigvecData(fd, iOrbRegion, eigvals(iEig, 1, iS), localFracs)
-          end do eigMaster
+            call writeProjEigvecData(fd, iOrbRegion, eigvals(iEig, 1, iS), localFrac)
+          end do
           call writeProjEigvecFooter(fd)
         end do group
-      else
-        if (env%blacs%gridOrbSqr%master) then
-          call mpifx_send(env%mpi%all, groupKS(:, iKS), env%mpi%all%masterrank)
-        end if
-        eigSlave: do iEig = 1, nOrb
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
+        call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
+            & img2CentCell, denseDesc, globalS)
+        call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
+            & globalFrac, denseDesc%blacsOrbSqr)
+        globalFrac(:,:) = eigvecs(:,:,iKS) * globalFrac
+        do iEig = 1, nOrb
           if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFracs, localFracs)
-            call mpifx_send(env%mpi%all, localFracs, env%mpi%all%masterrank)
+            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFracs)
+            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
           end if
-        end do eigSlave
-      end if
-
-    end do KS
+        end do
+      end do
+    end if masterSlave
 
     if (env%mpi%all%master) then
       call finishProjEigvecFiles(fd)
@@ -1334,7 +1349,7 @@ contains
 
     !> Write the projected eigenstates into text files
   subroutine writeProjRealEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, denseDesc,&
-      & iPair, img2CentCell, over, groupKS, eigvecs, work, iOrbRegion)
+      & iPair, img2CentCell, over, parallelKS, eigvecs, work, iOrbRegion)
 
     !> List with fileNames for each region
     type(listCharLc), intent(inout) :: fileNames
@@ -1364,7 +1379,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
     real(dp), intent(inout) :: eigvecs(:,:,:)
@@ -1383,8 +1398,8 @@ contains
     allocate(rVecTemp(size(eigvecs, dim=1)))
     call unpackHS(work, over, neighlist%iNeighbor, nNeighbor, denseDesc%iDenseStart, iPair,&
         & img2CentCell)
-    do iKS = 1, size(groupKS, dim=2)
-      iS = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iS = parallelKS%localKS(2, iKS)
       call writeProjEigvecHeader(fd, iS)
       do iEig = 1, denseDesc%nOrb
         call hemv(rVecTemp, work, eigvecs(:,iEig,iKS))
@@ -1403,7 +1418,7 @@ contains
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
   subroutine writeProjCplxEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
-      & eigvecs, groupKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
+      & eigvecs, parallelKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec)
 
     !> Environment settings
@@ -1428,7 +1443,7 @@ contains
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> K-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -1458,71 +1473,73 @@ contains
     real(dp), intent(in) :: cellVec(:,:)
 
     type(linecomm) :: collector
-    real(dp), allocatable :: globalFracs(:,:), localFracs(:)
+    real(dp), allocatable :: globalFrac(:,:), localFrac(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: sender
-    integer :: nKS, nOrb, nReg
-    integer :: iKS, iK, iS, iGroup, iEig, groupKSBuffer(2)
+    integer :: nOrb, nReg
+    integer :: iKS, iK, iS, iGroup, iEig
 
     nReg = size(fd)
-    nKS = size(groupKS, dim=2)
-    nOrb = denseDesc%nOrb
+    nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    allocate(globalFracs(size(eigvecs, dim=1), size(eigvecs, dim=2)))
+    allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     if (env%blacs%gridOrbSqr%master) then
-      allocate(localFracs(nOrb))
+      allocate(localFrac(nOrb))
     end if
 
     if (env%mpi%all%master) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
-
     call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    KS: do iKS = 1, nKS
-      iK = groupKS(1, iKS)
-      call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
-      call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
-          & globalSDotC, denseDesc%blacsOrbSqr)
-      globalFracs(:,:) = real(globalSDotC * conjg(eigvecs(:,:,iKS)))
 
-      if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 1, env%blacs%nGroup
-          if (iGroup > 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-            call mpifx_recv(env%mpi%all, groupKSBuffer, sender)
-            iK = groupKSBuffer(1)
-            iS = groupKSBuffer(2)
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
+          end if
+          iK = parallelKS%groupKS(1, iKS, iGroup)
+          iS = parallelKS%groupKS(2, iKS, iGroup)
+          if (iGroup == 1) then
+            call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor,&
+                & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+            call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+                & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+            globalFrac(:,:) = real(globalSDotC * conjg(eigvecs(:,:,iKS)))
           else
-            iK = groupKS(1, iKS)
-            iS = groupKS(2, iKS)
+            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           call writeProjEigvecHeader(fd, iS, iK, kWeights(iK))
-          eigMaster: do iEig = 1, nOrb
-            if (iGroup > 1) then
-              call mpifx_recv(env%mpi%all, localFracs, sender)
+          do iEig = 1, nOrb
+            if (iGroup == 1) then
+              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
             else
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFracs, localFracs)
+              call mpifx_recv(env%mpi%all, localFrac, sender)
             end if
-            call writeProjEigvecData(fd, iOrbRegion, eigvals(iEig, iK, iS), localFracs)
-          end do eigMaster
-          call writeProjEigvecFooter(fd)
+            call writeProjEigvecData(fd, iOrbRegion, eigvals(iEig, iK, iS), localFrac)
+          end do
         end do group
-      else
-        if (env%blacs%gridOrbSqr%master) then
-          call mpifx_send(env%mpi%all, groupKS(:, iKS), env%mpi%all%masterrank)
-        end if
-        eigSlave: do iEig = 1, nOrb
+        call writeProjEigvecFooter(fd)
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
+            & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+        call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+        globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
+        do iEig = 1, nOrb
           if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFracs, localFracs)
-            call mpifx_send(env%mpi%all, localFracs, env%mpi%all%masterrank)
+            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFracs)
+            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
           end if
-        end do eigSlave
-      end if
-    end do KS
+        end do
+      end do
+    end if masterSlave
 
     if (env%mpi%all%master) then
       call finishProjEigvecFiles(fd)
@@ -1534,8 +1551,8 @@ contains
 
   !> Write the projected complex eigenstates into text files.
   subroutine writeProjCplxEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
-      & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, groupKS, eigvecs, work,&
-      & iOrbRegion)
+      & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, parallelKS, eigvecs,&
+      & work, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
@@ -1577,7 +1594,7 @@ contains
     real(dp), intent(in) :: kWeights(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigen vectors
     complex(dp), intent(inout) :: eigvecs(:,:,:)
@@ -1591,14 +1608,14 @@ contains
     integer :: iKS, iS, iK, iEig, nOrb
     complex(dp), allocatable :: cVecTemp(:)
 
-    nOrb = denseDesc%nOrb
+    nOrb = denseDesc%fullSize
 
     call prepareProjEigvecFiles(fd, fileNames)
 
     allocate(cVecTemp(size(eigvecs, dim=1)))
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
-      iS = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
       call writeProjEigvecHeader(fd, iS, iK, kWeights(iK))
       call unpackHS(work, over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iDenseStart, iPair, img2CentCell)
@@ -1621,7 +1638,7 @@ contains
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
   subroutine writeProjPauliEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
-      & eigvecs, orb, groupKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
+      & eigvecs, orb, parallelKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec)
 
     !> Environment settings
@@ -1649,7 +1666,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> K-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -1683,10 +1700,9 @@ contains
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     real(dp), allocatable :: fracs(:,:)
     integer :: sender
-    integer :: nKS, nOrb
-    integer :: iKS, iK, iGroup, iEig, groupKSBuffer(2)
+    integer :: nOrb
+    integer :: iKS, iK, iGroup, iEig
 
-    nKS = size(groupKS, dim=2)
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1701,44 +1717,48 @@ contains
     if (env%mpi%all%master) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
-
     call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    KS: do iKS = 1, nKS
-      iK = groupKS(1, iKS)
-      call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
-      call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
-          & globalSDotC, denseDesc%blacsOrbSqr)
 
-      if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%all%master) then
+      do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 1, env%blacs%nGroup
-          if (iGroup > 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-            call mpifx_recv(env%mpi%all, groupKSBuffer, sender)
-            iK = groupKSBuffer(1)
+          if (iKS > parallelKS%nGroupKS(iGroup)) then
+            cycle group
+          end if
+          iK = parallelKS%groupKS(1, iKS, iGroup)
+          if (iGroup == 1) then
+            call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor,&
+                & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+                & globalS)
+            call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+                & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
           else
-            iK = groupKS(1, iKS)
+            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
-          eigMaster: do iEig = 1, nOrb
-            if (iGroup > 1) then
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localSDotC, sender)
-            else
+          do iEig = 1, nOrb
+            if (iGroup == 1) then
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
               call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
+            else
+              call mpifx_recv(env%mpi%all, localEigvec, sender)
+              call mpifx_recv(env%mpi%all, localSDotC, sender)
             end if
             call getPauliFractions(localEigvec, localSDotC, fracs)
             call writeProjPauliEigvecData(fd, iOrbRegion, eigvals(iEig, iK, 1), fracs)
-          end do eigMaster
+          end do
           call writeProjEigvecFooter(fd)
         end do group
-      else
-        if (env%blacs%gridOrbSqr%master) then
-          call mpifx_send(env%mpi%all, groupKS(:, iKS), env%mpi%all%masterrank)
-        end if
-        eigSlave: do iEig = 1, nOrb
+      end do
+    else
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
+            & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
+        call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
+        do iEig = 1, nOrb
           if (env%blacs%gridOrbSqr%master) then
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
             call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
@@ -1748,10 +1768,9 @@ contains
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
             call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalSDotC)
           end if
-        end do eigSlave
-      end if
-
-    end do KS
+        end do
+      end do
+    end if masterSlave
 
     if (env%mpi%all%master) then
       call finishProjEigvecFiles(fd)
@@ -1763,8 +1782,8 @@ contains
 
   !> Write the projected complex eigenstates into text files.
   subroutine writeProjPauliEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
-      & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, groupKS, eigvecs, work,&
-      & iOrbRegion)
+      & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, parallelKS, eigvecs,&
+      & work, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
@@ -1806,7 +1825,7 @@ contains
     real(dp), intent(in) :: kWeights(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
     complex(dp), intent(inout) :: eigvecs(:,:,:)
@@ -1834,8 +1853,8 @@ contains
     allocate(cVecTemp(size(eigvecs, dim=1)))
     allocate(fracs(4, nOrb / 2))
 
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
       call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
       call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor,&
           & denseDesc%iDenseStart, iPair, img2CentCell, iCellVec, cellVec, work)

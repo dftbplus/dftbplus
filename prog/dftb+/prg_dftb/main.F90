@@ -261,9 +261,9 @@ contains
         call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
             & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, groupKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
-            & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-            & rhoSqrReal)
+            & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
+            & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+            & eigvecsCplx, rhoSqrReal)
 
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
@@ -333,7 +333,7 @@ contains
           call error("Linear response calc. does not work with MPI yet")
         end if
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-        call calculateLinRespExcitations(env, lresp, qOutput, q0, over, eigvecsReal,&
+        call calculateLinRespExcitations(env, lresp, parallelKS, qOutput, q0, over, eigvecsReal,&
             & eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb, skHamCont,&
             & skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList, nNeighbor,&
             & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect,&
@@ -358,13 +358,14 @@ contains
       if (tPrintEigVecs) then
         call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVEc,&
             & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
-            & groupKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+            & parallelKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
       end if
 
       if (tProjEigenvecs) then
         call writeProjectedEigenvectors(env, regionLabels, fdProjEig, eigen, neighborList,&
               & nNeighbor, cellVec, iCellVec, denseDesc, iSparseStart, img2CentCell, orb, over,&
-              & kPoint, kWeight, iOrbRegion, groupKS, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+              & kPoint, kWeight, iOrbRegion, parallelKS, eigvecsReal, SSqrReal, eigvecsCplx,&
+              & SSqrCplx)
       end if
 
       ! MD geometry files are written only later, once velocities for the current geometry are known
@@ -379,7 +380,8 @@ contains
       if (tForces) then
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec,&
-            & tRealHS, ham, over, groupKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+            & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
+            & SSqrCplx)
         call getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
             & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
             & iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim, thirdOrd,&
@@ -570,8 +572,8 @@ contains
       end if
       call calcPipekMezeyLocalisation(env, pipekMezey, tPrintEigvecsTxt, nEl, filling, over,&
           & kPoint, kWeight, neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, fdEigvec, runId, orb, species, speciesName, groupKS, localisation,&
-          & eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+          & iCellVec, cellVec, fdEigvec, runId, orb, species, speciesName, parallelKS,&
+          & localisation, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
     end if
 
     if (tWriteAutotest) then
@@ -1403,7 +1405,7 @@ contains
   subroutine getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-      & tempElec, nEl, groupKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
+      & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal)
 
@@ -1483,7 +1485,7 @@ contains
     real(dp), intent(in) :: nEl(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Fermi level(s)
     real(dp), intent(inout) :: Ef(:)
@@ -1558,16 +1560,16 @@ contains
       call qm2ud(ham)
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, solver, groupKS, HSqrReal, SSqrReal, eigVecsReal,&
+            & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
             & eigen(:,1,:))
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, HSqrCplx, SSqrCplx,&
-            & eigVecsCplx, eigen)
+            & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
+            & SSqrCplx, eigVecsCplx, eigen)
       end if
     else
       call buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-          & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, groupKS, eigen(:,:,1),&
+          & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
           & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
 
@@ -1577,11 +1579,12 @@ contains
     if (nSpin /= 4) then
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, orb, eigVecsReal, groupKS, rhoPrim, SSqrReal, rhoSqrReal)
+            & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
+            & rhoSqrReal)
       else
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
-            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, groupKS, eigvecsCplx,&
-            & rhoPrim, SSqrCplx)
+            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS,&
+            & eigvecsCplx, rhoPrim, SSqrCplx)
       end if
       call ud2qm(rhoPrim)
     else
@@ -1589,7 +1592,7 @@ contains
       filling(:,:,1) = 2.0_dp * filling(:,:,1)
       call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
           & tMulliken, kPoint, kWeight, filling(:,:,1), neighborList, nNeighbor, orb, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, species, groupKS, eigVecsCplx, SSqrCplx, energy,&
+          & img2CentCell, iCellVec, cellVec, species, parallelKS, eigVecsCplx, SSqrCplx, energy,&
           & rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
@@ -1599,7 +1602,7 @@ contains
 
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, solver, groupKS, HSqrReal, SSqrReal, eigvecsReal, eigen)
+      & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigvecsReal, eigen)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1629,7 +1632,7 @@ contains
     integer, intent(in) :: solver
 
     !> K-points and spins to be handled
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> dense hamitonian matrix
     real(dp), intent(out) :: HSqrReal(:,:)
@@ -1646,8 +1649,8 @@ contains
     integer :: iKS, iSpin
 
     eigen(:,:) = 0.0_dp
-    do iKS = 1, size(groupKS, dim=2)
-      iSpin = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
       call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
           & iSparseStart, img2CentCell, denseDesc, HSqrReal)
@@ -1676,7 +1679,7 @@ contains
 
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, solver, groupKS, HSqrCplx, SSqrCplx,&
+      & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx, SSqrCplx,&
       & eigvecsCplx, eigen)
 
     !> Environment settings
@@ -1716,7 +1719,7 @@ contains
     integer, intent(in) :: solver
 
     !> K-points and spins to be handled
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> dense hamitonian matrix
     complex(dp), intent(out) :: HSqrCplx(:,:)
@@ -1733,9 +1736,9 @@ contains
     integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
-      iSpin = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
       call unpackHSCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor,&
           & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
@@ -1766,7 +1769,7 @@ contains
 
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
   subroutine buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList,&
-      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, groupKS, eigen,&
+      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi, species)
 
     !> Environment settings
@@ -1809,7 +1812,7 @@ contains
     integer, intent(in) :: solver
 
     !> K-points and spins to be handled
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
@@ -1836,8 +1839,8 @@ contains
 
     @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
 
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
 
     #:if WITH_SCALAPACK
       call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1874,7 +1877,7 @@ contains
 
   !> Creates sparse density matrix from real eigenvectors.
   subroutine getDensityFromRealEigvecs(env, denseDesc, filling, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, orb, eigvecs, groupKS, rhoPrim, work, rhoSqrReal)
+      & iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work, rhoSqrReal)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1901,7 +1904,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> eigenvectors
     real(dp), intent(inout) :: eigvecs(:,:,:)
@@ -1918,8 +1921,8 @@ contains
     integer :: iKS, iSpin
 
     rhoPrim(:,:) = 0.0_dp
-    do iKS = 1, size(groupKS, dim=2)
-      iSpin = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iSpin = parallelKS%localKS(2, iKS)
 
     #:if WITH_SCALAPACK
       call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iSpin),&
@@ -1952,7 +1955,7 @@ contains
 
   !> Creates sparse density matrix from complex eigenvectors.
   subroutine getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
-      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, groupKS, eigvecs,&
+      & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS, eigvecs,&
       & rhoPrim, work)
 
     !> Environment settings
@@ -1992,7 +1995,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> eigenvectors of the system
     complex(dp), intent(inout) :: eigvecs(:,:,:)
@@ -2007,9 +2010,9 @@ contains
 
     rhoPrim(:,:) = 0.0_dp
 
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
-      iSpin = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
       call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr,&
           & filling(:,iK,iSpin), eigvecs(:,:,iKS), work)
@@ -2040,7 +2043,7 @@ contains
   !> Creates sparse density matrix from two component complex eigenvectors.
   subroutine getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
       & tMulliken, kPoint, kWeight, filling, neighborList, nNeighbor, orb, iSparseStart,&
-      & img2CentCell, iCellVec, cellVec, species, groupKS, eigvecs, work, energy, rhoPrim, xi,&
+      & img2CentCell, iCellVec, cellVec, species, parallelKS, eigvecs, work, energy, rhoPrim, xi,&
       & orbitalL, iRhoPrim)
 
     !> Environment settings
@@ -2095,7 +2098,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> eigenvectors
     complex(dp), intent(inout) :: eigvecs(:,:,:)
@@ -2144,8 +2147,8 @@ contains
       orbitalL(:,:,:) = 0.0_dp
     end if
 
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
 
     #:if WITH_SCALAPACK
       call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK),&
@@ -2914,17 +2917,20 @@ contains
 
 
  !> Do the linear response excitation calculation.
-  subroutine calculateLinRespExcitations(env, lresp, qOutput, q0, over, eigvecsReal, eigen,&
-      & filling, coord0, species, speciesName, orb, skHamCont, skOverCont, fdAutotest, autotestTag,&
-      & fdEigvec, runId, neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell,&
-      & tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs, tPrintExcEigvecsTxt, nonSccDeriv,&
-      & energy, work, rhoSqrReal, excitedDerivs, occNatural)
+  subroutine calculateLinRespExcitations(env, lresp, parallelKS, qOutput, q0, over, eigvecsReal,&
+      & eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont, fdAutotest,&
+      & autotestTag, fdEigvec, runId, neighborList, nNeighbor, denseDesc, iSparseStart,&
+      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+      & tPrintExcEigvecsTxt, nonSccDeriv, energy, work, rhoSqrReal, excitedDerivs, occNatural)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> excited state settings
     type(LinResp), intent(inout) :: lresp
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> electrons in atomic orbitals
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -3024,7 +3030,6 @@ contains
 
     real(dp), allocatable :: dQAtom(:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
-    integer, allocatable :: groupKS(:,:)
     integer, pointer :: pSpecies0(:)
     integer :: iSpin, nSpin, nAtom
     logical :: tSpin
@@ -3058,9 +3063,8 @@ contains
           & skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs, nonSccDeriv,&
           & rhoSqrReal, occNatural=occNatural, naturalOrbs=naturalOrbs)
       if (tPrintExcEigvecs) then
-        groupKS = reshape([1, 1], [2, 1])
         call writeRealEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, denseDesc,&
-            & iSparseStart, img2CentCell, pSpecies0, speciesName, orb, over, groupKS,&
+            & iSparseStart, img2CentCell, pSpecies0, speciesName, orb, over, parallelKS,&
             & tPrintExcEigvecsTxt, naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
@@ -3242,7 +3246,7 @@ contains
   !>
   subroutine getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS, ham,&
-      & over, groupKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+      & over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3296,7 +3300,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     real(dp), intent(out) :: ERhoPrim(:)
 
@@ -3319,15 +3323,15 @@ contains
     if (nSpin == 4) then
       call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
           & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
-          & groupKS, HSqrCplx, SSqrCplx, ERhoPrim)
+          & parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
     else if (tRealHS) then
       call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
-          & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, groupKS, HSqrReal, SSqrReal,&
+          & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, parallelKS, HSqrReal, SSqrReal,&
           & ERhoPrim)
     else
       call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
           & kWeight, neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & ham, over, groupKS, HSqrCplx, SSqrCplx, ERhoPrim)
+          & ham, over, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
     end if
 
   end subroutine getEnergyWeightedDensity
@@ -3335,7 +3339,8 @@ contains
 
   !> Calculates density matrix from real eigenvectors.
   subroutine getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
-      & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, groupKS, eigvecsReal, work, ERhoPrim)
+      & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, parallelKS, eigvecsReal, work,&
+      & ERhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3374,7 +3379,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors (NOTE: they will be rewritten with work data on exit!)
     real(dp), intent(inout) :: eigvecsReal(:,:,:)
@@ -3398,8 +3403,8 @@ contains
     end if
 
     ERhoPrim(:) = 0.0_dp
-    do iKS = 1, size(groupKS, dim=2)
-      iS = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iS = parallelKS%localKS(2, iKS)
 
       select case (forceType)
 
@@ -3490,7 +3495,7 @@ contains
   !> Calculates density matrix from complex eigenvectors.
   subroutine getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
       & kWeight, neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-      & ham, over, groupKS, eigvecsCplx, work, ERhoPrim)
+      & ham, over, parallelKS, eigvecsCplx, work, ERhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3536,7 +3541,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
     complex(dp), intent(inout) :: work(:,:)
@@ -3555,9 +3560,9 @@ contains
     end if
 
     ERhoPrim(:) = 0.0_dp
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
-      iS = groupKS(2, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
 
       select case (forceType)
 
@@ -3649,7 +3654,7 @@ contains
   !> Calculates density matrix from Pauli-type two component eigenvectors.
   subroutine getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
       & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
-      & groupKS, eigvecsCplx, work, ERhoPrim)
+      & parallelKS, eigvecsCplx, work, ERhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3694,7 +3699,7 @@ contains
     logical, intent(in) :: tRealHS
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
     complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
@@ -3708,8 +3713,8 @@ contains
     integer :: iKS, iK
 
     ERhoPrim(:) = 0.0_dp
-    do iKS = 1, size(groupKS, dim=2)
-      iK = groupKS(1, iKS)
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
     #:if WITH_SCALAPACK
       call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,1),&
           & eigvecsCplx(:,:,iKS), work, eigen(:,iK,1))
@@ -4421,7 +4426,7 @@ contains
   !> Calculates and prints Pipek-Mezey localisation
   subroutine calcPipekMezeyLocalisation(env, pipekMezey, tPrintEigvecsTxt, nEl, filling, over,&
       & kPoint, kWeight, neighborList, nNeighbor, denseDesc,  iSparseStart, img2CentCell, iCellVec,&
-      & cellVec, fdEigvec, runId, orb, species, speciesName, groupKS, localisation, eigvecsReal,&
+      & cellVec, fdEigvec, runId, orb, species, speciesName, parallelKS, localisation, eigvecsReal,&
       & SSqrReal, eigvecsCplx, SSqrCplx)
 
     !> Environment settings
@@ -4485,7 +4490,7 @@ contains
     character(*), intent(in) :: speciesName(:)
 
     !> K-points and spins to process
-    integer, intent(in) :: groupKS(:,:)
+    type(TParallelKS), intent(in) :: parallelKS
 
     !> Localisation measure of single particle states
     real(dp), intent(out) :: localisation
@@ -4506,7 +4511,7 @@ contains
     integer :: iSpin, iKS, iK
 
     nAtom = size(orb%nOrbAtom)
-    nSpin = size(groupKS, dim=2)
+    nSpin = size(nEl)
 
     if (any(abs(mod(filling, real(3 - nSpin, dp))) > elecTolMax)) then
       call warning("Fractional occupations present for electron localisation")
@@ -4515,8 +4520,8 @@ contains
     if (present(eigvecsReal)) then
       call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
           & iSparseStart, img2CentCell)
-      do iKS = 1, size(groupKS, dim=2)
-        iSpin = groupKS(2, iKS)
+      do iKS = 1, parallelKS%nLocalKS
+        iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real(3 - nSpin, dp))
         localisation = pipekMezey%getLocalisation(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
             & denseDesc%iDenseStart)
@@ -4528,15 +4533,15 @@ contains
         write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
       end do
 
-      call writeRealEigvecs(env, fdEigvec, runId, nAtom, neighborList, nNeighbor, denseDesc,&
-            & iSparseStart, img2CentCell, species(:nAtom), speciesName, orb, over, groupKS,&
-            & tPrintEigvecsTxt, eigvecsReal, SSqrReal, fileName="localOrbs")
+      call writeRealEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, denseDesc, iSparseStart,&
+          & img2CentCell, species(:nAtom), speciesName, orb, over, parallelKS, tPrintEigvecsTxt,&
+          & eigvecsReal, SSqrReal, fileName="localOrbs")
     else
 
       localisation = 0.0_dp
-      do iKS = 1, size(groupKS, dim=2)
-        iSpin = groupKS(2, iKS)
-        iK = groupKS(1, iKS)
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation( &
             & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
@@ -4545,9 +4550,9 @@ contains
       write(stdOut, "(A, E20.12)") 'Original localisation', localisation
 
       ! actual localisation calls
-      do iKS = 1, size(groupKS, dim=2)
-        iSpin = groupKS(2, iKS)
-        iK = groupKS(1, iKS)
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         call pipekMezey%calcCoeffs(eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK),&
             & neighborList, nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
@@ -4555,9 +4560,9 @@ contains
       end do
 
       localisation = 0.0_dp
-      do iKS = 1, size(groupKS, dim=2)
-        iSpin = groupKS(2, iKS)
-        iK = groupKS(1, iKS)
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation( &
             & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
@@ -4565,9 +4570,9 @@ contains
       end do
       write(stdOut, "(A, E20.12)") 'Final localisation', localisation
 
-      call writeCplxEigvecs(env, nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
-          & iCellVec, denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint,&
-          & over, groupKS, tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName="localOrbs")
+      call writeCplxEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVec,&
+          & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
+          & parallelKS, tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName="localOrbs")
 
     end if
 

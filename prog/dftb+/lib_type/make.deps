@@ -1,5 +1,5 @@
-commontypes.o: _mod_accuracy
-commontypes.o = commontypes.o $(_mod_accuracy)
+commontypes.o: _mod_orbitals _mod_parallelks
+commontypes.o = commontypes.o $(_mod_orbitals) $(_mod_parallelks)
 _mod_commontypes: commontypes.o
 _mod_commontypes = $(commontypes.o)
 
@@ -62,6 +62,16 @@ oldskdata.o: common.fypp _mod_fileid _mod_constants _mod_reppoly _mod_repspline 
 oldskdata.o = oldskdata.o $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
 _mod_oldskdata: oldskdata.o
 _mod_oldskdata = $(oldskdata.o)
+
+orbitals.o: _mod_accuracy
+orbitals.o = orbitals.o $(_mod_accuracy)
+_mod_orbitals: orbitals.o
+_mod_orbitals = $(orbitals.o)
+
+parallelks.o: _mod_environment
+parallelks.o = parallelks.o $(_mod_environment)
+_mod_parallelks: parallelks.o
+_mod_parallelks = $(parallelks.o)
 
 typegeometry.o: _mod_accuracy
 typegeometry.o = typegeometry.o $(_mod_accuracy)

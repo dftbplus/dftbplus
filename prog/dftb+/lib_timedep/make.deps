@@ -1,11 +1,11 @@
 #:if WITH_ARPACK
-linresp.o: _mod_commontypes common.fypp _mod_fileid _mod_message _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont _mod_linrespgrad
-linresp.o = linresp.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_message) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont) $(_mod_linrespgrad)
+linresp.o: _mod_commontypes common.fypp _mod_fileid _mod_message _mod_densedescr _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont _mod_linrespgrad
+linresp.o = linresp.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_message) $(_mod_densedescr) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont) $(_mod_linrespgrad)
 _mod_linresp_module: linresp.o
 _mod_linresp_module = $(linresp.o)
 #:else
-linresp.o: _mod_commontypes common.fypp _mod_fileid _mod_message _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-linresp.o = linresp.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_message) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
+linresp.o: _mod_commontypes common.fypp _mod_fileid _mod_message _mod_densedescr _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
+linresp.o = linresp.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_message) $(_mod_densedescr) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_linresp_module: linresp.o
 _mod_linresp_module = $(linresp.o)
 #:endif
