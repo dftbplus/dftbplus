@@ -5,21 +5,35 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module io
-  use, intrinsic :: iso_fortran_env
+!> Contains MPI related einvironment settings
+module mpienv
+  use mpifx
   implicit none
   private
 
-  public :: stdin, stdout, stderr
+  public :: TMpiEnv, TMpiEnv_init
 
 
-  !> File id of standard input
-  integer, parameter :: stdIn = input_unit
+  !> Contains MPI related einvironment settings
+  type :: TMpiEnv
+    private
 
-  !> File id of standard output
-  integer, parameter :: stdOut = output_unit
+    !> Global MPI communicator
+    type(mpifx_comm), public :: all
 
-  !> File id of standard error
-  integer, parameter :: stdErr = error_unit
+  end type TMpiEnv
 
-end module io
+
+contains
+
+  !> Initializes MPI environment.
+  subroutine TMpiEnv_init(this)
+    type(TMpiEnv), intent(out) :: this
+
+    ! MPI settings
+    call this%all%init()
+
+  end subroutine TMpiEnv_init
+
+
+end module mpienv

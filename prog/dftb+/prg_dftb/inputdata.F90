@@ -28,6 +28,35 @@ module inputdata_module
   private
   save
 
+  public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
+  public :: TNEGFInfo
+  public :: TBlacsOpts
+  public :: init, destruct
+
+
+  !> Contains Blacs specific options.
+  type :: TBlacsOpts
+
+    !> Block size for matrix rows.
+    integer :: rowBlockSize
+
+    !> Block size for matrix columns.
+    integer :: colBlockSize
+
+    !> Number of processor groups
+    integer :: nGroups
+
+  end type TBlacsOpts
+
+
+  !> Contains the parallel options
+  type :: TParallelOpts
+
+    !> Blacs options
+    type(TBlacsOpts) :: blacsOpts
+
+  end type TParallelOpts
+
 
   !> Main control data for program as extracted by the parser
   type control
@@ -355,9 +384,10 @@ module inputdata_module
 
     type(linrespini) :: lrespini
 
-
     !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
+
+    type(TParallelOpts), allocatable :: parallelOpts
   end type control
 
 
@@ -417,10 +447,6 @@ module inputdata_module
   interface destruct
     module procedure InputData_destruct
   end interface destruct
-
-  public :: control, TGeometry, slater, inputData, XLBOMDInp
-  public :: TNEGFInfo
-  public :: init, destruct
 
   !> Solver types (used like an enumerator)
   integer, parameter, public :: solverQR = 1

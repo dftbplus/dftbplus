@@ -132,31 +132,28 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
-ifeq ($(strip $(WITH_LIBNEGF)),1)
-  COMPILED_EXTERNALS += _extlib_libnegf
-  L_INCS += $(LIBNEGF_INCS)
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
-endif
-
 ifeq ($(strip $(WITH_POISSON)),1)
   COMPILED_EXTERNALS += _extlib_mudpack
   L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
+  FYPPOPT += -DWITH_POISSON
 endif
 
 ifeq ($(strip $(WITH_LIBNEGF)),1)
+  COMPILED_EXTERNALS += _extlib_libnegf
   LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf
   LIBNEGF_LIBS += -L$(BUILDROOT)/external/libnegf -lsparskit
   LIBNEGF_LIBS += -L$(BUILDROOT)/external/mudpack/ -lmudpack
   LIBNEGF_INCS := -I$(BUILDROOT)/external/libnegf/libnegf
-  L_LIBS += $(LIBNEGF_LIBS)
   L_INCS += $(LIBNEGF_INCS)
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
+  FYPPOPT += -DWITH_TRANSPORT
 endif
 
 ifeq ($(strip $(WITH_MPI)),1)
   #
   # MPI settings
   #
-  FYPPOPT += -DWITH_MPI
+  FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
 
   MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
   MPIFX_INCS := -I$(BUILDROOT)/external/mpifx

@@ -18,11 +18,17 @@ arpack.o: _extlib_arpack
 arpack.o += _extlib_arpack
 #:endif
 
+#:if WITH_MPI
 mpifx.o: _extlib_mpifx
 mpifx.o += _extlib_mpifx
+#:endif
 
+#:if WITH_SCALAPACK
 scalapackfx.o: _extlib_scalapackfx
 scalapackfx.o += _extlib_scalapackfx
+#:endif
 
+#:if WITH_TRANSPORT
 negf_int.o: _extlib_libnegf
 negf_int.o += _extlib_libnegf
+#:endif

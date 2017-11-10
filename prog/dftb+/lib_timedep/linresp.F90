@@ -25,6 +25,7 @@ module linresp_module
   use fileid
   use scc, only : getShiftPerAtom, getShiftPerL
   use nonscc, only : NonSccDiff
+  use densedescr
 #:if WITH_ARPACK
   ! code is compiled with arpack available
   use linrespgrad
@@ -245,17 +246,17 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine LinResp_calcExcitations(tSpin, self, iAtomStart, eigVec, eigVal, SSqrReal, filling, &
+  subroutine LinResp_calcExcitations(self, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling, &
       & coords0, dqAt, species0, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, excEnergy)
-
-    !> is this a spin-polarized calculation
-    logical, intent(in) :: tSpin
 
     !> data structure with additional linear response values
     type(linresp), intent(inout) :: self
 
-    !> indexing array for ground state square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> is this a spin-polarized calculation
+    logical, intent(in) :: tSpin
+
+    !> Indexing array for dense H and S
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> ground state eigenvectors
     real(dp), intent(in) :: eigVec(:,:,:)
@@ -299,13 +300,13 @@ contains
 #:if WITH_ARPACK
     @:ASSERT(self%tInit)
     @:ASSERT(size(orb%nOrbAtom) == self%nAtom)
-    call LinRespGrad_old(tSpin, self%nAtom, iAtomStart, eigVec, eigVal, dqAt, coords0, self%nExc, &
-        & self%nStat, self%symmetry, SSqrReal, filling, species0, self%HubbardU, self%spinW, &
-        & self%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, self%fdMulliken, &
-        & self%fdCoeffs, self%tGrndState, self%fdXplusY, self%fdTrans, self%fdSPTrans, &
-        & self%fdTradip, self%tArnoldi, self%fdArnoldi,  self%fdArnoldiDiagnosis, self%fdExc, &
-        & self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, self%oscillatorWindow, &
-        & excEnergy)
+    call LinRespGrad_old(tSpin, self%nAtom, denseDesc%iDenseStart, eigVec, eigVal, dqAt, coords0,&
+        & self%nExc, self%nStat, self%symmetry, SSqrReal, filling, species0, self%HubbardU,&
+        & self%spinW, self%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged,&
+        & self%fdMulliken, self%fdCoeffs, self%tGrndState, self%fdXplusY, self%fdTrans,&
+        & self%fdSPTrans, self%fdTradip, self%tArnoldi, self%fdArnoldi,  self%fdArnoldiDiagnosis,&
+        & self%fdExc, self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow,&
+        & self%oscillatorWindow, excEnergy)
 
 #:else
     call error('Internal error: Illegal routine call to &

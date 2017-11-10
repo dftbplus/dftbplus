@@ -5,9 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Exporting scalapackfx functionality
+#:include 'common.fypp'
+
+!> Exports scalapackfx functionality if compiled with scalapack support, otherwise empty.
 module scalapackfx
+#:if WITH_SCALAPACK
   use libscalapackfx_module
+#:endif
   implicit none
   public
 

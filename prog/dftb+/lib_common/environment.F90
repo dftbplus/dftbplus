@@ -1,156 +1,111 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 #:include 'common.fypp'
 
+!> Contains computer environment settings
 module environment
-  use, intrinsic :: iso_fortran_env
 #:if WITH_MPI
-  use mpifx
-  use scalapackfx
+  use mpienv
+#:endif
+#:if WITH_SCALAPACK
+  use blacsenv
 #:endif
   implicit none
   private
 
-  public :: initGlobalEnv, destructGlobalEnv
-  public :: TEnvironment, init
-  public :: abort
-  public :: stdOut, stdOut0
-  public :: includesAllProcesses
+  public :: TEnvironment
+  public :: withMpi, withScalapack
 
-  !> Standard out file handler
-  integer, protected :: stdOut
-
-  !> Unredirected standard out
-  integer, protected :: stdOut0
-
-#:if WITH_MPI
-  !> Global MPI communicator (used for aborts)
-  type(mpifx_comm) :: globalMpiComm
-#:endif
 
   !> Contains environment settings.
   type :: TEnvironment
     private
 
     !> Whether this process is the master?
-    logical, public :: tMaster
+    logical, public :: tMaster = .true.
 
     !> Whether this process is supposed to do I/O
-    logical, public :: tIoProc
-
-    !> Standard output to use for messages (redirected to /dev/null for non-IO processes) 
-    integer, public :: stdOut
+    logical, public :: tIoProc = .true.
 
   #:if WITH_MPI
-
-    !> Rank of the process designated for I/O.
-    integer, public :: ioProcId
-
-    !> MPI communicator
-    type(mpifx_comm), public :: mpiComm
-
-    !> BLACS communicator
-    type(blacsgrid), public :: blacsComm
-
+    !> Global mpi settings
+    type(TMpiEnv), public :: mpi
+  #:endif
+  #:if WITH_SCALAPACK
+    !> Global scalapack settings
+    type(TBlacsEnv), public :: blacs
   #:endif
 
   contains
-    procedure :: includesAllProcesses
+  #:if WITH_MPI
+    procedure :: initMpi
+  #:endif
+  #:if WITH_SCALAPACK
+    procedure :: initBlacs
+  #:endif
+
   end type TEnvironment
 
 
-  !> Initializes environment instance
-  interface init
-    module procedure Environment_init
-  end interface init
+  !> Whether code was compiled with MPI support
+  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
+
+  !> Whether code was compiled with Scalapack
+  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
 
 contains
 
-  !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv()
 
-  #:if WITH_MPI
-    call mpifx_init()
-    call globalMpiComm%init()
-    stdOut0 = output_unit
-    if (globalMpiComm%master) then
-      stdOut = stdOut0
-    else
-      stdOut = 1
-      open(stdOut, file="/dev/null", action="write")
-    end if
-  #:endif
+#:if WITH_MPI
 
-  end subroutine initGlobalEnv
+  !> Initializes MPI environment.
+  subroutine initMpi(this)
+    class(TEnvironment), intent(inout) :: this
 
+    ! MPI settings
+    call TMpiEnv_init(this%mpi)
+    this%tMaster = this%mpi%all%master
+    this%tIoProc = this%tMaster
 
-  !> Finalizes global environment (must be the last statement of a program)
-  subroutine destructGlobalEnv()
+  end subroutine initMpi
 
-  #:if WITH_MPI
-    call mpifx_finalize()
-  #:endif
-    
-  end subroutine destructGlobalEnv
+#:endif
 
 
-  !> Initializes environment instance.
-  subroutine Environment_init(this)
+#:if WITH_SCALAPACK
+
+  !> Initializes BLACS environment
+  subroutine initBlacs(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
 
     !> Instance
-    type(TEnvironment), intent(out) :: this
+    class(TEnvironment), intent(inout) :: this
 
-  #:if WITH_MPI
-  #! MPI settings
-    call this%mpiComm%init()
-    this%ioProcId = this%mpiComm%masterrank
-    this%tMaster = this%mpiComm%master
-    this%tIoProc = this%tMaster
-    this%stdOut = stdOut
-  #:else
-  #! NON-MPI settings
-    this%tMaster = .true.
-    this%tIoProc = .true.
-    this%stdOut = stdOut0
-  #:endif
+    !> Row block size
+    integer, intent(in) :: rowBlock
 
-  end subroutine Environment_init
+    !> Column block size
+    integer, intent(in) :: colBlock
 
+    !> Nr. of processor groups.
+    integer, intent(in) :: nGroup
 
-  !> Aborts program execution.
-  subroutine abort(errorCode)
+    !> Nr. of orbitals
+    integer, intent(in) :: nOrb
 
-    !> Error code to emit (default: 1)
-    integer, intent(in), optional :: errorCode
+    !> Nr. of atoms
+    integer, intent(in) :: nAtom
 
-    integer :: error, errorCode0
+    call TBlacsEnv_init(this%blacs, rowBlock, colBlock, nGroup, nOrb, nAtom)
 
-    if (.not. present(errorCode)) then
-      errorCode0 = 1
-    else
-      errorCode0 = errorCode
-    end if
+  end subroutine initBlacs
 
-  #:if WITH_MPI
-    call mpifx_abort(globalMpiComm, errorCode0, error)
-    if (error /= 0) then
-      write(stdOut0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
-    end if
-  #:endif
-    error stop
+#:endif
 
-  end subroutine abort
-
-
-  function includesAllProcesses(this) result(tIncludesAll)
-    class(TEnvironment), intent(in) :: this
-    logical :: tIncludesAll
-
-  #:if WITH_MPI
-    tIncludesAll = (this%mpiComm%id == globalMpiComm%id)
-  #:else
-    tIncludesAll = .true.
-  #:endif
-    
-  end function includesAllProcesses
 
 end module environment

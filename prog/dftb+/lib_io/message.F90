@@ -10,7 +10,7 @@
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
 module message
-  use environment
+  use globalenv
   implicit none
   private
 
@@ -69,6 +69,8 @@ contains
 
     write(stdOut, '(1a)') 'ERROR!'
     write(stdOut, '(2a)') '-> ', trim(message)
+    flush(stdOut)
+    call synchronizeAll()
     call abort()
 
   end subroutine error_single
@@ -86,6 +88,8 @@ contains
     do ii = 1, size(messages)
       write(stdOut, '(2a)') '-> ', trim(messages(ii))
     end do
+    flush(stdOut)
+    call synchronizeAll()
     call abort()
 
   end subroutine error_array

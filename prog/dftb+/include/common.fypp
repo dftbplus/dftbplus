@@ -16,13 +16,18 @@
 #:if not defined('DEBUG')
   #:set DEBUG = 0
 #:endif
-
 #:set WITH_ASSERT = defined('WITH_ASSERT')
+#!#:if not defined('WITH_ASSERT')
+#!  #:set WITH_ASSERT = DEBUG > 0
+#!#:endif
 #:set WITH_MPI = defined('WITH_MPI')
+#:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_DFTD3 = defined('WITH_DFTD3')
 #:set WITH_ARPACK = defined('WITH_ARPACK')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
+#:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
+#:set WITH_POISSON = defined('WITH_POISSON')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -55,5 +60,17 @@
 #:enddef DEBUG_CODE
 
 #:endif
+
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Misc macros
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#! Gives a Fortran logical values corresponding to a bool expr.
+#:def FORTRAN_LOGICAL(expr)
+#{if expr}#.true.#{else}#.false.#{endif}#
+#:enddef FORTRAN_LOGICAL
+
+
 #:endmute
         
