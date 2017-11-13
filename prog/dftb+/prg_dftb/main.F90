@@ -175,18 +175,6 @@ contains
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
     end if
 
-    ! set up larger arrays
-    call initArrays(tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit, tImHam,&
-        & tStoreEigvecs, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
-        & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, rhoPrim,&
-        & h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS, E0,&
-        & Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, HSqrReal,&
-        & SSqrReal, rhoSqrReal, chargePerShell, occNatural, velocities, movedVelo, movedAccel,&
-        & movedMass, dipoleMoment)
-
-    call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, shiftPerLUp, chargeUp, &
-        & poissonDerivs, orb, nAtom, nSpin)
-
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
     else
