@@ -76,7 +76,7 @@ module initprogram
   use negf_int
   use poisson_vars
   use poisson_int
-#:endif  
+#:endif
   use energies
   use potentials
   use taggedoutput
