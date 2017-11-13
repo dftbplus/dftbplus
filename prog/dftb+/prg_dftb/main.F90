@@ -168,19 +168,6 @@ contains
     real(dp) :: localisation
 
 
-    ! set up output files
-    if (env%tIoProc) then
-      call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
-    end if
-
-    if (tShowFoldedCoord) then
-      pCoord0Out => coord0Fold
-    else
-      pCoord0Out => coord0
-    end if
-
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -4756,7 +4743,7 @@ contains
         write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
       end do
 
-      call writeRealEigvecs(env, fdEigvec, runId, nAtom, neighborList, nNeighbor, denseDesc,&
+      call writeRealEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, denseDesc,&
             & iSparseStart, img2CentCell, species(:nAtom), speciesName, orb, over, groupKS,&
             & tPrintEigvecsTxt, eigvecsReal, SSqrReal, fileName="localOrbs")
     else
@@ -4793,7 +4780,7 @@ contains
       end do
       write(stdOut, "(A, E20.12)") 'Final localisation', localisation
 
-      call writeCplxEigvecs(env, nSpin, fdEigvec, runId, nAtom, neighborList, nNeighbor, cellVec,&
+      call writeCplxEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, cellVec,&
           & iCellVec, denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint,&
           & over, groupKS, tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName="localOrbs")
 
