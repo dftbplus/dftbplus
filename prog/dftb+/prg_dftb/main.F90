@@ -281,12 +281,12 @@ contains
           end if
         end if
 
-        call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
+        call getDensity(env, iSCCIter, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
             & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, groupKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
-            & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-            & rhoSqrReal)
+            & tempElec, nEl, groupKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
+            & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, &
+            & eigvecsCplx, rhoSqrReal)
 
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
@@ -356,6 +356,8 @@ contains
 
       end do lpSCC
 
+      if (tPoisson) call poiss_savepotential()
+      
       if (tLinResp) then
         if (withMpi) then
           call error("Linear response calc. does not work with MPI yet")
@@ -382,6 +384,17 @@ contains
             & nNeighbor, species, iSparseStart, img2CentCell)
       #:endcall DEBUG_CODE
       end if
+
+      if (tLocalCurrents) then
+        if (tPeriodic) then
+          write(*,*) "WARNING: temporary hacking: local currents enabled &
+                   & for periodic systems (might be wrong)"
+        endif
+        call local_currents(env%mpi%all, groupKS, ham, over, &
+            & neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart, iSparseStart,&
+            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
+      end if
+            
 
       if (tPrintEigVecs) then
         call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVEc,&
@@ -1607,15 +1620,18 @@ contains
   !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
   !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
+  subroutine getDensity(env, iSCC, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-      & tempElec, nEl, groupKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
+      & tempElec, nEl, groupKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> SCC iteration counter (needed by GF)
+    integer, intent(in) :: iSCC
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1695,6 +1711,9 @@ contains
     !> Fermi level(s)
     real(dp), intent(inout) :: Ef(:)
 
+    !> Electrochemical potentials per contact and spin
+    real(dp), intent(in) :: mu(:,:)
+
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: energy
 
@@ -1753,13 +1772,13 @@ contains
 
     nSpin = size(ham, dim=2)
 
-    !if (solver == solverGF) then
-    !  call calcdensity_green(iSCC, mympi, groupKS, ham, over, &
-    !      & descHS, neighborlist%iNeighbor, nNeighbor, iAtomStart, iPair, &
-    !      & img2CentCell, iCellVec, cellVec, orb, nEl, & 
-    !      & tempElec, kPoint, kWeight, rhoPrim, Eband, Ef, E0, TS, mu)
-    !  return
-    !end if
+    if (solver == solverGF) then
+      call calcdensity_green(iSCC, env%mpi%all, groupKS, ham, over, &
+          & neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart, iSparseStart, &
+          & img2CentCell, iCellVec, cellVec, orb, nEl, & 
+          & tempElec, kPoint, kWeight, rhoPrim, Eband, Ef, E0, TS, mu)
+      return
+    end if
 
     ! Hack due to not using Pauli-type structure for diagonalisation
     if (nSpin > 1) then

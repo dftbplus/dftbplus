@@ -769,7 +769,7 @@ module negf_int
   !> Calculates density matrix with Green's functions
   !!
   subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, &
-      & desc, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, nEl, tempElec, kPoints, kWeights, &
       & rho, Eband, Ef, E0, TS, mu)
     
@@ -777,7 +777,6 @@ module negf_int
     type(mpifx_comm), intent(in) :: mpicomm
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: desc(1) !Descriptor is not needed for now
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
@@ -845,14 +844,13 @@ module negf_int
   !> Calculates E-density matrix with Green's functions
   !!
   subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, &
-      & desc, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, nEl, tempElec, kPoints, kWeights, rhoE, mu)
     
     integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: desc(1) !Descriptor is not needed for now
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
@@ -914,12 +912,11 @@ module negf_int
   ! INTERFACE subroutine to call current computation
   !------------------------------------------------------------------------------
   subroutine calcPDOS_green(mpicomm, groupKS, ham, over, &
-      & desc, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, nEl, tempElec, kPoints, kWeights, ldosTot, writeLDOS)
     integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
     real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: desc(1) !Descriptor is not needed for now
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
@@ -982,14 +979,13 @@ module negf_int
   ! INTERFACE subroutine to call current computation
   !------------------------------------------------------------------------------
   subroutine calc_current(mpicomm, groupKS, ham, over, &
-      & desc, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, nEl, tempElec, kPoints, kWeights, tunnTot,&
       & ldosTot, currTot, writeTunn, writeLDOS, mu)
     
     integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
     real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: desc(1) !Descriptor is not needed for now
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)

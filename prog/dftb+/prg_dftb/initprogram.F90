@@ -340,9 +340,8 @@ module initprogram
   !> Fix Fermi energy at specified value
   logical :: tFixEf
 
-  !> Fermi energy
+  !> Fermi energy per spin 
   real(dp) :: Ef(2)
-
 
   !> Filling temp updated by MD.
   logical :: tSetFillingTemp
@@ -836,7 +835,7 @@ module initprogram
   !> True if Tunneling is stored on separate files
   logical :: writeTunn
   
-  !> Holds spin-dependent electrochemical potentials
+  !> Holds spin-dependent electrochemical potentials of contacts 
   !> This is because libNEGF is not spin-aware 
   real(dp), allocatable :: mu(:,:)  
 
@@ -2815,7 +2814,7 @@ contains
   
     !> Wheter transport has been initialized
     logical :: tInitialized
-
+    integer :: iSpin
 
     tUpload = input%transpar%taskUpload
     tContcalc = input%transpar%defined .and. (.not. input%transpar%taskUpload) 
@@ -2837,25 +2836,14 @@ contains
       ! scc only works for
       ! calculation without spin (poisson does not support spin dependent
       ! built in potentials)
-      if (nSpin .eq. 1 .and. tTunn) then
-        allocate(mu(transpar%ncont,1))
-        mu = 0.0_dp
-        mu(1:transpar%ncont, 1) = minval(transpar%contacts(1:transpar%ncont)%eFermi(1)) - &
+      allocate(mu(transpar%ncont, nSpin))
+      mu = 0.0_dp
+      do iSpin = 1, nSpin 
+        mu(1:transpar%ncont, iSpin) = minval(transpar%contacts(1:transpar%ncont)%eFermi(iSpin)) - &
             & transpar%contacts(1:transpar%ncont)%potential 
-      else if (nSpin .eq. 2 .and. tTunn) then
-        allocate(mu(transpar%ncont,2))
-        mu = 0.0_dp
-        mu(1:transpar%ncont, 1) = minval(transpar%contacts(1:transpar%ncont)%eFermi(1)) - &
-            & transpar%contacts(1:transpar%ncont)%potential 
-        mu(1:transpar%ncont, 2) = minval(transpar%contacts(1:transpar%ncont)%eFermi(2)) - &
-            & transpar%contacts(1:transpar%ncont)%potential 
-      else if (nSpin .eq. 1 .and. solver == solverGF) then
-        allocate(mu(1,1))
-        mu = 0.0_dp
-        mu(1,1) = greendens%oneFermi(1)
-      else if (nSpin .eq. 2 .and. solver == solverGF) then
-        allocate(mu(1,2))
-        mu = 0.0_dp
+      end do
+      
+      if (transpar%ncont == 1) then
         mu(1,:) = greendens%oneFermi(:)
       end if
     end associate
