@@ -68,8 +68,8 @@ orbitals.o = orbitals.o $(_mod_accuracy)
 _mod_orbitals: orbitals.o
 _mod_orbitals = $(orbitals.o)
 
-parallelks.o: _mod_environment
-parallelks.o = parallelks.o $(_mod_environment)
+parallelks.o: _mod_environment common.fypp
+parallelks.o = parallelks.o $(_mod_environment) $(common.fypp)
 _mod_parallelks: parallelks.o
 _mod_parallelks = $(parallelks.o)
 

@@ -195,8 +195,8 @@ contains
       end if
 
       if (tCoordsChanged) then
-        call handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, orb,&
-            & tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
+        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff,&
+            & orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
             & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
             & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
       end if
@@ -233,12 +233,10 @@ contains
       call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
 
       lpSCC: do iSccIter = 1, maxSccIter
-
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-
         if (tScc) then
           call getChargePerShell(qInput, orb, species, chargePerShell)
-          call addChargePotentials(qInput, q0, chargePerShell, orb, species, neighborList,&
+          call addChargePotentials(env, qInput, q0, chargePerShell, orb, species, neighborList,&
               & img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
@@ -284,7 +282,7 @@ contains
         if (tSCC .and. .not. tXlbomd) then
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
-          call addChargePotentials(qOutput, q0, chargePerShell, orb, species, neighborList,&
+          call addChargePotentials(env, qOutput, q0, chargePerShell, orb, species, neighborList,&
               & img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
@@ -737,10 +735,13 @@ contains
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff, &
-      & orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell, iCellVec,&
-      & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
-      & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff,&
+      & skRepCutoff, orb, tPeriodic, tScc, tDispersion, dispersion, thirdOrd, img2CentCell,&
+      & iCellVec, neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
+      & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -851,7 +852,7 @@ contains
 
     ! Notify various modules about coordinate changes
     if (tSCC) then
-      call updateCoords_SCC(coord, species, neighborList, img2CentCell)
+      call updateCoords_SCC(env, coord, species, neighborList, img2CentCell)
     end if
     if (tDispersion) then
       call dispersion%updateCoords(neighborList, img2CentCell, coord, &
@@ -1216,8 +1217,11 @@ contains
 
 
   !> Add potentials comming from point charges.
-  subroutine addChargePotentials(qInput, q0, chargePerShell, orb, species, neighborList,&
+  subroutine addChargePotentials(env, qInput, q0, chargePerShell, orb, species, neighborList,&
       & img2CentCell, spinW, thirdOrd, potential)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
@@ -1261,7 +1265,7 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call updateCharges_SCC(qInput, q0, orb, species, neighborList%iNeighbor, img2CentCell)
+    call updateCharges_SCC(env, qInput, q0, orb, species, neighborList%iNeighbor, img2CentCell)
     call getShiftPerAtom(atomPot(:,1))
     call getShiftPerL(shellPot(:,:,1))
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)

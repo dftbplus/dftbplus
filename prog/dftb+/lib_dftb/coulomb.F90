@@ -9,6 +9,9 @@
 
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module coulomb
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif
   use assert
   use accuracy
   use message
@@ -21,6 +24,9 @@ module coulomb
   public :: invR, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, ewald, invR_stress
   public :: addInvRPrimeXlbomd
+#:if WITH_SCALAPACK
+  public :: invRClusterBlacs, invRPeriodicBlacs
+#:endif
 
 
   !> 1/r interaction for all atoms with another group
@@ -97,6 +103,45 @@ contains
 
   end subroutine invR_cluster
 
+#:if WITH_SCALAPACK
+  
+  !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
+  !> constructed.
+  subroutine invRClusterBlacs(grid, coord, descInvRMat, invRMat)
+
+    !> BLACS grid involved in 1/R calculation
+    type(blacsgrid), intent(in) :: grid
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Matrix descriptor for 1/R matrix
+    integer, intent(in) :: descInvRMat(DLEN_)
+    
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
+    integer :: ii, jj, iGlob, jGlob
+    real(dp) :: dist, vect(3)
+
+    invRMat(:,:) = 0.0_dp
+    do jj = 1, size(invRMat, dim=2)
+      jGlob = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      do ii = 1, size(invRMat, dim=1)
+        iGlob = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_), grid%nrow)
+        if (iGlob <= jGlob) then
+          cycle
+        end if
+        vect(:) = coord(:,jGlob) - coord(:,iGlob)
+        dist = sqrt(sum(vect**2))
+        invRMat(ii, jj) = 1.0_dp / dist
+      end do
+    end do
+
+  end subroutine invRClusterBlacs
+
+#:endif
+  
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
@@ -247,6 +292,91 @@ contains
 
   end subroutine invR_periodic
 
+
+#:if WITH_SCALAPACK
+
+  !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
+  !> constructed.
+  subroutine invRPeriodicBlacs(grid, coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
+      & alpha, volume, descInvRMat, invRMat)
+
+    !> BLACS grid involved in 1/R calculation
+    type(blacsgrid), intent(in) :: grid
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image index for each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum.  The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
+
+    !> Descriptor for the 1/R matrix
+    integer, intent(in) :: descInvRMat(DLEN_)
+
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
+    integer :: iAt1, iAt2, iAt2f, iNeigh, jj, ii, iLoc, jLoc
+    logical :: tLocal
+
+    invRMat(:,:) = 0.0_dp
+
+    ! Real space part of the Ewald sum.
+    do jj = 1, size(invRMat, dim=2)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      do iNeigh = 1, nNeighborEwald(iAt1)
+        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        call islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        if (tLocal) then
+          invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc)&
+              &  + rTerm(sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2)), alpha)
+        end if
+      end do
+    end do
+
+    ! Reciprocal space part of the Ewald sum.
+    do jj = 1, size(invRMat, dim=2)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      do ii = 1, size(invRMat, dim=1)
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_),&
+            & grid%nrow)
+        if (iAt2 < iAt1) then
+          cycle
+        end if
+        invRMat(ii, jj) = invRMat(ii, jj)&
+            & + ewaldReciprocal(coord(:,iAt1) - coord(:,iAt2), recPoint, alpha, volume)&
+            & - pi / (volume * alpha**2)
+      end do
+    end do
+
+    ! Extra contribution for self interaction.
+    do jj = 1, size(invRMat, dim=2)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      call islocal(grid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
+      if (tLocal) then
+        invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc) - 2.0_dp * alpha / sqrt(pi)
+      end if
+    end do
+
+  end subroutine invRPeriodicBlacs
+
+#:endif
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
   subroutine sumInvR_periodic_asymm(invRVec, nAtom0, nAtom1, coord0, &
@@ -1325,5 +1455,25 @@ contains
     stress = stress / volume
 
   end subroutine invR_stress
+
+
+#:if WITH_SCALAPACK
+  
+  subroutine islocal(grid, desc, ii, jj, local, iloc, jloc)
+    type(blacsgrid), intent(in) :: grid
+    integer, intent(in) :: desc(DLEN_)
+    integer, intent(in) :: ii, jj
+    logical, intent(out) :: local
+    integer, intent(out) :: iloc, jloc
+
+    integer :: prow, pcol
+    
+    call scalafx_infog2l(grid, desc, ii, jj, iloc, jloc, prow, pcol)
+    local = (prow == grid%myrow .and. pcol == grid%mycol)
+
+  end subroutine islocal
+
+#:endif
+
 
 end module coulomb

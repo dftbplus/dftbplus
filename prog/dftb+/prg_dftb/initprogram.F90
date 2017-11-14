@@ -927,10 +927,45 @@ contains
           & channels")
     end if
 
+    orb = input%slako%orb
+    nOrb = orb%nOrb
+    tPeriodic = input%geom%tPeriodic
+
+    ! Brillouin zone sampling
+    if (tPeriodic) then
+      nKPoint = input%ctrl%nKPoint
+      allocate(kPoint(3, nKPoint))
+      allocate(kWeight(nKPoint))
+      @:ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
+      @:ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
+      kPoint(:,:) = input%ctrl%KPoint(:,:)
+      if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
+        call error("Sum of k-point weights should be greater than zero!")
+      end if
+      kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
+    else
+      nKPoint = 1
+      allocate(kPoint(3, nKPoint))
+      allocate(kWeight(nKpoint))
+      kPoint(:,1) = 0.0_dp
+      kWeight(1) = 1.0_dp
+    end if
+
+    if ((.not. tPeriodic)&
+        & .or. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp]))) then
+      tRealHS = .true.
+    else
+      tRealHS = .false.
+    end if
+
+  #:if WITH_SCALAPACK
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+  #:endif
+    call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
+
     sccTol = input%ctrl%sccTol
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
-    tPeriodic = input%geom%tPeriodic
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
     if (tShowFoldedCoord .and. .not. tPeriodic) then
       call error("Folding coordinates back into the central cell is&
@@ -965,8 +1000,6 @@ contains
       recCellVol = 0.0_dp
       tLatticeChanged = .false.
     end if
-
-    orb = input%slako%orb
 
     ! Slater-Koster tables
     skHamCont = input%slako%skHamCont
@@ -1113,7 +1146,7 @@ contains
       end if
 
       sccInit%ewaldAlpha = input%ctrl%ewaldAlpha
-      call init_SCC(sccInit)
+      call init_SCC(env, sccInit)
       deallocate(sccInit)
       mCutoff = max(mCutoff, getSCCCutoff())
 
@@ -1183,37 +1216,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-
-    ! Brillouin zone sampling
-    if (tPeriodic) then
-      nKPoint = input%ctrl%nKPoint
-      allocate(kPoint(3, nKPoint))
-      allocate(kWeight(nKPoint))
-      @:ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
-      @:ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
-      kPoint(:,:) = input%ctrl%KPoint(:,:)
-      if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
-        call error("Sum of k-point weights should be greater than zero!")
-      end if
-      kWeight(:) = input%ctrl%kWeight(:) / sum(input%ctrl%kWeight(:))
-    else
-      nKPoint = 1
-      allocate(kPoint(3, nKPoint))
-      allocate(kWeight(nKpoint))
-      kPoint(:,1) = 0.0_dp
-      kWeight(1) = 1.0_dp
-    end if
-
-    if ((.not. tPeriodic) .or. (nKPoint == 1 .and. &
-        &all(kPoint(:, 1) == (/ 0.0_dp, 0.0_dp, 0.0_dp /)))) then
-      tRealHS = .true.
-    else
-      tRealHS = .false.
-    end if
-
-    ! Other usefull quantities
-    nOrb = orb%nOrb
-
+    
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -2039,12 +2042,6 @@ contains
     end if
 
     restartFreq = input%ctrl%restartFreq
-
-  #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
-  #:endif
-
-    call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     if (env%tIoProc) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&

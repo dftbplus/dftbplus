@@ -40,6 +40,12 @@ module blacsenv
     !> Nr. of processor within each group
     integer :: groupSize
 
+    !> Row block size
+    integer :: rowBlockSize
+
+    !> Column block size
+    integer :: columnBlockSize
+
   end type TBlacsEnv
 
 
@@ -109,6 +115,9 @@ contains
     nProcCol = min(nProcCol, maxProcColMax)
     call this%gridAtomSqr%initgrid(nProcRow, nProcCol)
     write(stdOut, "(1X,2(A,I0))") "PGRID:ATOM: ", nProcRow, " x ", nProcCol
+
+    this%rowBlockSize = rowBlock
+    this%columnBlockSize = colBlock
 
   end subroutine TBlacsEnv_init
 

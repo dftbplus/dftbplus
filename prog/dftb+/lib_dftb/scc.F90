@@ -9,6 +9,10 @@
 
 !> Functions and local variables for the SCC calculation.
 module scc
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif  
+  use environment
   use assert
   use accuracy
   use message
@@ -104,7 +108,7 @@ module scc
   real(dp), allocatable :: invRMat_(:,:)
 
   !> Shift vector per atom
-  real(dp), allocatable :: shiftPerAtom_(:)
+  real(dp), allocatable, target :: shiftPerAtom_(:)
 
   !> Shift vector per l-shell
   real(dp), allocatable :: shiftPerL_(:,:)
@@ -156,7 +160,7 @@ module scc
   real(dp), allocatable :: deltaQPerLShell_(:,:)
 
   !> Negative net charge per atom
-  real(dp), allocatable :: deltaQAtom_(:)
+  real(dp), allocatable, target :: deltaQAtom_(:)
 
   !> Negative net charge per U
   real(dp), allocatable :: deltaQUniqU_(:,:)
@@ -189,17 +193,38 @@ module scc
   !> evaluate Ewald parameter
   logical :: tAutoEwald_
 
+#:if WITH_SCALAPACK
+  !> Descriptor for 1/R matrix
+  integer :: descInvRMat_(DLEN_)
+
+  !> Descriptor for charge vector
+  integer :: descQVec_(DLEN_)
+
+  !> Distributed shift per atom vector
+  real(dp), allocatable, target :: shiftPerAtomGlobal_(:,:)
+
+  !> Distributed charge vector
+  real(dp), allocatable, target :: qGlobal_(:,:)
+
+#:endif
+
 contains
 
 
   !> Initialises the SCC module
-  subroutine init_SCC(inp)
+  subroutine init_SCC(env, inp)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> SCC ADT
     type(TSCCInit), intent(inout) :: inp
 
     integer :: iSp1, iSp2, iU1, iU2, iL
     real(dp) :: maxGEwald
+  #:if WITH_SCALAPACK
+    integer :: nRowLoc, nColLoc
+  #:endif
 
     nSpecies_ = size(inp%orb%nOrbSpecies)
     nAtom_ = size(inp%orb%nOrbAtom)
@@ -213,14 +238,28 @@ contains
     @:ASSERT(size(inp%hubbU, dim=2) == nSpecies_)
     @:ASSERT(size(inp%tDampedShort) == nSpecies_)
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (allocated(inp%extCharges)) then
       @:ASSERT(size(inp%extCharges, dim=1) == 4)
       @:ASSERT(size(inp%extCharges, dim=2) > 0)
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
+  #:if WITH_SCALAPACK
+    if (env%blacs%gridAtomSqr%iproc /= -1) then
+      call scalafx_getdescriptor(env%blacs%gridAtomSqr, nAtom_, nAtom_, env%blacs%rowBlockSize,&
+          & env%blacs%columnBlockSize, descInvRMat_)
+      call scalafx_getlocalshape(env%blacs%gridAtomSqr, descInvRMat_, nRowLoc, nColLoc)
+      allocate(invRMat_(nRowLoc, nColLoc))
+      call scalafx_getdescriptor(env%blacs%gridAtomSqr, 1, nAtom_, env%blacs%rowBlockSize,&
+          & env%blacs%columnBlockSize, descQVec_)
+      call scalafx_getlocalshape(env%blacs%gridAtomSqr, descQVec_, nRowLoc, nColLoc)
+      allocate(shiftPerAtomGlobal_(nRowLoc, nColLoc))
+      allocate(qGlobal_(nRowLoc, nColLoc))
+    end if
+  #:else
     allocate(invRMat_(nAtom_, nAtom_))
+  #:endif
     allocate(shiftPerAtom_(nAtom_))
     allocate(shiftPerL_(mShell_, nAtom_))
     allocate(shortGamma_(0, 0, 0, 0))
@@ -393,7 +432,10 @@ contains
 
 
   !> Updates the atom coordinates for the SCC module.
-  subroutine updateCoords_SCC(coord, species, neighList, img2CentCell)
+  subroutine updateCoords_SCC(env, coord, species, neighList, img2CentCell)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> New coordinates of the atoms
     real(dp), intent(in) :: coord(:,:)
@@ -410,12 +452,25 @@ contains
     @:ASSERT(tInitialised_)
 
     call updateNNeigh_(species, neighList)
+    
+  #:if WITH_SCALAPACK    
+    if (env%blacs%gridAtomSqr%iproc /= -1) then
+      if (tPeriodic_) then
+        call invRPeriodicBlacs(env%blacs%gridAtomSqr, coord, nNeighEwald_, neighList%iNeighbor,&
+            & img2CentCell, gLatPoint_, alpha_, volume_, descInvRMat_, invRMat_)
+      else
+        call invRClusterBlacs(env%blacs%gridAtomSqr, coord, descInvRMat_, invRMat_)
+      end if
+    end if
+  #:else
     if (tPeriodic_) then
       call invR(invRMat_, nAtom_, coord, nNeighEwald_, neighList%iNeighbor, &
           &img2CentCell, gLatPoint_, alpha_, volume_)
     else
       call invR(invRMat_, nAtom_, coord)
     end if
+  #:endif
+
     call initGamma_(coord, species, neighList%iNeighbor)
 
     if (tExtChrg_) then
@@ -471,8 +526,10 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges_SCC(qOrbital, q0, orb, species, iNeighbor, &
-      &img2CentCell)
+  subroutine updateCharges_SCC(env, qOrbital, q0, orb, species, iNeighbor, img2CentCell)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Orbital resolved charges
     real(dp), intent(in) :: qOrbital(:,:,:)
@@ -497,8 +554,7 @@ contains
 
     call getNetCharges_(species, orb, qOrbital, q0, deltaQ_, deltaQAtom_, &
         & deltaQPerLShell_, deltaQUniqU_)
-    call buildShifts_(orb, species, iNeighbor, img2CentCell, deltaQAtom_, &
-        & deltaQPerLShell_, shiftPerAtom_, shiftPerL_)
+    call buildShifts_(env, orb, species, iNeighbor, img2CentCell)
     if (tChrgConstr_) then
       call buildShift(chrgConstr_, deltaQAtom_)
     end if
@@ -709,6 +765,9 @@ contains
     @:ASSERT(all(shape(gammamat) == [ nAtom_, nAtom_ ]))
     @:ASSERT(all(nHubbU_ == 1))
 
+  #:if WITH_SCALAPACK
+    call error("scc:getAtomicGammaMatrix does not work with MPI yet")
+  #:endif
     gammamat(:,:) = invRMat_
     do iAt1 = 1, nAtom_
       do iNeigh = 0, maxval(nNeighShort_(:,:,:, iAt1))
@@ -1037,8 +1096,10 @@ contains
 
   !> Constructs the shift vectors for the SCC contributions.
   !> The full shift vector must be constructed by adding shiftAtom and shiftShell accordingly.
-  subroutine buildShifts_(orb, species, iNeighbor, img2CentCell, dQAtom, &
-      & dQShell, shiftAtom, shiftShell)
+  subroutine buildShifts_(env, orb, species, iNeighbor, img2CentCell)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
@@ -1052,30 +1113,79 @@ contains
     !> Image of each atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    !> Net population per atom.
-    real(dp), intent(in) :: dQAtom(:)
-
-    !> Net population per l-shell.
-    real(dp), intent(in) :: dQShell(:,:)
-
-    !> Shift vector for each atom.
-    real(dp), intent(out) :: shiftAtom(:)
-
-    !> Shift vector per l-shell.
-    real(dp), intent(out) :: shiftShell(:,:)
-
-    integer :: iAt1, iSp1, iSh1, iU1, iNeigh, iAt2f, iSp2, iSh2, iU2
-
     @:ASSERT(tInitialised_)
 
-    ! 1/R contribution [shiftAtom(A) = \sum_B 1/R_AB * (Q_B - Q0_B)]
-    shiftAtom(:) = 0.0_dp
-    call hemv(shiftAtom, invRMat_, dQAtom,'L')
+    call buildShiftPerAtom_(env)
+    call buildShiftPerShell_(env, orb, species, iNeighbor, img2CentCell)
 
-    ! Contribution of the short range part of gamma to the shift
-    ! sgamma'_{A,l} = sum_B sum_{u\in B} S(U(A,l),u)*q_u
-    shiftShell(:,:) = 0.0_dp
-    do iAt1 = 1, nAtom_
+  end subroutine buildShifts_
+
+
+  !> Builds 1/R contribution [shiftAtom(A) = sum_B 1 / R_AB * (Q_B - Q0_B)]
+  subroutine buildShiftPerAtom_(env)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
+  
+    shiftPerAtom_(:) = 0.0_dp
+
+  #:if WITH_SCALAPACK
+    if (env%blacs%gridAtomSqr%iproc /= -1) then
+      deltaQAtom2D(1:1, 1:size(deltaQAtom_)) => deltaQAtom_
+      shiftPerAtom2D(1:1, 1:size(shiftPerAtom_)) => shiftPerAtom_
+      call scalafx_cpl2g(env%blacs%gridAtomSqr, deltaQAtom2D, descQVec_, 1, 1, qGlobal_)
+      call pblasfx_psymv(invRMat_, descInvRMat_, qGlobal_, descQVec_, shiftPerAtomGlobal_,&
+          & descQVec_)
+      call scalafx_cpg2l(env%blacs%gridAtomSqr, descQVec_, 1, 1, shiftPerAtomGlobal_,&
+          & shiftPerAtom2D)
+    end if
+    call blacsfx_gsum(env%blacs%gridAll, shiftPerAtom_, rdest=-1, cdest=-1)
+  #:else
+    call hemv(shiftPerAtom_, invRMat_, deltaQAtom_, 'L')
+  #:endif
+
+  end subroutine buildShiftPerAtom_
+
+
+  !> Builds the short range shell resolved part of the shift vector
+  subroutine buildShiftPerShell_(env, orb, species, iNeighbor, img2CentCell)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> List of the species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> List of surrounding neighbours for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iNeigh, iAt1Start, iAt1End
+
+
+  #:if WITH_SCALAPACK
+    if (env%blacs%gridAtomSqr%iProc /= -1) then
+      iAt1Start = env%blacs%gridAtomSqr%iproc * nAtom_ / env%blacs%gridAtomSqr%nproc + 1
+      iAt1End = (env%blacs%gridAtomSqr%iproc + 1) * nAtom_ / env%blacs%gridAtomSqr%nproc
+    else
+      ! Do not calculate anything if process is not part of the atomic grid
+      iAt1Start = 0
+      iAt1End = -1
+    end if
+  #:else
+    iAt1Start = 1
+    iAt1End = nAtom_
+  #:endif
+
+    shiftPerL_(:,:) = 0.0_dp
+    do iAt1 = iAt1Start, iAt1End
       iSp1 = species(iAt1)
       do iSh1 = 1, orb%nShell(iSp1)
         iU1 = iHubbU_(iSh1, iSp1)
@@ -1084,18 +1194,22 @@ contains
           iSp2 = species(iAt2f)
           do iSh2 = 1, orb%nShell(iSp2)
             iU2 = iHubbU_(iSh2, iSp2)
-            shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1) &
-                &- shortGamma_(iU2, iU1, iNeigh, iAt1) * dQShell(iSh2, iAt2f)
+            shiftPerL_(iSh1, iAt1) = shiftPerL_(iSh1, iAt1)&
+                & - shortGamma_(iU2, iU1, iNeigh, iAt1) * deltaQPerLShell_(iSh2, iAt2f)
             if (iAt2f /= iAt1) then
-              shiftShell(iSh2, iAt2f) = shiftShell(iSh2, iAt2f) &
-                  &- shortGamma_(iU2, iU1, iNeigh, iAt1) * dQShell(iSh1, iAt1)
+              shiftPerL_(iSh2, iAt2f) = shiftPerL_(iSh2, iAt2f)&
+                  & - shortGamma_(iU2, iU1, iNeigh, iAt1) * deltaQPerLShell_(iSh1, iAt1)
             end if
           end do
         end do
       end do
     end do
 
-  end subroutine buildShifts_
+  #:if WITH_SCALAPACK
+    call blacsfx_gsum(env%blacs%gridAll, shiftPerL_, rdest=-1, cdest=-1)
+  #:endif
+
+  end subroutine buildShiftPerShell_
 
 
   !> Returns the shift per atom coming from the SCC part.
