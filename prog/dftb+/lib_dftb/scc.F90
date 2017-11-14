@@ -11,7 +11,7 @@
 module scc
 #:if WITH_SCALAPACK
   use scalapackfx
-#:endif  
+#:endif
   use environment
   use assert
   use accuracy
@@ -452,14 +452,14 @@ contains
     @:ASSERT(tInitialised_)
 
     call updateNNeigh_(species, neighList)
-    
-  #:if WITH_SCALAPACK    
+
+  #:if WITH_SCALAPACK
     if (env%blacs%gridAtomSqr%iproc /= -1) then
       if (tPeriodic_) then
-        call invRPeriodicBlacs(env%blacs%gridAtomSqr, coord, nNeighEwald_, neighList%iNeighbor,&
+        call getInvRPeriodicBlacs(env%blacs%gridAtomSqr, coord, nNeighEwald_, neighList%iNeighbor,&
             & img2CentCell, gLatPoint_, alpha_, volume_, descInvRMat_, invRMat_)
       else
-        call invRClusterBlacs(env%blacs%gridAtomSqr, coord, descInvRMat_, invRMat_)
+        call getInvRClusterBlacs(env%blacs%gridAtomSqr, coord, descInvRMat_, invRMat_)
       end if
     end if
   #:else
@@ -998,8 +998,10 @@ contains
 
   !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
   !> which is not covered in the term with the shift vectors.
-  subroutine addForceDCSCC(force, species, iNeighbor, img2CentCell, &
-      & coord,chrgForce)
+  subroutine addForceDCSCC(env, force, species, iNeighbor, img2CentCell, coord, chrgForce)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> has force contribution added
     real(dp), intent(inout) :: force(:,:)
@@ -1020,6 +1022,10 @@ contains
     !> shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
+  #:if WITH_SCALAPACK
+    real(dp), allocatable :: derivsBuffer(:,:)
+  #:endif
+
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == nAtom_)
     @:ASSERT(present(chrgForce) .eqv. tExtChrg_)
@@ -1028,19 +1034,39 @@ contains
     call addGammaPrime_(force,coord,species,iNeighbor,img2CentCell)
 
     ! 1/R contribution
-    if (tPeriodic_) then
-      call addInvRPrime(force, nAtom_, coord, nNeighEwald_, iNeighbor, &
-          & img2CentCell, gLatPoint_, alpha_, volume_, deltaQAtom_)
-      if (tExtChrg_) then
-        call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_, &
-            &gLatPoint_, alpha_, volume_)
+  #:if WITH_SCALAPACK
+    allocate(derivsBuffer(size(force, dim=1), size(force, dim=2)))
+    derivsBuffer(:,:) = 0.0_dp
+    if (env%blacs%gridAtomSqr%iproc /= -1) then
+      if (tPeriodic_) then
+        call getDInvRPeriodicBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_), coord,&
+            & nNeighEwald_, iNeighbor, img2CentCell, gLatPoint_, alpha_, volume_, deltaQAtom_,&
+            & derivsBuffer)
+      else
+        call getDInvRClusterBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_), coord,&
+            & deltaQAtom_, derivsBuffer)
       end if
+    end if
+    call blacsfx_gsum(env%blacs%gridAll, derivsBuffer, rdest=-1, cdest=-1)
+    force(:,:) = force + derivsBuffer
+  #:else
+    if (tPeriodic_) then
+      call addInvRPrime(force, nAtom_, coord, nNeighEwald_, iNeighbor, img2CentCell, gLatPoint_,&
+          & alpha_, volume_, deltaQAtom_)
     else
       call addInvRPrime(force, nAtom_, coord, deltaQAtom_)
-      if (tExtChrg_) then
+    end if
+  #:endif
+
+    if (tExtChrg_) then
+      if (tPeriodic_) then
+        call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_, gLatPoint_, alpha_,&
+            & volume_)
+      else
         call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_)
       end if
     end if
+
 
   end subroutine addForceDCSCC
 
@@ -1128,7 +1154,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
-  
+
     shiftPerAtom_(:) = 0.0_dp
 
   #:if WITH_SCALAPACK
@@ -1294,8 +1320,11 @@ contains
   !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
   !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
   !> therefore these are passed in as an extra variable.
-  subroutine addForceDCSCC_Xlbomd(species, orb, iNeighbor, img2CentCell, &
-      & coord, qOrbitalOut, q0, force)
+  subroutine addForceDCSCC_Xlbomd(env, species, orb, iNeighbor, img2CentCell, coord, qOrbitalOut,&
+      & q0, force)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> atomic species
     integer, intent(in) :: species(:)
@@ -1323,6 +1352,9 @@ contains
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
     real(dp), allocatable :: dQOutLShell(:,:), dQOutUniqU(:,:)
+  #:if WITH_SCALAPACK
+    real(dp), allocatable :: derivsBuffer(:,:)
+  #:endif
 
     allocate(dQOut(mOrb_, nAtom_))
     allocate(dQOutAtom(nAtom_))
@@ -1337,21 +1369,32 @@ contains
         & iNeighbor, img2CentCell, force)
 
     ! 1/R contribution
-    if (tPeriodic_) then
-      call addInvRPrimeXlbomd(nAtom_, coord, nNeighEwald_, iNeighbor, &
-          & img2CentCell, gLatPoint_, alpha_, volume_, deltaQAtom_, &
-          & dQOutAtom, force)
-      if (tExtChrg_) then
-        call error("XLBOMD with external charges does not work yet!")
-        !call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_, &
-        !    & gLatPoint_, alpha_, volume_)
+  #:if WITH_SCALAPACK
+    allocate(derivsBuffer(size(force, dim=1), size(force, dim=2)))
+    derivsBuffer(:,:) = 0.0_dp
+    if (env%blacs%gridAtomSqr%iproc /= -1) then
+      if (tPeriodic_) then
+        call getDInvRXlbomdPeriodicBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_),&
+            & coord, nNeighEwald_, iNeighbor, img2CentCell, gLatPoint_, alpha_, volume_,&
+            & deltaQAtom_, dQOutAtom, derivsBuffer)
+      else
+        call getDInvRXlbomdClusterBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_),&
+            & coord, deltaQAtom_, dQOutAtom, derivsBuffer)
       end if
+    end if
+    call blacsfx_gsum(env%blacs%gridAll, derivsBuffer, rdest=-1, cdest=-1)
+    force(:,:) = force + derivsBuffer
+  #:else
+    if (tPeriodic_) then
+      call addInvRPrimeXlbomd(nAtom_, coord, nNeighEwald_, iNeighbor, img2CentCell, gLatPoint_,&
+          & alpha_, volume_, deltaQAtom_, dQOutAtom, force)
     else
       call addInvRPrimeXlbomd(nAtom_, coord, deltaQAtom_, dQOutAtom, force)
-      if (tExtChrg_) then
-        call error("XLBOMD with external charges does not work yet!")
-        !call addForceDCSCC_ExtChrg(force, chrgForce, coord, deltaQAtom_)
-      end if
+    end if
+  #:endif
+
+    if (tExtChrg_) then
+      call error("XLBOMD with external charges does not work yet!")
     end if
 
   end subroutine addForceDCSCC_Xlbomd

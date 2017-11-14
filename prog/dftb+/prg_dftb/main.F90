@@ -380,12 +380,12 @@ contains
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec,&
             & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
             & SSqrCplx)
-        call getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
-            & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
-            & iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim, thirdOrd,&
-            & chrgForces)
+        call getGradients(env, tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
+            & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+            & img2CentCell, iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim,&
+            & thirdOrd, chrgForces)
         if (tLinResp) then
-          derivs(:,:) = derivs(:,:) + excitedDerivs(:,:)
+          derivs(:,:) = derivs + excitedDerivs
         end if
 
         if (tStress) then
@@ -3747,10 +3747,13 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim, qOutput,&
-      & q0, skHamCont, skOverCont, pRepCont, neighborList,&
-      & nNeighbor, species, img2CentCell, iSparseStart, orb, potential, coord, dispersion, &
-      & derivs, iRhoPrim, thirdOrd, chrgForces)
+  subroutine getGradients(env, tScc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
+      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+      & img2CentCell, iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim, thirdOrd,&
+      & chrgForces)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> self consistent?
     logical, intent(in) :: tScc
@@ -3863,15 +3866,15 @@ contains
         if (tXlbomd) then
           call error("XLBOMD does not work with external charges yet!")
         else
-          call addForceDCSCC(derivs, species, neighborList%iNeighbor, img2CentCell, coord,&
+          call addForceDCSCC(env, derivs, species, neighborList%iNeighbor, img2CentCell, coord,&
               & chrgForces)
         end if
       elseif (tSCC) then
         if (tXlbomd) then
-          call addForceDCSCC_Xlbomd(species, orb, neighborList%iNeighbor, img2CentCell, coord,&
+          call addForceDCSCC_Xlbomd(env, species, orb, neighborList%iNeighbor, img2CentCell, coord,&
               & qOutput, q0, derivs)
         else
-          call addForceDCSCC(derivs, species, neighborList%iNeighbor, img2CentCell, coord)
+          call addForceDCSCC(env, derivs, species, neighborList%iNeighbor, img2CentCell, coord)
         end if
       end if
 

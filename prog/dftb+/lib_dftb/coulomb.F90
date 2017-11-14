@@ -25,7 +25,9 @@ module coulomb
   public :: getMaxREwald, ewald, invR_stress
   public :: addInvRPrimeXlbomd
 #:if WITH_SCALAPACK
-  public :: invRClusterBlacs, invRPeriodicBlacs
+  public :: getInvRClusterBlacs, getInvRPeriodicBlacs
+  public :: getDInvRClusterBlacs, getDInvRPeriodicBlacs
+  public :: getDInvRXlbomdClusterBlacs, getDInvRXlbomdPeriodicBlacs
 #:endif
 
 
@@ -59,12 +61,8 @@ module coulomb
   end interface addInvRPrimeXlbomd
 
 
-  !> Used to return runtime diagnostics
-  character(len=100) :: error_string
   character(len=*), parameter :: ftTooClose = &
-      &"('The objects with the following indexes are too close to each other',&
-      &I5,I5)"
-
+      &"('The objects with the following indexes are too close to each other',I5,I5)"
 
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
@@ -104,10 +102,10 @@ contains
   end subroutine invR_cluster
 
 #:if WITH_SCALAPACK
-  
+
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invRClusterBlacs(grid, coord, descInvRMat, invRMat)
+  subroutine getInvRClusterBlacs(grid, coord, descInvRMat, invRMat)
 
     !> BLACS grid involved in 1/R calculation
     type(blacsgrid), intent(in) :: grid
@@ -117,31 +115,31 @@ contains
 
     !> Matrix descriptor for 1/R matrix
     integer, intent(in) :: descInvRMat(DLEN_)
-    
+
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
 
-    integer :: ii, jj, iGlob, jGlob
+    integer :: ii, jj, iAt2, iAt1
     real(dp) :: dist, vect(3)
 
     invRMat(:,:) = 0.0_dp
     do jj = 1, size(invRMat, dim=2)
-      jGlob = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
       do ii = 1, size(invRMat, dim=1)
-        iGlob = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_), grid%nrow)
-        if (iGlob <= jGlob) then
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_), grid%nrow)
+        if (iAt2 <= iAt1) then
           cycle
         end if
-        vect(:) = coord(:,jGlob) - coord(:,iGlob)
+        vect(:) = coord(:,iAt1) - coord(:,iAt2)
         dist = sqrt(sum(vect**2))
         invRMat(ii, jj) = 1.0_dp / dist
       end do
     end do
 
-  end subroutine invRClusterBlacs
+  end subroutine getInvRClusterBlacs
 
 #:endif
-  
+
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
@@ -171,6 +169,7 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp
+    character(len=100) :: errorString
 
     @:ASSERT(size(invRVec) == nAtom0)
     @:ASSERT(size(coord0, dim=2) >= nAtom0)
@@ -199,8 +198,8 @@ contains
             end if
             invRVec(iAt0) = invRVec(iAt0) + fTmp
           else
-            write (error_string, ftTooClose) iAt0, iAt1
-            call error(trim(error_string))
+            write (errorString, ftTooClose) iAt0, iAt1
+            call error(trim(errorString))
           end if
         end do
       end do
@@ -212,8 +211,8 @@ contains
           if (dist > epsilon(0.0_dp)) then
             invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
           else
-            write (error_string, ftTooClose) iAt0, iAt1
-            call error(trim(error_string))
+            write (errorString, ftTooClose) iAt0, iAt1
+            call error(trim(errorString))
           end if
         end do
       end do
@@ -297,7 +296,7 @@ contains
 
   !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invRPeriodicBlacs(grid, coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
+  subroutine getInvRPeriodicBlacs(grid, coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
       & alpha, volume, descInvRMat, invRMat)
 
     !> BLACS grid involved in 1/R calculation
@@ -374,7 +373,7 @@ contains
       end if
     end do
 
-  end subroutine invRPeriodicBlacs
+  end subroutine getInvRPeriodicBlacs
 
 #:endif
 
@@ -475,6 +474,51 @@ contains
 
   end subroutine addInvRPrime_cluster
 
+#:if WITH_SCALAPACK
+
+  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
+  !> storing anything.
+  subroutine getDInvRClusterBlacs(grid, descAtomSqr, localShape, coord, deltaQAtom, deriv)
+
+    !> BLACS grid of the distributed derivative vector
+    type(blacsgrid), intent(in) :: grid
+
+    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
+    integer, intent(in) :: descAtomSqr(DLEN_)
+
+    !> Local shape of the distributed nAtom x nAtom matrix
+    integer, intent(in) :: localShape(:)
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of charges on each atom.
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Contains the derivative on exit.
+    real(dp), intent(out) :: deriv(:,:)
+
+    integer :: ii, jj, iAt1, iAt2
+    real(dp) :: dist, vect(3), fTmp
+
+    deriv(:,:) = 0.0_dp
+    do jj = 1, localShape(2)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      do ii = 1, localShape(1)
+        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
+        if (iAt1 /= iAt2) then
+          vect(:) = coord(:,iAt1) - coord(:,iAt2)
+          dist = sqrt(sum(vect**2))
+          fTmp = -deltaQAtom(iAt1) * deltaQAtom(iAt2) / (dist**3)
+          deriv(:,iAt1) = deriv(:,iAt1) + vect * fTmp
+        end if
+      end do
+    end do
+
+  end subroutine getDInvRClusterBlacs
+
+#:endif
+
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
   !> geometry
@@ -522,6 +566,58 @@ contains
   end subroutine addInvRPrimeXlbomd_cluster
 
 
+#:if WITH_SCALAPACK
+
+  !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
+  !> geometry
+  subroutine getDInvRXlbomdClusterBlacs(grid, descAtomSqr, localShape, coord, dQInAtom, dQOutAtom,&
+      & deriv)
+
+    !> BLACS grid of the distributed derivative vector
+    type(blacsgrid), intent(in) :: grid
+
+    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
+    integer, intent(in) :: descAtomSqr(DLEN_)
+
+    !> Local shape of the distributed nAtom x nAtom matrix
+    integer, intent(in) :: localShape(:)
+
+    !> coordinates of atoms
+    real(dp), intent(in) :: coord(:,:)
+
+    !> input charge fluctuations
+    real(dp), intent(in) :: dQInAtom(:)
+
+    !> output charge fluctuations
+    real(dp), intent(in) :: dQOutAtom(:)
+
+    !> energy derivative to add contribution to
+    real(dp), intent(out) :: deriv(:,:)
+
+    integer :: ii, jj, iAt1, iAt2
+    real(dp) :: dist, vect(3), fTmp, prefac
+
+    deriv(:,:) = 0.0_dp
+    do jj = 1, localShape(2)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      do ii = 1, localShape(1)
+        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
+        if (iAt1 /= iAt2) then
+          vect(:) = coord(:,iAt1) - coord(:,iAt2)
+          dist = sqrt(sum(vect**2))
+          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2) &
+              & - dQInAtom(iAt1) * dQInAtom(iAt2)
+          fTmp = -prefac / (dist**3)
+          deriv(:,iAt1) = deriv(:,iAt1) + vect * fTmp
+        end if
+      end do
+    end do
+
+  end subroutine getDInvRXlbomdClusterBlacs
+
+#:endif
+
+
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
   subroutine addInvRPrime_cluster_asymm(deriv0, deriv1, nAtom0, nAtom1, &
@@ -556,6 +652,7 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
+    character(len=100) :: errorString
 
     @:ASSERT(size(deriv0, dim=1) == 3)
     @:ASSERT(size(deriv0, dim=2) >= nAtom0)
@@ -591,8 +688,8 @@ contains
             deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
             deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
           else
-            write (error_string, ftTooClose) iAt0, iAt1
-            call error(trim(error_string))
+            write (errorString, ftTooClose) iAt0, iAt1
+            call error(trim(errorString))
           end if
         end do
       end do
@@ -606,8 +703,8 @@ contains
             deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
             deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
           else
-            write (error_string, ftTooClose) iAt0, iAt1
-            call error(trim(error_string))
+            write (errorString, ftTooClose) iAt0, iAt1
+            call error(trim(errorString))
           end if
         end do
       end do
@@ -696,6 +793,88 @@ contains
   end subroutine addInvRPrime_periodic
 
 
+#:if WITH_SCALAPACK
+
+  subroutine getDInvRPeriodicBlacs(grid, descAtomSqr, localShape, coord, nNeighborEwald,&
+      & iNeighbor, img2CentCell, recPoint, alpha, volume, deltaQAtom, deriv)
+
+    !> BLACS grid of the distributed derivative vector
+    type(blacsgrid), intent(in) :: grid
+
+    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
+    integer, intent(in) :: descAtomSqr(DLEN_)
+
+    !> Local shape of the distributed nAtom x nAtom matrix
+    integer, intent(in) :: localShape(:)
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part ofEwald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> list of neighbours for each atom
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> mapping from image atoms to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum. The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
+
+    !> List of charges on each atom
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Derivative on exit
+    real(dp), intent(out) :: deriv(:,:)
+
+    integer :: ii, jj, iAt1, iAt2, iAt2f, iNeigh, iLoc, jLoc
+    real(dp) :: rr(3), contrib(3)
+    logical :: tLocal
+
+    deriv(:,:) = 0.0_dp
+
+    do jj = 1, localShape(2)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      do iNeigh = 1, nNeighborEwald(iAt1)
+        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        call islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        if (tLocal .and. iAt2f /= iAt1) then
+          rr(:) = coord(:,iAt1) - coord(:,iAt2)
+          contrib = derivRTerm(rr, alpha) * deltaQAtom(iAt1) * deltaQAtom(iAt2f)
+          deriv(:,iAt1) = deriv(:,iAt1) + contrib
+          ! Neighbor list only contains lower triange: add also to screw symmetric equivalent
+          deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
+        end if
+      end do
+    end do
+
+    do jj = 1, localShape(2)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      do ii = 1, localShape(1)
+        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
+        if (iAt2 /= iAt1) then
+          rr(:) = coord(:,iAt1) - coord(:,iAt2)
+          deriv(:,iAt1) = deriv(:,iAt1)&
+              & + derivEwaldReciprocal(rr, recPoint, alpha, volume) * deltaQAtom(iAt1)&
+              & * deltaQAtom(iAt2)
+        end if
+      end do
+    end do
+
+  end subroutine getDInvRPeriodicBlacs
+
+#:endif
+
+
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
   subroutine addInvRPrimeXlbomd_periodic(nAtom, coord, nNeighborEwald, &
       &iNeighbor, img2CentCell, recPoint, alpha, volume, dQInAtom, &
@@ -780,6 +959,97 @@ contains
   end subroutine addInvRPrimeXlbomd_periodic
 
 
+#:if WITH_SCALAPACK
+
+    !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
+  subroutine getDInvRXlbomdPeriodicBlacs(grid, descAtomSqr, localShape, coord, nNeighborEwald,&
+      & iNeighbor, img2CentCell, recPoint, alpha, volume, dQInAtom, dQOutAtom, deriv)
+
+    !> BLACS grid of the distributed derivative vector
+    type(blacsgrid), intent(in) :: grid
+
+    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
+    integer, intent(in) :: descAtomSqr(DLEN_)
+
+    !> Local shape of the distributed nAtom x nAtom matrix
+    integer, intent(in) :: localShape(:)
+
+    !> coordinates of atoms
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image of each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum. The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Ewald parameter
+    real(dp), intent(in) :: alpha
+
+    !> cell volume
+    real(dp), intent(in) :: volume
+
+    !> input charge fluctuations
+    real(dp), intent(in) :: dQInAtom(:)
+
+    !> output charge fluctuations
+    real(dp), intent(in) :: dQOutAtom(:)
+
+    !> energy derivative to add contribution to
+    real(dp), intent(out) :: deriv(:,:)
+
+    integer :: ii, jj, iAt1, iAt2, iAt2f, iNeigh, iLoc, jLoc
+    real(dp) :: rr(3), contrib(3), prefac
+    logical :: tLocal
+
+    deriv(:,:) = 0.0_dp
+
+    ! Real space contribution
+    do jj = 1, localShape(2)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      do iNeigh = 1, nNeighborEwald(iAt1)
+        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        call islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        if (tLocal .and. iAt2f /= iAt1) then
+          rr(:) = coord(:,iAt1) - coord(:,iAt2)
+          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2f) + dQInAtom(iAt1) * dQOutAtom(iAt2f) &
+              & - dQInAtom(iAt1) * dQInAtom(iAt2f)
+          contrib(:) = prefac * derivRTerm(rr, alpha)
+          deriv(:,iAt1) = deriv(:,iAt1) + contrib
+          ! Neighbor list only contains lower triange: add also to screw symmetric equivalent
+          deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
+        end if
+      end do
+    end do
+
+    ! Reciprocal space contribution
+    do jj = 1, localShape(2)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      do ii= 1, localShape(1)
+        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
+        if (iAt2 /= iAt1) then
+          rr(:) = coord(:,iAt1) - coord(:,iAt2)
+          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2) &
+              & - dQInAtom(iAt1) * dQInAtom(iAt2)
+          contrib(:) = prefac * derivEwaldReciprocal(rr, recPoint, alpha, volume)
+          deriv(:,iAt1) = deriv(:,iAt1) + contrib
+        end if
+      end do
+    end do
+
+  end subroutine getDInvRXlbomdPeriodicBlacs
+
+#:endif
+
+
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
   subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, nAtom0, nAtom1, &
@@ -823,6 +1093,7 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
+    character(len=100) :: errorString
 
     @:ASSERT(size(deriv0, dim=1) == 3)
     @:ASSERT(size(deriv0, dim=2) == nAtom0)
@@ -849,8 +1120,8 @@ contains
           deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
           deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
         else
-          write (error_string, ftTooClose) iAt0, iAt1
-          call error(trim(error_string))
+          write (errorString, ftTooClose) iAt0, iAt1
+          call error(trim(errorString))
         end if
       end do
     end do
@@ -884,6 +1155,7 @@ contains
     real(dp) :: minG, minR, diff
     integer :: iIter
     integer :: iError
+    character(len=100) :: errorString
 
     @:ASSERT(all(shape(latVec) == (/3, 3/)))
     @:ASSERT(all(shape(recVec) == (/3, 3/)))
@@ -941,8 +1213,8 @@ contains
       !!alpha = exp(-0.310104 * log(volume) + 0.786382) / 2.0
 99000 format ('Failure in determining optimal alpha for Ewaldsum.', &
           & ' Error code: ',I3)
-      write(error_string, 99000) iError
-      call error(error_string)
+      write(errorString, 99000) iError
+      call error(errorString)
     end if
 
   end function getOptimalAlphaEwald
@@ -967,6 +1239,7 @@ contains
     real(dp), parameter :: gInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
     integer :: iError, iIter
+    character(len=100) :: errorString
 
     iError = 0
     xx = gInit
@@ -1007,8 +1280,8 @@ contains
 
     if (iError /= 0) then
 99010 format ('Failure in getMaxGEwald.', ' Error nr: ',I3)
-      write(error_string, 99010) iError
-      call error(error_string)
+      write(errorString, 99010) iError
+      call error(errorString)
     end if
 
   end function getMaxGEwald
@@ -1030,6 +1303,7 @@ contains
     real(dp), parameter :: rInit = 1.0e-8_dp
     real(dp) :: xLeft, xRight, yLeft, yRight, yy
     integer :: iError, iIter
+    character(len=100) :: errorString
 
     iError = 0
     xx = rInit
@@ -1070,8 +1344,8 @@ contains
 
     if (iError /= 0) then
 99020 format ('Failure in getMaxREwald.', ' Error nr: ',I3)
-      write(error_string, 99020) iError
-      call error(error_string)
+      write(errorString, 99020) iError
+      call error(errorString)
     end if
 
   end function getMaxREwald
@@ -1458,7 +1732,7 @@ contains
 
 
 #:if WITH_SCALAPACK
-  
+
   subroutine islocal(grid, desc, ii, jj, local, iloc, jloc)
     type(blacsgrid), intent(in) :: grid
     integer, intent(in) :: desc(DLEN_)
@@ -1467,7 +1741,7 @@ contains
     integer, intent(out) :: iloc, jloc
 
     integer :: prow, pcol
-    
+
     call scalafx_infog2l(grid, desc, ii, jj, iloc, jloc, prow, pcol)
     local = (prow == grid%myrow .and. pcol == grid%mycol)
 
