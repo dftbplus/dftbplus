@@ -12,6 +12,7 @@ scc/H2O2_3rdfull-damp
 scc/H3
 spin/H2
 analysis/C2H4_localise
+analysis/graphene_localise
 dftb+u/CH3
 dispersion/2H2O
 dispersion/2H2O_uff
