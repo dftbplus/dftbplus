@@ -19,18 +19,19 @@ module environment
   private
 
   public :: TEnvironment
-  public :: withMpi, withScalapack
 
 
   !> Contains environment settings.
   type :: TEnvironment
-    private
 
     !> Whether this process is the master?
-    logical, public :: tMaster = .true.
+    logical, public :: tGlobalMaster = .true.
 
-    !> Whether this process is supposed to do I/O
-    logical, public :: tIoProc = .true.
+    !> Nr. of groups in the system
+    integer, public :: nGroup = 1
+
+    !> Id of current group (starts with 0)
+    integer, public :: myGroup = 0
 
   #:if WITH_MPI
     !> Global mpi settings
@@ -52,26 +53,25 @@ module environment
   end type TEnvironment
 
 
-  !> Whether code was compiled with MPI support
-  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
-
-  !> Whether code was compiled with Scalapack
-  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
-
-
 contains
 
 
 #:if WITH_MPI
 
   !> Initializes MPI environment.
-  subroutine initMpi(this)
+  subroutine initMpi(this, nGroup)
+
+    !> Instance
     class(TEnvironment), intent(inout) :: this
 
+    !> Number of process groups to create
+    integer, intent(in) :: nGroup
+
     ! MPI settings
-    call TMpiEnv_init(this%mpi)
-    this%tMaster = this%mpi%all%master
-    this%tIoProc = this%tMaster
+    call TMpiEnv_init(this%mpi, nGroup)
+    this%tGlobalMaster = this%mpi%tGlobalMaster
+    this%nGroup = this%mpi%nGroup
+    this%myGroup = this%mpi%myGroup
 
   end subroutine initMpi
 
@@ -81,7 +81,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine initBlacs(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
+  subroutine initBlacs(this, rowBlock, colBlock, nOrb, nAtom)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -92,16 +92,13 @@ contains
     !> Column block size
     integer, intent(in) :: colBlock
 
-    !> Nr. of processor groups.
-    integer, intent(in) :: nGroup
-
     !> Nr. of orbitals
     integer, intent(in) :: nOrb
 
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    call TBlacsEnv_init(this%blacs, rowBlock, colBlock, nGroup, nOrb, nAtom)
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
 
   end subroutine initBlacs
 

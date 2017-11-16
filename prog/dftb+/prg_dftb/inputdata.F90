@@ -40,14 +40,14 @@ module inputdata_module
     !> Block size for matrix columns.
     integer :: colBlockSize
 
-    !> Number of processor groups
-    integer :: nGroups
-
   end type TBlacsOpts
 
 
   !> Contains the parallel options
   type :: TParallelOpts
+
+    !> Number of processor groups
+    integer :: nGroup
 
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts

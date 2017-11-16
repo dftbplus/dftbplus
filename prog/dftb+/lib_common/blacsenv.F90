@@ -9,10 +9,9 @@
 
 !> Contains BLACS environmental settings.
 module blacsenv
-  use globalenv, only : stdOut
+  use mpienv
   use message
   use scalapackfx
-  use accuracy, only : lc
   implicit none
   private
 
@@ -22,23 +21,13 @@ module blacsenv
   !> Contains various BLACS related settings
   type :: TBlacsEnv
 
-    !> Grid containing all processes.
-    type(blacsgrid) :: gridAll
+    !> Group grid for (nOrb, nOrb) shaped square matrices (nAtom) shaped vectors
+    !> Note: the grid is ensured to contain all processes in the group
+    type(blacsgrid) :: orbitalGrid
 
-    !> Group grid for processing square matrices of the size nOrb x nOrb
-    type(blacsgrid) :: gridOrbSqr
-
-    !> Group grid for processing square matrices of the size nAtom x nAtom
-    type(blacsgrid) :: gridAtomSqr
-
-    !> Nr. of processor groups
-    integer :: nGroup
-
-    !> Index of the group current process is in
-    integer :: iGroup
-
-    !> Nr. of processor within each group
-    integer :: groupSize
+    !> Group grid for (nAtom, nAtom) shaped square matrices (nAtom) shaped vectors
+    !> Note: Some processes in the group may be outside of this grid!
+    type(blacsgrid) :: atomGrid
 
     !> Row block size
     integer :: rowBlockSize
@@ -53,10 +42,13 @@ contains
 
 
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
+  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
+
+    !> Initialised MPI environment
+    type(TMpiEnv), intent(in) :: myMpiEnv
 
     !> Row block size
     integer, intent(in) :: rowBlock
@@ -64,33 +56,20 @@ contains
     !> Column block size
     integer, intent(in) :: colBlock
 
-    !> Nr. of processor groups
-    integer, intent(in) :: nGroup
-
     !> Nr. of orbitals
     integer, intent(in) :: nOrb
 
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
+    integer, allocatable :: gridMap(:,:)
     integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax
-    integer :: nProc, iProc
-    character(lc) :: buffer
+    character(200) :: buffer
 
-    call blacsfx_pinfo(iProc, nProc)
-    if (nGroup < 1 .or. nGroup > nProc) then
-      call error("Nr. of  groups must be between 1 and nr. of processes")
-    end if
-    if (mod(nProc, nGroup) /= 0) then
-      call error("Nr. of groups must be a divisor of nr. of processes")
-    end if
-
-    this%nGroup = nGroup
-    this%groupSize = nProc / nGroup
-    this%iGroup = iProc / this%groupSize
-
-    ! Check whether all processes have some portions of the H and S matrices
-    call getSquareGridParams(this%groupSize, nProcRow, nProcCol)
+    ! Create orbital grid for each processor group
+    call getSquareGridParams(myMpiEnv%groupSize, nProcRow, nProcCol)
+    ! Check whether all processes have some portions of the H and S matrices otherwise
+    ! diagonalisers may return garbage
     maxProcRow = (nOrb - 1) / rowBlock + 1
     maxProcColMax = (nOrb - 1) / colblock + 1
     if (nProcRow > maxProcRow .or. nProcCol > maxProcColMax) then
@@ -98,23 +77,16 @@ contains
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       call error(buffer)
     end if
+    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+    call this%orbitalGrid%initmappedgrids(gridMap)
 
-    ! Subgrid for communication inside the groups
-    call this%gridOrbSqr%initgrids(nGroup, nProcRow, nProcCol)
-    write(stdOut, "(1X,3(A,I0))") "PGRID:ORBITAL: ", nGroup, " x ", nProcRow, " x ", nProcCol
-
-    ! Global grid for broadcasting messages to all processes
-    call getSquareGridParams(nProc, nProcRow, nProcCol)
-    call this%gridAll%initgrid(nProcRow, nProcCol)
-    write(stdOut, "(1X,2(A,I0))") "PGRID:ALLPROC: ", nProcRow, " x ", nProcCol
-
-    ! Create grid for atomic quantities
+    ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
     maxProcColMax = (nAtom - 1) / colBlock + 1
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
-    call this%gridAtomSqr%initgrid(nProcRow, nProcCol)
-    write(stdOut, "(1X,2(A,I0))") "PGRID:ATOM: ", nProcRow, " x ", nProcCol
+    call getGridMap(myMpiEnv%groupMembers, nProcRow, nProcCol, gridMap)
+    call this%atomGrid%initmappedgrids(gridMap)
 
     this%rowBlockSize = rowBlock
     this%columnBlockSize = colBlock
@@ -126,7 +98,7 @@ contains
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    !> Returns rows and columns for a 2D processor grid closest possible to a square one.
+  !> Returns rows and columns for a 2D processor grid closest possible to a square one.
   subroutine getSquareGridParams(nProc, nRow, nCol)
 
     !> Total number of processors
@@ -146,6 +118,37 @@ contains
     nCol = nProc / nRow
 
   end subroutine getSquareGridParams
+
+
+  !> Returns the gridmap for a 2D BLACS grid.
+  subroutine getGridMap(groupMembers, nProcRow, nProcCol, gridMap)
+
+    !> All members of the current group (must be >= nProcRow * nProcCol)
+    integer, intent(in) :: groupMembers(:)
+
+    !> Number of process rows in the grid
+    integer, intent(in) :: nProcRow
+
+    !> Number of process columns in the grid
+    integer, intent(in) :: nProcCol
+
+    !> Grid map
+    integer, allocatable, intent(out) :: gridMap(:,:)
+
+    integer :: iProcRow, iProcCol, ind
+
+    @:ASSERT(size(groupMembers) >= nProcRow * nProcCol)
+
+    allocate(gridMap(nProcRow, nProcCol))
+    ind = 1
+    do iProcRow = 1, nProcRow
+      do iProcCol = 1, nProcCol
+        gridmap(iProcRow, iProcCol) = groupMembers(ind)
+        ind = ind + 1
+      end do
+    end do
+
+  end subroutine getGridMap
 
 
 end module blacsenv

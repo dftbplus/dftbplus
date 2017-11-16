@@ -382,33 +382,29 @@ contains
 
     type(linecomm) :: collector
     ${DTYPE}$(dp), allocatable :: localEigvec(:)
-    integer :: sender
     integer :: nOrb
     integer :: iKS, iGroup, iEig
 
     nOrb = denseDesc%fullSize
     allocate(localEigvec(nOrb))
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call prepareEigvecFileBin(fd, runId, fileName)
     end if
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
-          if (iGroup /= 1) then
-            sender = (iGroup - 1) * env%blacs%groupSize
-          end if
           do iEig = 1, nOrb
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
             else
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
             end if
             write(fd) localEigvec
           end do
@@ -417,17 +413,18 @@ contains
     else
       do iKS = 1, parallelKS%nLocalKS
         do iEig = 1, nOrb
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
-            call mpifx_send(env%mpi%all, localEigvec, env%mpi%all%masterrank)
+          if (env%mpi%tGroupMaster) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
           end if
         end do
       end do
     end if
     
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       close(fd)
     end if
 
@@ -523,7 +520,6 @@ contains
     type(linecomm) :: collector
     real(dp), allocatable :: localEigvec(:), localFrac(:)
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:)
-    integer :: sender
     integer :: nOrb, nAtom
     integer :: iKS, iS, iGroup, iEig
 
@@ -531,40 +527,38 @@ contains
     nAtom = size(nNeighbor)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%blacs%gridOrbSqr%master) then
+    if (env%mpi%tGroupMaster) then
       allocate(localEigvec(nOrb))
       allocate(localFrac(nOrb))
     end if
 
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    if (env%mpi%all%master) then
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    if (env%mpi%tGlobalMaster) then
       call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
-    masterSlave: if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
           iS = parallelKS%groupKS(2, iKS, iGroup)
-          if (iGroup == 1) then
+          if (iGroup == 0) then
             call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart,&
                 & img2CentCell, denseDesc, globalS)
             call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalFrac, denseDesc%blacsOrbSqr)
             globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
-          else
-            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           do iEig = 1, nOrb
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localFrac, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
+              call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
             call writeSingleRealEigvecTxt(fd, localEigvec, localFrac, iS, iEig, orb, species,&
                 & speciesName, nAtom)
@@ -579,20 +573,21 @@ contains
             & globalFrac, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
         do iEig = 1, nOrb
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%all, localEigvec, env%mpi%all%masterrank)
-            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
+          if (env%mpi%tGroupMaster) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
     end if masterSlave
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       close(fd)
     end if
 
@@ -732,7 +727,6 @@ contains
     complex(dp), allocatable :: localEigvec(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     real(dp), allocatable :: localFrac(:), globalFrac(:,:)
-    integer :: sender
     integer :: nEigvec, nAtom
     integer :: iKS, iK, iS, iGroup, iEig
 
@@ -741,41 +735,39 @@ contains
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%blacs%gridOrbSqr%master) then
+    if (env%mpi%tGroupMaster) then
       allocate(localEigvec(denseDesc%nOrb))
       allocate(localFrac(denseDesc%nOrb))
     end if
 
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    if (env%mpi%all%master) then
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    if (env%mpi%tGlobalMaster) then
       call prepareEigvecFileTxt(fdEigvec, .false., fileName)
     end if
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
           iK = parallelKS%groupKS(1, iKS, iGroup)
           iS = parallelKS%groupKS(2, iKS, iGroup)
-          if (iGroup == 1) then
+          if (iGroup == 0) then
             call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
                 & cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
             globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
-          else
-            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           do iEig = 1, nEigvec
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localFrac, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
+              call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
             call writeSingleCplxEigvecTxt(fdEigvec, localEigvec, localFrac, iS, iK, iEig, orb,&
                 & species, speciesName, nAtom)
@@ -791,20 +783,20 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nEigvec
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%all, localEigvec, env%mpi%all%masterrank)
-            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
+          if (env%mpi%tGroupMaster) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
     end if
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       close(fdEigvec)
     end if
 
@@ -960,7 +952,6 @@ contains
     real(dp), allocatable :: fracs(:,:)
     complex(dp), allocatable :: localEigvec(:), localSDotC(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
-    integer :: sender
     integer :: nAtom, nOrb
     integer :: iKS, iK, iGroup, iEig
 
@@ -968,42 +959,40 @@ contains
     nAtom = size(nNeighbor)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%blacs%gridOrbSqr%master) then
+    if (env%mpi%tGroupMaster) then
       allocate(localEigvec(denseDesc%fullSize))
       allocate(localSDotC(denseDesc%fullSize))
-      if (env%mpi%all%master) then
+      if (env%mpi%tGlobalMaster) then
         allocate(fracs(4, denseDesc%nOrb))
       end if
     end if
 
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
-    if (env%mpi%all%master) then
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    if (env%mpi%tGlobalMaster) then
       call prepareEigvecFileTxt(fd, .true., fileName)
     end if
 
-    masterSlave: if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
           iK = parallelKS%groupKS(1, iKS, iGroup)
-          if (iGroup == 1) then
+          if (iGroup == 0) then
             call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
                 & cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
-          else
-            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           do iEig = 1, nOrb
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             else
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localSDotC, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
+              call mpifx_recv(env%mpi%interGroupComm, localSDotC, iGroup)
             end if
             call getPauliFractions(localEigvec, localSDotC, fracs)
             call writeSinglePauliEigvecTxt(fd, localEigvec, fracs, iK, iEig, orb, species,&
@@ -1019,20 +1008,21 @@ contains
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
-            call mpifx_send(env%mpi%all, localEigvec, env%mpi%all%masterrank)
-            call mpifx_send(env%mpi%all, localSDotC, env%mpi%all%masterrank)
+          if (env%mpi%tGroupMaster) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
+            call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalSDotC)
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalSDotC)
           end if
         end do
       end do
     end if masterSlave
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       close(fd)
     end if
 
@@ -1276,7 +1266,6 @@ contains
 
     type(linecomm) :: collector
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:), localFrac(:)
-    integer :: sender
     integer :: nOrb, nReg
     integer :: iKS, iS, iGroup, iEig
 
@@ -1284,37 +1273,35 @@ contains
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%blacs%gridOrbSqr%master) then
+    if (env%mpi%tGroupMaster) then
       allocate(localFrac(nOrb))
     end if
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
           iS = parallelKS%groupKS(2, iKS, iGroup)
-          if (iGroup == 1) then
+          if (iGroup == 0) then
             call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor,&
                 & iSparseStart, img2CentCell, denseDesc, globalS)
             call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalFrac, denseDesc%blacsOrbSqr)
             globalFrac(:,:) = eigvecs(:,:,iKS) * globalFrac
-          else
-            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           call writeProjEigvecHeader(fd, iS)
           do iEig = 1, nOrb
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
-              call mpifx_recv(env%mpi%all, localFrac, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
             call writeProjEigvecData(fd, iOrbRegion, eigvals(iEig, 1, iS), localFrac)
           end do
@@ -1329,17 +1316,17 @@ contains
             & globalFrac, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = eigvecs(:,:,iKS) * globalFrac
         do iEig = 1, nOrb
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
+          if (env%mpi%tGroupMaster) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
     end if masterSlave
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
     end if
 
@@ -1475,7 +1462,6 @@ contains
     type(linecomm) :: collector
     real(dp), allocatable :: globalFrac(:,:), localFrac(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
-    integer :: sender
     integer :: nOrb, nReg
     integer :: iKS, iK, iS, iGroup, iEig
 
@@ -1484,38 +1470,36 @@ contains
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%blacs%gridOrbSqr%master) then
+    if (env%mpi%tGroupMaster) then
       allocate(localFrac(nOrb))
     end if
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
           iK = parallelKS%groupKS(1, iKS, iGroup)
           iS = parallelKS%groupKS(2, iKS, iGroup)
-          if (iGroup == 1) then
+          if (iGroup == 0) then
             call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor,&
                 & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
             globalFrac(:,:) = real(globalSDotC * conjg(eigvecs(:,:,iKS)))
-          else
-            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           call writeProjEigvecHeader(fd, iS, iK, kWeights(iK))
           do iEig = 1, nOrb
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
-              call mpifx_recv(env%mpi%all, localFrac, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
             call writeProjEigvecData(fd, iOrbRegion, eigvals(iEig, iK, iS), localFrac)
           end do
@@ -1531,17 +1515,17 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nOrb
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%all, localFrac, env%mpi%all%masterrank)
+          if (env%mpi%tGroupMaster) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalFrac)
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
     end if masterSlave
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
     end if
 
@@ -1706,44 +1690,42 @@ contains
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%blacs%gridOrbSqr%master) then
+    if (env%mpi%tGroupMaster) then
       allocate(localEigvec(nOrb))
       allocate(localSDotC(nOrb))
-      if (env%mpi%all%master) then
+      if (env%mpi%tGlobalMaster) then
         allocate(fracs(4, nOrb / 2))
       end if
     end if
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
-    call collector%init(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, "c")
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%all%master) then
+    masterSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
-        group: do iGroup = 1, env%blacs%nGroup
+        group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
             cycle group
           end if
           iK = parallelKS%groupKS(1, iKS, iGroup)
-          if (iGroup == 1) then
+          if (iGroup == 0) then
             call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor,&
                 & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
                 & globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
-          else
-            sender = (iGroup - 1) * env%blacs%groupSize
           end if
           call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
           do iEig = 1, nOrb
-            if (iGroup == 1) then
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS),&
+            if (iGroup == 0) then
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
+              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             else
-              call mpifx_recv(env%mpi%all, localEigvec, sender)
-              call mpifx_recv(env%mpi%all, localSDotC, sender)
+              call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
+              call mpifx_recv(env%mpi%interGroupComm, localSDotC, iGroup)
             end if
             call getPauliFractions(localEigvec, localSDotC, fracs)
             call writeProjPauliEigvecData(fd, iOrbRegion, eigvals(iEig, iK, 1), fracs)
@@ -1759,20 +1741,20 @@ contains
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
-          if (env%blacs%gridOrbSqr%master) then
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS), localEigvec)
-            call collector%getline_master(env%blacs%gridOrbSqr, iEig, globalSDotC, localSDotC)
-            call mpifx_send(env%mpi%all, localEigvec, env%mpi%all%masterrank)
-            call mpifx_send(env%mpi%all, localSDotC, env%mpi%all%masterrank)
+          if (env%blacs%orbitalGrid%master) then
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
+            call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
           else
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%gridOrbSqr, iEig, globalSDotC)
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalSDotC)
           end if
         end do
       end do
     end if masterSlave
 
-    if (env%mpi%all%master) then
+    if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
     end if
 
@@ -3656,9 +3638,9 @@ contains
 
     real(dp) :: tmpLatVecs(3, 3)
 
-    @:ASSERT(env%tIoProc .eqv. allocated(socket))
+    @:ASSERT(env%tGlobalMaster .eqv. allocated(socket))
 
-    if (env%tIoProc) then
+    if (env%tGlobalMaster) then
       call socket%receive(coord0, tmpLatVecs, tStopDriver)
     end if
     tCoordsChanged = .true.
@@ -3668,11 +3650,11 @@ contains
     tLatticeChanged = tPeriodic
   #:if WITH_MPI
     ! update all nodes with the received information
-    call mpifx_bcast(env%mpi%all, coord0)
-    call mpifx_bcast(env%mpi%all, latVecs)
-    call mpifx_bcast(env%mpi%all, tCoordsChanged)
-    call mpifx_bcast(env%mpi%all, tLatticeChanged)
-    call mpifx_bcast(env%mpi%all, tStopDriver)
+    call mpifx_bcast(env%mpi%globalComm, coord0)
+    call mpifx_bcast(env%mpi%globalComm, latVecs)
+    call mpifx_bcast(env%mpi%globalComm, tCoordsChanged)
+    call mpifx_bcast(env%mpi%globalComm, tLatticeChanged)
+    call mpifx_bcast(env%mpi%globalComm, tStopDriver)
   #:endif
 
   end subroutine receiveGeometryFromSocket

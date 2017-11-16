@@ -183,7 +183,7 @@ contains
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
-      tWriteRestart = env%tIoProc&
+      tWriteRestart = env%tGlobalMaster&
           & .and. needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       if (tMD .and. tWriteRestart) then
         call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
@@ -303,7 +303,7 @@ contains
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
-          tWriteSccRestart = env%tIoProc .and. &
+          tWriteSccRestart = env%tGlobalMaster .and. &
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
@@ -354,7 +354,7 @@ contains
       end if
 
       if (tPrintEigVecs) then
-        call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVEc,&
+        call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVec,&
             & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
             & parallelKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
       end if
@@ -432,7 +432,7 @@ contains
           call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
         end if
 
-        if (tSocket .and. env%tIoProc) then
+        if (tSocket .and. env%tGlobalMaster) then
           ! stress was computed above in the force evaluation block or is 0 if aperiodic
           call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
         end if
@@ -533,13 +533,13 @@ contains
 
     end do lpGeomOpt
 
-    if (tSocket .and. env%tIoProc) then
+    if (tSocket .and. env%tGlobalMaster) then
       call socket%shutdown()
     end if
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
-    if (env%tIoProc) then
+    if (env%tGlobalMaster) then
       if (tWriteDetailedOut) then
         call writeDetailedOut5(fdDetailedOut, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
             & dipoleMoment)
@@ -552,7 +552,7 @@ contains
       end if
     end if
 
-    if (env%tIoProc .and. tDerivs) then
+    if (env%tGlobalMaster .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
       call writeHessianOut(fdHessian, hessianOut, pDynMatrix)
     else
@@ -1674,8 +1674,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Distribute all eigenvalues to all nodes via global summation
-    eigen(:,:) = eigen / real(env%blacs%gridOrbSqr%nRow * env%blacs%gridOrbSqr%nCol, dp)
-    call blacsfx_gsum(env%blacs%gridAll, eigen, cdest=-1, rdest=-1)
+    call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
 
   end subroutine buildAndDiagDenseRealHam
@@ -1761,11 +1760,7 @@ contains
     end do
 
   #:if WITH_SCALAPACK
-    eigen(:,:,:) = eigen / real(env%blacs%gridOrbSqr%nRow * env%blacs%gridOrbSqr%nCol, dp)
-    do iSpin = 1, size(eigen, dim=3)
-      ! Distribute all eigenvalues to all nodes via global summation
-      call blacsfx_gsum(env%blacs%gridAll, eigen(:,:,iSpin), cdest=-1, rdest=-1)
-    end do
+    call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
 
   end subroutine buildAndDiagDenseCplxHam
@@ -1843,9 +1838,9 @@ contains
 
     @:ASSERT(.not. present(xi) .or. (present(species) .and. present(orb)))
 
+    eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
-
     #:if WITH_SCALAPACK
       call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx,&
@@ -1871,9 +1866,7 @@ contains
     end do
 
   #:if WITH_SCALAPACK
-    ! Distribute all eigenvalues to all nodes via global summation
-    eigen(:,:) = eigen / real(env%blacs%gridOrbSqr%nRow * env%blacs%gridOrbSqr%nCol, dp)
-    call blacsfx_gsum(env%blacs%gridAll, eigen, cdest=-1, rdest=-1)
+    call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
 
   end subroutine buildAndDiagDensePauliHam
@@ -1929,7 +1922,7 @@ contains
       iSpin = parallelKS%localKS(2, iKS)
 
     #:if WITH_SCALAPACK
-      call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iSpin),&
+      call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iSpin),&
           & eigvecs(:,:,iKS), work)
       call packRhoRealBlacs(env%blacs, denseDesc, work, neighborList%iNeighbor, nNeighbor,&
           & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
@@ -1951,7 +1944,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute density matrix contribution from each group
-    call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getDensityFromRealEigvecs
@@ -2018,7 +2011,7 @@ contains
       iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr,&
+      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
           & filling(:,iK,iSpin), eigvecs(:,:,iKS), work)
       call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
           & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
@@ -2038,7 +2031,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute density matrix contribution from each group
-    call blacsfx_gsum(env%blacs%gridAll, rhoPrim, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getDensityFromCplxEigvecs
@@ -2155,7 +2148,7 @@ contains
       iK = parallelKS%localKS(1, iKS)
 
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK),&
+      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK),&
           & eigvecs(:,:,iKS), work)
     #:else
       call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
@@ -2196,16 +2189,15 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute contributions from each group
-    call mpifx_allreduceip(env%mpi%all, rhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
     if (present(iRhoPrim)) then
-      call mpifx_allreduceip(env%mpi%all, iRhoPrim, MPI_SUM)
+      call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
     end if
-    call mpifx_allreduceip(env%mpi%all, energy%atomLS, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%globalComm, energy%atomLS, MPI_SUM)
     if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
-      call mpifx_allreduceip(env%mpi%all, orbitalL, MPI_SUM)
+      call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
     end if
   #:endif
-
     if (tSpinOrbit .and. .not. tDualSpinOrbit) then
       energy%ELS = sum(energy%atomLS)
     end if
@@ -3415,7 +3407,7 @@ contains
       case(0)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
-        call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigvecsReal(:,:,iKS), work, eigen(:,1,iS))
       #:else
         if (tDensON2) then
@@ -3431,7 +3423,7 @@ contains
       #:if WITH_SCALAPACK
         call unpackHSRealBlacs(env%blacs, ham(:,iS), neighborList%iNeighbor, nNeighbor,&
             & iSparseStart, img2CentCell, denseDesc, work)
-        call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigVecsReal(:,:,iKS), work2)
         call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
@@ -3451,7 +3443,7 @@ contains
       case(3)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
-        call makeDensityMtxRealBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigVecsReal(:,:,iKS), work)
         call unpackHSRealBlacs(env%blacs, ham(:,iS), neighborlist%iNeighbor, nNeighbor,&
             & iSparseStart, img2CentCell, denseDesc, work2)
@@ -3490,7 +3482,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute energy weighted density matrix contribution from each group
-    call blacsfx_gsum(env%blacs%gridAll, ERhoPrim, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getEDensityMtxFromRealEigvecs
@@ -3573,7 +3565,7 @@ contains
       case(0)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
-        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
+        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
             & eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
       #:else
         if (tDensON2) then
@@ -3590,7 +3582,7 @@ contains
       #:if WITH_SCALAPACK
         call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighborList%iNeighbor,&
             & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
-        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,1,iS),&
+        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigvecsCplx(:,:,iKS), work2)
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
@@ -3608,7 +3600,7 @@ contains
       case(3)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
-        call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
+        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
             & eigVecsCplx(:,:,iKS), work)
         call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor,&
             & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work2)
@@ -3649,7 +3641,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute energy weighted density matrix contribution from each group
-    call blacsfx_gsum(env%blacs%gridAll, ERhoPrim, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getEDensityMtxFromComplexEigvecs
@@ -3720,7 +3712,7 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, filling(:,iK,1),&
+      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK,1),&
           & eigvecsCplx(:,:,iKS), work, eigen(:,iK,1))
       call packERhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
           & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
@@ -3740,7 +3732,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute energy weighted density matrix contribution from each group
-    call blacsfx_gsum(env%blacs%gridAll, ERhoPrim, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getEDensityMtxFromPauliEigvecs

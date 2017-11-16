@@ -10,6 +10,7 @@
 !> Functions and local variables for the SCC calculation.
 module scc
 #:if WITH_SCALAPACK
+  use mpifx
   use scalapackfx
 #:endif
   use environment
@@ -246,14 +247,14 @@ contains
   #:endcall ASSERT_CODE
 
   #:if WITH_SCALAPACK
-    if (env%blacs%gridAtomSqr%iproc /= -1) then
-      call scalafx_getdescriptor(env%blacs%gridAtomSqr, nAtom_, nAtom_, env%blacs%rowBlockSize,&
+    if (env%blacs%atomGrid%iproc /= -1) then
+      call scalafx_getdescriptor(env%blacs%atomGrid, nAtom_, nAtom_, env%blacs%rowBlockSize,&
           & env%blacs%columnBlockSize, descInvRMat_)
-      call scalafx_getlocalshape(env%blacs%gridAtomSqr, descInvRMat_, nRowLoc, nColLoc)
+      call scalafx_getlocalshape(env%blacs%atomGrid, descInvRMat_, nRowLoc, nColLoc)
       allocate(invRMat_(nRowLoc, nColLoc))
-      call scalafx_getdescriptor(env%blacs%gridAtomSqr, 1, nAtom_, env%blacs%rowBlockSize,&
+      call scalafx_getdescriptor(env%blacs%atomGrid, 1, nAtom_, env%blacs%rowBlockSize,&
           & env%blacs%columnBlockSize, descQVec_)
-      call scalafx_getlocalshape(env%blacs%gridAtomSqr, descQVec_, nRowLoc, nColLoc)
+      call scalafx_getlocalshape(env%blacs%atomGrid, descQVec_, nRowLoc, nColLoc)
       allocate(shiftPerAtomGlobal_(nRowLoc, nColLoc))
       allocate(qGlobal_(nRowLoc, nColLoc))
     end if
@@ -454,12 +455,12 @@ contains
     call updateNNeigh_(species, neighList)
 
   #:if WITH_SCALAPACK
-    if (env%blacs%gridAtomSqr%iproc /= -1) then
+    if (env%blacs%atomGrid%iproc /= -1) then
       if (tPeriodic_) then
-        call getInvRPeriodicBlacs(env%blacs%gridAtomSqr, coord, nNeighEwald_, neighList%iNeighbor,&
+        call getInvRPeriodicBlacs(env%blacs%atomGrid, coord, nNeighEwald_, neighList%iNeighbor,&
             & img2CentCell, gLatPoint_, alpha_, volume_, descInvRMat_, invRMat_)
       else
-        call getInvRClusterBlacs(env%blacs%gridAtomSqr, coord, descInvRMat_, invRMat_)
+        call getInvRClusterBlacs(env%blacs%atomGrid, coord, descInvRMat_, invRMat_)
       end if
     end if
   #:else
@@ -1037,17 +1038,17 @@ contains
   #:if WITH_SCALAPACK
     allocate(derivsBuffer(size(force, dim=1), size(force, dim=2)))
     derivsBuffer(:,:) = 0.0_dp
-    if (env%blacs%gridAtomSqr%iproc /= -1) then
+    if (env%blacs%atomGrid%iproc /= -1) then
       if (tPeriodic_) then
-        call getDInvRPeriodicBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_), coord,&
+        call getDInvRPeriodicBlacs(env%blacs%atomGrid, descInvRMat_, shape(invRMat_), coord,&
             & nNeighEwald_, iNeighbor, img2CentCell, gLatPoint_, alpha_, volume_, deltaQAtom_,&
             & derivsBuffer)
       else
-        call getDInvRClusterBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_), coord,&
+        call getDInvRClusterBlacs(env%blacs%atomGrid, descInvRMat_, shape(invRMat_), coord,&
             & deltaQAtom_, derivsBuffer)
       end if
     end if
-    call blacsfx_gsum(env%blacs%gridAll, derivsBuffer, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%groupComm, derivsBuffer, MPI_SUM)
     force(:,:) = force + derivsBuffer
   #:else
     if (tPeriodic_) then
@@ -1158,16 +1159,16 @@ contains
     shiftPerAtom_(:) = 0.0_dp
 
   #:if WITH_SCALAPACK
-    if (env%blacs%gridAtomSqr%iproc /= -1) then
+    if (env%blacs%atomGrid%iproc /= -1) then
       deltaQAtom2D(1:1, 1:size(deltaQAtom_)) => deltaQAtom_
       shiftPerAtom2D(1:1, 1:size(shiftPerAtom_)) => shiftPerAtom_
-      call scalafx_cpl2g(env%blacs%gridAtomSqr, deltaQAtom2D, descQVec_, 1, 1, qGlobal_)
+      call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, descQVec_, 1, 1, qGlobal_)
       call pblasfx_psymv(invRMat_, descInvRMat_, qGlobal_, descQVec_, shiftPerAtomGlobal_,&
           & descQVec_)
-      call scalafx_cpg2l(env%blacs%gridAtomSqr, descQVec_, 1, 1, shiftPerAtomGlobal_,&
+      call scalafx_cpg2l(env%blacs%atomGrid, descQVec_, 1, 1, shiftPerAtomGlobal_,&
           & shiftPerAtom2D)
     end if
-    call blacsfx_gsum(env%blacs%gridAll, shiftPerAtom_, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%groupComm, shiftPerAtom_, MPI_SUM)
   #:else
     call hemv(shiftPerAtom_, invRMat_, deltaQAtom_, 'L')
   #:endif
@@ -1197,9 +1198,9 @@ contains
 
 
   #:if WITH_SCALAPACK
-    if (env%blacs%gridAtomSqr%iProc /= -1) then
-      iAt1Start = env%blacs%gridAtomSqr%iproc * nAtom_ / env%blacs%gridAtomSqr%nproc + 1
-      iAt1End = (env%blacs%gridAtomSqr%iproc + 1) * nAtom_ / env%blacs%gridAtomSqr%nproc
+    if (env%blacs%atomGrid%iProc /= -1) then
+      iAt1Start = env%blacs%atomGrid%iproc * nAtom_ / env%blacs%atomGrid%nproc + 1
+      iAt1End = (env%blacs%atomGrid%iproc + 1) * nAtom_ / env%blacs%atomGrid%nproc
     else
       ! Do not calculate anything if process is not part of the atomic grid
       iAt1Start = 0
@@ -1232,7 +1233,7 @@ contains
     end do
 
   #:if WITH_SCALAPACK
-    call blacsfx_gsum(env%blacs%gridAll, shiftPerL_, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%groupComm, shiftPerL_, MPI_SUM)
   #:endif
 
   end subroutine buildShiftPerShell_
@@ -1372,17 +1373,17 @@ contains
   #:if WITH_SCALAPACK
     allocate(derivsBuffer(size(force, dim=1), size(force, dim=2)))
     derivsBuffer(:,:) = 0.0_dp
-    if (env%blacs%gridAtomSqr%iproc /= -1) then
+    if (env%blacs%atomGrid%iproc /= -1) then
       if (tPeriodic_) then
-        call getDInvRXlbomdPeriodicBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_),&
+        call getDInvRXlbomdPeriodicBlacs(env%blacs%atomGrid, descInvRMat_, shape(invRMat_),&
             & coord, nNeighEwald_, iNeighbor, img2CentCell, gLatPoint_, alpha_, volume_,&
             & deltaQAtom_, dQOutAtom, derivsBuffer)
       else
-        call getDInvRXlbomdClusterBlacs(env%blacs%gridAtomSqr, descInvRMat_, shape(invRMat_),&
+        call getDInvRXlbomdClusterBlacs(env%blacs%atomGrid, descInvRMat_, shape(invRMat_),&
             & coord, deltaQAtom_, dQOutAtom, derivsBuffer)
       end if
     end if
-    call blacsfx_gsum(env%blacs%gridAll, derivsBuffer, rdest=-1, cdest=-1)
+    call mpifx_allreduceip(env%mpi%groupComm, derivsBuffer, MPI_SUM)
     force(:,:) = force + derivsBuffer
   #:else
     if (tPeriodic_) then

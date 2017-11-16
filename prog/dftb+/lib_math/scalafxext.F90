@@ -52,6 +52,7 @@ contains
 
   end subroutine psymmatinv
 
+
   !> Inversion of a hermitian matrix
   subroutine phermatinv(desc, aa, uplo, info)
 

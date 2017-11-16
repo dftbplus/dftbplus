@@ -160,8 +160,8 @@ _mod_repulsive: repulsive.o
 _mod_repulsive = $(repulsive.o)
 
 #:if WITH_SCALAPACK
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_scalapackfx
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_scalapackfx)
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_mpifx _mod_scalapackfx
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_mpifx) $(_mod_scalapackfx)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 #:else

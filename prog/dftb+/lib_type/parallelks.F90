@@ -19,11 +19,11 @@ module parallelks
   type :: TParallelKS
 
     !> K-point and spin-channels to be processed by each processor group (groupKS(1:2,iKS,iGroup)).
-    !> Note: group index runs from 1
+    !> Note: third index (group index) starts from 0
     integer, allocatable :: groupKS(:,:,:)
 
     !> Number of (K, S) tuples to process for each group.
-    !> Note: group index runs from 1
+    !> Note: array index (group index) starts from 0
     integer, allocatable :: nGroupKS(:)
 
     !> Maximal number of KS-indices per processor group
@@ -59,14 +59,8 @@ contains
     integer :: maxGroupKS, nKS, res
     integer :: iS, iK
 
-  #:if WITH_SCALAPACK
-    nGroup = env%blacs%nGroup
-    ! BLACS group index runs from 0
-    myGroup = env%blacs%iGroup + 1
-  #:else
-    nGroup = 1
-    myGroup = 1
-  #:endif
+    nGroup = env%nGroup
+    myGroup = env%myGroup
 
     nKS = nKpoint * nSpin
     maxGroupKS = nKS / nGroup
@@ -75,13 +69,13 @@ contains
       maxGroupKS = maxGroupKS + 1
     end if
 
-    allocate(this%nGroupKS(nGroup))
+    allocate(this%nGroupKS(0 : nGroup - 1))
     this%nGroupKS(:) = 0
-    allocate(this%groupKS(2, maxGroupKS, nGroup))
+    allocate(this%groupKS(2, maxGroupKS, 0 : nGroup - 1))
     this%groupKS(:,:,:) = 0
     do iS = 1, nSpin
       do iK = 1, nKpoint
-        iGroup = mod((iS - 1) * nKpoint + iK - 1, nGroup) + 1
+        iGroup = mod((iS - 1) * nKpoint + iK - 1, nGroup)
         this%nGroupKS(iGroup) = this%nGroupKS(iGroup) + 1
         this%groupKS(:, this%nGroupKS(iGroup), iGroup) = [iK, iS]
       end do

@@ -10,8 +10,6 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
   use globalenv
-  use environment
-  use mpifx
   use assert
   use accuracy
   use constants
@@ -92,10 +90,7 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHsdInput(env, input)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
+  subroutine parseHsdInput(input)
 
     !> Returns initialised input variables on exit
     type(inputData), intent(out) :: input
@@ -173,12 +168,12 @@ contains
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
-    if (env%tIoProc .and. parserFlags%tWriteHSD) then
+    if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
-    if (env%tIoProc .and. parserFlags%tWriteXML) then
+    if (tIoProc .and. parserFlags%tWriteXML) then
       call dumpHSDAsXML(hsdTree, xmlProcInputName)
       write(stdout, '(A,/)') "Processed input in XML format written to '" &
           &// xmlProcInputName // "'"
@@ -186,10 +181,6 @@ contains
 
     ! Stop, if only parsing is required
     if (parserFlags%tStop) then
-    #:if WITH_MPI
-      ! No process should abort while IO process dumps processed input above
-      call mpifx_barrier(env%mpi%all)
-    #:endif
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
 
@@ -2988,9 +2979,12 @@ contains
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child, child2
+    type(fnode), pointer :: child
+  #:if WITH_ARPACK
+    type(fnode), pointer :: child2
     type(string) :: buffer
     type(string) :: modifier
+  #:endif
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
@@ -3314,6 +3308,7 @@ contains
             & support)")
       end if
       allocate(parallelOpts)
+      call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
       call readBlacs(node, parallelOpts%blacsOpts)
     end if
 
@@ -3342,7 +3337,6 @@ contains
       end if
       call getChildValue(node, "RowBlockSize", blacsOpts%rowBlockSize, 32)
       call getChildValue(node, "ColumnBlockSize", blacsOpts%colBlockSize, 32)
-      call getChildValue(node, "Groups", blacsOpts%nGroups, 1)
     end if
 
   end subroutine readBlacs

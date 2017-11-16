@@ -1524,11 +1524,11 @@ contains
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iDenseStart(iAtom2f)
         nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
-        call scalafx_addl2g(myBlacs%gridOrbSqr,&
+        call scalafx_addl2g(myBlacs%orbitalGrid,&
             & reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
             & desc%blacsOrbSqr, jj, ii, square)
         if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
               & transpose(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])),&
               & desc%blacsOrbSqr, ii, jj, square)
         end if
@@ -1611,11 +1611,11 @@ contains
           phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        call scalafx_addl2g(myBlacs%gridOrbSqr, phase &
+        call scalafx_addl2g(myBlacs%orbitalGrid, phase &
             & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]), &
             & desc%blacsOrbSqr, jj, ii, square)
         if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%gridOrbSqr, transpose(conjg(phase&
+          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(phase&
               & * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]))),&
               & desc%blacsOrbSqr, ii, jj, square)
         end if
@@ -1762,15 +1762,15 @@ contains
         ptmp(:,:,:) = 0.5_dp * phase &
             & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1,:), [nOrb2, nOrb1, 4])
         ! up-up component and down-down components
-        call scalafx_addl2g(myBlacs%gridOrbSqr, imagPrefac * (ptmp(:,:,1) + ptmp(:,:,4)),&
+        call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:,:,1) + ptmp(:,:,4)),&
             & desc%blacsOrbSqr, jj, ii, square)
-        call scalafx_addl2g(myBlacs%gridOrbSqr, imagPrefac * (ptmp(:,:,1) - ptmp(:,:,4)),&
+        call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:,:,1) - ptmp(:,:,4)),&
             & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
         if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
               & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,1) + ptmp(:,:,4)))),&
               & desc%blacsOrbSqr, ii, jj, square)
-          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
               & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,1) - ptmp(:,:,4)))),&
               & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
         end if
@@ -1781,23 +1781,23 @@ contains
           do kk = 1, nOrb1
             ptmp(kk, kk+1:, 2:3) = hermPrefac * conjg(ptmp(kk+1:, kk, 2:3))
           end do
-          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
               & imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
-          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
               & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)))),&
               & desc%blacsOrbSqr, ii, jj + nOrb, square)
         else
-          call scalafx_addl2g(myBlacs%gridOrbSqr, &
+          call scalafx_addl2g(myBlacs%orbitalGrid, &
               & imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
-          call scalafx_addl2g(myBlacs%gridOrbSqr, &
+          call scalafx_addl2g(myBlacs%orbitalGrid, &
               & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:,:,2) + imag * ptmp(:,:,3)))),&
               & desc%blacsOrbSqr, ii, jj + nOrb, square)
-          call scalafx_addl2g(myBlacs%gridOrbSqr, imagPrefac * hermPrefac &
+          call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * hermPrefac &
               & * conjg(transpose(ptmp(:,:,2) - imag * ptmp(:,:,3))), desc%blacsOrbSqr,&
               & ii + nOrb, jj, square)
-          call scalafx_addl2g(myBlacs%gridOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid,&
               & transpose(conjg(imagPrefac * conjg(transpose(ptmp(:,:,2) - imag * ptmp(:,:,3))))),&
               & desc%blacsOrbSqr, jj, ii + nOrb, square)
         end if
@@ -1880,14 +1880,14 @@ contains
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
         ptmp(:,:) = phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
         ! up-up component
-        call scalafx_addl2g(myBlacs%gridOrbSqr, ptmp, desc%blacsOrbSqr, jj, ii, square)
+        call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj, ii, square)
         ! down-down component
-        call scalafx_addl2g(myBlacs%gridOrbSqr, ptmp, desc%blacsOrbSqr, jj + nOrb, ii + nOrb,&
+        call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj + nOrb, ii + nOrb,&
             & square)
         if (iAtom1 /= iAtom2f) then
-          call scalafx_addl2g(myBlacs%gridOrbSqr, transpose(conjg(ptmp)), desc%blacsOrbSqr, ii, jj,&
-              & square)
-          call scalafx_addl2g(myBlacs%gridOrbSqr, transpose(conjg(ptmp)), desc%blacsOrbSqr,&
+          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr, ii,&
+              & jj, square)
+          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(ptmp)), desc%blacsOrbSqr,&
               & ii + nOrb, jj + nOrb, square)
         end if
       end do
@@ -1953,7 +1953,7 @@ contains
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iDenseStart(iAtom2f)
         nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
-        call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, jj, ii, square,&
+        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
             & tmpSqr(1:nOrb2,1:nOrb1))
 
         ! Symmetrize the on-site block before packing, just in case
@@ -2056,7 +2056,7 @@ contains
           phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, jj, ii, square,&
+        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
             & tmpSqr(1:nOrb2, 1:nOrb1))
 
         ! Hermitian the on-site block before packing, just in case
@@ -2235,7 +2235,7 @@ contains
             iOldVec = iVec
           end if
           ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
-          call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, jj + iBlock * nOrb,&
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
               & ii + iBlock * nOrb, square, ptmp)
           ! Hermitian the on-site block before packing, as only one triangle
           ! usually supplied
@@ -2276,8 +2276,8 @@ contains
         ptmp1 => tmpSqr1(1:nOrb2, 1:nOrb1)
         ptmp2 => tmpSqr2(1:nOrb1, 1:nOrb2)
         ! take the Pauli part of the block
-        call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, jj + nOrb, ii, square, ptmp1)
-        call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, ii + nOrb, jj, square, ptmp2)
+        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + nOrb, ii, square, ptmp1)
+        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, ii + nOrb, jj, square, ptmp2)
         ptmp(:,:) = ptmp1 + conjg(transpose(ptmp2))
         if (symmetrize .and. iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
@@ -2392,7 +2392,7 @@ contains
             phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
-          call scalafx_cpg2l(myBlacs%gridOrbSqr, desc%blacsOrbSqr, jj + iBlock * nOrb,&
+          call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
               & ii + iBlock * nOrb, square, tmpSqr(1:nOrb2, 1:nOrb1))
           ! Symmetrize the on-site block before packing, as only one
           ! triangle supplied

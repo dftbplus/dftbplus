@@ -790,13 +790,13 @@ contains
 
 
   !> Initializes the variables in the module based on the parsed input
-  subroutine initProgramVariables(env, input)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
+  subroutine initProgramVariables(input, env)
 
     !> Holds the parsed input data.
     type(inputData), intent(inout), target :: input
+
+    !> Environment settings
+    type(TEnvironment), intent(out) :: env
 
     ! Mixer related local variables
     integer :: nGeneration
@@ -958,6 +958,10 @@ contains
       tRealHS = .false.
     end if
 
+
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
   #:endif
@@ -968,8 +972,8 @@ contains
     nType = input%geom%nSpecies
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
     if (tShowFoldedCoord .and. .not. tPeriodic) then
-      call error("Folding coordinates back into the central cell is&
-          & meaningless for molecular boundary conditions!")
+      call error("Folding coordinates back into the central cell is meaningless for molecular&
+          & boundary conditions!")
     end if
     tFracCoord = input%geom%tFracCoord
     solver = input%ctrl%iSolver
@@ -2023,13 +2027,13 @@ contains
     allocate(nNeighbor(nAtom))
 
     ! Set various options
-    tWriteAutotest = env%tIoProc .and. input%ctrl%tWriteTagged
-    tWriteDetailedXML = env%tIoProc .and. input%ctrl%tWriteDetailedXML
-    tWriteResultsTag = env%tIoProc .and. input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = env%tIoProc .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tIoProc .and. input%ctrl%tWriteBandDat
-    tWriteHS = env%tIoProc .and. input%ctrl%tWriteHS
-    tWriteRealHS = env%tIoProc .and. input%ctrl%tWriteRealHS
+    tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
+    tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
+    tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
+    tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
+    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
+    tWriteHS = env%tGlobalMaster .and. input%ctrl%tWriteHS
+    tWriteRealHS = env%tGlobalMaster .and. input%ctrl%tWriteRealHS
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
@@ -2043,7 +2047,7 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    if (env%tIoProc) then
+    if (env%tGlobalMaster) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
@@ -2706,7 +2710,7 @@ contains
 
     logical :: tDummy
 
-    if (env%tIoProc) then
+    if (env%tGlobalMaster) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
       socket = IpiSocketComm(socketInput)
@@ -3100,7 +3104,7 @@ contains
 
     nLocalKS = size(localKS, dim=2)
   #:if WITH_SCALAPACK
-    call scalafx_getlocalshape(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
   #:else
     nLocalRows = denseDesc%fullSize
     nLocalCols = denseDesc%fullSize
@@ -3146,8 +3150,7 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, blacsOpts%nGroups, sizeHS,&
-        & nAtom)
+    call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, sizeHS, nAtom)
 
   end subroutine initScalapack
 
@@ -3173,7 +3176,7 @@ contains
     integer :: nn
 
     nn = denseDesc%fullSize
-    call scalafx_getdescriptor(env%blacs%gridOrbSqr, nn, nn, rowBlock, colBlock,&
+    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
 
   end subroutine getDenseDescBlacs

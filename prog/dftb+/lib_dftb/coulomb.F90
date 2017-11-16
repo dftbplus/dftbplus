@@ -341,7 +341,7 @@ contains
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
-        call islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        call scalafx_islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
         if (tLocal) then
           invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc)&
               &  + rTerm(sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2)), alpha)
@@ -367,7 +367,7 @@ contains
     ! Extra contribution for self interaction.
     do jj = 1, size(invRMat, dim=2)
       iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
-      call islocal(grid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
+      call scalafx_islocal(grid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
       if (tLocal) then
         invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc) - 2.0_dp * alpha / sqrt(pi)
       end if
@@ -846,7 +846,7 @@ contains
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
-        call islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        call scalafx_islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
         if (tLocal .and. iAt2f /= iAt1) then
           rr(:) = coord(:,iAt1) - coord(:,iAt2)
           contrib = derivRTerm(rr, alpha) * deltaQAtom(iAt1) * deltaQAtom(iAt2f)
@@ -1017,7 +1017,7 @@ contains
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
-        call islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        call scalafx_islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
         if (tLocal .and. iAt2f /= iAt1) then
           rr(:) = coord(:,iAt1) - coord(:,iAt2)
           prefac = dQOutAtom(iAt1) * dQInAtom(iAt2f) + dQInAtom(iAt1) * dQOutAtom(iAt2f) &
@@ -1729,25 +1729,6 @@ contains
     stress = stress / volume
 
   end subroutine invR_stress
-
-
-#:if WITH_SCALAPACK
-
-  subroutine islocal(grid, desc, ii, jj, local, iloc, jloc)
-    type(blacsgrid), intent(in) :: grid
-    integer, intent(in) :: desc(DLEN_)
-    integer, intent(in) :: ii, jj
-    logical, intent(out) :: local
-    integer, intent(out) :: iloc, jloc
-
-    integer :: prow, pcol
-
-    call scalafx_infog2l(grid, desc, ii, jj, iloc, jloc, prow, pcol)
-    local = (prow == grid%myrow .and. pcol == grid%mycol)
-
-  end subroutine islocal
-
-#:endif
 
 
 end module coulomb

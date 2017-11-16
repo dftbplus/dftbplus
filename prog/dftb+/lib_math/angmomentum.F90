@@ -171,9 +171,9 @@ contains
       ! I block
       tmpBlock(:,:) = 0.0_dp
     #:if WITH_SCALAPACK
-      call scalafx_addg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
+      call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
           & tmpBlock(1:nOrbSp, 1:nOrbSp))
-      call scalafx_addg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
+      call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
           & nOrb + iOrbStart, rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
     #:else
       tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) &
