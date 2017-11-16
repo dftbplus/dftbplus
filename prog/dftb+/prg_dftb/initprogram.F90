@@ -2278,8 +2278,7 @@ contains
         else
           write(strTmp, "(A)") ""
         end if
-        write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii,&
-            & 2.0_dp*pi*matmul(invLatVec,kPoint(:,ii))
+        write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii, matmul(invLatVec,kPoint(:,ii))
       end do
       write(stdout, *)
     end if

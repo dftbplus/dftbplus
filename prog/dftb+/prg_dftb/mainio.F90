@@ -1371,8 +1371,7 @@ contains
         else
           write(strTmp, "(A)") ""
         end if
-        write(fd, "(A,T28,I6,':',3F10.6)") trim(strTmp), iK,&
-            & 2.0_dp*pi*matmul(invLatVec,kPoints(:,iK))
+        write(fd, "(A,T28,I6,':',3F10.6)") trim(strTmp), iK, matmul(invLatVec,kPoints(:,iK))
       end do
       write(fd, *)
     end if
