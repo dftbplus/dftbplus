@@ -18,8 +18,8 @@ module interpolation
   public :: poly5ToZero, freeCubicSpline, polyInter
 
   interface polyInter
-    module procedure :: polyInter1
-    module procedure :: polyInter2
+    module procedure polyInter1
+    module procedure polyInter2
   end interface polyInter
   
 contains
