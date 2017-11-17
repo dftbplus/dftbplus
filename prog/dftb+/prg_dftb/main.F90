@@ -569,9 +569,9 @@ contains
         call error("Pipek-Mezey localisation not implemented for non-colinear DFTB")
       end if
       call calcPipekMezeyLocalisation(env, pipekMezey, tPrintEigvecsTxt, nEl, filling, over,&
-          & kPoint, kWeight, neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, fdEigvec, runId, orb, species, speciesName, parallelKS,&
-          & localisation, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+          & kPoint, neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell, iCellVec,&
+          & cellVec, fdEigvec, runId, orb, species, speciesName, parallelKS, localisation,&
+          & eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
     end if
 
     if (tWriteAutotest) then
@@ -4424,7 +4424,7 @@ contains
 
   !> Calculates and prints Pipek-Mezey localisation
   subroutine calcPipekMezeyLocalisation(env, pipekMezey, tPrintEigvecsTxt, nEl, filling, over,&
-      & kPoint, kWeight, neighborList, nNeighbor, denseDesc,  iSparseStart, img2CentCell, iCellVec,&
+      & kPoint, neighborList, nNeighbor, denseDesc,  iSparseStart, img2CentCell, iCellVec,&
       & cellVec, fdEigvec, runId, orb, species, speciesName, parallelKS, localisation, eigvecsReal,&
       & SSqrReal, eigvecsCplx, SSqrCplx)
 
@@ -4448,9 +4448,6 @@ contains
 
     !> k-points in the system (0,0,0) if molecular
     real(dp), intent(in) :: kPoint(:,:)
-
-    !> Weights for k-points
-    real(dp), intent(in) :: kWeight(:)
 
     !> list of neighbours for each atom
     type(TNeighborList), intent(in) :: neighborList
