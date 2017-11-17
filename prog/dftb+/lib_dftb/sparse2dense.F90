@@ -1511,19 +1511,19 @@ contains
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(nNeighbor) == nAtom)
-    @:ASSERT(size(desc%iDenseStart) == nAtom + 1)
+    @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     square(:,:) = 0.0_dp
 
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         call scalafx_addl2g(myBlacs%orbitalGrid,&
             & reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
             & desc%blacsOrbSqr, jj, ii, square)
@@ -1591,21 +1591,21 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(kPoint) == 3)
     @:ASSERT(size(nNeighbor) == nAtom)
-    @:ASSERT(size(desc%iDenseStart) == nAtom + 1)
+    @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     square(:,:) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
@@ -1740,19 +1740,19 @@ contains
     complex(dp) :: phase
 
     nAtom = size(nNeighbor)
-    nOrb = desc%iDenseStart(nAtom + 1) - 1
+    nOrb = desc%iAtomStart(nAtom + 1) - 1
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp(imag * dot_product(kPoint2p, cellVec(:,iVec)))
@@ -1859,19 +1859,19 @@ contains
 
     square(:,:) = (0.0_dp, 0.0_dp)
     nAtom = size(nNeighbor)
-    nOrb = desc%iDenseStart(nAtom + 1) - 1
+    nOrb = desc%iAtomStart(nAtom + 1) - 1
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp(imag * dot_product(kPoint2p, cellVec(:,iVec)))
@@ -1945,14 +1945,14 @@ contains
     @:ASSERT(size(nNeighbor) == nAtom)
 
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
             & tmpSqr(1:nOrb2,1:nOrb1))
 
@@ -2037,20 +2037,20 @@ contains
     @:ASSERT(size(kPoint) == 3)
     @:ASSERT(size(nNeighbor) == nAtom)
     @:ASSERT(kWeight > 0.0_dp)
-    @:ASSERT(size(desc%iDenseStart) == nAtom + 1)
+    @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
@@ -2200,7 +2200,7 @@ contains
 
     nAtom = size(iNeighbor, dim=2)
     ! number of orbitals in a regular spin block
-    nOrb = desc%iDenseStart(nAtom + 1) - 1
+    nOrb = desc%iAtomStart(nAtom + 1) - 1
 
   #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -2209,7 +2209,7 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(all(shape(kPoint) == [3]))
     @:ASSERT(all(shape(nNeighbor) == [nAtom]))
-    @:ASSERT(size(desc%iDenseStart) == nAtom + 1)
+    @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(primitive, dim=2) == 4)
 
@@ -2221,14 +2221,14 @@ contains
       iOldVec = 0
       phase = 1.0_dp
       do iAtom1 = 1, nAtom
-        ii = desc%iDenseStart(iAtom1)
-        nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbor(iAtom1)
           iOrig = iPair(iNeigh,iAtom1) + 1
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
-          jj = desc%iDenseStart(iAtom2f)
-          nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+          jj = desc%iAtomStart(iAtom2f)
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
             phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p, cellVec(:, iVec)))
@@ -2259,14 +2259,14 @@ contains
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
-      ii = desc%iDenseStart(iAtom1)
-      nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbor(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = desc%iDenseStart(iAtom2f)
-        nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p, cellVec(:, iVec)))
@@ -2360,7 +2360,7 @@ contains
 
     nAtom = size(iNeighbor, dim=2)
     ! number of orbitals in a regular spin block
-    nOrb = desc%iDenseStart(nAtom + 1) - 1
+    nOrb = desc%iAtomStart(nAtom + 1) - 1
 
   #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -2369,7 +2369,7 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(all(shape(kPoint) == [3]))
     @:ASSERT(all(shape(nNeighbor) == [nAtom]))
-    @:ASSERT(size(desc%iDenseStart) == nAtom + 1)
+    @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint
@@ -2378,15 +2378,15 @@ contains
       iOldVec = 0
       phase = 1.0_dp
       do iAtom1 = 1, nAtom
-        ii = desc%iDenseStart(iAtom1)
-        nOrb1 = desc%iDenseStart(iAtom1 + 1) - ii
+        ii = desc%iAtomStart(iAtom1)
+        nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbor(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbor(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
-          jj = desc%iDenseStart(iAtom2f)
+          jj = desc%iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
-          nOrb2 = desc%iDenseStart(iAtom2f + 1) - jj
+          nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
             phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p, cellVec(:, iVec)))

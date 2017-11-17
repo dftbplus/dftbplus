@@ -20,7 +20,7 @@ module densedescr
     !>
     !> Note: for Pauli matrix it contains the indexing of the left upper block only
     !>
-    integer, allocatable :: iDenseStart(:)
+    integer, allocatable :: iAtomStart(:)
 
     !> Dimension of the matrix
     integer :: fullSize

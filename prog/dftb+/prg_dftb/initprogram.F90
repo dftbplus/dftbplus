@@ -2098,7 +2098,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = denseDesc%iDenseStart(iAt) + iOrb - 1
+                tmpir1(ind) = denseDesc%iAtomStart(iAt) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)
@@ -2125,7 +2125,7 @@ contains
               do ii = 1, nAtomRegion
                 iAt = iAtomRegion(ii)
                 do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
-                  tmpir1(ind) = denseDesc%iDenseStart(iAt) + jj - 1
+                  tmpir1(ind) = denseDesc%iAtomStart(iAt) + jj - 1
                   ind = ind + 1
                 end do
               end do
@@ -2149,7 +2149,7 @@ contains
           do ii = 1, nAtomRegion
             iAt = iAtomRegion(ii)
             do jj = 1, orb%nOrbAtom(iAt)
-              tmpir1(ind) = denseDesc%iDenseStart(iAt) + jj - 1
+              tmpir1(ind) = denseDesc%iAtomStart(iAt) + jj - 1
               ind = ind + 1
             end do
           end do
@@ -3203,9 +3203,9 @@ contains
 
     integer :: nOrb
 
-    allocate(denseDesc%iDenseStart(nAtom + 1))
-    call buildSquaredAtomIndex(denseDesc%iDenseStart, orb)
-    nOrb = denseDesc%iDenseStart(nAtom + 1) - 1
+    allocate(denseDesc%iAtomStart(nAtom + 1))
+    call buildSquaredAtomIndex(denseDesc%iAtomStart, orb)
+    nOrb = denseDesc%iAtomStart(nAtom + 1) - 1
     denseDesc%t2Component = t2Component
     denseDesc%nOrb = nOrb
     if (t2Component) then

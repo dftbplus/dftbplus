@@ -251,7 +251,7 @@ contains
             call error("Writing of HS not working with MPI yet")
           else
             call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
-                & denseDesc%iDenseStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec,&
+                & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec,&
                 & ham, iHam)
           end if
         end if
@@ -1664,8 +1664,8 @@ contains
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
     #:else
       call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
-          & denseDesc%iDenseStart, iSparseStart, img2CentCell)
-      call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
       call diagDenseMtx(solver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
@@ -1751,9 +1751,9 @@ contains
           & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
     #:else
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+          & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
-          & cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+          & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
@@ -1849,9 +1849,9 @@ contains
           & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
     #:else
       call unpackHPauli(ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iSparseStart, &
-          & denseDesc%iDenseStart, img2CentCell, iCellVec, cellVec, HSqrCplx, iHam=iHam)
+          & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx, iHam=iHam)
       call unpackSPauli(over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & denseDesc%iDenseStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx)
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx)
     #:endif
       if (present(xi) .and. .not. present(iHam)) then
         call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
@@ -1929,12 +1929,12 @@ contains
     #:else
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
-            & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
+            & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iAtomStart, img2CentCell)
       else
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
       end if
       call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
-          & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     #:endif
 
       if (present(rhoSqrReal)) then
@@ -2019,12 +2019,12 @@ contains
     #:else
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin), neighborlist%iNeighbor,&
-            & nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
+            & nNeighbor, orb, denseDesc%iAtomStart, img2CentCell)
       else
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
       end if
       call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
-          & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+          & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell)
     #:endif
     end do
@@ -2170,17 +2170,17 @@ contains
     #:else
       if (tRealHS) then
         call packHSPauli(rhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
-            & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         if (tImHam) then
           call packHSPauliImag(iRhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
-              & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
       else
         call packHS(rhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor, nNeighbor,&
-            & orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+            & orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         if (tImHam) then
           call iPackHS(iRhoPrim, work, kPoint(:,iK), kWeight(iK), neighborlist%iNeighbor, &
-              & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+              & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
               & img2CentCell)
         end if
       end if
@@ -3038,12 +3038,12 @@ contains
     energy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom))
     dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
-    call unpackHS(work, over, neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+    call unpackHS(work, over, neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
-    call blockSymmetrizeHS(work, denseDesc%iDenseStart)
+    call blockSymmetrizeHS(work, denseDesc%iAtomStart)
     if (tForces) then
       do iSpin = 1, nSpin
-        call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), denseDesc%iDenseStart)
+        call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), denseDesc%iAtomStart)
       end do
     end if
     if (tWriteAutotest) then
@@ -3054,7 +3054,7 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call addGradients(tSpin, lresp, denseDesc%iDenseStart, eigvecsReal, eigen, work, filling,&
+      call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
           & coord0, dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb, skHamCont,&
           & skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs, nonSccDeriv,&
           & rhoSqrReal, occNatural=occNatural, naturalOrbs=naturalOrbs)
@@ -3393,7 +3393,7 @@ contains
     nSpin = size(eigen, dim=3)
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
-    nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
+    nOrb = denseDesc%iAtomStart(size(denseDesc%iAtomStart)) - 1
     if (forceType == 2 .or. forceType == 3) then
       allocate(work2(nLocalRows, nLocalCols))
     end if
@@ -3412,7 +3412,7 @@ contains
       #:else
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS),&
-              & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart, img2CentCell)
+              & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iAtomStart, img2CentCell)
         else
           call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS))
         end if
@@ -3430,9 +3430,9 @@ contains
         call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
       #:else
-        call unpackHS(work, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+        call unpackHS(work, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
-        call blockSymmetrizeHS(work, denseDesc%iDenseStart)
+        call blockSymmetrizeHS(work, denseDesc%iAtomStart)
         call makeDensityMatrix(work2, eigvecsReal(:,:,iKS), filling(:,1,iS))
         ! D H
         call symm(eigvecsReal(:,:,iKS), "L", work2, work)
@@ -3459,11 +3459,11 @@ contains
             & beta=1.0_dp)
       #:else
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
-        call unpackHS(work2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+        call unpackHS(work2, ham(:,iS), neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
-        call blocksymmetrizeHS(work2, denseDesc%iDenseStart)
+        call blocksymmetrizeHS(work2, denseDesc%iAtomStart)
         call symm(eigvecsReal(:,:,iKS), "L", work, work2)
-        call unpackHS(work, over, neighborlist%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+        call unpackHS(work, over, neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
         call symmatinv(work)
         call symm(work2, "R", work, eigvecsReal(:,:,iKS), alpha=0.5_dp)
@@ -3476,7 +3476,7 @@ contains
           & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
     #:else
       call packHS(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb,&
-          & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     #:endif
     end do
 
@@ -3549,7 +3549,7 @@ contains
 
     nLocalRows = size(eigvecsCplx, dim=1)
     nLocalCols = size(eigvecsCplx, dim=2)
-    nOrb = denseDesc%iDenseStart(size(denseDesc%iDenseStart)) - 1
+    nOrb = denseDesc%iAtomStart(size(denseDesc%iAtomStart)) - 1
 
     if (forceType == 2 .or. forceType == 3) then
       allocate(work2(nLocalRows, nLocalCols))
@@ -3570,7 +3570,7 @@ contains
       #:else
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
-              & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iDenseStart,&
+              & eigen(:,iK, iS), neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iAtomStart,&
               & img2CentCell)
         else
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS), eigen(:,iK, iS))
@@ -3591,8 +3591,8 @@ contains
       #:else
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
-            & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
-        call blockHermitianHS(work, denseDesc%iDenseStart)
+            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call blockHermitianHS(work, denseDesc%iAtomStart)
         call hemm(eigvecsCplx(:,:,iKS), "L", work2, work)
         call hemm(work, "R", work2, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
       #:endif
@@ -3617,11 +3617,11 @@ contains
       #:else
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighborlist%iNeighbor, nNeighbor,&
-            & iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
-        call blockHermitianHS(work2, denseDesc%iDenseStart)
+            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call blockHermitianHS(work2, denseDesc%iAtomStart)
         call hemm(eigvecsCplx(:,:,iKS), "L", work, work2)
         call unpackHS(work, over, kPoint(:,iK), neighborlist%iNeighbor, nNeighbor, iCellVec,&
-            & cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+            & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call hermatinv(work)
         call hemm(work2, "R", work, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
         work(:,:) = work2 + transpose(conjg(work2))
@@ -3634,7 +3634,7 @@ contains
           & img2CentCell, ERhoPrim)
     #:else
       call packHS(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
-          & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+          & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell)
     #:endif
     end do
@@ -3721,10 +3721,10 @@ contains
       call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,1), eigen(:,iK,1))
       if (tRealHS) then
         call packERho(ERhoPrim, work, neighborList%iNeighbor, nNeighbor, orb%mOrb,&
-            & denseDesc%iDenseStart, iSparseStart, img2CentCell)
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       else
         call packERho(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
-            & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+            & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell)
       end if
     #:endif
@@ -4517,18 +4517,18 @@ contains
     end if
 
     if (present(eigvecsReal)) then
-      call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, denseDesc%iDenseStart,&
+      call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
       do iKS = 1, parallelKS%nLocalKS
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real(3 - nSpin, dp))
         localisation = pipekMezey%getLocalisation(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
-            & denseDesc%iDenseStart)
+            & denseDesc%iAtomStart)
         write(stdOut, "(A, E15.8)") 'Original localisation', localisation
         call pipekMezey%calcCoeffs(eigvecsReal(:, 1:nFilledLev, iKS), SSqrReal,&
-            & denseDesc%iDenseStart)
+            & denseDesc%iAtomStart)
         localisation = pipekMezey%getLocalisation(eigvecsReal(:,1:nFilledLev,iKS), SSqrReal,&
-            & denseDesc%iDenseStart)
+            & denseDesc%iAtomStart)
         write(stdOut, "(A, E20.12)") 'Final localisation ', localisation
       end do
 
@@ -4544,7 +4544,7 @@ contains
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation( &
             & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
-            & nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+            & nNeighbor, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end do
       write(stdOut, "(A, E20.12)") 'Original localisation', localisation
 
@@ -4554,7 +4554,7 @@ contains
         iSpin = parallelKS%localKS(2, iKS)
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         call pipekMezey%calcCoeffs(eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK),&
-            & neighborList, nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart,&
+            & neighborList, nNeighbor, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell)
       end do
 
@@ -4565,7 +4565,7 @@ contains
         nFilledLev = floor(nEl(iSpin) / real( 3 - nSpin, dp))
         localisation = localisation + pipekMezey%getLocalisation( &
             & eigvecsCplx(:,:nFilledLev,iKS), SSqrCplx, over, kpoint(:,iK), neighborList,&
-            & nNeighbor, iCellVec, cellVec, denseDesc%iDenseStart, iSparseStart, img2CentCell)
+            & nNeighbor, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end do
       write(stdOut, "(A, E20.12)") 'Final localisation', localisation
 

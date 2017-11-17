@@ -165,8 +165,8 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = denseDesc%iDenseStart(iAt)
-      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
 
       ! I block
       tmpBlock(:,:) = 0.0_dp

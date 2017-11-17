@@ -648,7 +648,7 @@ contains
     nAtom = size(nNeighbor)
     call prepareEigvecFileTxt(fd, .false., fileName)
     allocate(rVecTemp(size(eigvecs, dim=1)))
-    call unpackHS(SSqr, over, neighlist%iNeighbor, nNeighbor, denseDesc%iDenseStart, iPair,&
+    call unpackHS(SSqr, over, neighlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iPair,&
         & img2CentCell)
     do iKS = 1, parallelKS%nLocalKS
       iS = parallelKS%localKS(2, iKS)
@@ -875,7 +875,7 @@ contains
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
       call unpackHS(SSqr, over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor, iCellVec,&
-          & cellVec, denseDesc%iDenseStart, iPair, img2CentCell)
+          & cellVec, denseDesc%iAtomStart, iPair, img2CentCell)
       do iEig = 1, nEigvecs
         call hemv(cVecTemp, SSqr, eigvecs(:,iEig,iKS))
         fracs(:) = real(conjg(eigvecs(:,iEig,iKS)) * cVecTemp)
@@ -1100,7 +1100,7 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor,&
-          & denseDesc%iDenseStart, iPair, img2CentCell, iCellVec, cellVec, SSqr)
+          & denseDesc%iAtomStart, iPair, img2CentCell, iCellVec, cellVec, SSqr)
       do iEig = 1, nEigvecs
         call hemv(cVecTemp, SSqr, eigvecs(:,iEig,iKS))
         call getPauliFractions(eigvecs(:,iEig,iKS), cVecTemp, fracs)
@@ -1383,7 +1383,7 @@ contains
     call prepareProjEigvecFiles(fd, fileNames)
 
     allocate(rVecTemp(size(eigvecs, dim=1)))
-    call unpackHS(work, over, neighlist%iNeighbor, nNeighbor, denseDesc%iDenseStart, iPair,&
+    call unpackHS(work, over, neighlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iPair,&
         & img2CentCell)
     do iKS = 1, parallelKS%nLocalKS
       iS = parallelKS%localKS(2, iKS)
@@ -1602,7 +1602,7 @@ contains
       iS = parallelKS%localKS(2, iKS)
       call writeProjEigvecHeader(fd, iS, iK, kWeights(iK))
       call unpackHS(work, over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor, iCellVec,&
-          & cellVec, denseDesc%iDenseStart, iPair, img2CentCell)
+          & cellVec, denseDesc%iAtomStart, iPair, img2CentCell)
       do iEig = 1, nOrb
         call hemv(cVecTemp, work, eigvecs(:,iEig,iKS))
         cVecTemp(:) = cVecTemp * conjg(eigvecs(:,iEig,iKS))
@@ -1839,7 +1839,7 @@ contains
       iK = parallelKS%localKS(1, iKS)
       call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
       call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor,&
-          & denseDesc%iDenseStart, iPair, img2CentCell, iCellVec, cellVec, work)
+          & denseDesc%iAtomStart, iPair, img2CentCell, iCellVec, cellVec, work)
       do iEig = 1, nOrb
         call hemv(cVecTemp, work, eigvecs(:,iEig,iKS))
         call getPauliFractions(eigvecs(:,iEig,iKS), cVecTemp, fracs)

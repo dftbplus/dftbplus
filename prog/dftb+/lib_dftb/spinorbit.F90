@@ -82,8 +82,8 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = denseDesc%iDenseStart(iAt)
-      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
 
       ! uu block
     #:if WITH_SCALAPACK
@@ -169,8 +169,8 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = denseDesc%iDenseStart(iAt)
-      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
     #:if WITH_SCALAPACK
       call scalafx_addl2g(env%blacs%orbitalGrid, speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, HSqrCplx)
