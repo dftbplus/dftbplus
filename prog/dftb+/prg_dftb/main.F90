@@ -71,6 +71,7 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
+  use timer
   implicit none
   private
 
@@ -163,6 +164,9 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
+    !> Timer for total time in SCC loop
+    type(TTimer) :: timerScc
+
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -233,6 +237,7 @@ contains
       call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
 
       lpSCC: do iSccIter = 1, maxSccIter
+        call timerScc%start()
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
         if (tScc) then
           call getChargePerShell(qInput, orb, species, chargePerShell)
@@ -295,6 +300,9 @@ contains
             & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
         tStopScc = hasStopFile(fStopScc)
+
+        call timerScc%stop()
+        call timerScc%writeTimes("Total SCC")
 
         if (tScc) then
           call getNextInputCharges(pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
@@ -1548,6 +1556,7 @@ contains
     !> Dense density matrix
     real(dp), intent(out), optional :: rhoSqrReal(:,:,:)
 
+    type(TTimer) :: timerDiag, timerDenseMat
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -1560,6 +1569,7 @@ contains
       end if
     end if
 
+    call timerDiag%start()
     if (nSpin /= 4) then
       call qm2ud(ham)
       if (tRealHS) then
@@ -1576,10 +1586,12 @@ contains
           & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
           & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
+    call timerDiag%stop()
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
+    call timerDenseMat%start()
     if (nSpin /= 4) then
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
@@ -1600,6 +1612,10 @@ contains
           & rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
+    call timerDenseMat%stop()
+
+    call timerDiag%writeTimes("Diagonalisation")
+    call timerDenseMat%writeTimes("Density matrix creation")
 
   end subroutine getDensity
 
