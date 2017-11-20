@@ -71,7 +71,6 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
-  use timer
   implicit none
   private
 
@@ -91,7 +90,7 @@ contains
     use initprogram
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> energy in previous scc cycles
     real(dp) :: Eold
@@ -164,9 +163,6 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-    !> Timer for total time in SCC loop
-    type(TTimer) :: timerScc
-
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -184,6 +180,7 @@ contains
 
     ! Main geometry loop
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
+      call env%globalTimer%startTimer(globalTimers%preSccInit)
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
@@ -236,8 +233,10 @@ contains
 
       call initSccLoop(tScc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
 
+      call env%globalTimer%stopTimer(globalTimers%preSccInit)
+
+      call env%globalTimer%startTimer(globalTimers%scc)
       lpSCC: do iSccIter = 1, maxSccIter
-        call timerScc%start()
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
         if (tScc) then
           call getChargePerShell(qInput, orb, species, chargePerShell)
@@ -301,9 +300,6 @@ contains
 
         tStopScc = hasStopFile(fStopScc)
 
-        call timerScc%stop()
-        call timerScc%writeTimes("Total SCC")
-
         if (tScc) then
           call getNextInputCharges(pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
@@ -333,7 +329,9 @@ contains
         end if
 
       end do lpSCC
+      call env%globalTimer%stopTimer(globalTimers%scc)
 
+      call env%globalTimer%startTimer(globalTimers%postSCC)
       if (tLinResp) then
         if (withMpi) then
           call error("Linear response calc. does not work with MPI yet")
@@ -361,6 +359,7 @@ contains
       #:endcall DEBUG_CODE
       end if
 
+      call env%globalTimer%startTimer(globalTimers%eigvecWriting)
       if (tPrintEigVecs) then
         call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVec,&
             & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
@@ -373,6 +372,7 @@ contains
               & kPoint, kWeight, iOrbRegion, parallelKS, eigvecsReal, SSqrReal, eigvecsCplx,&
               & SSqrCplx)
       end if
+      call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
 
       ! MD geometry files are written only later, once velocities for the current geometry are known
       if (tGeoOpt .and. tWriteRestart) then
@@ -384,6 +384,7 @@ contains
       call printEnergies(energy)
 
       if (tForces) then
+        call env%globalTimer%startTimer(globalTimers%forceCalc)
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVEc, cellVec,&
             & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
@@ -407,6 +408,7 @@ contains
             call printPressureAndFreeEnergy(extPressure, intPressure, energy%EGibbs)
           end if
         end if
+        call env%globalTimer%stopTimer(globalTimers%forceCalc)
       end if
 
       if (tWriteDetailedOut) then
@@ -450,6 +452,7 @@ contains
         ! recalculate everything at the converged geometry.
 
         if (tGeomEnd) then
+          call env%globalTimer%stopTimer(globalTimers%postSCC)
           exit lpGeomOpt
         end if
 
@@ -466,6 +469,7 @@ contains
         if (tDerivs) then
           call getNextDerivStep(derivDriver, derivs, indMovedAtom, coord0, tGeomEnd)
           if (tGeomEnd) then
+            call env%globalTimer%stopTimer(globalTimers%postSCC)
             exit lpGeomOpt
           end if
           tCoordsChanged = .true.
@@ -492,6 +496,7 @@ contains
             end if
           end if
           if (tGeomEnd .and. diffGeo < tolSameDist) then
+            call env%globalTimer%stopTimer(globalTimers%postSCC)
             exit lpGeomOpt
           end if
         else if (tMD) then
@@ -536,10 +541,15 @@ contains
 
       tStopDriver = tStopScc .or. tStopDriver .or. hasStopFile(fStopDriver)
       if (tStopDriver) then
+        call env%globalTimer%stopTimer(globalTimers%postSCC)
         exit lpGeomOpt
       end if
 
+      call env%globalTimer%stopTimer(globalTimers%postSCC)
+
     end do lpGeomOpt
+
+    call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
     if (tSocket .and. env%tGlobalMaster) then
       call socket%shutdown()
@@ -600,7 +610,10 @@ contains
           & nKPoint, nSpin, size(eigen, dim=1), nOrb, kPoint, kWeight, filling, occNatural)
     end if
 
+    call env%globalTimer%startTimer(globalTimers%postGeoOpt)
+
     call destructProgramVariables()
+    call env%globalTimer%writeTimings(msg="DFTB+ running times", maxLevel=timingLevel)
 
   end subroutine runDftbPlus
 
@@ -1422,7 +1435,7 @@ contains
       & rhoSqrReal)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1556,7 +1569,6 @@ contains
     !> Dense density matrix
     real(dp), intent(out), optional :: rhoSqrReal(:,:,:)
 
-    type(TTimer) :: timerDiag, timerDenseMat
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -1569,7 +1581,7 @@ contains
       end if
     end if
 
-    call timerDiag%start()
+    call env%globalTimer%startTimer(globalTimers%diagonalization)
     if (nSpin /= 4) then
       call qm2ud(ham)
       if (tRealHS) then
@@ -1586,12 +1598,12 @@ contains
           & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
           & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
-    call timerDiag%stop()
+    call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
-    call timerDenseMat%start()
+    call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
@@ -1612,10 +1624,7 @@ contains
           & rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
-    call timerDenseMat%stop()
-
-    call timerDiag%writeTimes("Diagonalisation")
-    call timerDenseMat%writeTimes("Density matrix creation")
+    call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   end subroutine getDensity
 

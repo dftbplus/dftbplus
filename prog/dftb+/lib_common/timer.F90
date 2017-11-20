@@ -8,11 +8,11 @@ module timer
   !> Simple timer object
   type :: TTimer
     private
-    real :: startTime
-    real :: endTime
-    integer :: startCount
-    integer :: endCount
-    integer :: countRate
+    real :: startTime = 0.0
+    real :: endTime = -1.0
+    integer :: startCount = 0
+    integer :: endCount = -1
+    integer :: countRate = 1
   contains
     procedure :: start
     procedure :: stop => stopTimer
@@ -56,7 +56,14 @@ contains
     !> Cpu time evolved between the last start() and stop() calls.
     real :: cpuTime
 
-    cpuTime = this%endTime - this%startTime
+    real :: endTime
+
+    if (this%endTime < 0.0) then
+      call cpu_time(endTime)
+    else
+      endTime = this%endTime
+    end if
+    cpuTime = endTime - this%startTime
 
   end function getCpuTime
 
@@ -70,10 +77,17 @@ contains
     !> Wall clock time evolved between the last start() and stop() calls.
     real :: wallClockTime
 
+    integer :: endCount
+
+    if (this%endCount < 0) then
+      call system_clock(count=endCount)
+    else
+      endCount = this%endCount
+    end if
     if (this%countRate == 0) then
       wallClockTime = 0.0
     else
-      wallClockTime = real(this%endCount - this%startCount) / real(this%countRate)
+      wallClockTime = real(endCount - this%startCount) / real(this%countRate)
     end if
 
   end function getWallClockTime

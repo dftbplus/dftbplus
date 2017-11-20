@@ -2591,6 +2591,7 @@ contains
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)
     call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false.)
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 1)
 
   end subroutine readOptions
 

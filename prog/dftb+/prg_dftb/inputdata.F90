@@ -380,6 +380,10 @@ module inputdata_module
     type(IpiSocketCommInp), allocatable :: socketInput
 
     type(TParallelOpts), allocatable :: parallelOpts
+
+    !> Maximal timing level to show in output
+    integer :: timingLevel
+
   end type control
 
 

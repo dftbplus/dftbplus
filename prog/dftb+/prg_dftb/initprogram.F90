@@ -784,6 +784,9 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  !> Maximal timing level to show in output
+  integer :: timingLevel
+
   private :: createRandomGenerators
 
 contains
@@ -901,6 +904,9 @@ contains
 
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
+
+    call TEnvironment_init(env)
+    call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
     tSCC = input%ctrl%tScc
@@ -2169,6 +2175,8 @@ contains
       allocate(fdProjEig(0))
     end if
 
+    timingLevel = input%ctrl%timingLevel
+
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
@@ -2634,6 +2642,8 @@ contains
       end if
 
     end if
+
+    call env%globalTimer%stopTimer(globalTimers%globalInit)
 
   end subroutine initProgramVariables
 
