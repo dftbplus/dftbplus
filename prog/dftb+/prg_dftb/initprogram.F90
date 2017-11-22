@@ -896,6 +896,9 @@ contains
     logical, allocatable, target :: tDampedShort(:)
     type(ThirdOrderInp) :: thirdInp
 
+    ! H5 correction
+    integer, allocatable, target :: species_z(:)
+
     ! PDOS stuff
     integer :: iReg, nAtomRegion, nOrbRegion, iTmp
     integer, allocatable :: iAtomRegion(:)
@@ -1142,6 +1145,16 @@ contains
       end if
       sccInp%tDampedShort = tDampedShort
       sccInp%dampExp = input%ctrl%dampExp
+
+      ! H5 correction
+      sccInp%use_h5 = .true.
+      allocate(species_z(nType))
+      do iSp = 1, nType
+          species_z(iSp) = get_atomic_number(speciesName(iSp))
+      end do
+      sccInp%species_z = species_z
+      ! H5 correction end
+
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
       if (tExtChrg) then
