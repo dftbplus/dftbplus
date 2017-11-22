@@ -57,7 +57,7 @@ module environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(*) = [&
+  type(TTimerItem), parameter :: globalTimerItems(9) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("SCC", 1),&

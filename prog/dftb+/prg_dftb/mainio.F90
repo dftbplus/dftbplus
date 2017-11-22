@@ -1683,7 +1683,6 @@ contains
     complex(dp), allocatable :: localSDotC(:), localEigvec(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     real(dp), allocatable :: fracs(:,:)
-    integer :: sender
     integer :: nOrb
     integer :: iKS, iK, iGroup, iEig
 
