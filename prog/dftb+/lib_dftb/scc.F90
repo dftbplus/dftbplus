@@ -80,8 +80,8 @@ module scc
     !> Flag for activating the H5 H-bond correction
     logical :: use_h5
 
-    !> Species names for H5 correction
-    character(mc), allocatable :: species_name(:)
+    !> H5 correction object
+    type(H5Corr), allocatable :: h5correction
 
   end type TSccInp
 
@@ -96,7 +96,7 @@ module scc
     !> Nr. of atoms
     integer :: nAtom
 
-    !> Nr. of species
+    !> Nr. of rpecies
     integer :: nSpecies
 
     !> Max nr. of orbitals per atom
@@ -224,8 +224,8 @@ module scc
     !> Flag for activating the H5 H-bond correction
     logical :: use_h5
 
-    !> Species names for H5 correction
-    character(mc), allocatable :: species_name(:)
+    !> H5 correction object
+    type(H5Corr), allocatable :: h5correction
 
   contains
     procedure :: getCutoff
@@ -436,13 +436,8 @@ contains
     this%use_h5 = inp%use_h5
     if (this%use_h5) then
         ! Copy species names
-        allocate(this%species_name(this%nSpecies))
-        this%species_name = inp%species_name
-        ! Write debug info
-        !write(36,*) "H5 correction activated"
-        !do iSp1 = 1, this%nSpecies
-        !    write(36,*) "Species ", iSp1, " is ", this%species_name(iSp1)
-        !end do
+        allocate(this%h5correction)
+        this%h5correction = inp%h5correction
     end if 
     ! H5 correction end
 
@@ -1312,15 +1307,6 @@ contains
     integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, u1, u2
 
-    ! JR
-    character(mc) :: spname1, spname2
-    logical :: do_corr
-
-    real(dp) :: rscale = 0.714
-    real(dp) :: wscale = 0.25
-    real(dp) :: h5scaling, gauss, sumvdw, fwhm, r0, c, news
-    ! JR end
-
     @:ASSERT(this%tInitialised)
 
     ! Reallocate shortGamma, if it does not contain enough neighbors
@@ -1351,54 +1337,7 @@ contains
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 ! H5 correction
                 if (this%use_h5) then
-                        spname1 = this%species_name(iSp1)
-                        spname2 = this%species_name(iSp2)
-                        do_corr = .false.
-                       
-                        if ((spname1 == "O" .and. spname2 == "H") .or. (spname1 == "H" .and. spname2 == "O")) then
-                                ! Correction for OH
-                                do_corr = .true.
-                                ! Parameters
-                                h5scaling = 0.06_dp
-                                sumvdw = 2.72_dp
-                        end if
-
-                        if ((spname1 == "N" .and. spname2 == "H") .or. (spname1 == "H" .and. spname2 == "N")) then
-                                ! Correction for NH
-                                do_corr = .true.
-                                ! Parameters
-                                h5scaling = 0.18_dp
-                                sumvdw = 2.75_dp
-                        end if
-
-                        if ((spname1 == "S" .and. spname2 == "H") .or. (spname1 == "H" .and. spname2 == "S")) then
-                                ! Correction for SH
-                                do_corr = .true.
-                                ! Parameters
-                                h5scaling = 0.21_dp
-                                sumvdw = 3.00_dp
-                        end if
-
-                        if (do_corr) then
-                                !write (36,*) "Species", iSp1, iSp2
-                                !write (36,*) "   r =", rab
-                                !write (36,*) "   gamma =", shortGamma_(iU2 ,iU1, iNeigh, iAt1)
-                                !write (36,*) "   spname1: ", spname1
-                                !write (36,*) "   spname2: ", spname2
-                                ! Gaussian calculation
-                                fwhm = wscale * sumvdw
-                                r0 = rscale * sumvdw
-                                c = fwhm / 2.35482_dp
-                                gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2)
-                                gauss = gauss * h5scaling
-                                !write (36,*) "   correction = ", gauss
-                                ! Apply the correction
-                                news = this%shortGamma(iU2 ,iU1, iNeigh, iAt1)
-                                news = news * (1.0_dp + gauss)
-                                news = news - gauss / rab
-                                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = news
-                        end if
-                        ! JR end
+                        call this%h5correction%scaleShortGamma(this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
                 end if
                 ! H5 correction end
               end if

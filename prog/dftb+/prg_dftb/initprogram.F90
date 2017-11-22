@@ -1154,16 +1154,15 @@ contains
       sccInp%use_h5 = input%ctrl%tH5
       ! Allocate H5 input object
       allocate(pH5Input)
-      pH5Input%rscale = 0.123
+      pH5Input%rscale = 0.714
       pH5Input%wscale = 0.25
+      pH5Input%nSpecies = nType
       pH5Input%species_name = speciesName
       ! Create H5 object
       allocate(pH5Correction)
       call H5Corr_init(pH5Correction, pH5Input)
-      call pH5Correction%printH5Setup()
-
-      ! Information on names of species is passed forward
-      sccInp%species_name = speciesName 
+      !call pH5Correction%printH5Setup()
+      sccInp%h5correction = pH5Correction
       ! H5 correction end
 
       nExtChrg = input%ctrl%nExtChrg
