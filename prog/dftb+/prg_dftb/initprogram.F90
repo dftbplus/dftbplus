@@ -1144,7 +1144,7 @@ contains
       sccInp%dampExp = input%ctrl%dampExp
 
       ! H5 correction
-      sccInp%use_h5 = .true.
+      sccInp%use_h5 = input%ctrl%tH5 ! Get from input
       sccInp%species_name = speciesName 
       ! H5 correction end
 

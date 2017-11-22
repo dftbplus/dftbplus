@@ -1421,6 +1421,10 @@ contains
         call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
       end if
 
+      ! H5 correction
+      call getChildValue(node, "H5Correction", ctrl%tH5, .false.)
+      ! H5 end
+
       ! spin
       call getChildValue(node, "SpinPolarisation", value, "", child=child, &
           &allowEmptyValue=.true.)
