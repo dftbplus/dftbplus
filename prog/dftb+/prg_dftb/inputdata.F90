@@ -347,10 +347,12 @@ module inputdata_module
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
 
+
     ! H5 correction
-    !> H5 correction
+    !> H5 correction On/Off(default) flag
     logical ::tH5 = .false.
     ! H5 correction end
+
 
     !> Old repulsive
     logical :: useBuggyRepSum

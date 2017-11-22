@@ -1144,7 +1144,9 @@ contains
       sccInp%dampExp = input%ctrl%dampExp
 
       ! H5 correction
-      sccInp%use_h5 = input%ctrl%tH5 ! Get from input
+      ! On/Off flag is read from the input
+      sccInp%use_h5 = input%ctrl%tH5
+      ! Information on names of species is passed forward
       sccInp%species_name = speciesName 
       ! H5 correction end
 
