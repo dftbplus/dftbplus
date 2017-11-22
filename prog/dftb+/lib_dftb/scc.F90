@@ -76,6 +76,12 @@ module scc
     !> Ewald tollerance
     real(dp) :: tolEwald = 0.0_dp
 
+    !> Flag for activating the H5 H-bond correction
+    logical :: use_h5
+
+    !> Proton numbers for H5 correction
+    integer, allocatable :: species_z(:)
+
   end type TSccInp
 
 
@@ -213,6 +219,12 @@ module scc
     !> Distributed charge vector
     real(dp), allocatable :: qGlobal(:,:)
 #:endif
+
+    !> Flag for activating the H5 H-bond correction
+    logical :: use_h5
+
+    !> Proton numbers for H5 correction
+    integer, allocatable :: species_z(:)
 
   contains
     procedure :: getCutoff
@@ -417,6 +429,17 @@ contains
     allocate(this%tDampedShort(this%nSpecies))
     this%tDampedShort(:) = inp%tDampedShort(:)
     this%dampExp = inp%dampExp
+
+    ! H5 correction
+    this%use_h5 = inp%use_h5
+    if (inp%use_h5) then
+        allocate(this%species_z(this%nSpecies))
+        this%species_z(:) = inp%species_z(:)
+        write(36,*) "H5 correction activated"
+        do iSp1 = 1, this%nSpecies
+            write(36,*) "Species ", iSp1, "has Z = ", inp%species_z(iSp1)
+        end do
+    end if 
 
     this%tInitialised = .true.
 
