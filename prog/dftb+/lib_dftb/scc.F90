@@ -28,6 +28,7 @@ module scc
   use chargeconstr
   use shift
   use dynneighlist
+  use h5correction
   implicit none
 
   private

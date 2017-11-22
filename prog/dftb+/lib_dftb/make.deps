@@ -179,13 +179,13 @@ _mod_repulsive: repulsive.o
 _mod_repulsive = $(repulsive.o)
 
 #:if WITH_SCALAPACK
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_mpifx _mod_scalapackfx
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_mpifx) $(_mod_scalapackfx)
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_mpifx _mod_scalapackfx _mod_h5correction
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_mpifx) $(_mod_scalapackfx) $(_mod_h5correction)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 #:else
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy)
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_h5correction
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_h5correction)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 #:endif
@@ -204,6 +204,11 @@ shortgamma.o: _mod_message _mod_accuracy
 shortgamma.o = shortgamma.o $(_mod_message) $(_mod_accuracy)
 _mod_shortgamma: shortgamma.o
 _mod_shortgamma = $(shortgamma.o)
+
+h5correction.o: _mod_accuracy common.fypp
+h5correction.o = h5correction.o $(_mod_accuracy) $(common.fypp)
+_mod_h5correction: h5correction.o
+_mod_h5correction = $(h5correction.o)
 
 sk.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert
 sk.o = sk.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert)

@@ -52,6 +52,7 @@ module initprogram
   use simplealgebra
   use nonscc
   use scc
+  use h5correction
   use sccinit
   use slakocont
   use repcont
@@ -871,6 +872,11 @@ contains
     type(DispDftD3), allocatable :: dftd3
   #:endif
 
+    ! H5 correction
+    type(H5Inp), allocatable :: pH5Input
+    type(H5Corr), allocatable :: pH5Correction
+    ! H5 correction end
+
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
 
@@ -1146,6 +1152,16 @@ contains
       ! H5 correction
       ! On/Off flag is read from the input
       sccInp%use_h5 = input%ctrl%tH5
+      ! Allocate H5 input object
+      allocate(pH5Input)
+      pH5Input%rscale = 0.123
+      pH5Input%wscale = 0.25
+      pH5Input%species_name = speciesName
+      ! Create H5 object
+      allocate(pH5Correction)
+      call H5Corr_init(pH5Correction, pH5Input)
+      call pH5Correction%printH5Setup()
+
       ! Information on names of species is passed forward
       sccInp%species_name = speciesName 
       ! H5 correction end
