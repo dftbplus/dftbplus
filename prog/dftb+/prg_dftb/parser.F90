@@ -1422,7 +1422,12 @@ contains
       end if
 
       ! H5 correction
+      ! Keyword H5Correction switches the correction on and off (default)
       call getChildValue(node, "H5Correction", ctrl%tH5, .false.)
+      ! H5 should not be used with X-H damping
+      if (ctrl%tDampH .and. ctrl%tH5) then
+              call error("H5 correction is not compatible with X-H damping")
+      end if
       ! H5 end
 
       ! spin

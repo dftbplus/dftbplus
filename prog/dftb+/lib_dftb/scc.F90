@@ -431,6 +431,7 @@ contains
     this%dampExp = inp%dampExp
 
     ! H5 correction
+    ! Input data are saved in the SCC object
     this%use_h5 = inp%use_h5
     if (this%use_h5) then
         ! Copy species names
