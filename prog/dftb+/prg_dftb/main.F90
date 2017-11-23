@@ -100,7 +100,15 @@ contains
     real(dp) :: totalStress(3,3)
 
     !> Derivative of total energy with respect to lattice vectors
-    !> Sign convention: Negative diagonal elements expand the supercell
+    !> Sign convention: This is in the uphill energy direction for the lattice vectors (each row
+    !> pertaining to a separate lattice vector), i.e. opposite to the force.
+    !>
+    !> The component of a derivative vector that is orthogonal to the plane containing the other two
+    !> lattice vectors will expand (contract) the supercell if it is on the opposite (same) same
+    !> side of the plane as its associated lattice vector.
+    !>
+    !> In the special case of cartesian axis aligned orthorhombic lattice vectors, negative diagonal
+    !> elements expand the supercell.
     real(dp) :: totalLatDeriv(3,3)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
