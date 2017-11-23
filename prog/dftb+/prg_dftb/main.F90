@@ -101,7 +101,7 @@ contains
 
     !> Derivative of total energy with respect to lattice vectors
     !> Sign convention: This is in the uphill energy direction for the lattice vectors (each row
-    !> pertaining to a separate lattice vector), i.e. oposite to the force.
+    !> pertaining to a separate lattice vector), i.e. opposite to the force.
     !>
     !> The component of a derivative vector that is orthogonal to the plane containing the other two
     !> lattice vectors will expand (contract) the supercell if it is on the opposite (same) same
