@@ -51,7 +51,7 @@ using the `get_opt_externals` utility, e.g.::
 The Slater-Koster data needed for testing can also be downloaded by using
 this tool::
 
-  ./utils/get_opt_externals slako
+  ./utils/get_opt_externals slakos
 
 See detailed help for this tool by issuing ``./utils/get_opt_externals -h``.
 
