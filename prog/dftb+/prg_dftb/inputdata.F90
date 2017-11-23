@@ -34,11 +34,8 @@ module inputdata_module
   !> Contains Blacs specific options.
   type :: TBlacsOpts
 
-    !> Block size for matrix rows.
-    integer :: rowBlockSize
-
-    !> Block size for matrix columns.
-    integer :: colBlockSize
+    !> Block size for matrix rows and columns.
+    integer :: blockSize
 
   end type TBlacsOpts
 

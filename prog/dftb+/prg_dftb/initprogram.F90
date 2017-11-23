@@ -2063,7 +2063,7 @@ contains
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescBlacs(env, blacsOpts%rowBlockSize, blacsOpts%colBlockSize, denseDesc)
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, denseDesc)
     end associate
   #:endif
 
@@ -3160,7 +3160,7 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, sizeHS, nAtom)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom)
 
   end subroutine initScalapack
 
