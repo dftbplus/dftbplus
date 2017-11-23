@@ -67,6 +67,7 @@ Additionally optional blocks of definitions may be present:
   \kw{Analysis} & p & & \cb & \pref{sec:dftbp.Analysis} \\
   \kw{ExcitedState} & p & & \cb & \pref{sec:dftbp.ExcitedState} \\
   \kw{ParserOptions} & p & & \cb & \pref{sec:dftbp.ParserOptions} \\
+  \kw{Parallel} & p & & \cb & \pref{sec:dftbp.Parallel} \\
 \end{ptableh}
 
 \begin{description}
@@ -80,9 +81,12 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.Options}.
 \item[\is{Analysis}]  Post-run analysis and properties options. See
   p.~\pref{sec:dftbp.Analysis}.
-\item[\is{ExcitedState}] Calculations in excited state of the system. See p.~\pref{sec:dftbp.ExcitedState}.
+\item[\is{ExcitedState}] Calculations in excited state of the system.
+  See p.~\pref{sec:dftbp.ExcitedState}.
 \item[\is{ParserOptions}] Various options affecting the parser only.
   See p.~\pref{sec:dftbp.ParserOptions}.
+\item[\is{Parallel}] Options affecting the MPI-parallel execution. See
+  p.~\pref{sec:dftbp.Parallel}.
 \end{description}
 
 
@@ -2875,6 +2879,43 @@ program.
   after processing the input and written out the processed input to
   the disc. It can be used to make sanity checks on the input without
   starting an actual calculation.
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  Parallel
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Parallel}
+\label{sec:dftbp.ParserOptions}
+
+This block contains the options, which are effecting the parallel behaviour of
+the code. They only take effect, if the code was compiled with MPI-support.
+
+\begin{ptable}
+  \kw{Groups} & i & 1 & & \\
+  \kw{Blacs} & p & \cb & & \\
+\end{ptable}
+\begin{description}
+\item[\is{Groups}] Number of process groups. Specifying more than one process
+  group enables parallelisation over k-points and spin, as processes in
+  different process groups are working on different k-points and spins at the
+  same time. The number of process groups must be a divisor of the total number
+  of MPI-processes. Default: 1 (all processes work at the same k-point and spin
+  at a given time).
+
+\item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
+  \is{BlockSize}, which specifies the row and column block size for the
+  block-cyclic distributions (with default size of 32).
+
+  Example:
+\begin{verbatim}
+  Parallel {
+    Groups = 2
+    Blacs {
+      BlockSize = 64
+    }
+  }
+\end{verbatim}
 
 \end{description}
 
