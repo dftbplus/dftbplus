@@ -42,7 +42,7 @@ geoopt/H2O-constr                      #? NPROC <= 1
 legacy/SiC_polyRep                     #? NPROC <= 1
 scc/C4H8_3rdfull                       #? NPROC <= 1
 scc/C4H8_3rdfull-damp                  #? NPROC <= 1
-spin/Fe4                               #? NPROC <= 2
+spin/Fe4                               #? NPROC == 2
 spin/Fe4_commonFermi                   #? NPROC <= 2
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and NPROC <= 1
@@ -152,4 +152,4 @@ timedep/C60_EandOsc                    #? WITH_ARPACK and NPROC <= 1
 non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
-scc/SiC64+V_dynforce                   #? NPROC <= 4
+scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0

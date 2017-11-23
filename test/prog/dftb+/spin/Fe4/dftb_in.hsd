@@ -12,21 +12,21 @@ Hamiltonian = DFTB {
   SCCTolerance = 1.0e-5
   MaxSCCIterations = 1000
   Mixer = Anderson {}
-  MaxAngularMomentum = {
+  MaxAngularMomentum {
     Fe = "d"
   }
   Charge = 0.0
   SpinPolarisation = Colinear {
     UnpairedElectrons = 12
   }
-  SpinConstants = {
-    Fe = {
+  SpinConstants {
+    Fe {
            -0.013 -0.009 -0.003
            -0.009 -0.011 -0.001
            -0.003 -0.001 -0.015
     }
   }
-  Eigensolver = Standard {}
+  Eigensolver = QR {}
   Filling = MethfesselPaxton {
     Temperature [Kelvin] = 5.0e+2
     Order = 2
@@ -36,10 +36,14 @@ Hamiltonian = DFTB {
   }
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
 }
 
-ParserOptions = {
-  ParserVersion = 3
+ParserOptions {
+  ParserVersion = 5
+}
+
+Parallel {
+  Groups = 2
 }

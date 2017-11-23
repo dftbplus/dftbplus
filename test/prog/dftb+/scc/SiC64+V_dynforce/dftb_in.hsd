@@ -110,3 +110,7 @@ Analysis {
 ParserOptions {
   ParserVersion = 5
 }
+
+Parallel {
+  Groups = 2
+}
