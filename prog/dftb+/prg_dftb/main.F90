@@ -96,9 +96,11 @@ contains
     real(dp) :: Eold
 
     !> Stress tensors for various contribution in periodic calculations
+    !> Sign convention: Positive diagonal elements expand the supercell
     real(dp) :: totalStress(3,3)
 
-    !> Derivative of total energy wrt to lattice vectors
+    !> Derivative of total energy with respect to lattice vectors
+    !> Sign convention: Negative diagonal elements expand the supercell
     real(dp) :: totalLatDeriv(3,3)
 
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
