@@ -21,10 +21,14 @@ LN = $(FXX)
 LNOPT =
 
 # How to link specific libraries
-ATLASDIR = /usr/lib
+
+# ScaLAPACK
 SCALAPACKDIR = /usr/lib
-LIB_LAPACK = -L$(SCALAPACKDIR) -lscalapack -L$(ATLASDIR) -llapack
-LIB_BLAS = -lf77blas -lcblas -latlas
+LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack -L$(ATLASDIR)
+
+# LAPACK/BLAS
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked
 OTHERLIBS =
@@ -54,11 +58,10 @@ LN = $(FXX)
 LNOPT = -fopenmp
 
 # How to link specific libraries
+
+# LAPACK/BLAS
 ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack
-LIB_BLAS = -lf77blas -lcblas -latlas
-# Threaded version may work as well
-# LIB_BLAS = -lptf77blas -lptcblas -latlas
+LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked
 OTHERLIBS = -lgomp -lpthread

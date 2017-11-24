@@ -4,11 +4,11 @@ xmlf90.o += _extlib_xmlf90
 fsockets.o: _extlib_fsockets
 fsockets.o += _extlib_fsockets
 
-blas.o: _extlib_blas
-blas.o += _extlib_blas
+blas.o: _extlib_lapack
+blas.o += _extlib_lapack
 
-lapack.o: _extlib_lapack _extlib_blas
-lapack.o += _extlib_lapack _extlib_blas
+lapack.o: _extlib_lapack
+lapack.o += _extlib_lapack
 
 dftd3.o: _extlib_dftd3
 dftd3.o += _extlib_dftd3
@@ -24,6 +24,6 @@ mpifx.o += _extlib_mpifx
 #:endif
 
 #:if WITH_SCALAPACK
-scalapackfx.o: _extlib_scalapackfx
-scalapackfx.o += _extlib_scalapackfx
+scalapackfx.o: _extlib_scalapackfx _extlib_lapack
+scalapackfx.o += _extlib_scalapackfx _extlib_lapack
 #:endif
