@@ -63,12 +63,10 @@ contains
     nSpecies = maxval(species(1:nAtom))
     nOrb = orb%nOrb
 
-    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(size(denseDesc%iAtomStart) == nAtom + 1)
     @:ASSERT(size(xi, dim=2) == nSpecies)
     @:ASSERT(size(xi, dim=1) == orb%mShell)
-    @:ASSERT(mod(nOrb,2) == 0)
-    @:ASSERT(iAtomStart(nAtom + 1) == nOrb + 1)
+    @:ASSERT(denseDesc%iAtomStart(nAtom + 1) == nOrb + 1)
 
     allocate(speciesZ(orb%mOrb, orb%mOrb, nSpecies))
     allocate(speciesPlus(orb%mOrb, orb%mOrb, nSpecies))

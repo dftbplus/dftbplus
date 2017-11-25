@@ -68,13 +68,13 @@ _mod_qm: qm.o
 _mod_qm = $(qm.o)
 
 #:if WITH_MPI
-randomgenpool.o: _mod_environment common.fypp _mod_accuracy _mod_ranlux _mod_mpifx
-randomgenpool.o = randomgenpool.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_ranlux) $(_mod_mpifx)
+randomgenpool.o: _mod_environment common.fypp _mod_accuracy _mod_assert _mod_ranlux _mod_mpifx
+randomgenpool.o = randomgenpool.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_assert) $(_mod_ranlux) $(_mod_mpifx)
 _mod_randomgenpool: randomgenpool.o
 _mod_randomgenpool = $(randomgenpool.o)
 #:else
-randomgenpool.o: _mod_environment common.fypp _mod_accuracy _mod_ranlux
-randomgenpool.o = randomgenpool.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_ranlux)
+randomgenpool.o: _mod_environment common.fypp _mod_accuracy _mod_assert _mod_ranlux
+randomgenpool.o = randomgenpool.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_assert) $(_mod_ranlux)
 _mod_randomgenpool: randomgenpool.o
 _mod_randomgenpool = $(randomgenpool.o)
 #:endif

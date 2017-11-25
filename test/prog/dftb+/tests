@@ -15,15 +15,13 @@ spin/H2                                #? NPROC <= 1
 
 #! MPI implementation not available
 analysis/C2H4_localise                 #? not WITH_MPI
+analysis/graphene_localise             #? not WITH_MPI
 
 dftb+u/CH3                             #? NPROC <= 1
 dispersion/2H2O                        #? NPROC <= 1
 dispersion/2H2O_uff                    #? NPROC <= 1
 geoopt/H2O-nonscc                      #? NPROC <= 1
-
-#! Eigenvector projection broken
-non-scc/CH4                            #? not WITH_MPI
-
+non-scc/CH4                            #? NPROC <= 1
 non-scc/decapentaene                   #? NPROC <= 2
 scc/2H2O-3rdorder                      #? NPROC <= 1
 scc/C2H6_3rdfull                       #? NPROC <= 1
@@ -77,7 +75,7 @@ non-scc/HBDI-neutral                   #? NPROC <= 4
 non-scc/HBDI-cationic                  #? NPROC <= 4
 scc/C60                                #? NPROC <= 4
 spin/H2O                               #? NPROC <= 1
-                                       #? NPROC <= 1
+
 timedep/cyclopentadienyl               #? WITH_ARPACK and NPROC <= 1
 timedep/C6H6-Sym                       #? WITH_ARPACK and NPROC <= 1
 timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and NPROC <= 1
@@ -100,10 +98,10 @@ md/H3                                  #? NPROC <= 1
 
 dispersion/DNA_dftd3_zero              #? WITH_DFTD3 and NPROC <= 4
 
-sockets/diamond                        #? NPROC <= 1
-sockets/diamond_exit                   #? NPROC <= 1
-sockets/H2O                            #? NPROC <= 4
-sockets/H2O_cluster                    #? NPROC <= 1
+sockets/diamond                        #? WITH_SOCKETS and NPROC <= 1
+sockets/diamond_exit                   #? WITH_SOCKETS and NPROC <= 1
+sockets/H2O                            #? WITH_SOCKETS and NPROC <= 4
+sockets/H2O_cluster                    #? WITH_SOCKETS and NPROC <= 1
 
 spinorbit/GaAs_2                       #? NPROC <= 1
 
@@ -119,9 +117,7 @@ non-scc/Si41C23N35                     #? NPROC <= 4
 geoopt/diamond_isotropic               #? NPROC <= 1
 spinorbit/EuN                          #? NPROC <= 2
 geoopt/Si_6                            #? NPROC <= 1
-
 md/ptcda-xlbomdfast                    #? NPROC <= 4
-
 spinorbit/EuN_customU                  #? NPROC <= 2
 dispersion/DNA                         #? NPROC <= 4
 spinorbit/Si2_dual                     #? NPROC <= 1
@@ -129,9 +125,7 @@ md/Si_8                                #? NPROC <= 1
 md/Si_8-thermostat2                    #? NPROC <= 1
 geoopt/GaAs_8_latconst                 #? NPROC <= 2
 md/Si_8-thermostat                     #? NPROC <= 1
-
 md/ptcda-xlbomdfast-ldep               #? NPROC <= 4
-
 md/Si_8-tempprofile                    #? NPROC <= 1
 
 dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and NPROC <= 4
@@ -140,7 +134,6 @@ geoopt/Vsi+O-nonscc                    #? NPROC <= 4
 non-scc/Si_384                         #? NPROC <= 4
 md/DNA                                 #? NPROC <= 4
 md/DNA_Berendsen2                      #? NPROC <= 4
-
 md/ptcda-xlbomd                        #? NPROC <= 4
 md/SiC64-xlbomdfast-T0                 #? NPROC <= 4
 md/SiC64-xlbomdfast                    #? NPROC <= 4

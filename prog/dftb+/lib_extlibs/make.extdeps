@@ -1,8 +1,10 @@
 xmlf90.o: _extlib_xmlf90
 xmlf90.o += _extlib_xmlf90
 
+#:if WITH_SOCKETS
 fsockets.o: _extlib_fsockets
 fsockets.o += _extlib_fsockets
+#:endif
 
 blas.o: _extlib_lapack
 blas.o += _extlib_lapack

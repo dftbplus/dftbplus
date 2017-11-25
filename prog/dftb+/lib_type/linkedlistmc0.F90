@@ -10,6 +10,7 @@
 !> Linked list for single charcter strings
 module linkedlistmc0
   use accuracy, only : mc
+  use assert
   implicit none
   private
 

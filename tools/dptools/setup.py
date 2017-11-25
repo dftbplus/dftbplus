@@ -18,6 +18,7 @@ setup(
         "bin/makecube",
         "bin/repeatgen",
         "bin/xyz2gen",
+        "bin/straingen",
     ],
     classifiers=[
         "Programming Language :: Python",

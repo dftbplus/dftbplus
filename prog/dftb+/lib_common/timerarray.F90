@@ -3,6 +3,7 @@
 module timerarray
   use globalenv, only : stdOut
   use accuracy, only : dp
+  use assert
   use timer
   implicit none
   private

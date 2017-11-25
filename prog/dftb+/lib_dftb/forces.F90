@@ -95,6 +95,8 @@ contains
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
+    !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
+    !$OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
@@ -118,24 +120,21 @@ contains
               & iAtom1, iAtom2, orb)
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
-            deriv(ii,iAtom1) = deriv(ii,iAtom1) &
-                &+ sum(sqrDMTmp(1:nOrb2,1:nOrb1)&
-                &* 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
-                &- sum(sqrEDMTmp(1:nOrb2,1:nOrb1)&
-                &* 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
+            deriv(ii,iAtom1) = deriv(ii,iAtom1)&
+                & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
+                & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
           end do
           ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the blocks,
           ! and note that the skew symmetry in the derivatives is being used
           do ii = 1, 3
             deriv(ii,iAtom2f) = deriv(ii,iAtom2f) &
-                &- sum(sqrDMTmp(1:nOrb2,1:nOrb1) &
-                &* 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
-                &+ sum(sqrEDMTmp(1:nOrb2,1:nOrb1)&
-                &* 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
+                & - sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
+                & + sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
           end do
         end if
       end do
     end do
+    !$OMP END PARALLEL DO
 
   end subroutine derivative_nonSCC
 
@@ -209,6 +208,9 @@ contains
 
     deriv(:,:) = 0.0_dp
 
+    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -258,6 +260,7 @@ contains
         end if
       enddo
     enddo
+    !$OMP END PARALLEL DO
 
   end subroutine derivative_block
 
@@ -342,6 +345,9 @@ contains
 
     deriv(:,:) = 0.0_dp
 
+    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -404,6 +410,7 @@ contains
         end if
       enddo
     enddo
+    !$OMP END PARALLEL DO
 
   end subroutine derivative_iBlock
 

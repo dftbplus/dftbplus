@@ -38,7 +38,9 @@ module mainio
   use formatout
   use sccinit, only : writeQToFile
   use message
+#:if WITH_SOCKETS
   use ipisocket
+#:endif
   implicit none
   private
 
@@ -62,8 +64,9 @@ module mainio
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo
+#:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
-
+#:endif
 
   !> Ground state eigenvectors in text format
   character(*), parameter :: eigvecOut = "eigenvec.out"
@@ -164,8 +167,8 @@ contains
     !> Storage for dense complex overlap matrix
     complex(dp), intent(out), optional :: SSqrCplx(:,:)
 
-    @:ASSERT(present(eigvecsReal) .neqv. present(eigvecsReal))
-    @:ASSERT(present(SSqrReal) .neqv. present(SSqrReal))
+    @:ASSERT(present(eigvecsReal) .neqv. present(eigvecsCplx))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrCplx))
 
     if (present(eigvecsCplx)) then
       call writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
@@ -423,7 +426,7 @@ contains
         end do
       end do
     end if
-    
+
     if (env%mpi%tGlobalMaster) then
       close(fd)
     end if
@@ -1823,11 +1826,6 @@ contains
     integer :: iKS, iK, iEig
 
     nOrb = denseDesc%fullSize
-    @:ASSERT(len(fileNames) == nReg)
-    @:ASSERT(size(kWeights) == nK)
-
-    @:ASSERT(size(fd) == nReg)
-    @:ASSERT(all(fd > 0))
 
     call prepareProjEigvecFiles(fd, fileNames)
 
@@ -1932,7 +1930,6 @@ contains
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
-    @:ASSERT(tPeriodic .eqv. tSress)
 
     open(fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
@@ -2002,7 +1999,7 @@ contains
     !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
 
-    @:ASSERT(tPeriodic .eqv. tSress)
+    @:ASSERT(tPeriodic .eqv. tStress)
 
     open(fd, file=fileName, action="write", status="replace")
     if (allocated(derivs)) then
@@ -2208,7 +2205,7 @@ contains
     !> Current geometry step
     integer, intent(in) :: iGeoStep
 
-    !> Is this an molecular dynamics run
+    !> Is this a molecular dynamics run
     logical, intent(in) :: tMD
 
     !> Is this a finite difference derivative calculation
@@ -3607,6 +3604,8 @@ contains
   end subroutine printMdInfo
 
 
+#:if WITH_SOCKETS
+
   !> Receives the geometry from socket communication.
   subroutine receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVecs, tCoordsChanged,&
       & tLatticeChanged, tStopDriver)
@@ -3657,6 +3656,8 @@ contains
   #:endif
 
   end subroutine receiveGeometryFromSocket
+
+#:endif
 
 
   !> Prepares binary eigenvector file for writing.

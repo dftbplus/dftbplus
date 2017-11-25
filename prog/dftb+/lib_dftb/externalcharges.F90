@@ -19,66 +19,71 @@ module ExternalCharges
 
   private
 
-  public :: init_ExtChrg
-  public :: updateCoords_ExtChrg, updateLatVecs_ExtChrg, addShiftPerAtom_ExtChrg
-  public :: addEnergyPerAtom_ExtChrg, addForceDCSCC_ExtChrg
+  public :: TExtCharge, TExtCharge_init
 
 
-  !> Updates the stored coordinates for point charges
-  interface updateCoords_ExtChrg
-    module procedure updateCoords_ExtChrg_cluster
-    module procedure updateCoords_ExtChrg_periodic
-  end interface updateCoords_ExtChrg
+  !> Private module variables
+  type TExtCharge
+    private
 
+    !> Number of point charges
+    integer :: nChrg
 
-  !> Add the potential from the point charges
-  interface addShiftPerAtom_ExtChrg
-    module procedure addShift1
-    module procedure addShift2
-  end interface addShiftPerAtom_ExtChrg
+    !> Number of atoms
+    integer :: nAtom
 
+    !> Coordinates of the point charges
+    real(dp), allocatable :: coords(:,:)
 
-  !> force contributions from external charges
-  interface addForceDCSCC_ExtChrg
-    module procedure addForceDCSCC_ExtChrg_cluster
-    module procedure addForceDCSCC_ExtChrg_periodic
-  end interface addForceDCSCC_ExtChrg
+    !> Charge of the point charges
+    real(dp), allocatable :: charges(:)
 
-  ! Private module variables
+    !> Shift vector
+    real(dp), allocatable :: invRVec(:)
 
+    !> If charges should be blured
+    logical :: tBlur
 
-  !> Number of point charges
-  integer :: nChrg_
+    !> Blur width for the charges.
+    real(dp), allocatable :: blurWidths(:)
 
-  !> Number of atoms
-  integer :: nAtom_
+    !> System periodic?
+    logical :: tPeriodic
 
-  !> Coordinates of the point charges
-  real(dp), allocatable :: coords_(:,:)
+    !> Calculator initialised?
+    logical :: tInitialized = .false.
 
-  !> Charge of the point charges
-  real(dp), allocatable :: charges_(:)
+    !> First coordinates received?
+    logical :: tUpdated = .false.
 
-  !> Shift vector
-  real(dp), allocatable :: invRVec_(:)
+    !> Real lattice points for Ewald-sum.
+    real(dp), allocatable :: rCellVec(:,:)
 
-  !> If charges should be blured
-  logical :: tBlur_
+  contains
+    private
 
-  !> Blur width for the charges.
-  real(dp), allocatable :: blurWidths_(:)
+    procedure :: updateCoordsCluster
+    procedure :: updateCoordsPeriodic
+    procedure :: addForceDcCluster
+    procedure :: addForceDcPeriodic
 
-  !> System periodic?
-  logical :: tPeriodic_
+    !> Updates the stored coordinates for point charges
+    generic, public :: updateCoords => updateCoordsCluster, updateCoordsPeriodic
 
-  !> Calculator initialised?
-  logical :: tInitialized_ = .false.
+    !> Updates the lattice vectors
+    procedure, public :: updateLatVecs
 
-  !> First coordinates received?
-  logical :: tUpdated_ = .false.
+    !> Adds energy contributions per atom
+    procedure, public :: addEnergyPerAtom
 
-  !> Real lattice points for Ewald-sum.
-  real(dp), allocatable :: rCellVec_(:,:)
+    !> Adds the potential from the point charges
+    procedure, public :: addShiftPerAtom
+
+    !> Adds force double counting component
+    generic, public :: addForceDc => addForceDcCluster, addForceDcPeriodic
+
+  end type TExtCharge
+
 
 contains
 
@@ -86,7 +91,11 @@ contains
   !> Initializes the calculator for external charges
   !>
   !> Note: Blurring of point charges is currently not possible with periodic boundary conditions.
-  subroutine init_ExtChrg(coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff, blurWidths)
+  subroutine TExtCharge_init(this, coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff,&
+      & blurWidths)
+
+    !> External charge object
+    type(TExtCharge), intent(out) :: this
 
     !> (4, nAtom) array with coordinates and charges
     real(dp), intent(in) :: coordsAndCharges(:,:)
@@ -108,56 +117,57 @@ contains
 
     real(dp), allocatable :: dummy(:,:)
 
-    nChrg_ = size(coordsAndCharges, dim=2)
+    this%nChrg = size(coordsAndCharges, dim=2)
 
     @:ASSERT(size(coordsAndCharges, dim=1) == 4)
-    @:ASSERT(nChrg_ > 0)
+    @:ASSERT(this%nChrg > 0)
     @:ASSERT(present(latVecs) .eqv. present(recVecs))
-    print *, present(latVecs), present(ewaldCutoff)
     @:ASSERT(present(latVecs) .eqv. present(ewaldCutoff))
     @:ASSERT(present(latVecs) .neqv. present(blurWidths))
 #:call ASSERT_CODE
     if (present(blurWidths)) then
-      @:ASSERT(size(blurWidths) == nChrg_)
+      @:ASSERT(size(blurWidths) == this%nChrg)
     end if
 #:endcall ASSERT_CODE
 
-    nAtom_ = nAtom
-    allocate(coords_(3, nChrg_))
-    coords_ = coordsAndCharges(1:3,:)
-    allocate(charges_(nChrg_))
-    charges_ = -1.0_dp * coordsAndCharges(4,:)
-    allocate(invRVec_(nAtom))
-    tPeriodic_ = present(latVecs)
-    if (tPeriodic_) then
+    this%nAtom = nAtom
+    allocate(this%coords(3, this%nChrg))
+    this%coords = coordsAndCharges(1:3,:)
+    allocate(this%charges(this%nChrg))
+    this%charges = -1.0_dp * coordsAndCharges(4,:)
+    allocate(this%invRVec(nAtom))
+    this%tPeriodic = present(latVecs)
+    if (this%tPeriodic) then
       !! Fold charges back to unit cell
-      call foldCoordToUnitCell(coords_, latVecs, recVecs / (2.0_dp * pi))
+      call foldCoordToUnitCell(this%coords, latVecs, recVecs / (2.0_dp * pi))
 
       !! Creating the real lattice for the Ewald summation (no neighbor list) The reciprocal part
       !! will be passed from the SCC module, since it is also needed there.
-      call getCellTranslations(dummy, rCellVec_, latVecs, recVecs/(2.0_dp*pi), &
-          & ewaldCutoff)
+      call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs/(2.0_dp*pi), ewaldCutoff)
     else
       !! Create blurring array for the cluster modell
       if (present(blurWidths)) then
-        tBlur_ = any(abs(blurWidths) > 1.0e-7_dp)
+        this%tBlur = any(abs(blurWidths) > 1.0e-7_dp)
       else
-        tBlur_ = .false.
+        this%tBlur = .false.
       end if
-      if (tBlur_) then
-        allocate(blurWidths_(nChrg_))
-        blurWidths_ = blurWidths
+      if (this%tBlur) then
+        allocate(this%blurWidths(this%nChrg))
+        this%blurWidths = blurWidths
       end if
     end if
 
-    tUpdated_ = .false.
-    tInitialized_ = .true.
+    this%tUpdated = .false.
+    this%tInitialized = .true.
 
-  end subroutine init_ExtChrg
+  end subroutine TExtCharge_init
 
 
   !> Updates the module, if the lattice vectors had been changed
-  subroutine updateLatVecs_ExtChrg(latVecs, recVecs, ewaldCutoff)
+  subroutine updateLatVecs(this, latVecs, recVecs, ewaldCutoff)
+
+    !> External charges structure
+    class(TExtCharge), intent(inout) :: this
 
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -170,41 +180,46 @@ contains
 
     real(dp), allocatable :: dummy(:,:)
 
-    @:ASSERT(tInitialized_ .and. tPeriodic_)
+    @:ASSERT(this%tInitialized .and. this%tPeriodic)
 
     !! Fold charges back to unit cell
-    call foldCoordToUnitCell(coords_, latVecs, recVecs / (2.0_dp * pi))
-    call getCellTranslations(dummy, rCellVec_, latVecs, &
-        & recVecs / (2.0_dp * pi), ewaldCutoff)
+    call foldCoordToUnitCell(this%coords, latVecs, recVecs / (2.0_dp * pi))
+    call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs / (2.0_dp * pi), ewaldCutoff)
 
-  end subroutine updateLatVecs_ExtChrg
+  end subroutine updateLatVecs
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoords_ExtChrg_cluster(atomCoords)
+  subroutine updateCoordsCluster(this, atomCoords)
+
+    !> External charges structure
+    class(TExtCharge), intent(inout) :: this
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
 
-    @:ASSERT(tInitialized_)
-    @:ASSERT(.not. tPeriodic_)
+    @:ASSERT(this%tInitialized)
+    @:ASSERT(.not. this%tPeriodic)
     @:ASSERT(size(atomCoords, dim=1) == 3)
-    @:ASSERT(size(atomCoords, dim=2) >= nAtom_)
+    @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
-    if (tBlur_) then
-      call sumInvR(invRVec_, nAtom_, nChrg_, atomCoords, coords_, charges_, &
-          &blurWidths1=blurWidths_)
+    if (this%tBlur) then
+      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & blurWidths1=this%blurWidths)
     else
-      call sumInvR(invRVec_, nAtom_, nChrg_, atomCoords, coords_, charges_)
+      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges)
     end if
 
-    tUpdated_ = .true.
+    this%tUpdated = .true.
 
-  end subroutine updateCoords_ExtChrg_cluster
+  end subroutine updateCoordsCluster
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoords_ExtChrg_periodic(atomCoords, gLat, alpha, volume)
+  subroutine updateCoordsPeriodic(this, atomCoords, gLat, alpha, volume)
+
+    !> External charges structure
+    class(TExtCharge), intent(inout) :: this
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -218,50 +233,42 @@ contains
     !> Cell volume
     real(dp), intent(in) :: volume
 
-    @:ASSERT(tInitialized_)
-    @:ASSERT(tPeriodic_)
+    @:ASSERT(this%tInitialized)
+    @:ASSERT(this%tPeriodic)
     @:ASSERT(size(atomCoords, dim=1) == 3)
-    @:ASSERT(size(atomCoords, dim=2) >= nAtom_)
+    @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
     @:ASSERT(size(gLat, dim=1) == 3)
 
-    call sumInvR(invRVec_, nAtom_, nChrg_, atomCoords, coords_, charges_, &
-        &rCellVec_, gLat, alpha, volume)
+    call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+        & this%rCellVec, gLat, alpha, volume)
 
-    tUpdated_ = .true.
+    this%tUpdated = .true.
 
-  end subroutine updateCoords_ExtChrg_periodic
+  end subroutine updateCoordsPeriodic
 
 
   !> Adds the contribution of the external charges to the shift vector
-  subroutine addShift1(shift)
+  subroutine addShiftPerAtom(this, shift)
+
+    !> External charges structure
+    class(TExtCharge), intent(in) :: this
 
     !> Shift vector to add the contribution to.
     real(dp), intent(inout) :: shift(:)
 
-    @:ASSERT(tInitialized_ .and. tUpdated_)
-    @:ASSERT(size(shift) == nAtom_)
+    @:ASSERT(this%tInitialized .and. this%tUpdated)
+    @:ASSERT(size(shift) == this%nAtom)
 
-    shift(:) = shift(:) + invRVec_(:)
+    shift(:) = shift + this%invRVec
 
-  end subroutine addShift1
-
-
-  !> Adds the contribution of the external charges to the shift vector
-  subroutine addShift2(shift)
-
-    !> Shift vector to add the contribution to.
-    real(dp), intent(inout) :: shift(:,:)
-
-    @:ASSERT(tInitialized_ .and. tUpdated_)
-    @:ASSERT(size(shift) == nAtom_)
-
-    shift(:,1) = shift(:,1) + invRVec_(:)
-
-  end subroutine addShift2
+  end subroutine addShiftPerAtom
 
 
   !> Adds the atomic energy contribution do to the external charges.
-  subroutine addEnergyPerAtom_ExtChrg(atomCharges, energy)
+  subroutine addEnergyPerAtom(this, atomCharges, energy)
+
+    !> External charges structure
+    class(TExtCharge), intent(in) :: this
 
     !> Charge of the atoms
     real(dp), intent(in) :: atomCharges(:)
@@ -269,18 +276,21 @@ contains
     !> Vector containing the energy per atom values.
     real(dp), intent(inout) :: energy(:)
 
-    @:ASSERT(tInitialized_ .and. tUpdated_)
-    @:ASSERT(size(atomCharges) == nAtom_)
-    @:ASSERT(size(energy) == nAtom_)
+    @:ASSERT(this%tInitialized .and. this%tUpdated)
+    @:ASSERT(size(atomCharges) == this%nAtom)
+    @:ASSERT(size(energy) == this%nAtom)
 
-    energy(:) = energy(:) + invRVec_(:) * atomCharges(:)
+    energy(:) = energy(:) + this%invRVec(:) * atomCharges(:)
 
-  end subroutine addEnergyPerAtom_ExtChrg
+  end subroutine addEnergyPerAtom
 
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDCSCC_ExtChrg_cluster(atomForces, chrgForces, atomCoords, atomCharges)
+  subroutine addForceDcCluster(this, atomForces, chrgForces, atomCoords, atomCharges)
+
+    !> External charges structure
+    class(TExtCharge), intent(in) :: this
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
@@ -295,25 +305,28 @@ contains
     real(dp), intent(in) :: atomCharges(:)
 
     @:ASSERT(size(atomForces, dim=1) == 3)
-    @:ASSERT(size(atomForces, dim=2) == nAtom_)
+    @:ASSERT(size(atomForces, dim=2) == this%nAtom)
     @:ASSERT(size(atomCoords, dim=1) == 3)
-    @:ASSERT(size(atomCoords, dim=2) == nAtom_)
+    @:ASSERT(size(atomCoords, dim=2) == this%nAtom)
 
-    if (tBlur_) then
-      call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, atomCoords, &
-          &coords_, atomCharges, charges_, blurWidths1=blurWidths_)
+    if (this%tBlur) then
+      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, atomCoords, &
-          &coords_, atomCharges, charges_)
+      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges)
     end if
 
-  end subroutine addForceDCSCC_ExtChrg_cluster
+  end subroutine addForceDcCluster
 
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDCSCC_ExtChrg_periodic(atomForces, chrgForces, atomCoords, atomCharges, gVec, &
-      & alpha, vol)
+  subroutine addForceDcPeriodic(this, atomForces, chrgForces, atomCoords, atomCharges, gVec, alpha,&
+      & vol)
+
+    !> External charges structure
+    class(TExtCharge), intent(in) :: this
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
@@ -337,14 +350,13 @@ contains
     real(dp), intent(in) :: vol
 
     @:ASSERT(size(atomForces, dim=1) == 3)
-    @:ASSERT(size(atomForces, dim=2) == nAtom_)
+    @:ASSERT(size(atomForces, dim=2) == this%nAtom)
     @:ASSERT(size(atomCoords, dim=1) == 3)
-    @:ASSERT(size(atomCoords, dim=2) >= nAtom_)
+    @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
-    call addInvRPrime(atomForces, chrgForces, nAtom_, nChrg_, &
-        &atomCoords, coords_, atomCharges, charges_, rCellVec_, gVec, alpha, &
-        &vol)
+    call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
+        & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
 
-  end subroutine addForceDCSCC_ExtChrg_periodic
+  end subroutine addForceDcPeriodic
 
 end module ExternalCharges

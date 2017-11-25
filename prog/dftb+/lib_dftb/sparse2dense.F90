@@ -22,7 +22,6 @@ module sparse2dense
   use blacsenv
 #:endif
   implicit none
-
   private
 
   public :: unpackHS, packHS, iPackHS, packErho
@@ -89,7 +88,7 @@ contains
   !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
-  subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, &
+  subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
       & iAtomStart, iPair, img2CentCell)
 
     !> Square form matrix on exit.
@@ -156,13 +155,11 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) &
-              &* dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = &
-            & square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) + phase &
-            & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
+        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
+            & + phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
       end do
     end do
 
@@ -222,8 +219,7 @@ contains
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
-        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = &
-            & square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) &
+        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) &
             & + reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
       end do
     end do
@@ -305,16 +301,15 @@ contains
       work(ii,ii+1:) = conjg(work(ii+1:,ii))
     end do
 
-    HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-        & + 0.5_dp * work(1:nOrb,1:nOrb)
+    HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) + 0.5_dp * work(1:nOrb,1:nOrb)
     if (present(iHam)) then
       call unpackHS(work,iHam(:,2),kPoint,iNeighbor,nNeighbor,iCellVec, &
           & cellVec,iAtomStart,iPair, img2CentCell)
       do ii = 1, nOrb
         work(ii,ii+1:) = -conjg(work(ii+1:,ii))
       end do
-      HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-          & + 0.5_dp *cmplx(0,1,dp)* work(1:nOrb,1:nOrb)
+      HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) + 0.5_dp * cmplx(0,1,dp)&
+          & * work(1:nOrb,1:nOrb)
     end if
 
     ! 0 -i y part
@@ -325,8 +320,8 @@ contains
       work(ii,ii+1:) = conjg(work(ii+1:,ii))
     end do
 
-    HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-        & + cmplx(0.0,0.5,dp) * work(1:nOrb,1:nOrb)
+    HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) + cmplx(0.0,0.5,dp)&
+        & * work(1:nOrb,1:nOrb)
     if (present(iHam)) then
       call unpackHS(work,iHam(:,3),kPoint,iNeighbor,nNeighbor,iCellVec, &
           & cellVec,iAtomStart,iPair, img2CentCell)
@@ -337,8 +332,7 @@ contains
         work(ii+1:,ii) = -conjg(work(ii,ii+1:))
       end do
 
-      HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) &
-          & - 0.5_dp * work(1:nOrb,1:nOrb)
+      HSqrCplx(nOrb+1:2*nOrb,1:nOrb) = HSqrCplx(nOrb+1:2*nOrb,1:nOrb) - 0.5_dp * work(1:nOrb,1:nOrb)
     end if
 
     ! 1  0 z part
@@ -415,7 +409,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (complex version).
-  subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
+  subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -495,13 +489,12 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0,-1,dp) &
-              &* dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
 
-        !! Hermitian the on-site block before packing, just in case
+        ! Hermitian the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
             tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
@@ -509,18 +502,16 @@ contains
         end if
 
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
-            &+ kWeight &
-            &* real(phase &
-            &* reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1*nOrb2]), dp)
+        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
+            &+ kWeight * real(phase * reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1*nOrb2]), dp)
       end do
     end do
+
   end subroutine packHS_cmplx
 
 
   !> Pack squared matrix in the sparse form (real version).
-  subroutine packHS_real(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
+  subroutine packHS_real(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -553,14 +544,14 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: tmpSqr(mOrb,mOrb)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     integer :: sizePrim
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     sizePrim = size(primitive)
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -587,16 +578,16 @@ contains
         end if
 
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
-            &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
-            &+ reshape(tmpSqr(1:nOrb2,1:nOrb1), [nOrb1*nOrb2])
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(tmpSqr(1:nOrb2,1:nOrb1), [nOrb1 * nOrb2])
       end do
     end do
+
   end subroutine packHS_real
 
 
   !> Pack squared matrix in the sparse form (real Pauli version).
-  subroutine packHSPauli(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
+  subroutine packHSPauli(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -634,8 +625,8 @@ contains
 #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
-    ! spin block
+    ! number of orbitals in a regular spin block
+    nOrb = (iAtomStart(nAtom+1) - 1)
 
 #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -662,8 +653,7 @@ contains
           tmpSqr(1:nOrb2, 1:nOrb1) = &
               & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
               & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
-          ! Hermitian the on-site block before packing, as only one triangle
-          ! usually supplied
+          ! Hermitian the on-site block before packing, as only one triangle usually supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
@@ -692,11 +682,8 @@ contains
         @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         ! take the Hermitian part of the block
-        tmpSqr(1:nOrb2, 1:nOrb1) = &
-            & 0.5_dp * (square(jj+nOrb:jj+nOrb2-1+nOrb, &
-            & ii:ii+nOrb1-1) &
-            & + transpose(square(nOrb+ii:nOrb+ii+nOrb1-1, &
-            & jj:jj+nOrb2-1)))
+        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * (square(jj+nOrb:jj+nOrb2-1+nOrb,ii:ii+nOrb1-1)&
+            & + transpose(square(nOrb+ii:nOrb+ii+nOrb1-1,jj:jj+nOrb2-1)))
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) = &
             &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) &
@@ -711,7 +698,7 @@ contains
 
 
   !> Pack squared matrix into the sparse form (complex Pauli version).
-  subroutine packHSPauli_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
+  subroutine packHSPauli_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -764,8 +751,8 @@ contains
 #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
-    ! spin block
+    ! number of orbitals in a regular spin block
+    nOrb = (iAtomStart(nAtom+1) - 1)
 
 #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -798,15 +785,12 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0,-1,dp) &
-                &* dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
             iOldVec = iVec
           end if
-          tmpSqr(1:nOrb2, 1:nOrb1) = &
-              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
+          tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
               & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
-          ! Hermitian the on-site block before packing, as only one triangle
-          ! usually supplied
+          ! Hermitian the on-site block before packing, as only one triangle usually supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
@@ -841,41 +825,34 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0,-1,dp) &
-              &* dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
-        ! take the Pauli part of the block
 
+        ! take the Pauli part of the block
+        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * (square(jj+nOrb:jj+nOrb2-1+nOrb, ii:ii+nOrb1-1)&
+            & + conjg(transpose(square(nOrb+ii:nOrb+ii+nOrb1-1, jj:jj+nOrb2-1))))
+        if (iAtom1 == iAtom2f) then
+          ! make up the other side of the on-site block
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk+1:nOrb1, kk)
+          end do
+        end if
+        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2) = &
+            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2)&
+            & + kWeight * reshape(real(phase * tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
         tmpSqr(1:nOrb2, 1:nOrb1) = &
-            & 0.5_dp * (square(jj+nOrb:jj+nOrb2-1+nOrb, &
-            & ii:ii+nOrb1-1) &
-            & + conjg(transpose(square(nOrb+ii:nOrb+ii+nOrb1-1, &
-            & jj:jj+nOrb2-1))))
+            & 0.5_dp * (square(jj + nOrb : jj + nOrb2 - 1 + nOrb, ii : ii + nOrb1 - 1) &
+            & - conjg(transpose(square(nOrb +ii : nOrb + ii + nOrb1 - 1, jj : jj + nOrb2 - 1))))
         if (iAtom1 == iAtom2f) then !make up the other side of the on-site block
           do kk = 1, nOrb2
             tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk+1:nOrb1, kk)
           end do
         end if
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) = &
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) &
-            & + kWeight*reshape( &
-            & real(phase*tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
-        tmpSqr(1:nOrb2, 1:nOrb1) = &
-            & 0.5_dp * (square(jj+nOrb:jj+nOrb2-1+nOrb, &
-            & ii:ii+nOrb1-1) &
-            & - conjg(transpose(square(nOrb+ii:nOrb+ii+nOrb1-1, &
-            & jj:jj+nOrb2-1))))
-        if (iAtom1 == iAtom2f) then !make up the other side of the on-site block
-          do kk = 1, nOrb2
-            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk+1:nOrb1, kk)
-          end do
-        end if
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) = &
-            &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) &
-            & + kWeight*reshape( &
-            & aimag(phase*tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3) = &
+            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3)&
+            & + kWeight*reshape(aimag(phase * tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
       end do
     end do
 
@@ -883,7 +860,7 @@ contains
 
 
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form.
-  subroutine packHSPauliImag(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
+  subroutine packHSPauliImag(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -921,8 +898,9 @@ contains
 #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
-    ! spin block
+    ! number of orbitals in a regular spin block
+    nOrb = (iAtomStart(nAtom+1) - 1)
+
 
 #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -946,24 +924,22 @@ contains
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
-          tmpSqr(1:nOrb2, 1:nOrb1) = &
-              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
-              & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
-          ! Hermitian the on-site block before packing, as only one triangle
-          ! usually supplied
+          tmpSqr(1:nOrb2, 1:nOrb1) = square(jj + iBlock *nOrb :jj + nOrb2 - 1 + iBlock * nOrb, &
+              & ii + iBlock * nOrb : ii + nOrb1 - 1 + iBlock * nOrb)
+          ! Hermitian the on-site block before packing, as only one triangle usually supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
           @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
-          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) = &
-              &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) &
-              &+ 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
-          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4) = &
-              &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4) &
-              & + real(1-2*iBlock,dp) * &
-              & 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 1) =&
+              & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1)&
+              & + 0.5_dp * reshape(aimag(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4) =&
+              & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4)&
+              & + real(1-2*iBlock,dp)&
+              & * 0.5_dp * reshape(aimag(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
         end do
       end do
     end do
@@ -979,18 +955,17 @@ contains
         @:ASSERT(jj >= ii)
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         ! take the anti-Hermitian part of the block
-        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( &
-            & square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1) &
+        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1)&
             & - transpose(square(nOrb+ii:nOrb+ii+nOrb1-1,jj:jj+nOrb2-1)))
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
         ! sigma_x : i * 1 = i use + imaginary part of block
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) = &
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) &
-            & + reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) =&
+            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1,2) &
+            & + reshape(aimag(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
         ! sigma_y : i * i = -1 use - real part of block
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) = &
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) &
-            & -reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) =&
+            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3)&
+            & -reshape(real(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
       end do
     end do
 
@@ -998,7 +973,7 @@ contains
 
 
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form (complex version).
-  subroutine packHSPauliImag_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
+  subroutine packHSPauliImag_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -1051,8 +1026,8 @@ contains
 #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
-    ! spin block
+    ! number of orbitals in a regular spin block
+    nOrb = (iAtomStart(nAtom+1) - 1)
 
 #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -1085,15 +1060,12 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0,-1,dp) &
-                &* dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
             iOldVec = iVec
           end if
-          tmpSqr(1:nOrb2, 1:nOrb1) = &
-              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
+          tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
               & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
-          ! Hermitian the on-site block before packing, as only one triangle
-          ! usually supplied
+          ! Hermitian the on-site block before packing, as only one triangle usually supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
@@ -1101,12 +1073,12 @@ contains
           end if
           tmpSqr = phase*kWeight*tmpSqr
           @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
-          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) = &
-              &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) &
-              &+ 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
-          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4) = &
-              &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4) &
-              & + real(1-2*iBlock,dp) * &
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1) =&
+              & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,1)&
+              & + 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4) =&
+              & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,4)&
+              & + real(1-2*iBlock,dp) *&
               & 0.5_dp*reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
         end do
       end do
@@ -1133,25 +1105,22 @@ contains
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
 
         ! take the anti-Hermitian part of the block
-        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( &
-            & square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1) &
+        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1)&
             & + conjg(transpose(square(nOrb+ii:nOrb+ii+nOrb1-1,jj:jj+nOrb2-1))))
         tmpSqr = phase*kWeight*tmpSqr
         ! sigma_x : i * 1 = i use + imaginary part of block
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) = &
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) &
-            & +reshape(aimag(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,2) =&
+            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2)&
+            & + reshape(aimag(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
 
         ! take the anti-Hermitian part of the block
-        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * ( &
-            & square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1) &
+        tmpSqr(1:nOrb2, 1:nOrb1) = 0.5_dp * (square(nOrb+jj:nOrb+jj+nOrb2-1, ii:ii+nOrb1-1)&
             & - conjg(transpose(square(nOrb+ii:nOrb+ii+nOrb1-1,jj:jj+nOrb2-1))))
         tmpSqr = phase*kWeight*tmpSqr
         ! sigma_y : i * i = -1 use - real part of block
-        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) = &
-            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) &
-            & -reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
-
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1,3) =&
+            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3) &
+            & -reshape(real(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
       end do
     end do
 
@@ -1159,7 +1128,7 @@ contains
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
-  subroutine packHSPauliERho(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair, &
+  subroutine packHSPauliERho(primitive, square, iNeighbor, nNeighbor, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -1197,7 +1166,8 @@ contains
 #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular spin block
+    ! number of orbitals in a regular spin block
+    nOrb = (iAtomStart(nAtom+1) - 1)
 
 #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
@@ -1219,21 +1189,18 @@ contains
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
-          nOrb2 = iAtomStart(iAtom2f + 1) - jj
-          tmpSqr(1:nOrb2, 1:nOrb1) = &
-              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
+          nOrb2 = iAtomStart(iAtom2f+1) - jj
+          tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
               & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
-          ! Symmetrize the on-site block before packing, as only one
-          ! triangle supplied
+          ! Symmetrize the on-site block before packing, as only one triangle supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
             end do
           end if
           @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
-          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = &
-              &primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) &
-              & + reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), [nOrb1*nOrb2])
+          primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
+              & + reshape(real(tmpSqr(1:nOrb2,1:nOrb1)), (/nOrb1*nOrb2/))
         end do
       end do
     end do
@@ -1242,7 +1209,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real version).
-  subroutine packHSPauliERho_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb, &
+  subroutine packHSPauliERho_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighbor, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -1295,8 +1262,9 @@ contains
 #:endcall ASSERT_CODE
 
     nAtom = size(iNeighbor, dim=2)
-    nOrb = (iAtomStart(nAtom+1) - 1) ! number of orbitals in a regular
-    ! spin block
+    ! number of orbitals in a regular spin block
+    nOrb = (iAtomStart(nAtom+1) - 1)
+
 #:call ASSERT_CODE
     sizePrim = size(primitive,dim=1)
 #:endcall ASSERT_CODE
@@ -1326,15 +1294,12 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0,-1,dp) &
-                &* dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(cmplx(0,-1,dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
             iOldVec = iVec
           end if
-          tmpSqr(1:nOrb2, 1:nOrb1) = &
-              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, &
+          tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
               & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
-          ! Symmetrize the on-site block before packing, as only one
-          ! triangle supplied
+          ! Symmetrize the on-site block before packing, as only one triangle supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
               tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
@@ -1373,8 +1338,7 @@ contains
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
       iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = &
-          & transpose(square(iEnd+1:mOrb,iStart:iEnd))
+      square(iStart:iEnd, iEnd+1:mOrb) = transpose(square(iEnd+1:mOrb,iStart:iEnd))
     end do
 
   end subroutine blockSymmetrizeHS_cmplx
@@ -1402,8 +1366,7 @@ contains
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
       iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = &
-          & transpose(conjg(square(iEnd+1:mOrb,iStart:iEnd)))
+      square(iStart:iEnd, iEnd+1:mOrb) = transpose(conjg(square(iEnd+1:mOrb,iStart:iEnd)))
     end do
 
   end subroutine blockHermitianHS_cmplx
@@ -1430,14 +1393,13 @@ contains
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
       iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = &
-          & transpose(square(iEnd+1:mOrb,iStart:iEnd))
+      square(iStart:iEnd, iEnd+1:mOrb) = transpose(square(iEnd+1:mOrb,iStart:iEnd))
     end do
 
   end subroutine blockSymmetrizeHS_real
 
 
-  !> Anti-symmetrize a squared matrix leaving the on-site atomic blocks alone.  (Real version)
+  !> Anti-symmetrize a squared matrix leaving the on-site atomic blocks alone. (Real version)
   subroutine blockAntiSymmetrizeHS_real(square, iAtomStart)
 
     !> Square form matrix.
@@ -1458,8 +1420,7 @@ contains
     do iAtom = 1, nAtom
       iStart = iAtomStart(iAtom)
       iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = &
-          & -transpose(square(iEnd+1:mOrb,iStart:iEnd))
+      square(iStart:iEnd, iEnd+1:mOrb) = -transpose(square(iEnd+1:mOrb,iStart:iEnd))
     end do
 
   end subroutine blockAntiSymmetrizeHS_real

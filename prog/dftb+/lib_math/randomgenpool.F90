@@ -17,6 +17,7 @@ module randomgenpool
   use environment
   use accuracy, only : dp
   use ranlux
+  use assert
   implicit none
   private
 
@@ -84,8 +85,6 @@ contains
     !> real temporary
     real(dp) :: rTmp
 
-    @:ASSERT(env%includesAllProcesses())
-
     if (env%tGlobalMaster) then
       if (seed < 1) then
         call system_clock(seed)
@@ -138,7 +137,6 @@ contains
     real(dp) :: rTmp
 
     @:ASSERT(this%served >= 0)
-    @:ASSERT(env%includesAllProcesses())
 
     ! First random generator returned needs special treatment to yield the same random numbers
     ! as the previous global random generator.
@@ -150,7 +148,7 @@ contains
     #:endif
       call move_alloc(this%generator, randomGenerator)
       allocate(this%generator)
-      call init(this%generator, seed)
+      call init(this%generator, initSeed=seed)
     else
       call getRandom(this%generator, rTmp)
       seed = int(real(huge(seed) - 1, dp) * rTmp) + 1

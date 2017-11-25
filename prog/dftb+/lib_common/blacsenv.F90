@@ -12,6 +12,7 @@ module blacsenv
   use mpienv
   use message
   use scalapackfx
+  use assert
   implicit none
   private
 

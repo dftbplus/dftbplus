@@ -9,6 +9,7 @@
 
 !> Linked list for single integers
 module linkedlisti0
+  use assert
   implicit none
   private
 

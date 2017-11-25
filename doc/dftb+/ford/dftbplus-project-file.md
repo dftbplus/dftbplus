@@ -4,6 +4,7 @@ macro:
         DEBUG=2
         WITH_ARPACK=1
         WITH_DFTD3=1
+        WITH_SOCKETS=1
 preprocess:
         true
 src_dir:

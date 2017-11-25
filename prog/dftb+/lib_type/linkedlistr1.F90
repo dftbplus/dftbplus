@@ -10,6 +10,7 @@
 !> Linked list for real vectors
 module linkedlistr1
   use accuracy, only : dp
+  use assert
   implicit none
   private
 
