@@ -14,6 +14,9 @@ module inputdata_module
   use typegeometry
   use message
   use dispersions, only : DispersionInp
+#:if WITH_MBD
+  use mbd
+#:endif
   use linresp_module, only : linrespini
   use slakocont
   use commontypes
@@ -359,6 +362,10 @@ module inputdata_module
     !> Dispersion related stuff
     type(DispersionInp), allocatable :: dispInp
 
+  #:if WITH_MBD
+    !> Many-body dispersion
+    type(TMbdInit), allocatable :: mbdInp
+  #:endif
 
     !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)

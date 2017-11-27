@@ -23,6 +23,18 @@ lapack.o = lapack.o $(_mod_accuracy)
 _mod_lapack: lapack.o
 _mod_lapack = $(lapack.o)
 
+#:if WITH_MBD
+mbd.o: common.fypp _mod_libmbd
+mbd.o = mbd.o $(common.fypp) $(_mod_libmbd)
+_mod_mbd: mbd.o
+_mod_mbd = $(mbd.o)
+#:else
+mbd.o: common.fypp
+mbd.o = mbd.o $(common.fypp)
+_mod_mbd: mbd.o
+_mod_mbd = $(mbd.o)
+#:endif
+
 #:if WITH_MPI
 mpifx.o: common.fypp _mod_libmpifx_module
 mpifx.o = mpifx.o $(common.fypp) $(_mod_libmpifx_module)
@@ -51,4 +63,3 @@ xmlf90.o: _mod_m_strings _mod_flib_dom _mod_flib_wxml
 xmlf90.o = xmlf90.o $(_mod_m_strings) $(_mod_flib_dom) $(_mod_flib_wxml)
 _mod_xmlf90: xmlf90.o
 _mod_xmlf90 = $(xmlf90.o)
-

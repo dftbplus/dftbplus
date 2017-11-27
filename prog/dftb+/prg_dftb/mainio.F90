@@ -55,8 +55,8 @@ module mainio
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
-  public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
-  public :: writeDetailedOut5
+  public :: writeDetailedOut1, writeDetailedOut1a, writeDetailedOut2, writeDetailedOut3
+  public :: writeDetailedOut4, writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
   public :: writeCurrentGeometry, writeFinalDriverStatus
@@ -2184,8 +2184,8 @@ contains
   subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
-      & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc)
+      & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, tEField, nSpin,&
+      & tSpinOrbit, tScc)
 
     !> File  ID
     integer, intent(in) :: fd
@@ -2286,23 +2286,8 @@ contains
     !> Zero temperature extrapolated electron energy
     real(dp), intent(in) :: E0(:)
 
-    !> External pressure
-    real(dp), intent(in) :: pressure
-
-    !> Unit cell volume
-    real(dp), intent(in) :: cellVol
-
-    !> Are atom resolved energies required
-    logical, intent(in) :: tAtomicEnergy
-
-    !> Are dispersion interactions included
-    logical, intent(in) :: tDispersion
-
     !> Is there an external electric field
     logical, intent(in) :: tEfield
-
-    !> Is the system periodic
-    logical, intent(in) :: tPeriodic
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
@@ -2624,23 +2609,66 @@ contains
 
     write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', &
         & energy%Eelec * Hartree__eV, 'eV'
+
+  end subroutine writeDetailedOut1
+
+
+  !> Further information to go to detailed.out
+  subroutine writeDetailedOut1a(fd, energy, tDispersion, tManyBodyDisp, tPeriodic, tAtomicEnergy,&
+      & pressure)
+
+    !> File  ID
+    integer, intent(in) :: fd
+
+    !> Energy terms in the system
+    type(TEnergies), intent(in) :: energy
+
+    !> Are dispersion interactions included
+    logical, intent(in) :: tDispersion
+
+    !> Are many-body dispersion interactions included
+    logical, intent(in) :: tManyBodyDisp
+
+    !> Is the system periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Are atom resolved energies required
+    logical, intent(in) :: tAtomicEnergy
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    integer :: nAtom
+    integer :: iAt
+
+    nAtom = size(energy%atomElec)
+
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
     if (tDispersion) then
-      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
-          & energy%eDisp * Hartree__eV, 'eV'
+      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+    end if
+
+    if (tManyBodyDisp) then
+      write(fd, format2U) 'Many-body dispersion energy', energy%eMbd, 'H',&
+          & energy%eMbd * Hartree__eV, 'eV'
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
-        & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    write(fd, format2U) 'Total Mermin free energy', energy%Emermin, 'H',&
+        & energy%Emermin * Hartree__eV, 'eV'
     if (tPeriodic .and. pressure /= 0.0_dp) then
-      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
-          & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
+      write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H', Hartree__eV * energy%EGibbs, 'eV'
     end if
     write(fd, *)
 
     if (tAtomicEnergy) then
+
+      ! MBD does not calculate any atomic contributions
+      if (tManyBodyDisp) then
+        call error("Many-body dispersion not compatible with atomic energy printing")
+      end if
+
       write(fd, "(A)") 'Atom resolved electronic energies '
       do iAt = 1, nAtom
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
@@ -2662,7 +2690,7 @@ contains
       write(fd, *)
     end if
 
-  end subroutine writeDetailedOut1
+  end subroutine writeDetailedOut1a
 
 
   !> Second group of data for detailed.out

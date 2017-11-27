@@ -1,0 +1,30 @@
+############################################################################
+# Makefile to compile the package within DFTB+
+#
+# Receives:
+#     ROOT: Root of the source directory
+#     BUILDROOT: Root of the build directory
+#
+############################################################################
+
+include $(ROOT)/make.config
+
+OBJDIR := $(BUILDROOT)/external/mbd
+SRCDIR := $(ROOT)/external/mbd
+STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
+
+.PHONY: all clean libmpifx
+all: libmbd
+	touch -r $(OBJDIR)/libmbd.a $(STAMPFILE)
+
+libmbd:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/lib/make.build \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)/origin/lib"
+
+clean:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/lib/make.build \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)/origin/lib" clean
+
+### Local Variables:
+### mode:makefile
+### End:

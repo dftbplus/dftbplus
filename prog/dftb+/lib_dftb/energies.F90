@@ -48,6 +48,9 @@ module energies
     !> Dispersion energy
     real(dp) :: eDisp   = 0.0_dp
 
+    !> Many-body dispersion energy
+    real(dp) :: eMbd = 0.0_dp
+
     !> Total 3rd order
     real(dp) :: e3rd    = 0.0_dp
 

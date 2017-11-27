@@ -39,6 +39,7 @@ module parser
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
+  use manybodydisp
   implicit none
 
   private
@@ -1890,6 +1891,18 @@ contains
       call error("Lattice optimization only applies for periodic structures.")
     end if
 
+    ! Many-body dispersion
+    call getChildValue(node, "ManyBodyDispersion", value, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value)) then
+    #:if WITH_MBD
+      allocate(ctrl%mbdInp)
+      call readManyBodyDisp(child, geo, ctrl%mbdInp)
+    #:else
+      call detailedError(child, "Code was compiled without many-body dispersion support")
+    #:endif
+    end if
+
     ! Third order stuff
     ctrl%t3rd = .false.
     ctrl%t3rdFull = .false.
@@ -2874,6 +2887,58 @@ contains
     input%numgrad = .false.
 
   end subroutine readDispDFTD3
+
+#:endif
+
+
+#:if WITH_MBD
+
+  subroutine readManyBodyDisp(node, geo, input)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> geometry, including atomic information
+    type(TGeometry), intent(in) :: geo
+
+    !> dispersion data on exit
+    type(TMbdInit), intent(out) :: input
+
+    type(string) :: buffer
+    type(fnode), pointer :: model
+    integer  :: axis(3)
+    integer  :: tmp(3)
+    real(dp) :: tmp2(3)
+
+    call getChildValue(node, "", model)
+    call getNodeName(model, buffer)
+    select case (char(buffer))
+    case ("ts")
+      input%only_ts_energy = .true.
+    case ("mbd")
+      input%only_ts_energy = .false.
+    case default
+      call detailedError(model, "Invalid MBD model name.")
+    end select
+    call getChildValue(model, "TSEnergyAccuracy", input%ts_ene_acc, 1e-7_dp)
+    call getChildValue(model, "TSForceAccuracy", input%ts_f_acc, 1e-6_dp)
+    call getChildValue(model, "TSDamp", input%ts_d, 20.0_dp)
+    call getChildValue(model, "TSRangeSep", input%ts_s_r, 0.94_dp)
+    call getChildValue(model, "Beta", input%beta, 0.83_dp)
+    call getChildValue(model, "NOmegaGrid", input%n_omega_grid, 15)
+    call getChildValue(model, "KGrid", input%k_grid, tmp)
+    tmp(:) = 0
+    tmp2(:) = 0.5_dp
+    call getChildValue(model, "KGridShift", input%k_grid_shift, tmp2)
+    call getChildValue(model, "VacuumAxis", axis, tmp)
+    if (axis(1) > 0) input%vacuum_axis(1) = .true.
+    if (axis(2) > 0) input%vacuum_axis(2) = .true.
+    if (axis(3) > 0) input%vacuum_axis(3) = .true.
+    call getChildValue(model, "Debug", input%mbd_debug, .false.)
+    call getChildValue(model, "Params", buffer, 'ts')
+    input%params = char(buffer)
+
+  end subroutine readManyBodyDisp
 
 #:endif
 

@@ -24,9 +24,20 @@ check: check_dptools
 
 include make.config
 
+################################################################################
+# Sanity checks
+################################################################################
+
 # Check whether DEBUG level is correct
 ifeq ($(filter 0 1 2,$(strip $(DEBUG))),)
   $(error 'Invalid value $(DEBUG) for DEBUG (must be 0, 1 or 2)')
+endif
+
+# Whether MPI is turned on when using MBD
+ifeq ($(strip $(WITH_MBD)),1)
+  ifneq ($(strip $(WITH_MPI)),1)
+    $(error 'Code must be compiled with MPI for many-body dispersion support')
+  endif
 endif
 
 ################################################################################
@@ -49,6 +60,9 @@ endif
 ifeq ($(strip $(WITH_MPI)),1)
 dftb+: external_mpifx external_scalapackfx
 endif
+ifeq ($(strip $(WITH_MBD)),1)
+dftb+: external_mbd
+endif
 modes: external_xmlf90
 waveplot: external_xmlf90
 
@@ -66,7 +80,7 @@ misc_skderivs: external_xmlf90
 EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx
+    external_scalapackfx external_mbd
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)

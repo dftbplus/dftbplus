@@ -127,6 +127,16 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
+# MBD
+ifeq ($(strip $(WITH_MBD)),1)
+  LIB_MBD = -L$(BUILDROOT)/external/mbd -lmbd
+  INC_MBD = -I$(BUILDROOT)/external/mbd
+  #L_LIBS += $(if $(filter _extlib_mbd, $^), $(LIB_MBD))
+  L_LIBS += -L$(BUILDROOT)/external/mbd -lmbd
+  L_INCS += $(INC_MBD)
+  FYPPOPT += -DWITH_MBD
+endif
+
 
 ifeq ($(strip $(WITH_MPI)),1)
   #

@@ -58,6 +58,7 @@ module initprogram
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
   use dispersions
+  use manybodydisp
   use thirdorder_module
   use linresp_module
   use stress
@@ -644,6 +645,12 @@ module initprogram
 
   !> dispersion data and calculations
   class(DispersionIface), allocatable :: dispersion
+
+  !> If many-body dispersion should be calculated
+  logical :: tManyBodyDisp
+
+  !> many-body dispersion data
+  type(TMbd), allocatable :: mbDispersion
 
   !> Can stress be calculated? - start by assuming it can
   logical :: tStress = .true.
@@ -1584,6 +1591,24 @@ contains
 
     end if
 
+    ! Many body dispersion
+    tManyBodyDisp = allocated(input%ctrl%mbdInp)
+    if (tManyBodyDisp) then
+    #:if WITH_MBD
+      allocate(mbDispersion)
+      input%ctrl%mbdInp%calculate_forces = tForces
+      if (tPeriodic) then
+        call mbdInit(mbDispersion, input%ctrl%mbdInp, env%mpi%globalComm, nAtom, species0,&
+            & referenceN0, orb%nShell, speciesName, latVec, recVec)
+      else
+        call mbdInit(mbDispersion, input%ctrl%mbdInp, env%mpi%globalComm, nAtom, species0,&
+            & referenceN0, orb%nShell, speciesName)
+      end if
+    #:else
+      call error("Internal error: code compiled without many-body dispersion support")
+    #:endif
+    end if
+
     if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
       tDipole = .true.
     else
@@ -2442,6 +2467,12 @@ contains
       end select
     end if
 
+  #:if WITH_MBD
+    if (tManyBodyDisp) then
+      call writeMbdInfo(input%ctrl%mbdInp)
+    end if
+  #:endif
+
     if (tSccCalc) then
       ! Have the SK values of U been replaced?
       if (allocated(input%ctrl%hubbU)) then
@@ -3228,6 +3259,76 @@ contains
     end if
 
   end subroutine getDenseDescCommon
+
+
+  !> Writes MBD-related info
+  subroutine writeMbdInfo(input)
+
+    !> MBD input parameters
+    type(TMbdInit), intent(in) :: input
+
+    character(80) :: tmpStr
+
+    write(stdOut, "(A)") ""
+    if (input%only_ts_energy) then
+      write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
+      write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+      select case (trim(input%params))
+      case ('tssurf')
+        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('TSSURF')
+        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('ts')
+        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      case ('TS')
+        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      case default
+        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      end select
+      write(stdOut, "(A)") "  Mode                      " // trim(adjustl(tmpStr))
+      write(tmpStr,"(E18.6)") input%ts_f_acc
+      write(stdOut, "(A)") '  TSForceAccuracy           ' // trim(adjustl(tmpStr))
+      write(tmpStr, "(E18.6)") input%ts_ene_acc
+      write(stdOut, "(A)") '  TSEnergyAccuracy          ' // trim(adjustl(tmpStr))
+    else
+      write(stdOut,"(A)") "Using MBD model [Phys. Rev. Lett. 108, 236402 (2012)]"
+      write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
+      select case (trim(input%params))
+      case ('tssurf')
+        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('TSSURF')
+        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('ts')
+        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      case ('TS')
+        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      case default
+        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      end select
+      write(stdOut,"(A)") "  Parameters                "//trim(adjustl(tmpStr))
+      write(stdOut,"(A)") '  Module                    mbdvdw'
+      write(stdOut,"(A)") '  MBD eigensolver           QR (LAPACK)'
+      if (all(input%vacuum_axis)) then
+        write(stdOut,"(A)") "  PBC for MBD               No"
+      else
+        write(tmpStr,"(3(L2,1X))") .not. input%vacuum_axis
+        write(stdOut,"(A)") "  PBC for MBD (x,y,z)       "//trim(adjustl(tmpStr))
+        write(tmpStr, "(3(I3,1X))") input%k_grid
+        write(stdOut,"(A)") "  MBD k-Grid                "//trim(adjustl(tmpStr))
+        write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
+        write(stdOut,"(A)") "  MBD k-Grid shift          "//trim(adjustl(tmpStr))
+      end if
+      write(tmpStr, "(I3)") input%n_omega_grid
+      write(stdOut, "(A)") "  Gridsize (frequencies)    "//trim(adjustl(tmpStr))
+    end if
+    if (input%mbd_debug) then
+      write(stdOut,"(A)") "  Full Debug printing       Yes"
+    else
+      write(stdOut,"(A)") "  Full Debug printing       No"
+    endif
+    write(stdOut,"(A)") ""
+
+  end subroutine writeMbdInfo
 
 
 

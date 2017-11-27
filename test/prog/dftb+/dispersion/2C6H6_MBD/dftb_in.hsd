@@ -1,0 +1,50 @@
+Geometry = GenFormat {
+<<< "geo_start.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-8
+  MaxSCCIterations = 100
+  Mixer = Broyden {
+    MixingParameter = 0.2
+  }
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+  Charge = 0.0
+  SpinPolarisation = {}
+  Eigensolver = DivideAndConquer {}
+  Filling = Fermi {
+    Temperature [Kelvin] = 0.0
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  ManyBodyDispersion = MBD{
+    Params = ts
+    NOmegaGrid = 15
+    Beta = 1.050000000000000
+    KGrid = { 2 2 2 }
+    VacuumAxis = { 1 1 1 }
+    Debug = Yes
+  }
+
+}
+
+Options = {
+  CalculateForces = Yes
+  WriteEigenvectors = Yes
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+  #WriteCPA = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 3
+}

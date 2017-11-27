@@ -41,6 +41,9 @@ module globalenv
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
+  !> Whether code was compiled with many-body dispersion support
+  logical, parameter :: withMbd = ${FORTRAN_LOGICAL(WITH_MBD)}$
+
 
 
 contains
