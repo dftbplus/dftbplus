@@ -34,6 +34,7 @@ module initprogram
   use conjgrad
   use steepdesc
   use gdiis
+  use lbfgs
 
   use randomgenpool
   use ranlux
@@ -842,6 +843,12 @@ contains
     !> gradient DIIS driver
     type(ODIIS), allocatable :: pDIIS
 
+    !> lBFGS driver for geometry  optimisation
+    type(Tlbfgs), allocatable :: pLBFGS
+
+    !> lBFGS driver for lattice optimisation
+    type(Tlbfgs), allocatable :: pLBFGSLat
+
     ! MD related local variables
     type(OThermostat), allocatable :: pThermostat
     type(ODummyThermostat), allocatable :: pDummyTherm
@@ -1486,6 +1493,11 @@ contains
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, &
             & input%ctrl%deltaGeoOpt, input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
+      case (4)
+        allocate(pLBFGS)
+        call init(pLBFGS, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp,&
+            & input%ctrl%lbfgsInp%memory)
+        call init(pGeoCoordOpt, pLBFGS)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
@@ -1505,7 +1517,12 @@ contains
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, &
             & input%ctrl%maxLatDisp)
-         call init(pGeoLatOpt, pConjGradLat)
+        call init(pGeoLatOpt, pConjGradLat)
+      case (4)
+        allocate(pLBFGSLat)
+        call init(pLBFGSLat, 9, input%ctrl%maxForce, &
+            & input%ctrl%maxLatDisp, input%ctrl%lbfgsInp%memory)
+        call init(pGeoLatOpt, pLBFGSLat)
       end select
       if (tLatOptIsotropic ) then ! optimization uses scaling factor
                                   ! of unit cell
@@ -2241,6 +2258,8 @@ contains
       case (3)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
             &// trim(strTmp)
+      case (4)
+        write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
       end select

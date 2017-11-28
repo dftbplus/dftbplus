@@ -53,6 +53,10 @@ module inputdata_module
 
   end type TParallelOpts
 
+  !> LBFGS input settings
+  type lbfgsInput
+    integer :: memory = 20
+  end type lbfgsInput
 
   !> Main control data for program as extracted by the parser
   type control
@@ -375,6 +379,10 @@ module inputdata_module
 
     type(linrespini) :: lrespini
 
+    !> LBFGS input
+    type(lbfgsInput), allocatable :: lbfgsInp
+
+
   #:if WITH_SOCKETS
     !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
@@ -386,7 +394,6 @@ module inputdata_module
     integer :: timingLevel
 
   end type control
-
 
   !> Atomistic geometry and boundary conditions of the system
   type geometry

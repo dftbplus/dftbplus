@@ -1,0 +1,40 @@
+Geometry = GenFormat {
+2  F
+ Si
+ 1    1    0.00 0.00 0.00
+ 2    1    0.23 0.27 0.20
+ 0.0  0.0  0.0
+ 3.0  3.0  0.0
+ 0.0  3.0  3.0
+ 3.0  0.0  3.0
+}
+Driver = Lbfgs {
+ MovedAtoms = {1 2}
+ LatticeOpt = Yes
+ FixAngles = Yes
+ MaxForceComponent = 1.0E-8
+}
+Hamiltonian = DFTB {
+  MaxAngularMomentum = {
+    Si = "p"
+  }
+  Eigensolver = Standard {}
+  Filling = Fermi {}
+  SlaterKosterFiles = {
+    Si-Si = "./Si-Si.skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   6 0 0
+   0 6 0
+   0 0 6
+   0.5 0.5 0.5
+  }
+}
+Options = {
+  WriteAutotestTag = Yes
+  AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 3
+}
