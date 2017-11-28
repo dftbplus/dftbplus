@@ -129,6 +129,7 @@ endif
 
 # MBD
 ifeq ($(strip $(WITH_MBD)),1)
+  COMPILED_EXTERNALS += _extlib_mbd
   LIB_MBD = -L$(BUILDROOT)/external/mbd -lmbd
   INC_MBD = -I$(BUILDROOT)/external/mbd
   #L_LIBS += $(if $(filter _extlib_mbd, $^), $(LIB_MBD))

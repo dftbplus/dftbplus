@@ -6,33 +6,23 @@ module manybodydisp
   use mpifx, only : mpifx_comm
   use accuracy
   use constants, only: pi, Bohr__AA, AA__Bohr, eV__Hartree, Hartree__eV
-  use mbd, only: TMbdInit, TMbd
+  use mbd
   use commontypes, only : TOrbitals
-
+  use message, only: error
   implicit none
   private
 
   public:: TMbdInit, TMbd
-
-#:if WITH_MBD
   public:: MBDinit, MBDupdateCoords, MBDupdateLatVecs
-  public:: MBDgetEnergy, MBDaddGradients, MBDcalculateCPA
-  ! Stress convention. Stress provided by MBD_API is in energy units per volume Positive stress
-  ! expands the unit cell, negative stress contracts it DOUBLE CHECK WITH YOUR CODE IF IT FOLLOWS
-  ! THE SAME CONVENTION (This is the convention used by DFTB+)
+  public:: MBDgetEnergy, MBDgetGradients, MBDcalculateCPA
   public:: MBDgetStress
-#:endif
-
   public :: onsiteMullikenPerAtom
 
 contains
 
   !takes TMbd instance, TMbdInit instance, nAtom, species0,
   !referenceN0, nShell, species_name, latVecs, recVecs
-  subroutine MBDinit(this, inp, mympi, nAtom, species0, referenceN0, &
-          & nShell, species_name, latVecs, recVecs)
-    use message, only: error
-    use mbd_api, only: initialize => MBDInit
+  subroutine MBDinit(this, inp, mympi, nAtom, species0, referenceN0, nShell, species_name, latVecs)
 
     type(TMbd), intent(inout) :: this
     type(TMbdInit), intent(inout) :: inp
@@ -43,53 +33,42 @@ contains
     real(dp), intent(in) :: referenceN0(:,:)
     integer, intent(in) :: nShell(:)
     character(mc), intent(in) :: species_name(:)
-    real(dp), intent(in), optional :: latVecs(:,:), recVecs(:,:)
+    real(dp), intent(in), optional :: latVecs(:,:)
 
     character(len=2) :: spec_name
     integer :: i_flag, i_atom, i_spec, nprow, npcol, npmax, i
 
+
     !start filling up MBD object this
-    this%n_atoms = nAtom
-    this%n_species = len(species_name)
-    this%is_periodic = present(latVecs)
-
-    this%mbd_stdOut = stdOut
-
-    allocate(this%species(this%n_atoms))
-    allocate(this%species_name(this%n_species))
-    allocate(this%free_charge(this%n_atoms))
-    this%species = species0
-    this%species_name = species_name
-
-    !TODO this needs to go into API
-    !satithisy dependencies of mbdvdw_interface
-    this%mbd_myid = mympi%rank
-    this%mbd_n_tasks = mympi%size
-    this%mbd_intra_comm = mympi%id
-
-    if (this%is_periodic) then
-        this%latvecs = latVecs
-        this%recvecs = recVecs
-    endif
+    if (present(latVecs)) then
+      inp%latvecs = latVecs
+    end if
+    inp%mbd_stdout = stdOut
+    inp%species = species0
+    inp%species_names = species_name
+    inp%mbd_intra_comm = mympi%id
 
     !set free atom charges
-    if (inp%mbd_debug.and. tIoProc)  write(stdOut,*) 'i_atom    free_charge(i_atom)'
-    do i_atom=1, this%n_atoms
-      i_spec = this%species(i_atom)
-      this%free_charge(i_atom) = sum(referenceN0(1:nShell(i_spec), i_spec))
-      if (inp%mbd_debug.and. tIoProc) write(stdOut,*) i_atom, this%free_charge(i_atom)
-    enddo
+    allocate(inp%free_charges(nAtom))
+    if (inp%mbd_debug .and. tIoProc) then
+      write(stdOut,*) 'i_atom    free_charge(i_atom)'
+    end if
+    do i_atom = 1, nAtom
+      i_spec = inp%species(i_atom)
+      inp%free_charges(i_atom) = sum(referenceN0(1:nShell(i_spec), i_spec))
+      if (inp%mbd_debug.and. tIoProc) then
+        write(stdOut,*) i_atom, inp%free_charges(i_atom)
+      end if
+    end do
 
-    if (inp%mbd_debug.and. tIoProc) then
-      do i_atom = 1, this%n_atoms
-        write(stdOut,*) i_atom, species0(i_atom) ,species_name(species0(i_atom))
+    if (inp%mbd_debug .and. tIoProc) then
+      do i_atom = 1, nAtom
+        write(stdOut,*) i_atom, species0(i_atom), species_name(species0(i_atom))
       end do
-    endif
+    end if
 
-    !call the actual MBDinit
-    call initialize(this, inp)
-
-    this%tInit = .true.
+    ! call the actual MBDinit
+    call TMbd_init(this, inp)
 
   end subroutine MBDinit
 
@@ -97,49 +76,40 @@ contains
   !!* Notifies the objects about changed coordinates
   !!* @param this Object instance.
   !!* @param coords Current coordinates of the atoms
-  subroutine MBDupdateCoords(this,coords)
-    use mbd_api, only: updatecoords => MBDupdateCoords
+  subroutine MBDupdateCoords(this, coords0)
     type(TMbd), intent(inout) :: this
-    real(dp), intent(inout) :: coords(:,:)
+    real(dp), intent(in) :: coords0(:,:)
 
     !mbd_api coordinate convention is (3,n_atoms)
-    call updatecoords(this, coords)
-
-    this%coordsUpdated = .true.
+    call this%updateCoords(coords0)
 
   end subroutine MBDupdateCoords
+
 
   !!* Notifies the object about updated lattice vectors.
   !!* @param latVecs  New lattice vectors
   !!* @param recVecs  New reciprocal vectors
-  subroutine MBDupdateLatVecs(this, latVecs, recVecs)
-    use mbd_api, only: updatelatvecs => MBDupdateLatVecs
+  subroutine MBDupdateLatVecs(this, latVecs, volume)
     type(TMbd), intent(inout) :: this
-    real(dp), intent(in) :: latVecs(:,:), recVecs(:,:)
+    real(dp), intent(in) :: latVecs(:,:)
+    real(dp), intent(in) :: volume
 
-    call updatelatvecs(this, latVecs, recVecs)
+    call this%updateLatVecs(latVecs, volume)
 
   end subroutine MBDupdateLatVecs
+
 
   !!* Returns the CPA ratios from a mulliken analysis.
   !!* @param this Object instance
   !!* @param
   subroutine MBDcalculateCPA(this, cpatmp)
-    use mbd_api, only: MBDcalculate_scaling_ratios
     type(TMbd), intent(inout)  :: this
     real(dp), intent(inout)    :: cpatmp(:)
 
     integer :: i_atom
 
-    call MBDcalculate_scaling_ratios(this, cpatmp)
+    call this%getScalingRatios(cpatmp)
 
-    if (this%mbd_debug .and. (tIoProc)) then
-        write(stdOut,*) ' '
-        write(stdOut,*) 'iAtom  CPA ratio'
-        do i_atom=1, this%n_atoms
-          write(stdOut,*) i_atom, cpatmp(i_atom)
-        enddo
-    endif
   end subroutine MBDcalculateCPA
 
 
@@ -147,52 +117,45 @@ contains
   !!* @param this Object instance
   !!* @param energy contains the total MBD energy on exit.
   subroutine MBDgetEnergy(this, energy)
-    use mbd_api, only: get_energy => MBDgetEnergy
     type(TMbd), intent(inout) :: this
     real(dp), intent(inout) :: energy
 
-    if (this%mbd_debug .and. tIoProc) &
-        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD ENERGY!!!!!!!!!!!!!!!!'
+    call this%getEnergy(energy)
 
-    call get_energy(this, energy)
-
-    if (tIoProc) write(stdOut,*) 'MBD energy ', energy, ' ', energy*27.2114
+    if (tIoProc) then
+      write(stdOut,*) 'MBD energy ', energy, ' ', energy * Hartree__eV
+    end if
 
   end subroutine MBDgetEnergy
 
-  subroutine MBDaddGradients(this, gradients)
-    use mbd_api, only: add_gradients => MBDaddGradients
+
+  subroutine MBDgetGradients(this, gradients)
     type(TMbd), intent(inout) :: this
-    real(dp), intent(inout) :: gradients(:,:)
+    real(dp), intent(out) :: gradients(:,:)
 
     integer :: i_cart, i_atom
 
-    call add_gradients(this, gradients)
+    call this%getGradients(gradients)
 
-    if (this%mbd_debug.and. tIoProc) &
-        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD GRADIENTS!!!!!!!!!!!!!!!!'
-    if (this%mbd_debug.and. tIoProc) then
+    if (tIoProc) then
+      write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD GRADIENTS!!!!!!!!!!!!!!!!'
       write(stdOut,*) gradients(:, :)
-    endif
+    end if
 
-  end subroutine MBDaddGradients
+  end subroutine MBDgetGradients
+
 
   !!* Calculate finite-difference strain
   !!* @param this Object instance
   !!* @return Cutoff
-  subroutine MBDgetStress(this, stress, latVec, orig_vol)
-    use mbd_api, only: get_stress => MBDgetStress
+  subroutine MBDgetStress(this, stress)
     type(TMbd), intent(inout) :: this
     real(dp), intent(inout) :: stress(:,:)
-    real(dp), intent(in) :: latVec(:,:)
-    real(dp), intent(in) :: orig_vol
 
-    if (this%mbd_debug.and. tIoProc) &
-        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
+    call this%getStress(stress)
 
-    call get_stress(this, stress, latVec, orig_vol)
-
-    if (this%mbd_debug.and. tIoProc) then
+    if (tIoProc) then
+      write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
       write(stdOut,*) stress(:, :)
     endif
 

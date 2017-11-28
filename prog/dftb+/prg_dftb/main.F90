@@ -776,7 +776,7 @@ contains
     end if
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbdUpdateLatVecs(mbDispersion, latVecs, recVecs)
+      call mbdUpdateLatVecs(mbDispersion, latVecs, cellVol)
     end if
   #:endif
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
@@ -909,7 +909,7 @@ contains
     end if
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbdUpdateCoords(mbDispersion, coord)
+      call mbdUpdateCoords(mbDispersion, coord0)
     end if
   #:endif
     if (allocated(thirdOrd)) then
@@ -4034,13 +4034,14 @@ contains
       call dispersion%addGradients(derivs)
     end if
 
+    allocate(tmpDerivs(3, nAtom))
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call MBDaddGradients(mbDispersion, derivs)
+      call MBDgetGradients(mbDispersion, tmpDerivs)
+      derivs(:,:) = derivs + tmpDerivs
     end if
   #:endif
 
-    allocate(tmpDerivs(3, nAtom))
     call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
         & img2CentCell)
     derivs(:,:) = derivs + tmpDerivs
@@ -4177,7 +4178,7 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call MBDgetStress(mbDispersion, tmpStress, latVec, cellVol)
+      call MBDgetStress(mbDispersion, tmpStress)
       totalStress(:,:) = totalStress + tmpStress
     end if
   #:endif

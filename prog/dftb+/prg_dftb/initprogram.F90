@@ -1599,7 +1599,7 @@ contains
       input%ctrl%mbdInp%calculate_forces = tForces
       if (tPeriodic) then
         call mbdInit(mbDispersion, input%ctrl%mbdInp, env%mpi%globalComm, nAtom, species0,&
-            & referenceN0, orb%nShell, speciesName, latVec, recVec)
+            & referenceN0, orb%nShell, speciesName, latVec)
       else
         call mbdInit(mbDispersion, input%ctrl%mbdInp, env%mpi%globalComm, nAtom, species0,&
             & referenceN0, orb%nShell, speciesName)

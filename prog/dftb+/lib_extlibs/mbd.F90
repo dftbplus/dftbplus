@@ -10,9 +10,7 @@ module mbd
 
 #:if WITH_MBD
   public:: TMbdInit, TMbd
-  public:: MBDinit, MBDdestruct, MBDupdateCoords, MBDupdateLatVecs
-  public:: MBDgetEnergy, MBDaddGradients, MBDcalculate_scaling_ratios
-  public:: MBDgetStress
+  public:: TMbd_init, TMbd_destruct
 #:else
   public :: TMbd, TMbdInit
 #:endif
