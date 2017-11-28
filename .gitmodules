@@ -6,3 +6,6 @@
 	path = external/scalapackfx/origin
 	url = git@github.com:aradi/scalapackfx.git
         branch = dpint
+[submodule "external/mbd/origin"]
+	path = external/mbd/origin
+	url = git@github.com:aradi/libmbd
