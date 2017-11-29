@@ -64,6 +64,7 @@ module initprogram
   use fifo
   use linkedlist
   use xlbomd_module
+  use timeprop_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
   use ipisocket
@@ -1643,6 +1644,7 @@ contains
 
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
+    
 
     ! MD stuff
     if (tMD) then
@@ -2495,7 +2497,18 @@ contains
         call error("Linear response does not support k-points")
       end if
 
-    end if
+   end if
+   
+   ! Electron dynamics stuff
+   ! pRanlux = randomthermostat ?
+   ! specieName, specie0 add "s"?
+   ! myDisersion == dispersion? dispInp == pDispInp? 
+   tElecDynamics = allocated(input%ctrl%elecDynInp)
+   if (tElecDynamics) then
+      call initElecDynamics(elecDyn, input%ctrl%elecDynInp, randomThermostat, & 
+           &mass, nAtom, species0, skRepCutoff, mCutoff, &
+           &iCellVec, atomEigVal, speciesName, dispersion, input%ctrl%dispInp)
+   end if
 
   end subroutine initProgramVariables
 

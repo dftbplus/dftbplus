@@ -87,7 +87,8 @@ contains
 
 
   !> Creates a VelocityVerlet object from the thermostat settings
-  subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat)
+  subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat, &
+       &halfVelocities, velocities)
 
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
@@ -101,6 +102,13 @@ contains
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
+    !> These indicates if the t-.5 velocities will be supplied
+    logical, intent(in), optional :: halfVelocities
+    
+    !> On output these are the t-.5 velocities
+    real(dp), intent(inout), optional :: velocities(:,:)
+    
+
     @:ASSERT(size(positions, dim=1) == 3)
 
     self%nAtom = size(positions, dim=2)
@@ -113,7 +121,15 @@ contains
 
     call getInitVelocities(self%pThermostat, self%velocities)
 
-    self%vHalfPresent = .false. ! no we don't have the t-.5 velocities
+    if (present(velocities)) then
+       velocities = self%velocities
+    end if
+
+    if (present(halfVelocities)) then
+       self%vHalfPresent = halfVelocities
+    else
+       self%vHalfPresent = .false. ! no we dont have the t-.5 velocities
+    end if
 
     self%tBarostat = .false.
 
