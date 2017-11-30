@@ -3908,7 +3908,7 @@ contains
           call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell,&
               & coord, chrgForces)
         end if
-      elseif (tSccCalc) then
+      else if (tSccCalc) then
         if (tXlbomd) then
           call sccCalc%addForceDcXlbomd(env, species, orb, neighborList%iNeighbor, img2CentCell,&
               & coord, qOutput, q0, derivs)

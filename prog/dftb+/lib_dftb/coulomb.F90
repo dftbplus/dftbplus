@@ -502,10 +502,10 @@ contains
     !> BLACS grid of the distributed derivative vector
     type(blacsgrid), intent(in) :: grid
 
-    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
+    !> Descriptor for the nAtom x nAtom electrostatic matrix distributed on the grid
     integer, intent(in) :: descAtomSqr(DLEN_)
 
-    !> Local shape of the distributed nAtom x nAtom matrix
+    !> Local shape of the distributed nAtom x nAtom electrostatic matrix
     integer, intent(in) :: localShape(:)
 
     !> List of atomic coordinates.

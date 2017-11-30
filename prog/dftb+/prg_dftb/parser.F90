@@ -2652,12 +2652,16 @@ contains
     end if
     call getChildValue(node, "WriteHS", ctrl%tWriteHS, .false.)
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)
-    call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false.)
+    call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
+    if (ctrl%tMinMemory) then
+      call detailedWarning(child, "Memory minimisation is not working currently, normal calculation&
+          & will be used instead")
+    end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 2)
   #:else
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 1)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
   #:endif
 
   end subroutine readOptions

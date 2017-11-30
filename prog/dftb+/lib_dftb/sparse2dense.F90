@@ -9,6 +9,7 @@
 
 !> Contains subroutines for packing/unpacking Hamiltonian-like matrices between the square and
 !> 1-dimensional representations
+!>
 module sparse2dense
   use assert
   use accuracy

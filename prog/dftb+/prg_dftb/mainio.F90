@@ -5,6 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#! Note: This module contains preprocessor variable substitutions in subroutine names (${NAME}$)
+#! which may break the documentation system. Make sure you preprocess this file before passing it
+#! to a source code documentation tool.
+
 #:include 'common.fypp'
 
 !> Various I/O routines for the main program.
@@ -396,7 +400,13 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    if (env%mpi%tGlobalMaster) then
+    ! Master process collects in the first run (iGroup = 0) the columns of the matrix in its own
+    ! process group (as process group master) via the collector. In the subsequent runs it just
+    ! receives the columns collected by the respective group masters. The number of available
+    ! matrices (possible k and s indices) may differ for various process groups. Also note, that
+    ! the (k, s) pairs are round-robin distributed between the process groups.
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -425,7 +435,7 @@ contains
           end if
         end do
       end do
-    end if
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       close(fd)
@@ -540,7 +550,10 @@ contains
       call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -569,6 +582,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart, img2CentCell,&
             & denseDesc, globalS)
@@ -588,7 +602,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       close(fd)
@@ -975,7 +989,10 @@ contains
       call prepareEigvecFileTxt(fd, .true., fileName)
     end if
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1004,6 +1021,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
@@ -1023,7 +1041,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       close(fd)
@@ -1285,7 +1303,10 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1312,6 +1333,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
             & img2CentCell, denseDesc, globalS)
@@ -1327,7 +1349,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
@@ -1482,7 +1504,10 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1510,6 +1535,7 @@ contains
         call writeProjEigvecFooter(fd)
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1526,7 +1552,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
@@ -1705,7 +1731,10 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1736,6 +1765,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1754,7 +1784,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)

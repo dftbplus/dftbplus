@@ -7,6 +7,7 @@
 
 #:include "common.fypp"
 
+!> Provides data structure for parallelising over k-points and spin.
 module parallelks
   use environment
   implicit none
