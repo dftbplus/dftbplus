@@ -2646,20 +2646,9 @@ contains
 
     nAtom = size(nNeighbor)
     allocate(cpa(nAtom))
-    call onsiteMullikenPerAtom(rhoPrim(:,1), over, orb, neighborList%iNeighbor, nNeighbor,&
+    call getDiagonalMullikenPerAtom(rhoPrim(:,1), over, orb, neighborList%iNeighbor, nNeighbor,&
         & img2CentCell, iSparseStart, cpa)
     call MBDcalculateCPA(mbDispersion, cpa)
-
-    !if (tWriteCPA .and. ioProc) then
-    !  fdCPA = getFileId()
-    !  open(fdCPA, file="CPA_ratios.out", action="write", status="replace")
-    !  write (fdCPA,*) "       iAt       CPA ratio"
-    !  do iAt = 1, nAtom
-    !    write(fdCPA,*) iAt, '  ', cpaTotal(iAt)
-    !  end do
-    !  close(fdCPA)
-    !end if
-
     call MBDgetEnergy(mbDispersion, eMbd)
 
   end subroutine getManyBodyDispEnergy

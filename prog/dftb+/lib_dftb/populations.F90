@@ -19,7 +19,7 @@ module populations
   private
 
   public :: mulliken, skewMulliken, getChargePerShell
-  public :: onsiteMullikenPerAtom
+  public :: getDiagonalMullikenPerAtom
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -333,14 +333,11 @@ contains
   end subroutine getChargePerShell
 
 
-  !> Calculate the ON-Site Mulliken population for each orbital in the system
-  !> using purely real-space overlap and density matrix values.
-  !> Currently Mulliken defined as
-  !> $q_a = \sum_k w_k\sum_{\mu on a} \rho_{\mu\mu}(k)$
-  !> but transformed into real space sums over one triangle of real space
-  !> extended matrices
-  !> To do: add description of algorithm to programer manual / documentation.
-  subroutine onsiteMullikenPerAtom(rho, over, orb, iNeighbor, nNeighbor, img2CentCell, iPair, qq)
+  !> Calculates the diagonal on-site Mulliken population for each atom (the nr. of electrons
+  !> comming from non-hybridized orbitals on a given atom).
+  !>
+  subroutine getDiagonalMullikenPerAtom(rho, over, orb, iNeighbor, nNeighbor, img2CentCell, iPair,&
+      & qq)
 
     !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
@@ -366,30 +363,26 @@ contains
     !> Onsite populatin per atom
     real(dp), intent(out) :: qq(:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2, iOrb
+    integer   :: iOrig, iNeigh, iAtom1, iAtom2f
+    integer   :: nAtom, nOrb
 
     nAtom = size(orb%nOrbAtom)
     @:ASSERT(size(qq) == nAtom)
 
     qq(:) = 0.0_dp
     do iAtom1 = 1, nAtom
-      nOrb1 = orb%nOrbAtom(iAtom1)
+      nOrb = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbor(iAtom1)
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
+        iAtom2f = img2CentCell(iNeighbor(iNeigh, iAtom1))
         if (iAtom1 == iAtom2f) then
-          ! onsite for this atom or its periodic images
-          nOrb2 = orb%nOrbAtom(iAtom2f)
+          ! sum over the *diagonal* elements of this atom or and periodic images
           iOrig = iPair(iNeigh, iAtom1) + 1
-          qq(iAtom1) = qq(iAtom1) + sum(over(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
-              & * rho(iOrig : iOrig + nOrb1 * nOrb2 - 1))
+          qq(iAtom1) = qq(iAtom1) + sum(over(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1)&
+              & * rho(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1))
         end if
       end do
     end do
 
-  end subroutine onsiteMullikenPerAtom
+  end subroutine getDiagonalMullikenPerAtom
 
 end module populations
