@@ -2507,7 +2507,8 @@ This block collects some global options for the run.
   \kw{WriteDetailedOut} & l & & Yes & \\
   \kwl{RestartFrequency}{kw:dftbp.RestartFrequency} & i &Driver = \cb, SCC = Yes & 20 & \\
   \kw{RandomSeed} & i & & 0 & \\
-  \kw{TimingVerbosity} & i & & 1 & \\
+  \kw{MinimiseMemoryUsage} & l & & No & \\
+  \kw{TimingVerbosity} & i & & 0 & \\
   \kw{ShowFoldedCoords} & l & Periodic = Yes & No & \\
   \kwl{WriteHS}{kw:dftbp.WriteHS} & l & & No & \\
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
@@ -2543,10 +2544,16 @@ This block collects some global options for the run.
   value can be used to reproduce earlier MD calculations by setting
   the initial seed to the same value.)
 
-\item[\is{TimingVerbosity}] Level of information regarding timings of
-  sections of the code, higher values becoming more verbose. Setting
-  this parameter to be below 0 supresses any information being
-  printed.
+\item[\is{MinimiseMemoryUsage}] Tries to minimise memory usage by
+  storing various matrices on disc instead of keeping them in memory.
+  Set it to \is{Yes} to reduce the memory requirement for calculations
+  with many k-points or spin polarisation. Note: Currently this option has no
+  effect and you would get a warning when setting it to \is{Yes}.
+
+\item[\is{TimingVerbosity}] Level of information regarding CPU and wall clock
+  timings of sections of the code, higher values becoming more verbose. Setting
+  this parameter to 0 or below supresses any information being printed
+  (default).
 
 \item[\is{ShowFoldedCoords}] Print coordinates folded back into the
   central cell, so if an atom moves outside the central cell it will
@@ -2561,10 +2568,11 @@ This block collects some global options for the run.
   enumerates the spin channels. For a detailed description of the file
   format see p.~\pref{sec:dftbp.hamsqr}.
 
-  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are set to \is{Yes}, the
-  program only builds the matrices, writes them to disc and then stops immediately. No
-  diagonalisation, no SCC-cycles or geometry optimisation steps are carried out. You can use the
-  \is{ReadInitialCharges} option to build the Hamiltonian with a previously converged charge
+  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are
+  set to \is{Yes}, the program only builds the matrices, writes them to disc and
+  then stops immediately. No diagonalisation, no SCC-cycles or geometry
+  optimisation steps are carried out. You can use the \is{ReadInitialCharges}
+  option to build the Hamiltonian with a previously converged charge
   distribution.
 
 \item[\is{WriteRealHS}] Instructs the program to build the real space
@@ -2573,10 +2581,11 @@ This block collects some global options for the run.
   \verb|overreal.dat|. For a detailed description of the file format
   see p.~\pref{sec:dftbp.hamsqr}.
 
-  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are set to \is{Yes}, the
-  program only builds the matrices, writes them to disc and then stops immediately. No
-  diagonalisation, no SCC-cycles or geometry optimisation steps are carried out. You can use the
-  \is{ReadInitialCharges} option to build the Hamiltonian with a previously converged charge
+  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are
+  set to \is{Yes}, the program only builds the matrices, writes them to disc and
+  then stops immediately. No diagonalisation, no SCC-cycles or geometry
+  optimisation steps are carried out. You can use the \is{ReadInitialCharges}
+  option to build the Hamiltonian with a previously converged charge
   distribution.
 
 \end{description}

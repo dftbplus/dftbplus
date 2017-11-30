@@ -7,6 +7,7 @@
 
 !> Contains MPI related einvironment settings
 module mpienv
+  use accuracy, only : lc
   use mpifx
   use message
   implicit none
@@ -59,9 +60,8 @@ contains
     !> Number of process groups to create
     integer, intent(in) :: nGroup
 
-    character(100) :: tmpStr
+    character(lc) :: tmpStr
     integer :: myRank, myGroup
-    integer :: ii
 
     call this%globalComm%init()
     this%nGroup = nGroup
