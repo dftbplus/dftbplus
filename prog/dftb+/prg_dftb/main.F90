@@ -337,7 +337,7 @@ contains
       call env%globalTimer%startTimer(globalTimers%postSCC)
 
       call getPostSccEnergies(coord, neighborList, nNeighbor, species, img2CentCell, orb,&
-          & iSparseStart, rhoPrim, pRepCont, dispersion, mbDispersion, energy)
+          & iSparseStart, rhoPrim, over, pRepCont, dispersion, mbDispersion, energy)
 
       call writeDetailedOut1a(fdDetailedOut, energy, tDispersion, tManyBodyDisp, tPeriodic,&
           & tAtomicEnergy, extPressure)
@@ -2543,7 +2543,7 @@ contains
 
   !> Calculate energies due after the scc-cycle has finished
   subroutine getPostSccEnergies(coord, neighborList, nNeighbor, species, img2CentCell, orb,&
-      & iSparseStart, rhoPrim, pRepCont, dispersion, mbDispersion, energy)
+      & iSparseStart, rhoPrim, over, pRepCont, dispersion, mbDispersion, energy)
 
     !> all coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -2565,6 +2565,9 @@ contains
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPRim(:,:)
+
+    !> overlap matrix in sparse storage
+    real(dp), intent(in) :: over(:)
 
     !> index for sparse large matrices
     integer, intent(in) :: iSparseStart(:,:)
@@ -2594,8 +2597,8 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call getManyBodyDispEnergy(rhoPrim, orb, neighborList, nNeighbor, img2CentCell, iSparseStart,&
-          & mbDispersion, energy%eMBD)
+      call getManyBodyDispEnergy(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
+          & iSparseStart, mbDispersion, energy%eMBD)
     end if
   #:endif
 
@@ -2608,11 +2611,14 @@ contains
   end subroutine getPostSccEnergies
 
 
-  subroutine getManyBodyDispEnergy(rhoPrim, orb, neighborList, nNeighbor, img2CentCell,&
+  subroutine getManyBodyDispEnergy(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
       & iSparseStart, mbDispersion, eMbd)
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPRim(:,:)
+
+    !> overlap matrix in sparse storage
+    real(dp), intent(in) :: over(:)
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -2649,7 +2655,7 @@ contains
     cpaTotal(:) = 0.0_dp
     do iS = 1, nSpin
       cpa(:) = 0.0_dp
-      call onsitemullikenPerAtom(cpa, rhoPrim(:,iS), orb, neighborList%iNeighbor, nNeighbor,&
+      call onsitemullikenPerAtom(cpa, rhoPrim(:,iS), over, orb, neighborList%iNeighbor, nNeighbor,&
           & img2CentCell, iSparseStart)
       cpaTotal(:) = cpaTotal + cpa
     end do

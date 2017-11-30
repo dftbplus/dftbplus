@@ -13,6 +13,11 @@ dftd3.o = dftd3.o $(_mod_dftd3_api)
 _mod_dftd3_module: dftd3.o
 _mod_dftd3_module = $(dftd3.o)
 
+elsi.o: common.fypp
+elsi.o = elsi.o $(common.fypp)
+_mod_elsi: elsi.o
+_mod_elsi = $(elsi.o)
+
 fsockets.o: _mod_f90sockets
 fsockets.o = fsockets.o $(_mod_f90sockets)
 _mod_fsockets: fsockets.o
@@ -63,3 +68,4 @@ xmlf90.o: _mod_m_strings _mod_flib_dom _mod_flib_wxml
 xmlf90.o = xmlf90.o $(_mod_m_strings) $(_mod_flib_dom) $(_mod_flib_wxml)
 _mod_xmlf90: xmlf90.o
 _mod_xmlf90 = $(xmlf90.o)
+
