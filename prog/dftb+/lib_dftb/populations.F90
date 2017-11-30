@@ -19,6 +19,7 @@ module populations
   private
 
   public :: mulliken, skewMulliken, getChargePerShell
+  public :: onsiteMullikenPerAtom
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -332,5 +333,63 @@ contains
   end subroutine getChargePerShell
 
 
+  !> Calculate the ON-Site Mulliken population for each orbital in the system
+  !> using purely real-space overlap and density matrix values.
+  !> Currently Mulliken defined as
+  !> $q_a = \sum_k w_k\sum_{\mu on a} \rho_{\mu\mu}(k)$
+  !> but transformed into real space sums over one triangle of real space
+  !> extended matrices
+  !> To do: add description of algorithm to programer manual / documentation.
+  subroutine onsiteMullikenPerAtom(rho, over, orb, iNeighbor, nNeighbor, img2CentCell, iPair, qq)
+
+    !> Density matrix in Packed format
+    real(dp), intent(in) :: rho(:)
+
+    !> overlap matrix in packed format
+    real(dp), intent(in) :: over(:)
+
+    !> atomic species information
+    type(TOrbitals), intent(in) :: orb
+
+    !> List of neighbours for each atom, starting at 0 for itself
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of neighbours for each atom
+    integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array to convert images of atoms back into their number in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Onsite populatin per atom
+    real(dp), intent(out) :: qq(:)
+
+    integer   :: iOrig
+    integer   :: iNeigh
+    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer   :: nOrb1, nOrb2, iOrb
+
+    nAtom = size(orb%nOrbAtom)
+    @:ASSERT(size(qq) == nAtom)
+
+    qq(:) = 0.0_dp
+    do iAtom1 = 1, nAtom
+      nOrb1 = orb%nOrbAtom(iAtom1)
+      do iNeigh = 0, nNeighbor(iAtom1)
+        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        if (iAtom1 == iAtom2f) then
+          ! onsite for this atom or its periodic images
+          nOrb2 = orb%nOrbAtom(iAtom2f)
+          iOrig = iPair(iNeigh, iAtom1) + 1
+          qq(iAtom1) = qq(iAtom1) + sum(over(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+              & * rho(iOrig : iOrig + nOrb1 * nOrb2 - 1))
+        end if
+      end do
+    end do
+
+  end subroutine onsiteMullikenPerAtom
 
 end module populations

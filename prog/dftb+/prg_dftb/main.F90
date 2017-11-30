@@ -2641,26 +2641,14 @@ contains
     !> Energy contribution
     real(dp), intent(out) :: eMbd
 
-    real(dp), allocatable :: cpa(:), cpaTotal(:)
-    integer :: nAtom, nSpin, iS
+    real(dp), allocatable :: cpa(:)
+    integer :: nAtom
 
-    nSpin = size(rhoPrim, dim=2)
-    if (nSpin == 4) then
-      call error("MBD does not work with non-colinear spin yet!")
-    end if
     nAtom = size(nNeighbor)
-
     allocate(cpa(nAtom))
-    allocate(cpaTotal(nAtom))
-    cpaTotal(:) = 0.0_dp
-    do iS = 1, nSpin
-      cpa(:) = 0.0_dp
-      call onsitemullikenPerAtom(cpa, rhoPrim(:,iS), over, orb, neighborList%iNeighbor, nNeighbor,&
-          & img2CentCell, iSparseStart)
-      cpaTotal(:) = cpaTotal + cpa
-    end do
-    cpaTotal(:) = cpaTotal / real(nSpin, dp)
-    call MBDcalculateCPA(mbDispersion, cpaTotal)
+    call onsiteMullikenPerAtom(rhoPrim(:,1), over, orb, neighborList%iNeighbor, nNeighbor,&
+        & img2CentCell, iSparseStart, cpa)
+    call MBDcalculateCPA(mbDispersion, cpa)
 
     !if (tWriteCPA .and. ioProc) then
     !  fdCPA = getFileId()
