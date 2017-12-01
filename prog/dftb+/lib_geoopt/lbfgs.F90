@@ -12,7 +12,7 @@
 !> Nocedal - Updating Quasi-Newton Matrices with Limited Storage (1980), Mathematics of Computation
 !> 35, pp. 773-782.
 !>
-!> Nocedal, Wright - Numerical Optimization
+!> Nocedal, Wright - Numerical Optimization, Springer
 module lbfgs
   use accuracy
   use assert
@@ -302,6 +302,7 @@ contains
     self%rho = 0.0_dp
     self%dir = 0.0_dp
     self%iter = 0
+
   end subroutine reset_lbfgs
 
 
@@ -359,10 +360,11 @@ contains
     beta = dot_product(self%yy(:,newElem), self%ss(:,newElem))
 
     ! y*s needs to be positive to get a positive definite hermitian matrix
-    if (beta <= epsilon(1.0_dp) ) then
-      call warning("Bad step. y*s <= 0 (LBFGS Minimizer)")
-    end if
-    self%rho(newElem) = 1.0_dp / beta
+    !if (beta <= epsilon(1.0_dp) ) then
+    !  call warning("Bad step. y*s <= 0 (LBFGS Minimizer)")
+    !end if
+    !self%rho(newElem) = 1.0_dp / max(abs(beta),epsilon(1.0_dp))
+    self%rho(newElem) = 1.0_dp / max(abs(beta),epsilon(1.0_dp))
 
     ! Save new x and g
     self%xOld = xx
@@ -637,8 +639,8 @@ contains
     ! Zoom Phase
 
     if (self%iter > self%mIter) then
-      if (self%alpha_lo*maxval(self%d0) < self%tol) then
-        if (self%alpha_new*maxval(self%d0) < self%tol) then
+      if (abs(self%alpha_lo*maxval(self%d0)) < self%tol) then
+        if (abs(self%alpha_new*maxval(self%d0)) < self%tol) then
           self%alpha_new = 0.5_dp*self%maxAlpha
           self%xNew = self%x0 + self%alpha_new*self%d0
           xNew = self%xNew
