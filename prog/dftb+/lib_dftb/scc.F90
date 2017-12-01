@@ -157,6 +157,9 @@ module scc
     !> Negative net charge per atom
     real(dp), allocatable :: deltaQAtom(:)
 
+    !> Atomic locations
+    real(dp), allocatable :: coord(:,:)
+
     !> Negative net charge per U
     real(dp), allocatable :: deltaQUniqU(:,:)
 
@@ -216,6 +219,7 @@ module scc
     procedure :: getShiftPerL
     procedure :: getOrbitalEquiv
     procedure :: addForceDcXlbomd
+    procedure :: electroStaticPotential
   end type TScc
 
 
@@ -384,6 +388,9 @@ contains
     this%tDampedShort(:) = inp%tDampedShort(:)
     this%dampExp = inp%dampExp
 
+    ! Internal storage for the atomic coordinates
+    allocate(this%coord(3,this%nAtom))
+    
     this%tInitialised = .true.
 
   end subroutine Scc_initialize
@@ -446,31 +453,34 @@ contains
 
     call updateNNeigh_(this, species, neighList)
 
+    this%coord = coord
+    
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc /= -1) then
       if (this%tPeriodic) then
-        call getInvRPeriodicBlacs(env%blacs%atomGrid, coord, this%nNeighEwald, neighList%iNeighbor,&
-            & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%descInvRMat, this%invRMat)
+        call getInvRPeriodicBlacs(env%blacs%atomGrid, this%coord, this%nNeighEwald,&
+            & neighList%iNeighbor, img2CentCell, this%gLatPoint, this%alpha, this%volume,&
+            & this%descInvRMat, this%invRMat)
       else
-        call getInvRClusterBlacs(env%blacs%atomGrid, coord, this%descInvRMat, this%invRMat)
+        call getInvRClusterBlacs(env%blacs%atomGrid, this%coord, this%descInvRMat, this%invRMat)
       end if
     end if
   #:else
     if (this%tPeriodic) then
-      call invR(this%invRMat, this%nAtom, coord, this%nNeighEwald, neighList%iNeighbor,&
+      call invR(this%invRMat, this%nAtom, this%coord, this%nNeighEwald, neighList%iNeighbor,&
           & img2CentCell, this%gLatPoint, this%alpha, this%volume)
     else
-      call invR(this%invRMat, this%nAtom, coord)
+      call invR(this%invRMat, this%nAtom, this%coord)
     end if
   #:endif
 
-    call initGamma_(this, coord, species, neighList%iNeighbor)
+    call initGamma_(this, this%coord, species, neighList%iNeighbor)
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%updateCoords(coord, this%gLatPoint, this%alpha, this%volume)
+        call this%extCharge%updateCoords(this%coord, this%gLatPoint, this%alpha, this%volume)
       else
-        call this%extCharge%updateCoords(coord)
+        call this%extCharge%updateCoords(this%coord)
       end if
     end if
 
@@ -718,7 +728,7 @@ contains
     @:ASSERT(present(chrgForce) .eqv. this%tExtChrg)
 
     ! Short-range part of gamma contribution
-    call addGammaPrime_(this, force, coord, species, iNeighbor, img2CentCell)
+    call addGammaPrime_(this, force, this%coord, species, iNeighbor, img2CentCell)
 
     ! 1/R contribution
   #:if WITH_SCALAPACK
@@ -727,30 +737,30 @@ contains
     if (env%blacs%atomGrid%iproc /= -1) then
       if (this%tPeriodic) then
         call getDInvRPeriodicBlacs(env%blacs%atomGrid, this%descInvRMat, shape(this%invRMat),&
-            & coord, this%nNeighEwald, iNeighbor, img2CentCell, this%gLatPoint, this%alpha,&
+            & this%coord, this%nNeighEwald, iNeighbor, img2CentCell, this%gLatPoint, this%alpha,&
             & this%volume, this%deltaQAtom, derivsBuffer)
       else
         call getDInvRClusterBlacs(env%blacs%atomGrid, this%descInvRMat, shape(this%invRMat),&
-            & coord, this%deltaQAtom, derivsBuffer)
+            & this%coord, this%deltaQAtom, derivsBuffer)
       end if
     end if
     call mpifx_allreduceip(env%mpi%groupComm, derivsBuffer, MPI_SUM)
     force(:,:) = force + derivsBuffer
   #:else
     if (this%tPeriodic) then
-      call addInvRPrime(force, this%nAtom, coord, this%nNeighEwald, iNeighbor, &
+      call addInvRPrime(force, this%nAtom, this%coord, this%nNeighEwald, iNeighbor, &
           & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
     else
-      call addInvRPrime(force, this%nAtom, coord, this%deltaQAtom)
+      call addInvRPrime(force, this%nAtom, this%coord, this%deltaQAtom)
     end if
   #:endif
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%addForceDc(force, chrgForce, coord, this%deltaQAtom, this%gLatPoint,&
+        call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom, this%gLatPoint,&
             & this%alpha, this%volume)
       else
-        call this%extCharge%addForceDc(force, chrgForce, coord, this%deltaQAtom)
+        call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom)
       end if
     end if
 
@@ -788,7 +798,7 @@ contains
     stTmp = 0.0_dp
 
     ! Short-range part of gamma contribution
-    call addSTGammaPrime_(stTmp,this,coord,species,iNeighbor,img2CentCell)
+    call addSTGammaPrime_(stTmp,this,this%coord,species,iNeighbor,img2CentCell)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
@@ -796,7 +806,7 @@ contains
     ! call invRstress
 
     stTmp = 0.0_dp
-    call invR_stress(stTmp, this%nAtom, coord, this%nNeighEwald, iNeighbor,img2CentCell, &
+    call invR_stress(stTmp, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,img2CentCell, &
         & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
@@ -948,7 +958,7 @@ contains
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
-    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, coord, species, iNeighbor, &
+    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, this%coord, species, iNeighbor, &
         & img2CentCell, force)
 
     ! 1/R contribution
@@ -958,21 +968,21 @@ contains
     if (env%blacs%atomGrid%iproc /= -1) then
       if (this%tPeriodic) then
         call getDInvRXlbomdPeriodicBlacs(env%blacs%atomGrid, this%descInvRMat,&
-            & shape(this%invRMat), coord, this%nNeighEwald, iNeighbor, img2CentCell,&
+            & shape(this%invRMat), this%coord, this%nNeighEwald, iNeighbor, img2CentCell,&
             & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom, derivsBuffer)
       else
         call getDInvRXlbomdClusterBlacs(env%blacs%atomGrid, this%descInvRMat, shape(this%invRMat),&
-            & coord, this%deltaQAtom, dQOutAtom, derivsBuffer)
+            & this%coord, this%deltaQAtom, dQOutAtom, derivsBuffer)
       end if
     end if
     call mpifx_allreduceip(env%mpi%groupComm, derivsBuffer, MPI_SUM)
     force(:,:) = force + derivsBuffer
   #:else
     if (this%tPeriodic) then
-      call addInvRPrimeXlbomd(this%nAtom, coord, this%nNeighEwald, iNeighbor, img2CentCell,&
+      call addInvRPrimeXlbomd(this%nAtom, this%coord, this%nNeighEwald, iNeighbor, img2CentCell,&
           & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom, force)
     else
-      call addInvRPrimeXlbomd(this%nAtom, coord, this%deltaQAtom, dQOutAtom, force)
+      call addInvRPrimeXlbomd(this%nAtom, this%coord, this%deltaQAtom, dQOutAtom, force)
     end if
   #:endif
 
@@ -1192,7 +1202,7 @@ contains
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
+        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
         do iU1 = 1, this%nHubbU(species(iAt1))
           u1 = this%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%nHubbU(species(iAt2f))
@@ -1206,7 +1216,7 @@ contains
               prefac = dQOutUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f) &
                   & + dQInUniqU(iU1, iAt1) * dQOutUniqU(iU2, iAt2f) &
                   & - dQInUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f)
-              contrib(:) = prefac * tmpGammaPrime / rab  * (coord(:,iAt2) - coord(:,iAt1))
+              contrib(:) = prefac * tmpGammaPrime / rab  * (this%coord(:,iAt2) - this%coord(:,iAt1))
               force(:,iAt1) = force(:,iAt1) + contrib
               force(:,iAt2f) = force(:,iAt2f) - contrib
             end if
@@ -1253,7 +1263,7 @@ contains
       do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbor(iNeigh, iAt1)
         iSp2 = species(iAt2)
-        rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
+        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
         do iU1 = 1, this%nHubbU(species(iAt1))
           u1 = this%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%nHubbU(species(iAt2))
@@ -1309,7 +1319,7 @@ contains
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
+        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
         do iU1 = 1, this%nHubbU(species(iAt1))
           u1 = this%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%nHubbU(species(iAt2f))
@@ -1322,11 +1332,11 @@ contains
               end if
               do ii = 1,3
                 force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU(iU1,iAt1) * &
-                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(coord(ii,iAt1) &
-                    & - coord(ii,iAt2))/rab
+                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1) &
+                    & - this%coord(ii,iAt2))/rab
                 force(ii,iAt2f) = force(ii,iAt2f) + this%deltaQUniqU(iU1,iAt1) * &
-                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(coord(ii,iAt1) &
-                    & - coord(ii,iAt2))/rab
+                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1) &
+                    & - this%coord(ii,iAt2))/rab
               end do
             end if
           end do
@@ -1373,7 +1383,7 @@ contains
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        vect(:) = coord(:,iAt1) - coord(:,iAt2)
+        vect(:) = this%coord(:,iAt1) - this%coord(:,iAt2)
         rab = sqrt(sum((vect)**2))
         intermed(:) = 0.0_dp
         do iU1 = 1, this%nHubbU(species(iAt1))
@@ -1556,4 +1566,50 @@ contains
 
   end subroutine getNetChargesPerUniqU_
 
+  subroutine electroStaticPotential(this, V,locations)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    real(dp), allocatable :: Vext(:)
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(locations) == [3,size(V)]))
+    @:ASSERT(size(V) == this%nAtom)
+
+    V = 0.0_dp
+    if (this%tExtChrg) then
+      allocate(Vext(this%nAtom))
+      Vext = 0.0_dp
+    end if
+    
+#:if not WITH_SCALAPACK
+
+    if (.not. this%tPeriodic) then
+      call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
+    else
+      !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+      !  & this%rCellVec, gLat, alpha, volume)
+      call error("Currently missing")
+    end if
+
+    if (this%tExtChrg) then
+      ! call this%extCharge%addShiftPerAtom(V) ! won't work due to sizing changes of V and nAtoms
+      call error("Currently missing")
+    end if
+    
+#:else
+    
+    call error("Currently missing")
+
+#:endif
+
+  end subroutine electroStaticPotential
+  
 end module scc
