@@ -3184,6 +3184,13 @@ contains
     call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
+    !! Electron dynamics stuff
+    call getChild(node, "ElectronDynamics", child=child, requested=.false.)
+    if (associated(child)) then
+       allocate(ctrl%elecDynInp)
+       call readElecDynamics(child, ctrl%elecDynInp, geo)
+    end if
+
   end subroutine readAnalysis
 
 
@@ -3442,7 +3449,7 @@ contains
     if (input%tdIons) then
        call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, &
             &multiple=.true.)
-       call convAtomRangeToInt(char(buffer), geo%specieNames, geo%species, &
+       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
             &child, input%indMovedAtom)
 
        input%nMovedAtom = size(input%indMovedAtom)
@@ -3471,8 +3478,8 @@ contains
   end subroutine readElecDynamics
 
 
-     !> Reads MD velocities
-  subroutine readInitialVelocities(node, input, nAtom)
+  !> Reads MD velocities
+  subroutine readInitialVelocitiesNAMD(node, input, nAtom)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -3503,23 +3510,17 @@ contains
                & // i2c(3*nVelocities) // " supplied, " &
                & // i2c(3*nAtom) // " required.")
        end if
-       INITALLOCATE_PARR(tmpVelocities, (3, nVelocities))
+       allocate(tmpVelocities(3, nVelocities))
        call asArray(realBuffer, tmpVelocities)
        if (len(modifier) > 0) then
           call convertByMul(char(modifier), VelocityUnits, child, &
                & tmpVelocities)
        end if
-       call destroy(realBuffer)
-       ! Had to comment this out because ifort 2017 doesn't allow allocatable pointers apparently
-       ! INITALLOCATE_PARR(input%initialVelocities, (3, input%nMovedAtom))
+       call destruct(realBuffer)
        allocate(input%initialVelocities(3, input%nMovedAtom))
        input%initialVelocities(:,:) = tmpVelocities(:, input%indMovedAtom(:))
-       DEALLOCATE_PARR(tmpVelocities)
        input%tReadMDVelocities = .true.
     end if
-
-    call unstring(buffer)
-    call unstring(modifier)
 
   end subroutine readInitialVelocitiesNAMD
 

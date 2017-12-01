@@ -660,6 +660,10 @@ module initprogram
 
   !> First guess for nr. of neighbors.
   integer, parameter :: nInitNeighbor = 40
+
+  !> Electron dynamics
+  logical :: tElecDynamics
+  type(ElecDynamics) :: elecDyn
   private :: nInitNeighbor
 
   private :: createRandomGenerators
@@ -2500,14 +2504,11 @@ contains
    end if
    
    ! Electron dynamics stuff
-   ! pRanlux = randomthermostat ?
-   ! specieName, specie0 add "s"?
-   ! myDisersion == dispersion? dispInp == pDispInp? 
    tElecDynamics = allocated(input%ctrl%elecDynInp)
    if (tElecDynamics) then
       call initElecDynamics(elecDyn, input%ctrl%elecDynInp, randomThermostat, & 
            &mass, nAtom, species0, skRepCutoff, mCutoff, &
-           &iCellVec, atomEigVal, speciesName, dispersion, input%ctrl%dispInp)
+           &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, sccCalc)
    end if
 
   end subroutine initProgramVariables

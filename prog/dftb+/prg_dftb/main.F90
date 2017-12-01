@@ -701,12 +701,11 @@ contains
     end if
        
     !! Here time propagation is called
-    ! iAtomStart = iDenseStart? iPair = iSparseStart?
-    if (tElecDynamics) then
-       call runDynamics(elecDyn, HSqrReal, ham, H0, q0, over, filling, neighborList, &
-            &nNeighbor, iDenseStart, iSparseStart, img2CentCell, orb, coord, spinW, &
-            &skHamCont, skOverCont, pRepCont)
-    end if
+!    if (tElecDynamics) then
+!       call runDynamics(elecDyn, HSqrReal, ham, H0, q0, over, filling, neighborList, &
+!            &nNeighbor, iDenseStart, iSparseStart, img2CentCell, orb, coord, spinW, &
+!            &skHamCont, skOverCont, pRepCont)
+!    end if
 
     if (allocated(pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
@@ -1776,7 +1775,7 @@ contains
     if (nSpin /= 1 .and. allocated(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
-    end if
+   end if
 
     call total_shift(potential%intShell, potential%intAtom, orb, species)
     call total_shift(potential%intBlock, potential%intShell, orb, species)

@@ -19,13 +19,13 @@ _mod_initprogram = $(initprogram.o)
 #:endif
 
 #:if WITH_SOCKETS
-inputdata.o: _mod_commontypes common.fypp _mod_pmlocalisation _mod_message _mod_repcont _mod_assert _mod_xlbomd_module _mod_linkedlist _mod_linresp_module _mod_accuracy _mod_dispersions _mod_slakocont _mod_typegeometry _mod_ipisocket
-inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_pmlocalisation) $(_mod_message) $(_mod_repcont) $(_mod_assert) $(_mod_xlbomd_module) $(_mod_linkedlist) $(_mod_linresp_module) $(_mod_accuracy) $(_mod_dispersions) $(_mod_slakocont) $(_mod_typegeometry) $(_mod_ipisocket)
+inputdata.o: _mod_commontypes common.fypp _mod_pmlocalisation _mod_message _mod_timeprop_module _mod_repcont _mod_assert _mod_xlbomd_module _mod_linkedlist _mod_linresp_module _mod_accuracy _mod_dispersions _mod_slakocont _mod_typegeometry _mod_ipisocket
+inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_pmlocalisation) $(_mod_message) $(_mod_timeprop_module) $(_mod_repcont) $(_mod_assert) $(_mod_xlbomd_module) $(_mod_linkedlist) $(_mod_linresp_module) $(_mod_accuracy) $(_mod_dispersions) $(_mod_slakocont) $(_mod_typegeometry) $(_mod_ipisocket)
 _mod_inputdata_module: inputdata.o
 _mod_inputdata_module = $(inputdata.o)
 #:else
-inputdata.o: _mod_commontypes common.fypp _mod_pmlocalisation _mod_message _mod_repcont _mod_assert _mod_xlbomd_module _mod_linkedlist _mod_linresp_module _mod_accuracy _mod_dispersions _mod_slakocont _mod_typegeometry
-inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_pmlocalisation) $(_mod_message) $(_mod_repcont) $(_mod_assert) $(_mod_xlbomd_module) $(_mod_linkedlist) $(_mod_linresp_module) $(_mod_accuracy) $(_mod_dispersions) $(_mod_slakocont) $(_mod_typegeometry)
+inputdata.o: _mod_commontypes common.fypp _mod_pmlocalisation _mod_message _mod_timeprop_module _mod_repcont _mod_assert _mod_xlbomd_module _mod_linkedlist _mod_linresp_module _mod_accuracy _mod_dispersions _mod_slakocont _mod_typegeometry
+inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_pmlocalisation) $(_mod_message) $(_mod_timeprop_module) $(_mod_repcont) $(_mod_assert) $(_mod_xlbomd_module) $(_mod_linkedlist) $(_mod_linresp_module) $(_mod_accuracy) $(_mod_dispersions) $(_mod_slakocont) $(_mod_typegeometry)
 _mod_inputdata_module: inputdata.o
 _mod_inputdata_module = $(inputdata.o)
 #:endif

@@ -20,6 +20,7 @@ module inputdata_module
   use repcont
   use linkedlist
   use xlbomd_module
+  use timeprop_module
 #:if WITH_SOCKETS
   use ipisocket, only : IpiSocketCommInp
 #:endif
@@ -349,6 +350,9 @@ module inputdata_module
     type(XLBOMDInp), allocatable :: xlbomd
 
     type(linrespini) :: lrespini
+
+    !> ElectronDynamics
+    type(ElecDynamicsInp), allocatable :: elecDynInp
 
 #:if WITH_SOCKETS
     !> socket communication

@@ -139,7 +139,7 @@ contains
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities
   subroutine VelocityVerlet_velocities(self, deltaT, positions, pThermostat, &
-      & velocities)
+      & velocities, halfVelocities)
 
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
@@ -156,6 +156,10 @@ contains
     !> List of initial velocities
     real(dp), intent(in) :: velocities(:,:)
 
+    !> These indicates if the t-.5 velocities will be supplied
+    logical, intent(in), optional :: halfVelocities
+    
+
     @:ASSERT(size(positions, dim=1) == 3)
 
     self%nAtom = size(positions, dim=2)
@@ -168,9 +172,14 @@ contains
 
     self%velocities(:,:) = velocities(:,:)
 
-    ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
-    ! t+.5 velocities when possible once forces are available for the coordinates
-    self%vHalfPresent = .false.
+    !self%vHalfPresent = .false.
+    if (present(halfVelocities)) then
+       self%vHalfPresent = halfVelocities
+    else
+       ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
+       ! t+.5 velocities when possible once forces are available for the coordinates       
+       self%vHalfPresent = .false. 
+    end if
 
     self%tBarostat = .false.
 
