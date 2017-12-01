@@ -3905,15 +3905,15 @@ contains
         if (tXlbomd) then
           call error("XLBOMD does not work with external charges yet!")
         else
-          call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell,&
-              & coord, chrgForces)
+          call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell, &
+              & chrgForces)
         end if
       else if (tSccCalc) then
         if (tXlbomd) then
           call sccCalc%addForceDcXlbomd(env, species, orb, neighborList%iNeighbor, img2CentCell,&
-              & coord, qOutput, q0, derivs)
+              & qOutput, q0, derivs)
         else
-          call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell, coord)
+          call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell)
         end if
       end if
 
@@ -4051,7 +4051,7 @@ contains
             & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
             & potential%intBlock, cellVol)
       end if
-      call sccCalc%addStressDc(totalStress, species, neighborList%iNeighbor, img2CentCell,coord)
+      call sccCalc%addStressDc(totalStress, species, neighborList%iNeighbor, img2CentCell)
     else
       if (tImHam) then
         call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&

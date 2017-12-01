@@ -474,7 +474,7 @@ contains
     end if
   #:endif
 
-    call initGamma_(this, this%coord, species, neighList%iNeighbor)
+    call initGamma_(this, species, neighList%iNeighbor)
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
@@ -691,7 +691,7 @@ contains
 
   !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
   !> which is not covered in the term with the shift vectors.
-  subroutine addForceDc(this, env, force, species, iNeighbor, img2CentCell, coord, chrgForce)
+  subroutine addForceDc(this, env, force, species, iNeighbor, img2CentCell, chrgForce)
 
     !> Resulting module variables
     class(TScc), intent(in) :: this
@@ -711,9 +711,6 @@ contains
     !> Indexing of images of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    !> List of coordinates
-    real(dp), intent(in) :: coord(:,:)
-
     !> Force contribution due to the external charges, which is not contained in the term with the
     !> shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
@@ -728,7 +725,7 @@ contains
     @:ASSERT(present(chrgForce) .eqv. this%tExtChrg)
 
     ! Short-range part of gamma contribution
-    call addGammaPrime_(this, force, this%coord, species, iNeighbor, img2CentCell)
+    call addGammaPrime_(this, force, species, iNeighbor, img2CentCell)
 
     ! 1/R contribution
   #:if WITH_SCALAPACK
@@ -757,8 +754,8 @@ contains
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom, this%gLatPoint,&
-            & this%alpha, this%volume)
+        call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom,&
+            & this%gLatPoint, this%alpha, this%volume)
       else
         call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom)
       end if
@@ -769,7 +766,7 @@ contains
 
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
   !> shift vectors.
-  subroutine addStressDc(this, st, species, iNeighbor, img2CentCell, coord) !,chrgForce)
+  subroutine addStressDc(this, st, species, iNeighbor, img2CentCell)
 
     !> Resulting module variables
     class(TScc), intent(in) :: this
@@ -786,9 +783,6 @@ contains
     !> Indexing of images of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    !> List of coordinates
-    real(dp), intent(in) :: coord(:,:)
-
     real(dp) :: stTmp(3,3)
 
     @:ASSERT(this%tInitialised)
@@ -798,7 +792,7 @@ contains
     stTmp = 0.0_dp
 
     ! Short-range part of gamma contribution
-    call addSTGammaPrime_(stTmp,this,this%coord,species,iNeighbor,img2CentCell)
+    call addSTGammaPrime_(stTmp,this,species,iNeighbor,img2CentCell)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
@@ -910,7 +904,7 @@ contains
   !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
   !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
   !> therefore these are passed in as an extra variable.
-  subroutine addForceDcXlbomd(this, env, species, orb, iNeighbor, img2CentCell, coord, qOrbitalOut,&
+  subroutine addForceDcXlbomd(this, env, species, orb, iNeighbor, img2CentCell, qOrbitalOut,&
       & q0, force)
 
     !> Resulting module variables
@@ -930,9 +924,6 @@ contains
 
     !> index from image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
-
-    !> coordinates of all atoms
-    real(dp), intent(in) :: coord(:,:)
 
     !> output charges
     real(dp), intent(in) :: qOrbitalOut(:,:,:)
@@ -958,8 +949,8 @@ contains
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
-    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, this%coord, species, iNeighbor, &
-        & img2CentCell, force)
+    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbor, img2CentCell,&
+        & force)
 
     ! 1/R contribution
   #:if WITH_SCALAPACK
@@ -1161,7 +1152,7 @@ contains
 
   !> Calculate the derivative of the short range contributions using the linearized XLBOMD
   !> formulation with auxiliary charges.
-  subroutine addGammaPrimeXlbomd_(this, dQInUniqU, dQOutUniqU, coord, species, iNeighbor, &
+  subroutine addGammaPrimeXlbomd_(this, dQInUniqU, dQOutUniqU, species, iNeighbor, &
       & img2CentCell, force)
 
     !> Resulting module variables
@@ -1172,9 +1163,6 @@ contains
 
     !> output charges
     real(dp), intent(in) :: dQOutUniqU(:,:)
-
-    !> atomic coordinates
-    real(dp), intent(in) :: coord(:,:)
 
     !> chemical species
     integer, intent(in) :: species(:)
@@ -1229,13 +1217,10 @@ contains
 
 
   !> Set up the storage and internal values for the short range part of Gamma.
-  subroutine initGamma_(this, coord, species, iNeighbor)
+  subroutine initGamma_(this, species, iNeighbor)
 
     !> Resulting module variables
     type(TScc), intent(inout) :: this
-
-    !> List of coordinates
-    real(dp), intent(in) :: coord(:,:)
 
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
@@ -1285,16 +1270,13 @@ contains
 
 
   !> Calculate  the derivative of the short range part of Gamma.
-  subroutine addGammaPrime_(this, force, coord, species, iNeighbor, img2CentCell)
+  subroutine addGammaPrime_(this, force, species, iNeighbor, img2CentCell)
 
     !> Resulting module variables
     type(TScc), intent(in) :: this
 
     !> force vector to add the short-range part of gamma contribution
     real(dp), intent(inout) :: force(:,:)
-
-    !> list of coordinates
-    real(dp), intent(in) :: coord(:,:)
 
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
@@ -1348,16 +1330,13 @@ contains
 
 
   !> Calculate  the derivative of the short range part of Gamma.
-  subroutine addSTGammaPrime_(st, this, coord, species, iNeighbor, img2CentCell)
+  subroutine addSTGammaPrime_(st, this, species, iNeighbor, img2CentCell)
 
     !> Stress tensor component to add the short-range part of the gamma contribution
     real(dp), intent(out) :: st(:,:)
 
     !> Resulting module variables
     type(TScc), intent(in) :: this
-
-    !> list of coordinates
-    real(dp), intent(in) :: coord(:,:)
 
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
