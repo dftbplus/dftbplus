@@ -33,10 +33,6 @@ module scc
 
   public :: TSccInp, TScc, initialize
 
-  !> tolerance for Ewald - should be changed to be possible to override it
-  real(dp), parameter :: tolEwald = 1.0e-9_dp
-
-
   !> Data necessary to initialize the SCC module
   type TSccInp
 
@@ -75,6 +71,10 @@ module scc
 
     !> if > 0 -> manual setting for alpha
     real(dp) :: ewaldAlpha = 0.0_dp
+
+    !> Ewald tollerance
+    real(dp) :: tolEwald = 0.0_dp
+
   end type TSccInp
 
 
@@ -132,6 +132,9 @@ module scc
 
     !> Parameter for Ewald
     real(dp) :: alpha
+
+    !> Ewald tollerance
+    real(dp) :: tolEwald
 
     !> Cell volume
     real(dp) :: volume
@@ -331,13 +334,14 @@ contains
     if (this%tPeriodic) then
       this%volume = inp%volume
       this%tAutoEwald = inp%ewaldAlpha <= 0.0_dp
+      this%tolEwald = inp%tolEwald
       if (this%tAutoEwald) then
-        this%alpha = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, this%volume, tolEwald)
+        this%alpha = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, this%volume, this%tolEwald)
       else
         this%alpha = inp%ewaldAlpha
       end if
-      this%maxREwald = getMaxREwald(this%alpha, tolEwald)
-      maxGEwald = getMaxGEwald(this%alpha, this%volume, tolEwald)
+      this%maxREwald = getMaxREwald(this%alpha, this%tolEwald)
+      maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
       call getLatticePoints(this%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald, &
           & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
       this%gLatPoint(:,:) = matmul(inp%recVecs, this%gLatPoint)
@@ -500,10 +504,10 @@ contains
 
     this%volume = vol
     if (this%tAutoEwald) then
-      this%alpha = getOptimalAlphaEwald(latVec, recVec, this%volume, tolEwald)
-      this%maxREwald = getMaxREwald(this%alpha, tolEwald)
+      this%alpha = getOptimalAlphaEwald(latVec, recVec, this%volume, this%tolEwald)
+      this%maxREwald = getMaxREwald(this%alpha, this%tolEwald)
     end if
-    maxGEwald = getMaxGEwald(this%alpha, this%volume, tolEwald)
+    maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
     call getLatticePoints(this%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald, &
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoint = matmul(recVec, this%gLatPoint)

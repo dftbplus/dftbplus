@@ -1162,6 +1162,7 @@ contains
       end if
 
       sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
       mCutoff = max(mCutoff, sccCalc%getCutoff())

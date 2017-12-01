@@ -934,6 +934,7 @@ following properties:
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
+  \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
@@ -999,6 +1000,8 @@ following properties:
   parameter in the standard output. This is then a suitable choice for
   the original cell with the large vacuum region.
 
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
 
 \item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
