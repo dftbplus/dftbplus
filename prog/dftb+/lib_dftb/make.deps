@@ -9,15 +9,29 @@ _mod_charges: charges.o
 _mod_charges = $(charges.o)
 
 #:if WITH_SCALAPACK
-coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_errorfunction _mod_accuracy _mod_scalapackfx
-coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_scalapackfx)
+#:if WITH_MPI
+coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_errorfunction _mod_accuracy _mod_scalapackfx _mod_mpifx
+coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_scalapackfx) $(_mod_mpifx)
 _mod_coulomb: coulomb.o
 _mod_coulomb = $(coulomb.o)
 #:else
-coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_errorfunction _mod_accuracy
-coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_errorfunction) $(_mod_accuracy)
+coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_errorfunction _mod_accuracy _mod_scalapackfx
+coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_scalapackfx)
 _mod_coulomb: coulomb.o
 _mod_coulomb = $(coulomb.o)
+#:endif
+#:else
+#:if WITH_MPI
+coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_errorfunction _mod_accuracy _mod_mpifx
+coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_mpifx)
+_mod_coulomb: coulomb.o
+_mod_coulomb = $(coulomb.o)
+#:else
+coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_errorfunction _mod_accuracy
+coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy)
+_mod_coulomb: coulomb.o
+_mod_coulomb = $(coulomb.o)
+#:endif
 #:endif
 
 #:if WITH_SCALAPACK

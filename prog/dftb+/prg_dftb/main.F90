@@ -361,11 +361,14 @@ contains
         if (.not.tSCCCalc) then
           call error("Needs SCC for potentials")
         end if
-        call sccCalc%electroStaticPotential(ESPpotential,ESPgrid)
+
+        call sccCalc%electroStaticPotential(env, ESPpotential,ESPgrid)
+
+        write(stdOut,*)'Electrostatic potential'
         do ii = 1, size(ESPpotential)
-          write(*,*)ii,ESPgrid(:,ii),ESPpotential(ii)
+          write(stdOut,"(I3,3E12.4,' : ',E20.12)")ii,ESPgrid(:,ii) * Bohr__AA,ESPpotential(ii)
         end do
-        write(*,*)
+        write(stdOut,*)
       end if
       
       if (tXlbomd) then

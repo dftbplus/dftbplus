@@ -390,7 +390,7 @@ contains
 
     ! Internal storage for the atomic coordinates
     allocate(this%coord(3,this%nAtom))
-    
+
     this%tInitialised = .true.
 
   end subroutine Scc_initialize
@@ -454,7 +454,7 @@ contains
     call updateNNeigh_(this, species, neighList)
 
     this%coord = coord
-    
+
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc /= -1) then
       if (this%tPeriodic) then
@@ -1545,10 +1545,13 @@ contains
 
   end subroutine getNetChargesPerUniqU_
 
-  subroutine electroStaticPotential(this, V,locations)
+  subroutine electroStaticPotential(this, env, V,locations)
 
-    !> Instance
+    !> Instance of SCC calculation
     class(TScc), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Resulting potentials
     real(dp), intent(out) :: V(:)
@@ -1566,8 +1569,8 @@ contains
       allocate(Vext(this%nAtom))
       Vext = 0.0_dp
     end if
-    
-#:if not WITH_SCALAPACK
+
+#:if not WITH_MPI
 
     if (.not. this%tPeriodic) then
       call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
@@ -1581,18 +1584,25 @@ contains
       ! call this%extCharge%addShiftPerAtom(V) ! won't work due to sizing changes of V and nAtoms
       call error("Currently missing")
     end if
-    
+
 #:else
 
     if (.not. this%tPeriodic) then
-      ! call getInvRClusterBlacs()
-      call error("Currently missing")
+      call getSumInvRClusterMpi(V, env, locations, this%coord, this%deltaQAtom)
     else
+      !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+      !  & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
       call error("Currently missing")
     end if
-    
+
+    if (this%tExtChrg) then
+      ! call this%extCharge%addShiftPerAtom(V) ! won't work due to sizing changes of V and nAtoms
+      call error("Currently missing")
+    end if
+
+
 #:endif
 
   end subroutine electroStaticPotential
-  
+
 end module scc
