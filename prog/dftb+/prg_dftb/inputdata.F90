@@ -120,6 +120,12 @@ module inputdata_module
     !> printout of Mulliken
     logical :: tPrintMulliken   = .false.
 
+    !> Electrostatic potential on a grid
+    logical :: tESPgrid = .false.
+    
+    !> Location of potential points
+    real(dp), allocatable :: ESPgrid(:,:)
+    
     !> Localise electronic states
     logical :: tLocalise   = .false.
 

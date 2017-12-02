@@ -406,6 +406,10 @@ module initprogram
   !> Do we need Mulliken charges?
   logical :: tMulliken
 
+  logical :: tESPgrid
+  real(dp), allocatable :: ESPgrid(:,:)
+  real(dp), allocatable :: ESPpotential(:)
+  
   !> Calculate localised orbitals?
   logical :: tLocalise
 
@@ -1590,6 +1594,14 @@ contains
       tDipole = .false.
     end if
 
+    tESPgrid = input%ctrl%tESPgrid
+    if (tESPgrid) then
+      allocate(ESPgrid(3,size(input%ctrl%ESPgrid,dim=2)))
+      allocate(ESPpotential(size(input%ctrl%ESPgrid,dim=2)))
+      ESPgrid = input%ctrl%ESPgrid
+      ESPpotential = 0.0_dp
+    end if
+    
     tLocalise = input%ctrl%tLocalise
     if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
       call error("Localisation of electronic states currently unsupported for&

@@ -3109,7 +3109,7 @@ contains
     character(lc) :: strTmp
     type(listRealR1) :: lr1
     logical :: tPipekDense
-
+    
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
     call getChildren(child, "Region", children)
@@ -3185,6 +3185,25 @@ contains
       end if
     end if
 
+    ctrl%tESPGrid = .false.
+    if (ctrl%tSCC) then
+      call getChild(node, "ESP",  child=child, requested=.false.)
+      if (associated(child)) then
+        call init(lr1)
+        call getChildValue(child, "points", 3, lr1, modifier=buffer)
+        
+        if (len(lr1) < 1) then
+          call detailedError(child, "Missing values.")
+        end if
+        
+        ctrl%tESPGrid = .true.
+        allocate(ctrl%ESPgrid(3,len(lr1)))
+        call asArray(lr1, ctrl%ESPgrid)
+        call destruct(lr1)
+        call convertByMul(char(buffer), lengthUnits, child, ctrl%ESPgrid)
+      end if
+    end if
+    
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)

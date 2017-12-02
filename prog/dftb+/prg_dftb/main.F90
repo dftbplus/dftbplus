@@ -173,6 +173,8 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
+    integer :: ii
+    
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -355,6 +357,17 @@ contains
             & rhoSqrReal, excitedDerivs, occNatural)
       end if
 
+      if (tESPgrid) then
+        if (.not.tSCCCalc) then
+          call error("Needs SCC for potentials")
+        end if
+        call sccCalc%electroStaticPotential(ESPpotential,ESPgrid)
+        do ii = 1, size(ESPpotential)
+          write(*,*)ii,ESPgrid(:,ii),ESPpotential(ii)
+        end do
+        write(*,*)
+      end if
+      
       if (tXlbomd) then
         call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
             & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&

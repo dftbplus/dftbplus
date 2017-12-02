@@ -1560,7 +1560,6 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(locations) == [3,size(V)]))
-    @:ASSERT(size(V) == this%nAtom)
 
     V = 0.0_dp
     if (this%tExtChrg) then
@@ -1574,7 +1573,7 @@ contains
       call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
     else
       !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-      !  & this%rCellVec, gLat, alpha, volume)
+      !  & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
       call error("Currently missing")
     end if
 
@@ -1584,9 +1583,14 @@ contains
     end if
     
 #:else
-    
-    call error("Currently missing")
 
+    if (.not. this%tPeriodic) then
+      ! call getInvRClusterBlacs()
+      call error("Currently missing")
+    else
+      call error("Currently missing")
+    end if
+    
 #:endif
 
   end subroutine electroStaticPotential
