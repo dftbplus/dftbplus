@@ -1447,7 +1447,9 @@ contains
     nMovedCoord = 3 * nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      nGeoSteps = huge(1)
+      nGeoSteps = huge(1) - 1
+      ! Workaround:PGI 17.10 -> do i = 0, huge(1) executes 0 times
+      ! nGeoSteps = huge(1)
     else
       nGeoSteps = input%ctrl%maxRun
     end if
