@@ -30,7 +30,7 @@ LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64
 LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
 
 # Any other libraries to be linked
-OTHERLIBS =
+OTHERLIBS = -liomp5
 
 # M4 preprocessor settings
 M4 = m4

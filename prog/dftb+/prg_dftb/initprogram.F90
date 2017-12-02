@@ -1429,12 +1429,11 @@ contains
       case (1)
         ! set step size from input
         if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
-          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference &
-              &step :', input%ctrl%deriv1stDelta
+          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
+              & input%ctrl%deriv1stDelta
           call error(tmpStr)
         end if
-        call NonSccDiff_init(nonSccDeriv, diffTypes%finiteDiff, &
-            & input%ctrl%deriv1stDelta)
+        call NonSccDiff_init(nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
       case (2)
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
