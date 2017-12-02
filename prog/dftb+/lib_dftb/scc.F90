@@ -64,7 +64,7 @@ module scc
     !> external charges
     real(dp), allocatable :: extCharges(:,:)
 
-    !> if broadened out
+    !> if broadened external charges
     real(dp), allocatable :: blurWidths(:)
 
     !> any constraints on atomic charges
@@ -147,6 +147,15 @@ module scc
 
     !> Are external charges present?
     logical :: tExtChrg
+
+    !> External charge locations
+    real(dp), allocatable :: extChrgCoord(:,:)
+
+    !> External charge values
+    real(dp), allocatable :: extChrgQ(:)
+
+    !> External charg optional blur widths
+    real(dp), allocatable :: extChrgBlurWidths(:)
 
     !> Negative net charge
     real(dp), allocatable :: deltaQ(:,:)
@@ -363,6 +372,16 @@ contains
         @:ASSERT(allocated(inp%blurWidths))
         call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, blurWidths=inp%blurWidths)
       end if
+
+      allocate(this%extChrgCoord(3,size(inp%extCharges, dim=2)))
+      this%extChrgCoord = inp%extCharges(:3,:)
+      allocate(this%extChrgQ(size(inp%extCharges, dim=2)))
+      this%extChrgQ = inp%extCharges(1,:)
+      if (allocated(inp%blurWidths)) then
+        allocate(this%extChrgBlurWidths(size(inp%extCharges, dim=2)))
+        this%extChrgBlurWidths = inp%blurWidths
+      end if
+
     end if
 
     this%tChrgConstr = allocated(inp%chrgConstraints)
@@ -1545,7 +1564,7 @@ contains
 
   end subroutine getNetChargesPerUniqU_
 
-  subroutine electroStaticPotential(this, env, V,locations)
+  subroutine electrostaticPotential(this, env, V,locations)
 
     !> Instance of SCC calculation
     class(TScc), intent(inout) :: this
@@ -1566,7 +1585,7 @@ contains
 
     V = 0.0_dp
     if (this%tExtChrg) then
-      allocate(Vext(this%nAtom))
+      allocate(Vext(size(V)))
       Vext = 0.0_dp
     end if
 
@@ -1574,14 +1593,18 @@ contains
 
     if (.not. this%tPeriodic) then
       call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
+      if (this%tExtChrg) then
+        if (allocated(this%extChrgBlurWidths)) then
+          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, this%extChrgBlurWidths)
+        else
+          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ)
+        end if
+      end if
     else
       !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
       !  & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
-      call error("Currently missing")
-    end if
-
-    if (this%tExtChrg) then
-      ! call this%extCharge%addShiftPerAtom(V) ! won't work due to sizing changes of V and nAtoms
       call error("Currently missing")
     end if
 
@@ -1589,6 +1612,14 @@ contains
 
     if (.not. this%tPeriodic) then
       call getSumInvRClusterMpi(V, env, locations, this%coord, this%deltaQAtom)
+
+      if (allocated(this%extChrgBlurWidths)) then
+        call getSumInvRClusterMpi(Vext, env, locations, this%extChrgCoord, this%extChrgQ,&
+            & this%extChrgBlurWidths)
+      else
+        call getSumInvRClusterMpi(Vext, env, locations, this%extChrgCoord, this%extChrgQ)
+      end if
+
     else
       !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
       !  & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
@@ -1603,6 +1634,10 @@ contains
 
 #:endif
 
-  end subroutine electroStaticPotential
+    if (this%tExtChrg) then
+      write(*,*)Vext
+    end if
+
+  end subroutine electrostaticPotential
 
 end module scc
