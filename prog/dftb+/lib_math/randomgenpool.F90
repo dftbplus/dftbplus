@@ -11,6 +11,10 @@
 !> subsequently returned random generators (and hence the random numbers they will produce) is
 !> uniquely determined by the seed value used to initialise the random generator pool itself.
 module randomgenpool
+#:if WITH_MPI
+  use mpifx
+#:endif
+  use environment
   use accuracy, only : dp
   use ranlux
   use assert
@@ -21,6 +25,10 @@ module randomgenpool
 
 
   !> Random generator pool
+  !>
+  !> Note: To ensure random numbers being independent from the nr. of processes being used,
+  !> all random generator pool methods must always be called collectively by all processes.
+  !>
   type :: ORandomGenPool
     private
 
@@ -52,12 +60,13 @@ contains
 
 
   !> Intialises a random generator pool.
-  subroutine RandomGenPool_init(this, seed, oldCompat)
-
+  subroutine RandomGenPool_init(this, env, seed, oldCompat)
 
     !> Instance.
     class(ORandomGenPool), intent(out) :: this
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Seed to use for initialisation of the random generator pool.
     !> If value is less than one, a random seed will be chosen (and passed back to the calling
@@ -76,23 +85,29 @@ contains
     !> real temporary
     real(dp) :: rTmp
 
-    if (seed < 1) then
-      call system_clock(seed)
-    end if
+    if (env%tGlobalMaster) then
+      if (seed < 1) then
+        call system_clock(seed)
+      end if
 
-    if (seed < 1) then
-      call date_and_time(values=timeValues)
-      if (timeValues(5) >= 0) then
-        seed = 1000 * (60 * (60 * timeValues(5) + timeValues(6)) + timeValues(7)) + timeValues(8)
+      if (seed < 1) then
+        call date_and_time(values=timeValues)
+        if (timeValues(5) >= 0) then
+          seed = 1000 * (60 * (60 * timeValues(5) + timeValues(6)) + timeValues(7)) + timeValues(8)
+        end if
+      end if
+
+      if (seed < 1) then
+        call random_seed()
+        call random_number(rTmp)
+        ! Make sure seed > 1
+        seed = int(real(huge(seed) - 1, dp) * rTmp) + 1
       end if
     end if
 
-    if (seed < 1) then
-      call random_seed()
-      call random_number(rTmp)
-      ! Make sure seed > 1
-      seed = int(real(huge(seed) - 1, dp) * rTmp) + 1
-    end if
+  #:if WITH_MPI
+    call mpifx_bcast(env%mpi%globalComm, seed)
+  #:endif
 
     allocate(this%generator)
     call init(this%generator, 3, initSeed=seed)
@@ -106,12 +121,13 @@ contains
 
 
   !> Returns a random generator.
-  subroutine getGenerator(this, randomGenerator)
-
+  subroutine getGenerator(this, env, randomGenerator)
 
     !> Instance.
     class(ORandomGenPool), intent(inout) :: this
 
+    !> Environment settings.
+    type(TEnvironment), intent(in) :: env
 
     !> Initialised random generator.
     type(ORanlux), allocatable, intent(out) :: randomGenerator
@@ -127,12 +143,18 @@ contains
     if (this%served == 0 .and. this%oldCompat) then
       call getRandom(this%generator, randompool)
       seed = int(real(huge(seed) - 1, dp) * randompool(1)) + 1
+    #:if WITH_MPI
+      call mpifx_bcast(env%mpi%globalComm, seed)
+    #:endif
       call move_alloc(this%generator, randomGenerator)
       allocate(this%generator)
       call init(this%generator, initSeed=seed)
     else
       call getRandom(this%generator, rTmp)
       seed = int(real(huge(seed) - 1, dp) * rTmp) + 1
+    #:if WITH_MPI
+      call mpifx_bcast(env%mpi%globalComm, seed)
+    #:endif
       allocate(randomGenerator)
       call init(randomGenerator, initSeed=seed)
     end if

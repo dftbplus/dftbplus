@@ -54,8 +54,10 @@ AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
 	        -d $(TAGDIFF_SCRIPT)
 
 # Get list of tests to execute, but only if test is specified as goal
+CREATE_PRETESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
+	$(shell $(ROOT)/utils/test/testlist_to_fypp < $(TESTFILE) > $(PROCESSED_TESTFILE).fypp),)
 CREATE_TESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
-	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) $(TESTFILE) > $(PROCESSED_TESTFILE)),)
+	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) -DNPROC=$(TESTPROC) $(PROCESSED_TESTFILE).fypp > $(PROCESSED_TESTFILE)),)
 TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(AUTOTEST_CMD) -f $(PROCESSED_TESTFILE) -l),)
 
@@ -64,7 +66,7 @@ TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 
 # Prepare and run individual tests, possibly in parallel.
 $(TESTS):
-	@$(AUTOTEST_CMD) -P "$(PRERUN)" -p ./dftb+ -Q "$(POSTRUN)" -s P,R \
+	@$(AUTOTEST_CMD) -P "$(TESTRUNNER)" -p ./dftb+ -Q "$(POSTRUN)" -s P,R \
             $(AUTOTEST_FLAGS) $@
 
 # Run calculations and immediately compare (possibly in parallel),

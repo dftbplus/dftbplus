@@ -3,6 +3,48 @@
 # nagfor 6.1, gcc 4.8
 ############################################################################
 
+ifeq ($(strip $(WITH_MPI)),1)
+############################################################################
+# MPI settings
+############################################################################
+
+# Compilers
+FXX = mpif90
+CC = gcc
+
+# Compiler options
+FXXOPT = -O2 -funroll-all-loops -mismatch
+CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+
+# Linker
+LN = $(FXX)
+LNOPT = -openmp
+
+# How to link specific libraries
+
+# ScaLAPACK
+SCALAPACKDIR = /usr/lib
+LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
+
+# LAPACK/BLAS
+ATLASDIR = /usr/lib
+LIB_LAPACK =  -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+
+# Any other libraries to be linked
+OTHERLIBS =
+
+# M4 preprocessor settings
+M4 = m4
+M4OPT = 
+
+# Command to run the test binary
+TESTRUNNER = mpirun -n $(TESTPROC)
+
+else
+############################################################################
+# NON-MPI settings
+############################################################################
+
 # Compilers
 FXX = nagfor
 CC = gcc
@@ -10,10 +52,6 @@ CC = gcc
 # Compiler options
 FXXOPT = -O2 -ieee=full -openmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
-
-# Preprocessor
-FYPP = $(ROOT)/external/fypp/bin/fypp
-FYPPOPT = -DINTERNAL_ERFC -DEXP_TRAP
 
 # Linker
 LN = $(FXX)
@@ -26,19 +64,30 @@ ifeq ($(strip $(WITH_ARPACK)),1)
     FXXOPT += -Ounroll=1
 endif
 
-# Library options in general
-LIBOPT = 
-
 # How to link specific libraries
+
+# LAPACK/BLAS
 ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack
-LIB_BLAS = -lf77blas -lcblas -latlas
-# Threaded version may work as well
-# LIB_BLAS = -lptf77blas -lptcblas -latlas
+LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked
-OTHERLIBS = 
+OTHERLIBS =
 
+# Command to run a binary
+TESTRUNNER =
+
+endif
+
+############################################################################
+# General settings
+############################################################################
+
+# Preprocessor
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT = -DINTERNAL_ERFC -DEXP_TRAP
+
+# Library options in general
+LIBOPT = 
 
 ############################################################################
 # Developer settings
@@ -46,12 +95,12 @@ OTHERLIBS =
 
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
-    FXXOPT = -ieee=full -f2008 -g -gline
-    LNOPT = -Bstatic
+    FXXOPT = -ieee=full -f2008 -g -gline -mismatch
+    LNOPT =
     CCOPT = -g -Wall -pedantic -fall-intrinsics
 endif
 ifeq ($(strip $(DEBUG)),2)
-    FXXOPT = -ieee=full -f2008 -g -gline -C=all  -nan -mtrace=all
-    LNOPT = -Bstatic
+    FXXOPT = -ieee=full -f2008 -g -gline -C=all  -nan -mtrace=all -mismatch
+    LNOPT =
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 endif

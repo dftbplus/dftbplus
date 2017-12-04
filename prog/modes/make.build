@@ -21,7 +21,7 @@ SRCDIRS := $(ROOT)/prog/modes
 SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
 SRCDIRS += $(ROOT)/prog/dftb+/include
 INCDIRS := $(ROOT)/prog/dftb+/include
-include $(ROOT)/prog/dftb+/make.common
+include $(ROOT)/prog/modes/make.common
 
 # Target definitions (declared *after* importing necessary makefiles).
 modes: $(modes.o)

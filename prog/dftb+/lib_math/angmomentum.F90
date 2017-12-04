@@ -9,87 +9,116 @@
 
 !> Angular momentum related routines
 module angmomentum
+#:if WITH_SCALAPACK
+  use scalapackfx
+#:endif
   use assert
   use accuracy, only : dp
+  use constants, only : imag
   use qm
   use commontypes, only : TOrbitals
-
+  use environment
+  use densedescr
   implicit none
-
   private
-  public :: Loperators, getL
 
+  public :: getLOperators, getLOperatorsForSpecies
+  public :: getLOnsite, getLDual
 
-  !> construct L_z and L^+ in the tesseral spherical hamonics basis for a given value of l
-  interface Loperators
-    module procedure operators
-  end interface
-
-
-  !> Calculate atomic angular momentum for each shell
-  interface getL
-    module procedure onsite
-    module procedure dual
-  end interface
 
 contains
 
 
   !> Returns L^+ and L_z in the tesseral spherical Harmonics basis used in DFTB+
-  subroutine operators(Lplus,Lz,l)
-
-    !> L^+ operator
-    complex(dp),intent(out) :: Lplus(0:,0:)
-
-    !> L_z operator
-    complex(dp),intent(out) :: Lz(0:,0:)
+  subroutine getLOperators(ll, Lplus, Lz)
 
     !> value of the orbital momentum to construct these matrices
-    integer, intent(in) :: l
+    integer, intent(in) :: ll
+
+    !> L^+ operator
+    complex(dp),intent(out) :: Lplus(0:, 0:)
+
+    !> L_z operator
+    complex(dp),intent(out) :: Lz(0:, 0:)
 
     ! magnetic quantum number
-    integer :: m
+    integer :: mm
 
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
-    complex(dp), allocatable :: u(:,:)
+    complex(dp), allocatable :: uu(:,:)
 
-    @:ASSERT(l >= 0)
-    @:ASSERT(all(shape(Lplus)==shape(Lz)))
-    @:ASSERT(size(Lplus,dim=1)==2*l+1)
-    @:ASSERT(size(Lplus,dim=2)==2*l+1)
+    @:ASSERT(ll >= 0)
+    @:ASSERT(all(shape(Lplus) == shape(Lz)))
+    @:ASSERT(size(Lplus, dim=1) == 2 * ll + 1)
+    @:ASSERT(size(Lplus, dim=2) == 2 * ll + 1)
 
     ! L_z in usual spherical harmonic basis
-    Lz = 0.0_dp
-    do m = -l, l
-      Lz(l+m,l+m) = real(m,dp)
+    Lz(:,:) = 0.0_dp
+    do mm = -ll, ll
+      Lz(ll + mm, ll + mm) = real(mm, dp)
     end do
 
     ! L^+ in usual spherical harmonic basis
-    Lplus = 0.0_dp
-    do m = -l, l-1
-      Lplus(l+m+1,l+m) = sqrt(real(l*(l+1)-m*(m+1),dp))
+    Lplus(:,:) = 0.0_dp
+    do mm = -ll, ll - 1
+      Lplus(ll + mm + 1, ll + mm) = sqrt(real(ll * (ll + 1) - mm * (mm + 1), dp))
     end do
 
-    allocate(u(0:2*l,0:2*l))
+    allocate(uu(0 : 2 * ll, 0 : 2 * ll))
 
     ! unitary transformation from Y_{lm} to \overline{Y}_{lm}
-    u(:,:) = 0.0_dp
-    do m = 1, l
-      u(l+m,l+m) = sqrt(0.5_dp) * real(mod(m+1,2)-mod(m,2),dp)
-      u(l+m,l-m) = sqrt(0.5_dp) * 1.0_dp
-      u(l-m,l+m) = -sqrt(0.5_dp) * i * real(mod(m,2)-mod(m+1,2),dp)
-      u(l-m,l-m) = -sqrt(0.5_dp) * i
+    uu(:,:) = 0.0_dp
+    do mm = 1, ll
+      uu(ll + mm, ll  + mm) = sqrt(0.5_dp) * real(mod(mm + 1, 2)-mod(mm, 2), dp)
+      uu(ll + mm, ll - mm) = sqrt(0.5_dp)
+      uu(ll - mm, ll + mm) = -sqrt(0.5_dp) * imag * real(mod(mm, 2) - mod(mm + 1, 2), dp)
+      uu(ll - mm, ll - mm) = -sqrt(0.5_dp) * imag
     end do
-    u(l,l) = 1.0_dp
+    uu(ll, ll) = 1.0_dp
 
-    call makeSimiliarityTrans(Lz,u)
-    call makeSimiliarityTrans(Lplus,u)
+    call makeSimiliarityTrans(Lz, uu)
+    call makeSimiliarityTrans(Lplus, uu)
 
-  end subroutine operators
+  end subroutine getLOperators
+
+
+  !> Returns Lz and Lplus for a given species.
+  subroutine getLOperatorsForSpecies(orb, iSpecies, speciesZ, speciesPlus)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species to get the operators for
+    integer, intent(in) :: iSpecies
+
+    !> Species specific Lz operator
+    complex(dp), intent(out) :: speciesZ(:,:)
+
+    !> Species specific L+ operator
+    complex(dp), intent(out) :: speciesPlus(:,:)
+
+    integer :: iShell, ll, nOrbShell, iOrbStart, iOrbEnd
+
+    @:ASSERT(all(shape(speciesZ) == shape(speciesPlus)))
+
+    speciesZ(:,:) = 0.0_dp
+    speciesPlus(:,:) = 0.0_dp
+    do iShell = 1, orb%nShell(iSpecies)
+      ll = orb%angShell(iShell, iSpecies)
+      nOrbShell = 2 * ll + 1
+      iOrbStart = orb%posShell(iShell, iSpecies)
+      iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
+      call getLOperators(ll, speciesPlus(1:nOrbShell, 1:nOrbShell),&
+          & speciesZ(1:nOrbShell, 1:nOrbShell))
+    end do
+
+  end subroutine getLOperatorsForSpecies
 
 
   !> Calculates the on-site orbital angular momentum
-  subroutine onsite(Lshell, rho, iAtomStart, orb, species)
+  subroutine getLOnsite(env, Lshell, rho, denseDesc, orb, species)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out) :: Lshell(:,:,:)
@@ -97,8 +126,8 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:)
 
-    !> Offset array in the square matrix
-    integer, intent(in) :: iAtomStart(:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -106,81 +135,70 @@ contains
     !> Species of the atoms
     integer, intent(in) :: species(:)
 
-    integer :: nAtom, nSpecies, nOrb, iSp
-    integer :: ii, jj, kk, ll, iStart, iEnd
-    complex(dp), allocatable :: SpeciesL(:,:,:,:)
-    complex(dp), allocatable :: L(:,:,:)
-    complex(dp), allocatable :: Lplus(:,:)
-    complex(dp), allocatable :: tmpBlock(:,:)
+    integer :: nAtom, nSpecies, nOrb, nOrbSp
+    integer :: iSp, iAt, iShell, iOrb, iOrbStart, iOrbEnd, kk
+    complex(dp), allocatable :: speciesL(:,:,:,:)
+    complex(dp) :: speciesPlus(orb%mOrb, orb%mOrb), speciesZ(orb%mOrb, orb%mOrb)
+    complex(dp) :: tmpBlock(orb%mOrb, orb%mOrb)
 
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
-
-    nAtom = size(Lshell,dim=3)
+    nAtom = size(Lshell, dim=3)
     nSpecies = maxval(species(1:nAtom))
-    nOrb = size(rho,dim=1)
+    nOrb = size(rho, dim=1)
 
-    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    @:ASSERT(size(iAtomStart) == nAtom+1)
-    @:ASSERT(mod(nOrb,2)==0)
+    @:ASSERT(size(denseDesc%iAtomStart) == nAtom + 1)
+    @:ASSERT(mod(nOrb,2) == 0)
     nOrb = nOrb / 2
 
-    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
-    SpeciesL = 0.0_dp
-    allocate(L(orb%mOrb,orb%mOrb,3))
-    allocate(Lplus(orb%mOrb,orb%mOrb))
-    allocate(tmpBlock(orb%mOrb,orb%mOrb))
+    allocate(speciesL(orb%mOrb, orb%mOrb, 3, nSpecies))
+    speciesL(:,:,:,:) = 0.0_dp
     do iSp = 1, nSpecies
-      do jj = 1, orb%nShell(iSp)
-        L = 0.0_dp
-        Lplus = 0.0_dp
-        tmpBlock = 0.0_dp
-        kk = orb%angShell(jj,iSp)
-        iStart = orb%posShell(jj,iSp)
-        iEnd = orb%posShell(jj+1,iSp)-1
-        call loperators(Lplus(1:2*kk+1,1:2*kk+1),tmpBlock(1:2*kk+1,1:2*kk+1),kk)
-        L(iStart:iEnd,iStart:iEnd,3) = tmpBlock(1:2*kk+1,1:2*kk+1)
-        tmpBlock(1:2*kk+1,1:2*kk+1) = transpose(conjg(Lplus(1:2*kk+1,1:2*kk+1)))
-        L(iStart:iEnd,iStart:iEnd,1) = 0.5_dp * &
-            & (Lplus(1:2*kk+1,1:2*kk+1) + tmpBlock(1:2*kk+1,1:2*kk+1))
-        L(iStart:iEnd,iStart:iEnd,2) = 0.5_dp * i * &
-            & (tmpBlock(1:2*kk+1,1:2*kk+1) - Lplus(1:2*kk+1,1:2*kk+1))
-        SpeciesL(iStart:iEnd,iStart:iEnd,1:3,iSp) = &
-            & L(iStart:iEnd,iStart:iEnd,1:3)
-      end do
+      call getLOperatorsForSpecies(orb, iSp, speciesPlus, speciesZ)
+      speciesL(:, :, 1, iSp) = 0.5_dp * (speciesPlus + transpose(conjg(speciesPlus)))
+      speciesL(:, :, 2, iSp) = 0.5_dp * imag * (transpose(conjg(speciesPlus) - speciesPlus))
+      speciesL(:, :, 3, iSp) = speciesZ
     end do
 
-    Lshell = 0.0_dp
+    Lshell(:,:,:) = 0.0_dp
 
-    do ii = 1, nAtom
-      iSp = species(ii)
-      jj = orb%nOrbSpecies(iSp)
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      nOrbSp = orb%nOrbSpecies(iSp)
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
 
       ! I block
-      tmpBlock = 0.0_dp
-      tmpBlock(1:jj,1:jj) = 0.5_dp * ( rho(iAtomStart(ii):iAtomStart(ii+1)-1, &
-          & iAtomStart(ii):iAtomStart(ii+1)-1) &
-          & + rho(nOrb+iAtomStart(ii):nOrb+iAtomStart(ii+1)-1, &
-          & nOrb+iAtomStart(ii):nOrb+iAtomStart(ii+1)-1) )
-      do ll = 1, orb%nOrbSpecies(iSp)
-        tmpBlock(ll,ll+1:) = conjg(tmpBlock(ll+1:,ll)) ! Hermitize
+      tmpBlock(:,:) = 0.0_dp
+    #:if WITH_SCALAPACK
+      call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
+          & tmpBlock(1:nOrbSp, 1:nOrbSp))
+      call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
+          & nOrb + iOrbStart, rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
+    #:else
+      tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) &
+          & + rho(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd)
+    #:endif
+      tmpBlock(:,:) = 0.5_dp * tmpBlock
+      ! Hermitize
+      do iOrb = 1, nOrbSp
+        tmpBlock(iOrb, iOrb + 1 :) = conjg(tmpBlock(iOrb + 1 :, iOrb))
       end do
-      do ll = 1, orb%nShell(iSp)
-        iStart = orb%posShell(ll,iSp)
-        iEnd = orb%posShell(ll+1,iSp)-1
+      do iShell = 1, orb%nShell(iSp)
+        iOrbStart = orb%posShell(iShell, iSp)
+        iOrbEnd = orb%posShell(iShell + 1, iSp) - 1
         do kk = 1, 3
-          Lshell(kk,ll,ii) = Lshell(kk,ll,ii) + &
-              & real(sum(SpeciesL(iStart:iEnd,iStart:iEnd,kk,iSp)* &
-              & transpose(tmpBlock(iStart:iEnd,iStart:iEnd))), dp)
+          Lshell(kk, iShell, iAt) = Lshell(kk, iShell, iAt) + &
+              & real(sum(speciesL(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd, kk, iSp)&
+              & * transpose(tmpBlock(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd))), dp)
         end do
       end do
 
     end do
 
-  end subroutine onsite
+  end subroutine getLOnsite
 
 
   !> Calculates the on-site orbital angular momentum for dual populations
-  subroutine dual(Lshell, qBlockSkew, orb, species)
+  subroutine getLDual(Lshell, qBlockSkew, orb, species)
 
     !> resulting orbital angular momentum (cartesian component, atomic shell, atom)
     real(dp), intent(out) :: Lshell(:,:,:)
@@ -194,59 +212,46 @@ contains
     !> Species of the atoms
     integer, intent(in) :: species(:)
 
-    integer :: nAtom, nSpecies, iSp
-    integer :: ii, jj, kk, ll, mm, iStart, iEnd
-    real(dp), allocatable :: SpeciesL(:,:,:,:)
-    complex(dp), allocatable :: Lz(:,:)
-    complex(dp), allocatable :: Lplus(:,:)
+    integer :: nAtom, nSpecies, nOrbSp
+    integer :: iAt, iSp, iOrb, iOrbStart, iOrbEnd, kk
+    real(dp), allocatable :: speciesL(:,:,:,:)
+    complex(dp) :: speciesPlus(orb%mOrb, orb%mOrb), speciesZ(orb%mOrb, orb%mOrb)
     real(dp), allocatable :: tmpBlock(:,:)
 
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
 
-    nAtom = size(LShell,dim=3)
+    nAtom = size(LShell, dim=3)
     nSpecies = maxval(species(1:nAtom))
 
-    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
-    SpeciesL = 0.0_dp
-    allocate(Lz(orb%mOrb,orb%mOrb))
-    allocate(Lplus(orb%mOrb,orb%mOrb))
-    do ii = 1, nSpecies
-      do jj = 1, orb%nShell(ii)
-        Lz = 0.0_dp
-        Lplus = 0.0_dp
-        kk = orb%angShell(jj,ii)
-        call loperators(Lplus(1:2*kk+1,1:2*kk+1),Lz(1:2*kk+1,1:2*kk+1),kk)
-        speciesL(orb%posShell(jj,ii):orb%posShell(jj+1,ii)-1, &
-            & orb%posShell(jj,ii):orb%posShell(jj+1,ii)-1,1,ii) &
-            & = aimag(Lplus(1:2*kk+1,1:2*kk+1))
-        speciesL(orb%posShell(jj,ii):orb%posShell(jj+1,ii)-1, &
-            & orb%posShell(jj,ii):orb%posShell(jj+1,ii)-1,2,ii) &
-            & = -real(Lplus(1:2*kk+1,1:2*kk+1))
-        speciesL(orb%posShell(jj,ii):orb%posShell(jj+1,ii)-1, &
-            & orb%posShell(jj,ii):orb%posShell(jj+1,ii)-1,3,ii) &
-            & = aimag(Lz(1:2*kk+1,1:2*kk+1))
-      end do
+    allocate(speciesL(orb%mOrb, orb%mOrb, 3, nSpecies))
+    do iSp = 1, nSpecies
+      call getLOperatorsForSpecies(orb, iSp, speciesPlus, speciesZ)
+      speciesL(:, :, 1, iSp) = aimag(speciesPlus)
+      speciesL(:, :, 2, iSp) = -real(speciesPlus)
+      speciesL(:, :, 3, iSp) = aimag(speciesZ)
     end do
 
-    allocate(tmpBlock(orb%mOrb,orb%mOrb))
+    allocate(tmpBlock(orb%mOrb, orb%mOrb))
 
-    Lshell = 0.0_dp
-    do ii = 1, nAtom
-      iSp = species(ii)
-      mm = orb%nOrbSpecies(iSp)
+    Lshell(:,:,:) = 0.0_dp
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      nOrbSp = orb%nOrbSpecies(iSp)
       tmpBlock(:,:) = 0.0_dp
-      tmpBlock(1:mm,1:mm) = qBlockSkew(1:mm,1:mm,ii,1) ! identity part
-      do jj = 1, orb%nShell(iSp)
-        iStart = orb%posShell(jj,iSp)
-        iEnd = orb%posShell(jj+1,iSp)-1
-        do ll = 1, 3
-          Lshell(ll,jj,ii) = Lshell(ll,jj,ii) &
-              & - sum(SpeciesL(iStart:iEnd,iStart:iEnd,ll,iSp) &
-              &  * transpose(tmpBlock(iStart:iEnd,iStart:iEnd)))
+      ! Identity part
+      tmpBlock(1:nOrbSp, 1:nOrbSp) = qBlockSkew(1:nOrbSp, 1:nOrbSp, iAt, 1)
+      do iOrb = 1, orb%nShell(iSp)
+        iOrbStart = orb%posShell(iOrb, iSp)
+        iOrbEnd = orb%posShell(iOrb + 1, iSp) - 1
+        do kk = 1, 3
+          Lshell(kk, iOrb, iAt) = Lshell(kk, iOrb, iAt)&
+              & - sum(speciesL(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd, kk, iSp)&
+              & * transpose(tmpBlock(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd)))
         end do
       end do
     end do
 
-  end subroutine dual
+  end subroutine getLDual
+
 
 end module angmomentum

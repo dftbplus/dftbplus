@@ -19,8 +19,8 @@ module interpolation
 
   !> Uniform grid polynomial interpolation
   interface polyInterUniform
-    module procedure :: polyInterU1
-    module procedure :: polyInterU2
+    module procedure polyInterU1
+    module procedure polyInterU2
   end interface polyInterUniform
 
 contains
