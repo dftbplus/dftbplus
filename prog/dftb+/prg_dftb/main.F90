@@ -64,7 +64,7 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
-  use timeprop_module
+  use timeprop_module  
   implicit none
   private
 
@@ -701,11 +701,11 @@ contains
     end if
        
     !! Here time propagation is called
-!    if (tElecDynamics) then
-!       call runDynamics(elecDyn, HSqrReal, ham, H0, q0, over, filling, neighborList, &
-!            &nNeighbor, iDenseStart, iSparseStart, img2CentCell, orb, coord, spinW, &
-!            &skHamCont, skOverCont, pRepCont)
-!    end if
+    if (tElecDynamics) then
+       call runDynamics(elecDyn, HSqrReal, ham, H0, q0, over, filling, neighborList, &
+            &nNeighbor, iDenseStart, iSparseStart, img2CentCell, orb, coord, spinW, &
+            &skHamCont, skOverCont, pRepCont, sccCalc)
+    end if
 
     if (allocated(pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point

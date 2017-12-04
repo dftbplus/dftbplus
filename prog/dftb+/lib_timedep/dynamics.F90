@@ -16,7 +16,6 @@ use populations
 use blas
 use lapack
 use spin
-use, intrinsic :: iso_fortran_env
 use forces
 use repulsive
 use slakocont
@@ -146,7 +145,7 @@ contains
     this%CalcOnsiteGradients = inp%tdOnsiteGradients
     allocate(this%species, source=species)
     allocate(this%speciesName, source=speciesName)
-    allocate(this%sccCalc, source=sccCalc)
+    allocate(this%sccCalc)
 
     if (inp%tdEnvType /= iTDConstant) then
        this%Time0 = inp%tdTime0
@@ -187,7 +186,7 @@ contains
        this%movedMass(:,:) = spread(mass(this%species(:)),1,3)
     end if
 
-    !`! For forces
+    !! For forces
     if (this%Ions) then
        this%Forces = .true.
        allocate(this%indMovedAtom, source=inp%indMovedAtom)  
@@ -203,15 +202,14 @@ contains
        allocate(this%movedVelo(3, this%nMovedAtom))
        allocate(this%movedMass(3, this%nMovedAtom))
        this%ReadMDVelocities = inp%tReadMDVelocities
-       this%movedMass(:,:) = spread(mass(this%species(this%indMovedAtom)),1,3)
+       this%movedMass(:,:) = spread(mass(this%indMovedAtom),1,3)
+       allocate(this%pThermostat)
+       allocate(pMDFrame)
        call init(pMDFrame, this%nMovedAtom, nAtom, tMDstill)
-       !       call create(pMDFrame, this%nMovedAtom, nAtom, tMDstill)
+       allocate(pDummyTherm)
        call init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat, &
             &pMDFrame)
        call init(this%pThermostat, pDummyTherm)
-!       call create(pDummyTherm, tempAtom, mass(this%species(this%indMovedAtom)), &
-!            & randomThermostat, pMDFrame)
-       !       call create(this%pThermostat, pDummyTherm)
        allocate(this%derivator, source = nonSccDeriv)
     else
        allocate(this%movedVelo(3, nAtom))
@@ -234,7 +232,7 @@ contains
 
   !! Driver of calculation in order to perform a spectrum
   subroutine runDynamics(sf,Hsq,ham,H0,q0,over,filling,neighborList,nNeighbor,&
-       &iSquare,iPair,img2CentCell,orb,coord,W,skHamCont,skOverCont,pRepCont)
+       &iSquare,iPair,img2CentCell,orb,coord,W,skHamCont,skOverCont,pRepCont, sccCalc)
     type(ElecDynamics) :: sf
     real(dp), intent(inout) :: Hsq(:,:,:), H0(:), q0(:,:,:)
     real(dp), allocatable, intent(inout) :: ham(:,:), over(:), coord(:,:)
@@ -246,7 +244,10 @@ contains
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
     type(ORepCont), intent(in) :: pRepCont
     type(TOrbitals), intent(in) :: orb
+    type(TScc), intent(in) :: sccCalc
     integer :: iPol
+
+    sf%sccCalc = sccCalc
 
     sf%nSpin = size(ham(:,:), dim=2)
     if (sf%nSpin > 1) then
@@ -489,17 +490,14 @@ contains
     logical :: halfVelocities = .true.
     real(dp) :: velocities(3, sf%nMovedAtom)
 
+    allocate(pVelocityVerlet)
     if (sf%ReadMDVelocities) then
        call init(pVelocityVerlet, sf%Dt, coord(:, sf%indMovedAtom),&
             & sf%pThermostat, sf%initialVelocities, halfVelocities)
-!       call create(pVelocityVerlet, sf%Dt, coord(:, sf%indMovedAtom),&
-!            & sf%pThermostat, sf%initialVelocities, halfVelocities)
        sf%movedVelo(:, sf%indMovedAtom) = sf%initialVelocities
     else
        call init(pVelocityVerlet, sf%Dt, coord(:, sf%indMovedAtom), &
             &sf%pThermostat, halfVelocities, velocities)
-!       call create(pVelocityVerlet, sf%Dt, coord(:, sf%indMovedAtom),&
-!            & sf%pThermostat, halfVelocities, velocities)
        sf%movedVelo(:,:) = velocities
     end if
 
@@ -513,10 +511,8 @@ contains
     sf%movedVelo(:,:) = sf%movedVelo + 0.5_dp * movedAccel * sf%Dt
     call init(pVelocityVerlet, sf%Dt, coordNew(:, sf%indMovedAtom),&
          & sf%pThermostat, sf%movedVelo, halfVelocities)
-    !    call create(pVelocityVerlet, sf%Dt, coordNew(:, sf%indMovedAtom), &
-    !         & sf%pThermostat, sf%movedVelo, halfVelocities)
+    allocate(sf%pMDIntegrator)
     call init(sf%pMDIntegrator, pVelocityVerlet)
-!    call create(sf%pMDIntegrator, pVelocityVerlet)
   end subroutine initIonDynamics
 
 
@@ -554,7 +550,6 @@ contains
 
        end do
     end do
-
   end subroutine pairWiseBondEO
 
 
@@ -577,14 +572,12 @@ contains
 
     real(dp) :: Sreal(sf%nOrbs,sf%nOrbs), SinvReal(sf%nOrbs,sf%nOrbs)
     real(dp) :: coord0Fold(3,sf%nAtom)
-    integer :: nAllAtom
+    integer :: nAllAtom, nAllOrb
     integer, allocatable :: specie0(:)
     integer :: info, ipiv(sf%nOrbs, sf%nOrbs)
-
     real(dp), intent(inout) :: timeInver
     real(dp) :: dTime
-    integer :: iSpin, iInverTime
-
+    integer :: iSpin, iInverTime, sparseSize
     
     !! Calculate overlap, H0 for new geometry
     nAllAtom = sf%nAtom
@@ -592,16 +585,23 @@ contains
     allocate(specie0, source=sf%species)
 
     call updateNeighborListAndSpecies(coord, sf%species, img2CentCell, sf%iCellVec, &
-         & neighborList, nAllAtom, coord0Fold, specie0, sf%mCutoff, sf%rCellVec) 
+         &neighborList, nAllAtom, coord0Fold, specie0, sf%mCutoff, sf%rCellVec)
+    nAllOrb = sum(orb%nOrbSpecies(sf%species(1:nAllAtom)))
     call getNrOfNeighborsForAll(nNeighbor, neighborList, sf%skRepCutoff)
-    call reallocateHS(ham, over, iPair, neighborList%iNeighbor, nNeighbor, &
-         & orb, img2CentCell)
-   deallocate(ham0)
-   allocate(ham0(size(ham,dim=1)))
-   sf%nSparse = size(ham,dim=1)
-   call sf%sccCalc%updateCoords(coord, sf%species, neighborList, img2CentCell)
+    call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iPair,&
+         & sparseSize)
+
+    deallocate(ham)
+    deallocate(over)
+    deallocate(ham0)
+    allocate(ham(sparseSize, sf%nSpin))
+    allocate(over(sparseSize))
+    allocate(ham0(sparseSize))
+    sf%nSparse = sparseSize
+
+    call sf%sccCalc%updateCoords(coord, sf%species, neighborList, img2CentCell)
 !   call updateCoords_SCC(coord, sf%species, neighborList, img2CentCell)
-   
+
    if (sf%tDispersion) then
       call sf%dispersion%updateCoords(neighborList, img2CentCell, coord, &
            & specie0)
@@ -811,7 +811,7 @@ contains
     integer :: iAtom, iSpin, iSp1, iSh1
 
     ham(:,1) = ham0(:)
-
+    
     if (sf%nSpin == 2) then
        ham(:,2) = 0.0_dp
  
@@ -846,7 +846,6 @@ contains
     !    call getShiftPerAtom(potential%intAtom)
     !    call getShiftPerL(potential%intShell)
     
-
     !! Build spin contribution (if necessary)
     if (sf%SpinPol) then
        call getSpinShift(shellPot, chargePerShell, sf%species, orb, W)
@@ -1140,7 +1139,7 @@ contains
     real(dp) :: T2(sf%nOrbs,sf%nOrbs), T3(sf%nOrbs, sf%nOrbs)
     integer :: iSpin
 
-    allocate(rhoPrim(size(ham), sf%nSpin),ErhoPrim(size(ham)))
+    allocate(rhoPrim(size(ham), sf%nSpin), ErhoPrim(size(ham)))
     sf%nSparse = size(H0)
     allocate(ham0(size(H0)))
     ham0(:) = H0
