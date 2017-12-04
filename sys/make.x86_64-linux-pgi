@@ -28,6 +28,7 @@ LNOPT =
 LIB_SCALAPACK = -L$(PGI_LIBDIR)/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib -lscalapack
 
 # LAPACK/BLAS
+ATLASDIR = /usr/lib
 LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
 
 # Any other libraries to be linked
@@ -60,7 +61,8 @@ LNOPT =
 # How to link specific libraries
 
 # LAPACK/BLAS
-LIB_LAPACK   = -L$(PGI_LIBDIR) -llapack -lblas
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked
 OTHERLIBS =
