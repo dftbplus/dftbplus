@@ -291,7 +291,7 @@ end subroutine poiss_destroy
 !----------------------------------------------------------------------------
 subroutine poiss_getshift(V_L_atm,grad_V)
 
-  real(kind=dp), DIMENSION(:,:), intent(INOUT) :: V_L_atm
+  real(kind=dp), DIMENSION(:,:), intent(inout) :: V_L_atm
   real(kind=dp), DIMENSION(:,:), optional :: grad_V
 
   real(kind=dp), DIMENSION(3,1) :: fakegrad

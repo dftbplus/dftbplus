@@ -59,6 +59,8 @@ module mainio
   public :: writeCharges
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
+  public :: writeShifts, writeContShifts
+  public :: uploadShiftPerL
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo
@@ -1874,7 +1876,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation)
+      & gibbsFree, endCoords, tLocalise, localisation, tTunn, tunneling, ldos)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -1929,6 +1931,16 @@ contains
 
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
+   
+    !> whether tunneling is computed
+    logical, intent(in) :: tTunn
+
+    !> tunneling array
+    real(dp), intent(in) :: tunneling(:,:)
+
+    !> local projected DOS array
+    real(dp), intent(in) :: ldos(:,:)
+
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
@@ -2250,10 +2262,10 @@ contains
     !> Output atomic charges (if SCC)
     real(dp), intent(in) :: qOutput(:,:,:)
 
-    !> Eigenvalues/single particle states
+    !> Eigenvalues/single particle states (level, kpoint, spin)
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> Occupation numbers
+    !> Occupation numbers (level, kpoint, spin)
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Type containing atomic orbital information
@@ -3282,6 +3294,132 @@ contains
     end if
 
   end subroutine writeHS
+
+
+  !> Write the Hamiltonian self consistent shifts to file
+  subroutine writeShifts(fShifts, orb, shiftPerL)    
+    !> filename where shifts are stored    
+    character(*), intent(in) :: fShifts
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+    
+    !> shifts organized per (shell , atom,  spin) 
+    real(dp), intent(in) :: shiftPerL(:,:,:)
+
+    ! locals
+    integer :: fdHS, nSpin, nAtom
+
+    nSpin = size(shiftPerL,3)
+    nAtom = size(shiftPerL,2)
+
+    if (size(shiftPerL,1) /= orb%mShell ) then
+      call error("Internal error in writeshift: size(shiftPerL,1)")
+    endif
+    
+    if (size(shiftPerL,2) /= size(orb%nOrbAtom) ) then
+      call error("Internal error in writeshift size(shiftPerL,2)")
+    endif
+ 
+    fdHS = getFileId()
+
+    open(fdHS, file=trim(fShifts), form="formatted")
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    write(fdHS, *) orb%nOrbAtom
+    write(fdHS, *) shiftPerL
+   
+    close(fdHS)
+
+  end subroutine writeShifts
+
+
+  !> Writes the contact potential shifts per shell (for transport)
+  subroutine writeContShifts(filename, orb, shiftPerL, charges)
+    !> filename where shifts are written
+    character(*), intent(in) :: filename
+    !> orbital structure
+    type(TOrbitals), intent(in) :: orb
+    !> array of shifts per shell and spin
+    real(dp), intent(in) :: shiftPerL(:,:,:)
+    !> array of charges per shell and spin
+    real(dp), intent(in) :: charges(:,:,:)
+   
+    integer :: fdHS, cont, nAtom, nSpin
+
+    nSpin = size(shiftPerL,3)
+    nAtom = size(shiftPerL,2)
+   
+    if (size(shiftPerL,1) /= orb%mShell) then
+      call error("Internal error in writeContShifts: size(shiftPerL,1)")
+    endif
+    
+    if (size(orb%nOrbAtom) /= nAtom) then
+      call error("Internal error in writeContShifts: size(shiftPerL,2)")
+    endif
+    
+    if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
+      call error("Internal error in writeiContShift: shape(charges)")
+    endif
+ 
+    fdHS = getFileId()
+
+    open(fdHS, file=trim(filename), form="formatted")
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    write(fdHS, *) orb%nOrbAtom
+    write(fdHS, *) shiftPerL
+    write(fdHS, *) charges
+   
+    close(fdHS)
+ 
+  end subroutine writeContShifts
+
+
+  !> Read the potential shifts from file
+  subroutine uploadShiftPerL(fShifts, orb, nAtom, nSpin, shiftPerL)
+    !> filename where shifts are stored    
+    character(*), intent(in) :: fShifts
+
+    !> orbital information    
+    type(TOrbitals), intent(in) :: orb
+    
+    !> number of atoms and spin blocks  
+    integer, intent(in) :: nAtom, nSpin
+    
+    !> potential shifts (shell,atom,spin) charge/mag is used
+    real(dp), intent(inout) :: shiftPerL(:,:,:)
+
+    !Locals
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt
+    integer, allocatable :: nOrbAtom(:)
+
+    shiftPerL = 0.0_dp
+    fdH = getFileId()
+
+    open(fdH, file=fShifts, form="formatted")
+    read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+
+    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell &
+        &.or. mOrbSt /= orb%mOrb) then
+      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+    end if
+    if (nSpin /= nSpinSt) then
+      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+    end if
+
+    allocate(nOrbAtom(nAtomSt))
+    read(fdH, *) nOrbAtom
+    read(fdH, *) shiftPerL(:,:,:)
+    close(fdH)
+
+    if (any(nOrbAtom /= orb%nOrbAtom(:))) then
+      call error("Incompatible orbitals in the upload file!")
+    end if
+
+    deallocate(nOrbAtom)
+
+  end subroutine uploadShiftPerL
+
+
 
 
   !> Write current geometry to disc

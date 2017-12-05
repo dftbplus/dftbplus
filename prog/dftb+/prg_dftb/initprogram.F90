@@ -982,6 +982,8 @@ contains
     else
       nSpin = 1
     end if
+    nIndepHam = nSpin
+
     tSpinSharedEf = input%ctrl%tSpinSharedEf
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
@@ -990,9 +992,8 @@ contains
     if (t2Component) then
       nSpin = 4
       nIndepHam = 1
-    else
-      nIndepHam = nSpin
     end if
+
     if (nSpin /= 2 .and. tSpinSharedEf) then
       call error("Colinear spin polarization required for shared Ef over spin&
           & channels")
@@ -2147,8 +2148,8 @@ contains
         & movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
-     call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, shiftPerLUp, chargeUp, &
-         & poissonDerivs, orb, nAtom, nSpin)
+     call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, &
+             & species0, orb, nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
   #:endif
 
     if (tShowFoldedCoord) then
@@ -3232,26 +3233,95 @@ contains
 
 #:if WITH_TRANSPORT 
   !> initialize arrays for tranpsport 
-  subroutine initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, shiftPerLUp, chargeUp, &
-              & poissonDerivs, orb, nAtom, nSpin)
+  subroutine initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, transpar, &
+             & species0, orb, nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
 
     logical, intent(in) :: tNegf, tUpload, tPoisson, tContCalc
-    real(dp), allocatable :: shiftPerLUp(:,:)
-    real(dp), allocatable :: chargeUp(:,:,:)
-    real(dp), allocatable :: poissonDerivs(:,:)
+    type(TTransPar), intent(in) :: transpar
+    integer, intent(in) :: species0(:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nAtom
     integer, intent(in) :: nSpin
+    real(dp), allocatable :: shiftPerLUp(:,:)
+    real(dp), allocatable :: chargeUp(:,:,:)
+    real(dp), allocatable :: poissonDerivs(:,:)
     
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
+      call uploadContShiftPerL(shiftPerLUp, chargeUp, transpar, orb, species0)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
     end if
 
   end subroutine initTransportArrays
+
+  !> Read contact potential shifts from file
+  subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
+    real(dp), intent(out) :: shiftPerL(:,:)
+    real(dp), intent(out) :: charges(:,:,:)
+    type(TTransPar), intent(in) :: tp
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+
+    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
+    integer, allocatable :: nOrbAtom(:)
+    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
+    integer :: iCont, iStart, iEnd, ii
+    integer :: fdH
+
+    nSpin = size(charges, dim=3)
+
+    if (size(shiftPerL,dim=2) /= size(charges, dim=2)) then
+      call error("Mismatch between array charges and shifts")
+    endif
+
+    shiftPerL = 0.0_dp
+    charges = 0.0_dp
+    fdH = getFileId()
+
+    do iCont = 1, tp%ncont
+      open(fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat", &
+          &form="formatted")
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      iStart = tp%contacts(iCont)%idxrange(1)
+      iEnd = tp%contacts(iCont)%idxrange(2)
+      nContAtom = iEnd - iStart + 1
+
+      if (nAtomSt /= nContAtom .or. mShellSt /= orb%mShell &
+          &.or. mOrbSt /= orb%mOrb) then
+        call error("Mismatch in number of atoms or max shell per atom.")
+      end if
+      if (nSpin /= nSpinSt) then
+        call error("Mismatch in number of atoms or max shell per atom.")
+      end if
+
+      allocate(nOrbAtom(nAtomSt))
+      read(fdH, *) nOrbAtom
+      allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
+      read(fdH, *) shiftPerLSt(:,:,:)
+      allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+      read(fdH, *) chargesSt
+      close(fdH)
+
+      if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
+        call error("Incompatible orbitals in the upload file!")
+      end if
+
+      !if (nSpin == 1) then
+      shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
+      !else
+      !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
+      !endif
+
+      charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
+      deallocate(nOrbAtom)
+      deallocate(shiftPerLSt)
+      deallocate(chargesSt)
+    end do
+
+  end subroutine uploadContShiftPerL
 #:endif
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices

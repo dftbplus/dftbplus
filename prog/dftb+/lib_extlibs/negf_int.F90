@@ -770,8 +770,7 @@ module negf_int
   !!
   subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, nEl, tempElec, kPoints, kWeights, &
-      & rho, Eband, Ef, E0, TS, mu)
+      & cellVec, orb, kPoints, kWeights, mu, rho, Eband, Ef, E0, TS)
     
     integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
@@ -782,7 +781,8 @@ module negf_int
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     type(TOrbitals), intent(in) :: orb 
-    real(dp), intent(in) :: nEl(:), tempElec, kPoints(:,:), kWeights(:)
+    real(dp), intent(in) :: kPoints(:,:), kWeights(:)
+    real(dp), intent(in) :: mu(:,:)
     real(dp), intent(out) :: rho(:,:)
     real(dp), intent(out) :: Eband(:), Ef(:), E0(:), TS(:)
 
@@ -792,7 +792,6 @@ module negf_int
     !! We need this now for different fermi levels in colinear spin
     !! Note: the spin polirized does not work with
     !! built-int potentials (the unpolarized does) in the poisson
-    real(dp), intent(in) :: mu(:,:)
     type(lnParams) :: params
 
     call get_params(negf, params)
@@ -845,7 +844,7 @@ module negf_int
   !!
   subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, nEl, tempElec, kPoints, kWeights, rhoE, mu)
+      & cellVec, orb, kPoints, kWeights, mu, rhoE)
     
     integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
@@ -856,7 +855,8 @@ module negf_int
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     type(TOrbitals), intent(in) :: orb   !Needs only orb%nOrbAtom, orb%mOrb    
-    real(dp), intent(in) :: nEl(:), tempElec, kPoints(:,:), kWeights(:)
+    real(dp), intent(in) :: kPoints(:,:), kWeights(:)
+    real(dp), intent(in) :: mu(:,:)
     real(dp), intent(out) :: rhoE(:)
 
     integer :: nSpin, nKPoint, nKS, iK, iS, iKS, ncont
@@ -867,7 +867,6 @@ module negf_int
     !! built-int potentials (the unpolarized does) in the poisson
     !! I do not set the fermi because it seems that in libnegf it is 
     !! not really needed
-    real(dp), intent(in) :: mu(:,:)
     type(lnParams) :: params
 
     call get_params(negf, params)
@@ -913,7 +912,7 @@ module negf_int
   !------------------------------------------------------------------------------
   subroutine calcPDOS_green(mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, nEl, tempElec, kPoints, kWeights, ldosTot, writeLDOS)
+      & cellVec, orb, kPoints, kWeights, ldosTot, writeLDOS)
     integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
     real(dp), intent(in) :: ham(:,:), over(:)
@@ -922,7 +921,7 @@ module negf_int
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: nEl(:), tempElec, kPoints(:,:), kWeights(:)
+    real(dp), intent(in) :: kPoints(:,:), kWeights(:)
     real(dp), allocatable, intent(inout) :: ldosTot(:,:)
     logical, intent(in) :: writeLDOS
 
@@ -980,7 +979,7 @@ module negf_int
   !------------------------------------------------------------------------------
   subroutine calc_current(mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, nEl, tempElec, kPoints, kWeights, tunnTot,&
+      & cellVec, orb, kPoints, kWeights, tunnTot,&
       & ldosTot, currTot, writeTunn, writeLDOS, mu)
     
     integer, intent(in) :: groupKS(:,:)
@@ -991,7 +990,7 @@ module negf_int
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
     real(dp), intent(in) :: cellVec(:,:)
     type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: nEl(:), tempElec, kPoints(:,:), kWeights(:)
+    real(dp), intent(in) :: kPoints(:,:), kWeights(:)
     real(dp), allocatable, intent(inout) :: tunnTot(:,:), ldosTot(:,:)
     real(dp), allocatable :: tunnSKRes(:,:,:), ldosSKRes(:,:,:)
     real(dp), allocatable, intent(inout) :: currTot(:)
