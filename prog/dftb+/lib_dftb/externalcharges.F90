@@ -123,7 +123,6 @@ contains
     @:ASSERT(this%nChrg > 0)
     @:ASSERT(present(latVecs) .eqv. present(recVecs))
     @:ASSERT(present(latVecs) .eqv. present(ewaldCutoff))
-    @:ASSERT(present(latVecs) .neqv. present(blurWidths))
 #:call ASSERT_CODE
     if (present(blurWidths)) then
       @:ASSERT(size(blurWidths) == this%nChrg)
@@ -144,17 +143,17 @@ contains
       !! Creating the real lattice for the Ewald summation (no neighbor list) The reciprocal part
       !! will be passed from the SCC module, since it is also needed there.
       call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs/(2.0_dp*pi), ewaldCutoff)
+    end if
+
+    !! Create blurring array
+    if (present(blurWidths)) then
+      this%tBlur = any(abs(blurWidths) > 1.0e-7_dp)
     else
-      !! Create blurring array for the cluster modell
-      if (present(blurWidths)) then
-        this%tBlur = any(abs(blurWidths) > 1.0e-7_dp)
-      else
-        this%tBlur = .false.
-      end if
-      if (this%tBlur) then
-        allocate(this%blurWidths(this%nChrg))
-        this%blurWidths = blurWidths
-      end if
+      this%tBlur = .false.
+    end if
+    if (this%tBlur) then
+      allocate(this%blurWidths(this%nChrg))
+      this%blurWidths = blurWidths
     end if
 
     this%tUpdated = .false.
@@ -239,8 +238,13 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
     @:ASSERT(size(gLat, dim=1) == 3)
 
-    call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-        & this%rCellVec, gLat, alpha, volume)
+    if (this%tBlur) then
+      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%rCellVec, gLat, alpha, volume, blurWidths1=this%blurWidths)
+    else
+      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%rCellVec, gLat, alpha, volume)
+    end if
 
     this%tUpdated = .true.
 
@@ -354,8 +358,13 @@ contains
     @:ASSERT(size(atomCoords, dim=1) == 3)
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
-    call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-        & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
+    if (this%tBlur) then
+      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol, blurWidths1=this%blurWidths)
+    else
+      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
+    end if
 
   end subroutine addForceDcPeriodic
 

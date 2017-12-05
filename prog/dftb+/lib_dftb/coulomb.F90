@@ -200,15 +200,15 @@ contains
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
-          if (dist > epsilon(0.0_dp)) then
-            fTmp = charges1(iAt1) / dist
-            if (dist < erfArgLimit * blurWidths1(iAt1)) then
-              fTmp = fTmp * erfwrap(dist/blurWidths1(iAt1))
-            end if
-            invRVec(iAt0) = invRVec(iAt0) + fTmp
-          else
+          if (dist <  tolSameDist) then
             write (errorString, ftTooClose) iAt0, iAt1
             call error(trim(errorString))
+          else
+            fTmp = charges1(iAt1) / dist
+            if (dist < erfArgLimit * blurWidths1(iAt1)) then
+              fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
+            end if
+            invRVec(iAt0) = invRVec(iAt0) + fTmp
           end if
         end do
       end do
@@ -220,11 +220,11 @@ contains
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
-          if (dist > epsilon(0.0_dp)) then
-            invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
-          else
+          if (dist <  tolSameDist) then
             write (errorString, ftTooClose) iAt0, iAt1
             call error(trim(errorString))
+          else
+            invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
           end if
         end do
       end do
@@ -398,7 +398,7 @@ contains
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
   subroutine sumInvR_periodic_asymm(invRVec, nAtom0, nAtom1, coord0, coord1, charges1, rLat, gLat,&
-      & alpha, volume)
+      & alpha, volume, blurwidths1)
 
     !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
@@ -430,6 +430,9 @@ contains
     !> Volume of the supercell.
     real(dp), intent(in) :: volume
 
+    !> Gaussian blur widht of the charges in the 2nd group
+    real(dp), intent(in), optional :: blurWidths1(:)
+
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
 
@@ -444,16 +447,27 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     invRVec(:) = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
-    do iAt0 = 1, nAtom0
-      do iAt1 = 1, nAtom1
-        rr = coord0(:,iAt0) - coord1(:,iAt1)
-
-        rTmp = ewald(rr, rLat, gLat, alpha, volume)
-        invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
+    if (present(blurWidths1)) then
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
+      do iAt0 = 1, nAtom0
+        do iAt1 = 1, nAtom1
+          rr = coord0(:,iAt0) - coord1(:,iAt1)
+          rTmp = ewald(rr, rLat, gLat, alpha, volume, blurwidths1(iAt1))
+          invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
+        end do
       end do
-    end do
-    !$OMP  END PARALLEL DO
+      !$OMP END PARALLEL DO
+    else
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
+      do iAt0 = 1, nAtom0
+        do iAt1 = 1, nAtom1
+          rr = coord0(:,iAt0) - coord1(:,iAt1)
+          rTmp = ewald(rr, rLat, gLat, alpha, volume)
+          invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    end if
 
   end subroutine sumInvR_periodic_asymm
 
@@ -526,7 +540,7 @@ contains
             if (dist > epsilon(0.0_dp)) then
               fTmp = charges1(iAt1) / dist
               if (dist < erfArgLimit * blurWidths1(iAt1)) then
-                fTmp = fTmp * erfwrap(dist/blurWidths1(iAt1))
+                fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
               end if
               invRVec(iAt0) = invRVec(iAt0) + fTmp
             else
@@ -575,7 +589,7 @@ contains
             if (dist > epsilon(0.0_dp)) then
               fTmp = charges1(iAt1) / dist
               if (dist < erfArgLimit * blurWidths1(iAt1)) then
-                fTmp = fTmp * erfwrap(dist/blurWidths1(iAt1))
+                fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
               end if
               invRVec(iAt0) = invRVec(iAt0) + fTmp
             else
@@ -1234,7 +1248,7 @@ contains
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
   subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, nAtom0, nAtom1, coord0, coord1, charge0,&
-      & charge1, rVec, gVec, alpha, vol)
+      & charge1, rVec, gVec, alpha, vol, blurWidths1)
 
     !> Contains the derivative for the first group on exit
     real(dp), intent(inout) :: deriv0(:,:)
@@ -1272,6 +1286,9 @@ contains
     !> Volume of the supercell.
     real(dp), intent(in) :: vol
 
+    !> Gaussian blur widht of the charges in the 2nd group
+    real(dp), intent(in), optional :: blurWidths1(:)
+
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
 
@@ -1288,20 +1305,56 @@ contains
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(vol > 0.0_dp)
+#:call ASSERT_CODE
+    if (present(blurWidths1)) then
+      @:ASSERT(size(blurWidths1) == nAtom1)
+    end if
+#:endcall ASSERT_CODE
 
+    ! real space part
+    if (present(blurwidths1)) then
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
+      do iAt0 = 1, nAtom0
+        do iAt1 = 1, nAtom1
+          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+          dist = sqrt(sum(vect(:)**2))
+          fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidths1(iAt1))&
+              & * charge0(iAt0) * charge1(iAt1)
+          deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
+          deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+        end do
+      end do
+      !$OMP  END PARALLEL DO
+    else
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
+      do iAt0 = 1, nAtom0
+        do iAt1 = 1, nAtom1
+          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+          dist = sqrt(sum(vect(:)**2))
+          fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
+          deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
+          deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+        end do
+      end do
+      !$OMP  END PARALLEL DO
+    end if
+
+    ! reciprocal space part
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
     do iAt0 = 1, nAtom0
       do iAt1 = 1, nAtom1
         vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
         dist = sqrt(sum(vect(:)**2))
-        fTmp(:) = (derivEwaldReal(vect, rVec, alpha)&
-            & + derivEwaldReciprocal(vect, gVec, alpha, vol)) * charge0(iAt0) * charge1(iAt1)
+        fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
         deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
         deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
       end do
     end do
     !$OMP  END PARALLEL DO
+
 
   end subroutine addInvRPrime_periodic_asymm
 
@@ -1528,7 +1581,7 @@ contains
 
 
   !> Returns the Ewald sum for a given lattice in a given point.
-  function ewald(rr, rVec, gVec, alpha, vol)
+  function ewald(rr, rVec, gVec, alpha, vol, blurwidths)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
@@ -1546,10 +1599,15 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
 
+    !> Gaussian blur widht of the charges in the 2nd group
+    real(dp), intent(in), optional :: blurWidths
+
     !> Result
     real(dp) :: ewald
 
-    ewald = ewaldReciprocal(rr, gVec, alpha, vol) + ewaldReal(rr, rVec, alpha) - pi / (vol*alpha**2)
+
+    ewald = ewaldReciprocal(rr, gVec, alpha, vol) + ewaldReal(rr, rVec, alpha, blurwidths)&
+        & - pi / (vol*alpha**2)
     if (sum(rr(:)**2) < tolSameDist2) then
       ewald = ewald - 2.0_dp * alpha / sqrt(pi)
     end if
@@ -1634,7 +1692,7 @@ contains
 
 
   !> Returns the real space part of the Ewald sum.
-  function ewaldReal(rr, rVec, alpha) result(realSum)
+  function ewaldReal(rr, rVec, alpha, blurWidth) result(realSum)
 
     !> Real space vectors to sum over. (Should contain origin).
     real(dp), intent(in) :: rVec(:,:)
@@ -1645,6 +1703,9 @@ contains
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
 
+    !> Gaussian blur width of the 2nd charge
+    real(dp), intent(in), optional :: blurWidth
+
     !> contribution to sum
     real(dp) :: realSum
 
@@ -1654,20 +1715,36 @@ contains
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(rr) == 3)
 
-    realSum = 0.0_dp;
-    do iR = 1, size(rVec, dim=2)
-      absRR = sqrt(sum((rr(:) + rVec(:,iR))**2))
-      if (absRR < tolSameDist) then
-        cycle
-      end if
-      realSum = realSum + erfcwrap(alpha*absRR)/absRR
-    end do
+    realSum = 0.0_dp
+
+    if (present(blurWidth)) then
+      do iR = 1, size(rVec, dim=2)
+        absRR = sqrt(sum((rr(:) + rVec(:,iR))**2))
+        if (absRR < tolSameDist) then
+          cycle
+        end if
+        if (absRR < erfArgLimit * blurWidth) then
+          realSum = realSum + erfwrap(absRR / blurWidth)/absRR
+        else
+          realSum = realSum + 1.0_dp/absRR
+        end if
+        realSum = realSum -erfwrap(alpha*absRR)/absRR
+      end do
+    else
+      do iR = 1, size(rVec, dim=2)
+        absRR = sqrt(sum((rr(:) + rVec(:,iR))**2))
+        if (absRR < tolSameDist) then
+          cycle
+        end if
+        realSum = realSum + erfcwrap(alpha*absRR)/absRR
+      end do
+    end if
 
   end function ewaldReal
 
 
   !> Returns the derivative of the real space part of the Ewald sum.
-  function derivEwaldReal(rdiff, rVec, alpha) result(dewr)
+  function derivEwaldReal(rdiff, rVec, alpha, blurWidth) result(dewr)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rdiff(:)
@@ -1677,6 +1754,9 @@ contains
 
     !> Parameter for the Ewald summation.
     real(dp), intent(in) :: alpha
+
+    !> Gaussian blur width of the second charge
+    real(dp), intent(in), optional :: blurWidth
 
     !> contribution to derivative
     real(dp) :: dewr(3)
@@ -1688,23 +1768,42 @@ contains
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(rdiff) == 3)
 
-    dewr = 0.0_dp;
-    do iR = 1, size(rVec, dim=2)
-      rNew(:) = rdiff(:) + rVec(:,iR)
-      rr = sqrt(sum(rNew**2))
-      if (rr < tolSameDist2) then
-        cycle
-      end if
-      dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* alpha*rr&
-          & - erfcwrap(alpha*rr))/(rr*rr*rr)
-    end do
+    dewr = 0.0_dp
+
+    if (present(blurWidth)) then
+      do iR = 1, size(rVec, dim=2)
+        rNew(:) = rdiff(:) + rVec(:,iR)
+        rr = sqrt(sum(rNew**2))
+        if (rr < tolSameDist2) then
+          cycle
+        end if
+        ! derivative of -erf(alpha*r)/r
+        dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* alpha*rr&
+            & - erfcwrap(alpha*rr))/(rr*rr*rr)
+        ! deriv of erf(r/blur)/r
+        if (rr < erfArgLimit * blurWidth) then
+          dewr(:) = dewr + rNew(:) * (2.0_dp/sqrt(pi)*exp(-rr*rr/(blurWidth**2))*rr/blurWidth&
+              & + erfcwrap(rr/blurWidth))/(rr*rr*rr)
+        end if
+      end do
+    else
+      do iR = 1, size(rVec, dim=2)
+        rNew(:) = rdiff(:) + rVec(:,iR)
+        rr = sqrt(sum(rNew**2))
+        if (rr < tolSameDist2) then
+          cycle
+        end if
+        dewr(:) = dewr + rNew(:) * (-2.0_dp/sqrt(pi)*exp(-alpha*alpha*rr*rr)* alpha*rr&
+            & - erfcwrap(alpha*rr))/(rr*rr*rr)
+      end do
+    end if
 
   end function derivEwaldReal
 
 
-  !> Returns the difference in the decrease of the real and reciprocal parts of the Ewald sum.
-  !> In order to make the real space part shorter as the reciprocal space part, the inclinations are
-  !> taken at different points for the the real space and the reciprocal space part.
+  !> Returns the difference in the decrease of the real and reciprocal parts of the Ewald sum.  In
+  !> order to make the real space part shorter than the reciprocal space part, the values are taken
+  !> at different distances for the real and the reciprocal space parts.
   function diffRecReal(alpha, minG, minR, volume) result(diff)
 
     !> Parameter for the Ewald summation.

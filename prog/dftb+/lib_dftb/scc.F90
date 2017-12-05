@@ -365,22 +365,37 @@ contains
 
     ! Initialise external charges
     if (this%tExtChrg) then
-      if (this%tPeriodic) then
-        call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs, inp%recVecs,&
-            & this%maxREwald)
+      if (allocated(inp%blurWidths)) then
+        if (this%tPeriodic) then
+          write(*,*)'OK a'
+          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
+              & inp%recVecs, this%maxREwald, blurWidths=inp%blurWidths)
+        else
+          write(*,*)'OK b'
+          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom,&
+              & blurWidths=inp%blurWidths)
+        end if
       else
-        @:ASSERT(allocated(inp%blurWidths))
-        call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, blurWidths=inp%blurWidths)
+        if (this%tPeriodic) then
+          write(*,*)'OK c'
+          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
+              & inp%recVecs, this%maxREwald)
+        else
+          write(*,*)'OK d'
+          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom)
+        end if
       end if
-
       allocate(this%extChrgCoord(3,size(inp%extCharges, dim=2)))
       this%extChrgCoord = inp%extCharges(:3,:)
       allocate(this%extChrgQ(size(inp%extCharges, dim=2)))
       this%extChrgQ = inp%extCharges(1,:)
-      if (allocated(inp%blurWidths)) then
-        allocate(this%extChrgBlurWidths(size(inp%extCharges, dim=2)))
-        this%extChrgBlurWidths = inp%blurWidths
+      if (allocated(this%extChrgBlurWidths)) then
+        if (any(abs(this%extChrgBlurWidths) > 1.0e-7_dp)) then
+          allocate(this%extChrgBlurWidths(size(inp%extCharges, dim=2)))
+          this%extChrgBlurWidths = inp%blurWidths
+        end if
       end if
+
 
     end if
 
