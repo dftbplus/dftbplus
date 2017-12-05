@@ -417,8 +417,8 @@ contains
             & SSqrCplx)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-            & img2CentCell, iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim,&
-            & thirdOrd, chrgForces)
+            & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
+            & chrgForces, dispersion)
         if (tLinResp) then
           derivs(:,:) = derivs + excitedDerivs
         end if
@@ -427,7 +427,7 @@ contains
           call getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
               & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
-              & coord0, dispersion, totalStress, totalLatDeriv, intPressure, iRhoPrim)
+              & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
           call printVolume(cellVol)
           ! MD case includes the atomic kinetic energy contribution, so print that later
           if (.not. tMD) then
@@ -1375,13 +1375,13 @@ contains
     real(dp), allocatable, intent(in) :: UJ(:,:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), optional :: nUJ(:)
+    integer, intent(in), allocatable :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), optional :: iUJ(:,:,:)
+    integer, intent(in), allocatable :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), optional :: niUJ(:,:)
+    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
@@ -1573,37 +1573,37 @@ contains
     real(dp), intent(out) :: E0(:)
 
     !> imaginary part of hamitonian
-    real(dp), intent(inout), optional :: iHam(:,:)
+    real(dp), intent(inout), allocatable :: iHam(:,:)
 
     !> spin orbit constants
-    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> orbital moments of atomic shells
-    real(dp), intent(out), optional :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> imaginary part of density matrix
-    real(dp), intent(out), optional :: iRhoPrim(:,:)
+    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
 
     !> dense real hamiltonian storage
-    real(dp), intent(out), optional :: HSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:)
 
     !> dense real overlap storage
-    real(dp), intent(out), optional :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> real eigenvectors on exit
-    real(dp), intent(out), optional :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> dense complex (k-points) hamiltonian storage
-    complex(dp), intent(out), optional :: HSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:)
 
     !> dense complex (k-points) overlap storage
-    complex(dp), intent(out), optional :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     !> complex eigenvectors on exit
-    complex(dp), intent(out), optional :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Dense density matrix
-    real(dp), intent(out), optional :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     integer :: nSpin
 
@@ -1612,7 +1612,7 @@ contains
     ! Hack due to not using Pauli-type structure for diagonalisation
     if (nSpin > 1) then
       ham(:,:) = 2.0_dp * ham
-      if (present(iHam)) then
+      if (allocated(iHam)) then
         iHam(:,:) = 2.0_dp * iHam
       end if
     end if
@@ -1887,10 +1887,10 @@ contains
     complex(dp), intent(out) :: eigvecsCplx(:,:,:)
 
     !> imaginary part of the hamiltonian
-    real(dp), intent(in), optional :: iHam(:,:)
+    real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants
-    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> species of atoms
     integer, intent(in), optional :: species(:)
@@ -1901,18 +1901,28 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
     #:if WITH_SCALAPACK
-      call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx,&
-          & iorig=iHam)
+      if (allocated(iHam)) then
+        call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+            & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx,&
+            & iorig=iHam)
+      else
+        call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+            & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx)
+      end if
       call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
     #:else
-      call unpackHPauli(ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iSparseStart, &
-          & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx, iHam=iHam)
+      if (allocated(iHam)) then
+        call unpackHPauli(ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iSparseStart, &
+            & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx, iHam=iHam)
+      else
+        call unpackHPauli(ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iSparseStart, &
+            & denseDesc%iAtomStart, img2CentCell, iCellVec, cellVec, HSqrCplx)
+      end if
       call unpackSPauli(over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, SSqrCplx)
     #:endif
-      if (present(xi) .and. .not. present(iHam)) then
+      if (allocated(xi) .and. .not. allocated(iHam)) then
         call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
       end if
     #:if WITH_SCALAPACK
@@ -1972,7 +1982,7 @@ contains
     real(dp), intent(out) :: work(:,:)
 
     !> Dense density matrix if needed
-    real(dp), intent(out), optional  :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
 
     integer :: iKS, iSpin
 
@@ -1996,7 +2006,7 @@ contains
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     #:endif
 
-      if (present(rhoSqrReal)) then
+      if (allocated(rhoSqrReal)) then
         rhoSqrReal(:,:,iSpin) = work
       end if
     end do
@@ -2169,13 +2179,13 @@ contains
     real(dp), intent(out) :: rhoPrim(:,:)
 
     !> spin orbit constants
-    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> Angular momentum of atomic shells
-    real(dp), intent(out), optional :: orbitalL(:,:,:)
+    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
 
     !> imaginary part of density matrix  if required
-    real(dp), intent(out), optional :: iRhoPrim(:,:)
+    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
 
 
     real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
@@ -2184,11 +2194,11 @@ contains
     logical :: tImHam
 
     nAtom = size(orb%nOrbAtom)
-    tImHam = present(iRhoPrim)
+    tImHam = allocated(iRhoPrim)
     nKPoint = size(kWeight)
 
     rhoPrim(:,:) = 0.0_dp
-    if (present(iRhoPrim)) then
+    if (allocated(iRhoPrim)) then
       iRhoPrim(:,:) = 0.0_dp
     end if
     work(:,:) = 0.0_dp
@@ -2223,9 +2233,15 @@ contains
       end if
 
     #:if WITH_SCALAPACK
-      call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
-          & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, rhoPrim, iRhoPrim)
+      if (tImHam) then
+        call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+            & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, rhoPrim, iRhoPrim)
+      else
+        call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
+            & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, rhoPrim)
+      end if
     #:else
       if (tRealHS) then
         call packHSPauli(rhoPrim, work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
@@ -2249,7 +2265,7 @@ contains
   #:if WITH_SCALAPACK
     ! Add up and distribute contributions from each group
     call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-    if (present(iRhoPrim)) then
+    if (allocated(iRhoPrim)) then
       call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
     end if
     call mpifx_allreduceip(env%mpi%globalComm, energy%atomLS, MPI_SUM)
@@ -2402,13 +2418,13 @@ contains
     real(dp), intent(out) :: qOrb(:,:,:)
 
     !> imaginary part of density matrix
-    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> Dual atomic charges
-    real(dp), intent(out), optional :: qBlock(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
     !> Imaginary part of dual atomic charges
-    real(dp), intent(out), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     integer :: iSpin
 
@@ -2418,7 +2434,7 @@ contains
           & nNeighbor, img2CentCell, iSparseStart)
     end do
 
-    if (present(qBlock)) then
+    if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, size(qBlock, dim=4)
         call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighborList%iNeighbor,&
@@ -2426,7 +2442,7 @@ contains
       end do
     end if
 
-    if (present(qiBlock)) then
+    if (allocated(qiBlock)) then
       qiBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, size(qiBlock, dim=4)
         call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
@@ -2507,31 +2523,31 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> 3rd order settings
-    type(ThirdOrder), intent(inout), optional :: thirdOrd
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> block (dual) atomic populations
-    real(dp), intent(in), optional :: qBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
     !> Imaginary part of block atomic populations
-    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
 
     !> U-J prefactors in DFTB+U
-    real(dp), intent(in), optional :: UJ(:,:)
+    real(dp), intent(in), allocatable :: UJ(:,:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), optional :: nUJ(:)
+    integer, intent(in), allocatable :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), optional :: iUJ(:,:,:)
+    integer, intent(in), allocatable :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), optional :: niUJ(:,:)
+    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> Spin orbit constants
-    real(dp), intent(in), optional :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     integer :: nSpin
 
@@ -2561,7 +2577,7 @@ contains
         energy%Espin = sum(energy%atomSpin)
       end if
     end if
-    if (present(thirdOrd)) then
+    if (allocated(thirdOrd)) then
       if (tXlbomd) then
         call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
       else
@@ -2571,7 +2587,12 @@ contains
     end if
 
     if (tDftbU) then
-      call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ, qiBlock)
+      if (allocated(qiBlock)) then
+        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ,&
+            & qiBlock)
+      else
+        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
+      end if
       energy%Edftbu = sum(energy%atomDftbu)
     end if
 
@@ -2671,34 +2692,34 @@ contains
     logical, intent(out) :: tConverged
 
     !> Dual output charges
-    real(dp), intent(inout), optional :: qBlockOut(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
 
     !> equivalence mapping for dual charge blocks
-    integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> block charge input (if needed for orbital potentials)
-    real(dp), intent(out), optional ::qBlockIn(:,:,:,:)
+    real(dp), intent(inout), allocatable ::qBlockIn(:,:,:,:)
 
     !> Imaginary part of block charges
-    real(dp), intent(in), optional :: qiBlockOut(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlockOut(:,:,:,:)
 
     !> Equivalence mappings in the case of spin orbit and DFTB+U
-    integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbuLS(:,:,:,:)
 
     !> atomic species for atoms
-    integer, intent(in), optional :: species0(:)
+    integer, intent(in), allocatable :: species0(:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), optional :: nUJ(:)
+    integer, intent(in), allocatable :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), optional :: iUJ(:,:,:)
+    integer, intent(in), allocatable :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), optional :: niUJ(:,:)
+    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> Imaginary part of block atomic input populations
-    real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qiBlockIn(:,:,:,:)
 
     real(dp), allocatable :: qDiffRed(:)
     integer :: nSpin
@@ -2717,9 +2738,9 @@ contains
       if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tDFTBU) .and. .not. tReadChrg) then
         qInpRed(:) = qOutRed
         qInput(:,:,:) = qOutput
-        if (present(qBlockIn)) then
+        if (allocated(qBlockIn)) then
           qBlockIn(:,:,:,:) = qBlockOut
-          if (present(qiBlockIn)) then
+          if (allocated(qiBlockIn)) then
             qiBlockIn(:,:,:,:) = qiBlockOut
           end if
         end if
@@ -2753,16 +2774,16 @@ contains
     real(dp), intent(out) :: qRed(:)
 
     !> Block (dual) populations, if also being reduced
-    real(dp), intent(in), optional :: qBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
     !> equivalences for block charges
-    integer, intent(in), optional :: iEqBlockDftbu(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Imaginary part of block charges if present
-    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> Equivalences for spin orbit if needed
-    integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbuLS(:,:,:,:)
 
     real(dp), allocatable :: qOrbUpDown(:,:,:), qBlockUpDown(:,:,:,:)
 
@@ -2770,11 +2791,11 @@ contains
     qOrbUpDown = qOrb
     call qm2ud(qOrbUpDown)
     call orbitalEquiv_reduce(qOrbUpDown, iEqOrbitals, orb, qRed(1:nIneqOrb))
-    if (present(qBlock)) then
+    if (allocated(qBlock)) then
       qBlockUpDown = qBlock
       call qm2ud(qBlockUpDown)
       call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
-      if (present(qiBlock)) then
+      if (allocated(qiBlock)) then
         call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
       end if
     end if
@@ -2802,53 +2823,53 @@ contains
     real(dp), intent(out) :: qOrb(:,:,:)
 
     !> Block (dual) populations, if also stored in reduced form
-    real(dp), intent(inout), optional :: qBlock(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
     !> equivalences for block charges
-    integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbU(:,:,:,:)
 
     !> species of central cell atoms
-    integer, intent(in), optional :: species0(:)
+    integer, intent(in), allocatable :: species0(:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), optional :: nUJ(:)
+    integer, intent(in), allocatable :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), optional :: iUJ(:,:,:)
+    integer, intent(in), allocatable :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), optional :: niUJ(:,:)
+    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> Imaginary part of block atomic populations
-    real(dp), intent(inout), optional :: qiBlock(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Equivalences for spin orbit if needed
-    integer, intent(in), optional :: iEqBlockDftbULS(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbULS(:,:,:,:)
 
     integer :: nSpin
 
-    @:ASSERT(present(qBlock) .eqv. present(iEqBlockDftbU))
-    @:ASSERT(.not. present(qBlock) .or. present(species0))
-    @:ASSERT(.not. present(qBlock) .or. present(nUJ))
-    @:ASSERT(.not. present(qBlock) .or. present(iUJ))
-    @:ASSERT(.not. present(qBlock) .or. present(niUJ))
-    @:ASSERT(.not. present(qiBlock) .or. present(qBlock))
-    @:ASSERT(present(qiBlock) .eqv. present(iEqBlockDftbuLS))
+    @:ASSERT(allocated(qBlock) .eqv. allocated(iEqBlockDftbU))
+    @:ASSERT(.not. allocated(qBlock) .or. allocated(species0))
+    @:ASSERT(.not. allocated(qBlock) .or. allocated(nUJ))
+    @:ASSERT(.not. allocated(qBlock) .or. allocated(iUJ))
+    @:ASSERT(.not. allocated(qBlock) .or. allocated(niUJ))
+    @:ASSERT(.not. allocated(qiBlock) .or. allocated(qBlock))
+    @:ASSERT(allocated(qiBlock) .eqv. allocated(iEqBlockDftbuLS))
 
     nSpin = size(qOrb, dim=3)
     call OrbitalEquiv_expand(qRed(1:nIneqOrb), iEqOrbitals, orb, qOrb)
-    if (present(qBlock)) then
+    if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
           & orbEquiv=iEqOrbitals)
-      if (present(qiBlock)) then
+      if (allocated(qiBlock)) then
         call Block_expand(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, nUJ, niUJ, iUJ,&
             & skew=.true.)
       end if
     end if
     if (nSpin == 2) then
       call ud2qm(qOrb)
-      if (present(qBlock)) then
+      if (allocated(qBlock)) then
         call ud2qm(qBlock)
       end if
     end if
@@ -3076,13 +3097,13 @@ contains
     real(dp), intent(out) :: work(:,:)
 
     !> density matrix in dense form
-    real(dp), intent(inout), optional :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> excited state energy derivative with respect to atomic coordinates
-    real(dp), intent(out), optional :: excitedDerivs(:,:)
+    real(dp), intent(inout), allocatable :: excitedDerivs(:,:)
 
     !> natural orbital occupation numbers
-    real(dp), intent(out), optional :: occNatural(:)
+    real(dp), intent(inout), allocatable :: occNatural(:)
 
     real(dp), allocatable :: dQAtom(:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
@@ -3117,7 +3138,7 @@ contains
       call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
           & coord0, sccCalc, dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb,&
           & skHamCont, skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs,&
-          & nonSccDeriv, rhoSqrReal, occNatural=occNatural, naturalOrbs=naturalOrbs)
+          & nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, denseDesc,&
             & iSparseStart, img2CentCell, pSpecies0, speciesName, orb, over, parallelKS,&
@@ -3168,28 +3189,28 @@ contains
     real(dp), intent(out) :: qInpRed(:)
 
     !> +U equivalences
-    integer, intent(in), optional :: iEqBlockDftbU(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbU(:,:,:,:)
 
     !> central cell species
-    integer, intent(in), optional :: species0(:)
+    integer, intent(in), allocatable :: species0(:)
 
     !> block input charges
-    real(dp), intent(out), optional :: qBlockIn(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), optional :: nUJ(:)
+    integer, intent(in), allocatable :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), optional :: iUJ(:,:,:)
+    integer, intent(in), allocatable :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), optional :: niUJ(:,:)
+    integer, intent(in), allocatable :: niUJ(:,:)
 
     !> equivalences for spin orbit
-    integer, intent(in), optional :: iEqBlockDftbuLS(:,:,:,:)
+    integer, intent(in), allocatable :: iEqBlockDftbuLS(:,:,:,:)
 
     !> imaginary part of dual charges
-    real(dp), intent(out), optional :: qiBlockIn(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qiBlockIn(:,:,:,:)
 
     real(dp), allocatable :: invJacobian(:,:)
 
@@ -3361,16 +3382,16 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense hamiltonian matrix
-    real(dp), intent(inout), optional :: HSqrReal(:,:,:)
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), optional :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> Storage for dense hamitonian matrix (complex case)
-    complex(dp), intent(inout), optional :: HSqrCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     integer :: nSpin
 
@@ -3801,8 +3822,8 @@ contains
   !> Calculates the gradients
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-      & img2CentCell, iSparseStart, orb, potential, coord, dispersion, derivs, iRhoPrim, thirdOrd,&
-      & chrgForces)
+      & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces,&
+      & dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3867,21 +3888,20 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    ! Workaround:ifort 17.0: Pass as allocatable instead of optional to prevent segfault
-    !> dispersion interactions
-    class(DispersionIface), intent(inout), allocatable :: dispersion
-
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(out) :: derivs(:,:)
 
     !> imaginary part of density matrix
-    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> Is 3rd order SCC being used
-    type(ThirdOrder), intent(inout), optional :: thirdOrd
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> forces on external charges
-    real(dp), intent(out), optional :: chrgForces(:,:)
+    real(dp), intent(inout), allocatable :: chrgForces(:,:)
+
+    !> dispersion interactions
+    class(DispersionIface), intent(inout), allocatable :: dispersion
 
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
@@ -3889,8 +3909,8 @@ contains
     integer :: ii
 
     tSccCalc = allocated(sccCalc)
-    tImHam = present(iRhoPrim)
-    tExtChrg = present(chrgForces)
+    tImHam = allocated(iRhoPrim)
+    tExtChrg = allocated(chrgForces)
     nAtom = size(derivs, dim=2)
 
     derivs(:,:) = 0.0_dp
@@ -3933,7 +3953,7 @@ contains
         end if
       end if
 
-      if (present(thirdOrd)) then
+      if (allocated(thirdOrd)) then
         if (tXlbomd) then
           call thirdOrd%addGradientDcXlbomd(neighborList, species, coord, img2CentCell, qOutput,&
               & q0, orb, derivs)
@@ -3964,8 +3984,8 @@ contains
   !> Calculates stress tensor and lattice derivatives.
   subroutine getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
-      & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, dispersion,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim)
+      & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
+      & totalLatDeriv, intPressure, iRhoPrim, dispersion)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -4036,10 +4056,6 @@ contains
     !> central cell coordinates of atoms
     real(dp), intent(inout) :: coord0(:,:)
 
-    ! Workaround:ifort 17.0: Pass as allocatable instead of optional to prevent segfault
-    !> dispersion interactions
-    class(DispersionIface), allocatable, intent(inout) :: dispersion
-
     !> stress tensor
     real(dp), intent(out) :: totalStress(:,:)
 
@@ -4050,12 +4066,15 @@ contains
     real(dp), intent(out) :: intPressure
 
     !> imaginary part of the density matrix (if present)
-    real(dp), intent(in), optional :: iRhoPrim(:,:)
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
+
+    !> dispersion interactions
+    class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
 
-    tImHam = present(iRhoPrim)
+    tImHam = allocated(iRhoPrim)
 
     if (allocated(sccCalc)) then
       if (tImHam) then
@@ -4559,16 +4578,16 @@ contains
     real(dp), intent(out) :: localisation
 
     !> Storage for dense hamiltonian matrix
-    real(dp), intent(inout), optional :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> Storage for dense overlap matrix
-    real(dp), intent(inout), optional :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> Storage for dense hamitonian matrix (complex case)
-    complex(dp), intent(inout), optional :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
-    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
     integer :: nFilledLev, nAtom, nSpin
     integer :: iSpin, iKS, iK
@@ -4577,10 +4596,10 @@ contains
     nSpin = size(nEl)
 
     if (any(abs(mod(filling, real(3 - nSpin, dp))) > elecTolMax)) then
-      call warning("Fractional occupations present for electron localisation")
+      call warning("Fractional occupations allocated for electron localisation")
     end if
 
-    if (present(eigvecsReal)) then
+    if (allocated(eigvecsReal)) then
       call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
       do iKS = 1, parallelKS%nLocalKS

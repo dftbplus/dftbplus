@@ -374,6 +374,12 @@ contains
     !> overlap data
     type(OSlakoCont), intent(in) :: skOverCont
 
+    !> method for calculating derivatives of S and H0 matrices
+    class(NonSccDiff), intent(in) :: derivator
+
+    !> ground state density matrix (square matrix plus spin index)
+    real(dp), intent(in)  :: rhoSqr(:,:,:)
+
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -386,40 +392,46 @@ contains
     !> contribution to forces from derivative of excited state energy
     real(dp), intent(out) :: excgradient(:,:)
 
-    !> method for calculating derivatives of S and H0 matrices
-    class(NonSccDiff), intent(in), optional :: derivator
-
-    !> ground state density matrix (square matrix plus spin index)
-    real(dp), intent(in), optional :: rhoSqr(:,:,:)
-
     !> occupations of the natural orbitals from the density matrix
-    real(dp), intent(out), optional :: occNatural(:)
+    real(dp), intent(inout), allocatable :: occNatural(:)
 
     !> the natural orbitals of the excited state transition density matrix or the total density
     !> matrix in the excited state
-    real(dp), intent(out), optional :: naturalOrbs(:,:,:)
+    real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
 
 #:if WITH_ARPACK
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
+
     @:ASSERT(this%tInit)
     @:ASSERT(this%nAtom == size(orb%nOrbAtom))
-    ! BA: SCC is currently ugly, it gives back an array with an additional dimension (spin),
-    ! however, fills always the first channel only!
-    ALLOCATE(shiftPerAtom(this%nAtom))
-    ALLOCATE(shiftPerL(orb%mShell, this%nAtom))
+    @:ASSERT(allocated(occNatural) .eqv. allocated(naturalOrbs))
+
+    allocate(shiftPerAtom(this%nAtom))
+    allocate(shiftPerL(orb%mShell, this%nAtom))
     call sccCalc%getShiftPerAtom(shiftPerAtom)
     call sccCalc%getShiftPerL(shiftPerL)
     shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
-    call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
-        & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU, &
-        & this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
-        & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans, &
-        & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis, &
-        & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow, &
-        & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, &
-        & derivator, rhoSqr, occNatural, naturalOrbs)
+    if (allocated(occNatural)) then
+      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
+          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU, &
+          & this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
+          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans, &
+          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis, &
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow, &
+          & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, &
+          & derivator, rhoSqr, occNatural, naturalOrbs)
+    else
+      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
+          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU, &
+          & this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
+          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans, &
+          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis, &
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow, &
+          & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, &
+          & derivator, rhoSqr)
+    end if
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_addGradients.')

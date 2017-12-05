@@ -16,7 +16,7 @@ module mpienv
   public :: TMpiEnv, TMpiEnv_init
 
 
-  !> Contains MPI related einvironment settings
+  !> Contains MPI related environment settings
   type :: TMpiEnv
 
     !> Global MPI communicator
