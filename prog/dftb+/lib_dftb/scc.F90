@@ -367,21 +367,17 @@ contains
     if (this%tExtChrg) then
       if (allocated(inp%blurWidths)) then
         if (this%tPeriodic) then
-          write(*,*)'OK a'
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
               & inp%recVecs, this%maxREwald, blurWidths=inp%blurWidths)
         else
-          write(*,*)'OK b'
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom,&
               & blurWidths=inp%blurWidths)
         end if
       else
         if (this%tPeriodic) then
-          write(*,*)'OK c'
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
               & inp%recVecs, this%maxREwald)
         else
-          write(*,*)'OK d'
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom)
         end if
       end if

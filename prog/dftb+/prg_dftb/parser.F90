@@ -1444,9 +1444,7 @@ contains
         call error("External charges can only be used in an SCC calculation")
       end if
       call init(lCharges)
-      if (.not. geo%tPeriodic) then
-        call init(lBlurs)
-      end if
+      call init(lBlurs)
       fp = getFileId()
       ctrl%nExtChrg = 0
       do ii = 1, getLength(children)
@@ -1484,19 +1482,17 @@ contains
         end select
         call convertByMul(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
         call append(lCharges, tmpR2)
-        if (.not. geo%tPeriodic) then
-          call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
-              &modifier=modifier, child=child3)
-          if (rTmp < 0.0_dp) then
-            call detailedError(child3, "Gaussian blur width may not be &
-                &negative")
-          end if
-          call convertByMul(char(modifier), lengthUnits, child3, rTmp)
-          allocate(tmpR1(size(tmpR2, dim=2)))
-          tmpR1(:) = rTmp
-          call append(lBlurs, tmpR1)
-          deallocate(tmpR1)
+        call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
+            &modifier=modifier, child=child3)
+        if (rTmp < 0.0_dp) then
+          call detailedError(child3, "Gaussian blur width may not be &
+              &negative")
         end if
+        call convertByMul(char(modifier), lengthUnits, child3, rTmp)
+        allocate(tmpR1(size(tmpR2, dim=2)))
+        tmpR1(:) = rTmp
+        call append(lBlurs, tmpR1)
+        deallocate(tmpR1)
         deallocate(tmpR2)
       end do
 
@@ -1508,15 +1504,13 @@ contains
       end do
       call destruct(lCharges)
 
-      if (.not. geo%tPeriodic) then
-        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
-        ind = 1
-        do ii = 1, len(lBlurs)
-          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
-          ind = ind + nElem
-        end do
-        call destruct(lBlurs)
-      end if
+      allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
+      ind = 1
+      do ii = 1, len(lBlurs)
+        call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+        ind = ind + nElem
+      end do
+      call destruct(lBlurs)
     else
       ctrl%nExtChrg = 0
     end if
