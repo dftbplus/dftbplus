@@ -23,7 +23,6 @@ module initprogram
   use shortgamma
   use coulomb
   use message
-  use mainio, only : receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -69,6 +68,7 @@ module initprogram
   use xlbomd_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
+  use mainio, only : receiveGeometryFromSocket
   use ipisocket
 #:endif
   use pmlocalisation
@@ -2693,7 +2693,7 @@ contains
 
   end subroutine createRandomGenerators
 
-
+#:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
   subroutine initSocket(env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
       & tLatticeChanged)
@@ -2733,7 +2733,7 @@ contains
         & tLatticeChanged, tDummy)
 
   end subroutine initSocket
-
+#:endif
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&

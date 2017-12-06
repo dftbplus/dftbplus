@@ -285,7 +285,9 @@ contains
     type(fnode), pointer :: child, child2, child3, value, value2, field
 
     type(string) :: buffer, buffer2, modifier
+#:if WITH_SOCKETS
     character(lc) :: sTmp
+#:endif
 
     ctrl%tGeoOpt = .false.
     ctrl%tCoordOpt = .false.
