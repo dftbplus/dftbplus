@@ -175,6 +175,10 @@ module inputdata_module
 
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
+
+    !> Set initial charges at random (incompatible with initialCharges array being used)
+    logical :: randomIntialCharges = .false.
+
     logical :: tDFTBU        = .false.
     integer :: iSolver       = 0
     integer :: iMixSwitch    = 0

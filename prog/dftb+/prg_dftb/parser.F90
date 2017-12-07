@@ -1293,7 +1293,7 @@ contains
     ifSCC: if (ctrl%tSCC) then
       call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
       if (.not. ctrl%tReadChrg) then
-        call getInitialCharges(node, geo, ctrl%initialCharges)
+        call getInitialCharges(node, geo, ctrl)
       end if
       call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
       call getChildValue(node, "Mixer", value, "Broyden", child=child)
@@ -1952,7 +1952,7 @@ contains
 
 
     !> Reads inital charges
-    subroutine getInitialCharges(node, geo, initCharges)
+    subroutine getInitialCharges(node, geo, ctrl)
 
       !> relevant node in input tree
       type(fnode), pointer :: node
@@ -1960,8 +1960,8 @@ contains
       !> geometry, including atomic type information
       type(TGeometry), intent(in) :: geo
 
-      !> initial atomic charges
-      real(dp), allocatable :: initCharges(:)
+      !> control structure to fill
+      type(control), intent(inout) :: ctrl
 
       type(fnode), pointer :: child, child2, child3, val
       type(fnodeList), pointer :: children
@@ -1976,32 +1976,34 @@ contains
       ! Read either all atom charges, or individual atom specifications
       call getChild(child, "AllAtomCharges", child2, requested=.false.)
       if (associated(child2)) then
-        allocate(initCharges(geo%nAtom))
-        call getChildValue(child2, "", initCharges)
+        allocate(ctrl%initialCharges(geo%nAtom))
+        call getChildValue(child2, "", ctrl%initialCharges)
       else
         call getChildren(child, "AtomCharge", children)
         if (getLength(children) > 0) then
-          allocate(initCharges(geo%nAtom))
-          initCharges = 0.0_dp
-        end if
-        do ii = 1, getLength(children)
-          call getItem1(children, ii, child2)
-          call getChildValue(child2, "Atoms", buffer, child=child3, &
-              &multiple=.true.)
-          call convAtomRangeToInt(char(buffer), geo%speciesNames, &
-              &geo%species, child3, pTmpI1)
-          call getChildValue(child2, "ChargePerAtom", rTmp)
-          do jj = 1, size(pTmpI1)
-            iAt = pTmpI1(jj)
-            if (initCharges(iAt) /= 0.0_dp) then
-              call detailedWarning(child3, "Previous setting for the charge &
-                  &of atom" // i2c(iAt) // " overwritten")
-            end if
-            initCharges(iAt) = rTmp
+          allocate(ctrl%initialCharges(geo%nAtom))
+          ctrl%initialCharges = 0.0_dp
+          do ii = 1, getLength(children)
+            call getItem1(children, ii, child2)
+            call getChildValue(child2, "Atoms", buffer, child=child3, &
+                &multiple=.true.)
+            call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+                &geo%species, child3, pTmpI1)
+            call getChildValue(child2, "ChargePerAtom", rTmp)
+            do jj = 1, size(pTmpI1)
+              iAt = pTmpI1(jj)
+              if (ctrl%initialCharges(iAt) /= 0.0_dp) then
+                call detailedWarning(child3, "Previous setting for the charge &
+                    &of atom" // i2c(iAt) // " overwritten")
+              end if
+              ctrl%initialCharges(iAt) = rTmp
+            end do
+            deallocate(pTmpI1)
           end do
-          deallocate(pTmpI1)
-        end do
-        call destroyNodeList(children)
+          call destroyNodeList(children)
+        else
+          call getChildValue(child, "Random", ctrl%randomIntialCharges, .false.)
+        end if
       end if
 
     end subroutine getInitialCharges
@@ -2592,7 +2594,7 @@ contains
     end if
     call getChildValue(node, "RandomSeed", ctrl%iSeed, 0, child=child)
     if (ctrl%iSeed < 0) then
-      call detailedError(child, "Random seed must be greater or equal zero")
+      call detailedError(child, "Random seed must be greater than or equal to zero")
     end if
     call getChildValue(node, "WriteHS", ctrl%tWriteHS, .false.)
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)

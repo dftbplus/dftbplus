@@ -74,6 +74,7 @@ module ranlux
   interface getRandom
     module procedure Ranlux_getRandomVector
     module procedure Ranlux_getRandom2DArray
+    module procedure Ranlux_getRandom3DArray
     module procedure Ranlux_getRandomNumber
   end interface getRandom
 
@@ -256,7 +257,7 @@ contains
     !> Ranlux instance
     type(ORanlux), intent(inout) :: self
 
-    !> Vector containing the random numbers on exit.
+    !> Array containing the random numbers on exit.
     real(dp), intent(out) :: r2Darray(:,:)
 
     real(dp), allocatable :: rvec(:)
@@ -268,6 +269,23 @@ contains
 
   end subroutine Ranlux_getRandom2DArray
 
+  !> Fills a given 3D array with random numbers.
+  subroutine Ranlux_getRandom3DArray(self, r3Darray)
+
+    !> Ranlux instance
+    type(ORanlux), intent(inout) :: self
+
+    !> Array containing the random numbers on exit.
+    real(dp), intent(out) :: r3Darray(:,:,:)
+
+    real(dp), allocatable :: rvec(:)
+
+    allocate(rvec(product(shape(r3Darray))))
+    call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
+        &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
+    r3Darray = reshape(rvec,shape(r3Darray))
+
+  end subroutine Ranlux_getRandom3DArray
 
   !> Returns a random number
   subroutine Ranlux_getRandomNumber(self, rnum)

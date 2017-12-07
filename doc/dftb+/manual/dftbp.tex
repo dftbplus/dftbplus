@@ -1150,15 +1150,14 @@ following properties:
   dependant contributions should be added to the DFTB energy and
   band structure. See p.~\pref{sec:dftbp.OrbitalPotential}.
 
-
 \item[\is{ReadInitialCharges}] If set to \is{Yes} the first
   Hamiltonian is constructed by using the charge information read from
   the file \verb|charges.bin|.
 
-\item[\is{InitialCharges}] Specifies initial net charges, either for
-  all atoms or for only selected ones. In order to specify it for all
-  atoms, use the keyword \kw{AllAtomCharges} and supply the net charge
-  for every atom as a list of real values:
+\item[\is{InitialCharges}] Specifies initial net charges, either for all atoms,
+  for only selected ones or randomly. In order to specify it for all atoms, use
+  the keyword \kw{AllAtomCharges} and supply the net charge for every atom as a
+  list of real values:
 \begin{verbatim}
   InitialCharges = {
     AllAtomCharges = { # Specifies net charge for each atom in an H2O molecule
@@ -1186,9 +1185,16 @@ following properties:
     }
   }
 \end{verbatim}
-  Net charge on atoms not appearing in any \is{AtomCharge}
-  specification is set to be zero.
+  Net charges on atoms not appearing in any \is{AtomCharge}
+  specification are set to be zero.
 
+  Finally, the charges on all atoms can be set randomly:
+\begin{verbatim}
+  InitialCharges = { # Specifying charge for various species
+      Random = Yes
+  }
+\end{verbatim}
+These will then be supplied by the code's internal random number generator.
 
 \item[\is{ElectricField}] Specifies an external electric field,
   arising currently from either an applied field or a distribution of
@@ -2539,10 +2545,17 @@ This block collects some global options for the run.
   information. If running an MD calculation, see also
   section~\ref{kw:dftbp.MDRestartFrequency} regarding \is{MDRestartFrequency}.
 
-\item[\is{RandomSeed}] Sets the seed for the random number
-  generator. The value \is{0} causes random initialisation. (This
-  value can be used to reproduce earlier MD calculations by setting
-  the initial seed to the same value.)
+\item[\is{RandomSeed}] Sets the seed for the random number generator. This value
+  can be used to reproduce earlier calculations which use randomness (e.g.\ MD)
+  by setting the initial seed to the same value. However the value \is{0} causes
+  the code to attempt to non-deterministically initialise the random number
+  generator from locally available entropy sources.
+
+  The value of the random number generator seed is printed in the output of the
+  code, and may be used to deterministically re-run the same calculation by
+  setting the \is{RandomSeed} to this value. In the case that the initial seed
+  is set to be \is{0} in the input, the value of the seed in processed input
+  files will need to be replaced with the output value printed by the code.
 
 \item[\is{MinimiseMemoryUsage}] Tries to minimise memory usage by
   storing various matrices on disc instead of keeping them in memory.

@@ -852,7 +852,7 @@ contains
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
     type(OTempProfile), pointer :: pTempProfile
 
-    type(ORanlux), allocatable :: randomInit, randomThermostat
+    type(ORanlux), allocatable :: randomInit, randomThermostat, randomCharges
     integer :: iSeed
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
@@ -1232,7 +1232,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-    
+
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -1692,7 +1692,7 @@ contains
     iSeed = input%ctrl%iSeed
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
-    call createRandomGenerators(env, iSeed, randomInit, randomThermostat)
+    call createRandomGenerators(env, iSeed, randomInit, randomThermostat, randomCharges)
 
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
@@ -1928,6 +1928,11 @@ contains
           end if
           call initQFromAtomChrg(qInput, input%ctrl%initialCharges, &
               &referenceN0, species0, speciesName, orb)
+        else if (input%ctrl%randomIntialCharges) then
+          ! note, this can set irrelevant entries in the qInput matrix (not related to atomic
+          ! orbitals), but that should be harmless.
+          call getRandom(randomCharges, qInput)
+          qInput = 2.0_dp*(qInput - 0.5_dp)
         else
           qInput(:,:,:) = q0
         end if
@@ -2381,7 +2386,6 @@ contains
           & then
         write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write(stdOut, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
@@ -2665,13 +2669,13 @@ contains
 
   !> Creates all random generators needed in the code.
   !!
-  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
+  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat, randomCharges)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Global seed used for initialisation of the random generator pool. If less than one, random
-    !! initialisation of the seed will occur.
+    !> initialisation of the seed will occur.
     integer, intent(inout) :: seed
 
     !> Random generator for initprogram.
@@ -2680,9 +2684,21 @@ contains
     !> Random generator for the actual thermostat.
     type(ORanlux), allocatable, intent(out) :: randomThermostat
 
+    !> Random generator for charges in the code
+    type(ORanlux), allocatable, intent(out) :: randomCharges
+
     type(ORandomGenPool) :: randGenPool
+    logical :: initRandom0
+
+    initRandom0 = (seed ==0)
 
     call init(randGenPool, env, seed, oldCompat=.true.)
+
+    if (initRandom0) then
+      write(stdOut, "(A,':',T30,I14)") "Chosen random seed:", seed
+    else
+      write(stdOut, "(A,':',T30,I14)") "Specified random seed:", seed
+    end if
 
     ! DO NOT CHANGE the ORDER of calls below, as this will destroy backwards compatibility and
     ! reproduciblity of random number sequences in the code. If further random generators are needed
@@ -2690,6 +2706,7 @@ contains
     ! generated here.
     call randGenPool%getGenerator(env, randomThermostat)
     call randGenPool%getGenerator(env, randomInit)
+    call randGenPool%getGenerator(env, randomCharges)
 
   end subroutine createRandomGenerators
 
