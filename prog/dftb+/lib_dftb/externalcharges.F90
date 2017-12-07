@@ -89,8 +89,6 @@ contains
 
 
   !> Initializes the calculator for external charges
-  !>
-  !> Note: Blurring of point charges is currently not possible with periodic boundary conditions.
   subroutine TExtCharge_init(this, coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff,&
       & blurWidths)
 
