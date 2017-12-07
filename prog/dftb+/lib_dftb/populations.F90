@@ -19,7 +19,7 @@ module populations
   private
 
   public :: mulliken, skewMulliken, getChargePerShell
-  public :: getDiagonalMullikenPerAtom
+  public :: getOnsitePopulation
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -333,56 +333,38 @@ contains
   end subroutine getChargePerShell
 
 
-  !> Calculates the diagonal on-site Mulliken population for each atom (the nr. of electrons
-  !> comming from non-hybridized orbitals on a given atom).
+  !> Calculates the on-site Mulliken population for each atom.
   !>
-  subroutine getDiagonalMullikenPerAtom(rho, over, orb, iNeighbor, nNeighbor, img2CentCell, iPair,&
-      & qq)
+  !> It returns the Mulliken population stamming from the orbitals from a given atom
+  !> without any contributions due to the overlap with other atoms (net atomic population).
+  !>
+  subroutine getOnsitePopulation(rho, orb, iPair, qq)
 
     !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
 
-    !> overlap matrix in packed format
-    real(dp), intent(in) :: over(:)
-
     !> atomic species information
     type(TOrbitals), intent(in) :: orb
-
-    !> List of neighbours for each atom, starting at 0 for itself
-    integer, intent(in) :: iNeighbor(0:,:)
-
-    !> Number of neighbours for each atom
-    integer, intent(in) :: nNeighbor(:)
-
-    !> indexing array to convert images of atoms back into their number in the central cell
-    integer, intent(in) :: img2CentCell(:)
 
     !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    !> Onsite populatin per atom
+    !> Onsite population per atom
     real(dp), intent(out) :: qq(:)
 
-    integer   :: iOrig, iNeigh, iAtom1, iAtom2f
+    integer   :: iOrig, iAt
     integer   :: nAtom, nOrb
 
     nAtom = size(orb%nOrbAtom)
     @:ASSERT(size(qq) == nAtom)
 
-    qq(:) = 0.0_dp
-    do iAtom1 = 1, nAtom
-      nOrb = orb%nOrbAtom(iAtom1)
-      do iNeigh = 0, nNeighbor(iAtom1)
-        iAtom2f = img2CentCell(iNeighbor(iNeigh, iAtom1))
-        if (iAtom1 == iAtom2f) then
-          ! sum over the *diagonal* elements of this atom or and periodic images
-          iOrig = iPair(iNeigh, iAtom1) + 1
-          qq(iAtom1) = qq(iAtom1) + sum(over(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1)&
-              & * rho(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1))
-        end if
-      end do
+    do iAt = 1, nAtom
+      nOrb = orb%nOrbAtom(iAt)
+      iOrig = iPair(0, iAt) + 1
+      ! Sum up the diagonal elements of the density matrix.
+      qq(iAt) = sum(rho(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1))
     end do
 
-  end subroutine getDiagonalMullikenPerAtom
+  end subroutine getOnsitePopulation
 
 end module populations

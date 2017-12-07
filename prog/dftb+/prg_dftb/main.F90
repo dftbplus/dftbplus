@@ -2646,9 +2646,9 @@ contains
 
     nAtom = size(nNeighbor)
     allocate(cpa(nAtom))
-    call getDiagonalMullikenPerAtom(rhoPrim(:,1), over, orb, neighborList%iNeighbor, nNeighbor,&
-        & img2CentCell, iSparseStart, cpa)
+    call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, cpa)
     call MBDcalculateCPA(mbDispersion, cpa)
+    print *, "CPA:", cpa
     call MBDgetEnergy(mbDispersion, eMbd)
 
   end subroutine getManyBodyDispEnergy
