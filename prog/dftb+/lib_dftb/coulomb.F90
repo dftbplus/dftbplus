@@ -171,7 +171,7 @@ contains
     !> Charges of the 2nd group of objects
     real(dp), intent(in) :: charges1(:)
 
-    !> Gaussian blur widht of the charges in the 2nd group
+    !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
@@ -430,7 +430,7 @@ contains
     !> Volume of the supercell.
     real(dp), intent(in) :: volume
 
-    !> Gaussian blur widht of the charges in the 2nd group
+    !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
@@ -492,7 +492,7 @@ contains
     !> List of atomic coordinates.
     real(dp), intent(in) :: charges1(:)
 
-    !> Gaussian blur widht of the charges in the 2nd group
+    !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: ii, jj, iAt2, iAt1, iAt0, nAtom0, nAtom1, iAtFirst, iAtLast, nAtLocal, myRank
@@ -1286,7 +1286,7 @@ contains
     !> Volume of the supercell.
     real(dp), intent(in) :: vol
 
-    !> Gaussian blur widht of the charges in the 2nd group
+    !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
@@ -1599,7 +1599,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
 
-    !> Gaussian blur widht of the charges in the 2nd group
+    !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths
 
     !> Result
