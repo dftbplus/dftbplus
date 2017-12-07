@@ -1373,7 +1373,7 @@ contains
        call error("This ForceEvaluation method requires the electron&
            & temperature to be zero")
     end if
-    if (tForces) then
+!    if (tForces) then
       select case(input%ctrl%iDerivMethod)
       case (1)
         ! set step size from input
@@ -1387,7 +1387,7 @@ contains
       case (2)
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
-    end if
+!    end if
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces

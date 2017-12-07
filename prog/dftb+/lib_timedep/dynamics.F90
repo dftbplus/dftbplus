@@ -210,7 +210,7 @@ contains
        call init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat, &
             &pMDFrame)
        call init(this%pThermostat, pDummyTherm)
-       allocate(this%derivator, source = nonSccDeriv)
+       allocate(this%derivator, source=nonSccDeriv)
     else
        allocate(this%movedVelo(3, nAtom))
        this%movedVelo = 0.0_dp
@@ -414,9 +414,8 @@ contains
           new3Coord(:,:) = coordNew(:, sf%indMovedAtom)
           call next(sf%pMDIntegrator, movedAccel, new3Coord, sf%movedVelo) !v_1, x_2 saved for later
           coordNew(:, sf%indMovedAtom) = new3Coord
-          call getRdotSprime(sf, RdotSprime, coord, &
-               & skHamCont, skOverCont, orb, img2CentCell, neighborList, &
-               & nNeighbor, iSquare)
+          call getRdotSprime(sf, RdotSprime, coord, skOverCont, orb, img2CentCell, &
+               &neighborList, nNeighbor, iSquare)
        end if
        call tac(dTime,iTimeIon)
        timeIon = timeIon + dTime
@@ -559,8 +558,8 @@ contains
        & skHamCont, skOverCont, ham, ham0, over, timeInver)
     type(ElecDynamics), intent(inout), target :: sf 
     complex(cp), intent(inout) :: Sinv(:,:), Ssqr(:,:)
-    real(dp), intent(inout), allocatable :: ham0(:)
-    real(dp), allocatable, intent(out) :: ham(:,:), over(:)
+    real(dp), allocatable, intent(inout) :: ham0(:)
+    real(dp), allocatable, intent(inout) :: ham(:,:), over(:)
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
     type(TNeighborList), intent(inout) :: neighborList    
@@ -605,16 +604,12 @@ contains
    if (sf%tDispersion) then
       call sf%dispersion%updateCoords(neighborList, img2CentCell, coord, &
            & specie0)
-!     call updateCoords(sf%dispersion, neighborList, img2CentCell, coord, &
-!         &specie0)
    end if
    
    call buildH0(ham0, skHamCont, sf%atomEigVal, coord, nNeighbor, neighborList%iNeighbor, &
         &sf%species, iPair, orb)
    call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, sf%species,&
         & iPair, orb)
-!   call buildH0S(ham0, over, skHamCont, skOverCont, sf%atomEigVal, coord, &
-!        &nNeighbor, neighborList%iNeighbor, sf%species, iPair, orb)
 
    call tic(iInverTime)
    Sreal = 0.0_dp
@@ -689,10 +684,7 @@ contains
          &img2CentCell, iPair, orb, potential%intBlock)
     call sf%sccCalc%updateCharges(qInput, q0, orb, sf%species, neighborList%iNeighbor, &
          &img2CentCell)
-!    call updateCharges_SCC(qInput, q0, orb, sf%species, neighborList%iNeighbor, &
-!         &img2CentCell)
     call sf%sccCalc%addForceDc(derivs, sf%species, neighborList%iNeighbor, img2CentCell, coord)
-!    call addForceDCSCC(derivs, sf%species, neighborList%iNeighbor, img2CentCell, coord)
     call getERepDeriv(repulsiveDerivs, coord, nNeighbor, &
          &neighborList%iNeighbor,sf%species,pRepCont, img2CentCell)
 
@@ -713,11 +705,10 @@ contains
 
 
   !! Calculates nonadiabatic matrix (Sprime) times velocities (Rdot)
-  subroutine getRdotSprime(sf, RdotSprime, coord,&
-       & skHamCont, skOverCont, orb, img2CentCell, neighborList, &
-       &nNeighbor, iSquare)
+  subroutine getRdotSprime(sf, RdotSprime, coord, skOverCont, orb, img2CentCell, &
+       &neighborList, nNeighbor, iSquare)
     type(ElecDynamics), intent(in), target :: sf
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    type(OSlakoCont), intent(in) :: skOverCont
     complex(cp), intent(out) :: RdotSprime(sf%nOrbs,sf%nOrbs)
     type(TOrbitals), intent(in) :: orb
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
@@ -735,6 +726,7 @@ contains
        dcoord(:,sf%indMovedAtom(ii)) = sf%movedVelo(:,ii)
     end do
 
+    sPrimeTmp = 0.0_dp
     RdotSprime = 0.0_cp
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iStart1,iEnd1,iSp1,nOrb1,sPrimeTmp2,iNeigh,iAtom2, &
@@ -771,7 +763,7 @@ contains
              sPrimeTmp2(:,:) = 0.0_dp
              do ii=1,3
                 sPrimeTmp2(:,:) = sPrimeTmp2 + &
-                     &sPrimeTmp(:,:,ii) * dcoord(ii,iAtom1) ! - dcoord(ii,iAtom2))
+                     &sPrimeTmp(:,:,ii) * dcoord(ii,iAtom1)
              end do
              RdotSprime(iStart2:iEnd2,iStart1:iEnd1) = &
                   & cmplx(sPrimeTmp2(1:nOrb2,1:nOrb1), 0, cp)
@@ -779,7 +771,7 @@ contains
              sPrimeTmp2(:,:) = 0.0_dp
              do ii=1,3
                 sPrimeTmp2(:,:) = sPrimeTmp2 - &
-                     &sPrimeTmp(:,:,ii) * dcoord(ii,iAtom2) ! - dcoord(ii,iAtom1))
+                     &sPrimeTmp(:,:,ii) * dcoord(ii,iAtom2)
              end do
              RdotSprime(iStart1:iEnd1,iStart2:iEnd2) = &
                   & cmplx(transpose(sPrimeTmp2(1:nOrb2,1:nOrb1)), 0, cp)
@@ -1064,7 +1056,6 @@ contains
          &nNeighbor, orb%mOrb, iSquare, iPair, img2CentCell)
 
     call init(energy, sf%nAtom)
-!    call create(energy, sf%nAtom)
     energy%ETotal = 0.0_dp
 
     energy%EnonSCC = 0.0_dp
@@ -1189,7 +1180,6 @@ contains
     end if
 
     call init(potential, orb, sf%nAtom, sf%nSpin)
-!    call create(potential, orb, sf%nAtom, sf%nSpin)
   end subroutine createMatrices
 
   
@@ -1252,9 +1242,8 @@ contains
     Rhoold(:,:,:) = Rho
 
     if (sf%Ions) then
-       call getRdotSprime(sf, RdotSprime, coord, &
-            & skHamCont, skOverCont, orb, img2CentCell, neighborList, &
-            & nNeighbor, iSquare)
+       call getRdotSprime(sf, RdotSprime, coord, skOverCont, orb, img2CentCell, &
+            &neighborList, nNeighbor, iSquare)
     end if
 
     do iSpin=1,sf%nSpin
