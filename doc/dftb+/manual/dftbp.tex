@@ -1185,10 +1185,10 @@ following properties:
     }
   }
 \end{verbatim}
-  Net charges on atoms not appearing in any \is{AtomCharge}
-  specification are set to be zero.
+Net charges on atoms not appearing in any \is{AtomCharge}
+specification are set to be zero.
 
-  Finally, the charges on all atoms can be set randomly:
+Finally, the charges on all atoms can be set using the \kw{Random} keyword:
 \begin{verbatim}
   InitialCharges = { # Specifying charge for various species
       Random = Yes
@@ -1467,6 +1467,19 @@ Example (setting all spins together):
     }
   }
 \end{verbatim}
+
+Alternatively, the spin polarisation can be assigned using the \kw{Random}
+keyword:
+\invparskip
+\begin{verbatim}
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 0.0
+    InitialSpins = {
+      Random = Yes
+    }
+  }
+\end{verbatim}
+
 \end{description}
 
 \subsubsection{NonColinear\{\}}
@@ -1521,7 +1534,7 @@ distribution:
   }
 \end{verbatim}
 
-  Example:
+Example:
 \invparskip
 \begin{verbatim}
   SpinPolarisation = NonColinear {
@@ -1537,6 +1550,19 @@ distribution:
     }
   }
 \end{verbatim}
+
+Alternatively, the spin polarisation can be assigned using the \kw{Random}
+keyword:
+\invparskip
+\begin{verbatim}
+  SpinPolarisation = NonColinear {
+    InitialSpins = {
+      Random = Yes
+    }
+  }
+\end{verbatim}
+
+
 \end{description}
 
 \subsubsection{SpinConstants}

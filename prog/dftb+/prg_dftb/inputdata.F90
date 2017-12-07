@@ -173,11 +173,14 @@ module inputdata_module
     !> initial spin pattern
     real(dp), allocatable :: initialSpins(:,:)
 
+    !> Set initial spins at random (incompatible with initialSpins array being used)
+    logical :: randomInitialSpins = .false.
+
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
 
     !> Set initial charges at random (incompatible with initialCharges array being used)
-    logical :: randomIntialCharges = .false.
+    logical :: randomInitialCharges = .false.
 
     logical :: tDFTBU        = .false.
     integer :: iSolver       = 0

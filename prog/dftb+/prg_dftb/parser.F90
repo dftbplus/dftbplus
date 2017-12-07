@@ -1362,7 +1362,7 @@ contains
         call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
       end if
 
-      ! spin
+      ! spin polarisation
       call getChildValue(node, "SpinPolarisation", value, "", child=child, &
           &allowEmptyValue=.true.)
       call getNodeName2(value, buffer)
@@ -1378,14 +1378,14 @@ contains
         call getChildValue(value, 'UnpairedElectrons', ctrl%nrSpinPol, 0.0_dp)
         call getChildValue(value, 'RelaxTotalSpin', ctrl%tSpinSharedEf, .false.)
         if (.not. ctrl%tReadChrg) then
-          call getInitialSpins(value, geo, 1, ctrl%initialSpins)
+          call getInitialSpins(value, geo, 1, ctrl)
         end if
 
       case ("noncolinear")
         ctrl%tSpin = .true.
         ctrl%t2Component = .true.
         if (.not. ctrl%tReadChrg) then
-          call getInitialSpins(value, geo, 3, ctrl%initialSpins)
+          call getInitialSpins(value, geo, 3, ctrl)
         end if
 
       case default
@@ -1960,7 +1960,7 @@ contains
       !> geometry, including atomic type information
       type(TGeometry), intent(in) :: geo
 
-      !> control structure to fill
+      !> control structure to fill initial charge field(s)
       type(control), intent(inout) :: ctrl
 
       type(fnode), pointer :: child, child2, child3, val
@@ -2002,7 +2002,7 @@ contains
           end do
           call destroyNodeList(children)
         else
-          call getChildValue(child, "Random", ctrl%randomIntialCharges, .false.)
+          call getChildValue(child, "Random", ctrl%randomInitialCharges, .false.)
         end if
       end if
 
@@ -2010,7 +2010,7 @@ contains
 
 
     !> Reads initial spins
-    subroutine getInitialSpins(node, geo, nSpin, initSpins)
+    subroutine getInitialSpins(node, geo, nSpin, ctrl)
 
       !> relevant node in input data
       type(fnode), pointer :: node
@@ -2021,8 +2021,8 @@ contains
       !> number of spin channels
       integer, intent(in) :: nSpin
 
-      !> initial spins on return
-      real(dp), allocatable :: initSpins(:,:)
+      !> control structure to fill initial spin field(s)
+      type(control), intent(inout) :: ctrl
 
       type(fnode), pointer :: child, child2, child3, val
       type(fnodeList), pointer :: children
@@ -2039,34 +2039,36 @@ contains
       ! Read either all atom spins, or individual spin specifications
       call getChild(child, "AllAtomSpins", child2, requested=.false.)
       if (associated(child2)) then
-        allocate(initSpins(nSpin, geo%nAtom))
-        call getChildValue(child2, "", initSpins)
+        allocate(ctrl%initialSpins(nSpin, geo%nAtom))
+        call getChildValue(child2, "", ctrl%initialSpins)
       else
         call getChildren(child, "AtomSpin", children)
         if (getLength(children) > 0) then
-          allocate(initSpins(nSpin, geo%nAtom))
-          initSpins = 0.0_dp
-        end if
-        allocate(rTmp(nSpin))
-        do ii = 1, getLength(children)
-          call getItem1(children, ii, child2)
-          call getChildValue(child2, "Atoms", buffer, child=child3, &
-              &multiple=.true.)
-          call convAtomRangeToInt(char(buffer), geo%speciesNames, &
-              &geo%species, child3, pTmpI1)
-          call getChildValue(child2, "SpinPerAtom", rTmp)
-          do jj = 1, size(pTmpI1)
-            iAt = pTmpI1(jj)
-            if (any(initSpins(:,iAt) /= 0.0_dp)) then
-              call detailedWarning(child3, "Previoius setting for the spin &
-                  &of atom" // i2c(iAt) // " overwritten")
-            end if
-            initSpins(:,iAt) = rTmp
+          allocate(ctrl%initialSpins(nSpin, geo%nAtom))
+          ctrl%initialSpins = 0.0_dp
+          allocate(rTmp(nSpin))
+          do ii = 1, getLength(children)
+            call getItem1(children, ii, child2)
+            call getChildValue(child2, "Atoms", buffer, child=child3, &
+                &multiple=.true.)
+            call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+                &geo%species, child3, pTmpI1)
+            call getChildValue(child2, "SpinPerAtom", rTmp)
+            do jj = 1, size(pTmpI1)
+              iAt = pTmpI1(jj)
+              if (any(ctrl%initialSpins(:,iAt) /= 0.0_dp)) then
+                call detailedWarning(child3, "Previoius setting for the spin &
+                    &of atom" // i2c(iAt) // " overwritten")
+              end if
+              ctrl%initialSpins(:,iAt) = rTmp
+            end do
+            deallocate(pTmpI1)
           end do
-          deallocate(pTmpI1)
-        end do
-        deallocate(rTmp)
-        call destroyNodeList(children)
+          deallocate(rTmp)
+          call destroyNodeList(children)
+        else
+          call getChildValue(child, "Random", ctrl%randomInitialSpins, .false.)
+        end if
       end if
 
     end subroutine getInitialSpins

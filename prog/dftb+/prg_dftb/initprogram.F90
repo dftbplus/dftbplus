@@ -852,7 +852,7 @@ contains
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
     type(OTempProfile), pointer :: pTempProfile
 
-    type(ORanlux), allocatable :: randomInit, randomThermostat, randomCharges
+    type(ORanlux), allocatable :: randomInit, randomThermostat, randomCharges, randomSpins
     integer :: iSeed
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
@@ -1219,7 +1219,7 @@ contains
     allocate(img2CentCell(nAllAtom))
     allocate(iCellVec(nAllAtom))
 
-    ! Intialize Hamilton and overlap
+    ! Initialise Hamilton and overlap
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
     if (tSccCalc) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
@@ -1692,7 +1692,7 @@ contains
     iSeed = input%ctrl%iSeed
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
-    call createRandomGenerators(env, iSeed, randomInit, randomThermostat, randomCharges)
+    call createRandomGenerators(env, iSeed, randomInit, randomThermostat, randomCharges, randomSpins)
 
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
@@ -1928,11 +1928,10 @@ contains
           end if
           call initQFromAtomChrg(qInput, input%ctrl%initialCharges, &
               &referenceN0, species0, speciesName, orb)
-        else if (input%ctrl%randomIntialCharges) then
-          ! note, this can set irrelevant entries in the qInput matrix (not related to atomic
-          ! orbitals), but that should be harmless.
-          call getRandom(randomCharges, qInput)
-          qInput = 2.0_dp*(qInput - 0.5_dp)
+        else if (input%ctrl%randomInitialCharges) then
+          do ii = 1, nAtom
+            call getRandom(randomCharges, qInput(:orb%nOrbAtom(ii),ii,1))
+          end do
         else
           qInput(:,:,:) = q0
         end if
@@ -1948,36 +1947,55 @@ contains
               ! does not actually matter if additional spin polarization pushes
               ! charges to <0 as the initial charges are not mixed in to later
               ! iterations
-              qInput(1:orb%nOrbAtom(ii),ii,2) = &
-                  & qInput(1:orb%nOrbAtom(ii),ii,1) * &
-                  & input%ctrl%initialSpins(1,ii) / &
-                  & sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+              qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1) *&
+                  & input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+            end do
+          else if (input%ctrl%randomInitialSpins) then
+            do ii = 1, nAtom
+              call getRandom(randomSpins,rTmp)
+              rTmp = 2.0_dp * (rTmp - 0.5_dp)
+              qInput(1:orb%nOrbAtom(ii),ii,2) = rTmp * qInput(1:orb%nOrbAtom(ii),ii,1)
             end do
           else
             do ii = 1, nAtom
-              qInput(1:orb%nOrbAtom(ii),ii,2) = &
-                  & qInput(1:orb%nOrbAtom(ii),ii,1) * &
+              qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1) *&
                   & (nEl(1)-nEl(2))/sum(qInput(:,:,1))
             end do
           end if
         case (4)
+          ! non-collinear spins and/or spin orbit
           if (tSpin) then
-            if (.not. allocated(input%ctrl%initialSpins)) then
+            ! spins
+            if (.not. (allocated(input%ctrl%initialSpins) .or. input%ctrl%randomInitialSpins)) then
               call error("Missing initial spins!")
             end if
-            if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then
-              call error("Incorrect shape initialSpins array!")
-            end if
-            do ii = 1, nAtom
-              do jj = 1, 3
-                qInput(1:orb%nOrbAtom(ii),ii,jj+1) = &
-                    & qInput(1:orb%nOrbAtom(ii),ii,1) * &
-                    & input%ctrl%initialSpins(jj,ii) &
-                    & / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+            if (input%ctrl%randomInitialSpins) then
+              do ii = 1, nAtom
+                ! spin direction in as spherical polar angles
+                call getRandom(randomSpins, qInput(:orb%nOrbAtom(ii),ii,2:3))
+                qInput(:orb%nOrbAtom(ii),ii,2:3) = 2.0_dp* pi * qInput(:orb%nOrbAtom(ii),ii,2:3)
+                do jj = 1, orb%nOrbAtom(ii)
+                  ! fraction of charge
+                  call getRandom(randomSpins,rTmp)
+                  qInput(jj,ii,2:4) = rTmp * qInput(jj,ii,1) *&
+                      & [ sin(qInput(jj,ii,2))*cos(qInput(jj,ii,3)),&
+                      & sin(qInput(jj,ii,2))*sin(qInput(jj,ii,3)), cos(qInput(jj,ii,2)) ]
+                end do
               end do
-            end do
+            else
+              if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then
+                call error("Incorrect shape initialSpins array!")
+              end if
+              do ii = 1, nAtom
+                do jj = 1, 3
+                  qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1) *&
+                      & input%ctrl%initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+                end do
+              end do
+            end if
           end if
         end select
+
         if (tDFTBU) then
           qBlockIn = 0.0_dp
           do iS = 1, nSpin
@@ -2669,7 +2687,7 @@ contains
 
   !> Creates all random generators needed in the code.
   !!
-  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat, randomCharges)
+  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat, randomCharges, randomSpins)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2686,6 +2704,9 @@ contains
 
     !> Random generator for charges in the code
     type(ORanlux), allocatable, intent(out) :: randomCharges
+
+    !> Random generator for spin patterns in the code
+    type(ORanlux), allocatable, intent(out) :: randomSpins
 
     type(ORandomGenPool) :: randGenPool
     logical :: initRandom0
@@ -2707,6 +2728,7 @@ contains
     call randGenPool%getGenerator(env, randomThermostat)
     call randGenPool%getGenerator(env, randomInit)
     call randGenPool%getGenerator(env, randomCharges)
+    call randGenPool%getGenerator(env, randomSpins)
 
   end subroutine createRandomGenerators
 
