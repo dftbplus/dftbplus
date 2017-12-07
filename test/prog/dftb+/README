@@ -85,8 +85,8 @@ Slater-Koster files from the appropriate external/slakos/origin/
 directory.
 
 3) in the directory test/prog/dftb+ issue the command
-./bin/recalc_tests ../../../_build/prog/dftb+/dftb+ @tmp my_test where
-my_test is the relative path from that directory to the new test
+./bin/recalc_tests ../../../_build/prog/dftb+/dftb+ @tmp my_test
+where my_test is the relative path from that directory to the new test
 directory.
 
 4) Add an entry to the tests file in that directory.

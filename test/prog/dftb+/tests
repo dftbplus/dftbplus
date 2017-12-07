@@ -42,6 +42,8 @@ scc/C4H8_3rdfull                       #? NPROC <= 1
 scc/C4H8_3rdfull-damp                  #? NPROC <= 1
 spin/Fe4                               #? NPROC == 2
 spin/Fe4_commonFermi                   #? NPROC <= 2
+spin/Fe4_random                        #? NPROC <= 2
+spin/Fe4_nc_random                     #? NPROC <= 4
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and NPROC <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and NPROC <= 1
@@ -92,6 +94,7 @@ derivatives/C6H6_scc                   #? NPROC <= 1
 dftb+u/GaAs_2                          #? NPROC <= 1
 geoopt/diamond_presure                 #? NPROC <= 1
 scc/C60_Fermi                          #? NPROC <= 4
+scc/C60_random                         #? NPROC <= 4
 scc/10-0Ctube-extfield                 #? NPROC <= 4
 scc/SiC_64                             #? NPROC <= 4
 md/H3                                  #? NPROC <= 1

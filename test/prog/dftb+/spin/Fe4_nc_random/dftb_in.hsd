@@ -1,0 +1,49 @@
+Geometry = GenFormat {
+    4  C
+    Fe
+    1 1      0.00020789      0.00020770      0.00020773
+    2 1      1.66468182      1.66468190      0.00020778
+    3 1      1.66468183      0.00020777      1.66468190
+    4 1      0.00020785      1.66468187      1.66468187
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    OrbitalResolvedSCC = Yes
+    MaxAngularMomentum = {
+        Fe = "d"
+    }
+    SpinPolarisation = NonColinear {
+        InitialSpins = {
+             Random = Yes
+        }
+    }
+    SpinConstants = {
+        Fe = {
+            -0.013 -0.009 -0.003
+            -0.009 -0.011 -0.001
+            -0.003 -0.001 -0.015
+        }
+    }
+    Mixer = Broyden {}
+    Filling = MethfesselPaxton {
+        Temperature [Kelvin] = 1.0e+3
+        Order = 2
+    }
+    SlaterKosterFiles = {
+        Fe-Fe = "./Fe-Fe.skf"
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+    RandomSeed = 4495610
+}
+
+Analysis = {
+    MullikenAnalysis = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
