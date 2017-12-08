@@ -335,7 +335,7 @@ contains
 
   !> Calculates the on-site Mulliken population for each atom.
   !>
-  !> It returns the Mulliken population stamming from the orbitals from a given atom
+  !> It returns the Mulliken population stemming from the orbitals on a given atom
   !> without any contributions due to the overlap with other atoms (net atomic population).
   !>
   subroutine getOnsitePopulation(rho, orb, iPair, qq)
