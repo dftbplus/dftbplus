@@ -277,7 +277,7 @@ contains
     !> This-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
 
-    !> net Mulliken atomic charges for ground state
+    !> Gross Mulliken atomic charges for ground state
     real(dp), intent(in) :: dqAt(:)
 
     !> chemical type of atoms in central cell
@@ -353,7 +353,7 @@ contains
     !> This-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
 
-    !> net atomic charges in ground state
+    !> Gross atomic charges in ground state
     real(dp), intent(in) :: dqAt(:)
 
     !> chemical species of atoms in central cell
