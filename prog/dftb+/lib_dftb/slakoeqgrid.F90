@@ -233,7 +233,7 @@ contains
       y2 = polyInterUniform(xa, yb, xa(nInterNew_) + deltaR_)
       do ii = 1, self%nInteg
         ya(:) = self%skTab(iLast-nInterNew_+1:iLast, ii)
-        y1 = ya(nInterNew_)        
+        y1 = ya(nInterNew_)
         y1p = (y2(ii) - y0(ii)) / (2.0_dp * deltaR_)
         y1pp = (y2(ii) + y0(ii) - 2.0_dp * y1) / (deltaR_ * deltaR_)
         dd(ii) = poly5ToZero(y1, y1p, y1pp, dr, -1.0_dp * distFudge)

@@ -9,7 +9,7 @@
 
 !> Construct Pipek-Mezey localised orbitals, either for molecules/gamma point periodic, or for each
 !> k-point separately. Note that for the k-point case these are NOT localised Wannier functions as
-!> each k-point is localised independently
+!> each k-point is localised independently.
 module pmlocalisation
   use assert
   use accuracy, only : dp
@@ -56,16 +56,24 @@ module pmlocalisation
 
   contains
     private
+
+    !> Performs Pipek-Mezey localisation for real case
     procedure :: calcCoeffsReal
-    procedure :: calcCoeffsKPoints
+
+    !> Performs Pipek-Mezey localisation for complex
+    procedure :: calcCoeffsKPoint
+
+    !> evaluate the localisation measure for real cases
     procedure, nopass :: getLocalisationReal
-    procedure, nopass :: getLocalisationKPoints
+
+    !> evaluate the localisation measure for complex cases
+    procedure, nopass :: getLocalisationKPoint
 
     !> Performs localisation on orbitals
-    generic, public :: calcCoeffs => calcCoeffsReal, calcCoeffsKPoints
+    generic, public :: calcCoeffs => calcCoeffsReal, calcCoeffsKPoint
 
     !> Value of the localisation measure for orbitals
-    generic, public :: getLocalisation => getLocalisationReal, getLocalisationKPoints
+    generic, public :: getLocalisation => getLocalisationReal, getLocalisationKPoint
 
   end type TPipekMezey
 
@@ -128,15 +136,15 @@ contains
   end subroutine calcCoeffsReal
 
 
-  !> Performs Pipek-Mezey localisation for a periodic system.
-  subroutine calcCoeffsKPoints(this, ci, SSqrCplx, over, kPoints, kWeights, neighborList,&
-      & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+  !> Performs Pipek-Mezey localisation for a periodic system at a specified k-point.
+  subroutine calcCoeffsKPoint(this, ci, SSqrCplx, over, kPoint, neighborList, nNeighbor,&
+      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Instance.
     class(TPipekMezey), intent(in) :: this
 
     !> wavefunction coefficients
-    complex(dp), intent(inout) :: ci(:,:,:)
+    complex(dp), intent(inout) :: ci(:,:)
 
     !> overlap matrix, used as workspace
     complex(dp), intent(inout) :: SSqrCplx(:,:)
@@ -144,11 +152,8 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> full set of k-points
-    real(dp), intent(in) :: kPoints(:,:)
-
-    !> weights for each k-point
-    real(dp), intent(in) :: kWeights(:)
+    !> current k-point
+    real(dp), intent(in) :: kPoint(:)
 
     !> neighbour list
     type(TNeighborList), intent(in) :: neighborList
@@ -171,11 +176,10 @@ contains
     !> index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    call PipekMezeyOld_kpoints(ci, SSqrCplx, over, kPoints, kWeights, neighborList%iNeighbor,&
-        & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance,&
-        & this%maxIter)
+    call PipekMezeyOld_kpoint(ci, SSqrCplx, over, kPoint, neighborList%iNeighbor, nNeighbor,&
+        & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance, this%maxIter)
 
-  end subroutine calcCoeffsKPoints
+  end subroutine calcCoeffsKPoint
 
 
   !> Localisation value of square of Mulliken charges summed over all levels
@@ -200,11 +204,11 @@ contains
 
 
   !> Localisation value of square of Mulliken charges summed over all levels for each k-point.
-  function getLocalisationKPoints(ci, SSqrCplx, over, kpoints, kweights, neighborList, nNeighbor, &
+  function getLocalisationKPoint(ci, SSqrCplx, over, kpoint, neighborList, nNeighbor, &
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (locality)
 
     !> wavefunction coefficients
-    complex(dp), intent(in) :: ci(:,:,:)
+    complex(dp), intent(in) :: ci(:,:)
 
     !> overlap matrix, used as workspace
     complex(dp), intent(inout) :: SSqrCplx(:,:)
@@ -212,11 +216,8 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> full set of k-points
-    real(dp), intent(in) :: kpoints(:,:)
-
-    !> weights for each k-point
-    real(dp), intent(in) :: kweights(:)
+    !> current k-point
+    real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
     type(TNeighborList), intent(in) :: neighborList
@@ -239,19 +240,19 @@ contains
     !> index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Locality for each k-point
-    real(dp) :: locality(size(kweights))
+    !> Locality for current k-point
+    real(dp) :: locality
 
-    locality = PipekMezyLocality_kpoints(ci, SSqrCplx, over, kpoints, kweights,&
-        & neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+    locality = PipekMezyLocality_kpoint(ci, SSqrCplx, over, kpoint, neighborList%iNeighbor,&
+        & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
-  end function getLocalisationKPoints
+  end function getLocalisationKPoint
 
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! Private functions
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Private functions below
+
 
 
   !> Performs conventional Pipek-Mezey localisation for a molecule given the square overlap matrix
@@ -735,12 +736,12 @@ contains
   end function PipekMezyLocality_real
 
 
-  !> Localisation value of square of Mulliken charges summed over all levels
-  function PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, iNeighbor, nNeighbor, &
-      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
+  !> Localisation value of square of Mulliken charges at a k-point
+  function PipekMezyLocality_kpoint(ci, S, over, kpoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
+      & iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
 
     !> wavefunction coefficients
-    complex(dp), intent(in) :: ci(:,:,:)
+    complex(dp), intent(in) :: ci(:,:)
 
     !> overlap matrix, used as workspace
     complex(dp), intent(inout) :: S(:,:)
@@ -748,11 +749,8 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> full set of k-points
-    real(dp), intent(in) :: kpoints(:,:)
-
-    !> weights for each k-point
-    real(dp), intent(in) :: kweights(:)
+    !> current k-point
+    real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
     integer, intent(in) :: iNeighbor(0:,:)
@@ -776,21 +774,19 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Locality for each k-point
-    real(dp) :: PipekMezyLocality(size(kweights))
+    real(dp) :: PipekMezyLocality
 
     complex(dp), allocatable :: Sci(:,:)
     real(dp), allocatable :: tmp(:,:)
-    integer :: nAtom, iAtom, iKpt, nKpt, iOrbStart, iOrbEnd, nOrb, iLev, nLev
+    integer :: nAtom, iAtom, iOrbStart, iOrbEnd, nOrb, iLev, nLev
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
 
     nAtom = size(iAtomStart) -1
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
-    nKpt = size(ci,dim=3)
 
-    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
-    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(kpoint) == [3]))
     @:ASSERT(all(shape(S) == [nOrb,nOrb]))
 
     allocate(Sci(nOrb,nLev))
@@ -798,38 +794,33 @@ contains
 
     PipekMezyLocality = 0.0_dp
 
-    do iKpt = 1, nKpt
+    tmp = 0.0_dp
 
-      tmp = 0.0_dp
+    call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart,&
+        & iPair, img2CentCell)
 
-      call unpackHS(S, over, kPoints(:,iKpt), iNeighbor, nNeighbor, iCellVec, &
-          & cellVec, iAtomStart, iPair, img2CentCell)
+    call hemm(Sci,'L',S,ci,'L')
+    Sci = conjg(ci) * Sci
 
-      call hemm(Sci,'L',S,ci(:,:,iKpt),'L')
-      Sci = conjg(ci(:,:,iKpt)) * Sci
-
-      do iLev = 1, nLev
-        do iAtom = 1, nAtom
-          iOrbStart = iAtomStart(iAtom)
-          iOrbEnd = iAtomStart(iAtom+1) - 1
-          tmp(iAtom, iLev) = tmp(iAtom, iLev) + & ! kweights(iKpt) * &
-              & sum(real(Sci(iOrbStart:iOrbEnd,iLev)))
-        end do
+    do iLev = 1, nLev
+      do iAtom = 1, nAtom
+        iOrbStart = iAtomStart(iAtom)
+        iOrbEnd = iAtomStart(iAtom+1) - 1
+        tmp(iAtom, iLev) = tmp(iAtom, iLev) + sum(real(Sci(iOrbStart:iOrbEnd,iLev)))
       end do
-      PipekMezyLocality(iKpt) = sum(tmp**2)
-
     end do
+    PipekMezyLocality = sum(tmp**2)
 
-  end function PipekMezyLocality_kpoints
+  end function PipekMezyLocality_kpoint
 
 
   !> Performs conventional Pipek-Mezey localisation for a supercell using iterative sweeps over each
-  !> pair of orbitals
-  subroutine PipekMezeyOld_kpoints(ci, S, over, kpoints, kweights, iNeighbor, nNeighbor, iCellVec, &
-      & cellVec, iAtomStart, iPair, img2CentCell, convergence, mIter)
+  !> pair of orbitals for a particular k and spin sub-matrix
+  subroutine PipekMezeyOld_kpoint(ci, S, over, kpoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
+      & iAtomStart, iPair, img2CentCell, convergence, mIter)
 
     !> wavefunction coefficients
-    complex(dp), intent(inout) :: ci(:,:,:)
+    complex(dp), intent(inout) :: ci(:,:)
 
     !> overlap matrix, used as workspace
     complex(dp), intent(inout) :: S(:,:)
@@ -837,11 +828,8 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> full set of k-points
-    real(dp), intent(in) :: kpoints(:,:)
-
-    !> weights for each k-point
-    real(dp), intent(in) :: kweights(:)
+    !> current k-point
+    real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
     integer, intent(in) :: iNeighbor(0:,:)
@@ -870,10 +858,10 @@ contains
     !> maximum number of iterations to use
     integer, intent(in), optional :: mIter
 
-    integer :: iLev1, iLev2, nLev, nKpt
+    integer :: iLev1, iLev2, nLev
     integer :: iAtom1, nAtom, nIter
     integer :: iOrb1, iOrb2, nOrb
-    integer :: iIter, iKpt, iLoc(1), ii
+    integer :: iIter, iLoc(1), ii
     real(dp) :: Ast, Bst, C4A, AB
     real(dp) :: sina, cosa
     complex(dp) :: Pst, Pss, Ptt
@@ -884,7 +872,7 @@ contains
 
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
-    logical :: tConverged(size(kweights))
+    logical :: tConverged
 
     @:ASSERT(size(ci,dim=1)>=size(ci,dim=2))
 
@@ -893,11 +881,9 @@ contains
     nOrb = size(ci,dim=1)
     nLev = size(ci,dim=2)
     nAtom = size(iAtomStart) -1
-    nKpt = size(ci,dim=3)
 
     @:ASSERT(iAtomStart(nAtom+1)-1 == nOrb)
-    @:ASSERT(all(shape(kpoints) == [3,nKpt]))
-    @:ASSERT(size(kweights) == nKpt)
+    @:ASSERT(all(shape(kpoint) == [3]))
     @:ASSERT(all(shape(S) == [nOrb,nOrb]))
 
     if (present(mIter)) then
@@ -916,113 +902,95 @@ contains
 
       write(stdout, *)'Iter', iIter
 
-      ! Sweep over all pairs of levels in all k-points
-      lpKpoints: do iKpt = 1, nKpt
+      alphamax = 0.0_dp
 
-        if (tConverged(iKpt)) then
-          cycle
+      call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair,&
+          & img2CentCell)
+
+      ! sweep over all pairs of levels at that k-point
+      do iLev1 = 1, nLev
+
+        if (iLev1 < nLev) then
+          call hemm(Sci2(1:nOrb,iLev1+1:nLev),'l',S,ci(:,iLev1+1:nLev), 'L')
+        else
+          call hemv(Sci2(1:nOrb,nLev),S,ci(:,nLev))
         end if
 
-        alphamax = 0.0_dp
+        do iLev2 = iLev1 +1, nLev
 
-        call unpackHS(S, over, kPoints(:,iKpt), iNeighbor, nNeighbor, &
-            & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+          call hemv(Sci1,S,ci(:,iLev1))
 
-        ! sweep over all pairs of levels at that k-point
-        do iLev1 = 1, nLev
+          Ast = 0.0_dp
+          Bst = 0.0_dp
+          do iAtom1 = 1, nAtom
+            iOrb1 = iAtomStart(iAtom1)
+            iOrb2 = iAtomStart(iAtom1+1) - 1
+            Pst = 0.5_dp * (sum(ci(iOrb1:iOrb2,iLev1)*Sci2(iOrb1:iOrb2,iLev2))&
+                & +sum(ci(iOrb1:iOrb2,iLev2)*Sci1(iOrb1:iOrb2)) )
+            Pss = sum(ci(iOrb1:iOrb2,iLev1)*Sci1(iOrb1:iOrb2))
+            Ptt = sum(ci(iOrb1:iOrb2,iLev2)*Sci2(iOrb1:iOrb2,iLev2))
+            Ast = Ast + abs(Pst)**2 - 0.25_dp * abs(Pss - Ptt)**2
+            Bst = Bst + real(Pst * (Pss - Ptt),dp)
+          end do
 
-          if (iLev1 < nLev) then
-            call hemm(Sci2(1:nOrb,iLev1+1:nLev),'l',S,ci(:,iLev1+1:nLev,iKpt),&
-                & 'L')
+          AB = Ast * Ast + Bst * Bst
+          if (abs(AB)>0.0_dp) then
+            C4A = -Ast / sqrt(AB)
+            alpha = 0.25_dp * acos(C4A)
+            if (Bst <= 0.0) then
+              alpha = -alpha
+            end if
           else
-            call hemv(Sci2(1:nOrb,nLev),S,ci(:,nLev,iKpt))
+            alpha = 0.0_dp
           end if
 
-          do iLev2 = iLev1 +1, nLev
+          if (alphamax < abs(alpha)) then
+            alphamax = alpha
+          end if
 
-            call hemv(Sci1,S,ci(:,iLev1,iKpt))
+          ! now we have to mix the two orbitals
+          SINA=SIN(alpha)
+          COSA=COS(alpha)
+          ciTmp1 = ci(:,iLev1)
+          ciTmp2 = ci(:,iLev2)
+          ci(:,iLev1) = COSA*ciTmp1 + SINA*ciTmp2
+          ci(:,iLev2) = COSA*ciTmp2 - SINA*ciTmp1
 
-            Ast = 0.0_dp
-            Bst = 0.0_dp
-            do iAtom1 = 1, nAtom
-              iOrb1 = iAtomStart(iAtom1)
-              iOrb2 = iAtomStart(iAtom1+1) - 1
-              Pst = 0.5_dp * ( &
-                  & sum(ci(iOrb1:iOrb2,iLev1,iKpt)*Sci2(iOrb1:iOrb2,iLev2))&
-                  &+sum(ci(iOrb1:iOrb2,iLev2,iKpt)*Sci1(iOrb1:iOrb2)) )
-              Pss = sum(ci(iOrb1:iOrb2,iLev1,iKpt)*Sci1(iOrb1:iOrb2))
-              Ptt = sum(ci(iOrb1:iOrb2,iLev2,iKpt)*Sci2(iOrb1:iOrb2,iLev2))
-              Ast = Ast + abs(Pst)**2 - 0.25_dp * abs(Pss - Ptt)**2
-              Bst = Bst + real(Pst * (Pss - Ptt),dp)
-            end do
-
-            AB = Ast * Ast + Bst * Bst
-            if (abs(AB)>0.0_dp) then
-              C4A = -Ast / sqrt(AB)
-              alpha = 0.25_dp * acos(C4A)
-              if (Bst <= 0.0) then
-                alpha = -alpha
-              end if
-            else
-              alpha = 0.0_dp
-            end if
-
-            if (alphamax < abs(alpha)) then
-              alphamax = alpha
-            end if
-
-            ! now we have to mix the two orbitals
-            SINA=SIN(alpha)
-            COSA=COS(alpha)
-            ciTmp1 = ci(:,iLev1, iKpt)
-            ciTmp2 = ci(:,iLev2, iKpt)
-            ci(:,iLev1, iKpt) = COSA*ciTmp1 + SINA*ciTmp2
-            ci(:,iLev2, iKpt) = COSA*ciTmp2 - SINA*ciTmp1
-
-          end do
         end do
+      end do
 
-        conv = abs(alphamax) - abs(alphalast)
-        if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
-          tConverged(iKpt) = .true.
-          cycle
-        end if
-        alphalast = alphamax
-
-      end do lpKpoints
-
-      write(stdout, *)'Localisations at each k-point'
-      write(stdout, "(6E12.4)") &
-          & PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
-          & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
-          & img2CentCell)
-      write(stdout, "(1X,A,E12.4)")'Total', &
-          & sum(PipekMezyLocality_kpoints(ci, S, over, kpoints, kweights, &
-          & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
-          & img2CentCell))
-
-      if (all(tConverged .eqv. .true.)) then
+      conv = abs(alphamax) - abs(alphalast)
+      if (iIter > 2 .and. ((abs(conv)<convergence) .or. alphamax == 0.0)) then
+        tConverged = .true.
         exit
       end if
+      alphalast = alphamax
 
     end do lpLocalise
 
-    if (.not.all(tConverged .eqv. .true.)) then
+    !write(stdout, *)'Localisations at each k-point'
+    !write(stdout, "(6E12.4)") &
+    !    & PipekMezyLocality_kpoint(ci, S, over, kpoint, kweights, &
+    !    & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
+    !    & img2CentCell)
+    !write(stdout, "(1X,A,E12.4)")'Total', &
+    !    & sum(PipekMezyLocality_kpoint(ci, S, over, kpoint, kweights, &
+    !    & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
+    !    & img2CentCell))
+
+    if (.not.tConverged) then
       call warning("Exceeded iterations in Pipek-Mezey localisation!")
     end if
 
-    ! Choose phases to make largest Bloch state element real for each k-point
-    lpKpoints2: do iKpt = 1, nKpt
-      do iLev1 = 1, nLev
-        iLoc = maxloc(abs(ci(:,iLev1,iKpt)))
-        ii = iLoc(1)
-        phase = exp(-im *&
-            & atan2(aimag(ci(ii,iLev1,iKpt)), real(ci(ii,iLev1,iKpt))))
-        ci(:,iLev1,iKpt) = phase * ci(:,iLev1,iKpt)
-      end do
+    ! Choose phase to make largest Bloch state element real for this k-point - dumb approch, as
+    ! phases should be set globally for levels and k-points
+    do iLev1 = 1, nLev
+      iLoc = maxloc(abs(ci(:,iLev1)))
+      ii = iLoc(1)
+      phase = exp(-im * atan2(aimag(ci(ii,iLev1)), real(ci(ii,iLev1))))
+      ci(:,iLev1) = phase * ci(:,iLev1)
+    end do
 
-    end do lpKpoints2
-
-  end subroutine PipekMezeyOld_kpoints
+  end subroutine PipekMezeyOld_kpoint
 
 end module pmlocalisation

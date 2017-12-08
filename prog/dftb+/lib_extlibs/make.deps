@@ -23,6 +23,30 @@ lapack.o = lapack.o $(_mod_accuracy)
 _mod_lapack: lapack.o
 _mod_lapack = $(lapack.o)
 
+#:if WITH_MPI
+mpifx.o: common.fypp _mod_libmpifx_module
+mpifx.o = mpifx.o $(common.fypp) $(_mod_libmpifx_module)
+_mod_mpifx: mpifx.o
+_mod_mpifx = $(mpifx.o)
+#:else
+mpifx.o: common.fypp
+mpifx.o = mpifx.o $(common.fypp)
+_mod_mpifx: mpifx.o
+_mod_mpifx = $(mpifx.o)
+#:endif
+
+#:if WITH_SCALAPACK
+scalapackfx.o: common.fypp _mod_libscalapackfx_module
+scalapackfx.o = scalapackfx.o $(common.fypp) $(_mod_libscalapackfx_module)
+_mod_scalapackfx: scalapackfx.o
+_mod_scalapackfx = $(scalapackfx.o)
+#:else
+scalapackfx.o: common.fypp
+scalapackfx.o = scalapackfx.o $(common.fypp)
+_mod_scalapackfx: scalapackfx.o
+_mod_scalapackfx = $(scalapackfx.o)
+#:endif
+
 xmlf90.o: _mod_m_strings _mod_flib_dom _mod_flib_wxml
 xmlf90.o = xmlf90.o $(_mod_m_strings) $(_mod_flib_dom) $(_mod_flib_wxml)
 _mod_xmlf90: xmlf90.o

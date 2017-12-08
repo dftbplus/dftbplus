@@ -28,7 +28,7 @@ Hamiltonian = DFTB {
         Separator = "-"
         Suffix = ".skf"
     }
-    
+
     # Points chosen to be well away from the Dirac cone
     KPointsAndWeights = {
         0.5 0.0 0.0 1.0
@@ -42,7 +42,7 @@ Options = {
 
 Analysis = {
     Localise = {
-        PipekMezey = {} 
+        PipekMezey = {}
     }
 }
 

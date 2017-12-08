@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+import re
+import sys
+CONDITIONAL_PATTERN = re.compile(
+    r'^[ \t]*([^#\n][^\n]*?)[ \t]+#\?[ \t]+([^\n]*?)[ \t]*$', re.MULTILINE)
+sys.stdout.write(
+    CONDITIONAL_PATTERN.sub(r'#{if \2}#\1#{endif}#', sys.stdin.read()))

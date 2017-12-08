@@ -46,6 +46,9 @@ endif
 ifeq ($(strip $(COMPILE_DFTD3)),1)
 dftb+: external_dftd3
 endif
+ifeq ($(strip $(WITH_MPI)),1)
+dftb+: external_mpifx external_scalapackfx
+endif
 modes: external_xmlf90
 waveplot: external_xmlf90
 
@@ -62,8 +65,10 @@ misc_skderivs: external_xmlf90
 
 EXTERNAL_NAME = $(subst external_,,$@)
 
-.PHONY: external_xmlf90 external_fsockets external_dftd3
-external_xmlf90 external_fsockets external_dftd3:
+EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
+    external_scalapackfx
+.PHONY: $(EXTERNALS)
+$(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)
 	$(MAKE) -C $(BUILDDIR)/external/$(EXTERNAL_NAME) \
           -f $(ROOT)/external/$(EXTERNAL_NAME)/make.dpbuild \

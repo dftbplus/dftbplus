@@ -29,6 +29,31 @@ module inputdata_module
   private
   save
 
+  public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
+  public :: TBlacsOpts
+  public :: init, destruct
+
+
+  !> Contains Blacs specific options.
+  type :: TBlacsOpts
+
+    !> Block size for matrix rows and columns.
+    integer :: blockSize
+
+  end type TBlacsOpts
+
+
+  !> Contains the parallel options
+  type :: TParallelOpts
+
+    !> Number of processor groups
+    integer :: nGroup
+
+    !> Blacs options
+    type(TBlacsOpts) :: blacsOpts
+
+  end type TParallelOpts
+
 
   !> Main control data for program as extracted by the parser
   type control
@@ -354,10 +379,16 @@ module inputdata_module
     !> ElectronDynamics
     type(ElecDynamicsInp), allocatable :: elecDynInp
 
-#:if WITH_SOCKETS
+  #:if WITH_SOCKETS
     !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
-#:endif
+  #:endif
+
+    type(TParallelOpts), allocatable :: parallelOpts
+
+    !> Maximal timing level to show in output
+    integer :: timingLevel
+
   end type control
 
 
@@ -408,9 +439,6 @@ module inputdata_module
   interface destruct
     module procedure InputData_destruct
   end interface destruct
-
-  public :: control, TGeometry, slater, inputData, XLBOMDInp
-  public :: init, destruct
 
 contains
 

@@ -9,10 +9,10 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
+  use globalenv
   use assert
   use accuracy
   use constants
-  use io
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
@@ -44,7 +44,7 @@ module parser
 
   private
 
-  public :: parseHSDInput, parserVersion
+  public :: parseHsdInput, parserVersion
 
 
   ! Default file names
@@ -93,7 +93,7 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHSDInput(input)
+  subroutine parseHsdInput(input)
 
     !> Returns initialised input variables on exit
     type(inputData), intent(out) :: input
@@ -162,6 +162,8 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    call readParallel(root, input%ctrl%parallelOpts)
+
     ! input data strucutre has been initialised
     input%tInitialized = .true.
 
@@ -169,12 +171,12 @@ contains
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
-    if (parserFlags%tWriteHSD) then
+    if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
-    if (parserFlags%tWriteXML) then
+    if (tIoProc .and. parserFlags%tWriteXML) then
       call dumpHSDAsXML(hsdTree, xmlProcInputName)
       write(stdout, '(A,/)') "Processed input in XML format written to '" &
           &// xmlProcInputName // "'"
@@ -187,7 +189,7 @@ contains
 
     call destroyNode(hsdTree)
 
-  end subroutine parseHSDInput
+  end subroutine parseHsdInput
 
 
   !> Read in parser options (options not passed to the main code)
@@ -284,7 +286,9 @@ contains
     type(fnode), pointer :: child, child2, child3, value, value2, field
 
     type(string) :: buffer, buffer2, modifier
+#:if WITH_SOCKETS
     character(lc) :: sTmp
+#:endif
 
     ctrl%tGeoOpt = .false.
     ctrl%tCoordOpt = .false.
@@ -2595,8 +2599,17 @@ contains
     end if
     call getChildValue(node, "WriteHS", ctrl%tWriteHS, .false.)
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)
-    call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false.)
+    call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
+    if (ctrl%tMinMemory) then
+      call detailedWarning(child, "Memory minimisation is not working currently, normal calculation&
+          & will be used instead")
+    end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
+  #:if DEBUG > 0
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 2)
+  #:else
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
+  #:endif
 
   end subroutine readOptions
 
@@ -2985,9 +2998,12 @@ contains
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child, child2
+    type(fnode), pointer :: child
+  #:if WITH_ARPACK
+    type(fnode), pointer :: child2
     type(string) :: buffer
     type(string) :: modifier
+  #:endif
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
@@ -3296,6 +3312,7 @@ contains
 
   end subroutine readCustomisedHubbards
 
+  
   !> Reads the electron dynamics block
   subroutine readElecDynamics(node, input, geo)
     type(fnode), pointer :: node
@@ -3524,5 +3541,59 @@ contains
 
   end subroutine readInitialVelocitiesNAMD
 
+  
+  !> Reads the parallel block.
+  subroutine readParallel(root, parallelOpts)
 
+    !> Root node eventually containing the current block
+    type(fnode), pointer, intent(in) :: root
+
+    !> Parallel settings
+    type(TParallelOpts), allocatable, intent(out) :: parallelOpts
+
+    type(fnode), pointer :: node
+
+    call getChild(root, "Parallel", child=node, requested=.false.)
+    if (withMpi .and. .not. associated(node)) then
+      call setChild(root, "Parallel", node)
+    end if
+    if (associated(node)) then
+      if (.not. withMpi) then
+        call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
+            & support)")
+      end if
+      allocate(parallelOpts)
+      call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
+      call readBlacs(node, parallelOpts%blacsOpts)
+    end if
+
+  end subroutine readParallel
+
+
+  !> Reads the blacs block.
+  subroutine readBlacs(root, blacsOpts)
+
+    !> Root node eventually containing the current block
+    type(fnode), pointer, intent(in) :: root
+
+    !> Blacs settings
+    type(TBlacsOpts), intent(inout) :: blacsOpts
+
+    type(fnode), pointer :: node
+
+    call getChild(root, "Blacs", child=node, requested=.false.)
+    if (withScalapack .and. .not. associated(node)) then
+      call setChild(root, "Blacs", node)
+    end if
+    if (associated(node)) then
+      if (.not. withScalapack) then
+        call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
+            & support)")
+      end if
+      call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
+    end if
+
+  end subroutine readBlacs
+
+  
 end module parser

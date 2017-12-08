@@ -10,7 +10,7 @@
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
 module message
-  use io
+  use globalenv
   implicit none
   private
 
@@ -39,8 +39,8 @@ contains
     !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdout, '(1a)') 'WARNING!'
-    write(stdout, '(2a)') '-> ', trim(message)
+    write(stdOut, '(1a)') 'WARNING!'
+    write(stdOut, '(2a)') '-> ', trim(message)
 
   end subroutine warning_single
 
@@ -53,11 +53,10 @@ contains
 
     integer :: ii
 
-    write(stdout, '(1a)') 'WARNING!'
+    write(stdOut, '(1a)') 'WARNING!'
     do ii = 1, size(messages)
-      write(stdout, '(2a)') '-> ', trim(messages(ii))
+      write(stdOut, '(2a)') '-> ', trim(messages(ii))
     end do
-    stop
 
   end subroutine warning_array
 
@@ -68,9 +67,11 @@ contains
     !> Error message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdout, '(1a)') 'ERROR!'
-    write(stdout, '(2a)') '-> ', trim(message)
-    stop
+    write(stdOut, '(1a)') 'ERROR!'
+    write(stdOut, '(2a)') '-> ', trim(message)
+    flush(stdOut)
+    call synchronizeAll()
+    call abort()
 
   end subroutine error_single
 
@@ -83,11 +84,13 @@ contains
 
     integer :: ii
 
-    write(stdout, '(1a)') 'ERROR!'
+    write(stdOut, '(1a)') 'ERROR!'
     do ii = 1, size(messages)
-      write(stdout, '(2a)') '-> ', trim(messages(ii))
+      write(stdOut, '(2a)') '-> ', trim(messages(ii))
     end do
-    stop
+    flush(stdOut)
+    call synchronizeAll()
+    call abort()
 
   end subroutine error_array
 

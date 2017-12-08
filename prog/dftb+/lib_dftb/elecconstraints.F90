@@ -12,48 +12,18 @@ module elecconstraints
   use assert
   use accuracy, only : dp
   use commontypes, only : TOrbitals
-  use angmomentum, only : Loperators
-
+  use angmomentum, only : getLOperators
   implicit none
-
   private
+
   public :: constrainQ, constrainS, constrainL, constrainJ, constrainMj
 
-
-  !> Optional constraining potential on atomic charges
-  interface constrainQ
-    module procedure constrainQ_
-  end interface constrainQ
-
-
-  !> Optional constraining potential on shell spins
-  interface constrainS
-    module procedure constrainS_
-  end interface constrainS
-
-
-  !> Optional constraining potential on orbital moment of atomic shells
-  interface constrainL
-    module procedure constrainL_
-  end interface constrainL
-
-
-  !> Optional constraining potential on total angular momentum of shells
-  interface constrainJ
-    module procedure constrainJ_
-  end interface constrainJ
-
-
-  !> Optional constraining potential on projection of total angular momentum of shells
-  interface constrainMj
-    module procedure constrainMj_
-  end interface constrainMj
 
 contains
 
 
   !> Quadratic constraint on atomic charge
-  subroutine constrainQ_(shift, qIn, orb, species, conAt, conSh, Qtarget, V)
+  subroutine constrainQ(shift, qIn, orb, species, conAt, conSh, Qtarget, V)
 
     !> shift to append contribution
     real(dp), intent(inout) :: shift(:,:,:,:)
@@ -90,11 +60,11 @@ contains
       shift(iOrb,iOrb,conAt,1) = shift(iOrb,iOrb,conAt,1) + V * 0.5_dp*(Qshell - Qtarget)
     end do
 
-  end subroutine constrainQ_
+  end subroutine constrainQ
 
 
   !> Quadratic constraint on local spin (non-colinear)
-  subroutine constrainS_(shift, qIn, orb, species, conAt, conSh, Starget, V, vec)
+  subroutine constrainS(shift, qIn, orb, species, conAt, conSh, Starget, V, vec)
 
     !> shift to append contribution
     real(dp), intent(inout) :: shift(:,:,:,:)
@@ -148,11 +118,11 @@ contains
       end do
     end do
 
-  end subroutine constrainS_
+  end subroutine constrainS
 
 
   !> Quadratic constraint on orbital angular momentum
-  subroutine constrainL_(iShift,qBlockSkew, orb, species, conAt, conSh, Ltarget, V, vec)
+  subroutine constrainL(iShift,qBlockSkew, orb, species, conAt, conSh, Ltarget, V, vec)
 
     !> shift block shift
     real(dp), intent(inout) :: iShift(:,:,:,:)
@@ -202,7 +172,7 @@ contains
     Lz = 0.0_dp
     Lplus = 0.0_dp
     iSh = orb%angShell(conSh,iSp)
-    call loperators(Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1),iSh)
+    call getLoperators(iSh, Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1))
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
         & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
@@ -241,11 +211,11 @@ contains
           & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
     end do
 
-  end subroutine constrainL_
+  end subroutine constrainL
 
 
   !> Quadratic constraint on total angular momentum
-  subroutine constrainJ_(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, Jtarget, V, &
+  subroutine constrainJ(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, Jtarget, V, &
       & vec)
     real(dp), intent(inout) :: shift(:,:,:,:)
 
@@ -301,7 +271,7 @@ contains
     Lz = 0.0_dp
     Lplus = 0.0_dp
     iSh = orb%angShell(conSh,iSp)
-    call loperators(Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1),iSh)
+    call getLoperators(iSh, Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1))
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
         & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
@@ -352,11 +322,11 @@ contains
       end do
     end do
 
-  end subroutine constrainJ_
+  end subroutine constrainJ
 
 
   !> Quadratic constraint on projection of angular momentum
-  subroutine constrainMj_(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, MjTarget, V, &
+  subroutine constrainMj(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, MjTarget, V, &
       & vec)
 
     !> block shift
@@ -414,7 +384,7 @@ contains
     Lz = 0.0_dp
     Lplus = 0.0_dp
     iSh = orb%angShell(conSh,iSp)
-    call loperators(Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1),iSh)
+    call getLOperators(iSh, Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1))
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
         & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
     speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
@@ -460,6 +430,6 @@ contains
       end do
     end do
 
-  end subroutine constrainMj_
+  end subroutine constrainMj
 
 end module elecconstraints

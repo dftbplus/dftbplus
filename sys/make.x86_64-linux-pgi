@@ -1,39 +1,87 @@
 # -*- makefile -*-
 ############################################################################
-# pgfortran 16.5, gcc 6.3
-# pgfortran 17.4, gcc 7.1
+# pgfortran/pgcc 17.10
 ############################################################################
 
-# Fortran compilers
-FXX = pgfortran
-CC = gcc
+PGI_LIBDIR = /opt/pgi/linux86-64/17.10/lib
 
-# Options for the Fortran compiler 
-# Note: If you set optimisation level higher, the code eventually won't compile
-# or some autotest examples (e.g. Si_2_latconst) may fail. So be careful when
-# fiddling around with the optimisation level!
+ifeq ($(strip $(WITH_MPI)),1)
+############################################################################
+# MPI settings
+############################################################################
+
+# Compilers
+FXX = mpifort
+CC = pgcc
+
+# Compiler options
 FXXOPT = -O1 -Mallocatable=03
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+CCOPT = -O2
+
+# Linker
+LN = $(FXX)
+LNOPT =
+
+# How to link specific libraries
+
+# ScaLAPACK
+LIB_SCALAPACK = -L$(PGI_LIBDIR)/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib -lscalapack
+
+# LAPACK/BLAS
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
+
+# Any other libraries to be linked
+OTHERLIBS =
+
+# M4 preprocessor settings
+M4 = m4
+M4OPT =
+
+# Command to run the test binary
+TESTRUNNER = mpirun -n $(TESTPROC)
+
+else
+############################################################################
+# NON-MPI settings
+############################################################################
+
+# Compilers
+FXX = pgfortran
+CC = pgcc
+
+# Compile options
+FXXOPT = -O1 -Mallocatable=03
+CCOPT = -O2
+
+# Linker
+LN = $(FXX)
+LNOPT =
+
+# How to link specific libraries
+
+# LAPACK/BLAS
+ATLASDIR = /usr/lib
+LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+
+# Any other libraries to be linked
+OTHERLIBS =
+
+# Command to run a binary
+TESTRUNNER =
+
+endif
+
+############################################################################
+# General settings
+############################################################################
 
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT =
 
-# Linker
-LN = $(FXX)
-#LNOPT = -Bstatic
-
 # Library options in general
 LIBOPT =
-
-# How to link specific libraries
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack
-LIB_BLAS = -lf77blas -lcblas -latlas
-
-# Any other libraries to be linked
-OTHERLIBS =
-
 
 ############################################################################
 # Developer settings
