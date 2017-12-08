@@ -61,8 +61,8 @@ memman.o = memman.o $(_mod_accuracy)
 _mod_memman: memman.o
 _mod_memman = $(memman.o)
 
-mpienv.o: _mod_mpifx _mod_message
-mpienv.o = mpienv.o $(_mod_mpifx) $(_mod_message)
+mpienv.o: _mod_mpifx _mod_message _mod_accuracy
+mpienv.o = mpienv.o $(_mod_mpifx) $(_mod_message) $(_mod_accuracy)
 _mod_mpienv: mpienv.o
 _mod_mpienv = $(mpienv.o)
 
