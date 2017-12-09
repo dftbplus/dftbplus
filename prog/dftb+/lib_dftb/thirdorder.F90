@@ -247,12 +247,13 @@ contains
     @:ASSERT(size(q0, dim=2) == this%nAtoms)
 
     if (this%shellResolved) then
-      call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
+      call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
           & dQShell=this%chargesPerShell)
     else
       ! First (only) component of this%chargesPerShell contains atomic charge
       allocate(chargesPerShell(this%mShellsReal, this%nAtoms))
-      call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom, dQShell=chargesPerShell)
+      call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
+          & dQShell=chargesPerShell)
       this%chargesPerShell(1,:) = sum(chargesPerShell, dim=1)
     end if
 
@@ -379,11 +380,11 @@ contains
     allocate(qOutAtom(this%nAtoms))
     allocate(qOutShell(this%mShells, this%nAtoms))
     if (this%shellResolved) then
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
     else
       ! First (only) component of qOutShell contains atomic charge
       allocate(qOutShellTmp(this%mShellsReal, this%nAtoms))
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
     end if
     energyPerAtom(:) = sum(this%shift1 * qOutShell, dim=1)&
@@ -510,11 +511,11 @@ contains
     allocate(qDiffAtom(this%nAtoms))
     allocate(qDiffShell(this%mShells, this%nAtoms))
     if (this%shellResolved) then
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
     else
       ! First (only) component of qOutShell contains atomic charge
       allocate(qOutShellTmp(this%mShellsReal, this%nAtoms))
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
     end if
 
