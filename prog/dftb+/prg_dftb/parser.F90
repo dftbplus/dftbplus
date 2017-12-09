@@ -3193,29 +3193,45 @@ contains
           & modifier=modifier, allowEmptyValue=.true.)
       call getNodeName2(child2, buffer)
       if (char(buffer) /= "") then
+
         call getChildValue(child3, "", 3, lr1, modifier=modifier)
         ctrl%tESPGrid = (len(lr1) > 0)
         allocate(ctrl%ESPgrid(3,len(lr1)))
         call asArray(lr1, ctrl%ESPgrid)
+        if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+          ctrl%ESPgrid = matmul(geo%latVecs,ctrl%ESPgrid)
+        else
+          call convertByMul(char(modifier), lengthUnits, child3, ctrl%ESPgrid)
+        end if
       end if
 
-      call getChild(child, "Grid", child=child2, requested=.false.)
+      call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
       if (associated(child2)) then
         if (ctrl%tESPGrid) then
           call error("Both grid and point specification not both currently possible")
         end if
         ctrl%tESPGrid = .true.
-        call getChildValue(child2, "Spacing", rTmp3a, modifier=buffer, child=child3)
-        call convertByMul(char(buffer), lengthUnits, child3, rTmp3a)
-        call getChildValue(child2, "Origin", rTmp3b, modifier=buffer, child=child3)
-        call convertByMul(char(buffer), lengthUnits, child3, rTmp3b)
-        call getChildValue(child2, "Number", iTmp3)
+        call getChildValue(child2, "Spacing", rTmp3a, child=child3)
+        call getChildValue(child2, "Origin", rTmp3b, child=child3)
+        call getChildValue(child2, "NPoints", iTmp3, child=child3)
+        if (any(iTmp3 < 1)) then
+          call detailedError(child3,"Grid must be at least 1x1x1")
+        end if
+        if (any(abs(rTmp3a) < epsilon(1.0_dp) .and. iTmp3 > 1)) then
+          call detailedError(child3,"Grid spacings must be non-zero")
+        end if
         allocate(ctrl%ESPgrid(3,product(iTmp3)))
+
+        if (.not.(geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
+          call convertByMul(char(modifier), lengthUnits, child3, rTmp3a)
+          call convertByMul(char(modifier), lengthUnits, child3, rTmp3b)
+        end if
+
         ctrl%ESPgrid = 0.0_dp
         iReg = 0
-        do ii = 1, iTmp3(1)
-          do jj = 1, iTmp3(2)
-            do kk = 1, iTmp3(3)
+        do ii = 0, iTmp3(1)-1
+          do jj = 0, iTmp3(2)-1
+            do kk = 0, iTmp3(3)-1
               iReg = iReg + 1
               ctrl%ESPgrid(1,iReg) = ii * rTmp3a(1) + rTmp3b(1)
               ctrl%ESPgrid(2,iReg) = jj * rTmp3a(2) + rTmp3b(2)
@@ -3223,6 +3239,12 @@ contains
             end do
           end do
         end do
+
+        ! Fractional specification of points
+        if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+          ctrl%ESPgrid = matmul(geo%latVecs,ctrl%ESPgrid)
+        end if
+
       end if
       if (.not.ctrl%tESPGrid) then
         call detailedError(child,"Either a grid or set of points must be specified")
