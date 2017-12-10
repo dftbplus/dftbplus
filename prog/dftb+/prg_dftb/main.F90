@@ -600,8 +600,8 @@ contains
        
     !! Here time propagation is called
     if (tElecDynamics) then
-       call runDynamics(elecDyn, HSqrReal, ham, H0, q0, over, filling, neighborList, &
-            &nNeighbor, iDenseStart, iSparseStart, img2CentCell, orb, coord, spinW, &
+       call runDynamics(elecDyn, eigvecsReal, ham, H0, q0, over, filling, neighborList, &
+            &nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW, &
             &skHamCont, skOverCont, pRepCont, sccCalc)
     end if
 

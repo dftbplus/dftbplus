@@ -34,6 +34,7 @@ use repulsive
 use eigenvects
 use sk
 use dispiface
+use environment
 
 implicit none
 
@@ -76,6 +77,7 @@ type ElecDynamics
    class(DispersionIface), allocatable :: dispersion
    type(NonSccDiff), allocatable :: derivator
    type(TScc), allocatable :: sccCalc
+   type(TEnvironment) :: env
 end type ElecDynamics
 
 private
@@ -103,7 +105,7 @@ contains
 !! This initializes the input variables
   subroutine initElecDynamics(this, inp, randomThermostat, & 
        &mass, nAtom, species, skRepCutoff, mCutoff, &
-       &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, sccCalc)
+       &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, env)
     type(ElecDynamics), intent(out) :: this
     type(ElecDynamicsInp), intent(in) :: inp 
     real(dp), intent(in), allocatable :: atomEigVal(:,:)
@@ -115,7 +117,7 @@ contains
     real(dp), intent(in) :: mCutoff, skRepCutoff, mass(:) 
     class(DispersionIface), allocatable, intent(inout) :: dispersion
     type(NonSccDiff), intent(in) :: nonSccDeriv
-    type(TScc), intent(in) :: sccCalc
+    type(TEnvironment), intent(in) :: env
    
     type(ODummyThermostat), allocatable :: pDummyTherm
     type(OMDCommon), allocatable :: pMDFrame
@@ -146,6 +148,7 @@ contains
     allocate(this%species, source=species)
     allocate(this%speciesName, source=speciesName)
     allocate(this%sccCalc)
+    this%env = env
 
     if (inp%tdEnvType /= iTDConstant) then
        this%Time0 = inp%tdTime0
@@ -598,7 +601,7 @@ contains
     allocate(ham0(sparseSize))
     sf%nSparse = sparseSize
 
-    call sf%sccCalc%updateCoords(coord, sf%species, neighborList, img2CentCell)
+    call sf%sccCalc%updateCoords(sf%env, coord, sf%species, neighborList, img2CentCell)
 !   call updateCoords_SCC(coord, sf%species, neighborList, img2CentCell)
 
    if (sf%tDispersion) then
@@ -682,9 +685,10 @@ contains
     call derivative_shift(derivs,sf%derivator,rhoPrim,ErhoPrim(:),skHamCont, &
          &skOverCont, coord, sf%species, neighborList%iNeighbor, nNeighbor, &
          &img2CentCell, iPair, orb, potential%intBlock)
-    call sf%sccCalc%updateCharges(qInput, q0, orb, sf%species, neighborList%iNeighbor, &
+    call sf%sccCalc%updateCharges(sf%env, qInput, q0, orb, sf%species, neighborList%iNeighbor, &
          &img2CentCell)
-    call sf%sccCalc%addForceDc(derivs, sf%species, neighborList%iNeighbor, img2CentCell, coord)
+    call sf%sccCalc%addForceDc(sf%env, derivs, sf%species, neighborList%iNeighbor, &
+         & img2CentCell, coord)
     call getERepDeriv(repulsiveDerivs, coord, nNeighbor, &
          &neighborList%iNeighbor,sf%species,pRepCont, img2CentCell)
 
@@ -829,7 +833,7 @@ contains
     potential%extShell = 0.0_dp
     potential%extBlock = 0.0_dp
 
-    call sf%sccCalc%updateCharges(qInput, q0, orb, sf%species, iNeighbor, img2CentCell)
+    call sf%sccCalc%updateCharges(sf%env, qInput, q0, orb, sf%species, iNeighbor, img2CentCell)
     !    call updateCharges_SCC(qInput, q0, orb, sf%species, iNeighbor, img2CentCell)
     call sf%sccCalc%getShiftPerAtom(atomPot(:,1))
     call sf%sccCalc%getShiftPerL(shellPot(:,:,1))

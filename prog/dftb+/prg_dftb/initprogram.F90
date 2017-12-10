@@ -2661,7 +2661,7 @@ contains
    if (tElecDynamics) then
       call initElecDynamics(elecDyn, input%ctrl%elecDynInp, randomThermostat, & 
            &mass, nAtom, species0, skRepCutoff, mCutoff, &
-           &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, sccCalc)
+           &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, env)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
