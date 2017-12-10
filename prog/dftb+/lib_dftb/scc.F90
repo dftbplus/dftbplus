@@ -121,11 +121,23 @@ module scc
     !> Lattice points for reciprocal Ewald
     real(dp), allocatable :: gLatPoint(:,:)
 
+    !> Real lattice points for Ewald-sum.
+    real(dp), allocatable :: rCellVec(:,:)
+
     !> Nr. of neighbors for short range interaction
     integer, allocatable :: nNeighShort(:,:,:,:)
 
     !> Nr. of neigh for real Ewald
     integer, allocatable :: nNeighEwald(:)
+
+    !> Atomic coordinates
+    real(dp), allocatable :: coords(:,:)
+
+    !> lattice vectors
+    real(dp), allocatable :: latVecs(:,:)
+
+    !> reciprocal lattice vectors
+    real(dp), allocatable :: recVecs(:,:)
 
     !> Cutoff for real Ewald
     real(dp) :: maxREwald
@@ -342,6 +354,12 @@ contains
 
     ! Initialize Ewald summation for the periodic case
     if (this%tPeriodic) then
+
+      allocate(this%latVecs(3,3))
+      this%latVecs = inp%latVecs
+      allocate(this%recVecs(3,3))
+      this%recVecs = inp%recVecs
+
       this%volume = inp%volume
       this%tAutoEwald = inp%ewaldAlpha <= 0.0_dp
       if (this%tAutoEwald) then
@@ -362,6 +380,9 @@ contains
     if (this%tPeriodic) then
       allocate(this%nNeighEwald(this%nAtom))
     end if
+
+    ! Internal storage for the atomic coordinates
+    allocate(this%coord(3,this%nAtom))
 
     ! Initialise external charges
     if (this%tExtChrg) then
@@ -417,9 +438,6 @@ contains
     allocate(this%tDampedShort(this%nSpecies))
     this%tDampedShort(:) = inp%tDampedShort(:)
     this%dampExp = inp%dampExp
-
-    ! Internal storage for the atomic coordinates
-    allocate(this%coord(3,this%nAtom))
 
     this%tInitialised = .true.
 
@@ -532,8 +550,8 @@ contains
     !> New volume
     real(dp), intent(in) :: vol
 
-
     real(dp) :: maxGEwald
+    real(dp), allocatable :: dummy(:,:)
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
@@ -548,6 +566,13 @@ contains
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoint = matmul(recVec, this%gLatPoint)
     this%cutoff = max(this%cutoff, this%maxREwald)
+
+    this%latVecs = latVec
+    this%recVecs = recVec
+
+    ! Fold charges back to unit cell
+    call foldCoordToUnitCell(this%coord, latVec, recVec / (2.0_dp * pi))
+    call getCellTranslations(dummy, this%rCellVec, latVec, recVec / (2.0_dp * pi), this%maxREwald)
 
     if (this%tExtChrg) then
       call this%extCharge%updateLatVecs(latVec, recVec, this%maxREwald)
@@ -610,7 +635,7 @@ contains
     !> neighbours of atoms
     integer, intent(in) :: iNeighbor(0:,:)
 
-    !> index array to fold images to central cell
+    !> index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
@@ -1615,9 +1640,18 @@ contains
         end if
       end if
     else
-      !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-      !  & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
-      call error("Currently missing")
+      call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+          & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
+      if (this%tExtChrg) then
+        if (allocated(this%extChrgBlurWidths)) then
+          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
+              & this%extChrgBlurWidths)
+        else
+          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume)
+        end if
+      end if
     end if
 
 #:else
