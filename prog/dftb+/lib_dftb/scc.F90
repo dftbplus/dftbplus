@@ -504,24 +504,12 @@ contains
 
     this%coord = coord
 
-  #:if WITH_SCALAPACK
-    if (env%blacs%atomGrid%iproc /= -1) then
-      if (this%tPeriodic) then
-        call getInvRPeriodicBlacs(env%blacs%atomGrid, this%coord, this%nNeighEwald,&
-            & neighList%iNeighbor, img2CentCell, this%gLatPoint, this%alpha, this%volume,&
-            & this%descInvRMat, this%invRMat)
-      else
-        call getInvRClusterBlacs(env%blacs%atomGrid, this%coord, this%descInvRMat, this%invRMat)
-      end if
-    end if
-  #:else
     if (this%tPeriodic) then
-      call invR(this%invRMat, this%nAtom, this%coord, this%nNeighEwald, neighList%iNeighbor,&
+      call invR(this%invRMat, env, this%nAtom, this%coord, this%nNeighEwald, neighList%iNeighbor,&
           & img2CentCell, this%gLatPoint, this%alpha, this%volume)
     else
-      call invR(this%invRMat, this%nAtom, this%coord)
+      call invR(this%invRMat, env, this%nAtom, this%coord)
     end if
-  #:endif
 
     call initGamma_(this, species, neighList%iNeighbor)
 

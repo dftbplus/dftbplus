@@ -29,7 +29,6 @@ module coulomb
   public :: getMaxREwald, ewald, invR_stress
   public :: addInvRPrimeXlbomd
 #:if WITH_SCALAPACK
-  public :: getInvRClusterBlacs, getInvRPeriodicBlacs
   public :: getDInvRXlbomdClusterBlacs, getDInvRXlbomdPeriodicBlacs
 #:endif
 
@@ -74,10 +73,13 @@ contains
 
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invR_cluster(invRMat, nAtom, coord)
+  subroutine invR_cluster(invRMat, env, nAtom, coord)
 
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -88,11 +90,49 @@ contains
     integer :: ii, jj
     real(dp) :: dist, vect(3)
 
-    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+#:if WITH_SCALAPACK
+    integer :: iAt1, iAt2
+    ! Descriptor for 1/R matrix
+    integer :: descInvRMat(DLEN_)
+#:endif
+
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(coord, dim=2) >= nAtom)
 
+
+#:if WITH_SCALAPACK
+
+    if (env%blacs%atomGrid%iproc == -1) then
+      return
+    end if
+    
     invRMat(:,:) = 0.0_dp
+
+    call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
+        & env%blacs%columnBlockSize, descInvRMat)
+
+    do jj = 1, size(invRMat, dim=2)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
+          & env%blacs%atomGrid%ncol)
+      do ii = 1, size(invRMat, dim=1)
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), env%blacs%atomGrid%myrow,&
+            & descInvRMat(RSRC_), env%blacs%atomGrid%nrow)
+        if (iAt2 <= iAt1) then
+          cycle
+        end if
+        vect(:) = coord(:,iAt1) - coord(:,iAt2)
+        dist = sqrt(sum(vect**2))
+        invRMat(ii, jj) = 1.0_dp / dist
+      end do
+    end do
+
+
+#:else
+
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+
+    invRMat(:,:) = 0.0_dp
+
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,vect,dist) SCHEDULE(RUNTIME)
     do ii = 1, nAtom
       do jj = ii + 1, nAtom
@@ -103,47 +143,10 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-  end subroutine invR_cluster
-
-#:if WITH_SCALAPACK
-
-  !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
-  !> constructed.
-  subroutine getInvRClusterBlacs(grid, coord, descInvRMat, invRMat)
-
-    !> BLACS grid involved in 1/R calculation
-    type(blacsgrid), intent(in) :: grid
-
-    !> List of atomic coordinates.
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Matrix descriptor for 1/R matrix
-    integer, intent(in) :: descInvRMat(DLEN_)
-
-    !> Matrix of 1/R values for each atom pair.
-    real(dp), intent(out) :: invRMat(:,:)
-
-    integer :: ii, jj, iAt2, iAt1
-    real(dp) :: dist, vect(3)
-
-    invRMat(:,:) = 0.0_dp
-    do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
-      do ii = 1, size(invRMat, dim=1)
-        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_), grid%nrow)
-        if (iAt2 <= iAt1) then
-          cycle
-        end if
-        vect(:) = coord(:,iAt1) - coord(:,iAt2)
-        dist = sqrt(sum(vect**2))
-        invRMat(ii, jj) = 1.0_dp / dist
-      end do
-    end do
-
-  end subroutine getInvRClusterBlacs
-
 #:endif
 
+
+  end subroutine invR_cluster
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
@@ -259,11 +262,14 @@ contains
 
   !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invR_periodic(invRMat, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell,&
+  subroutine invR_periodic(invRMat, env, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell,&
       & recPoint, alpha, volume)
 
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms.
     integer, intent(in) :: nAtom
@@ -290,100 +296,40 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
 
-    integer :: iAtom1, iAtom2, iAtom2f, iNeigh
+    integer :: iAt1, iAt2, iAt2f, iNeigh
 
-    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+#:if WITH_SCALAPACK
+    integer :: ii, jj, iLoc, jLoc
+    logical :: tLocal
+    ! Descriptor for 1/R matrix
+    integer :: descInvRMat(DLEN_)
+#:endif
+
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(coord, dim=2) >= nAtom)
     @:ASSERT(size(nNeighborEwald) == nAtom)
     @:ASSERT(size(iNeighbor, dim=2) == nAtom)
     @:ASSERT(volume > 0.0_dp)
 
-    invRMat(:,:) = 0.0_dp
-
-    ! Real space part of the Ewald sum.
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f) SCHEDULE(RUNTIME)
-    do iAtom1 = 1, nAtom
-      do iNeigh = 1, nNeighborEwald(iAtom1)
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
-        iAtom2f = img2CentCell(iAtom2)
-        invRMat(iAtom2f, iAtom1) = invRMat(iAtom2f, iAtom1)&
-            & + rTerm(sqrt(sum((coord(:,iAtom1)-coord(:,iAtom2))**2)), alpha)
-      end do
-    end do
-    !$OMP  END PARALLEL DO
-
-    ! Reciprocal space part of the Ewald sum.
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2) SCHEDULE(RUNTIME)
-    do iAtom1 = 1, nAtom
-      do iAtom2 = iAtom1, nAtom
-        invRMat(iAtom2, iAtom1) = invRMat(iAtom2, iAtom1)&
-            & + ewaldReciprocal(coord(:,iAtom1)-coord(:,iAtom2), recPoint, alpha, volume)&
-            & - pi / (volume * alpha**2)
-      end do
-    end do
-    !$OMP  END PARALLEL DO
-
-    ! Extra contribution for self interaction.
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1) SCHEDULE(RUNTIME)
-    do iAtom1 = 1, nAtom
-      invRMat(iAtom1, iAtom1) = invRMat(iAtom1, iAtom1) - 2.0_dp * alpha / sqrt(pi)
-    end do
-    !$OMP  END PARALLEL DO
-
-  end subroutine invR_periodic
-
-
 #:if WITH_SCALAPACK
 
-  !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
-  !> constructed.
-  subroutine getInvRPeriodicBlacs(grid, coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
-      & alpha, volume, descInvRMat, invRMat)
-
-    !> BLACS grid involved in 1/R calculation
-    type(blacsgrid), intent(in) :: grid
-
-    !> List of atomic coordinates (all atoms).
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Nr. of neighbors for each atom for real part of Ewald.
-    integer, intent(in) :: nNeighborEwald(:)
-
-    !> List of neighbors for the real space part of Ewald.
-    integer, intent(in) :: iNeighbor(0:,:)
-
-    !> Image index for each atom in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Contains the points included in the reciprocal sum.  The set should not include the origin or
-    !> inversion related points.
-    real(dp), intent(in) :: recPoint(:,:)
-
-    !> Parameter for Ewald summation.
-    real(dp), intent(in) :: alpha
-
-    !> Volume of the real space unit cell.
-    real(dp), intent(in) :: volume
-
-    !> Descriptor for the 1/R matrix
-    integer, intent(in) :: descInvRMat(DLEN_)
-
-    !> Matrix of 1/R values for each atom pair.
-    real(dp), intent(out) :: invRMat(:,:)
-
-    integer :: iAt1, iAt2, iAt2f, iNeigh, jj, ii, iLoc, jLoc
-    logical :: tLocal
-
+    if (env%blacs%atomGrid%iproc == -1) then
+      return
+    end if
+    
     invRMat(:,:) = 0.0_dp
+
+    call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
+        & env%blacs%columnBlockSize, descInvRMat)
 
     ! Real space part of the Ewald sum.
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
+          & env%blacs%atomGrid%ncol)
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
-        call scalafx_islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        call scalafx_islocal(env%blacs%atomGrid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
         if (tLocal) then
           invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc)&
               &  + rTerm(sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2)), alpha)
@@ -393,10 +339,11 @@ contains
 
     ! Reciprocal space part of the Ewald sum.
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
+          & env%blacs%atomGrid%ncol)
       do ii = 1, size(invRMat, dim=1)
-        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_),&
-            & grid%nrow)
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), env%blacs%atomGrid%myrow, descInvRMat(RSRC_),&
+            & env%blacs%atomGrid%nrow)
         if (iAt2 < iAt1) then
           cycle
         end if
@@ -408,16 +355,54 @@ contains
 
     ! Extra contribution for self interaction.
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
-      call scalafx_islocal(grid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
+          & env%blacs%atomGrid%ncol)
+      call scalafx_islocal(env%blacs%atomGrid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
       if (tLocal) then
         invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc) - 2.0_dp * alpha / sqrt(pi)
       end if
     end do
 
-  end subroutine getInvRPeriodicBlacs
+#:else
+
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+    invRMat(:,:) = 0.0_dp
+
+    ! Real space part of the Ewald sum.
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iNeigh,iAt2,iAt2f) SCHEDULE(RUNTIME)
+    do iAt1 = 1, nAtom
+      do iNeigh = 1, nNeighborEwald(iAt1)
+        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        invRMat(iAt2f, iAt1) = invRMat(iAt2f, iAt1)&
+            & + rTerm(sqrt(sum((coord(:,iAt1)-coord(:,iAt2))**2)), alpha)
+      end do
+    end do
+    !$OMP  END PARALLEL DO
+
+    ! Reciprocal space part of the Ewald sum.
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2) SCHEDULE(RUNTIME)
+    do iAt1 = 1, nAtom
+      do iAt2 = iAt1, nAtom
+        invRMat(iAt2, iAt1) = invRMat(iAt2, iAt1)&
+            & + ewaldReciprocal(coord(:,iAt1)-coord(:,iAt2), recPoint, alpha, volume)&
+            & - pi / (volume * alpha**2)
+      end do
+    end do
+    !$OMP  END PARALLEL DO
+
+    ! Extra contribution for self interaction.
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
+    do iAt1 = 1, nAtom
+      invRMat(iAt1, iAt1) = invRMat(iAt1, iAt1) - 2.0_dp * alpha / sqrt(pi)
+    end do
+    !$OMP  END PARALLEL DO
 
 #:endif
+
+  end subroutine invR_periodic
+
+
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
   subroutine sumInvR_periodic_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
@@ -579,7 +564,6 @@ contains
     myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
 
     nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    @:ASSERT(nAtLocal >= 1)
     iAtFirst = myRank * nAtLocal + 1
     ! ensure last processor in group only does up to nAtom0
     iAtLast = min((myRank+1) * nAtLocal, nAtom)
@@ -691,9 +675,11 @@ contains
 
     deriv(:,:) = 0.0_dp
     do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_),&
+          & grid%ncol)
       do ii = 1, localShape(1)
-        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
+        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_),&
+            & grid%nrow)
         if (iAt1 /= iAt2) then
           vect(:) = coord(:,iAt1) - coord(:,iAt2)
           dist = sqrt(sum(vect**2))
@@ -915,7 +901,6 @@ contains
     myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
 
     nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    @:ASSERT(nAtLocal >= 1)
     iAtFirst = myRank * nAtLocal + 1
     ! ensure last processor in group only does up to nAtom0
     iAtLast = min((myRank+1) * nAtLocal, nAtom)
@@ -1107,7 +1092,8 @@ contains
 
     ! Real space contribution
     do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_),&
+          & grid%ncol)
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
@@ -1126,9 +1112,11 @@ contains
 
     ! Reciprocal space contribution
     do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_),&
+          & grid%ncol)
       do ii= 1, localShape(1)
-        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
+        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_),&
+            & grid%nrow)
         if (iAt2 /= iAt1) then
           rr(:) = coord(:,iAt1) - coord(:,iAt2)
           prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2) &
