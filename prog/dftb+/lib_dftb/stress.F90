@@ -194,7 +194,6 @@ contains
 #:if WITH_MPI
 
     nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    @:ASSERT(nAtLocal > 1)
     myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
     iAtFirst = myRank * nAtLocal + 1
     ! ensure last processor in group only does up to nAtom
@@ -334,7 +333,6 @@ contains
 #:if WITH_MPI
 
     nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    @:ASSERT(nAtLocal > 1)
     myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
     iAtFirst = myRank * nAtLocal + 1
     ! ensure last processor in group only does up to nAtom
@@ -494,7 +492,6 @@ contains
 #:if WITH_MPI
 
     nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    @:ASSERT(nAtLocal > 1)
     myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
     iAtFirst = myRank * nAtLocal + 1
     ! ensure last processor in group only does up to nAtom
