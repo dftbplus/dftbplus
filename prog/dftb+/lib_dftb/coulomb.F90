@@ -33,9 +33,6 @@ module coulomb
   public :: getDInvRClusterBlacs, getDInvRPeriodicBlacs
   public :: getDInvRXlbomdClusterBlacs, getDInvRXlbomdPeriodicBlacs
 #:endif
-#:if WITH_MPI
-  public :: getSumInvRClusterMpi
-#:endif
 
   !> 1/r interaction for all atoms with another group
   interface sumInvR
@@ -151,10 +148,14 @@ contains
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
-  subroutine sumInvR_cluster_asymm(invRVec, nAtom0, nAtom1, coord0, coord1, charges1, blurWidths1)
+  subroutine sumInvR_cluster_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
+      & blurWidths1)
 
     !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
@@ -176,7 +177,10 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp
-    character(len=100) :: errorString
+    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
+#:if WITH_MPI
+    integer :: nAtLocal, myRank
+#:endif
 
     @:ASSERT(size(invRVec) == nAtom0)
     @:ASSERT(size(coord0, dim=2) >= nAtom0)
@@ -190,49 +194,71 @@ contains
     end if
 #:endcall ASSERT_CODE
 
-    ! Doing blurring and non blurring case separately in order to avoid
-    ! the if branch deep in the loop
+    iAtFirst0 = 1
+    iAtLast0 = nAtom0
+    iAtFirst1 = 1
+    iAtLast1 = nAtom1
+
+#:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    select case (nAtom0 >= nAtom1)
+    case(.true.)
+
+      ! More points to evaluate the field than number of sources
+      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
+      @:ASSERT(nAtLocal > 1)
+      iAtFirst0 = myRank * nAtLocal + 1
+      ! ensure last processor in group only does up to nAtom0
+      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
+
+    case(.false.)
+      ! More sources than points to evaluate the field at
+      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
+      @:ASSERT(nAtLocal > 1)
+      iAtFirst1 = myRank * nAtLocal + 1
+      ! ensure last processor in group only goes up to nAtom1
+      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
+
+    end select
+
+#:endif
+
     invRVec(:) = 0.0_dp
+
+    ! Doing blurring and non blurring case separately in order to avoid the if branch in the loop
     if (present(blurWidths1)) then
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
-      !$OMP& SCHEDULE(RUNTIME)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) SCHEDULE(RUNTIME)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
-          if (dist <  tolSameDist) then
-            write (errorString, ftTooClose) iAt0, iAt1
-            call error(trim(errorString))
-          else
-            fTmp = charges1(iAt1) / dist
-            if (dist < erfArgLimit * blurWidths1(iAt1)) then
-              fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
-            end if
-            invRVec(iAt0) = invRVec(iAt0) + fTmp
+          fTmp = charges1(iAt1) / dist
+          if (dist < erfArgLimit * blurWidths1(iAt1)) then
+            fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
           end if
+          invRVec(iAt0) = invRVec(iAt0) + fTmp
         end do
       end do
       !$OMP  END PARALLEL DO
     else
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
-      !$OMP& SCHEDULE(RUNTIME)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist) SCHEDULE(RUNTIME)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
-          if (dist <  tolSameDist) then
-            write (errorString, ftTooClose) iAt0, iAt1
-            call error(trim(errorString))
-          else
-            invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
-          end if
+          invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
         end do
       end do
       !$OMP  END PARALLEL DO
     end if
 
-  end subroutine sumInvR_cluster_asymm
+#:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%groupComm, invRVec, MPI_SUM)
+#:endif
 
+  end subroutine sumInvR_cluster_asymm
 
   !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
   !> constructed.
@@ -397,11 +423,14 @@ contains
 #:endif
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
-  subroutine sumInvR_periodic_asymm(invRVec, nAtom0, nAtom1, coord0, coord1, charges1, rLat, gLat,&
-      & alpha, volume, blurwidths1)
+  subroutine sumInvR_periodic_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
+      & rLat, gLat, alpha, volume, blurwidths1)
 
     !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
@@ -435,6 +464,10 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
+    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
+#:if WITH_MPI
+    integer :: nAtLocal, myRank
+#:endif
 
     @:ASSERT(size(invRVec) == nAtom0)
     @:ASSERT(size(coord0, dim=2) >= nAtom0)
@@ -446,11 +479,43 @@ contains
     @:ASSERT(size(gLat, dim=1) == 3)
     @:ASSERT(volume > 0.0_dp)
 
+    iAtFirst0 = 1
+    iAtLast0 = nAtom0
+    iAtFirst1 = 1
+    iAtLast1 = nAtom1
+
+#:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    select case (nAtom0 >= nAtom1)
+    case(.true.)
+
+      ! More points to evaluate the field than number of sources
+      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
+      @:ASSERT(nAtLocal > 1)
+      iAtFirst0 = myRank * nAtLocal + 1
+      ! ensure last processor in group only goes up to nAtom0
+      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
+
+    case(.false.)
+      ! More sources than points to evaluate the field at
+      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
+      @:ASSERT(nAtLocal > 1)
+      iAtFirst1 = myRank * nAtLocal + 1
+      ! ensure last processor in group only does up to nAtom1
+      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
+
+    end select
+
+#:endif
+
     invRVec(:) = 0.0_dp
+
     if (present(blurWidths1)) then
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
           rTmp = ewald(rr, rLat, gLat, alpha, volume, blurwidths1(iAt1))
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
@@ -459,8 +524,8 @@ contains
       !$OMP END PARALLEL DO
     else
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
           rTmp = ewald(rr, rLat, gLat, alpha, volume)
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
@@ -469,161 +534,11 @@ contains
       !$OMP END PARALLEL DO
     end if
 
-  end subroutine sumInvR_periodic_asymm
-
 #:if WITH_MPI
-
-  !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
-  !> interaction of atoms with point charges or potentials at points from atoms).
-  subroutine getSumInvRClusterMpi(invRVec, env, coord0, coord1, charges1, blurWidths1)
-
-    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
-    real(dp), intent(out) :: invRVec(:)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> List of atomic coordinates.
-    real(dp), intent(in) :: coord0(:,:)
-
-    !> List of atomic coordinates.
-    real(dp), intent(in) :: coord1(:,:)
-
-    !> List of atomic coordinates.
-    real(dp), intent(in) :: charges1(:)
-
-    !> Gaussian blur width of the charges in the 2nd group
-    real(dp), intent(in), optional :: blurWidths1(:)
-
-    integer :: ii, jj, iAt2, iAt1, iAt0, nAtom0, nAtom1, iAtFirst, iAtLast, nAtLocal, myRank
-    real(dp) :: dist, vect(3), fTmp
-    character(len=100) :: errorString
-
-    nAtom0 = size(coord0,dim=2)
-    nAtom1 = size(coord1,dim=2)
-
-    @:ASSERT(size(invRVec) == nAtom0)
-    @:ASSERT(size(coord0, dim=2) >= nAtom0)
-    @:ASSERT(size(coord0, dim=1) == 3)
-    @:ASSERT(size(coord1, dim=2) >= nAtom1)
-    @:ASSERT(size(coord1, dim=1) == 3)
-    @:ASSERT(size(charges1) == nAtom1)
-#:call ASSERT_CODE
-    if (present(blurWidths1)) then
-      @:ASSERT(size(blurWidths1) == nAtom1)
-    end if
-#:endcall ASSERT_CODE
-
-    invRVec(:) = 0.0_dp
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    select case (nAtom0 >= nAtom1)
-    case(.true.)
-      ! More points to evaluate the field at than sources
-
-      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      @:ASSERT(nAtLocal > 1)
-
-      iAtFirst = myRank * nAtLocal + 1
-      ! ensure last processor in group only does up to nAtom0
-      iAtLast = min((myRank+1) * nAtLocal, nAtom0)
-
-      ! Doing blurring and non blurring case separately in order to avoid the if branch deep in the
-      ! loop
-      if (present(blurWidths1)) then
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do iAt0 = iAtFirst, iAtLast
-          do iAt1 = 1, nAtom1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            dist = sqrt(sum(vect(:)**2))
-            if (dist > epsilon(0.0_dp)) then
-              fTmp = charges1(iAt1) / dist
-              if (dist < erfArgLimit * blurWidths1(iAt1)) then
-                fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
-              end if
-              invRVec(iAt0) = invRVec(iAt0) + fTmp
-            else
-              write (errorString, ftTooClose) iAt0, iAt1
-              call error(trim(errorString))
-            end if
-          end do
-        end do
-        !$OMP  END PARALLEL DO
-      else
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do iAt0 = iAtFirst, iAtLast
-          do iAt1 = 1, nAtom1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            dist = sqrt(sum(vect(:)**2))
-            if (dist > epsilon(0.0_dp)) then
-              invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
-            else
-              write (errorString, ftTooClose) iAt0, iAt1
-              call error(trim(errorString))
-            end if
-          end do
-        end do
-        !$OMP  END PARALLEL DO
-      end if
-
-    case(.false.)
-      ! more sources than points at which to evaluate the field
-      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      @:ASSERT(nAtLocal > 1)
-
-      iAtFirst = myRank * nAtLocal + 1
-      ! ensure last processor in group only does up to nAtom0
-      iAtLast = min((myRank+1) * nAtLocal, nAtom1)
-
-      ! Doing blurring and non blurring case separately in order to avoid the if branch deep in the
-      ! loop
-      if (present(blurWidths1)) then
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do iAt0 = 1, nAtom0
-          do iAt1 = iAtFirst, iAtLast
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            dist = sqrt(sum(vect(:)**2))
-            if (dist > epsilon(0.0_dp)) then
-              fTmp = charges1(iAt1) / dist
-              if (dist < erfArgLimit * blurWidths1(iAt1)) then
-                fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
-              end if
-              invRVec(iAt0) = invRVec(iAt0) + fTmp
-            else
-              write (errorString, ftTooClose) iAt0, iAt1
-              call error(trim(errorString))
-            end if
-          end do
-        end do
-        !$OMP  END PARALLEL DO
-      else
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do iAt0 = 1, nAtom0
-          do iAt1 = iAtFirst, iAtLast
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            dist = sqrt(sum(vect(:)**2))
-            if (dist > epsilon(0.0_dp)) then
-              invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
-            else
-              write (errorString, ftTooClose) iAt0, iAt1
-              call error(trim(errorString))
-            end if
-          end do
-        end do
-        !$OMP  END PARALLEL DO
-      end if
-
-    end select
-
     call mpifx_allreduceip(env%mpi%groupComm, invRVec, MPI_SUM)
-
-  end subroutine getSumInvRClusterMpi
-
 #:endif
+
+  end subroutine sumInvR_periodic_asymm
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
   !> storing anything.

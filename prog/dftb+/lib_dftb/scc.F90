@@ -386,6 +386,7 @@ contains
 
     ! Initialise external charges
     if (this%tExtChrg) then
+
       if (allocated(inp%blurWidths)) then
         if (this%tPeriodic) then
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
@@ -402,6 +403,7 @@ contains
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom)
         end if
       end if
+
       allocate(this%extChrgCoord(3,size(inp%extCharges, dim=2)))
       this%extChrgCoord = inp%extCharges(:3,:)
       allocate(this%extChrgQ(size(inp%extCharges, dim=2)))
@@ -412,7 +414,6 @@ contains
           this%extChrgBlurWidths = inp%blurWidths
         end if
       end if
-
 
     end if
 
@@ -526,9 +527,9 @@ contains
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%updateCoords(this%coord, this%gLatPoint, this%alpha, this%volume)
+        call this%extCharge%updateCoords(env, this%coord, this%gLatPoint, this%alpha, this%volume)
       else
-        call this%extCharge%updateCoords(this%coord)
+        call this%extCharge%updateCoords(env, this%coord)
       end if
     end if
 
@@ -1626,59 +1627,31 @@ contains
       Vext = 0.0_dp
     end if
 
-#:if not WITH_MPI
-
     if (.not. this%tPeriodic) then
-      call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
+      call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
       if (this%tExtChrg) then
         if (allocated(this%extChrgBlurWidths)) then
-          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+          call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
               & this%extChrgQ, this%extChrgBlurWidths)
         else
-          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+          call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
               & this%extChrgQ)
         end if
       end if
     else
-      call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+      call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
           & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
       if (this%tExtChrg) then
         if (allocated(this%extChrgBlurWidths)) then
-          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+          call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
               & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
               & this%extChrgBlurWidths)
         else
-          call sumInvR(Vext, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+          call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
               & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume)
         end if
       end if
     end if
-
-#:else
-
-    if (.not. this%tPeriodic) then
-      call getSumInvRClusterMpi(V, env, locations, this%coord, this%deltaQAtom)
-
-      if (allocated(this%extChrgBlurWidths)) then
-        call getSumInvRClusterMpi(Vext, env, locations, this%extChrgCoord, this%extChrgQ,&
-            & this%extChrgBlurWidths)
-      else
-        call getSumInvRClusterMpi(Vext, env, locations, this%extChrgCoord, this%extChrgQ)
-      end if
-
-    else
-      !call sumInvR(V, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-      !  & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
-      call error("Currently missing")
-    end if
-
-    if (this%tExtChrg) then
-      ! call this%extCharge%addShiftPerAtom(V) ! won't work due to sizing changes of V and nAtoms
-      call error("Currently missing")
-    end if
-
-
-#:endif
 
   end subroutine electrostaticPotential
 

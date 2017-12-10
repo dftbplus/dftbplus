@@ -15,6 +15,7 @@ module ExternalCharges
   use coulomb
   use constants
   use periodic, only : getCellTranslations, foldCoordToUnitCell
+  use environment
   implicit none
 
   private
@@ -187,10 +188,13 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoordsCluster(this, atomCoords)
+  subroutine updateCoordsCluster(this, env, atomCoords)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -201,10 +205,10 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & blurWidths1=this%blurWidths)
+      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, blurWidths1=this%blurWidths)
     else
-      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges)
+      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges)
     end if
 
     this%tUpdated = .true.
@@ -213,10 +217,13 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoordsPeriodic(this, atomCoords, gLat, alpha, volume)
+  subroutine updateCoordsPeriodic(this, env, atomCoords, gLat, alpha, volume)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -237,11 +244,11 @@ contains
     @:ASSERT(size(gLat, dim=1) == 3)
 
     if (this%tBlur) then
-      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & this%rCellVec, gLat, alpha, volume, blurWidths1=this%blurWidths)
+      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, this%rCellVec, gLat, alpha, volume, blurWidths1=this%blurWidths)
     else
-      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & this%rCellVec, gLat, alpha, volume)
+      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords,&
+          & this%charges, this%rCellVec, gLat, alpha, volume)
     end if
 
     this%tUpdated = .true.
@@ -266,7 +273,7 @@ contains
   end subroutine addShiftPerAtom
 
 
-  !> Adds the atomic energy contribution do to the external charges.
+  !> Adds the atomic energy contribution due to the external charges.
   subroutine addEnergyPerAtom(this, atomCharges, energy)
 
     !> External charges structure
