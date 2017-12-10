@@ -2659,9 +2659,8 @@ contains
    ! Electron dynamics stuff
    tElecDynamics = allocated(input%ctrl%elecDynInp)
    if (tElecDynamics) then
-      call initElecDynamics(elecDyn, input%ctrl%elecDynInp, randomThermostat, & 
-           &mass, nAtom, species0, skRepCutoff, mCutoff, &
-           &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, env)
+      call initElecDynamics(elecDyn, input%ctrl%elecDynInp, & 
+           &species0, speciesName, env)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)

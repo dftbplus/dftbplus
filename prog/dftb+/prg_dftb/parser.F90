@@ -3204,7 +3204,7 @@ contains
     call getChild(node, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
        allocate(ctrl%elecDynInp)
-       call readElecDynamics(child, ctrl%elecDynInp, geo)
+       call readElecDynamics(child, ctrl%elecDynInp)
     end if
 
   end subroutine readAnalysis
@@ -3314,10 +3314,9 @@ contains
 
   
   !> Reads the electron dynamics block
-  subroutine readElecDynamics(node, input, geo)
+  subroutine readElecDynamics(node, input)
     type(fnode), pointer :: node
     type(ElecDynamicsInp), intent(inout) :: input 
-    type(TGeometry), intent(in) :: geo
     type(fnode), pointer :: value, child
     type(string) :: buffer, modifier
 
@@ -3332,24 +3331,9 @@ contains
          & input%tdField)
 
     call getChildValue(node, "Populations", input%tdPopulations, .false.)
-    call getChildValue(node, "TDForces", input%tdForces, .false.)
     call getChildValue(node, "SaveEvery", input%tdSaveEvery, 50)
-    call getChildValue(node, "WritePairWiseEnergy", input%tdPairWise, .false.)
     call getChildValue(node, "Restart", input%tdRestart, .false.)
     call getChildValue(node, "WriteRestart", input%tdWriteRestart, .true.) 
-    call getChildValue(node, "OnsiteGradients", input%tdOnsiteGradients, .false.)
-    call getChildValue(node, "PumpProbe", input%tdPumpProbe, .false.)
-    if (input%tdPumpProbe) then
-       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames, 50)
-    end if
-
-    call getChildValue(node, "EulerEvery", input%tdEulerEvery, 2)
-    if (input%tdEulerEvery < 2) then
-       call detailedError(child, "Wrong number of Euler steps, should be above 50")
-    end if
-    if (input%tdEulerEvery > 2) then
-       input%tddoEulers = .true.
-    end if
 
     !! Different perturbation types
     call getChildValue(node, "Perturbation", value, "None", child=child)
@@ -3373,29 +3357,6 @@ contains
             & modifier=modifier, child=child)
        call convertByMul(char(modifier), energyUnits, child, input%tdOmega)
        call getChildValue(value, "Phase", input%tdPhase, 0.0_dp)
-
-    case ("kick+laser")
-       input%tdType = iKickAndLaser
-       call getChildValue(value, "KickPolDir", input%tdPolDir)
-       if (input%tdPolDir > 4) then
-          call detailedError(child, "Wrong specified polarization direction")
-       end if
-       call getChildValue(value, "SpinType", input%tdSpType, iTDSinglet)
-       call getChildValue(value, "LaserPolDir", input%tdReFieldPolVec)
-       call getChildValue(value, "LaserImagPolDir", input%tdImFieldPolVec, &
-            & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-       call getChildValue(value, "LaserEnergy", input%tdOmega, &
-            & modifier=modifier, child=child)
-       call convertByMul(char(modifier), energyUnits, child, input%tdOmega)
-
-    case ("2lasers")
-       input%tdType = i2Lasers
-       call getChildValue(value, "LaserPolDir", input%tdReFieldPolVec)
-       call getChildValue(value, "LaserImagPolDir", input%tdImFieldPolVec, &
-            & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-       call getChildValue(value, "LaserEnergy", input%tdOmega, &
-            & modifier=modifier, child=child)
-       call convertByMul(char(modifier), energyUnits, child, input%tdOmega)
 
     case ("none")
        input%tdType = iNoTDPert
@@ -3432,16 +3393,6 @@ contains
             & child=child)    
        call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
 
-    case("cos")
-       input%tdEnvType = iTDCos
-       call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime0)
-
-       call getChildValue(value, "Time1", input%tdTime1, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
-
     case("from_file")
        input%tdEnvType = iTDFromFile 
        call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
@@ -3456,90 +3407,7 @@ contains
        call detailedError(value, "Unknown envelope shape " // char(buffer))
     end select
 
-    if (input%tdEnvType == iTDCos) then
-       call detailedError(child, "Envelope function not implemented yet")
-    end if
-
-
-    !! Non-adiabatic molecular dynamics
-    call getChildValue(node, "IonDynamics", input%tdIons, .false.)
-    if (input%tdIons) then
-       call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, &
-            &multiple=.true.)
-       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
-            &child, input%indMovedAtom)
-
-       input%nMovedAtom = size(input%indMovedAtom)
-       if (input%nMovedAtom == 0) then
-          call error("No atoms specified for molecular dynamics.")
-       end if
-       call readInitialVelocitiesNAMD(node, input, geo%nAtom)
-       if (input%tReadMDVelocities) then
-          ! without a thermostat, if we know the initial
-          ! velocities, we do not need a temperature, so just set it to something
-          ! 'safe'
-          input%tempAtom = minTemp
-       else
-          call getChildValue(node, "InitialTemperature", input%tempAtom, &
-               &modifier=modifier, child=child)
-          if (input%tempAtom < 0.0_dp) then
-             call detailedError(child, "Negative temperature")
-          end if
-          call convertByMul(char(modifier), energyUnits, child, input%tempAtom)
-          if (input%tempAtom < minTemp) then
-             input%tempAtom = minTemp
-          end if
-       end if
-    end if
-
   end subroutine readElecDynamics
-
-
-  !> Reads MD velocities
-  subroutine readInitialVelocitiesNAMD(node, input, nAtom)
-
-    !> Node to get the information from
-    type(fnode), pointer :: node
-
-    !> ElecDynamicsInp object structure to be filled
-    type(ElecDynamicsInp), intent(inout) :: input 
-
-    !> Total number of all atoms
-    integer, intent(in) :: nAtom
-
-    type(fnode), pointer :: value, child
-    type(string) :: buffer, modifier
-    type(listRealR1) :: realBuffer
-    integer          :: nVelocities
-    real(dp), pointer :: tmpVelocities(:,:)
-
-    call getChildValue(node, "Velocities", value, "", child=child, &
-         & modifier=modifier, allowEmptyValue=.true.)
-    call getNodeName2(value, buffer)
-    if (char(buffer) == "") then
-       input%tReadMDVelocities = .false.
-    else
-       call init(realBuffer)
-       call getChildValue(child, "", 3, realBuffer, modifier=modifier)
-       nVelocities = len(realBuffer)
-       if (nVelocities /= nAtom) then
-          call detailedError(node, "Incorrect number of specified velocities: " &
-               & // i2c(3*nVelocities) // " supplied, " &
-               & // i2c(3*nAtom) // " required.")
-       end if
-       allocate(tmpVelocities(3, nVelocities))
-       call asArray(realBuffer, tmpVelocities)
-       if (len(modifier) > 0) then
-          call convertByMul(char(modifier), VelocityUnits, child, &
-               & tmpVelocities)
-       end if
-       call destruct(realBuffer)
-       allocate(input%initialVelocities(3, input%nMovedAtom))
-       input%initialVelocities(:,:) = tmpVelocities(:, input%indMovedAtom(:))
-       input%tReadMDVelocities = .true.
-    end if
-
-  end subroutine readInitialVelocitiesNAMD
 
   
   !> Reads the parallel block.

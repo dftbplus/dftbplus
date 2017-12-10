@@ -602,7 +602,7 @@ contains
     if (tElecDynamics) then
        call runDynamics(elecDyn, eigvecsReal, ham, H0, q0, over, filling, neighborList, &
             &nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW, &
-            &skHamCont, skOverCont, pRepCont, sccCalc)
+            &pRepCont, sccCalc)
     end if
 
     if (allocated(pipekMezey)) then
