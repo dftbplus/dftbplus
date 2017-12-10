@@ -1680,10 +1680,6 @@ contains
 
 #:endif
 
-    if (this%tExtChrg) then
-      write(*,*)Vext
-    end if
-
   end subroutine electrostaticPotential
 
 end module scc
