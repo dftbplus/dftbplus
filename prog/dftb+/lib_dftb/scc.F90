@@ -771,10 +771,6 @@ contains
     !> shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
-  #:if WITH_SCALAPACK
-    real(dp), allocatable :: derivsBuffer(:,:)
-  #:endif
-
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == this%nAtom)
@@ -784,36 +780,19 @@ contains
     call addGammaPrime_(this, force, species, iNeighbor, img2CentCell)
 
     ! 1/R contribution
-  #:if WITH_SCALAPACK
-    allocate(derivsBuffer(size(force, dim=1), size(force, dim=2)))
-    derivsBuffer(:,:) = 0.0_dp
-    if (env%blacs%atomGrid%iproc /= -1) then
-      if (this%tPeriodic) then
-        call getDInvRPeriodicBlacs(env%blacs%atomGrid, this%descInvRMat, shape(this%invRMat),&
-            & this%coord, this%nNeighEwald, iNeighbor, img2CentCell, this%gLatPoint, this%alpha,&
-            & this%volume, this%deltaQAtom, derivsBuffer)
-      else
-        call getDInvRClusterBlacs(env%blacs%atomGrid, this%descInvRMat, shape(this%invRMat),&
-            & this%coord, this%deltaQAtom, derivsBuffer)
-      end if
-    end if
-    call mpifx_allreduceip(env%mpi%groupComm, derivsBuffer, MPI_SUM)
-    force(:,:) = force + derivsBuffer
-  #:else
     if (this%tPeriodic) then
-      call addInvRPrime(force, this%nAtom, this%coord, this%nNeighEwald, iNeighbor, &
+      call addInvRPrime(force, env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor, &
           & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
     else
-      call addInvRPrime(force, this%nAtom, this%coord, this%deltaQAtom)
+      call addInvRPrime(force, env, this%nAtom, this%coord, this%deltaQAtom)
     end if
-  #:endif
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom,&
+        call this%extCharge%addForceDc(force, chrgForce, env, this%coord, this%deltaQAtom,&
             & this%gLatPoint, this%alpha, this%volume)
       else
-        call this%extCharge%addForceDc(force, chrgForce, this%coord, this%deltaQAtom)
+        call this%extCharge%addForceDc(force, chrgForce, env, this%coord, this%deltaQAtom)
       end if
     end if
 

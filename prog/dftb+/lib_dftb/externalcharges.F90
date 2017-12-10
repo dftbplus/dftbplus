@@ -296,7 +296,7 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcCluster(this, atomForces, chrgForces, atomCoords, atomCharges)
+  subroutine addForceDcCluster(this, atomForces, chrgForces, env, atomCoords, atomCharges)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
@@ -306,6 +306,9 @@ contains
 
     !> Force vectors on the external charges
     real(dp), intent(inout) :: chrgForces(:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms.
     real(dp), intent(in) :: atomCoords(:,:)
@@ -319,11 +322,11 @@ contains
     @:ASSERT(size(atomCoords, dim=2) == this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & atomCharges, this%charges, blurWidths1=this%blurWidths)
+      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
+          & this%coords, atomCharges, this%charges, blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & atomCharges, this%charges)
+      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
+          & this%coords, atomCharges, this%charges)
     end if
 
   end subroutine addForceDcCluster
@@ -331,8 +334,8 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcPeriodic(this, atomForces, chrgForces, atomCoords, atomCharges, gVec, alpha,&
-      & vol)
+  subroutine addForceDcPeriodic(this, atomForces, chrgForces, env, atomCoords, atomCharges, gVec,&
+      & alpha, vol)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
@@ -342,6 +345,9 @@ contains
 
     !> Force vectors on the external charges
     real(dp), intent(inout) :: chrgForces(:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms.
     real(dp), intent(in) :: atomCoords(:,:)
@@ -364,11 +370,12 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol, blurWidths1=this%blurWidths)
+      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
+          & this%coords, atomCharges, this%charges, this%rCellVec, gVec, alpha, vol,&
+          & blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
+      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
+          & this%coords, atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
     end if
 
   end subroutine addForceDcPeriodic

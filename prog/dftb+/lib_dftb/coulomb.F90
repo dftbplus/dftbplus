@@ -30,7 +30,6 @@ module coulomb
   public :: addInvRPrimeXlbomd
 #:if WITH_SCALAPACK
   public :: getInvRClusterBlacs, getInvRPeriodicBlacs
-  public :: getDInvRClusterBlacs, getDInvRPeriodicBlacs
   public :: getDInvRXlbomdClusterBlacs, getDInvRXlbomdPeriodicBlacs
 #:endif
 
@@ -208,7 +207,6 @@ contains
 
       ! More points to evaluate the field than number of sources
       nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      @:ASSERT(nAtLocal > 1)
       iAtFirst0 = myRank * nAtLocal + 1
       ! ensure last processor in group only does up to nAtom0
       iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
@@ -216,7 +214,6 @@ contains
     case(.false.)
       ! More sources than points to evaluate the field at
       nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      @:ASSERT(nAtLocal > 1)
       iAtFirst1 = myRank * nAtLocal + 1
       ! ensure last processor in group only goes up to nAtom1
       iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
@@ -493,7 +490,6 @@ contains
 
       ! More points to evaluate the field than number of sources
       nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      @:ASSERT(nAtLocal > 1)
       iAtFirst0 = myRank * nAtLocal + 1
       ! ensure last processor in group only goes up to nAtom0
       iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
@@ -501,7 +497,6 @@ contains
     case(.false.)
       ! More sources than points to evaluate the field at
       nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      @:ASSERT(nAtLocal > 1)
       iAtFirst1 = myRank * nAtLocal + 1
       ! ensure last processor in group only does up to nAtom1
       iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
@@ -542,10 +537,13 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
   !> storing anything.
-  subroutine addInvRPrime_cluster(deriv, nAtom, coord, deltaQAtom)
+  subroutine addInvRPrime_cluster(deriv, env, nAtom, coord, deltaQAtom)
 
     !> Contains the derivative on exit.
     real(dp), intent(inout) :: deriv(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms.
     integer, intent(in) :: nAtom
@@ -558,6 +556,11 @@ contains
 
     integer :: ii, jj
     real(dp) :: dist, vect(3), fTmp
+    real(dp), allocatable :: localDeriv(:,:)
+    integer :: iAtFirst, iAtLast
+#:if WITH_MPI
+    integer :: nAtLocal, myRank
+#:endif
 
     @:ASSERT(size(deriv, dim=1) == 3)
     @:ASSERT(size(deriv, dim=2) >= nAtom)
@@ -565,66 +568,46 @@ contains
     @:ASSERT(size(coord, dim=2) >= nAtom)
     @:ASSERT(size(deltaQAtom) == nAtom)
 
+    allocate(localDeriv(3,nAtom))
+    localDeriv = 0.0_dp
+
+    iAtFirst = 1
+    iAtLast = nAtom
+
+#:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
+    @:ASSERT(nAtLocal >= 1)
+    iAtFirst = myRank * nAtLocal + 1
+    ! ensure last processor in group only does up to nAtom0
+    iAtLast = min((myRank+1) * nAtLocal, nAtom)
+
+#:endif
+
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,vect,dist,ftmp) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do ii = 1, nAtom
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
+    do ii = iAtFirst, iAtLast
       do jj = ii + 1, nAtom
         vect(:) = coord(:,ii) - coord(:,jj)
         dist = sqrt(sum(vect(:)**2))
         fTmp = -deltaQAtom(ii) * deltaQAtom(jj) / (dist**3)
-        deriv(:,ii) = deriv(:,ii) + vect(:)*fTmp
+        localDeriv(:,ii) = localderiv(:,ii) + vect(:)*fTmp
         ! Skew-symmetric 1/r2 interaction, so the other triangle is calculated :
-        deriv(:,jj) = deriv(:,jj) - vect(:)*fTmp
+        localDeriv(:,jj) = localderiv(:,jj) - vect(:)*fTmp
       end do
     end do
     !$OMP  END PARALLEL DO
 
+#:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%groupComm, localDeriv, MPI_SUM)
+#:endif
+
+    deriv = deriv + localDeriv
+
   end subroutine addInvRPrime_cluster
 
-#:if WITH_SCALAPACK
-
-  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
-  !> storing anything.
-  subroutine getDInvRClusterBlacs(grid, descAtomSqr, localShape, coord, deltaQAtom, deriv)
-
-    !> BLACS grid of the distributed derivative vector
-    type(blacsgrid), intent(in) :: grid
-
-    !> Descriptor for the nAtom x nAtom electrostatic matrix distributed on the grid
-    integer, intent(in) :: descAtomSqr(DLEN_)
-
-    !> Local shape of the distributed nAtom x nAtom electrostatic matrix
-    integer, intent(in) :: localShape(:)
-
-    !> List of atomic coordinates.
-    real(dp), intent(in) :: coord(:,:)
-
-    !> List of charges on each atom.
-    real(dp), intent(in) :: deltaQAtom(:)
-
-    !> Contains the derivative on exit.
-    real(dp), intent(out) :: deriv(:,:)
-
-    integer :: ii, jj, iAt1, iAt2
-    real(dp) :: dist, vect(3), fTmp
-
-    deriv(:,:) = 0.0_dp
-    do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
-      do ii = 1, localShape(1)
-        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
-        if (iAt1 /= iAt2) then
-          vect(:) = coord(:,iAt1) - coord(:,iAt2)
-          dist = sqrt(sum(vect**2))
-          fTmp = -deltaQAtom(iAt1) * deltaQAtom(iAt2) / (dist**3)
-          deriv(:,iAt1) = deriv(:,iAt1) + vect * fTmp
-        end if
-      end do
-    end do
-
-  end subroutine getDInvRClusterBlacs
-
-#:endif
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
@@ -729,14 +712,17 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
-  subroutine addInvRPrime_cluster_asymm(deriv0, deriv1, nAtom0, nAtom1, coord0, coord1, charge0,&
-      & charge1, blurWidths1)
+  subroutine addInvRPrime_cluster_asymm(deriv0, deriv1, env, nAtom0, nAtom1, coord0, coord1,&
+      & charge0, charge1, blurWidths1)
 
     !> Contains the derivative for the first group
     real(dp), intent(inout) :: deriv0(:,:)
 
     !> Contains the derivative for the second group
     real(dp), intent(inout) :: deriv1(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
@@ -761,6 +747,11 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
+    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
+    real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
+#:if WITH_MPI
+    integer :: nAtLocal, myRank
+#:endif
 
     @:ASSERT(size(deriv0, dim=1) == 3)
     @:ASSERT(size(deriv0, dim=2) >= nAtom0)
@@ -778,12 +769,46 @@ contains
     end if
 #:endcall ASSERT_CODE
 
+    allocate(localDeriv0(3,nAtom0))
+    allocate(localDeriv1(3,nAtom1))
+    localDeriv0 = 0.0_dp
+    localDeriv1 = 0.0_dp
+
+    iAtFirst0 = 1
+    iAtLast0 = nAtom0
+    iAtFirst1 = 1
+    iAtLast1 = nAtom1
+
+#:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    select case (nAtom0 >= nAtom1)
+    case(.true.)
+
+      ! More points to evaluate the field than number of sources
+      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
+      iAtFirst0 = myRank * nAtLocal + 1
+      ! ensure last processor in group only does up to nAtom0
+      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
+
+    case(.false.)
+      ! More sources than points to evaluate the field at
+      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
+      iAtFirst1 = myRank * nAtLocal + 1
+      ! ensure last processor in group only goes up to nAtom1
+      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
+
+    end select
+
+#:endif
+
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp,sigma,rs) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv0,localDeriv1)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
           fTmp = -vect(:) / (dist**3)
@@ -793,35 +818,46 @@ contains
             fTmp = fTmp * (erfwrap(rs) - 2.0_dp/(sqrt(pi)*sigma) * dist * exp(-(rs**2)))
           end if
           fTmp = charge0(iAt0) * charge1(iAt1) * fTmp
-          deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
-          deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
       !$OMP END PARALLEL DO
     else
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv0,localDeriv1)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
           fTmp = -charge0(iAt0) * charge1(iAt1) / (dist**3) * vect(:)
-          deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
-          deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
       !$OMP  END PARALLEL DO
     end if
 
+#:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%groupComm, localDeriv0, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%groupComm, localDeriv1, MPI_SUM)
+#:endif
+
+    deriv0 = deriv0 + localDeriv0
+    deriv1 = deriv1 + localDeriv1
+
   end subroutine addInvRPrime_cluster_asymm
 
 
   !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
-  subroutine addInvRPrime_periodic(deriv, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell,&
-      & recPoint, alpha, volume,deltaQAtom)
+  subroutine addInvRPrime_periodic(deriv, env, nAtom, coord, nNeighborEwald, iNeighbor,&
+      & img2CentCell, recPoint, alpha, volume,deltaQAtom)
 
     !> Derivative on exit
     real(dp), intent(inout) :: deriv(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms
     integer, intent(in) :: nAtom
@@ -853,6 +889,11 @@ contains
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
     real(dp) :: r(3)
+    real(dp), allocatable :: localDeriv(:,:)
+    integer :: iAtFirst, iAtLast
+#:if WITH_MPI
+    integer :: nAtLocal, myRank
+#:endif
 
     @:ASSERT(size(deriv, dim=1) == 3)
     @:ASSERT(size(deriv, dim=2) >= nAtom)
@@ -863,18 +904,36 @@ contains
     @:ASSERT(volume > 0.0_dp)
     @:ASSERT(size(deltaQAtom) == nAtom)
 
+    allocate(localDeriv(3,nAtom))
+    localDeriv = 0.0_dp
+
+    iAtFirst = 1
+    iAtLast = nAtom
+
+#:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
+    @:ASSERT(nAtLocal >= 1)
+    iAtFirst = myRank * nAtLocal + 1
+    ! ensure last processor in group only does up to nAtom0
+    iAtLast = min((myRank+1) * nAtLocal, nAtom)
+
+#:endif
+
     ! d(1/R)/dr real space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
+    do iAtom1 = iAtFirst, iAtLast
       do iNeigh = 1, nNeighborEwald(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         if (iAtom2f /= iAtom1) then
           r(:) = coord(:,iAtom1)-coord(:,iAtom2)
-          deriv(:,iAtom1) = deriv(:,iAtom1)&
+          localDeriv(:,iAtom1) = localDeriv(:,iAtom1)&
               & + derivRTerm(r,alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
-          deriv(:,iAtom2f) = deriv(:,iAtom2f)&
+          localDeriv(:,iAtom2f) = localDeriv(:,iAtom2f)&
               & - derivRTerm(r,alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
         end if
       end do
@@ -883,101 +942,26 @@ contains
 
     ! d(1/R)/dr reciprocal space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2,r) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
+    do iAtom1 = iAtFirst, iAtLast
       do iAtom2 = iAtom1+1, nAtom
         r(:) = coord(:,iAtom1)-coord(:,iAtom2)
-        deriv(:,iAtom1) = deriv(:,iAtom1)&
+        localDeriv(:,iAtom1) = localDeriv(:,iAtom1)&
             & + derivEwaldReciprocal(r,recPoint,alpha,volume)*deltaQAtom(iAtom1)*deltaQAtom(iAtom2)
-        deriv(:,iAtom2) = deriv(:,iAtom2)&
+        localDeriv(:,iAtom2) = localDeriv(:,iAtom2)&
             & - derivEwaldReciprocal(r,recPoint,alpha,volume)*deltaQAtom(iAtom1)*deltaQAtom(iAtom2)
       end do
     end do
     !$OMP  END PARALLEL DO
 
+#:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%groupComm, localDeriv, MPI_SUM)
+#:endif
+
+    deriv = deriv + localDeriv
+
   end subroutine addInvRPrime_periodic
 
-
-#:if WITH_SCALAPACK
-
-  subroutine getDInvRPeriodicBlacs(grid, descAtomSqr, localShape, coord, nNeighborEwald,&
-      & iNeighbor, img2CentCell, recPoint, alpha, volume, deltaQAtom, deriv)
-
-    !> BLACS grid of the distributed derivative vector
-    type(blacsgrid), intent(in) :: grid
-
-    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
-    integer, intent(in) :: descAtomSqr(DLEN_)
-
-    !> Local shape of the distributed nAtom x nAtom matrix
-    integer, intent(in) :: localShape(:)
-
-    !> List of atomic coordinates (all atoms).
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Nr. of neighbors for each atom for real part ofEwald.
-    integer, intent(in) :: nNeighborEwald(:)
-
-    !> list of neighbours for each atom
-    integer, intent(in) :: iNeighbor(0:,:)
-
-    !> mapping from image atoms to central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Contains the points included in the reciprocal sum. The set should not include the origin or
-    !> inversion related points.
-    real(dp), intent(in) :: recPoint(:,:)
-
-    !> Parameter for Ewald summation.
-    real(dp), intent(in) :: alpha
-
-    !> Volume of the real space unit cell.
-    real(dp), intent(in) :: volume
-
-    !> List of charges on each atom
-    real(dp), intent(in) :: deltaQAtom(:)
-
-    !> Derivative on exit
-    real(dp), intent(out) :: deriv(:,:)
-
-    integer :: ii, jj, iAt1, iAt2, iAt2f, iNeigh, iLoc, jLoc
-    real(dp) :: rr(3), contrib(3)
-    logical :: tLocal
-
-    deriv(:,:) = 0.0_dp
-
-    do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
-      do iNeigh = 1, nNeighborEwald(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        call scalafx_islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
-        if (tLocal .and. iAt2f /= iAt1) then
-          rr(:) = coord(:,iAt1) - coord(:,iAt2)
-          contrib = derivRTerm(rr, alpha) * deltaQAtom(iAt1) * deltaQAtom(iAt2f)
-          deriv(:,iAt1) = deriv(:,iAt1) + contrib
-          ! Neighbor list only contains lower triange: add also to screw symmetric equivalent
-          deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
-        end if
-      end do
-    end do
-
-    do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_), grid%ncol)
-      do ii = 1, localShape(1)
-        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_), grid%nrow)
-        if (iAt2 /= iAt1) then
-          rr(:) = coord(:,iAt1) - coord(:,iAt2)
-          deriv(:,iAt1) = deriv(:,iAt1)&
-              & + derivEwaldReciprocal(rr, recPoint, alpha, volume) * deltaQAtom(iAt1)&
-              & * deltaQAtom(iAt2)
-        end if
-      end do
-    end do
-
-  end subroutine getDInvRPeriodicBlacs
-
-#:endif
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
@@ -1162,14 +1146,17 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
-  subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, nAtom0, nAtom1, coord0, coord1, charge0,&
-      & charge1, rVec, gVec, alpha, vol, blurWidths1)
+  subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, env, nAtom0, nAtom1, coord0, coord1,&
+      & charge0, charge1, rVec, gVec, alpha, vol, blurWidths1)
 
     !> Contains the derivative for the first group on exit
     real(dp), intent(inout) :: deriv0(:,:)
 
     !> Contains the derivative for the second group on exit
     real(dp), intent(inout) :: deriv1(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms in the first group
     integer, intent(in) :: nAtom0
@@ -1206,6 +1193,11 @@ contains
 
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp(3)
+    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
+    real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
+#:if WITH_MPI
+    integer :: nAtLocal, myRank
+#:endif
 
     @:ASSERT(size(deriv0, dim=1) == 3)
     @:ASSERT(size(deriv0, dim=2) == nAtom0)
@@ -1226,31 +1218,65 @@ contains
     end if
 #:endcall ASSERT_CODE
 
+    allocate(localDeriv0(3,nAtom0))
+    allocate(localDeriv1(3,nAtom1))
+    localDeriv0 = 0.0_dp
+    localDeriv1 = 0.0_dp
+
+    iAtFirst0 = 1
+    iAtLast0 = nAtom0
+    iAtFirst1 = 1
+    iAtLast1 = nAtom1
+
+#:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    select case (nAtom0 >= nAtom1)
+    case(.true.)
+
+      ! More points to evaluate the field than number of sources
+      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
+      iAtFirst0 = myRank * nAtLocal + 1
+      ! ensure last processor in group only does up to nAtom0
+      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
+
+    case(.false.)
+      ! More sources than points to evaluate the field at
+      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
+      iAtFirst1 = myRank * nAtLocal + 1
+      ! ensure last processor in group only goes up to nAtom1
+      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
+
+    end select
+
+#:endif
+
     ! real space part
     if (present(blurwidths1)) then
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv0,localDeriv1)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
           fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidths1(iAt1))&
               & * charge0(iAt0) * charge1(iAt1)
-          deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
-          deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
       !$OMP  END PARALLEL DO
     else
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
-      do iAt0 = 1, nAtom0
-        do iAt1 = 1, nAtom1
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv0,localDeriv1)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
           fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
-          deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
-          deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
       !$OMP  END PARALLEL DO
@@ -1258,18 +1284,25 @@ contains
 
     ! reciprocal space part
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
-    do iAt0 = 1, nAtom0
-      do iAt1 = 1, nAtom1
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv0,localDeriv1)
+    do iAt0 = iAtFirst0, iAtLast0
+      do iAt1 = iAtFirst1, iAtLast1
         vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
         dist = sqrt(sum(vect(:)**2))
         fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
-        deriv0(:,iAt0) = deriv0(:,iAt0) + fTmp(:)
-        deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
+        localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+        localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
       end do
     end do
     !$OMP  END PARALLEL DO
 
+#:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%groupComm, localDeriv0, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%groupComm, localDeriv1, MPI_SUM)
+#:endif
+
+    deriv0 = deriv0 + localDeriv0
+    deriv1 = deriv1 + localDeriv1
 
   end subroutine addInvRPrime_periodic_asymm
 
