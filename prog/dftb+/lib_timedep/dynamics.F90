@@ -34,6 +34,7 @@ use repulsive
 use eigenvects
 use sk
 use dispiface
+use environment
 
 implicit none
 
@@ -76,6 +77,7 @@ type ElecDynamics
    class(DispersionIface), allocatable :: dispersion
    type(NonSccDiff), allocatable :: derivator
    type(TScc), allocatable :: sccCalc
+   type(TEnvironment) :: env
 end type ElecDynamics
 
 private
@@ -103,7 +105,7 @@ contains
 !! This initializes the input variables
   subroutine initElecDynamics(this, inp, randomThermostat, & 
        &mass, nAtom, species, skRepCutoff, mCutoff, &
-       &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, sccCalc)
+       &iCellVec, atomEigVal, speciesName, dispersion, nonSccDeriv, env)
     type(ElecDynamics), intent(out) :: this
     type(ElecDynamicsInp), intent(in) :: inp 
     real(dp), intent(in), allocatable :: atomEigVal(:,:)
@@ -115,7 +117,7 @@ contains
     real(dp), intent(in) :: mCutoff, skRepCutoff, mass(:) 
     class(DispersionIface), allocatable, intent(inout) :: dispersion
     type(NonSccDiff), intent(in) :: nonSccDeriv
-    type(TScc), intent(in) :: sccCalc
+    type(TEnvironment), intent(in) :: env
    
     type(ODummyThermostat), allocatable :: pDummyTherm
     type(OMDCommon), allocatable :: pMDFrame
@@ -146,6 +148,7 @@ contains
     allocate(this%species, source=species)
     allocate(this%speciesName, source=speciesName)
     allocate(this%sccCalc)
+    this%env = env
 
     if (inp%tdEnvType /= iTDConstant) then
        this%Time0 = inp%tdTime0
@@ -453,7 +456,7 @@ contains
           timeElec = timeElec + dTime
 
           if ((sf%Populations) .and. (mod(iStep, sf%SaveEvery) == 0)) then
-             call getTDPopulations(sf, Rho, Eiginv, EiginvAdj, T1, Hsq, &
+             call getTDPopulations(sf, Rho, Eiginv, EiginvAdj, T1, H1, Ssqr, &
                   & populDat, time, iSpin, ham, over, neighborList%iNeighbor, &
                   & nNeighbor, iSquare, iPair, img2CentCell)
           end if
@@ -598,7 +601,7 @@ contains
     allocate(ham0(sparseSize))
     sf%nSparse = sparseSize
 
-    call sf%sccCalc%updateCoords(coord, sf%species, neighborList, img2CentCell)
+    call sf%sccCalc%updateCoords(sf%env, coord, sf%species, neighborList, img2CentCell)
 !   call updateCoords_SCC(coord, sf%species, neighborList, img2CentCell)
 
    if (sf%tDispersion) then
@@ -682,9 +685,10 @@ contains
     call derivative_shift(derivs,sf%derivator,rhoPrim,ErhoPrim(:),skHamCont, &
          &skOverCont, coord, sf%species, neighborList%iNeighbor, nNeighbor, &
          &img2CentCell, iPair, orb, potential%intBlock)
-    call sf%sccCalc%updateCharges(qInput, q0, orb, sf%species, neighborList%iNeighbor, &
+    call sf%sccCalc%updateCharges(sf%env, qInput, q0, orb, sf%species, neighborList%iNeighbor, &
          &img2CentCell)
-    call sf%sccCalc%addForceDc(derivs, sf%species, neighborList%iNeighbor, img2CentCell, coord)
+    call sf%sccCalc%addForceDc(sf%env, derivs, sf%species, neighborList%iNeighbor, &
+         & img2CentCell, coord)
     call getERepDeriv(repulsiveDerivs, coord, nNeighbor, &
          &neighborList%iNeighbor,sf%species,pRepCont, img2CentCell)
 
@@ -829,7 +833,7 @@ contains
     potential%extShell = 0.0_dp
     potential%extBlock = 0.0_dp
 
-    call sf%sccCalc%updateCharges(qInput, q0, orb, sf%species, iNeighbor, img2CentCell)
+    call sf%sccCalc%updateCharges(sf%env, qInput, q0, orb, sf%species, iNeighbor, img2CentCell)
     !    call updateCharges_SCC(qInput, q0, orb, sf%species, iNeighbor, img2CentCell)
     call sf%sccCalc%getShiftPerAtom(atomPot(:,1))
     call sf%sccCalc%getShiftPerL(shellPot(:,:,1))
@@ -1165,7 +1169,7 @@ contains
 
     do iSpin=1,sf%nSpin
        T2 = 0.0_dp
-       call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
+       call makeDensityMatrix(T2, Hsq(:,:,iSpin), filling(:,1,iSpin))
        Rho(:,:,iSpin) = cmplx(T2, 0, cp) ! Density matrix
        do kk = 1, sf%nOrbs-1
           do ll = kk+1, sf%nOrbs
@@ -1458,7 +1462,7 @@ contains
 
 
   !! Calculate populations at each time step
-  subroutine getTDPopulations(sf, Rho, Eiginv, EiginvAdj, T1, Hsq, &
+  subroutine getTDPopulations(sf, Rho, Eiginv, EiginvAdj, T1, H1, Ssqr, &
        & populDat, time, iSpin, ham, over, iNeighbor, &
        & nNeighbor, iSquare, iPair, img2CentCell)
     type(ElecDynamics), intent(in) :: sf
@@ -1472,17 +1476,17 @@ contains
     integer, intent(in) :: iNeighbor(0:,:),nNeighbor(:)
     integer, intent(in) :: iSquare(:), iPair(0:,:), img2CentCell(:)
     real(dp), allocatable, intent(in) :: over(:), ham(:,:)
-    real(dp), intent(inout) :: Hsq(:,:,:)
+    complex(cp), intent(inout) :: H1(:,:,:), Ssqr(:,:)
     real(dp) :: eigen(sf%nOrbs)
 
     T3 = 0.0_dp
 
     if (sf%Ions) then
-       call diagonalize(HSq(:,:,iSpin), T3, eigen, &
-            &ham(:,iSpin), over, iNeighbor, nNeighbor, &
-            &iSquare, iPair, img2CentCell, 2, 'V') ! solver=2 (devide and conquer) 
-       
-       call TDPopulInit(sf, Eiginv, EiginvAdj, HSq, iSpin)
+!       call diagonalize(HSq(:,:,iSpin), T3, eigen, &
+!            &ham(:,iSpin), over, iNeighbor, nNeighbor, &
+!            &iSquare, iPair, img2CentCell, 2, 'V') ! solver=2 (devide and conquer) 
+       call diagDenseMtx(2, 'V', H1(:,:,iSpin), SSqr, eigen)
+       call TDPopulInit(sf, Eiginv, EiginvAdj, real(H1), iSpin)
     end if
 
     call gemm(T1, Eiginv(:,:,iSpin), Rho(:,:,iSpin), cmplx(1, 0, cp), & 
