@@ -66,6 +66,11 @@ mpienv.o = mpienv.o $(_mod_mpifx) $(_mod_message) $(_mod_accuracy)
 _mod_mpienv: mpienv.o
 _mod_mpienv = $(mpienv.o)
 
+mpiutils.o: _mod_mpifx
+mpiutils.o = mpiutils.o $(_mod_mpifx)
+_mod_mpiutils: mpiutils.o
+_mod_mpiutils = $(mpiutils.o)
+
 optarg.o: _mod_accuracy
 optarg.o = optarg.o $(_mod_accuracy)
 _mod_optarg: optarg.o

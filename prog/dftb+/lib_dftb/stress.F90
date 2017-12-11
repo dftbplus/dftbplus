@@ -18,6 +18,7 @@ module stress
   use repcont
 #:if WITH_MPI
   use mpifx
+  use mpiutils
 #:endif
   use environment
   implicit none
@@ -181,9 +182,6 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: vect(3), intermed(3)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(all(shape(st) == [3, 3]))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
@@ -191,20 +189,12 @@ contains
     nAtom = size(orb%nOrbAtom)
     st(:,:) = 0.0_dp
 
-#:if WITH_MPI
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:else
-
+  #:if WITH_MPI
+    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
+  #:else
     iAtFirst = 1
     iAtLast = nAtom
-
-#:endif
+  #:endif
 
     do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -244,9 +234,9 @@ contains
       end do
     end do
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, st, MPI_SUM)
-#:endif
+  #:endif
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
@@ -313,9 +303,6 @@ contains
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), intermed(3)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -330,20 +317,12 @@ contains
 
     st(:,:) = 0.0_dp
 
-#:if WITH_MPI
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:else
-
+  #:if WITH_MPI
+    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
+  #:else
     iAtFirst = 1
     iAtLast = nAtom
-
-#:endif
+  #:endif
 
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
@@ -397,9 +376,9 @@ contains
       end do
     end do
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, st, MPI_SUM)
-#:endif
+  #:endif
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
@@ -472,9 +451,6 @@ contains
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), intermed(3)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -489,20 +465,12 @@ contains
 
     st = 0.0_dp
 
-#:if WITH_MPI
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:else
-
+  #:if WITH_MPI
+    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
+  #:else
     iAtFirst = 1
     iAtLast = nAtom
-
-#:endif
+  #:endif
 
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
@@ -565,9 +533,9 @@ contains
       end do
     end do
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, st, MPI_SUM)
-#:endif
+  #:endif
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 

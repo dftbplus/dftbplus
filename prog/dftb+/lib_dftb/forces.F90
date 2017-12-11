@@ -17,6 +17,7 @@ module forces
   use slakocont
 #:if WITH_MPI
   use mpifx
+  use mpiutils
 #:endif
   use environment
   implicit none
@@ -96,29 +97,18 @@ contains
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
-#:if WITH_MPI
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:else
-
+  #:if WITH_MPI
+    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
+  #:else
     iAtFirst = 1
     iAtLast = nAtom
-
-#:endif
+  #:endif
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
     !$OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
@@ -161,9 +151,9 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, deriv, MPI_SUM)
-#:endif
+  #:endif
 
   end subroutine derivative_nonSCC
 
@@ -227,9 +217,6 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -244,20 +231,12 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-#:if WITH_MPI
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:else
-
+  #:if WITH_MPI
+    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
+  #:else
     iAtFirst = 1
     iAtLast = nAtom
-
-#:endif
+  #:endif
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
@@ -313,9 +292,9 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, deriv, MPI_SUM)
-#:endif
+  #:endif
 
   end subroutine derivative_block
 
@@ -387,9 +366,6 @@ contains
     real(dp) :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -406,20 +382,12 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-#:if WITH_MPI
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:else
-
+  #:if WITH_MPI
+    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
+  #:else
     iAtFirst = 1
     iAtLast = nAtom
-
-#:endif
+  #:endif
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
@@ -488,9 +456,9 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, deriv, MPI_SUM)
-#:endif
+  #:endif
 
   end subroutine derivative_iBlock
 
