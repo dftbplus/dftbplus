@@ -11,7 +11,7 @@ NR_STEPS = 1
 
 def connect():
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind(('localhost', 21012))
+    serversocket.bind(('localhost', 21013))
     serversocket.listen(1)
     connection, address = serversocket.accept()
     return connection

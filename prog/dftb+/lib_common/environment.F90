@@ -9,6 +9,7 @@
 
 !> Contains computer environment settings
 module environment
+  use timerarray
 #:if WITH_MPI
   use mpienv
 #:endif
@@ -18,19 +19,24 @@ module environment
   implicit none
   private
 
-  public :: TEnvironment
-  public :: withMpi, withScalapack
+  public :: TEnvironment, TEnvironment_init
+  public :: globalTimers
 
 
   !> Contains environment settings.
   type :: TEnvironment
-    private
 
     !> Whether this process is the master?
-    logical, public :: tMaster = .true.
+    logical, public :: tGlobalMaster = .true.
 
-    !> Whether this process is supposed to do I/O
-    logical, public :: tIoProc = .true.
+    !> Nr. of groups in the system
+    integer, public :: nGroup = 1
+
+    !> Id of current group (starts with 0)
+    integer, public :: myGroup = 0
+
+    !> Global timers
+    type(TTimerArray) :: globalTimer
 
   #:if WITH_MPI
     !> Global mpi settings
@@ -51,27 +57,61 @@ module environment
 
   end type TEnvironment
 
+  type(TTimerItem), parameter :: globalTimerItems(9) = [&
+      & TTimerItem("Global initialisation", 1),&
+      & TTimerItem("Pre-SCC initialisation", 1),&
+      & TTimerItem("SCC", 1),&
+      & TTimerItem("Diagonalisation", 2),&
+      & TTimerItem("Density matrix creation", 2),&
+      & TTimerItem("Post-SCC processing", 1),&
+      & TTimerItem("Eigenvector writing", 2),&
+      & TTimerItem("Force calculation", 2),&
+      & TTimerItem("Post-geometry optimisation", 1)]
 
-  !> Whether code was compiled with MPI support
-  logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
+  type :: TGlobalTimersHelper
+    integer :: globalInit = 1
+    integer :: preSccInit = 2
+    integer :: scc = 3
+    integer :: diagonalization = 4
+    integer :: densityMatrix = 5
+    integer :: postScc = 6
+    integer :: eigvecWriting = 7
+    integer :: forceCalc = 8
+    integer :: postGeoOpt = 9
+  end type TGlobalTimersHelper
 
-  !> Whether code was compiled with Scalapack
-  logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
+  type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
 
 
 contains
+
+  !> Returns an initialized instance.
+  subroutine TEnvironment_init(this)
+
+    !> Instance
+    type(TEnvironment), intent(out) :: this
+
+    call TTimerArray_init(this%globalTimer, globalTimerItems)
+
+  end subroutine TEnvironment_init
 
 
 #:if WITH_MPI
 
   !> Initializes MPI environment.
-  subroutine initMpi(this)
+  subroutine initMpi(this, nGroup)
+
+    !> Instance
     class(TEnvironment), intent(inout) :: this
 
+    !> Number of process groups to create
+    integer, intent(in) :: nGroup
+
     ! MPI settings
-    call TMpiEnv_init(this%mpi)
-    this%tMaster = this%mpi%all%master
-    this%tIoProc = this%tMaster
+    call TMpiEnv_init(this%mpi, nGroup)
+    this%tGlobalMaster = this%mpi%tGlobalMaster
+    this%nGroup = this%mpi%nGroup
+    this%myGroup = this%mpi%myGroup
 
   end subroutine initMpi
 
@@ -81,7 +121,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine initBlacs(this, rowBlock, colBlock, nGroup, nOrb, nAtom)
+  subroutine initBlacs(this, rowBlock, colBlock, nOrb, nAtom)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -92,16 +132,13 @@ contains
     !> Column block size
     integer, intent(in) :: colBlock
 
-    !> Nr. of processor groups.
-    integer, intent(in) :: nGroup
-
     !> Nr. of orbitals
     integer, intent(in) :: nOrb
 
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
-    call TBlacsEnv_init(this%blacs, rowBlock, colBlock, nGroup, nOrb, nAtom)
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
 
   end subroutine initBlacs
 

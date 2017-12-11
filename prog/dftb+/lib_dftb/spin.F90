@@ -67,12 +67,12 @@ contains
 
     integer :: nAtom, iAtom, iSpecies, iShell, iShell2, nSpin, iSpin
 
-    nAtom = size(chargePerShell,dim=2)
+    nAtom = size(chargePerShell, dim=2)
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(shift,dim=2)==nAtom)
     @:ASSERT(all(shape(chargePerShell)==shape(shift)))
     ! counts from 0 for unpolarized
-    nSpin = size(chargePerShell,dim=3) - 1
+    nSpin = size(chargePerShell, dim=3) - 1
     @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
     shift(:,:,:) = 0.0_dp

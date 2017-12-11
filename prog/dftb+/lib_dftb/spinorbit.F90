@@ -63,12 +63,10 @@ contains
     nSpecies = maxval(species(1:nAtom))
     nOrb = orb%nOrb
 
-    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(size(denseDesc%iAtomStart) == nAtom + 1)
     @:ASSERT(size(xi, dim=2) == nSpecies)
     @:ASSERT(size(xi, dim=1) == orb%mShell)
-    @:ASSERT(mod(nOrb,2) == 0)
-    @:ASSERT(iAtomStart(nAtom + 1) == nOrb + 1)
+    @:ASSERT(denseDesc%iAtomStart(nAtom + 1) == nOrb + 1)
 
     allocate(speciesZ(orb%mOrb, orb%mOrb, nSpecies))
     allocate(speciesPlus(orb%mOrb, orb%mOrb, nSpecies))
@@ -82,12 +80,12 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = denseDesc%iDenseStart(iAt)
-      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
 
       ! uu block
     #:if WITH_SCALAPACK
-      call scalafx_cpg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
+      call scalafx_cpg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
           & tmpBlock(1:nOrbSp, 1:nOrbSp))
     #:else
       tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd)
@@ -101,7 +99,7 @@ contains
 
       ! dd block
     #:if WITH_SCALAPACK
-      call scalafx_cpg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
+      call scalafx_cpg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
           & nOrb + iOrbStart, rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
     #:else
       tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(nOrb + iOrbStart : nOrb + iOrbEnd,&
@@ -117,7 +115,7 @@ contains
       ! ud block
       ! two ud/du blocks so omit 0.5 factor
     #:if WITH_SCALAPACK
-      call scalafx_cpg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart,&
+      call scalafx_cpg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart,&
           & rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
     #:else
       tmpBlock(1:nOrbSp, 1:nOrbSp) = &
@@ -169,14 +167,14 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = denseDesc%iDenseStart(iAt)
-      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
     #:if WITH_SCALAPACK
-      call scalafx_addl2g(env%blacs%gridOrbSqr, speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
+      call scalafx_addl2g(env%blacs%orbitalGrid, speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, HSqrCplx)
-      call scalafx_addl2g(env%blacs%gridOrbSqr, -speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
+      call scalafx_addl2g(env%blacs%orbitalGrid, -speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, nOrb + iOrbStart, nOrb + iOrbStart, HSqrCplx)
-      call scalafx_addl2g(env%blacs%gridOrbSqr, speciesPlus(1:nOrbSp, 1:nOrbSp, iSp),&
+      call scalafx_addl2g(env%blacs%orbitalGrid, speciesPlus(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart, HSqrCplx)
     #:else
       HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) = &

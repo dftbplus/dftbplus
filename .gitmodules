@@ -1,11 +1,11 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
-	url = git@github.com:aradi/mpifx.git
-	branch = dpint
+	url = https://github.com/dftbplus/mpifx.git
+	branch = master
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
 	url = git@github.com:aradi/scalapackfx.git
-      branch = dpint
+      branch = master 
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
 	url = git@bitbucket.org:gpenazzi/dev_libnegf.git

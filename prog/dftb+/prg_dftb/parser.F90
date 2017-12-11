@@ -10,8 +10,6 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module parser
   use globalenv
-  use environment
-  use mpifx
   use assert
   use accuracy
   use constants
@@ -39,7 +37,9 @@ module parser
   use commontypes
   use oldskdata
   use xmlf90
+#:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
+#:endif
   use wrappedintrinsics
   use poisson_vars
   use libnegf_vars
@@ -98,10 +98,7 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHsdInput(env, input)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
+  subroutine parseHsdInput(input)
 
     !> Returns initialised input variables on exit
     type(inputData), intent(out) :: input
@@ -187,12 +184,12 @@ contains
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
-    if (env%tIoProc .and. parserFlags%tWriteHSD) then
+    if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
-    if (env%tIoProc .and. parserFlags%tWriteXML) then
+    if (tIoProc .and. parserFlags%tWriteXML) then
       call dumpHSDAsXML(hsdTree, xmlProcInputName)
       write(stdout, '(A,/)') "Processed input in XML format written to '" &
           &// xmlProcInputName // "'"
@@ -200,10 +197,6 @@ contains
 
     ! Stop, if only parsing is required
     if (parserFlags%tStop) then
-    #:if WITH_MPI
-      ! No process should abort while IO process dumps processed input above
-      call mpifx_barrier(env%mpi%all)
-    #:endif
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
 
@@ -728,7 +721,7 @@ contains
 
     case ("socket")
       ! external socket control of the run (once initialised from input)
-
+#:if WITH_SOCKETS
       ctrl%tForces = .true.
       allocate(ctrl%socketInput)
       call getChild(node, 'File', child=child2, requested=.false.)
@@ -764,11 +757,16 @@ contains
           sTmp = unquote(char(buffer2))
           ctrl%socketInput%host = trim(sTmp) // trim(ctrl%socketInput%host)
         end if
+
       case default
         call detailedError(child, "Invalid protocol '" // char(buffer) // "'")
       end select
       call getChildValue(node, "Verbosity", ctrl%socketInput%verbosity, 0)
       call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
+
+#:else
+      call detailedError(node, "Program had been compiled without socket support")
+#:endif
 
     case default
       call getNodeHSDName(node, buffer)
@@ -2048,7 +2046,7 @@ contains
       real(dp), allocatable :: rTmp(:)
       integer :: ii, jj, iAt
 
-      @:ASSERT(nSpin == 2 .or. nSpin == 4)
+      @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
       call getChildValue(node, "InitialSpins", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)
@@ -2615,8 +2613,17 @@ contains
     end if
     call getChildValue(node, "WriteHS", ctrl%tWriteHS, .false.)
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)
-    call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false.)
+    call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
+    if (ctrl%tMinMemory) then
+      call detailedWarning(child, "Memory minimisation is not working currently, normal calculation&
+          & will be used instead")
+    end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
+  #:if DEBUG > 0
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 2)
+  #:else
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
+  #:endif
 
   end subroutine readOptions
 
@@ -3005,9 +3012,12 @@ contains
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child, child2
+    type(fnode), pointer :: child
+  #:if WITH_ARPACK
+    type(fnode), pointer :: child2
     type(string) :: buffer
     type(string) :: modifier
+  #:endif
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
@@ -4614,6 +4624,7 @@ contains
             & support)")
       end if
       allocate(parallelOpts)
+      call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
       call readBlacs(node, parallelOpts%blacsOpts)
     end if
 
@@ -4640,9 +4651,7 @@ contains
         call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
             & support)")
       end if
-      call getChildValue(node, "RowBlockSize", blacsOpts%rowBlockSize, 32)
-      call getChildValue(node, "ColumnBlockSize", blacsOpts%colBlockSize, 32)
-      call getChildValue(node, "Groups", blacsOpts%nGroups, 1)
+      call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
     end if
 
   end subroutine readBlacs

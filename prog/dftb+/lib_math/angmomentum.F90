@@ -15,7 +15,7 @@ module angmomentum
   use assert
   use accuracy, only : dp
   use constants, only : imag
-  use qm, only : unitary
+  use qm
   use commontypes, only : TOrbitals
   use environment
   use densedescr
@@ -46,8 +46,7 @@ contains
 
     complex(dp), allocatable :: uu(:,:)
 
-    @:ASSERT(False)
-    @:ASSERT(l >= 0)
+    @:ASSERT(ll >= 0)
     @:ASSERT(all(shape(Lplus) == shape(Lz)))
     @:ASSERT(size(Lplus, dim=1) == 2 * ll + 1)
     @:ASSERT(size(Lplus, dim=2) == 2 * ll + 1)
@@ -76,8 +75,8 @@ contains
     end do
     uu(ll, ll) = 1.0_dp
 
-    call unitary(Lz, uu)
-    call unitary(Lplus, uu)
+    call makeSimiliarityTrans(Lz, uu)
+    call makeSimiliarityTrans(Lplus, uu)
 
   end subroutine getLOperators
 
@@ -146,8 +145,7 @@ contains
     nSpecies = maxval(species(1:nAtom))
     nOrb = size(rho, dim=1)
 
-    @:ASSERT(size(rho, dim=1) == size(rho, dim=2))
-    @:ASSERT(size(iAtomStart) == nAtom+1)
+    @:ASSERT(size(denseDesc%iAtomStart) == nAtom + 1)
     @:ASSERT(mod(nOrb,2) == 0)
     nOrb = nOrb / 2
 
@@ -165,15 +163,15 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
-      iOrbStart = denseDesc%iDenseStart(iAt)
-      iOrbEnd = denseDesc%iDenseStart(iAt + 1) - 1
+      iOrbStart = denseDesc%iAtomStart(iAt)
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
 
       ! I block
       tmpBlock(:,:) = 0.0_dp
     #:if WITH_SCALAPACK
-      call scalafx_addg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
+      call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, rho,&
           & tmpBlock(1:nOrbSp, 1:nOrbSp))
-      call scalafx_addg2l(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
+      call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nOrb + iOrbStart,&
           & nOrb + iOrbStart, rho, tmpBlock(1:nOrbSp, 1:nOrbSp))
     #:else
       tmpBlock(1:nOrbSp, 1:nOrbSp) = rho(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) &

@@ -38,8 +38,9 @@ class GridTests(unittest.TestCase):
             ranges=[[0, 7], [-5, 10], [3, 13]]
         )
         gridcoords = grid.cartesian_to_gridcoord([1.9, -0.5, 1.5])
-        true_gridcoords = np.array([-1, 2, 9])
-        self.assertTrue(np.all(gridcoords == true_gridcoords))
+        true_gridcoords = np.array([-1.0, 2.0, 9.0])
+        diff = np.max(np.abs(gridcoords - true_gridcoords))
+        self.assertLess(diff, FLOAT_TOLERANCE)
 
 
     def test_get_corners_gridcoord(self):

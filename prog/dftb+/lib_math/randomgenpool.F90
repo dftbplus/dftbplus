@@ -17,6 +17,7 @@ module randomgenpool
   use environment
   use accuracy, only : dp
   use ranlux
+  use assert
   implicit none
   private
 
@@ -84,9 +85,7 @@ contains
     !> real temporary
     real(dp) :: rTmp
 
-    @:ASSERT(env%includesAllProcesses())
-
-    if (env%tMaster) then
+    if (env%tGlobalMaster) then
       if (seed < 1) then
         call system_clock(seed)
       end if
@@ -107,7 +106,7 @@ contains
     end if
 
   #:if WITH_MPI
-    call mpifx_bcast(env%mpi%all, seed)
+    call mpifx_bcast(env%mpi%globalComm, seed)
   #:endif
 
     allocate(this%generator)
@@ -138,7 +137,6 @@ contains
     real(dp) :: rTmp
 
     @:ASSERT(this%served >= 0)
-    @:ASSERT(env%includesAllProcesses())
 
     ! First random generator returned needs special treatment to yield the same random numbers
     ! as the previous global random generator.
@@ -146,16 +144,16 @@ contains
       call getRandom(this%generator, randompool)
       seed = int(real(huge(seed) - 1, dp) * randompool(1)) + 1
     #:if WITH_MPI
-      call mpifx_bcast(env%mpi%all, seed)
+      call mpifx_bcast(env%mpi%globalComm, seed)
     #:endif
       call move_alloc(this%generator, randomGenerator)
       allocate(this%generator)
-      call init(this%generator, seed)
+      call init(this%generator, initSeed=seed)
     else
       call getRandom(this%generator, rTmp)
       seed = int(real(huge(seed) - 1, dp) * rTmp) + 1
     #:if WITH_MPI
-      call mpifx_bcast(env%mpi%all, seed)
+      call mpifx_bcast(env%mpi%globalComm, seed)
     #:endif
       allocate(randomGenerator)
       call init(randomGenerator, initSeed=seed)

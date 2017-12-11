@@ -20,7 +20,9 @@ module inputdata_module
   use repcont
   use linkedlist
   use xlbomd_module
+#:if WITH_SOCKETS
   use ipisocket, only : IpiSocketCommInp
+#:endif
   use pmlocalisation, only : TPipekMezeyInp
   use libnegf_vars
   use poisson_vars
@@ -37,20 +39,17 @@ module inputdata_module
   !> Contains Blacs specific options.
   type :: TBlacsOpts
 
-    !> Block size for matrix rows.
-    integer :: rowBlockSize
-
-    !> Block size for matrix columns.
-    integer :: colBlockSize
-
-    !> Number of processor groups
-    integer :: nGroups
+    !> Block size for matrix rows and columns.
+    integer :: blockSize
 
   end type TBlacsOpts
 
 
   !> Contains the parallel options
   type :: TParallelOpts
+
+    !> Number of processor groups
+    integer :: nGroup
 
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts
@@ -384,10 +383,16 @@ module inputdata_module
 
     type(linrespini) :: lrespini
 
+  #:if WITH_SOCKETS
     !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
+  #:endif
 
     type(TParallelOpts), allocatable :: parallelOpts
+
+    !> Maximal timing level to show in output
+    integer :: timingLevel
+
   end type control
 
 

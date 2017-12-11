@@ -18,7 +18,7 @@ module linrespgrad
   use accuracy
   use constants, only : Hartree__eV, au__Debye
   use nonscc, only : NonSccDiff
-  use scc, only : getAtomicGammaMatrix
+  use scc, only : TScc
   use blasroutines
   use eigensolver
   use message
@@ -72,12 +72,12 @@ contains
 
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !> based on Time Dependent DFRT
-  subroutine LinRespGrad_old(tSpin, natom, iAtomStart, grndEigVecs, grndEigVal, dq, coord0, nexc, &
-      & nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbor, img2CentCell, &
-      & orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY, fdTrans, &
-      & fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, tEnergyWindow, &
-      & energyWindow,tOscillatorWindow, oscillatorWindow, omega, shift, skHamCont, skOverCont, &
-      & excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+  subroutine LinRespGrad_old(tSpin, natom, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq,&
+      & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbor, &
+      & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY, &
+      & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
+      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, shift, skHamCont, &
+      & skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -93,6 +93,9 @@ contains
 
     !> ground state MO-energies
     real(dp), intent(in) :: grndEigVal(:,:)
+
+    !> Self-consistent charge module settings
+    type(TScc), intent(in) :: sccCalc
 
     !> converged ground state Mulliken net charges - atomic charges
     real(dp), intent(in) :: dq(:)
@@ -387,7 +390,7 @@ contains
     end do
 
     ! ground state Hubbard U softened coulombic interactions
-    call getAtomicGammaMatrix(gammaMat, iNeighbor, img2CentCell)
+    call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbor, img2CentCell)
 
     ! Oscillator strengths for exited states, when needed.
     ALLOCATE(osz(nexc))
@@ -607,7 +610,7 @@ contains
           & naturalOrbs)
 
       ! Make MO to AO transformation of the excited transition density matrix
-      call unitary(pc, grndEigVecs(:,:,1))
+      call makeSimiliarityTrans(pc, grndEigVecs(:,:,1))
 
       ! Muliken population for excited density matrix
       call getExcMulliken(iAtomStart, pc, SSqr, dqex)

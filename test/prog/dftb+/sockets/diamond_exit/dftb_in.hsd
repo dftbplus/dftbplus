@@ -4,7 +4,7 @@ Geometry = GenFormat {
 
 Driver = Socket {
     Host = '127.0.0.1' # local host
-    Port = 21012
+    Port = 21013
     Verbosity = 0 # max verbose
     Protocol = i-PI {} # i-PI interface
     MaxSteps = -1 # Terminate this instance according to the external driver

@@ -299,7 +299,7 @@ contains
 
     pCur => getNode(list, index)
   #:if ITEM_RANK > 0
-    @:ASSERT(all(shape(pCur%pData) == shape(data)))
+    @:ASSERT(all(shape(pCur%data) == shape(data)))
   #:endif
     data = pCur%data
 

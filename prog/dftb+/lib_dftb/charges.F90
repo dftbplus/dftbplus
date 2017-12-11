@@ -21,8 +21,7 @@ contains
 
 
   !> Calculates various net charges.
-  subroutine getNetCharges(species, orb, qOrbital, q0, iHubbU, dQ, dQAtom,&
-      & dQShell, dQUniqU)
+  subroutine getNetCharges(species, orb, qOrbital, q0, iHubbU, dQ, dQAtom, dQShell, dQUniqU)
 
 
     !> Species of each atom.
@@ -100,7 +99,14 @@ contains
 
   !> orbital resolved charges
   subroutine getNetChargesPerOrbital(qOrbital, q0, deltaQ)
-    real(dp), intent(in) :: qOrbital(:,:), q0(:,:)
+
+    !> charges per orbital
+    real(dp), intent(in) :: qOrbital(:,:)
+
+    !> reference atomic charges
+    real(dp), intent(in) :: q0(:,:)
+
+    !> Net charges (q - q0)
     real(dp), intent(out) :: deltaQ(:,:)
 
     deltaQ(:,:) = qOrbital - q0
@@ -110,7 +116,11 @@ contains
 
   !> atom resolved charges
   subroutine getNetChargesPerAtom(deltaQ, deltaQAtom)
+
+    !> net charge for all atomic orbitals on atoms
     real(dp), intent(in) :: deltaQ(:,:)
+
+    !> net charge for each atom
     real(dp), intent(out) :: deltaQAtom(:)
 
     deltaQAtom(:) = sum(deltaQ, dim=1)
@@ -120,9 +130,17 @@ contains
 
   !> shell resolved charges
   subroutine getNetChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
+
+    !> chemical species of each atom
     integer, intent(in) :: species(:)
+
+    !> species resolved atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> net charge for each orbital
     real(dp), intent(in) :: deltaQ(:,:)
+
+    !> net charge for each atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
     integer :: iAt, iSp, iSh, iStart, iend
@@ -141,12 +159,21 @@ contains
 
 
   !> charges for regions with common U values
-  subroutine getNetChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU,&
-      & deltaQUniqU)
+  subroutine getNetChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU, deltaQUniqU)
+
+    !> chemical species of each atom
     integer, intent(in) :: species(:)
+
+    !> species resolved atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> charge per atomic shell
     real(dp), intent(in) :: deltaQPerLShell(:,:)
+
+    !> index for unique Hubbard U values
     integer, intent(in) :: iHubbU(:,:)
+
+    !> charges for atomic shells with a common U value
     real(dp), intent(out) :: deltaQUniqU(:,:)
 
     integer :: iAt, iSp, iSh
@@ -155,9 +182,8 @@ contains
     do iAt = 1, size(orb%nOrbAtom)
       iSp = species(iAt)
       do iSh = 1, orb%nShell(iSp)
-        deltaQUniqU(iHubbU(iSh, iSp), iAt) = &
-            & deltaQUniqU(iHubbU(iSh, iSp), iAt) &
-            &+ deltaQPerLShell(iSh, iAt)
+        deltaQUniqU(iHubbU(iSh, iSp), iAt) = deltaQUniqU(iHubbU(iSh, iSp), iAt)&
+            & + deltaQPerLShell(iSh, iAt)
       end do
     end do
 

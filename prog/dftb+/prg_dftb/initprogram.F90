@@ -23,7 +23,6 @@ module initprogram
   use shortgamma
   use coulomb
   use message
-
   use mainio, only : receiveGeometryFromSocket
   use mixer
   use simplemixer
@@ -69,7 +68,9 @@ module initprogram
   use linkedlist
   use xlbomd_module
   use etemp, only : Fermi
+#:if WITH_SOCKETS
   use ipisocket
+#:endif
   use pmlocalisation
 #:if WITH_TRANSPORT
   use libnegf_vars
@@ -114,7 +115,10 @@ module initprogram
   character(*), parameter :: fShifts = "shifts.dat"
 
   !> Is the calculation SCC?
-  logical :: tSCC
+  logical :: tSccCalc
+
+  !> SCC module internal variables
+  type(TScc), allocatable :: sccCalc
 
   !> Nr. of different cutoffs
   integer, parameter :: nCutoff = 1
@@ -464,8 +468,9 @@ module initprogram
   logical :: tSocket
 
   !> socket details
+#:if WITH_SOCKETS
   type(IpiSocketComm), allocatable :: socket
-
+#:endif
 
   !> File containing output geometry
   character(lc) :: geoOutFile
@@ -794,8 +799,11 @@ module initprogram
   !> File descriptor for charge restart file
   integer :: fdCharges
 
-  !> Contains (iK, iS) tuples to be processed by current group
-  integer, allocatable :: groupKS(:,:)
+  !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
+  type(TParallelKS) :: parallelKS
+
+  !> Maximal timing level to show in output
+  integer :: timingLevel
 
   private :: createRandomGenerators
 
@@ -861,13 +869,13 @@ contains
 
 
   !> Initializes the variables in the module based on the parsed input
-  subroutine initProgramVariables(env, input)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
+  subroutine initProgramVariables(input, env)
 
     !> Holds the parsed input data.
     type(inputData), intent(inout), target :: input
+
+    !> Environment settings
+    type(TEnvironment), intent(out) :: env
 
     ! Mixer related local variables
     integer :: nGeneration
@@ -959,7 +967,7 @@ contains
     integer :: valshape(1)
 
     !> Is SCC cycle initialised
-    type(TSCCInit), allocatable :: sccInit
+    type(TSccInp), allocatable :: sccInp
 
     !> Used for indexing linear response
     integer :: homoLoc(1)
@@ -973,8 +981,11 @@ contains
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
+    call TEnvironment_init(env)
+    call env%globalTimer%startTimer(globalTimers%globalInit)
+
     ! Basic variables
-    tSCC = input%ctrl%tScc
+    tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
     if (tSpin) then
@@ -999,18 +1010,58 @@ contains
           & channels")
     end if
 
+    orb = input%slako%orb
+    nOrb = orb%nOrb
+    tPeriodic = input%geom%tPeriodic
+
+    ! Brillouin zone sampling
+    if (tPeriodic) then
+      nKPoint = input%ctrl%nKPoint
+      allocate(kPoint(3, nKPoint))
+      allocate(kWeight(nKPoint))
+      @:ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
+      @:ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
+      kPoint(:,:) = input%ctrl%KPoint(:,:)
+      if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
+        call error("Sum of k-point weights should be greater than zero!")
+      end if
+      kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
+    else
+      nKPoint = 1
+      allocate(kPoint(3, nKPoint))
+      allocate(kWeight(nKpoint))
+      kPoint(:,1) = 0.0_dp
+      kWeight(1) = 1.0_dp
+    end if
+
+    if ((.not. tPeriodic)&
+        & .or. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp]))) then
+      tRealHS = .true.
+    else
+      tRealHS = .false.
+    end if
+
+
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
+
+  #:if WITH_SCALAPACK
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+  #:endif
+    call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
+
     sccTol = input%ctrl%sccTol
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
-    tPeriodic = input%geom%tPeriodic
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
     if (tShowFoldedCoord .and. .not. tPeriodic) then
-      call error("Folding coordinates back into the central cell is&
-          & meaningless for molecular boundary conditions!")
+      call error("Folding coordinates back into the central cell is meaningless for molecular&
+          & boundary conditions!")
     end if
     tFracCoord = input%geom%tFracCoord
     solver = input%ctrl%iSolver
-    if (tSCC) then
+    if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
       maxSccIter = 1
@@ -1038,8 +1089,6 @@ contains
       recCellVol = 0.0_dp
       tLatticeChanged = .false.
     end if
-
-    orb = input%slako%orb
 
     ! Slater-Koster tables
     skHamCont = input%slako%skHamCont
@@ -1140,15 +1189,16 @@ contains
         hubbU = input%ctrl%hubbU
       end where
     end if
-    if (tSCC) then
-      allocate(sccInit)
-      sccInit%orb => orb
+    if (tSccCalc) then
+      allocate(sccInp)
+      allocate(sccCalc)
+      sccInp%orb => orb
       if (tPeriodic) then
-        sccInit%latVecs = latVec
-        sccInit%recVecs = recVec
-        sccInit%volume = CellVol
+        sccInp%latVecs = latVec
+        sccInp%recVecs = recVec
+        sccInp%volume = CellVol
       end if
-      sccInit%hubbU = hubbU
+      sccInp%hubbU = hubbU
       allocate(tDampedShort(nType))
       if (input%ctrl%tDampH) then
         tDampedShort = (speciesMass < 3.5_dp * amu__au)
@@ -1156,39 +1206,39 @@ contains
       else
         tDampedShort(:) = .false.
       end if
-      sccInit%tDampedShort = tDampedShort
-      sccInit%dampExp = input%ctrl%dampExp
+      sccInp%tDampedShort = tDampedShort
+      sccInp%dampExp = input%ctrl%dampExp
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
       if (tExtChrg) then
-        if (.not.tSCC) then
+        if (.not.tSccCalc) then
           call error("External charges can only be used in an SCC calculation")
         end if
         tStress = .false. ! Stress calculations not allowed
         @:ASSERT(size(input%ctrl%extChrg, dim=1) == 4)
         @:ASSERT(size(input%ctrl%extChrg, dim=2) == nExtChrg)
-        sccInit%extCharges = input%ctrl%extChrg
+        sccInp%extCharges = input%ctrl%extChrg
         if (allocated(input%ctrl%extChrgBlurWidth)) then
-          sccInit%blurWidths = input%ctrl%extChrgblurWidth
+          sccInp%blurWidths = input%ctrl%extChrgblurWidth
         end if
       end if
       if (allocated(input%ctrl%chrgConstr)) then
         @:ASSERT(all(shape(input%ctrl%chrgConstr) == (/ nAtom, 2 /)))
         if (any(abs(input%ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
-          sccInit%chrgConstraints = input%ctrl%chrgConstr
+          sccInp%chrgConstraints = input%ctrl%chrgConstr
         end if
       end if
 
       if (allocated(input%ctrl%thirdOrderOn)) then
-        @:ASSERT(tSCC)
+        @:ASSERT(tSccCalc)
         @:ASSERT(all(shape(input%ctrl%thirdOrderOn) == (/ nAtom, 2 /)))
-        sccInit%thirdOrderOn = input%ctrl%thirdOrderOn
+        sccInp%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
-      sccInit%ewaldAlpha = input%ctrl%ewaldAlpha
-      call init_SCC(sccInit)
-      deallocate(sccInit)
-      mCutoff = max(mCutoff, getSCCCutoff())
+      sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      call initialize(sccCalc, env, sccInp)
+      deallocate(sccInp)
+      mCutoff = max(mCutoff, sccCalc%getCutoff())
 
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
         call error("Onsite third order DFTB only compatible with orbital non&
@@ -1199,7 +1249,7 @@ contains
       t3rd = input%ctrl%t3rd
       t3rdFull = input%ctrl%t3rdFull
       if (t3rdFull) then
-        @:ASSERT(tSCC)
+        @:ASSERT(tSccCalc)
         thirdInp%orb => orb
         thirdInp%hubbUs = hubbU
         thirdInp%hubbUDerivs = input%ctrl%hubDerivs
@@ -1245,7 +1295,7 @@ contains
 
     ! Intialize Hamilton and overlap
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
        allocate(chargePerShell(0,0,0))
@@ -1256,37 +1306,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-
-    ! Brillouin zone sampling
-    if (tPeriodic) then
-      nKPoint = input%ctrl%nKPoint
-      allocate(kPoint(3, nKPoint))
-      allocate(kWeight(nKPoint))
-      @:ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
-      @:ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
-      kPoint(:,:) = input%ctrl%KPoint(:,:)
-      if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
-        call error("Sum of k-point weights should be greater than zero!")
-      end if
-      kWeight(:) = input%ctrl%kWeight(:) / sum(input%ctrl%kWeight(:))
-    else
-      nKPoint = 1
-      allocate(kPoint(3, nKPoint))
-      allocate(kWeight(nKpoint))
-      kPoint(:,1) = 0.0_dp
-      kWeight(1) = 1.0_dp
-    end if
-
-    if ((.not. tPeriodic) .or. (nKPoint == 1 .and. &
-        &all(kPoint(:, 1) == (/ 0.0_dp, 0.0_dp, 0.0_dp /)))) then
-      tRealHS = .true.
-    else
-      tRealHS = .false.
-    end if
-
-    ! Other usefull quantities
-    nOrb = orb%nOrb
-
+    
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -1331,10 +1351,10 @@ contains
 
 
     ! Create equivalency relations
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
       allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
-      call SCC_getOrbitalEquiv(orb, species0, iEqOrbSCC)
+      call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
       if (nSpin == 1) then
         iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
       else
@@ -1374,17 +1394,10 @@ contains
       nMixElements = 0
     end if
 
-    if (.not.tDFTBU) then
-      allocate(iEqBlockDFTBU(0, 0, 0, 0))
-    end if
-    if (.not.(tDFTBU.and.tImHam)) then
-      allocate(iEqBlockDFTBULS(0, 0, 0, 0))
-    end if
-
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
@@ -1447,6 +1460,7 @@ contains
     tBarostat = input%ctrl%tBarostat
     BarostatStrength = input%ctrl%BarostatStrength
 
+#:if WITH_SOCKETS
     tSocket = allocated(input%ctrl%socketInput)
     if (tSocket) then
       input%ctrl%socketInput%nAtom = nAtom
@@ -1456,9 +1470,12 @@ contains
       tGeoOpt = .false.
       tMD = .false.
     end if
+#:else
+    tSocket = .false.
+#:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tConvrgForces = (input%ctrl%tConvrgForces .and. tSCC) ! no point if not SCC
+    tConvrgForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -1470,7 +1487,7 @@ contains
 
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
-    if (tSCC) then
+    if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
       if (input%ctrl%forceType /= 0) then
@@ -1486,12 +1503,11 @@ contains
       case (1)
         ! set step size from input
         if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
-          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference &
-              &step :', input%ctrl%deriv1stDelta
+          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
+              & input%ctrl%deriv1stDelta
           call error(tmpStr)
         end if
-        call NonSccDiff_init(nonSccDeriv, diffTypes%finiteDiff, &
-            & input%ctrl%deriv1stDelta)
+        call NonSccDiff_init(nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
       case (2)
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
@@ -1505,7 +1521,9 @@ contains
     nMovedCoord = 3 * nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      nGeoSteps = huge(1)
+      nGeoSteps = huge(1) - 1
+      ! Workaround:PGI 17.10 -> do i = 0, huge(1) executes 0 times
+      ! nGeoSteps = huge(1)
     else
       nGeoSteps = input%ctrl%maxRun
     end if
@@ -1667,7 +1685,7 @@ contains
     #:if not WITH_ARPACK
       call error("This binary has been compiled without support for linear response calculations.")
     #:endif
-      if (.not. tSCC) then
+      if (.not. tSccCalc) then
         call error("Linear response excitation requires SCC=Yes")
       end if
       if (nspin > 2) then
@@ -1872,7 +1890,7 @@ contains
     end if
 
     ! Allocate charge arrays
-    if (tMulliken) then ! automatically true if tSCC
+    if (tMulliken) then ! automatically true if tSccCalc
       allocate(q0(orb%mOrb, nAtom, nSpin))
       q0(:,:,:) = 0.0_dp
 
@@ -1904,7 +1922,7 @@ contains
       qiBlockOut(:,:,:,:) = 0.0_dp
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       allocate(qDiffRed(nMixElements))
       allocate(qInpRed(nMixElements))
       allocate(qOutRed(nMixElements))
@@ -1921,7 +1939,7 @@ contains
     tReadChrg = input%ctrl%tReadChrg
     tReadShift = input%ctrl%tReadShift
 
-    if (tSCC) then
+    if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
         do iSh = 1, orb%nShell(iSp)
@@ -2095,13 +2113,13 @@ contains
     allocate(nNeighbor(nAtom))
 
     ! Set various options
-    tWriteAutotest = env%tIoProc .and. input%ctrl%tWriteTagged
-    tWriteDetailedXML = env%tIoProc .and. input%ctrl%tWriteDetailedXML
-    tWriteResultsTag = env%tIoProc .and. input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = env%tIoProc .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tIoProc .and. input%ctrl%tWriteBandDat
-    tWriteHS = env%tIoProc .and. input%ctrl%tWriteHS
-    tWriteRealHS = env%tIoProc .and. input%ctrl%tWriteRealHS
+    tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
+    tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
+    tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
+    tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
+    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
+    tWriteHS = env%tGlobalMaster .and. input%ctrl%tWriteHS
+    tWriteRealHS = env%tGlobalMaster .and. input%ctrl%tWriteRealHS
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
@@ -2119,13 +2137,11 @@ contains
     call initTransport(env, input)
   #:endif
 
-  #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
-  #:endif
+  !#:if WITH_SCALAPACK
+  !  call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+  !#:endif
 
-    call getGroupKS(env, nKPoint, nIndepHam, groupKS)
-
-    if (env%tIoProc) then
+    if (env%tGlobalMaster) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
@@ -2135,7 +2151,7 @@ contains
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescBlacs(env, blacsOpts%rowBlockSize, blacsOpts%colBlockSize, denseDesc)
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, denseDesc)
     end associate
   #:endif
 
@@ -2181,7 +2197,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = denseDesc%iDenseStart(iAt) + iOrb - 1
+                tmpir1(ind) = denseDesc%iAtomStart(iAt) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)
@@ -2208,7 +2224,7 @@ contains
               do ii = 1, nAtomRegion
                 iAt = iAtomRegion(ii)
                 do jj = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
-                  tmpir1(ind) = denseDesc%iDenseStart(iAt) + jj - 1
+                  tmpir1(ind) = denseDesc%iAtomStart(iAt) + jj - 1
                   ind = ind + 1
                 end do
               end do
@@ -2232,7 +2248,7 @@ contains
           do ii = 1, nAtomRegion
             iAt = iAtomRegion(ii)
             do jj = 1, orb%nOrbAtom(iAt)
-              tmpir1(ind) = denseDesc%iDenseStart(iAt) + jj - 1
+              tmpir1(ind) = denseDesc%iAtomStart(iAt) + jj - 1
               ind = ind + 1
             end do
           end do
@@ -2251,6 +2267,8 @@ contains
     else
       allocate(fdProjEig(0))
     end if
+
+    timingLevel = input%ctrl%timingLevel
 
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
@@ -2326,7 +2344,7 @@ contains
       write(stdOut, "('Mode:',T30,A)") "Static calculation"
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
@@ -2382,7 +2400,7 @@ contains
     end select
     write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
 
-    if (tSCC) then
+    if (tSccCalc) then
       select case (iMixer)
       case(1)
         write (strTmp, "(A)") "Simple"
@@ -2463,7 +2481,7 @@ contains
       end if
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       if (input%ctrl%tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
@@ -2518,7 +2536,7 @@ contains
       end select
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       ! Have the SK values of U been replaced?
       if (allocated(input%ctrl%hubbU)) then
         strTmp = ""
@@ -2587,7 +2605,7 @@ contains
       end do
     end if
 
-    if (tSCC) then
+    if (tSccCalc) then
       if (t3rdFull) then
         write(stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
         if (input%ctrl%tOrbResolved) then
@@ -2722,6 +2740,8 @@ contains
 
     end if
 
+    call env%globalTimer%stopTimer(globalTimers%globalInit)
+
   end subroutine initProgramVariables
 
 
@@ -2797,7 +2817,7 @@ contains
 
     logical :: tDummy
 
-    if (env%tIoProc) then
+    if (env%tGlobalMaster) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
       socket = IpiSocketComm(socketInput)
@@ -2874,12 +2894,12 @@ contains
     ! Some sanity checks and initialization of GDFTB/NEGF
     if (tPoisson) then
       call poiss_init(poissStr, gdftbSKData, input%poisson, &
-          & input%transpar, env%mpi%all, tInitialized)
+          & input%transpar, env%mpi%globalComm, tInitialized)
       if (.not. tInitialized) call error("gdftb not initialized")
     end if
     if (tNegf) then       
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos,&
-           & env%mpi%all, tempElec, tInitialized)     
+           & env%mpi%globalComm, tempElec, tInitialized)     
       if (.not. tInitialized) call error("libnegf not initialized")
     end if
 
@@ -3199,8 +3219,8 @@ contains
 
     ! If only H/S should be printed, no allocation for square HS is needed
     if (.not. (tWriteRealHS .or. tWriteHS)) then
-      call allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx, SSqrCplx,&
-          & eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+      call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
+          & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
     if (tLinResp) then
@@ -3325,7 +3345,7 @@ contains
 #:endif
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
-  subroutine allocateDenseMatrices(env, denseDesc, groupKS, t2Component, tRealHS, HSqrCplx,&
+  subroutine allocateDenseMatrices(env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
       & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
 
     !> Computing environment
@@ -3335,7 +3355,7 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Index array for spin and k-point index
-    integer, intent(in) :: groupKS(:,:)
+    integer, intent(in) :: localKS(:,:)
 
     !> Is this a two component calculation
     logical, intent(in) :: t2Component
@@ -3363,9 +3383,9 @@ contains
 
     integer :: nLocalCols, nLocalRows, nLocalKS
 
-    nLocalKS = size(groupKS, dim=2)
+    nLocalKS = size(localKS, dim=2)
   #:if WITH_SCALAPACK
-    call scalafx_getlocalshape(env%blacs%gridOrbSqr, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
   #:else
     nLocalRows = denseDesc%fullSize
     nLocalCols = denseDesc%fullSize
@@ -3411,8 +3431,7 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%rowBlockSize, blacsOpts%colBlockSize, blacsOpts%nGroups, sizeHS,&
-        & nAtom)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom)
 
   end subroutine initScalapack
 
@@ -3438,7 +3457,7 @@ contains
     integer :: nn
 
     nn = denseDesc%fullSize
-    call scalafx_getdescriptor(env%blacs%gridOrbSqr, nn, nn, rowBlock, colBlock,&
+    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
 
   end subroutine getDenseDescBlacs
@@ -3465,9 +3484,9 @@ contains
 
     integer :: nOrb
 
-    allocate(denseDesc%iDenseStart(nAtom + 1))
-    call buildSquaredAtomIndex(denseDesc%iDenseStart, orb)
-    nOrb = denseDesc%iDenseStart(nAtom + 1) - 1
+    allocate(denseDesc%iAtomStart(nAtom + 1))
+    call buildSquaredAtomIndex(denseDesc%iAtomStart, orb)
+    nOrb = denseDesc%iAtomStart(nAtom + 1) - 1
     denseDesc%t2Component = t2Component
     denseDesc%nOrb = nOrb
     if (t2Component) then
@@ -3478,62 +3497,5 @@ contains
 
   end subroutine getDenseDescCommon
 
-
-  !> Returns the (k-point, spin) tuples to be processed by current processor grid (if parallel) or
-  !> put everything in one group if serial.
-  subroutine getGroupKS(env, nKpoint, nSpin, groupKS)
-
-    !> Environenment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Number of k-points in calculation.
-    integer, intent(in) :: nKpoint
-
-    !> Number of spin channels in calculation
-    integer, intent(in) :: nSpin
-
-    !> Array of (k-point, spin) tuples (groupKS(:, ii) = [iK, iS])
-    integer, intent(out), allocatable :: groupKS(:,:)
-
-    character(lc) :: tmpStr
-    integer :: nGroup, iGroup
-    integer :: nHam, nHamAll, res
-    integer :: ind, iHam, iS, iK
-
-  #:if WITH_SCALAPACK
-    nGroup = env%blacs%nGroup
-    iGroup = env%blacs%iGroup
-  #:else
-    nGroup = 1
-    iGroup = 0
-  #:endif
-
-    nHamAll = nKpoint * nSpin
-    nHam = nHamAll / nGroup
-    res = nHamAll - nHam * nGroup
-    if (res /= 0) then
-      write(tmpStr, "(A,I0,A,I0,A)") "Number of groups (", nGroup,&
-          & ") is not a divisor of the number of independent Hamiltonians (", nHamAll, ")"
-      call error(tmpStr)
-    end if
-    ! We can not handle currently different number of Hamiltonians per group.
-    !if (iGroup < res) then
-    !  nHam = nHam + 1
-    !end if
-    allocate(groupKS(2, nHam))
-    ind = 0
-    iHam = 1
-    do iS = 1, nSpin
-      do iK = 1, nKpoint
-        if (mod(ind, nGroup) == iGroup) then
-          groupKS(1, iHam) = iK
-          groupKS(2, iHam) = iS
-          iHam = iHam + 1
-        end if
-        ind = ind + 1
-      end do
-    end do
-
-  end subroutine getGroupKS
 
 end module initprogram

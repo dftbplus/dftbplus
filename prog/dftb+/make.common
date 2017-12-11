@@ -5,24 +5,18 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 
-
-# clear suffixes
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
+#.PRECIOUS: %.f90
 
-
-# Set some defaults
-DEBUG = 0
 FXXCLEAN = *.mod
 
 # How to tell the preprocessor to look for includes
-#   (should really be the same on most architectures)
 FYPPINC = -I
 
 # Include user customization to set simply expanded (immediate) variables.
 
-ARCHMAKE = $(ROOT)/make.config
-include $(ARCHMAKE)
+include $(ROOT)/make.config
 
 FYPPOPT += -DDEBUG=$(DEBUG)
 
@@ -112,11 +106,14 @@ L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
 # FSOCKETS
-COMPILED_EXTERNALS += _extlib_fsockets
-LIB_FSOCKETS = -L$(BUILDROOT)/external/fsockets -lfsockets
-INC_FSOCKETS = -I$(BUILDROOT)/external/fsockets
-L_LIBS += $(if $(filter _extlib_fsockets, $^), $(LIB_FSOCKETS))
-L_INCS += $(INC_FSOCKETS)
+ifeq ($(strip $(WITH_SOCKETS)),1)
+  COMPILED_EXTERNALS += _extlib_fsockets
+  LIB_FSOCKETS = -L$(BUILDROOT)/external/fsockets -lfsockets
+  INC_FSOCKETS = -I$(BUILDROOT)/external/fsockets
+  L_LIBS += $(if $(filter _extlib_fsockets, $^), $(LIB_FSOCKETS))
+  L_INCS += $(INC_FSOCKETS)
+  FYPPOPT += -DWITH_SOCKETS
+endif
 
 # DFTD3
 ifeq ($(strip $(WITH_DFTD3)),1)
@@ -163,7 +160,7 @@ ifeq ($(strip $(WITH_MPI)),1)
   SCALAPACKFX_LIBS := -L$(BUILDROOT)/external/scalapackfx -lscalapackfx
   SCALAPACKFX_INCS := -I$(BUILDROOT)/external/scalapackfx
   L_LIBS += $(if $(filter _extlib_scalapackfx, $^), $(SCALAPACKFX_LIBS)\
-      $(SCALAPACK_LIBS))
+      $(LIB_SCALAPACK))
   L_INCS += $(SCALAPACKFX_INCS)
 
   COMPILED_EXTERNALS += _extlib_mpifx _extlib_scalapackfx
@@ -171,7 +168,6 @@ ifeq ($(strip $(WITH_MPI)),1)
   # LAPACK/BLAS
   PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
-  L_LIBS_LAPACKBLAS += $(if $(filter _extlib_blas, $^), $(LIB_BLAS))
   L_LIBS += $(L_LIBS_LAPACKBLAS)
 else
   #
@@ -181,7 +177,6 @@ else
   # LAPACK/BLAS
   PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
-  L_LIBS_LAPACKBLAS += $(if $(filter _extlib_blas, $^), $(LIB_BLAS))
 
   # ARPACK
   ifeq ($(strip $(WITH_ARPACK)),1)

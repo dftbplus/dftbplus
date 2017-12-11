@@ -24,13 +24,10 @@ program dftbplus
   type(inputData), allocatable :: input
 
   call initGlobalEnv()
-#:if WITH_MPI
-  call env%initMpi()
-#:endif
   call printDftbHeader(RELEASE_VERSION, RELEASE_YEAR)
   allocate(input)
-  call parseHsdInput(env, input)
-  call initProgramVariables(env, input)
+  call parseHsdInput(input)
+  call initProgramVariables(input, env)
   call runDftbPlus(env, input)
   deallocate(input)
   call destructGlobalEnv()

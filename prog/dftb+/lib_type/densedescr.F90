@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 #:include 'common.fypp'
 
 !> Module for square dense matrix specification
@@ -20,7 +27,7 @@ module densedescr
     !>
     !> Note: for Pauli matrix it contains the indexing of the left upper block only
     !>
-    integer, allocatable :: iDenseStart(:)
+    integer, allocatable :: iAtomStart(:)
 
     !> Dimension of the matrix
     integer :: fullSize
