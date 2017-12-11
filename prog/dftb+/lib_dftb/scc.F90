@@ -1569,7 +1569,7 @@ contains
 
   end subroutine getSummedChargesPerUniqU_
 
-  subroutine electrostaticPotential(this, env, V,locations)
+  subroutine electrostaticPotential(this, env, V,locations, epsSoften)
 
     !> Instance of SCC calculation
     class(TScc), intent(inout) :: this
@@ -1583,6 +1583,9 @@ contains
     !> sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
     real(dp), allocatable :: Vext(:)
 
     @:ASSERT(this%tInitialised)
@@ -1595,29 +1598,35 @@ contains
     end if
 
     if (.not. this%tPeriodic) then
-      call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom)
+      call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+          & epsSoften=epsSoften)
       if (this%tExtChrg) then
         if (allocated(this%extChrgBlurWidths)) then
           call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%extChrgBlurWidths)
+              & this%extChrgQ, this%extChrgBlurWidths, epsSoften=epsSoften)
         else
           call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ)
+              & this%extChrgQ, epsSoften=epsSoften)
         end if
       end if
     else
       call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
+          & this%rCellVec, this%gLatPoint, this%alpha, this%volume, epsSoften=epsSoften)
       if (this%tExtChrg) then
         if (allocated(this%extChrgBlurWidths)) then
           call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
               & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
-              & this%extChrgBlurWidths)
+              & this%extChrgBlurWidths, epsSoften=epsSoften)
         else
           call sumInvR(Vext, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume)
+              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
+              & epsSoften=epsSoften)
         end if
       end if
+    end if
+
+    if (this%tExtChrg) then
+      V = V + Vext
     end if
 
   end subroutine electrostaticPotential

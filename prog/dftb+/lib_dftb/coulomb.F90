@@ -105,7 +105,7 @@ contains
     if (env%blacs%atomGrid%iproc == -1) then
       return
     end if
-    
+
     invRMat(:,:) = 0.0_dp
 
     call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
@@ -151,7 +151,7 @@ contains
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
   subroutine sumInvR_cluster_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
-      & blurWidths1)
+      & blurWidths1, epsSoften)
 
     !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
@@ -177,8 +177,11 @@ contains
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
+    !> Short distance softening
+    real(dp), intent(in), optional :: epsSoften
+
     integer :: iAt0, iAt1
-    real(dp) :: dist, vect(3), fTmp
+    real(dp) :: dist, vect(3), fTmp, epsSoften2
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
 #:if WITH_MPI
     integer :: nAtLocal, myRank
@@ -195,6 +198,12 @@ contains
       @:ASSERT(size(blurWidths1) == nAtom1)
     end if
 #:endcall ASSERT_CODE
+
+    if (present(epsSoften)) then
+      epsSoften2 = epsSoften**2
+    else
+      epsSoften2 = 0.0_dp
+    end if
 
     iAtFirst0 = 1
     iAtLast0 = nAtom0
@@ -233,7 +242,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2))
+          dist = sqrt(sum(vect(:)**2) + epsSoften2)
           fTmp = charges1(iAt1) / dist
           if (dist < erfArgLimit * blurWidths1(iAt1)) then
             fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
@@ -247,7 +256,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2))
+          dist = sqrt(sum(vect(:)**2) + epsSoften2)
           invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
         end do
       end do
@@ -316,7 +325,7 @@ contains
     if (env%blacs%atomGrid%iproc == -1) then
       return
     end if
-    
+
     invRMat(:,:) = 0.0_dp
 
     call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
@@ -406,7 +415,7 @@ contains
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
   subroutine sumInvR_periodic_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
-      & rLat, gLat, alpha, volume, blurwidths1)
+      & rLat, gLat, alpha, volume, blurwidths1, epsSoften)
 
     !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
     real(dp), intent(out) :: invRVec(:)
@@ -443,6 +452,9 @@ contains
 
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
+
+    !> Short distance softening
+    real(dp), intent(in), optional :: epsSoften
 
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
@@ -1517,7 +1529,7 @@ contains
 
 
   !> Returns the Ewald sum for a given lattice in a given point.
-  function ewald(rr, rVec, gVec, alpha, vol, blurwidths)
+  function ewald(rr, rVec, gVec, alpha, vol, blurwidths, epsSoften)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
@@ -1538,11 +1550,14 @@ contains
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths
 
+    !> Short distance softening
+    real(dp), intent(in), optional :: epsSoften
+
     !> Result
     real(dp) :: ewald
 
 
-    ewald = ewaldReciprocal(rr, gVec, alpha, vol) + ewaldReal(rr, rVec, alpha, blurwidths)&
+    ewald = ewaldReciprocal(rr, gVec, alpha, vol) + ewaldReal(rr, rVec, alpha, blurwidths, epsSoften)&
         & - pi / (vol*alpha**2)
     if (sum(rr(:)**2) < tolSameDist2) then
       ewald = ewald - 2.0_dp * alpha / sqrt(pi)
@@ -1628,7 +1643,7 @@ contains
 
 
   !> Returns the real space part of the Ewald sum.
-  function ewaldReal(rr, rVec, alpha, blurWidth) result(realSum)
+  function ewaldReal(rr, rVec, alpha, blurWidth, epsSoften) result(realSum)
 
     !> Real space vectors to sum over. (Should contain origin).
     real(dp), intent(in) :: rVec(:,:)
@@ -1642,10 +1657,13 @@ contains
     !> Gaussian blur width of the 2nd charge
     real(dp), intent(in), optional :: blurWidth
 
+    !> Short distance softening
+    real(dp), intent(in), optional :: epsSoften
+
     !> contribution to sum
     real(dp) :: realSum
 
-    real(dp) :: absRR
+    real(dp) :: absRR, epsSoften2
     integer :: iR
 
     @:ASSERT(size(rVec, dim=1) == 3)
@@ -1653,27 +1671,56 @@ contains
 
     realSum = 0.0_dp
 
-    if (present(blurWidth)) then
-      do iR = 1, size(rVec, dim=2)
-        absRR = sqrt(sum((rr(:) + rVec(:,iR))**2))
-        if (absRR < tolSameDist) then
-          cycle
-        end if
-        if (absRR < erfArgLimit * blurWidth) then
-          realSum = realSum + erfwrap(absRR / blurWidth)/absRR
-        else
-          realSum = realSum + 1.0_dp/absRR
-        end if
-        realSum = realSum -erfwrap(alpha*absRR)/absRR
-      end do
+    if (present(epsSoften)) then
+      epsSoften2 = epsSoften**2
+      if (present(blurWidth)) then
+        do iR = 1, size(rVec, dim=2)
+          absRR = sum((rr(:) + rVec(:,iR))**2)
+          if (absRR < tolSameDist**2) then
+            cycle
+          end if
+          if (absRR < (erfArgLimit * blurWidth)**2) then
+            realSum = realSum + erfwrap(sqrt(absRR) / blurWidth)/sqrt(absRR+epsSoften2)
+          else
+            realSum = realSum + 1.0_dp/sqrt(absRR+epsSoften2)
+          end if
+          realSum = realSum -erfwrap(alpha*sqrt(absRR))/sqrt(absRR+epsSoften2)
+        end do
+      else
+        do iR = 1, size(rVec, dim=2)
+          absRR = sum((rr(:) + rVec(:,iR))**2)
+          if (absRR < tolSameDist**2) then
+            cycle
+          end if
+          absRR = sqrt(absRR)
+          realSum = realSum + erfcwrap(alpha*absRR)/absRR
+        end do
+      end if
     else
-      do iR = 1, size(rVec, dim=2)
-        absRR = sqrt(sum((rr(:) + rVec(:,iR))**2))
-        if (absRR < tolSameDist) then
-          cycle
-        end if
-        realSum = realSum + erfcwrap(alpha*absRR)/absRR
-      end do
+      if (present(blurWidth)) then
+        do iR = 1, size(rVec, dim=2)
+          absRR = sum((rr(:) + rVec(:,iR))**2)
+          if (absRR < tolSameDist**2) then
+            cycle
+          end if
+          absRR = sqrt(absRR)
+          if (absRR < erfArgLimit * blurWidth) then
+            realSum = realSum + erfwrap(absRR / blurWidth)/absRR
+          else
+            realSum = realSum + 1.0_dp/absRR
+          end if
+          realSum = realSum -erfwrap(alpha*absRR)/absRR
+        end do
+      else
+        do iR = 1, size(rVec, dim=2)
+          absRR = sum((rr(:) + rVec(:,iR))**2)
+          if (absRR < tolSameDist**2) then
+            cycle
+          end if
+          absRR = sqrt(absRR)
+          realSum = realSum + erfcwrap(alpha*absRR)/absRR
+        end do
+      end if
     end if
 
   end function ewaldReal
