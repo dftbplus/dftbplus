@@ -2599,7 +2599,7 @@ contains
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 2)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 3)
   #:else
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
   #:endif
