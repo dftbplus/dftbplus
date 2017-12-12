@@ -16,9 +16,6 @@ module stress
   use commontypes
   use slakocont
   use repcont
-#:if WITH_MPI
-  use mpifx
-#:endif
   use schedule
   use environment
   implicit none

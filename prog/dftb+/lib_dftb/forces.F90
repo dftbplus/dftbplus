@@ -15,9 +15,6 @@ module forces
   use scc
   use commontypes
   use slakocont
-#:if WITH_MPI
-  use mpifx
-#:endif
   use schedule
   use environment
   implicit none
