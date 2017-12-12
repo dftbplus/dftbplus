@@ -66,15 +66,22 @@ mpienv.o = mpienv.o $(_mod_mpifx) $(_mod_message) $(_mod_accuracy)
 _mod_mpienv: mpienv.o
 _mod_mpienv = $(mpienv.o)
 
-mpiutils.o: _mod_mpifx
-mpiutils.o = mpiutils.o $(_mod_mpifx)
-_mod_mpiutils: mpiutils.o
-_mod_mpiutils = $(mpiutils.o)
-
 optarg.o: _mod_accuracy
 optarg.o = optarg.o $(_mod_accuracy)
 _mod_optarg: optarg.o
 _mod_optarg = $(optarg.o)
+
+#:if WITH_MPI
+schedule.o: _mod_environment common.fypp _mod_accuracy _mod_mpifx
+schedule.o = schedule.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_mpifx)
+_mod_schedule: schedule.o
+_mod_schedule = $(schedule.o)
+#:else
+schedule.o: _mod_environment common.fypp _mod_accuracy
+schedule.o = schedule.o $(_mod_environment) $(common.fypp) $(_mod_accuracy)
+_mod_schedule: schedule.o
+_mod_schedule = $(schedule.o)
+#:endif
 
 timer.o: _mod_globalenv
 timer.o = timer.o $(_mod_globalenv)

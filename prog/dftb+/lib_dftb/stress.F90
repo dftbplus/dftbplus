@@ -18,8 +18,8 @@ module stress
   use repcont
 #:if WITH_MPI
   use mpifx
-  use mpiutils
 #:endif
+  use schedule
   use environment
   implicit none
   private
@@ -189,12 +189,7 @@ contains
     nAtom = size(orb%nOrbAtom)
     st(:,:) = 0.0_dp
 
-  #:if WITH_MPI
-    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
-  #:else
-    iAtFirst = 1
-    iAtLast = nAtom
-  #:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -234,9 +229,7 @@ contains
       end do
     end do
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, st, MPI_SUM)
-  #:endif
+    call assembleChunks(env, st)
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
@@ -317,12 +310,7 @@ contains
 
     st(:,:) = 0.0_dp
 
-  #:if WITH_MPI
-    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
-  #:else
-    iAtFirst = 1
-    iAtLast = nAtom
-  #:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
@@ -376,9 +364,7 @@ contains
       end do
     end do
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, st, MPI_SUM)
-  #:endif
+    call assembleChunks(env, st)
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
@@ -465,12 +451,7 @@ contains
 
     st = 0.0_dp
 
-  #:if WITH_MPI
-    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
-  #:else
-    iAtFirst = 1
-    iAtLast = nAtom
-  #:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
@@ -533,9 +514,7 @@ contains
       end do
     end do
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, st, MPI_SUM)
-  #:endif
+    call assembleChunks(env, st)
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 

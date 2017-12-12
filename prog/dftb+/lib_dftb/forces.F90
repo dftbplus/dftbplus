@@ -17,8 +17,8 @@ module forces
   use slakocont
 #:if WITH_MPI
   use mpifx
-  use mpiutils
 #:endif
+  use schedule
   use environment
   implicit none
 
@@ -39,7 +39,7 @@ module forces
     !> derivatives with complex shift
     module procedure derivative_iBlock
 
-  end interface
+  end interface derivative_shift
 
 contains
 
@@ -103,12 +103,7 @@ contains
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
-  #:if WITH_MPI
-    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
-  #:else
-    iAtFirst = 1
-    iAtLast = nAtom
-  #:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
     !$OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
@@ -151,9 +146,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, deriv, MPI_SUM)
-  #:endif
+    call assembleChunks(env, deriv)
 
   end subroutine derivative_nonSCC
 
@@ -231,12 +224,7 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-  #:if WITH_MPI
-    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
-  #:else
-    iAtFirst = 1
-    iAtLast = nAtom
-  #:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
@@ -292,9 +280,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, deriv, MPI_SUM)
-  #:endif
+    call assembleChunks(env, deriv)
 
   end subroutine derivative_block
 
@@ -382,12 +368,7 @@ contains
 
     deriv(:,:) = 0.0_dp
 
-  #:if WITH_MPI
-    call distributeRangeInChunks(env%mpi%groupComm, 1, nAtom, iAtFirst, iAtLast)
-  #:else
-    iAtFirst = 1
-    iAtLast = nAtom
-  #:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
@@ -456,9 +437,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, deriv, MPI_SUM)
-  #:endif
+    call assembleChunks(env, deriv)
 
   end subroutine derivative_iBlock
 
