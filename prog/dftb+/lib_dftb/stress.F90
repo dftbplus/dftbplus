@@ -16,6 +16,8 @@ module stress
   use commontypes
   use slakocont
   use repcont
+  use schedule
+  use environment
   implicit none
   private
 
@@ -25,8 +27,8 @@ contains
 
 
   !> The stress tensor contribution from the repulsive energy term
-  subroutine getRepulsiveStress(st,coords,nNeighbors,iNeighbors,species,img2CentCell,repCont, &
-      & cellVol)
+  subroutine getRepulsiveStress(st, coords, nNeighbors, iNeighbors, species, img2CentCell,&
+      & repCont, cellVol)
 
     !> stress tensor
     real(dp), intent(out) :: st(:,:)
@@ -52,19 +54,20 @@ contains
     !> cell volume.
     real(dp), intent(in) :: cellVol
 
-    integer :: iAt1, iNeigh, iAt2, iAt2f, ii
+    integer :: iAt1, iNeigh, iAt2, iAt2f, ii, nAtom
     real(dp) :: vect(3), intermed(3), prefac
 
     @:ASSERT(all(shape(st) == [3, 3]))
 
+    nAtom = size(nNeighbors)
     st(:,:) = 0.0_dp
-    do iAt1 = 1, size(nNeighbors)
+
+    do iAt1 = 1, nAtom
       do iNeigh = 1, nNeighbors(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        call getEnergyDeriv(repCont, intermed, vect, species(iAt1), &
-            &species(iAt2))
+        call getEnergyDeriv(repCont, intermed, vect, species(iAt1), species(iAt2))
         if (iAt1 == iAt2f) then
           prefac = 0.5_dp
         else
@@ -75,6 +78,7 @@ contains
         end do
       end do
     end do
+
     st = st / cellVol
 
   end subroutine getRepulsiveStress
@@ -120,8 +124,11 @@ contains
 
 
   !> The stress tensor contributions from the non-SCC energy
-  subroutine getNonSCCStress(st,derivator,DM,EDM,skHamCont,skOverCont,coords,species,iNeighbor, &
-      & nNeighbor,img2CentCell,iPair,orb,cellVol)
+  subroutine getNonSCCStress(env, st, derivator, DM, EDM, skHamCont, skOverCont, coords, species,&
+      & iNeighbor, nNeighbor, img2CentCell, iPair, orb, cellVol)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> stress tensor
     real(dp), intent(out) :: st(:,:)
@@ -171,6 +178,7 @@ contains
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: vect(3), intermed(3)
+    integer :: iAtFirst, iAtLast
 
     @:ASSERT(all(shape(st) == [3, 3]))
     @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
@@ -178,9 +186,11 @@ contains
     nAtom = size(orb%nOrbAtom)
     st(:,:) = 0.0_dp
 
-    do iAtom1 = 1, nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
-      !! loop from 1 as no contribution from the atom itself
+      ! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbor(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
@@ -190,22 +200,14 @@ contains
         sqrEDMTmp(:,:) = 0.0_dp
         hPrimeTmp(:,:,:) = 0.0_dp
         sPrimeTmp(:,:,:) = 0.0_dp
-        sqrDMTmp(1:nOrb2,1:nOrb1) = &
-            & reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-        sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-            & reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-            & iAtom1, iAtom2, orb)
-        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-            & iAtom1, iAtom2, orb)
+        sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+        sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
         do ii = 1, 3
-          ! note factor of 2 for implicit summation over lower triangle of
-          ! density matrix:
-          intermed(ii) =  2.0_dp * (&
-              & sum(sqrDMTmp(1:nOrb2,1:nOrb1)&
-              &* hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
-              &- sum(sqrEDMTmp(1:nOrb2,1:nOrb1)&
-              &* sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+          ! note factor of 2 for implicit summation over lower triangle of density matrix:
+          intermed(ii) =  2.0_dp * (sum(sqrDMTmp(1:nOrb2,1:nOrb1)* hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+              & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
         end do
         vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
         if (iAtom1/=iAtom2f) then
@@ -224,14 +226,19 @@ contains
       end do
     end do
 
+    call assembleChunks(env, st)
+
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
   end subroutine getNonSCCStress
 
 
   !> The stress tensor contributions from a potential
-  subroutine getBlockStress(st,derivator,DM,EDM,skHamCont,skOverCont,coords,species,iNeighbor, &
-      & nNeighbor,img2CentCell,iPair,orb,shift,cellVol)
+  subroutine getBlockStress(env, st, derivator, DM, EDM, skHamCont, skOverCont, coords, species,&
+      & iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift, cellVol)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> stress tensor
     real(dp), intent(out) :: st(:,:)
@@ -285,6 +292,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), intermed(3)
+    integer :: iAtFirst, iAtLast
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -299,7 +307,9 @@ contains
 
     st(:,:) = 0.0_dp
 
-    do iAtom1 = 1, nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbor(iAtom1)
@@ -309,36 +319,26 @@ contains
         if (iAtom1 /= iAtom2) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-              & iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
           intermed(:) = 0.0_dp
           do ii = 1, 3
-            ! note factor of 2 for implicit summation over lower triangle of
-            ! density matrix:
-            intermed(ii) = 2.0_dp * (&
-                & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
+            ! note factor of 2 for implicit summation over lower triangle of density matrix:
+            intermed(ii) = 2.0_dp * (sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                & -sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii),&
+                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
+                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               ! again factor of 2 from lower triangle sum of DM
-              intermed(ii) = intermed(ii) + 2.0_dp * (&
-                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
-                  & ) )
+              intermed(ii) = intermed(ii) + 2.0_dp * (sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
             end do
           end do
 
@@ -346,15 +346,13 @@ contains
           if (iAtom1/=iAtom2f) then
             do ii = 1, 3
               do jj = 1, 3
-                st(jj,ii) = st(jj,ii) &
-                    & + 2.0_dp * intermed(jj) * vect(ii)
+                st(jj,ii) = st(jj,ii) + 2.0_dp * intermed(jj) * vect(ii)
               end do
             end do
           else
             do ii = 1, 3
               do jj = 1, 3
-                st(jj,ii) = st(jj,ii) &
-                    & + intermed(jj) * vect(ii)
+                st(jj,ii) = st(jj,ii) + intermed(jj) * vect(ii)
               end do
             end do
           end if
@@ -363,14 +361,19 @@ contains
       end do
     end do
 
+    call assembleChunks(env, st)
+
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 
   end subroutine getBlockStress
 
 
   !> The stress tensor contributions from a complex potential
-  subroutine getBlockiStress(st,derivator,DM,iDM,EDM,skHamCont,skOverCont,coords,species, &
-      & iNeighbor,nNeighbor,img2CentCell,iPair,orb,shift,iShift,cellVol)
+  subroutine getBlockiStress(env, st, derivator, DM, iDM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift, iShift, cellVol)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> stress tensor
     real(dp), intent(out) :: st(:,:)
@@ -430,6 +433,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), intermed(3)
+    integer :: iAtFirst, iAtLast
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -444,7 +448,9 @@ contains
 
     st = 0.0_dp
 
-    do iAtom1 = 1, nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbor(iAtom1)
@@ -454,48 +460,35 @@ contains
         if (iAtom1 /= iAtom2) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-              & iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
           intermed(:) = 0.0_dp
           do ii = 1, 3
             ! again factor of 2 from lower triangle sum of DM
-            intermed(ii) = 2.0_dp * ( &
-                & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                & )
+            intermed(ii) = 2.0_dp * (sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                & -sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               ! again factor of 2 from lower triangle sum of DM
-              intermed(ii) = intermed(ii) + 2.0_dp * ( &
-                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
-                  & ) )
+              intermed(ii) = intermed(ii) + 2.0_dp * (sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
             end do
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
                   & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-              intermed(ii) = intermed(ii) + &
-                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
+                  & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              intermed(ii) = intermed(ii) + sum(shiftSprime(1:nOrb2,1:nOrb1) * &
                   &reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
             end do
           end do
@@ -504,21 +497,21 @@ contains
           if (iAtom1/=iAtom2f) then
             do ii = 1, 3
               do jj = 1, 3
-                st(jj,ii) = st(jj,ii) &
-                    & + 2.0_dp * intermed(jj) * vect(ii)
+                st(jj,ii) = st(jj,ii) + 2.0_dp * intermed(jj) * vect(ii)
               end do
             end do
           else
             do ii = 1, 3
               do jj = 1, 3
-                st(jj,ii) = st(jj,ii) &
-                    & + intermed(jj) * vect(ii)
+                st(jj,ii) = st(jj,ii) + intermed(jj) * vect(ii)
               end do
             end do
           end if
         end if
       end do
     end do
+
+    call assembleChunks(env, st)
 
     st(:,:) = -0.5_dp * st(:,:) / cellVol
 

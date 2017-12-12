@@ -395,10 +395,12 @@ contains
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
+        call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
             & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
             & SSqrCplx)
+        call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
             & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
@@ -408,8 +410,8 @@ contains
         end if
 
         if (tStress) then
-          call getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
-              & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+          call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
+              & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
               & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
           call printVolume(cellVol)
@@ -3902,21 +3904,22 @@ contains
     if (.not. (tSccCalc .or. tEField)) then
       ! No external or internal potentials
       if (tImHam) then
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
       else
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont, skOverCont,&
-            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb)
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
+            & iSparseStart, orb)
       end if
     else
       if (tImHam) then
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
       else
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont, coord,&
-            & species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
+            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
             & potential%intBlock)
       end if
 
@@ -3966,10 +3969,13 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
+  subroutine getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
       & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
       & totalLatDeriv, intPressure, iRhoPrim, dispersion)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -4062,22 +4068,22 @@ contains
 
     if (allocated(sccCalc)) then
       if (tImHam) then
-        call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock, cellVol)
       else
-        call getBlockStress(totalStress, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
-            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
-            & potential%intBlock, cellVol)
+        call getBlockStress(env, totalStress, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
+            & iSparseStart, orb, potential%intBlock, cellVol)
       end if
       call sccCalc%addStressDc(totalStress, species, neighborList%iNeighbor, img2CentCell,coord)
     else
       if (tImHam) then
-        call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock, cellVol)
       else
-        call getNonSCCStress(totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+        call getNonSCCStress(env, totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, cellVol)
       end if
