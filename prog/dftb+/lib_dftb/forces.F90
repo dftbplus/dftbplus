@@ -15,6 +15,8 @@ module forces
   use scc
   use commontypes
   use slakocont
+  use schedule
+  use environment
   implicit none
 
   private
@@ -34,16 +36,18 @@ module forces
     !> derivatives with complex shift
     module procedure derivative_iBlock
 
-  end interface
+  end interface derivative_shift
 
 contains
 
 
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
   !> density and energy-density matrices
-  subroutine derivative_nonSCC(deriv, derivator, DM, EDM, skHamCont,&
-      & skOverCont, coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
-      & orb)
+  subroutine derivative_nonSCC(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
@@ -89,15 +93,18 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    integer :: iAtFirst, iAtLast
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
     !$OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbor(iAtom1)
@@ -136,13 +143,18 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    call assembleChunks(env, deriv)
+
   end subroutine derivative_nonSCC
 
 
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
   !> consistent potential and the density and energy-density matrices
-  subroutine derivative_block(deriv, derivator, DM, EDM, skHamCont, skOverCont,&
-      & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
+  subroutine derivative_block(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
@@ -194,6 +206,7 @@ contains
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
+    integer :: iAtFirst, iAtLast
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -208,10 +221,12 @@ contains
 
     deriv(:,:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbor(iAtom1)
@@ -262,14 +277,18 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
+    call assembleChunks(env, deriv)
+
   end subroutine derivative_block
 
 
   !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
   !> for example from spin-orbit
-  subroutine derivative_iBlock(deriv, derivator, DM, iDM, EDM, skHamCont,&
-      & skOverCont,coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
-      & orb, shift, iShift)
+  subroutine derivative_iBlock(env, deriv, derivator, DM, iDM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift, iShift)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
@@ -329,6 +348,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
+    integer :: iAtFirst, iAtLast
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -345,10 +365,12 @@ contains
 
     deriv(:,:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh = 1, nNeighbor(iAtom1)
@@ -411,6 +433,8 @@ contains
       enddo
     enddo
     !$OMP END PARALLEL DO
+
+    call assembleChunks(env, deriv)
 
   end subroutine derivative_iBlock
 

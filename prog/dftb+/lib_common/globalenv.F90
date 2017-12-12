@@ -101,7 +101,7 @@ contains
       write(stdOut0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
     end if
   #:endif
-    error stop
+    stop
 
   end subroutine abort
 

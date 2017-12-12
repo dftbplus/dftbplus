@@ -285,7 +285,9 @@ contains
     type(fnode), pointer :: child, child2, child3, value, value2, field
 
     type(string) :: buffer, buffer2, modifier
+#:if WITH_SOCKETS
     character(lc) :: sTmp
+#:endif
 
     ctrl%tGeoOpt = .false.
     ctrl%tCoordOpt = .false.
@@ -2659,7 +2661,7 @@ contains
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 2)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 3)
   #:else
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
   #:endif

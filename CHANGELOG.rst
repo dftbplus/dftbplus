@@ -11,16 +11,29 @@ Unreleased
 Added
 -----
 
+- MPI-parallelisation.
+
+- Improved thread-parallesation.
+
+- Tool straingen for straining periodic gen-files.
+
+- Shutdown possibility when using socket driver.
+
 
 Changed
 -------
 
 - Using allocatables instead of pointers whenever possible.
 
+- Change to Fypp-preprocessor
+
 
 Fixed
 -----
 
+- Keyword Atoms in modes_in.hsd consider only the first specified entry
+
+- Excited window selection in Cassida time-dependent calculation
 
 
 17.1 (2017-06-16)

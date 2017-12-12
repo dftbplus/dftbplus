@@ -76,7 +76,7 @@ contains
     ! fill degenerately over m for each shell l
     do iAt = 1, nAtom
       iSp = species(iAt)
-      ! nr. of electrons = number of electrons in all shells - net charge
+      ! nr. of electrons = number of electrons in all shells - gross charge
       fAtomRes = sum(fRefShell(1:orb%nShell(iSp),iSp)) - qAtom(iAt)
       lpShell: do iSh1 = 1, orb%nShell(iSp)
         fShell = min(fAtomRes, real(2 * (2 * orb%angShell(iSh1, iSp) + 1), dp))
