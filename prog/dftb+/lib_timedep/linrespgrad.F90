@@ -97,7 +97,7 @@ contains
     !> Self-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
 
-    !> converged ground state Mulliken net charges - atomic charges
+    !> converged ground state Mulliken gross charges - atomic charges
     real(dp), intent(in) :: dq(:)
 
     !> atomic positions
@@ -1547,7 +1547,7 @@ contains
     !> state index
     integer, intent(in) :: nstat
 
-    !> ground state net charge
+    !> ground state gross charge
     real(dp), intent(in) :: dq(:)
 
     !> change in atomic charges from ground to excited state
@@ -1704,7 +1704,7 @@ contains
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: stimc(:,:,:)
 
-    !> ground state net charges
+    !> ground state gross charges
     real(dp), intent(in) :: dq(:)
 
     !> charge differences from ground to excited state

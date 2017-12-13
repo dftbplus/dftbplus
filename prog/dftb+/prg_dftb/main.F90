@@ -453,10 +453,12 @@ contains
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
+        call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
             & tRealHS, ham, over, parallelKS, solver, iSCCIter, mu, ERhoPrim, eigvecsReal, SSqrReal, &
             & eigvecsCplx, SSqrCplx)
+        call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
             & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
@@ -4130,21 +4132,22 @@ contains
     if (.not. (tSccCalc .or. tEField)) then
       ! No external or internal potentials
       if (tImHam) then
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
       else
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont, skOverCont,&
-            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb)
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
+            & iSparseStart, orb)
       end if
     else
       if (tImHam) then
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock)
       else
-        call derivative_shift(derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont, coord,&
-            & species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
+        call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
+            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
             & potential%intBlock)
       end if
           

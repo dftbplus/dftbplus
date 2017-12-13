@@ -2436,9 +2436,9 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      write(fd, "(A, F14.8)") " Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
-      write(fd, "(/,A)") " Net atomic charges (e)"
-      write(fd, "(A5, 1X, A16)")" Atom", " Net charge"
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(/,A)") " Atomic gross charges (e)"
+      write(fd, "(A5, 1X, A16)")" Atom", " Charge"
       do iAt = 1, nAtom
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
