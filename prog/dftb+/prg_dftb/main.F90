@@ -180,6 +180,11 @@ contains
     real(dp) :: localisation
 
 
+    tUpload = .false.
+    tPoisson = .false.
+    tNegf = .false.
+    tReadShift = .false.
+
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -213,10 +218,10 @@ contains
       end if
 
       if (tCoordsChanged) then
-        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, &
-            & skRepCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
-            & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
-            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
+        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff,&
+            & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
+            & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0,&
+            & rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
       end if
 
 #:if WITH_TRANSPORT
@@ -298,7 +303,7 @@ contains
           end if
         end if
 
-        call transformHam(ham, iHam)
+        !call transformHam(ham, iHam)
   
         call getDensity(env, iSCCIter, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
@@ -462,8 +467,8 @@ contains
         end if
 
         if (tStress) then
-          call getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput, q0,&
-              & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+          call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
+              & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
               & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
           call printVolume(cellVol)
@@ -966,15 +971,15 @@ contains
 
     ! Notify various modules about coordinate changes
 
+    if (tPoisson) then    
+      !! TODO: poiss_updcoords pass coord0 and not coord0Fold because the
+      !! folding can mess up the contact position. Could we have the supercell
+      !! centered on the input atomic structure?
+      call poiss_updcoords(coord0)
+    end if
+
     if (allocated(sccCalc)) then
-      if (tPoisson) then    
-        !! TODO: poiss_updcoords pass coord0 and not coord0Fold because the
-        !! folding can mess up the contact position. Could we have the supercell
-        !! centered on the input atomic structure?
-        call poiss_updcoords(coord0)
-      else 
-        call sccCalc%updateCoords(env, coord, species, neighborList, img2CentCell)
-      end if
+      call sccCalc%updateCoords(env, coord, species, neighborList, img2CentCell)
     end if
 
     if (allocated(dispersion)) then
@@ -1437,7 +1442,7 @@ contains
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: ii, nAtom, nSpin
+    integer :: nAtom, nSpin
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -1603,7 +1608,7 @@ contains
   !> (Vq/2, uL* Lx*σx/2, uL* Ly*σy/2, uL* Lz*σz/2)  
   subroutine transformHam(Ham, iHam)
     real(dp), intent(inout) :: Ham(:,:)
-    real(dp), intent(inout), optional :: iHam(:,:)
+    real(dp), intent(inout), allocatable :: iHam(:,:)
 
     integer :: nSpinBlocks
 
@@ -1611,12 +1616,12 @@ contains
 
     if (nSpinBlocks > 1) then
       ham = 2.0_dp * ham
-      if (present(iHam)) then
+      if (allocated(iHam)) then
         iHam = 2.0_dp * iHam
       end if
     end if
 
-    if (nSpinBlocks == 2) then
+    if (nSpinBlocks /= 4) then
       call qm2ud(ham)
     end if
 
@@ -1646,7 +1651,7 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> hamiltonian in sparse storage
-    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(inout) :: ham(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
@@ -1745,7 +1750,7 @@ contains
     real(dp), intent(out) :: E0(:)
 
     !> imaginary part of hamitonian
-    real(dp), intent(in), allocatable :: iHam(:,:)
+    real(dp), intent(inout), allocatable :: iHam(:,:)
 
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
@@ -1777,8 +1782,17 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
+    integer :: nSpin
 
-    integer :: nSpinBlocks
+    nSpin = size(ham, dim=2)
+
+    if (nSpin > 1) then
+      ham(:,:) = 2.0_dp * ham
+      if (allocated(iHam)) then
+        iHam(:,:) = 2.0_dp * iHam
+      end if
+    end if
+
 
     if (solver == solverGF) then
       call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over, &
@@ -1788,12 +1802,10 @@ contains
       return
     end if
 
-    nSpinBlocks = size(ham, dim=2)
-      
     call env%globalTimer%startTimer(globalTimers%diagonalization)
 
-    if (nSpinBlocks /= 4) then
-      
+    if (nSpin /= 4) then
+      call qm2ud(ham)
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
@@ -1808,14 +1820,15 @@ contains
           & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
           & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
+
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
-    call getFillingsAndBandEnergies(eigen, nEl, nSpinBlocks, tempElec, kWeight, tSpinSharedEf,&
+    call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
-    
-    if (nSpinBlocks /= 4) then
+    if (nSpin /= 4) then
+
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
@@ -1835,6 +1848,7 @@ contains
           & rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
+
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   end subroutine getDensity
@@ -4186,10 +4200,13 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
+  subroutine getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
       & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
       & totalLatDeriv, intPressure, iRhoPrim, dispersion)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -4282,22 +4299,22 @@ contains
 
     if (allocated(sccCalc)) then
       if (tImHam) then
-        call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock, cellVol)
       else
-        call getBlockStress(totalStress, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
-            & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
-            & potential%intBlock, cellVol)
+        call getBlockStress(env, totalStress, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont,&
+            & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
+            & iSparseStart, orb, potential%intBlock, cellVol)
       end if
       call sccCalc%addStressDc(totalStress, species, neighborList%iNeighbor, img2CentCell,coord)
     else
       if (tImHam) then
-        call getBlockiStress(totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
+        call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, potential%iorbitalBlock, cellVol)
       else
-        call getNonSCCStress(totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
+        call getNonSCCStress(env, totalStress, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, cellVol)
       end if
