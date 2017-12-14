@@ -20,7 +20,6 @@ module lbfgs
   use accuracy
   use assert
   use message
-  use linemin
   implicit none
   private
 
@@ -92,7 +91,7 @@ module lbfgs
     real(dp) :: maxDisp
 
     !> True if program is in Zoom state
-    logical :: isZoom
+    logical :: tZoom
 
     !> True if converged
     logical :: tConverged
@@ -105,6 +104,27 @@ module lbfgs
 
     !> tolerance for line search gradient termination
     real(dp) :: tol
+
+  contains
+
+    !> Resets lbfgs minimizer
+    procedure :: reset => TLineSearch_reset
+
+    !> Passes the function value and the derivative of the last point to line minimizer and gives a
+    !> new coordinate back.
+    procedure :: next => TLineSearch_next
+
+    !> Returns the function at the minimal point
+    procedure :: getMinY => TLineSearch_getMinY
+
+    !> Gives the gradient in the minimal point back.
+    procedure :: getMinGrad => TLineSearch_getMinGrad
+
+    !> Returns the displacement to the minimum along the line.
+    procedure :: getMinLambda => TLineSearch_getMinLambda
+
+    !> Gives the coordinate of the minimal point back.
+    procedure :: getMinX => TLineSearch_getMinX
 
   end type TLineSearch
 
@@ -124,12 +144,6 @@ module lbfgs
 
     !> line search position
     real(dp) :: alpha
-
-    !> new direction to search along
-    logical :: tNeedNewDirection
-
-    !> has the linesearch converged
-    logical :: tLineConverged
 
     !> Number of past iterations to save
     integer :: mem
@@ -164,7 +178,7 @@ module lbfgs
     procedure :: next => TLbfgs_next
 
     !> reset the search
-    procedure :: reset => Tlbfgs_reset
+    procedure :: reset => TLbfgs_reset
 
   end type TLbfgs
 
@@ -218,7 +232,7 @@ contains
     allocate(this%rho(mem))
     allocate(this%dir(nElem))
 
-    call TLineMin_init(this%lineSearch, nElem, 10, tol, maxDisp)
+    call TLineSearch_init(this%lineSearch, nElem, 10, tol, maxDisp)
 
   end subroutine TLbfgs_init
 
@@ -243,6 +257,7 @@ contains
     logical,  intent(out) :: tConverged
 
     real(dp) :: dxTemp(this%nElem)
+    logical :: tLineConverged
 
     @:ASSERT(size(xNew) == this%nElem)
     @:ASSERT(size(dx) == this%nElem)
@@ -257,25 +272,22 @@ contains
     dxTemp(:) = dx
 
     ! Line Search
-    if (.not. this%tNeedNewDirection) then
-      call TLineMin_next(this%lineSearch, fx, dx, this%xx, this%tLineConverged)
-      if (this%tLineConverged) then
-        this%tNeedNewDirection = .true.
-        xNew(:) = this%xx
-        call TLineMin_getMinGrad(this%lineSearch, dxTemp)
+    if (this%iter > 0) then
+      call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
+      if (tLineConverged) then
+        call this%lineSearch%getMinGrad(dxTemp)
       else
         xNew(:) = this%xx
         return
       end if
     end if
+
     ! Calculate new search direction
-    call calcDirection(this, this%xx, dxTemp)
+    call TLbfgs_calcDirection(this, this%xx, dxTemp)
     this%alpha = 1.0_dp
 
-    call TLineMin_reset(this%lineSearch, this%xx, this%dir, this%alpha)
-    this%tLineConverged = .false.
-    this%tNeedNewDirection = .false.
-    call TLineMin_next(this%lineSearch, fx, dx, this%xx, this%tLineConverged)
+    call this%lineSearch%reset(this%xx, this%dir, this%alpha)
+    call this%lineSearch%next(fx, dx, this%xx, tLineConverged)
     xNew(:) = this%xx
 
   end subroutine TLbfgs_next
@@ -292,8 +304,6 @@ contains
 
     @:ASSERT(size(xx) == this%nElem)
 
-    this%tNeedNewDirection = .true.
-    this%tLineConverged = .false.
     this%alpha = 1.0_dp
     this%xx(:) = xx
     this%xOld(:) = xx
@@ -308,10 +318,10 @@ contains
 
 
   !> Calculates next search direction
-  subroutine calcDirection(this, xx, gg, diagIn)
+  subroutine TLbfgs_calcDirection(this, xx, gg, diagIn)
 
     !> lbfgs instance
-    type(TLbfgs), intent(inout) :: this
+    class(TLbfgs), intent(inout) :: this
 
     !> Point
     real(dp), intent(in) :: xx(:)
@@ -321,8 +331,6 @@ contains
 
     !> Initial diagonal hessian matrix (default identity)
     real(dp), intent(in), optional :: diagIn(:)
-
-    integer :: ii
 
     ! Element where new data of this iteration will be stored
     integer :: newElem
@@ -335,6 +343,8 @@ contains
 
     ! Workspace variables
     real(dp) :: qq(this%nElem), alpha(this%mem), beta
+
+    integer :: ii, mm
 
     ! First Run
     if (this%iter == 0) then
@@ -365,7 +375,6 @@ contains
     !if (beta <= epsilon(1.0_dp) ) then
     !  call warning("Bad step. y*s <= 0 (LBFGS Minimizer)")
     !end if
-    !this%rho(newElem) = 1.0_dp / max(abs(beta),epsilon(1.0_dp))
     this%rho(newElem) = 1.0_dp / max(abs(beta), epsilon(1.0_dp))
 
     ! Save new x and g
@@ -390,43 +399,19 @@ contains
 
     ! Compute d = -H*g using the formula given by Nocedal. Result saved in this%dir
     qq(:) = gg
-    ii = newElem
-    do
+    do mm = 0, this%mem - 1
+      ii = modulo(newElem - mm - 1, this%mem) + 1
       alpha(ii) = this%rho(ii) * dot_product(this%ss(:,ii), qq)
       qq(:) = qq - alpha(ii) * this%yy(:,ii)
-
-      ii = ii - 1
-      if (ii == 0) then
-        ii = this%mem
-      end if
-
-      if (ii == newElem) then
-        exit
-      end if
-
     end do
 
     this%dir(:) = diag * qq
 
-    if (newElem + 1 > this%mem) then
-      oldestElem = 1
-    else
-      oldestElem = newElem + 1
-    end if
-    ii = oldestElem
-    do
+    oldestElem = modulo(newElem, this%mem) + 1
+    do mm = 0, this%mem - 1
+      ii = modulo(oldestElem + mm - 1, this%mem) + 1
       beta = this%rho(ii) * dot_product(this%yy(:,ii), this%dir)
       this%dir(:) = this%dir + this%ss(:,ii) * (alpha(ii) - beta)
-
-      ii = ii + 1
-      if (ii > this%mem) then
-        ii = 1
-      end if
-
-      if (ii == oldestElem) then
-        exit
-      end if
-
     end do
 
     this%iter = this%iter + 1
@@ -434,11 +419,11 @@ contains
     ! Change to correct sign
     this%dir(:) = -this%dir
 
-  end subroutine calcDirection
+  end subroutine TLbfgs_calcDirection
 
 
   !> Creates a new line minimizer
-  subroutine TLineMin_init(this, nElem, mIter, tolerance, maxDisp)
+  subroutine TLineSearch_init(this, nElem, mIter, tolerance, maxDisp)
 
     !> Valid line minimizer instance on exit
     type(TLineSearch), intent(out) :: this
@@ -472,14 +457,14 @@ contains
     allocate(this%x0(nElem))
     allocate(this%dx0(nElem))
 
-  end subroutine TLineMin_init
+  end subroutine TLineSearch_init
 
 
   !> Resets the line minimizer
-  subroutine TLineMin_reset(this, x0, d0, firstStep)
+  subroutine TLineSearch_reset(this, x0, d0, firstStep)
 
     !> Line minimizer instance
-    type(TLineSearch), intent(inout) :: this
+    class(TLineSearch), intent(inout) :: this
 
     !> New starting point
     real(dp), intent(in) :: x0(:)
@@ -498,7 +483,7 @@ contains
     this%dphi0 = 0.0_dp
 
     this%iter = 0
-    this%isZoom = .false.
+    this%tZoom = .false.
     this%tConverged = .false.
 
     this%alphaLo = 0.0_dp
@@ -522,7 +507,7 @@ contains
     this%alphaTemp = 0.0_dp
     this%phiTemp = 0.0_dp
 
-  end subroutine TLineMin_reset
+  end subroutine TLineSearch_reset
 
 
   !> Passes the function value and the derivative of the last point to line minimizer and gives a
@@ -533,10 +518,10 @@ contains
   !> When calling this subroutine the first time, function value and gradient for the starting point
   !> of the minimization should be passed.
   !>
-  subroutine TLineMin_next(this, fx, dx, xNew, tConverged)
+  subroutine TLineSearch_next(this, fx, dx, xNew, tConverged)
 
     !> Line minimizer instance
-    type(TLineSearch), intent(inout) :: this
+    class(TLineSearch), intent(inout) :: this
 
     !> Function value for the last returned point
     real(dp), intent(in) :: fx
@@ -547,11 +532,11 @@ contains
     !> New point to calculate
     real(dp), intent(out) :: xNew(:)
 
-    !> True, line minimization converged. The last passed point is the one with the lowest projected
-    !> derivative.
+    !> True, if line minimization converged. The last passed point is the one with the lowest
+    !> projected derivative.
     logical,  intent(out) :: tConverged
 
-    real(dp) :: phi, dphi, cCheck, qCheck, dAlpha
+    real(dp) :: phi, dphi
 
     @:ASSERT(size(xNew) == this%nElem)
     @:ASSERT(size(dx) == this%nElem)
@@ -561,86 +546,204 @@ contains
     phi = fx
     dphi = dot_product(dx, this%d0)
 
-    if (.not. this%isZoom) then
-      this%iter = this%iter + 1
-
-      if (this%iter == 1) then
-        this%phi0 = fx
-        this%dx0(:) = dx
-        this%dphi0 = dphi
-
-        this%phiLo = fx
-        this%dxLo(:) = dx
-        this%dphiLo = dphi
-
-        if (this%alphaNew > this%maxAlpha) then
-          this%alphaNew = this%maxAlpha
-        end if
-
-        this%xNew(:) = this%x0 + this%alphaNew * this%d0
-        xNew(:) = this%xNew
-        return
-      end if
-
-      if ((phi > this%phi0 + wolfe1 * this%alphaNew * this%dphi0)&
-          & .or.  ((phi >= this%phiLo) .and. (this%iter > 2))) then
-        this%alphaHi = this%alphaNew
-        this%phiHi = phi
-        this%dphiHi = dphi
-        this%dxHi(:) = dx
-
-        this%isZoom = .true.
-        this%iter = 0
-
-      else if (abs(dphi) <= -wolfe2*this%dphi0) then
-        tConverged = .true.
-        this%alphaLo = this%alphaNew
-        this%phiLo = phi
-        this%dphiLo = dphi
-        this%dxLo = dx
-        xNew(:) = this%xNew
-        return
-
-      else if (dphi >= 0.0_dp) then
-        this%alphaHi = this%alphaLo
-        this%phiHi = this%phiLo
-        this%dphiHi = this%dphiLo
-        this%dxHi(:) = this%dxLo
-
-        this%alphaLo = this%alphaNew
-        this%phiLo = phi
-        this%dphiLo = dphi
-        this%dxLo(:) = dx
-
-        this%isZoom = .true.
-        this%iter = 0
-        this%xNew(:) = this%x0 + this%alphaNew * this%d0
-
-      else
-        this%alphaLo = this%alphaNew
-        this%phiLo = phi
-        this%dphiLo = dphi
-        this%dxLo(:) = dx
-
-        if (abs(this%alphaNew - this%maxAlpha) < epsilon(1.0_dp)) then
-          call warning("Line Search hit maximum border.")
-          tConverged = .true.
-          xNew = this%xNew
-          return
-        else if ((this%alphaNew > this%maxAlpha) .and. this%iter > 1) then
-          xNew = this%x0 + this%maxAlpha * this%d0
-          return
-        end if
-
-        this%alphaNew = 2.0_dp * this%alphaNew
-
-        this%xNew(:) = this%x0 + this%alphaNew * this%d0
-        xNew(:) = this%xNew
-        return
-      end if
+    if (.not. this%tZoom) then
+      call TLineSearch_getOptimalStep(this, phi, dphi, dx, xNew, tConverged)
+    end if
+    if (this%tZoom) then
+      call TLineSearch_zoom(this, phi, dphi, dx, xNew, tConverged)
     end if
 
-    ! Zoom Phase
+    this%iter = this%iter + 1
+
+  end subroutine TLineSearch_next
+
+
+  !> Returns the function at the minimal point
+  !>
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
+  !>
+  subroutine TLineSearch_getMinY(this, minY)
+
+    !> Line minimizer
+    class(TLineSearch), intent(in) :: this
+
+    !> Function value in the minimal point
+    real(dp), intent(out) :: minY
+
+    minY = this%phiLo
+
+  end subroutine TLineSearch_getMinY
+
+
+  !> Gives the gradient in the minimal point back.
+  !>
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
+  !>
+  subroutine TLineSearch_getMinGrad(this, minGrad)
+
+    !> Line minimizer
+    class(TLineSearch), intent(in) :: this
+
+    !> Gradient in the minimal point
+    real(dp), intent(out) :: minGrad(:)
+
+    minGrad(:) = this%dxLo
+
+  end subroutine TLineSearch_getMinGrad
+
+
+  !> Returns the displacement to the minimum along the line.
+  !>
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
+  !>
+  subroutine TLineSearch_getMinLambda(this, minLambda)
+
+    !> Line minimizer
+    class(TLineSearch), intent(in) :: this
+
+    !> Displacement along the line to the minimum
+    real(dp), intent(out) :: minLambda
+
+    minLambda = this%alphaLo
+
+  end subroutine TLineSearch_getMinLambda
+
+
+  !> Gives the coordinate of the minimal point back.
+  !>
+  !> The value passed back is meaningless if the subroutine is called before the line minimizer
+  !> signals convergence.
+  !>
+  subroutine TLineSearch_getMinX(this, minX)
+
+    !> Line minimizer
+    class(TLineSearch), intent(in) :: this
+
+    !> Coordinate of the minimal point
+    real(dp), intent(out) :: minX(:)
+
+    minX(:) = this%x0(:) + this%alphaLo * this%d0
+
+  end subroutine TLineSearch_getMinX
+
+
+  !> Tries to find the optimal or a bracket containing the optimal step.
+  subroutine TLineSearch_getOptimalStep(this, phi, dphi, dx, xNew, tConverged)
+
+    !> Instance.
+    type(TLineSearch), intent(inout) :: this
+
+    !> Function value at current point
+    real(dp), intent(in) :: phi
+
+    !> Derivative along search direction at current point
+    real(dp), intent(in) :: dphi
+
+    !> Derivative at current point
+    real(dp), intent(in) :: dx(:)
+
+    !> Next point to calculate
+    real(dp), intent(out) :: xNew(:)
+
+    !> Whether line minimisation converged
+    logical, intent(out) :: tConverged
+
+    if (this%iter == 0) then
+      this%phi0 = phi
+      this%dx0(:) = dx
+      this%dphi0 = dphi
+
+      this%phiLo = phi
+      this%dxLo(:) = dx
+      this%dphiLo = dphi
+
+      this%alphaNew = min(this%alphaNew, this%maxAlpha)
+      this%xNew(:) = this%x0 + this%alphaNew * this%d0
+      xNew(:) = this%xNew
+      return
+    end if
+
+    if ((phi > this%phi0 + wolfe1 * this%alphaNew * this%dphi0)&
+        & .or.  ((phi >= this%phiLo) .and. (this%iter > 1))) then
+      this%alphaHi = this%alphaNew
+      this%phiHi = phi
+      this%dphiHi = dphi
+      this%dxHi(:) = dx
+
+      this%tZoom = .true.
+      this%iter = 0
+
+    else if (abs(dphi) <= -wolfe2 * this%dphi0) then
+      tConverged = .true.
+      this%alphaLo = this%alphaNew
+      this%phiLo = phi
+      this%dphiLo = dphi
+      this%dxLo = dx
+      xNew(:) = this%xNew
+
+    else if (dphi >= 0.0_dp) then
+      this%alphaHi = this%alphaLo
+      this%phiHi = this%phiLo
+      this%dphiHi = this%dphiLo
+      this%dxHi(:) = this%dxLo
+
+      this%alphaLo = this%alphaNew
+      this%phiLo = phi
+      this%dphiLo = dphi
+      this%dxLo(:) = dx
+
+      this%tZoom = .true.
+      this%iter = 0
+      this%xNew(:) = this%x0 + this%alphaNew * this%d0
+
+    else
+      this%alphaLo = this%alphaNew
+      this%phiLo = phi
+      this%dphiLo = dphi
+      this%dxLo(:) = dx
+
+      if (abs(this%alphaNew - this%maxAlpha) < epsilon(1.0_dp)) then
+        call warning("Line Search hit maximum border.")
+        tConverged = .true.
+        xNew(:) = this%xNew
+      else if ((this%alphaNew > this%maxAlpha) .and. this%iter > 0) then
+        xNew(:) = this%x0 + this%maxAlpha * this%d0
+      else
+        this%alphaNew = 2.0_dp * this%alphaNew
+        this%xNew(:) = this%x0 + this%alphaNew * this%d0
+        xNew(:) = this%xNew
+      end if
+
+    end if
+
+  end subroutine TLineSearch_getOptimalStep
+
+
+  !> Finds the optimal step by zooming into the brackets.
+  subroutine TLineSearch_zoom(this, phi, dphi, dx, xNew, tConverged)
+
+    !> Instance.
+    type(TLineSearch), intent(inout) :: this
+
+    !> Function value at current point
+    real(dp), intent(in) :: phi
+
+    !> Derivative along search direction at current point
+    real(dp), intent(in) :: dphi
+
+    !> Derivative at current point
+    real(dp), intent(in) :: dx(:)
+
+    !> Next point to calculate
+    real(dp), intent(out) :: xNew(:)
+
+    !> Whether line minimisation converged
+    logical, intent(out) :: tConverged
+
+    real(dp) :: cCheck, qCheck, dAlpha
 
     if (this%iter > this%mIter) then
       if (abs(this%alphaLo * maxval(this%d0)) < this%tol) then
@@ -722,20 +825,19 @@ contains
       end if
     end if
 
-    this%iter = this%iter + 1
-
     if (abs(this%alphaNew - this%alphaLo) < this%tol) then
       this%alphaNew = this%alphaLo
       tConverged = .true.
     end if
 
-    this%xNew = this%x0 + this%alphaNew*this%d0
+    this%xNew = this%x0 + this%alphaNew * this%d0
     xNew = this%xNew
 
-  end subroutine TLineMin_next
+  end subroutine TLineSearch_zoom
 
 
-  !> Finds the minimizer for a cubic polynomial that goes through the
+  !> Finds the minimizer for a cubic polynomial that goes through three points and has a given
+  !> derivative in the first point.
   function cubicMin(aa, fa, fpa, bb, fb, cc, fc) result(xmin)
 
     !> Point a
@@ -768,8 +870,8 @@ contains
     db = bb - aa
     dc = cc - aa
     denom = (db * dc)**2 * (db - dc)
-    d1 = reshape([ dc**2, -dc**3 , db**2, db**3], [2, 2])
-    temp = matmul(d1, [fb - fa - tc * db, fc - fa - tc * dc])
+    d1(:,:) = reshape([ dc**2, -dc**3 , db**2, db**3], [2, 2])
+    temp(:) = matmul(d1, [fb - fa - tc * db, fc - fa - tc * dc])
 
     ta = temp(1) / denom
     tb = temp(2) / denom
@@ -779,7 +881,8 @@ contains
   end function cubicMin
 
 
-  !> Finds the minimizer for a quadratic polynomial that goes through the
+  !> Finds the minimizer for a quadratic polynomial that goes through two points and has a given
+  !> derivative in the first point.
   function quadMin(aa, fa, fpa, bb, fb) result(xmin)
 
     !> Point a
@@ -809,78 +912,6 @@ contains
     xmin = aa - tc / (2.0_dp * tb)
 
   end function quadMin
-
-
-  !> Gives the coordinate of the minimal point back.
-  !>
-  !> The value passed back is meaningless if the subroutine is called before the line minimizer
-  !> signals convergence.
-  !>
-  subroutine TLineMin_getMinX(this, minX)
-
-    !> Line minimizer
-    type(TLineSearch), intent(in) :: this
-
-    !> Coordinate of the minimal point
-    real(dp), intent(out) :: minX(:)
-
-    minX(:) = this%x0(:) + this%alphaLo * this%d0
-
-  end subroutine TLineMin_getMinX
-
-
-  !> Returns the function at the minimal point
-  !>
-  !> The value passed back is meaningless if the subroutine is called before the line minimizer
-  !> signals convergence.
-  !>
-  subroutine TLineMin_getMinY(this, minY)
-
-    !> Line minimizer
-    type(TLineSearch), intent(in) :: this
-
-    !> Function value in the minimal point
-    real(dp), intent(out) :: minY
-
-    minY = this%phiLo
-
-  end subroutine TLineMin_getMinY
-
-
-  !> Gives the gradient in the minimal point back.
-  !>
-  !> The value passed back is meaningless if the subroutine is called before the line minimizer
-  !> signals convergence.
-  !>
-  subroutine TLineMin_getMinGrad(this, minGrad)
-
-    !> Line minimizer
-    type(TLineSearch), intent(in) :: this
-
-    !> Gradient in the minimal point
-    real(dp), intent(out) :: minGrad(:)
-
-    minGrad(:) = this%dxLo
-
-  end subroutine TLineMin_getMinGrad
-
-
-  !> Returns the displacement to the minimum along the line.
-  !>
-  !> The value passed back is meaningless if the subroutine is called before the line minimizer
-  !> signals convergence.
-  !>
-  subroutine TLineMin_getMinLambda(this, minLambda)
-
-    !> Line minimizer
-    type(TLineSearch), intent(in) :: this
-
-    !> Displacement along the line to the minimum
-    real(dp), intent(out) :: minLambda
-
-    minLambda = this%alphaLo
-
-  end subroutine TLineMin_getMinLambda
 
 
 end module lbfgs

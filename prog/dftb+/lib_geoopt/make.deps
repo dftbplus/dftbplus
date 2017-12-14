@@ -13,8 +13,8 @@ geoopt.o = geoopt.o $(_mod_steepdesc) $(_mod_gdiis) $(_mod_lbfgs) $(_mod_accurac
 _mod_geoopt: geoopt.o
 _mod_geoopt = $(geoopt.o)
 
-lbfgs.o: common.fypp _mod_message _mod_assert _mod_accuracy _mod_linemin _mod_ieee_arithmetic
-lbfgs.o = lbfgs.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_accuracy) $(_mod_linemin) $(_mod_ieee_arithmetic)
+lbfgs.o: _mod_message _mod_assert common.fypp _mod_accuracy
+lbfgs.o = lbfgs.o $(_mod_message) $(_mod_assert) $(common.fypp) $(_mod_accuracy)
 _mod_lbfgs: lbfgs.o
 _mod_lbfgs = $(lbfgs.o)
 
