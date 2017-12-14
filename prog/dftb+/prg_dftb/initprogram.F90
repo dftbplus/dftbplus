@@ -72,16 +72,16 @@ module initprogram
   use ipisocket
 #:endif
   use pmlocalisation
+  use energies
+  use potentials
+  use taggedoutput
+  use formatout
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
   use poisson_vars
   use poisson_int
 #:endif
-  use energies
-  use potentials
-  use taggedoutput
-  use formatout
   implicit none
 
   !> Tagged output files (machine readable)
@@ -807,6 +807,7 @@ module initprogram
 
   private :: createRandomGenerators
 
+#:if WITH_TRANSPORT
   !> Transport variables
   !> Container for the atomistic structure for poisson
   type(TPoissonStructure) :: poissStr
@@ -814,6 +815,7 @@ module initprogram
 
   !> Container for SK data for poisson
   type(TSKData) :: gdftbSKData
+#:endif
 
   !> Whether contact Hamiltonians are uploaded
   !> Synonim for G.F. calculation of density 
@@ -2137,10 +2139,6 @@ contains
     call initTransport(env, input)
   #:endif
 
-  !#:if WITH_SCALAPACK
-  !  call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
-  !#:endif
-
     if (env%tGlobalMaster) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
@@ -2828,7 +2826,7 @@ contains
   end subroutine initSocket
 #:endif
 
- #:if WITH_TRANSPORT
+#:if WITH_TRANSPORT
   subroutine initTransport(env, input)
     type(TEnvironment), intent(in) :: env
     type(inputData), intent(in) :: input
@@ -2908,7 +2906,7 @@ contains
     writeLDOS = input%ginfo%tundos%writeLDOS
     
   end subroutine initTransport
- #:endif  
+#:endif  
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&

@@ -28,8 +28,8 @@ program dftbplus
   allocate(input)
   call parseHsdInput(input)
   call initProgramVariables(input, env)
+  call runDftbPlus(env,input)
   deallocate(input)
-  call runDftbPlus(env)
   call destructGlobalEnv()
 
 end program dftbplus

@@ -49,12 +49,9 @@ endif
 ifeq ($(strip $(WITH_MPI)),1)
 dftb+: external_mpifx external_scalapackfx
 endif
-ifeq ($(strip $(WITH_LIBNEGF)),1)
+ifeq ($(strip $(WITH_TRANSPORT)),1)
 dftb+: external_libnegf 
 external_libnegf: external_mpifx
-WITH_POISSON := 1
-endif
-ifeq ($(strip $(WITH_POISSON)),1)
 dftb+: external_mudpack
 endif	
 modes: external_xmlf90

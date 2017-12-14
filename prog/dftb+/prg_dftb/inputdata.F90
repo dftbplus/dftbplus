@@ -24,16 +24,20 @@ module inputdata_module
   use ipisocket, only : IpiSocketCommInp
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
+#:if WITH_TRANSPORT
   use libnegf_vars
   use poisson_vars
+#:endif
   implicit none
   private
   save
 
   public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
-  public :: TNEGFInfo
   public :: TBlacsOpts
   public :: init, destruct
+#:if WITH_TRANSPORT
+  public :: TNEGFInfo
+#:endif
 
 
   !> Contains Blacs specific options.
@@ -423,22 +427,26 @@ module inputdata_module
     type(TOrbitals), allocatable :: orb
   end type slater
 
+#:if WITH_TRANSPORT
   !> container for data needed by libNEGF
   type TNEGFInfo
     type(TNEGFTunDos) :: tundos  !Transport section informations
     type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
   end type TNEGFInfo
+#:endif
 
 
   !> container for input data constituents
   type inputData
+    logical :: tInitialized = .false.
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
+#:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
     type(TPoissonInfo) :: poisson
-    logical :: tInitialized = .false.
+#:endif
   end type inputData
 
 

@@ -41,8 +41,10 @@ module parser
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
   use wrappedintrinsics
+#:if WITH_TRANSPORT  
   use poisson_vars
   use libnegf_vars
+#:endif
   implicit none
 
   private
@@ -141,16 +143,23 @@ contains
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
 
+#:if WITH_TRANSPORT  
     ! Read in transport and modify geometry if only contact calculation
     call getChild(root, "Transport", dummy, requested=.false.)
 
     if (associated(dummy)) then
       call readTransportGeometry(dummy, input%geom, input%transpar)
     end if
+#:endif
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
+#:if WITH_TRANSPORT  
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, &
+           & input%transpar, input%ginfo%greendens, input%poisson)
+#:else
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
+#:endif
 
     ! Geometry driver
     call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
@@ -164,9 +173,13 @@ contains
     ! Analysis of properties
     call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
+#:if WITH_TRANSPORT  
     call readAnalysis(child, input%ctrl, input%geom, input%slako%orb, input%transpar, &
         & input%ginfo%tundos)
-    
+#:else
+    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb)
+#:endif
+
     ! Options for calculation
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -1006,7 +1019,11 @@ contains
 
 
   !> Reads Hamiltonian
+#:if WITH_TRANSPORT
+  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson)
+#:else
   subroutine readHamiltonian(node, ctrl, geo, slako)
+#:endif
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -1019,22 +1036,40 @@ contains
 
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
+
+#:if WITH_TRANSPORT
+    !> Transport parameters 
+    type(TTransPar), intent(inout)  :: tp 
+    
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+    
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+#:endif
 
     type(string) :: buffer
 
     call getNodeName(node, buffer)
     select case (char(buffer))
     case ("dftb")
+#:if WITH_TRANSPORT      
+      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+#:else
       call readDFTBHam(node, ctrl, geo, slako)
+#:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
 
   end subroutine readHamiltonian
 
-
   !> Reads DFTB-Hamiltonian
+#:if WITH_TRANSPORT
+  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+#:else
   subroutine readDFTBHam(node, ctrl, geo, slako)
+#:endif
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -1047,6 +1082,17 @@ contains
 
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
+    
+#:if WITH_TRANSPORT
+    !> Transport parameters 
+    type(TTransPar), intent(inout)  :: tp 
+    
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+    
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+#:endif
 
     type(fnode), pointer :: value, value2, child, child2, child3, field
     type(fnodeList), pointer :: children
@@ -1571,11 +1617,18 @@ contains
     call getNodeName(value, buffer)
     select case(char(buffer))
     case ("qr")
-      ctrl%iSolver = 1
+      ctrl%iSolver = solverQR 
     case ("divideandconquer")
-      ctrl%iSolver = 2
+      ctrl%iSolver = solverDAC
     case ("relativelyrobust")
-      ctrl%iSolver = 3
+      ctrl%iSolver = solverRR1
+    case ("greensfunction")
+      ctrl%iSolver = solverGF
+#:if WITH_TRANSPORT      
+      call readGreensFunction(value, greendens, tp, ctrl%tempElec)
+#:endif
+    case ("transportonly")
+       ctrl%iSolver = onlyTransport
     end select
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
@@ -1908,6 +1961,27 @@ contains
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimization only applies for periodic structures.")
     end if
+
+    ctrl%tPoisson = .false.
+#:if WITH_TRANSPORT
+    !! Read in which kind of electrostatics to use.
+    call getChildValue(node, "Electrostatics", value, "GammaFunctional", &
+        &child=child)
+    call getNodeName(value, buffer)
+    select case (char(buffer))
+    case ("gammafunctional")
+      if (tp%taskUpload .and. ctrl%tSCC) then
+        call detailedError(child, "GammaFunctional not available, if you &
+            &upload contacts in a SCC calculation.")
+      end if
+    case ("poisson")
+      ctrl%tPoisson = .true.
+      call readPoisson(value, poisson, geo%tPeriodic, tp%tPeriodic1D)
+    case default
+      call getNodeHSDName(value, buffer)
+      call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
+    end select
+#:endif
 
     ! Third order stuff
     ctrl%t3rd = .false.
@@ -3109,7 +3183,11 @@ contains
 
 
   !> Reads the analysis block
+#:if WITH_TRANSPORT  
   subroutine readAnalysis(node, ctrl, geo, orb, transpar, tundos)
+#:else
+  subroutine readAnalysis(node, ctrl, geo, orb)
+#:endif
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -3123,11 +3201,13 @@ contains
     !> Orbital 
     type(TOrbitals), intent(in) :: orb
 
+#:if WITH_TRANSPORT  
     !> Transport parameters
     type(TTransPar), intent(inout) :: transpar
 
     !> Tunneling and Dos parameters
     type(TNEGFTunDos), intent(inout) :: tundos
+#:endif
 
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
@@ -3225,6 +3305,7 @@ contains
     call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
+#:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
     if (associated(child)) then
       if (.not.transpar%defined) then
@@ -3237,6 +3318,7 @@ contains
       if (transpar%tDephasingBP) &
         call readDephasingBP(nodeBP, tundos%bp, geo, orb, transpar)
     endif
+#:endif
 
   end subroutine readAnalysis
 
@@ -3343,6 +3425,7 @@ contains
 
   end subroutine readCustomisedHubbards
 
+#:if WITH_TRANSPORT  
   !!* Read geometry information for transport calculation
   subroutine readTransportGeometry(root, geom, tp)
     type(fnode), pointer :: root
@@ -3483,8 +3566,9 @@ contains
      end subroutine reduceGeometry
 
   end subroutine readTransportGeometry
+#:endif
 
-
+#:if WITH_TRANSPORT  
   subroutine readFirstLayerAtoms(pnode, pls, npl, idxdevice, check)
     logical, optional :: check
     type(fnode), pointer, intent(in) :: pnode
@@ -3520,7 +3604,9 @@ contains
       end if
 
   end subroutine readFirstLayerAtoms
+#:endif
 
+#:if WITH_TRANSPORT  
   subroutine readGreensFunction(pNode, greendens, transpar, tempelec)
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
     type(TTransPar), intent(inout) :: transpar                  !DAR in -> inout
@@ -3658,7 +3744,9 @@ contains
     
 
   end subroutine readGreensFunction
+#:endif
 
+#:if WITH_TRANSPORT  
   !! Read in Poisson related data
   subroutine readPoisson(pNode, poisson, tPeriodic, tPeriodic1D)
     type(fnode), pointer :: pNode
@@ -3849,8 +3937,9 @@ contains
     call getChildValue(pNode, "MaxParallelNodes", poisson%maxNumNodes, 1)
 
   end subroutine readPoisson
+#:endif
 
-
+#:if WITH_TRANSPORT  
   subroutine getPoissonBoundaryConditionOverrides(pNode, availableConditions, &
         & overrideBC)
     type(fnode), pointer, intent(in) :: pNode
@@ -3920,7 +4009,9 @@ contains
     end do
 
   end subroutine getPoissonBoundaryConditionOverrides
-  
+#:endif
+
+#:if WITH_TRANSPORT  
   ! Sanity checking of atom ranges and returning contact vector and direction.
   subroutine getContactVector(atomrange, geom, id, pContact, acc, &
       &contactVec, contactDir)
@@ -3990,7 +4081,9 @@ contains
     end if
 
   end subroutine getContactVector
+#:endif
 
+#:if WITH_TRANSPORT  
   !> Read Electron-Phonon blocks (for density and/or current calculation)   
   subroutine readElPh(node, elph, geom, orb, tp)
     type(fnode), pointer :: node
@@ -4106,10 +4199,9 @@ contains
     end select
 
   end subroutine readElPh
+#:endif
 
-  !-----------------------------------------------------------------------------
-  !DAR begin - readDephasingBP
-  !-----------------------------------------------------------------------------
+#:if WITH_TRANSPORT  
   !> Read Buettiker probe dephasing blocks (for density and/or current calculation)   
   subroutine readDephasingBP(node, elph, geom, orb, tp)
     type(fnode), pointer :: node
@@ -4227,11 +4319,9 @@ contains
     end select
 
   end subroutine readDephasingBP
-  !-----------------------------------------------------------------------------
-  !DAR end
-  !-----------------------------------------------------------------------------
+#:endif
 
-
+#:if WITH_TRANSPORT  
   !!* Read Tunneling and Dos options from analysis block
   !!* tundos is the container to be filled
   !!* ncont is needed for contact option allocation
@@ -4381,8 +4471,9 @@ contains
           & tundos%dosLabels)
 
   end subroutine readTunAndDos
+#:endif
 
- 
+#:if WITH_TRANSPORT  
   !!* Read bias information, used in Analysis and Green's function eigensolver 
   subroutine readContacts(pNodeList, contacts, geom, upload)
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
@@ -4490,7 +4581,9 @@ contains
     end do
 
   end subroutine readContacts
+#:endif
 
+#:if WITH_TRANSPORT  
   ! Read in Fermi levels
   subroutine getFermiLevels(pNode, eFermis, nodeModifier)
     type(fnode), pointer :: pNode
@@ -4513,7 +4606,9 @@ contains
     end if
 
   end subroutine getFermiLevels
+#:endif
 
+#:if WITH_TRANSPORT  
   ! Get contacts for terminal currents by name
   subroutine getEmitterCollectorByName(pNode, emitter, collector, contactNames)
     type(fnode), pointer :: pNode
@@ -4537,7 +4632,9 @@ contains
     call destruct(lString)
 
   end subroutine getEmitterCollectorByName
+#:endif
 
+#:if WITH_TRANSPORT  
   ! Getting the contact by name
   function getContactByName(contactNames, contName, pNode) result(contact)
     character(len=*), intent(in) :: contactNames(:)
@@ -4562,8 +4659,9 @@ contains
     end if
 
   end function getContactByName
+#:endif
 
-  
+#:if WITH_TRANSPORT  
   subroutine readPDOSRegions(children, geo, iAtInregion, tShellResInRegion, &
       & regionLabels)
     type(fnodeList), pointer :: children
@@ -4603,7 +4701,7 @@ contains
     end do
     
   end subroutine readPDOSRegions
-
+#:endif 
 
   !> Reads the parallel block.
   subroutine readParallel(root, parallelOpts)
