@@ -53,10 +53,12 @@ module inputdata_module
 
   end type TParallelOpts
 
+
   !> LBFGS input settings
-  type lbfgsInput
-    integer :: memory = 20
-  end type lbfgsInput
+  type TLbfgsInput
+    integer :: memory
+  end type TLbfgsInput
+
 
   !> Main control data for program as extracted by the parser
   type control
@@ -380,7 +382,7 @@ module inputdata_module
     type(linrespini) :: lrespini
 
     !> LBFGS input
-    type(lbfgsInput), allocatable :: lbfgsInp
+    type(TLbfgsInput), allocatable :: lbfgsInp
 
 
   #:if WITH_SOCKETS

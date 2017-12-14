@@ -23,8 +23,8 @@ module geoopt
     integer :: iGeoOpt
     type(OConjGrad), allocatable :: pConjGrad
     type(OSteepDesc), allocatable :: pSteepDesc
-    type(ODIIS), allocatable :: pDIIS
-    type(TLBFGS), allocatable :: pLBFGS
+    type(ODiis), allocatable :: pDiis
+    type(TLbfgs), allocatable :: pLbfgs
   end type OGeoOpt
 
 
@@ -32,8 +32,8 @@ module geoopt
   interface init
     module procedure GeoOpt_initConjGrad
     module procedure GeoOpt_initSteepDesc
-    module procedure GeoOpt_initDIIS
-    module procedure GeoOpt_initLBFGS
+    module procedure GeoOpt_initDiis
+    module procedure GeoOpt_initLbfgs
   end interface
 
 
@@ -54,8 +54,8 @@ module geoopt
   !> Constants for the different geometry optimizers
   integer, parameter :: iConjGrad = 1
   integer, parameter :: iSteepDesc = 2
-  integer, parameter :: iDIIS = 3
-  integer, parameter :: iLBFGS = 4
+  integer, parameter :: iDiis = 3
+  integer, parameter :: iLbfgs = 4
 
 contains
 
@@ -91,32 +91,32 @@ contains
 
 
   !> Creates a general geometry optimizier with a steepest descent instance
-  subroutine GeoOpt_initDIIS(self, pDIIS)
+  subroutine GeoOpt_initDiis(self, pDiis)
 
     !> GeoOpt instance
     type(OGeoOpt), intent(out) :: self
 
     !> An already initialized modified DIIS instance
-    type(ODIIS), allocatable, intent(inout) :: pDIIS
+    type(ODiis), allocatable, intent(inout) :: pDiis
 
-    self%iGeoOpt = iDIIS
-    call move_alloc(pDIIS, self%pDIIS)
+    self%iGeoOpt = iDiis
+    call move_alloc(pDiis, self%pDiis)
 
-  end subroutine GeoOpt_initDIIS
+  end subroutine GeoOpt_initDiis
 
   !> Creates a general geometry optimizier with a limited memory BFGS driver
-  subroutine GeoOpt_initLBFGS(self, pLBFGS)
+  subroutine GeoOpt_initLbfgs(self, pLbfgs)
 
     !> GeoOpt instance
     type(OGeoOpt), intent(out) :: self
 
     !> An already initialized modified LBFGS
-    type(Tlbfgs), allocatable, intent(inout) :: pLBFGS
+    type(Tlbfgs), allocatable, intent(inout) :: pLbfgs
 
-    self%iGeoOpt = iLBFGS
-    call move_alloc(pLBFGS, self%pLBFGS)
+    self%iGeoOpt = iLbfgs
+    call move_alloc(pLbfgs, self%pLbfgs)
 
-  end subroutine GeoOpt_initLBFGS
+  end subroutine GeoOpt_initLbfgs
 
   !> Resets the geometry optimizer
   subroutine GeoOpt_reset(self, x0)
@@ -132,10 +132,10 @@ contains
       call reset(self%pConjGrad, x0)
     case(iSteepDesc)
       call reset(self%pSteepDesc, x0)
-    case(iDIIS)
-      call reset(self%pDIIS, x0)
-    case (iLBFGS)
-      call self%pLBFGS%reset_lbfgs(x0)
+    case(iDiis)
+      call reset(self%pDiis, x0)
+    case (iLbfgs)
+      call self%pLbfgs%reset(x0)
     end select
 
   end subroutine GeoOpt_reset
@@ -165,10 +165,10 @@ contains
       call next(self%pConjGrad, fx, dx, xNew, tConverged)
     case (iSteepDesc)
       call next(self%pSteepDesc, dx, xNew, tConverged)
-    case (iDIIS)
-      call next(self%pDIIS, dx, xNew, tConverged)
-    case (iLBFGS)
-      call self%pLBFGS%next_lbfgs(fx, dx, xNew, tConverged)
+    case (iDiis)
+      call next(self%pDiis, dx, xNew, tConverged)
+    case (iLbfgs)
+      call self%pLbfgs%next(fx, dx, xNew, tConverged)
     end select
 
   end subroutine GeoOpt_next

@@ -844,10 +844,10 @@ contains
     type(ODIIS), allocatable :: pDIIS
 
     !> lBFGS driver for geometry  optimisation
-    type(Tlbfgs), allocatable :: pLBFGS
+    type(TLbfgs), allocatable :: pLbfgs
 
     !> lBFGS driver for lattice optimisation
-    type(Tlbfgs), allocatable :: pLBFGSLat
+    type(TLbfgs), allocatable :: pLbfgsLat
 
     ! MD related local variables
     type(OThermostat), allocatable :: pThermostat
@@ -1495,10 +1495,10 @@ contains
             & input%ctrl%deltaGeoOpt, input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
       case (4)
-        allocate(pLBFGS)
-        call init(pLBFGS, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp,&
+        allocate(pLbfgs)
+        call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp,&
             & input%ctrl%lbfgsInp%memory)
-        call init(pGeoCoordOpt, pLBFGS)
+        call init(pGeoCoordOpt, pLbfgs)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
@@ -1520,10 +1520,10 @@ contains
             & input%ctrl%maxLatDisp)
         call init(pGeoLatOpt, pConjGradLat)
       case (4)
-        allocate(pLBFGSLat)
-        call init(pLBFGSLat, 9, input%ctrl%maxForce, &
-            & input%ctrl%maxLatDisp, input%ctrl%lbfgsInp%memory)
-        call init(pGeoLatOpt, pLBFGSLat)
+        allocate(pLbfgsLat)
+        call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp,&
+            & input%ctrl%lbfgsInp%memory)
+        call init(pGeoLatOpt, pLbfgsLat)
       end select
       if (tLatOptIsotropic ) then ! optimization uses scaling factor
                                   ! of unit cell
