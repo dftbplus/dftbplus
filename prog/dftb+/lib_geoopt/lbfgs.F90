@@ -861,21 +861,20 @@ contains
     !> value at c
     real(dp), intent(in) :: fc
 
-    !> minimum for the quadratic
+    !> minimum for the cubic
     real(dp) :: xMin
 
-    real(dp) :: db, dc, denom, d1(2,2), radical, ta, tb, tc, temp(2)
+    real(dp) :: db, dc, denom, d1(2,2), radical, ta, tb, temp(2)
 
-    tc = fpa
     db = bb - aa
     dc = cc - aa
     denom = (db * dc)**2 * (db - dc)
-    d1(:,:) = reshape([ dc**2, -dc**3 , db**2, db**3], [2, 2])
-    temp(:) = matmul(d1, [fb - fa - tc * db, fc - fa - tc * dc])
+    d1(:,:) = reshape([ dc**2, -dc**3, -db**2, db**3], [2, 2])
+    temp(:) = matmul(d1, [fb - fa - fpa * db, fc - fa - fpa * dc])
 
     ta = temp(1) / denom
     tb = temp(2) / denom
-    radical = tb * tb - 3 * ta * tc
+    radical = tb * tb - 3 * ta * fpa
     xMin = aa + (-tb + sqrt(radical)) / (3 * ta)
 
   end function cubicMin
@@ -883,7 +882,7 @@ contains
 
   !> Finds the minimizer for a quadratic polynomial that goes through two points and has a given
   !> derivative in the first point.
-  function quadMin(aa, fa, fpa, bb, fb) result(xmin)
+  function quadMin(aa, fa, fpa, bb, fb) result(xMin)
 
     !> Point a
     real(dp), intent(in) :: aa
@@ -903,13 +902,10 @@ contains
     !> minimum for the quadratic
     real(dp) :: xmin
 
-    real(dp) :: td, tc, db, tb
+    real(dp) :: db
 
-    td = fa
-    tc = fpa
     db = bb - aa
-    tb = (fb - td - tc * db) / (db * db)
-    xmin = aa - tc / (2.0_dp * tb)
+    xMin = aa - fpa * db * db / (2.0_dp * (fb - fa - fpa * db))
 
   end function quadMin
 
