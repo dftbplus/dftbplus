@@ -3008,9 +3008,9 @@ contains
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-    end if
-    if (tLinRespZVect) then
-      allocate(excitedDerivs(3, nAtom))
+      if (tLinRespZVect) then
+        allocate(excitedDerivs(3, nAtom))
+      end if
     end if
 
     call init(energy, nAtom)
