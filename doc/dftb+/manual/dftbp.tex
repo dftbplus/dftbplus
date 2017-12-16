@@ -2774,10 +2774,10 @@ fractional occupations. The specifications for this block have the following pro
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
-    \kw{WriteMulliken}          & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteCoefficients}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteEigenvectors}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{TotalStateCoeffs}       & l & WriteEigenvectors | WriteCoefficients = Yes & No & \\
+    \kw{WriteMulliken}          & l & & No & \\
+    \kw{WriteCoefficients}      & l & & No & \\
+    \kw{WriteEigenvectors}      & l & & No & \\
+    \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{WriteStatusArnoldi}     & l & & No & \\
@@ -2794,9 +2794,9 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{StateOfInterest}] Specifies the target excited state or states that should be
     calculated. These are numbered from the first (lowest) excited state as 1, and so on. If the
     absorption spectrum at a given geometry is required (i.e., a single-point calculation), this
-    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver}) should be
-    left empty (forces will not be available). A value less than 0 requests that the state with the
-    largest dipole transition moment be found (again a single-point calculation).
+    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver})
+    should be left empty (forces will not be available). A value less than 0 requests that the
+    state with the largest dipole transition moment be found (again a single-point calculation).
 
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being computed:
     ``singlet'', ``triplet'' or ``both''. This tag is only applicable for spin restricted
