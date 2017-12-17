@@ -73,7 +73,7 @@ Hamiltonian = DFTB {
         C = "p"
     }
     InitialCharges = {
-        Random = Yes
+        Random = {}
     }
     Filling = Fermi {
         Temperature [Kelvin] = 400.000000000000

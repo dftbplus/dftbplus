@@ -1191,7 +1191,7 @@ specification are set to be zero.
 Finally, the charges on all atoms can be set using the \kw{Random} keyword:
 \begin{verbatim}
   InitialCharges = { # Specifying charge for various species
-      Random = Yes
+      Random = {}
   }
 \end{verbatim}
 These will then be supplied by the code's internal random number generator.
@@ -1475,7 +1475,7 @@ keyword:
   SpinPolarisation = Colinear {
     UnpairedElectrons = 0.0
     InitialSpins = {
-      Random = Yes
+      Random = {}
     }
   }
 \end{verbatim}

@@ -2002,7 +2002,11 @@ contains
           end do
           call destroyNodeList(children)
         else
-          call getChildValue(child, "Random", ctrl%randomInitialCharges, .false.)
+          ctrl%randomInitialCharges = .false.
+          call getChild(child, "Random", child2, requested=.false.)
+          if (associated(child2)) then
+            ctrl%randomInitialCharges = .true.
+          end if
         end if
       end if
 
@@ -2035,7 +2039,6 @@ contains
 
       call getChildValue(node, "InitialSpins", val, "", child=child, &
           &allowEmptyValue=.true., dummyValue=.true., list=.true.)
-
       ! Read either all atom spins, or individual spin specifications
       call getChild(child, "AllAtomSpins", child2, requested=.false.)
       if (associated(child2)) then
@@ -2067,7 +2070,11 @@ contains
           deallocate(rTmp)
           call destroyNodeList(children)
         else
-          call getChildValue(child, "Random", ctrl%randomInitialSpins, .false.)
+          ctrl%randomInitialSpins = .false.
+          call getChild(child, "Random", child2, requested=.false.)
+          if (associated(child2)) then
+            ctrl%randomInitialSpins = .true.
+          end if
         end if
       end if
 

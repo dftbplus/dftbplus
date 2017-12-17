@@ -17,7 +17,7 @@ Hamiltonian = DFTB {
         UnpairedElectrons = 12
         RelaxTotalSpin = Yes
         InitialSpins = {
-             Random = Yes
+             Random = {}
         }
     }
     SpinConstants = {

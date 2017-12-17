@@ -15,7 +15,7 @@ Hamiltonian = DFTB {
     }
     SpinPolarisation = NonColinear {
         InitialSpins = {
-             Random = Yes
+             Random = {}
         }
     }
     SpinConstants = {
