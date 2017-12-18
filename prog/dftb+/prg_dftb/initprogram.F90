@@ -1638,9 +1638,6 @@ contains
       end if
 
       if (input%ctrl%lrespini%nstat == 0) then
-        if (input%ctrl%lrespini%tMulliken) then
-          call error("Muliken analysis only available for StateOfInterest non zero.")
-        end if
         if (tForces) then
           call error("Excited forces only available for StateOfInterest non zero.")
         end if
@@ -3008,9 +3005,9 @@ contains
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-    end if
-    if (tLinRespZVect) then
-      allocate(excitedDerivs(3, nAtom))
+      if (tLinRespZVect) then
+        allocate(excitedDerivs(3, nAtom))
+      end if
     end if
 
     call init(energy, nAtom)
