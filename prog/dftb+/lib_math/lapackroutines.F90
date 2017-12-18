@@ -89,14 +89,14 @@ module lapackroutines
   end interface larnv
 
   !> svd decomposition of matrix A into left and right vectors and singular values U S V^dag
-  interface svd
+  interface gesvd
     module procedure cgesvd_cplx
     module procedure zgesvd_dblecplx
-  end interface svd
+  end interface gesvd
 
 
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf, svd
+  public :: hermatinv, hetri, hetrf, gesvd
 
 contains
 
@@ -1182,28 +1182,28 @@ contains
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u)==(/m,mn/)))
-    @:ASSERT(all(shape(vt)==(/n,n/)))
-    @:ASSERT(size(sigma)==mn)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/n,n/)))
+    @:ASSERT(size(sigma) == mn)
 
     lwork = 2*min(m,n)+max(m,n)
 
     allocate(rwork(5*mn))
     allocate(work(lwork))
 
-    u=0.0_rsp
-    vt=0.0_rsp
-    sigma=0.0_rsp
-    rwork=0.0_rsp
-    work=0.0_rsp
+    u = 0.0_rsp
+    vt = 0.0_rsp
+    sigma = 0.0_rsp
+    rwork = 0.0_rsp
+    work = 0.0_rsp
     rwork = 0.0_rsp
     info = 0
 
     ! get only the minimum(m,n) singular vectors
     call cgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
 
-    if (info/=0) then
-      write (error_string, *)'SVD failed : info=', info
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
       call error(error_string)
     end if
 
@@ -1240,27 +1240,28 @@ contains
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u)==(/m,mn/)))
-    @:ASSERT(all(shape(vt)==(/n,n/)))
-    @:ASSERT(size(sigma)==mn)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/n,n/)))
+    @:ASSERT(size(sigma) == mn)
 
     lwork = 2*min(m,n)+max(m,n)
+
     allocate(rwork(5*mn))
     allocate(work(lwork))
 
-    u=0.0_rdp
-    vt=0.0_rdp
-    sigma=0.0_rdp
-    rwork=0.0_rdp
-    work=0.0_rdp
-    rwork = 0.0_rdp
+    u = 0.0_rsp
+    vt = 0.0_rsp
+    sigma = 0.0_rsp
+    rwork = 0.0_rsp
+    work = 0.0_rsp
+    rwork = 0.0_rsp
     info = 0
 
     ! get only the minimum(m,n) singular vectors
     call zgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
 
-    if (info/=0) then
-      write (error_string, *)'SVD failed : info=', info
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
       call error(error_string)
     end if
 
