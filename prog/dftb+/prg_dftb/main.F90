@@ -1705,7 +1705,7 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
-      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      call env%globalTimer%startTimer(globalTimers%sparseToDe1nse)
       call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
           & iSparseStart, img2CentCell, denseDesc, HSqrReal)
       call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
@@ -1991,8 +1991,10 @@ contains
     #:if WITH_SCALAPACK
       call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iSpin),&
           & eigvecs(:,:,iKS), work)
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packRhoRealBlacs(env%blacs, denseDesc, work, neighborList%iNeighbor, nNeighbor,&
           & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
@@ -2000,8 +2002,10 @@ contains
       else
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
       end if
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:endif
 
       if (allocated(rhoSqrReal)) then
@@ -2080,9 +2084,11 @@ contains
     #:if WITH_SCALAPACK
       call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
           & filling(:,iK,iSpin), eigvecs(:,:,iKS), work)
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packRhoCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
           & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, rhoPrim(:,iSpin))
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
       if (tDensON2) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin), neighborlist%iNeighbor,&
@@ -2090,9 +2096,11 @@ contains
       else
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
       end if
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighborList%iNeighbor,&
           & nNeighbor, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:endif
     end do
 
@@ -2230,6 +2238,7 @@ contains
         end if
       end if
 
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
     #:if WITH_SCALAPACK
       if (tImHam) then
         call packRhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
@@ -2258,9 +2267,11 @@ contains
         end if
       end if
     #:endif
+      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     end do
 
   #:if WITH_SCALAPACK
+    call env%globalTimer%startTimer(globalTimers%denseToSparse)
     ! Add up and distribute contributions from each group
     call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
     if (allocated(iRhoPrim)) then
@@ -2270,6 +2281,7 @@ contains
     if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
       call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
     end if
+    call env%globalTimer%stopTimer(globalTimers%denseToSparse)
   #:endif
     if (tSpinOrbit .and. .not. tDualSpinOrbit) then
       energy%ELS = sum(energy%atomLS)

@@ -57,13 +57,14 @@ module environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(12) = [&
+  type(TTimerItem), parameter :: globalTimerItems(13) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
       & TTimerItem("SCC", 1),&
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
+      & TTimerItem("Dense to sparse", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
       & TTimerItem("Eigenvector writing", 2),&
@@ -79,12 +80,13 @@ module environment
     integer :: scc = 4
     integer :: diagonalization = 5
     integer :: sparseToDense = 6
-    integer :: densityMatrix = 7
-    integer :: postScc = 8
-    integer :: eigvecWriting = 9
-    integer :: forceCalc = 10
-    integer :: energyDensityMatrix = 11
-    integer :: postGeoOpt = 12
+    integer :: denseToSparse = 7
+    integer :: densityMatrix = 8
+    integer :: postScc = 9
+    integer :: eigvecWriting = 10
+    integer :: forceCalc = 11
+    integer :: energyDensityMatrix = 12
+    integer :: postGeoOpt = 13
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
