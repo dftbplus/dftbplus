@@ -217,9 +217,9 @@ contains
       end if
 
       call env%globalTimer%startTimer(globalTimers%sparseH0S)
-      call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor, species,&
-          & iSparseStart, orb)
-      call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
+      call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor,&
+          & species, iSparseStart, orb)
+      call buildS(env, over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
       call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 

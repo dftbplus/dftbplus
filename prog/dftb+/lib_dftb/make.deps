@@ -109,8 +109,8 @@ forces.o = forces.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_e
 _mod_forces: forces.o
 _mod_forces = $(forces.o)
 
-nonscc.o: _mod_commontypes common.fypp _mod_message _mod_assert _mod_sk _mod_accuracy _mod_slakocont
-nonscc.o = nonscc.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_sk) $(_mod_accuracy) $(_mod_slakocont)
+nonscc.o: _mod_commontypes common.fypp _mod_schedule _mod_message _mod_environment _mod_assert _mod_sk _mod_accuracy _mod_slakocont
+nonscc.o = nonscc.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_message) $(_mod_environment) $(_mod_assert) $(_mod_sk) $(_mod_accuracy) $(_mod_slakocont)
 _mod_nonscc: nonscc.o
 _mod_nonscc = $(nonscc.o)
 
