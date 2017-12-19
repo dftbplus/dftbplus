@@ -216,10 +216,12 @@ contains
         call reset(pChrgMixer, nMixElements)
       end if
 
+      call env%globalTimer%startTimer(globalTimers%sparseH0S)
       call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
       call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
+      call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
       if (tSetFillingTemp) then
         call getTemperature(temperatureProfile, tempElec)
@@ -1656,7 +1658,7 @@ contains
       & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigvecsReal, eigen)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1703,17 +1705,21 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
           & iSparseStart, img2CentCell, denseDesc, HSqrReal)
       call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
           & img2CentCell, denseDesc, SSqrReal)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
     #:else
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtx(solver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
     #:endif
@@ -1733,7 +1739,7 @@ contains
       & eigvecsCplx, eigen)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1790,17 +1796,21 @@ contains
       iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHSCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor,&
           & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
       call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
           & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
     #:else
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
           & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
@@ -1819,7 +1829,7 @@ contains
       & HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi, species)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1886,6 +1896,7 @@ contains
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
       if (allocated(iHam)) then
         call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1911,6 +1922,7 @@ contains
       if (allocated(xi) .and. .not. allocated(iHam)) then
         call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
       end if
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
       call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen(:,iK),&
           & eigvecsCplx(:,:,iKS))
@@ -1932,7 +1944,7 @@ contains
       & iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work, rhoSqrReal)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -2011,7 +2023,7 @@ contains
       & rhoPrim, work)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -2099,7 +2111,7 @@ contains
       & orbitalL, iRhoPrim)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
