@@ -32,6 +32,11 @@ endif
 ################################################################################
 # Build targets
 ################################################################################
+.PHONY: update_release
+update_release:
+	mkdir -p $(BUILDDIR)
+	[ -r $(ROOT)/RELEASE ] && cp -a $(ROOT)/RELEASE $(BUILDDIR)/RELEASE \
+        || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE
 
 .PHONY: dftb+ modes waveplot
 dftb+ modes waveplot:
@@ -39,7 +44,7 @@ dftb+ modes waveplot:
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-dftb+: external_xmlf90
+dftb+: update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
 dftb+: external_fsockets
 endif
@@ -142,3 +147,12 @@ check_dptools_py3:
 .PHONY: distclean
 distclean:
 	rm -rf $(BUILDDIR)
+
+
+ARCHIVE_NAME := dftbplus
+.PHONY: sourcedist
+sourcedist:
+	rm -rf $(BUILDDIR)/_sourcedist
+	mkdir -p $(BUILDDIR)/_sourcedist
+	$(ROOT)/utils/build/make_archive.sh $(ARCHIVE_NAME) \
+            $(BUILDDIR)/_sourcedist
