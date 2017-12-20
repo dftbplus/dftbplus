@@ -136,7 +136,7 @@ def get_release_name(tag, commit=None):
     else:
         release = '%d.%d' % tag[0:2]
     if commit is not None:
-        release += '* commit %s' % commit
+        release += '* [commit %s]' % commit
     return release
 
 

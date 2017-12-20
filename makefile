@@ -32,6 +32,9 @@ endif
 ################################################################################
 # Build targets
 ################################################################################
+
+# You can disable automatic release determination by setting the release
+# explicitely in the RELEASE file in the source root directory.
 .PHONY: update_release
 update_release:
 	mkdir -p $(BUILDDIR)
@@ -148,7 +151,8 @@ check_dptools_py3:
 distclean:
 	rm -rf $(BUILDDIR)
 
-
+# Create a source distribution from current git check-out
+# Note: check-out must contain all submodules
 ARCHIVE_NAME := dftbplus
 .PHONY: sourcedist
 sourcedist:
