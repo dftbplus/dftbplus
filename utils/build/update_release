@@ -135,9 +135,12 @@ def get_release_name(tag, commit=None):
         release = '%d.%d.%d' % tag
     else:
         release = '%d.%d' % tag[0:2]
-    if commit is not None:
-        release += '* [commit %s]' % commit
-    return release
+    if commit is None:
+        relname = 'release ' + release
+    else:
+        relname = ('development version (base: %s, commit: %s)'
+                   % (release, commit))
+    return relname
 
 
 def convert_tags(rawtags):
