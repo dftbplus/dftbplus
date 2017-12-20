@@ -10,3 +10,4 @@ make.arch
 make.config
 __pycache__
 .idea
+RELEASE
