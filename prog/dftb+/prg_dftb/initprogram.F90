@@ -2999,6 +2999,7 @@ contains
       allocate(iRhoPrim(0, nSpin))
     end if
 
+    allocate(excitedDerivs(0,0))
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
@@ -3006,6 +3007,7 @@ contains
         allocate(chrgForces(3, nExtChrg))
       end if
       if (tLinRespZVect) then
+        deallocate(excitedDerivs)
         allocate(excitedDerivs(3, nAtom))
       end if
     end if

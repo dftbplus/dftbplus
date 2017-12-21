@@ -38,6 +38,8 @@ FILE_TYPES = [
     ('test/prog/dftb+/bin/*', 'shell'),
     ('tools/misc/*', 'python'),
     ('utils/*', 'python'),
+    ('utils/build/*.sh', 'shell'),
+    ('utils/build/*', 'python'),
     ('utils/build/cr_makedep/*', 'python'),
     ('utils/build/fpp/*', 'shell'),
 ]
