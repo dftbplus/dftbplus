@@ -84,8 +84,14 @@ module lbfgs
     !> gradient of phi on the low side
     real(dp) :: dphiLo
 
+    !> minimum scale of step along gradient
+    real(dp) :: minAlpha
+
     !> maximum scale of step along gradient
     real(dp) :: maxAlpha
+
+    !> Minimal displacement in at least one component in one step
+    real(dp) :: minDisp
 
     !> Maximal displacement in one step
     real(dp) :: maxDisp
@@ -101,9 +107,6 @@ module lbfgs
 
     !> holding variable for alpha between steps
     real(dp) :: alphaTemp
-
-    !> tolerance for line search gradient termination
-    real(dp) :: tol
 
   contains
 
@@ -199,7 +202,7 @@ module lbfgs
 contains
 
   !> Initialize lbfgs instance
-  subroutine TLbfgs_init(this, nElem, tol, maxDisp, mem)
+  subroutine TLbfgs_init(this, nElem, tol, minDisp, maxDisp, mem)
 
     !> lbfgs instance on exit
     type(TLbfgs), intent(out) :: this
@@ -209,6 +212,9 @@ contains
 
     !> Tolerance for gradient
     real(dp), intent(in) :: tol
+
+    !> Minimal displacement in at leat one component in one step
+    real(dp), intent(in) :: minDisp
 
     !> Maximal displacement in one step
     real(dp), intent(in) :: maxDisp
@@ -232,7 +238,7 @@ contains
     allocate(this%rho(mem))
     allocate(this%dir(nElem))
 
-    call TLineSearch_init(this%lineSearch, nElem, 10, tol, maxDisp)
+    call TLineSearch_init(this%lineSearch, nElem, 10, minDisp, maxDisp)
 
   end subroutine TLbfgs_init
 
@@ -423,7 +429,7 @@ contains
 
 
   !> Creates a new line minimizer
-  subroutine TLineSearch_init(this, nElem, mIter, tolerance, maxDisp)
+  subroutine TLineSearch_init(this, nElem, mIter, minDisp, maxDisp)
 
     !> Valid line minimizer instance on exit
     type(TLineSearch), intent(out) :: this
@@ -434,8 +440,8 @@ contains
     !> Nr. of maximal iterations to perform (>3)
     integer, intent(in) :: mIter
 
-    !> Convergence criteria for the projected derivative
-    real(dp), intent(in) :: tolerance
+    !> Minimal displacement in at leat one component in one step
+    real(dp), intent(in) :: minDisp
 
     !> Maximal movement in one coordinate in one step
     real(dp), intent(in) :: maxDisp
@@ -445,10 +451,9 @@ contains
     @:ASSERT(maxDisp > 0.0_dp)
 
     this%nElem = nElem
+    this%minDisp = minDisp
     this%maxDisp = maxDisp
     this%mIter = mIter
-
-    this%tol = tolerance
 
     allocate(this%d0(nElem))
     allocate(this%dxLo(nElem))
@@ -502,6 +507,7 @@ contains
     this%xNew(:) = 0.0_dp
 
     this%alphaNew = firstStep
+    this%minAlpha = this%minDisp / maxval(abs(d0))
     this%maxAlpha = this%maxDisp / maxval(abs(d0))
 
     this%alphaTemp = 0.0_dp
@@ -746,8 +752,8 @@ contains
     real(dp) :: cCheck, qCheck, dAlpha
 
     if (this%iter > this%mIter) then
-      if (abs(this%alphaLo * maxval(this%d0)) < this%tol) then
-        if (abs(this%alphaNew * maxval(this%d0)) < this%tol) then
+      if (abs(this%alphaLo * maxval(this%d0)) < this%minAlpha) then
+        if (abs(this%alphaNew * maxval(this%d0)) < this%minAlpha) then
           this%alphaNew = 0.5_dp * this%maxAlpha
           this%xNew(:) = this%x0 + this%alphaNew * this%d0
           xNew(:) = this%xNew
@@ -825,7 +831,7 @@ contains
       end if
     end if
 
-    if (abs(this%alphaNew - this%alphaLo) < this%tol) then
+    if (abs(this%alphaNew - this%alphaLo) < this%minAlpha) then
       this%alphaNew = this%alphaLo
       tConverged = .true.
     end if

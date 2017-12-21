@@ -1496,8 +1496,8 @@ contains
         call init(pGeoCoordOpt, pDIIS)
       case (4)
         allocate(pLbfgs)
-        call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp,&
-            & input%ctrl%lbfgsInp%memory)
+        call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
+            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
         call init(pGeoCoordOpt, pLbfgs)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
@@ -1521,7 +1521,7 @@ contains
         call init(pGeoLatOpt, pConjGradLat)
       case (4)
         allocate(pLbfgsLat)
-        call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp,&
+        call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
             & input%ctrl%lbfgsInp%memory)
         call init(pGeoLatOpt, pLbfgsLat)
       end select
