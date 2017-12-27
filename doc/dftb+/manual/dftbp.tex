@@ -2608,7 +2608,9 @@ calculation and/or calculate properties.
   \kw{EigenvectorsAsTxt} & l & & No & WriteEigenvectors = Yes\\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
+  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
 \end{ptable}
+
 \begin{description}
 
 \item[\is{AtomResolvedEnergies}] Specifies whether the contribution of the
@@ -2730,7 +2732,14 @@ method which {\em may} have better scaling properties.
 \item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
 
+\subsubsection{ElectrostaticPotential} \kw{ElectrostaticPotential}
+\label{sec:dftbp.ESP}
+
+Calculates the electrostatic potential at specified points in space.
+
 \end{description}
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State

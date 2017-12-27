@@ -3183,7 +3183,7 @@ contains
     end if
 
     ctrl%tESPGrid = .false.
-    call getChild(node, "ElectricPotential", child, requested=.false.)
+    call getChild(node, "ElectrostaticPotential", child, requested=.false.)
     if (associated(child)) then
       if (.not.ctrl%tSCC) then
         call error("Electrostatic potentials only available in an SCC calculation")
@@ -3193,7 +3193,6 @@ contains
           & modifier=modifier, allowEmptyValue=.true.)
       call getNodeName2(child2, buffer)
       if (char(buffer) /= "") then
-
         call getChildValue(child3, "", 3, lr1, modifier=modifier)
         ctrl%tESPGrid = (len(lr1) > 0)
         allocate(ctrl%ESPgrid(3,len(lr1)))
@@ -3204,7 +3203,6 @@ contains
           call convertByMul(char(modifier), lengthUnits, child3, ctrl%ESPgrid)
         end if
       end if
-
       call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
       if (associated(child2)) then
         if (ctrl%tESPGrid) then
