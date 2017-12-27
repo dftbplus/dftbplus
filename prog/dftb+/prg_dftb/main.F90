@@ -174,7 +174,7 @@ contains
     real(dp) :: localisation
 
     integer :: ii
-    
+
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -370,7 +370,7 @@ contains
         end do
         write(stdOut,*)
       end if
-      
+
       if (tXlbomd) then
         call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
             & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
@@ -4092,7 +4092,7 @@ contains
             & skOverCont, coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, cellVol)
       end if
-      call sccCalc%addStressDc(totalStress, species, neighborList%iNeighbor, img2CentCell)
+      call sccCalc%addStressDc(totalStress, env, species, neighborList%iNeighbor, img2CentCell)
     else
       if (tImHam) then
         call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&

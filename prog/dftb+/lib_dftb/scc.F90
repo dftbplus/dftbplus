@@ -789,13 +789,16 @@ contains
 
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
   !> shift vectors.
-  subroutine addStressDc(this, st, species, iNeighbor, img2CentCell)
+  subroutine addStressDc(this, st, env, species, iNeighbor, img2CentCell)
 
     !> Resulting module variables
     class(TScc), intent(in) :: this
 
     !> Add stress tensor contribution to this
     real(dp), intent(inout) :: st(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Species for each atom.
     integer, intent(in) :: species(:)
@@ -823,7 +826,7 @@ contains
     ! call invRstress
 
     stTmp = 0.0_dp
-    call invR_stress(stTmp, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,img2CentCell, &
+    call invR_stress(stTmp, env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,img2CentCell, &
         & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
@@ -976,29 +979,13 @@ contains
         & force)
 
     ! 1/R contribution
-  #:if WITH_SCALAPACK
-    allocate(derivsBuffer(size(force, dim=1), size(force, dim=2)))
-    derivsBuffer(:,:) = 0.0_dp
-    if (env%blacs%atomGrid%iproc /= -1) then
-      if (this%tPeriodic) then
-        call getDInvRXlbomdPeriodicBlacs(env%blacs%atomGrid, this%descInvRMat,&
-            & shape(this%invRMat), this%coord, this%nNeighEwald, iNeighbor, img2CentCell,&
-            & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom, derivsBuffer)
-      else
-        call getDInvRXlbomdClusterBlacs(env%blacs%atomGrid, this%descInvRMat, shape(this%invRMat),&
-            & this%coord, this%deltaQAtom, dQOutAtom, derivsBuffer)
-      end if
-    end if
-    call mpifx_allreduceip(env%mpi%groupComm, derivsBuffer, MPI_SUM)
-    force(:,:) = force + derivsBuffer
-  #:else
     if (this%tPeriodic) then
-      call addInvRPrimeXlbomd(this%nAtom, this%coord, this%nNeighEwald, iNeighbor, img2CentCell,&
-          & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom, force)
+      call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,&
+          & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom,&
+          & force)
     else
-      call addInvRPrimeXlbomd(this%nAtom, this%coord, this%deltaQAtom, dQOutAtom, force)
+      call addInvRPrimeXlbomd(this%nAtom, env, this%coord, this%deltaQAtom, dQOutAtom, force)
     end if
-  #:endif
 
     if (this%tExtChrg) then
       call error("XLBOMD with external charges does not work yet!")

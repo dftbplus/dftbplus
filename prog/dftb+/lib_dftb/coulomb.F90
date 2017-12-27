@@ -15,6 +15,7 @@ module coulomb
 #:if WITH_MPI
   use mpifx
 #:endif
+  use schedule
   use environment
   use assert
   use accuracy
@@ -28,9 +29,6 @@ module coulomb
   public :: invR, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, ewald, invR_stress
   public :: addInvRPrimeXlbomd
-#:if WITH_SCALAPACK
-  public :: getDInvRXlbomdClusterBlacs, getDInvRXlbomdPeriodicBlacs
-#:endif
 
   !> 1/r interaction for all atoms with another group
   interface sumInvR
@@ -125,7 +123,6 @@ contains
         invRMat(ii, jj) = 1.0_dp / dist
       end do
     end do
-
 
 #:else
 
@@ -555,9 +552,8 @@ contains
     real(dp) :: dist, vect(3), fTmp
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     @:ASSERT(size(deriv, dim=1) == 3)
     @:ASSERT(size(deriv, dim=2) >= nAtom)
@@ -568,21 +564,7 @@ contains
     allocate(localDeriv(3,nAtom))
     localDeriv = 0.0_dp
 
-    iAtFirst = 1
-    iAtLast = nAtom
-
-#:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom0
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:endif
-
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,vect,dist,ftmp) &
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(iAtFirst, iAtLast, nAtom, coord, deltaQAtom) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
     do ii = iAtFirst, iAtLast
       do jj = ii + 1, nAtom
@@ -596,9 +578,7 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-#:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, localDeriv, MPI_SUM)
-#:endif
+    call assembleChunks(env, localDeriv)
 
     deriv = deriv + localDeriv
 
@@ -608,10 +588,13 @@ contains
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
   !> geometry
-  subroutine addInvRPrimeXlbomd_cluster(nAtom, coord, dQInAtom, dQOutAtom, deriv)
+  subroutine addInvRPrimeXlbomd_cluster(nAtom, env, coord, dQInAtom, dQOutAtom, deriv)
 
     !> number of atoms
     integer, intent(in) :: nAtom
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> coordinates of atoms
     real(dp), intent(in) :: coord(:,:)
@@ -627,6 +610,13 @@ contains
 
     integer :: iAt1, iAt2
     real(dp) :: dist, vect(3), fTmp, prefac
+    real(dp), allocatable :: localDeriv(:,:)
+    integer :: iAtFirst, iAtLast
+
+    allocate(localDeriv(3,nAtom))
+    localDeriv = 0.0_dp
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     @:ASSERT(size(deriv, dim=1) == 3)
     @:ASSERT(size(deriv, dim=2) >= nAtom)
@@ -635,78 +625,27 @@ contains
     @:ASSERT(size(dQInAtom) == nAtom)
     @:ASSERT(size(dQOutAtom) == nAtom)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2,vect,dist,prefac,ftmp) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAt1 = 1, nAtom
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(iAtFirst, iAtLast, nAtom, coord, dQOutAtom, &
+    !$OMP& dQInAtom) SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
+    do iAt1 = iAtFirst, iAtLast
       do iAt2 = iAt1 + 1, nAtom
         vect(:) = coord(:,iAt1) - coord(:,iAt2)
         dist = sqrt(sum(vect(:)**2))
         prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2) &
             & - dQInAtom(iAt1) * dQInAtom(iAt2)
         fTmp = -prefac / (dist**3)
-        deriv(:,iAt1) = deriv(:,iAt1) + vect * fTmp
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + vect * fTmp
         ! Skew-symmetric 1/r2 interaction, so the other triangle is calculated
-        deriv(:,iAt2) = deriv(:,iAt2) - vect *fTmp
+        localDeriv(:,iAt2) = localDeriv(:,iAt2) - vect *fTmp
       end do
     end do
     !$OMP  END PARALLEL DO
 
+    call assembleChunks(env, localDeriv)
+
+    deriv = deriv + localDeriv
+
   end subroutine addInvRPrimeXlbomd_cluster
-
-
-#:if WITH_SCALAPACK
-
-  !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
-  !> geometry
-  subroutine getDInvRXlbomdClusterBlacs(grid, descAtomSqr, localShape, coord, dQInAtom, dQOutAtom,&
-      & deriv)
-
-    !> BLACS grid of the distributed derivative vector
-    type(blacsgrid), intent(in) :: grid
-
-    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
-    integer, intent(in) :: descAtomSqr(DLEN_)
-
-    !> Local shape of the distributed nAtom x nAtom matrix
-    integer, intent(in) :: localShape(:)
-
-    !> coordinates of atoms
-    real(dp), intent(in) :: coord(:,:)
-
-    !> input charge fluctuations
-    real(dp), intent(in) :: dQInAtom(:)
-
-    !> output charge fluctuations
-    real(dp), intent(in) :: dQOutAtom(:)
-
-    !> energy derivative to add contribution to
-    real(dp), intent(out) :: deriv(:,:)
-
-    integer :: ii, jj, iAt1, iAt2
-    real(dp) :: dist, vect(3), fTmp, prefac
-
-    deriv(:,:) = 0.0_dp
-    do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_),&
-          & grid%ncol)
-      do ii = 1, localShape(1)
-        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_),&
-            & grid%nrow)
-        if (iAt1 /= iAt2) then
-          vect(:) = coord(:,iAt1) - coord(:,iAt2)
-          dist = sqrt(sum(vect**2))
-          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2) &
-              & - dQInAtom(iAt1) * dQInAtom(iAt2)
-          fTmp = -prefac / (dist**3)
-          deriv(:,iAt1) = deriv(:,iAt1) + vect * fTmp
-        end if
-      end do
-    end do
-
-  end subroutine getDInvRXlbomdClusterBlacs
-
-#:endif
-
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
@@ -889,9 +828,6 @@ contains
     real(dp) :: r(3)
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(size(deriv, dim=1) == 3)
     @:ASSERT(size(deriv, dim=2) >= nAtom)
@@ -905,19 +841,7 @@ contains
     allocate(localDeriv(3,nAtom))
     localDeriv = 0.0_dp
 
-    iAtFirst = 1
-    iAtLast = nAtom
-
-#:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    nAtLocal = ceiling(real(nAtom)/real(env%mpi%groupSize))
-    iAtFirst = myRank * nAtLocal + 1
-    ! ensure last processor in group only does up to nAtom0
-    iAtLast = min((myRank+1) * nAtLocal, nAtom)
-
-#:endif
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     ! d(1/R)/dr real space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r) &
@@ -951,9 +875,7 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-#:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, localDeriv, MPI_SUM)
-#:endif
+    call assembleChunks(env, localDeriv)
 
     deriv = deriv + localDeriv
 
@@ -962,8 +884,11 @@ contains
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
-  subroutine addInvRPrimeXlbomd_periodic(nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell,&
-      & recPoint, alpha, volume, dQInAtom, dQOutAtom, deriv)
+  subroutine addInvRPrimeXlbomd_periodic(env, nAtom, coord, nNeighborEwald, iNeighbor,&
+      & img2CentCell, recPoint, alpha, volume, dQInAtom, dQOutAtom, deriv)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -1001,6 +926,13 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
     real(dp) :: rr(3), contrib(3), prefac
+    real(dp), allocatable :: localDeriv(:,:)
+    integer :: iAtFirst, iAtLast
+
+    allocate(localDeriv(3,nAtom))
+    localDeriv = 0.0_dp
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
     @:ASSERT(size(deriv, dim=1) == 3)
     @:ASSERT(size(deriv, dim=2) >= nAtom)
@@ -1014,8 +946,8 @@ contains
 
     ! real space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iNeigh,iAt2,iAt2f,rr,prefac,contrib) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAt1 = 1, nAtom
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
+    do iAt1 = iAtFirst, iAtLast
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
@@ -1026,122 +958,33 @@ contains
         prefac = dQOutAtom(iAt1) * dQInAtom(iAt2f) + dQInAtom(iAt1) * dQOutAtom(iAt2f)&
             & - dQInAtom(iAt1) * dQInAtom(iAt2f)
         contrib(:) = prefac * derivRTerm(rr, alpha)
-        deriv(:,iAt1) = deriv(:,iAt1) + contrib
-        deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + contrib
+        localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - contrib
       end do
     end do
     !$OMP  END PARALLEL DO
 
     ! reciprocal space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2,rr,prefac,contrib) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAt1 = 1, nAtom
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
+    do iAt1 = iAtFirst, iAtLast
       do iAt2 = iAt1 + 1, nAtom
         rr(:) = coord(:,iAt1) - coord(:,iAt2)
         prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2)&
             & - dQInAtom(iAt1) * dQInAtom(iAt2)
         contrib(:) = prefac * derivEwaldReciprocal(rr, recPoint, alpha, volume)
-        deriv(:,iAt1) = deriv(:,iAt1) + contrib
-        deriv(:,iAt2) = deriv(:,iAt2) - contrib
+        localDeriv(:,iAt1) = localDeriv(:,iAt1) + contrib
+        localDeriv(:,iAt2) = localDeriv(:,iAt2) - contrib
       end do
     end do
     !$OMP  END PARALLEL DO
 
+    call assembleChunks(env, localDeriv)
+
+    deriv = deriv + localDeriv
+
   end subroutine addInvRPrimeXlbomd_periodic
 
-
-#:if WITH_SCALAPACK
-
-    !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
-  subroutine getDInvRXlbomdPeriodicBlacs(grid, descAtomSqr, localShape, coord, nNeighborEwald,&
-      & iNeighbor, img2CentCell, recPoint, alpha, volume, dQInAtom, dQOutAtom, deriv)
-
-    !> BLACS grid of the distributed derivative vector
-    type(blacsgrid), intent(in) :: grid
-
-    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
-    integer, intent(in) :: descAtomSqr(DLEN_)
-
-    !> Local shape of the distributed nAtom x nAtom matrix
-    integer, intent(in) :: localShape(:)
-
-    !> coordinates of atoms
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Nr. of neighbors for each atom for real part of Ewald
-    integer, intent(in) :: nNeighborEwald(:)
-
-    !> List of neighbors for the real space part of Ewald.
-    integer, intent(in) :: iNeighbor(0:,:)
-
-    !> Image of each atom in the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Contains the points included in the reciprocal sum. The set should not include the origin or
-    !> inversion related points.
-    real(dp), intent(in) :: recPoint(:,:)
-
-    !> Ewald parameter
-    real(dp), intent(in) :: alpha
-
-    !> cell volume
-    real(dp), intent(in) :: volume
-
-    !> input charge fluctuations
-    real(dp), intent(in) :: dQInAtom(:)
-
-    !> output charge fluctuations
-    real(dp), intent(in) :: dQOutAtom(:)
-
-    !> energy derivative to add contribution to
-    real(dp), intent(out) :: deriv(:,:)
-
-    integer :: ii, jj, iAt1, iAt2, iAt2f, iNeigh, iLoc, jLoc
-    real(dp) :: rr(3), contrib(3), prefac
-    logical :: tLocal
-
-    deriv(:,:) = 0.0_dp
-
-    ! Real space contribution
-    do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_),&
-          & grid%ncol)
-      do iNeigh = 1, nNeighborEwald(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        call scalafx_islocal(grid, descAtomSqr, iAt2f, iAt1, tLocal, iLoc, jLoc)
-        if (tLocal .and. iAt2f /= iAt1) then
-          rr(:) = coord(:,iAt1) - coord(:,iAt2)
-          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2f) + dQInAtom(iAt1) * dQOutAtom(iAt2f) &
-              & - dQInAtom(iAt1) * dQInAtom(iAt2f)
-          contrib(:) = prefac * derivRTerm(rr, alpha)
-          deriv(:,iAt1) = deriv(:,iAt1) + contrib
-          ! Neighbor list only contains lower triange: add also to screw symmetric equivalent
-          deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
-        end if
-      end do
-    end do
-
-    ! Reciprocal space contribution
-    do jj = 1, localShape(2)
-      iAt1 = scalafx_indxl2g(jj, descAtomSqr(NB_), grid%mycol, descAtomSqr(CSRC_),&
-          & grid%ncol)
-      do ii= 1, localShape(1)
-        iAt2 = scalafx_indxl2g(ii, descAtomSqr(MB_), grid%myrow, descAtomSqr(RSRC_),&
-            & grid%nrow)
-        if (iAt2 /= iAt1) then
-          rr(:) = coord(:,iAt1) - coord(:,iAt2)
-          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2) + dQInAtom(iAt1) * dQOutAtom(iAt2) &
-              & - dQInAtom(iAt1) * dQInAtom(iAt2)
-          contrib(:) = prefac * derivEwaldReciprocal(rr, recPoint, alpha, volume)
-          deriv(:,iAt1) = deriv(:,iAt1) + contrib
-        end if
-      end do
-    end do
-
-  end subroutine getDInvRXlbomdPeriodicBlacs
-
-#:endif
 
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
@@ -1556,8 +1399,8 @@ contains
     !> Result
     real(dp) :: ewald
 
-
-    ewald = ewaldReciprocal(rr, gVec, alpha, vol) + ewaldReal(rr, rVec, alpha, blurwidths, epsSoften)&
+    ewald = ewaldReciprocal(rr, gVec, alpha, vol)&
+        & + ewaldReal(rr, rVec, alpha, blurwidths, epsSoften)&
         & - pi / (vol*alpha**2)
     if (sum(rr(:)**2) < tolSameDist2) then
       ewald = ewald - 2.0_dp * alpha / sqrt(pi)
@@ -1880,11 +1723,14 @@ contains
 
   !> Calculates the stress tensor derivatives of the Ewald electrostatics
   !> Aguard and Madden J Chem Phys 119 7471 (2003)
-  subroutine invR_stress(stress, nAtom, coord, nNeighborEwald, iNeighbor, &
+  subroutine invR_stress(stress, env, nAtom, coord, nNeighborEwald, iNeighbor, &
       & img2CentCell, recPoint, alpha, volume, q)
 
     !> Stress tensor
     real(dp), intent(out) :: stress(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Number of atoms.
     integer, intent(in) :: nAtom
@@ -1916,7 +1762,8 @@ contains
 
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
     real(dp) :: r(3), f(3), g(3), g2, intermed, intermed2
-    real(dp) :: stressTmp(3,3)
+    real(dp) :: stressTmp(3,3), localStress(3,3)
+    integer :: iFirst, iLast
 
     @:ASSERT(all(shape(stress)==(/3,3/)))
     @:ASSERT(size(coord, dim=1) == 3)
@@ -1926,10 +1773,10 @@ contains
     @:ASSERT(size(q) == nAtom)
     @:ASSERT(volume > 0.0_dp)
 
-    stress(:,:) = 0.0_dp
-
     ! Reciprocal space part of the Ewald sum.
-    do ii = 1, size(recpoint, dim=2)
+    call distributeRangeInChunks(env, 1, size(recpoint, dim=2), iFirst, iLast)
+    localStress = 0.0_dp
+    do ii = iFirst, iLast
       do iInv = -1, 1, 2
         g(:) = real(iInv,dp)*recpoint(:,ii)
         intermed = 0.0_dp
@@ -1955,15 +1802,20 @@ contains
                 & *g(kk)*g(jj)
           end do
         end do
-        stress = stress + stressTmp * intermed
+        localStress = localStress + stressTmp * intermed
       end do
     end do
-    stress = -stress * 4.0_dp * pi / volume
+    localStress = -localStress * 4.0_dp * pi / volume
+
+    call assembleChunks(env, localStress)
+    stress = localStress
 
     ! Real space part of the Ewald sum.
+    call distributeRangeInChunks(env, 1, nAtom, iFirst, iLast)
+    localStress = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r,f,ii,jj) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:stress)
-    do iAtom1 = 1, nAtom
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localStress)
+    do iAtom1 = iFirst, iLast
       do iNeigh = 1, nNeighborEwald(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
@@ -1972,19 +1824,22 @@ contains
         if (iAtom2f /= iAtom1) then
           do ii = 1, 3
             do jj = 1, 3
-              stress(jj,ii) = stress(jj,ii) + (r(jj)*f(ii) + f(jj)*r(ii))
+              localStress(jj,ii) = localStress(jj,ii) + (r(jj)*f(ii) + f(jj)*r(ii))
             end do
           end do
         else
           do ii = 1, 3
             do jj = 1, 3
-              stress(jj,ii) = stress(jj,ii) + 0.5_dp*(r(jj)*f(ii) + f(jj)*r(ii))
+              localStress(jj,ii) = localStress(jj,ii) + 0.5_dp*(r(jj)*f(ii) + f(jj)*r(ii))
             end do
           end do
         end if
       end do
     end do
     !$OMP  END PARALLEL DO
+
+    call assembleChunks(env, localStress)
+    stress = stress + localStress
 
     stress = stress / volume
 
