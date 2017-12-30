@@ -277,6 +277,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
+      if (present(nItem)) then
+        nItem = size(default)
+      end if
       if (present(modifier)) then
         modifier = ""
       end if
@@ -482,6 +485,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
+      if (present(nItem)) then
+        nItem = size(default)
+      end if
       if (present(modifier)) then
         modifier = ""
       end if
@@ -682,6 +688,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
+      if (present(nItem)) then
+        nItem = size(default)
+      end if
       if (present(modifier)) then
         modifier = ""
       end if
