@@ -21,7 +21,7 @@ SRCDIRS := $(ROOT)/prog/waveplot
 SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
 SRCDIRS += $(ROOT)/prog/dftb+/include
 INCDIRS := $(ROOT)/prog/dftb+/include
-include $(ROOT)/prog/dftb+/make.common
+include $(ROOT)/prog/waveplot/make.common
 
 # Target definitions (declared *after* importing necessary makefiles).
 waveplot: $(waveplot.o)

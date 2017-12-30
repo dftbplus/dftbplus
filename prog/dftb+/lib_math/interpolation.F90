@@ -15,7 +15,13 @@ module interpolation
   implicit none
   private
 
-  public :: poly5ToZero, freeCubicSpline, polyInter
+  public :: poly5ToZero, freeCubicSpline, polyInter, polyInterUniform
+
+  !> Uniform grid polynomial interpolation
+  interface polyInterUniform
+    module procedure polyInterU1
+    module procedure polyInterU2
+  end interface polyInterUniform
 
 contains
 
@@ -109,6 +115,125 @@ contains
     end if
 
   end subroutine freeCubicSpline
+
+
+  !> Polynomial interpolation through given points The algorithm is based on the one in Numerical
+  !> recipes, but assumes a uniform grid spacing.
+  function polyInterU1(xp, yp, xx, dy) result(yy)
+
+    !> x-coordinates of the fit points
+    real(dp), intent(in) :: xp(:)
+
+    !> y-coordinates of the fit points
+    real(dp), intent(in) :: yp(:)
+
+    !> The point, where the polynomial should be calculated
+    real(dp), intent(in) :: xx
+
+    !> Optional error estimate on calculated value
+    real(dp), intent(out), optional :: dy
+
+    !> The value of the polynomial
+    real(dp) :: yy
+
+    integer :: nn
+    integer :: iCl, ii, mm
+
+    real(dp) :: cc(size(xp)), dd(size(xp))
+    real(dp) :: dyy, rTmp
+
+    nn = size(xp)
+
+    @:ASSERT(nn > 1)
+    @:ASSERT(size(yp) == nn)
+
+    cc(:) = yp(:)
+    dd(:) = yp(:)
+    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1)))
+    yy = yp(iCl)
+    iCl = iCl - 1
+    do mm = 1, nn - 1
+      do ii = 1, nn - mm
+        rTmp = xp(ii) - xp(ii+mm)
+        rTmp = (cc(ii+1) - dd(ii)) / rTmp
+        cc(ii) = (xp(ii) - xx) * rTmp
+        dd(ii) = (xp(ii+mm) - xx) * rTmp
+      end do
+      if (2 * iCl < nn - mm) then
+        dyy = cc(iCl + 1)
+      else
+        dyy = dd(iCl)
+        iCl = iCl - 1
+      end if
+      yy = yy + dyy
+    end do
+
+    if (present(dy)) then
+      dy = dyy
+    end if
+
+  end function polyInterU1
+
+  !> Polynomial interpolation through given points The algorithm is based on the one in Numerical
+  !> recipes, but assumes a uniform grid spacing and interpolates a vector of values.
+  function polyInterU2(xp, yp, xx, dy) result(yy)
+
+    !> x-coordinates of the fit points
+    real(dp), intent(in) :: xp(:)
+
+    !> y-coordinates of the fit points
+    real(dp), intent(in) :: yp(:,:)
+
+    !> The point, where the polynomial should be calculated
+    real(dp), intent(in) :: xx
+
+    !> Optional error estimate on calculated value
+    real(dp), intent(out), optional :: dy(:)
+
+    !> The value of the polynomial
+    real(dp) :: yy(size(yp,dim=1))
+
+    integer :: nn
+    integer :: iCl, ii, mm
+
+    real(dp) :: cc(size(yp,dim=1),size(xp)), dd(size(yp,dim=1),size(xp))
+    real(dp) :: dyy(size(yp,dim=1)), r2Tmp(size(yp,dim=1))
+    real(dp) :: delta(size(xp)-1)
+
+    nn = size(xp)
+
+    @:ASSERT(nn > 1)
+    @:ASSERT(size(yp,dim=2) == nn)
+
+    delta = 0.0_dp
+    do ii = 1, size(xp)-1
+      delta(ii) = 1.0_dp / (xp(1+ii) - xp(1))
+    end do
+    cc = yp
+    dd = yp
+    iCl = ceiling((xx-xp(1))*delta(1))
+    yy = yp(:,iCl)
+    iCl = iCl - 1
+    do mm = 1, nn - 1
+      do ii = 1, nn - mm
+        r2Tmp = (dd(:,ii) - cc(:,ii+1)) * delta(mm)
+        cc(:,ii) = (xp(ii) - xx) * r2Tmp
+        dd(:,ii) = (xp(ii+mm) - xx) * r2Tmp
+      end do
+      if (2 * iCl < nn - mm) then
+        dyy = cc(:,iCl + 1)
+      else
+        dyy = dd(:,iCl)
+        iCl = iCl - 1
+      end if
+      yy = yy + dyy
+    end do
+
+    if (present(dy)) then
+      dy = dyy
+    end if
+
+  end function polyInterU2
 
 
   !> Polynomial interpolation through given points

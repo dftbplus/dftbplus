@@ -9,9 +9,9 @@
 
 !> Contains subroutines for formatted output of data
 module formatout
+  use globalenv
   use assert
   use accuracy
-  use io
   use fileid
   use constants
   use lapackroutines, only: matinv
@@ -326,26 +326,26 @@ contains
     character, parameter :: hbar = '='
     integer, parameter :: headerWidth = 80
 
-    write(stdout, '(2A,/,A)') vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdout, '(4A)') vbar, '  DFTB+ (Release ', release, ')'
-    write(stdout, '(A)') vbar
-    write(stdout, '(2A,I0,A)') vbar, '  Copyright (C) ', year, '  DFTB+ developers group'
-    write(stdout, '(A,/,2A,/,A)') vbar, vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdout, '(2A)') vbar,&
+    write(stdOut, '(2A,/,A)') vbar, repeat(hbar, headerWidth - 1), vbar
+    write(stdOut, '(3A)') vbar, '  DFTB+ ', trim(release)
+    write(stdOut, '(A)') vbar
+    write(stdOut, '(2A,I0,A)') vbar, '  Copyright (C) ', year, '  DFTB+ developers group'
+    write(stdOut, '(A,/,2A,/,A)') vbar, vbar, repeat(hbar, headerWidth - 1), vbar
+    write(stdOut, '(2A)') vbar,&
         & '  When publishing results obtained with DFTB+, please cite the following',&
         & vbar, '  reference:'
-    write(stdout, '(A)') vbar
-    write(stdout, '(2A)') vbar,'  * B. Aradi, B. Hourahine and T. Frauenheim,',&
+    write(stdOut, '(A)') vbar
+    write(stdOut, '(2A)') vbar,'  * B. Aradi, B. Hourahine and T. Frauenheim,',&
         & vbar, '    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,',&
         & vbar, '    J. Phys. Chem. A, 111 5678 (2007).  [doi: 10.1021/jp070186p]'
-    write(stdout, '(A)') vbar
-    write(stdout, '(2A,2(/,2A))') vbar,&
+    write(stdOut, '(A)') vbar
+    write(stdOut, '(2A,2(/,2A))') vbar,&
         & '  You should also cite additional publications crediting the parametrization',&
         & vbar,&
         & '  data you use. Please consult the documentation of the SK-files for the',&
         & vbar,&
         & '  references.'
-    write(stdout, '(A,/,2A,/)') vbar, vbar, repeat(hbar, headerWidth - 1)
+    write(stdOut, '(A,/,2A,/)') vbar, vbar, repeat(hbar, headerWidth - 1)
 
   end subroutine printDFTBHeader
 

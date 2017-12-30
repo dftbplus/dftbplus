@@ -91,6 +91,10 @@ contains
     call getNextToken_local(str, tokStart, tokEnd, tokLen, iStart)
     if (tokLen == 0) then
       iError = TOKEN_EOS
+    else if (.not. validIntegerStart(str(tokStart:tokStart))) then
+      ! Workaround:PGI 17.10 -> strings starting with certain letters are interpreted as integers
+      ! therefore we check explicitly
+      iError = TOKEN_ERROR
     else
       read (str(tokStart:tokEnd), *, iostat=iError) tokenValue
       if (iError /= 0) then
@@ -456,5 +460,23 @@ contains
     start = tokEnd + 2
 
   end subroutine getNextToken_local
+
+
+  !> Cheks whether a given character represents a valid staring character for an integer.
+  pure function validIntegerStart(char) result(tValid)
+
+    !> Character to check
+    character, intent(in) :: char
+
+    !> Whether it can be a starting character of a string representing an integer.
+    logical :: tValid
+
+    integer :: ind
+
+    ind = iachar(char)
+    ! Either a digit 0-9 or - or +
+    tValid = ((ind >= 48 .and. ind <= 57) .or. ind == 45 .or. ind == 43)
+
+  end function validIntegerStart
 
 end module tokenreader

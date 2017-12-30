@@ -192,8 +192,8 @@ contains
     !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
-    real(dp) :: xa(nInterNew_), ya(nInterNew_), y0, y1, y2, y1p, y1pp
-    real(dp) :: incr, dr, rMax
+    real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(self%nInteg,nInterNew_), y1, y1p, y1pp
+    real(dp) :: incr, dr, rMax, y0(self%nInteg), y2(self%nInteg)
     integer :: leng, ind, iLast
     integer :: ii
 
@@ -219,10 +219,8 @@ contains
       do ii = 1, nInterNew_
         xa(ii) = real(iLast - nInterNew_ + ii, dp) * incr
       end do
-      do ii = 1, self%nInteg
-        ya(:) = self%skTab(iLast-nInterNew_+1:iLast, ii)
-        dd(ii) = polyInter(xa, ya, rr)
-      end do
+      yb = transpose(self%skTab(iLast-nInterNew_+1:iLast,:self%nInteg))
+      dd(:self%nInteg) = polyInterUniform(xa, yb, rr)
     else
       !! Beyond the grid => extrapolation with polynomial of 5th order
       dr = rr - rMax
@@ -230,13 +228,14 @@ contains
       do ii = 1, nInterNew_
         xa(ii) = real(iLast - nInterNew_ + ii, dp) * incr
       end do
+      yb = transpose(self%skTab(iLast-nInterNew_+1:iLast,:self%nInteg))
+      y0 = polyInterUniform(xa, yb, xa(nInterNew_) - deltaR_)
+      y2 = polyInterUniform(xa, yb, xa(nInterNew_) + deltaR_)
       do ii = 1, self%nInteg
         ya(:) = self%skTab(iLast-nInterNew_+1:iLast, ii)
         y1 = ya(nInterNew_)
-        y0 = polyInter(xa, ya, xa(nInterNew_) - deltaR_)
-        y2 = polyInter(xa, ya, xa(nInterNew_) + deltaR_)
-        y1p = (y2 - y0) / (2.0_dp * deltaR_)
-        y1pp = (y2 + y0 - 2.0_dp * y1) / (deltaR_ * deltaR_)
+        y1p = (y2(ii) - y0(ii)) / (2.0_dp * deltaR_)
+        y1pp = (y2(ii) + y0(ii) - 2.0_dp * y1) / (deltaR_ * deltaR_)
         dd(ii) = poly5ToZero(y1, y1p, y1pp, dr, -1.0_dp * distFudge)
       end do
     end if
@@ -256,7 +255,7 @@ contains
     !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
-    real(dp) :: xa(nInterOld_), ya(nInterOld_), y0, y1, y2, y1p, y1pp
+    real(dp) :: xa(nInterOld_), yb(self%nInteg,nInterOld_),y0, y1, y2, y1p, y1pp
     real(dp) :: incr, dr
     integer :: leng, ind, mInd, iLast
     integer :: ii
@@ -280,10 +279,8 @@ contains
       do ii = 1, nInterOld_
         xa(ii) = real(iLast - nInterOld_ + ii, dp) * incr
       end do
-      do ii = 1, self%nInteg
-        ya(:) = self%skTab(iLast-nInterOld_+1:iLast, ii)
-        dd(ii) = polyInter(xa, ya, rr)
-      end do
+      yb = transpose(self%skTab(iLast-nInterOld_+1:iLast,:self%nInteg))
+      dd(:self%nInteg) = polyInterUniform(xa, yb, rr)
     elseif (ind < leng) then
       !! Distance between penultimate and last grid point => free cubic spline
       dr = rr - real(leng - 1, dp) * incr

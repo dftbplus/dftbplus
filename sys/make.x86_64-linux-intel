@@ -3,6 +3,47 @@
 # ifort/icc 17.0
 ############################################################################
 
+ifeq ($(strip $(WITH_MPI)),1)
+############################################################################
+# MPI settings
+############################################################################
+
+# Compilers
+FXX = mpif90
+CC = icc
+
+# Compiler options
+FXXOPT = -O2 -ip -standard-semantics -heap-arrays 10 #-qopenmp 
+CCOPT = -O2 -ip
+
+# Linker
+LN = $(FXX)
+LNOPT =
+
+# How to link specific libraries
+
+# ScaLAPACK
+MKL_LIBDIR = $(MKLROOT)/lib/intel64
+LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64
+
+# LAPACK/BLAS
+LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
+
+# Any other libraries to be linked
+OTHERLIBS = -liomp5
+
+# M4 preprocessor settings
+M4 = m4
+M4OPT = 
+
+# Command to run the test binary
+TESTRUNNER = mpirun -n $(TESTPROC)
+
+else
+############################################################################
+# NON-MPI settings
+############################################################################
+
 # Compilers
 FXX = ifort
 CC = icc
@@ -11,29 +52,38 @@ CC = icc
 FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
-# Preprocessor
-FYPP = $(ROOT)/external/fypp/bin/fypp
-FYPPOPT =
-
 # Linker
 LN = $(FXX)
-LNOPT =  -static
-
-# Library options in general
-LIBOPT =
+LNOPT = -static
 
 # How to link specific libraries
+
+# LAPACK/BLAS
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_BLAS   = -L$(MKL_LIBDIR) -Wl,--start-group \
+LIB_LAPACK   = -L$(MKL_LIBDIR) -Wl,--start-group \
   -lmkl_intel_lp64 \
   -lmkl_intel_thread \
   -lmkl_core \
   -Wl,--end-group
-LIB_LAPACK =
 
 # Any other libraries to be linked
 OTHERLIBS = -liomp5 -pthread
 
+# Command to run a binary
+TESTRUNNER =
+
+endif
+
+############################################################################
+# General settings
+############################################################################
+
+# Preprocessor
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT =
+
+# Library options in general
+LIBOPT = 
 
 ############################################################################
 # Developer settings

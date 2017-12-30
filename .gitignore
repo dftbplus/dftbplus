@@ -1,10 +1,13 @@
 *~
 *.pyc
 _gitmsg.saved.txt
-external/*/origin
-external/*/status
+external/slakos/origin
+external/slakos/status
+external/dftd3/origin
+external/dftd3/status
 _build*
 make.arch
 make.config
 __pycache__
 .idea
+RELEASE

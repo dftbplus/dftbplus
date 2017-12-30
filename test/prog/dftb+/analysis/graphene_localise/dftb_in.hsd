@@ -1,0 +1,51 @@
+Geometry = GenFormat {
+    8  S
+  C
+    1 1    0.1163382844E+01    0.1940591664E+01    0.0000000000E+00
+    2 1    0.1163382844E+01    0.5141984564E+00    0.0000000000E+00
+    3 1    0.2399169570E+01   -0.1993731745E+00    0.0000000000E+00
+    4 1    0.2399169570E+01    0.2654163293E+01    0.0000000000E+00
+    5 1    0.3634958806E+01    0.5141972754E+00    0.0000000000E+00
+    6 1    0.3634958806E+01    0.1940592847E+01    0.0000000000E+00
+    7 1   -0.7240639184E-01    0.2654162114E+01    0.0000000000E+00
+    8 1   -0.7240639244E-01   -0.1993719890E+00    0.0000000000E+00
+    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    0.4943156947E+01    0.0000000000E+00    0.0000000000E+00
+    0.0000000000E+00    0.4279929675E+01    0.0000000000E+00
+    0.0000000000E+00    0.0000000000E+00    0.1000000000E+03
+}
+
+Hamiltonian = DFTB {
+    SCC = No
+    MaxAngularMomentum = {
+        C = "p"
+    }
+    Charge = 0.0
+    Filling = Fermi {
+        Temperature [Kelvin] = 100.0
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+
+    # Points chosen to be well away from the Dirac cone
+    KPointsAndWeights = {
+        0.5 0.0 0.0 1.0
+        0.0 0.5 0.0 1.0
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    Localise = {
+        PipekMezey = {}
+    }
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}

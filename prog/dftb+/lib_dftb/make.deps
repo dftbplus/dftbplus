@@ -8,15 +8,29 @@ charges.o = charges.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod
 _mod_charges: charges.o
 _mod_charges = $(charges.o)
 
+#:if WITH_SCALAPACK
+coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_errorfunction _mod_accuracy _mod_scalapackfx
+coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_scalapackfx)
+_mod_coulomb: coulomb.o
+_mod_coulomb = $(coulomb.o)
+#:else
 coulomb.o: common.fypp _mod_constants _mod_message _mod_assert _mod_errorfunction _mod_accuracy
 coulomb.o = coulomb.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_errorfunction) $(_mod_accuracy)
 _mod_coulomb: coulomb.o
 _mod_coulomb = $(coulomb.o)
+#:endif
 
+#:if WITH_SCALAPACK
+densitymatrix.o: _mod_commontypes common.fypp _mod_sorting _mod_blasroutines _mod_assert _mod_accuracy _mod_blacsenv _mod_scalapackfx
+densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy) $(_mod_blacsenv) $(_mod_scalapackfx)
+_mod_densitymatrix: densitymatrix.o
+_mod_densitymatrix = $(densitymatrix.o)
+#:else
 densitymatrix.o: _mod_commontypes common.fypp _mod_sorting _mod_blasroutines _mod_assert _mod_accuracy
 densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy)
 _mod_densitymatrix: densitymatrix.o
 _mod_densitymatrix = $(densitymatrix.o)
+#:endif
 
 dftbplusu.o: _mod_commontypes common.fypp _mod_fileid _mod_spin _mod_assert _mod_message _mod_accuracy
 dftbplusu.o = dftbplusu.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_spin) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
@@ -90,8 +104,8 @@ externalcharges.o = externalcharges.o $(common.fypp) $(_mod_constants) $(_mod_co
 _mod_externalcharges: externalcharges.o
 _mod_externalcharges = $(externalcharges.o)
 
-forces.o: _mod_commontypes common.fypp _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-forces.o = forces.o $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
+forces.o: _mod_commontypes common.fypp _mod_schedule _mod_environment _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
+forces.o = forces.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_environment) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_forces: forces.o
 _mod_forces = $(forces.o)
 
@@ -145,10 +159,17 @@ repulsive.o = repulsive.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_
 _mod_repulsive: repulsive.o
 _mod_repulsive = $(repulsive.o)
 
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_assert _mod_shortgamma _mod_shift _mod_accuracy
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_assert) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy)
+#:if WITH_SCALAPACK
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_mpifx _mod_scalapackfx
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_mpifx) $(_mod_scalapackfx)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
+#:else
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy)
+_mod_scc: scc.o
+_mod_scc = $(scc.o)
+#:endif
 
 sccinit.o: _mod_commontypes common.fypp _mod_charmanip _mod_fileid _mod_assert _mod_message _mod_accuracy _mod_io
 sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_charmanip) $(_mod_fileid) $(_mod_assert) $(_mod_message) $(_mod_accuracy) $(_mod_io)
@@ -180,23 +201,37 @@ slakoeqgrid.o = slakoeqgrid.o $(_mod_accuracy) $(_mod_message) $(common.fypp) $(
 _mod_slakoeqgrid: slakoeqgrid.o
 _mod_slakoeqgrid = $(slakoeqgrid.o)
 
-sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_assert _mod_periodic _mod_accuracy
-sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
+#:if WITH_SCALAPACK
+sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_densedescr _mod_assert _mod_periodic _mod_accuracy _mod_blacsenv _mod_scalapackfx
+sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_densedescr) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_blacsenv) $(_mod_scalapackfx)
 _mod_sparse2dense: sparse2dense.o
 _mod_sparse2dense = $(sparse2dense.o)
+#:else
+sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_densedescr _mod_assert _mod_periodic _mod_accuracy
+sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_densedescr) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
+_mod_sparse2dense: sparse2dense.o
+_mod_sparse2dense = $(sparse2dense.o)
+#:endif
 
 spin.o: _mod_commontypes common.fypp _mod_message _mod_shift _mod_assert _mod_accuracy
 spin.o = spin.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_shift) $(_mod_assert) $(_mod_accuracy)
 _mod_spin: spin.o
 _mod_spin = $(spin.o)
 
-spinorbit.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert _mod_angmomentum
-spinorbit.o = spinorbit.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_angmomentum)
+#:if WITH_SCALAPACK
+spinorbit.o: _mod_commontypes common.fypp _mod_constants _mod_assert _mod_densedescr _mod_angmomentum _mod_environment _mod_accuracy _mod_scalapackfx
+spinorbit.o = spinorbit.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_environment) $(_mod_accuracy) $(_mod_scalapackfx)
 _mod_spinorbit: spinorbit.o
 _mod_spinorbit = $(spinorbit.o)
+#:else
+spinorbit.o: _mod_commontypes common.fypp _mod_constants _mod_assert _mod_densedescr _mod_angmomentum _mod_environment _mod_accuracy
+spinorbit.o = spinorbit.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_environment) $(_mod_accuracy)
+_mod_spinorbit: spinorbit.o
+_mod_spinorbit = $(spinorbit.o)
+#:endif
 
-stress.o: _mod_commontypes common.fypp _mod_repcont _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-stress.o = stress.o $(_mod_commontypes) $(common.fypp) $(_mod_repcont) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
+stress.o: _mod_commontypes common.fypp _mod_schedule _mod_environment _mod_repcont _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
+stress.o = stress.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_environment) $(_mod_repcont) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_stress: stress.o
 _mod_stress = $(stress.o)
 

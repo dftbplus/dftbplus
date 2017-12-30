@@ -28,7 +28,6 @@ module nonscc
   ! for the default initialisation triggers ICE.
   real(dp), parameter :: DELTA_X_DIFF_DEFAULT = epsilon(1.0_dp)**0.25_dp
 
-
   !> Contains settings for the derivation of the non-scc contribution.
   type :: NonSccDiff
     private
@@ -44,56 +43,44 @@ module nonscc
     procedure :: getSecondDeriv
   end type NonSccDiff
 
-
   !> Namespace for possible differentiation methods
   type :: diffTypesEnum
     integer :: finiteDiff
     integer :: richardson
   end type diffTypesEnum
 
-
   !> Actual values for diffTypes.
   type(diffTypesEnum), parameter :: diffTypes = diffTypesEnum(1, 2)
 
 contains
 
-
   !> Driver for making the non-SCC Hamiltonian in the primitive sparse format.
   subroutine buildH0(ham, skHamCont, selfegy, coords, nNeighbors, iNeighbors,&
       & species, iPair, orb)
 
-
     !> Returns the non-self-consistent Hamiltonian
     real(dp), intent(out) :: ham(:)
-
 
     !> Container for the SlaKo Hamiltonian integrals
     type(OSlakoCont), intent(in) :: skHamCont
 
-
     !> On-site energies for each species
     real(dp), intent(in) :: selfegy(:,:)
-
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
 
-
     !> Number of surrounding neighbors for each atom
     integer, intent(in) :: nNeighbors(:)
-
 
     !> List of surrounding neighbors for each atom
     integer, intent(in) :: iNeighbors(0:,:)
 
-
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-
     !> Shift vector, where the interaction between two atoms
     integer, intent(in) :: iPair(0:,:)
-
 
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
@@ -105,6 +92,7 @@ contains
 
     ! Put the on-site energies into the Hamiltonian,
     ! and <lm|l'm'> = delta_l,l' * delta_m',m' for the overlap  !'
+    !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       ind = iPair(0, iAt1) + 1
@@ -113,46 +101,37 @@ contains
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do
+    !$OMP  END PARALLEL DO
 
     call buildDiatomicBlocks(ham, skHamCont, coords, nNeighbors, iNeighbors,&
         & species, iPair, orb)
 
   end subroutine buildH0
 
-
   !> Driver for making the overlap matrix in the primitive sparse format.
   subroutine buildS(over, skOverCont, coords, nNeighbors, iNeighbors, species,&
       & iPair, orb)
 
-
     !> Returns the overlap
     real(dp), intent(out) :: over(:)
-
 
     !> Container for the SlaKo overlap integrals
     type(OSlakoCont), intent(in) :: skOverCont
 
-
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
-
 
     !> Number of surrounding neighbors for each atom
     integer, intent(in) :: nNeighbors(:)
 
-
     !> List of surrounding neighbors for each atom
     integer, intent(in) :: iNeighbors(0:,:)
-
 
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-
-    !> Shift vector, where the interaction between two atoms starts in the
-  !> sparse format.
+    !> Shift vector, where the interaction between two atoms starts in the sparse format.
     integer, intent(in) :: iPair(0:,:)
-
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -163,6 +142,7 @@ contains
     over(:) = 0.0_dp
 
     ! Put 1.0 for the diagonal elements of the overlap.
+    !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       ind = iPair(0,iAt1) + 1
@@ -171,26 +151,23 @@ contains
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do
+    !$OMP  END PARALLEL DO
 
     call buildDiatomicBlocks(over, skOverCont, coords, nNeighbors, iNeighbors,&
         & species, iPair, orb)
 
   end subroutine buildS
 
-
   !> Initializes a differentiator for the non-scc contributions.
   !> Note: Second derivative can not be calculated currently via Richardson
   !> interpolation, so the finite difference method is invoked instead.
   subroutine NonSccDiff_init(this, diffType, deltaXDiff)
 
-
     !> Initialised instance on exit.
     type(NonSccDiff), intent(out) :: this
 
-
     !> Type of the differentiator: diffTypes%finiteDiff or diffTypes%richardson
     integer, intent(in) :: diffType
-
 
     !> Displacement for finite difference differentiation.
     real(dp), intent(in), optional :: deltaXDiff
@@ -205,39 +182,30 @@ contains
 
   end subroutine NonSccDiff_init
 
-
   !> Calculates the first derivative of H0 or S.
   subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ,&
       & orb)
 
-
     !> Instance
     class(NonSccDiff), intent(in) :: this
-
 
     !> Derivative of H or S diatomic block, with respect to x,y,z (last index).
     real(dp), intent(out) :: deriv(:,:,:)
 
-
     !> Container for the SK integrals
     type(OSlakoCont), intent(in) :: skCont
-
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
 
-
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
-
 
     !> The first atom in the diatomic block
     integer, intent(in) :: atomI
 
-
     !> The second atom in the diatomic block
     integer, intent(in) :: atomJ
-
 
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
@@ -253,39 +221,30 @@ contains
 
   end subroutine getFirstDeriv
 
-
   !> Calculates the numerical second derivative of a diatomic block of H0 or S.
   subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ,&
       & orb)
 
-
     !> Instance.
     class(NonSccDiff), intent(in) :: this
-
 
     !> Derivative of the diatomic block, with respect to x,y,z (last 2 indices)
     real(dp), intent(out) :: deriv(:,:,:,:)
 
-
     !> Container for SK Hamiltonian integrals
     type(OSlakoCont), intent(in) :: skCont
-
 
     !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
 
-
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
-
 
     !> First atom in the diatomic block
     integer, intent(in) :: atomI
 
-
     !> Second atom in the diatomic block
     integer, intent(in) :: atomJ
-
 
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
@@ -302,7 +261,6 @@ contains
     end select
 
   end subroutine getSecondDeriv
-
 
   !> Helper routine to calculate the diatomic blocks for the routines buildH0 and buildS.
   subroutine buildDiatomicBlocks(out, skCont, coords, nNeighbors, &
@@ -325,6 +283,8 @@ contains
     nAtom = size(nNeighbors)
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbors
+    !$OMP PARALLEL DO PRIVATE(iAt1,iSp1,nOrb1,iNeigh1,iAt2,iSp2,nOrb2,ind,vect,dist,tmp,interSK) &
+    !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -338,13 +298,12 @@ contains
         vect(:) = vect / dist
         call getSKIntegrals(skCont, interSK, dist, iSp1, iSp2)
         call rotateH0(tmp, interSK, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
-        out(ind + 1 : ind + nOrb2 * nOrb1) = &
-            & reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
+        out(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do
     end do
+    !$OMP  END PARALLEL DO
 
   end subroutine buildDiatomicBlocks
-
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
   subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI,&
@@ -389,7 +348,6 @@ contains
     end do
 
   end subroutine getFirstDerivFiniteDiff
-
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
   subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI,&
@@ -495,7 +453,6 @@ contains
     end do
 
   end subroutine getFirstDerivRichardson
-
 
   !> Contains code to calculate the numerical second derivative of a diatomic block of the H0
   !> Hamiltonian and overlap.

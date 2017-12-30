@@ -62,11 +62,12 @@ must contain the following property definitions:
 
 Additionally optional blocks of definitions may be present:
 \begin{ptableh}
-  \kw{Driver} & m &  & \cb & \pref{sec:dftbp.Driver} \\ 
+  \kw{Driver} & m &  & \cb & \pref{sec:dftbp.Driver} \\
   \kw{Options} & p & & \cb & \pref{sec:dftbp.Options} \\
   \kw{Analysis} & p & & \cb & \pref{sec:dftbp.Analysis} \\
   \kw{ExcitedState} & p & & \cb & \pref{sec:dftbp.ExcitedState} \\
   \kw{ParserOptions} & p & & \cb & \pref{sec:dftbp.ParserOptions} \\
+  \kw{Parallel} & p & & \cb & \pref{sec:dftbp.Parallel} \\
 \end{ptableh}
 
 \begin{description}
@@ -80,9 +81,12 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.Options}.
 \item[\is{Analysis}]  Post-run analysis and properties options. See
   p.~\pref{sec:dftbp.Analysis}.
-\item[\is{ExcitedState}] Calculations in excited state of the system. See p.~\pref{sec:dftbp.ExcitedState}.
+\item[\is{ExcitedState}] Calculations in excited state of the system.
+  See p.~\pref{sec:dftbp.ExcitedState}.
 \item[\is{ParserOptions}] Various options affecting the parser only.
   See p.~\pref{sec:dftbp.ParserOptions}.
+\item[\is{Parallel}] Options affecting the MPI-parallel execution. See
+  p.~\pref{sec:dftbp.Parallel}.
 \end{description}
 
 
@@ -130,7 +134,7 @@ Geometry = {
   }
   Periodic = Yes
   LatticeVectors [Angstrom] = {
-     2.713546     2.713546     0.      
+     2.713546     2.713546     0.
      0.           2.713546     2.713546
      2.713546     0.           2.713546
   }
@@ -150,7 +154,7 @@ Geometry = GenFormat {
   1 1     0.000000     0.000000     0.000000
   2 2     1.356773     1.356773     1.356773
   0.000000     0.000000     0.000000
-  2.713546     2.713546     0.      
+  2.713546     2.713546     0.
   0.           2.713546     2.713546
   2.713546     0.           2.713546
 }
@@ -234,9 +238,9 @@ methods are available:
   Various specifiers can be combined together:
 \begin{verbatim}
   # Move atoms 1, 2, 3, all Ga atoms, and the last two atoms.
-  MovedAtoms = 1:3 Ga -2:-1  
+  MovedAtoms = 1:3 Ga -2:-1
 \end{verbatim}
-  
+
 \item[\is{MaxForceComponent}]\modif{\modtype{force}} Optimisation is
   stopped, if the force component with the maximal absolute value goes
   below this threshold.
@@ -265,14 +269,14 @@ methods are available:
   constraints are defined for the same atom, the atom will only by
   able to move normal to the the plane containing the two constraining
   vectors.
-  
+
   Example:
   \invparskip
 \begin{verbatim}
   Constraints = {
     # Atom one can only move along the z-axis
-    1  1.0  0.0  0.0  
-    1  0.0  1.0  0.0 
+    1  1.0  0.0  0.0
+    1  0.0  1.0  0.0
   }
 \end{verbatim}
 
@@ -290,7 +294,7 @@ methods are available:
 \item[\is{FixLengths}] If optimising the lattice with \is{FixAngles} =
   \is{Yes}, allow only the lengths of the specified lattice vectors to
   vary.
-  
+
   Example:
   \invparskip
 \begin{verbatim}
@@ -452,10 +456,10 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 
 \item[\is{KeepStationary}] Remove translational motion from the system.
 
-  
+
 \item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
   MD steps.
-  
+
 \item[\is{Thermostat}] Thermostating method for the MD simulation. See
   p.~\pref{sec:dftbp.Thermostat}.
 
@@ -494,10 +498,10 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \item[\is{Xlbomd}] If present, extended Lagrangian type molecular dynamics
   is applied to speed up the simulation. For further options within the
   \is{Xlbomd} block see p.~\pref{sec:dftbp.xlbomd}.
-  
+
 \item[\is{Masses}] If present, over-ride the atomic masses from the Slater-Koster files. See
   p.~\pref{sec:dftbp.Masses}
-  
+
 \end{description}
 
 
@@ -746,7 +750,7 @@ following options:
   6 or 7 steps are implemented.
 \item[\is{PreSteps}] Number of molecular dynamics time steps before the XLBOMD
   integration becomes activated.
-  
+
   \textbf{Note:} At the step where the XLBOMD integrator becomes active, it is initialised with
   results of several subsequent converged MD steps, so a further \is{IntegrationSteps} + 1 steps
   will be carried out before the extended Lagrangian dynamics starts to predict the charges and
@@ -765,12 +769,12 @@ addition to the common XLBOMD settings above:
 \begin{description}
 \item[\is{MinSccIterations}] Minimum number of SCC iterations to perform at each
   time step during the extended Lagrangian dynamics.
-  
+
 \item[\is{MaxSccIterations}] Maximum number of SCC iterations to perform at each step in the
   extended Lagrangian dynamics. If this number of SCC iterations have been reached the forces will
   be calculated and the MD advances to the next time step. See the note in section~\ref{sec:dftbp.KLines}
   regarding non-convergent k-point sampling.
-  
+
 \item[\is{SccTolerance}] SCC convergence tolerance during the extended
   Lagrangian dynamics. Once this tolerance has been achieved the SCC cycle will
   stop and the forces will be calculated. You can use this parameter to override
@@ -817,7 +821,7 @@ XlbomdFast {
   PreSteps = 5
   TransientSteps = 10
   IntegrationSteps = 5
-  Scale = 0.5 
+  Scale = 0.5
 }
 \end{verbatim}
 
@@ -930,6 +934,7 @@ following properties:
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
+  \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
@@ -938,7 +943,7 @@ following properties:
   \kw{SpinConstants} &p& SpinPolarisation $\neq$ \{\}~ & - &
   \pref{sec:dftbp.SpinConstants} \\
   \kw{ShellResolvedSpin} &l& OrbitalResolvedSCC = No & No & \\
-  \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb & 
+  \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
@@ -947,11 +952,11 @@ following properties:
   \kw{PolynomialRepulsive} & p|m & & \cb & \\
   \kw{KPointsAndWeights} &(4r)+|m& Periodic = Yes & - &
   \pref{sec:dftbp.KPointsAndWeights} \\
-  \kw{OrbitalPotential} &m & SpinPolarisation $\neq$ \{\}~ & \cb & 
+  \kw{OrbitalPotential} &m & SpinPolarisation $\neq$ \{\}~ & \cb &
   \pref{sec:dftbp.OrbitalPotential} \\
   \kw{ReadInitialCharges} &l& SCC = Yes & No & \\
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
-  \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\  
+  \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
   \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{DampXHExponent} & r & DampXH = Yes & - & \\
@@ -995,6 +1000,8 @@ following properties:
   parameter in the standard output. This is then a suitable choice for
   the original cell with the large vacuum region.
 
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
 
 \item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
@@ -1084,17 +1091,17 @@ following properties:
 
 \item[\is{SpinPolarisation}] Specifies if and how the system is spin
   polarised. See p.~\pref{sec:dftbp.SpinPolarisation}.
-  
+
 \item[\is{SpinConstants}] Specifies the atom type specific constants needed for
   the spin polarised calculations, in units of Hartree.  See
   p.~\pref{sec:dftbp.SpinConstants}.
-  
+
 \item[\is{SpinOrbit}] Specifies if the system includes Russel-Saunders
   coupling. See p.~\pref{sec:dftbp.SpinOrbit}
 
 \item[\is{Eigensolver}] Specifies which eigensolver to use for
   diagonalising the Hamiltonian. See p.~\pref{sec:dftbp.Eigensolver}.
-  
+
 \item[\is{Filling}] Method for occupying the one electron levels with
   electrons. See p.~\pref{sec:dftbp.Filling}.
 
@@ -1127,7 +1134,7 @@ following properties:
     As-As = Yes
   }
 \end{verbatim}
-  
+
   If you want to apply the same setting for all species pairs, you can
   specify the appropriate logical value as argument of the
   \is{SetForAll} keyword:
@@ -1136,7 +1143,7 @@ following properties:
   # Using polynomial repulsive functions for all interactions in GaAs
   PolynomialRepulsive = SetForAll { Yes }
 \end{verbatim}
-  
+
 \item[\is{KPointsAndWeights}]\modif{relative|absolute} Contains the
   special $k$-points to be used for the Bril\-louin-zone integration.
   See p.~\pref{sec:dftbp.KPointsAndWeights}. For automatically generated
@@ -1172,7 +1179,7 @@ following properties:
   \is{MovedAtoms} keyword in the section for \isl{SteepestDescent}{sec:dftbp.SteepestDescent}):
 \begin{verbatim}
   InitialCharges = { # Specifying charge for various species
-    AtomCharge = { 
+    AtomCharge = {
       Atoms = H
       ChargePerAtom = 0.44040813
     }
@@ -1180,11 +1187,11 @@ following properties:
       Atoms = O
       ChargePerAtom = -0.88081627
     }
-  } 
+  }
 \end{verbatim}
   Net charge on atoms not appearing in any \is{AtomCharge}
   specification is set to be zero.
-  
+
 
 \item[\is{ElectricField}] Specifies an external electric field,
   arising currently from either an applied field or a distribution of
@@ -1217,7 +1224,7 @@ following properties:
     Si = 0.32 0.24
   }
   \end{verbatim}
-  
+
 \end{description}
 
 
@@ -1234,10 +1241,10 @@ following properties:
 Minimises the error function
 \begin{equation*}
   E = \omega_0^2 \left| G^{(m+1)} - G^{(m)}\right| + \sum_{n=1}^m
-  \omega_n^2 \left|  
+  \omega_n^2 \left|
     \frac{n^{(n+1)} - n^{(n)}}{|F^{(n+1)}  - F^{(n)}|}
     + G^{(m+1)}
-    \frac{F^{(n+1)}  - F^{(n)}}{|F^{(n+1)}  - F^{(n)}|} \right|^2 
+    \frac{F^{(n+1)}  - F^{(n)}}{|F^{(n+1)}  - F^{(n)}|} \right|^2
   \text,
 \end{equation*}
 where $G^{(m)}$ is the inverse Jacobian, $n^{(m)}$ and $F^{(m)}$ are
@@ -1318,7 +1325,7 @@ Example:
   Mixer = Anderson {
     MixingParameter = 0.05
     Generations = 4
-    # Now the over-ride the (previously hidden) default old settings 
+    # Now the over-ride the (previously hidden) default old settings
     InitMixingParameter = 0.01
     DynMixingParameters = {
       1.0e-2  0.1 # use 0.1 as mixing if more converged that 1.0e-2
@@ -1379,8 +1386,8 @@ No spin polarisation contributions to the energy or band-structure.
 \subsubsection{Colinear\{\}}
 \label{sec:dftbp.Colinear}
 
-Colinear spin polarisation in the $z$ direction. 
-%The initialisation of the calculation is spin restricted. 
+Colinear spin polarisation in the $z$ direction.
+%The initialisation of the calculation is spin restricted.
 The following options can be
 specified:
 \begin{ptable}
@@ -1490,7 +1497,7 @@ distribution:
   \end{description}
   For atoms not appearing in any of the \is{SpinPerAtom} block, the
   vector (0 0 0) is set.
-  
+
   Please note, that in contrast to the collinear case, in the
   non-collinear case you must specify the spin vector (3 components!)
   for the atoms.
@@ -1501,7 +1508,7 @@ distribution:
   SpinPolarisation = NonColinear {
     InitialSpins = {
       # Setting the spin for all atoms in the system
-      AllAtomSpins = { 
+      AllAtomSpins = {
         0.408 -0.408  0.816
         0.408 -0.408  0.816
        -0.408  0.408 -0.816
@@ -1544,7 +1551,7 @@ When shell resolved spin constants are specified, they must be ordered with
 respect to the pairs of shells they couple, such that the index for the second
 shell increases faster. For an $spd$-basis, that gives the following ordering:
 \begin{equation*}
-  w_{ss}, w_{sp}, w_{sd}, \dots, 
+  w_{ss}, w_{sp}, w_{sd}, \dots,
   w_{ps}, w_{pp}, w_{pd}, \dots,
   w_{ds}, w_{dp}, w_{dd}, \dots
 \end{equation*}
@@ -1623,7 +1630,7 @@ Example (GaAs):
 \begin{verbatim}
   SpinOrbit = {
     Ga [eV] = {0.0 0.12 0.0} # s p d shells
-    As [eV] = {0.0 0.32703} # s p shells    
+    As [eV] = {0.0 0.32703} # s p shells
   }
 \end{verbatim}
 
@@ -1711,7 +1718,7 @@ is an additional option for this type of filling:
 \begin{ptable}
   \kw{Order} &i &  & 2 & \\
 \end{ptable}
-\begin{description}  
+\begin{description}
 \item[\is{Order}] Order of the Methessel-Paxton scheme, the order must be
   greater than zero, and the 1st order scheme is equivalent to Gaussian filling.
 \end{description}
@@ -1831,7 +1838,7 @@ method expects 9 integers and 3 real values as parameters:
     n_{11} & n_{12} & n_{13} \\
     n_{21} & n_{22} & n_{23} \\
     n_{31} & n_{32} & n_{33} \\
-    s_{1} & s_{2}   & s_{3} \\    
+    s_{1} & s_{2}   & s_{3} \\
   \end{array}
 \end{equation*}
 The integers $n_{ij}$ specify the coefficients used to build the
@@ -1932,7 +1939,7 @@ the default value of \kw{MaxSccIterations} is set to be 1 in this case.
 \subsection{OrbitalPotential}
 \label{sec:dftbp.OrbitalPotential}
 
-\index{DFTB+U} 
+\index{DFTB+U}
 \label{sec:DFTB+U}
 
 Currently the \is{FLL} (fully localised limit) and
@@ -2013,7 +2020,7 @@ The specification for \kw{PointCharges} has the following properties:
   \end{equation*}
   where $r_{AM}$ is the distance between the point charge and the
   atom.
-  
+
   This delocalisation can only be used for non-periodic systems. A
   length modifier can be used to specify the unit for $\sigma$.
 
@@ -2193,7 +2200,7 @@ Example:\invparskip
       0.386000    3.500000    0.800000      # Atom 3: H
     }
   }
-\end{verbatim}  
+\end{verbatim}
 
 Alternatively you can provide values for each atomic species in your
 system, but must supply different values for different coordination
@@ -2288,7 +2295,7 @@ factor:
   \begin{equation*}
     f(R_0^{AB}) = a_1 R_0^{AB} + a_2 \text.
   \end{equation*}
-  
+
 \item Zero-damping (dispersion at short distances is damped to zero):
   \begin{equation*}
     E_{\text{disp}}^{(2)} = -\frac{1}{2} \sum_{A \neq B} s_n
@@ -2322,7 +2329,7 @@ Example using default parameters:
 \begin{verbatim}
   ThirdOrderFull = Yes
   DampXH = Yes
-  
+
   Dispersion = DftD3 {}
 \end{verbatim}
 
@@ -2504,6 +2511,7 @@ This block collects some global options for the run.
   \kwl{RestartFrequency}{kw:dftbp.RestartFrequency} & i &Driver = \cb, SCC = Yes & 20 & \\
   \kw{RandomSeed} & i & & 0 & \\
   \kw{MinimiseMemoryUsage} & l & & No & \\
+  \kw{TimingVerbosity} & i & & 0 & \\
   \kw{ShowFoldedCoords} & l & Periodic = Yes & No & \\
   \kwl{WriteHS}{kw:dftbp.WriteHS} & l & & No & \\
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
@@ -2542,7 +2550,13 @@ This block collects some global options for the run.
 \item[\is{MinimiseMemoryUsage}] Tries to minimise memory usage by
   storing various matrices on disc instead of keeping them in memory.
   Set it to \is{Yes} to reduce the memory requirement for calculations
-  with many k-points or spin polarisation.
+  with many k-points or spin polarisation. Note: Currently this option has no
+  effect and you will get a warning if setting it to be \is{Yes}.
+
+\item[\is{TimingVerbosity}] Level of information regarding CPU and wall clock
+  timings of sections of the code, higher values becoming more verbose. Setting
+  this parameter to 0 or below supresses any information being printed
+  (default).
 
 \item[\is{ShowFoldedCoords}] Print coordinates folded back into the
   central cell, so if an atom moves outside the central cell it will
@@ -2557,10 +2571,11 @@ This block collects some global options for the run.
   enumerates the spin channels. For a detailed description of the file
   format see p.~\pref{sec:dftbp.hamsqr}.
 
-  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are set to \is{Yes}, the
-  program only builds the matrices, writes them to disc and then stops immediately. No
-  diagonalisation, no SCC-cycles or geometry optimisation steps are carried out. You can use the
-  \is{ReadInitialCharges} option to build the Hamiltonian with a previously converged charge
+  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are
+  set to \is{Yes}, the program only builds the matrices, writes them to disc and
+  then stops immediately. No diagonalisation, no SCC-cycles or geometry
+  optimisation steps are carried out. You can use the \is{ReadInitialCharges}
+  option to build the Hamiltonian with a previously converged charge
   distribution.
 
 \item[\is{WriteRealHS}] Instructs the program to build the real space
@@ -2569,10 +2584,11 @@ This block collects some global options for the run.
   \verb|overreal.dat|. For a detailed description of the file format
   see p.~\pref{sec:dftbp.hamsqr}.
 
-  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are set to \is{Yes}, the
-  program only builds the matrices, writes them to disc and then stops immediately. No
-  diagonalisation, no SCC-cycles or geometry optimisation steps are carried out. You can use the
-  \is{ReadInitialCharges} option to build the Hamiltonian with a previously converged charge
+  \textbf{Note:} If either of the options \is{WriteHS} or \is{WriteRealHS} are
+  set to \is{Yes}, the program only builds the matrices, writes them to disc and
+  then stops immediately. No diagonalisation, no SCC-cycles or geometry
+  optimisation steps are carried out. You can use the \is{ReadInitialCharges}
+  option to build the Hamiltonian with a previously converged charge
   distribution.
 
 \end{description}
@@ -2691,7 +2707,7 @@ conventional algorithm, while \is{Dense} = \is{No}, uses the default sparse
 method which {\em may} have better scaling properties.
 
 \begin{ptable}
-  \kw{Dense} & l & & \is{No} & \\ 
+  \kw{Dense} & l & & \is{No} & \\
   \kw{SparseTollerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
 \end{ptable}
 \begin{description}
@@ -2739,7 +2755,7 @@ theory~\cite{niehaus-prb-63-085108}.
 \textbf{Note:} the \dftbp{} binary must be compiled with linear response calculations enabled to
 make use of these features (the ARPACK~\cite{Lehoucq97arpackusers} library or
 ARPACK-ng~\cite{ARPACK-ng} is required).
-  
+
 The calculation of vertical excitation energies and the corresponding oscillator strengths as well
 as excited state geometry optimisation can be performed with these options, details of the
 resulting output files are given in appendix \ref{sec:tddftb_lr}. Linear response theory is
@@ -2749,7 +2765,7 @@ systems.\footnote{Excitation energies can also be calculated for gamma point per
 Excitations can be calculated for fractional occupations and collinear spin-polarisation, but forces
 (and hence geometry optimisation or MD) are only available for spin-unpolarised systems with no
 fractional occupations. The specifications for this block have the following properties:
-  
+
   \begin{ptable}
     \kw{NrOfExcitations}        & i & & - & \\
     \kw{StateOfInterest}        & i & & 0 & \\
@@ -2758,18 +2774,18 @@ fractional occupations. The specifications for this block have the following pro
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
-    \kw{WriteMulliken}          & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteCoefficients}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteEigenvectors}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{TotalStateCoeffs}       & l & WriteEigenvectors | WriteCoefficients = Yes & No & \\
+    \kw{WriteMulliken}          & l & & No & \\
+    \kw{WriteCoefficients}      & l & & No & \\
+    \kw{WriteEigenvectors}      & l & & No & \\
+    \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{WriteStatusArnoldi}     & l & & No & \\
     \kw{TestArnoldi}            & l & & No & \\
   \end{ptable}
-  
+
   \begin{description}
-    
+
   \item[\is{NrOfExcitations}] Specifies the number of vertical excitation energies to be computed
     for every symmetry (singlet or triplet). It is recommended that a value slightly greater than
     the actual number of the states of interest is specified (the eigenvalue solver may not converge
@@ -2778,15 +2794,15 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{StateOfInterest}] Specifies the target excited state or states that should be
     calculated. These are numbered from the first (lowest) excited state as 1, and so on. If the
     absorption spectrum at a given geometry is required (i.e., a single-point calculation), this
-    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver}) should be
-    left empty (forces will not be available). A value less than 0 requests that the state with the
-    largest dipole transition moment be found (again a single-point calculation).
-    
+    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver})
+    should be left empty (forces will not be available). A value less than 0 requests that the
+    state with the largest dipole transition moment be found (again a single-point calculation).
+
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being computed:
     ``singlet'', ``triplet'' or ``both''. This tag is only applicable for spin restricted
     calculation. For calculations in the ``triplet'' or ``both'' cases, \kw{SpinConstants} must be
     supplied (see p.~\pref{sec:dftbp.SpinConstants}).
-  
+
   \item[\is{EnergyWindow}]\modif{\modtype{energy}} Energy range above the last transition at
     \is{NrOfExcitations} to be included in excited state spectrum calculation.
 
@@ -2794,42 +2810,42 @@ fractional occupations. The specifications for this block have the following pro
     particle transitions are neglected in excitation spectra calculations. This selects from states
     above the top of the \is{EnergyWindow} (if present). This keyword should not be used if
     calculating forces or other excited state properties.
-    
+
   \item[\is{WriteTransitions}] If set to \is{Yes}, the file TRA.DAT is created. This file contains a
     description of each requested excited state in terms of its single-particle transitions.
-    
+
   \item[\is{WriteSPTransitions}] If set to \is{Yes}, the file SPX.DAT is created, which contains the
     spectrum at the uncoupled DFTB level (i.e.\ the single-particle excitations).
-  
+
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT are created. The
     former contains atom-resolved Mulliken (net) charges for the excited state of interest, the
     latter the excited-state dipole moment of the state.
-  
+
   \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is created. This file contains
     the complex eigenvectors (molecular orbital coefficient) for the excited state of interest. They
     are derived from the relaxed excited state density matrix.
 
   \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
     contains the natural orbitals for the specified excited state.
-    
+
   \item[\is{TotalStateCoeffs}] Option to control the data written for either \is{WriteCoefficients}
     or \is{WriteEigenvectors}. If set to \is{No} the total charge density of the output orbitals
     corresponds to the change in charge from the ground to excited state. If set to \is{Yes} instead
     it corresponds to the total charge density in the excited state.
-    
+
   \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is created. This file contains the
     RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all excited states (c.f., Eqn.~(18) in
     Ref.~\cite{heringer2007aes}).
-    
+
   \item[\is{WriteTransitionDipole}] If set to \is{Yes}, the file TDP.DAT is created. This file
     contains the Mulliken transition dipole for each excited state.
 
   \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is created, which allows
     the user to follow the progress of the Arnoldi diagonalisation.
-    
+
   \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is created, which gives data
     on the quality of the resulting eigenstates.
-    
+
   \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2846,7 +2862,7 @@ program.
   \kw{WriteHSDInput} & l & & Yes & \\
   \kw{WriteXMLInput} & l & & No & \\
   \kw{IgnoreUnprocessedNodes} &l & & No & \\
-  \kw{StopAfterParsing} &l & & No & \\  
+  \kw{StopAfterParsing} &l & & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{ParserVersion}] Version number of the input parser, which the
@@ -2875,7 +2891,44 @@ program.
   after processing the input and written out the processed input to
   the disc. It can be used to make sanity checks on the input without
   starting an actual calculation.
-  
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  Parallel
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Parallel}
+\label{sec:dftbp.Parallel}
+
+This block contains the options, which are effecting the parallel behaviour of
+the code. They only take effect, if the code was compiled with MPI-support.
+
+\begin{ptable}
+  \kw{Groups} & i & 1 & & \\
+  \kw{Blacs} & p & \cb & & \\
+\end{ptable}
+\begin{description}
+\item[\is{Groups}] Number of process groups. Specifying more than one process
+  group enables parallelisation over k-points and spin, as processes in
+  different process groups are working on different k-points and spins at the
+  same time. The number of process groups must be a divisor of the total number
+  of MPI-processes. Default: 1 (all processes work at the same k-point and spin
+  at a given time).
+
+\item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
+  \is{BlockSize}, which specifies the row and column block size for the
+  block-cyclic distributions (with default size of 32).
+
+  Example:
+\begin{verbatim}
+  Parallel {
+    Groups = 2
+    Blacs {
+      BlockSize = 64
+    }
+  }
+\end{verbatim}
+
 \end{description}
 
 
@@ -3116,12 +3169,12 @@ states that are involved.
 
  ============================
 
-       1      5.403       0.2337689       15   ->    16  
-       2      5.403       0.2337689       14   ->    16  
-       3      5.403       0.2337689       15   ->    17  
-       4      5.403       0.2337689       14   ->    17  
-       5      6.531       0.0000000       13   ->    16  
-       6      6.531       0.0000000       12   ->    16  
+       1      5.403       0.2337689       15   ->    16
+       2      5.403       0.2337689       14   ->    16
+       3      5.403       0.2337689       15   ->    17
+       4      5.403       0.2337689       14   ->    17
+       5      6.531       0.0000000       13   ->    16
+       6      6.531       0.0000000       12   ->    16
 \end{verbatim}
 
 \subsection{TDP.DAT}
@@ -3190,7 +3243,7 @@ energy (in Hartree)\\
 
 Net dipole moment of the specified excited state in units of Debye.
 
-%%% Local Variables: 
+%%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "manual"
-%%% End: 
+%%% End:

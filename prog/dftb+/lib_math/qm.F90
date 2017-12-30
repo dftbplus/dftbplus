@@ -35,13 +35,13 @@ contains
     !> unitary matrix
     complex(dp), intent(in) :: uu(:,:)
 
-    complex(dp) :: work(size(xx,dim=1),size(xx,dim=2))
+    complex(dp) :: work(size(xx,dim=1), size(xx,dim=2))
 
     @:ASSERT(all(shape(xx) == shape(uu)))
     @:ASSERT(size(xx, dim=1) == size(xx, dim=2))
 
-    work = matmul(xx, transpose(conjg(uu)))
-    xx = matmul(uu, work)
+    work(:,:) = matmul(xx, transpose(conjg(uu)))
+    xx(:,:) = matmul(uu, work)
 
   end subroutine U_cmplx
 
