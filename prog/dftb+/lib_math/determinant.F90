@@ -34,7 +34,8 @@ contains
     real(dp) :: det
 
     integer, allocatable  :: ipiv(:)
-    integer :: ii, n
+    integer :: ii, n, exponent
+    real(dp) ::
 
     n = minval(shape(A))
     allocate(ipiv(n))
@@ -42,13 +43,26 @@ contains
     call getrf(A,ipiv)
 
     det = 1.0_dp
+    exponent = 0
     do ii = 1, n
       if (ipiv(ii).ne.ii) then
         det = -det * A(ii,ii)
       else
         det = det * A(ii,ii)
       end if
+      if (det == 0.0_dp) then
+        return
+      end if
+      do while (abs(det) > 2.0_dp)
+        det = det / 2.0_dp
+        exponent = exponent + 1
+      end do
+      do while (abs(det) < 0.5_dp)
+        det = det * 2.0_dp
+        exponent = exponent - 1
+      end do
     end do
+    det = det * 2.0_dp ** exponent
 
   end function det_real
 
@@ -62,21 +76,34 @@ contains
     complex(dp) :: det
 
     integer, allocatable  :: ipiv(:)
-    integer :: ii, n
+    integer :: ii, n, exponent
 
     n = minval(shape(A))
     allocate(ipiv(n))
 
     call getrf(A,ipiv)
 
-    det = 1.0_dp
+    det = cmplx(1,0,dp)
+    exponent = 0
     do ii = 1, n
       if (ipiv(ii).ne.ii) then
         det = -det * A(ii,ii)
       else
         det = det * A(ii,ii)
       end if
+      if (det == 0.0_dp) then
+        return
+      end if
+      do while (abs(det) > 2.0_dp)
+        det = det / 2.0_dp
+        exponent = exponent + 1
+      end do
+      do while (abs(det) < 0.5_dp)
+        det = det * 2.0_dp
+        exponent = exponent - 1
+      end do
     end do
+    det = det * 2.0_dp ** exponent
 
   end function det_cmplx
 
