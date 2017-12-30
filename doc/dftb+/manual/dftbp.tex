@@ -934,6 +934,7 @@ following properties:
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
+  \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
@@ -999,6 +1000,8 @@ following properties:
   parameter in the standard output. This is then a suitable choice for
   the original cell with the large vacuum region.
 
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
 
 \item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
@@ -2780,10 +2783,10 @@ fractional occupations. The specifications for this block have the following pro
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
-    \kw{WriteMulliken}          & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteCoefficients}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteEigenvectors}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{TotalStateCoeffs}       & l & WriteEigenvectors | WriteCoefficients = Yes & No & \\
+    \kw{WriteMulliken}          & l & & No & \\
+    \kw{WriteCoefficients}      & l & & No & \\
+    \kw{WriteEigenvectors}      & l & & No & \\
+    \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{WriteStatusArnoldi}     & l & & No & \\
@@ -2800,9 +2803,9 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{StateOfInterest}] Specifies the target excited state or states that should be
     calculated. These are numbered from the first (lowest) excited state as 1, and so on. If the
     absorption spectrum at a given geometry is required (i.e., a single-point calculation), this
-    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver}) should be
-    left empty (forces will not be available). A value less than 0 requests that the state with the
-    largest dipole transition moment be found (again a single-point calculation).
+    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver})
+    should be left empty (forces will not be available). A value less than 0 requests that the
+    state with the largest dipole transition moment be found (again a single-point calculation).
 
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being computed:
     ``singlet'', ``triplet'' or ``both''. This tag is only applicable for spin restricted
