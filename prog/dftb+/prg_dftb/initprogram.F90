@@ -409,6 +409,7 @@ module initprogram
   logical :: tESPgrid
   real(dp), allocatable :: ESPgrid(:,:)
   real(dp), allocatable :: ESPpotential(:)
+  real(dp) :: softenESP
   
   !> Calculate localised orbitals?
   logical :: tLocalise
@@ -1601,6 +1602,7 @@ contains
       allocate(ESPpotential(size(input%ctrl%ESPgrid,dim=2)))
       ESPgrid = input%ctrl%ESPgrid
       ESPpotential = 0.0_dp
+      softenESP = input%ctrl%softenESP
     end if
     
     tLocalise = input%ctrl%tLocalise

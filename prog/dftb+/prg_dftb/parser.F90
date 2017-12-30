@@ -3100,9 +3100,8 @@ contains
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    real(dp) :: rTmp3a(3), rTmp3b(3)
     type(string) :: buffer, modifier
-    integer :: nReg, iReg, ii, jj, kk, iTmp3(3)
+    integer :: nReg, iReg
     character(lc) :: strTmp
     type(listRealR1) :: lr1
     logical :: tPipekDense
@@ -3209,44 +3208,16 @@ contains
           call error("Both grid and point specification not both currently possible")
         end if
         ctrl%tESPGrid = .true.
-        call getChildValue(child2, "Spacing", rTmp3a, child=child3)
-        call getChildValue(child2, "Origin", rTmp3b, child=child3)
-        call getChildValue(child2, "NPoints", iTmp3, child=child3)
-        if (any(iTmp3 < 1)) then
-          call detailedError(child3,"Grid must be at least 1x1x1")
+        if (geo%tPeriodic) then
+          call readGrid(ctrl%ESPgrid, child2, modifier, geo%latVecs)
+        else
+          call readGrid(ctrl%ESPgrid, child2, modifier)
         end if
-        if (any(abs(rTmp3a) < epsilon(1.0_dp) .and. iTmp3 > 1)) then
-          call detailedError(child3,"Grid spacings must be non-zero")
-        end if
-        allocate(ctrl%ESPgrid(3,product(iTmp3)))
-
-        if (.not.(geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
-          call convertByMul(char(modifier), lengthUnits, child3, rTmp3a)
-          call convertByMul(char(modifier), lengthUnits, child3, rTmp3b)
-        end if
-
-        ctrl%ESPgrid = 0.0_dp
-        iReg = 0
-        do ii = 0, iTmp3(1)-1
-          do jj = 0, iTmp3(2)-1
-            do kk = 0, iTmp3(3)-1
-              iReg = iReg + 1
-              ctrl%ESPgrid(1,iReg) = ii * rTmp3a(1) + rTmp3b(1)
-              ctrl%ESPgrid(2,iReg) = jj * rTmp3a(2) + rTmp3b(2)
-              ctrl%ESPgrid(3,iReg) = kk * rTmp3a(3) + rTmp3b(3)
-            end do
-          end do
-        end do
-
-        ! Fractional specification of points
-        if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
-          ctrl%ESPgrid = matmul(geo%latVecs,ctrl%ESPgrid)
-        end if
-
       end if
       if (.not.ctrl%tESPGrid) then
         call detailedError(child,"Either a grid or set of points must be specified")
       end if
+      call getChildValue(child, "Softening", ctrl%softenESP, 1.0E-6_dp)
     end if
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
@@ -3420,5 +3391,74 @@ contains
 
   end subroutine readBlacs
 
+  !> Read in a grid specification
+  subroutine readGrid(points, node, modifier, latVecs)
+
+    !> Points in the grid
+    real(dp), allocatable, intent(out) :: points(:,:)
+
+    !> input data to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> unit modifier for the grid
+    type(string), intent(in) :: modifier
+
+    !> geometry of the system
+    real(dp), intent(in), optional :: latVecs(:,:)
+
+    type(fnode), pointer :: child
+    real(dp) :: r3Tmp(3), r3Tmpb(3)
+    integer :: i3Tmp(3), iPt, ii, jj, kk
+    logical :: tPeriodic
+    real(dp) :: axes(3,3), r33Tmp(3,3)
+
+    tPeriodic = present(latvecs)
+    call getChildValue(node, "Spacing", r3Tmp, child=child)
+    call getChildValue(node, "Origin", r3Tmpb, child=child)
+    call getChildValue(node, "NPoints", i3Tmp, child=child)
+    if (any(i3Tmp < 1)) then
+      call detailedError(child,"Grid must be at least 1x1x1")
+    end if
+    if (any(abs(r3Tmp) < epsilon(1.0_dp) .and. i3Tmp > 1)) then
+      call detailedError(child,"Grid spacings must be non-zero")
+    end if
+    allocate(points(3,product(i3Tmp)))
+
+    if (.not.(tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
+      call convertByMul(char(modifier), lengthUnits, child, r3Tmp)
+      call convertByMul(char(modifier), lengthUnits, child, r3Tmpb)
+    end if
+
+    points = 0.0_dp
+    iPt = 0
+    do ii = 0, i3Tmp(1)-1
+      do jj = 0, i3Tmp(2)-1
+        do kk = 0, i3Tmp(3)-1
+          iPt = iPt + 1
+          points(1,iPt) = ii * r3Tmp(1) + r3Tmpb(1)
+          points(2,iPt) = jj * r3Tmp(2) + r3Tmpb(2)
+          points(3,iPt) = kk * r3Tmp(3) + r3Tmpb(3)
+        end do
+      end do
+    end do
+
+    if (.not.(char(modifier) == "F" .or. char(modifier) == "f") .or. .not.tPeriodic) then
+      r33Tmp = reshape([1,0,0,0,1,0,0,0,1],[3,3])
+      call getChildValue(node, "Directions", axes, r33Tmp, child=child)
+      if (abs(determinant33(axes)) < epsilon(1.0_dp)) then
+        call detailedError(child, "Dependent axis directions")
+      end if
+      do ii = 1, 3
+        axes(:,ii) = axes(:,ii) / sqrt(sum(axes(:,ii)**2))
+      end do
+      points = matmul(axes,points)
+    end if
+
+    ! Fractional specification of points
+    if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+      points = matmul(latVecs,points)
+    end if
+
+  end subroutine readGrid
 
 end module parser

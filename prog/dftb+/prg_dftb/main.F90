@@ -362,7 +362,7 @@ contains
           call error("Needs SCC for potentials")
         end if
 
-        call sccCalc%electroStaticPotential(env, ESPpotential,ESPgrid, epsSoften=1.0E-6_dp)
+        call sccCalc%electroStaticPotential(env, ESPpotential,ESPgrid, epsSoften=softenESP)
 
         write(stdOut,*)'Electrostatic potential'
         do ii = 1, size(ESPpotential)

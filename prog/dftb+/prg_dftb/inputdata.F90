@@ -125,6 +125,9 @@ module inputdata_module
     
     !> Location of potential points
     real(dp), allocatable :: ESPgrid(:,:)
+
+    !> short range softening of the potential
+    real(dp) :: softenESP = 1.0E-6_dp
     
     !> Localise electronic states
     logical :: tLocalise   = .false.
