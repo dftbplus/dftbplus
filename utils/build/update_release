@@ -11,14 +11,13 @@ with that information.
 
 Usage:
 
-    get_release RELEASE_FILE
+    update_release RELEASE_FILE
 
 where RELEASE_FILE is the file, in which the release information should be
 updated. If RELEASE_FILE is not present, it will be created. If it is present
 and contains already the right release information, it will be left unchanged.
 """
 
-from __future__ import print_function
 import re
 import subprocess as sub
 import sys
@@ -33,8 +32,8 @@ GITCMD = 'git'
 
 
 def main():
-    "Main script"
-
+    """Main script
+    """
     scriptDir = os.path.dirname(sys.argv[0])
     rootDir = os.path.realpath(os.path.join(scriptDir, '../..'))
     release_file = sys.argv[1]
@@ -46,11 +45,9 @@ def main():
 
     last_tag = get_last_tag(rootDir)
     current_commit = get_current_commit(rootDir)
-    if last_tag is not None and current_commit is not None:
-        update_release(release_file, get_release_name(last_tag, current_commit))
-    else:
-        sys.stderr.write('Warning: Release could not be determined\n')
-        update_release(release_file, update_release('(Unknown)'))
+    if current_commit is None:
+        sys.stderr.write('Warning: Commit could not be determined\n')
+    update_release(release_file, get_release_name(last_tag, current_commit))
 
 
 def get_current_tag(rootDir):
@@ -63,9 +60,9 @@ def get_current_tag(rootDir):
         Current release tag as (year, major, minor) integer tuple or None if
         no release tag belongs to current commit or if the git command failed.
     """
-    cmd = [GITCMD, '-C', rootDir, 'tag', '--contains']
+    cmd = [GITCMD, 'tag', '--contains']
     try:
-        proc = sub.Popen(cmd, stdout=sub.PIPE, stderr=sub.PIPE)
+        proc = sub.Popen(cmd, cwd=rootDir, stdout=sub.PIPE, stderr=sub.PIPE)
     except OSError:
         return None
     rawtags = proc.stdout.read().split()
@@ -87,9 +84,9 @@ def get_last_tag(rootDir):
         Latest release tag as (year, major, minor) integer tuple or None if
         no release tag could be found or if the git command failed.
     """
-    cmd = [GITCMD, '-C', rootDir, 'tag', '--merged']
+    cmd = [GITCMD, 'tag', '--merged']
     try:
-        proc = sub.Popen(cmd, stdout=sub.PIPE, stderr=sub.PIPE)
+        proc = sub.Popen(cmd, cwd=rootDir, stdout=sub.PIPE, stderr=sub.PIPE)
     except OSError:
         return None
     rawtags = proc.stdout.read().split()
@@ -110,9 +107,9 @@ def get_current_commit(rootDir):
     Returns:
         Current commit id or None if the git command failed.
     """
-    cmd = [GITCMD, '-C', rootDir, 'rev-parse', '--short', 'HEAD']
+    cmd = [GITCMD, 'rev-parse', '--short', 'HEAD']
     try:
-        proc = sub.Popen(cmd, stdout=sub.PIPE, stderr=sub.PIPE)
+        proc = sub.Popen(cmd, cwd=rootDir, stdout=sub.PIPE, stderr=sub.PIPE)
     except OSError:
         return None
     commit = proc.stdout.read().strip()
@@ -125,16 +122,24 @@ def get_release_name(tag, commit=None):
     Args:
         tag: Release tag as found in the repository. If commit argument is also
             supplied, it is assumed that the tag is the latest release tag, and
-            represents an earlier state of the code.
+            represents an earlier state of the code. It may be None, if last tag
+            could not be determined.
         commit: Optional commit tag.
 
     Returns:
         String representation of the release name.
     """
-    if tag[2]:
+    if tag is None and commit is None:
+        relname = '(Unknown release)'
+        return relname
+
+    if tag is None:
+        release = 'unknown'
+    elif tag[2]:
         release = '%d.%d.%d' % tag
     else:
         release = '%d.%d' % tag[0:2]
+
     if commit is None:
         relname = 'release ' + release
     else:
