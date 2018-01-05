@@ -35,7 +35,6 @@ contains
 
     integer, allocatable  :: ipiv(:)
     integer :: ii, n, exponent
-    real(dp) ::
 
     n = minval(shape(A))
     allocate(ipiv(n))
