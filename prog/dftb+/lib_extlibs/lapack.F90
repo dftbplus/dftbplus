@@ -1477,6 +1477,62 @@ module lapack
   end interface dgetrf
 
 
+  !> Computes LU factorization of complex matrix
+  interface cgetrf
+
+    !> Computes LU factorization of real matrix
+    subroutine cgetrf(mm, nn, aa, lda, ipiv, info)
+      import rsp
+
+      !> number of rows of the matrix
+      integer, intent(in) :: mm
+
+      !> matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> matrix A
+      complex(rsp), intent(inout) :: aa(lda, *)
+
+      !> pivot array
+      integer, intent(out) :: ipiv(*)
+
+      !> state of routine on return
+      integer, intent(out) :: info
+    end subroutine cgetrf
+  end interface cgetrf
+
+
+  !> Computes LU factorization of double precision complex matrix
+  interface zgetrf
+
+    !> Computes LU factorization of double precision matrix
+    subroutine zgetrf(mm, nn, aa, lda, ipiv, info)
+      import rdp
+
+      !> number of rows of the matrix
+      integer, intent(in) :: mm
+
+      !> matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> matrix A
+      complex(rdp), intent(inout) :: aa(lda, *)
+
+      !> pivot array
+      integer, intent(out) :: ipiv(*)
+
+      !> state of routine on return
+      integer, intent(out) :: info
+    end subroutine zgetrf
+  end interface zgetrf
+
+
   !> Computes inverse of a real matrix using LU factorisation
   interface sgetri
 
