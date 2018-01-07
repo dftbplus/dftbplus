@@ -476,10 +476,9 @@ contains
     if (fdTradip > 0) then
       open(fdTradip, file=transDipOut, position="rewind", status="replace")
       write(fdTradip,*)
-      write(fdTradip,'(5x,a,5x,a,7x,a,6x,a,6x,a,6x,a)') "#", 'w [eV]', &
-          & 'Transition dipole (x,y,z) [Debye]'
+      write(fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(fdTradip,*)
-      write(fdTradip,'(1x,49("="))')
+      write(fdTradip,'(1x,57("="))')
       write(fdTradip,*)
     endif
 
@@ -2202,13 +2201,12 @@ contains
         endif
 
         if (fdTrans > 0) then
-          write(fdTrans,*)
-          write(fdTrans, '(2x,a,T26,a,T42,a)') &
+          write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)') &
               & 'Energy ', i,  Hartree__eV * sqrt(eval(i)), 'eV', sign
           write(fdTrans,*)
-          write(fdTrans,'(2x,a,9x,a,7x,a)') &
+          write(fdTrans,'(2x,a,9x,a,8x,a)') &
               & 'Transition', 'Weight', 'KS [eV]'
-          write(fdTrans,'(1x,48("="))')
+          write(fdTrans,'(1x,45("="))')
 
           sign = " "
           do j = 1, nmat
@@ -2221,13 +2219,14 @@ contains
               if (updwn) sign = "U"
             end if
             write(fdTrans,&
-                & '(i5,3x,a,1x,i5,1x,1a,T24,f10.8,T36,f14.8)') &
+                & '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)') &
                 & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
           end do
+          write(fdTrans,*)
         end if
 
         if(fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(3x,f10.6))') &
+          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))') &
               & i, Hartree__eV * sqrt(eval(i)), (transitionDipoles(i,j) &
               & * au__Debye, j=1,3)
         endif
@@ -2266,7 +2265,6 @@ contains
         endif
 
         if (fdTrans > 0) then
-          write(fdTrans,*)
           write(fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)') &
               & 'Energy ', i,  '-', 'eV', sign
           write(fdTrans,*)
