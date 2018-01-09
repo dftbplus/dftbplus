@@ -412,7 +412,7 @@ contains
       allocate(this%extChrgCoord(3,size(inp%extCharges, dim=2)))
       this%extChrgCoord = inp%extCharges(:3,:)
       allocate(this%extChrgQ(size(inp%extCharges, dim=2)))
-      this%extChrgQ = inp%extCharges(1,:)
+      this%extChrgQ = inp%extCharges(4,:)
       if (allocated(this%extChrgBlurWidths)) then
         if (any(abs(this%extChrgBlurWidths) > 1.0e-7_dp)) then
           allocate(this%extChrgBlurWidths(size(inp%extCharges, dim=2)))
@@ -1565,7 +1565,7 @@ contains
   subroutine internalElectrostaticPotential(this, V, env, locations, epsSoften)
 
     !> Instance of SCC calculation
-    class(TScc), intent(inout) :: this
+    class(TScc), intent(in) :: this
 
     !> Resulting potentials
     real(dp), intent(out) :: V(:)
@@ -1598,7 +1598,7 @@ contains
   subroutine externalElectrostaticPotential(this, V, env, locations, epsSoften)
 
     !> Instance of SCC calculation
-    class(TScc), intent(inout) :: this
+    class(TScc), intent(in) :: this
 
     !> Resulting potentials
     real(dp), intent(out) :: V(:)
@@ -1628,14 +1628,14 @@ contains
               & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
               & epsSoften=epsSoften)
         end if
-      end if
-    else
-      if (allocated(this%extChrgBlurWidths)) then
-        call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-            & this%extChrgQ, this%extChrgBlurWidths, epsSoften=epsSoften)
       else
-        call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-            & this%extChrgQ, epsSoften=epsSoften)
+        if (allocated(this%extChrgBlurWidths)) then
+          call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, this%extChrgBlurWidths, epsSoften=epsSoften)
+        else
+          call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, epsSoften=epsSoften)
+        end if
       end if
     end if
 

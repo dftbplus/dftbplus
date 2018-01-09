@@ -173,8 +173,6 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-    integer :: ii
-
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -186,6 +184,10 @@ contains
 
     ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
+
+    ! zero some properties that would otherwise not be initialised
+    Efield = 0.0_dp
+    absEfield = 0.0_dp
 
     ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
@@ -358,7 +360,7 @@ contains
       end if
 
       if (tESPgrid) then
-        call getESP(tSCCCalc, SCCCalc, env, ESPgrid, softenESP)
+        call getElectrostaticPotential(SCCCalc, env, ESPgrid, softenESP, EField)
       end if
 
       if (tXlbomd) then
@@ -2444,13 +2446,11 @@ contains
 
   end subroutine getMullikenPopulation
 
-  subroutine getESP(tSCCCalc, SCCCalc, env, ESPgrid, softenESP)
-
-    !> Is this an SCC calculation
-    logical, intent(in) :: tSCCCalc
+  !> Electrostatic potential at specified points
+  subroutine getElectrostaticPotential(SccCalc, env, ESPgrid, softenESP, Efield)
 
     !> SCC module internal variables
-    type(TScc), allocatable, intent(inout) :: sccCalc
+    type(TScc), allocatable, intent(in) :: sccCalc
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2461,29 +2461,37 @@ contains
     !> short range softening parameter
     real(dp), intent(in) :: softenESP
 
+    real(dp), intent(in) :: EField(3)
+
     real(dp), allocatable :: ESPpotential(:), extESPpotential(:)
     integer :: ii
+
+    if (.not.allocated(SccCalc)) then
+      call error("Needs SCC for potentials")
+    end if
 
     allocate(ESPpotential(size(ESPgrid,dim=2)))
     allocate(extESPpotential(size(ESPgrid,dim=2)))
     ESPpotential = 0.0_dp
     extESPpotential = 0.0_dp
 
-    if (.not.tSCCCalc) then
-      call error("Needs SCC for potentials")
-    end if
-
     call sccCalc%internalElectroStaticPotential(ESPpotential, env, ESPgrid, epsSoften=softenESP)
     call sccCalc%externalElectroStaticPotential(extESPpotential, env, ESPgrid, epsSoften=softenESP)
 
+    if (any(EField /= 0.0_dp)) then
+      do ii = 1, size(ESPgrid,dim=2)
+        extESPpotential(ii) = extESPpotential(ii) + dot_product(ESPgrid(:, ii), EField)
+      end do
+    end if
+
     write(stdOut,*)'Electrostatic potential'
-    do ii = 1, size(ESPpotential)
-      write(stdOut,"(I3,3E12.4,' : ',2E20.12)")ii,ESPgrid(:,ii) * Bohr__AA,ESPpotential(ii),&
+    do ii = 1, size(ESPgrid,dim=2)
+      write(stdOut,"(I3,3E12.4,' : ',2E20.12)")ii,ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii),&
           & extESPpotential(ii)
     end do
     write(stdOut,*)
 
-  end subroutine getESP
+  end subroutine getElectrostaticPotential
 
 
   !> Calculates various energy contributions
