@@ -49,7 +49,8 @@ module poisson_int
   use libnegf_vars, only : TTransPar
   use CommonTypes, only : TOrbitals
   use libmpifx_module 
-  
+  use system_calls, only: create_directory
+
   implicit none
   private
 
@@ -86,174 +87,180 @@ module poisson_int
   call mpi_barrier(mpicomm, error)
   if (id0) write(*,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' nodes'
   
+  
   if (active_id) then
 
-  call init_structure(structure)
-  
-  call init_skdata(skdata,error)
+    allocate(character(len=len(poissoninfo%scratch))::scratchfolder)
+    scratchfolder = trim(poissoninfo%scratch)
 
-  call init_charges()
+    call create_directory(trim(scratchfolder))
 
-  !! Initialize renormalization factors for grid projection
-
-  if(error.ne.0) then 
-      call poiss_destroy()
-      initinfo = .false.; return
-  endif       
-
-  call init_defaults()            !init default values for parameters
-
-
-  verbose = poissonInfo%verbose
-
-  Temp = 0.0_dp
-
-  !-----------------------------------------------------------------------------
-  ! GP: verify if the calculation is on an open system (cluster=false) or not
-  !
-  !     note: in previous versions only ncont was checked but this is not 
-  !     sufficient as it does not take into account a contact calculation 
-  !     with poisson solver, where the transport block is defined
-  !-----------------------------------------------------------------------------  
-  if (transpar%defined .and. transpar%taskUpload) then
-    ncont = transpar%ncont         !init the number of contacts as in dftb+
-  endif
-  cluster = .false.
-  if (.not.transpar%defined) then
-    cluster = .true.
-  endif
-  if (transpar%defined .and. (.not. transpar%taskUpload)) then
-    cluster = .true.
-  endif
-
-  !-----------------------------------------------------------------------------+
-  ! TRANSPORT PARAMETER NEEDED FOR POISSON (contact partitioning)
-  !-----------------------------------------------------------------------------+
-  
-  if (cluster) then
-    ! TODO: GP Does it make sense to have a specific direction with no contacts? I commented it out
-    ! because I don't know where this is initialized. Idem for EFermi, I don't think is needed
-    !if( associated( transpar%cdir )) then
-    !   contdir(1) = transportinfo%cdir(1) 
-    !else
-    contdir(1) = 0
-    !end if    
-    !if( associated(transportinfo%eFermi) ) then
-    !   EFermi(1) = transportinfo%eFermi(1) 
-    !else
-    EFermi(1) = 0.d0
-    !endif
-    ! Note: moved here iatm initialization for cluster case, consistent with not 
-    ! cluster case
-    iatm(1)=1 
-    iatm(2)=natoms
-  else
-    iatm(1:2) = transpar%idxdevice(1:2)
-    iatc(1,1:ncont) = transpar%contacts(1:ncont)%idxrange(1)
-    iatc(2,1:ncont) = transpar%contacts(1:ncont)%idxrange(2)
-    iatc(3,1:ncont) = 0
-    contdir(1:ncont) = transpar%contacts(1:ncont)%dir
-    mu(1:ncont) = transpar%contacts(1:ncont)%potential
-    ! Note: the poisson machinery is not compatible with built in 
-    ! potential with colinear spin calculations
-    EFermi(1:ncont) = transpar%contacts(1:ncont)%eFermi(1)
-  endif
-
-  if (.not.cluster) then
-    do i = 1,ncont
-      mu(i) = mu(i) + EFermi(i) -  minval(EFermi(1:ncont))
-    enddo
-  end if
-
-  DoPoisson = poissoninfo%defined
-  PoissBox(1,1) = poissoninfo%poissBox(1)
-  PoissBox(2,2) = poissoninfo%poissBox(2)
-  PoissBox(3,3) = poissoninfo%poissBox(3)
-  dmin(1:3) = poissoninfo%poissGrid(1:3)
-  FoundBox = poissoninfo%foundBox 
-  PoissAcc = poissoninfo%poissAcc
-  InitPot = poissoninfo%bulkBC
-  ReadBulk = poissoninfo%readBulkPot
-  MaxPoissIter = poissoninfo%maxPoissIter
-  select case (poissoninfo%localBCType)
-  case('G')
-      localBC = 0
-  case('C')       
-      localBC = 1
-  case('S')       
-      localBC = 2
-  end select
-  deltaR_max = poissoninfo%maxRadAtomDens
-  if (id0) write(*,*) "Atomic density tolerance: ", -deltaR_max
-  if (deltaR_max < 0.0_dp) then
-    deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
-  end if
-  if (id0)  write(*,*) "Atomic density cutoff: ", deltaR_max,"a.u."
-
-  if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-    call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
-  end if
-
-  dR_cont = poissoninfo%bufferLocBC
-  bufferBox = poissoninfo%bufferBox
-  SavePot = poissoninfo%savePotential
-  overrideBC = poissoninfo%overrideBC
-  overrBulkBC = poissoninfo%overrBulkBC
-  !-----------------------------------------------------------------------------+  
-  ! Gate settings
-  DoGate=.false.
-  DoCilGate=.false.
-  if (poissoninfo%gateType.eq.'C')   DoCilGate = .true.
-  if (poissoninfo%gateType.eq.'P')   DoGate = .true.
-  
-  Gate = poissoninfo%gatePot
-  GateLength_l = poissoninfo%gateLength_l
-  GateLength_t = poissoninfo%gateLength_t
-  GateDir = poissoninfo%gatedir   ! Planar gate must be along y
-  OxLength = poissoninfo%insLength
-  Rmin_Gate = poissoninfo%gateRad
-  Rmin_Ins = poissoninfo%insRad  
-  eps_r = poissoninfo%eps_r
-  dr_eps = poissoninfo%dr_eps
-
-  ! Use fixed analytical renormalization (approximate) or new numerical one??
-  fixed_renorm = .not.(poissoninfo%exactRenorm)
-  ! Performs parameters checks    
-  !!if(id0.and.verbose.gt.40) call echo_init()
-
-  call check_biasdir()
-  call check_poisson_box()
-  if (any(overrideBC.ne.0)) period = .false.
-  call check_parameters() 
-  call check_localbc()
-  call write_parameters()
-  call check_contacts()
-
-  !-----------------------------------------------------------------------------+
-  ! Special hacking to allow one-dimensional 
-  ! periodic calculations using Poisson
-  ! ('cluster' means 'without contacts')
-  !if(period.and.cluster.and.DoPoisson) then
-  !   write(*,'(A)') 'Supercell vectors for Hamiltonian:'
-  !   write(*,*) boxsiz(:,:)
-  !   if(contdir(1).eq.0) then
-  !     period_dir(:) = .true.      
-  !   else
-  !     period_dir(:) = .false.
-  !     period_dir(contdir(1)) = .true.
-  !     write(*,'(A)') 'The system has 1D periodicity for Poisson'
-  !   endif  
-  !end if
-
-
-  !-----------------------------------------------------------------------------+
-  ! Parameters from old PAR.IN not yet parsed:
-  !
-  ! PoissPlane
-  ! DoTip,tip_atom,base_atom1,base_atom2
-  !-----------------------------------------------------------------------------+
-
-  if (id0) write(*,'(79(">"))')
+    call init_structure(structure)
+    
+    call init_skdata(skdata,error)
+ 
+    call init_charges()
+ 
+    !! Initialize renormalization factors for grid projection
+ 
+    if(error.ne.0) then 
+        call poiss_destroy()
+        initinfo = .false.; return
+    endif       
+ 
+    call init_defaults()            !init default values for parameters
+ 
+ 
+    verbose = poissonInfo%verbose
+ 
+    Temp = 0.0_dp
+ 
+    !-----------------------------------------------------------------------------
+    ! GP: verify if the calculation is on an open system (cluster=false) or not
+    !
+    !     note: in previous versions only ncont was checked but this is not 
+    !     sufficient as it does not take into account a contact calculation 
+    !     with poisson solver, where the transport block is defined
+    !-----------------------------------------------------------------------------  
+    if (transpar%defined .and. transpar%taskUpload) then
+      ncont = transpar%ncont         !init the number of contacts as in dftb+
+    endif
+    cluster = .false.
+    if (.not.transpar%defined) then
+      cluster = .true.
+    endif
+    if (transpar%defined .and. (.not. transpar%taskUpload)) then
+      cluster = .true.
+    endif
+ 
+    !-----------------------------------------------------------------------------+
+    ! TRANSPORT PARAMETER NEEDED FOR POISSON (contact partitioning)
+    !-----------------------------------------------------------------------------+
+    
+    if (cluster) then
+      ! TODO: GP Does it make sense to have a specific direction with no contacts? I commented it out
+      ! because I don't know where this is initialized. Idem for EFermi, I don't think is needed
+      !if( associated( transpar%cdir )) then
+      !   contdir(1) = transportinfo%cdir(1) 
+      !else
+      contdir(1) = 0
+      !end if    
+      !if( associated(transportinfo%eFermi) ) then
+      !   EFermi(1) = transportinfo%eFermi(1) 
+      !else
+      EFermi(1) = 0.d0
+      !endif
+      ! Note: moved here iatm initialization for cluster case, consistent with not 
+      ! cluster case
+      iatm(1)=1 
+      iatm(2)=natoms
+    else
+      iatm(1:2) = transpar%idxdevice(1:2)
+      iatc(1,1:ncont) = transpar%contacts(1:ncont)%idxrange(1)
+      iatc(2,1:ncont) = transpar%contacts(1:ncont)%idxrange(2)
+      iatc(3,1:ncont) = 0
+      contdir(1:ncont) = transpar%contacts(1:ncont)%dir
+      mu(1:ncont) = transpar%contacts(1:ncont)%potential
+      ! Note: the poisson machinery is not compatible with built in 
+      ! potential with colinear spin calculations
+      EFermi(1:ncont) = transpar%contacts(1:ncont)%eFermi(1)
+    endif
+ 
+    if (.not.cluster) then
+      do i = 1,ncont
+        mu(i) = mu(i) + EFermi(i) -  minval(EFermi(1:ncont))
+      enddo
+    end if
+ 
+    DoPoisson = poissoninfo%defined
+    PoissBox(1,1) = poissoninfo%poissBox(1)
+    PoissBox(2,2) = poissoninfo%poissBox(2)
+    PoissBox(3,3) = poissoninfo%poissBox(3)
+    dmin(1:3) = poissoninfo%poissGrid(1:3)
+    FoundBox = poissoninfo%foundBox 
+    PoissAcc = poissoninfo%poissAcc
+    InitPot = poissoninfo%bulkBC
+    ReadBulk = poissoninfo%readBulkPot
+    MaxPoissIter = poissoninfo%maxPoissIter
+    select case (poissoninfo%localBCType)
+    case('G')
+        localBC = 0
+    case('C')       
+        localBC = 1
+    case('S')       
+        localBC = 2
+    end select
+    deltaR_max = poissoninfo%maxRadAtomDens
+    if (id0) write(*,*) "Atomic density tolerance: ", -deltaR_max
+    if (deltaR_max < 0.0_dp) then
+      deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
+    end if
+    if (id0)  write(*,*) "Atomic density cutoff: ", deltaR_max,"a.u."
+ 
+    if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
+      call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
+    end if
+ 
+    dR_cont = poissoninfo%bufferLocBC
+    bufferBox = poissoninfo%bufferBox
+    SavePot = poissoninfo%savePotential
+    overrideBC = poissoninfo%overrideBC
+    overrBulkBC = poissoninfo%overrBulkBC
+    !-----------------------------------------------------------------------------+  
+    ! Gate settings
+    DoGate=.false.
+    DoCilGate=.false.
+    if (poissoninfo%gateType.eq.'C')   DoCilGate = .true.
+    if (poissoninfo%gateType.eq.'P')   DoGate = .true.
+    
+    Gate = poissoninfo%gatePot
+    GateLength_l = poissoninfo%gateLength_l
+    GateLength_t = poissoninfo%gateLength_t
+    GateDir = poissoninfo%gatedir   ! Planar gate must be along y
+    OxLength = poissoninfo%insLength
+    Rmin_Gate = poissoninfo%gateRad
+    Rmin_Ins = poissoninfo%insRad  
+    eps_r = poissoninfo%eps_r
+    dr_eps = poissoninfo%dr_eps
+ 
+    ! Use fixed analytical renormalization (approximate) or new numerical one??
+    fixed_renorm = .not.(poissoninfo%exactRenorm)
+    ! Performs parameters checks    
+    !!if(id0.and.verbose.gt.40) call echo_init()
+ 
+    call check_biasdir()
+    call check_poisson_box()
+    if (any(overrideBC.ne.0)) period = .false.
+    call check_parameters() 
+    call check_localbc()
+    call write_parameters()
+    call check_contacts()
+ 
+    !-----------------------------------------------------------------------------+
+    ! Special hacking to allow one-dimensional 
+    ! periodic calculations using Poisson
+    ! ('cluster' means 'without contacts')
+    !if(period.and.cluster.and.DoPoisson) then
+    !   write(*,'(A)') 'Supercell vectors for Hamiltonian:'
+    !   write(*,*) boxsiz(:,:)
+    !   if(contdir(1).eq.0) then
+    !     period_dir(:) = .true.      
+    !   else
+    !     period_dir(:) = .false.
+    !     period_dir(contdir(1)) = .true.
+    !     write(*,'(A)') 'The system has 1D periodicity for Poisson'
+    !   endif  
+    !end if
+ 
+ 
+    !-----------------------------------------------------------------------------+
+    ! Parameters from old PAR.IN not yet parsed:
+    !
+    ! PoissPlane
+    ! DoTip,tip_atom,base_atom1,base_atom2
+    !-----------------------------------------------------------------------------+
+ 
+    if (id0) write(*,'(79(">"))')
   
   endif 
 
@@ -261,6 +268,7 @@ module poisson_int
   
 end subroutine poiss_init
 
+!--------------------------------------------------------------------------
 !----------------------------------------------------------------------------
 ! Release gDFTB varibles
 !----------------------------------------------------------------------------
@@ -268,19 +276,20 @@ subroutine poiss_destroy()
 
   if (active_id) then
 
-  if (id0) write(*,'(A)') 'Release Poisson Memory:'
-  call poiss_freepoisson()
-  !if(allocated(ind)) call log_gdeallocate(ind) 
-  if(allocated(x)) call log_gdeallocate(x)
-  if(allocated(izp)) call log_gdeallocate(izp) 
-  if(allocated(dQmat)) call log_gdeallocate(dQmat)
-  if(allocated(uhubb)) call log_gdeallocate(uhubb)
-  if(allocated(lmax)) call log_gdeallocate(lmax)
-  if(allocated(renorm)) call log_gdeallocate(renorm)
-  if (id0) then
-    call writePeakInfo(6)
-    call writeMemInfo(6)
-  endif
+    if (id0) write(*,'(A)') 'Release Poisson Memory:'
+    call poiss_freepoisson()
+    !if(allocated(ind)) call log_gdeallocate(ind) 
+    if(allocated(x)) call log_gdeallocate(x)
+    if(allocated(izp)) call log_gdeallocate(izp) 
+    if(allocated(dQmat)) call log_gdeallocate(dQmat)
+    if(allocated(uhubb)) call log_gdeallocate(uhubb)
+    if(allocated(lmax)) call log_gdeallocate(lmax)
+    if(allocated(renorm)) call log_gdeallocate(renorm)
+    if (id0) then
+      call writePeakInfo(6)
+      call writeMemInfo(6)
+    endif
+    deallocate(scratchfolder)
   
   endif 
 
@@ -332,9 +341,9 @@ subroutine poiss_getshift(V_L_atm,grad_V)
     case(0)
       if (id0.and.verbose.gt.30) then
         write(*,*)
-        write(*,'(73("="))')
-        write(*,*) '                   SOLVING POISSON EQUATION             '
-        write(*,'(73("="))') 
+        write(*,'(80("="))')
+        write(*,*) '                       SOLVING POISSON EQUATION         '
+        write(*,'(80("="))') 
       endif
       call init_PoissBox
       call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
@@ -343,7 +352,7 @@ subroutine poiss_getshift(V_L_atm,grad_V)
     end select
 
 
-    if (id0.and.verbose.gt.30) write(*,'(73("*"))')
+    if (id0.and.verbose.gt.30) write(*,'(80("*"))')
 
   endif
 

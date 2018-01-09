@@ -38,14 +38,14 @@ gradient.o = gradient.o
 _mod_gradient: gradient.o
 _mod_gradient = $(gradient.o)
 
-#:if defined(WITH_MPI)
-mpi_poisson.o: _mod_mpi _mod_libmpifx_module
-mpi_poisson.o = mpi_poisson.o $(_mod_mpi) $(_mod_libmpifx_module)
+#:if WITH_MPI
+mpi_poisson.o: common.fypp _mod_mpi _mod_libmpifx_module
+mpi_poisson.o = mpi_poisson.o $(common.fypp) $(_mod_mpi) $(_mod_libmpifx_module)
 _mod_mpi_poisson: mpi_poisson.o
 _mod_mpi_poisson = $(mpi_poisson.o)
 #:else
-mpi_poisson.o:
-mpi_poisson.o = mpi_poisson.o
+mpi_poisson.o: common.fypp
+mpi_poisson.o = mpi_poisson.o $(common.fypp)
 _mod_mpi_poisson: mpi_poisson.o
 _mod_mpi_poisson = $(mpi_poisson.o)
 #:endif
@@ -60,13 +60,13 @@ parcheck.o = parcheck.o $(_mod_mpi_poisson) $(_mod_gconstants) $(_mod_gprecision
 _mod_parcheck: parcheck.o
 _mod_parcheck = $(parcheck.o)
 
-poisson.o: _mod_gewald _mod_gclock _mod_gprecision _mod_structure _mod_bulkpot _mod_mpi_poisson _mod_parameters _mod_gallocation _mod_gconstants _mod_fileid _mod_fancybc
-poisson.o = poisson.o $(_mod_gewald) $(_mod_gclock) $(_mod_gprecision) $(_mod_structure) $(_mod_bulkpot) $(_mod_mpi_poisson) $(_mod_parameters) $(_mod_gallocation) $(_mod_gconstants) $(_mod_fileid) $(_mod_fancybc)
+poisson.o: _mod_gewald _mod_gclock common.fypp _mod_gprecision _mod_structure _mod_bulkpot _mod_mpi_poisson _mod_parameters _mod_gallocation _mod_gconstants _mod_fileid _mod_fancybc
+poisson.o = poisson.o $(_mod_gewald) $(_mod_gclock) $(common.fypp) $(_mod_gprecision) $(_mod_structure) $(_mod_bulkpot) $(_mod_mpi_poisson) $(_mod_parameters) $(_mod_gallocation) $(_mod_gconstants) $(_mod_fileid) $(_mod_fancybc)
 _mod_poisson: poisson.o
 _mod_poisson = $(poisson.o)
 
-poisson_int.o: _mod_libnegf_vars _mod_commontypes _mod_gprecision _mod_structure _mod_mpi_poisson _mod_poisson_vars _mod_parameters _mod_libmpifx_module _mod_gallocation _mod_gconstants _mod_parcheck _mod_poisson
-poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(_mod_gprecision) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_poisson_vars) $(_mod_parameters) $(_mod_libmpifx_module) $(_mod_gallocation) $(_mod_gconstants) $(_mod_parcheck) $(_mod_poisson)
+poisson_int.o: _mod_libnegf_vars _mod_commontypes _mod_gprecision _mod_structure _mod_mpi_poisson _mod_poisson_vars _mod_system_calls _mod_parameters _mod_libmpifx_module _mod_gallocation _mod_gconstants _mod_parcheck _mod_poisson
+poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(_mod_gprecision) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_poisson_vars) $(_mod_system_calls) $(_mod_parameters) $(_mod_libmpifx_module) $(_mod_gallocation) $(_mod_gconstants) $(_mod_parcheck) $(_mod_poisson)
 _mod_poisson_int: poisson_int.o
 _mod_poisson_int = $(poisson_int.o)
 

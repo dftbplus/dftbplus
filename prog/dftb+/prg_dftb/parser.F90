@@ -13,6 +13,7 @@ module parser
   use assert
   use accuracy
   use constants
+  use solvertypes
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
@@ -94,7 +95,6 @@ module parser
     logical :: tWriteHSD
   end type TParserFlags
 
-  type(fnode), pointer  :: nodeVE, nodeBP
 
 contains
 
@@ -107,6 +107,7 @@ contains
 
     type(fnode), pointer :: hsdTree
     type(fnode), pointer :: root, tmp, hamNode, child, dummy
+    type(fnode), pointer :: nodeVE, nodeBP
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
@@ -161,6 +162,28 @@ contains
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
 #:endif
 
+#:if WITH_TRANSPORT
+    associate(tp => input%transpar, tundos => input%ginfo%tundos)
+    call getChild(root, "Dephasing", child, requested=.false.)
+    if (associated(child)) then
+      call getChildValue(child, "VibronicElastic", nodeVE, "", allowEmptyValue=.true.)
+      if (associated(nodeVE)) then
+        tp%tDephasingVE = .true.
+        call readElPh(nodeVE, tundos%elph, input%geom, input%slako%orb, tp)
+      end if
+      call getChildValue(child, "BuettikerProbes", nodeBP, "", allowEmptyValue=.true.)
+      if (associated(nodeBP)) then
+        tp%tDephasingBP = .true.
+        call readDephasingBP(nodeBP, tundos%bp, input%geom, input%slako%orb, tp)
+      endif
+      call getChildValue(child, "Orthonormal", tp%tOrthonormal,.false.)
+      call getChildValue(child, "OrthonormalDevice", tp%tOrthonormalDevice,.false.)
+      tp%tNoGeometry = .false.
+      tp%NumStates = 0           
+    endif
+    end associate
+#:endif
+
     ! Geometry driver
     call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
     call readDriver(tmp, child, input%geom, input%ctrl)
@@ -176,6 +199,8 @@ contains
 #:if WITH_TRANSPORT  
     call readAnalysis(child, input%ctrl, input%geom, input%slako%orb, input%transpar, &
         & input%ginfo%tundos)
+
+    call finalizeNegf(input)
 #:else
     call readAnalysis(child, input%ctrl, input%geom, input%slako%orb)
 #:endif
@@ -335,7 +360,7 @@ contains
     case ("steepestdescent")
       ! Steepest downhill optimisation
 
-      ctrl%iGeoOpt = 1
+      ctrl%iGeoOpt = optSD
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
 
@@ -392,7 +417,7 @@ contains
     case ("conjugategradient")
       ! Conjugate gradient location optimisation
 
-      ctrl%iGeoOpt = 2
+      ctrl%iGeoOpt = optCG 
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
       call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
@@ -445,7 +470,7 @@ contains
     case("gdiis")
       ! Gradient DIIS optimisation, only stable in the quadratic region
 
-      ctrl%iGeoOpt = 3
+      ctrl%iGeoOpt = optDIIS 
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
       call getChildValue(node, "alpha", ctrl%deltaGeoOpt, 1.0E-1_dp)
@@ -1366,7 +1391,7 @@ contains
       select case(char(buffer))
 
       case ("broyden")
-        ctrl%iMixSwitch = 3
+        ctrl%iMixSwitch = mixerBroyden 
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.2_dp)
         call getChildValue(value, "InverseJacobiWeight", ctrl%broydenOmega0, &
             &0.01_dp)
@@ -1378,7 +1403,7 @@ contains
             &1.0e-2_dp)
 
       case ("anderson")
-        ctrl%iMixSwitch = 2
+        ctrl%iMixSwitch = mixerAnderson 
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.05_dp)
         call getChildValue(value, "Generations", ctrl%iGenerations, 4)
         call getChildValue(value, "InitMixingParameter", &
@@ -1404,11 +1429,11 @@ contains
             &1.0e-2_dp)
 
       case ("simple")
-        ctrl%iMixSwitch = 1
+        ctrl%iMixSwitch = mixerSimple 
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.05_dp)
 
       case("diis")
-        ctrl%iMixSwitch = 4
+        ctrl%iMixSwitch = mixerDIIS
         call getChildValue(value, "InitMixingParameter", ctrl%almix, 0.2_dp)
         call getChildValue(value, "Generations", ctrl%iGenerations, 6)
         call getChildValue(value, "UseFromStart", ctrl%tFromStart, .true.)
@@ -1622,13 +1647,14 @@ contains
       ctrl%iSolver = solverDAC
     case ("relativelyrobust")
       ctrl%iSolver = solverRR1
+#:if WITH_TRANSPORT      
     case ("greensfunction")
       ctrl%iSolver = solverGF
-#:if WITH_TRANSPORT      
       call readGreensFunction(value, greendens, tp, ctrl%tempElec)
-#:endif
     case ("transportonly")
-       ctrl%iSolver = onlyTransport
+      ctrl%iSolver = onlyTransport
+      !tp%taskUpload = .false.
+#:endif
     end select
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
@@ -1672,8 +1698,11 @@ contains
         call getChildValue(child2, "", ctrl%Ef(:1), &
             & modifier=modifier, child=child3)
       end if
-      call convertByMul(char(modifier), energyUnits, child3, &
-          & ctrl%Ef)
+      call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
+      ctrl%tFixEf = .true.
+    else if (ctrl%iSolver == solverGF) then
+      ! this is conceptually correct and avoids checkiing total charge in
+      ! initQFromFile    
       ctrl%tFixEf = .true.
     else
       ctrl%tFixEf = .false.
@@ -2027,16 +2056,16 @@ contains
           & child=child)
       select case (tolower(unquote(char(buffer))))
       case("traditional")
-        ctrl%forceType = 0
+        ctrl%forceType = forceOrig 
       case("dynamicst0")
-        ctrl%forceType = 2
+        ctrl%forceType = forceDynT0
       case("dynamics")
-        ctrl%forceType = 3
+        ctrl%forceType = forceDynT
       case default
         call detailedError(child, "Invalid force evaluation method.")
       end select
     else
-      ctrl%forceType = 0
+      ctrl%forceType = forceOrig 
     end if
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
@@ -3312,11 +3341,6 @@ contains
         call error("Block TunnelingAndDos requires Transport block.")
       end if
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
-    else
-      if (transpar%tDephasingVE) &
-        call readElPh(nodeVE, tundos%elph, geo, orb, transpar)
-      if (transpar%tDephasingBP) &
-        call readDephasingBP(nodeBP, tundos%bp, geo, orb, transpar)
     endif
 #:endif
 
@@ -3446,6 +3470,7 @@ contains
     call getChildValue(pDevice, "AtomRange", tp%idxdevice)
     call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
     call readFirstLayerAtoms(pTmp, tp%PL, tp%nPLs, tp%idxdevice)
+print*,'(parser) PL:',tp%PL
     !DAR begin
     call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)           
     if (associated(pTmp)) then
@@ -3653,6 +3678,10 @@ contains
         call asArray(li,transpar%cblk)
         call destruct(li)
       end if
+
+      allocate(greendens%kbT(1))
+      greendens%kbT(:) = tempelec ! default value
+    else
       if (transpar%ncont > 0) then
         allocate(greendens%kbT(transpar%ncont))
         greendens%kbT = tempelec
@@ -3662,9 +3691,6 @@ contains
           greendens%kbT(ii) = transpar%contacts(ii)%kbT
         end if   
       enddo          
-    else
-      allocate(greendens%kbT(1))
-      greendens%kbT(:) = tempelec ! default value
     end if
 
     call getChildValue(pNode, "LocalCurrents", greendens%doLocalCurr, .false.)
@@ -3935,6 +3961,8 @@ contains
     end select
     
     call getChildValue(pNode, "MaxParallelNodes", poisson%maxNumNodes, 1)
+      
+    poisson%scratch = "contacts"    
 
   end subroutine readPoisson
 #:endif
@@ -4106,9 +4134,7 @@ contains
     write(stdout,"('Vibronic dephasing model is being red')")
 
     call getNodeName2(node, method1)
-
     select case(char(method1))
-
     case ("")
       continue
     case ("local")
@@ -4129,7 +4155,7 @@ contains
       !! Only local el-ph model is defined (elastic for now)
       elph%defined = .true.
       elph%model = 1
-      call getChildValue(node, "MaxNumIter", elph%scba_niter, default=100)
+      call getChildValue(node, "MaxSCBAIterations", elph%scba_niter, default=100)
       call getChildValue(node, "atomBlock", block_model, default=.false.)
       call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
       if (block_model) then
@@ -4249,7 +4275,7 @@ contains
       !! Only local bp model is defined (elastic for now)
       elph%defined = .true.
       elph%model = 1
-      call getChildValue(node, "MaxNumIter", elph%scba_niter, default=100)
+      call getChildValue(node, "MaxSCBAIterations", elph%scba_niter, default=100)
       call getChildValue(node, "atomBlock", block_model, default=.false.)
       call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
       if (block_model) then
@@ -4410,19 +4436,6 @@ contains
                           modifier=modif, child=field)
       call convertByMul(char(modif), energyUnits, field, eRange)
     end if
-
-    call getChildValue(root, "ElPh", pTmp, "", &
-                      &allowEmptyValue=.true.)
-    if (associated(pTmp)) then
-      call readElPh(pTmp, tundos%elph, geo, orb, transpar)
-    endif
-
-    if (transpar%tDephasingVE) then
-      call readElPh(nodeVE, tundos%elph, geo, orb, transpar)
-    end if     
-    if (transpar%tDephasingBP) then
-      call readDephasingBP(nodeBP, tundos%bp, geo, orb, transpar)
-    end if      
 
     tundos%emin = eRange(1)
     tundos%emax = eRange(2)
@@ -4702,6 +4715,66 @@ contains
     
   end subroutine readPDOSRegions
 #:endif 
+
+#:if WITH_TRANSPORT
+  !! Some assignment and consistency check in negf/poisson 
+  !! containers before calling initialization 
+  subroutine finalizeNegf(input)
+    type(inputData), intent(inout) :: input
+
+    integer :: ii
+
+    !! Check consistency between different deltas
+    if (input%ginfo%tundos%defined.and.input%ginfo%greendens%defined) then
+      if (input%ginfo%tundos%delta.ne.input%ginfo%greendens%delta) then
+        call error("Delta parameter must be the same in GreensFunction and TunnelingAndDos")
+      end if 
+    end if
+    
+    !! Assign spin degeneracy to every block which may use it
+    if (input%ginfo%tundos%defined) then
+      if (input%ctrl%tSpin) input%ginfo%tundos%gSpin = 1
+      if (.not.input%ctrl%tSpin) input%ginfo%tundos%gSpin = 2
+    end if
+    if (input%ginfo%greendens%defined) then
+      if (input%ctrl%tSpin) input%ginfo%greendens%gSpin = 1
+      if (.not.input%ctrl%tSpin) input%ginfo%greendens%gSpin = 2
+    end if
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    !! Inheritance of first layer indexes to green solver when transport is defined
+    if (input%transpar%defined .and. input%ginfo%greendens%defined) then
+      input%ginfo%greendens%nPLs = input%transpar%nPLs
+      input%ginfo%greendens%PL = input%transpar%PL
+    end if
+
+    !! Not orthogonal directions in transport are only allowed if no Poisson
+    if (input%poisson%defined.and.input%transpar%defined) then
+      do ii = 1, input%transpar%ncont
+        ! If dir is  any value but x,y,z (1,2,3) it is considered oriented along
+        ! a direction not parallel to any coordinate axis
+        if (input%transpar%contacts(ii)%dir.lt.1 .or. &
+          &input%transpar%contacts(ii)%dir.gt.3 ) then
+          call error("Contact " // i2c(ii) // " not parallel to any &
+            & coordinate axis is not compatible with Poisson solver") 
+        end if 
+      end do
+    end if
+
+    !! Temporarily I do not support surface green function read/load
+    !! for spin polarized, because I manage spin out of libnegf
+    if (input%ginfo%greendens%defined) then
+      if (input%ctrl%tSpin .and. input%ginfo%greendens%saveSGF) then
+        call error("SaveSurfaceGS must be disabled in colinear spin calculations")
+      end if
+      if  (input%ctrl%tSpin .and. input%ginfo%greendens%readSGF) then
+        call error("ReadSurfaceGS must be disabled in colinear spin calculations")
+      end if
+    end if
+   
+  end subroutine finalizeNegf
+#:endif
+
 
   !> Reads the parallel block.
   subroutine readParallel(root, parallelOpts)

@@ -62,6 +62,8 @@ module poisson_vars
     logical :: cutoffcheck 
     integer :: maxNumNodes                     ! Number of Nodes for parallel P. 
 
+    character(:), allocatable :: scratch
+
   end type TPoissonInfo
 
 

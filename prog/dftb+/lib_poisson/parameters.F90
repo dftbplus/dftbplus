@@ -94,6 +94,8 @@ logical, public, save :: do_renorm
 !! discretization error and cutoff compensation?
 logical, public, save :: fixed_renorm
 
+character(:), allocatable, public, save :: scratchfolder
+
 interface set_global
      module procedure setglobal_d, setglobal_i, setglobal_l
 end interface

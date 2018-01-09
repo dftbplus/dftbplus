@@ -461,14 +461,6 @@ module inputdata_module
     module procedure InputData_destruct
   end interface destruct
 
-  !> Solver types (used like an enumerator)
-  integer, parameter, public :: solverQR = 1
-  integer, parameter, public :: solverDAC = 2
-  integer, parameter, public :: solverRR1 = 3
-  integer, parameter, public :: solverRR2 = 4
-  integer, parameter, public :: solverGF = 5
-  integer, parameter, public :: onlyTransport = 6
-
 contains
 
 

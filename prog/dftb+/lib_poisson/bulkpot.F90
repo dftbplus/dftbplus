@@ -9,7 +9,6 @@ use mpi_poisson
 use gewald
 use fileid
 
-
 implicit none
 private
 
@@ -52,6 +51,8 @@ call log_gdeallocate(SA%val)
 
 end subroutine destroy_super_array
 !%--------------------------------------------------------------------------
+    
+
 subroutine write_super_array(SA)
 
   Type(super_array) :: SA

@@ -207,6 +207,7 @@ module scc
     procedure :: updateCoords
     procedure :: updateLatVecs
     procedure :: updateCharges
+    procedure :: updateShifts
     procedure :: getAtomicGammaMatrix
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
@@ -214,6 +215,8 @@ module scc
     procedure :: addStressDc
     procedure :: getShiftPerAtom
     procedure :: getShiftPerL
+    procedure :: setShiftPerAtom
+    procedure :: setShiftPerL
     procedure :: getOrbitalEquiv
     procedure :: addForceDcXlbomd
   end type TScc
@@ -517,7 +520,7 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species, iNeighbor, img2CentCell)
+  subroutine updateCharges(this, env, qOrbital, q0, orb, species)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -537,6 +540,28 @@ contains
     !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
 
+    @:ASSERT(this%tInitialised)
+
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
+        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+
+  end subroutine updateCharges
+
+  !> Update potential shifts. Call after updateCharges
+  subroutine updateShifts(this, env, orb, species, iNeighbor, img2CentCell)
+
+    !> Resulting module variables
+    class(TScc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of the atoms (should not change during run)
+    integer, intent(in) :: species(:)
+
     !> Neighbor indexes
     integer, intent(in) :: iNeighbor(0:,:)
 
@@ -545,8 +570,6 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
-        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
     call buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
     if (this%tChrgConstr) then
       call buildShift(this%chrgConstr, this%deltaQAtom)
@@ -555,8 +578,7 @@ contains
       call buildShift(this%thirdOrder, this%deltaQAtom)
     end if
 
-  end subroutine updateCharges
-
+  end subroutine updateShifts
 
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbor, img2CentCell)
@@ -609,6 +631,7 @@ contains
 
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom &
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
+
     if (this%tExtChrg) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
@@ -821,6 +844,7 @@ contains
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift = this%shiftPerAtom
+
     if (this%tExtChrg) then
       call this%extCharge%addShiftPerAtom(shift)
     end if
@@ -847,11 +871,43 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    shift = 0.0_dp
+    
     shift = this%shiftPerL
 
   end subroutine getShiftPerL
 
+  !> set the shifts from outside (e.g. Poisson solver)
+  subroutine setShiftPerAtom(this, shift)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Contains the input shifts: shift(atom, spin).
+    real(dp), intent(in) :: shift(:)
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
+    
+    this%shiftPerAtom = shift
+
+  end subroutine setShiftPerAtom
+
+  !> set the shifts from outside (e.g. Poisson solver)
+  subroutine setShiftPerL(this, shift)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Contains the input shifts (shell, Atom) 
+    real(dp), intent(in) :: shift(:,:)
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
+    @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
+    
+    this%shiftPerL = shift
+
+  end subroutine setShiftPerL
 
   !> Returns the equivalency relations between orbitals of the atoms. If transfering charge between
   !> the orbitals does not change the electrostatic energy, they are considered equivalent.

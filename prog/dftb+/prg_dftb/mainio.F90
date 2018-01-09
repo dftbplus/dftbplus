@@ -69,7 +69,7 @@ module mainio
   public :: uploadShiftPerL
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
-  public :: printMdInfo
+  public :: printMdInfo, printBlankLine
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -2005,6 +2005,15 @@ contains
     if (tLocalise) then
       call writeTagged(fd, tag_pmlocalise, localisation)
     end if
+    if (tTunn) then
+      if (size(tunneling,1).gt.0) then
+        call writeTagged(fd, tag_tunn, tunneling)
+      endif
+      if (size(ldos,1).gt.0) then 
+        call writeTagged(fd, tag_ldos, ldos)
+      endif
+    endif
+      
     close(fd)
 
   end subroutine writeAutotestTag
@@ -3634,6 +3643,9 @@ contains
 
   end subroutine printSccHeader
 
+  subroutine printBlankLine()
+    write(stdOut,*)
+  end subroutine printBlankLine    
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)

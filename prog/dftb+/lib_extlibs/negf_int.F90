@@ -91,29 +91,10 @@ module negf_int
     endif
     
     ! ------------------------------------------------------------------------------
-    ! check that GS and contacts are created  (one day this will be automatic)
-    ! ------------------------------------------------------------------------------
-    if(transpar%defined .and. ncont.gt.0) then
-                                
-      open(199,file='GS/test',IOSTAT=error)
-      if (error.ne.0) then 
-        call mpifx_get_processor_name(hostname)
-        write(*,*) "ERROR: please create a directory called GS on "//trim(hostname)
-        initinfo = .false.; return  
-      end if   
-      close(199)
-      open(199,file='contacts/test',IOSTAT=error)
-      if (error.ne.0) then 
-        call mpifx_get_processor_name(hostname)
-        write(*,*) "ERROR: please create a directory called contacts "//trim(hostname)
-        initinfo = .false.; return  
-      end if         
-      close(199)
-    
-    end if
-    ! ------------------------------------------------------------------------------
     !! Set defaults and fill up the parameter structure with them
     call init_negf(negf)
+    call set_scratch(negf, ".")
+    call create_scratch(negf)    
     call get_params(negf, params)
     
     ! ------------------------------------------------------------------------------
@@ -204,6 +185,7 @@ module negf_int
       ! Define electrochemical potentials
       params%mu(1:ncont) = eFermi(1:ncont) - pot(1:ncont)
       if (id0) write(*,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
+      if (id0) write(*,*) 
       deallocate(pot)
 
     else !transpar not defined 
@@ -249,7 +231,7 @@ module negf_int
     if (greendens%defined) then
       params%delta = greendens%delta   ! delta for G.F.
     end if
-    
+    write(*,*) 'delta:',params%delta  
     ! ------------------------------------------------------------------------------
     !                    SETTING TRANSMISSION PARAMETERS
     ! ------------------------------------------------------------------------------
@@ -309,7 +291,6 @@ module negf_int
     negf%tDephasingVE = transpar%tDephasingVE
     negf%tDephasingBP = transpar%tDephasingBP
 
-    if(id0.and.negf%tWrite_negf_params) call check_negf_params
     
     if((.not.negf%tElastic).and.(.not.negf%tManyBody)) then
          write(*,*)'Current is not calculated!'
@@ -458,27 +439,37 @@ module negf_int
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
+    if (size(structure%iatomstart) /= natoms+1) then
+      print*,"ERROR: size mismatch iatomstart =",size(structure%iatomstart), natoms+1
+    endif   
     ind(1:natoms+1)=structure%iatomstart(1:natoms+1) - 1
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
        surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
+print*,' contact',i,':',surf_end(i),cont_end(i)
     enddo
      
     if (transpar%defined) then
-       do i = 1, nbl-1
-          PL_end(i) = ind(transpar%PL(i+1))
-       enddo
-       atomst(1:nbl) = transpar%PL(1:nbl)
+      do i = 1, nbl-1
+        PL_end(i) = ind(transpar%PL(i+1))
+      enddo
+      atomst(1:nbl) = transpar%PL(1:nbl)
       PL_end(nbl) = ind(transpar%idxdevice(2)+1)
       atomst(nbl+1) = iatm2 + 1
+print*,'transpar'
+print*,' PLs (atoms):',atomst
+print*,' PLs (ind)  :',PL_end
     else if (greendens%defined) then
-       do i = 1, nbl-1
-          PL_end(i) = ind(greendens%PL(i+1))
-       enddo
-       atomst(1:nbl) = greendens%PL(1:nbl)
+      do i = 1, nbl-1
+        PL_end(i) = ind(greendens%PL(i+1))
+      enddo
+      atomst(1:nbl) = greendens%PL(1:nbl)
       PL_end(nbl) = ind(natoms+1)
       atomst(nbl+1) = natoms + 1
+print*,'greendens'
+print*,' PLs (atoms):',atomst
+print*,' PLs (ind)  :',PL_end
     endif
 
     ! For every contact finds the min-max atom indeces among
@@ -582,9 +573,10 @@ module negf_int
        call set_params(negf,params)
        call pass_DM(negf,rho=DensMat)
        if (id0.and.params%verbose.gt.30) then
-         write(*,'(73("="))')
-         write(*,*) '                    COMPUTING DENSITY MATRIX      '
-         write(*,'(73("="))') 
+         write(*,*)
+         write(*,'(80("="))')
+         write(*,*) '                         COMPUTING DENSITY MATRIX      '
+         write(*,'(80("="))') 
        endif
     endif
     if(present(EnMat)) then
@@ -592,9 +584,10 @@ module negf_int
        call set_params(negf,params)
        call pass_DM(negf,rhoE=EnMat)
        if (id0.and.params%verbose.gt.30) then
-         write(*,'(73("="))')
-         write(*,*) '                 COMPUTING E-WEIGHTED DENSITY MATRIX '
-         write(*,'(73("="))') 
+         write(*,*)
+         write(*,'(80("="))')
+         write(*,*) '                     COMPUTING E-WEIGHTED DENSITY MATRIX '
+         write(*,'(80("="))') 
        endif
     endif
     if (present(DensMat).and.present(EnMat)) then
@@ -612,7 +605,8 @@ module negf_int
    
     call destroy_matrices(negf)
     
-    if (id0.and.params%verbose.gt.30) write(*,'(73("*"))')
+    if (id0.and.params%verbose.gt.30) write(*,'(80("="))')
+    if (id0.and.params%verbose.gt.30) write(*,*)
 
   end subroutine negf_density
 
@@ -631,9 +625,9 @@ module negf_int
 
     if (id0) then
       write(*,*)
-      write(*,'(73("="))')
-      write(*,*) '                   COMPUTING  LOCAL  DOS          '
-      write(*,'(73("="))') 
+      write(*,'(80("="))')
+      write(*,*) '                        COMPUTING  LOCAL  DOS          '
+      write(*,'(80("="))') 
       write(*,*)
     end if
 
@@ -736,10 +730,11 @@ module negf_int
        write(*,'(80("="))')
        write(*,*) '                          LibNEGF: Current calculation' 
        write(*,'(80("="))') 
-       !write(*,*)
     endif
+    
+    !print*,'(negf_init) write parameters on log'
+    !call check_negf_params()
 
-    print*,'spin:',spin,'kpoint:',kpoint
     call compute_current(negf)  
    
     !call write_tunneling_and_dos(negf)
@@ -747,22 +742,18 @@ module negf_int
     ! Associate internal negf pointers to local pointers 
     call associate_current(negf, currents)
     if (.not.associated(currents)) STOP 'Internal error: currVec not associated'     
-    print*,'size currVec',size(currents)
 
     call associate_ldos(negf, ledos)  
     call associate_transmission(negf, tunn)
 
-    !DAR begin
     if (id0.and.negf%verbose.gt.30) then
        write(*,*)
        write(*,'(80("="))')
        write(*,*) '                           LibNEGF: Current finished'  
        write(*,'(80("="))') 
-       !write(*,*)
     endif
-    !DAR end
-    
-  end subroutine negf_current
+  
+ end subroutine negf_current
 
 
 
@@ -802,7 +793,7 @@ module negf_int
     ncont = size(mu,1)
     rho = 0.0_dp
     ncont = size(mu,1)
-
+   
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
@@ -813,7 +804,7 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, &
           &iPair, iNeighbor, nNeighbor, img2CentCell, &
           &iCellVec, cellVec, orb)
-      
+     
       call negf_density(iSCCIter, iS, iKS, csrHam, csrOver, mu(:,iS), DensMat=csrDens)
       
       ! NOTE:
@@ -827,7 +818,7 @@ module negf_int
 
       !! Set some fake energies:
       Eband(iS) = 0.0_dp
-      Ef(iS) = 0.0_dp
+      Ef(iS) = mu(1,iS) 
       TS(iS) = 0.0_dp
       E0(iS) = 0.0_dp
 
@@ -1034,7 +1025,7 @@ module negf_int
     do iKS = 1, nKS 
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
-
+print*,'kpoint:',iK,'spin:',iS
       params%mu(:ncont) = mu(:ncont,iS) 
      
       call set_params(negf, params)
@@ -1224,7 +1215,7 @@ module negf_int
 
     open(65000,file=trim(filename)//'.dat')
     do ii=1,size(pTot,1)
-      write(65000,'(f20.8)',ADVANCE='NO') (params%Emin+ii*params%Estep) * HAR
+      write(65000,'(f20.8)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
       do jj=1,size(pTot,2)
         !write(65000,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
         write(65000,'(f20.8)',ADVANCE='NO') pTot(ii,jj)                     !DAR
@@ -1248,7 +1239,7 @@ module negf_int
       end do
       write(65000,*)
       do ii=1,size(pSKRes(:,:,1),1)
-        write(65000,'(f20.8)',ADVANCE='NO') (params%Emin+ii*params%Estep) * HAR
+        write(65000,'(f20.8)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
         do jj=1,size(pSKRes(:,:,1),2)
           do iKS = 1,nKS
             write(65000,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iKS)
@@ -1305,9 +1296,9 @@ module negf_int
 
     if (id0.and.params%verbose.gt.30) then
       write(*,*)
-      write(*,'(73("="))')
-      write(*,*) '                   COMPUTING LOCAL CURRENTS          '
-      write(*,'(73("="))') 
+      write(*,'(80("="))')
+      write(*,*) '                        COMPUTING LOCAL CURRENTS          '
+      write(*,'(80("="))') 
       write(*,*)
     endif
 
@@ -1638,52 +1629,53 @@ module negf_int
     character(LST) :: file_re_H, file_im_H, file_re_S, file_im_S
     integer, dimension(:), allocatable :: cblk
 
-    open(10,file='log',action="write")
+    open(101,file='log',action="write")
     
-    write(10,"('negf%H%nnz               = ',I6)")negf%H%nnz
-    write(10,"('negf%H%nrow              = ',I6)")negf%H%nrow
-    write(10,"('negf%H%ncol              = ',I6)")negf%H%ncol
-    write(10,"('negf%H%nzval             = ',10000000F8.4)")negf%H%nzval
-    write(10,"('negf%H%colind            = ',10000000I6)")negf%H%colind
-    write(10,"('negf%H%rowpnt            = ',10000000I6)")negf%H%rowpnt
-    write(10,"('negf%isSid               = ',L6)")negf%isSid
-    write(10,"('negf%S%nnz               = ',I6)")negf%S%nnz
-    write(10,"('negf%S%nrow              = ',I6)")negf%S%nrow
-    write(10,"('negf%S%ncol              = ',I6)")negf%S%ncol
-    write(10,"('negf%S%nzval             = ',10000000F8.4)")negf%S%nzval
-    write(10,"('negf%S%colind            = ',10000000I6)")negf%S%colind
-    write(10,"('negf%S%rowpnt            = ',10000000I6)")negf%S%rowpnt
-    write(10,"('negf%str%num_conts       = ',I6)")negf%str%num_conts
-    write(10,"('negf%str%num_PLs         = ',I6)")negf%str%num_PLs
-    write(10,"('negf%str%active_cont     = ',I6)")negf%str%active_cont
-    write(10,"('negf%str%mat_B_start     = ',I6,I6)")negf%str%mat_B_start
-    write(10,"('negf%str%mat_C_start     = ',I6,I6)")negf%str%mat_C_start
-    write(10,"('negf%str%mat_C_end       = ',I6,I6)")negf%str%mat_C_end
-    write(10,"('negf%str%cblk            = ',I6,I6)")negf%str%cblk
-    write(10,"('negf%str%cont_dim        = ',I6,I6)")negf%str%cont_dim
-    write(10,"('negf%str%mat_PL_start    = ',10000000I6)")negf%str%mat_PL_start
-    write(10,"('negf%str%mat_PL_end      = ',10000000I6)")negf%str%mat_PL_end
-    write(10,"('negf%str%central_dim     = ',I6)")negf%str%central_dim
-    write(10,"('negf%str%total_dim       = ',I6)")negf%str%total_dim
-    write(10,"('negf%Ec, negf%Ev         = ',3F8.4)")negf%Ec, negf%Ev
-    write(10,"('negf%DeltaEc, %DeltaEv   = ',3F8.4)")negf%DeltaEc, negf%DeltaEv
-    write(10,"('negf%Emin, %Emax, %Estep = ',3F8.4)")negf%Emin, negf%Emax, negf%Estep
-    write(10,"('negf%kbT_dm              = ',10000000E12.4)")negf%kbT_dm
-    write(10,"('negf%kbT_t               = ',10000000E12.4)")negf%kbT_t
-    write(10,"('negf%mu_n                = ',10000000F8.4)")negf%mu_n
-    write(10,"('negf%mu_p                = ',10000000F8.4)")negf%mu_p
-    write(10,"('negf%mu                  = ',10000000F8.4)")negf%mu
-    write(10,"('negf%delta               = ',10000000E12.4)")negf%delta
-
-    write(10,*)negf%wght
-    write(10,*)negf%Np_n(1:2)
-    write(10,*)negf%Np_p(1:2)
-    write(10,*)negf%Np_real(1)
-    write(10,*)negf%n_kt
-    write(10,*)negf%n_poles
-    write(10,*)negf%g_spin
-    write(10,*)negf%nLDOS
-    write(10,*)negf%LDOS(1)%indexes
+    write(101,"('negf%H%nnz               = ',I6)") negf%H%nnz
+    write(101,"('negf%H%nrow              = ',I6)") negf%H%nrow
+    write(101,"('negf%H%ncol              = ',I6)") negf%H%ncol
+    write(101,"('negf%H%nzval             = ',10000000F8.4)") negf%H%nzval
+    write(101,"('negf%H%colind            = ',10000000I6)") negf%H%colind
+    write(101,"('negf%H%rowpnt            = ',10000000I6)") negf%H%rowpnt
+    write(101,"('negf%isSid               = ',L6)") negf%isSid
+    write(101,"('negf%S%nnz               = ',I6)") negf%S%nnz
+    write(101,"('negf%S%nrow              = ',I6)") negf%S%nrow
+    write(101,"('negf%S%ncol              = ',I6)") negf%S%ncol
+    write(101,"('negf%S%nzval             = ',10000000F8.4)") negf%S%nzval
+    write(101,"('negf%S%colind            = ',10000000I6)") negf%S%colind
+    write(101,"('negf%S%rowpnt            = ',10000000I6)") negf%S%rowpnt
+    write(101,"('negf%str%num_conts       = ',I6)") negf%str%num_conts
+    write(101,"('negf%str%num_PLs         = ',I6)") negf%str%num_PLs
+    write(101,"('negf%str%active_cont     = ',I6)") negf%str%active_cont
+    write(101,"('negf%str%mat_B_start     = ',I6,I6)") negf%str%mat_B_start
+    write(101,"('negf%str%mat_C_start     = ',I6,I6)") negf%str%mat_C_start
+    write(101,"('negf%str%mat_C_end       = ',I6,I6)") negf%str%mat_C_end
+    write(101,"('negf%str%cblk            = ',I6,I6)") negf%str%cblk
+    write(101,"('negf%str%cont_dim        = ',I6,I6)") negf%str%cont_dim
+    write(101,"('negf%str%mat_PL_start    = ',10000000I6)") negf%str%mat_PL_start
+    write(101,"('negf%str%mat_PL_end      = ',10000000I6)") negf%str%mat_PL_end
+    write(101,"('negf%str%central_dim     = ',I6)") negf%str%central_dim
+    write(101,"('negf%str%total_dim       = ',I6)") negf%str%total_dim
+    write(101,"('negf%Ec, negf%Ev         = ',3F8.4)") negf%Ec, negf%Ev
+    write(101,"('negf%DeltaEc, %DeltaEv   = ',3F8.4)") negf%DeltaEc, negf%DeltaEv
+    write(101,"('negf%Emin, %Emax, %Estep = ',3F8.4)") negf%Emin, negf%Emax, negf%Estep
+    write(101,"('negf%kbT_dm              = ',10000000E12.4)") negf%kbT_dm
+    write(101,"('negf%kbT_t               = ',10000000E12.4)") negf%kbT_t
+    write(101,"('negf%mu_n                = ',10000000F8.4)") negf%mu_n
+    write(101,"('negf%mu_p                = ',10000000F8.4)") negf%mu_p
+    write(101,"('negf%mu                  = ',10000000F8.4)") negf%mu
+    write(101,"('negf%delta               = ',10000000E12.4)") negf%delta
+    write(101,"('negf%Np_real             = ',10000000I6)") negf%Np_real
+    write(101,"('negf%n_kt                = ',I6)") negf%n_kt
+    write(101,"('negf%n_poles             = ',I6)") negf%n_poles
+    write(101,"('negf%wght                = ',E12.4)") negf%wght
+    write(101,"('negf%g_spin              = ',E12.4)") negf%g_spin
+    write(101,"('negf%nLDOS               = ',I6)") negf%nLDOS
+    do ii = 1, negf%nLDOS
+      write(101,"('negf%LDOS(',I4,')%indexes   = ',10000000I6)") ii, negf%LDOS(ii)%indexes
+    end do  
+    write(101,"('negf%Np_n                = ',10000000I6)") negf%Np_n
+    write(101,"('negf%Np_p                = ',10000000I6)") negf%Np_p
 
     close (10)
 
