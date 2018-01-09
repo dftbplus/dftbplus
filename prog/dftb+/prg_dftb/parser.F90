@@ -3189,6 +3189,8 @@ contains
         call error("Electrostatic potentials only available in an SCC calculation")
       end if
       call init(lr1)
+
+      ! discrete points
       call getChildValue(child, "Points", child2, "", child=child3, &
           & modifier=modifier, allowEmptyValue=.true.)
       call getNodeName2(child2, buffer)
@@ -3203,6 +3205,8 @@ contains
           call convertByMul(char(modifier), lengthUnits, child3, ctrl%ESPgrid)
         end if
       end if
+
+      ! grid specification for points instead
       call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
       if (associated(child2)) then
         if (ctrl%tESPGrid) then
@@ -3414,6 +3418,12 @@ contains
     real(dp) :: axes(3,3), r33Tmp(3,3)
 
     tPeriodic = present(latvecs)
+
+    if (tPeriodic .neqv. (char(modifier) == "F" .or. char(modifier) == "f")) then
+      call detailedError(node, "Fractional grid specification only available for periodic&
+          & geometries")
+    end if
+
     call getChildValue(node, "Spacing", r3Tmp, child=child)
     call getChildValue(node, "Origin", r3Tmpb, child=child)
     call getChildValue(node, "NPoints", i3Tmp, child=child)
@@ -3425,6 +3435,7 @@ contains
     end if
     allocate(points(3,product(i3Tmp)))
 
+    !  length not fraction modifier
     if (.not.(tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
       call convertByMul(char(modifier), lengthUnits, child, r3Tmp)
       call convertByMul(char(modifier), lengthUnits, child, r3Tmpb)
@@ -3443,6 +3454,7 @@ contains
       end do
     end do
 
+    ! transformation matrix on directions, could use a 4x4 homogeneous coordinate transform instead
     if (.not.(char(modifier) == "F" .or. char(modifier) == "f") .or. .not.tPeriodic) then
       r33Tmp = reshape([1,0,0,0,1,0,0,0,1],[3,3])
       call getChildValue(node, "Directions", axes, r33Tmp, child=child)

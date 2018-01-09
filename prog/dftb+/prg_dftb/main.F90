@@ -358,17 +358,7 @@ contains
       end if
 
       if (tESPgrid) then
-        if (.not.tSCCCalc) then
-          call error("Needs SCC for potentials")
-        end if
-
-        call sccCalc%electroStaticPotential(env, ESPpotential,ESPgrid, epsSoften=softenESP)
-
-        write(stdOut,*)'Electrostatic potential'
-        do ii = 1, size(ESPpotential)
-          write(stdOut,"(I3,3E12.4,' : ',E20.12)")ii,ESPgrid(:,ii) * Bohr__AA,ESPpotential(ii)
-        end do
-        write(stdOut,*)
+        call getESP(tSCCCalc, SCCCalc, env, ESPgrid, softenESP)
       end if
 
       if (tXlbomd) then
@@ -2453,6 +2443,47 @@ contains
     end if
 
   end subroutine getMullikenPopulation
+
+  subroutine getESP(tSCCCalc, SCCCalc, env, ESPgrid, softenESP)
+
+    !> Is this an SCC calculation
+    logical, intent(in) :: tSCCCalc
+
+    !> SCC module internal variables
+    type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Locations to evaluate the potential
+    real(dp), intent(in) :: ESPgrid(:,:)
+
+    !> short range softening parameter
+    real(dp), intent(in) :: softenESP
+
+    real(dp), allocatable :: ESPpotential(:), extESPpotential(:)
+    integer :: ii
+
+    allocate(ESPpotential(size(ESPgrid,dim=2)))
+    allocate(extESPpotential(size(ESPgrid,dim=2)))
+    ESPpotential = 0.0_dp
+    extESPpotential = 0.0_dp
+
+    if (.not.tSCCCalc) then
+      call error("Needs SCC for potentials")
+    end if
+
+    call sccCalc%internalElectroStaticPotential(ESPpotential, env, ESPgrid, epsSoften=softenESP)
+    call sccCalc%externalElectroStaticPotential(extESPpotential, env, ESPgrid, epsSoften=softenESP)
+
+    write(stdOut,*)'Electrostatic potential'
+    do ii = 1, size(ESPpotential)
+      write(stdOut,"(I3,3E12.4,' : ',2E20.12)")ii,ESPgrid(:,ii) * Bohr__AA,ESPpotential(ii),&
+          & extESPpotential(ii)
+    end do
+    write(stdOut,*)
+
+  end subroutine getESP
 
 
   !> Calculates various energy contributions
