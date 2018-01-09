@@ -146,3 +146,22 @@ non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
 scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0
+
+transport/CH4                          #? WITH_TRANSPORT
+transport/GaAs                         #? WITH_TRANSPORT
+transport/CNT                          #? WITH_TRANSPORT
+transport/CH4-poisson                  #? WITH_TRANSPORT
+transport/SiH-chain-cont               #? WITH_TRANSPORT
+transport/H-chain                      #? WITH_TRANSPORT
+transport/H-sheet                      #? WITH_TRANSPORT
+transport/H-3conts                     #? WITH_TRANSPORT
+transport/SiH-chain                    #? WITH_TRANSPORT
+transport/SiH-cont-poiss               #? WITH_TRANSPORT
+transport/graphene_x                   #? WITH_TRANSPORT
+transport/graphene3T                   #? WITH_TRANSPORT
+transport/deph_H57_bp                  #? WITH_TRANSPORT
+transport/deph_C25_ve                  #? WITH_TRANSPORT
+transport/deph_C25_ve_scc              #? WITH_TRANSPORT
+transport/deph_vacancy1                #? WITH_TRANSPORT
+transport/deph_CH4-poisson             #? WITH_TRANSPORT
+
