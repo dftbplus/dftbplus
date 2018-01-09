@@ -33,10 +33,6 @@ module scc
 
   public :: TSccInp, TScc, initialize
 
-  !> tolerance for Ewald - should be changed to be possible to override it
-  real(dp), parameter :: tolEwald = 1.0e-9_dp
-
-
   !> Data necessary to initialize the SCC module
   type TSccInp
 
@@ -75,6 +71,10 @@ module scc
 
     !> if > 0 -> manual setting for alpha
     real(dp) :: ewaldAlpha = 0.0_dp
+
+    !> Ewald tollerance
+    real(dp) :: tolEwald = 0.0_dp
+
   end type TSccInp
 
 
@@ -133,6 +133,9 @@ module scc
     !> Parameter for Ewald
     real(dp) :: alpha
 
+    !> Ewald tollerance
+    real(dp) :: tolEwald
+
     !> Cell volume
     real(dp) :: volume
 
@@ -148,16 +151,16 @@ module scc
     !> Are external charges present?
     logical :: tExtChrg
 
-    !> Negative net charge
+    !> Negative gross charge
     real(dp), allocatable :: deltaQ(:,:)
 
-    !> Negative net charge per shell
+    !> Negative gross charge per shell
     real(dp), allocatable :: deltaQPerLShell(:,:)
 
-    !> Negative net charge per atom
+    !> Negative gross charge per atom
     real(dp), allocatable :: deltaQAtom(:)
 
-    !> Negative net charge per U
+    !> Negative gross charge per U
     real(dp), allocatable :: deltaQUniqU(:,:)
 
     !> Damped short range? (nSpecies)
@@ -331,13 +334,14 @@ contains
     if (this%tPeriodic) then
       this%volume = inp%volume
       this%tAutoEwald = inp%ewaldAlpha <= 0.0_dp
+      this%tolEwald = inp%tolEwald
       if (this%tAutoEwald) then
-        this%alpha = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, this%volume, tolEwald)
+        this%alpha = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, this%volume, this%tolEwald)
       else
         this%alpha = inp%ewaldAlpha
       end if
-      this%maxREwald = getMaxREwald(this%alpha, tolEwald)
-      maxGEwald = getMaxGEwald(this%alpha, this%volume, tolEwald)
+      this%maxREwald = getMaxREwald(this%alpha, this%tolEwald)
+      maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
       call getLatticePoints(this%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald, &
           & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
       this%gLatPoint(:,:) = matmul(inp%recVecs, this%gLatPoint)
@@ -500,10 +504,10 @@ contains
 
     this%volume = vol
     if (this%tAutoEwald) then
-      this%alpha = getOptimalAlphaEwald(latVec, recVec, this%volume, tolEwald)
-      this%maxREwald = getMaxREwald(this%alpha, tolEwald)
+      this%alpha = getOptimalAlphaEwald(latVec, recVec, this%volume, this%tolEwald)
+      this%maxREwald = getMaxREwald(this%alpha, this%tolEwald)
     end if
-    maxGEwald = getMaxGEwald(this%alpha, this%volume, tolEwald)
+    maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
     call getLatticePoints(this%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald, &
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoint = matmul(recVec, this%gLatPoint)
@@ -545,7 +549,7 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call getNetCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
         & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
     call buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
     if (this%tChrgConstr) then
@@ -656,7 +660,7 @@ contains
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutShell(this%mShell, this%nAtom))
 
-    call getNetCharges_(this%nAtom, this%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom, &
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom, &
         & dQOutShell)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
@@ -944,7 +948,7 @@ contains
     allocate(dQOutLShell(this%mShell, this%nAtom))
     allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getNetCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, q0, dQOut, &
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, q0, dQOut, &
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
@@ -1415,8 +1419,9 @@ contains
   end subroutine addSTGammaPrime_
 
 
-  !> Calculates various net charges needed by the SCC module.
-  subroutine getNetCharges_(nAtom, iHubbU, species, orb, qOrbital, q0, dQ, dQAtom, dQShell, dQUniqU)
+  !> Calculates various gross charges needed by the SCC module.
+  subroutine getSummedCharges_(nAtom, iHubbU, species, orb, qOrbital, q0, dQ, dQAtom, dQShell,&
+      & dQUniqU)
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -1436,30 +1441,30 @@ contains
     !> Reference charge distribution (neutral atoms)
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> net charge for each orbital
+    !> gross charge for each orbital
     real(dp), intent(out) :: dQ(:,:)
 
-    !> net charge for each atom
+    !> gross charge for each atom
     real(dp), intent(out) :: dQAtom(:)
 
-    !> net charge for each atomic shell
+    !> gross charge for each atomic shell
     real(dp), intent(out) :: dQShell(:,:)
 
-    !> net charge for shells with the same U value on atoms
+    !> gross charge for shells with the same U value on atoms
     real(dp), intent(out), optional :: dQUniqU(:,:)
 
-    call getNetChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
-    call getNetChargesPerAtom_(dQ, dQAtom)
-    call getNetChargesPerLShell_(nAtom,species, orb, dQ, dQShell)
+    call getSummedChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
+    call getSummedChargesPerAtom_(dQ, dQAtom)
+    call getSummedChargesPerLShell_(nAtom,species, orb, dQ, dQShell)
     if (present(dQUniqU)) then
-      call getNetChargesPerUniqU_(nAtom, iHubbU, species, orb, dQShell, dQUniqU)
+      call getSummedChargesPerUniqU_(nAtom, iHubbU, species, orb, dQShell, dQUniqU)
     end if
 
-  end subroutine getNetCharges_
+  end subroutine getSummedCharges_
 
 
-  !> net charges for each atomic orbital
-  subroutine getNetChargesPerOrbital_(qOrbital, q0, deltaQ)
+  !> gross charges for each atomic orbital
+  subroutine getSummedChargesPerOrbital_(qOrbital, q0, deltaQ)
 
     !> orbital charges
     real(dp), intent(in) :: qOrbital(:,:)
@@ -1467,30 +1472,30 @@ contains
     !> reference charges
     real(dp), intent(in) :: q0(:,:)
 
-    !> resulting net charges
+    !> resulting gross charges
     real(dp), intent(out) :: deltaQ(:,:)
 
     deltaQ(:,:) = qOrbital(:,:) - q0(:,:)
 
-  end subroutine getNetChargesPerOrbital_
+  end subroutine getSummedChargesPerOrbital_
 
 
-  !> net charges per atom
-  subroutine getNetChargesPerAtom_(deltaQ, deltaQAtom)
+  !> gross charges per atom
+  subroutine getSummedChargesPerAtom_(deltaQ, deltaQAtom)
 
-    !> net charges
+    !> gross charges
     real(dp), intent(in) :: deltaQ(:,:)
 
-    !> net charge per atom
+    !> gross charge per atom
     real(dp), intent(out) :: deltaQAtom(:)
 
     deltaQAtom(:) = sum(deltaQ(:,:), dim=1)
 
-  end subroutine getNetChargesPerAtom_
+  end subroutine getSummedChargesPerAtom_
 
 
-  !> net charge per atomic shell
-  subroutine getNetChargesPerLShell_(nAtom,species, orb, deltaQ, deltaQPerLShell)
+  !> gross charge per atomic shell
+  subroutine getSummedChargesPerLShell_(nAtom,species, orb, deltaQ, deltaQPerLShell)
 
     !> species of atom
     integer, intent(in) :: nAtom
@@ -1501,10 +1506,10 @@ contains
     !> orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> net charge for orbitals
+    !> gross charge for orbitals
     real(dp), intent(in) :: deltaQ(:,:)
 
-    !> net charge per atomic shell
+    !> gross charge per atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
     integer :: iAt, iSp, iSh, iStart, iend
@@ -1519,11 +1524,11 @@ contains
       end do
     end do
 
-  end subroutine getNetChargesPerLShell_
+  end subroutine getSummedChargesPerLShell_
 
 
-  !> net charges for orbitals with the same hubard U value on an atom
-  subroutine getNetChargesPerUniqU_(nAtom, iHubbU, species, orb, deltaQPerLShell, deltaQUniqU)
+  !> gross charges for orbitals with the same hubard U value on an atom
+  subroutine getSummedChargesPerUniqU_(nAtom, iHubbU, species, orb, deltaQPerLShell, deltaQUniqU)
 
     !> species of atom
     integer, intent(in) :: nAtom
@@ -1537,10 +1542,10 @@ contains
     !> orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Net charge per l-shell of atom
+    !> Summed charge over l-shell of atom
     real(dp), intent(in) :: deltaQPerLShell(:,:)
 
-    !> Net charge for unique groups of orbitals
+    !> Charge for unique groups of orbitals
     real(dp), intent(out) :: deltaQUniqU(:,:)
 
     integer :: iAt, iSp, iSh
@@ -1554,6 +1559,6 @@ contains
       end do
     end do
 
-  end subroutine getNetChargesPerUniqU_
+  end subroutine getSummedChargesPerUniqU_
 
 end module scc

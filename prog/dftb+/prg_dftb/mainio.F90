@@ -5,6 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#! Note: This module contains preprocessor variable substitutions in subroutine names (${NAME}$)
+#! which may break the documentation system. Make sure you preprocess this file before passing it
+#! to a source code documentation tool.
+
 #:include 'common.fypp'
 
 !> Various I/O routines for the main program.
@@ -156,21 +160,21 @@ contains
     logical, intent(in) :: tPrintEigvecsTxt
 
     !> Real eigenvectors (will be overwritten)
-    real(dp), intent(inout), optional :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> Storage for dense real overlap matrix
-    real(dp), intent(out), optional :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> Complex eigenvectors (will be overwritten)
-    complex(dp), intent(inout), optional :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Storage for dense complex overlap matrix
-    complex(dp), intent(out), optional :: SSqrCplx(:,:)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
-    @:ASSERT(present(eigvecsReal) .neqv. present(eigvecsCplx))
-    @:ASSERT(present(SSqrReal) .neqv. present(SSqrCplx))
+    @:ASSERT(allocated(eigvecsReal) .neqv. allocated(eigvecsCplx))
+    @:ASSERT(allocated(SSqrReal) .neqv. allocated(SSqrCplx))
 
-    if (present(eigvecsCplx)) then
+    if (allocated(eigvecsCplx)) then
       call writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
           & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
           & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx)
@@ -396,7 +400,13 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    if (env%mpi%tGlobalMaster) then
+    ! Master process collects in the first run (iGroup = 0) the columns of the matrix in its own
+    ! process group (as process group master) via the collector. In the subsequent runs it just
+    ! receives the columns collected by the respective group masters. The number of available
+    ! matrices (possible k and s indices) may differ for various process groups. Also note, that
+    ! the (k, s) pairs are round-robin distributed between the process groups.
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -425,7 +435,7 @@ contains
           end if
         end do
       end do
-    end if
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       close(fd)
@@ -540,7 +550,10 @@ contains
       call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -569,6 +582,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart, img2CentCell,&
             & denseDesc, globalS)
@@ -588,7 +602,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       close(fd)
@@ -975,7 +989,10 @@ contains
       call prepareEigvecFileTxt(fd, .true., fileName)
     end if
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1004,6 +1021,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
@@ -1023,7 +1041,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       close(fd)
@@ -1173,22 +1191,22 @@ contains
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Storage for eigenvectors (real)
-    real(dp), intent(inout), optional :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
 
     !> Work space (real)
-    real(dp), intent(inout), optional :: workReal(:,:)
+    real(dp), intent(inout), allocatable :: workReal(:,:)
 
     !> Storage for eigenvectors (complex)
-    complex(dp), intent(inout), optional :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Work space (complex)
-    complex(dp), intent(inout), optional :: workCplx(:,:)
+    complex(dp), intent(inout), allocatable :: workCplx(:,:)
 
-    @:ASSERT(present(eigvecsReal) .neqv. present(eigvecsCplx))
-    @:ASSERT(present(workReal) .neqv. present(workCplx))
+    @:ASSERT(allocated(eigvecsReal) .neqv. allocated(eigvecsCplx))
+    @:ASSERT(allocated(workReal) .neqv. allocated(workCplx))
 
   #:if WITH_SCALAPACK
-    if (present(eigvecsCplx)) then
+    if (allocated(eigvecsCplx)) then
       if (denseDesc%t2Component) then
         call writeProjPauliEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
             & eigvecsCplx, orb, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
@@ -1203,7 +1221,7 @@ contains
           & eigvecsReal, parallelKS, over, neighborList, nNeighbor, iPair, img2CentCell)
     end if
   #:else
-    if (present(eigvecsCplx)) then
+    if (allocated(eigvecsCplx)) then
       if (denseDesc%t2Component) then
         call writeProjPauliEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
@@ -1285,7 +1303,10 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1312,6 +1333,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
             & img2CentCell, denseDesc, globalS)
@@ -1327,7 +1349,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
@@ -1482,7 +1504,10 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1510,6 +1535,7 @@ contains
         call writeProjEigvecFooter(fd)
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1526,7 +1552,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
@@ -1705,7 +1731,10 @@ contains
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    masterSlave: if (env%mpi%tGlobalMaster) then
+    ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
+
+    masterOrSlave: if (env%mpi%tGlobalMaster) then
+      ! Global master process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1736,6 +1765,7 @@ contains
         end do group
       end do
     else
+      ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1754,7 +1784,7 @@ contains
           end if
         end do
       end do
-    end if masterSlave
+    end if masterOrSlave
 
     if (env%mpi%tGlobalMaster) then
       call finishProjEigvecFiles(fd)
@@ -2379,9 +2409,9 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      write(fd, "(A, F14.8)") " Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
-      write(fd, "(/,A)") " Net atomic charges (e)"
-      write(fd, "(A5, 1X, A16)")" Atom", " Net charge"
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(/,A)") " Atomic gross charges (e)"
+      write(fd, "(A5, 1X, A16)")" Atom", " Charge"
       do iAt = 1, nAtom
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
@@ -2954,13 +2984,13 @@ contains
     real(dp), intent(in) :: absEField
 
     !> What is the dipole moment (if available)
-    real(dp), intent(in), optional :: dipoleMoment(:)
+    real(dp), intent(in), allocatable :: dipoleMoment(:)
 
     if (tEfield) then
       write(fd, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
 
-    if (present(dipoleMoment)) then
+    if (allocated(dipoleMoment)) then
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment, ' au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye, ' Debye'
       write(fd, *)
@@ -3067,7 +3097,7 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> dipole moment if available
-    real(dp), intent(in), optional :: dipoleMoment(:)
+    real(dp), intent(inout), allocatable :: dipoleMoment(:)
 
     integer :: ii
 
@@ -3102,7 +3132,7 @@ contains
     if (tFixEf .and. tPrintMulliken) then
       write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
-    if (present(dipoleMoment)) then
+    if (allocated(dipoleMoment)) then
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment,  'au'
       write(fd, "(A, 3F14.8, A)") 'Dipole moment:', dipoleMoment * au__Debye,  'Debye'
     end if
@@ -3140,12 +3170,20 @@ contains
     real(dp), intent(in) :: qInput(:,:,:)
 
     !> Block populations if present
-    real(dp), intent(in), optional :: qBlockIn(:,:,:,:)
+    real(dp), intent(in), allocatable :: qBlockIn(:,:,:,:)
 
     !> Imaginary part of block populations if present
-    real(dp), intent(in), optional :: qiBlockIn(:,:,:,:)
+    real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
-    call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn, qiBlockIn)
+    if (allocated(qBlockIn)) then
+      if (allocated(qiBlockIn)) then
+        call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn, qiBlockIn)
+      else
+        call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn)
+      end if
+    else
+      call writeQToFile(qInput, fCharges, fdCharges, orb)
+    end if
     write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)
 
   end subroutine writeCharges
@@ -3211,13 +3249,8 @@ contains
     call qm2ud(hamUpDown)
 
     ! Write out matrices if necessary and quit.
-    if (allocated(iHam)) then
-      call writeHS(tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighborList%iNeighbor,&
-          & nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam=iHam)
-    else
-      call writeHS(tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighborList%iNeighbor,&
-          & nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec)
-    end if
+    call writeHS(tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighborList%iNeighbor,&
+        & nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     stop
 
@@ -3268,7 +3301,7 @@ contains
     real(dp), intent(in) :: cellVec(:,:)
 
     !> Imaginary part of the hamiltonian if present
-    real(dp), intent(in), optional :: iHam(:,:)
+    real(dp), intent(in), allocatable :: iHam(:,:)
 
     integer :: iS, nSpin
 
@@ -3278,7 +3311,7 @@ contains
       do iS = 1, nSpin
         call writeSparse("hamreal" // i2c(iS) // ".dat", ham(:,iS), iNeighbor, &
             &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
-        if (present(iHam)) then
+        if (allocated(iHam)) then
           call writeSparse("hamimag" // i2c(iS) // ".dat", iHam(:,iS),&
               & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,iCellVec,&
               & cellVec)
@@ -3357,10 +3390,10 @@ contains
     integer, intent(in) :: nSpin
 
     !> charges
-    real(dp), intent(in), optional :: qOutput(:,:,:)
+    real(dp), intent(in), allocatable :: qOutput(:,:,:)
 
     !> atomic velocities
-    real(dp), intent(in), optional :: velocities(:,:)
+    real(dp), intent(in), allocatable :: velocities(:,:)
 
     real(dp), allocatable :: tmpMatrix(:,:)
     integer :: nAtom
@@ -3388,7 +3421,7 @@ contains
 
     if (tPrintMulliken) then
       ! For non-colinear spin without velocities write magnetisation into the velocity field
-      if (nSpin == 4 .and. .not. present(velocities)) then
+      if (nSpin == 4 .and. .not. allocated(velocities)) then
         allocate(tmpMatrix(3, nAtom))
         do jj = 1, nAtom
           do ii = 1, 3
@@ -3400,14 +3433,20 @@ contains
         call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
             & charges=sum(qOutput(:,:,1), dim=1), velocities=tmpMatrix, comment=comment,&
             & append=tAppendGeo)
-      else
+      else if (allocated(velocities)) then
         call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
             & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
             & append=tAppendGeo)
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1),dim=1), comment=comment, append=tAppendGeo)
       end if
-    else
+    else if (allocated(velocities)) then
       call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
           & comment=comment, append=tAppendGeo)
+    else
+      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, comment=comment,&
+          & append=tAppendGeo)
     end if
 
   end subroutine writeCurrentGeometry

@@ -1,11 +1,11 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
-	url = git@github.com:aradi/mpifx.git
-	branch = dpint
+	url = https://github.com/dftbplus/mpifx.git
+	branch = master
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
-	url = git@github.com:aradi/scalapackfx.git
-        branch = dpint
+	url = https://github.com/dftbplus/scalapackfx.git
+        branch = master
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
-	url = git@github.com:aradi/libmbd
+	url = https://github.com/aradi/libmbd.git

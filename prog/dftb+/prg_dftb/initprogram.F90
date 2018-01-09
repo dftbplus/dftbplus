@@ -23,7 +23,6 @@ module initprogram
   use shortgamma
   use coulomb
   use message
-  use mainio, only : receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -70,6 +69,7 @@ module initprogram
   use xlbomd_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
+  use mainio, only : receiveGeometryFromSocket
   use ipisocket
 #:endif
   use pmlocalisation
@@ -1169,6 +1169,7 @@ contains
       end if
 
       sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
       mCutoff = max(mCutoff, sccCalc%getCutoff())
@@ -1436,12 +1437,11 @@ contains
       case (1)
         ! set step size from input
         if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
-          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference &
-              &step :', input%ctrl%deriv1stDelta
+          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
+              & input%ctrl%deriv1stDelta
           call error(tmpStr)
         end if
-        call NonSccDiff_init(nonSccDeriv, diffTypes%finiteDiff, &
-            & input%ctrl%deriv1stDelta)
+        call NonSccDiff_init(nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
       case (2)
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
@@ -1455,7 +1455,9 @@ contains
     nMovedCoord = 3 * nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      nGeoSteps = huge(1)
+      nGeoSteps = huge(1) - 1
+      ! Workaround:PGI 17.10 -> do i = 0, huge(1) executes 0 times
+      ! nGeoSteps = huge(1)
     else
       nGeoSteps = input%ctrl%maxRun
     end if
@@ -1661,9 +1663,6 @@ contains
       end if
 
       if (input%ctrl%lrespini%nstat == 0) then
-        if (input%ctrl%lrespini%tMulliken) then
-          call error("Muliken analysis only available for StateOfInterest non zero.")
-        end if
         if (tForces) then
           call error("Excited forces only available for StateOfInterest non zero.")
         end if
@@ -2723,7 +2722,7 @@ contains
 
   end subroutine createRandomGenerators
 
-
+#:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
   subroutine initSocket(env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
       & tLatticeChanged)
@@ -2763,7 +2762,7 @@ contains
         & tLatticeChanged, tDummy)
 
   end subroutine initSocket
-
+#:endif
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
@@ -3031,15 +3030,17 @@ contains
       allocate(iRhoPrim(0, nSpin))
     end if
 
+    allocate(excitedDerivs(0,0))
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-    end if
-    if (tLinRespZVect) then
-      allocate(excitedDerivs(3, nAtom))
+      if (tLinRespZVect) then
+        deallocate(excitedDerivs)
+        allocate(excitedDerivs(3, nAtom))
+      end if
     end if
 
     call init(energy, nAtom)

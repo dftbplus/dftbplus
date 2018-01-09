@@ -7,6 +7,7 @@
 
 !> Contains MPI related einvironment settings
 module mpienv
+  use accuracy, only : lc
   use mpifx
   use message
   implicit none
@@ -15,7 +16,7 @@ module mpienv
   public :: TMpiEnv, TMpiEnv_init
 
 
-  !> Contains MPI related einvironment settings
+  !> Contains MPI related environment settings
   type :: TMpiEnv
 
     !> Global MPI communicator
@@ -59,9 +60,8 @@ contains
     !> Number of process groups to create
     integer, intent(in) :: nGroup
 
-    character(100) :: tmpStr
+    character(lc) :: tmpStr
     integer :: myRank, myGroup
-    integer :: ii
 
     call this%globalComm%init()
     this%nGroup = nGroup

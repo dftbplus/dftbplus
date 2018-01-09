@@ -7,7 +7,13 @@
 
 #:include 'common.fypp'
 
-!> Contains fundamental global environment settings
+!> Contains fundamental global computing environment settings.
+!>
+!> It contains global settings and routines, which can be used already before the parsing of the
+!> input has taken place and the details of the user settings for the running-environment are
+!> known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
+!> code.
+!>
 module globalenv
   use, intrinsic :: iso_fortran_env, only : output_unit
 #:if WITH_MPI
@@ -98,7 +104,7 @@ contains
       write(stdOut0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
     end if
   #:endif
-    error stop
+    stop
 
   end subroutine abort
 

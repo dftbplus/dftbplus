@@ -16,7 +16,8 @@ In order to install DFTB+, you need the following software components:
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
-* Optionally: ScaLAPACK, if you build the MPI-parallelised version of the code
+* Optionally: ScaLAPACK (version 2.0 or later), if you build the
+  MPI-parallelised version of the code
 
 * Optionally: the ARPACK or ARPACK-ng library for excited state DFTB
   functionality; the DftD3 dispersion library (if you need this dispersion
@@ -32,12 +33,17 @@ Obtaining the source
 ====================
 
 The source code can be downloaded from the `DFTB+ homepage
-<http://www.dftbplus.org>`_. Alternatively you can clone the `public git
-repository <https://github.com/dftbplus/dftbplus>`_. (The tagged revisions
-correspond to stable releases, while the master branch contains the latest
-development version.) Note: the project uses git-submodules, which must be
-additionally downloaded using the ``git submodule update`` command after the
-repository was cloned.
+<http://www.dftbplus.org>`_.
+
+Alternatively you can clone the `public git repository
+<https://github.com/dftbplus/dftbplus>`_. (The tagged revisions correspond to
+stable releases, while the master branch contains the latest development
+version.) As the project uses git-submodules, those must be additionally
+downloaded ::
+
+  git clone https://github.com/dftbplus/dftbplus.git
+  cd dftbplus
+  git submodule update --init --recursive
 
 Some optional software components (e.g. the `DftD3 library
 <https://github.com/aradi/dftd3-lib>`_) are not distributed with the DFTB+
@@ -50,7 +56,7 @@ using the `get_opt_externals` utility, e.g.::
 The Slater-Koster data needed for testing can also be downloaded by using
 this tool::
 
-  ./utils/get_opt_externals slako
+  ./utils/get_opt_externals slakos
 
 See detailed help for this tool by issuing ``./utils/get_opt_externals -h``.
 
@@ -96,7 +102,7 @@ Compile
     export OMP_NUM_THREADS=1
 
   if using the bash shell. If you want to test the MPI-binary with more than one
-  processes, you can set the TESTPROC variable, accordingly, e.g::
+  processes, you can set the TESTPROC variable accordingly e.g::
 
     make test TESTPROC=2
 

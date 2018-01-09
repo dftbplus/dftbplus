@@ -103,17 +103,21 @@ contains
     eExc = wij(1)
     iStart = 1
     nxov_r = 0
+    ! Check, to single precision tolerance, for degeneracies when selecting bright transitions
     do ii = 2, nxov
       call indxov(win, ii, getij, iOcc, iVrt)
+      ! check if this is a still within a degenerate group, otherwise process the group
       if ( abs(grndEigVal(iOcc,1)-eOcc) > epsilon(0.0) .or. &
           & abs(wij(ii)-eExc) > epsilon(0.0) ) then
         eOcc = grndEigVal(iOcc,1)
         eExc = wij(ii)
         mu = 0.0_dp
+        ! loop over transitions in the group and check the oscillator strength
         do jj = iStart, ii-1
           call indxov(win, jj, getij, iOcc, iVrt)
           mu = mu + sposz(jj)
         end do
+        ! if something in the group is bright, so include them all
         if (mu>threshold) then
           do jj = iStart, ii-1
             nxov_r = nxov_r + 1
@@ -127,6 +131,7 @@ contains
       end if
     end do
 
+    ! last group in the transitions
     mu = 0.0_dp
     do jj = iStart, nxov
       call indxov(win, jj, getij, iOcc, iVrt)
@@ -172,11 +177,13 @@ contains
     no = 0
     nv = 0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj) SCHEDULE(RUNTIME) REDUCTION(+:nv,no)
     do ia = 1, nxov
       call indxov(win, ia, getij, ii, jj)
       if (ii == homo) nv = nv +1
       if (jj == homo +1) no = no +1
     end do
+    !$OMP  END PARALLEL DO
 
   end subroutine getNorb_r
 
@@ -309,9 +316,11 @@ contains
     ! Store reverse indices
 
     ! If wij was not sorted, it would be a trivial transformation.
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia) SCHEDULE(RUNTIME)
     do ia = 1, nxov
       iatrans( getij(win(ia),1), getij(win(ia),2) ) = ia
     end do
+    !$OMP  END PARALLEL DO
 
   end subroutine rindxov_array
 
@@ -416,6 +425,7 @@ contains
     logical :: updwn
     real(dp) :: docc_ij
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, updwn, docc_ij) SCHEDULE(RUNTIME)
     do ia = 1, nmat
       call indxov(win, ia, getij, ii, jj)
       updwn = (win(ia) <= nmatup)
@@ -426,6 +436,7 @@ contains
       end if
       wn_ij(ia) = wij(ia) * docc_ij
     end do
+    !$OMP  END PARALLEL DO
 
   end subroutine wtdn
 
@@ -767,49 +778,15 @@ contains
     integer :: ii, ll
 
     tdip(:,:) = 0.0_dp
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,rtmp) SCHEDULE(RUNTIME)
     do ii = 1, size(evec, dim=2)
-      rtmp = sqrt(sqrt(eval(ii)))
+      rtmp = eval(ii)**(-4) ! 1._dp / sqrt(sqrt(eval(ii)))
       do ll = 1, 3
-        tdip(ii,ll) = sum(transd(:,ll) * sqrt(wij) * evec(:,ii)) / rtmp
+        tdip(ii,ll) = sum(transd(:,ll) * sqrt(wij) * evec(:,ii)) * rtmp
       end do
     end do
+    !$OMP  END PARALLEL DO
 
   end subroutine transitionDipole
-
-
-  !> count initial number of transitions from occupied to empty states
-  function countSPexcitations(nOrb,nSpin,filling) result(nxov)
-
-    !> Number of ground state orbitals
-    integer, intent(in) :: nOrb
-
-    !> Number of spin channels
-    integer, intent(in) :: nSpin
-
-    !> occupations of ground state SP levels
-    real(dp), intent(in) :: filling(:,:)
-
-    !> number of transitions
-    real(dp) :: nxov
-
-    real(dp) :: nxov_ud(nSpin)
-    integer :: ii, jj, iSpin
-
-    @:ASSERT(size(filling,dim=1)==nOrb)
-    @:ASSERT(size(filling,dim=2)==nSpin)
-
-    nxov_ud = 0
-    do iSpin = 1, nSpin
-      do ii = 1, norb - 1
-        do jj = ii, norb
-          if (filling(ii,iSpin) > filling(jj,iSpin) + elecTolMax) then
-            nxov_ud(iSpin) = nxov_ud(iSpin) + 1
-          end if
-        end do
-      end do
-    end do
-    nxov = sum(nxov_ud)
-
-  end function countSPexcitations
 
 end module linrespcommon

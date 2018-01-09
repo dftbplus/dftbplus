@@ -23,7 +23,7 @@ module blacsenv
   type :: TBlacsEnv
 
     !> Group grid for (nOrb, nOrb) shaped square matrices (nAtom) shaped vectors
-    !> Note: the grid is ensured to contain all processes in the group
+    !> Note: the grid always contains all processes in the group
     type(blacsgrid) :: orbitalGrid
 
     !> Group grid for (nAtom, nAtom) shaped square matrices (nAtom) shaped vectors
@@ -121,19 +121,23 @@ contains
   end subroutine getSquareGridParams
 
 
-  !> Returns the gridmap for a 2D BLACS grid.
+  !> Returns the gridmap which can be used to initialise a 2D BLACS grid.
+  !>
   subroutine getGridMap(groupMembers, nProcRow, nProcCol, gridMap)
 
-    !> All members of the current group (must be >= nProcRow * nProcCol)
+    !> All members of the current group (must be >= nProcRow * nProcCol) which should
+    !> be mapped on a 2D BLACS-grid.
     integer, intent(in) :: groupMembers(:)
 
-    !> Number of process rows in the grid
+    !> Number of process rows in the BLACS-grid
     integer, intent(in) :: nProcRow
 
-    !> Number of process columns in the grid
+    !> Number of process columns in the BLACS-grid
     integer, intent(in) :: nProcCol
 
-    !> Grid map
+    !> Grid map, where gridMap(i,j) contains the id of the process which in the ith row and jth
+    !> column in the 2D BLACS-grid. This can be used as argument to the initmappedgrids()
+    !> method of blacsgrid.
     integer, allocatable, intent(out) :: gridMap(:,:)
 
     integer :: iProcRow, iProcCol, ind

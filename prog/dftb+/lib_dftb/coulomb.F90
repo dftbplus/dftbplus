@@ -188,7 +188,7 @@ contains
     ! the if branch deep in the loop
     invRVec(:) = 0.0_dp
     if (present(blurWidths1)) then
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,error_string) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
       !$OMP& SCHEDULE(RUNTIME)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
@@ -208,7 +208,7 @@ contains
       end do
       !$OMP  END PARALLEL DO
     else
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,error_string) &
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
       !$OMP& SCHEDULE(RUNTIME)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
@@ -502,10 +502,10 @@ contains
     !> BLACS grid of the distributed derivative vector
     type(blacsgrid), intent(in) :: grid
 
-    !> Descriptor for an nAtom x nAtom matrix distributed on the grid
+    !> Descriptor for the nAtom x nAtom electrostatic matrix distributed on the grid
     integer, intent(in) :: descAtomSqr(DLEN_)
 
-    !> Local shape of the distributed nAtom x nAtom matrix
+    !> Local shape of the distributed nAtom x nAtom electrostatic matrix
     integer, intent(in) :: localShape(:)
 
     !> List of atomic coordinates.
