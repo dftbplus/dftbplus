@@ -3077,11 +3077,10 @@ text file (see section~\ref{kw:dftbp.WriteEigenvectors} for details).
 \index{charges.bin}
 
 The file \verb|charges.bin| contains the orbitally-resolved charges for each
-atom, ordered as the charges on each orbital of an atom for a given spin
-channel, then each spin channel and finally over each atom. In later versions of
-\dftbp{} this format includes a check sum for the total charge and
-magnetisation. In the case of orbital potentials (p.~\pref{sec:DFTB+U}) the file
-also contains extra population information for the occupation matrices.
+atom. In later versions of \dftbp{} this format includes a check sum for the
+total charge and magnetisation. In the case of orbital potentials
+(p.~\pref{sec:DFTB+U}) the file also contains extra population information for
+the occupation matrices.
 
 This file is produced as part of the mechanism to restart SCC calculations, see
 sections~\ref{kw:dftbp.RestartFrequency} and~\ref{kw:dftbp.MDRestartFrequency}.
@@ -3090,6 +3089,8 @@ Equivalent data can also be present in the file \verb|charges.dat|, but stored
 as plain text. The options \is{WriteChargesInBinary} and
 \is{ReadChargesInBinary} control which cases are generated and read
 respectively.
+
+Appendix \ref{app:restartfiles} contains details of the contents of the file.
 
 \section{md.out}
 \label{sec:md.out}
