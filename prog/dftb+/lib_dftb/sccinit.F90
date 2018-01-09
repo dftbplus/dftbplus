@@ -22,13 +22,6 @@ module sccinit
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
 
 
-  !> read stored charges in binary format?
-  logical :: tReadBinary = .true.
-
-  !> store charges in binary format?
-  logical :: tWriteBinary = .true.
-
-
   !> Used to return runtime diagnostics
   character(len=120) :: error_string
 
@@ -145,16 +138,19 @@ contains
   !> charge matches that expected for the calculation.
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
-  subroutine initQFromFile(qq, fileName, orb, magnetisation, nEl, qBlock, qiBlock)
+  subroutine initQFromFile(qq, fileName, tReadBinary, orb, magnetisation, nEl, qBlock, qiBlock)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
 
     !> The external file of charges for the orbitals, currently stored with each line containing the
     !> per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
-
     !> present)
     character(*), intent(in) :: fileName
+
+    !> Should charges be read as binary or ascii (cross platform, but potentially lower
+    !> reproducibility) files
+    logical, intent(in) :: tReadBinary
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -206,10 +202,10 @@ contains
     end if
 
     if (tReadBinary) then
-      open(file, file=fileName, status='old', action='READ', &
+      open(file, file=trim(fileName)//'.bin', status='old', action='READ', &
           & form='unformatted',iostat=iErr)
     else
-      open(file, file=fileName, status='old', action='READ', &
+      open(file, file=trim(fileName)//'.dat', status='old', action='READ', &
           & iostat=iErr)
     end if
     if (iErr /= 0) then
@@ -336,7 +332,7 @@ contains
 
 
   !> Write the current charges to an external file
-  subroutine writeQToFile(qq, fileName, fd, orb, qBlock, qiBlock)
+  subroutine writeQToFile(qq, fileName, fd, tWriteBinary, orb, qBlock, qiBlock)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
@@ -346,6 +342,9 @@ contains
 
     !> File descriptor to use for the file
     integer, intent(in) :: fd
+
+    !> Write in a binary format (T) or ascii (F)
+    logical, intent(in) :: tWriteBinary
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -382,9 +381,9 @@ contains
 #:endcall ASSERT_CODE
 
     if (tWriteBinary) then
-      open(fd, file=fileName, position="rewind", status="replace", form="unformatted")
+      open(fd, file=trim(fileName)//'.bin', position="rewind", status="replace", form="unformatted")
     else
-      open(fd, file=fileName, position="rewind", status="replace")
+      open(fd, file=trim(fileName)//'.dat', position="rewind", status="replace")
     end if
 
     if (tWriteBinary) then

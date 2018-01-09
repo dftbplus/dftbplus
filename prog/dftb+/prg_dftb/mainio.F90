@@ -3127,13 +3127,16 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
+  subroutine writeCharges(fCharges, fdCharges, tWriteBinary, orb, qInput, qBlockIn, qiBlockIn)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
 
     !> File descriptor for charge output
     integer, intent(in) :: fdCharges
+
+    !> Charges should be output in binary (T) or ascii (F)
+    logical, intent(in) :: tWriteBinary
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3149,12 +3152,12 @@ contains
 
     if (allocated(qBlockIn)) then
       if (allocated(qiBlockIn)) then
-        call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn, qiBlockIn)
+        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn, qiBlockIn)
       else
-        call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn)
+        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn)
       end if
     else
-      call writeQToFile(qInput, fCharges, fdCharges, orb)
+      call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb)
     end if
     write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)
 

@@ -473,15 +473,19 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   overriding \is{RestartFrequency} (see
   section~\ref{kw:dftbp.RestartFrequency}).
 
-\item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic velocities for all the atoms of
-  the given structure (including ``velocities'' for any stationary atoms, which are silently
-  ignored). This option can be used to restart an MD run, but make sure the geometry is consistent
-  with the specified velocities. The easiest way to do this is to copy both from the same iteration
-  of the XYZ file produced in the previous run (\textbf{Note:} the velocities printed in the XYZ
-  files are specified in {\AA}/ps, so this should be set in the input). If restarting an \kw{SCC} MD
-  run, we \textbf{strongly suggest} you use \is{ReadInitialCharges}, and in particular read charges
-  for the geometry which you use to restart (iterations at which charges are written to disc are
-  marked in the XYZ file, with the most recent being present in \verb|charges.bin|).
+\item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic velocities for
+  all the atoms of the given structure (including ``velocities'' for any
+  stationary atoms, which are silently ignored). This option can be used to
+  restart an MD run, but make sure the geometry is consistent with the specified
+  velocities. The easiest way to do this is to copy both from the same iteration
+  of the XYZ file produced in the previous run (\textbf{Note:} the velocities
+  printed in the XYZ files are specified in {\AA}/ps, so this should be set in
+  the input). If restarting an \kw{SCC} MD run, we \textbf{strongly suggest} you
+  use \is{ReadInitialCharges}, and in particular read charges for the geometry
+  which you use to restart (iterations at which charges are written to disc are
+  marked in the XYZ file, with the most recent being present in
+  \verb|charges.bin| or \verb|charges.dat| depending on the option
+  \is{WriteChargesInBinary}).
 
 \item[\is{Barostat}] Berendsen method barostat for the MD simulation. See
   p.~\pref{sec:dftbp.Barostat}.
@@ -1154,9 +1158,10 @@ following properties:
   band structure. See p.~\pref{sec:dftbp.OrbitalPotential}.
 
 
-\item[\is{ReadInitialCharges}] If set to \is{Yes} the first
-  Hamiltonian is constructed by using the charge information read from
-  the file \verb|charges.bin|.
+\item[\is{ReadInitialCharges}] If set to \is{Yes} the first Hamiltonian is
+  constructed by using the charge information read from the file
+  \verb|charges.bin| or \verb|charges.dat| (depending on the option
+  \is{WriteChargesInBinary}, see section\ref{sec:dftbp.Options}).
 
 \item[\is{InitialCharges}] Specifies initial net charges, either for
   all atoms or for only selected ones. In order to specify it for all
@@ -2515,6 +2520,9 @@ This block collects some global options for the run.
   \kw{ShowFoldedCoords} & l & Periodic = Yes & No & \\
   \kwl{WriteHS}{kw:dftbp.WriteHS} & l & & No & \\
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
+  \kwl{ReadChargesInBinary}{kw:dftbp.ReadChargesInBinary} & l &
+  ReadInitialCharges = Yes & Yes & \\
+  \kwl{WriteChargesInBinary}{kw:dftbp.WriteChargesInBinary} & l & & Yes & \\
 \end{ptable}
 \begin{description}
 
@@ -2590,6 +2598,15 @@ This block collects some global options for the run.
   optimisation steps are carried out. You can use the \is{ReadInitialCharges}
   option to build the Hamiltonian with a previously converged charge
   distribution.
+
+\item[\is{ReadChargesInBinary}] If \is{Yes}, the program expects the file
+  \verb|charges.bin| to contain starting charges stored in binary. If \is{No},
+  then \verb|charges.dat| should contain a text file of this data. See section
+  \ref{sec:charges.bin}.
+
+\item[\is{WriteChargesInBinary}] If \is{Yes}, the program stores charges in the
+  binary file \verb|charges.bin|, while if \is{No} then \verb|charges.dat|
+  contains text of this data. See section \ref{sec:charges.bin}.
 
 \end{description}
 
@@ -3055,19 +3072,24 @@ The files are produced if requested by setting \is{WriteEigenvectors} =
 \is{Yes}, with \is{EigenvectorsAsTxt} being also required to produce the plain
 text file (see section~\ref{kw:dftbp.WriteEigenvectors} for details).
 
-\section{charges.bin}
+\section{charges.bin / charges.dat}
 \label{sec:charges.bin}
 \index{charges.bin}
 
-The file charges.bin contains the orbitally-resolved charges for each atom,
-ordered as the charges on each orbital of an atom for a given spin channel, then
-each spin channel and finally over each atom. In later versions of \dftbp{} this
-format includes a check sum for the total charge and magnetisation. In the case
-of orbital potentials (p.~\pref{sec:DFTB+U}) the file also contains extra
-population information for the occupation matrices.
+The file \verb|charges.bin| contains the orbitally-resolved charges for each
+atom, ordered as the charges on each orbital of an atom for a given spin
+channel, then each spin channel and finally over each atom. In later versions of
+\dftbp{} this format includes a check sum for the total charge and
+magnetisation. In the case of orbital potentials (p.~\pref{sec:DFTB+U}) the file
+also contains extra population information for the occupation matrices.
 
 This file is produced as part of the mechanism to restart SCC calculations, see
 sections~\ref{kw:dftbp.RestartFrequency} and~\ref{kw:dftbp.MDRestartFrequency}.
+
+Equivalent data can also be present in the file \verb|charges.dat|, but stored
+as plain text. The options \is{WriteChargesInBinary} and
+\is{ReadChargesInBinary} control which cases are generated and read
+respectively.
 
 \section{md.out}
 \label{sec:md.out}

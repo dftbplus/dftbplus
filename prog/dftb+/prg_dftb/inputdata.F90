@@ -73,7 +73,13 @@ module inputdata_module
     real(dp) :: sccTol      = 0.0_dp
 
     !> Read starting charges from disc
-    logical :: tReadChrg   = .false.
+    logical :: tReadChrg = .false.
+
+    !> Disc charges are stored as binary files
+    logical :: tReadChrgBinary = .true.
+
+    !> Disc charges should be written as binary files
+    logical :: tWriteChrgBinary = .true.
 
     !> should probably be packaged
     logical :: tGeoOpt     = .false.
