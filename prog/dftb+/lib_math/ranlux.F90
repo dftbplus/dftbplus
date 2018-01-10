@@ -265,7 +265,7 @@ contains
     allocate(rvec(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
-    r2Darray = reshape(rvec,shape(r2Darray))
+    r2Darray(:,:) = reshape(rvec,shape(r2Darray))
 
   end subroutine Ranlux_getRandom2DArray
 
@@ -283,7 +283,7 @@ contains
     allocate(rvec(product(shape(r3Darray))))
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
-    r3Darray = reshape(rvec,shape(r3Darray))
+    r3Darray(:,:,:) = reshape(rvec,shape(r3Darray))
 
   end subroutine Ranlux_getRandom3DArray
 
