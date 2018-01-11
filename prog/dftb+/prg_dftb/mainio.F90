@@ -1977,7 +1977,9 @@ contains
       call writeTagged(fd, tag_chrgForces, -chrgForces)
     end if
     if (allocated(excitedDerivs)) then
-      call writeTagged(fd, tag_excForce, -excitedDerivs)
+      if (size(excitedDerivs) > 0) then
+        call writeTagged(fd, tag_excForce, -excitedDerivs)
+      end if
     end if
     if (tStress) then
       call writeTagged(fd, tag_stressTot, totalStress)

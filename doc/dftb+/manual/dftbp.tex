@@ -2608,7 +2608,7 @@ calculation and/or calculate properties.
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
-  \kw{EigenvectorsAsTxt} & l & & No & WriteEigenvectors = Yes\\
+  \kw{EigenvectorsAsTxt} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
@@ -2792,7 +2792,7 @@ calculations. This data is accumulated in a specified text file.
 \section{ExcitedState}
 \label{sec:dftbp.ExcitedState}
 
-This block collects some options to calculate in the excited state.
+This block collects some options to calculate excited states.
 \begin{ptable}
   \kw{Casida} & p & SCC = Yes & \cb & \\
 \end{ptable}
