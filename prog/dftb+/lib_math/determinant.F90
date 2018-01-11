@@ -7,31 +7,36 @@
 
 #:include 'common.fypp'
 
+#:set FLAVORS = [('Real', 'real', 'real'), ('Cmplx', 'complex', 'cmplx')]
+
 !> Contains routines to calculate matrix determinants
 module determinant
   use accuracy
   use lapackroutines
   implicit none
-
   private
-
-  interface det
-    module procedure det_real
-    module procedure det_cmplx
-  end interface det
 
   public :: det
 
+  interface det
+  #:for SUFFIX, _, _ in FLAVORS
+    module procedure det${SUFFIX}$
+  #:endfor
+  end interface det
+
+
 contains
 
+#:for SUFFIX, TYPE, CONVERT in
+
   !> Determinant of a real matrix, matrix destroyed in process
-  function det_real(A) result(det)
+  function det${SUFFIX}$(A) result(det)
 
     !> The matrix
-    real(dp), intent(inout) :: A(:,:)
+    ${TYPE}$(dp), intent(inout) :: A(:,:)
 
     !> resulting determinant
-    real(dp) :: det
+    ${TYPE}$(dp) :: det
 
     integer, allocatable  :: ipiv(:)
     integer :: ii, n, exponent
@@ -41,10 +46,10 @@ contains
 
     call getrf(A,ipiv)
 
-    det = 1.0_dp
+    det = ${CONVERT}$(1, kind=dp)
     exponent = 0
     do ii = 1, n
-      if (ipiv(ii).ne.ii) then
+      if (ipiv(ii) /= ii) then
         det = -det * A(ii,ii)
       else
         det = det * A(ii,ii)
@@ -63,47 +68,8 @@ contains
     end do
     det = det * 2.0_dp ** exponent
 
-  end function det_real
+  end function det${SUFFIX}$
 
-  !> Determinant of a complex matrix, matrix destroyed in process
-  function det_cmplx(A) result(det)
-
-    !> The matrix
-    complex(dp), intent(inout) :: A(:,:)
-
-    !> resulting determinant
-    complex(dp) :: det
-
-    integer, allocatable  :: ipiv(:)
-    integer :: ii, n, exponent
-
-    n = minval(shape(A))
-    allocate(ipiv(n))
-
-    call getrf(A,ipiv)
-
-    det = cmplx(1,0,dp)
-    exponent = 0
-    do ii = 1, n
-      if (ipiv(ii).ne.ii) then
-        det = -det * A(ii,ii)
-      else
-        det = det * A(ii,ii)
-      end if
-      if (det == 0.0_dp) then
-        return
-      end if
-      do while (abs(det) > 2.0_dp)
-        det = det / 2.0_dp
-        exponent = exponent + 1
-      end do
-      do while (abs(det) < 0.5_dp)
-        det = det * 2.0_dp
-        exponent = exponent - 1
-      end do
-    end do
-    det = det * 2.0_dp ** exponent
-
-  end function det_cmplx
+#:endfor
 
 end module determinant
