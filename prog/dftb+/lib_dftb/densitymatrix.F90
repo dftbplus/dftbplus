@@ -731,42 +731,57 @@ contains
     real(dp), intent(in), optional :: eigenVals(:)
 
     integer  :: ii, jj, iGlob, iLoc, blockSize, nLevel
+    real(dp) :: minFill, maxFill, alpha, beta
+    real(dp), allocatable, target :: eFilling(:)
+    real(dp), pointer :: myFilling(:)
     type(blocklist) :: blocks
-    real(dp), allocatable :: work(:,:)
-
-    nLevel = size(filling)
 
     densityMtx(:,:) = 0.0_dp
 
-    allocate(work(size(densityMtx,dim=1),size(densityMtx,dim=2)))
-
-    work(:,:) = 0.0_dp
-
-    call blocks%init(myBlacs, desc, "c")
-
-    ! Scale eigenvectors
+    ! Make non-zero fillings positive definite
+    nLevel = size(filling)
+    do while (abs(filling(nLevel)) < epsilon(1.0_dp) .and. nLevel > 1)
+      nLevel = nLevel - 1
+    end do
     if (present(eigenVals)) then
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, min(blockSize - 1, nLevel - iGlob)
-          work(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
-        end do
-      end do
+      allocate(eFilling(nLevel))
+      eFilling(:) = filling(1:nLevel) * eigenVals(1:nLevel)
+      myFilling => eFilling
     else
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, min(blockSize - 1, nLevel - iGlob)
-          work(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * filling(iGlob + jj)
-        end do
-      end do
+      myFilling => filling
+    end if
+    minFill = minval(myFilling)
+    maxFill = maxval(myFilling)
+    if ((minFill < 0.0_dp .eqv. maxFill < 0.0_dp) .and. abs(minFill) >= epsilon(1.0_dp)&
+        & .and. abs(maxFill) >= epsilon(1.0_dp)) then
+      alpha = sign(1.0_dp, maxFill)
+      beta = 0.0_dp
+    else
+      alpha = 1.0_dp
+      beta = minFill - arbitraryConstant
+      call pblasfx_psyrk(eigenVecs, desc, densityMtx, desc, kk=nLevel)
     end if
 
-    ! Create symmetric matrix by GEMM
-    !call pblasfx_pgemm(work, desc, eigenVecs, desc, densityMtx, desc, alpha = 0.5_dp, transB="T")
-    !call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, alpha = 0.5_dp, beta=1.0_dp,&
-    !    & transB="T")
+    ! Scale eigenvectors
+    call blocks%init(myBlacs, desc, "c")
+    do ii = 1, size(blocks)
+      call blocks%getblock(ii, iGlob, iLoc, blockSize)
+      do jj = 0, min(blockSize - 1, nLevel - iGlob)
+        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * sqrt(abs(myFilling(iGlob + jj) - beta))
+      end do
+    end do
 
-    call pblasfx_pgemm(work, desc, eigenVecs, desc, densityMtx, desc, transB="T")
+    ! Create matrix by rank-k update
+    call pblasfx_psyrk(eigenVecs, desc, densityMtx, desc, kk=nLevel,&
+        & alpha=alpha, beta=beta)
+
+    ! Revert eigenvectors to their original value
+    do ii = 1, size(blocks)
+      call blocks%getblock(ii, iGlob, iLoc, blockSize)
+      do jj = 0, min(blockSize - 1, nLevel - iGlob)
+        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) / sqrt(abs(myFilling(iGlob + jj) - beta))
+      end do
+    end do
 
   end subroutine makeDensityMtxRealBlacs
 
@@ -782,42 +797,59 @@ contains
     real(dp), intent(in), optional :: eigenVals(:)
 
     integer  :: ii, jj, iGlob, iLoc, blockSize, nLevel
+    real(dp) :: minFill, maxFill, alpha, beta
+    real(dp), allocatable, target :: eFilling(:)
+    real(dp), pointer :: myFilling(:)
     type(blocklist) :: blocks
-    complex(dp), allocatable :: work(:,:)
-
-    nLevel = size(filling)
 
     densityMtx(:,:) = 0.0_dp
 
-    allocate(work(size(densityMtx,dim=1),size(densityMtx,dim=2)))
-
-    work(:,:) = 0.0_dp
-
-    call blocks%init(myBlacs, desc, "c")
-
-    ! Scale eigenvectors
+    ! Make non-zero fillings positive definite
+    nLevel = size(filling)
+    do while (abs(filling(nLevel)) < epsilon(1.0_dp) .and. nLevel > 1)
+      nLevel = nLevel - 1
+    end do
     if (present(eigenVals)) then
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, min(blockSize - 1, nLevel - iGlob)
-          work(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * eigenVals(iGlob + jj) * filling(iGlob + jj)
-        end do
-      end do
+      allocate(eFilling(nLevel))
+      eFilling(:) = filling(1:nLevel) * eigenVals(1:nLevel)
+      myFilling => eFilling
     else
-      do ii = 1, size(blocks)
-        call blocks%getblock(ii, iGlob, iLoc, blockSize)
-        do jj = 0, min(blockSize - 1, nLevel - iGlob)
-          work(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * filling(iGlob + jj)
-        end do
-      end do
+      myFilling => filling
+    end if
+    minFill = minval(myFilling)
+    maxFill = maxval(myFilling)
+    if ((minFill < 0.0_dp .eqv. maxFill < 0.0_dp)&
+        & .and. abs(minFill) >= epsilon(1.0_dp)&
+        & .and. abs(maxFill) >= epsilon(1.0_dp)) then
+      alpha = sign(1.0_dp, maxFill)
+      beta = 0.0_dp
+    else
+      alpha = 1.0_dp
+      beta = minFill - arbitraryConstant
+      call pblasfx_pherk(eigenVecs, desc, densityMtx, desc, kk=nLevel)
     end if
 
-    ! Create symmetric matrix by GEMM
-    !call pblasfx_pgemm(work, desc, eigenVecs, desc, densityMtx, desc, alpha = 0.5_dp, transB="C")
-    !call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, alpha = 0.5_dp, beta=1.0_dp,&
-    !    & transB="C")
+    ! Scale eigenvectors
+    call blocks%init(myBlacs, desc, "c")
+    do ii = 1, size(blocks)
+      call blocks%getblock(ii, iGlob, iLoc, blockSize)
+      do jj = 0, min(blockSize - 1, nLevel - iGlob)
+        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) * sqrt(abs(myFilling(iGlob + jj) - beta))
+      end do
+    end do
 
-    call pblasfx_pgemm(work, desc, eigenVecs, desc, densityMtx, desc, transB="C")
+    ! Create matrix by rank-k update
+    call pblasfx_pherk(eigenVecs, desc, densityMtx, desc, kk=nLevel,&
+        & alpha=alpha, beta=beta)
+
+    ! Revert eigenvectors to their original value
+    do ii = 1, size(blocks)
+      call blocks%getblock(ii, iGlob, iLoc, blockSize)
+      do jj = 0, min(blockSize - 1, nLevel - iGlob)
+        eigenVecs(:,iLoc + jj) = &
+            &eigenVecs(:,iLoc + jj) / sqrt(abs(myFilling(iGlob + jj) - beta))
+      end do
+    end do
 
   end subroutine makeDensityMtxCplxBlacs
 
