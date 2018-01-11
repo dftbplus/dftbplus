@@ -12,7 +12,7 @@ from sockettools import frac2cart, readgen, receive_all, a0
 NR_STEPS = 5
 
 def connect():
-    server_address = '/tmp/ipi_dftb'
+    server_address = '/tmp/ipi_dftb_cluster'
 
     # Make sure the socket does not already exist
     try:
