@@ -359,10 +359,6 @@ contains
             & rhoSqrReal, excitedDerivs, occNatural)
       end if
 
-      if (tESPgrid) then
-        call getElectrostaticPotential(SCCCalc, env, ESPgrid, softenESP, EField, fdEsp, EspOutFile)
-      end if
-
       if (tXlbomd) then
         call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
             & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
@@ -443,6 +439,12 @@ contains
         else
           call warning("SCC is NOT converged, maximal SCC iterations exceeded")
         end if
+      end if
+
+      if (tEspGrid .and. ( .not.(tGeoOpt .or. tMD) .or. &
+          & needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq) ) ) then
+        call writeElectrostaticPotential(SCCCalc, env, ESPgrid, softenESP, EField, fdEsp,&
+            & EspOutFile, tAppendEsp, iGeoStep, nGeoSteps)
       end if
 
       if (tForces) then
@@ -2447,7 +2449,8 @@ contains
   end subroutine getMullikenPopulation
 
   !> Electrostatic potential at specified points
-  subroutine getElectrostaticPotential(SccCalc, env, ESPgrid, softenESP, Efield, fdEsp, EspOutFile)
+  subroutine writeElectrostaticPotential(SccCalc, env, ESPgrid, softenESP, Efield, fdEsp,&
+      & EspOutFile, tAppendEsp, iGeoStep, nGeoSteps)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2467,12 +2470,21 @@ contains
     !> File descriptor for writing
     integer, intent(in) :: fdEsp
 
-    !> name of file
+    !> name of file to store potentials
     character(*), intent(in) :: EspOutFile
 
+    !> should the file be appended or overwritten
+    logical, intent(in) :: tAppendEsp
+
+    !> Step of the geometry driver
+    integer, intent(in) :: iGeoStep
+
+    !> Number of geometry steps
+    integer, intent(in) :: nGeoSteps
 
     real(dp), allocatable :: ESPpotential(:), extESPpotential(:)
     integer :: ii
+    character(lc) :: tmpStr
 
     if (.not.allocated(SccCalc)) then
       call error("Needs SCC for potentials")
@@ -2492,15 +2504,34 @@ contains
       end do
     end if
 
-    open(fdEsp, file=trim(EspOutFile), action="write", status="replace")
-    write(fdEsp,*)'# Electrostatic potential'
-    do ii = 1, size(ESPgrid,dim=2)
-      write(fdEsp,"(3E12.4,2E20.12)")ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii), extESPpotential(ii)
-    end do
-    close(fdEsp)
+    if (nGeoSteps > 0) then
+      write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
+    else
+      write(tmpStr, "('#', T13, A)")"Location (AA)"
+    end if
 
+    if (env%tGlobalMaster) then
+      if (tAppendEsp) then
+        open(fdEsp, file=trim(EspOutFile), position="append")
+      else
+        open(fdEsp, file=trim(EspOutFile), action="write", status="replace")
+      end if
+      if (any(extESPpotential /= 0.0_dp)) then
+        write(fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
+        do ii = 1, size(ESPgrid,dim=2)
+          write(fdEsp,"(3E12.4,2E20.12)")ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii),&
+              & extESPpotential(ii)
+        end do
+      else
+        write(fdEsp,"(A,T39,A)")trim(tmpStr),'Internal (au)'
+        do ii = 1, size(ESPgrid,dim=2)
+          write(fdEsp,"(3E12.4,2E20.12)")ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii)
+        end do
+      end if
+      close(fdEsp)
+    end if
 
-  end subroutine getElectrostaticPotential
+  end subroutine writeElectrostaticPotential
 
 
   !> Calculates various energy contributions
