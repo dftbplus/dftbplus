@@ -3028,7 +3028,6 @@ contains
       allocate(iRhoPrim(0, nSpin))
     end if
 
-    allocate(excitedDerivs(0,0))
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
