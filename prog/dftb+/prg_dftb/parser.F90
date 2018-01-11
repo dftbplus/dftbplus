@@ -3188,8 +3188,13 @@ contains
       if (.not.ctrl%tSCC) then
         call error("Electrostatic potentials only available in an SCC calculation")
       end if
+      call getChildValue(node, "OutputFile", buffer, "ESP.dat")
+      ctrl%EspOutFile = unquote(char(buffer))
+      ctrl%tAppendESP = .false.
+      if (ctrl%tGeoOpt .or. ctrl%tMD) then
+        call getChildValue(node, "AppendFile", ctrl%tAppendESP, .false.)
+      end if
       call init(lr1)
-
       ! discrete points
       call getChildValue(child, "Points", child2, "", child=child3, &
           & modifier=modifier, allowEmptyValue=.true.)

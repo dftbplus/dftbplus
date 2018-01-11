@@ -122,8 +122,14 @@ module inputdata_module
 
     !> Electrostatic potential on a grid
     logical :: tESPgrid = .false.
+
+    !> File to store the resulting points
+    character(lc) :: EspOutFile = 'ESP.dat'
+
+    !> Should the potential appended to the file
+    logical :: tAppendESP = .false.
     
-    !> Location of potential points
+    !> Location of electrostatic potential points
     real(dp), allocatable :: ESPgrid(:,:)
 
     !> short range softening of the potential

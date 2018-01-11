@@ -360,7 +360,7 @@ contains
       end if
 
       if (tESPgrid) then
-        call getElectrostaticPotential(SCCCalc, env, ESPgrid, softenESP, EField)
+        call getElectrostaticPotential(SCCCalc, env, ESPgrid, softenESP, EField, fdEsp, EspOutFile)
       end if
 
       if (tXlbomd) then
@@ -2447,7 +2447,7 @@ contains
   end subroutine getMullikenPopulation
 
   !> Electrostatic potential at specified points
-  subroutine getElectrostaticPotential(SccCalc, env, ESPgrid, softenESP, Efield)
+  subroutine getElectrostaticPotential(SccCalc, env, ESPgrid, softenESP, Efield, fdEsp, EspOutFile)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2461,7 +2461,15 @@ contains
     !> short range softening parameter
     real(dp), intent(in) :: softenESP
 
+    !> Electric field magnitude
     real(dp), intent(in) :: EField(3)
+
+    !> File descriptor for writing
+    integer, intent(in) :: fdEsp
+
+    !> name of file
+    character(*), intent(in) :: EspOutFile
+
 
     real(dp), allocatable :: ESPpotential(:), extESPpotential(:)
     integer :: ii
@@ -2484,12 +2492,13 @@ contains
       end do
     end if
 
-    write(stdOut,*)'Electrostatic potential'
+    open(fdEsp, file=trim(EspOutFile), action="write", status="replace")
+    write(fdEsp,*)'# Electrostatic potential'
     do ii = 1, size(ESPgrid,dim=2)
-      write(stdOut,"(I3,3E12.4,' : ',2E20.12)")ii,ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii),&
-          & extESPpotential(ii)
+      write(fdEsp,"(3E12.4,2E20.12)")ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii), extESPpotential(ii)
     end do
-    write(stdOut,*)
+    close(fdEsp)
+
 
   end subroutine getElectrostaticPotential
 

@@ -406,10 +406,25 @@ module initprogram
   !> Do we need Mulliken charges?
   logical :: tMulliken
 
+  !> Should the electrostatic potential be evaluated
   logical :: tESPgrid
+
+  !> Points to evaluate the field if requested
   real(dp), allocatable :: ESPgrid(:,:)
+
+  !> Value of a short-distance softening term
   real(dp) :: softenESP
-  
+
+  !> file unit for ESP result
+  integer :: fdESP
+
+  !> File containing output potentials
+  character(lc) :: EspOutFile
+
+  !> should the file be appended or overwritten
+  logical :: tAppendESP
+
+
   !> Calculate localised orbitals?
   logical :: tLocalise
 
@@ -1237,7 +1252,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-    
+
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -1597,12 +1612,17 @@ contains
     end if
 
     tESPgrid = input%ctrl%tESPgrid
+    if (.not.tSccCalc .and. tESPgrid) then
+      call error("Electrostatic potentials only available for SCC calculations")
+    end if
     if (tESPgrid) then
       allocate(ESPgrid(3,size(input%ctrl%ESPgrid,dim=2)))
       ESPgrid = input%ctrl%ESPgrid
       softenESP = input%ctrl%softenESP
+      EspOutFile = input%ctrl%EspOutFile
+      tAppendESP = input%ctrl%tAppendESP
     end if
-    
+
     tLocalise = input%ctrl%tLocalise
     if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
       call error("Localisation of electronic states currently unsupported for&
@@ -2068,8 +2088,8 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, tESPgrid, EspOutFile, fdAutotest,&
+          & fdResultsTag, fdBand, fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, fdESP)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2746,8 +2766,8 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, tESP, EspOutFile, fdAutotest, fdResultsTag,&
+      & fdBand, fdEigvec, fdHessian, fdDetailedOut, fdMd, fdChargeBin, fdESP)
 
     !> Should tagged regression test data be printed
     logical, intent(in) :: tWriteAutotest
@@ -2767,11 +2787,17 @@ contains
     !> Is this a molecular dynamics calculation
     logical, intent(in) :: tMd
 
+    !> Electrostatic potentials to be written
+    logical, intent(in) :: tESP
+
     !> Are atomic coodinates being optimised
     logical, intent(in) :: tGeoOpt
 
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
+
+    !> Filename for electrostatic potential output
+    character(*), intent(in) :: EspOutFile
 
     !> File unit for autotest data
     integer, intent(out) :: fdAutotest
@@ -2796,6 +2822,9 @@ contains
 
     !> File descriptor for charge restart file
     integer, intent(out) :: fdChargeBin
+
+    !> File descriptor for electrostatic potentials
+    integer, intent(out) :: fdESP
 
 
     call initTaggedWriter()
@@ -2823,6 +2852,9 @@ contains
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
     fdChargeBin = getFileId()
+    if (tESP) then
+      call initOutputFile(EspOutFile, fdEsp)
+    end if
 
   end subroutine initOutputFiles
 
