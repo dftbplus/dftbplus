@@ -38,6 +38,8 @@ module lapackroutines
   interface getrf
     module procedure getrf_real
     module procedure getrf_dble
+    module procedure getrf_complex
+    module procedure getrf_dcomplex
   end interface getrf
 
 
@@ -344,6 +346,122 @@ contains
     end if
 
   end subroutine getrf_dble
+
+
+  !> Complex precision version of getrf.
+  subroutine getrf_complex(aa, ipiv, nRow, nColumn, iError)
+
+    !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
+    complex(rsp), intent(inout) :: aa(:,:)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(out) :: ipiv(:)
+
+    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nRow
+
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nColumn
+
+    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
+    integer, optional, intent(out) :: iError
+
+    integer :: mm, nn, lda, info
+
+    lda = size(aa, dim=1)
+    nn = size(aa, dim=2)
+    if (present(nRow)) then
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
+      mm = nRow
+    else
+      mm = lda
+    end if
+    if (present(nColumn)) then
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      nn = nColumn
+    end if
+    @:ASSERT(size(ipiv) == min(mm, nn))
+
+    call cgetrf(mm, nn, aa, lda, ipiv, info)
+
+    if (info < 0) then
+99045 format ('Failure in LU factorisation sgetrf,', &
+          & ' illegal argument at position ',i10)
+      write (error_string, 99045) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99055   format ('Factor U is exactly zero in sgetrf,', &
+            & ' info flag is ',i10)
+        write (error_string, 99055) info
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine getrf_complex
+
+
+  !> Double precision version of getrf.
+  subroutine getrf_dcomplex(aa, ipiv, nRow, nColumn, iError)
+
+    !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
+    complex(rdp), intent(inout) :: aa(:,:)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(out) :: ipiv(:)
+
+    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nRow
+
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nColumn
+
+    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
+    integer, optional, intent(out) :: iError
+
+    integer :: mm, nn, lda, info
+
+    lda = size(aa, dim=1)
+    nn = size(aa, dim=2)
+    if (present(nRow)) then
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
+      mm = nRow
+    else
+      mm = lda
+    end if
+    if (present(nColumn)) then
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      nn = nColumn
+    end if
+    @:ASSERT(size(ipiv) == min(mm, nn))
+
+    call zgetrf(mm, nn, aa, lda, ipiv, info)
+
+    if (info < 0) then
+99065 format ('Failure in LU factorisation dgetrf,', &
+          & ' illegal argument at position ',i10)
+      write (error_string, 99065) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99075   format ('Factor U is exactly zero in dgetrf,', &
+            & ' info flag is ',i10)
+        write (error_string, 99075) info
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine getrf_dcomplex
 
 
   !> Single precision version of getri.
