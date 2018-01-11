@@ -96,8 +96,8 @@ module initprogram
   !> Second derivative of the energy with respect to atomic positions
   character(*), parameter :: hessianOut = "hessian.out"
 
-  !> file name for charge data
-  character(*), parameter :: fCharges = "charges.bin"
+  !> file name prefix for charge data
+  character(*), parameter :: fCharges = "charges"
 
   !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
@@ -611,6 +611,9 @@ module initprogram
 
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
+
+  !> should charges written to disc be in ascii or binary format?
+  logical :: tWriteChrgAscii
 
   !> produce tagged output?
   logical :: tWriteAutotest
@@ -1239,7 +1242,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-    
+
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -1867,6 +1870,7 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+    tWriteChrgAscii = input%ctrl%tWriteChrgAscii
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -1879,25 +1883,26 @@ contains
         if (tDFTBU) then
           if (nSpin == 2) then
             if (tFixEf) then ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl), &
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
             end if
           else
             if (tImHam) then
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
+                    & qBlock=qBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn)
               end if
             end if
@@ -1906,16 +1911,16 @@ contains
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl),&
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = nEl(1))
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
             end if
           end if
         end if

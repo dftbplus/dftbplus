@@ -321,7 +321,8 @@ contains
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
-            call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
+            call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn,&
+                & qiBlockIn)
           end if
         end if
 
@@ -478,7 +479,7 @@ contains
         tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
             & .and. maxSccIter > 1
         if (tWriteCharges) then
-          call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
+          call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn)
         end if
 
         ! initially assume coordinates are not being updated
