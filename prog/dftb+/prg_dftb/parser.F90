@@ -1894,18 +1894,6 @@ contains
       call error("Lattice optimization only applies for periodic structures.")
     end if
 
-    ! Many-body dispersion
-    call getChildValue(node, "ManyBodyDispersion", value, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
-    if (associated(value)) then
-    #:if WITH_MBD
-      allocate(ctrl%mbdInp)
-      call readManyBodyDisp(child, geo, ctrl%mbdInp)
-    #:else
-      call detailedError(child, "Code was compiled without many-body dispersion support")
-    #:endif
-    end if
-
     ! Third order stuff
     ctrl%t3rd = .false.
     ctrl%t3rdFull = .false.
@@ -2652,12 +2640,26 @@ contains
       allocate(input%uff)
       call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
-#:if WITH_DFTD3
+    #:if WITH_DFTD3
       allocate(input%dftd3)
       call readDispDFTD3(dispModel, input%dftd3)
-#:else
+    #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
-#:endif
+    #:endif
+    case ("ts")
+    #:if WITH_MBD
+      allocate(input%mbdInp)
+      call readDispTs(dispModel, input%mbdInp)
+    #:else
+      call detailedError(node, "Program must be compiled with libMBD for TS-dispersion")
+    #:endif
+    case ("mbd")
+    #:if WITH_MBD
+      allocate(input%mbdInp)
+      call readDispMbd(dispModel, input%mbdInp)
+    #:else
+      call detailedError(node, "Program must be compiled with libMBD for MBD-dispersion")
+    #:endif
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -2842,8 +2844,8 @@ contains
 
   end subroutine readDispVdWUFF
 
-#:if WITH_DFTD3
 
+#:if WITH_DFTD3
 
   !> Reads in initialization data for the DFTD3 dispersion module.
   subroutine readDispDFTD3(node, input)
@@ -2900,52 +2902,54 @@ contains
 
 #:if WITH_MBD
 
-  subroutine readManyBodyDisp(node, geo, input)
-
-    !> Node to parse
-    type(fnode), pointer :: node
-
-    !> geometry, including atomic information
-    type(TGeometry), intent(in) :: geo
-
-    !> dispersion data on exit
+  subroutine readDispTs(node, input)
+    type(fnode), pointer, intent(in) :: node
     type(TMbdInit), intent(out) :: input
 
     type(string) :: buffer
-    type(fnode), pointer :: model
-    integer  :: axis(3)
-    integer  :: tmp(3)
-    real(dp) :: tmp2(3)
+    type(fnode), pointer :: child
 
-    call getChildValue(node, "", model)
-    call getNodeName(model, buffer)
-    select case (char(buffer))
-    case ("ts")
-      input%only_ts_energy = .true.
-    case ("mbd")
-      input%only_ts_energy = .false.
-    case default
-      call detailedError(model, "Invalid MBD model name.")
-    end select
-    call getChildValue(model, "TSEnergyAccuracy", input%ts_ene_acc, 1e-7_dp)
-    call getChildValue(model, "TSForceAccuracy", input%ts_f_acc, 1e-6_dp)
-    call getChildValue(model, "TSDamp", input%ts_d, 20.0_dp)
-    call getChildValue(model, "TSRangeSep", input%ts_s_r, 0.94_dp)
-    call getChildValue(model, "Beta", input%beta, 0.83_dp)
-    call getChildValue(model, "NOmegaGrid", input%n_omega_grid, 15)
-    call getChildValue(model, "KGrid", input%k_grid, tmp)
-    tmp(:) = 0
-    tmp2(:) = 0.5_dp
-    call getChildValue(model, "KGridShift", input%k_grid_shift, tmp2)
-    call getChildValue(model, "VacuumAxis", axis, tmp)
-    if (axis(1) > 0) input%vacuum_axis(1) = .true.
-    if (axis(2) > 0) input%vacuum_axis(2) = .true.
-    if (axis(3) > 0) input%vacuum_axis(3) = .true.
-    call getChildValue(model, "Debug", input%mbd_debug, .false.)
-    call getChildValue(model, "Params", buffer, 'ts')
-    input%params = char(buffer)
+    input%only_ts_energy = .true.
+    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, 1e-7_dp)  ! TS [Ha]
+    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, 1e-6_dp)     ! TS [Ha/Bohr]
+    call getChildValue(node, "Damping", input%ts_d, 20.0_dp)
+    call getChildValue(node, "RangeSeparation", input%ts_s_r, 0.94_dp)
+    call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
+    input%params = tolower(unquote(char(buffer)))
+    call checkManyBodyDispRefName(input%params, child)
 
-  end subroutine readManyBodyDisp
+  end subroutine readDispTs
+
+
+  subroutine readDispMbd(node, input)
+    type(fnode), pointer, intent(in) :: node
+    type(TMbdInit), intent(out) :: input
+
+    type(string) :: buffer
+    type(fnode), pointer :: child
+
+    input%only_ts_energy = .false.
+    call getChildValue(node, "Beta", input%beta, 0.83_dp)
+    call getChildValue(node, "NOmegaGrid", input%n_omega_grid, 15)
+    call getChildValue(node, "KGrid", input%k_grid)
+    call getChildValue(node, "KGridShift", input%k_grid_shift, [0.5_dp, 0.5_dp, 0.5_dp])
+    call getChildValue(node, "VacuumAxis", input%vacuum_axis, [.false., .false., .false.])
+    call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
+    input%params = tolower(unquote(char(buffer)))
+    call checkManyBodyDispRefName(input%params, child)
+
+  end subroutine readDispMbd
+
+
+  subroutine checkManyBodyDispRefName(name, node)
+    character(*), intent(in) :: name
+    type(fnode), pointer, intent(in) :: node
+
+    if (name /= 'ts' .and. name /= 'tssurf') then
+      call detailedError(node, 'Invalid reference set name for TS/MBD-dispersion')
+    end if
+
+  end subroutine checkManyBodyDispRefName
 
 #:endif
 
@@ -3031,7 +3035,7 @@ contains
     end do lp2
 
     if (any(ctrl%tempSteps < 0)) then
-      call detailedError(node, "Step values must not be negative.")
+     call detailedError(node, "Step values must not be negative.")
     end if
 
     ii = sum(ctrl%tempSteps)

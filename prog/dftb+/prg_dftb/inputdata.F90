@@ -364,10 +364,6 @@ module inputdata_module
     !> Dispersion related stuff
     type(DispersionInp), allocatable :: dispInp
 
-  #:if WITH_MBD
-    !> Many-body dispersion
-    type(TMbdInit), allocatable :: mbdInp
-  #:endif
 
     !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)

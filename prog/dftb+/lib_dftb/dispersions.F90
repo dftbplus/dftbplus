@@ -14,6 +14,7 @@ module dispersions
   use dispuff_module
   use dispuffdata
   use dispslaterkirkw
+  use mbd, only : TMbdInit
 #:if WITH_DFTD3
   use dispdftd3_module
 #:endif
@@ -33,6 +34,11 @@ module dispersions
   #:if WITH_DFTD3
     !> Grimme DFT-D3
     type(DispDftD3Inp), allocatable :: dftd3
+  #:endif
+
+  #:if WITH_MBD
+    !> Many-body dispersion
+    type(TMbdInit), allocatable :: mbdInp
   #:endif
 
   end type DispersionInp

@@ -1546,6 +1546,7 @@ contains
 
     ! Dispersion
     tDispersion = allocated(input%ctrl%dispInp)
+    tManyBodyDisp = .false.
     if (tDispersion) then
       if (allocated(input%ctrl%dispInp%slakirk)) then
         tStress = .false.
@@ -1565,6 +1566,7 @@ contains
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk)
         end if
         call move_alloc(slaKirk, dispersion)
+        mCutoff = max(mCutoff, dispersion%getRCutoff())
 
       elseif (allocated(input%ctrl%dispInp%uff)) then
         allocate(uff)
@@ -1575,6 +1577,7 @@ contains
           call DispUff_init(uff, input%ctrl%dispInp%uff, nAtom)
         end if
         call move_alloc(uff, dispersion)
+        mCutoff = max(mCutoff, dispersion%getRCutoff())
 
     #:if WITH_DFTD3
       elseif (allocated(input%ctrl%dispInp%dftd3)) then
@@ -1587,28 +1590,23 @@ contains
               & species0, speciesName)
         end if
         call move_alloc(dftd3, dispersion)
+        mCutoff = max(mCutoff, dispersion%getRCutoff())
     #:endif
-      end if
-      mCutoff = max(mCutoff, dispersion%getRCutoff())
 
-    end if
-
-    ! Many body dispersion
-    tManyBodyDisp = allocated(input%ctrl%mbdInp)
-    if (tManyBodyDisp) then
     #:if WITH_MBD
-      allocate(mbDispersion)
-      input%ctrl%mbdInp%calculate_forces = tForces
-      if (tPeriodic) then
-        call mbdInit(mbDispersion, input%ctrl%mbdInp, env%mpi%globalComm, nAtom, species0,&
-            & referenceN0, orb%nShell, speciesName, latVec)
-      else
-        call mbdInit(mbDispersion, input%ctrl%mbdInp, env%mpi%globalComm, nAtom, species0,&
-            & referenceN0, orb%nShell, speciesName)
+      elseif (allocated(input%ctrl%dispInp%mbdInp)) then
+        tManyBodyDisp = .true.
+        allocate(mbDispersion)
+        input%ctrl%dispInp%mbdInp%calculate_forces = tForces
+        if (tPeriodic) then
+          call mbdInit(mbDispersion, input%ctrl%dispInp%mbdInp, env%mpi%globalComm, nAtom,&
+              & species0, referenceN0, orb%nShell, speciesName, latVec)
+        else
+          call mbdInit(mbDispersion, input%ctrl%dispInp%mbdInp, env%mpi%globalComm, nAtom,&
+              & species0, referenceN0, orb%nShell, speciesName)
+        end if
+     #:endif
       end if
-    #:else
-      call error("Internal error: code compiled without many-body dispersion support")
-    #:endif
     end if
 
     if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
@@ -2451,7 +2449,7 @@ contains
       end do
     end if
 
-    if (tDispersion) then
+    if (tDispersion .and. .not. tManyBodyDisp) then
       select type (dispersion)
       type is (DispSlaKirk)
         write(stdOut, "(A)") "Using Slater-Kirkwood dispersion corrections"
@@ -2468,7 +2466,7 @@ contains
 
   #:if WITH_MBD
     if (tManyBodyDisp) then
-      call writeMbdInfo(input%ctrl%mbdInp)
+      call writeMbdInfo(input%ctrl%dispInp%mbdInp)
     end if
   #:endif
 

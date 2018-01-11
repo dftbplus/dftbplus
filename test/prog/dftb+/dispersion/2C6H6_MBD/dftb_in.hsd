@@ -1,22 +1,22 @@
 Geometry = GenFormat {
-<<< "geo_start.gen"
+  <<< "geo_start.gen"
 }
 
-Driver = {}
+Driver {}
 
 Hamiltonian = DFTB {
-  SCC = Yes
-  SCCTolerance = 1e-8
-  MaxSCCIterations = 100
+  Scc = Yes
+  SccTolerance = 1e-8
+  MaxSccIterations = 100
   Mixer = Broyden {
     MixingParameter = 0.2
   }
-  MaxAngularMomentum = {
+  MaxAngularMomentum {
     C = "p"
     H = "s"
   }
   Charge = 0.0
-  SpinPolarisation = {}
+  SpinPolarisation {}
   Eigensolver = DivideAndConquer {}
   Filling = Fermi {
     Temperature [Kelvin] = 0.0
@@ -26,25 +26,27 @@ Hamiltonian = DFTB {
     Suffix = ".skf"
   }
 
-  ManyBodyDispersion = MBD{
-    Params = ts
+  Dispersion = Mbd {
+    ReferenceSet = 'ts'
     NOmegaGrid = 15
-    Beta = 1.050000000000000
-    KGrid = { 2 2 2 }
-    VacuumAxis = { 1 1 1 }
-    Debug = Yes
+    Beta = 1.05
+    KGrid = 2 2 2
+    VacuumAxis = Yes Yes Yes
   }
-
+  # Legacy setting, do not use it!
+  Differentiation = FiniteDiff {
+    Delta = 1e-2
+  }
 }
 
-Options = {
+Analysis {
   CalculateForces = Yes
-  WriteEigenvectors = Yes
-  WriteAutotestTag = Yes
-  WriteResultsTag = Yes
-  #WriteCPA = Yes
 }
 
-ParserOptions = {
-  ParserVersion = 3
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 5
 }
