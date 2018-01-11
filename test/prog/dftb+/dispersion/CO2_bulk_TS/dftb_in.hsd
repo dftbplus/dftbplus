@@ -37,10 +37,6 @@ Hamiltonian = DFTB {
     Damping = 20.0
     RangeSeparation = 1.0
   }
-  # Legacy setting, do not use it!
-  Differentiation = FiniteDiff {
-    Delta = 1e-2
-  }
 }
 
 Options {

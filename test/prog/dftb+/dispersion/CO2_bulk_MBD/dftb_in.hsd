@@ -37,10 +37,6 @@ Hamiltonian = DFTB {
     Beta = 0.86
     KGrid = 1 1 1
   }
-  # Legacy setting, do not use it!
-  Differentiation = FiniteDiff {
-    Delta = 1e-2
-  }
 }
 
 Analysis {

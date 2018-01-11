@@ -33,10 +33,6 @@ Hamiltonian = DFTB {
     KGrid = 2 2 2
     VacuumAxis = Yes Yes Yes
   }
-  # Legacy setting, do not use it!
-  Differentiation = FiniteDiff {
-    Delta = 1e-2
-  }
 }
 
 Analysis {

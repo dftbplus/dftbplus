@@ -32,10 +32,6 @@ Hamiltonian = DFTB {
     Damping = 20
     ReferenceSet = "ts"
   }
-  # Legacy setting, do not use it!
-  Differentiation = FiniteDiff {
-    Delta = 1e-2
-  }
 }
 
 Analysis {
