@@ -3227,7 +3227,10 @@ contains
       if (.not.ctrl%tESPGrid) then
         call detailedError(child,"Either a grid or set of points must be specified")
       end if
-      call getChildValue(child, "Softening", ctrl%softenESP, 1.0E-6_dp)
+      call getChildValue(child, "Softening", ctrl%softenESP, 1.0E-6_dp, modifier=modifier,&
+          & child=child2)
+      call convertByMul(char(modifier), lengthUnits, child2, ctrl%softenEsp)
+
     end if
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)

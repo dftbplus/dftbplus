@@ -48,6 +48,8 @@ timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and NPROC <= 1
 timedep/NO                             #? WITH_ARPACK and NPROC <= 1
 timedep/propadiene_OscWindow           #? WITH_ARPACK and NPROC <= 1
 
+analysis/H2O_ESP                       #? NPROC <= 1
+analysis/H2O_mdESP                     #? NPROC <= 2
 geoopt/H2O                             #? NPROC <= 1
 md/Si_8_NHC_restart                    #? NPROC <= 1
 non-scc/GaAs_2                         #? NPROC <= 1
@@ -74,6 +76,7 @@ spin/Fe4_noncolinear                   #? NPROC <= 4
 non-scc/HBDI-neutral                   #? NPROC <= 4
 non-scc/HBDI-cationic                  #? NPROC <= 4
 scc/C60                                #? NPROC <= 4
+analysis/C60_ESP                       #? NPROC <= 4
 spin/H2O                               #? NPROC <= 1
 
 timedep/cyclopentadienyl               #? WITH_ARPACK and NPROC <= 1

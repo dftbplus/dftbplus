@@ -2735,13 +2735,55 @@ method which {\em may} have better scaling properties.
 \item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
 
-\subsubsection{ElectrostaticPotential} \kw{ElectrostaticPotential}
-\label{sec:dftbp.ESP}
-
-Calculates the electrostatic potential at specified points in space.
-
 \end{description}
 
+\subsubsection{ElectrostaticPotential}
+\label{sec:dftbp.ESP}
+
+Evaluates the electrostatic potential at specified points in space for SCC
+calculations. This data is accumulated in a specified text file.
+
+\begin{ptable}
+  \kw{OutputFile} & s  &  & "ESP.dat" & \\
+  \kw{AppendFile} & l  & MD or geometry optimisation & No & \\
+  \kw{Softening}  & r     & & 1E-6 & \\
+  \kw{Points}     & (3r)+ & \is{Grid} not set & \cb  & \\
+  \kw{Grid}       & m     & \is{Points} not set & \cb  & \\
+\end{ptable}
+\begin{description}
+\item[\is{OutFile}] Text file to store the potential. If external electric
+  fields are present, an additional column gives their values.
+\item[\is{AppendFile}] If running calculations with multiple geometries, should
+  the \is{OutputFile} be appended or only contain the last potential
+  information?
+\item[\is{Softening}] \modif{\modtype{length}} Modifies the plotted potential to
+  remove the $r=0$ divergence of $\sfrac{1}{r}$, by setting $\epsilon$ and
+  instead plotting $\sfrac{1}{\sqrt{r^2 +\epsilon^2}}$. Internal potential
+  calculations are unaffected, only the exported data.
+\item[\is{Points}] \modif{\modtype{length}} List of cartesian points at which to
+  evaluate the electrostatic field. In the case Periodic = Yes, the modifier "F"
+  may instead be used to specify the points as fractions of the lattice vectors.
+\item[\is{Grid}] \modif{\modtype{length}} Specification of a regular 1, 2 or 3
+  dimensional grid of points. In the case Periodic = Yes, the modifier "F" may
+  instead be used to specify the points as fractions of the lattice vectors.
+  \begin{ptable}
+    \kw{NPoints} & 3i  &  & & \\
+    \kw{Origin} & 3r  &  & & \\
+    \kw{Spacing} & 3r  &  & & \\
+    \kw{Directions} & 9r  & Modifier not F & & \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{Spacing}] Separation between points in each direction. This
+      inherits the modifier for \is{Grid}.
+  \item[\is{Origin}] Location of first point in the grid. This inherits the
+    modifier for \is{Grid}.
+  \item[\is{NPoints}] Number of points in each of the three direction of the
+    grid (a value of 1 places all points at the \is{Origin} of that direction).
+  \item[\is{Directions}] Affine $3\times3$ transformation matrix to rotate,
+    skew, {\it etc.}\ the points in the grid. The vectors of the transformation
+    are normalised before application.
+  \end{description}
+\end{description}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

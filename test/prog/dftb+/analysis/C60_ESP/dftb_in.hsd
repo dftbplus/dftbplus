@@ -89,14 +89,7 @@ Analysis = {
   AtomResolvedEnergies = Yes
   ElectrostaticPotential = {
     Points [AA] = {0 0 0}
-#     Grid [AA] = {
-#      Spacing = {.5 .5 .5}
-#      Origin = {-4 -4 0}
-#      NPoints = {17 17 1}
-#      Directions = {
-#        
-#      }
-#     }
+    Softening [AA] = 1E-6
   }
 }
 
