@@ -1183,19 +1183,13 @@ contains
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) >= (/m,mn/)))
-    @:ASSERT(all(shape(vt) >= (/mn,n/)))
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
     @:ASSERT(size(sigma) == mn)
 
-   lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
+    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
 
     allocate(work(lwork))
-
-    u = 0.0_rsp
-    vt = 0.0_rsp
-    sigma = 0.0_rsp
-    work = 0.0_rsp
-    info = 0
 
     ! get only the minimum(m,n) singular vectors
     call sgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
@@ -1236,19 +1230,13 @@ contains
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) >= (/m,mn/)))
-    @:ASSERT(all(shape(vt) >= (/mn,n/)))
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
     @:ASSERT(size(sigma) == mn)
 
     lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
 
     allocate(work(lwork))
-
-    u = 0.0_rsp
-    vt = 0.0_rsp
-    sigma = 0.0_rsp
-    work = 0.0_rsp
-    info = 0
 
     ! get only the minimum(m,n) singular vectors
     call dgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
@@ -1289,21 +1277,14 @@ contains
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) >= (/m,mn/)))
-    @:ASSERT(all(shape(vt) >= (/mn,n/)))
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
     @:ASSERT(size(sigma) == mn)
 
     lwork = 2*min(m,n)+max(m,n)
 
     allocate(rwork(5*mn))
     allocate(work(lwork))
-
-    u = 0.0_rsp
-    vt = 0.0_rsp
-    sigma = 0.0_rsp
-    rwork = 0.0_rsp
-    work = 0.0_rsp
-    info = 0
 
     ! get only the minimum(m,n) singular vectors
     call cgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
@@ -1346,21 +1327,14 @@ contains
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) >= (/m,mn/)))
-    @:ASSERT(all(shape(vt) >= (/mn,n/)))
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
     @:ASSERT(size(sigma) == mn)
 
     lwork = 2*min(m,n)+max(m,n)
 
     allocate(rwork(5*mn))
     allocate(work(lwork))
-
-    u = 0.0_rsp
-    vt = 0.0_rsp
-    sigma = 0.0_rsp
-    rwork = 0.0_rsp
-    work = 0.0_rsp
-    info = 0
 
     ! get only the minimum(m,n) singular vectors
     call zgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
