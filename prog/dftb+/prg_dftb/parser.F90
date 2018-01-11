@@ -2611,9 +2611,9 @@ contains
   #:endif
 
     if (ctrl%tReadChrg) then
-      call getChildValue(node, "ReadChargesInBinary", ctrl%tReadChrgBinary, .true.)
+      call getChildValue(node, "ReadChargesAsText", ctrl%tReadChrgAscii, .false.)
     end if
-    call getChildValue(node, "WriteChargesInBinary", ctrl%tWriteChrgBinary, .true.)
+    call getChildValue(node, "WriteChargesAsText", ctrl%tWriteChrgAscii, .false.)
 
   end subroutine readOptions
 

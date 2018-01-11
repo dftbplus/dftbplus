@@ -35,7 +35,7 @@ Hamiltonian = DFTB {
 
 Options = {
   WriteAutotestTag = Yes
-  ReadChargesInBinary = No
+  ReadChargesAsText = Yes
 }
 
 Analysis = {

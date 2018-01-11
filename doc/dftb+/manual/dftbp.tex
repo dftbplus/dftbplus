@@ -485,7 +485,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   which you use to restart (iterations at which charges are written to disc are
   marked in the XYZ file, with the most recent being present in
   \verb|charges.bin| or \verb|charges.dat| depending on the option
-  \is{WriteChargesInBinary}).
+  \is{WriteChargesAsText}).
 
 \item[\is{Barostat}] Berendsen method barostat for the MD simulation. See
   p.~\pref{sec:dftbp.Barostat}.
@@ -1161,7 +1161,7 @@ following properties:
 \item[\is{ReadInitialCharges}] If set to \is{Yes} the first Hamiltonian is
   constructed by using the charge information read from the file
   \verb|charges.bin| or \verb|charges.dat| (depending on the option
-  \is{WriteChargesInBinary}, see section\ref{sec:dftbp.Options}).
+  \is{WriteChargesAsText}, see section\ref{sec:dftbp.Options}).
 
 \item[\is{InitialCharges}] Specifies initial net charges, either for
   all atoms or for only selected ones. In order to specify it for all
@@ -2520,9 +2520,9 @@ This block collects some global options for the run.
   \kw{ShowFoldedCoords} & l & Periodic = Yes & No & \\
   \kwl{WriteHS}{kw:dftbp.WriteHS} & l & & No & \\
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
-  \kwl{ReadChargesInBinary}{kw:dftbp.ReadChargesInBinary} & l &
-  ReadInitialCharges = Yes & Yes & \\
-  \kwl{WriteChargesInBinary}{kw:dftbp.WriteChargesInBinary} & l & & Yes & \\
+  \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
+  ReadInitialCharges = Yes & No & \\
+  \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
 \end{ptable}
 \begin{description}
 
@@ -2599,13 +2599,13 @@ This block collects some global options for the run.
   option to build the Hamiltonian with a previously converged charge
   distribution.
 
-\item[\is{ReadChargesInBinary}] If \is{Yes}, the program expects the file
-  \verb|charges.bin| to contain starting charges stored in binary. If \is{No},
+\item[\is{ReadChargesAsText}] If \is{No}, the program expects the file
+  \verb|charges.bin| to contain starting charges stored in binary. If \is{Yes},
   then \verb|charges.dat| should contain a text file of this data. See section
   \ref{sec:charges.bin}.
 
-\item[\is{WriteChargesInBinary}] If \is{Yes}, the program stores charges in the
-  binary file \verb|charges.bin|, while if \is{No} then \verb|charges.dat|
+\item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
+  binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
   contains text of this data. See section \ref{sec:charges.bin}.
 
 \end{description}
@@ -3086,9 +3086,8 @@ This file is produced as part of the mechanism to restart SCC calculations, see
 sections~\ref{kw:dftbp.RestartFrequency} and~\ref{kw:dftbp.MDRestartFrequency}.
 
 Equivalent data can also be present in the file \verb|charges.dat|, but stored
-as plain text. The options \is{WriteChargesInBinary} and
-\is{ReadChargesInBinary} control which cases are generated and read
-respectively.
+as plain text. The options \is{WriteChargesAsText} and \is{ReadChargesAsText}
+control which cases are generated and read respectively.
 
 Appendix \ref{app:restartfiles} contains details of the contents of the file.
 
