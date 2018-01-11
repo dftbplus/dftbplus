@@ -972,6 +972,12 @@ contains
 
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    if (env%mpi%nGroup > 1) then
+      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
+          & env%mpi%globalComm%size, env%mpi%nGroup
+    else
+      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
+    end if
   #:endif
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)

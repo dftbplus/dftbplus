@@ -145,4 +145,5 @@ timedep/C60_EandOsc                    #? WITH_ARPACK and NPROC <= 1
 non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
+scc/SiC64+V_dynforce_groups            #? NPROC <= 8 and NPROC % 4 == 0 
 scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0
