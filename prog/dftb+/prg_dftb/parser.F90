@@ -2910,8 +2910,11 @@ contains
     type(fnode), pointer :: child
 
     input%only_ts_energy = .true.
-    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, 1e-7_dp)  ! TS [Ha]
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, 1e-6_dp)     ! TS [Ha/Bohr]
+    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, 1e-7_dp, modifier=buffer,&
+        & child=child)
+    call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
+    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, 1e-6_dp, modifier=buffer, child=child)
+    call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
     call getChildValue(node, "Damping", input%ts_d, 20.0_dp)
     call getChildValue(node, "RangeSeparation", input%ts_s_r, 0.94_dp)
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
