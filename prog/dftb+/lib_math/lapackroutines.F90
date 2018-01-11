@@ -92,6 +92,8 @@ module lapackroutines
 
   !> svd decomposition of matrix A into left and right vectors and singular values U S V^dag
   interface gesvd
+    module procedure sgesvd_real
+    module procedure dgesvd_dble
     module procedure cgesvd_cplx
     module procedure zgesvd_dblecplx
   end interface gesvd
@@ -1273,6 +1275,99 @@ contains
   end subroutine larnv_dblecplx
 
 
+  !> real svd decomposition of matrix A into left and right vectors and singular values
+  subroutine sgesvd_real(A,u,sigma,vt)
+
+    !> matrix to decompose, warning the matrix is over-written by the routine
+    real(rsp), intent(inout) :: A(:,:)
+
+    !> first min(m,n) columns of u hold the left singular vector on return
+    real(rsp), intent(out) :: u(:,:)
+
+    !> holds the singular values on return
+    real(rsp), intent(out) :: sigma(:)
+
+    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
+    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
+    !> zero!
+    real(rsp), intent(out) :: vt(:,:)
+
+    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
+    real(rsp), allocatable :: work(:)
+
+    m = size(A,dim=1)
+    n = size(A,dim=2)
+    mn = min(m,n)
+    lda = size(A,dim=1)
+    ldu = size(U,dim=1)
+    ldvt = size(Vt,dim=1)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
+    @:ASSERT(size(sigma) == mn)
+
+    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
+
+    allocate(work(lwork))
+
+    ! get only the minimum(m,n) singular vectors
+    call sgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      call error(error_string)
+    end if
+
+    deallocate(work)
+
+  end subroutine sgesvd_real
+
+
+  !> double precision svd decomposition of matrix A into left and right vectors and singular values
+  subroutine dgesvd_dble(A,u,sigma,vt)
+
+    !> matrix to decompose, warning the matrix is over-written by the routine
+    real(rdp), intent(inout) :: A(:,:)
+
+    !> first min(m,n) columns of u hold the left singular vector on return
+    real(rdp), intent(out) :: u(:,:)
+
+    !> holds the singular values on return
+    real(rdp), intent(out) :: sigma(:)
+
+    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
+    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
+    !> zero!
+    real(rdp), intent(out) :: vt(:,:)
+
+    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
+    real(rdp), allocatable :: work(:)
+
+    m = size(A,dim=1)
+    n = size(A,dim=2)
+    mn = min(m,n)
+    lda = size(A,dim=1)
+    ldu = size(U,dim=1)
+    ldvt = size(Vt,dim=1)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
+    @:ASSERT(size(sigma) == mn)
+
+    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
+
+    allocate(work(lwork))
+
+    ! get only the minimum(m,n) singular vectors
+    call dgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      call error(error_string)
+    end if
+
+    deallocate(work)
+
+  end subroutine dgesvd_dble
+
   !> complex svd decomposition of matrix A into left and right vectors and singular values
   subroutine cgesvd_cplx(A,u,sigma,vt)
 
@@ -1301,21 +1396,13 @@ contains
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
     @:ASSERT(all(shape(u) == (/m,mn/)))
-    @:ASSERT(all(shape(vt) == (/n,n/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
     @:ASSERT(size(sigma) == mn)
 
     lwork = 2*min(m,n)+max(m,n)
 
     allocate(rwork(5*mn))
     allocate(work(lwork))
-
-    u = 0.0_rsp
-    vt = 0.0_rsp
-    sigma = 0.0_rsp
-    rwork = 0.0_rsp
-    work = 0.0_rsp
-    rwork = 0.0_rsp
-    info = 0
 
     ! get only the minimum(m,n) singular vectors
     call cgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
@@ -1359,21 +1446,13 @@ contains
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
     @:ASSERT(all(shape(u) == (/m,mn/)))
-    @:ASSERT(all(shape(vt) == (/n,n/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
     @:ASSERT(size(sigma) == mn)
 
     lwork = 2*min(m,n)+max(m,n)
 
     allocate(rwork(5*mn))
     allocate(work(lwork))
-
-    u = 0.0_rsp
-    vt = 0.0_rsp
-    sigma = 0.0_rsp
-    rwork = 0.0_rsp
-    work = 0.0_rsp
-    rwork = 0.0_rsp
-    info = 0
 
     ! get only the minimum(m,n) singular vectors
     call zgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
