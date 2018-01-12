@@ -487,12 +487,10 @@ contains
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
-        call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
             & tRealHS, ham, over, parallelKS, solver, iSCCIter, mu, ERhoPrim, eigvecsReal, SSqrReal, &
             & eigvecsCplx, SSqrCplx)
-        call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
             & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
@@ -745,15 +743,15 @@ contains
           & nKPoint, nSpin, size(eigen, dim=1), nOrb, kPoint, kWeight, filling, occNatural)
     end if
 
+    call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
 
 #:if WITH_TRANSPORT
     if (tPoisson) call poiss_destroy()
     if (solver==solverGF) call negf_destroy()
 #:endif
 
-    call env%globalTimer%startTimer(globalTimers%postGeoOpt)
-
     call destructProgramVariables()
+
     call env%globalTimer%writeTimings(msg="DFTB+ running times", maxLevel=timingLevel)
 
   end subroutine runDftbPlus
@@ -1850,12 +1848,17 @@ contains
 
     nSpin = size(ham, dim=2)
 
+
 #:if WITH_TRANSPORT
     if (solver == solverGF) then
+      call env%globalTimer%startTimer(globalTimers%densityMatrix)
+
       call calcdensity_green(iSCC, env%mpi%groupComm, parallelKS%localKS, ham, over, &
           & neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, &
           & img2CentCell, iCellVec, cellVec, orb,  & 
           & kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
+    
+      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
       return
     end if
 #:endif
@@ -1884,6 +1887,7 @@ contains
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
+
     if (nSpin /= 4) then
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
@@ -3572,7 +3576,7 @@ contains
       & over, parallelKS, solver, iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -3650,9 +3654,11 @@ contains
 
     integer :: nSpin
 
+    call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
+
 #:if WITH_TRANSPORT
     if (solver == solverGF) then
-      call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over, &
+      call calcEdensity_green(iSCC, env%mpi%groupComm, parallelKS%localKS, ham, over, &
           & neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, &
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       return
@@ -3674,6 +3680,8 @@ contains
           & kWeight, neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
           & ham, over, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
     end if
+        
+    call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
 
   end subroutine getEnergyWeightedDensity
 
@@ -4207,7 +4215,7 @@ contains
             & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
             & potential%intBlock)
       end if
- 
+print*,'non-scc derivs:',derivs 
       if (tPoisson) then
          tmpDerivs = 0.0_dp
 #:if WITH_TRANSPORT
@@ -4228,7 +4236,9 @@ contains
             call sccCalc%addForceDcXlbomd(env, species, orb, neighborList%iNeighbor, img2CentCell,&
                 & coord, qOutput, q0, derivs)
           else
+tmpDerivs = derivs
             call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell, coord)
+print*,'scc derivs:',derivs-tmpDerivs 
           end if
         end if
 
@@ -4257,6 +4267,8 @@ contains
     call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
         & img2CentCell)
     derivs = derivs + tmpDerivs
+print*,'rep derivs:',tmpDerivs
+print*,'total derivs:',derivs
 
   end subroutine getGradients
 

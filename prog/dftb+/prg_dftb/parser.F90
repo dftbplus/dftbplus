@@ -1650,10 +1650,9 @@ contains
 #:if WITH_TRANSPORT      
     case ("greensfunction")
       ctrl%iSolver = solverGF
-      call readGreensFunction(value, greendens, tp, ctrl%tempElec)
+      call readGreensFunction(value, greendens, tp)
     case ("transportonly")
       ctrl%iSolver = onlyTransport
-      !tp%taskUpload = .false.
 #:endif
     end select
 
@@ -1711,6 +1710,14 @@ contains
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
       call getChildValue(value, "IndependentKFilling", ctrl%tFillKSep, .false.)
     end if
+
+    
+#:if WITH_TRANSPORT      
+    if (.not. tp%defined) then
+      allocate(greendens%kbT(1)) 
+      greendens%kbT(:) = ctrl%tempElec ! default value
+    end if  
+#:endif
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
@@ -2727,7 +2734,7 @@ contains
   #:if DEBUG > 0
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 3)
   #:else
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 1)
   #:endif
 
   end subroutine readOptions
@@ -3470,7 +3477,7 @@ contains
     call getChildValue(pDevice, "AtomRange", tp%idxdevice)
     call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
     call readFirstLayerAtoms(pTmp, tp%PL, tp%nPLs, tp%idxdevice)
-print*,'(parser) PL:',tp%PL
+
     !DAR begin
     call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)           
     if (associated(pTmp)) then
@@ -3631,11 +3638,11 @@ print*,'(parser) PL:',tp%PL
   end subroutine readFirstLayerAtoms
 #:endif
 
+
 #:if WITH_TRANSPORT  
-  subroutine readGreensFunction(pNode, greendens, transpar, tempelec)
+  subroutine readGreensFunction(pNode, greendens, transpar)
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
     type(TTransPar), intent(inout) :: transpar                  !DAR in -> inout
-    real(dp), intent(in) :: tempelec
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
     type(fnodeList), pointer :: pNodeList
@@ -3678,19 +3685,15 @@ print*,'(parser) PL:',tp%PL
         call asArray(li,transpar%cblk)
         call destruct(li)
       end if
-
-      allocate(greendens%kbT(1))
-      greendens%kbT(:) = tempelec ! default value
     else
       if (transpar%ncont > 0) then
         allocate(greendens%kbT(transpar%ncont))
-        greendens%kbT = tempelec
+        do ii = 1, transpar%ncont
+          if (transpar%contacts(ii)%kbT .ge. 0.0_dp) then
+            greendens%kbT(ii) = transpar%contacts(ii)%kbT
+          end if   
+        enddo          
       end if  
-      do ii = 1, transpar%ncont
-        if (transpar%contacts(ii)%kbT .ge. 0.0_dp) then
-          greendens%kbT(ii) = transpar%contacts(ii)%kbT
-        end if   
-      enddo          
     end if
 
     call getChildValue(pNode, "LocalCurrents", greendens%doLocalCurr, .false.)
@@ -4501,7 +4504,7 @@ print*,'(parser) PL:',tp%PL
 
     type(listReal) :: fermiBuffer
 
-    write(stdout,"('Contacts:')")
+    !write(stdout,"('Contacts:')")
 
     ncont = size(contacts)
     do ii = 1,ncont

@@ -50,7 +50,7 @@ module poisson_int
   use CommonTypes, only : TOrbitals
   use libmpifx_module 
   use system_calls, only: create_directory
-
+  use gclock
   implicit none
   private
 
@@ -346,7 +346,9 @@ subroutine poiss_getshift(V_L_atm,grad_V)
         write(*,'(80("="))') 
       endif
       call init_PoissBox
+      call set_clock()
       call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
+      call write_clock("solve time")
     case(1)
       call mudpack_drv(PoissFlag,V_L_atm,grad_V)
     end select

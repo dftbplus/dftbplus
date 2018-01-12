@@ -76,9 +76,7 @@ module negf_int
     ! string needed to hold processor name
     character(:), allocatable :: hostname
     type(lnParams) :: params
-
-    
-    
+   
     error = 0 
     initinfo = .true.       
 
@@ -93,6 +91,7 @@ module negf_int
     ! ------------------------------------------------------------------------------
     !! Set defaults and fill up the parameter structure with them
     call init_negf(negf)
+    call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
     call create_scratch(negf)    
     call get_params(negf, params)
@@ -132,6 +131,7 @@ module negf_int
         params%g_spin = real(greendens%gSpin) ! Spin degeneracy
     end if
   
+   
     ! Setting contact temperatures
     do i = 1, ncont
       if (greendens%defined) then
@@ -150,6 +150,14 @@ module negf_int
         params%kbT_t(i) = tempElec
       end if    
     end do
+
+    if (ncont == 0) then
+      if (greendens%defined) then
+        params%kbT_dm(1) = greendens%kbT(1)
+      else        
+        params%kbT_dm(1) = tempElec
+      end if  
+    end if
 
     ! ------------------------------------------------------------------------------
     !            SETTING ELECTROCHEMICAL POTENTIALS INCLUDING BUILT-IN 
@@ -224,18 +232,17 @@ module negf_int
     !! Setting the delta: priority on Green Solver, if present
     !! dos_delta is used by libnegf to smoothen T(E) and DOS(E)
     !! and is currently set in tunneling
-    params%dos_delta = tundos%broadeningDelta
     if (tundos%defined) then
+      params%dos_delta = tundos%broadeningDelta
       params%delta = tundos%delta      ! delta for G.F.
     end if
     if (greendens%defined) then
       params%delta = greendens%delta   ! delta for G.F.
     end if
-    write(*,*) 'delta:',params%delta  
+      
     ! ------------------------------------------------------------------------------
     !                    SETTING TRANSMISSION PARAMETERS
     ! ------------------------------------------------------------------------------
-
     if (tundos%defined) then
 
       l = size(tundos%ni)    
@@ -267,7 +274,7 @@ module negf_int
     !DAR begin - negf_init - TransPar to negf
     !--------------------------------------------------------------------------
     if (transpar%defined) then
-      negf%tNoGeometry = transpar%tNoGeometry
+      !negf%tNoGeometry = transpar%tNoGeometry
       negf%tOrthonormal = transpar%tOrthonormal
       negf%tOrthonormalDevice = transpar%tOrthonormalDevice
       negf%NumStates = transpar%NumStates
@@ -275,16 +282,15 @@ module negf_int
       negf%tElastic = transpar%tElastic
       negf%tZeroCurrent = transpar%tZeroCurrent
       negf%MaxIter = transpar%MaxIter
-      negf%tranas%out%tWriteDOS = transpar%tWriteDOS
+      negf%trans%out%tWriteDOS = transpar%tWriteDOS
       negf%tWrite_ldos = transpar%tWrite_ldos
       negf%tWrite_negf_params = transpar%tWrite_negf_params
-      negf%tranas%out%tDOSwithS = transpar%tDOSwithS
-      allocate(negf%tranas%cont(ncont))
-      negf%tranas%cont(:)%name = transpar%contacts(:)%name
-      negf%tranas%cont(:)%tWriteSelfEnergy = transpar%contacts(:)%tWriteSelfEnergy
-      negf%tranas%cont(:)%tReadSelfEnergy = transpar%contacts(:)%tReadSelfEnergy
-      negf%tranas%cont(:)%tWriteSurfaceGF = transpar%contacts(:)%tWriteSurfaceGF
-      negf%tranas%cont(:)%tReadSurfaceGF = transpar%contacts(:)%tReadSurfaceGF
+      negf%trans%out%tDOSwithS = transpar%tDOSwithS
+      negf%cont(:)%name = transpar%contacts(:)%name
+      negf%cont(:)%tWriteSelfEnergy = transpar%contacts(:)%tWriteSelfEnergy
+      negf%cont(:)%tReadSelfEnergy = transpar%contacts(:)%tReadSelfEnergy
+      negf%cont(:)%tWriteSurfaceGF = transpar%contacts(:)%tWriteSurfaceGF
+      negf%cont(:)%tReadSurfaceGF = transpar%contacts(:)%tReadSurfaceGF
     end if
 
     ! Defined outside transpar%defined ... HAS TO BE FIXED
@@ -397,8 +403,8 @@ module negf_int
     call destruct(csrHam)
     call destruct(csrOver)
     call destroy_negf(negf)
-    !call writePeakInfo(6)                                                 !DAR
-    !call writeMemInfo(6)                                                  !DAR
+    !call writePeakInfo(6)
+    !call writeMemInfo(6)
 
   end subroutine negf_destroy
 
@@ -557,7 +563,7 @@ print*,' PLs (ind)  :',PL_end
     type(z_CSR), optional :: EnMat     ! Energy weighted DM (See NOTE)
 
     type(lnParams) :: params
-    integer :: ncont
+    integer :: nn
 
     call get_params(negf, params)
       
@@ -565,8 +571,8 @@ print*,' PLs (ind)  :',PL_end
     params%kpoint = nkpoint
     params%spin = spin
     params%DorE='N'
-    ncont=negf%str%num_conts
-    params%mu(1:ncont) = mu(1:ncont)
+    nn=size(mu,1)
+    params%mu(1:nn) = mu(1:nn)
     
     if(present(DensMat)) then
        params%DorE = 'D'
@@ -600,7 +606,7 @@ print*,' PLs (ind)  :',PL_end
     ! ---------------------------------------------
 
     call pass_HS(negf,HH,SS)
-    
+ 
     call compute_density_dft(negf)
    
     call destroy_matrices(negf)
@@ -777,22 +783,15 @@ print*,' PLs (ind)  :',PL_end
     real(dp), intent(out) :: rho(:,:)
     real(dp), intent(out) :: Eband(:), Ef(:), E0(:), TS(:)
 
-    integer :: nSpin, nKPoint, nKS, iK, iS, iKS, ncont
-    real(dp) :: prefac, EBandTmp, EfTmp, TSTmp, E0Tmp
+    integer :: nSpin, nKS, iK, iS, iKS
     type(z_CSR) :: csrDens
+
     !! We need this now for different fermi levels in colinear spin
     !! Note: the spin polirized does not work with
     !! built-int potentials (the unpolarized does) in the poisson
-    type(lnParams) :: params
-
-    call get_params(negf, params)
-
     nKS = size(groupKS, dim=2)
-    nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
-    ncont = size(mu,1)
     rho = 0.0_dp
-    ncont = size(mu,1)
    
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
@@ -850,22 +849,16 @@ print*,' PLs (ind)  :',PL_end
     real(dp), intent(in) :: mu(:,:)
     real(dp), intent(out) :: rhoE(:)
 
-    integer :: nSpin, nKPoint, nKS, iK, iS, iKS, ncont
-    real(dp) :: prefac, EBandTmp, EfTmp, TSTmp, E0Tmp
+    integer :: nSpin, nKS, iK, iS, iKS
     type(z_CSR) :: csrEDens
     !! We need this now for different fermi levels in colinear spin
     !! Note: the spin polirized does not work with
     !! built-int potentials (the unpolarized does) in the poisson
     !! I do not set the fermi because it seems that in libnegf it is 
     !! not really needed
-    type(lnParams) :: params
-
-    call get_params(negf, params)
 
     nKS = size(groupKS, dim=2)
-    nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
-    ncont = size(mu,1)
     rhoE = 0.0_dp
 
     
@@ -1004,6 +997,7 @@ print*,' PLs (ind)  :',PL_end
 
     integer :: i,j,k,NumStates,icont                                       !DAR
     real(dp), dimension(:,:), allocatable :: H_all, S_all
+
     call get_params(negf, params)
  
     unitOfEnergy%name = "H"
@@ -1025,9 +1019,9 @@ print*,' PLs (ind)  :',PL_end
     do iKS = 1, nKS 
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
-print*,'kpoint:',iK,'spin:',iS
-      params%mu(:ncont) = mu(:ncont,iS) 
-     
+
+      params%mu(1:ncont) = mu(1:ncont,iS) 
+      
       call set_params(negf, params)
       
       if (negf%NumStates.eq.0) negf%NumStates=csrHam%ncol
@@ -1215,7 +1209,7 @@ print*,'kpoint:',iK,'spin:',iS
 
     open(65000,file=trim(filename)//'.dat')
     do ii=1,size(pTot,1)
-      write(65000,'(f20.8)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
+      write(65000,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
       do jj=1,size(pTot,2)
         !write(65000,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
         write(65000,'(f20.8)',ADVANCE='NO') pTot(ii,jj)                     !DAR
@@ -1239,7 +1233,7 @@ print*,'kpoint:',iK,'spin:',iS
       end do
       write(65000,*)
       do ii=1,size(pSKRes(:,:,1),1)
-        write(65000,'(f20.8)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
+        write(65000,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
         do jj=1,size(pSKRes(:,:,1),2)
           do iKS = 1,nKS
             write(65000,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iKS)
@@ -1659,11 +1653,11 @@ print*,'kpoint:',iK,'spin:',iS
     write(101,"('negf%Ec, negf%Ev         = ',3F8.4)") negf%Ec, negf%Ev
     write(101,"('negf%DeltaEc, %DeltaEv   = ',3F8.4)") negf%DeltaEc, negf%DeltaEv
     write(101,"('negf%Emin, %Emax, %Estep = ',3F8.4)") negf%Emin, negf%Emax, negf%Estep
-    write(101,"('negf%kbT_dm              = ',10000000E12.4)") negf%kbT_dm
-    write(101,"('negf%kbT_t               = ',10000000E12.4)") negf%kbT_t
-    write(101,"('negf%mu_n                = ',10000000F8.4)") negf%mu_n
-    write(101,"('negf%mu_p                = ',10000000F8.4)") negf%mu_p
-    write(101,"('negf%mu                  = ',10000000F8.4)") negf%mu
+    write(101,"('negf%kbT_dm              = ',10000000E12.4)") negf%cont(:)%kbT_dm
+    write(101,"('negf%kbT_t               = ',10000000E12.4)") negf%cont(:)%kbT_t
+    write(101,"('negf%mu_n                = ',10000000F8.4)") negf%cont(:)%mu_n
+    write(101,"('negf%mu_p                = ',10000000F8.4)") negf%cont(:)%mu_p
+    write(101,"('negf%mu                  = ',10000000F8.4)") negf%cont(:)%mu
     write(101,"('negf%delta               = ',10000000E12.4)") negf%delta
     write(101,"('negf%Np_real             = ',10000000I6)") negf%Np_real
     write(101,"('negf%n_kt                = ',I6)") negf%n_kt
@@ -1996,41 +1990,41 @@ print*,'kpoint:',iK,'spin:',iS
   !  !-------------------------------------------------------------------------
   !  
   !  do icont=1,negf%str%num_conts
-  !    if(negf%tranas%cont(icont)%tWriteSelfEnergy) &
-  !       call mpifx_allreduceip(mpicomm, negf%tranas%cont(icont)%SelfEnergy, MPI_SUM)
+  !    if(negf%cont(icont)%tWriteSelfEnergy) &
+  !       call mpifx_allreduceip(mpicomm, negf%cont(icont)%SelfEnergy, MPI_SUM)
   !  end do
   !     
   !  if (id0) then
   !    do icont=1,negf%str%num_conts
-  !      if(negf%tranas%cont(icont)%tWriteSelfEnergy) then
-  !        open(14,form="unformatted",file=trim(negf%tranas%cont(icont)%name)//'-SelfEnergy.mgf' &
+  !      if(negf%cont(icont)%tWriteSelfEnergy) then
+  !        open(14,form="unformatted",file=trim(negf%cont(icont)%name)//'-SelfEnergy.mgf' &
   !             ,action="write")
   !        do i = 1, size(negf%en_grid)
-  !           write(14)real(negf%en_grid(i)%Ec),negf%tranas%cont(icont)%SelfEnergy(:,:,i)
+  !           write(14)real(negf%en_grid(i)%Ec),negf%cont(icont)%SelfEnergy(:,:,i)
   !        end do
   !        close(14)
   !        write(*,"('    The retarded contact self-energy is written into the file ',A)") &
-  !              trim(negf%tranas%cont(icont)%name)//'-SelfEnergy.mgf'
+  !              trim(negf%cont(icont)%name)//'-SelfEnergy.mgf'
   !      end if
   !    end do
   !  end if
   !
   !  do icont=1,negf%str%num_conts
-  !     if(negf%tranas%cont(icont)%tWriteSurfaceGF) &
-  !          call mpifx_allreduceip(mpicomm, negf%tranas%cont(icont)%SurfaceGF, MPI_SUM)
+  !     if(negf%cont(icont)%tWriteSurfaceGF) &
+  !          call mpifx_allreduceip(mpicomm, negf%cont(icont)%SurfaceGF, MPI_SUM)
   !  end do
   !
   !  if (id0) then
   !    do icont=1,negf%str%num_conts
-  !      if (negf%tranas%cont(icont)%tWriteSurfaceGF) then
-  !        open(14,form="unformatted",file=trim(negf%tranas%cont(icont)%name)//'-SurfaceGF.mgf' &
+  !      if (negf%cont(icont)%tWriteSurfaceGF) then
+  !        open(14,form="unformatted",file=trim(negf%cont(icont)%name)//'-SurfaceGF.mgf' &
   !               ,action="write")
   !        do i = 1, size(negf%en_grid)
-  !          write(14)real(negf%en_grid(i)%Ec),negf%tranas%cont(icont)%SurfaceGF(:,:,i)
+  !          write(14)real(negf%en_grid(i)%Ec),negf%cont(icont)%SurfaceGF(:,:,i)
   !        end do
   !        close(14)
   !        write(*,"('    The retarded contact self-energy is written into the file ',A)") &
-  !                trim(negf%tranas%cont(icont)%name)//'-SurfaceGF.mgf'
+  !                trim(negf%cont(icont)%name)//'-SurfaceGF.mgf'
   !      end if
   !    end do
   !  end if

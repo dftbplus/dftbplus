@@ -14,7 +14,7 @@ CC = gcc
 
 # Compiler options
 FXXOPT = -O2 -funroll-all-loops
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+CCOPT = -O2 -fall-intrinsics -funroll-all-loops
 
 # Linker
 LN = $(FXX)
@@ -96,6 +96,6 @@ endif
 ifeq ($(strip $(DEBUG)),2)
     OTHERLIBS =
     FXXOPT = -g -Wall -std=f2008 -pedantic -fbounds-check
-    FXXOPT += -Werror -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized 
+    FXXOPT += -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized 
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 endif

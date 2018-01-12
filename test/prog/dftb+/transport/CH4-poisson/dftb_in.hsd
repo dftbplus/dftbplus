@@ -31,7 +31,7 @@ Hamiltonian = DFTB {
     readoldbulkpotential = no
     boundaryregion = global {}
     poissonaccuracy = 1e-7
-    recomputeafterdensity = yes
+    recomputeafterdensity = no 
   }
   
 
