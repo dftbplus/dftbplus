@@ -139,11 +139,6 @@ module negf_int
       else        
         params%kbT_dm(i) = tempElec
       end if  
-      ! Make sure low temperatures (< 10K) converted to 0.
-      ! This avoid numerical problems with contour integration
-      if (params%kbT_dm(i) < 3.0e-5_dp) then
-        params%kbT_dm(i) = 0.0_dp
-      end if
       if (tundos%defined) then
         params%kbT_t(i) = tundos%kbT(i)
       else
@@ -158,6 +153,14 @@ module negf_int
         params%kbT_dm(1) = tempElec
       end if  
     end if
+
+    ! Make sure low temperatures (< 10K) converted to 0.
+    ! This avoid numerical problems with contour integration
+    do i = 1, size(params%kbT_dm) 
+      if (params%kbT_dm(i) < 3.0e-5_dp) then
+        params%kbT_dm(i) = 0.0_dp
+      end if
+    end do
 
     ! ------------------------------------------------------------------------------
     !            SETTING ELECTROCHEMICAL POTENTIALS INCLUDING BUILT-IN 

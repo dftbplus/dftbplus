@@ -1637,25 +1637,6 @@ contains
       end do
     end if
 
-    ! Solver
-    call getChildValue(node, "Eigensolver", value, "RelativelyRobust")
-    call getNodeName(value, buffer)
-    select case(char(buffer))
-    case ("qr")
-      ctrl%iSolver = solverQR 
-    case ("divideandconquer")
-      ctrl%iSolver = solverDAC
-    case ("relativelyrobust")
-      ctrl%iSolver = solverRR1
-#:if WITH_TRANSPORT      
-    case ("greensfunction")
-      ctrl%iSolver = solverGF
-      call readGreensFunction(value, greendens, tp)
-    case ("transportonly")
-      ctrl%iSolver = onlyTransport
-#:endif
-    end select
-
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
     ! thermostat.)
     call getChildValue(node, "Filling", value, "Fermi", child=child)
@@ -1699,10 +1680,6 @@ contains
       end if
       call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
       ctrl%tFixEf = .true.
-    else if (ctrl%iSolver == solverGF) then
-      ! this is conceptually correct and avoids checkiing total charge in
-      ! initQFromFile    
-      ctrl%tFixEf = .true.
     else
       ctrl%tFixEf = .false.
     end if
@@ -1711,14 +1688,28 @@ contains
       call getChildValue(value, "IndependentKFilling", ctrl%tFillKSep, .false.)
     end if
 
-    
+    ! Solver
+    call getChildValue(node, "Eigensolver", value, "RelativelyRobust")
+    call getNodeName(value, buffer)
+    select case(char(buffer))
+    case ("qr")
+      ctrl%iSolver = solverQR 
+    case ("divideandconquer")
+      ctrl%iSolver = solverDAC
+    case ("relativelyrobust")
+      ctrl%iSolver = solverRR1
 #:if WITH_TRANSPORT      
-    if (.not. tp%defined) then
-      allocate(greendens%kbT(1)) 
-      greendens%kbT(:) = ctrl%tempElec ! default value
-    end if  
+    case ("greensfunction")
+      ctrl%iSolver = solverGF
+      call readGreensFunction(value, greendens, tp, ctrl%tempElec)
+      ! fixEf is conceptually correct and avoids checks of total charge in
+      ! initQFromFile    
+      ctrl%tFixEf = .true.
+    case ("transportonly")
+      ctrl%iSolver = onlyTransport
 #:endif
-
+    end select
+    
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
 
@@ -3640,9 +3631,10 @@ contains
 
 
 #:if WITH_TRANSPORT  
-  subroutine readGreensFunction(pNode, greendens, transpar)
+  subroutine readGreensFunction(pNode, greendens, transpar, tempElec)
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
-    type(TTransPar), intent(inout) :: transpar                  !DAR in -> inout
+    type(TTransPar), intent(inout) :: transpar
+    real(dp), intent(in) :: tempElec
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
     type(fnodeList), pointer :: pNodeList
@@ -3685,13 +3677,17 @@ contains
         call asArray(li,transpar%cblk)
         call destruct(li)
       end if
+      allocate(greendens%kbT(1)) 
+      greendens%kbT(:) = tempElec
     else
       if (transpar%ncont > 0) then
         allocate(greendens%kbT(transpar%ncont))
         do ii = 1, transpar%ncont
           if (transpar%contacts(ii)%kbT .ge. 0.0_dp) then
             greendens%kbT(ii) = transpar%contacts(ii)%kbT
-          end if   
+          else   
+            greendens%kbT(ii) = tempElec
+          end if  
         enddo          
       end if  
     end if
