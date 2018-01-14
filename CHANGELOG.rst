@@ -19,6 +19,7 @@ Added
 
 - Shutdown possibility when using socket driver.
 
+- Evaluation of electrostatic potentials at specified points in space
 
 Changed
 -------
