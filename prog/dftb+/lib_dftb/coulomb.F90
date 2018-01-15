@@ -188,8 +188,8 @@ contains
     ! the if branch deep in the loop
     invRVec(:) = 0.0_dp
     if (present(blurWidths1)) then
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
-      !$OMP& SCHEDULE(RUNTIME)
+      !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp,errorString) &
+      !! $OMP& SCHEDULE(RUNTIME)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -206,10 +206,10 @@ contains
           end if
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !! $OMP  END PARALLEL DO
     else
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
-      !$OMP& SCHEDULE(RUNTIME)
+      !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,errorString) &
+      !! $OMP& SCHEDULE(RUNTIME)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -222,7 +222,7 @@ contains
           end if
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !! $OMP  END PARALLEL DO
     end if
 
   end subroutine sumInvR_cluster_asymm
@@ -438,16 +438,15 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     invRVec(:) = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,rr,rTmp) SCHEDULE(RUNTIME)
     do iAt0 = 1, nAtom0
       do iAt1 = 1, nAtom1
         rr = coord0(:,iAt0) - coord1(:,iAt1)
-
         rTmp = ewald(rr, rLat, gLat, alpha, volume)
         invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
   end subroutine sumInvR_periodic_asymm
 
@@ -692,8 +691,8 @@ contains
 
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp,sigma,rs) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
+      !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp,sigma,rs) &
+      !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -709,10 +708,10 @@ contains
           deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
         end do
       end do
-      !$OMP END PARALLEL DO
+      !! $OMP END PARALLEL DO
     else
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
+      !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,ftmp) &
+      !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
       do iAt0 = 1, nAtom0
         do iAt1 = 1, nAtom1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -722,7 +721,7 @@ contains
           deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !! $OMP  END PARALLEL DO
     end if
 
   end subroutine addInvRPrime_cluster_asymm
@@ -776,8 +775,8 @@ contains
     @:ASSERT(size(deltaQAtom) == nAtom)
 
     ! d(1/R)/dr real space
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r) &
+    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = 1, nAtom
       do iNeigh = 1, nNeighborEwald(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
@@ -791,11 +790,11 @@ contains
         end if
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
     ! d(1/R)/dr reciprocal space
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2,r) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2,r) &
+    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = 1, nAtom
       do iAtom2 = iAtom1+1, nAtom
         r(:) = coord(:,iAtom1)-coord(:,iAtom2)
@@ -805,7 +804,7 @@ contains
             & - derivEwaldReciprocal(r,recPoint,alpha,volume)*deltaQAtom(iAtom1)*deltaQAtom(iAtom2)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
   end subroutine addInvRPrime_periodic
 
@@ -944,8 +943,8 @@ contains
     @:ASSERT(size(dQInAtom) == nAtom)
 
     ! real space
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iNeigh,iAt2,iAt2f,rr,prefac,contrib) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iNeigh,iAt2,iAt2f,rr,prefac,contrib) &
+    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAt1 = 1, nAtom
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
@@ -961,11 +960,11 @@ contains
         deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
     ! reciprocal space
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2,rr,prefac,contrib) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2,rr,prefac,contrib) &
+    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAt1 = 1, nAtom
       do iAt2 = iAt1 + 1, nAtom
         rr(:) = coord(:,iAt1) - coord(:,iAt2)
@@ -976,7 +975,7 @@ contains
         deriv(:,iAt2) = deriv(:,iAt2) - contrib
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
   end subroutine addInvRPrimeXlbomd_periodic
 
@@ -1130,8 +1129,8 @@ contains
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(vol > 0.0_dp)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
+    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv0,deriv1)
     do iAt0 = 1, nAtom0
       do iAt1 = 1, nAtom1
         vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -1142,7 +1141,7 @@ contains
         deriv1(:,iAt1) = deriv1(:,iAt1) - fTmp(:)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
   end subroutine addInvRPrime_periodic_asymm
 
@@ -1693,15 +1692,15 @@ contains
         g(:) = real(iInv,dp)*recpoint(:,ii)
         intermed = 0.0_dp
         intermed2 = 0.0_dp
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1) &
-        !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:intermed,intermed2)
+        !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1) &
+        !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:intermed,intermed2)
         do iAtom1 = 1, nAtom
           intermed = intermed &
               & + q(iAtom1)*cos(dot_product(g(:),coord(:,iAtom1)))
           intermed2 = intermed2 &
               & + q(iAtom1)*sin(dot_product(g(:),coord(:,iAtom1)))
         end do
-        !$OMP  END PARALLEL DO
+        !! $OMP  END PARALLEL DO
         intermed = intermed**2 + intermed2**2
         g2 = sum(g(:)**2)
         intermed = intermed*exp(-g2/(4.0_dp*alpha*alpha))/g2
@@ -1720,8 +1719,8 @@ contains
     stress = -stress * 4.0_dp * pi / volume
 
     ! Real space part of the Ewald sum.
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r,f,ii,jj) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:stress)
+    !! $OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iNeigh,iAtom2,iAtom2f,r,f,ii,jj) &
+    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:stress)
     do iAtom1 = 1, nAtom
       do iNeigh = 1, nNeighborEwald(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
@@ -1743,7 +1742,7 @@ contains
         end if
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !! $OMP  END PARALLEL DO
 
     stress = stress / volume
 
