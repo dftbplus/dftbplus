@@ -671,6 +671,7 @@ contains
       iS = parallelKS%localKS(2, iKS)
       do iEig = 1, denseDesc%nOrb
         call hemv(rVecTemp, SSqr, eigvecs(:,iEig,iS))
+        rVecTemp = rVecTemp * eigvecs(:,iEig,iS)
         call writeSingleRealEigvecTxt(fd, eigvecs(:,iEig,iS), rVecTemp, iS, iEig, orb, species,&
             & speciesName, nAtom)
       end do
@@ -801,7 +802,8 @@ contains
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nEigvec
           if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
             call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
             call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
@@ -1774,7 +1776,8 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
           if (env%blacs%orbitalGrid%master) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
             call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
             call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
