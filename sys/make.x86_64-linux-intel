@@ -49,12 +49,14 @@ FXX = ifort
 CC = icc
 
 # Compile options 
-FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
+FXXOPT = -O2 -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
 # Linker
 LN = $(FXX)
-LNOPT = -static
+#Note: with mkl-11.1 problems with static libraries
+#LNOPT = -static
+LNOPT = 
 
 # How to link specific libraries
 
@@ -67,7 +69,7 @@ LIB_LAPACK   = -L$(MKL_LIBDIR) -Wl,--start-group \
   -Wl,--end-group
 
 # Any other libraries to be linked
-OTHERLIBS = -liomp5 -pthread
+OTHERLIBS = -liomp5 
 
 # Command to run a binary
 TESTRUNNER =

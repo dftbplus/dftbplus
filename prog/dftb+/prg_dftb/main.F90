@@ -4639,10 +4639,12 @@ print*,'total derivs:',derivs
     real(dp) :: derivssMoved(3 * size(indMovedAtom))
     real(dp), target :: newCoordsMoved(3 * size(indMovedAtom))
     real(dp), pointer :: pNewCoordsMoved(:,:)
+    integer :: ll
 
     derivssMoved(:) = reshape(derivss(:, indMovedAtom), [3 * size(indMovedAtom)])
     call next(pGeoCoordOpt, EMermin, derivssMoved, newCoordsMoved, tCoordEnd)
-    pNewCoordsMoved(1:3, 1:size(indMovedAtom)) => newCoordsMoved(1 : 3 * size(indMovedAtom))
+    ll = size(indMovedAtom)
+    pNewCoordsMoved(1:3, 1:ll) => newCoordsMoved(1 : 3 * ll)
     diffGeo = maxval(abs(pNewCoordsMoved - coords0(:, indMovedAtom)))
     coords0(:, indMovedAtom) = pNewCoordsMoved
 

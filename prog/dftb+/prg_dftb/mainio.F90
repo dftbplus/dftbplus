@@ -240,7 +240,7 @@ contains
     real(dp), intent(inout) :: eigvecsReal(:,:,:)
 
     !> Storage for dense real overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(inout) :: SSqrReal(:,:)
 
     !> optional alternative file prefix, to appear as "fileName".bin or "fileName".out
     character(len=*), intent(in), optional :: fileName
@@ -324,7 +324,7 @@ contains
     complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
 
     !> Storage for dense complex overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
 
     !> optional alternative file prefix, to appear as "fileName".bin or "fileName".out
     character(len=*), intent(in), optional :: fileName
@@ -2124,7 +2124,7 @@ contains
 
     type(xmlf_t) :: xf
     real(dp), allocatable :: bufferRealR2(:,:)
-    integer :: ii, jj
+    integer :: ii, jj, ll
     real(dp), pointer :: pOccNatural(:,:)
 
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
@@ -2161,7 +2161,9 @@ contains
     if (allocated(occNatural)) then
       call xml_NewElement(xf, "excitedoccupations")
       call xml_NewElement(xf, "spin" // i2c(1))
-      pOccNatural(1:size(occNatural), 1:1) => occNatural
+      !pOccNatural(1:size(occNatural), 1:1) => occNatural
+      ll = size(occNatural)
+      pOccNatural(1:ll, 1:1) => occNatural
       call writeChildValue(xf, "k" // i2c(1), pOccNatural)
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")

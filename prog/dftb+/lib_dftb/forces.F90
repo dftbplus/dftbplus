@@ -102,8 +102,8 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    !! $OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
-    !! $OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
+    !$OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
@@ -141,7 +141,7 @@ contains
         end if
       end do
     end do
-    !! $OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, deriv)
 
@@ -223,9 +223,9 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    !! $OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !! $OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
-    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -275,7 +275,7 @@ contains
         end if
       enddo
     enddo
-    !! $OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, deriv)
 
@@ -367,9 +367,9 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    !! $OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !! $OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
-    !! $OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
+    !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
+    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -432,7 +432,7 @@ contains
         end if
       enddo
     enddo
-    !! $OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, deriv)
 

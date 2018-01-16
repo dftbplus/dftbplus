@@ -1118,13 +1118,17 @@ contains
   #:if WITH_SCALAPACK
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
   #:endif
+   
+    integer :: ll
 
     this%shiftPerAtom(:) = 0.0_dp
 
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc /= -1) then
-      deltaQAtom2D(1:1, 1:size(this%deltaQAtom)) => this%deltaQAtom
-      shiftPerAtom2D(1:1, 1:size(this%shiftPerAtom)) => this%shiftPerAtom
+      ll = size(this%deltaQAtom)    
+      deltaQAtom2D(1:1, 1:ll) => this%deltaQAtom
+      ll = size(this%shiftPerAtom)    
+      shiftPerAtom2D(1:1, 1:ll) => this%shiftPerAtom
       call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, this%descQVec, 1, 1, this%qGlobal)
       call pblasfx_psymv(this%invRMat, this%descInvRMat, this%qGlobal, this%descQVec,&
           & this%shiftPerAtomGlobal, this%descQVec)
