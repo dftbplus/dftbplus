@@ -347,6 +347,8 @@ module inputdata_module
     !> Ewald alpha
     real(dp) :: ewaldAlpha = 0.0_dp
 
+    !> Ewald tolerance
+    real(dp) :: tolEwald = 1.0E-9_dp
 
     !> Various options
     logical :: tWriteTagged = .false.

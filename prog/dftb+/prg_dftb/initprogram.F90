@@ -1237,6 +1237,7 @@ contains
       end if
 
       sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
       mCutoff = max(mCutoff, sccCalc%getCutoff())
@@ -1712,9 +1713,6 @@ contains
       end if
 
       if (input%ctrl%lrespini%nstat == 0) then
-        if (input%ctrl%lrespini%tMulliken) then
-          call error("Muliken analysis only available for StateOfInterest non zero.")
-        end if
         if (tForces) then
           call error("Excited forces only available for StateOfInterest non zero.")
         end if
@@ -3204,15 +3202,17 @@ contains
       allocate(iRhoPrim(0, nSpin))
     end if
 
+    allocate(excitedDerivs(0,0))
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-    end if
-    if (tLinRespZVect) then
-      allocate(excitedDerivs(3, nAtom))
+      if (tLinRespZVect) then
+        deallocate(excitedDerivs)
+        allocate(excitedDerivs(3, nAtom))
+      end if
     end if
 
     call init(energy, nAtom)

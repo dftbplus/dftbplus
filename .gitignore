@@ -12,3 +12,4 @@ make.config
 __pycache__
 .idea
 test/prog/dftb+/transtests
+RELEASE

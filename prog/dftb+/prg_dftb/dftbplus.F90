@@ -17,14 +17,14 @@ program dftbplus
   use initprogram, only : initProgramVariables
   implicit none
 
-  character(len=*), parameter :: RELEASE_VERSION = '17.1'
-  integer, parameter :: RELEASE_YEAR = 2017
+  character(len=*), parameter :: releaseName = '${RELEASE}$'
+  integer, parameter :: releaseYear = 2017
 
   type(TEnvironment) :: env
   type(inputData), allocatable :: input
 
   call initGlobalEnv()
-  call printDftbHeader(RELEASE_VERSION, RELEASE_YEAR)
+  call printDftbHeader(releaseName, releaseYear)
   allocate(input)
   call parseHsdInput(input)
   call initProgramVariables(input, env)

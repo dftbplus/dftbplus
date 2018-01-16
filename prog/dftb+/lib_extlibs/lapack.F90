@@ -1848,4 +1848,116 @@ module lapack
     end subroutine xerbla
   end interface xerbla
 
+  !> Complex singular value decomposition
+  interface cgesvd
+
+    !> Complex singular value decomposition
+    subroutine cgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+      import rsp
+
+      !> job type for vt
+      character, intent(in) :: jobvt
+
+      !> job type for u
+      character, intent(in) :: jobu
+
+      !> First matrix dimension for A
+      integer, intent(in) :: m
+
+      !> Second matrix dimension for A
+      integer, intent(in) :: n
+
+      !> leading dimension of A
+      integer, intent(in) :: lda
+
+      !> leading dimension of U
+      integer, intent(in) :: ldu
+
+      !> leading dimension of Vt
+      integer, intent(in) :: ldvt
+
+      !> matrix to decompose
+      complex(rsp), intent(inout) :: a(lda,*)
+
+      !> singular values on return min(m,n)
+      real(rsp), intent(out) :: s(*)
+
+      !> real workspace
+      real(rsp), intent(out) :: rwork(*)
+
+      !> Left singular vectors
+      complex(rsp), intent(out) :: u(ldu,*)
+
+      !> Right singular vectors
+      complex(rsp), intent(out) :: vt(ldvt,*)
+
+      !> complex work space
+      complex(rsp), intent(out) :: work(*)
+
+      !> size of complex work space
+      integer, intent(in) :: lwork
+
+      !> state of routine on return
+      integer, intent(in) :: info
+
+    end subroutine cgesvd
+
+  end interface cgesvd
+
+  !> Double complex singular value decomposition
+  interface zgesvd
+
+    !> Double complex singular value decomposition
+    subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+      import rdp
+
+      !> job type for vt
+      character, intent(in) :: jobvt
+
+      !> job type for u
+      character, intent(in) :: jobu
+
+      !> First matrix dimension for A
+      integer, intent(in) :: m
+
+      !> Second matrix dimension for A
+      integer, intent(in) :: n
+
+      !> leading dimension of A
+      integer, intent(in) :: lda
+
+      !> leading dimension of U
+      integer, intent(in) :: ldu
+
+      !> leading dimension of Vt
+      integer, intent(in) :: ldvt
+
+      !> matrix to decompose
+      complex(rdp), intent(inout) :: a(lda,*)
+
+      !> singular values on return min(m,n)
+      real(rdp), intent(out) :: s(*)
+
+      !> real workspace
+      real(rdp), intent(out) :: rwork(*)
+
+      !> Left singular vectors
+      complex(rdp), intent(out) :: u(ldu,*)
+
+      !> Right singular vectors
+      complex(rdp), intent(out) :: vt(ldvt,*)
+
+      !> complex work space
+      complex(rdp), intent(out) :: work(*)
+
+      !> size of complex work space
+      integer, intent(in) :: lwork
+
+      !> state of routine on return
+      integer, intent(in) :: info
+
+    end subroutine zgesvd
+
+  end interface zgesvd
+
 end module lapack
