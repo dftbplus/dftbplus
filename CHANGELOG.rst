@@ -19,6 +19,9 @@ Added
 
 - Shutdown possibility when using socket driver.
 
+- Option to read/write restart charges as ASCII text
+
+- Header for code prints release / git comit version information
 
 Changed
 -------
@@ -27,6 +30,7 @@ Changed
 
 - Change to Fypp-preprocessor
 
+- Excited state (non-force) properties for multiple excitations
 
 Fixed
 -----
@@ -35,6 +39,8 @@ Fixed
 
 - Excited window selection in Cassida time-dependent calculation
 
+- iPI interface with cluster geometries fixed (protocol contains redundant
+  lattice information in these cases)
 
 17.1 (2017-06-16)
 =================

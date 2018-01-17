@@ -60,6 +60,7 @@ Dephasing {
 Options = {
   CalculateForces = Yes
   WriteAutotestTag = Yes
+  ReadChargesAsText = Yes
 }
 
 ParserOptions = {

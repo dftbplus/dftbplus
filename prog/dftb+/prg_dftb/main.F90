@@ -393,7 +393,8 @@ contains
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
-            call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
+            call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn,&
+                & qiBlockIn)
           end if
         end if
 
@@ -403,7 +404,7 @@ contains
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpinOrbit, tSccCalc, tNegf)
+              & tSpinOrbit, tSccCalc, tNegf, invLatVec, kPoint)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -500,19 +501,22 @@ contains
         if (tLinResp) then
           derivs(:,:) = derivs + excitedDerivs
         end if
-
+        call env%globalTimer%stopTimer(globalTimers%forceCalc)
+        
         if (tStress) then
+          call env%globalTimer%startTimer(globalTimers%stressCalc)
           call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
               & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
               & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+          call env%globalTimer%stopTimer(globalTimers%stressCalc)
           call printVolume(cellVol)
           ! MD case includes the atomic kinetic energy contribution, so print that later
           if (.not. tMD) then
             call printPressureAndFreeEnergy(extPressure, intPressure, energy%EGibbs)
           end if
         end if
-        call env%globalTimer%stopTimer(globalTimers%forceCalc)
+
       end if
 
       if (tWriteDetailedOut) then
@@ -567,7 +571,7 @@ contains
         tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
             & .and. maxSccIter > 1
         if (tWriteCharges) then
-          call writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
+          call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn)
         end if
 
         ! initially assume coordinates are not being updated

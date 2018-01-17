@@ -3,7 +3,7 @@ Geometry = GenFormat {
 }
 
 Driver = Socket {
-    File = "dftb"
+    File = "dftb_cluster"
     Verbosity = 3 # loud
     Protocol = i-PI {} # i-PI interface
     MaxSteps = 5 # Terminate this instance only when out of structures

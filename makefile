@@ -39,7 +39,8 @@ endif
 update_release:
 	mkdir -p $(BUILDDIR)
 	[ -r $(ROOT)/RELEASE ] && cp -a $(ROOT)/RELEASE $(BUILDDIR)/RELEASE \
-        || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE
+        || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE \
+        || echo "(UNKNOWN RELEASE)" > $(BUILDDIR)/RELEASE
 
 .PHONY: dftb+ modes waveplot
 dftb+ modes waveplot:

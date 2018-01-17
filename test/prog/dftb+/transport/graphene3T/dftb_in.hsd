@@ -291,6 +291,7 @@ Options = {
   WriteHS = No
   WriteRealHS = No
   MinimiseMemoryUsage = No
+  ReadChargesAsText = Yes
 }
 
 Parallel = {
