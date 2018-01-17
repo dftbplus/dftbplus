@@ -29,15 +29,14 @@ if [ -z "$tmpdir" ]; then
   exit 1
 fi
 echo "Temporary directory: $tmpdir"
-
 echo "Archiving repository with prefix: $archive/"
-git archive --format=tar --prefix $archive/ HEAD | tar -C $tmpdir -x -f - 
+git archive --format=tar --prefix $archive/ HEAD | tar -C $tmpdir -x -f -
 if [ -e .gitmodules ]; then
   paths=$(grep 'path =' .gitmodules | sed -s 's/path = //g')
   for path in $paths; do
     echo "Archiving sub-module with prefix: $archive/$path/"
     cd $path
-    git archive --format=tar --prefix $archive/$path/ HEAD | tar -C $tmpdir -x -f - 
+    git archive --format=tar --prefix $archive/$path/ HEAD | tar -C $tmpdir -x -f -
     cd -
   done
 fi
@@ -45,6 +44,5 @@ fi
 
 echo "Creating archive ${archive}.tar.xz"
 tar -C $tmpdir -c -J -f $PWD/${archive}.tar.xz $archive/
-
 echo "Deleting temporary directory $tmpdir"
 rm -rf $tmpdir
