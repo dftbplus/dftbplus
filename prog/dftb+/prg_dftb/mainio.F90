@@ -59,6 +59,7 @@ module mainio
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
+  public :: openDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
@@ -2233,12 +2234,29 @@ contains
 
   end subroutine writeHessianOut
 
+  !> Open file detailed.out 
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
+    !> File  ID
+    integer, intent(in) :: fd
+
+    !> Name of file to write to
+    character(*), intent(in) :: fileName
+
+    !> Append to the end of the file or overwrite
+    logical, intent(in) :: tAppendDetailedOut
+
+    if (.not. tAppendDetailedOut) then
+      open(fd, file=fileName, status="replace", action="write")
+    end if
+
+  end subroutine openDetailedOut
+
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc)
+      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, tNegf)
 
     !> File  ID
     integer, intent(in) :: fd
@@ -2366,6 +2384,9 @@ contains
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
 
+    !> wheter we solve NEGF 
+    logical, intent(in) :: tNegf
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
@@ -2456,26 +2477,28 @@ contains
       write(fd, *)
     end if
 
-    lpSpinPrint: do iSpin = 1, size(eigen, dim=3)
-      if (nSpin == 2) then
-        write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
-      else
-        write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
-      end if
-      write(fd, "(/, A)") 'Eigenvalues /H'
-      do iEgy = 1, size(eigen, dim=1)
-        write(fd, formatEigen) (eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, "(/, A)") 'Eigenvalues /eV'
-      do iEgy = 1, size(eigen, dim=1)
-        write(fd, formatEigen) (Hartree__eV * eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, "(/, A)") 'Fillings'
-      do iEgy = 1, nLevel
-        write(fd, formatFilling) (filling(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, *)
-    end do lpSpinPrint
+    if (.not.tNegf) then
+      lpSpinPrint: do iSpin = 1, size(eigen, dim=3)
+        if (nSpin == 2) then
+          write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
+        else
+          write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
+        end if
+        write(fd, "(/, A)") 'Eigenvalues /H'
+        do iEgy = 1, size(eigen, dim=1)
+          write(fd, formatEigen) (eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
+        end do
+        write(fd, "(/, A)") 'Eigenvalues /eV'
+        do iEgy = 1, size(eigen, dim=1)
+          write(fd, formatEigen) (Hartree__eV * eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
+        end do
+        write(fd, "(/, A)") 'Fillings'
+        do iEgy = 1, nLevel
+          write(fd, formatFilling) (filling(iEgy, iK, iSpin), iK = 1, nKPoint)
+        end do
+        write(fd, *)
+      end do lpSpinPrint
+    end if
 
     if (nSpin == 4) then
       if (tPrintMulliken) then

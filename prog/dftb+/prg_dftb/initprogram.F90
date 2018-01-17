@@ -104,7 +104,7 @@ module initprogram
   character(*), parameter :: hessianOut = "hessian.out"
 
   !> file name for charge data
-  character(*), parameter :: fCharges = "charges.bin"
+  character(*), parameter :: fCharges = "charges.dat"
 
   !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
@@ -2069,7 +2069,7 @@ contains
           end if
         end if
       end if
-
+          
       qInpRed = 0.0_dp
       if (nSpin == 2) then
         call qm2ud(qInput)

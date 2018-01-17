@@ -269,8 +269,9 @@ contains
         
       ! Dirty trick to jump out in case of non-scc calculations with transport only
       if (solver == onlytransport) then
-        tWriteDetailedOut = .false. ! Temportary HACK. detailed.out must be opened beforehand     
-        ! We need to define ham adding potential
+        ! we open detailedout here since we jump out lpGeomOpt    
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+        ! We need to define hamltonian by adding the potential
         call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
         exit lpGeomOpt
@@ -402,7 +403,7 @@ contains
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpinOrbit, tSccCalc)
+              & tSpinOrbit, tSccCalc, tNegf)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -4215,7 +4216,7 @@ contains
             & coord, species, neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart, orb,&
             & potential%intBlock)
       end if
-print*,'non-scc derivs:',derivs 
+
       if (tPoisson) then
          tmpDerivs = 0.0_dp
 #:if WITH_TRANSPORT
@@ -4236,9 +4237,7 @@ print*,'non-scc derivs:',derivs
             call sccCalc%addForceDcXlbomd(env, species, orb, neighborList%iNeighbor, img2CentCell,&
                 & coord, qOutput, q0, derivs)
           else
-tmpDerivs = derivs
             call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbor, img2CentCell, coord)
-print*,'scc derivs:',derivs-tmpDerivs 
           end if
         end if
 
@@ -4267,8 +4266,6 @@ print*,'scc derivs:',derivs-tmpDerivs
     call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
         & img2CentCell)
     derivs = derivs + tmpDerivs
-print*,'rep derivs:',tmpDerivs
-print*,'total derivs:',derivs
 
   end subroutine getGradients
 

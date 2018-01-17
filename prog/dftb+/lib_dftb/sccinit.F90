@@ -23,10 +23,10 @@ module sccinit
 
 
   !> read stored charges in binary format?
-  logical :: tReadBinary = .true.
+  logical :: tReadBinary = .false.
 
   !> store charges in binary format?
-  logical :: tWriteBinary = .true.
+  logical :: tWriteBinary = .false.
 
 
   !> Used to return runtime diagnostics
