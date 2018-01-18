@@ -1,0 +1,57 @@
+Geometry = GenFormat {
+    4  C
+ Fe
+    1 1      0.00020789      0.00020770      0.00020773
+    2 1      1.66468182      1.66468190      0.00020778
+    3 1      1.66468183      0.00020777      1.66468190
+    4 1      0.00020785      1.66468187      1.66468187
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  OrbitalResolvedSCC = Yes
+  ReadInitialCharges = Yes
+  SCCTolerance = 1.0e-6
+  MaxAngularMomentum = {
+    Fe = "d"
+  }
+  Charge = 0.0
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 3
+  }
+  SpinConstants = {
+    Fe = {
+           -0.013 -0.009 -0.003
+           -0.009 -0.011 -0.001
+           -0.003 -0.001 -0.015
+    }
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 300
+  }
+  SlaterKosterFiles = {
+    Fe-Fe = "./Fe-Fe.skf"
+  }
+  OrbitalPotential = {
+   Functional = {pSIC}
+   Fe = {
+     Shells = {3} # d shell
+     UJ = 0.087105 # (U+W)/4
+   }
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  ReadChargesAsText = Yes
+  WriteChargesAsText = Yes
+}
+
+Analysis = {
+  CalculateForces = Yes
+  AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 5
+}

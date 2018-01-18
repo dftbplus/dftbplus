@@ -1715,8 +1715,7 @@ contains
           call warning(errorStr)
         end if
         if (ctrl%tSCC .and. .not.ctrl%tReadChrg) then
-          call warning("It is strongly suggested you use the&
-              & ReadInitialCharges option.")
+          call warning("It is strongly suggested you use the ReadInitialCharges option.")
         end if
 
       case (textNodeName)
@@ -2611,6 +2610,11 @@ contains
   #:else
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
   #:endif
+
+    if (ctrl%tReadChrg) then
+      call getChildValue(node, "ReadChargesAsText", ctrl%tReadChrgAscii, .false.)
+    end if
+    call getChildValue(node, "WriteChargesAsText", ctrl%tWriteChrgAscii, .false.)
 
   end subroutine readOptions
 

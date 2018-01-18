@@ -48,13 +48,13 @@ _mod_dispdftd3_module: dispdftd3.o
 _mod_dispdftd3_module = $(dispdftd3.o)
 
 #:if WITH_DFTD3
-dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw common.fypp _mod_dispuffdata _mod_dispdftd3_module
-dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(common.fypp) $(_mod_dispuffdata) $(_mod_dispdftd3_module)
+dispersions.o: _mod_dispuffdata common.fypp _mod_mbd _mod_dispiface _mod_dispslaterkirkw _mod_dispuff_module _mod_dispdftd3_module
+dispersions.o = dispersions.o $(_mod_dispuffdata) $(common.fypp) $(_mod_mbd) $(_mod_dispiface) $(_mod_dispslaterkirkw) $(_mod_dispuff_module) $(_mod_dispdftd3_module)
 _mod_dispersions: dispersions.o
 _mod_dispersions = $(dispersions.o)
 #:else
-dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw common.fypp _mod_dispuffdata
-dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(common.fypp) $(_mod_dispuffdata)
+dispersions.o: _mod_dispuffdata common.fypp _mod_mbd _mod_dispiface _mod_dispslaterkirkw _mod_dispuff_module
+dispersions.o = dispersions.o $(_mod_dispuffdata) $(common.fypp) $(_mod_mbd) $(_mod_dispiface) $(_mod_dispslaterkirkw) $(_mod_dispuff_module)
 _mod_dispersions: dispersions.o
 _mod_dispersions = $(dispersions.o)
 #:endif
