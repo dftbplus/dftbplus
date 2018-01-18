@@ -16,13 +16,13 @@ import optparse
 import subprocess as sub
 import shutil
 
-USAGE = '''usage: %prog [options] OPTEXT [OPTEXT ...]
+USAGE = '''usage: %prog [options] [OPTEXT [OPTEXT ...]]
 
 Downloads optional external components.
 
 Possible choices for OPTEXT:
 
-  DISTRIB -- download only components which are LGPL-compatible,
+  DISTRIB (default) -- download only components which are LGPL-compatible,
       can be distributed with the DFTB+ source code and do not restrict the
       distribution of the compiled code beyond its LGPL-license.
 
@@ -101,10 +101,9 @@ def parse_cmdline_args():
         choices=EXTERNALS, default=None, action='append', help=msg)
     opts, args = parser.parse_args()
 
-    if not args:
-        parser.error('Missing optional external component name')
-    
     argchoices = ['DISTRIB', 'ALL'] + EXTERNALS
+    if not args:
+        args = ['DISTRIB']
     for arg in args:
         if arg not in argchoices:
             msg = "Invalid optional external '{}'".format(arg)
