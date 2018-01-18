@@ -18,9 +18,31 @@ import shutil
 
 USAGE = '''usage: %prog [options] OPTEXT [OPTEXT ...]
 
-Downloads optional external components. Possible choices for OPTEXT: all,
-dftd3, slakos.
+Downloads optional external components.
+
+Possible choices for OPTEXT:
+
+  DISTRIB -- download only components which are LGPL-compatible,
+      can be distributed with the DFTB+ source code and do not restrict the
+      distribution of the compiled code beyond its LGPL-license.
+
+  ALL -- download all optional external components. 
+
+      NOTE: this will also download components with LGPL-incompatible
+      licenses. Those components can not be distributed with the DFTB+ source
+      code and the distribution of the resulting binary or library is not
+      permitted if those components were part of the build. Using them for
+      personal research is permitted, though.
+
+  slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA]
+
+  dftd3 -- Library for calculating D3 dispersion [license: GPL]
 '''
+
+NON_DISTRIB_WARNING = """WARNING:
+    This optional external component is not compatible with the DFTB+ license.
+    Restrictions on distribution of the compiled code may apply.
+"""
 
 SCRIPT_DIR = os.path.dirname(sys.argv[0])
 EXTERNAL_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'external'))
@@ -40,23 +62,33 @@ def main():
 
     opts, args = parse_cmdline_args()
     excluded = set(opts.excluded) if opts.excluded is not None else set()
-    if 'all' in args:
-        externals = GETTERS.keys()
-    else:
-        externals = args
+
+    externals = []
+    for external in args:
+        if external == 'DISTRIB':
+            externals += EXTERNALS_DISTRIB
+        elif external == 'ALL':
+            externals += EXTERNALS
+        else:
+            externals.append(external)
+
+    done = set()
     for external in externals:
-        if external in excluded:
+        if external in done or external in excluded:
             continue
-        getter, destdir = GETTERS[external]
+        getter, destdir, distrib = GETTERS[external]
         destdir = os.path.join(EXTERNAL_DIR, destdir)
         if not os.path.isdir(destdir):
             msg = "Directory '{}' does not exist".format(destdir)
             raise ScriptError(msg)
-        print('\n*** GETTING EXTERNAL: ', external, 'into', destdir, '\n')
+        print('\n*** GETTING EXTERNAL:', external, '\n    into', destdir, '\n')
+        if not distrib:
+            print(NON_DISTRIB_WARNING)
         set_status(destdir, STATUS_MISSING)
         getter(destdir)
         set_status(destdir, STATUS_OK)
-        print('\n*** FINISHED GETTING EXTERNAL: ', external)
+        print()
+        done.add(external)
 
 
 def parse_cmdline_args():
@@ -69,7 +101,10 @@ def parse_cmdline_args():
         choices=EXTERNALS, default=None, action='append', help=msg)
     opts, args = parser.parse_args()
 
-    argchoices = ['all'] + EXTERNALS
+    if not args:
+        parser.error('Missing optional external component name')
+    
+    argchoices = ['DISTRIB', 'ALL'] + EXTERNALS
     for arg in args:
         if arg not in argchoices:
             msg = "Invalid optional external '{}'".format(arg)
@@ -85,7 +120,7 @@ def set_status(destdir, status):
 
 
 def get_slakos(destdir):
-    '''Downloads and extracts Slater-Koster files.'''
+    '''Downloads and extracts parametrizations for the tests.'''
 
     url = 'https://github.com/dftbplus/testparams/archive/master.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
@@ -121,7 +156,7 @@ def get_dftd3(destdir):
 
 def download_file(url, fname):
     '''Download file (currently via wget)'''
-    print('Download: {0} from {1}'.format(fname, url))
+    print('Download: {0}\n    from {1}'.format(fname, url))
     sub.check_call(['wget', '-q', '-O', fname, url])
 
 
@@ -141,12 +176,18 @@ def unpack_file(fname):
         raise ScriptError(msg)
 
 
+# Methods to obtain externals.
+# Contains (function, targetfolder, is_distributable) tuples
 GETTERS = {
-    'slakos': (get_slakos, 'slakos'),
-    'dftd3': (get_dftd3, 'dftd3')
+    'slakos': (get_slakos, 'slakos', True),
+    'dftd3': (get_dftd3, 'dftd3', False)
 }
+
+# All externals
 EXTERNALS = list(GETTERS.keys())
 
+# LGPL-compatible externals without restriction on distribution
+EXTERNALS_DISTRIB = [ext for ext in GETTERS.keys() if GETTERS[ext][2]]
 
 if __name__ == '__main__':
     main()
