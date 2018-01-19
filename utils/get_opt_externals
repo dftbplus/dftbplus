@@ -26,7 +26,7 @@ Possible choices for OPTEXT:
       can be distributed with the DFTB+ source code and do not restrict the
       distribution of the compiled code beyond its LGPL-license.
 
-  ALL -- download all optional external components. 
+  ALL -- download all optional external components.
 
       NOTE: this will also download components with LGPL-incompatible
       licenses. Those components can not be distributed with the DFTB+ source
@@ -51,37 +51,6 @@ STATUS_FILE = 'status'
 STATUS_MISSING = 'missing'
 STATUS_OK = 'ok'
 
-def query_yes_no(question, default="yes"):
-    """Ask a yes/no question via raw_input() and return True/False.
-    
-    "question" string presented to the user.
-    "default" is the presumed answer if the user just hits <Enter>.
-        It must be "yes" (the default), "no" or None (meaning
-        an answer is required of the user).
-    
-    The "answer" return value is True for "yes" or False for "no".
-    """
-    valid = {"yes": True, "y": True,
-             "no": False, "n": False}
-    if default is None:
-        prompt = " [y/n] "
-    elif default == "yes":
-        prompt = " [Y/n] "
-    elif default == "no":
-        prompt = " [y/N] "
-    else:
-        raise ValueError("invalid default answer: '%s'" % default)
-    
-    while True:
-        sys.stdout.write(question + prompt)
-        choice = raw_input().lower()
-        if default is not None and choice == '':
-            return valid[default]
-        elif choice in valid:
-            return valid[choice]
-        else:
-            sys.stdout.write("Please respond with 'yes' or 'no' "
-                             "(or 'y' or 'n').\n")
 
 class ScriptError(Exception):
     '''Exception raised by the script.'''
@@ -112,7 +81,7 @@ def main():
         if not os.path.isdir(destdir):
             msg = "Directory '{}' does not exist".format(destdir)
             raise ScriptError(msg)
-        print('\n*** GETTING EXTERNAL:', external, '\n    into', destdir, '\n')
+        print('\n*** Getting external:', external, '\n    into', destdir, '\n')
         if not distrib:
             print(NON_DISTRIB_WARNING)
         set_status(destdir, STATUS_MISSING)
@@ -166,7 +135,6 @@ def get_slakos(destdir):
     os.rename(unpackname, targetname)
 
 
-
 def get_dftd3(destdir):
     '''Downloads the dftd3 library.'''
 
@@ -178,20 +146,18 @@ def get_dftd3(destdir):
         shutil.rmtree(unpackname)
     if os.path.exists(targetname):
         shutil.rmtree(targetname)
-    msg = '    Download DFTD3 library -'\
-          'the resulting binary can not be distributed if this is included'
-    if (query_yes_no(msg,"no")):
+    if query_download_confirmation('dftd3', False):
         download_file(url, fname)
         unpack_file(fname)
         os.remove(fname)
         os.rename(unpackname, targetname)
     else:
-        sys.stdout.write("    Skipping DFTD3 libray download")
+        sys.stdout.write("    Skipping dftd3 download")
 
 
 def download_file(url, fname):
     '''Download file (currently via wget)'''
-    print('Download: {0}\n    from {1}'.format(fname, url))
+    print('Download:\n    {0}\n    from {1}'.format(fname, url))
     sub.check_call(['wget', '-q', '-O', fname, url])
 
 
@@ -211,6 +177,56 @@ def unpack_file(fname):
         raise ScriptError(msg)
 
 
+def query_yes_no(question, default=True):
+    """Ask a yes/no question via raw_input() and return True/False.
+
+    Args:
+        question: string presented to the user.
+        default: is the presumed answer if the user just hits <Enter>.
+            It must be "yes" (the default), "no" or None (meaning
+            an answer is required of the user).
+
+    Returns:
+        The "answer" return value is True for "yes" or False for "no".
+    """
+    valid = {"yes": True, "y": True, "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default:
+        prompt = " [Y/n] "
+        defaultstr = "y"
+    else:
+        prompt = " [y/N] "
+        defaultstr = "n"
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = read_input().lower()
+        if default is not None and choice == '':
+            return valid[defaultstr]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
+
+
+def query_download_confirmation(component, default=False):
+    '''Confirmation query for downloading a component.'''
+    question = '    Download {0}?'.format(component)
+    answer = query_yes_no(question, default)
+    print()
+    return answer
+
+
+def read_input():
+    '''Input method working with both Python 2 and 3.'''
+    if sys.version_info[0] >= 3:
+        return input()
+    else:
+        return raw_input()
+
+
 # Methods to obtain externals.
 # Contains (function, targetfolder, is_distributable) tuples
 GETTERS = {
@@ -223,6 +239,7 @@ EXTERNALS = list(GETTERS.keys())
 
 # LGPL-compatible externals without restriction on distribution
 EXTERNALS_DISTRIB = [ext for ext in GETTERS.keys() if GETTERS[ext][2]]
+
 
 if __name__ == '__main__':
     main()
