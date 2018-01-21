@@ -96,8 +96,8 @@ module initprogram
   !> Second derivative of the energy with respect to atomic positions
   character(*), parameter :: hessianOut = "hessian.out"
 
-  !> file name for charge data
-  character(*), parameter :: fCharges = "charges.bin"
+  !> file name prefix for charge data
+  character(*), parameter :: fCharges = "charges"
 
   !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
@@ -631,6 +631,9 @@ module initprogram
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
+  !> should charges written to disc be in ascii or binary format?
+  logical :: tWriteChrgAscii
+
   !> produce tagged output?
   logical :: tWriteAutotest
 
@@ -991,6 +994,12 @@ contains
 
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    if (env%mpi%nGroup > 1) then
+      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
+          & env%mpi%globalComm%size, env%mpi%nGroup
+    else
+      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
+    end if
   #:endif
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
@@ -1892,6 +1901,7 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+    tWriteChrgAscii = input%ctrl%tWriteChrgAscii
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -1904,25 +1914,26 @@ contains
         if (tDFTBU) then
           if (nSpin == 2) then
             if (tFixEf) then ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl), &
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
             end if
           else
             if (tImHam) then
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
+                    & qBlock=qBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn)
               end if
             end if
@@ -1931,16 +1942,16 @@ contains
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl),&
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = nEl(1))
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
             end if
           end if
         end if
@@ -2455,6 +2466,16 @@ contains
         write(stdOut, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
             & (kPoint(jj, ii), jj=1, 3), kWeight(ii)
       end do
+      write(stdout,*)
+      do ii = 1, nKPoint
+        if (ii == 1) then
+          write(strTmp, "(A,':')") "K-points in absolute space"
+        else
+          write(strTmp, "(A)") ""
+        end if
+        write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii, matmul(invLatVec,kPoint(:,ii))
+      end do
+      write(stdout, *)
     end if
 
     if (tDispersion) then

@@ -11,10 +11,9 @@
 #
 # Usage:
 #
-#  make_archive.sh ARCHIVE_NAME TEMPDIR
+#  make_archive.sh ARCHIVE_NAME
 #
-#  where ARCHIVE_NAME specifies the name of the archive (without extension)
-#  and TEMPDIR a temporary directory where packing/unpacking can be done. The script
+#  where ARCHIVE_NAME specifies the name of the archive. The script
 #  must be invoked from the root of the git repository.
 #
 
@@ -24,17 +23,11 @@ if [ -z "$archive" ]; then
   exit 1
 fi
 
-tmpdir=$2
+tmpdir="$(mktemp -d --tmpdir make_archive.XXXXXX)"
 if [ -z "$tmpdir" ]; then
-  echo "Missing second argument (temporary directory)" >&2
+  echo "Temporary directory '$tmpdir' could not be created" >&2
   exit 1
 fi
-
-if [ ! -d "$tmpdir" ]; then
-  echo "Could not create temporary directory $tmpdir"
-  exit
-fi
-
 echo "Temporary directory: $tmpdir"
 echo "Archiving repository with prefix: $archive/"
 git archive --format=tar --prefix $archive/ HEAD | tar -C $tmpdir -x -f -
@@ -51,3 +44,5 @@ fi
 
 echo "Creating archive ${archive}.tar.xz"
 tar -C $tmpdir -c -J -f $PWD/${archive}.tar.xz $archive/
+echo "Deleting temporary directory $tmpdir"
+rm -rf $tmpdir
