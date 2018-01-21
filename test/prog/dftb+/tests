@@ -24,6 +24,7 @@ geoopt/H2O-nonscc                      #? NPROC <= 1
 non-scc/CH4                            #? NPROC <= 1
 non-scc/decapentaene                   #? NPROC <= 2
 scc/2H2O-3rdorder                      #? NPROC <= 1
+scc/2H2O-3rdorder_read                 #? NPROC <= 1
 scc/C2H6_3rdfull                       #? NPROC <= 1
 scc/C2H6_3rdfull-damp                  #? NPROC <= 1
 scc/H2O2_3rdfull                       #? NPROC <= 1
@@ -63,6 +64,7 @@ timedep/C4H6-T1-Force                  #? WITH_ARPACK and NPROC <= 1
 timedep/C4H6-Triplet                   #? WITH_ARPACK and NPROC <= 1
 
 dftb+u/Fe4                             #? NPROC <= 2
+dftb+u/Fe4_read                        #? NPROC <= 2
 geoopt/Cchain_lattice                  #? NPROC <= 1
 scc/H2O+CH3COOH-3rdorder               #? NPROC <= 1
 spinorbit/Fe2                          #? NPROC <= 4
@@ -145,4 +147,5 @@ timedep/C60_EandOsc                    #? WITH_ARPACK and NPROC <= 1
 non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
+scc/SiC64+V_dynforce_groups            #? NPROC <= 8 and NPROC % 4 == 0 
 scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0
