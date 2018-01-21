@@ -671,6 +671,7 @@ contains
       iS = parallelKS%localKS(2, iKS)
       do iEig = 1, denseDesc%nOrb
         call hemv(rVecTemp, SSqr, eigvecs(:,iEig,iS))
+        rVecTemp = rVecTemp * eigvecs(:,iEig,iS)
         call writeSingleRealEigvecTxt(fd, eigvecs(:,iEig,iS), rVecTemp, iS, iEig, orb, species,&
             & speciesName, nAtom)
       end do
@@ -801,7 +802,8 @@ contains
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nEigvec
           if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
             call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
             call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
@@ -1774,7 +1776,8 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
           if (env%blacs%orbitalGrid%master) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
             call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
             call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
@@ -1977,7 +1980,9 @@ contains
       call writeTagged(fd, tag_chrgForces, -chrgForces)
     end if
     if (allocated(excitedDerivs)) then
-      call writeTagged(fd, tag_excForce, -excitedDerivs)
+      if (size(excitedDerivs) > 0) then
+        call writeTagged(fd, tag_excForce, -excitedDerivs)
+      end if
     end if
     if (tStress) then
       call writeTagged(fd, tag_stressTot, totalStress)
@@ -2215,7 +2220,8 @@ contains
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc)
+      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc,&
+      & invLatVec, kPoints)
 
     !> File  ID
     integer, intent(in) :: fd
@@ -2343,6 +2349,12 @@ contains
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
 
+    !> Reciprocal lattice vectors if periodic
+    real(dp), intent(in) :: invLatVec(:,:)
+
+    !> K-points if periodic
+    real(dp), intent(in) :: kPoints(:,:)
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
@@ -2352,6 +2364,7 @@ contains
 
     character(*), parameter :: formatEigen = "(F14.8)"
     character(*), parameter :: formatFilling = "(F12.5)"
+    character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
     nLevel = size(eigen, dim=1)
@@ -2414,6 +2427,18 @@ contains
       write(fd, *)
     end if
 
+    if (tPeriodic .and. tLatOpt) then
+      do iK = 1, nKPoint
+        if (iK == 1) then
+          write(strTmp, "(A,':')") "K-points in absolute space"
+        else
+          write(strTmp, "(A)") ""
+        end if
+        write(fd, "(A,T28,I6,':',3F10.6)") trim(strTmp), iK, matmul(invLatVec,kPoints(:,iK))
+      end do
+      write(fd, *)
+    end if
+
     if (nMovedAtom > 0 .and. .not. tDerivs) then
       write(fd, "(A)") "Coordinates of moved atoms (au):"
       do iAt = 1, nMovedAtom
@@ -2424,9 +2449,9 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      write(fd, "(A, F14.8)") " Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
-      write(fd, "(/,A)") " Net atomic charges (e)"
-      write(fd, "(A5, 1X, A16)")" Atom", " Net charge"
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(/,A)") " Atomic gross charges (e)"
+      write(fd, "(A5, 1X, A16)")" Atom", " Charge"
       do iAt = 1, nAtom
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
@@ -3127,13 +3152,16 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, fdCharges, orb, qInput, qBlockIn, qiBlockIn)
+  subroutine writeCharges(fCharges, fdCharges, tWriteBinary, orb, qInput, qBlockIn, qiBlockIn)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
 
     !> File descriptor for charge output
     integer, intent(in) :: fdCharges
+
+    !> Charges should be output in binary (T) or ascii (F)
+    logical, intent(in) :: tWriteBinary
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3149,12 +3177,12 @@ contains
 
     if (allocated(qBlockIn)) then
       if (allocated(qiBlockIn)) then
-        call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn, qiBlockIn)
+        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn, qiBlockIn)
       else
-        call writeQToFile(qInput, fCharges, fdCharges, orb, qBlockIn)
+        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn)
       end if
     else
-      call writeQToFile(qInput, fCharges, fdCharges, orb)
+      call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb)
     end if
     write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)
 

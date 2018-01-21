@@ -285,7 +285,9 @@ contains
     type(fnode), pointer :: child, child2, child3, value, value2, field
 
     type(string) :: buffer, buffer2, modifier
+#:if WITH_SOCKETS
     character(lc) :: sTmp
+#:endif
 
     ctrl%tGeoOpt = .false.
     ctrl%tCoordOpt = .false.
@@ -1360,6 +1362,7 @@ contains
 
       if (geo%tPeriodic) then
         call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
+        call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
       end if
 
       ! spin polarisation
@@ -1711,8 +1714,7 @@ contains
           call warning(errorStr)
         end if
         if (ctrl%tSCC .and. .not.ctrl%tReadChrg) then
-          call warning("It is strongly suggested you use the&
-              & ReadInitialCharges option.")
+          call warning("It is strongly suggested you use the ReadInitialCharges option.")
         end if
 
       case (textNodeName)
@@ -2614,10 +2616,15 @@ contains
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 2)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 3)
   #:else
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
   #:endif
+
+    if (ctrl%tReadChrg) then
+      call getChildValue(node, "ReadChargesAsText", ctrl%tReadChrgAscii, .false.)
+    end if
+    call getChildValue(node, "WriteChargesAsText", ctrl%tWriteChrgAscii, .false.)
 
   end subroutine readOptions
 

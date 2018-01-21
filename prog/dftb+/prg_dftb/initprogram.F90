@@ -23,7 +23,6 @@ module initprogram
   use shortgamma
   use coulomb
   use message
-  use mainio, only : receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -69,6 +68,7 @@ module initprogram
   use xlbomd_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
+  use mainio, only : receiveGeometryFromSocket
   use ipisocket
 #:endif
   use pmlocalisation
@@ -96,8 +96,8 @@ module initprogram
   !> Second derivative of the energy with respect to atomic positions
   character(*), parameter :: hessianOut = "hessian.out"
 
-  !> file name for charge data
-  character(*), parameter :: fCharges = "charges.bin"
+  !> file name prefix for charge data
+  character(*), parameter :: fCharges = "charges"
 
   !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
@@ -612,6 +612,9 @@ module initprogram
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
+  !> should charges written to disc be in ascii or binary format?
+  logical :: tWriteChrgAscii
+
   !> produce tagged output?
   logical :: tWriteAutotest
 
@@ -972,6 +975,12 @@ contains
 
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    if (env%mpi%nGroup > 1) then
+      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
+          & env%mpi%globalComm%size, env%mpi%nGroup
+    else
+      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
+    end if
   #:endif
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
@@ -1162,6 +1171,7 @@ contains
       end if
 
       sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
       mCutoff = max(mCutoff, sccCalc%getCutoff())
@@ -1637,9 +1647,6 @@ contains
       end if
 
       if (input%ctrl%lrespini%nstat == 0) then
-        if (input%ctrl%lrespini%tMulliken) then
-          call error("Muliken analysis only available for StateOfInterest non zero.")
-        end if
         if (tForces) then
           call error("Excited forces only available for StateOfInterest non zero.")
         end if
@@ -1863,6 +1870,7 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+    tWriteChrgAscii = input%ctrl%tWriteChrgAscii
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -1875,25 +1883,26 @@ contains
         if (tDFTBU) then
           if (nSpin == 2) then
             if (tFixEf) then ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl), &
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
             end if
           else
             if (tImHam) then
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
+                    & qBlock=qBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn)
               end if
             end if
@@ -1902,16 +1911,16 @@ contains
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl),&
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = nEl(1))
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
             end if
           end if
         end if
@@ -2448,6 +2457,16 @@ contains
         write(stdOut, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
             & (kPoint(jj, ii), jj=1, 3), kWeight(ii)
       end do
+      write(stdout,*)
+      do ii = 1, nKPoint
+        if (ii == 1) then
+          write(strTmp, "(A,':')") "K-points in absolute space"
+        else
+          write(strTmp, "(A)") ""
+        end if
+        write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii, matmul(invLatVec,kPoint(:,ii))
+      end do
+      write(stdout, *)
     end if
 
     if (tDispersion) then
@@ -2732,7 +2751,7 @@ contains
 
   end subroutine createRandomGenerators
 
-
+#:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
   subroutine initSocket(env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
       & tLatticeChanged)
@@ -2772,7 +2791,7 @@ contains
         & tLatticeChanged, tDummy)
 
   end subroutine initSocket
-
+#:endif
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
@@ -3040,15 +3059,17 @@ contains
       allocate(iRhoPrim(0, nSpin))
     end if
 
+    allocate(excitedDerivs(0,0))
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-    end if
-    if (tLinRespZVect) then
-      allocate(excitedDerivs(3, nAtom))
+      if (tLinRespZVect) then
+        deallocate(excitedDerivs)
+        allocate(excitedDerivs(3, nAtom))
+      end if
     end if
 
     call init(energy, nAtom)

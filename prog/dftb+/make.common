@@ -20,6 +20,9 @@ include $(ROOT)/make.config
 
 FYPPOPT += -DDEBUG=$(DEBUG)
 
+RELEASE := $(shell cat $(BUILDROOT)/RELEASE)
+FYPPOPT += -DRELEASE="'$(RELEASE)'"
+
 vpath % $(SRCDIRS)
 
 ############################################################################

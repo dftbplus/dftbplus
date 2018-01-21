@@ -3,7 +3,7 @@
 
 MANUALCOMPONENTS = manual.tex packages.tex newcommands.tex hsd.tex \
     unit_mod.tex gen.tex spin_constants.tex disp_constants.tex \
-    publications.tex references.tex \
+    restart_files.tex publications.tex references.tex \
     introduction.tex dftbp.tex modes.tex waveplot.tex
 
 RM = /usr/bin/env rm -f

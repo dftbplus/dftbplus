@@ -38,6 +38,8 @@ module lapackroutines
   interface getrf
     module procedure getrf_real
     module procedure getrf_dble
+    module procedure getrf_complex
+    module procedure getrf_dcomplex
   end interface getrf
 
 
@@ -88,8 +90,17 @@ module lapackroutines
     module procedure larnv_dblecplx
   end interface larnv
 
+  !> svd decomposition of matrix A into left and right vectors and singular values U S V^dag
+  interface gesvd
+    module procedure sgesvd_real
+    module procedure dgesvd_dble
+    module procedure cgesvd_cplx
+    module procedure zgesvd_dblecplx
+  end interface gesvd
+
+
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf
+  public :: hermatinv, hetri, hetrf, gesvd
 
 contains
 
@@ -337,6 +348,122 @@ contains
     end if
 
   end subroutine getrf_dble
+
+
+  !> Complex precision version of getrf.
+  subroutine getrf_complex(aa, ipiv, nRow, nColumn, iError)
+
+    !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
+    complex(rsp), intent(inout) :: aa(:,:)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(out) :: ipiv(:)
+
+    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nRow
+
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nColumn
+
+    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
+    integer, optional, intent(out) :: iError
+
+    integer :: mm, nn, lda, info
+
+    lda = size(aa, dim=1)
+    nn = size(aa, dim=2)
+    if (present(nRow)) then
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
+      mm = nRow
+    else
+      mm = lda
+    end if
+    if (present(nColumn)) then
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      nn = nColumn
+    end if
+    @:ASSERT(size(ipiv) == min(mm, nn))
+
+    call cgetrf(mm, nn, aa, lda, ipiv, info)
+
+    if (info < 0) then
+99045 format ('Failure in LU factorisation sgetrf,', &
+          & ' illegal argument at position ',i10)
+      write (error_string, 99045) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99055   format ('Factor U is exactly zero in sgetrf,', &
+            & ' info flag is ',i10)
+        write (error_string, 99055) info
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine getrf_complex
+
+
+  !> Double precision version of getrf.
+  subroutine getrf_dcomplex(aa, ipiv, nRow, nColumn, iError)
+
+    !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
+    complex(rdp), intent(inout) :: aa(:,:)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(out) :: ipiv(:)
+
+    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nRow
+
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
+    !> of the passed matrix)
+    integer, optional, intent(in) :: nColumn
+
+    !> Error flag. Zero on successfull exit. If not present, any lapack error causes program
+    !> termination. If passed only fatal lapack errors with error flag < 0 cause abort.
+    integer, optional, intent(out) :: iError
+
+    integer :: mm, nn, lda, info
+
+    lda = size(aa, dim=1)
+    nn = size(aa, dim=2)
+    if (present(nRow)) then
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
+      mm = nRow
+    else
+      mm = lda
+    end if
+    if (present(nColumn)) then
+      @:ASSERT(nColumn >= 1 .and. nColumn <= nn)
+      nn = nColumn
+    end if
+    @:ASSERT(size(ipiv) == min(mm, nn))
+
+    call zgetrf(mm, nn, aa, lda, ipiv, info)
+
+    if (info < 0) then
+99065 format ('Failure in LU factorisation dgetrf,', &
+          & ' illegal argument at position ',i10)
+      write (error_string, 99065) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99075   format ('Factor U is exactly zero in dgetrf,', &
+            & ' info flag is ',i10)
+        write (error_string, 99075) info
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine getrf_dcomplex
 
 
   !> Single precision version of getri.
@@ -1146,5 +1273,198 @@ contains
     x(:) = 0.0d0
     call ZLARNV( iDist, iSeed, n, x )
   end subroutine larnv_dblecplx
+
+
+  !> real svd decomposition of matrix A into left and right vectors and singular values
+  subroutine sgesvd_real(A,u,sigma,vt)
+
+    !> matrix to decompose, warning the matrix is over-written by the routine
+    real(rsp), intent(inout) :: A(:,:)
+
+    !> first min(m,n) columns of u hold the left singular vector on return
+    real(rsp), intent(out) :: u(:,:)
+
+    !> holds the singular values on return
+    real(rsp), intent(out) :: sigma(:)
+
+    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
+    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
+    !> zero!
+    real(rsp), intent(out) :: vt(:,:)
+
+    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
+    real(rsp), allocatable :: work(:)
+
+    m = size(A,dim=1)
+    n = size(A,dim=2)
+    mn = min(m,n)
+    lda = size(A,dim=1)
+    ldu = size(U,dim=1)
+    ldvt = size(Vt,dim=1)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
+    @:ASSERT(size(sigma) == mn)
+
+    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
+
+    allocate(work(lwork))
+
+    ! get only the minimum(m,n) singular vectors
+    call sgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      call error(error_string)
+    end if
+
+    deallocate(work)
+
+  end subroutine sgesvd_real
+
+
+  !> double precision svd decomposition of matrix A into left and right vectors and singular values
+  subroutine dgesvd_dble(A,u,sigma,vt)
+
+    !> matrix to decompose, warning the matrix is over-written by the routine
+    real(rdp), intent(inout) :: A(:,:)
+
+    !> first min(m,n) columns of u hold the left singular vector on return
+    real(rdp), intent(out) :: u(:,:)
+
+    !> holds the singular values on return
+    real(rdp), intent(out) :: sigma(:)
+
+    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
+    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
+    !> zero!
+    real(rdp), intent(out) :: vt(:,:)
+
+    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
+    real(rdp), allocatable :: work(:)
+
+    m = size(A,dim=1)
+    n = size(A,dim=2)
+    mn = min(m,n)
+    lda = size(A,dim=1)
+    ldu = size(U,dim=1)
+    ldvt = size(Vt,dim=1)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
+    @:ASSERT(size(sigma) == mn)
+
+    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
+
+    allocate(work(lwork))
+
+    ! get only the minimum(m,n) singular vectors
+    call dgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      call error(error_string)
+    end if
+
+    deallocate(work)
+
+  end subroutine dgesvd_dble
+
+  !> complex svd decomposition of matrix A into left and right vectors and singular values
+  subroutine cgesvd_cplx(A,u,sigma,vt)
+
+    !> matrix to decompose, warning the matrix is over-written by the routine
+    complex(rsp), intent(inout) :: A(:,:)
+
+    !> first min(m,n) columns of u hold the left singular vector on return
+    complex(rsp), intent(out) :: u(:,:)
+
+    !> holds the singular values on return
+    real(rsp), intent(out) :: sigma(:)
+
+    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
+    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
+    !> zero!
+    complex(rsp), intent(out) :: vt(:,:)
+
+    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
+    real(rsp), allocatable :: rwork(:)
+    complex(rsp), allocatable :: work(:)
+
+    m = size(A,dim=1)
+    n = size(A,dim=2)
+    mn = min(m,n)
+    lda = size(A,dim=1)
+    ldu = size(U,dim=1)
+    ldvt = size(Vt,dim=1)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
+    @:ASSERT(size(sigma) == mn)
+
+    lwork = 2*min(m,n)+max(m,n)
+
+    allocate(rwork(5*mn))
+    allocate(work(lwork))
+
+    ! get only the minimum(m,n) singular vectors
+    call cgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
+
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      call error(error_string)
+    end if
+
+    deallocate(rwork)
+    deallocate(work)
+
+  end subroutine cgesvd_cplx
+
+
+  !> double complex svd decomposition of matrix A into left and right vectors and singular values
+  subroutine zgesvd_dblecplx(A,u,sigma,vt)
+
+    !> matrix to decompose, warning the matrix is over-written by the routine
+    complex(rdp), intent(inout) :: A(:,:)
+
+    !> first min(m,n) columns of u hold the left singular vector on return
+    complex(rdp), intent(out) :: u(:,:)
+
+    !> holds the singular values on return
+    real(rdp), intent(out) :: sigma(:)
+
+    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
+    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
+    !> zero!
+    complex(rdp), intent(out) :: vt(:,:)
+
+    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
+    real(rdp), allocatable :: rwork(:)
+    complex(rdp), allocatable :: work(:)
+
+    m = size(A,dim=1)
+    n = size(A,dim=2)
+    mn = min(m,n)
+    lda = size(A,dim=1)
+    ldu = size(U,dim=1)
+    ldvt = size(Vt,dim=1)
+    @:ASSERT(all(shape(u) == (/m,mn/)))
+    @:ASSERT(all(shape(vt) == (/mn,n/)))
+    @:ASSERT(size(sigma) == mn)
+
+    lwork = 2*min(m,n)+max(m,n)
+
+    allocate(rwork(5*mn))
+    allocate(work(lwork))
+
+    ! get only the minimum(m,n) singular vectors
+    call zgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
+
+    if (info /= 0) then
+      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      call error(error_string)
+    end if
+
+    deallocate(rwork)
+    deallocate(work)
+
+  end subroutine zgesvd_dblecplx
 
 end module lapackroutines

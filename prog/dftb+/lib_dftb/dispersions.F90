@@ -29,11 +29,12 @@ module dispersions
 
     !> Slater-Kirkwood
     type(DispSlaKirkInp), allocatable :: slakirk
-  #:if WITH_DFTD3
 
+  #:if WITH_DFTD3
     !> Grimme DFT-D3
     type(DispDftD3Inp), allocatable :: dftd3
   #:endif
+  
   end type DispersionInp
 
 end module dispersions

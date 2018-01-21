@@ -1,0 +1,47 @@
+Geometry =  GenFormat {
+      6  C
+ O H
+      1 1     -1.43934459     -0.15370440      0.00000000
+      2 1      1.40727283      0.15824426      0.00000000
+      3 2     -0.47595441      0.01312376      0.00000000
+      4 2     -1.87146143      0.71280249      0.00000000
+      5 2      1.70130425     -0.33540865     -0.77909584
+      6 2      1.70130425     -0.33540865      0.77909584
+}
+
+Driver = {}
+    
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-8
+  ReadInitialCharges = Yes
+  MaxSCCIterations = 1
+  MaxAngularMomentum {
+    H = "s"
+    O = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix  = ".skf"
+  }
+  ThirdOrder = Yes
+  HubbardDerivs {
+    O = -0.14
+    H = -0.07
+  }
+  DampXH = Yes
+  DampXHExponent = 4.95
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  ReadChargesAsText = Yes
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 5
+}

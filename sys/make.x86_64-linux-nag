@@ -13,7 +13,7 @@ FXX = mpif90
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops -mismatch
+FXXOPT = -O2 -ieee=full -mismatch
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Linker

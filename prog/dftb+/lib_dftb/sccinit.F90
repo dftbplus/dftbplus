@@ -22,13 +22,6 @@ module sccinit
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
 
 
-  !> read stored charges in binary format?
-  logical :: tReadBinary = .true.
-
-  !> store charges in binary format?
-  logical :: tWriteBinary = .true.
-
-
   !> Used to return runtime diagnostics
   character(len=120) :: error_string
 
@@ -76,7 +69,7 @@ contains
     ! fill degenerately over m for each shell l
     do iAt = 1, nAtom
       iSp = species(iAt)
-      ! nr. of electrons = number of electrons in all shells - net charge
+      ! nr. of electrons = number of electrons in all shells - gross charge
       fAtomRes = sum(fRefShell(1:orb%nShell(iSp),iSp)) - qAtom(iAt)
       lpShell: do iSh1 = 1, orb%nShell(iSp)
         fShell = min(fAtomRes, real(2 * (2 * orb%angShell(iSh1, iSp) + 1), dp))
@@ -145,16 +138,19 @@ contains
   !> charge matches that expected for the calculation.
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
-  subroutine initQFromFile(qq, fileName, orb, magnetisation, nEl, qBlock, qiBlock)
+  subroutine initQFromFile(qq, fileName, tReadAscii, orb, magnetisation, nEl, qBlock, qiBlock)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
 
     !> The external file of charges for the orbitals, currently stored with each line containing the
     !> per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
-
     !> present)
     character(*), intent(in) :: fileName
+
+    !> Should charges be read as ascii (cross platform, but potentially lower reproducibility) or
+    !> binary files
+    logical, intent(in) :: tReadAscii
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -205,12 +201,12 @@ contains
       file = getFileId()
     end if
 
-    if (tReadBinary) then
-      open(file, file=fileName, status='old', action='READ', &
-          & form='unformatted',iostat=iErr)
-    else
-      open(file, file=fileName, status='old', action='READ', &
+    if (tReadAscii) then
+      open(file, file=trim(fileName)//'.dat', status='old', action='READ', &
           & iostat=iErr)
+    else
+      open(file, file=trim(fileName)//'.bin', status='old', action='READ', &
+          & form='unformatted',iostat=iErr)
     end if
     if (iErr /= 0) then
       write(error_string, *) "Failure to open external file of charge data"
@@ -218,11 +214,11 @@ contains
     end if
     rewind(file)
 
-    if (tReadBinary) then
-      read(file, iostat=iErr)fileFormat,tBlockPresent,tiBlockPresent, &
+    if (tReadAscii) then
+      read(file, *, iostat=iErr)fileFormat,tBlockPresent,tiBlockPresent, &
           & iSpin,CheckSum
     else
-      read(file, *, iostat=iErr)fileFormat,tBlockPresent,tiBlockPresent, &
+      read(file, iostat=iErr)fileFormat,tBlockPresent,tiBlockPresent, &
           & iSpin,CheckSum
     end if
     if (iErr /= 0) then
@@ -242,10 +238,10 @@ contains
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         nOrb = orb%nOrbAtom(iAtom)
-        if (tReadBinary) then
-          read (file, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
-        else
+        if (tReadAscii) then
           read (file, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+        else
+          read (file, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
         end if
         if (iErr /= 0) then
           write (error_string, *) "Failure to read file of external charges"
@@ -284,10 +280,10 @@ contains
           do iAtom = 1, nAtom
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
-              if (tReadBinary) then
-                read (file, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
-              else
+              if (tReadAscii) then
                 read (file, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              else
+                read (file, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
               end if
               if (iErr /= 0) then
                 write (error_string, *) "Failure to read file for external &
@@ -314,10 +310,10 @@ contains
           do iAtom = 1, nAtom
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
-              if (tReadBinary) then
-                read (file, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
-              else
+              if (tReadAscii) then
                 read (file, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              else
+                read (file, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
               end if
               if (iErr /= 0) then
                 write (error_string, *) "Failure to read file for external &
@@ -336,7 +332,7 @@ contains
 
 
   !> Write the current charges to an external file
-  subroutine writeQToFile(qq, fileName, fd, orb, qBlock, qiBlock)
+  subroutine writeQToFile(qq, fileName, fd, tWriteAscii, orb, qBlock, qiBlock)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
@@ -346,6 +342,9 @@ contains
 
     !> File descriptor to use for the file
     integer, intent(in) :: fd
+
+    !> Write in a ascii format (T) or binary (F)
+    logical, intent(in) :: tWriteAscii
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -381,16 +380,12 @@ contains
     end if
 #:endcall ASSERT_CODE
 
-    if (tWriteBinary) then
-      open(fd, file=fileName, position="rewind", status="replace", form="unformatted")
-    else
-      open(fd, file=fileName, position="rewind", status="replace")
-    end if
-
-    if (tWriteBinary) then
-      write(fd, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
-    else
+    if (tWriteAscii) then
+      open(fd, file=trim(fileName)//'.dat', position="rewind", status="replace")
       write(fd, *, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
+    else
+      open(fd, file=trim(fileName)//'.bin', position="rewind", status="replace", form="unformatted")
+      write(fd, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
     end if
     if (iErr /= 0) then
       write(error_string, *) "Failure to write file for external charges"
@@ -399,10 +394,10 @@ contains
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         nOrb = orb%nOrbAtom(iAtom)
-        if (tWriteBinary) then
-          write(fd, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
-        else
+        if (tWriteAscii) then
           write(fd, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
+        else
+          write(fd, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
         end if
         if (iErr /= 0) then
           write(error_string, *) "Failure to write file for external charges"
@@ -415,10 +410,10 @@ contains
         do iAtom = 1, nAtom
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
-            if (tWriteBinary) then
-              write(fd, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
-            else
+            if (tWriteAscii) then
               write(fd, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+            else
+              write(fd, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
               write(error_string, *) "Failure to write file for external block&
@@ -435,10 +430,10 @@ contains
         do iAtom = 1, nAtom
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
-            if (tWriteBinary) then
-              write(fd, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
-            else
+            if (tWriteAscii) then
               write(fd, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+            else
+              write(fd, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
               write(error_string, *) "Failure to write file for external block imaginary charges"

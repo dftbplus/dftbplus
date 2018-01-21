@@ -20,6 +20,11 @@ blasroutines.o = blasroutines.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $
 _mod_blasroutines: blasroutines.o
 _mod_blasroutines = $(blasroutines.o)
 
+determinant.o: _mod_lapackroutines common.fypp _mod_accuracy
+determinant.o = determinant.o $(_mod_lapackroutines) $(common.fypp) $(_mod_accuracy)
+_mod_determinant: determinant.o
+_mod_determinant = $(determinant.o)
+
 eigensolver.o: common.fypp _mod_message _mod_lapack _mod_assert _mod_blas _mod_accuracy
 eigensolver.o = eigensolver.o $(common.fypp) $(_mod_message) $(_mod_lapack) $(_mod_assert) $(_mod_blas) $(_mod_accuracy)
 _mod_eigensolver: eigensolver.o

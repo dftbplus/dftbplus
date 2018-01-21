@@ -16,11 +16,33 @@ import optparse
 import subprocess as sub
 import shutil
 
-USAGE = '''usage: %prog [options] OPTEXT [OPTEXT ...]
+USAGE = '''usage: %prog [options] [OPTEXT [OPTEXT ...]]
 
-Downloads optional external components. Possible choices for OPTEXT: all,
-dftd3, slakos.
+Downloads optional external components.
+
+Possible choices for OPTEXT:
+
+  DISTRIB (default) -- download only components which are LGPL-compatible,
+      can be distributed with the DFTB+ source code and do not restrict the
+      distribution of the compiled code beyond its LGPL-license.
+
+  ALL -- download all optional external components.
+
+      NOTE: this will also download components with LGPL-incompatible
+      licenses. Those components can not be distributed with the DFTB+ source
+      code and the distribution of the resulting binary or library is not
+      permitted if those components were part of the build. Using them for
+      personal research is permitted, though.
+
+  slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA]
+
+  dftd3 -- Library for calculating D3 dispersion [license: GPL]
 '''
+
+NON_DISTRIB_WARNING = """WARNING:
+    This optional external component is not compatible with the DFTB+ license.
+    Restrictions on distribution of the compiled code may apply.
+"""
 
 SCRIPT_DIR = os.path.dirname(sys.argv[0])
 EXTERNAL_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', 'external'))
@@ -40,23 +62,33 @@ def main():
 
     opts, args = parse_cmdline_args()
     excluded = set(opts.excluded) if opts.excluded is not None else set()
-    if 'all' in args:
-        externals = GETTERS.keys()
-    else:
-        externals = args
+
+    externals = []
+    for external in args:
+        if external == 'DISTRIB':
+            externals += EXTERNALS_DISTRIB
+        elif external == 'ALL':
+            externals += EXTERNALS
+        else:
+            externals.append(external)
+
+    done = set()
     for external in externals:
-        if external in excluded:
+        if external in done or external in excluded:
             continue
-        getter, destdir = GETTERS[external]
+        getter, destdir, distrib = GETTERS[external]
         destdir = os.path.join(EXTERNAL_DIR, destdir)
         if not os.path.isdir(destdir):
             msg = "Directory '{}' does not exist".format(destdir)
             raise ScriptError(msg)
-        print('\n*** GETTING EXTERNAL: ', external, 'into', destdir, '\n')
+        print('\n*** Getting external:', external, '\n    into', destdir, '\n')
+        if not distrib:
+            print(NON_DISTRIB_WARNING)
         set_status(destdir, STATUS_MISSING)
         getter(destdir)
         set_status(destdir, STATUS_OK)
-        print('\n*** FINISHED GETTING EXTERNAL: ', external)
+        print()
+        done.add(external)
 
 
 def parse_cmdline_args():
@@ -69,7 +101,9 @@ def parse_cmdline_args():
         choices=EXTERNALS, default=None, action='append', help=msg)
     opts, args = parser.parse_args()
 
-    argchoices = ['all'] + EXTERNALS
+    argchoices = ['DISTRIB', 'ALL'] + EXTERNALS
+    if not args:
+        args = ['DISTRIB']
     for arg in args:
         if arg not in argchoices:
             msg = "Invalid optional external '{}'".format(arg)
@@ -85,26 +119,20 @@ def set_status(destdir, status):
 
 
 def get_slakos(destdir):
-    '''Downloads and extracts Slater-Koster files.'''
+    '''Downloads and extracts parametrizations for the tests.'''
 
-    urlprefix = 'http://www.dftb.org/fileadmin/DFTB/public/slako'
-    sksets = {
-        'mio-1-1.tar.xz': 'mio/mio-1-1.tar.xz',
-        'hyb-0-2.tar.xz': 'hyb/hyb-0-2.tar.xz',
-        'pbc-0-3.tar.xz': 'pbc/pbc-0-3.tar.xz',
-        'rare-0-2.tar.xz': 'rare/rare-0-2.tar.xz'
-    }
-    downloaddir = os.path.join(destdir, 'origin')
-    if os.path.exists(downloaddir):
-        shutil.rmtree(downloaddir)
-    os.mkdir(downloaddir)
-    for fname, urlsuffix in sksets.items():
-        print('Getting slako ', fname)
-        url = urlprefix + '/' + urlsuffix
-        dest = os.path.join(downloaddir, fname)
-        download_file(url, dest)
-        unpack_file(dest)
-        os.remove(dest)
+    url = 'https://github.com/dftbplus/testparams/archive/master.tar.gz'
+    fname = os.path.join(destdir, 'testparams.tar.gz')
+    unpackname = os.path.join(destdir, 'testparams-master')
+    targetname = os.path.join(destdir, 'origin')
+    if os.path.exists(unpackname):
+        shutil.rmtree(unpackname)
+    if os.path.exists(targetname):
+        shutil.rmtree(targetname)
+    download_file(url, fname)
+    unpack_file(fname)
+    os.remove(fname)
+    os.rename(unpackname, targetname)
 
 
 def get_dftd3(destdir):
@@ -118,14 +146,18 @@ def get_dftd3(destdir):
         shutil.rmtree(unpackname)
     if os.path.exists(targetname):
         shutil.rmtree(targetname)
-    download_file(url, fname)
-    unpack_file(fname)
-    os.remove(fname)
-    os.rename(unpackname, targetname)
+    if query_download_confirmation('dftd3', False):
+        download_file(url, fname)
+        unpack_file(fname)
+        os.remove(fname)
+        os.rename(unpackname, targetname)
+    else:
+        sys.stdout.write("    Skipping dftd3 download")
 
 
 def download_file(url, fname):
     '''Download file (currently via wget)'''
+    print('Download:\n    {0}\n    from {1}'.format(fname, url))
     sub.check_call(['wget', '-q', '-O', fname, url])
 
 
@@ -145,11 +177,68 @@ def unpack_file(fname):
         raise ScriptError(msg)
 
 
+def query_yes_no(question, default=True):
+    """Ask a yes/no question via raw_input() and return True/False.
+
+    Args:
+        question: string presented to the user.
+        default: is the presumed answer if the user just hits <Enter>.
+            It must be "yes" (the default), "no" or None (meaning
+            an answer is required of the user).
+
+    Returns:
+        The "answer" return value is True for "yes" or False for "no".
+    """
+    valid = {"yes": True, "y": True, "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default:
+        prompt = " [Y/n] "
+        defaultstr = "y"
+    else:
+        prompt = " [y/N] "
+        defaultstr = "n"
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = read_input().lower()
+        if default is not None and choice == '':
+            return valid[defaultstr]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
+
+
+def query_download_confirmation(component, default=False):
+    '''Confirmation query for downloading a component.'''
+    question = '    Download {0}?'.format(component)
+    answer = query_yes_no(question, default)
+    print()
+    return answer
+
+
+def read_input():
+    '''Input method working with both Python 2 and 3.'''
+    if sys.version_info[0] >= 3:
+        return input()
+    else:
+        return raw_input()
+
+
+# Methods to obtain externals.
+# Contains (function, targetfolder, is_distributable) tuples
 GETTERS = {
-    'slakos': (get_slakos, 'slakos'),
-    'dftd3': (get_dftd3, 'dftd3')
+    'slakos': (get_slakos, 'slakos', True),
+    'dftd3': (get_dftd3, 'dftd3', False)
 }
+
+# All externals
 EXTERNALS = list(GETTERS.keys())
+
+# LGPL-compatible externals without restriction on distribution
+EXTERNALS_DISTRIB = [ext for ext in GETTERS.keys() if GETTERS[ext][2]]
 
 
 if __name__ == '__main__':
