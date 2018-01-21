@@ -85,7 +85,7 @@ module environment
     integer :: densityMatrix = 8
     integer :: postScc = 9
     integer :: eigvecWriting = 10
-    integer :: energyDensityMatrix = 11    
+    integer :: energyDensityMatrix = 11
     integer :: forceCalc = 12
     integer :: stressCalc = 13
     integer :: postGeoOpt = 14
