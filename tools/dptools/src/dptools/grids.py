@@ -109,7 +109,7 @@ class Grid:
         # according corner_inds
         corner_gridcoords = []
         for inds in corner_inds:
-            tmp = [np.take(self.ranges[ii], inds[ii])
+            tmp = [np.take(self.ranges[ii], (inds[ii],))[0]
                    for ii in range(self.dimension)]
             corner_gridcoords.append(tmp)
         corner_gridcoords = np.vstack(corner_gridcoords)
