@@ -278,7 +278,8 @@ contains
 
         if (tMulliken) then
           call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
-              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut,&
+              & qOnsite=qOnsite)
         end if
 
         ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
@@ -326,7 +327,7 @@ contains
               & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
-              & E0, tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint)
+              & E0, tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint, qOnsite)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -2345,7 +2346,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
-      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock)
+      & iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qOnsite)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -2380,6 +2381,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    !> Onsite Mulliken charges per atom
+    real(dp), intent(inout), allocatable :: qOnsite(:)
+
     integer :: iSpin
 
     qOrb(:,:,:) = 0.0_dp
@@ -2402,6 +2406,10 @@ contains
         call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
             & neighborList%iNeighbor, nNeighbor, img2CentCell, iSparseStart)
       end do
+    end if
+
+    if (allocated(qOnsite)) then
+      call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qOnsite)
     end if
 
   end subroutine getMullikenPopulation

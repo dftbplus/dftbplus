@@ -513,6 +513,9 @@ module initprogram
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
 
+  !> onsite charge per atom
+  real(dp), allocatable :: qOnsite(:)
+
   !> input Mulliken block charges (diagonal part == Mulliken charges)
   real(dp), allocatable :: qBlockIn(:, :, :, :)
 
@@ -1859,6 +1862,7 @@ contains
 
     allocate(qInput(orb%mOrb, nAtom, nSpin))
     allocate(qOutput(orb%mOrb, nAtom, nSpin))
+    allocate(qOnsite(nAtom))
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
 

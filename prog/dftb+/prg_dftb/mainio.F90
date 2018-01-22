@@ -2217,7 +2217,7 @@ contains
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, tEField, tPeriodic,&
-      & nSpin, tSpinOrbit, tScc, invLatVec, kPoints)
+      & nSpin, tSpinOrbit, tScc, invLatVec, kPoints, qOnsite)
 
     !> File  ID
     integer, intent(in) :: fd
@@ -2339,6 +2339,9 @@ contains
     !> K-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
+    !> Onsite mulliken population per atom
+    real(dp), allocatable, intent(in) :: qOnsite(:)
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
@@ -2434,12 +2437,22 @@ contains
     ! Write out atomic charges
     if (tPrintMulliken) then
       write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
-      write(fd, "(/,A)") " Atomic gross charges (e)"
-      write(fd, "(A5, 1X, A16)")" Atom", " Charge"
+      write(fd, "(/,A)") " Atomic gross populations and charges (e)"
+      write(fd, "(A5, 1X, A16, A16)")" Atom", "Population", "Charge"
       do iAt = 1, nAtom
-        write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
+        write(fd, "(I5, 1X, F16.8, F16.8)") iAt, sum(qOutput(:, iAt, 1)),&
+            & sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
+      if (allocated(qOnsite)) then
+        write(fd, "(/,A)") " Atomic net (on-site) populations and hybridisation ratios"
+        write(fd, "(A5, 1X, A16, A16)")" Atom", " Population", "Hybrid."
+        do iAt = 1, nAtom
+          write(fd, "(I5, 1X, F16.8, F16.8)") iAt, qOnsite(iAt),&
+              & (1.0_dp - qOnsite(iAt) / sum(q0(:, iAt, 1)))
+        end do
+        write(fd, *)
+      end if
     end if
 
     lpSpinPrint: do iSpin = 1, size(eigen, dim=3)
