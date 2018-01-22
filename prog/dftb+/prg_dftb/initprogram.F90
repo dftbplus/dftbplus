@@ -2390,7 +2390,6 @@ contains
           & then
         write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write(stdOut, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
@@ -2700,8 +2699,17 @@ contains
     type(ORanlux), allocatable, intent(out) :: randomThermostat
 
     type(ORandomGenPool) :: randGenPool
+    logical :: initRandom0
+
+    initRandom0 = (seed ==0)
 
     call init(randGenPool, env, seed, oldCompat=.true.)
+
+    if (initRandom0) then
+      write(stdOut, "(A,':',T30,I14)") "Chosen random seed", seed
+    else
+      write(stdOut, "(A,':',T30,I14)") "Specified random seed", seed
+    end if
 
     ! DO NOT CHANGE the ORDER of calls below, as this will destroy backwards compatibility and
     ! reproduciblity of random number sequences in the code. If further random generators are needed
