@@ -85,37 +85,51 @@ contains
     !> List of atomic coordinates.
     real(dp), intent(in) :: coord(:,:)
 
-    integer :: ii, jj
+    integer :: ii, jj, iOffSet, jOffSet, iAt1, iAt2
     real(dp) :: dist, vect(3)
 
-#:if WITH_SCALAPACK
-    integer :: iAt1, iAt2
+  #:if WITH_SCALAPACK
     ! Descriptor for 1/R matrix
     integer :: descInvRMat(DLEN_)
-#:endif
+  #:endif
 
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(coord, dim=2) >= nAtom)
 
-
-#:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
 
     if (env%blacs%atomGrid%iproc == -1) then
+      ! processor outside the atom grid
       return
     end if
-
-    invRMat(:,:) = 0.0_dp
 
     call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, descInvRMat)
 
+    iOffSet = scalafx_indxl2g(1, descInvRMat(MB_), env%blacs%atomGrid%myrow, descInvRMat(RSRC_),&
+        & env%blacs%atomGrid%nrow) - 1
+
+    jOffSet = scalafx_indxl2g(1, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
+        & env%blacs%atomGrid%ncol) - 1
+
+  #:else
+
+    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
+
+    iOffSet = 0
+    jOffSet = 0
+
+  #:endif
+
+    invRMat(:,:) = 0.0_dp
+
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(invRMat, iOffSet, jOffSet, coord) SCHEDULE(RUNTIME)
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
-          & env%blacs%atomGrid%ncol)
+      iAt1 = jj + jOffSet
       do ii = 1, size(invRMat, dim=1)
-        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), env%blacs%atomGrid%myrow,&
-            & descInvRMat(RSRC_), env%blacs%atomGrid%nrow)
+        iAt2 = ii + iOffSet
         if (iAt2 <= iAt1) then
+          ! wrong triangle
           cycle
         end if
         vect(:) = coord(:,iAt1) - coord(:,iAt2)
@@ -123,25 +137,7 @@ contains
         invRMat(ii, jj) = 1.0_dp / dist
       end do
     end do
-
-#:else
-
-    @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
-
-    invRMat(:,:) = 0.0_dp
-
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,vect,dist) SCHEDULE(RUNTIME)
-    do ii = 1, nAtom
-      do jj = ii + 1, nAtom
-        vect(:) = coord(:,ii) - coord(:,jj)
-        dist = sqrt(sum(vect(:)**2))
-        invRMat(jj,ii) = 1.0_dp/dist
-      end do
-    end do
     !$OMP  END PARALLEL DO
-
-#:endif
-
 
   end subroutine invR_cluster
 
