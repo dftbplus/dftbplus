@@ -60,9 +60,6 @@ module coulomb
   end interface addInvRPrimeXlbomd
 
 
-  character(len=*), parameter :: ftTooClose = &
-      &"('The objects with the following indexes are too close to each other',I5,I5)"
-
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
@@ -176,9 +173,6 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: dist, vect(3), fTmp, epsSoften2
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(size(invRVec) == nAtom0)
     @:ASSERT(size(coord0, dim=2) >= nAtom0)
@@ -186,11 +180,11 @@ contains
     @:ASSERT(size(coord1, dim=2) >= nAtom1)
     @:ASSERT(size(coord1, dim=1) == 3)
     @:ASSERT(size(charges1) == nAtom1)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(blurWidths1)) then
       @:ASSERT(size(blurWidths1) == nAtom1)
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     if (present(epsSoften)) then
       epsSoften2 = epsSoften**2
@@ -198,34 +192,7 @@ contains
       epsSoften2 = 0.0_dp
     end if
 
-    iAtFirst0 = 1
-    iAtLast0 = nAtom0
-    iAtFirst1 = 1
-    iAtLast1 = nAtom1
-
-#:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    select case (nAtom0 >= nAtom1)
-    case(.true.)
-
-      ! More points to evaluate the field than number of sources
-      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      iAtFirst0 = myRank * nAtLocal + 1
-      ! ensure last processor in group only does up to nAtom0
-      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
-
-    case(.false.)
-      ! More sources than points to evaluate the field at
-      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      iAtFirst1 = myRank * nAtLocal + 1
-      ! ensure last processor in group only goes up to nAtom1
-      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
-
-    end select
-
-#:endif
+    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
 
     invRVec(:) = 0.0_dp
 
@@ -256,9 +223,9 @@ contains
       !$OMP  END PARALLEL DO
     end if
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, invRVec, MPI_SUM)
-#:endif
+  #:endif
 
   end subroutine sumInvR_cluster_asymm
 
@@ -300,12 +267,12 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
 
-#:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
     integer :: ii, jj, iLoc, jLoc
     logical :: tLocal
     ! Descriptor for 1/R matrix
     integer :: descInvRMat(DLEN_)
-#:endif
+  #:endif
 
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(coord, dim=2) >= nAtom)
@@ -313,7 +280,7 @@ contains
     @:ASSERT(size(iNeighbor, dim=2) == nAtom)
     @:ASSERT(volume > 0.0_dp)
 
-#:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
 
     if (env%blacs%atomGrid%iproc == -1) then
       return
@@ -365,7 +332,7 @@ contains
       end if
     end do
 
-#:else
+  #:else
 
     @:ASSERT(all(shape(invRMat) == (/ nAtom, nAtom /)))
     invRMat(:,:) = 0.0_dp
@@ -400,7 +367,7 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-#:endif
+  #:endif
 
   end subroutine invR_periodic
 
@@ -452,9 +419,6 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: rTmp, rr(3)
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(size(invRVec) == nAtom0)
     @:ASSERT(size(coord0, dim=2) >= nAtom0)
@@ -466,34 +430,7 @@ contains
     @:ASSERT(size(gLat, dim=1) == 3)
     @:ASSERT(volume > 0.0_dp)
 
-    iAtFirst0 = 1
-    iAtLast0 = nAtom0
-    iAtFirst1 = 1
-    iAtLast1 = nAtom1
-
-#:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    select case (nAtom0 >= nAtom1)
-    case(.true.)
-
-      ! More points to evaluate the field than number of sources
-      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      iAtFirst0 = myRank * nAtLocal + 1
-      ! ensure last processor in group only goes up to nAtom0
-      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
-
-    case(.false.)
-      ! More sources than points to evaluate the field at
-      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      iAtFirst1 = myRank * nAtLocal + 1
-      ! ensure last processor in group only does up to nAtom1
-      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
-
-    end select
-
-#:endif
+    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
 
     invRVec(:) = 0.0_dp
 
@@ -519,9 +456,9 @@ contains
       !$OMP END PARALLEL DO
     end if
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, invRVec, MPI_SUM)
-#:endif
+  #:endif
 
   end subroutine sumInvR_periodic_asymm
 
@@ -682,9 +619,6 @@ contains
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
     real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(size(deriv0, dim=1) == 3)
     @:ASSERT(size(deriv0, dim=2) >= nAtom0)
@@ -696,45 +630,18 @@ contains
     @:ASSERT(size(coord1, dim=2) >= nAtom1)
     @:ASSERT(size(charge0) == nAtom0)
     @:ASSERT(size(charge1) == nAtom1)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(blurWidths1)) then
       @:ASSERT(size(blurWidths1) == nAtom1)
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     allocate(localDeriv0(3,nAtom0))
     allocate(localDeriv1(3,nAtom1))
     localDeriv0 = 0.0_dp
     localDeriv1 = 0.0_dp
 
-    iAtFirst0 = 1
-    iAtLast0 = nAtom0
-    iAtFirst1 = 1
-    iAtLast1 = nAtom1
-
-#:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    select case (nAtom0 >= nAtom1)
-    case(.true.)
-
-      ! More points to evaluate the field than number of sources
-      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      iAtFirst0 = myRank * nAtLocal + 1
-      ! ensure last processor in group only does up to nAtom0
-      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
-
-    case(.false.)
-      ! More sources than points to evaluate the field at
-      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      iAtFirst1 = myRank * nAtLocal + 1
-      ! ensure last processor in group only goes up to nAtom1
-      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
-
-    end select
-
-#:endif
+    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
 
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
@@ -771,10 +678,10 @@ contains
       !$OMP  END PARALLEL DO
     end if
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, localDeriv0, MPI_SUM)
     call mpifx_allreduceip(env%mpi%groupComm, localDeriv1, MPI_SUM)
-#:endif
+  #:endif
 
     deriv0 = deriv0 + localDeriv0
     deriv1 = deriv1 + localDeriv1
@@ -1034,9 +941,6 @@ contains
     real(dp) :: dist, vect(3), fTmp(3)
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
     real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
-#:if WITH_MPI
-    integer :: nAtLocal, myRank
-#:endif
 
     @:ASSERT(size(deriv0, dim=1) == 3)
     @:ASSERT(size(deriv0, dim=2) == nAtom0)
@@ -1051,45 +955,18 @@ contains
     @:ASSERT(size(rVec, dim=1) == 3)
     @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(vol > 0.0_dp)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(blurWidths1)) then
       @:ASSERT(size(blurWidths1) == nAtom1)
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     allocate(localDeriv0(3,nAtom0))
     allocate(localDeriv1(3,nAtom1))
     localDeriv0 = 0.0_dp
     localDeriv1 = 0.0_dp
 
-    iAtFirst0 = 1
-    iAtLast0 = nAtom0
-    iAtFirst1 = 1
-    iAtLast1 = nAtom1
-
-#:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    select case (nAtom0 >= nAtom1)
-    case(.true.)
-
-      ! More points to evaluate the field than number of sources
-      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      iAtFirst0 = myRank * nAtLocal + 1
-      ! ensure last processor in group only does up to nAtom0
-      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
-
-    case(.false.)
-      ! More sources than points to evaluate the field at
-      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      iAtFirst1 = myRank * nAtLocal + 1
-      ! ensure last processor in group only goes up to nAtom1
-      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
-
-    end select
-
-#:endif
+    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
 
     ! real space part
     if (present(blurwidths1)) then
@@ -1135,10 +1012,10 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%groupComm, localDeriv0, MPI_SUM)
     call mpifx_allreduceip(env%mpi%groupComm, localDeriv1, MPI_SUM)
-#:endif
+  #:endif
 
     deriv0 = deriv0 + localDeriv0
     deriv1 = deriv1 + localDeriv1
@@ -1841,5 +1718,63 @@ contains
 
   end subroutine invR_stress
 
+  !> Internal helper routine to decide on which nested loop parallelises better
+  subroutine asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
+
+    !> resulting start of first loop
+    integer, intent(out) :: iAtFirst0
+
+    !> resulting end of first loop
+    integer, intent(out) :: iAtLast0
+
+    !> resulting start of second loop
+    integer, intent(out) :: iAtFirst1
+
+    !> resulting end of second loop
+    integer, intent(out) :: iAtLast1
+
+    !> First loop upper value
+    integer, intent(in) :: nAtom0
+
+    !> Second loop upper value
+    integer, intent(in) :: nAtom1
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+  #:if WITH_MPI
+    integer :: nAtLocal, myRank
+  #:endif
+
+    iAtFirst0 = 1
+    iAtLast0 = nAtom0
+    iAtFirst1 = 1
+    iAtLast1 = nAtom1
+
+  #:if WITH_MPI
+
+    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
+
+    select case (nAtom0 >= nAtom1)
+    case(.true.)
+
+      ! More points to evaluate the field than number of sources
+      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
+      iAtFirst0 = myRank * nAtLocal + 1
+      ! ensure last processor in group only goes up to nAtom0
+      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
+
+    case(.false.)
+      ! More sources than points to evaluate the field at
+      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
+      iAtFirst1 = myRank * nAtLocal + 1
+      ! ensure last processor in group only goes up to nAtom1
+      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
+
+    end select
+
+  #:endif
+
+  end subroutine asymmetricHelper
 
 end module coulomb
