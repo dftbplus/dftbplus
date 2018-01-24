@@ -152,18 +152,6 @@ contains
     real(dp) :: dist, vect(3), fTmp, epsSoften2
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
 
-    @:ASSERT(size(invRVec) == nAtom0)
-    @:ASSERT(size(coord0, dim=2) >= nAtom0)
-    @:ASSERT(size(coord0, dim=1) == 3)
-    @:ASSERT(size(coord1, dim=2) >= nAtom1)
-    @:ASSERT(size(coord1, dim=1) == 3)
-    @:ASSERT(size(charges1) == nAtom1)
-  #:call ASSERT_CODE
-    if (present(blurWidths1)) then
-      @:ASSERT(size(blurWidths1) == nAtom1)
-    end if
-  #:endcall ASSERT_CODE
-
     if (present(epsSoften)) then
       epsSoften2 = epsSoften**2
     else
@@ -361,14 +349,6 @@ contains
     real(dp) :: rTmp, rr(3)
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
 
-    @:ASSERT(size(invRVec) == nAtom0)
-    @:ASSERT(size(coord0, dim=2) >= nAtom0)
-    @:ASSERT(size(coord0, dim=1) == 3)
-    @:ASSERT(size(coord1, dim=2) >= nAtom1)
-    @:ASSERT(size(coord1, dim=1) == 3)
-    @:ASSERT(size(charges1) == nAtom1)
-    @:ASSERT(size(rLat, dim=1) == 3)
-    @:ASSERT(size(gLat, dim=1) == 3)
     @:ASSERT(volume > 0.0_dp)
 
     call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
@@ -429,12 +409,6 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    @:ASSERT(size(deriv, dim=1) == 3)
-    @:ASSERT(size(deriv, dim=2) >= nAtom)
-    @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(size(coord, dim=2) >= nAtom)
-    @:ASSERT(size(deltaQAtom) == nAtom)
-
     allocate(localDeriv(3,nAtom))
     localDeriv = 0.0_dp
 
@@ -491,13 +465,6 @@ contains
     localDeriv = 0.0_dp
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
-
-    @:ASSERT(size(deriv, dim=1) == 3)
-    @:ASSERT(size(deriv, dim=2) >= nAtom)
-    @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(size(coord, dim=2) >= nAtom)
-    @:ASSERT(size(dQInAtom) == nAtom)
-    @:ASSERT(size(dQOutAtom) == nAtom)
 
     !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(iAtFirst, iAtLast, nAtom, coord, dQOutAtom, &
     !$OMP& dQInAtom) SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
@@ -560,22 +527,6 @@ contains
     real(dp) :: dist, vect(3), fTmp(3), sigma, rs
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
     real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
-
-    @:ASSERT(size(deriv0, dim=1) == 3)
-    @:ASSERT(size(deriv0, dim=2) >= nAtom0)
-    @:ASSERT(size(deriv1, dim=1) == 3)
-    @:ASSERT(size(deriv1, dim=2) >= nAtom1)
-    @:ASSERT(size(coord0, dim=1) == 3)
-    @:ASSERT(size(coord0, dim=2) >= nAtom0)
-    @:ASSERT(size(coord1, dim=1) == 3)
-    @:ASSERT(size(coord1, dim=2) >= nAtom1)
-    @:ASSERT(size(charge0) == nAtom0)
-    @:ASSERT(size(charge1) == nAtom1)
-  #:call ASSERT_CODE
-    if (present(blurWidths1)) then
-      @:ASSERT(size(blurWidths1) == nAtom1)
-    end if
-  #:endcall ASSERT_CODE
 
     allocate(localDeriv0(3,nAtom0))
     allocate(localDeriv1(3,nAtom1))
@@ -673,15 +624,6 @@ contains
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
-    @:ASSERT(size(deriv, dim=1) == 3)
-    @:ASSERT(size(deriv, dim=2) >= nAtom)
-    @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(size(coord, dim=2) >= nAtom)
-    @:ASSERT(size(nNeighborEwald) == nAtom)
-    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
-    @:ASSERT(volume > 0.0_dp)
-    @:ASSERT(size(deltaQAtom) == nAtom)
-
     allocate(localDeriv(3,nAtom))
     localDeriv = 0.0_dp
 
@@ -778,16 +720,6 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    @:ASSERT(size(deriv, dim=1) == 3)
-    @:ASSERT(size(deriv, dim=2) >= nAtom)
-    @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(size(coord, dim=2) >= nAtom)
-    @:ASSERT(size(nNeighborEwald) == nAtom)
-    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
-    @:ASSERT(volume > 0.0_dp)
-    @:ASSERT(size(dQOutAtom) == nAtom)
-    @:ASSERT(size(dQInAtom) == nAtom)
-
     ! real space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iNeigh,iAt2,iAt2f,rr,prefac,contrib) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
@@ -883,24 +815,7 @@ contains
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
     real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
 
-    @:ASSERT(size(deriv0, dim=1) == 3)
-    @:ASSERT(size(deriv0, dim=2) == nAtom0)
-    @:ASSERT(size(deriv1, dim=1) == 3)
-    @:ASSERT(size(deriv1, dim=2) >= nAtom1)
-    @:ASSERT(size(coord0, dim=1) == 3)
-    @:ASSERT(size(coord0, dim=2) >= nAtom0)
-    @:ASSERT(size(coord1, dim=1) == 3)
-    @:ASSERT(size(coord1, dim=2) >= nAtom1)
-    @:ASSERT(size(charge0) == nAtom0)
-    @:ASSERT(size(charge1) == nAtom1)
-    @:ASSERT(size(rVec, dim=1) == 3)
-    @:ASSERT(size(gVec, dim=1) == 3)
     @:ASSERT(vol > 0.0_dp)
-  #:call ASSERT_CODE
-    if (present(blurWidths1)) then
-      @:ASSERT(size(blurWidths1) == nAtom1)
-    end if
-  #:endcall ASSERT_CODE
 
     allocate(localDeriv0(3,nAtom0))
     allocate(localDeriv1(3,nAtom1))
@@ -992,8 +907,6 @@ contains
     integer :: iError
     character(len=100) :: errorString
 
-    @:ASSERT(all(shape(latVec) == (/3, 3/)))
-    @:ASSERT(all(shape(recVec) == (/3, 3/)))
     @:ASSERT(volume > 0.0_dp)
     @:ASSERT(tolerance > 0.0_dp)
 
@@ -1245,8 +1158,6 @@ contains
     real(dp) :: gg(3), g2
     integer :: iG
 
-    @:ASSERT(size(gVec, dim=1) == 3)
-    @:ASSERT(size(rr) == 3)
     @:ASSERT(vol > 0.0_dp)
 
     recSum = 0.0_dp
@@ -1283,8 +1194,6 @@ contains
     real(dp) :: gg(3), g2
     integer :: iG
 
-    @:ASSERT(size(gVec, dim=1) == 3)
-    @:ASSERT(size(rr) == 3)
     @:ASSERT(vol > 0.0_dp)
 
     recSum(:) = 0.0_dp
@@ -1322,9 +1231,6 @@ contains
 
     real(dp) :: absRR, epsSoften2
     integer :: iR
-
-    @:ASSERT(size(rVec, dim=1) == 3)
-    @:ASSERT(size(rr) == 3)
 
     realSum = 0.0_dp
 
@@ -1404,9 +1310,6 @@ contains
     real(dp) :: rNew(3)
     real(dp) :: rr
     integer :: iR
-
-    @:ASSERT(size(rVec, dim=1) == 3)
-    @:ASSERT(size(rdiff) == 3)
 
     dewr = 0.0_dp
 
@@ -1579,12 +1482,6 @@ contains
     real(dp) :: stressTmp(3,3), localStress(3,3)
     integer :: iFirst, iLast
 
-    @:ASSERT(all(shape(stress)==(/3,3/)))
-    @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(size(coord, dim=2) >= nAtom)
-    @:ASSERT(size(nNeighborEwald) == nAtom)
-    @:ASSERT(size(iNeighbor, dim=2) == nAtom)
-    @:ASSERT(size(q) == nAtom)
     @:ASSERT(volume > 0.0_dp)
 
     ! Reciprocal space part of the Ewald sum.
