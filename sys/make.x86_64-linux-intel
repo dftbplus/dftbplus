@@ -13,7 +13,7 @@ FXX = mpif90
 CC = icc
 
 # Compiler options
-FXXOPT = -O2 -ip -standard-semantics -heap-arrays 10 #-qopenmp 
+FXXOPT = -O2 -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
 # Linker
@@ -27,7 +27,7 @@ MKL_LIBDIR = $(MKLROOT)/lib/intel64
 LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64
 
 # LAPACK/BLAS
-LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
+LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
 
 # Any other libraries to be linked
 OTHERLIBS = -liomp5
@@ -60,11 +60,8 @@ LNOPT = -static
 
 # LAPACK/BLAS
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_LAPACK   = -L$(MKL_LIBDIR) -Wl,--start-group \
-  -lmkl_intel_lp64 \
-  -lmkl_intel_thread \
-  -lmkl_core \
-  -Wl,--end-group
+LIB_LAPACK   = -L$(MKL_LIBDIR) -Wl,--start-group -lmkl_intel_lp64 \
+  -lmkl_intel_thread -lmkl_core -Wl,--end-group
 
 # Any other libraries to be linked
 OTHERLIBS = -liomp5 -pthread
