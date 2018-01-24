@@ -37,7 +37,7 @@ Analysis = {
       Grid [AA] = {
           Spacing = {.5 .5 .5}
           Origin = {0 -2 -2}
-          NPoints = {1 9 9}
+          GridPoints = {1 9 9}
       }
       AppendFile = Yes
   }

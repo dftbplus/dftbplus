@@ -3438,7 +3438,7 @@ contains
 
     call getChildValue(node, "Spacing", r3Tmp, child=child)
     call getChildValue(node, "Origin", r3Tmpb, child=child)
-    call getChildValue(node, "NPoints", i3Tmp, child=child)
+    call getChildValue(node, "GridPoints", i3Tmp, child=child)
     if (any(i3Tmp < 1)) then
       call detailedError(child,"Grid must be at least 1x1x1")
     end if

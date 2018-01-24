@@ -47,7 +47,7 @@ Analysis = {
       Grid [AA] = {
           Spacing = {.1 .1 .1}
           Origin = {0 -2 -2}
-          NPoints = {1 41 41}
+          GridPoints = {1 41 41}
       }
   }
 }
