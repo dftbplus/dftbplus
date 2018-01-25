@@ -57,31 +57,38 @@ module environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(11) = [&
+  type(TTimerItem), parameter :: globalTimerItems(14) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
+      & TTimerItem("Sparse H0 and S build", 4),&
       & TTimerItem("SCC", 1),&
       & TTimerItem("Diagonalisation", 2),&
+      & TTimerItem("Sparse to dense", 4),&
+      & TTimerItem("Dense to sparse", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
       & TTimerItem("Eigenvector writing", 2),&
       & TTimerItem("Energy-density matrix creation", 2),&
       & TTimerItem("Force calculation", 2),&
       & TTimerItem("Stress calculation", 2),&
-      & TTimerItem("Post-geometry optimisation", 1)]
+      & TTimerItem("Post-geometry optimisation", 1)&
+      & ]
 
   type :: TGlobalTimersHelper
     integer :: globalInit = 1
     integer :: preSccInit = 2
-    integer :: scc = 3
-    integer :: diagonalization = 4
-    integer :: densityMatrix = 5
-    integer :: postScc = 6
-    integer :: eigvecWriting = 7
-    integer :: energyDensityMatrix = 8
-    integer :: forceCalc = 9
-    integer :: stressCalc = 10
-    integer :: postGeoOpt = 11
+    integer :: sparseH0S = 3
+    integer :: scc = 4
+    integer :: diagonalization = 5
+    integer :: sparseToDense = 6
+    integer :: denseToSparse = 7
+    integer :: densityMatrix = 8
+    integer :: postScc = 9
+    integer :: eigvecWriting = 10
+    integer :: energyDensityMatrix = 11
+    integer :: forceCalc = 12
+    integer :: stressCalc = 13
+    integer :: postGeoOpt = 14
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
