@@ -904,6 +904,9 @@ contains
     !> Used for indexing linear response
     integer :: homoLoc(1)
 
+    !> Whether seed was randomly created
+    logical :: tRandomSeed
+
     !> First guess for nr. of neighbors.
     integer, parameter :: nInitNeighbor = 40
 
@@ -975,12 +978,6 @@ contains
 
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
-    if (env%mpi%nGroup > 1) then
-      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
-          & env%mpi%globalComm%size, env%mpi%nGroup
-    else
-      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
-    end if
   #:endif
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
@@ -1697,6 +1694,7 @@ contains
     end if
 
     iSeed = input%ctrl%iSeed
+    tRandomSeed = (iSeed < 1)
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
     call createRandomGenerators(env, iSeed, randomInit, randomThermostat)
@@ -2190,6 +2188,21 @@ contains
 
     timingLevel = input%ctrl%timingLevel
 
+  #:if WITH_MPI
+    if (env%mpi%nGroup > 1) then
+      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
+          & env%mpi%globalComm%size, env%mpi%nGroup
+    else
+      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
+    end if
+  #:endif
+
+    if (tRandomSeed) then
+      write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed
+    else
+      write(stdOut, "(A,':',T30,I14)") "Specified random seed", iSeed
+    end if
+
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
       case (0)
@@ -2390,7 +2403,6 @@ contains
           & then
         write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write(stdOut, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
