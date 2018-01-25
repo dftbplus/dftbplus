@@ -57,6 +57,11 @@ Dephasing {
   }
 }
 
+Parallel{
+ Blacs{BlockSize=2}
+}
+ 
+
 Options = {
   CalculateForces = Yes
   WriteAutotestTag = Yes

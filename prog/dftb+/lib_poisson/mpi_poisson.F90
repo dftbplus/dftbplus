@@ -31,6 +31,7 @@ module mpi_poisson
       type(mpifx_comm), intent(in) :: comm
 
       global_comm = comm 
+
       !! If no split occurs, then the local and the global communicator 
       !! must be the same
       poiss_comm = comm
@@ -46,24 +47,24 @@ module mpi_poisson
   subroutine poiss_mpi_split(maxnumprocs)
       integer, intent(in) :: maxnumprocs
 
-      integer :: irow, jcol, ierr
+      integer :: color, key, ierr
            
-      irow = global_comm%rank/maxnumprocs
-      jcol = mod(global_comm%rank,maxnumprocs)
+      color = global_comm%rank/maxnumprocs
+      key = mod(global_comm%rank,maxnumprocs)
 
+      
+      call global_comm%split(color, key, poiss_comm, ierr)  
+      id = poiss_comm%rank
+      numprocs = maxnumprocs
       !! Only the rank in the first sub communicator are active
       !! This could maybe achieved in a more elegant way using 
       !! different groups and communicators for idle and active ids
-      if (global_comm%rank < maxnumprocs) then
+      if (poiss_comm%rank < maxnumprocs) then
         active_id = .true.
       else 
         active_id = .false.
       endif
-      
-      call global_comm%split(irow,jcol,poiss_comm,ierr)  
-      id = poiss_comm%rank
-      numprocs = maxnumprocs
-      !! id0 does not change, as we mean id=0 for first communicator only
+      !! id0 does not change, as we mean id=0 of global communicator 
 
   end subroutine poiss_mpi_split
 

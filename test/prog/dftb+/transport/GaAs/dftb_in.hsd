@@ -43,6 +43,10 @@ Hamiltonian = DFTB {
   } 
 }
 
+Parallel{
+  Blacs{BlockSize=2}
+}
+
 Options = {
   WriteAutotestTag = Yes
   CalculateForces = Yes

@@ -151,21 +151,21 @@ geoopt/Vsi+O                           #? NPROC <= 4
 scc/SiC64+V_dynforce_groups            #? NPROC <= 8 and NPROC % 4 == 0 
 scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0
 
-transport/CH4                          #? WITH_TRANSPORT
-transport/GaAs                         #? WITH_TRANSPORT
-transport/CH4-poisson                  #? WITH_TRANSPORT
-transport/CNT                          #? WITH_TRANSPORT
-transport/H-chain                      #? WITH_TRANSPORT
-transport/H-sheet                      #? WITH_TRANSPORT
-transport/H-3conts                     #? WITH_TRANSPORT
-transport/SiH-chain                    #? WITH_TRANSPORT
-transport/SiH-chain-cont               #? WITH_TRANSPORT
-transport/SiH-cont-poiss               #? WITH_TRANSPORT
-transport/graphene_x                   #? WITH_TRANSPORT
-transport/graphene3T                   #? WITH_TRANSPORT
-transport/deph_H57_bp                  #? WITH_TRANSPORT
-transport/deph_C25_ve                  #? WITH_TRANSPORT
-transport/deph_C25_ve_scc              #? WITH_TRANSPORT
-transport/deph_vacancy1                #? WITH_TRANSPORT
-transport/deph_CH4-poisson             #? WITH_TRANSPORT
+transport/CH4                          #? WITH_TRANSPORT and NPROC <= 4
+transport/GaAs                         #? WITH_TRANSPORT and NPROC <= 4
+transport/CH4-poisson                  #? WITH_TRANSPORT and NPROC <= 4
+transport/CNT                          #? WITH_TRANSPORT and NPROC <= 4
+transport/H-chain                      #? WITH_TRANSPORT and NPROC <= 4
+transport/H-sheet                      #? WITH_TRANSPORT and NPROC <= 4
+transport/H-3conts                     #? WITH_TRANSPORT and NPROC <= 4
+transport/SiH-chain                    #? WITH_TRANSPORT and NPROC <= 4
+transport/SiH-chain-cont               #? WITH_TRANSPORT and NPROC <= 4
+transport/SiH-cont-poiss               #? WITH_TRANSPORT and NPROC <= 4
+transport/graphene_x                   #? WITH_TRANSPORT and NPROC <= 4
+transport/graphene3T                   #? WITH_TRANSPORT and NPROC <= 4
+transport/deph_H57_bp                  #? WITH_TRANSPORT and NPROC <= 4
+transport/deph_C25_ve                  #? WITH_TRANSPORT and NPROC <= 4
+transport/deph_C25_ve_scc              #? WITH_TRANSPORT and NPROC <= 4
+transport/deph_vacancy1                #? WITH_TRANSPORT and NPROC <= 4
+transport/deph_CH4-poisson             #? WITH_TRANSPORT and NPROC <= 4
 

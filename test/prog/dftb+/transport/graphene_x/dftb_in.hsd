@@ -69,8 +69,8 @@ Hamiltonian = DFTB {
   }
 
   Eigensolver = GreensFunction {
-    ContourPoints = 30 40
-    RealAxisPoints = 10
+    ContourPoints = 30 42
+    RealAxisPoints = 12
     LowestEnergy [eV] = -60.0
   }
 
@@ -80,7 +80,7 @@ Hamiltonian = DFTB {
 
 Analysis{
   TunnelingAndDOS{
-    EnergyRange [eV] = -6.00  -4.0
+    EnergyRange [eV] = -5.90  -4.00
     EnergyStep [eV] = 0.02
   }
 }

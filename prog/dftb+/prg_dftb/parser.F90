@@ -3812,8 +3812,7 @@ contains
           & AtomDensityTolerance can be specified.")
     else if (associated(pTmp)) then
       call getChildValue(pTmp, "", poisson%maxRadAtomDens, modifier=modif)
-      call convertByMul(char(modif), lengthUnits, pTmp, &
-          &poisson%maxRadAtomDens)
+      call convertByMul(char(modif), lengthUnits, pTmp, poisson%maxRadAtomDens)
       if (poisson%maxRadAtomDens <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density cutoff must be > 0")
       end if

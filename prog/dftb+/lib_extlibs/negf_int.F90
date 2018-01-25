@@ -22,7 +22,8 @@ module negf_int
   use libnegf_vars  !, only : TNEGFstructure, TGDFTBTunDos, &
                     !       & TNEGFGreenDensInfo, TTransPar, Telph
   use libnegf
-  use mat_conv 
+  use mat_conv
+  use sparse2dense 
   use commonTypes, only : TOrbitals
   use libmpifx_module
 
@@ -56,9 +57,11 @@ module negf_int
 
   contains
 
-!------------------------------------------------------------------------------
-! Init gDFTB environment and variables
-!------------------------------------------------------------------------------
+  !------------------------------------------------------------------------------
+  ! Init gDFTB environment and variables
+  !
+  ! Note: mpicomm should be the global commworld here
+  !------------------------------------------------------------------------------
   subroutine negf_init(transpar, greendens, tundos, mpicomm,&
         & tempElec, initinfo)
     
@@ -93,7 +96,7 @@ module negf_int
     call init_negf(negf)
     call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
-    call create_scratch(negf)    
+    if (id0) call create_scratch(negf)    
     call get_params(negf, params)
     
     ! ------------------------------------------------------------------------------
@@ -363,7 +366,7 @@ module negf_int
     if (elph%model .eq. 1) then
        if (id0) then
          write(*,*) 'Setting local fully diagonal (FD) BP dephasing model'
-         write(*,*) 'coupling=',elph%coupling
+         !!write(*,*) 'coupling=',elph%coupling
        end if
        call set_bp_dephasing(negf, elph%coupling)
     else if (elph%model .eq. 2) then
@@ -406,8 +409,13 @@ module negf_int
     call destruct(csrHam)
     call destruct(csrOver)
     call destroy_negf(negf)
-    !call writePeakInfo(6)
-    !call writeMemInfo(6)
+
+    if (id0) then
+      write(*,*)
+      write(*,*) 'Release NEGF memory:'
+      call writePeakInfo(6)
+      call writeMemInfo(6)
+    end if  
 
   end subroutine negf_destroy
 
@@ -456,7 +464,6 @@ module negf_int
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
        surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
-print*,' contact',i,':',surf_end(i),cont_end(i)
     enddo
      
     if (transpar%defined) then
@@ -466,9 +473,6 @@ print*,' contact',i,':',surf_end(i),cont_end(i)
       atomst(1:nbl) = transpar%PL(1:nbl)
       PL_end(nbl) = ind(transpar%idxdevice(2)+1)
       atomst(nbl+1) = iatm2 + 1
-print*,'transpar'
-print*,' PLs (atoms):',atomst
-print*,' PLs (ind)  :',PL_end
     else if (greendens%defined) then
       do i = 1, nbl-1
         PL_end(i) = ind(greendens%PL(i+1))
@@ -476,9 +480,6 @@ print*,' PLs (ind)  :',PL_end
       atomst(1:nbl) = greendens%PL(1:nbl)
       PL_end(nbl) = ind(natoms+1)
       atomst(nbl+1) = natoms + 1
-print*,'greendens'
-print*,' PLs (atoms):',atomst
-print*,' PLs (ind)  :',PL_end
     endif
 
     ! For every contact finds the min-max atom indeces among
@@ -529,12 +530,12 @@ print*,' PLs (ind)  :',PL_end
 
       end if   
   
-       if (id0) then
-          write(*,*) ' Structure info:'
-          write(*,*) ' Number of PLs:',nbl 
-          write(*,*) ' PLs coupled to contacts:',cblk(1:ncont)       !DAR
-          write(*,*)
-       endif
+      if (id0) then
+         write(*,*) ' Structure info:'
+         write(*,*) ' Number of PLs:',nbl 
+         write(*,*) ' PLs coupled to contacts:',cblk(1:ncont)       !DAR
+         write(*,*)
+      endif
 
     end if
 
@@ -581,23 +582,11 @@ print*,' PLs (ind)  :',PL_end
        params%DorE = 'D'
        call set_params(negf,params)
        call pass_DM(negf,rho=DensMat)
-       if (id0.and.params%verbose.gt.30) then
-         write(*,*)
-         write(*,'(80("="))')
-         write(*,*) '                         COMPUTING DENSITY MATRIX      '
-         write(*,'(80("="))') 
-       endif
     endif
     if(present(EnMat)) then
        params%DorE = 'E'
        call set_params(negf,params)
        call pass_DM(negf,rhoE=EnMat)
-       if (id0.and.params%verbose.gt.30) then
-         write(*,*)
-         write(*,'(80("="))')
-         write(*,*) '                     COMPUTING E-WEIGHTED DENSITY MATRIX '
-         write(*,'(80("="))') 
-       endif
     endif
     if (present(DensMat).and.present(EnMat)) then
        params%DorE  = 'B'
@@ -614,9 +603,6 @@ print*,' PLs (ind)  :',PL_end
    
     call destroy_matrices(negf)
     
-    if (id0.and.params%verbose.gt.30) write(*,'(80("="))')
-    if (id0.and.params%verbose.gt.30) write(*,*)
-
   end subroutine negf_density
 
   !------------------------------------------------------------------------------
@@ -631,14 +617,6 @@ print*,' PLs (ind)  :',PL_end
     type(lnParams) :: params
 
     call get_params(negf, params)
-
-    if (id0) then
-      write(*,*)
-      write(*,'(80("="))')
-      write(*,*) '                        COMPUTING  LOCAL  DOS          '
-      write(*,'(80("="))') 
-      write(*,*)
-    end if
 
     params%spin = spin
     params%kpoint = kpoint
@@ -693,9 +671,15 @@ print*,' PLs (ind)  :',PL_end
     real(dp), dimension(:,:) :: H_dev, S_dev    
     type(z_CSR), intent(inout) :: HH, SS   
 
-    if (negf%tOrthonormal) call Orthogonalization(H_dev, S_dev)
+    if (negf%tOrthonormal) then 
+      if (id0) write(*,"(' Löwdin orthogonalization for the whole system ')")
+      call Orthogonalization(H_dev, S_dev)
+    end if  
 
-    if (negf%tOrthonormalDevice) call Orthogonalization_dev(H_dev, S_dev)
+    if (negf%tOrthonormalDevice) then
+      write(*,"(' Löwdin orthogonalization for device-only')")
+      call Orthogonalization_dev(H_dev, S_dev)
+    end if  
 
     if (negf%tOrthonormal.or.negf%tOrthonormalDevice) then
       call MakeHHSS(H_dev,S_dev,HH,SS)     
@@ -731,19 +715,6 @@ print*,' PLs (ind)  :',PL_end
 
     call pass_HS(negf,HH,SS)
 
-    !DAR begin
-    !if(negf%tWrite_ldos) call WriteLDOS
-    
-    if (id0.and.negf%verbose.gt.30) then
-       write(*,*)
-       write(*,'(80("="))')
-       write(*,*) '                          LibNEGF: Current calculation' 
-       write(*,'(80("="))') 
-    endif
-    
-    !print*,'(negf_init) write parameters on log'
-    !call check_negf_params()
-
     call compute_current(negf)  
    
     !call write_tunneling_and_dos(negf)
@@ -755,13 +726,6 @@ print*,' PLs (ind)  :',PL_end
     call associate_ldos(negf, ledos)  
     call associate_transmission(negf, tunn)
 
-    if (id0.and.negf%verbose.gt.30) then
-       write(*,*)
-       write(*,'(80("="))')
-       write(*,*) '                           LibNEGF: Current finished'  
-       write(*,'(80("="))') 
-    endif
-  
  end subroutine negf_current
 
 
@@ -788,6 +752,8 @@ print*,' PLs (ind)  :',PL_end
 
     integer :: nSpin, nKS, iK, iS, iKS
     type(z_CSR) :: csrDens
+    
+    call negf_mpi_init(mpicomm)
 
     !! We need this now for different fermi levels in colinear spin
     !! Note: the spin polirized does not work with
@@ -795,11 +761,20 @@ print*,' PLs (ind)  :',PL_end
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
     rho = 0.0_dp
+       
+    if (id0) then
+      write(*,*)
+      write(*,'(80("="))')
+      write(*,*) '                         COMPUTING DENSITY MATRIX      '
+      write(*,'(80("="))') 
+    endif
    
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
       
+      if (id0) write(*,*) 'k-point',iK,'Spin',iS
+
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, &
           &iPair, iNeighbor, nNeighbor, img2CentCell, &
           &iCellVec, cellVec, orb)
@@ -831,6 +806,9 @@ print*,' PLs (ind)  :',PL_end
       call mpifx_allreduceip(mpicomm, rho(:,iS), MPI_SUM)
     end do
   
+    if (id0) write(*,'(80("="))')
+    if (id0) write(*,*)
+
   end subroutine calcdensity_green
 
   !> Calculates E-density matrix with Green's functions
@@ -854,6 +832,8 @@ print*,' PLs (ind)  :',PL_end
 
     integer :: nSpin, nKS, iK, iS, iKS
     type(z_CSR) :: csrEDens
+    
+    call negf_mpi_init(mpicomm)
     !! We need this now for different fermi levels in colinear spin
     !! Note: the spin polirized does not work with
     !! built-int potentials (the unpolarized does) in the poisson
@@ -864,11 +844,19 @@ print*,' PLs (ind)  :',PL_end
     nSpin = size(ham, dim=2)
     rhoE = 0.0_dp
 
+    if (id0) then
+      write(*,*)
+      write(*,'(80("="))')
+      write(*,*) '                     COMPUTING E-WEIGHTED DENSITY MATRIX '
+      write(*,'(80("="))') 
+    endif
     
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
-      
+     
+      if (id0) write(*,*) 'k-point',iK,'Spin',iS
+
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, &
           &iPair, iNeighbor, nNeighbor, img2CentCell, &
           &iCellVec, cellVec, orb)
@@ -892,6 +880,9 @@ print*,' PLs (ind)  :',PL_end
     ! In place all-reduce of the density matrix
     call mpifx_allreduceip(mpicomm, rhoE, MPI_SUM)
     
+    if (id0) write(*,'(80("="))')
+    if (id0) write(*,*)
+
   end subroutine calcEdensity_green
 
   !------------------------------------------------------------------------------
@@ -916,16 +907,28 @@ print*,' PLs (ind)  :',PL_end
     real(dp), allocatable :: ldosSKRes(:,:,:)
     integer :: iKS, iK, iS, nKS, nKPoint, nSpin, ii, jj, err
     type(lnParams) :: params
+    
+    call negf_mpi_init(mpicomm)
 
     call get_params(negf, params)
     
     nKS = size(groupKS, dim=2)
     nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
+    
+    if (id0) then
+      write(*,*)
+      write(*,'(80("="))')
+      write(*,*) '                        COMPUTING  LOCAL  DOS          '
+      write(*,'(80("="))') 
+      write(*,*)
+    end if
 
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
+     
+      if (id0) write(*,*) 'k-point',iK,'Spin',iS
       
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, &
           &iPair, iNeighbor, nNeighbor, img2CentCell, &
@@ -1000,6 +1003,8 @@ print*,' PLs (ind)  :',PL_end
 
     integer :: i,j,k,NumStates,icont                                       !DAR
     real(dp), dimension(:,:), allocatable :: H_all, S_all
+    
+    call negf_mpi_init(mpicomm)
 
     call get_params(negf, params)
  
@@ -1022,6 +1027,8 @@ print*,' PLs (ind)  :',PL_end
     do iKS = 1, nKS 
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
+     
+      if (id0) write(*,*) 'k-point',iK,'Spin',iS
 
       params%mu(1:ncont) = mu(1:ncont,iS) 
       
@@ -1036,38 +1043,34 @@ print*,' PLs (ind)  :',PL_end
       if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
         &(negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
             
-          call writeSparseAsSquare('H_dftb.mtr', ham(:,iS)*HAR, iNeighbor, nNeighbor, &
-                                       &iAtomStart, iPair, img2CentCell)
-          write(*,"(' Hamiltonian is written to the file ',A)")trim('H_dftb.mtr')
-          
-          call writeSparseAsSquare('S_dftb.mtr', over, iNeighbor, nNeighbor, &
-                                        &iAtomStart, iPair, img2CentCell)
-          write(*,"(' Overlap is written to the file ',A)")trim('S_dftb.mtr')
-       
           NumStates = negf%NumStates
         
-          write(*,"(' Hamiltonian is red from the file ',A)")trim('H_dftb.mtr')
-          open(11,file='H_dftb.mtr',action="read")
-          read(11,*);read(11,*);read(11,*);read(11,*);read(11,*)
-        
-          if(.not.allocated(H_all)) allocate(H_all(NumStates,NumStates))
-          H_all=0.0_dp
-          do i = 1, NumStates
-             read(11,*) H_all(i,1:NumStates)
-          end do
-          close(11)
-          H_all = H_all/HAR
-          write(*,"(' Overlap is red from the file ',A)")trim('S_dftb.mtr')
-          open(11,file='S_dftb.mtr',action="read")
-          read(11,*);read(11,*);read(11,*);read(11,*);read(11,*)
-          
+          if (.not.allocated(H_all)) allocate(H_all(NumStates,NumStates))
           if (.not.allocated(S_all)) allocate(S_all(NumStates,NumStates))
-          S_all=0.0_dp
-          do i = 1, NumStates
-             read(11,*) S_all(i,1:NumStates)
-          end do
-          close(11)
-           
+      
+          !open(11,file='H_dftb.mtr')
+          !read(11,*);read(11,*);read(11,*);read(11,*);read(11,*);
+          !do i = 1, NumStates
+          !  read(11,*) H_all(i,1:NumStates)
+          !end do
+          !close(11)
+          !open(11,file='S_dftb.mtr')
+          !read(11,*);read(11,*);read(11,*);read(11,*);read(11,*);
+          !do i = 1, NumStates
+          !  read(11,*) S_all(i,1:NumStates)
+          !end do
+          !close(11)
+          call unpackHS(H_all, ham(:,iS), iNeighbor, nNeighbor,&
+            & iAtomStart, iPair, img2CentCell)
+          call blockSymmetrizeHS(H_all, iAtomStart)
+     
+          call unpackHS(S_all, over, iNeighbor, nNeighbor, &
+            & iAtomStart, iPair, img2CentCell)
+          call blockSymmetrizeHS(S_all, iAtomStart)
+          
+          !print*,'H: ',maxval(abs(H_all))
+          !print*,'S: ',maxval(abs(S_all))
+
           call prepare_HS(H_all,S_all,csrHam,csrOver)         
 
       else
@@ -1112,6 +1115,7 @@ print*,' PLs (ind)  :',PL_end
     
     if (id0) then 
       do ii=1, size(currTot)
+        write(*,*)
         write(*,'(1x,a,i3,i3,a,ES14.5,a,a)') &
              & ' contacts: ',params%ni(ii),params%nf(ii), &
              & ' current: ', currTot(ii),' ',unitOfCurrent%name
@@ -1288,10 +1292,12 @@ print*,' PLs (ind)  :',PL_end
     integer :: iSCCiter=2
     type(z_CSR) :: csrDens, csrEDens
     type(lnParams) :: params
+    
+    call negf_mpi_init(mpicomm)
 
     call get_params(negf, params)
 
-    if (id0.and.params%verbose.gt.30) then
+    if (id0) then
       write(*,*)
       write(*,'(80("="))')
       write(*,*) '                        COMPUTING LOCAL CURRENTS          '
@@ -1307,6 +1313,8 @@ print*,' PLs (ind)  :',PL_end
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
+     
+      if (id0) write(*,*) 'k-point',iK,'Spin',iS
       
       ! We need to recompute Rho and RhoE .....
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,1), iAtomStart, &
@@ -1778,9 +1786,6 @@ print*,' PLs (ind)  :',PL_end
     !  write(12,*) H(i,1:N)*HAR
     !end do
     !close(12)
-
-    write(*,"(' Löwdin orthogonalization is done! ')")
-    
   end subroutine orthogonalization
 
   !-----------------------------------------------------------------------------
@@ -1905,8 +1910,6 @@ print*,' PLs (ind)  :',PL_end
     !end do
     !close(12)
 
-    write(*,"(' Löwdin orthogonalization for device only is done! ')")
-    
   end subroutine orthogonalization_dev
 
   !-----------------------------------------------------------------------------

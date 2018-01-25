@@ -13,3 +13,4 @@ __pycache__
 .idea
 test/prog/dftb+/transtests
 RELEASE
+srun.sh

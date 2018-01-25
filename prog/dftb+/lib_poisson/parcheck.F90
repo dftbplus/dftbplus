@@ -294,7 +294,6 @@ contains
           endif
           write(*,*) 'STRUCTURE'
           write(*,'(1x,a,I3)') 'periodicity direction:',contdir(1)
-          write(*,*) 'Fermi Level=',Efermi(1)*hartree,'eV'
       endif  
    endif
 
@@ -326,13 +325,14 @@ contains
          !endif
          ! ---------------------------------------------------
 
-         write(*,*) '(poiss_init) CONTACT INFO #',i
-         write(*,'(a,I3)') 'CONTACT #',i
-         write(*,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
-         write(*,'(1x,a,I3)') 'direction:',contdir(i)
-         write(*,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
-         write(*,*) 'mu=',mu(i)*hartree,'V'
-         write(*,*) 
+         if (id0) then
+           write(*,'(a,I3)') 'CONTACT #',i
+           write(*,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
+           write(*,'(1x,a,I3)') 'direction:',contdir(i)
+           write(*,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
+           write(*,*) 'mu=',mu(i)*hartree,'V'
+           write(*,*) 
+         end if
 
       end do !ncont
    endif !cluster

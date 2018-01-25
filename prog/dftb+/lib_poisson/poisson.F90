@@ -356,7 +356,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     ! Relaxation method used
     !--------------------------
     
-    iparm(19) = 0           !0 => Guass-Siedel method 
+    iparm(19) = 0           !0 => Gauss-Siedel method 
     isx = 0                 !        
     jsy = 0                 ! => relaxation method num. 0
     ksz = 0                 ! 
@@ -524,7 +524,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
    ! Selection for multigrid options  
    !-----------------------------------
    
-    mgopt(1) = 0                          !Default multigrid options selected               
+    mgopt(1) = 0                            !Default multigrid with w-cycles               
                                     
     !--------------------------------------------------------------------------
     if (cluster.and.period .and. niter.eq.1) then
@@ -762,94 +762,104 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
  integer :: iparm(23)
  real(kind=dp) :: fparm(8),dlx,dly,dlz
  real(kind=dp), dimension(:,:,:) :: rhs
- Type(super_array) :: bulk(*)
+ Type(super_array) :: bulk(:)
 
-#:if WITH_MPI
-  !---------------------------------------------------------------------
-  ! MPI parallelization of the r.h.s. assembly (charge density)
-  ! This is done slicing the grid along the z-direction, iparm(16)
-  ! Parallelization is done along z since this corresponds to the slowest
-  ! index in rhs(:,:,:), therefore gather is done on a contiguus vector
-  !
-  !---------------------------------------------------------------------
-  integer :: i, ierr, npid, iparm_tmp(23)
-  real(kind=dp) :: fparm_tmp(8)
-  real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
-  integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs,displs
+!#:if WITH_MPI
+!  !---------------------------------------------------------------------
+!  ! MPI parallelization of the r.h.s. assembly (charge density)
+!  ! This is done slicing the grid along the z-direction, iparm(16)
+!  ! Parallelization is done along z since this corresponds to the slowest
+!  ! index in rhs(:,:,:), therefore gather is done on a contiguus vector
+!  !
+!  !---------------------------------------------------------------------
+!  integer :: i, ierr, npid, iparm_tmp(23)
+!  real(kind=dp) :: fparm_tmp(8)
+!  real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
+!  integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs,displs
+!
+!  call log_gallocate(dim_rhs,numprocs)
+!  call log_gallocate(displs,numprocs)
+!  call log_gallocate(istart,numprocs)
+!  call log_gallocate(iend,numprocs)
+!
+!  ! z points per processor
+!  npid = int(iparm(16)/numprocs)
+!
+!  ! set start/end and size handled by each processor
+!  do i = 1,numprocs
+!     istart(i) = (i-1)*npid+1
+!     if (i .ne. numprocs) then
+!        iend(i) = i*npid
+!     else
+!        iend(i) = iparm(16)
+!     endif
+!     dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
+!     displs(i) = (i-1)*dim_rhs(1)
+!  end do
+! 
+!  ! Define a subproblem with appropriate iparm_tmp
+!  iparm_tmp = iparm
+!  fparm_tmp = fparm
+!
+!  iparm_tmp(16) = iend(id+1) - istart(id+1) + 1
+!  fparm_tmp(5) = fparm(5) + (istart(id+1)-1)*dlz
+!  fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
+!
+!  print*,id,iparm_tmp(14:16)
+!  print*,id,fparm_tmp(4:6)
+!  print*,id,dim_rhs(id+1)
+!  print*,id,istart(id+1),'-',iend(id+1)
+!
+!  ! Allocate space for local rhs.
+!  call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
+!  !---------------------------------------------------------------------
+! 
+!  if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
+! 
+!  !! Set a renormalization volume for grid projection
+! 
+!  if (do_renorm) then
+!    call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
+!    do_renorm = .false.
+!  endif
+! 
+!  call charge_density(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+!
+!  if (DoGate) then
+!     call gate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+!  endif
+!
+!  if (DoCilGate) then
+!     call cilgate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+!  endif
+!
+!  if (DoTip) then
+!     call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+!  endif
+!
+!  if (id0.and.verbose.gt.VBT) call write_clock
+!
+!  ! gather all partial results in all nodes.
+!  if (id0.and.verbose.gt.VBT) call message_clock('MPI gather ')
+!
+!  call MPI_ALLGATHERV(rhs_par, dim_rhs(id+1), MPI_DOUBLE_PRECISION, rhs, dim_rhs, &
+!                                & displs, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr)
+!
+!  if (id0.and.verbose.gt.VBT) call write_clock
+!
+!  call log_gdeallocate(rhs_par)
+!  call log_gdeallocate(dim_rhs)
+!  call log_gdeallocate(displs)
+!  call log_gdeallocate(istart)
+!  call log_gdeallocate(iend)
+!
+!#:else
 
-  call log_gallocate(dim_rhs,numprocs)
-  call log_gallocate(displs,numprocs)
-  call log_gallocate(istart,numprocs)
-  call log_gallocate(iend,numprocs)
-
-  ! z points per processor
-  npid = int(iparm(16)/numprocs)
-
-  ! set start/end and size handled by each processor
-  do i = 1,numprocs
-     istart(i) = (i-1)*npid+1
-     if (i .ne. numprocs) then
-        iend(i) = i*npid
-     else
-        iend(i) = iparm(16)
-     endif
-     dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
-     displs(i) = (i-1)*dim_rhs(1)
-  end do
-
-  ! Define a subproblem with appropriate iparm_tmp
-  iparm_tmp = iparm
-  fparm_tmp = fparm
-
-  iparm_tmp(16) = iend(id+1) - istart(id+1) + 1
-  fparm_tmp(5) = fparm(5) + (istart(id+1)-1)*dlz
-  fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
-
-  ! Allocate space for local rhs.
-  call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
-  !---------------------------------------------------------------------
-
-  if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
-
-  !! Set a renormalization volume for grid projection
+ if (do_renorm) then
+   call renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed_renorm)
+   do_renorm = .false.
+ endif
  
-  if (do_renorm) then
-    call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
-    do_renorm = .false.
-  endif
-
-  call charge_density(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-
-  if (DoGate) then
-     call gate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-  endif
-
-  if (DoCilGate) then
-     call cilgate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-  endif
-
-  if (DoTip) then
-     call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-  endif
-
-  if (id0.and.verbose.gt.VBT) call write_clock
-
-  ! gather all partial results in all nodes.
-  if (id0.and.verbose.gt.VBT) call message_clock('MPI gather ')
-
-  call MPI_ALLGATHERV(rhs_par, dim_rhs(id+1), MPI_DOUBLE_PRECISION, rhs, dim_rhs, &
-                                & displs, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr)
-
-  if (id0.and.verbose.gt.VBT) call write_clock
-
-  call log_gdeallocate(rhs_par)
-  call log_gdeallocate(dim_rhs)
-  call log_gdeallocate(displs)
-  call log_gdeallocate(istart)
-  call log_gdeallocate(iend)
-
-#:else
-
  call charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  
  if (DoGate) then
@@ -864,7 +874,7 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     call tip_bound(iparm,fparm,dlx,dly,dlz,rhs)
  endif
 
-#:endif
+!#:endif
 
  if (any(localBC.gt.0)) then
     call local_bound(iparm,fparm,x,rhs,bulk)
@@ -1169,7 +1179,7 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp) :: fparm(8)
  real(kind=dp) :: phi(iparm(14),iparm(15),iparm(16))
- Type(super_array) :: phi_bulk(*)
+ Type(super_array) :: phi_bulk(:)
 
  !Internal variables
 
@@ -1339,10 +1349,10 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
 
 
 #:if WITH_MPI
-    call MPI_BARRIER(poiss_comm%id,ierr)
+    !call MPI_BARRIER(poiss_comm%id,ierr)
     
-    call MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL, &
-         V_atm, dims, displ, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr )
+    !call MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL, &
+    !     V_atm, dims, displ, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr )
 #:endif
 
  call log_gdeallocate(dims)

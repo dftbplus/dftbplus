@@ -979,6 +979,8 @@ contains
     !> First guess for nr. of neighbors.
     integer, parameter :: nInitNeighbor = 40
 
+    integer, external :: omp_get_thread_num, omp_get_num_threads
+    integer, external :: omp_get_thread_limit, omp_get_max_threads
 
     @:ASSERT(input%tInitialized)
 
@@ -1055,6 +1057,14 @@ contains
       write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
     end if
   #:endif
+
+    !$OMP PARALLEL
+    if (omp_get_thread_num().eq.0) then
+      write(stdOut,"('OMP THREADS: ',I0)") omp_get_num_threads()
+      write(stdOut,"('OMP MAX THREADS: ',I0)") omp_get_max_threads()
+      !write(stdOut,"('OMP THREADS LIMIT: ',I0)") omp_get_thread_limit()
+    end if 
+    !$OMP END PARALLEL
 
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
@@ -3358,7 +3368,6 @@ contains
     fdH = getFileId()
 
     do iCont = 1, tp%ncont
-      print*,">> Reading shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat"     
       open(fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat", &
           &form="formatted")
       read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt

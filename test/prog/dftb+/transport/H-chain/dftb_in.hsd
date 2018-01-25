@@ -76,6 +76,12 @@ Analysis{
   }
 }
 
+Parallel = {
+  Blacs{ 
+    BlockSize = 4 
+  }
+}
+
 options = {
   writeautotesttag = yes 
 }

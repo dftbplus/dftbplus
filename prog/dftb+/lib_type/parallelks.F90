@@ -30,7 +30,8 @@ module parallelks
     !> Maximal number of KS-indices per processor group
     integer :: maxGroupKS
 
-    !> The (K, S) tuples of the local processor group
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
     integer, allocatable :: localKS(:,:)
 
     !> Number of local (K, S) tuples to process

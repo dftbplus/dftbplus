@@ -707,11 +707,9 @@ contains
     end if
    
     if (tTunn) then              
-      !call qm2ud(ham)
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over, &
           & neighborList%iNeighbor, nNeighbor, densedesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, &
           & cellVec, orb, kPoint, kWeight, tunneling, ldos, current, writeTunn, writeLDOS, mu)
-      !call ud2qm(ham)
     end if
 #:endif
 
@@ -1858,7 +1856,7 @@ contains
     if (solver == solverGF) then
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
-      call calcdensity_green(iSCC, env%mpi%groupComm, parallelKS%localKS, ham, over, &
+      call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over, &
           & neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, &
           & img2CentCell, iCellVec, cellVec, orb,  & 
           & kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
@@ -3663,7 +3661,7 @@ contains
 
 #:if WITH_TRANSPORT
     if (solver == solverGF) then
-      call calcEdensity_green(iSCC, env%mpi%groupComm, parallelKS%localKS, ham, over, &
+      call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over, &
           & neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, &
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       return

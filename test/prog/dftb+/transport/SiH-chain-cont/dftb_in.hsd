@@ -44,6 +44,10 @@ Hamiltonian = DFTB {
   OldSKInterpolation = Yes
 }
 
+Parallel{
+  Blacs{BlockSize=2}
+}
+
 Options = {
   WriteAutotestTag = Yes
 }

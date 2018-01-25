@@ -28,10 +28,10 @@ c     mud3pn.f contains subroutines for planar relaxation in the x or
 c     y or z direction.  This file must be loaded with any of the real
 c     3-d mudpack solvers except mud3sp.
 c
-      subroutine planxy(wk)
-c
+c----+|-----------------------------------------------------------------------|
 c     planar relaxation on (x,y) planes in z direction
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine planxy(wk)
       implicit none
       double precision wk(*)
       integer iparm(16),mgo(4)
@@ -50,8 +50,9 @@ c
       common/mud3c/kpbgn(50),kcbgn(50),ktxbgn(50),ktybgn(50),
      +ktzbgn(50),nxk(50),nyk(50),nzk(50),ngrid,klevel,kcur,kps
 c
+c----+|-----------------------------------------------------------------------|
 c     set integer parameters for xy plane
-c
+c----+|-----------------------------------------------------------------------|
       iparm(1) = 1
       iparm(2) = nxa
       iparm(3) = nxb
@@ -66,8 +67,9 @@ c
       iparm(12) = 1
       iparm(13) = 1
 c
+c----+|-----------------------------------------------------------------------|
 c     set relaxation method for 2-d
-c
+c----+|-----------------------------------------------------------------------|
       iparm(14) = meth2
 
       fparm(1) = xa
@@ -76,8 +78,9 @@ c
       fparm(4) = yd
       fparm(5) = 0.d0
 c
+c----+|-----------------------------------------------------------------------|
 c     set 2-d multigrid options
-c
+c----+|-----------------------------------------------------------------------|
       mgo(1) = kcycle
       mgo(2) = iprer
       mgo(3) = ipost
@@ -97,105 +100,106 @@ c
       if (nze.ne.1) kst = 1
       kfn = nz-1
       if (nzf.ne.1) kfn = nz
+
       do k=kst,kfn
-      kset = k
-      ixy = kps
-      ip = kpbgn(klevel)
-      ic = kcbgn(klevel)
-      do kb=1,klevel
-        kl = klevel-kb+1
-        nx = nxk(kl)
-        ny = nyk(kl)
-c
-c     set 2-d coefficient pointer
-c
-        icxy = ixy + (nx+2)*(ny+2)
-c
-c     transfer coefficients from 3-d to 2-d for current kset
-c
-        call trscxy(kset,nx,ny,nz,wk(ic),wk(icxy),wk(ip))
-        ixy = ixy+(6+isx+jsy)*nx*ny + (nx+2)*(ny+2)
-        ip = ip + (nx+2)*(ny+2)*(nz+2)
-        ic = ic + 8*nx*ny*nz
+        kset = k
+        ixy = kps
+        ip = kpbgn(klevel)
+        ic = kcbgn(klevel)
+c----+|-----------------------------------------------------------------------|
+c       set 2-d coefficient pointer
+c       transfers coefficients from 3-d to 2-d for current kset
+c----+|-----------------------------------------------------------------------|
+        do kb=1,klevel
+          kl = klevel-kb+1
+          nx = nxk(kl)
+          ny = nyk(kl)
+          icxy = ixy + (nx+2)*(ny+2)
+          call trscxy(kset,nx,ny,nz,wk(ic),wk(icxy),wk(ip))
+          ixy = ixy+(6+isx+jsy)*nx*ny + (nx+2)*(ny+2)
+          ip = ip + (nx+2)*(ny+2)*(nz+2)
+          ic = ic + 8*nx*ny*nz
+        end do
+c----+|-----------------------------------------------------------------------|
+c       set 2-d solution for current kset for passage to mup2
+c----+|-----------------------------------------------------------------------|
+        nx = nxk(klevel)
+        ny = nyk(klevel)
+        ip = kpbgn(klevel)
+        ixy = 0
+        call setpxy(kset,nx,ny,nz,wk(ip),wk(kps),ixy)
+c----+|-----------------------------------------------------------------------|
+c       solve on current z plane with full 2-d multigrid cycling
+c----+|-----------------------------------------------------------------------|
+        call mup2(iparm,fparm,wk(kps),mgo)
+c----+|-----------------------------------------------------------------------|
+c       reset approx from mup2 in wk(ip)
+c----+|-----------------------------------------------------------------------|
+        ixy = 1
+        call setpxy(kset,nx,ny,nz,wk(ip),wk(kps),ixy)
       end do
-c
-c     set 2-d solution for current kset for passage to mup2
-c
-      nx = nxk(klevel)
-      ny = nyk(klevel)
-      ip = kpbgn(klevel)
-      ixy = 0
-      call setpxy(kset,nx,ny,nz,wk(ip),wk(kps),ixy)
-c
-c     solve on current z plane with full 2-d multigrid cycling
-c
-      call mup2(iparm,fparm,wk(kps),mgo)
-c
-c     reset approx from mup2 in wk(ip)
-c
-      ixy = 1
-      call setpxy(kset,nx,ny,nz,wk(ip),wk(kps),ixy)
-      end do
-c
+c      
+c----+|-----------------------------------------------------------------------|
 c     set periodic virtual boundaries if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nxa*nyc*nze.eq.0) then
-      nx = nxk(klevel)
-      ny = nyk(klevel)
-      ip = kpbgn(klevel)
-      call per3vb(nx,ny,nz,wk(ip),nxa,nyc,nze)
+        nx = nxk(klevel)
+        ny = nyk(klevel)
+        ip = kpbgn(klevel)
+        call per3vb(nx,ny,nz,wk(ip),nxa,nyc,nze)
       end if
       return
-      end
-
-      subroutine trscxy(kset,nx,ny,nz,cof,cofxy,phi)
+      end subroutine planxy
 c
-c     transfer coefficients from 3-d to 2-d
+c----+|-----------------------------------------------------------------------|
+c     Transfers coefficients from 3-d to 2-d
 c     to allow 2-d relaxation
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine trscxy(kset,nx,ny,nz,cof,cofxy,phi)
       implicit none
       integer kset,nx,ny,nz,i,j,k
       double precision cof(nx,ny,nz,8),cofxy(nx,ny,6)
       double precision phi(0:nx+1,0:ny+1,0:nz+1)
       k = kset
       do j=1,ny
-      do i=1,nx
-        cofxy(i,j,1) = cof(i,j,k,1)
-        cofxy(i,j,2) = cof(i,j,k,2)
-        cofxy(i,j,3) = cof(i,j,k,3)
-        cofxy(i,j,4) = cof(i,j,k,4)
-        cofxy(i,j,5) = cof(i,j,k,7)
-        cofxy(i,j,6) = cof(i,j,k,8)-(cof(i,j,k,5)*phi(i,j,k-1)+
+        do i=1,nx
+          cofxy(i,j,1) = cof(i,j,k,1)
+          cofxy(i,j,2) = cof(i,j,k,2)
+          cofxy(i,j,3) = cof(i,j,k,3)
+          cofxy(i,j,4) = cof(i,j,k,4)
+          cofxy(i,j,5) = cof(i,j,k,7)
+          cofxy(i,j,6) = cof(i,j,k,8)-(cof(i,j,k,5)*phi(i,j,k-1)+
      +                                 cof(i,j,k,6)*phi(i,j,k+1))
-      end do
+        end do
       end do
       return
-      end
+      end subroutine trscxy
 
+c----+|-----------------------------------------------------------------------|
       subroutine setpxy(kset,nx,ny,nz,phi,phxy,ixy)
       implicit none
       integer kset,nx,ny,nz,i,j,ixy
       double precision phi(0:nx+1,0:ny+1,0:nz+1),phxy(0:nx+1,0:ny+1)
       if (ixy.eq.0) then
-      do j=0,ny+1
-        do i=0,nx+1
-          phxy(i,j) = phi(i,j,kset)
+        do j=0,ny+1
+          do i=0,nx+1
+            phxy(i,j) = phi(i,j,kset)
+          end do
         end do
-      end do
-      else
-      do j=0,ny+1
-        do i=0,nx+1
-          phi(i,j,kset) = phxy(i,j)
+        else
+        do j=0,ny+1
+          do i=0,nx+1
+            phi(i,j,kset) = phxy(i,j)
+          end do
         end do
-      end do
       end if
       return
-      end
+      end subroutine setpxy
 
-      subroutine planxz(wk)
-c
+c----+|-----------------------------------------------------------------------|
 c     planar relaxation on (x,z) planes in y direction
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine planxz(wk)
       implicit none
       double precision wk(*)
       integer iparm(16),mgo(4)
@@ -214,8 +218,9 @@ c
       common/mud3c/kpbgn(50),kcbgn(50),ktxbgn(50),ktybgn(50),
      +ktzbgn(50),nxk(50),nyk(50),nzk(50),ngrid,klevel,kcur,kps
 c
+c----+|-----------------------------------------------------------------------|
 c     set integer parameters for xz plane
-c
+c----+|-----------------------------------------------------------------------|
       iparm(1) = 1
       iparm(2) = nxa
       iparm(3) = nxb
@@ -229,9 +234,9 @@ c
       iparm(11) = nzk(klevel)
       iparm(12) = 1
       iparm(13) = 1
-c
+c----+|-----------------------------------------------------------------------|
 c     set relaxation method for 2-d
-c
+c----+|-----------------------------------------------------------------------|
       iparm(14) = meth2
 
       fparm(1) = xa
@@ -239,100 +244,101 @@ c
       fparm(3) = ze
       fparm(4) = zf
       fparm(5) = 0.d0
-c
+c----+|-----------------------------------------------------------------------|
 c     set 2-d multigrid options
-c
+c----+|-----------------------------------------------------------------------|
       mgo(1) = kcycle
       mgo(2) = iprer
       mgo(3) = ipost
       mgo(4) = intpol
       isx = 0
       if (meth2.eq.1.or.meth2.eq.3) then
-      isx = 3
-      if (nxa.eq.0) isx = 5
+        isx = 3
+        if (nxa.eq.0) isx = 5
       end if
       ksz = 0
       if (meth2.eq.2.or.meth2.eq.3) then
-      ksz = 3
-      if (nze.eq.0) ksz = 5
+        ksz = 3
+        if (nze.eq.0) ksz = 5
       end if
       ny = nyk(klevel)
       jst = 2
       if (nyc.ne.1) jst = 1
       jfn = ny-1
       if (nyd.ne.1) jfn = ny
+
       do j=jst,jfn
-      jset = j
-      ixz = kps
-      ip = kpbgn(klevel)
-      ic = kcbgn(klevel)
-      do kb=1,klevel
-        kl = klevel-kb+1
-        nx = nxk(kl)
-        nz = nzk(kl)
-c
-c     set 2-d coefficient pointer
-c
-        icxz = ixz + (nx+2)*(nz+2)
-c
-c     transfer coefficients from 3-d to 2-d for current jset
-c
-        call trscxz(jset,nx,ny,nz,wk(ic),wk(icxz),wk(ip))
-        ixz = ixz+(6+isx+ksz)*nx*nz + (nx+2)*(nz+2)
-        ip = ip + (nx+2)*(ny+2)*(nz+2)
-        ic = ic + 8*nx*ny*nz
+        jset = j
+        ixz = kps
+        ip = kpbgn(klevel)
+        ic = kcbgn(klevel)
+        do kb=1,klevel
+          kl = klevel-kb+1
+          nx = nxk(kl)
+          nz = nzk(kl)
+c----+|-----------------------------------------------------------------------|
+c         set 2-d coefficient pointer
+c         transfers coefficients from 3-d to 2-d for current jset
+c----+|-----------------------------------------------------------------------|
+          icxz = ixz + (nx+2)*(nz+2)
+          call trscxz(jset,nx,ny,nz,wk(ic),wk(icxz),wk(ip))
+          ixz = ixz+(6+isx+ksz)*nx*nz + (nx+2)*(nz+2)
+          ip = ip + (nx+2)*(ny+2)*(nz+2)
+          ic = ic + 8*nx*ny*nz
+        end do
+c----+|-----------------------------------------------------------------------|
+c       set 2-d solution for current jset for passage to mup2
+c----+|-----------------------------------------------------------------------|
+        nx = nxk(klevel)
+        nz = nzk(klevel)
+        ip = kpbgn(klevel)
+        ixz = 0
+        call setpxz(jset,nx,ny,nz,wk(ip),wk(kps),ixz)
+c----+|-----------------------------------------------------------------------|
+c       solve on current y plane with full 2-d multigrid cycling
+c----+|-----------------------------------------------------------------------|
+        call mup2(iparm,fparm,wk(kps),mgo)
+        ixz = 1
+        call setpxz(jset,nx,ny,nz,wk(ip),wk(kps),ixz)
       end do
 c
-c     set 2-d solution for current jset for passage to mup2
-c
-      nx = nxk(klevel)
-      nz = nzk(klevel)
-      ip = kpbgn(klevel)
-      ixz = 0
-      call setpxz(jset,nx,ny,nz,wk(ip),wk(kps),ixz)
-c
-c     solve on current y plane with full 2-d multigrid cycling
-c
-      call mup2(iparm,fparm,wk(kps),mgo)
-      ixz = 1
-      call setpxz(jset,nx,ny,nz,wk(ip),wk(kps),ixz)
-      end do
-c
+c----+|-----------------------------------------------------------------------|
 c     set periodic virtual boundaries if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nxa*nyc*nze.eq.0) then
-      nx = nxk(klevel)
-      nz = nzk(klevel)
-      ip = kpbgn(klevel)
-      call per3vb(nx,ny,nz,wk(ip),nxa,nyc,nze)
+        nx = nxk(klevel)
+        nz = nzk(klevel)
+        ip = kpbgn(klevel)
+        call per3vb(nx,ny,nz,wk(ip),nxa,nyc,nze)
       end if
       return
-      end
+      end subroutine planxz
 
-      subroutine trscxz(jset,nx,ny,nz,cof,cofxz,phi)
-c
-c     transfer coefficients from 3-d to 2-d
+c----+|-----------------------------------------------------------------------|
+c     Transfers coefficients from 3-d to 2-d
 c     to allow 2-d relaxation
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine trscxz(jset,nx,ny,nz,cof,cofxz,phi)
       implicit none
       integer jset,nx,ny,nz,i,j,k
       double precision cof(nx,ny,nz,8),cofxz(nx,nz,6)
       double precision phi(0:nx+1,0:ny+1,0:nz+1)
       j = jset
       do k=1,nz
-      do i=1,nx
-        cofxz(i,k,1) = cof(i,j,k,1)
-        cofxz(i,k,2) = cof(i,j,k,2)
-        cofxz(i,k,3) = cof(i,j,k,5)
-        cofxz(i,k,4) = cof(i,j,k,6)
-        cofxz(i,k,5) = cof(i,j,k,7)
-        cofxz(i,k,6) = cof(i,j,k,8)-(cof(i,j,k,3)*phi(i,j-1,k)+
+        do i=1,nx
+          cofxz(i,k,1) = cof(i,j,k,1)
+          cofxz(i,k,2) = cof(i,j,k,2)
+          cofxz(i,k,3) = cof(i,j,k,5)
+          cofxz(i,k,4) = cof(i,j,k,6)
+          cofxz(i,k,5) = cof(i,j,k,7)
+          cofxz(i,k,6) = cof(i,j,k,8)-(cof(i,j,k,3)*phi(i,j-1,k)+
      +                                 cof(i,j,k,4)*phi(i,j+1,k))
-      end do
+        end do
       end do
       return
-      end
+      end subroutine trscxz
 
+c----+|-----------------------------------------------------------------------|
       subroutine setpxz(jset,nx,ny,nz,phi,phxz,ixz)
       implicit none
       integer jset,nx,ny,nz,i,k,ixz
@@ -351,12 +357,12 @@ c
       end do
       end if
       return
-      end
+      end subroutine setpxz
 
-      subroutine planyz(wk)
-c
+c----+|-----------------------------------------------------------------------|
 c     planar relaxation on (y,z) planes in x direction
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine planyz(wk)
       implicit none
       double precision wk(*)
       integer iparm(16),mgo(4)
@@ -375,8 +381,9 @@ c
       common/mud3c/kpbgn(50),kcbgn(50),ktxbgn(50),ktybgn(50),
      +ktzbgn(50),nxk(50),nyk(50),nzk(50),ngrid,klevel,kcur,kps
 c
+c----+|-----------------------------------------------------------------------|
 c     set integer parameters for yz plane
-c
+c----+|-----------------------------------------------------------------------|
       iparm(1) = 1
       iparm(2) = nyc
       iparm(3) = nyd
@@ -391,8 +398,9 @@ c
       iparm(12) = 1
       iparm(13) = 1
 c
+c----+|-----------------------------------------------------------------------|
 c     set relaxation method for 2-d
-c
+c----+|-----------------------------------------------------------------------|
       iparm(14) = meth2
 
       fparm(1) = yc
@@ -400,127 +408,127 @@ c
       fparm(3) = ze
       fparm(4) = zf
       fparm(5) = 0.d0
-c
+c----+|-----------------------------------------------------------------------|
 c     set 2-d multigrid options
-c
+c----+|-----------------------------------------------------------------------|
       mgo(1) = kcycle
       mgo(2) = iprer
       mgo(3) = ipost
       mgo(4) = intpol
       jsy = 0
       if (meth2.eq.1.or.meth2.eq.3) then
-      jsy = 3
-      if (nyc.eq.0) jsy = 5
+        jsy = 3
+        if (nyc.eq.0) jsy = 5
       end if
       ksz = 0
       if (meth2.eq.2.or.meth2.eq.3) then
-      ksz = 3
-      if (nze.eq.0) ksz = 5
+       ksz = 3
+       if (nze.eq.0) ksz = 5
       end if
       nx = nxk(klevel)
       ist = 2
       if (nxa.ne.1) ist = 1
       ifn = nx-1
       if (nxb.ne.1) ifn = nx
+
       do i=ist,ifn
-      iset = i
-      iyz = kps
-      ip = kpbgn(klevel)
-      ic = kcbgn(klevel)
-      do kb=1,klevel
-        kl = klevel-kb+1
-        ny = nyk(kl)
-        nz = nzk(kl)
-c
-c     set 2-d coefficient pointer
-c
-        icyz = iyz + (ny+2)*(nz+2)
-c
-c     transfer coefficients from 3-d to 2-d for current iset
-c
-        call trscyz(iset,nx,ny,nz,wk(ic),wk(icyz),wk(ip))
-        iyz = iyz+(6+jsy+ksz)*ny*nz + (ny+2)*(nz+2)
-        ip = ip + (nx+2)*(ny+2)*(nz+2)
-        ic = ic + 8*nx*ny*nz
+        iset = i
+        iyz = kps
+        ip = kpbgn(klevel)
+        ic = kcbgn(klevel)
+        do kb=1,klevel
+          kl = klevel-kb+1
+          ny = nyk(kl)
+          nz = nzk(kl)
+c----+|-----------------------------------------------------------------------|
+c         set 2-d coefficient pointer
+c         transfers coefficients from 3-d to 2-d for current iset
+c----+|-----------------------------------------------------------------------|
+          icyz = iyz + (ny+2)*(nz+2)
+          call trscyz(iset,nx,ny,nz,wk(ic),wk(icyz),wk(ip))
+          iyz = iyz+(6+jsy+ksz)*ny*nz + (ny+2)*(nz+2)
+          ip = ip + (nx+2)*(ny+2)*(nz+2)
+          ic = ic + 8*nx*ny*nz
+        end do
+c----+|-----------------------------------------------------------------------|
+c       set 2-d solution for current iset for passage to mup2
+c----+|-----------------------------------------------------------------------|
+        ny = nyk(klevel)
+        nz = nzk(klevel)
+        ip = kpbgn(klevel)
+        iyz = 0
+        call setpyz(iset,nx,ny,nz,wk(ip),wk(kps),iyz)
+c----+|-----------------------------------------------------------------------|
+c       solve on current y plane with full 2-d multigrid cycling
+c----+|-----------------------------------------------------------------------|
+        call mup2(iparm,fparm,wk(kps),mgo)
+        iyz = 1
+        call setpyz(iset,nx,ny,nz,wk(ip),wk(kps),iyz)
       end do
-c
-c     set 2-d solution for current iset for passage to mup2
-c
-      ny = nyk(klevel)
-      nz = nzk(klevel)
-      ip = kpbgn(klevel)
-      iyz = 0
-      call setpyz(iset,nx,ny,nz,wk(ip),wk(kps),iyz)
-c
-c     solve on current y plane with full 2-d multigrid cycling
-c
-      call mup2(iparm,fparm,wk(kps),mgo)
-      iyz = 1
-      call setpyz(iset,nx,ny,nz,wk(ip),wk(kps),iyz)
-      end do
-c
+c----+|-----------------------------------------------------------------------|
 c     set periodic virtual boundaries if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nxa*nyc*nze.eq.0) then
-      ny = nyk(klevel)
-      nz = nzk(klevel)
-      ip = kpbgn(klevel)
-      call per3vb(nx,ny,nz,wk(ip),nxa,nyc,nze)
+        ny = nyk(klevel)
+        nz = nzk(klevel)
+        ip = kpbgn(klevel)
+        call per3vb(nx,ny,nz,wk(ip),nxa,nyc,nze)
       end if
       return
-      end
+      end subroutine planyz
 
-      subroutine trscyz(iset,nx,ny,nz,cof,cofyz,phi)
-c
-c     transfer coefficients from 3-d to 2-d
+c----+|-----------------------------------------------------------------------|
+c     transfers coefficients from 3-d to 2-d
 c     to allow 2-d relaxation
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine trscyz(iset,nx,ny,nz,cof,cofyz,phi)
       implicit none
       integer iset,nx,ny,nz,i,j,k
       double precision cof(nx,ny,nz,8),cofyz(ny,nz,6)
       double precision phi(0:nx+1,0:ny+1,0:nz+1)
       i = iset
       do k=1,nz
-      do j=1,ny
-        cofyz(j,k,1) = cof(i,j,k,3)
-        cofyz(j,k,2) = cof(i,j,k,4)
-        cofyz(j,k,3) = cof(i,j,k,5)
-        cofyz(j,k,4) = cof(i,j,k,6)
-        cofyz(j,k,5) = cof(i,j,k,7)
-        cofyz(j,k,6) = cof(i,j,k,8)-(cof(i,j,k,1)*phi(i-1,j,k)+
+        do j=1,ny
+          cofyz(j,k,1) = cof(i,j,k,3)
+          cofyz(j,k,2) = cof(i,j,k,4)
+          cofyz(j,k,3) = cof(i,j,k,5)
+          cofyz(j,k,4) = cof(i,j,k,6)
+          cofyz(j,k,5) = cof(i,j,k,7)
+          cofyz(j,k,6) = cof(i,j,k,8)-(cof(i,j,k,1)*phi(i-1,j,k)+
      +                                 cof(i,j,k,2)*phi(i+1,j,k))
-      end do
+        end do
       end do
       return
-      end
+      end subroutine trscyz
 
+c----+|-----------------------------------------------------------------------|
       subroutine setpyz(iset,nx,ny,nz,phi,phyz,iyz)
       implicit none
       integer iset,nx,ny,nz,iyz,j,k
       double precision phi(0:nx+1,0:ny+1,0:nz+1),phyz(0:ny+1,0:nz+1)
       if (iyz.eq.0) then
-      do k=0,nz+1
-        do j=0,ny+1
-          phyz(j,k) = phi(iset,j,k)
+        do k=0,nz+1
+          do j=0,ny+1
+            phyz(j,k) = phi(iset,j,k)
+          end do
         end do
-      end do
-      else
-      do k=0,nz+1
-        do j=0,ny+1
-          phi(iset,j,k) = phyz(j,k)
+        else
+        do k=0,nz+1
+          do j=0,ny+1
+            phi(iset,j,k) = phyz(j,k)
+          end do
         end do
-      end do
       end if
       return
-      end
+      end subroutine setpyz
 
-      subroutine mup2(iparm,fparm,work,mgopt)
-c
+c----+|-----------------------------------------------------------------------|
 c     modification of mud2 for planar with mud3
 c     whenever mup2 is called coefficients from discretization
 c     have already been set but matrices for line (if flagged
 c     have not been set)
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine mup2(iparm,fparm,work,mgopt)
       implicit none
       integer iparm,mgopt
       integer intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
@@ -573,17 +581,19 @@ c
       if (nyc.eq.0) jsy = 5
       end if
       kps = 1
+c----+|-----------------------------------------------------------------------|
+c     set subgrid sizes
+c----+|-----------------------------------------------------------------------|
       do k=1,ngrid
-c       set subgrid sizes
         nxk(k) = ixp*2**(max0(k+iex-ngrid,1)-1)+1
         nyk(k) = jyq*2**(max0(k+jey-ngrid,1)-1)+1
         nx = nxk(k)
         ny = nyk(k)
         kps = kps+(nx+2)*(ny+2)+nx*ny*(6+isx+jsy)
       end do
-c
+c----+|-----------------------------------------------------------------------|
 c     set work space pointers and discretize pde at each grid level
-c
+c----+|-----------------------------------------------------------------------|
       iw = 1
       do kb=1,ngrid
         k = ngrid-kb+1
@@ -602,8 +612,9 @@ c
       end do
       call mup21(work)
       return
-      end
+      end subroutine mup2
 
+c----+|-----------------------------------------------------------------------|
       subroutine mup21(wk)
       implicit none
       double precision wk(*)
@@ -618,21 +629,22 @@ c
       common/mup2c/kpbgn(50),kcbgn(50),ktxbgn(50),ktybgn(50),
      +nxk(50),nyk(50),isx,jsy
 c
-c     cycle from ngrid level
-c
+c----+|-----------------------------------------------------------------------|
+c     cycles from ngrid level
+c----+|-----------------------------------------------------------------------|
       kcur = ngrid
       do iter=1,maxcy
-      itero = iter
-      call kcymp2(wk)
-      end do
+        itero = iter
+        call kcymp2(wk)
+        end do
       return
-      end
+      end subroutine mup21
 
-      subroutine kcymp2(wk)
-c
-c     execute multigrid k cycle from kcur grid level
+c----+|-----------------------------------------------------------------------|
+c     execute multigrid k-cycle from kcur grid level
 c     kcycle=1 for v cycles, kcycle=2 for w cycles
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine kcymp2(wk)
       implicit none
       double precision wk(*)
       integer intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
@@ -656,46 +668,52 @@ c
       itx = ktxbgn(klevel)
       ity = ktybgn(klevel)
 c
+c----+|-----------------------------------------------------------------------|
 c     prerelax at current finest grid level
-c
+c----+|-----------------------------------------------------------------------|
       do l=1,iprer
-      call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
+        call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
       end do
-      if (kcur .eq. 1) go to 5
 c
+c----+|-----------------------------------------------------------------------|
 c     restrict residual to kcur-1 level
-c
+c----+|-----------------------------------------------------------------------|
+      if (kcur .eq. 1) go to 5
+
       ipc = kpbgn(klevel-1)
       ncx = nxk(klevel-1)
       ncy = nyk(klevel-1)
       irc = kcbgn(klevel-1)+5*ncx*ncy
       call resmp2(nx,ny,wk(ip),ncx,ncy,wk(ipc),wk(irc),wk(ic),wk(kps))
 c
+c----+|-----------------------------------------------------------------------|
 c    set counter for grid levels to zero
-c
+c----+|-----------------------------------------------------------------------|
       do l = 1,kcur
-      kount(l) = 0
+        kount(l) = 0
       end do
 c
+c----+|-----------------------------------------------------------------------|
 c    set new grid level and continue k-cycling
-c
+c----+|-----------------------------------------------------------------------|
       klevel = kcur-1
       nrel = iprer
 c
+c----+|-----------------------------------------------------------------------|
 c   kcycle control point
-c
+c----+|-----------------------------------------------------------------------|
    10 continue
 c
+c----+|-----------------------------------------------------------------------|
 c      post relax when kcur revisited
-c
+c----+|-----------------------------------------------------------------------|
       if (klevel .eq. kcur) go to 5
-c
-c   count hit at current level
-c
+ 
       kount(klevel) = kount(klevel)+1
 c
-c   relax at current level
-c
+c----+|-----------------------------------------------------------------------|
+c     relax at current level
+c----+|-----------------------------------------------------------------------|
       nx = nxk(klevel)
       ny = nyk(klevel)
       ip = kpbgn(klevel)
@@ -703,80 +721,84 @@ c
       itx = ktxbgn(klevel)
       ity = ktybgn(klevel)
       do l=1,nrel
-      call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
+        call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
       end do
-      if (kount(klevel) .eq. kcycle+1) then
-c
+
+c----+|-----------------------------------------------------------------------|
 c     kcycle complete at klevel
-c
-      ipc = ip
-      ip = kpbgn(klevel+1)
-      ncx = nxk(klevel)
-      ncy = nyk(klevel)
-      nx = nxk(klevel+1)
-      ny = nyk(klevel+1)
-c
-c    inject correction to finer grid
-c
-      call cor2(nx,ny,wk(ip),ncx,ncy,wk(ipc),nxa,nxb,nyc,nyd,
-     +            intpol,wk(kps))
-c
-c    reset counter to zero
-c
-      kount(klevel) = 0
-c
-c     ascend to next higher level and set to postrelax there
-c
-      klevel = klevel+1
-      nrel = ipost
-      go to 10
-      else
-      if (klevel .gt. 1) then
-c
-c    kcycle not complete so descend unless at coarsest grid
-c
-        ipc = kpbgn(klevel-1)
-        ncx = nxk(klevel-1)
-        ncy = nyk(klevel-1)
-        irc = kcbgn(klevel-1)+5*ncx*ncy
-        call resmp2(nx,ny,wk(ip),ncx,ncy,wk(ipc),wk(irc),wk(ic),
-     +                wk(kps))
-c
-c     prerelax at next coarser level
-c
-        klevel = klevel-1
-        nrel = iprer
-        go to 10
-      else
-c
-c    postrelax at coarsest level
-c
-        do l=1,ipost
-          call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
-        end do
+c----+|-----------------------------------------------------------------------|
+      if (kount(klevel) .eq. kcycle+1) then
         ipc = ip
-        ip = kpbgn(2)
-        ncx = nxk(1)
-        ncy = nyk(1)
-        nx = nxk(2)
-        ny = nyk(2)
-c
-c    inject correction to level 2
-c
-      call cor2(nx,ny,wk(ip),ncx,ncy,wk(ipc),nxa,nxb,nyc,nyd,
+        ip = kpbgn(klevel+1)
+        ncx = nxk(klevel)
+        ncy = nyk(klevel)
+        nx = nxk(klevel+1)
+        ny = nyk(klevel+1)
+c----+|-----------------------------------------------------------------------|
+c       inject correction to finer grid
+c----+|-----------------------------------------------------------------------|
+        call cor2(nx,ny,wk(ip),ncx,ncy,wk(ipc),nxa,nxb,nyc,nyd,
      +            intpol,wk(kps))
 c
-c     set to postrelax at level 2
-c
+c----+|-----------------------------------------------------------------------|
+c       reset counter to zero
+c       ascend to next higher level and set to postrelax there
+c----+|-----------------------------------------------------------------------|
+        kount(klevel) = 0
+        klevel = klevel+1
         nrel = ipost
-        klevel = 2
         go to 10
-      end if
+
+      else
+
+c----+|-----------------------------------------------------------------------|
+c       kcycle not complete so descend unless at coarsest grid
+c----+|-----------------------------------------------------------------------|
+        if (klevel .gt. 1) then
+          ipc = kpbgn(klevel-1)
+          ncx = nxk(klevel-1)
+          ncy = nyk(klevel-1)
+          irc = kcbgn(klevel-1)+5*ncx*ncy
+          call resmp2(nx,ny,wk(ip),ncx,ncy,wk(ipc),wk(irc),wk(ic),
+     +                wk(kps))
+c----+|-----------------------------------------------------------------------|
+c         prerelax at next coarser level
+c----+|-----------------------------------------------------------------------|
+          klevel = klevel-1
+          nrel = iprer
+          go to 10
+        else
+c----+|-----------------------------------------------------------------------|
+c         postrelax at coarsest level
+c----+|-----------------------------------------------------------------------|
+          do l=1,ipost
+            call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
+          end do
+          ipc = ip
+          ip = kpbgn(2)
+          ncx = nxk(1)
+          ncy = nyk(1)
+          nx = nxk(2)
+          ny = nyk(2)
+c----+|-----------------------------------------------------------------------|
+c         inject correction to level 2
+c----+|-----------------------------------------------------------------------|
+          call cor2(nx,ny,wk(ip),ncx,ncy,wk(ipc),nxa,nxb,nyc,nyd,
+     +            intpol,wk(kps))
+c
+c----+|-----------------------------------------------------------------------|
+c     set to postrelax at level 2
+c----+|-----------------------------------------------------------------------|
+          nrel = ipost
+          klevel = 2
+          go to 10
+        end if
       end if
     5 continue
 c
+c----+|-----------------------------------------------------------------------|
 c     post relax at current finest grid level
-c
+c----+|-----------------------------------------------------------------------|
       nx = nxk(kcur)
       ny = nyk(kcur)
       ip = kpbgn(kcur)
@@ -784,15 +806,15 @@ c
       itx = ktxbgn(kcur)
       ity = ktybgn(kcur)
       do l=1,ipost
-      call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
+        call relmp2(nx,ny,wk(ip),wk(ic),wk(itx),wk(ity),wk(kps))
       end do
       return
-      end
+      end subroutine kcymp2
 
-      subroutine dismp2(nx,ny,cof,tx,ty,ssm)
-c
+c----+|-----------------------------------------------------------------------|
 c     set tridiagonal matrices for line relaxation if necessary
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine dismp2(nx,ny,cof,tx,ty,ssm)
       implicit none
       integer intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
      +             maxcy,method,nwork,lwork,itero,ngrid,klevel,kcur,
@@ -802,83 +824,79 @@ c
       common/imup2/intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
      +             maxcy,method,nwork,lwork,itero,ngrid,klevel,kcur,
      +             kcycle,iprer,ipost,intpol,kps
+
+
       if (method.eq.1.or.method.eq.3) then
-      if (nxa.ne.0) then
-c
-c    nonperiodic x line relaxation
-c
-        do i=1,nx
-          im1 = max0(i-1,1)
-          do j=1,ny
-            tx(im1,j,1) = cof(i,j,1)
-            tx(i,j,2) = cof(i,j,5)
-            tx(i,j,3) = cof(i,j,2)
-          end do
-        end do
-        call factri(ny,nx,tx(1,1,1),tx(1,1,2),tx(1,1,3))
-      else
-c
-c     periodic x line relaxation
-c
-        if (nx .gt. 3) then
-c
-c     set and factor iff nx > 3
-c
-          do i=1,nx-1
+c----+|-----------------------------------------------------------------------|
+c       nonperiodic x line relaxation
+c----+|-----------------------------------------------------------------------|
+        if (nxa.ne.0) then
+          do i=1,nx
+            im1 = max0(i-1,1)
             do j=1,ny
-            tx(i,j,1) = cof(i,j,1)
-            tx(i,j,2) = cof(i,j,5)
-            tx(i,j,3) = cof(i,j,2)
+              tx(im1,j,1) = cof(i,j,1)
+              tx(i,j,2) = cof(i,j,5)
+              tx(i,j,3) = cof(i,j,2)
             end do
           end do
-          call factrp(ny,nx,tx,tx(1,1,2),tx(1,1,3),tx(1,1,4),
-     +                  tx(1,1,5),ssm)
+          call factri(ny,nx,tx(1,1,1),tx(1,1,2),tx(1,1,3))
+        else
+c----+|-----------------------------------------------------------------------|
+c       periodic x line relaxation
+c----+|-----------------------------------------------------------------------|
+          if (nx .gt. 3) then
+            do i=1,nx-1
+              do j=1,ny
+              tx(i,j,1) = cof(i,j,1)
+              tx(i,j,2) = cof(i,j,5)
+              tx(i,j,3) = cof(i,j,2)
+              end do
+            end do
+            call factrp(ny,nx,tx,tx(1,1,2),tx(1,1,3),tx(1,1,4),
+     +                    tx(1,1,5),ssm)
+          end if
         end if
-      end if
       end if
 
       if (method.eq.2.or.method.eq.3) then
-      if (nyc.ne.0) then
-c
-c     nonperiodic y line relaxation
-c
-        do j=1,ny
-          jm1 = max0(j-1,1)
-          do i=1,nx
-            ty(jm1,i,1) = cof(i,j,3)
-            ty(j,i,2) = cof(i,j,5)
-            ty(j,i,3) = cof(i,j,4)
-          end do
-        end do
-        call factri(nx,ny,ty(1,1,1),ty(1,1,2),ty(1,1,3))
-      else
-c
-c      periodic y line relaxation
-c
-        if (ny .gt. 3) then
-c
-c     set and factor iff ny > 3
-c
-          do j=1,ny-1
+c----+|-----------------------------------------------------------------------|
+c       nonperiodic y line relaxation
+c----+|-----------------------------------------------------------------------|
+        if (nyc.ne.0) then
+          do j=1,ny
+            jm1 = max0(j-1,1)
             do i=1,nx
-            ty(j,i,1) = cof(i,j,3)
-            ty(j,i,2) = cof(i,j,5)
-            ty(j,i,3) = cof(i,j,4)
+              ty(jm1,i,1) = cof(i,j,3)
+              ty(j,i,2) = cof(i,j,5)
+              ty(j,i,3) = cof(i,j,4)
             end do
           end do
-          call factrp(nx,ny,ty,ty(1,1,2),ty(1,1,3),ty(1,1,4),
-     +                  ty(1,1,5),ssm)
+          call factri(nx,ny,ty(1,1,1),ty(1,1,2),ty(1,1,3))
+        else
+c----+|-----------------------------------------------------------------------|
+c         periodic y line relaxation
+c----+|-----------------------------------------------------------------------|
+          if (ny .gt. 3) then
+            do j=1,ny-1
+              do i=1,nx
+              ty(j,i,1) = cof(i,j,3)
+              ty(j,i,2) = cof(i,j,5)
+              ty(j,i,3) = cof(i,j,4)
+              end do
+            end do
+            call factrp(nx,ny,ty,ty(1,1,2),ty(1,1,3),ty(1,1,4),
+     +                    ty(1,1,5),ssm)
+          end if
         end if
       end if
-      end if
       return
-      end
+      end subroutine dismp2
 
-      subroutine resmp2(nx,ny,phi,ncx,ncy,phic,rhsc,cof,resf)
-c
+c----+|-----------------------------------------------------------------------|
 c     restrict residual from fine to coarse mesh using fully weighted
 c     residual restriction
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine resmp2(nx,ny,phi,ncx,ncy,phic,rhsc,cof,resf)
       implicit none
       integer intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
      +             maxcy,method,nwork,lwork,itero,ngrid,klevel,kcur,
@@ -891,38 +909,42 @@ c
       double precision phi(0:nx+1,0:ny+1),phic(0:ncx+1,0:ncy+1)
       double precision cof(nx,ny,6)
 c
+c----+|-----------------------------------------------------------------------|
 c     set phic zero
-c
+c----+|-----------------------------------------------------------------------|
       do jc=0,ncy+1
-      do ic=0,ncx+1
-        phic(ic,jc) = 0.d0
-      end do
+        do ic=0,ncx+1
+          phic(ic,jc) = 0.d0
+        end do
       end do
 c
+c----+|-----------------------------------------------------------------------|
 c     compute residual on fine mesh in resf
-c
+c----+|-----------------------------------------------------------------------|
 !$OMP PARALLEL DO SHARED(resf,cof,phi,nx,ny) PRIVATE(i,j)
       do j=1,ny
-      do i=1,nx
-        resf(i,j) =  cof(i,j,6)-(
+        do i=1,nx
+          resf(i,j) =  cof(i,j,6)-(
      +             cof(i,j,1)*phi(i-1,j)+
      +             cof(i,j,2)*phi(i+1,j)+
      +             cof(i,j,3)*phi(i,j-1)+
      +             cof(i,j,4)*phi(i,j+1)+
      +             cof(i,j,5)*phi(i,j))
+        end do
       end do
-      end do
+!$OMP END PARALLEL DO
 c
+c----+|-----------------------------------------------------------------------|
 c     restrict resf to coarse mesh in rhsc
-c
+c----+|-----------------------------------------------------------------------|
       call res2(nx,ny,resf,ncx,ncy,rhsc,nxa,nxb,nyc,nyd)
       return
-      end
+      end subroutine resmp2
 
-      subroutine relmp2(nx,ny,phi,cof,tx,ty,ssm)
-c
+c----+|-----------------------------------------------------------------------|
 c     relaxation for mud2
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine relmp2(nx,ny,phi,cof,tx,ty,ssm)
       implicit none
       integer nx,ny
       double precision phi(*),cof(*),tx(*),ty(*),ssm(*)
@@ -943,12 +965,12 @@ c
       call slymp2(nx,ny,phi,cof,ty,ssm)
       end if
       return
-      end
-
-      subroutine relmp2p(nx,ny,phi,cof)
+      end subroutine relmp2
 c
+c----+|-----------------------------------------------------------------------|
 c     Gauss-Seidel red/black point relaxation
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine relmp2p(nx,ny,phi,cof)
       implicit none
       integer nx,ny,i,j
       integer intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
@@ -959,150 +981,167 @@ c
      +             kcycle,iprer,ipost,intpol,kps
       double precision phi(0:nx+1,0:ny+1),cof(nx,ny,6)
 c
-c    periodic adjustment bypass block
-c
+c----+|-----------------------------------------------------------------------|
+c     periodic adjustment bypass block
+c----+|-----------------------------------------------------------------------|
       if (nxa*nyc.ne.0) then
 c
+c----+|-----------------------------------------------------------------------|
 c     relax on red grid points
-c
+c----+|-----------------------------------------------------------------------|
 !$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=1,nx,2
-        do j=1,ny,2
-          phi(i,j) = (cof(i,j,6) -
+        do i=1,nx,2
+          do j=1,ny,2
+            phi(i,j) = (cof(i,j,6) -
      +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
      +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
      +                  cof(i,j,5)
+          end do
         end do
-      end do
-c
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=2,nx,2
-        do j=2,ny,2
-          phi(i,j) = (cof(i,j,6) -
-     +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                  cof(i,j,5)
-        end do
-      end do
-c
-c     relax on black grid points
-c
-c
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=1,nx,2
-        do j=2,ny,2
-          phi(i,j) = (cof(i,j,6) -
-     +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                  cof(i,j,5)
-        end do
-      end do
-c
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=2,nx,2
-        do j=1,ny,2
-          phi(i,j) = (cof(i,j,6) -
-     +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                  cof(i,j,5)
-        end do
-      end do
-      return
-      end if
-c
-c    set periodic virtual boundaries
-c
-      if (nxa.eq.0) then
-      do j=1,ny
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
-      end if
-      if (nyc.eq.0) then
-      do i=1,nx
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny+1) = phi(i,2)
-      end do
-      end if
-c
-c     relax on red grid points
-c
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=1,nx,2
-      do j=1,ny,2
-        phi(i,j) = (cof(i,j,6) -
-     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                cof(i,j,5)
-      end do
-      end do
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=2,nx,2
-      do j=2,ny,2
-        phi(i,j) = (cof(i,j,6) -
-     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                cof(i,j,5)
-      end do
-      end do
-c
-c    ensure periodic virtual boundary red points are set
-c
-      if (nxa.eq.0) then
-      do j=1,ny
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
-      end if
-      if (nyc.eq.0) then
-      do i=1,nx
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny+1) = phi(i,2)
-      end do
-      end if
-c
-c     relax on black grid points
-c
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=1,nx,2
-      do j=2,ny,2
-        phi(i,j) = (cof(i,j,6) -
-     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                cof(i,j,5)
-      end do
-      end do
-!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
-      do i=2,nx,2
-      do j=1,ny,2
-        phi(i,j) = (cof(i,j,6) -
-     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
-     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
-     +                cof(i,j,5)
-      end do
-      end do
-c
-c     final set of periodic virtual boundaries
-c
-      if (nxa.eq.0) then
-      do j=1,ny
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
-      end if
-      if (nyc.eq.0) then
-      do i=1,nx
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny+1) = phi(i,2)
-      end do
-      end if
-      return
-      end
+!$OMP END PARALLEL DO
 
-      subroutine slxmp2(nx,ny,phi,cof,tx,ssm)
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+        do i=2,nx,2
+          do j=2,ny,2
+            phi(i,j) = (cof(i,j,6) -
+     +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                  cof(i,j,5)
+          end do
+        end do
+!$OMP END PARALLEL DO
 c
+c----+|-----------------------------------------------------------------------|
+c     relax on black grid points
+c----+|-----------------------------------------------------------------------|
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+        do i=1,nx,2
+          do j=2,ny,2
+            phi(i,j) = (cof(i,j,6) -
+     +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                  cof(i,j,5)
+          end do
+        end do
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+        do i=2,nx,2
+          do j=1,ny,2
+            phi(i,j) = (cof(i,j,6) -
+     +                 (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                  cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                  cof(i,j,5)
+          end do
+        end do
+!$OMP END PARALLEL DO
+        return
+      end if
+c
+c----+|-----------------------------------------------------------------------|
+c    set periodic virtual boundaries
+c----+|-----------------------------------------------------------------------|
+      if (nxa.eq.0) then
+        do j=1,ny
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
+      end if
+      if (nyc.eq.0) then
+        do i=1,nx
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny+1) = phi(i,2)
+        end do
+      end if
+c
+c----+|-----------------------------------------------------------------------|
+c     relax on red grid points
+c----+|-----------------------------------------------------------------------|
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+      do i=1,nx,2
+        do j=1,ny,2
+          phi(i,j) = (cof(i,j,6) -
+     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                cof(i,j,5)
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+      do i=2,nx,2
+        do j=2,ny,2
+          phi(i,j) = (cof(i,j,6) -
+     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                cof(i,j,5)
+        end do
+      end do
+!$OMP END PARALLEL DO
+c
+c----+|-----------------------------------------------------------------------|
+c     ensure periodic virtual boundary red points are set
+c----+|-----------------------------------------------------------------------|
+      if (nxa.eq.0) then
+        do j=1,ny
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
+      end if
+      if (nyc.eq.0) then
+        do i=1,nx
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny+1) = phi(i,2)
+        end do
+      end if
+c
+c----+|-----------------------------------------------------------------------|
+c     relax on black grid points
+c----+|-----------------------------------------------------------------------|
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+      do i=1,nx,2
+        do j=2,ny,2
+          phi(i,j) = (cof(i,j,6) -
+     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                cof(i,j,5)
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO SHARED(cof,phi,nx,ny) PRIVATE(i,j)
+      do i=2,nx,2
+        do j=1,ny,2
+          phi(i,j) = (cof(i,j,6) -
+     +               (cof(i,j,1)*phi(i-1,j)+cof(i,j,2)*phi(i+1,j) +
+     +                cof(i,j,3)*phi(i,j-1)+cof(i,j,4)*phi(i,j+1)))/
+     +                cof(i,j,5)
+        end do
+      end do
+!$OMP END PARALLEL DO
+c
+c----+|-----------------------------------------------------------------------|
+c     final set of periodic virtual boundaries
+c----+|-----------------------------------------------------------------------|
+      if (nxa.eq.0) then
+        do j=1,ny
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
+      end if
+      if (nyc.eq.0) then
+        do i=1,nx
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny+1) = phi(i,2)
+        end do
+      end if
+      return
+      end subroutine relmp2p
+
+c----+|-----------------------------------------------------------------------|
 c     line relaxation in the x direction (periodic or nonperiodic)
-c
+c----+|-----------------------------------------------------------------------|
+      subroutine slxmp2(nx,ny,phi,cof,tx,ssm)
       implicit none
       integer nx,ny,i,ib,j
       integer intl,nxa,nxb,nyc,nyd,ixp,jyq,iex,jey,nfx,nfy,iguess,
@@ -1114,167 +1153,181 @@ c
       double precision phi(0:nx+1,0:ny+1),cof(nx,ny,6),tx(nx,ny,*),
      +ssm(ny)
 c
+c----+|-----------------------------------------------------------------------|
 c     replace line x with point gauss-seidel if
 c     x direction is periodic and nx = 3 (coarsest)
-c
+c----+|-----------------------------------------------------------------------|
       if (nxa .eq. 0 .and. nx .eq. 3) then
-      call relmp2p(nx,ny,phi,cof)
-      return
+        call relmp2p(nx,ny,phi,cof)
+        return
       end if
 c
+c----+|-----------------------------------------------------------------------|
 c     set periodic y virtual boundary if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nyc.eq.0) then
-      do i=1,nx
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny+1) = phi(i,2)
-      end do
+        do i=1,nx
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny+1) = phi(i,2)
+        end do
       end if
 
-      if (nxa.ne.0) then
-c
+c----+|-----------------------------------------------------------------------|
 c     x direction not periodic
-c
-c     sweep odd j lines
-c
+c----+|-----------------------------------------------------------------------|
+      if (nxa.ne.0) then
+c----+|-----------------------------------------------------------------------|
+c       sweep odd j lines
+c----+|-----------------------------------------------------------------------|
 !$OMP PARALLEL DO SHARED(cof,phi,tx,nx,ny) PRIVATE(i,ib,j)
-      do j=1,ny,2
-        do i=1,nx
-          phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
+        do j=1,ny,2
+          do i=1,nx
+            phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
      +               phi(i,j+1)
+          end do
+c----+|-----------------------------------------------------------------------|
+c         forward sweep
+c----+|-----------------------------------------------------------------------|
+          do i=2,nx
+            phi(i,j) = phi(i,j)-tx(i-1,j,1)*phi(i-1,j)
+          end do
+c----+|-----------------------------------------------------------------------|
+c         backward sweep
+c----+|-----------------------------------------------------------------------|
+          phi(nx,j) = phi(nx,j)/tx(nx,j,2)
+          do ib=2,nx
+            i = nx-ib+1
+            phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j))/tx(i,j,2)
+          end do
         end do
-c
-c     forward sweep
-c
-        do i=2,nx
-          phi(i,j) = phi(i,j)-tx(i-1,j,1)*phi(i-1,j)
-        end do
-c
-c     backward sweep
-c
-        phi(nx,j) = phi(nx,j)/tx(nx,j,2)
-        do ib=2,nx
-          i = nx-ib+1
-          phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j))/tx(i,j,2)
-        end do
-      end do
-c
-c     sweep even j lines forward and back
-c
+!$OMP END PARALLEL DO
+c----+|-----------------------------------------------------------------------|
+c       sweep even j lines forward and back
+c----+|-----------------------------------------------------------------------|
 !$OMP PARALLEL DO SHARED(cof,phi,tx,nx,ny) PRIVATE(i,j,ib)
-      do j=2,ny,2
-        do i=1,nx
-          phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
+        do j=2,ny,2
+          do i=1,nx
+            phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
      +               phi(i,j+1)
+          end do
+          do i=2,nx
+            phi(i,j) = phi(i,j)-tx(i-1,j,1)*phi(i-1,j)
+          end do
+          phi(nx,j) = phi(nx,j)/tx(nx,j,2)
+          do ib=2,nx
+            i = nx-ib+1
+            phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j))/tx(i,j,2)
+          end do
         end do
-        do i=2,nx
-          phi(i,j) = phi(i,j)-tx(i-1,j,1)*phi(i-1,j)
-        end do
-        phi(nx,j) = phi(nx,j)/tx(nx,j,2)
-        do ib=2,nx
-          i = nx-ib+1
-          phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j))/tx(i,j,2)
-        end do
-      end do
+!$OMP END PARALLEL DO
       else
 c
-c     x direction periodic
+c----+|-----------------------------------------------------------------------|
+c     x direction is periodic
+c----+|-----------------------------------------------------------------------|
+        do j=1,ny
+          ssm(j) = 0.d0
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
 c
-      do j=1,ny
-        ssm(j) = 0.d0
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
-c
-c      sweep odd lines forward and back
+c       sweep odd lines forward and back
 c
 !$OMP PARALLEL DO SHARED(ssm,cof,phi,tx,nx,ny) PRIVATE(i,j,ib)
-      do j=1,ny,2
-        do i=1,nx-1
-          phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
+        do j=1,ny,2
+          do i=1,nx-1
+            phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
      +               phi(i,j+1)
-        end do
+          end do
 c
-c     forward sweep
-        do i=2,nx-2
-          phi(i,j) = phi(i,j)-tx(i,j,1)*phi(i-1,j)
-        end do
-        do i=1,nx-2
-          ssm(j) = ssm(j)+tx(i,j,5)*phi(i,j)
-        end do
-        phi(nx-1,j) = phi(nx-1,j)-ssm(j)
+c         forward sweep
 c
-c     backward sweep
+          do i=2,nx-2
+            phi(i,j) = phi(i,j)-tx(i,j,1)*phi(i-1,j)
+          end do
+          do i=1,nx-2
+            ssm(j) = ssm(j)+tx(i,j,5)*phi(i,j)
+          end do
+          phi(nx-1,j) = phi(nx-1,j)-ssm(j)
 c
-        phi(nx-1,j) = phi(nx-1,j)/tx(nx-1,j,2)
-        phi(nx-2,j) = (phi(nx-2,j)-tx(nx-2,j,4)*phi(nx-1,j))/
+c         backward sweep
+c
+          phi(nx-1,j) = phi(nx-1,j)/tx(nx-1,j,2)
+          phi(nx-2,j) = (phi(nx-2,j)-tx(nx-2,j,4)*phi(nx-1,j))/
      +                   tx(nx-2,j,2)
-        do ib=4,nx
-          i = nx-ib+1
-          phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j)-tx(i,j,4)*
+          do ib=4,nx
+            i = nx-ib+1
+            phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j)-tx(i,j,4)*
      +                 phi(nx-1,j))/tx(i,j,2)
+          end do
         end do
-      end do
+!$OMP END PARALLEL DO
 c
-c     set periodic and virtual points for j odd
+c----+|-----------------------------------------------------------------------|
+c       set periodic and virtual points for j odd
+c----+|-----------------------------------------------------------------------|
 c
-      do j=1,ny,2
-        phi(nx,j) = phi(1,j)
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
+        do j=1,ny,2
+          phi(nx,j) = phi(1,j)
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
 c
-c     sweep even j lines
+c       sweep even j lines
 c
 !$OMP PARALLEL DO SHARED(ssm,cof,phi,tx,nx,ny) PRIVATE(i,j,ib)
-      do j=2,ny,2
-        do i=1,nx-1
-          phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
+        do j=2,ny,2
+          do i=1,nx-1
+            phi(i,j)=cof(i,j,6)-cof(i,j,3)*phi(i,j-1)-cof(i,j,4)*
      +               phi(i,j+1)
-        end do
+          end do
 c
-c     forward sweep
+c         forward sweep
 c
-        do i=2,nx-2
-          phi(i,j) = phi(i,j)-tx(i,j,1)*phi(i-1,j)
-        end do
-        do i=1,nx-2
-          ssm(j) = ssm(j)+tx(i,j,5)*phi(i,j)
-        end do
-        phi(nx-1,j) = phi(nx-1,j)-ssm(j)
+          do i=2,nx-2
+            phi(i,j) = phi(i,j)-tx(i,j,1)*phi(i-1,j)
+          end do
+          do i=1,nx-2
+            ssm(j) = ssm(j)+tx(i,j,5)*phi(i,j)
+          end do
+          phi(nx-1,j) = phi(nx-1,j)-ssm(j)
 c
-c     backward sweep
+c         backward sweep
 c
-        phi(nx-1,j) = phi(nx-1,j)/tx(nx-1,j,2)
-        phi(nx-2,j) = (phi(nx-2,j)-tx(nx-2,j,4)*phi(nx-1,j))/
+          phi(nx-1,j) = phi(nx-1,j)/tx(nx-1,j,2)
+          phi(nx-2,j) = (phi(nx-2,j)-tx(nx-2,j,4)*phi(nx-1,j))/
      +                   tx(nx-2,j,2)
-        do ib=4,nx
-          i = nx-ib+1
-          phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j)-tx(i,j,4)*
+          do ib=4,nx
+            i = nx-ib+1
+            phi(i,j) = (phi(i,j)-tx(i,j,3)*phi(i+1,j)-tx(i,j,4)*
      +                 phi(nx-1,j))/tx(i,j,2)
+          end do
         end do
-      end do
+!$OMP END PARALLEL DO
 c
+c----+|-----------------------------------------------------------------------|
 c     set periodic and virtual points for j even
-c
-      do j=2,ny,2
-        phi(nx,j) = phi(1,j)
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
+c----+|-----------------------------------------------------------------------|
+        do j=2,ny,2
+          phi(nx,j) = phi(1,j)
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
       end if
 c
+c----+|-----------------------------------------------------------------------|
 c     set periodic y virtual boundaries if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nyc.eq.0) then
-      do i=1,nx
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny+1) = phi(i,2)
-      end do
+        do i=1,nx
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny+1) = phi(i,2)
+        end do
       end if
       return
-      end
+      end subroutine slxmp2
 
+c----+|-----------------------------------------------------------------------|
       subroutine slymp2(nx,ny,phi,cof,ty,ssm)
       implicit none
       integer nx,ny,i,j,jb
@@ -1287,16 +1340,18 @@ c
       double precision phi(0:nx+1,0:ny+1),cof(nx,ny,6),ty(ny,nx,*),
      +ssm(nx)
 c
+c----+|-----------------------------------------------------------------------|
 c     replace line y with point gauss-seidel if
 c     y direction is periodic and ny = 3
-c
+c----+|-----------------------------------------------------------------------|
       if (nyc .eq. 0 .and. ny .eq. 3) then
         call relmp2p(nx,ny,phi,cof)
         return
       end if
 c
+c----+|-----------------------------------------------------------------------|
 c      set periodic and virtual x boundaries if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nxa.eq.0) then
         do j=1,ny
           phi(0,j) = phi(nx-1,j)
@@ -1305,147 +1360,152 @@ c
         end do
       end if
 
+c----+|-----------------------------------------------------------------------|
+c     y direction not periodic
+c----+|-----------------------------------------------------------------------|
       if (nyc.ne.0) then
 c
-c     y direction not periodic
+c       sweep odd x lines
 c
 !$OMP PARALLEL DO SHARED(cof,phi,ty,nx,ny) PRIVATE(i,j,jb)
-c
-c     sweep odd x lines
-c
-      do i=1,nx,2
-        do j=1,ny
-          phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
+        do i=1,nx,2
+          do j=1,ny
+            phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
      +               phi(i+1,j)
+          end do
+c
+c         forward sweep thru odd x lines
+c
+          do j=2,ny
+            phi(i,j) = phi(i,j)-ty(j-1,i,1)*phi(i,j-1)
+          end do
+c
+c         backward sweep
+c
+          phi(i,ny) = phi(i,ny)/ty(ny,i,2)
+          do jb=2,ny
+            j = ny-jb+1
+            phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1))/ty(j,i,2)
+          end do
         end do
+!$OMP END PARALLEL DO
 c
-c     forward sweep thru odd x lines
-c
-        do j=2,ny
-          phi(i,j) = phi(i,j)-ty(j-1,i,1)*phi(i,j-1)
-        end do
-c
-c      backward sweep
-c
-        phi(i,ny) = phi(i,ny)/ty(ny,i,2)
-        do jb=2,ny
-          j = ny-jb+1
-          phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1))/ty(j,i,2)
-        end do
-      end do
-c
-c     forward sweep even x lines
+c       forward sweep even x lines
 c
 !$OMP PARALLEL DO SHARED(cof,phi,ty,nx,ny) PRIVATE(i,j,jb)
-      do i=2,nx,2
-        do j=1,ny
-          phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
+        do i=2,nx,2
+          do j=1,ny
+            phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
      +               phi(i+1,j)
-        end do
-        do j=2,ny
-          phi(i,j) = phi(i,j)-ty(j-1,i,1)*phi(i,j-1)
-        end do
+          end do
+          do j=2,ny
+            phi(i,j) = phi(i,j)-ty(j-1,i,1)*phi(i,j-1)
+          end do
 c
-c      backward sweep
+c         backward sweep
 c
-        phi(i,ny) = phi(i,ny)/ty(ny,i,2)
-        do jb=2,ny
-          j = ny-jb+1
-          phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1))/ty(j,i,2)
+          phi(i,ny) = phi(i,ny)/ty(ny,i,2)
+          do jb=2,ny
+            j = ny-jb+1
+            phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1))/ty(j,i,2)
+          end do
         end do
-      end do
+!$OMP END PARALLEL DO
       else
-c
-c     y direction periodic
-c
-      do i=1,nx
-        ssm(i) = 0.d0
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny) = phi(i,1)
-        phi(i,ny+1) = phi(i,2)
-      end do
+c----+|-----------------------------------------------------------------------|
+c       y direction is periodic
+c----+|-----------------------------------------------------------------------|
+        do i=1,nx
+          ssm(i) = 0.d0
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny) = phi(i,1)
+          phi(i,ny+1) = phi(i,2)
+        end do
 c
 !$OMP PARALLEL DO SHARED(cof,phi,ty,ssm,nx,ny) PRIVATE(i,j,jb)
-      do i=1,nx,2
-        do j=1,ny-1
-          phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
+        do i=1,nx,2
+          do j=1,ny-1
+            phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
      +               phi(i+1,j)
-        end do
-        do j=2,ny-2
-          phi(i,j) = phi(i,j)-ty(j,i,1)*phi(i,j-1)
-        end do
-        do j=1,ny-2
-          ssm(i) = ssm(i)+ty(j,i,5)*phi(i,j)
-        end do
-        phi(i,ny-1) = phi(i,ny-1)-ssm(i)
+          end do
+          do j=2,ny-2
+            phi(i,j) = phi(i,j)-ty(j,i,1)*phi(i,j-1)
+          end do
+          do j=1,ny-2
+            ssm(i) = ssm(i)+ty(j,i,5)*phi(i,j)
+          end do
+          phi(i,ny-1) = phi(i,ny-1)-ssm(i)
 c
-c     backward sweep
+c         backward sweep
 c
-        phi(i,ny-1) = phi(i,ny-1)/ty(ny-1,i,2)
-        phi(i,ny-2) = (phi(i,ny-2)-ty(ny-2,i,4)*phi(i,ny-1))/
+          phi(i,ny-1) = phi(i,ny-1)/ty(ny-1,i,2)
+          phi(i,ny-2) = (phi(i,ny-2)-ty(ny-2,i,4)*phi(i,ny-1))/
      +                   ty(ny-2,i,2)
-        do jb=4,ny
-          j = ny-jb+1
-          phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1)-ty(j,i,4)*
+          do jb=4,ny
+            j = ny-jb+1
+            phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1)-ty(j,i,4)*
      +                  phi(i,ny-1))/ty(j,i,2)
+          end do
         end do
-      end do
+!$OMP END PARALLEL DO
 c
+c----+|-----------------------------------------------------------------------|
 c       set odd periodic and virtual y boundaries
+c----+|-----------------------------------------------------------------------|
+        do i=1,nx,2
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny) = phi(i,1)
+          phi(i,ny+1) = phi(i,2)
+        end do
 c
-      do i=1,nx,2
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny) = phi(i,1)
-        phi(i,ny+1) = phi(i,2)
-      end do
-c
-c     forward sweep even x lines
-c
+c       forward sweep even x lines
 c
 !$OMP PARALLEL DO SHARED(ssm,cof,phi,ty,nx,ny) PRIVATE(i,j,jb)
-      do i=2,nx,2
-        do j=1,ny-1
-          phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
+        do i=2,nx,2
+          do j=1,ny-1
+            phi(i,j)=cof(i,j,6)-cof(i,j,1)*phi(i-1,j)-cof(i,j,2)*
      +               phi(i+1,j)
 
-        end do
-        do j=2,ny-2
-          phi(i,j) = phi(i,j)-ty(j,i,1)*phi(i,j-1)
-        end do
-        do j=1,ny-2
-          ssm(i) = ssm(i)+ty(j,i,5)*phi(i,j)
-        end do
-        phi(i,ny-1) = phi(i,ny-1)-ssm(i)
+          end do
+          do j=2,ny-2
+            phi(i,j) = phi(i,j)-ty(j,i,1)*phi(i,j-1)
+          end do
+          do j=1,ny-2
+            ssm(i) = ssm(i)+ty(j,i,5)*phi(i,j)
+          end do
+          phi(i,ny-1) = phi(i,ny-1)-ssm(i)
 c
-c     backward sweep
-c
-        phi(i,ny-1) = phi(i,ny-1)/ty(ny-1,i,2)
-        phi(i,ny-2) = (phi(i,ny-2)-ty(ny-2,i,4)*phi(i,ny-1))/
+c         backward sweep
+c  
+          phi(i,ny-1) = phi(i,ny-1)/ty(ny-1,i,2)
+          phi(i,ny-2) = (phi(i,ny-2)-ty(ny-2,i,4)*phi(i,ny-1))/
      +                   ty(ny-2,i,2)
-        do jb=4,ny
-          j = ny-jb+1
-          phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1)-ty(j,i,4)*
+          do jb=4,ny
+            j = ny-jb+1
+            phi(i,j) = (phi(i,j)-ty(j,i,3)*phi(i,j+1)-ty(j,i,4)*
      +                  phi(i,ny-1))/ty(j,i,2)
+          end do
         end do
-      end do
-c
+!$OMP END PARALLEL DO
+c----+|-----------------------------------------------------------------------|
 c       set even periodic and virtual y boundaries
-c
-      do i=2,nx,2
-        phi(i,0) = phi(i,ny-1)
-        phi(i,ny) = phi(i,1)
-        phi(i,ny+1) = phi(i,2)
-      end do
+c----+|-----------------------------------------------------------------------|
+        do i=2,nx,2
+          phi(i,0) = phi(i,ny-1)
+          phi(i,ny) = phi(i,1)
+          phi(i,ny+1) = phi(i,2)
+        end do
       end if
 c
+c----+|-----------------------------------------------------------------------|
 c      set periodic and virtual x boundaries if necessary
-c
+c----+|-----------------------------------------------------------------------|
       if (nxa.eq.0) then
-      do j=1,ny
-        phi(0,j) = phi(nx-1,j)
-        phi(nx+1,j) = phi(2,j)
-      end do
+        do j=1,ny
+          phi(0,j) = phi(nx-1,j)
+          phi(nx+1,j) = phi(2,j)
+        end do
       end if
       return
-      end
+      end subroutine slymp2
 

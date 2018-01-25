@@ -85,15 +85,19 @@ module poisson_int
   call poiss_mpi_init(mpicomm)
   call poiss_mpi_split(poissoninfo%maxNumNodes)
   call mpi_barrier(mpicomm, error)
-  if (id0) write(*,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' nodes'
-  
+  if (id0) then
+    write(*,*)
+    write(*,*) 'Poisson Initializations'
+    write(*,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' nodes'
+  end if 
+
+  allocate(character(len=len(poissoninfo%scratch))::scratchfolder)
+  scratchfolder = trim(poissoninfo%scratch)
+  if (id0) then
+    call create_directory(trim(scratchfolder),error)
+  end if
   
   if (active_id) then
-
-    allocate(character(len=len(poissoninfo%scratch))::scratchfolder)
-    scratchfolder = trim(poissoninfo%scratch)
-
-    call create_directory(trim(scratchfolder))
 
     call init_structure(structure)
     
@@ -191,8 +195,9 @@ module poisson_int
         localBC = 2
     end select
     deltaR_max = poissoninfo%maxRadAtomDens
-    if (id0) write(*,*) "Atomic density tolerance: ", -deltaR_max
+    ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
     if (deltaR_max < 0.0_dp) then
+      if (id0) write(*,*) "Atomic density tolerance: ", -deltaR_max
       deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
     end if
     if (id0)  write(*,*) "Atomic density cutoff: ", deltaR_max,"a.u."
@@ -275,7 +280,7 @@ end subroutine poiss_init
 subroutine poiss_destroy()
 
   if (active_id) then
-
+    if (id0) write(*,'(A)')
     if (id0) write(*,'(A)') 'Release Poisson Memory:'
     call poiss_freepoisson()
     !if(allocated(ind)) call log_gdeallocate(ind) 
@@ -289,9 +294,9 @@ subroutine poiss_destroy()
       call writePeakInfo(6)
       call writeMemInfo(6)
     endif
-    deallocate(scratchfolder)
-  
   endif 
+  
+  deallocate(scratchfolder)
 
 end subroutine poiss_destroy
 
@@ -346,29 +351,26 @@ subroutine poiss_getshift(V_L_atm,grad_V)
         write(*,'(80("="))') 
       endif
       call init_PoissBox
-      call set_clock()
       call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
-      call write_clock("solve time")
     case(1)
       call mudpack_drv(PoissFlag,V_L_atm,grad_V)
     end select
-
 
     if (id0.and.verbose.gt.30) write(*,'(80("*"))')
 
   endif
 
 #:if WITH_MPI
-  call mpifx_barrier(global_comm, ierr)
-  select case(PoissFlag)
-    !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
-  case(0)
-    call mpifx_bcast(global_comm, V_L_atm)
-  case(1) 
-    call mpifx_bcast(global_comm, V_L_atm)
-    call mpifx_bcast(global_comm, grad_V)
-  end select
-  call mpifx_barrier(global_comm)
+!  call mpifx_barrier(poiss_comm, ierr)
+!  select case(PoissFlag)
+!    !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
+!  case(0)
+!    call mpifx_bcast(poiss_comm, V_L_atm)
+!  case(1) 
+!    call mpifx_bcast(poiss_comm, V_L_atm)
+!    call mpifx_bcast(poiss_comm, grad_V)
+!  end select
+!  call mpifx_barrier(poiss_comm)
 #:endif
 
 end subroutine poiss_getshift
@@ -383,14 +385,14 @@ subroutine poiss_savepotential()
 
   if (active_id) then
 
-  if(.not.SavePot) return
-
-  if (id0) write(*,"('>> Saving Poisson output in potential.dat')")
-
-  PoissFlag=2
-  !ndim = ind(natoms+1)-1
-  
-  call  mudpack_drv(PoissFlag,fakeshift,fakegrad)
+    if(.not.SavePot) return
+ 
+    if (id0) write(*,"('>> Saving Poisson output in potential.dat')")
+ 
+    PoissFlag=2
+    !ndim = ind(natoms+1)-1
+    
+    call  mudpack_drv(PoissFlag,fakeshift,fakegrad)
   
   endif
 
@@ -405,11 +407,8 @@ subroutine poiss_freepoisson()
   integer :: PoissFlag, ndim 
 
   if (active_id) then
-
-  PoissFlag=3
-
-  call  mudpack_drv(PoissFlag,fakeshift,fakegrad)  
-
+    PoissFlag=3
+    call  mudpack_drv(PoissFlag,fakeshift,fakegrad)  
   endif
 
 end subroutine poiss_freepoisson
@@ -436,63 +435,63 @@ subroutine init_structure(struct)
 
   if (active_id) then
 
-  natoms=struct%nAtom
-  nbeweg=0
-  ntypes=struct%nSpecies
-   
-  dir = (/ 1, 2, 3 /)
-  boxsiz(1:3,1:3) = 0_dp
-  ! the latVec structure is :
-  !   
-  !  [e_x1, e_x2, e_x3]
-  !  [e_y1, e_y2, e_y3] 
-  !  [e_z1, e_z2, e_z3]
-
-  ! computes the three sides
-  ! side(:) = sqrt(sum(struct%latVecs,dim=1)**2)
-
-  boxsiz(:,:) = transpose(struct%latVecs(:,:))
-
-  do i = 1, 3 
-     if (abs(boxsiz(i,i))<1.0d-4) then
-       do j = i+1, 3      
-         if (abs(boxsiz(j,i))>1.d-4) then
-           side(:)=boxsiz(i,:)
-           boxsiz(i,:)=boxsiz(j,:)
-           boxsiz(j,:)=side(:)
-         endif  
-       enddo
-     endif
-     if(boxsiz(i,i)<0.d0) boxsiz(i,:)=-boxsiz(i,:)
-  enddo
-  !do i = 1, 3
-  !   mask(:) = (abs(abs(struct%latVecs(:,i)) - side(i)) < 1.0d-8)
-  !   j = minval(dir,mask)
-  !   boxsiz(j,j) = side(i) 
-  !enddo
-
-  call inversebox()
+    natoms=struct%nAtom
+    nbeweg=0
+    ntypes=struct%nSpecies
+     
+    dir = (/ 1, 2, 3 /)
+    boxsiz(1:3,1:3) = 0_dp
+    ! the latVec structure is :
+    !   
+    !  [e_x1, e_x2, e_x3]
+    !  [e_y1, e_y2, e_y3] 
+    !  [e_z1, e_z2, e_z3]
  
-  period=struct%isperiodic
-
-  !call log_gallocate(ind,natoms+1)
-  !ind(1:natoms+1)=struct%iatomstart(1:natoms+1)-1
+    ! computes the three sides
+    ! side(:) = sqrt(sum(struct%latVecs,dim=1)**2)
  
-  call log_gallocate(x,3,natoms)
-  x(1:3,1:natoms)=struct%x0(1:3,1:natoms)
-
-  call log_gallocate(izp,natoms)   
-  izp(1:natoms)=struct%specie0(1:natoms)
-
-
-  telec=struct%tempElec
-
-  !open(99, file = 'str.gen') 
-  !write(99,*) natoms  
-  !do i = 1, natoms
-  !   write(99,'(i4,i3,f14.8,f14.8,f14.8)') i,izp(i),x(:,i)*0.529177d0
-  !end do
-  !close(99)
+    boxsiz(:,:) = transpose(struct%latVecs(:,:))
+ 
+    do i = 1, 3 
+       if (abs(boxsiz(i,i))<1.0d-4) then
+         do j = i+1, 3      
+           if (abs(boxsiz(j,i))>1.d-4) then
+             side(:)=boxsiz(i,:)
+             boxsiz(i,:)=boxsiz(j,:)
+             boxsiz(j,:)=side(:)
+           endif  
+         enddo
+       endif
+       if(boxsiz(i,i)<0.d0) boxsiz(i,:)=-boxsiz(i,:)
+    enddo
+    !do i = 1, 3
+    !   mask(:) = (abs(abs(struct%latVecs(:,i)) - side(i)) < 1.0d-8)
+    !   j = minval(dir,mask)
+    !   boxsiz(j,j) = side(i) 
+    !enddo
+ 
+    call inversebox()
+  
+    period=struct%isperiodic
+ 
+    !call log_gallocate(ind,natoms+1)
+    !ind(1:natoms+1)=struct%iatomstart(1:natoms+1)-1
+  
+    call log_gallocate(x,3,natoms)
+    x(1:3,1:natoms)=struct%x0(1:3,1:natoms)
+ 
+    call log_gallocate(izp,natoms)   
+    izp(1:natoms)=struct%specie0(1:natoms)
+ 
+ 
+    telec=struct%tempElec
+ 
+    !open(99, file = 'str.gen') 
+    !write(99,*) natoms  
+    !do i = 1, natoms
+    !   write(99,'(i4,i3,f14.8,f14.8,f14.8)') i,izp(i),x(:,i)*0.529177d0
+    !end do
+    !close(99)
 
   endif 
   
@@ -503,12 +502,8 @@ subroutine init_charges()
   integer :: nshells
 
   if (active_id) then
-
-  nshells = maxval(lmax)+1 
-  
-  call log_gallocate(dQmat,nshells,natoms)
-  ! qmat will be filled later
-
+    nshells = maxval(lmax)+1 
+    call log_gallocate(dQmat,nshells,natoms)
   endif
 
 end subroutine init_charges
@@ -522,35 +517,35 @@ subroutine init_skdata(skdata,err)
 
   if (active_id) then
 
-  ! set maximum angular momentum per specie
-  call log_gallocate(lmax,ntypes)
+    ! set maximum angular momentum per specie
+    call log_gallocate(lmax,ntypes)
+ 
+    !checks that all atoms have shells in s,p,d sequence
+    err=0
+    do i=1,ntypes
+       do j=1,skdata%orb%nShell(i)
+          if (skdata%orb%angShell(j,i).ne.j-1) err=1  
+       enddo 
+       lmax(i)=skdata%orb%angShell(skdata%orb%nShell(i),i)
+    enddo
+    if (err.ne.0 .and. id0) then
+       write(*,*) 'I am sorry... cannot preceed with gdftb'
+       write(*,*) 'orbital shells should be in the order s,p,d'
+       return
+    endif
+ 
+    ! set Hubbard parameters
+    nshells = maxval(lmax)+1
+ 
+    call log_gallocate(uhubb,nshells,ntypes)
+ 
+    do i = 1,ntypes
+      do j = 1,nshells
+         uhubb(j,i) = skdata%hubbU(j,i)
+      enddo   
+    end do
 
-  !checks that all atoms have shells in s,p,d sequence
-  err=0
-  do i=1,ntypes
-     do j=1,skdata%orb%nShell(i)
-        if (skdata%orb%angShell(j,i).ne.j-1) err=1  
-     enddo 
-     lmax(i)=skdata%orb%angShell(skdata%orb%nShell(i),i)
-  enddo
-  if (err.ne.0 .and. id0) then
-     write(*,*) 'I am sorry... cannot preceed with gdftb'
-     write(*,*) 'orbital shells should be in the order s,p,d'
-     return
   endif
-
-  ! set Hubbard parameters
-  nshells = maxval(lmax)+1
-
-  call log_gallocate(uhubb,nshells,ntypes)
-
-  do i = 1,ntypes
-    do j = 1,nshells
-       uhubb(j,i) = skdata%hubbU(j,i)
-    enddo   
-  end do
-
-endif
   
 end subroutine init_skdata
 
@@ -561,25 +556,24 @@ subroutine echo_init()
 
   if (active_id) then
 
-  write(*,*) 'natoms=',natoms
-  write(*,*) 'ntypes=',ntypes
-  write(*,*) 'is Periodic=',period
+    write(*,*) 'natoms=',natoms
+    write(*,*) 'ntypes=',ntypes
+    write(*,*) 'is Periodic=',period
+    
+    !write(*,*) 'coordinates='
+    !do i=1,natoms
+    !   write(*,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
+    !enddo
+ 
+    !write(*,*) 'ind='
+    !write(*,*) ind(1:natoms+1)
+    write(*,*) '  qzero,   uhubb,   lmax' 
+ 
+    do i=1,ntypes  
+       write(*,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
+    enddo
 
-  
-  !write(*,*) 'coordinates='
-  !do i=1,natoms
-  !   write(*,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
-  !enddo
-
-  !write(*,*) 'ind='
-  !write(*,*) ind(1:natoms+1)
-  write(*,*) '  qzero,   uhubb,   lmax' 
-
-  do i=1,ntypes  
-     write(*,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
-  enddo
-
-endif
+  endif
 
 end subroutine echo_init
 
@@ -594,14 +588,12 @@ subroutine poiss_supercell(skdata)
   real(dp) :: slkcutoff
   
   if (active_id) then
-
-  slkcutoff=skdata%mCutoff
-  call gamma_summind(slkcutoff)
+    slkcutoff=skdata%mCutoff
+    call gamma_summind(slkcutoff)
                          
-  call buildsupercell() !(computes ss_natoms and allocates inside ss_x, ss_izp)
-                        ! period_dir should have been computed (check_biasdir)
-
-endif
+    call buildsupercell() !(computes ss_natoms and allocates inside ss_x, ss_izp)
+                          ! period_dir should have been computed (check_biasdir)
+  endif
 
 end subroutine poiss_supercell
 !------------------------------------------------------------------------------
@@ -614,11 +606,9 @@ subroutine poiss_updcoords(x0)
   real(dp), dimension(:,:), intent(IN) :: x0
 
   if (active_id) then
-
-  x(1:3,1:natoms)=x0(1:3,1:natoms)
-  do_renorm = .true.
-  
-endif
+    x(1:3,1:natoms)=x0(1:3,1:natoms)
+    do_renorm = .true.
+  endif
   ! Check about periodic images !!
   
 end subroutine poiss_updcoords
@@ -634,23 +624,23 @@ subroutine poiss_updcharges(q,q0)
 
   if (active_id) then
 
-  if (size(q, dim=2).ne.natoms) stop 'ERROR in udpcharges size of q'
-
-  do i = 1, natoms
-    nsh = lmax(izp(i))+1
-    orb=0
-    do l = 1, nsh 
-    Qtmp = 0.d0
-       do o= 1,2*l-1 
-         orb = orb + 1
-         ! - is for negative electron charge density
-         Qtmp = Qtmp + q0(orb,i)-q(orb,i)  
-       enddo  
-     dQmat(l,i) = Qtmp
+    if (size(q, dim=2).ne.natoms) stop 'ERROR in udpcharges size of q'
+ 
+    do i = 1, natoms
+      nsh = lmax(izp(i))+1
+      orb=0
+      do l = 1, nsh 
+      Qtmp = 0.d0
+         do o= 1,2*l-1 
+           orb = orb + 1
+           ! - is for negative electron charge density
+           Qtmp = Qtmp + q0(orb,i)-q(orb,i)  
+         enddo  
+       dQmat(l,i) = Qtmp
+      enddo
     enddo
-  enddo
   
-endif
+  endif
 
 end subroutine poiss_updcharges
 

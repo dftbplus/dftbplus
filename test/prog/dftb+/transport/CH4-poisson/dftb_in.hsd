@@ -44,7 +44,12 @@ Hamiltonian = DFTB {
     LowestEnergy = -2.0
     FermiCutoff = 10
   }
+
 } 
+
+Parallel{
+  Blacs{ BlockSize=2}
+}
 
 Options = {
   CalculateForces = Yes
