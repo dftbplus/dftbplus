@@ -110,8 +110,8 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-    call buildDiatomicBlocks(env, ham, skHamCont, coords, nNeighbors, iNeighbors,&
-        & species, iPair, orb)
+    call buildDiatomicBlocks(iAtFirst, iAtLast, skHamCont, coords, nNeighbors, iNeighbors, species,&
+        & iPair, orb, ham)
 
     call assembleChunks(env, ham)
 
@@ -167,8 +167,8 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-    call buildDiatomicBlocks(env, over, skOverCont, coords, nNeighbors, iNeighbors,&
-        & species, iPair, orb)
+    call buildDiatomicBlocks(iAtFirst, iAtLast, skOverCont, coords, nNeighbors, iNeighbors,&
+        & species, iPair, orb, over)
 
     call assembleChunks(env, over)
 
@@ -278,11 +278,12 @@ contains
 
   end subroutine getSecondDeriv
 
+
   !> Helper routine to calculate the diatomic blocks for the routines buildH0 and buildS.
-  subroutine buildDiatomicBlocks(env, out, skCont, coords, nNeighbors, &
-      & iNeighbors, species, iPair, orb)
-    type(TEnvironment), intent(in) :: env
-    real(dp), intent(inout) :: out(:)
+  subroutine buildDiatomicBlocks(firstAtom, lastAtom, skCont, coords, nNeighbors, &
+      & iNeighbors, species, iPair, orb, out)
+    integer, intent(in) :: firstAtom
+    integer, intent(in) :: lastAtom
     type(OSlakoCont), intent(in) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: nNeighbors(:)
@@ -290,21 +291,18 @@ contains
     integer, intent(in) :: species(:)
     integer, intent(in) :: iPair(0:,:)
     type(TOrbitals), intent(in) :: orb
+    real(dp), intent(inout) :: out(:)
 
     real(dp) :: tmp(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), dist
     real(dp) :: interSK(getMIntegrals(skCont))
-    integer :: nAtom, nOrb1, nOrb2
-    integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind, iAtFirst, iAtLast
-
-    nAtom = size(nNeighbors)
-
-    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+    integer :: nOrb1, nOrb2
+    integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbors
     !$OMP PARALLEL DO PRIVATE(iAt1,iSp1,nOrb1,iNeigh1,iAt2,iSp2,nOrb2,ind,vect,dist,tmp,interSK) &
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = iAtFirst, iAtLast
+    do iAt1 = firstAtom, lastAtom
       iSp1 = species(iAt1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh1 = 1, nNeighbors(iAt1)
@@ -322,10 +320,8 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-    ! Note
-    ! Do not assemble chunks back together, as its done in routine calling this one
-
   end subroutine buildDiatomicBlocks
+
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
   subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI,&
