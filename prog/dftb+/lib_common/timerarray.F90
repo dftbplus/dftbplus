@@ -33,6 +33,9 @@ module timerarray
     type(TTimer), allocatable :: timers(:)
     real(dp), allocatable :: cpuTimes(:)
     real(dp), allocatable :: wallClockTimes(:)
+    integer :: maxLevel
+    character(:), allocatable :: header
+    integer :: unit
   contains
     procedure :: startTimer
     procedure :: stopTimer
@@ -43,7 +46,7 @@ module timerarray
 contains
 
   !> Initializes a global timer
-  subroutine TTimerArray_init(this, timerItems)
+  subroutine TTimerArray_init(this, timerItems, maxLevel, header, unit)
 
     !> Instance
     type(TTimerArray), intent(out) :: this
@@ -51,7 +54,34 @@ contains
     !> Names of the sub-timers to use
     type(TTimerItem), intent(in) :: timerItems(:)
 
+    !> Last level to be included (default: all levels are included)
+    integer, intent(in), optional :: maxLevel
+
+    !> Optional header message for the timings
+    character(*), intent(in), optional :: header
+
+    !> File unit to write the statistics to (default: standard output)
+    integer, intent(in), optional :: unit
+
     integer :: nTimer
+
+    if (present(maxLevel)) then
+      this%maxLevel = maxLevel
+    else
+      this%maxLevel = -1
+    end if
+
+    if (present(header)) then
+      this%header = header
+    else
+      this%header = "Timing"
+    end if
+
+    if (present(unit)) then
+      this%unit = unit
+    else
+      this%unit = stdOut
+    end if
 
     this%timerNames = timerItems(:)%name
     this%timerLevels = timerItems(:)%level
@@ -113,62 +143,40 @@ contains
 
 
   !> Writes the current timing values
-  subroutine writeTimings(this, msg, maxLevel, fp)
+  subroutine writeTimings(this)
 
     !> Instance
     class(TTimerArray), intent(in) :: this
 
-    !> Optional header message for the timings
-    character(*), intent(in), optional :: msg
-
-    !> Last level to be included (default: all levels are included)
-    integer, intent(in), optional :: maxLevel
-
-    !> File to write the statistics to (default: stdandard output)
-    integer, intent(in), optional :: fp
-
-    integer :: fp0, maxLevel0
+    integer :: fp
     real(dp) :: totalCpu, totalWall, cpuTime, wallTime, allCpu, allWall
-    integer :: iTimer, level
+    integer :: iTimer, level, maxLevel
     character :: operation
-    character(40) :: msg0
     character(100) :: formatStr
     character(:), allocatable :: prefix
 
-    totalCpu = this%myTimer%getCpuTime()
-    totalWall = this%myTimer%getWallClockTime()
-
-    if (present(maxLevel)) then
-      maxLevel0 = maxLevel
+    if (this%maxLevel < 0) then
+      maxLevel = maxval(this%timerLevels)
     else
-      maxLevel0 = maxval(this%timerLevels)
+      maxLevel = this%maxLevel
     end if
-
     if (maxLevel < 1) then
       return
     end if
 
-    if (present(msg)) then
-      msg0 = msg
-    else
-      msg0 = "Timing"
-    end if
+    totalCpu = this%myTimer%getCpuTime()
+    totalWall = this%myTimer%getWallClockTime()
 
-    if (present(fp)) then
-      fp0 = fp
-    else
-      fp0 = stdOut
-    end if
-
-    write(fp0, *)
-    write(fp0, "(A)") repeat("-", 80)
-    write(fp0, "(A,T46,A,T66,A)") msg, 'cpu [s]', 'wall clock [s]'
-    write(fp0, "(A)") repeat("-", 80)
+    fp = this%unit
+    write(fp, *)
+    write(fp, "(A)") repeat("-", 80)
+    write(fp, "(A,T46,A,T66,A)") this%header, 'cpu [s]', 'wall clock [s]'
+    write(fp, "(A)") repeat("-", 80)
     allCpu = 0.0
     allWall = 0.0
     do iTimer = 1, size(this%timers)
       level = this%timerLevels(iTimer)
-      if (level > maxLevel0) then
+      if (level > maxLevel) then
         cycle
       end if
       cpuTime = this%cpuTimes(iTimer)
@@ -182,7 +190,7 @@ contains
       else
         operation = " "
       end if
-      write(fp0, "(A,A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
+      write(fp, "(A,A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
           & prefix, trim(this%timerNames(iTimer)), operation, cpuTime,&
           & (cpuTime / totalCpu) * 100.0_dp, wallTime, (wallTime / totalWall) * 100.0_dp
       if (this%timerLevels(iTimer) == 1) then
@@ -190,13 +198,13 @@ contains
         allWall = allWall + wallTime
       end if
     end do
-    write(fp0, "(A)") repeat("-", 80)
-    write(fp0, "(A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
+    write(fp, "(A)") repeat("-", 80)
+    write(fp, "(A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
         & "Missing", "+", abs(totalCpu - allCpu), abs(totalCpu - allCpu) / totalCpu * 100.0_dp,&
         & abs(totalWall - allWall), abs(totalWall - allWall) / totalWall * 100.0_dp
-    write(fp0, "(A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
+    write(fp, "(A,T40,A,T42,F8.2,2X,'(',F5.1,'%)',T62,F8.2,2X,'(',F5.1,'%)')")&
         & "Total", "=", totalCpu, 100.0_dp, totalWall, 100.0_dp
-    write(fp0, "(A)") repeat("-", 80)
+    write(fp, "(A)") repeat("-", 80)
 
   end subroutine writeTimings
 

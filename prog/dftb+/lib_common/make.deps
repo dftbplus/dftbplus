@@ -20,29 +20,34 @@ _mod_constants = $(constants.o)
 
 #:if WITH_MPI
 #:if WITH_SCALAPACK
-environment.o: common.fypp _mod_timerarray _mod_mpienv _mod_blacsenv
-environment.o = environment.o $(common.fypp) $(_mod_timerarray) $(_mod_mpienv) $(_mod_blacsenv)
+environment.o: _mod_fileregistry common.fypp _mod_globalenv _mod_timerarray _mod_mpienv _mod_blacsenv
+environment.o = environment.o $(_mod_fileregistry) $(common.fypp) $(_mod_globalenv) $(_mod_timerarray) $(_mod_mpienv) $(_mod_blacsenv)
 _mod_environment: environment.o
 _mod_environment = $(environment.o)
 #:else
-environment.o: common.fypp _mod_timerarray _mod_mpienv
-environment.o = environment.o $(common.fypp) $(_mod_timerarray) $(_mod_mpienv)
+environment.o: _mod_fileregistry common.fypp _mod_globalenv _mod_timerarray _mod_mpienv
+environment.o = environment.o $(_mod_fileregistry) $(common.fypp) $(_mod_globalenv) $(_mod_timerarray) $(_mod_mpienv)
 _mod_environment: environment.o
 _mod_environment = $(environment.o)
 #:endif
 #:else
 #:if WITH_SCALAPACK
-environment.o: common.fypp _mod_timerarray _mod_blacsenv
-environment.o = environment.o $(common.fypp) $(_mod_timerarray) $(_mod_blacsenv)
+environment.o: _mod_fileregistry common.fypp _mod_globalenv _mod_timerarray _mod_blacsenv
+environment.o = environment.o $(_mod_fileregistry) $(common.fypp) $(_mod_globalenv) $(_mod_timerarray) $(_mod_blacsenv)
 _mod_environment: environment.o
 _mod_environment = $(environment.o)
 #:else
-environment.o: common.fypp _mod_timerarray
-environment.o = environment.o $(common.fypp) $(_mod_timerarray)
+environment.o: _mod_fileregistry common.fypp _mod_globalenv _mod_timerarray
+environment.o = environment.o $(_mod_fileregistry) $(common.fypp) $(_mod_globalenv) $(_mod_timerarray)
 _mod_environment: environment.o
 _mod_environment = $(environment.o)
 #:endif
 #:endif
+
+fileregistry.o:
+fileregistry.o = fileregistry.o
+_mod_fileregistry: fileregistry.o
+_mod_fileregistry = $(fileregistry.o)
 
 #:if WITH_MPI
 globalenv.o: common.fypp _mod_mpifx

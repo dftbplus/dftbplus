@@ -792,9 +792,6 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
-  !> Maximal timing level to show in output
-  integer :: timingLevel
-
   private :: createRandomGenerators
 
 contains
@@ -807,7 +804,7 @@ contains
     type(inputData), intent(inout), target :: input
 
     !> Environment settings
-    type(TEnvironment), intent(out) :: env
+    type(TEnvironment), intent(inout) :: env
 
     ! Mixer related local variables
     integer :: nGeneration
@@ -916,7 +913,7 @@ contains
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
-    call TEnvironment_init(env)
+    call env%initGlobalTimer(input%ctrl%timingLevel, "DFTB+ running times", stdOut)
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
@@ -2065,7 +2062,7 @@ contains
     restartFreq = input%ctrl%restartFreq
 
     if (env%tGlobalMaster) then
-      call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
     end if
@@ -2185,8 +2182,6 @@ contains
     else
       allocate(fdProjEig(0))
     end if
-
-    timingLevel = input%ctrl%timingLevel
 
   #:if WITH_MPI
     if (env%mpi%nGroup > 1) then
@@ -2767,9 +2762,12 @@ contains
 #:endif
 
   !> Initialises (clears) output files.
-  subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin)
+  subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
+      & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdChargeBin)
+
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
 
     !> Should tagged regression test data be printed
     logical, intent(in) :: tWriteAutotest
@@ -2819,7 +2817,6 @@ contains
     !> File descriptor for charge restart file
     integer, intent(out) :: fdChargeBin
 
-
     call initTaggedWriter()
     if (tWriteAutotest) then
       call initOutputFile(autotestTag, fdAutotest)
@@ -2836,9 +2833,11 @@ contains
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(userOut, fdDetailedOut)
+      call env%fileFinalizer%register(fdDetailedOut)
     end if
     if (tMD) then
       call initOutputFile(mdOut, fdMD)
+      call env%fileFinalizer%register(fdMd)
     end if
     if (tGeoOpt .or. tMD) then
       call clearFile(trim(geoOutFile) // ".gen")
