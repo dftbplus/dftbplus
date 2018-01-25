@@ -61,7 +61,7 @@ LNOPT =
 # How to link specific libraries
 
 # LAPACK/BLAS
-# Consider to use a threaded LAPACK/BLAS implementation for full performance
+# Consider using a threaded LAPACK/BLAS implementation for full performance
 LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
 
 # Any other libraries to be linked
