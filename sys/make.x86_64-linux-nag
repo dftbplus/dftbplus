@@ -67,7 +67,7 @@ endif
 # How to link specific libraries
 
 # LAPACK/BLAS
-# Consider to use a threaded LAPACK/BLAS implementation for full performance
+# Consider using a threaded LAPACK/BLAS implementation for full performance
 ATLASDIR = /usr/lib
 LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
 
