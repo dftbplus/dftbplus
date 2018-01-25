@@ -8,5 +8,5 @@
       branch = master 
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
-	url = git@bitbucket.org:gpenazzi/dev_libnegf.git
-	branch = restruct
+	url = git@bitbucket.org:pecchia/libnegf.git
+	branch = master
