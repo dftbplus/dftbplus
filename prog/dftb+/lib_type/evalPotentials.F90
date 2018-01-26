@@ -86,12 +86,11 @@ contains
 
     this%EspOutFile = input%EspOutFile
     this%tAppendESP = input%tAppendESP
-    allocate(this%ESPgrid(3,size(input%ESPgrid,dim=2)))
-    this%ESPgrid = input%ESPgrid
+    call move_alloc(input%ESPgrid, this%ESPgrid)
     this%gridDimensioning = input%gridDimensioning
     this%softenESP = input%softenESP
-    allocate(this%ESPpotential(size(input%ESPgrid,dim=2)))
-    allocate(this%extESPpotential(size(input%ESPgrid,dim=2)))
+    allocate(this%ESPpotential(size(this%ESPgrid,dim=2)))
+    allocate(this%extESPpotential(size(this%ESPgrid,dim=2)))
 
   end subroutine TElectrostaticPotentials_initialise
 

@@ -4161,18 +4161,25 @@ contains
     integer :: ii
     character(lc) :: tmpStr
 
-    if (nGeoSteps > 0) then
-      write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
-    else
-      write(tmpStr, "('#', T13, A)")"Location (AA)"
-    end if
-
     if (env%tGlobalMaster) then
       if (ESP%tAppendEsp) then
         open(ESP%fdEsp, file=trim(ESP%EspOutFile), position="append")
       else
         open(ESP%fdEsp, file=trim(ESP%EspOutFile), action="write", status="replace")
       end if
+      ! Header with presence of external field and regular grid size
+      write(tmpStr, "('# ', L2, 3I6, 1x, I0)")any(ESP%extESPpotential /= 0.0_dp),&
+          & ESP%gridDimensioning, size(ESP%extESPpotential)
+      if (.not.ESP%tAppendEsp .or. iGeoStep == 0) then
+        write(ESP%fdEsp,"(A)")trim(tmpStr)
+      end if
+      if (nGeoSteps > 0) then
+        write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
+      else
+        write(tmpStr, "('#', T13, A)")"Location (AA)"
+      end if
+
+
       if (any(ESP%extESPpotential /= 0.0_dp)) then
         write(ESP%fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
         do ii = 1, size(ESP%ESPgrid,dim=2)
