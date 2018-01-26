@@ -71,6 +71,7 @@ module initprogram
   use mainio, only : receiveGeometryFromSocket
   use ipisocket
 #:endif
+  use electrostaticPotentials
   use pmlocalisation
   use energies
   use potentials
@@ -406,24 +407,8 @@ module initprogram
   !> Do we need Mulliken charges?
   logical :: tMulliken
 
-  !> Should the electrostatic potential be evaluated
-  logical :: tESPgrid
-
-  !> Points to evaluate the field if requested
-  real(dp), allocatable :: ESPgrid(:,:)
-
-  !> Value of a short-distance softening term
-  real(dp) :: softenESP
-
-  !> file unit for ESP result
-  integer :: fdESP
-
-  !> File containing output potentials
-  character(lc) :: EspOutFile
-
-  !> should the file be appended or overwritten
-  logical :: tAppendESP
-
+  !> Electrostatic potentials if requested
+  type(TElectrostaticPotentials), allocatable :: ESP
 
   !> Calculate localised orbitals?
   logical :: tLocalise
@@ -1620,16 +1605,12 @@ contains
       tDipole = .false.
     end if
 
-    tESPgrid = input%ctrl%tESPgrid
-    if (.not.tSccCalc .and. tESPgrid) then
-      call error("Electrostatic potentials only available for SCC calculations")
-    end if
-    if (tESPgrid) then
-      allocate(ESPgrid(3,size(input%ctrl%ESPgrid,dim=2)))
-      ESPgrid = input%ctrl%ESPgrid
-      softenESP = input%ctrl%softenESP
-      EspOutFile = input%ctrl%EspOutFile
-      tAppendESP = input%ctrl%tAppendESP
+    if (allocated(input%ctrl%electrostaticPotentialsInp)) then
+      if (.not.tSccCalc) then
+        call error("Electrostatic potentials only available for SCC calculations")
+      end if
+      allocate(ESP)
+      call initialise(ESP, input%ctrl%electrostaticPotentialsInp)
     end if
 
     tLocalise = input%ctrl%tLocalise
@@ -2099,8 +2080,8 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, tESPgrid, EspOutFile, fdAutotest,&
-          & fdResultsTag, fdBand, fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, fdESP)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
+          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, ESP)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2787,8 +2768,8 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, tESP, EspOutFile, fdAutotest, fdResultsTag,&
-      & fdBand, fdEigvec, fdHessian, fdDetailedOut, fdMd, fdChargeBin, fdESP)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
+      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, ESP)
 
     !> Should tagged regression test data be printed
     logical, intent(in) :: tWriteAutotest
@@ -2808,17 +2789,11 @@ contains
     !> Is this a molecular dynamics calculation
     logical, intent(in) :: tMd
 
-    !> Electrostatic potentials to be written
-    logical, intent(in) :: tESP
-
     !> Are atomic coodinates being optimised
     logical, intent(in) :: tGeoOpt
 
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
-
-    !> Filename for electrostatic potential output
-    character(*), intent(in) :: EspOutFile
 
     !> File unit for autotest data
     integer, intent(out) :: fdAutotest
@@ -2844,9 +2819,8 @@ contains
     !> File descriptor for charge restart file
     integer, intent(out) :: fdChargeBin
 
-    !> File descriptor for electrostatic potentials
-    integer, intent(out) :: fdESP
-
+    !> Electrostatic potentials if requested
+    type(TElectrostaticPotentials), allocatable, intent(inout) :: ESP
 
     call initTaggedWriter()
     if (tWriteAutotest) then
@@ -2873,8 +2847,8 @@ contains
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
     fdChargeBin = getFileId()
-    if (tESP) then
-      call initOutputFile(EspOutFile, fdEsp)
+    if (allocated(ESP)) then
+      call initOutputFile(ESP%EspOutFile, ESP%fdEsp)
     end if
 
   end subroutine initOutputFiles

@@ -71,6 +71,7 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
+  use electrostaticPotentials, only : TElectrostaticPotentials
   implicit none
   private
 
@@ -414,7 +415,7 @@ contains
           derivs(:,:) = derivs + excitedDerivs
         end if
         call env%globalTimer%stopTimer(globalTimers%forceCalc)
-        
+
         if (tStress) then
           call env%globalTimer%startTimer(globalTimers%stressCalc)
           call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
@@ -445,10 +446,11 @@ contains
         end if
       end if
 
-      if (tEspGrid .and. ( .not.(tGeoOpt .or. tMD) .or. &
+
+      if (tSccCalc .and. allocated(ESP) .and. ( .not.(tGeoOpt .or. tMD) .or. &
           & needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq) ) ) then
-        call writeElectrostaticPotential(SCCCalc, env, ESPgrid, softenESP, EField, fdEsp,&
-            & EspOutFile, tAppendEsp, iGeoStep, nGeoSteps)
+        call ESP%evaluate(env, SccCalc, EField)
+        call writeESP(ESP, env, iGeoStep, nGeoSteps)
       end if
 
       if (tForces) then
@@ -2451,92 +2453,6 @@ contains
     end if
 
   end subroutine getMullikenPopulation
-
-  !> Electrostatic potential at specified points
-  subroutine writeElectrostaticPotential(SccCalc, env, ESPgrid, softenESP, Efield, fdEsp,&
-      & EspOutFile, tAppendEsp, iGeoStep, nGeoSteps)
-
-    !> SCC module internal variables
-    type(TScc), allocatable, intent(in) :: sccCalc
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Locations to evaluate the potential
-    real(dp), intent(in) :: ESPgrid(:,:)
-
-    !> short range softening parameter
-    real(dp), intent(in) :: softenESP
-
-    !> Electric field magnitude
-    real(dp), intent(in) :: EField(3)
-
-    !> File descriptor for writing
-    integer, intent(in) :: fdEsp
-
-    !> name of file to store potentials
-    character(*), intent(in) :: EspOutFile
-
-    !> should the file be appended or overwritten
-    logical, intent(in) :: tAppendEsp
-
-    !> Step of the geometry driver
-    integer, intent(in) :: iGeoStep
-
-    !> Number of geometry steps
-    integer, intent(in) :: nGeoSteps
-
-    real(dp), allocatable :: ESPpotential(:), extESPpotential(:)
-    integer :: ii
-    character(lc) :: tmpStr
-
-    if (.not.allocated(SccCalc)) then
-      call error("Needs SCC for potentials")
-    end if
-
-    allocate(ESPpotential(size(ESPgrid,dim=2)))
-    allocate(extESPpotential(size(ESPgrid,dim=2)))
-    ESPpotential = 0.0_dp
-    extESPpotential = 0.0_dp
-
-    call sccCalc%internalElectroStaticPotential(ESPpotential, env, ESPgrid, epsSoften=softenESP)
-    call sccCalc%externalElectroStaticPotential(extESPpotential, env, ESPgrid, epsSoften=softenESP)
-
-    if (any(EField /= 0.0_dp)) then
-      do ii = 1, size(ESPgrid,dim=2)
-        extESPpotential(ii) = extESPpotential(ii) + dot_product(ESPgrid(:, ii), EField)
-      end do
-    end if
-
-    if (nGeoSteps > 0) then
-      write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
-    else
-      write(tmpStr, "('#', T13, A)")"Location (AA)"
-    end if
-
-    if (env%tGlobalMaster) then
-      if (tAppendEsp) then
-        open(fdEsp, file=trim(EspOutFile), position="append")
-      else
-        open(fdEsp, file=trim(EspOutFile), action="write", status="replace")
-      end if
-      if (any(extESPpotential /= 0.0_dp)) then
-        write(fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
-        do ii = 1, size(ESPgrid,dim=2)
-          write(fdEsp,"(3E12.4,2E20.12)")ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii),&
-              & extESPpotential(ii)
-        end do
-      else
-        write(fdEsp,"(A,T39,A)")trim(tmpStr),'Internal (au)'
-        do ii = 1, size(ESPgrid,dim=2)
-          write(fdEsp,"(3E12.4,2E20.12)")ESPgrid(:,ii) * Bohr__AA, ESPpotential(ii)
-        end do
-      end if
-      close(fdEsp)
-    end if
-
-  end subroutine writeElectrostaticPotential
-
 
   !> Calculates various energy contributions
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&

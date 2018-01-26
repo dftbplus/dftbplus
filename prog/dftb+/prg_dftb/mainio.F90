@@ -41,6 +41,7 @@ module mainio
   use mdintegrator, only : OMdIntegrator, state
   use formatout
   use sccinit, only : writeQToFile
+  use electrostaticPotentials, only : TElectrostaticPotentials
   use message
 #:if WITH_SOCKETS
   use ipisocket
@@ -63,6 +64,7 @@ module mainio
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
+  public :: writeESP
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
@@ -4131,6 +4133,53 @@ contains
     end do
 
   end subroutine finishProjEigvecFiles
+
+  !> Electrostatic potential at specified points
+  subroutine writeESP(ESP, env, iGeoStep, nGeoSteps)
+
+    !> Object holding the potentials and their locations
+    type(TElectrostaticPotentials), intent(in) :: ESP
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Step of the geometry driver
+    integer, intent(in) :: iGeoStep
+
+    !> Number of geometry steps
+    integer, intent(in) :: nGeoSteps
+
+    integer :: ii
+    character(lc) :: tmpStr
+
+    if (nGeoSteps > 0) then
+      write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
+    else
+      write(tmpStr, "('#', T13, A)")"Location (AA)"
+    end if
+
+    if (env%tGlobalMaster) then
+      if (ESP%tAppendEsp) then
+        open(ESP%fdEsp, file=trim(ESP%EspOutFile), position="append")
+      else
+        open(ESP%fdEsp, file=trim(ESP%EspOutFile), action="write", status="replace")
+      end if
+      if (any(ESP%extESPpotential /= 0.0_dp)) then
+        write(ESP%fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
+        do ii = 1, size(ESP%ESPgrid,dim=2)
+          write(ESP%fdEsp,"(3E12.4,2E20.12)")ESP%ESPgrid(:,ii) * Bohr__AA, ESP%ESPpotential(ii),&
+              & ESP%extESPpotential(ii)
+        end do
+      else
+        write(ESP%fdEsp,"(A,T39,A)")trim(tmpStr),'Internal (au)'
+        do ii = 1, size(ESP%ESPgrid,dim=2)
+          write(ESP%fdEsp,"(3E12.4,2E20.12)")ESP%ESPgrid(:,ii) * Bohr__AA, ESP%ESPpotential(ii)
+        end do
+      end if
+      close(ESP%fdEsp)
+    end if
+
+  end subroutine writeESP
 
 
 end module mainio

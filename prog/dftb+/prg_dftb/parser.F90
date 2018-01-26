@@ -3186,17 +3186,18 @@ contains
       end if
     end if
 
-    ctrl%tESPGrid = .false.
+
     call getChild(node, "ElectrostaticPotential", child, requested=.false.)
     if (associated(child)) then
       if (.not.ctrl%tSCC) then
         call error("Electrostatic potentials only available in an SCC calculation")
       end if
+      allocate(ctrl%electrostaticPotentialsInp)
       call getChildValue(child, "OutputFile", buffer, "ESP.dat")
-      ctrl%EspOutFile = unquote(char(buffer))
-      ctrl%tAppendESP = .false.
+      ctrl%electrostaticPotentialsInp%EspOutFile = unquote(char(buffer))
+      ctrl%electrostaticPotentialsInp%tAppendESP = .false.
       if (ctrl%tGeoOpt .or. ctrl%tMD) then
-        call getChildValue(child, "AppendFile", ctrl%tAppendESP, .false.)
+        call getChildValue(child, "AppendFile", ctrl%electrostaticPotentialsInp%tAppendESP, .false.)
       end if
       call init(lr1)
       ! discrete points
@@ -3205,35 +3206,38 @@ contains
       call getNodeName2(child2, buffer)
       if (char(buffer) /= "") then
         call getChildValue(child3, "", 3, lr1, modifier=modifier)
-        ctrl%tESPGrid = (len(lr1) > 0)
-        allocate(ctrl%ESPgrid(3,len(lr1)))
-        call asArray(lr1, ctrl%ESPgrid)
+        allocate(ctrl%electrostaticPotentialsInp%ESPgrid(3,len(lr1)))
+        call asArray(lr1, ctrl%electrostaticPotentialsInp%ESPgrid)
         if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
-          ctrl%ESPgrid = matmul(geo%latVecs,ctrl%ESPgrid)
+          ctrl%electrostaticPotentialsInp%ESPgrid = matmul(geo%latVecs,&
+              & ctrl%electrostaticPotentialsInp%ESPgrid)
         else
-          call convertByMul(char(modifier), lengthUnits, child3, ctrl%ESPgrid)
+          call convertByMul(char(modifier), lengthUnits, child3,&
+              & ctrl%electrostaticPotentialsInp%ESPgrid)
         end if
       end if
 
       ! grid specification for points instead
       call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
       if (associated(child2)) then
-        if (ctrl%tESPGrid) then
+        if (allocated(ctrl%electrostaticPotentialsInp%ESPgrid)) then
           call error("Both grid and point specification not both currently possible")
         end if
-        ctrl%tESPGrid = .true.
         if (geo%tPeriodic) then
-          call readGrid(ctrl%ESPgrid, child2, modifier, geo%latVecs)
+          call readGrid(ctrl%electrostaticPotentialsInp%ESPgrid, child2, modifier,&
+              & latVecs=geo%latVecs, nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning)
         else
-          call readGrid(ctrl%ESPgrid, child2, modifier)
+          call readGrid(ctrl%electrostaticPotentialsInp%ESPgrid, child2, modifier,&
+              & nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning)
         end if
       end if
-      if (.not.ctrl%tESPGrid) then
+      if (.not.allocated(ctrl%electrostaticPotentialsInp%ESPgrid)) then
         call detailedError(child,"Either a grid or set of points must be specified")
       end if
-      call getChildValue(child, "Softening", ctrl%softenESP, 1.0E-6_dp, modifier=modifier,&
-          & child=child2)
-      call convertByMul(char(modifier), lengthUnits, child2, ctrl%softenEsp)
+      call getChildValue(child, "Softening", ctrl%electrostaticPotentialsInp%softenESP, 1.0E-6_dp,&
+          & modifier=modifier, child=child2)
+      call convertByMul(char(modifier), lengthUnits, child2,&
+          & ctrl%electrostaticPotentialsInp%softenEsp)
 
     end if
 
@@ -3409,7 +3413,7 @@ contains
   end subroutine readBlacs
 
   !> Read in a grid specification
-  subroutine readGrid(points, node, modifier, latVecs)
+  subroutine readGrid(points, node, modifier, latVecs, nPoints)
 
     !> Points in the grid
     real(dp), allocatable, intent(out) :: points(:,:)
@@ -3422,6 +3426,9 @@ contains
 
     !> geometry of the system
     real(dp), intent(in), optional :: latVecs(:,:)
+
+    !> Number of grid points in each direction, if required
+    integer, intent(out), optional :: nPoints(3)
 
     type(fnode), pointer :: child
     real(dp) :: r3Tmp(3), r3Tmpb(3)
@@ -3446,6 +3453,9 @@ contains
       call detailedError(child,"Grid spacings must be non-zero")
     end if
     allocate(points(3,product(i3Tmp)))
+    if (present(nPoints)) then
+      nPoints = i3Tmp
+    end if
 
     !  length not fraction modifier
     if (.not.(tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then

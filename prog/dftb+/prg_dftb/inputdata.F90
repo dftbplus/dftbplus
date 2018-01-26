@@ -24,6 +24,7 @@ module inputdata_module
   use ipisocket, only : IpiSocketCommInp
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
+  use electrostaticPotentials, only : TElectrostaticPotentialsInp
   implicit none
   private
   save
@@ -126,21 +127,9 @@ module inputdata_module
     !> printout of Mulliken
     logical :: tPrintMulliken   = .false.
 
-    !> Electrostatic potential on a grid
-    logical :: tESPgrid = .false.
+    !> electrostatic potential evaluation and printing
+    type(TElectrostaticPotentialsInp), allocatable :: electrostaticPotentialsInp
 
-    !> File to store the resulting points
-    character(lc) :: EspOutFile = 'ESP.dat'
-
-    !> Should the potential appended to the file
-    logical :: tAppendESP = .false.
-    
-    !> Location of electrostatic potential points
-    real(dp), allocatable :: ESPgrid(:,:)
-
-    !> short range softening of the potential
-    real(dp) :: softenESP = 1.0E-6_dp
-    
     !> Localise electronic states
     logical :: tLocalise   = .false.
 
