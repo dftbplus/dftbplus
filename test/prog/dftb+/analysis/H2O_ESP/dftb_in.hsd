@@ -45,9 +45,9 @@ Analysis = {
   ElectrostaticPotential = {
       Softening = 0.1
       Grid [AA] = {
-          Spacing = {.1 .1 .1}
+          Spacing = {2.0 2.0 2.0}
           Origin = {0 -2 -2}
-          GridPoints = {1 41 41}
+          GridPoints = {1 3 3}
       }
   }
 }

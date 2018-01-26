@@ -1907,7 +1907,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation)
+      & gibbsFree, endCoords, tLocalise, localisation, ESP)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -1963,6 +1963,9 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    !> Object holding the potentials and their locations
+    type(TElectrostaticPotentials), allocatable, intent(in) :: ESP
+
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
 
@@ -1999,6 +2002,12 @@ contains
     call writeTagged(fd, tag_endCoord, endCoords)
     if (tLocalise) then
       call writeTagged(fd, tag_pmlocalise, localisation)
+    end if
+    if (allocated(ESP)) then
+      call writeTagged(fd, tag_internfield, ESP%ESPpotential)
+      if (any(ESP%extESPpotential /= 0.0_dp)) then
+        call writeTagged(fd, tag_externfield, ESP%extESPpotential)
+      end if
     end if
     close(fd)
 

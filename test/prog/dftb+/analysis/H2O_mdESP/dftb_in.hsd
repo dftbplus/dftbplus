@@ -35,9 +35,9 @@ Hamiltonian = DFTB {
 Analysis = {
   ElectrostaticPotential = {
       Grid [AA] = {
-          Spacing = {.5 .5 .5}
+          Spacing = {1.0 1.0 1.0}
           Origin = {0 -2 -2}
-          GridPoints = {1 9 9}
+          GridPoints = {1 5 5}
       }
       AppendFile = Yes
   }

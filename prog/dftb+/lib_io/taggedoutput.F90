@@ -83,6 +83,12 @@ module taggedoutput
   !> total stress tensor for periodic geometries
   character(*), parameter, public :: tag_stressTot = 'stress'
 
+  !> total stress tensor for periodic geometries
+  character(*), parameter, public :: tag_internfield = 'internal_efield'
+
+  !> total stress tensor for periodic geometries
+  character(*), parameter, public :: tag_externfield = 'external_efield'
+
   ! general format strings
 
   !> real string format
