@@ -2769,7 +2769,8 @@ calculations. This data is accumulated in a specified text file.
 \end{ptable}
 \begin{description}
 \item[\is{OutFile}] Text file to store the potential. If external electric
-  fields are present, an additional column gives their values.
+  fields are present, an additional column gives their values. See
+  p.~\pref{sec:dftbp.esp} for a description of the file.
 \item[\is{AppendFile}] If running calculations with multiple geometries, should
   the \is{OutputFile} be appended or only contain the last potential
   information?
@@ -3152,6 +3153,39 @@ calculations, and appended every \kw{MDRestartFrequency} steps. In the case of
 small numbers of atoms and long MD simulations it may be useful to set
 \is{WriteDetailedOut} to \is{No} and examine the information stored in this file
 instead.
+
+\section{Electrostatic potential data}
+\label{sec:dftbp.esp}
+\index{ESP.dat}
+
+The output of the evaluating the electrostatic potential. The First line
+consists of a comment mark followed by a logical variable as to whether there is
+an external electric field (or not), followed by 3 values for any regular grid
+pattern present in the system and the total number of points.  The next line is
+a comment, then the locations and internal plus optionally external field (from
+point charges or homogeneous electric fields).
+
+\begin{verbatim}
+#  T     1     1     1 1
+#           Location (AA)             Internal (au)       External (au)
+  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
+\end{verbatim}
+
+In the case where there is no regular grid:
+\begin{verbatim}
+#  T     0     0     0 1
+#           Location (AA)             Internal (au)       External (au)
+  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
+\end{verbatim}
+
+or
+
+In the case where there is no regular grid:
+\begin{verbatim}
+#  F     0     0     0 1
+#           Location (AA)             Internal (au)
+  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10
+\end{verbatim}
 
 \section{Excited state results files}
 \label{sec:tddftb_lr}
