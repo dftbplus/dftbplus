@@ -232,11 +232,6 @@ contains
     real(dp), intent(in) :: volume
 
     integer :: iAt1, iAt2, iAt2f, iNeigh, ii, jj, iOffSet, jOffSet
-  !#:if WITH_SCALAPACK
-  !  logical :: tLocal
-  !  ! Descriptor for 1/R matrix
-  !  integer :: descInvRMat(DLEN_)
-  !#:endif
 
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc == -1) then
