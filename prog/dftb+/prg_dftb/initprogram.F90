@@ -1159,6 +1159,9 @@ contains
         sccInp%extCharges = input%ctrl%extChrg
         if (allocated(input%ctrl%extChrgBlurWidth)) then
           sccInp%blurWidths = input%ctrl%extChrgblurWidth
+          if (any(sccInp%blurWidths < 0.0_dp)) then
+            call error("Gaussian blur widths for charges may not be negative")
+          end if
         end if
       end if
       if (allocated(input%ctrl%chrgConstr)) then

@@ -394,6 +394,11 @@ contains
 
       if (allocated(inp%blurWidths)) then
         if (this%tPeriodic) then
+          if (any(this%extChrgBlurWidths > 1.0e-7_dp)) then
+            if (1.0_dp/maxval(inp%blurWidths) < this%alpha) then
+              call error("Charge blur widths are too wide compared to the Ewald real space sum")
+            end if
+          end if
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
               & inp%recVecs, this%maxREwald, blurWidths=inp%blurWidths)
         else
@@ -414,7 +419,7 @@ contains
       allocate(this%extChrgQ(size(inp%extCharges, dim=2)))
       this%extChrgQ = inp%extCharges(4,:)
       if (allocated(this%extChrgBlurWidths)) then
-        if (any(abs(this%extChrgBlurWidths) > 1.0e-7_dp)) then
+        if (any(this%extChrgBlurWidths > 1.0e-7_dp)) then
           allocate(this%extChrgBlurWidths(size(inp%extCharges, dim=2)))
           this%extChrgBlurWidths = inp%blurWidths
         end if

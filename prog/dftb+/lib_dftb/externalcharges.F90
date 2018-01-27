@@ -146,7 +146,7 @@ contains
 
     !! Create blurring array
     if (present(blurWidths)) then
-      this%tBlur = any(abs(blurWidths) > 1.0e-7_dp)
+      this%tBlur = any(blurWidths > 1.0e-7_dp)
     else
       this%tBlur = .false.
     end if

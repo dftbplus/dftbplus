@@ -1250,8 +1250,7 @@ contains
           if (absRR < tolSameDist**2) then
             cycle
           end if
-          absRR = sqrt(absRR)
-          realSum = realSum + erfcwrap(alpha*absRR)/absRR
+          realSum = realSum + erfcwrap(alpha*absRR)/sqrt(absRR+epsSoften2)
         end do
       end if
     else
