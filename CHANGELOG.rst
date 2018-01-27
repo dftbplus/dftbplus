@@ -11,38 +11,40 @@ Unreleased
 Added
 -----
 
-- MPI-parallelisation.
+- MPI-parallelism.
 
-- Improved thread-parallesation.
+- Improved thread-parallelism.
 
-- Tool straingen for straining periodic gen-files.
+- Tool straingen for distorting gen-files.
 
 - Shutdown possibility when using socket driver.
 
-- Evaluation of electrostatic potentials at specified points in space
+- Evaluation of electrostatic potentials at specified points in space.
 
-- Option to read/write restart charges as ASCII text
+- Blurred external charges for periodic systems.
 
-- Header for code prints release / git comit version information
+- Option to read/write restart charges as ASCII text.
+
+- Header for code prints release / git commit version information.
 
 Changed
 -------
 
 - Using allocatables instead of pointers whenever possible.
 
-- Change to Fypp-preprocessor
+- Change to use the Fypp-preprocessor.
 
-- Excited state (non-force) properties for multiple excitations
+- Excited state (non-force) properties for multiple excitations.
 
 Fixed
 -----
 
-- Keyword Atoms in modes_in.hsd consider only the first specified entry
+- Keyword Atoms in modes_in.hsd consider only the first specified entry.
 
-- Excited window selection in Cassida time-dependent calculation
+- Excited window selection in Cassida time-dependent calculation.
 
 - iPI interface with cluster geometries fixed (protocol contains redundant
-  lattice information in these cases)
+  lattice information in these cases).
 
 17.1 (2017-06-16)
 =================
