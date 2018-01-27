@@ -72,6 +72,7 @@ scc/H2O+CH3COOH-3rdorder               #? NPROC <= 1
 spinorbit/Fe2                          #? NPROC <= 4
 non-scc/10-0Ctube_Efield               #? NPROC <= 4
 non-scc/10-10Ctube                     #? NPROC <= 4
+analysis/10-0Ctube_ESP                 #? NPROC <= 4
 md/H2O-extfield                        #? NPROC <= 1
 non-scc/10-0Ctube                      #? NPROC <= 4
 spin/Fe4_noncolinear                   #? NPROC <= 4

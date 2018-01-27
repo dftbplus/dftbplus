@@ -3225,10 +3225,14 @@ contains
         end if
         if (geo%tPeriodic) then
           call readGrid(ctrl%electrostaticPotentialsInp%ESPgrid, child2, modifier,&
-              & latVecs=geo%latVecs, nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning)
+              & latVecs=geo%latVecs, nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning,&
+              & origin=ctrl%electrostaticPotentialsInp%origin,&
+              & axes=ctrl%electrostaticPotentialsInp%axes)
         else
           call readGrid(ctrl%electrostaticPotentialsInp%ESPgrid, child2, modifier,&
-              & nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning)
+              & nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning,&
+              & origin=ctrl%electrostaticPotentialsInp%origin,&
+              & axes=ctrl%electrostaticPotentialsInp%axes)
         end if
       end if
       if (.not.allocated(ctrl%electrostaticPotentialsInp%ESPgrid)) then
@@ -3413,7 +3417,7 @@ contains
   end subroutine readBlacs
 
   !> Read in a grid specification
-  subroutine readGrid(points, node, modifier, latVecs, nPoints)
+  subroutine readGrid(points, node, modifier, latVecs, nPoints, origin, axes)
 
     !> Points in the grid
     real(dp), allocatable, intent(out) :: points(:,:)
@@ -3430,15 +3434,21 @@ contains
     !> Number of grid points in each direction, if required
     integer, intent(out), optional :: nPoints(3)
 
+    !> origin of grid if required
+    real(dp), intent(out), optional :: origin(3)
+
+    !> axes of the grid if required
+    real(dp), intent(out), optional :: axes(3,3)
+
     type(fnode), pointer :: child
     real(dp) :: r3Tmp(3), r3Tmpb(3)
     integer :: i3Tmp(3), iPt, ii, jj, kk
     logical :: tPeriodic
-    real(dp) :: axes(3,3), r33Tmp(3,3)
+    real(dp) :: axes_(3,3), r33Tmp(3,3)
 
     tPeriodic = present(latvecs)
-
-    if (tPeriodic .neqv. (char(modifier) == "F" .or. char(modifier) == "f")) then
+    
+    if (.not.tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       call detailedError(node, "Fractional grid specification only available for periodic&
           & geometries")
     end if
@@ -3479,19 +3489,32 @@ contains
     ! transformation matrix on directions, could use a 4x4 homogeneous coordinate transform instead
     if (.not.(char(modifier) == "F" .or. char(modifier) == "f") .or. .not.tPeriodic) then
       r33Tmp = reshape([1,0,0,0,1,0,0,0,1],[3,3])
-      call getChildValue(node, "Directions", axes, r33Tmp, child=child)
-      if (abs(determinant33(axes)) < epsilon(1.0_dp)) then
+      call getChildValue(node, "Directions", axes_, r33Tmp, child=child)
+      if (abs(determinant33(axes_)) < epsilon(1.0_dp)) then
         call detailedError(child, "Dependent axis directions")
       end if
       do ii = 1, 3
-        axes(:,ii) = axes(:,ii) / sqrt(sum(axes(:,ii)**2))
+        axes_(:,ii) = axes_(:,ii) / sqrt(sum(axes_(:,ii)**2))
       end do
-      points = matmul(axes,points)
+      points = matmul(axes_,points)
+      if (present(axes)) then
+        axes = axes_*spread(r3Tmp,2,3)
+      end if
     end if
-
+    
+    if (present(origin)) then
+      origin = r3Tmpb
+    end if
+    
     ! Fractional specification of points
     if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       points = matmul(latVecs,points)
+      if (present(origin)) then
+        origin = matmul(latVecs,origin)
+      end if
+      if (present(axes)) then
+        axes = latVecs * spread(r3Tmp,2,3)
+      end if
     end if
 
   end subroutine readGrid

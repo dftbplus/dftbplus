@@ -31,6 +31,12 @@ module electrostaticPotentials
     !> Size of the grid if regular, 0 otherwise
     integer :: gridDimensioning(3) = 0
 
+    !> Origin of the grid if regular
+    real(dp) :: origin(3)
+
+    !> Axes of the grid if regular
+    real(dp) :: axes(3,3)
+    
     !> short range softening of the potential
     real(dp) :: softenESP = 1.0E-6_dp
 
@@ -45,6 +51,12 @@ module electrostaticPotentials
     !> Size of the grid if regular, 0 otherwise
     integer :: gridDimensioning(3) = 0
 
+    !> Origin of the grid if regular
+    real(dp) :: origin(3)
+
+    !> Axes of the grid if regular
+    real(dp) :: axes(3,3)
+        
     !> Value of a short-distance softening term
     real(dp) :: softenESP
 
@@ -88,6 +100,8 @@ contains
     this%tAppendESP = input%tAppendESP
     call move_alloc(input%ESPgrid, this%ESPgrid)
     this%gridDimensioning = input%gridDimensioning
+    this%origin = input%origin
+    this%axes = input%axes
     this%softenESP = input%softenESP
     allocate(this%ESPpotential(size(this%ESPgrid,dim=2)))
     allocate(this%extESPpotential(size(this%ESPgrid,dim=2)))

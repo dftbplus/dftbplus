@@ -4172,6 +4172,12 @@ contains
           & ESP%gridDimensioning, size(ESP%extESPpotential)
       if (.not.ESP%tAppendEsp .or. iGeoStep == 0) then
         write(ESP%fdEsp,"(A)")trim(tmpStr)
+        if (all(ESP%gridDimensioning > 0)) then
+          write(ESP%fdEsp,"(A,3E20.12)")'#',ESP%origin* Bohr__AA
+          do ii = 1, 3
+            write(ESP%fdEsp,"(A,3E20.12)")'#',ESP%axes(:,ii)* Bohr__AA
+          end do
+        end if
       end if
       if (nGeoSteps > 0) then
         write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
