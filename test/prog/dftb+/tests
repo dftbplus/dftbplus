@@ -99,6 +99,7 @@ geoopt/diamond_presure                 #? NPROC <= 1
 scc/C60_Fermi                          #? NPROC <= 4
 scc/10-0Ctube-extfield                 #? NPROC <= 4
 scc/SiC_64                             #? NPROC <= 4
+scc/SiC_32-extchrg-blur                #? NPROC <= 2
 md/H3                                  #? NPROC <= 1
 
 dispersion/DNA_dftd3_zero              #? WITH_DFTD3 and NPROC <= 4
