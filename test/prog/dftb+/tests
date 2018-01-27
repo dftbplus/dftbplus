@@ -131,6 +131,7 @@ spinorbit/Si2_dual                     #? NPROC <= 1
 md/Si_8                                #? NPROC <= 1
 md/Si_8-thermostat2                    #? NPROC <= 1
 geoopt/GaAs_8_latconst                 #? NPROC <= 2
+analysis/Ga4As4_ESP                    #? NPROC <= 2
 md/Si_8-thermostat                     #? NPROC <= 1
 md/ptcda-xlbomdfast-ldep               #? NPROC <= 4
 md/Si_8-tempprofile                    #? NPROC <= 1
