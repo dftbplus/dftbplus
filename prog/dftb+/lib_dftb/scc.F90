@@ -394,7 +394,7 @@ contains
 
       if (allocated(inp%blurWidths)) then
         if (this%tPeriodic) then
-          if (any(this%extChrgBlurWidths > 1.0e-7_dp)) then
+          if (any(inp%blurWidths > 1.0e-7_dp)) then
             if (1.0_dp/maxval(inp%blurWidths) < this%alpha) then
               call error("Charge blur widths are too wide compared to the Ewald real space sum")
             end if
