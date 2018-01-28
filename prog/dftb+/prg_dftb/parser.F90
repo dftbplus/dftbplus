@@ -1708,14 +1708,6 @@ contains
         end if
         deallocate(tmpI1)
         deallocate(kpts)
-        if (ctrl%tSCC .and. ctrl%maxIter /= 1) then
-          write(errorStr, "(A,I3)") "SCC cycle with k-lines probably will&
-              & not converge, SCC iterations set to:", ctrl%maxIter
-          call warning(errorStr)
-        end if
-        if (ctrl%tSCC .and. .not.ctrl%tReadChrg) then
-          call warning("It is strongly suggested you use the ReadInitialCharges option.")
-        end if
 
       case (textNodeName)
 
@@ -1759,6 +1751,15 @@ contains
         ii = 100
       end if
       call getChildValue(node, "MaxSCCIterations", ctrl%maxIter, ii)
+    end if
+
+    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. ctrl%maxIter /= 1) then
+      write(errorStr, "(A,I3)") "SCC cycle with these k-points probably will&
+          & not correctly calculate many properties, SCC iterations set to:", ctrl%maxIter
+      call warning(errorStr)
+    end if
+    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
+      call warning("It is strongly suggested you use the ReadInitialCharges option.")
     end if
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
