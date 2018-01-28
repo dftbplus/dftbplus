@@ -3161,12 +3161,20 @@ instead.
 The output of the evaluating the electrostatic potential. The First line
 consists of a comment mark followed by a logical variable as to whether there is
 an external electric field (or not), followed by 3 values for any regular grid
-pattern present in the system and the total number of points.  The next line is
-a comment, then the locations and internal plus optionally external field (from
-point charges or homogeneous electric fields).
+pattern present in the system and the total number of points. If the data is
+gridded, the next four lines contain the origin and grid separation vectors in
+{\AA}ngstroms.
 
+The next line is a comment, then the locations and internal plus optionally
+external field (from point charges or homogeneous electric fields).
+
+For an example with a regular grid
 \begin{verbatim}
 #  T     1     1     1 1
+#  0.000000000000E+00 -0.200000000000E+01 -0.200000000000E+01
+#  0.200000000000E+01  0.000000000000E+00  0.000000000000E+00
+#  0.000000000000E+00  0.200000000000E+01  0.000000000000E+00
+#  0.000000000000E+00  0.000000000000E+00  0.200000000000E+01
 #           Location (AA)             Internal (au)       External (au)
   0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
 \end{verbatim}
@@ -3180,7 +3188,7 @@ In the case where there is no regular grid:
 
 or
 
-In the case where there is no regular grid:
+In the case where there is no regular grid or external field:
 \begin{verbatim}
 #  F     0     0     0 1
 #           Location (AA)             Internal (au)
