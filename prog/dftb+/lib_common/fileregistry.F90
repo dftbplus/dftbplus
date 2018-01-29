@@ -66,7 +66,7 @@ contains
     integer :: unit, ii
     logical :: tOpen
 
-    do ii = 1, size(this%registeredFiles)
+    do ii = 1, this%nRegistered
       unit = this%registeredFiles(ii)
       inquire(unit=unit, opened=tOpen)
       if (tOpen) then
