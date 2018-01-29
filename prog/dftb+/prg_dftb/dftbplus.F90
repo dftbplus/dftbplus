@@ -27,9 +27,11 @@ program dftbplus
   call printDftbHeader(releaseName, releaseYear)
   allocate(input)
   call parseHsdInput(input)
+  call TEnvironment_init(env)
   call initProgramVariables(input, env)
   deallocate(input)
   call runDftbPlus(env)
+  call env%destruct()
   call destructGlobalEnv()
 
 end program dftbplus

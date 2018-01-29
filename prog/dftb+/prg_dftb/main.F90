@@ -436,10 +436,9 @@ contains
       end if
 
       if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then
-        if (tConvrgForces) then
-          call error("SCC is NOT converged, maximal SCC iterations exceeded")
-        else
-          call warning("SCC is NOT converged, maximal SCC iterations exceeded")
+        call warning("SCC is NOT converged, maximal SCC iterations exceeded")
+        if (.not. tConvrgForces) then
+          call env%abort()
         end if
       end if
 
@@ -641,7 +640,6 @@ contains
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
     call destructProgramVariables()
-    call env%globalTimer%writeTimings(msg="DFTB+ running times", maxLevel=timingLevel)
 
   end subroutine runDftbPlus
 

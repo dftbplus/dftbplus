@@ -9,7 +9,9 @@
 
 !> Contains computer environment settings
 module environment
+  use globalenv, only : abort, stdOut
   use timerarray
+  use fileregistry
 #:if WITH_MPI
   use mpienv
 #:endif
@@ -25,6 +27,7 @@ module environment
 
   !> Contains environment settings.
   type :: TEnvironment
+    private
 
     !> Whether this process is the master?
     logical, public :: tGlobalMaster = .true.
@@ -36,7 +39,10 @@ module environment
     integer, public :: myGroup = 0
 
     !> Global timers
-    type(TTimerArray) :: globalTimer
+    type(TTimerArray), public :: globalTimer
+
+    !> Registry of files, which may be open and must be closed when environment is aborted
+    type(TFileRegistry), public :: fileFinalizer
 
   #:if WITH_MPI
     !> Global mpi settings
@@ -48,11 +54,14 @@ module environment
   #:endif
 
   contains
+    procedure :: destruct => TEnvironment_destruct
+    procedure :: abort => TEnvironment_abort
+    procedure :: initGlobalTimer => TEnvironment_initGlobalTimer
   #:if WITH_MPI
-    procedure :: initMpi
+    procedure :: initMpi => TEnvironment_initMpi
   #:endif
   #:if WITH_SCALAPACK
-    procedure :: initBlacs
+    procedure :: initBlacs => TEnvironment_initBlacs
   #:endif
 
   end type TEnvironment
@@ -102,15 +111,62 @@ contains
     !> Instance
     type(TEnvironment), intent(out) :: this
 
-    call TTimerArray_init(this%globalTimer, globalTimerItems)
+    call TFileRegistry_init(this%fileFinalizer)
 
   end subroutine TEnvironment_init
+
+
+  !> Finalizes the environment.
+  subroutine TEnvironment_destruct(this)
+
+    !> Instance
+    class(TEnvironment), intent(inout) :: this
+
+    call this%globalTimer%writeTimings()
+    call this%fileFinalizer%closeAll()
+    flush(stdOut)
+
+  end subroutine TEnvironment_destruct
+    
+  
+  !> Gracefully cleans up and aborts
+  subroutine TEnvironment_abort(this)
+
+    !> Instance
+    class(TEnvironment), intent(out) :: this
+
+    call this%destruct()
+    call abort()
+
+  end subroutine TEnvironment_abort
+
+
+  !> Initlaizes the global timer of the environment.
+  subroutine TEnvironment_initGlobalTimer(this, timingLevel, header, unit)
+
+    !> Instance
+    class(TEnvironment), intent(inout) :: this
+
+    !> Timing level up to which timings should be printed (-1 for all)
+    integer, intent(in) :: timingLevel
+
+    !> Header of the timing table
+    character(*), intent(in) :: header
+
+    !> File unit into which the table should be written
+    integer, intent(in) :: unit
+
+    call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
+        & unit=unit)
+
+  end subroutine TEnvironment_initGlobalTimer
+
 
 
 #:if WITH_MPI
 
   !> Initializes MPI environment.
-  subroutine initMpi(this, nGroup)
+  subroutine TEnvironment_initMpi(this, nGroup)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -124,7 +180,7 @@ contains
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
 
-  end subroutine initMpi
+  end subroutine TEnvironment_initMpi
 
 #:endif
 
@@ -132,7 +188,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine initBlacs(this, rowBlock, colBlock, nOrb, nAtom)
+  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -151,7 +207,7 @@ contains
 
     call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom)
 
-  end subroutine initBlacs
+  end subroutine TEnvironment_initBlacs
 
 #:endif
 
