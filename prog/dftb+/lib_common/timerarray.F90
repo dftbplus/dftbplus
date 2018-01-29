@@ -54,7 +54,7 @@ contains
     !> Names of the sub-timers to use
     type(TTimerItem), intent(in) :: timerItems(:)
 
-    !> Last level to be included (default: all levels are included)
+    !> Last timer level to be included in printing (default: all)
     integer, intent(in), optional :: maxLevel
 
     !> Optional header message for the timings

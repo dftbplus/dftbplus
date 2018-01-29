@@ -41,7 +41,7 @@ module environment
     !> Global timers
     type(TTimerArray), public :: globalTimer
 
-    !> Registry for files, which may be open and must be closed when environment is aborted
+    !> Registry of files, which may be open and must be closed when environment is aborted
     type(TFileRegistry), public :: fileFinalizer
 
   #:if WITH_MPI
@@ -63,7 +63,7 @@ module environment
   #:if WITH_SCALAPACK
     procedure :: initBlacs => TEnvironment_initBlacs
   #:endif
-    
+
   end type TEnvironment
 
   type(TTimerItem), parameter :: globalTimerItems(14) = [&
@@ -105,6 +105,7 @@ module environment
 
 contains
 
+  !> Returns an initialized instance.
   subroutine TEnvironment_init(this)
 
     !> Instance
@@ -128,7 +129,7 @@ contains
   end subroutine TEnvironment_destruct
     
   
-  !> Gracefully aborts finalizing the current environment first
+  !> Gracefully cleans up and aborts
   subroutine TEnvironment_abort(this)
 
     !> Instance
