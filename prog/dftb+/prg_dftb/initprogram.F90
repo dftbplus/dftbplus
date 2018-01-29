@@ -941,6 +941,8 @@ contains
           & channels")
     end if
 
+    nAtom = input%geom%nAtom
+    nType = input%geom%nSpecies
     orb = input%slako%orb
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
@@ -972,18 +974,15 @@ contains
       tRealHS = .false.
     end if
 
-
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
   #:endif
   #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
   #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
-    nAtom = input%geom%nAtom
-    nType = input%geom%nSpecies
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
     if (tShowFoldedCoord .and. .not. tPeriodic) then
       call error("Folding coordinates back into the central cell is meaningless for molecular&
@@ -2192,6 +2191,13 @@ contains
     end if
   #:endif
 
+  #:if WITH_SCALAPACK
+    write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
+        & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
+    write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)") &
+        & env%blacs%atomGrid%nRow, env%blacs%atomGrid%nCol
+  #:endif  
+
     if (tRandomSeed) then
       write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed
     else
@@ -3175,10 +3181,13 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(blacsOpts, nOrb, t2Component, env)
+  subroutine initScalapack(blacsOpts, nAtom, nOrb, t2Component, env)
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
 
     !> Number of orbitals
     integer, intent(in) :: nOrb
