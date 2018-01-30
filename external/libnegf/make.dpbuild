@@ -13,6 +13,14 @@ OBJDIR := $(BUILDROOT)/external/libnegf
 SRCDIR := $(ROOT)/external/libnegf/origin
 STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
 
+INCLUDES += -I$(BUILDROOT)/external/libnegf/ext_system
+
+ifeq ($(strip $(WITH_MPI)),1)
+  MPI=Y
+  INCLUDES += -I$(BUILDROOT)/external/mpifx
+endif
+
+
 .PHONY: all clean libnegf
 
 all: libnegf
@@ -20,7 +28,7 @@ all: libnegf
 
 libnegf:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile.lib \
-	    MPI="$(MPI)" FPP="$(FPP)" FPPOPT="$(FPPOPT)" \
+	    MPI="$(MPI)" FPP="$(FYPP)" FPPOPT="$(FYPPOPT)" \
 	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)" \
 	    OBJDIR="$(OBJDIR)" INCLUDES="$(INCLUDES)"
 

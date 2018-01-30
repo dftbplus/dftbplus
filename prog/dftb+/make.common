@@ -135,9 +135,10 @@ endif
 # TRANSPORT
 ifeq ($(strip $(WITH_TRANSPORT)),1)
   COMPILED_EXTERNALS += _extlib_mudpack
+  L_INCS += $(POISSON_INCS)
   L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
   COMPILED_EXTERNALS += _extlib_libnegf
-  L_INCS += $(LIBNEGF_INCS)
+  L_INCS += $(LIBNEGF_INCS) 
   L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
   FYPPOPT += -DWITH_TRANSPORT
 endif
