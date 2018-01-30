@@ -8,6 +8,16 @@ densedescr.o = densedescr.o $(_mod_scalapackfx) $(common.fypp)
 _mod_densedescr: densedescr.o
 _mod_densedescr = $(densedescr.o)
 
+dynneighlist.o:
+dynneighlist.o = dynneighlist.o
+_mod_dynneighlist: dynneighlist.o
+_mod_dynneighlist = $(dynneighlist.o)
+
+extendedgeo.o:
+extendedgeo.o = extendedgeo.o
+_mod_extendedgeo: extendedgeo.o
+_mod_extendedgeo = $(extendedgeo.o)
+
 fifo.o: _mod_accuracy common.fypp _mod_assert _mod_fileid
 fifo.o = fifo.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_fileid)
 _mod_fifo: fifo.o
@@ -57,6 +67,11 @@ linkedlists0.o: _mod_xmlf90 linkedlist.fypp _mod_assert
 linkedlists0.o = linkedlists0.o $(_mod_xmlf90) $(linkedlist.fypp) $(_mod_assert)
 _mod_linkedlists0: linkedlists0.o
 _mod_linkedlists0 = $(linkedlists0.o)
+
+neighborlist.o: _mod_periodic _mod_accuracy
+neighborlist.o = neighborlist.o $(_mod_periodic) $(_mod_accuracy)
+_mod_neighborlist: neighborlist.o
+_mod_neighborlist = $(neighborlist.o)
 
 oldskdata.o: common.fypp _mod_fileid _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
 oldskdata.o = oldskdata.o $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
