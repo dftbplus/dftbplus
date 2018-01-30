@@ -168,10 +168,10 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2) + epsSoften2)
-          fTmp = charges1(iAt1) / dist
-          if (dist < erfArgLimit * blurWidths1(iAt1)) then
-            fTmp = fTmp * erfwrap(dist / blurWidths1(iAt1))
+          dist = sum(vect(:)**2)
+          fTmp = charges1(iAt1) / sqrt(dist + epsSoften2)
+          if (dist < (erfArgLimit * blurWidths1(iAt1))**2) then
+            fTmp = fTmp * erfwrap(sqrt(dist) / blurWidths1(iAt1))
           end if
           invRVec(iAt0) = invRVec(iAt0) + fTmp
         end do
@@ -355,7 +355,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
-          rTmp = ewald(rr, rLat, gLat, alpha, volume, blurwidths1(iAt1))
+          rTmp = ewald(rr, rLat, gLat, alpha, volume, blurwidths1(iAt1), epsSoften=epsSoften)
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
         end do
       end do
@@ -365,7 +365,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
-          rTmp = ewald(rr, rLat, gLat, alpha, volume)
+          rTmp = ewald(rr, rLat, gLat, alpha, volume, epsSoften=epsSoften)
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
         end do
       end do
@@ -1122,7 +1122,7 @@ contains
     real(dp) :: ewald
 
     ewald = ewaldReciprocal(rr, gVec, alpha, vol)&
-        & + ewaldReal(rr, rVec, alpha, blurwidths, epsSoften)&
+        & + ewaldReal(rr, rVec, alpha, blurwidths, epsSoften=epsSoften)&
         & - pi / (vol*alpha**2)
     if (sum(rr(:)**2) < tolSameDist2) then
       ewald = ewald - 2.0_dp * alpha / sqrt(pi)
@@ -1229,55 +1229,33 @@ contains
 
     realSum = 0.0_dp
 
-    if (present(epsSoften)) then
+     if (present(epsSoften)) then
       epsSoften2 = epsSoften**2
-      if (present(blurWidth)) then
-        do iR = 1, size(rVec, dim=2)
-          absRR = sum((rr(:) + rVec(:,iR))**2)
-          if (absRR < tolSameDist**2) then
-            cycle
-          end if
-          if (absRR < (erfArgLimit * blurWidth)**2) then
-            realSum = realSum + erfwrap(sqrt(absRR) / blurWidth)/sqrt(absRR+epsSoften2)
-          else
-            realSum = realSum + 1.0_dp/sqrt(absRR+epsSoften2)
-          end if
-          realSum = realSum -erfwrap(alpha*sqrt(absRR))/sqrt(absRR+epsSoften2)
-        end do
-      else
-        do iR = 1, size(rVec, dim=2)
-          absRR = sum((rr(:) + rVec(:,iR))**2)
-          if (absRR < tolSameDist**2) then
-            cycle
-          end if
-          realSum = realSum + erfcwrap(alpha*absRR)/sqrt(absRR+epsSoften2)
-        end do
-      end if
     else
-      if (present(blurWidth)) then
-        do iR = 1, size(rVec, dim=2)
-          absRR = sum((rr(:) + rVec(:,iR))**2)
-          if (absRR < tolSameDist**2) then
-            cycle
-          end if
-          absRR = sqrt(absRR)
-          if (absRR < erfArgLimit * blurWidth) then
-            realSum = realSum + erfwrap(absRR / blurWidth)/absRR
-          else
-            realSum = realSum + 1.0_dp/absRR
-          end if
-          realSum = realSum -erfwrap(alpha*absRR)/absRR
-        end do
-      else
-        do iR = 1, size(rVec, dim=2)
-          absRR = sum((rr(:) + rVec(:,iR))**2)
-          if (absRR < tolSameDist**2) then
-            cycle
-          end if
-          absRR = sqrt(absRR)
-          realSum = realSum + erfcwrap(alpha*absRR)/absRR
-        end do
-      end if
+      epsSoften2 = 0.0_dp
+    end if
+
+    if (present(blurWidth)) then
+      do iR = 1, size(rVec, dim=2)
+        absRR = sum((rr(:) + rVec(:,iR))**2)
+        if (absRR < tolSameDist**2) then
+          cycle
+        end if
+        if (absRR < (erfArgLimit * blurWidth)**2) then
+          realSum = realSum + erfwrap(sqrt(absRR) / blurWidth)/sqrt(absRR+epsSoften2)
+        else
+          realSum = realSum + 1.0_dp/sqrt(absRR+epsSoften2)
+        end if
+        realSum = realSum -erfwrap(alpha*sqrt(absRR))/sqrt(absRR+epsSoften2)
+      end do
+    else
+      do iR = 1, size(rVec, dim=2)
+        absRR = sum((rr(:) + rVec(:,iR))**2)
+        if (absRR < tolSameDist**2) then
+          cycle
+        end if
+        realSum = realSum + erfcwrap(alpha*sqrt(absRR))/sqrt(absRR+epsSoften2)
+      end do
     end if
 
   end function ewaldReal
