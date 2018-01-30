@@ -515,10 +515,10 @@ contains
     this%coord = coord
 
     if (this%tPeriodic) then
-      call invR(this%invRMat, env, this%nAtom, this%coord, this%nNeighEwald, neighList%iNeighbor,&
-          & img2CentCell, this%gLatPoint, this%alpha, this%volume)
+      call invR_periodic(this%invRMat, env, this%nAtom, this%coord, this%nNeighEwald,&
+          & neighList%iNeighbor, img2CentCell, this%gLatPoint, this%alpha, this%volume)
     else
-      call invR(this%invRMat, env, this%nAtom, this%coord)
+      call invR_cluster(this%invRMat, env, this%nAtom, this%coord)
     end if
 
     call initGamma_(this, species, neighList%iNeighbor)
@@ -972,9 +972,6 @@ contains
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:)
     real(dp), allocatable :: dQOutLShell(:,:), dQOutUniqU(:,:)
-  #:if WITH_SCALAPACK
-    real(dp), allocatable :: derivsBuffer(:,:)
-  #:endif
 
     allocate(dQOut(this%mOrb, this%nAtom))
     allocate(dQOutAtom(this%nAtom))
