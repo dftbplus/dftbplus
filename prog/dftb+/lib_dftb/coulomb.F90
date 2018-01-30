@@ -82,31 +82,42 @@ contains
     !> List of atomic coordinates.
     real(dp), intent(in) :: coord(:,:)
 
-    integer :: ii, jj, iOffSet, jOffSet, iAt1, iAt2
+    integer :: ii, jj, iAt1, iAt2
     real(dp) :: dist, vect(3)
-
   #:if WITH_SCALAPACK
+    integer :: descInvRMat(DLEN_)
+
     if (env%blacs%atomGrid%iproc == -1) then
       ! processor outside the atom grid
       return
     end if
-    call blacsHelper(iOffset, jOffSet, env, nAtom)
-  #:else
-    iOffSet = 0
-    jOffSet = 0
+    call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
+        & env%blacs%columnBlockSize, descInvRMat)
   #:endif
 
     invRMat(:,:) = 0.0_dp
 
+  #:if WITH_SCALAPACK
+    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(invRMat, coord, descInvRMat, env) SCHEDULE(RUNTIME)
+  #:else
     !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(invRMat, coord) SCHEDULE(RUNTIME)
+  #:endif
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = jj + jOffSet
+    #:if WITH_SCALAPACK
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
+          & env%blacs%atomGrid%ncol)
       do ii = 1, size(invRMat, dim=1)
-        iAt2 = ii + iOffSet
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), env%blacs%atomGrid%myrow, descInvRMat(RSRC_),&
+            & env%blacs%atomGrid%nrow)
         if (iAt2 <= iAt1) then
           ! wrong triangle
           cycle
         end if
+    #:else
+      iAt1 = jj
+      do ii = jj+1, size(invRMat, dim=1)
+        iAt2 = ii
+    #:endif
         vect(:) = coord(:,iAt1) - coord(:,iAt2)
         dist = sqrt(sum(vect**2))
         invRMat(ii, jj) = 1.0_dp / dist
