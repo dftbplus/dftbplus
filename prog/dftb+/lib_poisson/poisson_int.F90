@@ -32,6 +32,9 @@
 ! *
 ! *
 ! * ---------------------------------------------------------------------- 
+#:include "common.fypp"
+
+
 module poisson_int
 
   use gprecision
@@ -48,9 +51,11 @@ module poisson_int
   use poisson_vars, only : TPoissonInfo, TPoissonStructure, TSKdata
   use libnegf_vars, only : TTransPar
   use CommonTypes, only : TOrbitals
+#:if WITH_MPI
   use libmpifx_module 
-  use system_calls, only: create_directory
+#:endif
   use gclock
+  use system_calls, only: create_directory
   implicit none
   private
 
@@ -82,13 +87,16 @@ module poisson_int
   error = 0 
   initinfo = .true.
 
+#:if WITH_MPI
   call poiss_mpi_init(mpicomm)
   call poiss_mpi_split(poissoninfo%maxNumNodes)
   call mpi_barrier(mpicomm, error)
+#:endif
+
   if (id0) then
     write(*,*)
     write(*,*) 'Poisson Initializations'
-    write(*,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' nodes'
+    write(*,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
   end if 
 
   allocate(character(len=len(poissoninfo%scratch))::scratchfolder)
@@ -269,8 +277,6 @@ module poisson_int
   
   endif 
 
-  call mpi_barrier(mpicomm, error)
-  
 end subroutine poiss_init
 
 !--------------------------------------------------------------------------
@@ -361,16 +367,16 @@ subroutine poiss_getshift(V_L_atm,grad_V)
   endif
 
 #:if WITH_MPI
-!  call mpifx_barrier(poiss_comm, ierr)
-!  select case(PoissFlag)
-!    !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
-!  case(0)
-!    call mpifx_bcast(poiss_comm, V_L_atm)
-!  case(1) 
-!    call mpifx_bcast(poiss_comm, V_L_atm)
-!    call mpifx_bcast(poiss_comm, grad_V)
-!  end select
-!  call mpifx_barrier(poiss_comm)
+  call mpifx_barrier(global_comm, ierr)
+  select case(PoissFlag)
+    !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
+  case(0)
+    call mpifx_bcast(global_comm, V_L_atm)
+  case(1) 
+    call mpifx_bcast(global_comm, V_L_atm)
+    call mpifx_bcast(global_comm, grad_V)
+  end select
+  call mpifx_barrier(global_comm)
 #:endif
 
 end subroutine poiss_getshift
@@ -519,7 +525,7 @@ subroutine init_skdata(skdata,err)
 
     ! set maximum angular momentum per specie
     call log_gallocate(lmax,ntypes)
- 
+
     !checks that all atoms have shells in s,p,d sequence
     err=0
     do i=1,ntypes
@@ -559,16 +565,16 @@ subroutine echo_init()
     write(*,*) 'natoms=',natoms
     write(*,*) 'ntypes=',ntypes
     write(*,*) 'is Periodic=',period
-    
+
     !write(*,*) 'coordinates='
     !do i=1,natoms
     !   write(*,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
     !enddo
- 
+
     !write(*,*) 'ind='
     !write(*,*) ind(1:natoms+1)
     write(*,*) '  qzero,   uhubb,   lmax' 
- 
+
     do i=1,ntypes  
        write(*,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
     enddo

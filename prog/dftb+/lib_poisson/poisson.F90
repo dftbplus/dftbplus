@@ -28,7 +28,7 @@ module poisson
   implicit none
   private
   
-  integer, PARAMETER :: VBT=70
+  integer, PARAMETER :: VBT=30
 
 
  public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
@@ -382,14 +382,13 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
  !**********************************************************************************
  ! 3. Allocate space for phi,rhs and work
  !**********************************************************************************
- if (.not.allocated(phi)) then
-
-   call log_gallocate(phi,iparm(14),iparm(15),iparm(16))
-   
-   phi(:,:,:) = 0.d0
-   
-   call log_gallocate(rhs,iparm(14),iparm(15),iparm(16))
-   
+ if (id0 .and. .not.allocated(phi)) then
+    call log_gallocate(phi,iparm(14),iparm(15),iparm(16))
+    phi(:,:,:) = 0.d0
+ end if
+ if (id0 .and. .not.allocated(rhs)) then
+    call log_gallocate(rhs,iparm(14),iparm(15),iparm(16))
+    rhs(:,:,:) = 0.d0
  end if
 
  !**********************************************************************************
@@ -559,7 +558,6 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
                           (2*size(phi)+iparm(21)+cont_mem)*8.d0/1d6,'Mb'
          
          write(*,'(73("-"))')
-
        endif
 
        ! -----------------------------------------------------------------------
@@ -615,31 +613,30 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
           s = 1
        end if
        
-       ! Dirichlet BC only.
-       !write(*,*) 'Setting Dirichlet BC, contact #',m
-       !if (iparm(2*abs(contdir(m))).eq.1) then
-       select case(abs(contdir(m)))        
-       case(1)
-          do i = 1, nb 
-            phi(s,1:na,i) = bulk(m)%val(1:na,i,1)
-          enddo   
-       case(2)     
-          do i = 1, nb 
-             phi(i,s,1:na) = bulk(m)%val(1:na,i,1)
-          enddo   
-       case(3)
-          do i = 1, nb 
-             phi(1:na,i,s) = bulk(m)%val(1:na,i,1)
-          enddo   
-       end select
-       !endif
+       ! Dirichlet BC 
+       if (id0) then
+         select case(abs(contdir(m)))        
+         case(1)
+            do i = 1, nb 
+              phi(s,1:na,i) = bulk(m)%val(1:na,i,1)
+            enddo   
+         case(2)     
+            do i = 1, nb 
+               phi(i,s,1:na) = bulk(m)%val(1:na,i,1)
+            enddo   
+         case(3)
+            do i = 1, nb 
+               phi(1:na,i,s) = bulk(m)%val(1:na,i,1)
+            enddo   
+         end select
+       endif
        
     enddo
     
     !*********************************************************************************
     ! Charge density evaluation on the grid points 
     !*********************************************************************************
-
+    
     call set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
 
@@ -647,108 +644,112 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     !*********************************************************************************
     !---------------------------------------------------------------------------------- 
 
-   !**********************************************************************************
-   ! 6.  Solving Poisson equation                 
-   !**********************************************************************************
-   call log_gallocate(work,worksize)
-       
-   do i = 0,1
-      iparm(1) = i
-    
-      if (i.eq.1) then
-         if (id0.and.verbose.gt.VBT) call message_clock('Solving Poisson equation ') 
-      endif
+    !**********************************************************************************
+    ! 6.  Solving Poisson equation                 
+    !**********************************************************************************
+    if (id0) then
 
-      if (DoGate) then
-         call mud3(iparm,fparm,work,coef_gate,bndyc,rhs,phi,mgopt,err)
-      elseif (DoCilGate) then
-         call mud3(iparm,fparm,work,coef_cilgate,bndyc,rhs,phi,mgopt,err)
-      elseif (DoTip) then
-         call mud3(iparm,fparm,work,coef_tip,bndyc,rhs,phi,mgopt,err)
-      elseif (cluster.and.period) then
-         !call mud3sp(iparm,fparm,work,cofx,cofy,cofz,bndyc,rhs,phi,mgopt,err)
-         call mud3(iparm,fparm,work,coef,bndyc,rhs,phi,mgopt,err)
-      else
-         call mud3(iparm,fparm,work,coef,bndyc,rhs,phi,mgopt,err)
-      end if
+      call log_gallocate(work,worksize)
+         
+      do i = 0,1
+        iparm(1) = i
       
-      worksize = iparm(22)
-      !if (cluster.and.period) worksize = iparm(21)
-
-      if(err.ne.0.and.err.ne.9) then
-         if(err.gt.0) then
-            write(*,*) 
-            write(*,*) 'Fatal Error in poisson solver:',err
-            stop          
-         endif
+        if (i.eq.1) then
+           if (verbose.gt.VBT) call message_clock('Solving Poisson equation ') 
+        endif
+ 
+        if (DoGate) then
+           call mud3(iparm,fparm,work,coef_gate,bndyc,rhs,phi,mgopt,err)
+        elseif (DoCilGate) then
+           call mud3(iparm,fparm,work,coef_cilgate,bndyc,rhs,phi,mgopt,err)
+        elseif (DoTip) then
+           call mud3(iparm,fparm,work,coef_tip,bndyc,rhs,phi,mgopt,err)
+        elseif (cluster.and.period) then
+           !call mud3sp(iparm,fparm,work,cofx,cofy,cofz,bndyc,rhs,phi,mgopt,err)
+           call mud3(iparm,fparm,work,coef,bndyc,rhs,phi,mgopt,err)
+        else
+           call mud3(iparm,fparm,work,coef,bndyc,rhs,phi,mgopt,err)
+        end if
+        
+        worksize = iparm(22)
+        !if (cluster.and.period) worksize = iparm(21)
+ 
+        if(err.ne.0.and.err.ne.9) then
+           if(err.gt.0) then
+              write(*,*) 
+              write(*,*) 'Fatal Error in poisson solver:',err
+              stop          
+           endif
+        endif
+        if (err.eq.9) then
+           call log_gdeallocate(work)
+           call log_gallocate(work,worksize)
+        endif
+      end do
+ 
+      if (verbose.gt.VBT) call write_clock
+ 
+      if (err.lt.-1) then
+        write(*,*) 'Non-fatal Error in poisson solver:',err
       endif
-      if (err.eq.9) then
-         call log_gdeallocate(work)
-         call log_gallocate(work,worksize)
-      endif
-   end do
+ 
+      ncycles = iparm(23)
+      call log_gdeallocate(work)
+    end if  
+  
+    if (id0) then 
+      if (verbose.gt.30) then 
+        write(*,'(1x,73("-"))') 
+        write(*,*) 'Relative Poisson Error =',fparm(8)
+        write(*,'(a,i3,a,i3)') ' Number of cycles executed =',ncycles,'/',iparm(18)
+        write(*,'(1x,73("-"))') 
+        flush(6)
+      end if   
+ 
+      if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
+        write(*,*) 'ERROR: convergence not obtained'
+        stop
+      end if
+    end if
+    !--------------------------------------------
+    ! Shift of the Hamiltonian matrix elements 
+    !--------------------------------------------
+  
+    if (id0.and.verbose.gt.VBT) call message_clock('Computing Hamiltonian shifts ')
 
-   if (id0.and.verbose.gt.VBT) call write_clock
+    if (id0) call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
 
-   if (err.lt.-1) then
-      write(*,*) 'Non-fatal Error in poisson solver:',err
-   endif
+    if (id0.and.verbose.gt.VBT) call write_clock   
 
-   ncycles = iparm(23)
-   call log_gdeallocate(work)
+    call destroy_phi_bulk(bulk)
+    deallocate(bulk,stat=err)
+
+  !//////////////////////////////////////////////////////////////////////
+  case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient 
+  !//////////////////////////////////////////////////////////////////////
    
-   if (id0.and.verbose.gt.30) then 
-      write(*,'(1x,73("-"))') 
-      write(*,*) 'Relative Poisson Error =',fparm(8)
-      write(*,'(a,i3,a,i3)') ' Number of cycles executed =',ncycles,'/',iparm(18)
-      write(*,'(1x,73("-"))') 
-      flush(6)
-   end if   
-
-   if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-      if(id0) write(*,*) 'ERROR: convergence not obtained'
-      stop
-   end if
-
-   !--------------------------------------------
-   ! Shift of the Hamiltonian matrix elements 
-   !--------------------------------------------
-   
-   if (id0.and.verbose.gt.VBT) call message_clock('Computing Hamiltonian shifts ')
-
-   call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
-
-   if (id0.and.verbose.gt.VBT) call write_clock   
-
-   call destroy_phi_bulk(bulk)
-   deallocate(bulk,stat=err)
-
-   !//////////////////////////////////////////////////////////////////////
-case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient 
-   !//////////////////////////////////////////////////////////////////////
-   
-   call gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
+    if(id0) call gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
    
    
-   !////////////////////////////////////////////////////////////////////////
-case(SavePOT)    ! Poisson called in order to save potential and charge density
-   !////////////////////////////////////////////////////////////////////////
+  !////////////////////////////////////////////////////////////////////////
+  case(SavePOT)    ! Poisson called in order to save potential and charge density
+  !////////////////////////////////////////////////////////////////////////
 
-   call save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
+    call save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
    
-   !///////////////////////////////////////////
-case(CLEAN)       ! Deallocate Poisson variables
-   !///////////////////////////////////////////      
+  !///////////////////////////////////////////
+  case(CLEAN)       ! Deallocate Poisson variables
+  !///////////////////////////////////////////      
        
-   if (allocated(phi)) call log_gdeallocate(phi)
-   if (allocated(rhs)) call log_gdeallocate(rhs)
-   niter = 0
+    if (allocated(phi)) call log_gdeallocate(phi)
+    if (allocated(rhs)) call log_gdeallocate(rhs)
+    niter = 0
 
-end select
+  end select
 
-niter=niter+1
+  niter=niter+1
 
-return
+  return
 
 end subroutine Mudpack_drv
 
@@ -761,105 +762,99 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
  integer :: iparm(23)
  real(kind=dp) :: fparm(8),dlx,dly,dlz
- real(kind=dp), dimension(:,:,:) :: rhs
+ real(kind=dp), dimension(:,:,:), allocatable :: rhs
  Type(super_array) :: bulk(:)
 
-!#:if WITH_MPI
-!  !---------------------------------------------------------------------
-!  ! MPI parallelization of the r.h.s. assembly (charge density)
-!  ! This is done slicing the grid along the z-direction, iparm(16)
-!  ! Parallelization is done along z since this corresponds to the slowest
-!  ! index in rhs(:,:,:), therefore gather is done on a contiguus vector
-!  !
-!  !---------------------------------------------------------------------
-!  integer :: i, ierr, npid, iparm_tmp(23)
-!  real(kind=dp) :: fparm_tmp(8)
-!  real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
-!  integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs,displs
-!
-!  call log_gallocate(dim_rhs,numprocs)
-!  call log_gallocate(displs,numprocs)
-!  call log_gallocate(istart,numprocs)
-!  call log_gallocate(iend,numprocs)
-!
-!  ! z points per processor
-!  npid = int(iparm(16)/numprocs)
-!
-!  ! set start/end and size handled by each processor
-!  do i = 1,numprocs
-!     istart(i) = (i-1)*npid+1
-!     if (i .ne. numprocs) then
-!        iend(i) = i*npid
-!     else
-!        iend(i) = iparm(16)
-!     endif
-!     dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
-!     displs(i) = (i-1)*dim_rhs(1)
-!  end do
-! 
-!  ! Define a subproblem with appropriate iparm_tmp
-!  iparm_tmp = iparm
-!  fparm_tmp = fparm
-!
-!  iparm_tmp(16) = iend(id+1) - istart(id+1) + 1
-!  fparm_tmp(5) = fparm(5) + (istart(id+1)-1)*dlz
-!  fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
-!
-!  print*,id,iparm_tmp(14:16)
-!  print*,id,fparm_tmp(4:6)
-!  print*,id,dim_rhs(id+1)
-!  print*,id,istart(id+1),'-',iend(id+1)
-!
-!  ! Allocate space for local rhs.
-!  call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
-!  !---------------------------------------------------------------------
-! 
-!  if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
-! 
-!  !! Set a renormalization volume for grid projection
-! 
-!  if (do_renorm) then
-!    call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
-!    do_renorm = .false.
-!  endif
-! 
-!  call charge_density(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-!
-!  if (DoGate) then
-!     call gate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-!  endif
-!
-!  if (DoCilGate) then
-!     call cilgate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-!  endif
-!
-!  if (DoTip) then
-!     call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-!  endif
-!
-!  if (id0.and.verbose.gt.VBT) call write_clock
-!
-!  ! gather all partial results in all nodes.
-!  if (id0.and.verbose.gt.VBT) call message_clock('MPI gather ')
-!
-!  call MPI_ALLGATHERV(rhs_par, dim_rhs(id+1), MPI_DOUBLE_PRECISION, rhs, dim_rhs, &
-!                                & displs, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr)
-!
-!  if (id0.and.verbose.gt.VBT) call write_clock
-!
-!  call log_gdeallocate(rhs_par)
-!  call log_gdeallocate(dim_rhs)
-!  call log_gdeallocate(displs)
-!  call log_gdeallocate(istart)
-!  call log_gdeallocate(iend)
-!
-!#:else
+#:if WITH_MPI
+  !---------------------------------------------------------------------
+  ! MPI parallelization of the r.h.s. assembly (charge density)
+  ! This is done slicing the grid along the z-direction, iparm(16)
+  ! Parallelization is done along z since this corresponds to the slowest
+  ! index in rhs(:,:,:), therefore gather is done on a contiguus vector
+  !
+  !---------------------------------------------------------------------
+  integer :: i, ierr, npid, iparm_tmp(23)
+  real(kind=dp) :: fparm_tmp(8)
+  real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
+  integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs,displs
+
+  call log_gallocate(dim_rhs,numprocs)
+  call log_gallocate(displs,numprocs)
+  call log_gallocate(istart,numprocs)
+  call log_gallocate(iend,numprocs)
+
+  ! z points per processor
+  npid = int(iparm(16)/numprocs)
+
+  ! set start/end and size handled by each processor
+  do i = 1,numprocs
+     istart(i) = (i-1)*npid+1
+     if (i .ne. numprocs) then
+        iend(i) = i*npid
+     else
+        iend(i) = iparm(16)
+     endif
+     dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
+     displs(i) = (i-1)*dim_rhs(1)
+  end do
+  ! Define a subproblem with appropriate iparm_tmp
+  iparm_tmp = iparm
+  fparm_tmp = fparm
+
+  iparm_tmp(16) = iend(id+1) - istart(id+1) + 1
+  fparm_tmp(5) = fparm(5) + (istart(id+1)-1)*dlz
+  fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
+
+  ! Allocate space for local rhs.
+  call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
+  !---------------------------------------------------------------------
+
+  if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
+
+  !! Set a renormalization volume for grid projection
+
+  if (do_renorm) then
+    call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
+    do_renorm = .false.
+  endif
+
+  call charge_density(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+
+  if (DoGate) then
+     call gate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+  endif
+
+  if (DoCilGate) then
+     call cilgate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+  endif
+
+  if (DoTip) then
+     call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+  endif
+
+  if (id0.and.verbose.gt.VBT) call write_clock
+
+  ! gather all partial results on master node 0
+  if (id0.and.verbose.gt.VBT) call message_clock('MPI gather ')
+
+  call MPI_GATHERV(rhs_par, dim_rhs(id+1), MPI_DOUBLE_PRECISION, rhs, dim_rhs, &
+                       & displs, MPI_DOUBLE_PRECISION, 0, poiss_comm%id, ierr)
+
+  if (id0.and.verbose.gt.VBT) call write_clock
+
+  call log_gdeallocate(rhs_par)
+  call log_gdeallocate(dim_rhs)
+  call log_gdeallocate(displs)
+  call log_gdeallocate(istart)
+  call log_gdeallocate(iend)
+
+#:else
 
  if (do_renorm) then
    call renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed_renorm)
    do_renorm = .false.
  endif
- 
+
  call charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  
  if (DoGate) then
@@ -874,7 +869,7 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     call tip_bound(iparm,fparm,dlx,dly,dlz,rhs)
  endif
 
-!#:endif
+#:endif
 
  if (any(localBC.gt.0)) then
     call local_bound(iparm,fparm,x,rhs,bulk)
@@ -890,7 +885,6 @@ subroutine renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed)
   integer :: iparm(23) 
   real(kind=dp) :: fparm(8)
   real(kind=dp) :: dlx,dly,dlz
-  real(kind=dp) :: rhs(iparm(14),iparm(15),iparm(16))
   logical, intent(in) :: fixed
 
   !Internal variables
@@ -1002,7 +996,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  integer :: iparm(23) 
  real(kind=dp) :: fparm(8)
  real(kind=dp) :: dlx,dly,dlz
- real(kind=dp) :: rhs(iparm(14),iparm(15),iparm(16))
+ real(kind=dp) :: rhs(:,:,:)
 
  !Internal variables
 
@@ -1100,6 +1094,17 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  end do
 
 
+!#ifdef MPI
+! if (id0.and.verbose.gt.VBT) call message_clock('MPI Gather ')
+! call MPI_ALLREDUCE(MPI_IN_PLACE, rhs, size(rhs), MPI_DOUBLE_PRECISION, MPI_SUM, poiss_comm%id, ierr)
+! if (id0.and.verbose.gt.VBT) call write_clock
+!#endif
+
+! call log_gdeallocate(dims)
+! call log_gdeallocate(displ)
+! call log_gdeallocate(istart)
+! call log_gdeallocate(iend)
+
  ! Copy the ragged periodic copy
  if (period_dir(1)) rhs(npx+ragx,:,:) = rhs(1,:,:)
  if (period_dir(2)) rhs(:,npy+ragy,:) = rhs(:,1,:)
@@ -1178,7 +1183,7 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
  real(kind=dp), dimension(:,:) :: V_atm
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp) :: fparm(8)
- real(kind=dp) :: phi(iparm(14),iparm(15),iparm(16))
+ real(kind=dp) :: phi(:,:,:)
  Type(super_array) :: phi_bulk(:)
 
  !Internal variables
@@ -1209,14 +1214,16 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
  ncx = n_cell(1); ncy = n_cell(2); ncz = n_cell(3)
  npx = iparm(14)-rag(1); npy = iparm(15)-rag(2); npz = iparm(16)-rag(3)
 
- call log_gallocate(istart,numprocs)
- call log_gallocate(iend,numprocs)   
- call log_gallocate(displ,numprocs)
- call log_gallocate(dims,numprocs)
+ !call log_gallocate(istart,numprocs)
+ !call log_gallocate(iend,numprocs)   
+ !call log_gallocate(displ,numprocs)
+ !call log_gallocate(dims,numprocs)
 
- call distribute_atoms(1, iatm(2), size(V_atm,1), istart, iend, dims, displ)
- 
- atoms: do atm = istart(id+1), iend(id+1)  
+ !call distribute_atoms(1, iatm(2), size(V_atm,1), istart, iend, dims, displ)
+
+ V_atm = 0.0_dp
+
+ atoms: do atm = 1, iatm(2)  !!istart(id+1), iend(id+1)  
 
     xhlp(:)=x(:,atm)
     do while (xhlp(1).lt.fparm(1))
@@ -1347,18 +1354,17 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
     end do shells
  end do atoms
 
+!#:if WITH_MPI
+!    call MPI_BARRIER(poiss_comm%id,ierr)
+!    
+!    call MPI_GATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL, &
+!         V_atm, dims, displ, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr )
+!#:endif
 
-#:if WITH_MPI
-    !call MPI_BARRIER(poiss_comm%id,ierr)
-    
-    !call MPI_ALLGATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL, &
-    !     V_atm, dims, displ, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr )
-#:endif
-
- call log_gdeallocate(dims)
- call log_gdeallocate(displ)
- call log_gdeallocate(istart)
- call log_gdeallocate(iend)
+ !call log_gdeallocate(dims)
+ !call log_gdeallocate(displ)
+ !call log_gdeallocate(istart)
+ !call log_gdeallocate(iend)
  
  ! biasshift here 
  do m = 1, ncont
@@ -1379,7 +1385,7 @@ subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp), dimension(:,:) :: grad_V
  real(kind=dp) :: fparm(8)
- real(kind=dp) :: phi(iparm(14),iparm(15),iparm(16))
+ real(kind=dp) :: phi(:,:,:)
  
 
  integer :: i,j,k,atm, l, nsh
@@ -1389,7 +1395,8 @@ subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
  integer :: imin(3), imax(3), n_cell(3), ii, jj, kk
  integer :: ncx,ncy,ncz, ragx, ragy, ragz, npx, npy, npz, rag(3)
 
- grad_V(1:3,1:natoms) = 0.d0
+ grad_V = 0.0_dp
+
  dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
 
  do i = 1,3
@@ -1701,8 +1708,10 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      
    end subroutine save_pot
    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
    !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   
+   ! Perform a standard gamma-functional calculation for periodic systems 
+   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
    subroutine set_phi_periodic(phi, iparm, fparm)
      real(dp), dimension(:,:,:) :: phi
      integer, dimension(:) :: iparm
