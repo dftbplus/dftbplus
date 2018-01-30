@@ -1,0 +1,47 @@
+Geometry = GenFormat {
+ 8  F
+ Ga As
+ 1 1 0.00 0.00 0.00
+ 2 2 0.25 0.25 0.25
+ 3 1 0.50 0.50 0.00
+ 4 2 0.75 0.75 0.25
+ 5 1 0.50 0.00 0.50
+ 6 2 0.75 0.25 0.75
+ 7 1 0.00 0.50 0.50
+ 8 2 0.25 0.75 0.75
+ 0.0 0.0 0.0
+ 6.0 0.0 0.0
+ 0.0 6.0 0.0
+ 0.0 0.0 6.0
+}
+
+Driver = Lbfgs {
+ LatticeOpt = Yes
+ MovedAtoms = {}
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  MaxAngularMomentum = {
+    Ga = "d"
+    As = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   6 0 0
+   0 6 0
+   0 0 6
+   0.5 0.5 0.5
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 3
+}

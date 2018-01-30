@@ -8,10 +8,15 @@ gdiis.o = gdiis.o $(_mod_accuracy) $(_mod_diismixer) $(common.fypp) $(_mod_asser
 _mod_gdiis: gdiis.o
 _mod_gdiis = $(gdiis.o)
 
-geoopt.o: _mod_steepdesc _mod_gdiis _mod_accuracy _mod_conjgrad
-geoopt.o = geoopt.o $(_mod_steepdesc) $(_mod_gdiis) $(_mod_accuracy) $(_mod_conjgrad)
+geoopt.o: _mod_steepdesc _mod_gdiis _mod_lbfgs _mod_accuracy _mod_conjgrad
+geoopt.o = geoopt.o $(_mod_steepdesc) $(_mod_gdiis) $(_mod_lbfgs) $(_mod_accuracy) $(_mod_conjgrad)
 _mod_geoopt: geoopt.o
 _mod_geoopt = $(geoopt.o)
+
+lbfgs.o: _mod_message _mod_assert common.fypp _mod_accuracy
+lbfgs.o = lbfgs.o $(_mod_message) $(_mod_assert) $(common.fypp) $(_mod_accuracy)
+_mod_lbfgs: lbfgs.o
+_mod_lbfgs = $(lbfgs.o)
 
 linemin.o: _mod_accuracy common.fypp _mod_assert _mod_constants
 linemin.o = linemin.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_constants)

@@ -16,6 +16,8 @@ module nonscc
   use slakocont
   use commontypes
   use message
+  use schedule
+  use environment
   implicit none
   private
 
@@ -55,8 +57,11 @@ module nonscc
 contains
 
   !> Driver for making the non-SCC Hamiltonian in the primitive sparse format.
-  subroutine buildH0(ham, skHamCont, selfegy, coords, nNeighbors, iNeighbors,&
+  subroutine buildH0(env, ham, skHamCont, selfegy, coords, nNeighbors, iNeighbors,&
       & species, iPair, orb)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Returns the non-self-consistent Hamiltonian
     real(dp), intent(out) :: ham(:)
@@ -85,15 +90,17 @@ contains
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
-    integer :: nAtom, iAt1, iSp1, ind, iOrb1
+    integer :: nAtom, iAt1, iSp1, ind, iOrb1, iAtFirst, iAtLast
 
     nAtom = size(nNeighbors)
     ham(:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     ! Put the on-site energies into the Hamiltonian,
     ! and <lm|l'm'> = delta_l,l' * delta_m',m' for the overlap  !'
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       ind = iPair(0, iAt1) + 1
       do iOrb1 = 1, orb%nOrbAtom(iAt1)
@@ -103,14 +110,19 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-    call buildDiatomicBlocks(ham, skHamCont, coords, nNeighbors, iNeighbors,&
-        & species, iPair, orb)
+    call buildDiatomicBlocks(iAtFirst, iAtLast, skHamCont, coords, nNeighbors, iNeighbors, species,&
+        & iPair, orb, ham)
+
+    call assembleChunks(env, ham)
 
   end subroutine buildH0
 
   !> Driver for making the overlap matrix in the primitive sparse format.
-  subroutine buildS(over, skOverCont, coords, nNeighbors, iNeighbors, species,&
+  subroutine buildS(env, over, skOverCont, coords, nNeighbors, iNeighbors, species,&
       & iPair, orb)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Returns the overlap
     real(dp), intent(out) :: over(:)
@@ -136,14 +148,16 @@ contains
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    integer :: nAtom, iAt1, iSp1, ind, iOrb1
+    integer :: nAtom, iAt1, iSp1, ind, iOrb1, iAtFirst, iAtLast
 
     nAtom = size(nNeighbors)
     over(:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     ! Put 1.0 for the diagonal elements of the overlap.
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       ind = iPair(0,iAt1) + 1
       do iOrb1 = 1, orb%nOrbAtom(iAt1)
@@ -153,8 +167,10 @@ contains
     end do
     !$OMP  END PARALLEL DO
 
-    call buildDiatomicBlocks(over, skOverCont, coords, nNeighbors, iNeighbors,&
-        & species, iPair, orb)
+    call buildDiatomicBlocks(iAtFirst, iAtLast, skOverCont, coords, nNeighbors, iNeighbors,&
+        & species, iPair, orb, over)
+
+    call assembleChunks(env, over)
 
   end subroutine buildS
 
@@ -262,10 +278,12 @@ contains
 
   end subroutine getSecondDeriv
 
+
   !> Helper routine to calculate the diatomic blocks for the routines buildH0 and buildS.
-  subroutine buildDiatomicBlocks(out, skCont, coords, nNeighbors, &
-      & iNeighbors, species, iPair, orb)
-    real(dp), intent(inout) :: out(:)
+  subroutine buildDiatomicBlocks(firstAtom, lastAtom, skCont, coords, nNeighbors, &
+      & iNeighbors, species, iPair, orb, out)
+    integer, intent(in) :: firstAtom
+    integer, intent(in) :: lastAtom
     type(OSlakoCont), intent(in) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: nNeighbors(:)
@@ -273,19 +291,18 @@ contains
     integer, intent(in) :: species(:)
     integer, intent(in) :: iPair(0:,:)
     type(TOrbitals), intent(in) :: orb
+    real(dp), intent(inout) :: out(:)
 
     real(dp) :: tmp(orb%mOrb,orb%mOrb)
     real(dp) :: vect(3), dist
     real(dp) :: interSK(getMIntegrals(skCont))
-    integer :: nAtom, nOrb1, nOrb2
+    integer :: nOrb1, nOrb2
     integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind
-
-    nAtom = size(nNeighbors)
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbors
     !$OMP PARALLEL DO PRIVATE(iAt1,iSp1,nOrb1,iNeigh1,iAt2,iSp2,nOrb2,ind,vect,dist,tmp,interSK) &
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
+    do iAt1 = firstAtom, lastAtom
       iSp1 = species(iAt1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh1 = 1, nNeighbors(iAt1)
@@ -304,6 +321,7 @@ contains
     !$OMP  END PARALLEL DO
 
   end subroutine buildDiatomicBlocks
+
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
   subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI,&

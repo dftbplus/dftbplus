@@ -33,6 +33,7 @@ module initprogram
   use conjgrad
   use steepdesc
   use gdiis
+  use lbfgs
 
   use randomgenpool
   use ranlux
@@ -796,9 +797,6 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
-  !> Maximal timing level to show in output
-  integer :: timingLevel
-
   private :: createRandomGenerators
 
 contains
@@ -811,7 +809,7 @@ contains
     type(inputData), intent(inout), target :: input
 
     !> Environment settings
-    type(TEnvironment), intent(out) :: env
+    type(TEnvironment), intent(inout) :: env
 
     ! Mixer related local variables
     integer :: nGeneration
@@ -848,6 +846,12 @@ contains
 
     !> gradient DIIS driver
     type(ODIIS), allocatable :: pDIIS
+
+    !> lBFGS driver for geometry  optimisation
+    type(TLbfgs), allocatable :: pLbfgs
+
+    !> lBFGS driver for lattice optimisation
+    type(TLbfgs), allocatable :: pLbfgsLat
 
     ! MD related local variables
     type(OThermostat), allocatable :: pThermostat
@@ -908,6 +912,9 @@ contains
     !> Used for indexing linear response
     integer :: homoLoc(1)
 
+    !> Whether seed was randomly created
+    logical :: tRandomSeed
+
     !> First guess for nr. of neighbors.
     integer, parameter :: nInitNeighbor = 40
 
@@ -917,7 +924,7 @@ contains
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
-    call TEnvironment_init(env)
+    call env%initGlobalTimer(input%ctrl%timingLevel, "DFTB+ running times", stdOut)
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
@@ -945,6 +952,8 @@ contains
           & channels")
     end if
 
+    nAtom = input%geom%nAtom
+    nType = input%geom%nSpecies
     orb = input%slako%orb
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
@@ -976,24 +985,15 @@ contains
       tRealHS = .false.
     end if
 
-
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
-    if (env%mpi%nGroup > 1) then
-      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
-          & env%mpi%globalComm%size, env%mpi%nGroup
-    else
-      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
-    end if
   #:endif
   #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
   #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
-    nAtom = input%geom%nAtom
-    nType = input%geom%nSpecies
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
     if (tShowFoldedCoord .and. .not. tPeriodic) then
       call error("Folding coordinates back into the central cell is meaningless for molecular&
@@ -1504,6 +1504,11 @@ contains
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, &
             & input%ctrl%deltaGeoOpt, input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
+      case (4)
+        allocate(pLbfgs)
+        call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
+            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
+        call init(pGeoCoordOpt, pLbfgs)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
@@ -1523,7 +1528,12 @@ contains
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, &
             & input%ctrl%maxLatDisp)
-         call init(pGeoLatOpt, pConjGradLat)
+        call init(pGeoLatOpt, pConjGradLat)
+      case (4)
+        allocate(pLbfgsLat)
+        call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
+            & input%ctrl%lbfgsInp%memory)
+        call init(pGeoLatOpt, pLbfgsLat)
       end select
       if (tLatOptIsotropic ) then ! optimization uses scaling factor
                                   ! of unit cell
@@ -1712,6 +1722,7 @@ contains
     end if
 
     iSeed = input%ctrl%iSeed
+    tRandomSeed = (iSeed < 1)
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
     call createRandomGenerators(env, iSeed, randomInit, randomThermostat)
@@ -2082,7 +2093,7 @@ contains
     restartFreq = input%ctrl%restartFreq
 
     if (env%tGlobalMaster) then
-      call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, ESP)
     end if
@@ -2203,7 +2214,27 @@ contains
       allocate(fdProjEig(0))
     end if
 
-    timingLevel = input%ctrl%timingLevel
+  #:if WITH_MPI
+    if (env%mpi%nGroup > 1) then
+      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
+          & env%mpi%globalComm%size, env%mpi%nGroup
+    else
+      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
+    end if
+  #:endif
+
+  #:if WITH_SCALAPACK
+    write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
+        & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
+    write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)") &
+        & env%blacs%atomGrid%nRow, env%blacs%atomGrid%nCol
+  #:endif  
+
+    if (tRandomSeed) then
+      write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed
+    else
+      write(stdOut, "(A,':',T30,I14)") "Specified random seed", iSeed
+    end if
 
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
@@ -2266,6 +2297,8 @@ contains
       case (3)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
             &// trim(strTmp)
+      case (4)
+        write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
       end select
@@ -2405,7 +2438,6 @@ contains
           & then
         write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write(stdOut, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
@@ -2770,9 +2802,12 @@ contains
 #:endif
 
   !> Initialises (clears) output files.
-  subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+  subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
       & fdHessian, fdDetailedOut, fdMd, fdChargeBin, ESP)
+
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
 
     !> Should tagged regression test data be printed
     logical, intent(in) :: tWriteAutotest
@@ -2841,9 +2876,11 @@ contains
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(userOut, fdDetailedOut)
+      call env%fileFinalizer%register(fdDetailedOut)
     end if
     if (tMD) then
       call initOutputFile(mdOut, fdMD)
+      call env%fileFinalizer%register(fdMd)
     end if
     if (tGeoOpt .or. tMD) then
       call clearFile(trim(geoOutFile) // ".gen")
@@ -3184,10 +3221,13 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(blacsOpts, nOrb, t2Component, env)
+  subroutine initScalapack(blacsOpts, nAtom, nOrb, t2Component, env)
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
 
     !> Number of orbitals
     integer, intent(in) :: nOrb

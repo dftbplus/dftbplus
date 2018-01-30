@@ -184,6 +184,8 @@ methods are available:
   conjugate gradient algorithm. See p.~\pref{sec:dftbp.ConjugateGradient}.
 \item[\iscb{gDIIS}] Geometry optimisation using the modified gDIIS
   method. See p.~\pref{sec:dftbp.gDIIS}.
+\item[\iscb{LBFGS}] Geometry optimisation using the LBFGS
+  algorithm. See p.~\pref{sec:dftbp.LBFGS}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives of the
   energy (the \index{Hessian}Hessian). See p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
@@ -381,6 +383,32 @@ See previous subsection for the description of the other
 properties.\footnote{This approach is distinct from
   section~\ref{sec:dftbp.DIIS}, but uses a related algorithm based on
   Ref.~\cite{kovalenko-JCC-20-928} and comments from P.R.Briddon.}
+
+\htcbsubsection{LBFGS}
+\label{sec:dftbp.LBFGS}
+
+\begin{ptable}
+  \kw{Memory} &i & & 20 & \\
+  \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{MaxForceComponent} & r & & 1e-4 & \\
+  \kw{MaxSteps}          & i & & 200 & \\
+  \kw{OutputPrefix}      & s & & "geo\_end" & \\
+  \kw{AppendGeometries}  & l & & \is{No} & \\
+  \kw{Constraints}       & (1i3r)* & & \cb & \\
+  \kw{LatticeOpt}        & l & Periodic = Yes & \is{No} & \\
+  \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
+  \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
+  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+\end{ptable}
+
+Specific properties for this method are:
+\begin{description}  
+\item[\is{Memory}] Number of last steps which are saved and used to calculate
+  the next step via the LBFGS algorithm. The literature recommends that
+  \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
+\end{description}
 
 \subsection{SecondDerivatives\{\}}
 \label{sec:dftbp.SecondDerivatives}
@@ -2564,7 +2592,7 @@ This block collects some global options for the run.
 \item[\is{TimingVerbosity}] Level of information regarding CPU and wall clock
   timings of sections of the code, higher values becoming more verbose. Setting
   this parameter to 0 or below supresses any information being printed
-  (default).
+  (default). Setting it to -1 includes all measured timings.
 
 \item[\is{ShowFoldedCoords}] Print coordinates folded back into the
   central cell, so if an atom moves outside the central cell it will

@@ -467,6 +467,62 @@ contains
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
+    case ("lbfgs")
+
+      ctrl%iGeoOpt = 4
+
+      ctrl%tForces = .true.
+      ctrl%restartFreq = 1
+      call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
+      if (ctrl%tLatOpt) then
+        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
+            & modifier=modifier, child=child)
+        call convertByMul(char(modifier), pressureUnits, child, &
+            & ctrl%pressure)
+        call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
+        if (ctrl%tLatOptFixAng) then
+          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
+              & (/.false.,.false.,.false./))
+        else
+          call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
+        end if
+        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
+      end if
+      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+          &multiple=.true.)
+      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
+          &child, ctrl%indMovedAtom)
+
+      ctrl%nrMoved = size(ctrl%indMovedAtom)
+      ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
+      if (ctrl%tCoordOpt) then
+        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
+      end if
+      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
+          &modifier=modifier, child=field)
+      call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
+      call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
+      call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
+      ctrl%outFile = unquote(char(buffer2))
+      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
+          & .true.)
+      call readGeoConstraints(node, ctrl, geom%nAtom)
+      if (ctrl%tLatOpt) then
+        if (ctrl%nrConstr/=0) then
+          call error("Lattice optimisation and constraints currently&
+              & incompatible.")
+        end if
+        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
+          call error("Subset of optimising atoms not currently possible with&
+              & lattice optimisation.")
+        end if
+      end if
+      ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+
+      allocate(ctrl%lbfgsInp)
+      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
+
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
 
@@ -1702,14 +1758,6 @@ contains
         end if
         deallocate(tmpI1)
         deallocate(kpts)
-        if (ctrl%tSCC .and. ctrl%maxIter /= 1) then
-          write(errorStr, "(A,I3)") "SCC cycle with k-lines probably will&
-              & not converge, SCC iterations set to:", ctrl%maxIter
-          call warning(errorStr)
-        end if
-        if (ctrl%tSCC .and. .not.ctrl%tReadChrg) then
-          call warning("It is strongly suggested you use the ReadInitialCharges option.")
-        end if
 
       case (textNodeName)
 
@@ -1753,6 +1801,15 @@ contains
         ii = 100
       end if
       call getChildValue(node, "MaxSCCIterations", ctrl%maxIter, ii)
+    end if
+
+    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. ctrl%maxIter /= 1) then
+      write(errorStr, "(A,I3)") "SCC cycle with these k-points probably will&
+          & not correctly calculate many properties, SCC iterations set to:", ctrl%maxIter
+      call warning(errorStr)
+    end if
+    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
+      call warning("It is strongly suggested you use the ReadInitialCharges option.")
     end if
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
@@ -2599,7 +2656,7 @@ contains
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 3)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, -1)
   #:else
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 0)
   #:endif

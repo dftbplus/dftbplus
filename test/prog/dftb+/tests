@@ -51,6 +51,7 @@ timedep/propadiene_OscWindow           #? WITH_ARPACK and NPROC <= 1
 
 analysis/H2O_ESP                       #? NPROC <= 1
 analysis/H2O_mdESP                     #? NPROC <= 2
+geoopt/H2O_lbfgs                       #? NPROC <= 1
 geoopt/H2O                             #? NPROC <= 1
 md/Si_8_NHC_restart                    #? NPROC <= 1
 non-scc/GaAs_2                         #? NPROC <= 1
@@ -67,6 +68,7 @@ timedep/C4H6-Triplet                   #? WITH_ARPACK and NPROC <= 1
 
 dftb+u/Fe4                             #? NPROC <= 2
 dftb+u/Fe4_read                        #? NPROC <= 2
+geoopt/Cchain_lattice_lbfgs            #? NPROC <= 1
 geoopt/Cchain_lattice                  #? NPROC <= 1
 scc/H2O+CH3COOH-3rdorder               #? NPROC <= 1
 spinorbit/Fe2                          #? NPROC <= 4
@@ -114,6 +116,7 @@ spinorbit/GaAs_2                       #? NPROC <= 1
 
 geoopt/Si_2_latconst                   #? NPROC <= 1
 md/SiH-surface                         #? NPROC <= 4
+geoopt/Si_2_lattice_lbfgs              #? NPROC <= 1
 geoopt/Si_2_lattice                    #? NPROC <= 1
 md/Si_8_NHC                            #? NPROC <= 1
 
@@ -130,6 +133,7 @@ dispersion/DNA                         #? NPROC <= 4
 spinorbit/Si2_dual                     #? NPROC <= 1
 md/Si_8                                #? NPROC <= 1
 md/Si_8-thermostat2                    #? NPROC <= 1
+geoopt/GaAs_8_latconst_lbfgs           #? NPROC <= 2
 geoopt/GaAs_8_latconst                 #? NPROC <= 2
 analysis/Ga4As4_ESP                    #? NPROC <= 2
 md/Si_8-thermostat                     #? NPROC <= 1
@@ -152,6 +156,7 @@ timedep/C60_EandOsc                    #? WITH_ARPACK and NPROC <= 1
 
 non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? NPROC <= 4
+geoopt/Vsi+O_lbfgs                     #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
 scc/SiC64+V_dynforce_groups            #? NPROC <= 8 and NPROC % 4 == 0 
 scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0
