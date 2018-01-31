@@ -133,7 +133,7 @@ contains
   subroutine TEnvironment_abort(this)
 
     !> Instance
-    class(TEnvironment), intent(out) :: this
+    class(TEnvironment), intent(inout) :: this
 
     call this%destruct()
     call abort()
