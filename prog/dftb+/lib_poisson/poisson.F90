@@ -528,7 +528,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     !--------------------------------------------------------------------------
     if (cluster.and.period .and. niter.eq.1) then
        if (id0.and.verbose.gt.VBT) call message_clock('Computing Ewalds ')
-       call set_phi_periodic(phi,iparm,fparm)
+       if (id0) call set_phi_periodic(phi,iparm,fparm)
        if (id0.and.verbose.gt.VBT) call write_clock
     end if
     !--------------------------------------------------------------------------
@@ -776,10 +776,9 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
   integer :: i, ierr, npid, iparm_tmp(23)
   real(kind=dp) :: fparm_tmp(8)
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
-  integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs,displs
+  integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs
 
   call log_gallocate(dim_rhs,numprocs)
-  call log_gallocate(displs,numprocs)
   call log_gallocate(istart,numprocs)
   call log_gallocate(iend,numprocs)
 
@@ -795,7 +794,6 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
         iend(i) = iparm(16)
      endif
      dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
-     displs(i) = (i-1)*dim_rhs(1)
   end do
   ! Define a subproblem with appropriate iparm_tmp
   iparm_tmp = iparm
@@ -835,16 +833,10 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
   if (id0.and.verbose.gt.VBT) call write_clock
 
   ! gather all partial results on master node 0
-  if (id0.and.verbose.gt.VBT) call message_clock('MPI gather ')
-
-  call MPI_GATHERV(rhs_par, dim_rhs(id+1), MPI_DOUBLE_PRECISION, rhs, dim_rhs, &
-                       & displs, MPI_DOUBLE_PRECISION, 0, poiss_comm%id, ierr)
-
-  if (id0.and.verbose.gt.VBT) call write_clock
+  call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs, 0, ierr)
 
   call log_gdeallocate(rhs_par)
   call log_gdeallocate(dim_rhs)
-  call log_gdeallocate(displs)
   call log_gdeallocate(istart)
   call log_gdeallocate(iend)
 
@@ -1024,10 +1016,6 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  ragx = rag(1); ragy = rag(2); ragz = rag(3)
  npx = iparm(14)-ragx; npy = iparm(15)-ragy; npz = iparm(16)-ragz
 
- !call log_gallocate(istart,numprocs)
- !call log_gallocate(iend,numprocs)   
- !call log_gallocate(displ,numprocs)
- !call log_gallocate(dims,numprocs)
  
  !call distribute_atoms(1, natoms, 1, istart, iend, dims, displ)
 
@@ -1093,17 +1081,6 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
     end do
  end do
 
-
-!#ifdef MPI
-! if (id0.and.verbose.gt.VBT) call message_clock('MPI Gather ')
-! call MPI_ALLREDUCE(MPI_IN_PLACE, rhs, size(rhs), MPI_DOUBLE_PRECISION, MPI_SUM, poiss_comm%id, ierr)
-! if (id0.and.verbose.gt.VBT) call write_clock
-!#endif
-
-! call log_gdeallocate(dims)
-! call log_gdeallocate(displ)
-! call log_gdeallocate(istart)
-! call log_gdeallocate(iend)
 
  ! Copy the ragged periodic copy
  if (period_dir(1)) rhs(npx+ragx,:,:) = rhs(1,:,:)
@@ -1214,16 +1191,9 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
  ncx = n_cell(1); ncy = n_cell(2); ncz = n_cell(3)
  npx = iparm(14)-rag(1); npy = iparm(15)-rag(2); npz = iparm(16)-rag(3)
 
- !call log_gallocate(istart,numprocs)
- !call log_gallocate(iend,numprocs)   
- !call log_gallocate(displ,numprocs)
- !call log_gallocate(dims,numprocs)
-
- !call distribute_atoms(1, iatm(2), size(V_atm,1), istart, iend, dims, displ)
-
  V_atm = 0.0_dp
 
- atoms: do atm = 1, iatm(2)  !!istart(id+1), iend(id+1)  
+ atoms: do atm = 1, iatm(2)    
 
     xhlp(:)=x(:,atm)
     do while (xhlp(1).lt.fparm(1))
@@ -1354,18 +1324,6 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
     end do shells
  end do atoms
 
-!#:if WITH_MPI
-!    call MPI_BARRIER(poiss_comm%id,ierr)
-!    
-!    call MPI_GATHERV(MPI_IN_PLACE,0,MPI_DATATYPE_NULL, &
-!         V_atm, dims, displ, MPI_DOUBLE_PRECISION, poiss_comm%id, ierr )
-!#:endif
-
- !call log_gdeallocate(dims)
- !call log_gdeallocate(displ)
- !call log_gdeallocate(istart)
- !call log_gdeallocate(iend)
- 
  ! biasshift here 
  do m = 1, ncont
     do atm=iatc(3,m),iatc(2,m)

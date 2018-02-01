@@ -4,26 +4,21 @@
 module mpi_poisson
 
 #:if WITH_MPI
-  use mpi
   use libmpifx_module
   implicit none
   private  
 
-  !! mpifx communicator as received by calling program
-  TYPE(mpifx_comm), PUBLIC :: global_comm
-  !! Local communicator (calculations of rhs and shifts)
-  TYPE(mpifx_comm), PUBLIC :: poiss_comm
-  INTEGER, PUBLIC ::  numprocs
-  INTEGER, PUBLIC ::  id
-  LOGICAL, PUBLIC ::  id0
-  logical, public :: active_id
+  public :: mpifx_gatherv
+  public :: poiss_mpi_init, poiss_mpi_split
 
-  PUBLIC :: MPI_DOUBLE_PRECISION
-  PUBLIC :: MPI_IN_PLACE
-  PUBLIC :: MPI_DATATYPE_NULL
-  PUBLIC :: MPI_SUM
-  PUBLIC :: poiss_mpi_init
-  PUBLIC :: poiss_mpi_split
+  !! mpifx communicator as received by calling program
+  type(mpifx_comm), public :: global_comm
+  !! Local communicator (calculations of rhs and shifts)
+  type(mpifx_comm), public :: poiss_comm
+  integer, public ::  numprocs
+  integer, public ::  id
+  logical, public ::  id0
+  logical, public :: active_id
 
   contains
 
@@ -38,11 +33,11 @@ module mpi_poisson
       poiss_comm = comm
       id = comm%rank
       numprocs = comm%size
-      ! It doesn't make difference (in theory) if we define
-      ! id0 here or in the split as only one communicator
-      ! ranks<maxnumprocs is active during poisson
+      
+      ! i/o master and node that actually solves the multigrid
       id0 = (id == 0)
-      ! node that actually solves the multigrid
+      
+      ! nodes parallelizing r.h.s. assembly
       active_id = (id == 0) 
 
   end subroutine poiss_mpi_init

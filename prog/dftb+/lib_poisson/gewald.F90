@@ -15,11 +15,11 @@ module gewald
   !======================================================================
   subroutine short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot)
 
-    IMPLICIT NONE
+    implicit none
 
-    REAL(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
-    INTEGER i,j,k,nreal,nmax,nmin 
-    REAL(kind=dp) :: rvec(3),R(3),lastshell,tmp,norm
+    real(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
+    integer i,j,k,nreal,nmax,nmin 
+    real(kind=dp) :: rvec(3),R(3),lastshell,tmp,norm
 
 
     sh_pot = 0.d0
@@ -77,14 +77,14 @@ module gewald
   !----------------------------------------------------------------     
 
   subroutine long_pot(r,basis,recbasis,alpha,vol,tol,potential)
-    IMPLICIT NONE
+    implicit none
  
-    REAL(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
-    REAL(kind=dp) ::  potential
-    REAL(kind=dp) ::  reciprocal,rcspace,cterm
-    REAL(kind=dp) ::  G(3),rh(3),help,norm,lastshell
-    INTEGER nrezi, nreal, nmax, nmin
-    INTEGER i,j,k
+    real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
+    real(kind=dp) ::  potential
+    real(kind=dp) ::  reciprocal,rcspace,cterm
+    real(kind=dp) ::  G(3),rh(3),help,norm,lastshell
+    integer nrezi, nreal, nmax, nmin
+    integer i,j,k
     nmax = 20
     nmin = 2
 
@@ -190,30 +190,30 @@ module gewald
 !
 !
 !   INPUT Parameter:
-!   REAL(kind=dp) ::  r(3)           position of evaluation of potential
-!   REAL(kind=dp) ::  basis(3,3)     basis of cell
-!   REAL(kind=dp) ::  recbasis(3,3)      basis of reciprocal cell
-!   REAL(kind=dp) ::  alpha          convergence parameter
-!   REAL(kind=dp) ::  vol            cell volume
-!   REAL(kind=dp) ::  tol            tolerance for convergence of "last shell"
+!   real(kind=dp) ::  r(3)           position of evaluation of potential
+!   real(kind=dp) ::  basis(3,3)     basis of cell
+!   real(kind=dp) ::  recbasis(3,3)      basis of reciprocal cell
+!   real(kind=dp) ::  alpha          convergence parameter
+!   real(kind=dp) ::  vol            cell volume
+!   real(kind=dp) ::  tol            tolerance for convergence of "last shell"
 !                       (can often be used as a criterion for global
 !                        convergence) 
 !   OUTPUT:
-!   REAL(kind=dp) ::  potential      value of Ewald potential
+!   real(kind=dp) ::  potential      value of Ewald potential
 !  
 !  ======================================================================
 
   subroutine phi(r,basis,recbasis,alpha,vol,tol,potential)
 
     use gconstants, only : Pi
-    IMPLICIT NONE
+    implicit none
  
-    REAL(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
-    REAL(kind=dp) ::  potential
-    REAL(kind=dp) ::  reciprocal,rcspace,cterm
-    REAL(kind=dp) ::  G(3),rh(3),help,norm,lastshell
-    INTEGER nrezi, nreal, nmax, nmin
-    INTEGER i,j,k
+    real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
+    real(kind=dp) ::  potential
+    real(kind=dp) ::  reciprocal,rcspace,cterm
+    real(kind=dp) ::  G(3),rh(3),help,norm,lastshell
+    integer nrezi, nreal, nmax, nmin
+    integer i,j,k
 
     nmax = 20
     nmin = 2
@@ -315,28 +315,28 @@ module gewald
   !  evaluation of the derivative of the potential phi 
   !
   !   INPUT Parameter:
-  !   REAL(kind=dp) ::  r(3)           position of evaluation of potential
-  !   REAL(kind=dp) ::  basis(3,3)     basis of cell
-  !   REAL(kind=dp) ::  recbasis(3,3)      basis of reciprocal cell
-  !   REAL(kind=dp) ::  alpha          convergence parameter
-  !   REAL(kind=dp) ::  vol            cell volume
-  !   REAL(kind=dp) ::  tol            tolerance for convergence of "last shell"
+  !   real(kind=dp) ::  r(3)           position of evaluation of potential
+  !   real(kind=dp) ::  basis(3,3)     basis of cell
+  !   real(kind=dp) ::  recbasis(3,3)      basis of reciprocal cell
+  !   real(kind=dp) ::  alpha          convergence parameter
+  !   real(kind=dp) ::  vol            cell volume
+  !   real(kind=dp) ::  tol            tolerance for convergence of "last shell"
   !                       (can often be used as a criterion for global
   !                        convergence) 
   !   OUTPUT:
-  !   REAL(kind=dp) ::  deriv(3)       derivative of ewlad potential
+  !   real(kind=dp) ::  deriv(3)       derivative of ewlad potential
   !  
   !  ======================================================================
 
 
   subroutine phi1(r,basis,recbasis, alpha,vol,tol,deriv)
 
-    IMPLICIT NONE
+    implicit none
 
-    REAL(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, deriv(3)
-    REAL(kind=dp) ::  reciprocal(3),rcspace(3) 
-    REAL(kind=dp) ::  G(3),rh(3),norm,help,tol,lastshell 
-    INTEGER i,j,k, nrezi, nreal, nmax, nmin 
+    real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, deriv(3)
+    real(kind=dp) ::  reciprocal(3),rcspace(3) 
+    real(kind=dp) ::  G(3),rh(3),norm,help,tol,lastshell 
+    integer i,j,k, nrezi, nreal, nmax, nmin 
     nmax = 20
     nmin = 2
 
@@ -454,8 +454,8 @@ module gewald
   !==============================================================================
 
   subroutine CROSS( A, B, C) 
-    IMPLICIT NONE
-    REAL(kind=dp) ::  A(3), B(3), C(3)
+    implicit none
+    real(kind=dp) ::  A(3), B(3), C(3)
 
     C(1)=A(2)*B(3)-A(3)*B(2)
     C(2)=A(3)*B(1)-A(1)*B(3)
@@ -467,11 +467,11 @@ module gewald
 
   subroutine REZVOL(basis,recbasis,vol)
     
-    IMPLICIT NONE
+    implicit none
     
-    REAL(kind=dp) ::   basis(3,3), recbasis(3,3), vol
-    REAL(kind=dp) ::   hv1(3), hv2(3), hv3(3), hv4(3), fac
-    INTEGER i
+    real(kind=dp) ::   basis(3,3), recbasis(3,3), vol
+    real(kind=dp) ::   hv1(3), hv2(3), hv3(3), hv4(3), fac
+    integer i
     
 
     DO i=1,3, 1
@@ -510,8 +510,8 @@ module gewald
   !==============================================================================
 
   FUNCTION terfc(x)
-    REAL(kind=dp) ::  terfc,x
-    REAL(kind=dp) ::  t,z
+    real(kind=dp) ::  terfc,x
+    real(kind=dp) ::  t,z
 
     z = abs(x)
     t = 1.d0/(1.d0+0.5d0*z)
@@ -529,20 +529,20 @@ module gewald
   !      get optimal alpha for Ewald potential phi
   !
   !      INPUT:
-  !      REAL(kind=dp) ::  basis(3,3)     basis of lattice                     
+  !      real(kind=dp) ::  basis(3,3)     basis of lattice                     
   !
   !      RETURNS:
-  !      REAL(kind=dp) ::                 optimal alpha
+  !      real(kind=dp) ::                 optimal alpha
   !==============================================================================
 
   function getalpha(basis)
-    IMPLICIT NONE
-    REAL(kind=dp) ::  basis(3,3)
-    REAL(kind=dp) ::  getalpha
-    REAL(kind=dp) ::  alpha, alphal, alphar
-    INTEGER nopt
-    REAL(kind=dp) ::  recbasis(3,3), vol, tol
-    REAL(kind=dp) ::  G, R, help1, help2, help3
+    implicit none
+    real(kind=dp) ::  basis(3,3)
+    real(kind=dp) ::  getalpha
+    real(kind=dp) ::  alpha, alphal, alphar
+    integer nopt
+    real(kind=dp) ::  recbasis(3,3), vol, tol
+    real(kind=dp) ::  G, R, help1, help2, help3
 
     tol  = 1e-5
 
@@ -617,21 +617,21 @@ module gewald
   !      a converged Ewald summation
   !
   !      INPUT:
-  !      REAL(kind=dp) ::   alpha         chosen convergence parameter
-  !      REAL(kind=dp) ::   tol           disired tolerance of last contribution
-  !      REAL(kind=dp) ::   vol           cell volume
+  !      real(kind=dp) ::   alpha         chosen convergence parameter
+  !      real(kind=dp) ::   tol           disired tolerance of last contribution
+  !      real(kind=dp) ::   vol           cell volume
   !
   !      OUTPUT:
-  !      REAL(kind=dp) ::   Gmax          norm of largest vector in reciprocal space
-  !      REAL(kind=dp) ::   Rmax          norm of largest vector in real space 
+  !      real(kind=dp) ::   Gmax          norm of largest vector in reciprocal space
+  !      real(kind=dp) ::   Rmax          norm of largest vector in real space 
   !==============================================================================
 
 
   subroutine getGRmax(alpha,tol,vol,Gmax,Rmax)
-    IMPLICIT NONE
-    REAL(kind=dp) ::  alpha, Gmax, Rmax, tol, vol
-    INTEGER nopt
-    REAL(kind=dp) ::  G, R, Gl, Gr, Rl, Rr
+    implicit none
+    real(kind=dp) ::  alpha, Gmax, Rmax, tol, vol
+    integer nopt
+    real(kind=dp) ::  G, R, Gl, Gr, Rl, Rr
 
 
     !       set starting Gl and Rl
@@ -706,7 +706,7 @@ module gewald
     Gmax = G
     Rmax = R
     PRINT*,"GMAX:", GMAX, "REC:", Gspace(Gmax,alpha,vol)
-    PRINT*,"RMAX:", RMAX, "REAL*8:", Rspace(Rmax,alpha)
+    PRINT*,"RMAX:", RMAX, "real*8:", Rspace(Rmax,alpha)
 
   END subroutine getGRmax
 
@@ -717,22 +717,22 @@ module gewald
   !      this function is only used by function getalpha
   !
   !      INPUT:
-  !      REAL(kind=dp) ::   alpha         convergence parameter
-  !      REAL(kind=dp) ::   G             square of norm of smallest G
-  !      REAL(kind=dp) ::   R             norm of smallest R
-  !      REAL(kind=dp) ::   vol           cell volume
+  !      real(kind=dp) ::   alpha         convergence parameter
+  !      real(kind=dp) ::   G             square of norm of smallest G
+  !      real(kind=dp) ::   R             norm of smallest R
+  !      real(kind=dp) ::   vol           cell volume
   !
   !      RETURNS:
-  !      REAL(kind=dp) ::                 difference between decline in reciprocal 
+  !      real(kind=dp) ::                 difference between decline in reciprocal 
   !                          space (rec(2G)-rec(3G)) and real space (real(2R) 
   !                          - real(3R))
   !==============================================================================
 
   function diffrecreal(alpha,G,R,vol)
-    IMPLICIT NONE
-    REAL(kind=dp) ::  alpha, G, R, vol
-    REAL(kind=dp) ::  diffrecreal
-    REAL(kind=dp) ::  diffrec, diffreal
+    implicit none
+    real(kind=dp) ::  alpha, G, R, vol
+    real(kind=dp) ::  diffrecreal
+    real(kind=dp) ::  diffrec, diffreal
 
     !       make differences between decline at 2G and 3G / 2R and 3R
     diffrec = Gspace(2.d0*G,alpha,vol) - Gspace(3.d0*G,alpha,vol)
@@ -748,18 +748,18 @@ module gewald
   !       returns the "r independent" G space part of the Ewald sum
   !      
   !       INPUT:
-  !       REAL(kind=dp) ::  G       norm of G
-  !       REAL(kind=dp) ::  alpha   chosen convergence parameter
-  !       REAL(kind=dp) ::  vol     cell volume
+  !       real(kind=dp) ::  G       norm of G
+  !       real(kind=dp) ::  alpha   chosen convergence parameter
+  !       real(kind=dp) ::  vol     cell volume
   !
   !       RETURNS:     
-  !       REAL(kind=dp) ::          "r independent" G space part of the Ewald sum
+  !       real(kind=dp) ::          "r independent" G space part of the Ewald sum
   !============================================================================== 
 
-  REAL(kind=dp) function Gspace(G,alpha,vol)
+  real(kind=dp) function Gspace(G,alpha,vol)
 
-    IMPLICIT NONE
-    REAL(kind=dp) ::  G, alpha, vol
+    implicit none
+    real(kind=dp) ::  G, alpha, vol
     
     !       evaluate reciprocal space term at G
     Gspace = exp(-G**2/(4.d0*alpha*alpha))/(G**2)
@@ -772,17 +772,17 @@ module gewald
   !       returns the R space part of the Ewald sum
   !      
   !       INPUT:
-  !       REAL(kind=dp) ::  R       norm of R
-  !       REAL(kind=dp) ::  alpha   chosen convergence parameter
+  !       real(kind=dp) ::  R       norm of R
+  !       real(kind=dp) ::  alpha   chosen convergence parameter
   !
   !       RETURNS:     
-  !       REAL(kind=dp) ::          R space part of the Ewald sum
+  !       real(kind=dp) ::          R space part of the Ewald sum
   !============================================================================== 
 
-  REAL(kind=dp) function Rspace(R,alpha)
+  real(kind=dp) function Rspace(R,alpha)
 
-    IMPLICIT NONE
-    REAL(kind=dp) ::  R, alpha
+    implicit none
+    real(kind=dp) ::  R, alpha
  
     !       evaluate real space term at R
     Rspace  = terfc(alpha*R)/R

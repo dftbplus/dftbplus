@@ -88,9 +88,13 @@ module poisson_int
   initinfo = .true.
 
 #:if WITH_MPI
+  if (poissoninfo%maxNumNodes>mpicomm%size) then
+    poissoninfo%maxNumNodes = mpicomm%size
+  end if   
   call poiss_mpi_init(mpicomm)
   call poiss_mpi_split(poissoninfo%maxNumNodes)
   call mpi_barrier(mpicomm, error)
+  print*,'poisson_int:',global_comm%rank, id, id0, active_id
 #:endif
 
   if (id0) then
