@@ -87,7 +87,7 @@ contains
         & env%blacs%columnBlockSize, descInvRMat)
     call invRClusterBlacs(env%blacs%atomGrid, coord, descInvRMat, invRMat)
   #:else
-    call invRClusterSerial(nAtom, coord, invRMat)
+    call invRClusterSerial(coord, invRMat)
   #:endif
 
   end subroutine invRCluster
@@ -144,7 +144,7 @@ contains
   !>
   !> Note: Only the lower triangle is constructed.
   !>
-  subroutine invRCluster(coord, invRMat)
+  subroutine invRClusterSerial(coord, invRMat)
 
     !> List of atomic coordinates.
     real(dp), intent(in) :: coord(:,:)
@@ -170,7 +170,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-  end subroutine invRCluster
+  end subroutine invRClusterSerial
 
 #:endif
   

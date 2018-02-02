@@ -13,11 +13,6 @@ elstatpot.o = elstatpot.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(
 _mod_elstatpot: elstatpot.o
 _mod_elstatpot = $(elstatpot.o)
 
-evalPotentials.o: _mod_environment common.fypp _mod_accuracy _mod_scc
-evalPotentials.o = evalPotentials.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_scc)
-_mod_elstatpot: evalPotentials.o
-_mod_elstatpot = $(evalPotentials.o)
-
 fifo.o: _mod_accuracy common.fypp _mod_assert _mod_fileid
 fifo.o = fifo.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_fileid)
 _mod_fifo: fifo.o
