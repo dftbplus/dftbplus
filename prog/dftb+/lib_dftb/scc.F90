@@ -515,10 +515,10 @@ contains
     this%coord = coord
 
     if (this%tPeriodic) then
-      call invR_periodic(this%invRMat, env, this%nAtom, this%coord, this%nNeighEwald,&
-          & neighList%iNeighbor, img2CentCell, this%gLatPoint, this%alpha, this%volume)
+      call invRPeriodic(env, this%nAtom, this%coord, this%nNeighEwald, neighList%iNeighbor,&
+          & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%invRMat)
     else
-      call invR_cluster(this%invRMat, env, this%nAtom, this%coord)
+      call invRCluster(env, this%nAtom, this%coord, this%invRMat)
     end if
 
     call initGamma_(this, species, neighList%iNeighbor)
@@ -779,10 +779,10 @@ contains
 
     ! 1/R contribution
     if (this%tPeriodic) then
-      call addInvRPrime(force, env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor, &
-          & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
+      call addInvRPrime(env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor, img2CentCell,&
+          & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, force)
     else
-      call addInvRPrime(force, env, this%nAtom, this%coord, this%deltaQAtom)
+      call addInvRPrime(env, this%nAtom, this%coord, this%deltaQAtom, force)
     end if
 
     if (this%tExtChrg) then
@@ -836,8 +836,8 @@ contains
     ! call invRstress
 
     stTmp = 0.0_dp
-    call invR_stress(stTmp, env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,img2CentCell, &
-        & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom)
+    call invRStress(env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,img2CentCell,&
+        & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, stTmp)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
@@ -991,7 +991,7 @@ contains
           & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom,&
           & force)
     else
-      call addInvRPrimeXlbomd(this%nAtom, env, this%coord, this%deltaQAtom, dQOutAtom, force)
+      call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%deltaQAtom, dQOutAtom, force)
     end if
 
     if (this%tExtChrg) then
@@ -1587,10 +1587,10 @@ contains
     V = 0.0_dp
 
     if (this%tPeriodic) then
-      call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%rCellVec, this%gLatPoint, this%alpha, this%volume, epsSoften=epsSoften)
+      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, this%rCellVec,&
+          & this%gLatPoint, this%alpha, this%volume, V, epsSoften=epsSoften)
     else
-      call sumInvR(V, env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
           & epsSoften=epsSoften)
     end if
 
@@ -1622,21 +1622,21 @@ contains
     if (this%tExtChrg) then
       if (this%tPeriodic) then
         if (allocated(this%extChrgBlurWidths)) then
-          call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
+          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume, V,&
               & this%extChrgBlurWidths, epsSoften=epsSoften)
         else
-          call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume,&
+          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume, V,&
               & epsSoften=epsSoften)
         end if
       else
         if (allocated(this%extChrgBlurWidths)) then
-          call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%extChrgBlurWidths, epsSoften=epsSoften)
+          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, V, this%extChrgBlurWidths, epsSoften=epsSoften)
         else
-          call sumInvR(V, env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, epsSoften=epsSoften)
+          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
+              & this%extChrgQ, V, epsSoften=epsSoften)
         end if
       end if
     end if

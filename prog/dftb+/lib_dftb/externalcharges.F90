@@ -205,10 +205,10 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & this%charges, blurWidths1=this%blurWidths)
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%invRVec, blurWidths1=this%blurWidths)
     else
-      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges)
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges, this%invRVec)
     end if
 
     this%tUpdated = .true.
@@ -244,11 +244,11 @@ contains
     @:ASSERT(size(gLat, dim=1) == 3)
 
     if (this%tBlur) then
-      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & this%charges, this%rCellVec, gLat, alpha, volume, blurWidths1=this%blurWidths)
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%rCellVec, gLat, alpha, volume, this%invRVec, blurWidths1=this%blurWidths)
     else
-      call sumInvR(this%invRVec, env, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & this%charges, this%rCellVec, gLat, alpha, volume)
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%rCellVec, gLat, alpha, volume, this%invRVec)
     end if
 
     this%tUpdated = .true.
@@ -322,11 +322,11 @@ contains
     @:ASSERT(size(atomCoords, dim=2) == this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
-          & this%coords, atomCharges, this%charges, blurWidths1=this%blurWidths)
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, atomForces, chrgForces, blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
-          & this%coords, atomCharges, this%charges)
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, atomForces, chrgForces)
     end if
 
   end subroutine addForceDcCluster
@@ -370,12 +370,12 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
-          & this%coords, atomCharges, this%charges, this%rCellVec, gVec, alpha, vol,&
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, this%rCellVec, gVec, alpha, vol, atomForces, chrgForces,&
           & blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(atomForces, chrgForces, env, this%nAtom, this%nChrg, atomCoords,&
-          & this%coords, atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, this%rCellVec, gVec, alpha, vol, atomForces, chrgForces)
     end if
 
   end subroutine addForceDcPeriodic

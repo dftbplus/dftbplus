@@ -26,30 +26,30 @@ module coulomb
 
   private
 
-  public :: invR_cluster, invR_periodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
-  public :: getMaxREwald, ewald, invR_stress
+  public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
+  public :: getMaxREwald, ewald, invRStress
   public :: addInvRPrimeXlbomd
 
   !> 1/r interaction for all atoms with another group
   interface sumInvR
-    module procedure sumInvR_cluster_asymm
-    module procedure sumInvR_periodic_asymm
+    module procedure sumInvRClusterAsymm
+    module procedure sumInvRPeriodicAsymm
   end interface sumInvR
 
 
   !> 1/r^2
   interface addInvRPrime
-    module procedure addInvRPrime_cluster
-    module procedure addInvRPrime_cluster_asymm
-    module procedure addInvRPrime_periodic
-    module procedure addInvRPrime_periodic_asymm
+    module procedure addInvRPrimeCluster
+    module procedure addInvRPrimeClusterAsymm
+    module procedure addInvRPrimePeriodic
+    module procedure addInvRPrimePeriodicAsymm
   end interface addInvRPrime
 
 
   !> 1/r^2 term for extended lagrangian
   interface addInvRPrimeXlbomd
-    module procedure addInvRPrimeXlbomd_cluster
-    module procedure addInvRPrimeXlbomd_periodic
+    module procedure addInvRPrimeXlbomdCluster
+    module procedure addInvRPrimeXlbomdPeriodic
   end interface addInvRPrimeXlbomd
 
 
@@ -61,10 +61,7 @@ contains
 
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invR_cluster(invRMat, env, nAtom, coord)
-
-    !> Matrix of 1/R values for each atom pair.
-    real(dp), intent(out) :: invRMat(:,:)
+  subroutine invRCluster(env, nAtom, coord, invRMat)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -75,58 +72,113 @@ contains
     !> List of atomic coordinates.
     real(dp), intent(in) :: coord(:,:)
 
-    integer :: ii, jj, iAt1, iAt2
-    real(dp) :: dist, vect(3)
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
   #:if WITH_SCALAPACK
     integer :: descInvRMat(DLEN_)
+  #:endif
 
+   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc == -1) then
-      ! processor outside the atom grid
       return
     end if
     call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, descInvRMat)
+    call invRClusterBlacs(env%blacs%atomGrid, coord, descInvRMat, invRMat)
+  #:else
+    call invRClusterSerial(nAtom, coord, invRMat)
   #:endif
+
+  end subroutine invRCluster
+
+
+#:if WITH_SCALAPACK
+  
+  !> Calculates the 1/R Matrix for all atoms for the non-periodic case (BLACS version)
+  !>
+  !> Note: Only the lower triangle is constructed.
+  !>
+  subroutine invRClusterBlacs(grid, coord, descInvRMat, invRMat)
+
+    !> Grid to use for the computation
+    type(blacsgrid), intent(in) :: grid
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Descriptor of the distributed matrix
+    integer, intent(in) :: descInvRMat(DLEN_)
+
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
+    integer :: ii, jj, iAt1, iAt2
+    real(dp) :: dist, vect(3)
 
     invRMat(:,:) = 0.0_dp
 
-  #:if WITH_SCALAPACK
-    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(invRMat, coord, descInvRMat, env) SCHEDULE(RUNTIME)
-  #:else
-    !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(invRMat, coord) SCHEDULE(RUNTIME)
-  #:endif
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj, ii, iAt1, iAt2, vect, dist) SCHEDULE(RUNTIME)
     do jj = 1, size(invRMat, dim=2)
-    #:if WITH_SCALAPACK
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
-          & env%blacs%atomGrid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
       do ii = 1, size(invRMat, dim=1)
-        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), env%blacs%atomGrid%myrow, descInvRMat(RSRC_),&
-            & env%blacs%atomGrid%nrow)
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_), grid%nrow)
         if (iAt2 <= iAt1) then
           ! wrong triangle
           cycle
         end if
-    #:else
-      iAt1 = jj
-      do ii = jj+1, size(invRMat, dim=1)
-        iAt2 = ii
-    #:endif
         vect(:) = coord(:,iAt1) - coord(:,iAt2)
         dist = sqrt(sum(vect**2))
         invRMat(ii, jj) = 1.0_dp / dist
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-  end subroutine invR_cluster
+  end subroutine invRClusterBlacs
+
+
+#:else
+
+  
+  !> Calculates the 1/R Matrix for all atoms for the non-periodic case (serial version)
+  !>
+  !> Note: Only the lower triangle is constructed.
+  !>
+  subroutine invRCluster(coord, invRMat)
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
+
+      integer :: ii, jj, iAt1, iAt2
+    real(dp) :: dist, vect(3)
+
+    invRMat(:,:) = 0.0_dp
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj, iAt1, ii, iAt2, vect, dist) SCHEDULE(RUNTIME)
+    do jj = 1, size(invRMat, dim=2)
+      iAt1 = jj
+      do ii = jj + 1, size(invRMat, dim=1)
+        iAt2 = ii
+        vect(:) = coord(:,iAt1) - coord(:,iAt2)
+        dist = sqrt(sum(vect**2))
+        invRMat(ii, jj) = 1.0_dp / dist
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine invRCluster
+
+#:endif
+  
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
-  subroutine sumInvR_cluster_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
+  subroutine sumInvRClusterAsymm(env, nAtom0, nAtom1, coord0, coord1, charges1, invRVec,&
       & blurWidths1, epsSoften)
-
-    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
-    real(dp), intent(out) :: invRVec(:)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -146,6 +198,9 @@ contains
     !> Charges of the 2nd group of objects
     real(dp), intent(in) :: charges1(:)
 
+    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
+    real(dp), intent(out) :: invRVec(:)
+
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
@@ -162,7 +217,8 @@ contains
       epsSoften2 = 0.0_dp
     end if
 
-    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
+    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
+        & iAtLast1)
 
     invRVec(:) = 0.0_dp
 
@@ -172,7 +228,7 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sum(vect(:)**2)
+          dist = sum(vect**2)
           fTmp = charges1(iAt1) / sqrt(dist + epsSoften2)
           if (dist < (erfArgLimit * blurWidths1(iAt1))**2) then
             fTmp = fTmp * erfwrap(sqrt(dist) / blurWidths1(iAt1))
@@ -180,32 +236,28 @@ contains
           invRVec(iAt0) = invRVec(iAt0) + fTmp
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !$OMP END PARALLEL DO
     else
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist) SCHEDULE(RUNTIME)
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2) + epsSoften2)
+          dist = sqrt(sum(vect**2) + epsSoften2)
           invRVec(iAt0) = invRVec(iAt0) + charges1(iAt1) / dist
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !$OMP END PARALLEL DO
     end if
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, invRVec, MPI_SUM)
-  #:endif
+    call assembleChunks(env, invRVec)
 
-  end subroutine sumInvR_cluster_asymm
+  end subroutine sumInvRClusterAsymm
+
 
   !> Calculates the 1/R Matrix for all atoms for the periodic case.  Only the lower triangle is
   !> constructed.
-  subroutine invR_periodic(invRMat, env, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell,&
-      & recPoint, alpha, volume)
-
-    !> Matrix of 1/R values for each atom pair.
-    real(dp), intent(out) :: invRMat(:,:)
+  subroutine invRPeriodic(env, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
+      & alpha, volume, invRMat)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -235,35 +287,86 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
   #:if WITH_SCALAPACK
-    integer :: jj, ii, iLoc, jLoc, descInvRMat(DLEN_)
-    logical :: tLocal
-
-    if (env%blacs%atomGrid%iproc == -1) then
-      ! processor outside the atom grid
-      return
-    end if
-
+    integer :: descInvRMat(DLEN_)
   #:endif
 
     @:ASSERT(volume > 0.0_dp)
 
-    invRMat(:,:) = 0.0_dp
-
   #:if WITH_SCALAPACK
-
+    if (env%blacs%atomGrid%iproc == -1) then
+      return
+    end if
     call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, descInvRMat)
+    call invRPeriodicBlacs(env%blacs%atomGrid, coord, nNeighborEwald, iNeighbor, img2CentCell,&
+        & recPoint, alpha, volume, descInvRMat, invRMat)
+  #:else
+    call invRPeriodicSerial(coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
+        & alpha, volume, invRMat)
+  #:endif
+
+  end subroutine invRPeriodic
+
+
+#:if WITH_SCALAPACK
+
+  !> Calculates the 1/R Matrix for all atoms for the periodic case (BLACS version)
+  !>
+  !> Note: Only the lower triangle is constructed.
+  !>
+  subroutine invRPeriodicBlacs(grid, coord, nNeighborEwald, iNeighbor, img2CentCell,&
+      & recPoint, alpha, volume, descInvRMat, invRMat)
+
+    !> Grid to use for the computation
+    type(blacsgrid), intent(in) :: grid
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image index for each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum.  The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
+
+    !> Descriptor of the distributed matrix
+    integer, intent(in) :: descInvRMat(DLEN_)
+
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+  
+    integer :: iAt1, iAt2, iAt2f, iNeigh
+    integer :: jj, ii, iLoc, jLoc
+    logical :: tLocal
+    
+    @:ASSERT(volume > 0.0_dp)
+
+    invRMat(:,:) = 0.0_dp
 
     ! Real space part of the Ewald sum.
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
-          & env%blacs%atomGrid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
       do iNeigh = 1, nNeighborEwald(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
-        call scalafx_islocal(env%blacs%atomGrid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
+        call scalafx_islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
         if (tLocal) then
           invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc)&
               &  + rTerm(sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2)), alpha)
@@ -273,11 +376,9 @@ contains
 
     ! Reciprocal space part of the Ewald sum.
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
-          & env%blacs%atomGrid%ncol)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
       do ii = 1, size(invRMat, dim=1)
-        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), env%blacs%atomGrid%myrow, descInvRMat(RSRC_),&
-            & env%blacs%atomGrid%nrow)
+        iAt2 = scalafx_indxl2g(ii, descInvRMat(MB_), grid%myrow, descInvRMat(RSRC_), grid%nrow)
         if (iAt2 < iAt1) then
           cycle
         end if
@@ -289,15 +390,57 @@ contains
 
     ! Extra contribution for self interaction.
     do jj = 1, size(invRMat, dim=2)
-      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), env%blacs%atomGrid%mycol, descInvRMat(CSRC_),&
-          & env%blacs%atomGrid%ncol)
-      call scalafx_islocal(env%blacs%atomGrid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
+      iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
+      call scalafx_islocal(grid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
       if (tLocal) then
         invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc) - 2.0_dp * alpha / sqrt(pi)
       end if
     end do
 
-  #:else
+  end subroutine invRPeriodicBlacs
+
+
+#:else
+
+
+  !> Calculates the 1/R Matrix for all atoms for the periodic case (serial version)
+  !>
+  !> Note: Only the lower triangle is constructed.
+  !>
+  subroutine invRPeriodicSerial(coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
+      & alpha, volume, invRMat)
+
+    !> List of atomic coordinates (all atoms).
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Nr. of neighbors for each atom for real part of Ewald.
+    integer, intent(in) :: nNeighborEwald(:)
+
+    !> List of neighbors for the real space part of Ewald.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Image index for each atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Contains the points included in the reciprocal sum.  The set should not include the origin or
+    !> inversion related points.
+    real(dp), intent(in) :: recPoint(:,:)
+
+    !> Parameter for Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: volume
+
+    !> Matrix of 1/R values for each atom pair.
+    real(dp), intent(out) :: invRMat(:,:)
+
+    integer :: nAtom
+    integer :: iAt1, iAt2, iAt2f, iNeigh
+
+    nAtom = size(invRMat, dim=1)
+
+    invRMat(:,:) = 0.0_dp
 
     ! Real space part of the Ewald sum.
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iNeigh,iAt2,iAt2f) SCHEDULE(RUNTIME)
@@ -309,7 +452,7 @@ contains
             & + rTerm(sqrt(sum((coord(:,iAt1)-coord(:,iAt2))**2)), alpha)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! Reciprocal space part of the Ewald sum.
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2) SCHEDULE(RUNTIME)
@@ -320,26 +463,23 @@ contains
             & - pi / (volume * alpha**2)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! Extra contribution for self interaction.
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       invRMat(iAt1, iAt1) = invRMat(iAt1, iAt1) - 2.0_dp * alpha / sqrt(pi)
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-  #:endif
+  end subroutine invRPeriodicSerial
 
-  end subroutine invR_periodic
+#:endif
 
 
   !> Calculates summed 1/R vector for two groups of objects for the periodic case.
-  subroutine sumInvR_periodic_asymm(invRVec, env, nAtom0, nAtom1, coord0, coord1, charges1,&
-      & rLat, gLat, alpha, volume, blurwidths1, epsSoften)
-
-    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
-    real(dp), intent(out) :: invRVec(:)
+  subroutine sumInvRPeriodicAsymm(env, nAtom0, nAtom1, coord0, coord1, charges1, rLat, gLat, alpha,&
+      & volume, invRVec, blurwidths1, epsSoften)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -371,6 +511,9 @@ contains
     !> Volume of the supercell.
     real(dp), intent(in) :: volume
 
+    !> Vector of sum_i q_i/|R_atom - R_i] values for each atom
+    real(dp), intent(out) :: invRVec(:)
+
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
@@ -383,7 +526,8 @@ contains
 
     @:ASSERT(volume > 0.0_dp)
 
-    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
+    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
+        & iAtLast1)
 
     invRVec(:) = 0.0_dp
 
@@ -392,7 +536,8 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           rr = coord0(:,iAt0) - coord1(:,iAt1)
-          rTmp = ewald(rr, rLat, gLat, alpha, volume, blurwidths1(iAt1), epsSoften=epsSoften)
+          rTmp = ewald(rr, rLat, gLat, alpha, volume, blurWidth=blurWidths1(iAt1),&
+              & epsSoften=epsSoften)
           invRVec(iAt0) = invRVec(iAt0) + rTmp * charges1(iAt1)
         end do
       end do
@@ -409,18 +554,14 @@ contains
       !$OMP END PARALLEL DO
     end if
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, invRVec, MPI_SUM)
-  #:endif
+    call assembleChunks(env, invRVec)
 
-  end subroutine sumInvR_periodic_asymm
+  end subroutine sumInvRPeriodicAsymm
+  
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
   !> storing anything.
-  subroutine addInvRPrime_cluster(deriv, env, nAtom, coord, deltaQAtom)
-
-    !> Contains the derivative on exit.
-    real(dp), intent(inout) :: deriv(:,:)
+  subroutine addInvRPrimeCluster(env, nAtom, coord, deltaQAtom, deriv)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -434,6 +575,9 @@ contains
     !> List of charges on each atom.
     real(dp), intent(in) :: deltaQAtom(:)
 
+    !> Contains the derivative on exit.
+    real(dp), intent(inout) :: deriv(:,:)
+
     integer :: ii, jj
     real(dp) :: dist, vect(3), fTmp
     real(dp), allocatable :: localDeriv(:,:)
@@ -441,8 +585,8 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-    allocate(localDeriv(3,nAtom))
-    localDeriv = 0.0_dp
+    allocate(localDeriv(3, nAtom))
+    localDeriv(:,:) = 0.0_dp
 
     !$OMP PARALLEL DO DEFAULT(PRIVATE) SHARED(iAtFirst, iAtLast, nAtom, coord, deltaQAtom) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv)
@@ -456,25 +600,24 @@ contains
         localDeriv(:,jj) = localderiv(:,jj) - vect(:)*fTmp
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, localDeriv)
 
-    deriv = deriv + localDeriv
+    deriv(:,:) = deriv + localDeriv
 
-  end subroutine addInvRPrime_cluster
-
+  end subroutine addInvRPrimeCluster
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces in a periodic
   !> geometry
-  subroutine addInvRPrimeXlbomd_cluster(nAtom, env, coord, dQInAtom, dQOutAtom, deriv)
-
-    !> number of atoms
-    integer, intent(in) :: nAtom
+  subroutine addInvRPrimeXlbomdCluster(env, nAtom, coord, dQInAtom, dQOutAtom, deriv)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
 
     !> coordinates of atoms
     real(dp), intent(in) :: coord(:,:)
@@ -493,8 +636,8 @@ contains
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
-    allocate(localDeriv(3,nAtom))
-    localDeriv = 0.0_dp
+    allocate(localDeriv(3, nAtom))
+    localDeriv(:,:) = 0.0_dp
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
@@ -512,24 +655,19 @@ contains
         localDeriv(:,iAt2) = localDeriv(:,iAt2) - vect *fTmp
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, localDeriv)
 
-    deriv = deriv + localDeriv
+    deriv(:,:) = deriv + localDeriv
 
-  end subroutine addInvRPrimeXlbomd_cluster
+  end subroutine addInvRPrimeXlbomdCluster
+
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
-  subroutine addInvRPrime_cluster_asymm(deriv0, deriv1, env, nAtom0, nAtom1, coord0, coord1,&
-      & charge0, charge1, blurWidths1)
-
-    !> Contains the derivative for the first group
-    real(dp), intent(inout) :: deriv0(:,:)
-
-    !> Contains the derivative for the second group
-    real(dp), intent(inout) :: deriv1(:,:)
+  subroutine addInvRPrimeClusterAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1,&
+      & deriv0, deriv1, blurWidths1)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -552,6 +690,12 @@ contains
     !> Charge of the point charges.
     real(dp), intent(in) :: charge1(:)
 
+    !> Contains the derivative for the first group
+    real(dp), intent(inout) :: deriv0(:,:)
+
+    !> Contains the derivative for the second group
+    real(dp), intent(inout) :: deriv1(:,:)
+
     !> if gaussian distribution for the charge
     real(dp), intent(in), optional :: blurWidths1(:)
 
@@ -560,12 +704,13 @@ contains
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
     real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
 
-    allocate(localDeriv0(3,nAtom0))
-    allocate(localDeriv1(3,nAtom1))
-    localDeriv0 = 0.0_dp
-    localDeriv1 = 0.0_dp
+    allocate(localDeriv0(3, nAtom0))
+    allocate(localDeriv1(3, nAtom1))
+    localDeriv0(:,:) = 0.0_dp
+    localDeriv1(:,:) = 0.0_dp
 
-    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
+    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
+        & iAtLast1)
 
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
@@ -599,26 +744,21 @@ contains
           localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !$OMP END PARALLEL DO
     end if
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, localDeriv0, MPI_SUM)
-    call mpifx_allreduceip(env%mpi%groupComm, localDeriv1, MPI_SUM)
-  #:endif
+    call assembleChunks(env, localDeriv0)
+    call assembleChunks(env, localDeriv1)
 
-    deriv0 = deriv0 + localDeriv0
-    deriv1 = deriv1 + localDeriv1
+    deriv0(:,:) = deriv0 + localDeriv0
+    deriv1(:,:) = deriv1 + localDeriv1
 
-  end subroutine addInvRPrime_cluster_asymm
+  end subroutine addInvRPrimeClusterAsymm
 
 
   !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
-  subroutine addInvRPrime_periodic(deriv, env, nAtom, coord, nNeighborEwald, iNeighbor,&
-      & img2CentCell, recPoint, alpha, volume,deltaQAtom)
-
-    !> Derivative on exit
-    real(dp), intent(inout) :: deriv(:,:)
+  subroutine addInvRPrimePeriodic(env, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell,&
+      & recPoint, alpha, volume, deltaQAtom, deriv)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -651,13 +791,16 @@ contains
     !> List of charges on each atom
     real(dp), intent(in) :: deltaQAtom(:)
 
+    !> Derivative on exit
+    real(dp), intent(inout) :: deriv(:,:)
+
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh
     real(dp) :: r(3)
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
-    allocate(localDeriv(3,nAtom))
-    localDeriv = 0.0_dp
+    allocate(localDeriv(3, nAtom))
+    localDeriv(:,:) = 0.0_dp
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
@@ -677,7 +820,7 @@ contains
         end if
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! d(1/R)/dr reciprocal space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2,r) &
@@ -691,18 +834,17 @@ contains
             & - derivEwaldReciprocal(r,recPoint,alpha,volume)*deltaQAtom(iAtom1)*deltaQAtom(iAtom2)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, localDeriv)
 
-    deriv = deriv + localDeriv
+    deriv(:,:) = deriv + localDeriv
 
-  end subroutine addInvRPrime_periodic
-
+  end subroutine addInvRPrimePeriodic
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
-  subroutine addInvRPrimeXlbomd_periodic(env, nAtom, coord, nNeighborEwald, iNeighbor,&
+  subroutine addInvRPrimeXlbomdPeriodic(env, nAtom, coord, nNeighborEwald, iNeighbor,&
       & img2CentCell, recPoint, alpha, volume, dQInAtom, dQOutAtom, deriv)
 
     !> Computational environment settings
@@ -747,8 +889,8 @@ contains
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
-    allocate(localDeriv(3,nAtom))
-    localDeriv = 0.0_dp
+    allocate(localDeriv(3, nAtom))
+    localDeriv(:,:) = 0.0_dp
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
@@ -770,7 +912,7 @@ contains
         localDeriv(:,iAt2f) = localDeriv(:,iAt2f) - contrib
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     ! reciprocal space
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1,iAt2,rr,prefac,contrib) &
@@ -785,26 +927,19 @@ contains
         localDeriv(:,iAt2) = localDeriv(:,iAt2) - contrib
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, localDeriv)
 
-    deriv = deriv + localDeriv
+    deriv(:,:) = deriv + localDeriv
 
-  end subroutine addInvRPrimeXlbomd_periodic
-
+  end subroutine addInvRPrimeXlbomdPeriodic
 
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
-  subroutine addInvRPrime_periodic_asymm(deriv0, deriv1, env, nAtom0, nAtom1, coord0, coord1,&
-      & charge0, charge1, rVec, gVec, alpha, vol, blurWidths1)
-
-    !> Contains the derivative for the first group on exit
-    real(dp), intent(inout) :: deriv0(:,:)
-
-    !> Contains the derivative for the second group on exit
-    real(dp), intent(inout) :: deriv1(:,:)
+  subroutine addInvRPrimePeriodicAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1, rVec,&
+      & gVec, alpha, vol, deriv0, deriv1, blurWidths1)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -839,6 +974,12 @@ contains
     !> Volume of the supercell.
     real(dp), intent(in) :: vol
 
+    !> Contains the derivative for the first group on exit
+    real(dp), intent(inout) :: deriv0(:,:)
+
+    !> Contains the derivative for the second group on exit
+    real(dp), intent(inout) :: deriv1(:,:)
+
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
@@ -849,12 +990,13 @@ contains
 
     @:ASSERT(vol > 0.0_dp)
 
-    allocate(localDeriv0(3,nAtom0))
-    allocate(localDeriv1(3,nAtom1))
-    localDeriv0 = 0.0_dp
-    localDeriv1 = 0.0_dp
+    allocate(localDeriv0(3, nAtom0))
+    allocate(localDeriv1(3, nAtom1))
+    localDeriv0(:,:) = 0.0_dp
+    localDeriv1(:,:) = 0.0_dp
 
-    call asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
+    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
+        & iAtLast1)
 
     ! real space part
     if (present(blurwidths1)) then
@@ -864,13 +1006,13 @@ contains
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
-          fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidths1(iAt1))&
+          fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
               & * charge0(iAt0) * charge1(iAt1)
           localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
           localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !$OMP END PARALLEL DO
     else
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt0,iAt1,vect,dist,fTmp) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:localDeriv0,localDeriv1)
@@ -883,7 +1025,7 @@ contains
           localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
-      !$OMP  END PARALLEL DO
+      !$OMP END PARALLEL DO
     end if
 
     ! reciprocal space part
@@ -898,17 +1040,15 @@ contains
         localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-  #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, localDeriv0, MPI_SUM)
-    call mpifx_allreduceip(env%mpi%groupComm, localDeriv1, MPI_SUM)
-  #:endif
+    call assembleChunks(env, localDeriv0)
+    call assembleChunks(env, localDeriv1)
+    
+    deriv0(:,:) = deriv0 + localDeriv0
+    deriv1(:,:) = deriv1 + localDeriv1
 
-    deriv0 = deriv0 + localDeriv0
-    deriv1 = deriv1 + localDeriv1
-
-  end subroutine addInvRPrime_periodic_asymm
+  end subroutine addInvRPrimePeriodicAsymm
 
 
   !> Get optimal alpha-parameter for the Ewald summation by finding alpha, where decline of real and
@@ -1131,7 +1271,7 @@ contains
 
 
   !> Returns the Ewald sum for a given lattice in a given point.
-  function ewald(rr, rVec, gVec, alpha, vol, blurwidths, epsSoften)
+  function ewald(rr, rVec, gVec, alpha, vol, blurWidth, epsSoften)
 
     !> Vector where to calculate the Ewald sum.
     real(dp), intent(in) :: rr(:)
@@ -1150,7 +1290,7 @@ contains
     real(dp), intent(in) :: vol
 
     !> Gaussian blur width of the charges in the 2nd group
-    real(dp), intent(in), optional :: blurWidths
+    real(dp), intent(in), optional :: blurWidth
 
     !> Short distance softening
     real(dp), intent(in), optional :: epsSoften
@@ -1159,7 +1299,7 @@ contains
     real(dp) :: ewald
 
     ewald = ewaldReciprocal(rr, gVec, alpha, vol)&
-        & + ewaldReal(rr, rVec, alpha, blurwidths, epsSoften=epsSoften)&
+        & + ewaldReal(rr, rVec, alpha, blurWidth=blurWidth, epsSoften=epsSoften)&
         & - pi / (vol*alpha**2)
     if (sum(rr(:)**2) < tolSameDist2) then
       ewald = ewald - 2.0_dp * alpha / sqrt(pi)
@@ -1449,11 +1589,8 @@ contains
 
   !> Calculates the stress tensor derivatives of the Ewald electrostatics
   !> Aguard and Madden J Chem Phys 119 7471 (2003)
-  subroutine invR_stress(stress, env, nAtom, coord, nNeighborEwald, iNeighbor, &
-      & img2CentCell, recPoint, alpha, volume, q)
-
-    !> Stress tensor
-    real(dp), intent(out) :: stress(:,:)
+  subroutine invRStress(env, nAtom, coord, nNeighborEwald, iNeighbor, img2CentCell, recPoint,&
+      & alpha, volume, q, stress)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1486,6 +1623,9 @@ contains
     !> charges in the cell
     real(dp), intent(in) :: q(:)
 
+    !> Stress tensor
+    real(dp), intent(out) :: stress(:,:)
+
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh, iInv, ii, jj, kk
     real(dp) :: r(3), f(3), g(3), g2, intermed, intermed2
     real(dp) :: stressTmp(3,3), localStress(3,3)
@@ -1495,7 +1635,7 @@ contains
 
     ! Reciprocal space part of the Ewald sum.
     call distributeRangeInChunks(env, 1, size(recpoint, dim=2), iFirst, iLast)
-    localStress = 0.0_dp
+    localStress(:,:) = 0.0_dp
     do ii = iFirst, iLast
       do iInv = -1, 1, 2
         g(:) = real(iInv,dp)*recpoint(:,ii)
@@ -1509,7 +1649,7 @@ contains
           intermed2 = intermed2 &
               & + q(iAtom1)*sin(dot_product(g(:),coord(:,iAtom1)))
         end do
-        !$OMP  END PARALLEL DO
+        !$OMP END PARALLEL DO
         intermed = intermed**2 + intermed2**2
         g2 = sum(g(:)**2)
         intermed = intermed*exp(-g2/(4.0_dp*alpha*alpha))/g2
@@ -1522,13 +1662,13 @@ contains
                 & *g(kk)*g(jj)
           end do
         end do
-        localStress = localStress + stressTmp * intermed
+        localStress(:,:) = localStress + stressTmp * intermed
       end do
     end do
-    localStress = -localStress * 4.0_dp * pi / volume
+    localStress(:,:) = -localStress * 4.0_dp * pi / volume
 
     call assembleChunks(env, localStress)
-    stress = localStress
+    stress(:,:) = localStress
 
     ! Real space part of the Ewald sum.
     call distributeRangeInChunks(env, 1, nAtom, iFirst, iLast)
@@ -1556,72 +1696,14 @@ contains
         end if
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call assembleChunks(env, localStress)
-    stress = stress + localStress
+    stress(:,:) = stress + localStress
 
-    stress = stress / volume
+    stress(:,:) = stress / volume
 
-  end subroutine invR_stress
+  end subroutine invRStress
 
-  !> Internal helper routine to decide on which nested loop parallelises better
-  subroutine asymmetricHelper(iAtFirst0, iAtLast0, iAtFirst1, iAtLast1, nAtom0, nAtom1, env)
-
-    !> resulting start of first loop
-    integer, intent(out) :: iAtFirst0
-
-    !> resulting end of first loop
-    integer, intent(out) :: iAtLast0
-
-    !> resulting start of second loop
-    integer, intent(out) :: iAtFirst1
-
-    !> resulting end of second loop
-    integer, intent(out) :: iAtLast1
-
-    !> First loop upper value
-    integer, intent(in) :: nAtom0
-
-    !> Second loop upper value
-    integer, intent(in) :: nAtom1
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-  #:if WITH_MPI
-    integer :: nAtLocal, myRank
-  #:endif
-
-    iAtFirst0 = 1
-    iAtLast0 = nAtom0
-    iAtFirst1 = 1
-    iAtLast1 = nAtom1
-
-  #:if WITH_MPI
-
-    myRank = mod(env%mpi%globalComm%rank, env%mpi%groupSize)
-
-    select case (nAtom0 >= nAtom1)
-    case(.true.)
-
-      ! More points to evaluate the field than number of sources
-      nAtLocal = ceiling(real(nAtom0)/real(env%mpi%groupSize))
-      iAtFirst0 = myRank * nAtLocal + 1
-      ! ensure last processor in group only goes up to nAtom0
-      iAtLast0 = min((myRank+1) * nAtLocal, nAtom0)
-
-    case(.false.)
-      ! More sources than points to evaluate the field at
-      nAtLocal = ceiling(real(nAtom1)/real(env%mpi%groupSize))
-      iAtFirst1 = myRank * nAtLocal + 1
-      ! ensure last processor in group only goes up to nAtom1
-      iAtLast1 = min((myRank+1) * nAtLocal, nAtom1)
-
-    end select
-
-  #:endif
-
-  end subroutine asymmetricHelper
-
+  
 end module coulomb
