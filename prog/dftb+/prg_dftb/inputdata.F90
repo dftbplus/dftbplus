@@ -24,7 +24,7 @@ module inputdata_module
   use ipisocket, only : IpiSocketCommInp
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
-  use electrostaticPotentials, only : TElectrostaticPotentialsInp
+  use elstatpot, only : TElStatPotentialsInp
   implicit none
   private
   save
@@ -134,7 +134,7 @@ module inputdata_module
     logical :: tPrintMulliken   = .false.
 
     !> electrostatic potential evaluation and printing
-    type(TElectrostaticPotentialsInp), allocatable :: electrostaticPotentialsInp
+    type(TElStatPotentialsInp), allocatable :: electrostaticPotentialsInp
 
     !> Localise electronic states
     logical :: tLocalise   = .false.

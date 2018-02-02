@@ -8,26 +8,27 @@
 #:include "common.fypp"
 
 !> Provides data structure for evaluated electrostatic potentials
-module electrostaticPotentials
+module elstatpot
   use accuracy
   use scc
   use environment
   implicit none
   private
 
-  public :: TElectrostaticPotentialsInp, TElectrostaticPotentials, initialise
+  public :: TElStatPotentialsInp
+  public :: TElStatPotentials, TElStatPotentials_init
 
 
-  type :: TElectrostaticPotentialsInp
+  type :: TElStatPotentialsInp
 
     !> File to store the resulting points
-    character(lc) :: EspOutFile = 'ESP.dat'
+    character(lc) :: espOutFile = 'ESP.dat'
 
     !> Should the potential appended to the file
     logical :: tAppendESP = .false.
 
     !> Location of electrostatic potential points
-    real(dp), allocatable :: ESPgrid(:,:)
+    real(dp), allocatable :: espGrid(:,:)
 
     !> Size of the grid if regular, 0 otherwise
     integer :: gridDimensioning(3) = 0
@@ -39,16 +40,16 @@ module electrostaticPotentials
     real(dp) :: axes(3,3)
     
     !> short range softening of the potential
-    real(dp) :: softenESP = 1.0E-6_dp
+    real(dp) :: softenEsp = 1.0E-6_dp
 
-  end type TElectrostaticPotentialsInp
+  end type TElStatPotentialsInp
 
 
   !> Contains the potential
-  type :: TElectrostaticPotentials
+  type :: TElStatPotentials
 
     !> Points to evaluate the field if requested
-    real(dp), allocatable :: ESPgrid(:,:)
+    real(dp), allocatable :: espGrid(:,:)
 
     !> Size of the grid if regular, 0 otherwise
     integer :: gridDimensioning(3) = 0
@@ -60,61 +61,57 @@ module electrostaticPotentials
     real(dp) :: axes(3,3)
         
     !> Value of a short-distance softening term
-    real(dp) :: softenESP
+    real(dp) :: softenEsp
 
     !> file unit for ESP result
-    integer :: fdESP
+    integer :: fdEsp
 
     !> File containing output potentials
-    character(lc) :: EspOutFile
+    character(lc) :: espOutFile
 
     !> should the file be appended or overwritten
-    logical :: tAppendESP
+    logical :: tAppendEsp
 
-    real(dp), allocatable :: ESPpotential(:)
+    real(dp), allocatable :: intPotential(:)
 
-    real(dp), allocatable :: extESPpotential(:)
+    real(dp), allocatable :: extPotential(:)
 
   contains
 
     !> Calculate potentials
     procedure :: evaluate
 
-  end type TElectrostaticPotentials
+  end type TElStatPotentials
 
-
-  interface initialise
-    module procedure TElectrostaticPotentials_initialise
-  end interface initialise
 
 contains
 
   !> Initialises calculator instance.
-  subroutine TElectrostaticPotentials_initialise(this, input)
+  subroutine TElStatPotentials_init(this, input)
 
     !> Instance of this
-    type(TElectrostaticPotentials), intent(out) :: this
+    type(TElStatPotentials), intent(out) :: this
 
     !> Input data
-    type(TElectrostaticPotentialsInp), intent(inout) :: input
+    type(TElStatPotentialsInp), intent(inout) :: input
 
-    this%EspOutFile = input%EspOutFile
-    this%tAppendESP = input%tAppendESP
-    call move_alloc(input%ESPgrid, this%ESPgrid)
+    this%espOutFile = input%espOutFile
+    this%tAppendEsp = input%tAppendEsp
+    call move_alloc(input%espGrid, this%espGrid)
     this%gridDimensioning = input%gridDimensioning
     this%origin = input%origin
     this%axes = input%axes
-    this%softenESP = input%softenESP
-    allocate(this%ESPpotential(size(this%ESPgrid,dim=2)))
-    allocate(this%extESPpotential(size(this%ESPgrid,dim=2)))
+    this%softenEsp = input%softenEsp
+    allocate(this%intPotential(size(this%espGrid,dim=2)))
+    allocate(this%extPotential(size(this%espGrid,dim=2)))
 
-  end subroutine TElectrostaticPotentials_initialise
+  end subroutine TElStatPotentials_init
 
 
   subroutine evaluate(this, env, SccCalc, EField)
 
     !> Object holding the potential location information
-    class(TElectrostaticPotentials), intent(inout) :: this
+    class(TElStatPotentials), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -127,22 +124,19 @@ contains
 
     integer :: ii
 
-    this%ESPpotential = 0.0_dp
-    this%extESPpotential = 0.0_dp
-
-    call sccCalc%getInternalElStatPotential(this%ESPpotential, env, this%ESPgrid,&
-        & epsSoften=this%softenESP)
-    call sccCalc%getExternalElStatPotential(this%extESPpotential, env, this%ESPgrid,&
-        & epsSoften=this%softenESP)
+    call sccCalc%getInternalElStatPotential(this%intPotential, env, this%espGrid,&
+        & epsSoften=this%softenEsp)
+    call sccCalc%getExternalElStatPotential(this%extPotential, env, this%espGrid,&
+        & epsSoften=this%softenEsp)
 
     if (any(EField /= 0.0_dp)) then
-      do ii = 1, size(this%ESPgrid,dim=2)
-        this%extESPpotential(ii) = this%extESPpotential(ii) + dot_product(this%ESPgrid(:, ii),&
-            & EField)
+      do ii = 1, size(this%espGrid,dim=2)
+        this%extPotential(ii) = this%extPotential(ii)&
+            & + dot_product(this%espGrid(:, ii), EField)
       end do
     end if
 
   end subroutine evaluate
 
 
-end module electrostaticPotentials
+end module elstatpot

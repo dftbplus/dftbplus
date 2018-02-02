@@ -41,7 +41,7 @@ module mainio
   use mdintegrator, only : OMdIntegrator, state
   use formatout
   use sccinit, only : writeQToFile
-  use electrostaticPotentials, only : TElectrostaticPotentials
+  use elstatpot, only : TElStatPotentials
   use message
 #:if WITH_SOCKETS
   use ipisocket
@@ -64,7 +64,7 @@ module mainio
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
-  public :: writeESP
+  public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
@@ -1907,7 +1907,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, ESP)
+      & gibbsFree, endCoords, tLocalise, localisation, esp)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -1964,7 +1964,7 @@ contains
     real(dp), intent(in) :: localisation
 
     !> Object holding the potentials and their locations
-    type(TElectrostaticPotentials), allocatable, intent(in) :: ESP
+    type(TElStatPotentials), allocatable, intent(in) :: esp
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
@@ -2003,10 +2003,10 @@ contains
     if (tLocalise) then
       call writeTagged(fd, tag_pmlocalise, localisation)
     end if
-    if (allocated(ESP)) then
-      call writeTagged(fd, tag_internfield, ESP%ESPpotential)
-      if (any(ESP%extESPpotential /= 0.0_dp)) then
-        call writeTagged(fd, tag_externfield, ESP%extESPpotential)
+    if (allocated(esp)) then
+      call writeTagged(fd, tag_internfield, esp%intPotential)
+      if (any(esp%extPotential /= 0.0_dp)) then
+        call writeTagged(fd, tag_externfield, esp%extPotential)
       end if
     end if
     close(fd)
@@ -4143,11 +4143,12 @@ contains
 
   end subroutine finishProjEigvecFiles
 
+
   !> Electrostatic potential at specified points
-  subroutine writeESP(ESP, env, iGeoStep, nGeoSteps)
+  subroutine writeEsp(esp, env, iGeoStep, nGeoSteps)
 
     !> Object holding the potentials and their locations
-    type(TElectrostaticPotentials), intent(in) :: ESP
+    type(TElStatPotentials), intent(in) :: esp
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4162,20 +4163,20 @@ contains
     character(lc) :: tmpStr
 
     if (env%tGlobalMaster) then
-      if (ESP%tAppendEsp) then
-        open(ESP%fdEsp, file=trim(ESP%EspOutFile), position="append")
+      if (esp%tAppendEsp) then
+        open(esp%fdEsp, file=trim(esp%EspOutFile), position="append")
       else
-        open(ESP%fdEsp, file=trim(ESP%EspOutFile), action="write", status="replace")
+        open(esp%fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
       end if
       ! Header with presence of external field and regular grid size
-      write(tmpStr, "('# ', L2, 3I6, 1x, I0)")any(ESP%extESPpotential /= 0.0_dp),&
-          & ESP%gridDimensioning, size(ESP%extESPpotential)
-      if (.not.ESP%tAppendEsp .or. iGeoStep == 0) then
-        write(ESP%fdEsp,"(A)")trim(tmpStr)
-        if (all(ESP%gridDimensioning > 0)) then
-          write(ESP%fdEsp,"(A,3E20.12)")'#',ESP%origin* Bohr__AA
+      write(tmpStr, "('# ', L2, 3I6, 1x, I0)")any(esp%extPotential /= 0.0_dp),&
+          & esp%gridDimensioning, size(esp%extPotential)
+      if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
+        write(esp%fdEsp,"(A)")trim(tmpStr)
+        if (all(esp%gridDimensioning > 0)) then
+          write(esp%fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
           do ii = 1, 3
-            write(ESP%fdEsp,"(A,3E20.12)")'#',ESP%axes(:,ii)* Bohr__AA
+            write(esp%fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
           end do
         end if
       end if
@@ -4186,22 +4187,22 @@ contains
       end if
 
 
-      if (any(ESP%extESPpotential /= 0.0_dp)) then
-        write(ESP%fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
-        do ii = 1, size(ESP%ESPgrid,dim=2)
-          write(ESP%fdEsp,"(3E12.4,2E20.12)")ESP%ESPgrid(:,ii) * Bohr__AA, ESP%ESPpotential(ii),&
-              & ESP%extESPpotential(ii)
+      if (any(esp%extPotential /= 0.0_dp)) then
+        write(esp%fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
+        do ii = 1, size(esp%espGrid,dim=2)
+          write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii),&
+              & esp%extPotential(ii)
         end do
       else
-        write(ESP%fdEsp,"(A,T39,A)")trim(tmpStr),'Internal (au)'
-        do ii = 1, size(ESP%ESPgrid,dim=2)
-          write(ESP%fdEsp,"(3E12.4,2E20.12)")ESP%ESPgrid(:,ii) * Bohr__AA, ESP%ESPpotential(ii)
+        write(esp%fdEsp,"(A,T39,A)")trim(tmpStr),'Internal (au)'
+        do ii = 1, size(esp%espGrid,dim=2)
+          write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii)
         end do
       end if
-      close(ESP%fdEsp)
+      close(esp%fdEsp)
     end if
 
-  end subroutine writeESP
+  end subroutine writeEsp
 
 
 end module mainio

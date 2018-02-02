@@ -72,7 +72,7 @@ module initprogram
   use mainio, only : receiveGeometryFromSocket
   use ipisocket
 #:endif
-  use electrostaticPotentials
+  use elstatpot
   use pmlocalisation
   use energies
   use potentials
@@ -409,7 +409,7 @@ module initprogram
   logical :: tMulliken
 
   !> Electrostatic potentials if requested
-  type(TElectrostaticPotentials), allocatable :: ESP
+  type(TElStatPotentials), allocatable :: esp
 
   !> Calculate localised orbitals?
   logical :: tLocalise
@@ -1622,8 +1622,8 @@ contains
       if (.not.tSccCalc) then
         call error("Electrostatic potentials only available for SCC calculations")
       end if
-      allocate(ESP)
-      call initialise(ESP, input%ctrl%electrostaticPotentialsInp)
+      allocate(esp)
+      call TElStatPotentials_init(esp, input%ctrl%electrostaticPotentialsInp)
     end if
 
     tLocalise = input%ctrl%tLocalise
@@ -2095,7 +2095,7 @@ contains
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, ESP)
+          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2804,7 +2804,7 @@ contains
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, ESP)
+      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2858,7 +2858,7 @@ contains
     integer, intent(out) :: fdChargeBin
 
     !> Electrostatic potentials if requested
-    type(TElectrostaticPotentials), allocatable, intent(inout) :: ESP
+    type(TElStatPotentials), allocatable, intent(inout) :: esp
 
     call initTaggedWriter()
     if (tWriteAutotest) then
@@ -2887,8 +2887,8 @@ contains
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
     fdChargeBin = getFileId()
-    if (allocated(ESP)) then
-      call initOutputFile(ESP%EspOutFile, ESP%fdEsp)
+    if (allocated(esp)) then
+      call initOutputFile(esp%espOutFile, esp%fdEsp)
     end if
 
   end subroutine initOutputFiles

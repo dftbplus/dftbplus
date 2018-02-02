@@ -71,7 +71,7 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
-  use electrostaticPotentials, only : TElectrostaticPotentials
+  use elstatpot, only : TElStatPotentials
   implicit none
   private
 
