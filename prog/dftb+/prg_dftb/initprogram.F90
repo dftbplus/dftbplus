@@ -472,7 +472,7 @@ module initprogram
 
 
   !> Only use converged forces if SCC
-  logical :: tConvrgForces
+  logical :: tUseConvergedForces
 
 
   !> labels of atomic species
@@ -1411,7 +1411,7 @@ contains
 #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tConvrgForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken

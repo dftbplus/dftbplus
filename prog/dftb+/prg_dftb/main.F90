@@ -437,7 +437,7 @@ contains
 
       if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then
         call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-        if (tConvrgForces) then
+        if (tUseConvergedForces) then
           call env%abort()
         end if
       end if
