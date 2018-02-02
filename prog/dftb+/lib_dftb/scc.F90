@@ -163,15 +163,6 @@ module scc
     !> Are external charges present?
     logical :: tExtChrg
 
-    !> External charge locations
-    real(dp), allocatable :: extChrgCoord(:,:)
-
-    !> External charge values
-    real(dp), allocatable :: extChrgQ(:)
-
-    !> External charg optional blur widths
-    real(dp), allocatable :: extChrgBlurWidths(:)
-
     !> Negative gross charge
     real(dp), allocatable :: deltaQ(:,:)
 
@@ -243,8 +234,8 @@ module scc
     procedure :: getShiftPerL
     procedure :: getOrbitalEquiv
     procedure :: addForceDcXlbomd
-    procedure :: internalElectroStaticPotential
-    procedure :: externalElectroStaticPotential
+    procedure :: getInternalElStatPotential
+    procedure :: getExternalElStatPotential
   end type TScc
 
 
@@ -411,17 +402,6 @@ contains
               & inp%recVecs, this%maxREwald)
         else
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom)
-        end if
-      end if
-
-      allocate(this%extChrgCoord(3,size(inp%extCharges, dim=2)))
-      this%extChrgCoord = inp%extCharges(:3,:)
-      allocate(this%extChrgQ(size(inp%extCharges, dim=2)))
-      this%extChrgQ = inp%extCharges(4,:)
-      if (allocated(this%extChrgBlurWidths)) then
-        if (any(this%extChrgBlurWidths > 1.0e-7_dp)) then
-          allocate(this%extChrgBlurWidths(size(inp%extCharges, dim=2)))
-          this%extChrgBlurWidths = inp%blurWidths
         end if
       end if
 
@@ -787,10 +767,10 @@ contains
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%addForceDc(force, chrgForce, env, this%coord, this%deltaQAtom,&
+        call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
             & this%gLatPoint, this%alpha, this%volume)
       else
-        call this%extCharge%addForceDc(force, chrgForce, env, this%coord, this%deltaQAtom)
+        call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
       end if
     end if
 
@@ -1563,8 +1543,9 @@ contains
 
   end subroutine getSummedChargesPerUniqU_
 
+
   !> Returns potential from DFTB charges
-  subroutine internalElectrostaticPotential(this, V, env, locations, epsSoften)
+  subroutine getInternalElStatPotential(this, V, env, locations, epsSoften)
 
     !> Instance of SCC calculation
     class(TScc), intent(in) :: this
@@ -1584,7 +1565,7 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(locations) == [3,size(V)]))
 
-    V = 0.0_dp
+    V(:) = 0.0_dp
 
     if (this%tPeriodic) then
       call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, this%rCellVec,&
@@ -1594,12 +1575,13 @@ contains
           & epsSoften=epsSoften)
     end if
 
-  end subroutine internalElectrostaticPotential
+  end subroutine getInternalElStatPotential
+
 
   !> Returns potential from external charges
-  subroutine externalElectrostaticPotential(this, V, env, locations, epsSoften)
+  subroutine getExternalElStatPotential(this, V, env, locations, epsSoften)
 
-    !> Instance of SCC calculation
+    !> Instance
     class(TScc), intent(in) :: this
 
     !> Resulting potentials
@@ -1615,32 +1597,19 @@ contains
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
-    @:ASSERT(all(shape(locations) == [3,size(V)]))
-
-    V = 0.0_dp
-
+    
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        if (allocated(this%extChrgBlurWidths)) then
-          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume, V,&
-              & this%extChrgBlurWidths, epsSoften=epsSoften)
-        else
-          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, this%rCellVec, this%gLatPoint, this%alpha, this%volume, V,&
-              & epsSoften=epsSoften)
-        end if
+        call this%extCharge%getElStatPotential(env, locations, this%rCellVec, this%gLatPoint,&
+            & this%alpha, this%volume, V, epsSoften=epsSoften)
       else
-        if (allocated(this%extChrgBlurWidths)) then
-          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, V, this%extChrgBlurWidths, epsSoften=epsSoften)
-        else
-          call sumInvR(env, size(V), size(this%extChrgQ), locations, this%extChrgCoord,&
-              & this%extChrgQ, V, epsSoften=epsSoften)
-        end if
+        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
       end if
+    else
+      V(:) = 0.0_dp
     end if
 
-  end subroutine externalElectrostaticPotential
+  end subroutine getExternalElStatPotential
+
 
 end module scc

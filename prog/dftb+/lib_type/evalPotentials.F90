@@ -17,6 +17,7 @@ module electrostaticPotentials
 
   public :: TElectrostaticPotentialsInp, TElectrostaticPotentials, initialise
 
+
   type :: TElectrostaticPotentialsInp
 
     !> File to store the resulting points
@@ -41,6 +42,7 @@ module electrostaticPotentials
     real(dp) :: softenESP = 1.0E-6_dp
 
   end type TElectrostaticPotentialsInp
+
 
   !> Contains the potential
   type :: TElectrostaticPotentials
@@ -73,13 +75,13 @@ module electrostaticPotentials
 
     real(dp), allocatable :: extESPpotential(:)
 
-
   contains
 
     !> Calculate potentials
     procedure :: evaluate
 
   end type TElectrostaticPotentials
+
 
   interface initialise
     module procedure TElectrostaticPotentials_initialise
@@ -108,6 +110,7 @@ contains
 
   end subroutine TElectrostaticPotentials_initialise
 
+
   subroutine evaluate(this, env, SccCalc, EField)
 
     !> Object holding the potential location information
@@ -127,9 +130,9 @@ contains
     this%ESPpotential = 0.0_dp
     this%extESPpotential = 0.0_dp
 
-    call sccCalc%internalElectroStaticPotential(this%ESPpotential, env, this%ESPgrid,&
+    call sccCalc%getInternalElStatPotential(this%ESPpotential, env, this%ESPgrid,&
         & epsSoften=this%softenESP)
-    call sccCalc%externalElectroStaticPotential(this%extESPpotential, env, this%ESPgrid,&
+    call sccCalc%getExternalElStatPotential(this%extESPpotential, env, this%ESPgrid,&
         & epsSoften=this%softenESP)
 
     if (any(EField /= 0.0_dp)) then
@@ -140,5 +143,6 @@ contains
     end if
 
   end subroutine evaluate
+
 
 end module electrostaticPotentials

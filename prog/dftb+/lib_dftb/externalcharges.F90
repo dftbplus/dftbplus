@@ -67,7 +67,9 @@ module ExternalCharges
     procedure :: updateCoordsPeriodic
     procedure :: addForceDcCluster
     procedure :: addForceDcPeriodic
-
+    procedure :: getElStatPotentialCluster
+    procedure :: getElStatPotentialPeriodic
+    
     !> Updates the stored coordinates for point charges
     generic, public :: updateCoords => updateCoordsCluster, updateCoordsPeriodic
 
@@ -83,6 +85,9 @@ module ExternalCharges
     !> Adds force double counting component
     generic, public :: addForceDc => addForceDcCluster, addForceDcPeriodic
 
+    !> Returns the electrostatic potential on a grid
+    generic, public :: getElStatPotential => getElStatPotentialCluster, getElStatPotentialPeriodic
+    
   end type TExtCharge
 
 
@@ -296,19 +301,19 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcCluster(this, atomForces, chrgForces, env, atomCoords, atomCharges)
+  subroutine addForceDcCluster(this, env, atomForces, chrgForces, atomCoords, atomCharges)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
 
     !> Force vectors on the external charges
     real(dp), intent(inout) :: chrgForces(:,:)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms.
     real(dp), intent(in) :: atomCoords(:,:)
@@ -334,20 +339,20 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcPeriodic(this, atomForces, chrgForces, env, atomCoords, atomCharges, gVec,&
+  subroutine addForceDcPeriodic(this, env, atomForces, chrgForces, atomCoords, atomCharges, gVec,&
       & alpha, vol)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
 
     !> Force vectors on the external charges
     real(dp), intent(inout) :: chrgForces(:,:)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms.
     real(dp), intent(in) :: atomCoords(:,:)
@@ -379,5 +384,85 @@ contains
     end if
 
   end subroutine addForceDcPeriodic
+
+
+  !> Returns potential from external charges (periodic case)
+  subroutine getElStatPotentialPeriodic(this, env, locations, rCellVec, gLatPoint, alpha, volume,&
+      & V, epsSoften)
+
+    !> Instance of SCC calculation
+    class(TExtCharge), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> Real lattice points for Ewald-sum.
+    real(dp), intent(in) :: rCellVec(:,:)
+
+    !> Lattice points for reciprocal Ewald
+    real(dp), intent(in) :: gLatPoint(:,:)
+
+    !> Parameter for Ewald
+    real(dp), intent(in) :: alpha
+
+    !> Cell volume
+    real(dp), intent(in) :: volume
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(all(shape(locations) == [3, size(V)]))
+
+    V(:) = 0.0_dp
+
+    if (allocated(this%blurWidths)) then
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
+          & rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
+    else
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
+          & rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
+    end if
+
+  end subroutine getElStatPotentialPeriodic
+
+
+  !> Returns potential from external charges (cluster case)
+  subroutine getElStatPotentialCluster(this, env, locations, V, epsSoften)
+
+    !> Instance of SCC calculation
+    class(TExtCharge), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(all(shape(locations) == [3, size(V)]))
+
+    V(:) = 0.0_dp
+
+    if (allocated(this%blurWidths)) then
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges, V,&
+          & this%blurWidths, epsSoften=epsSoften)
+    else
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges, V,&
+          & epsSoften=epsSoften)
+    end if
+
+  end subroutine getElStatPotentialCluster
+
 
 end module ExternalCharges
