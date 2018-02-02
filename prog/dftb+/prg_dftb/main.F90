@@ -186,10 +186,6 @@ contains
     ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
 
-    ! zero some properties that would otherwise not be initialised
-    Efield = 0.0_dp
-    absEfield = 0.0_dp
-
     ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
 
@@ -240,12 +236,11 @@ contains
       end if
 
       call resetExternalPotentials(potential)
-      if (tEField) then
-        call setUpExternalElectricField(tTDEField, tPeriodic, EFieldStrength, EFieldVector,&
-            & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec,&
-            & deltaT, iGeoStep, coord0Fold, coord, EField, potential%extAtom(:,1), absEField)
-      end if
-
+      call setUpExternalElectricField(tEField, tTDEField, tPeriodic, EFieldStrength,&
+          & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
+          & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
+          & potential%extAtom(:,1), absEField)
+    
       call mergeExternalPotentials(orb, species, potential)
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
@@ -447,11 +442,10 @@ contains
         end if
       end if
 
-
-      if (tSccCalc .and. allocated(ESP) .and. ( .not.(tGeoOpt .or. tMD) .or. &
-          & needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq) ) ) then
-        call ESP%evaluate(env, SccCalc, EField)
-        call writeESP(ESP, env, iGeoStep, nGeoSteps)
+      if (tSccCalc .and. allocated(esp) .and. (.not. (tGeoOpt .or. tMD) .or. &
+          & needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq))) then
+        call esp%evaluate(env, sccCalc, EField)
+        call writeEsp(esp, env, iGeoStep, nGeoSteps)
       end if
 
       if (tForces) then
@@ -638,7 +632,7 @@ contains
       end if
       call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
           & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
-          & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, ESP)
+          & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(fdResultsTag, resultsTag, derivs, chrgForces, tStress, totalStress,&
@@ -1107,9 +1101,12 @@ contains
 
 
   !> Sets up electric external field
-  subroutine setUpExternalElectricField(tTimeDepEField, tPeriodic, EFieldStrength, EFieldVector,&
-      & EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell, cellVec, deltaT,&
-      & iGeoStep, coord0Fold, coord, EField, extAtomPot, absEField)
+  subroutine setUpExternalElectricField(tEfield, tTimeDepEField, tPeriodic, EFieldStrength,&
+      & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell,&
+      & cellVec, deltaT, iGeoStep, coord0Fold, coord, EField, extAtomPot, absEField)
+
+    !> Whether electric field should be considered at all
+    logical, intent(in) :: tEfield
 
     !> Is there an electric field that varies with geometry step during MD?
     logical, intent(in) :: tTimeDepEField
@@ -1170,6 +1167,13 @@ contains
     integer :: nAtom
     integer :: iAt1, iAt2, iNeigh
     character(lc) :: tmpStr
+
+    if (.not. tEField) then
+      EField(:) = 0.0_dp
+      absEField = 0.0_dp
+      extAtomPot(:) = 0.0_dp
+      return
+    end if
 
     nAtom = size(nNeighbor)
 

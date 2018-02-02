@@ -3162,7 +3162,7 @@ contains
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer, modifier
+    type(string) :: buffer
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(listRealR1) :: lr1
@@ -3243,64 +3243,7 @@ contains
       end if
     end if
 
-
-    call getChild(node, "ElectrostaticPotential", child, requested=.false.)
-    if (associated(child)) then
-      if (.not.ctrl%tSCC) then
-        call error("Electrostatic potentials only available in an SCC calculation")
-      end if
-      allocate(ctrl%electrostaticPotentialsInp)
-      call getChildValue(child, "OutputFile", buffer, "ESP.dat")
-      ctrl%electrostaticPotentialsInp%EspOutFile = unquote(char(buffer))
-      ctrl%electrostaticPotentialsInp%tAppendESP = .false.
-      if (ctrl%tGeoOpt .or. ctrl%tMD) then
-        call getChildValue(child, "AppendFile", ctrl%electrostaticPotentialsInp%tAppendESP, .false.)
-      end if
-      call init(lr1)
-      ! discrete points
-      call getChildValue(child, "Points", child2, "", child=child3, &
-          & modifier=modifier, allowEmptyValue=.true.)
-      call getNodeName2(child2, buffer)
-      if (char(buffer) /= "") then
-        call getChildValue(child3, "", 3, lr1, modifier=modifier)
-        allocate(ctrl%electrostaticPotentialsInp%ESPgrid(3,len(lr1)))
-        call asArray(lr1, ctrl%electrostaticPotentialsInp%ESPgrid)
-        if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
-          ctrl%electrostaticPotentialsInp%ESPgrid = matmul(geo%latVecs,&
-              & ctrl%electrostaticPotentialsInp%ESPgrid)
-        else
-          call convertByMul(char(modifier), lengthUnits, child3,&
-              & ctrl%electrostaticPotentialsInp%ESPgrid)
-        end if
-      end if
-
-      ! grid specification for points instead
-      call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
-      if (associated(child2)) then
-        if (allocated(ctrl%electrostaticPotentialsInp%ESPgrid)) then
-          call error("Both grid and point specification not both currently possible")
-        end if
-        if (geo%tPeriodic) then
-          call readGrid(ctrl%electrostaticPotentialsInp%ESPgrid, child2, modifier,&
-              & latVecs=geo%latVecs, nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning,&
-              & origin=ctrl%electrostaticPotentialsInp%origin,&
-              & axes=ctrl%electrostaticPotentialsInp%axes)
-        else
-          call readGrid(ctrl%electrostaticPotentialsInp%ESPgrid, child2, modifier,&
-              & nPoints=ctrl%electrostaticPotentialsInp%gridDimensioning,&
-              & origin=ctrl%electrostaticPotentialsInp%origin,&
-              & axes=ctrl%electrostaticPotentialsInp%axes)
-        end if
-      end if
-      if (.not.allocated(ctrl%electrostaticPotentialsInp%ESPgrid)) then
-        call detailedError(child,"Either a grid or set of points must be specified")
-      end if
-      call getChildValue(child, "Softening", ctrl%electrostaticPotentialsInp%softenESP, 1.0E-6_dp,&
-          & modifier=modifier, child=child2)
-      call convertByMul(char(modifier), lengthUnits, child2,&
-          & ctrl%electrostaticPotentialsInp%softenEsp)
-
-    end if
+    call readElectrostaticPotential(node, geo, ctrl)
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
@@ -3472,6 +3415,83 @@ contains
     end if
 
   end subroutine readBlacs
+
+
+  subroutine readElectrostaticPotential(node, geo, ctrl)
+
+    !> Node containing optional electrostatic settings
+    type(fnode), pointer, intent(in) :: node
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Control structure
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: child, child2, child3
+    type(string) :: buffer, modifier
+    type(listRealR1) :: lr1
+    
+    call getChild(node, "ElectrostaticPotential", child, requested=.false.)
+    if (.not. associated(child)) then
+      return
+    end if
+
+    if (.not. ctrl%tSCC) then
+      call error("Electrostatic potentials only available in an SCC calculation")
+    end if
+    allocate(ctrl%elStatPotentialsInp)
+    call getChildValue(child, "OutputFile", buffer, "ESP.dat")
+    ctrl%elStatPotentialsInp%espOutFile = unquote(char(buffer))
+    ctrl%elStatPotentialsInp%tAppendEsp = .false.
+    if (ctrl%tGeoOpt .or. ctrl%tMD) then
+      call getChildValue(child, "AppendFile", ctrl%elStatPotentialsInp%tAppendEsp, .false.)
+    end if
+    call init(lr1)
+    ! discrete points
+    call getChildValue(child, "Points", child2, "", child=child3, &
+        & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(child2, buffer)
+    if (char(buffer) /= "") then
+      call getChildValue(child3, "", 3, lr1, modifier=modifier)
+      allocate(ctrl%elStatPotentialsInp%espGrid(3,len(lr1)))
+      call asArray(lr1, ctrl%elStatPotentialsInp%espGrid)
+      if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+        ctrl%elStatPotentialsInp%espGrid = matmul(geo%latVecs, ctrl%elStatPotentialsInp%espGrid)
+      else
+        call convertByMul(char(modifier), lengthUnits, child3,&
+            & ctrl%elStatPotentialsInp%espGrid)
+      end if
+    end if
+    call destruct(lr1)
+
+    ! grid specification for points instead
+    call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
+    if (associated(child2)) then
+      if (allocated(ctrl%elStatPotentialsInp%espGrid)) then
+        call error("Both grid and point specification not both currently possible")
+      end if
+      if (geo%tPeriodic) then
+        call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
+            & latVecs=geo%latVecs, nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & origin=ctrl%elStatPotentialsInp%origin,&
+            & axes=ctrl%elStatPotentialsInp%axes)
+      else
+        call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
+            & nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & origin=ctrl%elStatPotentialsInp%origin,&
+            & axes=ctrl%elStatPotentialsInp%axes)
+      end if
+    end if
+    if (.not.allocated(ctrl%elStatPotentialsInp%espGrid)) then
+      call detailedError(child,"Either a grid or set of points must be specified")
+    end if
+    call getChildValue(child, "Softening", ctrl%elStatPotentialsInp%softenESP, 1.0E-6_dp,&
+        & modifier=modifier, child=child2)
+    call convertByMul(char(modifier), lengthUnits, child2, ctrl%elStatPotentialsInp%softenEsp)
+
+  end subroutine readElectrostaticPotential
+
 
   !> Read in a grid specification
   subroutine readGrid(points, node, modifier, latVecs, nPoints, origin, axes)

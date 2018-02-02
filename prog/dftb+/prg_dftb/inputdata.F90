@@ -134,7 +134,7 @@ module inputdata_module
     logical :: tPrintMulliken   = .false.
 
     !> electrostatic potential evaluation and printing
-    type(TElStatPotentialsInp), allocatable :: electrostaticPotentialsInp
+    type(TElStatPotentialsInp), allocatable :: elStatPotentialsInp
 
     !> Localise electronic states
     logical :: tLocalise   = .false.

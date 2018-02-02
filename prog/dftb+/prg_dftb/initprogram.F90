@@ -1618,12 +1618,12 @@ contains
       tDipole = .false.
     end if
 
-    if (allocated(input%ctrl%electrostaticPotentialsInp)) then
+    if (allocated(input%ctrl%elStatPotentialsInp)) then
       if (.not.tSccCalc) then
         call error("Electrostatic potentials only available for SCC calculations")
       end if
       allocate(esp)
-      call TElStatPotentials_init(esp, input%ctrl%electrostaticPotentialsInp)
+      call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp)
     end if
 
     tLocalise = input%ctrl%tLocalise
