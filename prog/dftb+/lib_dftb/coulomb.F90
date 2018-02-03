@@ -152,8 +152,7 @@ contains
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
 
-
-      integer :: ii, jj, iAt1, iAt2
+    integer :: ii, jj, iAt1, iAt2
     real(dp) :: dist, vect(3)
 
     invRMat(:,:) = 0.0_dp
