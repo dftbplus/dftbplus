@@ -1623,7 +1623,7 @@ contains
         call error("Electrostatic potentials only available for SCC calculations")
       end if
       allocate(esp)
-      call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp)
+      call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp, tEField .or. tExtChrg)
     end if
 
     tLocalise = input%ctrl%tLocalise

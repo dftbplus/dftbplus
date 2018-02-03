@@ -2005,7 +2005,7 @@ contains
     end if
     if (allocated(esp)) then
       call writeTagged(fd, tag_internfield, esp%intPotential)
-      if (any(esp%extPotential /= 0.0_dp)) then
+      if (allocated(esp%extPotential)) then
         call writeTagged(fd, tag_externfield, esp%extPotential)
       end if
     end if
@@ -4169,7 +4169,7 @@ contains
         open(esp%fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
       end if
       ! Header with presence of external field and regular grid size
-      write(tmpStr, "('# ', L2, 3I6, 1x, I0)")any(esp%extPotential /= 0.0_dp),&
+      write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
           & esp%gridDimensioning, size(esp%extPotential)
       if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
         write(esp%fdEsp,"(A)")trim(tmpStr)
@@ -4187,7 +4187,7 @@ contains
       end if
 
 
-      if (any(esp%extPotential /= 0.0_dp)) then
+      if (allocated(esp%extPotential)) then
         write(esp%fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
         do ii = 1, size(esp%espGrid,dim=2)
           write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii),&

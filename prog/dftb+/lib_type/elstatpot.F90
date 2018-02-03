@@ -87,13 +87,16 @@ module elstatpot
 contains
 
   !> Initialises calculator instance.
-  subroutine TElStatPotentials_init(this, input)
+  subroutine TElStatPotentials_init(this, input, tExtPotential)
 
     !> Instance of this
     type(TElStatPotentials), intent(out) :: this
 
     !> Input data
     type(TElStatPotentialsInp), intent(inout) :: input
+
+    !> Is an external potential being evaluated
+    logical, intent(in) :: tExtPotential
 
     this%espOutFile = input%espOutFile
     this%tAppendEsp = input%tAppendEsp
@@ -103,7 +106,9 @@ contains
     this%axes = input%axes
     this%softenEsp = input%softenEsp
     allocate(this%intPotential(size(this%espGrid,dim=2)))
-    allocate(this%extPotential(size(this%espGrid,dim=2)))
+    if (tExtPotential) then
+      allocate(this%extPotential(size(this%espGrid,dim=2)))
+    end if
 
   end subroutine TElStatPotentials_init
 
@@ -126,14 +131,15 @@ contains
 
     call sccCalc%getInternalElStatPotential(this%intPotential, env, this%espGrid,&
         & epsSoften=this%softenEsp)
-    call sccCalc%getExternalElStatPotential(this%extPotential, env, this%espGrid,&
-        & epsSoften=this%softenEsp)
-
-    if (any(EField /= 0.0_dp)) then
-      do ii = 1, size(this%espGrid,dim=2)
-        this%extPotential(ii) = this%extPotential(ii)&
-            & + dot_product(this%espGrid(:, ii), EField)
-      end do
+    if (allocated(this%extPotential)) then
+      call sccCalc%getExternalElStatPotential(this%extPotential, env, this%espGrid,&
+          & epsSoften=this%softenEsp)
+      if (any(EField /= 0.0_dp)) then
+        do ii = 1, size(this%espGrid,dim=2)
+          this%extPotential(ii) = this%extPotential(ii)&
+              & + dot_product(this%espGrid(:, ii), EField)
+        end do
+      end if
     end if
 
   end subroutine evaluate
