@@ -4190,30 +4190,32 @@ contains
       if (all(esp%gridDimensioning > 0)) then
         ! Regular point distribution, do not print positions
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'# Internal (au)       External (au)', trim(tmpStr)
+          write(esp%fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(2E20.12)")esp%intPotential(ii), esp%extPotential(ii)
+            write(esp%fdEsp,"(2E20.12)")esp%intPotential(ii) * Hartree__eV,&
+                & esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'# Internal (au)', trim(tmpStr)
+          write(esp%fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(E20.12)")esp%intPotential(ii)
+            write(esp%fdEsp,"(E20.12)")esp%intPotential(ii) * Hartree__eV
           end do
         end if
       else
         ! Scattered points, print locations
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (au)      &
-              & External (au)', trim(tmpStr)
+          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
+              & External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii),&
-                & esp%extPotential(ii)
+            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+                & esp%intPotential(ii) * Hartree__eV, esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (au)',&
+          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
               & trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii)
+            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+                & esp%intPotential(ii) * Hartree__eV
           end do
         end if
       end if

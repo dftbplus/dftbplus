@@ -3193,9 +3193,10 @@ pattern present in the system and the total number of points. If the data is
 gridded, the next four lines contain the origin and grid separation vectors in
 {\AA}ngstroms.
 
-The next line is a comment, then the locations and internal field plus
-optionally the external field (from point charges or homogeneous electric
-fields). In the case of gridded data, the location field is omitted.
+The next line is a comment, then the locations and the potential experience for
+a positive charge due to the internal field plus optionally the external field
+(from point charges or homogeneous electric fields). Values are given in
+Volts. In the case of gridded data, the location field is omitted.
 
 For an example with a regular grid
 \begin{verbatim}
@@ -3204,14 +3205,14 @@ For an example with a regular grid
 #  0.200000000000E+01  0.000000000000E+00  0.000000000000E+00
 #  0.000000000000E+00  0.200000000000E+01  0.000000000000E+00
 #  0.000000000000E+00  0.000000000000E+00  0.200000000000E+01
-# Internal (au)       External (au)
+# Internal (V)        External (V)
   0.173386318927E-10  0.314737193575E+00
 \end{verbatim}
 
 In the case where there is no regular grid:
 \begin{verbatim}
 #  T     0     0     0 1
-#           Location (AA)             Internal (au)       External (au)
+#           Location (AA)             Internal (V)        External (V)
   0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
 \end{verbatim}
 
@@ -3223,11 +3224,11 @@ shown in the label:
 #  0.100000000000E+01  0.000000000000E+00  0.000000000000E+00
 #  0.000000000000E+00  0.100000000000E+01  0.000000000000E+00
 #  0.000000000000E+00  0.000000000000E+00  0.100000000000E+01
-# Internal (au) Geo 0
+# Internal (V) Geo 0
   0.215249473376E-01
   .
   .
-# Internal (au) Geo 10
+# Internal (V) Geo 10
   0.215815549672E-01
   .
   .
