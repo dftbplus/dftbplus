@@ -4170,7 +4170,7 @@ contains
       end if
       ! Header with presence of external field and regular grid size
       write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
-          & esp%gridDimensioning, size(esp%extPotential)
+          & esp%gridDimensioning, size(esp%intPotential)
       if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
         write(esp%fdEsp,"(A)")trim(tmpStr)
         if (all(esp%gridDimensioning > 0)) then
@@ -4180,24 +4180,42 @@ contains
           end do
         end if
       end if
+
       if (nGeoSteps > 0) then
-        write(tmpStr, "('# Geo ', I0, T13, A)")iGeoStep, "Location (AA)"
+        write(tmpStr, "(' Geo ', I0)")iGeoStep
       else
-        write(tmpStr, "('#', T13, A)")"Location (AA)"
+        write(tmpStr,*)
       end if
-
-
-      if (allocated(esp%extPotential)) then
-        write(esp%fdEsp,"(A,T39,A,T59,A)")trim(tmpStr),'Internal (au)','External (au)'
-        do ii = 1, size(esp%espGrid,dim=2)
-          write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii),&
-              & esp%extPotential(ii)
-        end do
+        
+      if (all(esp%gridDimensioning > 0)) then
+        ! Regular point distribution, do not print positions
+        if (allocated(esp%extPotential)) then
+          write(esp%fdEsp,"(A,A)")'# Internal (au)       External (au)', trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(2E20.12)")esp%intPotential(ii), esp%extPotential(ii)
+          end do
+        else
+          write(esp%fdEsp,"(A,A)")'# Internal (au)', trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(E20.12)")esp%intPotential(ii)
+          end do
+        end if
       else
-        write(esp%fdEsp,"(A,T39,A)")trim(tmpStr),'Internal (au)'
-        do ii = 1, size(esp%espGrid,dim=2)
-          write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii)
-        end do
+        ! Scattered points, print locations
+        if (allocated(esp%extPotential)) then
+          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (au)      &
+              & External (au)', trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii),&
+                & esp%extPotential(ii)
+          end do
+        else
+          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (au)',&
+              & trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA, esp%intPotential(ii)
+          end do
+        end if
       end if
       close(esp%fdEsp)
     end if

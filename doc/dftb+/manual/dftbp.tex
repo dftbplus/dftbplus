@@ -3193,8 +3193,9 @@ pattern present in the system and the total number of points. If the data is
 gridded, the next four lines contain the origin and grid separation vectors in
 {\AA}ngstroms.
 
-The next line is a comment, then the locations and internal plus optionally
-external field (from point charges or homogeneous electric fields).
+The next line is a comment, then the locations and internal field plus
+optionally the external field (from point charges or homogeneous electric
+fields). In the case of gridded data, the location field is omitted.
 
 For an example with a regular grid
 \begin{verbatim}
@@ -3203,8 +3204,8 @@ For an example with a regular grid
 #  0.200000000000E+01  0.000000000000E+00  0.000000000000E+00
 #  0.000000000000E+00  0.200000000000E+01  0.000000000000E+00
 #  0.000000000000E+00  0.000000000000E+00  0.200000000000E+01
-#           Location (AA)             Internal (au)       External (au)
-  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
+# Internal (au)       External (au)
+  0.173386318927E-10  0.314737193575E+00
 \end{verbatim}
 
 In the case where there is no regular grid:
@@ -3214,13 +3215,22 @@ In the case where there is no regular grid:
   0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
 \end{verbatim}
 
-or
-
-In the case where there is no regular grid or external field:
+In the case where data is generated for multiple geometry steps, this is also
+shown in the label:
 \begin{verbatim}
-#  F     0     0     0 1
-#           Location (AA)             Internal (au)
-  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10
+#  F     1     5     5 25
+#  0.000000000000E+00 -0.200000000000E+01 -0.200000000000E+01
+#  0.100000000000E+01  0.000000000000E+00  0.000000000000E+00
+#  0.000000000000E+00  0.100000000000E+01  0.000000000000E+00
+#  0.000000000000E+00  0.000000000000E+00  0.100000000000E+01
+# Internal (au) Geo 0
+  0.215249473376E-01
+  .
+  .
+# Internal (au) Geo 10
+  0.215815549672E-01
+  .
+  .
 \end{verbatim}
 
 \section{Excited state results files}
