@@ -110,9 +110,13 @@ contains
       allocate(this%extPotential(size(this%espGrid,dim=2)))
     end if
 
+
   end subroutine TElStatPotentials_init
 
-
+  !> Evaluate the electrostatic potential at specified points.
+  !>
+  !> Note, internally to DFTB+ the potential sign is defined opposite to the usual convention, since
+  !> the charge on the electron is not included when applying potentials to the hamiltonian.
   subroutine evaluate(this, env, SccCalc, EField)
 
     !> Object holding the potential location information
@@ -134,6 +138,7 @@ contains
     if (allocated(this%extPotential)) then
       call sccCalc%getExternalElStatPotential(this%extPotential, env, this%espGrid,&
           & epsSoften=this%softenEsp)
+      this%extPotential = -this%extPotential
       if (any(EField /= 0.0_dp)) then
         do ii = 1, size(this%espGrid,dim=2)
           this%extPotential(ii) = this%extPotential(ii)&
