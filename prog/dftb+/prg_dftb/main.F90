@@ -2762,7 +2762,7 @@ contains
       else
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
-        ! Synchronise charges in order to avoid mixers with history to drift apart
+        ! Synchronise charges in order to avoid mixers that store a history drifting apart
         call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
         qInpRed(:) = qInpRed / env%mpi%globalComm%size
       #:endif
