@@ -24,7 +24,7 @@ module poisson
   use fancybc
   use mpi_poisson 
   use fileid
-
+  use iso_c_binding, only : c_loc
   implicit none
   private
   
@@ -622,11 +622,11 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
             enddo   
          case(2)     
             do i = 1, nb 
-               phi(i,s,1:na) = bulk(m)%val(1:na,i,1)
+              phi(i,s,1:na) = bulk(m)%val(1:na,i,1)
             enddo   
          case(3)
             do i = 1, nb 
-               phi(1:na,i,s) = bulk(m)%val(1:na,i,1)
+              phi(1:na,i,s) = bulk(m)%val(1:na,i,1)
             enddo   
          end select
        endif
@@ -778,89 +778,95 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
   integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs
 
-  call log_gallocate(dim_rhs,numprocs)
-  call log_gallocate(istart,numprocs)
-  call log_gallocate(iend,numprocs)
+  if (numprocs > 1) then
 
-  ! z points per processor
-  npid = int(iparm(16)/numprocs)
-
-  ! set start/end and size handled by each processor
-  do i = 1,numprocs
-     istart(i) = (i-1)*npid+1
-     if (i .ne. numprocs) then
-        iend(i) = i*npid
-     else
-        iend(i) = iparm(16)
-     endif
-     dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
-  end do
-  ! Define a subproblem with appropriate iparm_tmp
-  iparm_tmp = iparm
-  fparm_tmp = fparm
-
-  iparm_tmp(16) = iend(id+1) - istart(id+1) + 1
-  fparm_tmp(5) = fparm(5) + (istart(id+1)-1)*dlz
-  fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
-
-  ! Allocate space for local rhs.
-  call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
-  !---------------------------------------------------------------------
-
-  if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
-
-  !! Set a renormalization volume for grid projection
-
-  if (do_renorm) then
-    call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
-    do_renorm = .false.
-  endif
-
-  call charge_density(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-
-  if (DoGate) then
-     call gate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-  endif
-
-  if (DoCilGate) then
-     call cilgate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-  endif
-
-  if (DoTip) then
-     call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
-  endif
-
-  if (id0.and.verbose.gt.VBT) call write_clock
-
-  ! gather all partial results on master node 0
-  call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs, 0, ierr)
-
-  call log_gdeallocate(rhs_par)
-  call log_gdeallocate(dim_rhs)
-  call log_gdeallocate(istart)
-  call log_gdeallocate(iend)
-
-#:else
-
- if (do_renorm) then
-   call renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed_renorm)
-   do_renorm = .false.
- endif
-
- call charge_density(iparm,fparm,dlx,dly,dlz,rhs)
+    call log_gallocate(dim_rhs,numprocs)
+    call log_gallocate(istart,numprocs)
+    call log_gallocate(iend,numprocs)
  
- if (DoGate) then
-    call gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
- endif
+    ! z points per processor
+    npid = int(iparm(16)/numprocs)
  
- if (DoCilGate) then
-    call cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
- endif
+    ! set start/end and size handled by each processor
+    do i = 1,numprocs
+       istart(i) = (i-1)*npid+1
+       if (i .ne. numprocs) then
+          iend(i) = i*npid
+       else
+          iend(i) = iparm(16)
+       endif
+       dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
+    end do
+    ! Define a subproblem with appropriate iparm_tmp
+    iparm_tmp = iparm
+    fparm_tmp = fparm
  
- if (DoTip) then
-    call tip_bound(iparm,fparm,dlx,dly,dlz,rhs)
- endif
+    iparm_tmp(16) = iend(id+1) - istart(id+1) + 1
+    fparm_tmp(5) = fparm(5) + (istart(id+1)-1)*dlz
+    fparm_tmp(6) = fparm(5) + (iend(id+1)-1)*dlz
+ 
+    ! Allocate space for local rhs.
+    call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
+    !---------------------------------------------------------------------
+ 
+    if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
+ 
+    !! Set a renormalization volume for grid projection
+ 
+    if (do_renorm) then
+      call renormalization_volume(iparm_tmp,fparm_tmp,dlx,dly,dlz,fixed_renorm)
+      do_renorm = .false.
+    endif
+ 
+    call charge_density(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+ 
+    if (DoGate) then
+       call gate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+    endif
+ 
+    if (DoCilGate) then
+       call cilgate_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+    endif
+ 
+    if (DoTip) then
+       call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
+    endif
+ 
+    if (id0.and.verbose.gt.VBT) call write_clock
+ 
+    ! gather all partial results on master node 0
+    call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
+ 
+    call log_gdeallocate(rhs_par)
+    call log_gdeallocate(dim_rhs)
+    call log_gdeallocate(istart)
+    call log_gdeallocate(iend)
+  
+  else  
 
+#:endif
+
+    if (do_renorm) then
+      call renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed_renorm)
+      do_renorm = .false.
+    endif
+   
+    call charge_density(iparm,fparm,dlx,dly,dlz,rhs)
+    
+    if (DoGate) then
+       call gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
+    endif
+    
+    if (DoCilGate) then
+       call cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
+    endif
+    
+    if (DoTip) then
+       call tip_bound(iparm,fparm,dlx,dly,dlz,rhs)
+    endif
+   
+#:if WITH_MPI
+ end if
 #:endif
 
  if (any(localBC.gt.0)) then

@@ -813,8 +813,10 @@ module initprogram
   !> Container for the atomistic structure for poisson
   type(TPoissonStructure) :: poissStr
   type(TNEGFStructure) :: negfStr
+  type(TTransPar) :: transpar
+  type(TNEGFInfo) :: ginfo
 
-  !> Container for SK data for poisson
+  !> Container of some SK data for poisson
   type(TSKData) :: gdftbSKData
 #:endif
 
@@ -2871,9 +2873,9 @@ contains
   
     !> Wheter transport has been initialized
     logical :: tInitialized
-    integer :: iSpin
+    integer :: iSpin, isz
     integer :: nSpinChannels
-
+    
     ! These two checks are redundant, I check if they are equal
     if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
       call error("Mismatch in ctrl and ginfo fields")
@@ -2925,6 +2927,7 @@ contains
     end associate
     
     if (tPoisson) then
+      print*,'init poisson'    
       poissStr%nAtom = nAtom
       poissStr%nSpecies = nType
       poissStr%specie0 => species0
@@ -2940,33 +2943,37 @@ contains
       gdftbSKData%hubbU => hubbU
       gdftbSKData%mCutoff = skCutoff
       gdftbSKData%orb => orb
+      call poiss_init(poissStr, gdftbSKData, input%poisson, &
+          & input%transpar, env%mpi%globalComm, tInitialized)
+      if (.not. tInitialized) call error("gdftb not initialized")
     end if
 
     if (tNegf) then
+      print*,'init negf'    
       negfStr%nAtom = nAtom
       if (size(DenseDesc%iAtomStart) /= nAtom+1) then
         stop 'Internal error: DenseDesc not created'
       end if   
       allocate(negfStr%iAtomStart(nAtom+1))
       negfStr%iAtomStart = DenseDesc%iAtomStart
-    end if
-    ! Some sanity checks and initialization of GDFTB/NEGF
-    if (tPoisson) then
-      call poiss_init(poissStr, gdftbSKData, input%poisson, &
-          & input%transpar, env%mpi%globalComm, tInitialized)
-      if (.not. tInitialized) call error("gdftb not initialized")
-    end if
-    if (tNegf) then       
+
+      ! Some sanity checks and initialization of GDFTB/NEGF
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos,&
            & env%mpi%globalComm, tempElec, tInitialized)     
       if (.not. tInitialized) call error("libnegf not initialized")
+     
+      ginfo = input%ginfo 
+
     end if
 
+    transpar = input%transpar
+    
     !Write Dos and tunneling on separate files?
-    writeTunn = input%ginfo%tundos%writeTunn
-    writeLDOS = input%ginfo%tundos%writeLDOS
+    writeTunn = ginfo%tundos%writeTunn
+    writeLDOS = ginfo%tundos%writeLDOS
     
   end subroutine initTransport
+
 #:endif  
 
   !> Initialises (clears) output files.

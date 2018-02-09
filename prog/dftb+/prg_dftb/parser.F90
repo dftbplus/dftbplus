@@ -150,6 +150,9 @@ contains
 
     if (associated(dummy)) then
       call readTransportGeometry(dummy, input%geom, input%transpar)
+    else
+      input%transpar%ncont=0
+      allocate(input%transpar%contacts(0))   
     end if
 #:endif
 

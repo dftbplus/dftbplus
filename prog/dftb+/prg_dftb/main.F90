@@ -92,12 +92,11 @@ module main
 contains
 
   !> The main DFTB program itself
-  subroutine runDftbPlus(env, input)
+  subroutine runDftbPlus(env)
     use initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    type(inputdata), intent(in) :: input
 
     !> energy in previous scc cycles
     real(dp) :: Eold
@@ -225,7 +224,7 @@ contains
 
 #:if WITH_TRANSPORT
       if (tNegf) then
-        call initNegfStuff(negfStr, input%transpar, input%ginfo, neighborList, nNeighbor, &
+        call initNegfStuff(negfStr, transpar, ginfo, neighborList, nNeighbor, &
             & img2CentCell, denseDesc%iAtomStart, orb)
       end if
 #:endif
@@ -296,7 +295,7 @@ contains
 #:if WITH_TRANSPORT          
           ! Overrides uploaded contact charges
           if (tUpload) then
-            call overrideContactCharges(qInput, chargeUp, input%transpar)   
+            call overrideContactCharges(qInput, chargeUp, transpar)   
           end if
 #:endif
           call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species, &
@@ -357,7 +356,7 @@ contains
 
 #:if WITH_TRANSPORT          
           if (tUpload) then
-            call overrideContactCharges(qOutput, chargeUp, input%transpar)  
+            call overrideContactCharges(qOutput, chargeUp, transpar)  
           end if 
 #:endif
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species, &
@@ -701,7 +700,7 @@ contains
 #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charge are saved in QM representation (not UD)
-      associate(tp => input%transpar) 
+      associate(tp => transpar) 
       call writeContShifts(tp%contacts(tp%taskContInd)%output, orb, potential%intShell, qOutput)
       end associate    
     end if

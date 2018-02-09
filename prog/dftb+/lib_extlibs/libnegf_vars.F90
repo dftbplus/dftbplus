@@ -15,7 +15,8 @@ module libnegf_vars
 
   type TNEGFStructure
     integer               :: nAtom          ! number of atoms in central cell 
-    integer, pointer      :: iatomstart(:)  ! atom START pos for squared H/S
+    ! atom START pos for squared H/S
+    integer, allocatable, dimension(:) :: iatomstart 
   end type TNEGFStructure
 
 
@@ -100,9 +101,9 @@ module libnegf_vars
     !! There is an independent definition of pls as in closed system 
     !! green's calculation a separate definition may be used
     integer            :: nPLs = 0             ! N. of principal layers
-    integer, allocatable   :: PL(:)            ! PL indeces (starting atom)
+    integer, allocatable  :: PL(:)             ! PL indeces (starting atom)
     integer            :: gSpin                ! spin degeneracy (used in charge integration)
-    real(dp), dimension(:), allocatable :: kbT ! contact temperatures 
+    real(dp), allocatable :: kbT(:)            ! contact temperatures 
     type(Telph) :: elph
     type(Telph) :: bp
   end type TNEGFGreenDensInfo
@@ -113,6 +114,21 @@ module libnegf_vars
      
     logical :: defined = .false.   ! True if the corresponding input block exists
     type(ContactInfo), dimension(:), allocatable :: contacts
+    ! number of contacts
+    integer :: ncont = 0
+    !! Start and end index of device region
+    integer :: idxdevice(2)
+    ! N. of principal layers
+    integer :: nPLs =1                
+    ! PL indeces (starting atom)
+    integer, allocatable, dimension(:) :: PL   
+    ! False: run the full OBC calculation / True: upload contact phase
+    logical :: taskUpload = .false.
+    ! Index of contact for contact hamiltonian task, if any
+    integer :: taskContInd = 0
+    !! Not from input file
+    logical :: tPeriodic1D = .false.
+    
     
     !DAR begin - type TTransPar new items
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -139,20 +155,175 @@ module libnegf_vars
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !DAR end
     
-    integer :: ncont = 0
-    !! Start and end index of device region
-    integer :: idxdevice(2)
-    integer :: nPLs =1                ! N. of principal layers
-    integer, allocatable, dimension(:) :: PL   ! PL indeces (starting atom)
-    ! False: run the full OBC calculation / True: upload contact phase
-    logical :: taskUpload = .false.
-    ! Index of contact for contact hamiltonian task, if any
-    integer :: taskContInd = 0
-    !! Not from input file
-    logical :: tPeriodic1D = .false.
-    
   end type TTransPar
+  
+  contains 
+
+  subroutine copyGreenDens(gIN, gOUT)
+    type(TNEGFGreenDensInfo), intent(in) :: gIN
+    type(TNEGFGreenDensInfo), intent(out) :: gOUT
+
+    integer :: isz
+
+    !copy greendens
+    gOUT%defined    = gIN%defined
+    gOUT%verbose    = gIN%verbose
+    gOUT%oneFermi   = gIN%oneFermi   
+    gOUT%delta      = gIN%delta      
+    gOUT%np         = gIN%np         
+    gOUT%enLow      = gIN%enLow      
+    gOUT%nkT        = gIN%nkT        
+    gOUT%nPoles     = gIN%nPoles     
+    gOUT%doGreenDens= gIN%doGreenDens
+    gOUT%saveSGF    = gIN%saveSGF    
+    gOUT%readSGF    = gIN%readSGF    
+    gOUT%doLocalCurr= gIN%doLocalCurr
+    gOUT%nPLs       = gIN%nPLs       
+    gOUT%gspin      = gIN%gspin      
+
+    if (allocated(gIN%kbT)) then
+      isz = size(gIN%kbT)
+      allocate(gOUT%kbT(isz))
+      gOUT%kbT = gIN%kbT
+    end if
+    if (allocated(gIN%PL)) then
+      isz = size(gIN%PL)
+      allocate(gOUT%PL(isz))
+      gOUT%PL = gIN%PL
+    end if
+    ! copy greendens%elph
+    if (allocated(gIN%elph%coupling)) then
+      isz = size(gIN%elph%coupling)
+      allocate(gOUT%elph%coupling(isz))
+      gOUT%elph%coupling = gIN%elph%coupling
+    end if
+    if (allocated(gIN%elph%orbsperatm)) then
+      isz = size(gIN%elph%orbsperatm)
+      allocate(gOUT%elph%orbsperatm(isz))
+      gOUT%elph%orbsperatm = gIN%elph%orbsperatm
+    end if
+    gOUT%elph%defined   = gIN%elph%defined  
+    gOUT%elph%model     = gIN%elph%model    
+    gOUT%elph%scba_niter = gIN%elph%scba_niter
+
+    ! copy greendens%bp
+    if (allocated(gIN%bp%coupling)) then
+      isz = size(gIN%bp%coupling)
+      allocate(gOUT%bp%coupling(isz))
+      gOUT%bp%coupling = gIN%bp%coupling
+    end if
+    if (allocated(gIN%bp%orbsperatm)) then
+      isz = size(gIN%bp%orbsperatm)
+      allocate(gOUT%bp%orbsperatm(isz))
+      gOUT%bp%orbsperatm = gIN%bp%orbsperatm
+    end if
+    gOUT%bp%defined   = gIN%bp%defined  
+    gOUT%bp%model     = gIN%bp%model    
+    gOUT%bp%scba_niter = gIN%bp%scba_niter
+ 
+  end subroutine copyGreenDens  
+
+  subroutine copyTunDos(gIN, gOUT)
+    type(TNEGFTunDos), intent(in) :: gIN
+    type(TNEGFTunDos), intent(out) :: gOUT
+
+    integer :: isz
+
+    ! copy tundos
+    if (allocated(gIN%ni)) then
+      isz = size(gIN%ni)
+      allocate(gOUT%ni(isz))
+      gOUT%ni = gIN%ni
+    end if
+    if (allocated(gIN%nf)) then
+      isz = size(gIN%nf)
+      allocate(gOUT%nf(isz))
+      gOUT%nf = gIN%nf
+    end if
+    if (allocated(gIN%kbT)) then
+      isz = size(gIN%kbT)
+      allocate(gOUT%kbT(isz))
+      gOUT%kbT = gIN%kbT
+    end if
+    if (allocated(gIN%dosOrbitals)) then
+      isz = size(gIN%dosOrbitals)
+      allocate(gOUT%dosOrbitals(isz))
+      gOUT%dosOrbitals = gIN%dosOrbitals
+    end if
+    if (allocated(gIN%dosLabels)) then
+      isz = size(gIN%dosLabels)
+      allocate(gOUT%dosLabels(isz))
+      gOUT%dosLabels = gIN%dosLabels
+    end if
+     
+    gOUT%defined   = gIN%defined
+    gOUT%verbose   = gIN%verbose
+    gOUT%gspin     = gIN%gspin      
+    gOUT%emin      = gIN%emin       
+    gOUT%emax      = gIN%emax       
+    gOUT%estep     = gIN%estep      
+    gOUT%delta     = gIN%delta      
+    gOUT%writeLDOS = gIN%writeLDOS  
+    gOUT%writeTUNN = gIN%writeTUNN  
+    gOUT%broadeningDelta = gIN%broadeningDelta
+
+    ! copy tundos%elph
+    if (allocated(gIN%elph%coupling)) then
+      isz = size(gIN%elph%coupling)
+      allocate(gOUT%elph%coupling(isz))
+      gOUT%elph%coupling = gIN%elph%coupling
+    end if
+    if (allocated(gIN%elph%orbsperatm)) then
+      isz = size(gIN%elph%orbsperatm)
+      allocate(gOUT%elph%orbsperatm(isz))
+      gOUT%elph%orbsperatm = gIN%elph%orbsperatm
+    end if
+    gOUT%elph%defined   = gIN%elph%defined  
+    gOUT%elph%model     = gIN%elph%model    
+    gOUT%elph%scba_niter = gIN%elph%scba_niter
+
+    ! copy tundos%bp
+    if (allocated(gIN%bp%coupling)) then
+      isz = size(gIN%bp%coupling)
+      allocate(gOUT%bp%coupling(isz))
+      gOUT%bp%coupling = gIN%bp%coupling
+    end if
+    if (allocated(gIN%bp%orbsperatm)) then
+      isz = size(gIN%bp%orbsperatm)
+      allocate(gOUT%bp%orbsperatm(isz))
+      gOUT%bp%orbsperatm = gIN%bp%orbsperatm
+    end if
+    gOUT%bp%defined   = gIN%bp%defined  
+    gOUT%bp%model     = gIN%bp%model    
+    gOUT%bp%scba_niter = gIN%bp%scba_niter
+
+  end subroutine copyTunDos
+
+  subroutine copyTranspar(tIN, tOUT)
+    type(TTransPar), intent(in) :: tIN    
+    type(TTransPar), intent(out) :: tOUT  
     
+    integer :: isz
+
+    tOUT%defined     = tIN%defined    
+    tOUT%ncont       = tIN%ncont      
+    tOUT%idxdevice   = tIN%idxdevice  
+    tOUT%nPls        = tIN%nPls       
+    tOUT%taskUpload  = tIN%taskUpload 
+    tOUT%taskContInd = tIN%taskContInd
+    tOUT%tPeriodic1D = tIN%tPeriodic1D
+    if (allocated(tIN%PL)) then
+      isz = size(tIN%PL)
+      allocate(tOUT%PL(isz))
+      tOUT%PL = tIN%PL
+    end if
+    if (allocated(tIN%contacts)) then
+      isz = size(tIN%contacts)
+      allocate(tOUT%contacts(isz))
+      tOUT%contacts = tIN%contacts
+    end if
+        
+  end subroutine copyTranspar
 
 
 end module libnegf_vars
