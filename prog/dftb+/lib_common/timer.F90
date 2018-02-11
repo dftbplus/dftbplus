@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> Time stages in the code
 module timer
   use globalenv, only : stdOut
   implicit none
