@@ -264,7 +264,7 @@ contains
       call destruct(realBuffer)
     end if
 
-    call getChildValue(root, "WriteHSDInput", tWriteHSD, .true.)
+    call getChildValue(root, "WriteHSDInput", tWriteHSD, .false.)
     call getChildValue(root, "WriteXMLInput", tWriteXML, .false.)
 
     !! Issue warning about unprocessed nodes

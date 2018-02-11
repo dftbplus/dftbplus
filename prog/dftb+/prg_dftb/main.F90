@@ -313,7 +313,7 @@ contains
         tStopScc = hasStopFile(fStopScc)
 
         if (tSccCalc) then
-          call getNextInputCharges(pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+          call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
               & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
@@ -2659,10 +2659,13 @@ contains
 
 
   !> Returns input charges for next SCC iteration.
-  subroutine getNextInputCharges(pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+  subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg, qInput,&
       & qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
       & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Charge mixing object
     type(OMixer), intent(inout) :: pChrgMixer
@@ -2773,6 +2776,11 @@ contains
         end if
       else
         call mix(pChrgMixer, qInpRed, qDiffRed)
+      #:if WITH_MPI
+        ! Synchronise charges in order to avoid mixers that store a history drifting apart
+        call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
+        qInpRed(:) = qInpRed / env%mpi%globalComm%size
+      #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
             & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
       end if
