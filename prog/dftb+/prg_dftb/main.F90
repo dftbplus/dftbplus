@@ -359,9 +359,9 @@ contains
       end if
 
       if (tXlbomd) then
-        call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
-            & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
-            & qiBlockIn)
+        call getXlbomdCharges(env, xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb,&
+            & iEqOrbitals, qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ,&
+            & iEqBlockDftbuLs, qiBlockIn)
       end if
 
       if (tDipole) then
@@ -412,7 +412,7 @@ contains
           derivs(:,:) = derivs + excitedDerivs
         end if
         call env%globalTimer%stopTimer(globalTimers%forceCalc)
-        
+
         if (tStress) then
           call env%globalTimer%startTimer(globalTimers%stressCalc)
           call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
@@ -488,7 +488,7 @@ contains
         tLatticeChanged = .false.
 
         if (tDerivs) then
-          call getNextDerivStep(derivDriver, derivs, indMovedAtom, coord0, tGeomEnd)
+          call getNextDerivStep(env,derivDriver, derivs, indMovedAtom, coord0, tGeomEnd)
           if (tGeomEnd) then
             call env%globalTimer%stopTimer(globalTimers%postSCC)
             exit lpGeomOpt
@@ -497,7 +497,7 @@ contains
         else if (tGeoOpt) then
           tCoordsChanged = .true.
           if (tCoordStep) then
-            call getNextCoordinateOptStep(pGeoCoordOpt, energy%EMermin, derivs, indMovedAtom,&
+            call getNextCoordinateOptStep(env,pGeoCoordOpt, energy%EMermin, derivs, indMovedAtom,&
                 & coord0, diffGeo, tCoordEnd)
             if (.not. tLatOpt) then
               tGeomEnd = tCoordEnd
@@ -506,7 +506,7 @@ contains
               tCoordStep = .false.
             end if
           else
-            call getNextLatticeOptStep(pGeoLatOpt, energy%EGibbs, constrLatDerivs, origLatVec,&
+            call getNextLatticeOptStep(env,pGeoLatOpt, energy%EGibbs, constrLatDerivs, origLatVec,&
                 & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0,&
                 & diffGeo, tGeomEnd)
             iLatGeoStep = iLatGeoStep + 1
@@ -524,7 +524,7 @@ contains
           ! New MD coordinates saved in a temporary variable, as writeCurrentGeometry() below
           ! needs the old ones to write out consistent geometries and velocities.
           newCoords(:,:) = coord0
-          call getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, derivs, movedMass,&
+          call getNextMdStep(env, pMdIntegrator, pMdFrame, temperatureProfile, derivs, movedMass,&
               & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy,&
               & newCoords, latVec, intPressure, totalStress, totalLatDeriv, velocities, tempIon)
           tCoordsChanged = .true.
@@ -2762,9 +2762,8 @@ contains
       else
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
-        ! Synchronise charges in order to avoid mixers that store a history drifting apart
-        call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
-        qInpRed(:) = qInpRed / env%mpi%globalComm%size
+        ! use root node copy of varible(s) on all nodes, avoiding drift
+        call mpifx_bcast(env%mpi%globalComm, qInpRed)
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
             & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
@@ -3180,9 +3179,12 @@ contains
 
 
   !> Get the XLBOMD charges for the current geometry.
-  subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
-      & qInput, qInpRed, iEqBlockDftbu, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLS,&
-      & qiBlockIn)
+  subroutine getXlbomdCharges(env, xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb,&
+      & iEqOrbitals, qInput, qInpRed, iEqBlockDftbu, qBlockIn, species0, nUJ, iUJ, niUJ,&
+      & iEqBlockDftbuLS, qiBlockIn)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> integrator for the extended Lagrangian
     type(Xlbomd), intent(inout) :: xlbomdIntegrator
@@ -3242,6 +3244,10 @@ contains
       deallocate(invJacobian)
     end if
     call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), qInpRed(1:nIneqOrb))
+  #:if WITH_MPI
+    ! use root node copy of varible(s) on all nodes, avoiding drift
+    call mpifx_bcast(env%mpi%globalComm, qOutRed(1:nIneqOrb))
+  #:endif
     call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
         & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
 
@@ -4315,7 +4321,10 @@ contains
 
 
   !> Returns the coordinates for the next Hessian calculation step.
-  subroutine getNextDerivStep(derivDriver, derivs, indMovedAtoms, coords, tGeomEnd)
+  subroutine getNextDerivStep(env, derivDriver, derivs, indMovedAtoms, coords, tGeomEnd)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Driver for the finite difference second derivatives
     type(OnumDerivs), intent(inout) :: derivDriver
@@ -4335,14 +4344,22 @@ contains
     real(dp) :: newCoords(3, size(indMovedAtoms))
 
     call next(derivDriver, newCoords, derivs(:, indMovedAtoms), tGeomEnd)
+  #:if WITH_MPI
+    ! use root node copy of varible(s) on all nodes, avoiding drift
+    call mpifx_bcast(env%mpi%globalComm, newCoords)
+    call mpifx_bcast(env%mpi%globalComm, tGeomEnd)
+  #:endif
     coords(:, indMovedAtoms) = newCoords
 
   end subroutine getNextDerivStep
 
 
   !> Returns the coordinates for the next coordinate optimisation step.
-  subroutine getNextCoordinateOptStep(pGeoCoordOpt, EMermin, derivss, indMovedAtom, coords0,&
+  subroutine getNextCoordinateOptStep(env, pGeoCoordOpt, EMermin, derivss, indMovedAtom, coords0,&
       & diffGeo, tCoordEnd)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> optimiser for atomic coordinates
     type(OGeoOpt), intent(inout) :: pGeoCoordOpt
@@ -4371,6 +4388,11 @@ contains
 
     derivssMoved(:) = reshape(derivss(:, indMovedAtom), [3 * size(indMovedAtom)])
     call next(pGeoCoordOpt, EMermin, derivssMoved, newCoordsMoved, tCoordEnd)
+  #:if WITH_MPI
+    ! use root node copy of varible(s) on all nodes, avoiding drift
+    call mpifx_bcast(env%mpi%globalComm, newCoordsMoved(1 : 3 * size(indMovedAtom)))
+    call mpifx_bcast(env%mpi%globalComm, tCoordEnd)
+  #:endif
     pNewCoordsMoved(1:3, 1:size(indMovedAtom)) => newCoordsMoved(1 : 3 * size(indMovedAtom))
     diffGeo = maxval(abs(pNewCoordsMoved - coords0(:, indMovedAtom)))
     coords0(:, indMovedAtom) = pNewCoordsMoved
@@ -4379,8 +4401,12 @@ contains
 
 
   !> Returns the coordinates and lattice vectors for the next lattice optimisation step.
-  subroutine getNextLatticeOptStep(pGeoLatOpt, EGibbs, constrLatDerivs, origLatVec, tLatOptFixAng,&
-      & tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo, tGeomEnd)
+  subroutine getNextLatticeOptStep(env, pGeoLatOpt, EGibbs, constrLatDerivs, origLatVec,&
+      & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo,&
+      & tGeomEnd)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> lattice vector optimising object
     type(OGeoOpt), intent(inout) :: pGeoLatOpt
@@ -4420,9 +4446,14 @@ contains
 
     real(dp) :: newLatVecsFlat(9), newLatVecs(3, 3), oldMovedCoords(3, size(indMovedAtom))
 
-    call next(pGeoLatOpt, EGibbs, constrLatDerivs, newLatVecsFlat,tGeomEnd)
+    call next(pGeoLatOpt, EGibbs, constrLatDerivs, newLatVecsFlat, tGeomEnd)
     call unconstrainLatticeVectors(newLatVecsFlat, origLatVec, tLatOptFixAng, tLatOptFixLen,&
         & tLatOptIsotropic, newLatVecs)
+  #:if WITH_MPI
+    ! use root node copy of varible(s) on all nodes, avoiding drift
+    call mpifx_bcast(env%mpi%globalComm, newLatVecs)
+    call mpifx_bcast(env%mpi%globalComm, tGEomEnd)
+  #:endif
     oldMovedCoords(:,:) = coord0(:, indMovedAtom)
     call cart2frac(coord0, latVec)
     latVec(:,:) = newLatVecs
@@ -4434,9 +4465,12 @@ contains
 
 
   !> Delivers data for next MD step (and updates data depending on velocities of current step)
-  subroutine getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, derivs, movedMass,&
+  subroutine getNextMdStep(env, pMdIntegrator, pMdFrame, temperatureProfile, derivs, movedMass,&
       & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy, coord0,&
       & latVec, intPressure, totalStress, totalLatDeriv, velocities, tempIon)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Molecular dynamics integrator
     type(OMdIntegrator), intent(inout) :: pMdIntegrator
@@ -4504,6 +4538,11 @@ contains
 
     movedAccel(:,:) = -derivs(:, indMovedAtom) / movedMass
     call next(pMdIntegrator, movedAccel, movedCoords, movedVelo)
+  #:if WITH_MPI
+    ! use root node copy of varible(s) on all nodes, avoiding drift
+    call mpifx_bcast(env%mpi%globalComm, movedCoords)
+    call mpifx_bcast(env%mpi%globalComm, movedVelo)
+  #:endif
     coord0(:, indMovedAtom) = movedCoords
     velocities(:,:) = 0.0_dp
     velocities(:, indMovedAtom) = movedVelo(:,:)
@@ -4520,6 +4559,10 @@ contains
       ! contribution from kinetic energy in MD, now that velocities for this geometry step are
       ! available
       call getKineticStress(kineticStress, mass, species0, velocities, cellVol)
+    #:if WITH_MPI
+      ! use root node copy of varible(s) on all nodes, avoiding drift
+      call mpifx_bcast(env%mpi%globalComm, kineticStress)
+    #:endif
       totalStress = totalStress + kineticStress
       intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
       totalLatDeriv = -cellVol * matmul(totalStress, invLatVec)
@@ -4527,6 +4570,10 @@ contains
 
     if (tBarostat) then
       call rescale(pMDIntegrator, coord0, latVec, totalStress)
+  #:if WITH_MPI
+      ! use root node copy of varible(s) on all nodes, avoiding drift
+      call mpifx_bcast(env%mpi%globalComm, latVec)
+  #:endif
     end if
 
   end subroutine getNextMdStep
