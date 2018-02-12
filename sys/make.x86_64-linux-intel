@@ -23,8 +23,9 @@ LNOPT =
 # How to link specific libraries
 
 # ScaLAPACK
+# Make sure you link the correct flavour of mkl_blacs for your MPI-environment
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64
+LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64
 
 # LAPACK/BLAS
 LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
