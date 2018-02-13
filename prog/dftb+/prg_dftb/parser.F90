@@ -1503,9 +1503,7 @@ contains
         call error("External charges can only be used in an SCC calculation")
       end if
       call init(lCharges)
-      if (.not. geo%tPeriodic) then
-        call init(lBlurs)
-      end if
+      call init(lBlurs)
       fp = getFileId()
       ctrl%nExtChrg = 0
       do ii = 1, getLength(children)
@@ -1543,19 +1541,17 @@ contains
         end select
         call convertByMul(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
         call append(lCharges, tmpR2)
-        if (.not. geo%tPeriodic) then
-          call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
-              &modifier=modifier, child=child3)
-          if (rTmp < 0.0_dp) then
-            call detailedError(child3, "Gaussian blur width may not be &
-                &negative")
-          end if
-          call convertByMul(char(modifier), lengthUnits, child3, rTmp)
-          allocate(tmpR1(size(tmpR2, dim=2)))
-          tmpR1(:) = rTmp
-          call append(lBlurs, tmpR1)
-          deallocate(tmpR1)
+        call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
+            &modifier=modifier, child=child3)
+        if (rTmp < 0.0_dp) then
+          call detailedError(child3, "Gaussian blur width may not be &
+              &negative")
         end if
+        call convertByMul(char(modifier), lengthUnits, child3, rTmp)
+        allocate(tmpR1(size(tmpR2, dim=2)))
+        tmpR1(:) = rTmp
+        call append(lBlurs, tmpR1)
+        deallocate(tmpR1)
         deallocate(tmpR2)
       end do
 
@@ -1567,15 +1563,13 @@ contains
       end do
       call destruct(lCharges)
 
-      if (.not. geo%tPeriodic) then
-        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
-        ind = 1
-        do ii = 1, len(lBlurs)
-          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
-          ind = ind + nElem
-        end do
-        call destruct(lBlurs)
-      end if
+      allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
+      ind = 1
+      do ii = 1, len(lBlurs)
+        call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+        ind = ind + nElem
+      end do
+      call destruct(lBlurs)
     else
       ctrl%nExtChrg = 0
     end if
@@ -3249,6 +3243,8 @@ contains
       end if
     end if
 
+    call readElectrostaticPotential(node, geo, ctrl)
+
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
@@ -3420,5 +3416,184 @@ contains
 
   end subroutine readBlacs
 
+
+  subroutine readElectrostaticPotential(node, geo, ctrl)
+
+    !> Node containing optional electrostatic settings
+    type(fnode), pointer, intent(in) :: node
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Control structure
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: child, child2, child3
+    type(string) :: buffer, modifier
+    type(listRealR1) :: lr1
+    
+    call getChild(node, "ElectrostaticPotential", child, requested=.false.)
+    if (.not. associated(child)) then
+      return
+    end if
+
+    if (.not. ctrl%tSCC) then
+      call error("Electrostatic potentials only available in an SCC calculation")
+    end if
+    allocate(ctrl%elStatPotentialsInp)
+    call getChildValue(child, "OutputFile", buffer, "ESP.dat")
+    ctrl%elStatPotentialsInp%espOutFile = unquote(char(buffer))
+    ctrl%elStatPotentialsInp%tAppendEsp = .false.
+    if (ctrl%tGeoOpt .or. ctrl%tMD) then
+      call getChildValue(child, "AppendFile", ctrl%elStatPotentialsInp%tAppendEsp, .false.)
+    end if
+    call init(lr1)
+    ! discrete points
+    call getChildValue(child, "Points", child2, "", child=child3, &
+        & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(child2, buffer)
+    if (char(buffer) /= "") then
+      call getChildValue(child3, "", 3, lr1, modifier=modifier)
+      allocate(ctrl%elStatPotentialsInp%espGrid(3,len(lr1)))
+      call asArray(lr1, ctrl%elStatPotentialsInp%espGrid)
+      if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+        ctrl%elStatPotentialsInp%espGrid = matmul(geo%latVecs, ctrl%elStatPotentialsInp%espGrid)
+      else
+        call convertByMul(char(modifier), lengthUnits, child3,&
+            & ctrl%elStatPotentialsInp%espGrid)
+      end if
+    end if
+    call destruct(lr1)
+
+    ! grid specification for points instead
+    call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
+    if (associated(child2)) then
+      if (allocated(ctrl%elStatPotentialsInp%espGrid)) then
+        call error("Both grid and point specification not both currently possible")
+      end if
+      if (geo%tPeriodic) then
+        call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
+            & latVecs=geo%latVecs, nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & origin=ctrl%elStatPotentialsInp%origin,&
+            & axes=ctrl%elStatPotentialsInp%axes)
+      else
+        call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
+            & nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & origin=ctrl%elStatPotentialsInp%origin,&
+            & axes=ctrl%elStatPotentialsInp%axes)
+      end if
+    end if
+    if (.not.allocated(ctrl%elStatPotentialsInp%espGrid)) then
+      call detailedError(child,"Either a grid or set of points must be specified")
+    end if
+    call getChildValue(child, "Softening", ctrl%elStatPotentialsInp%softenESP, 1.0E-6_dp,&
+        & modifier=modifier, child=child2)
+    call convertByMul(char(modifier), lengthUnits, child2, ctrl%elStatPotentialsInp%softenEsp)
+
+  end subroutine readElectrostaticPotential
+
+
+  !> Read in a grid specification
+  subroutine readGrid(points, node, modifier, latVecs, nPoints, origin, axes)
+
+    !> Points in the grid
+    real(dp), allocatable, intent(out) :: points(:,:)
+
+    !> input data to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> unit modifier for the grid
+    type(string), intent(in) :: modifier
+
+    !> geometry of the system
+    real(dp), intent(in), optional :: latVecs(:,:)
+
+    !> Number of grid points in each direction, if required
+    integer, intent(out), optional :: nPoints(3)
+
+    !> origin of grid if required
+    real(dp), intent(out), optional :: origin(3)
+
+    !> axes of the grid if required
+    real(dp), intent(out), optional :: axes(3,3)
+
+    type(fnode), pointer :: child
+    real(dp) :: r3Tmp(3), r3Tmpb(3)
+    integer :: i3Tmp(3), iPt, ii, jj, kk
+    logical :: tPeriodic
+    real(dp) :: axes_(3,3), r33Tmp(3,3)
+
+    tPeriodic = present(latvecs)
+    
+    if (.not.tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+      call detailedError(node, "Fractional grid specification only available for periodic&
+          & geometries")
+    end if
+
+    call getChildValue(node, "Spacing", r3Tmp, child=child)
+    call getChildValue(node, "Origin", r3Tmpb, child=child)
+    call getChildValue(node, "GridPoints", i3Tmp, child=child)
+    if (any(i3Tmp < 1)) then
+      call detailedError(child,"Grid must be at least 1x1x1")
+    end if
+    if (any(abs(r3Tmp) < epsilon(1.0_dp) .and. i3Tmp > 1)) then
+      call detailedError(child,"Grid spacings must be non-zero")
+    end if
+    allocate(points(3,product(i3Tmp)))
+    if (present(nPoints)) then
+      nPoints = i3Tmp
+    end if
+
+    !  length not fraction modifier
+    if (.not.(tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
+      call convertByMul(char(modifier), lengthUnits, child, r3Tmp)
+      call convertByMul(char(modifier), lengthUnits, child, r3Tmpb)
+    end if
+
+    points = 0.0_dp
+    iPt = 0
+    do ii = 0, i3Tmp(1)-1
+      do jj = 0, i3Tmp(2)-1
+        do kk = 0, i3Tmp(3)-1
+          iPt = iPt + 1
+          points(1,iPt) = ii * r3Tmp(1) + r3Tmpb(1)
+          points(2,iPt) = jj * r3Tmp(2) + r3Tmpb(2)
+          points(3,iPt) = kk * r3Tmp(3) + r3Tmpb(3)
+        end do
+      end do
+    end do
+
+    ! transformation matrix on directions, could use a 4x4 homogeneous coordinate transform instead
+    if (.not.(char(modifier) == "F" .or. char(modifier) == "f") .or. .not.tPeriodic) then
+      r33Tmp = reshape([1,0,0,0,1,0,0,0,1],[3,3])
+      call getChildValue(node, "Directions", axes_, r33Tmp, child=child)
+      if (abs(determinant33(axes_)) < epsilon(1.0_dp)) then
+        call detailedError(child, "Dependent axis directions")
+      end if
+      do ii = 1, 3
+        axes_(:,ii) = axes_(:,ii) / sqrt(sum(axes_(:,ii)**2))
+      end do
+      points = matmul(axes_,points)
+      if (present(axes)) then
+        axes = axes_*spread(r3Tmp,2,3)
+      end if
+    end if
+    
+    if (present(origin)) then
+      origin = r3Tmpb
+    end if
+    
+    ! Fractional specification of points
+    if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+      points = matmul(latVecs,points)
+      if (present(origin)) then
+        origin = matmul(latVecs,origin)
+      end if
+      if (present(axes)) then
+        axes = latVecs * spread(r3Tmp,2,3)
+      end if
+    end if
+
+  end subroutine readGrid
 
 end module parser

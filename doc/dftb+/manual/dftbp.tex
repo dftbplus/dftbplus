@@ -2656,7 +2656,9 @@ calculation and/or calculate properties.
   \kw{EigenvectorsAsTxt} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
+  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
 \end{ptable}
+
 \begin{description}
 
 \item[\is{AtomResolvedEnergies}] Specifies whether the contribution of the
@@ -2779,6 +2781,56 @@ method which {\em may} have better scaling properties.
   for the actual calculation (e.g.\ static geometry calculation).
 
 \end{description}
+
+\subsubsection{ElectrostaticPotential}
+\label{sec:dftbp.ESP}
+
+Evaluates the electrostatic potential at specified points in space for SCC
+calculations. This data is accumulated in a specified text file.
+
+\begin{ptable}
+  \kw{OutputFile} & s  &  & "ESP.dat" & \\
+  \kw{AppendFile} & l  & MD or geometry optimisation & No & \\
+  \kw{Softening}  & r     & & 1E-6 & \\
+  \kw{Points}     & (3r)+ & \is{Grid} not set & \cb  & \\
+  \kw{Grid}       & m     & \is{Points} not set & \cb  & \\
+\end{ptable}
+\begin{description}
+\item[\is{OutputFile}] Text file to store the potential. If external electric
+  fields are present, an additional column gives their values. See
+  p.~\pref{sec:dftbp.esp} for a description of the file.
+\item[\is{AppendFile}] If running calculations with multiple geometries, should
+  the \is{OutputFile} be appended or only contain the last potential
+  information?
+\item[\is{Softening}] \modif{\modtype{length}} Modifies the plotted potential to
+  remove the $r=0$ divergence of $\sfrac{1}{r}$, by setting $\epsilon$ and
+  instead plotting $\sfrac{1}{\sqrt{r^2 +\epsilon^2}}$. Internal potential
+  calculations are unaffected, only the exported data.
+\item[\is{Points}] \modif{\modtype{length}} List of cartesian points at which to
+  evaluate the electrostatic field. In the case Periodic = Yes, the modifier "F"
+  may instead be used to specify the points as fractions of the lattice vectors.
+\item[\is{Grid}] \modif{\modtype{length}} Specification of a regular 1, 2 or 3
+  dimensional grid of points. In the case Periodic = Yes, the modifier "F" may
+  instead be used to specify the points as fractions of the lattice vectors.
+  \begin{ptable}
+    \kw{GridPoints} & 3i  &  & & \\
+    \kw{Origin} & 3r  &  & & \\
+    \kw{Spacing} & 3r  &  & & \\
+    \kw{Directions} & 9r  & Modifier not F & 1 0 0\ \  0 1 0\ \  0 0 1& \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{Spacing}] Separation between points in each direction. This
+      inherits the modifier for \is{Grid}.
+  \item[\is{Origin}] Location of first point in the grid. This inherits the
+    modifier for \is{Grid}.
+  \item[\is{GridPoints}] Number of points in each of the three direction of the
+    grid (a value of 1 places all points at the \is{Origin} of that direction).
+  \item[\is{Directions}] Set of 3 cartesian vectors along which the grid will
+    become aligned. This can rotate, skew, {\it etc.}\ the grid. The vectors are
+    internally normalised, but must be independent.
+  \end{description}
+\end{description}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
@@ -3129,6 +3181,58 @@ calculations, and appended every \kw{MDRestartFrequency} steps. In the case of
 small numbers of atoms and long MD simulations it may be useful to set
 \is{WriteDetailedOut} to \is{No} and examine the information stored in this file
 instead.
+
+\section{Electrostatic potential data}
+\label{sec:dftbp.esp}
+\index{ESP.dat}
+
+The output from evaluating the electrostatic potential. The first line
+consists of a comment mark followed by a logical variable as to whether there is
+an external electric field (or not), followed by 3 values for any regular grid
+pattern present in the system and the total number of points. If the data is
+gridded, the next four lines contain the origin and grid separation vectors in
+{\AA}ngstroms.
+
+The next line is a comment, then the locations and the potential experience for
+a positive charge due to the internal field plus optionally the external field
+(from point charges or homogeneous electric fields). Values are given in
+Volts. In the case of gridded data, the location field is omitted.
+
+For an example with a regular grid
+\begin{verbatim}
+#  T     1     1     1 1
+#  0.000000000000E+00 -0.200000000000E+01 -0.200000000000E+01
+#  0.200000000000E+01  0.000000000000E+00  0.000000000000E+00
+#  0.000000000000E+00  0.200000000000E+01  0.000000000000E+00
+#  0.000000000000E+00  0.000000000000E+00  0.200000000000E+01
+# Internal (V)        External (V)
+  0.173386318927E-10  0.314737193575E+00
+\end{verbatim}
+
+In the case where there is no regular grid:
+\begin{verbatim}
+#  T     0     0     0 1
+#           Location (AA)             Internal (V)        External (V)
+  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
+\end{verbatim}
+
+In the case where data is generated for multiple geometry steps, this is also
+shown in the label:
+\begin{verbatim}
+#  F     1     5     5 25
+#  0.000000000000E+00 -0.200000000000E+01 -0.200000000000E+01
+#  0.100000000000E+01  0.000000000000E+00  0.000000000000E+00
+#  0.000000000000E+00  0.100000000000E+01  0.000000000000E+00
+#  0.000000000000E+00  0.000000000000E+00  0.100000000000E+01
+# Internal (V) Geo 0
+  0.215249473376E-01
+  .
+  .
+# Internal (V) Geo 10
+  0.215815549672E-01
+  .
+  .
+\end{verbatim}
 
 \section{Excited state results files}
 \label{sec:tddftb_lr}

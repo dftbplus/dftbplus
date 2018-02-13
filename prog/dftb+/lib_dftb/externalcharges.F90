@@ -15,6 +15,7 @@ module ExternalCharges
   use coulomb
   use constants
   use periodic, only : getCellTranslations, foldCoordToUnitCell
+  use environment
   implicit none
 
   private
@@ -66,7 +67,9 @@ module ExternalCharges
     procedure :: updateCoordsPeriodic
     procedure :: addForceDcCluster
     procedure :: addForceDcPeriodic
-
+    procedure :: getElStatPotentialCluster
+    procedure :: getElStatPotentialPeriodic
+    
     !> Updates the stored coordinates for point charges
     generic, public :: updateCoords => updateCoordsCluster, updateCoordsPeriodic
 
@@ -82,6 +85,9 @@ module ExternalCharges
     !> Adds force double counting component
     generic, public :: addForceDc => addForceDcCluster, addForceDcPeriodic
 
+    !> Returns the electrostatic potential on a grid
+    generic, public :: getElStatPotential => getElStatPotentialCluster, getElStatPotentialPeriodic
+    
   end type TExtCharge
 
 
@@ -89,8 +95,6 @@ contains
 
 
   !> Initializes the calculator for external charges
-  !>
-  !> Note: Blurring of point charges is currently not possible with periodic boundary conditions.
   subroutine TExtCharge_init(this, coordsAndCharges, nAtom, latVecs, recVecs, ewaldCutoff,&
       & blurWidths)
 
@@ -123,7 +127,6 @@ contains
     @:ASSERT(this%nChrg > 0)
     @:ASSERT(present(latVecs) .eqv. present(recVecs))
     @:ASSERT(present(latVecs) .eqv. present(ewaldCutoff))
-    @:ASSERT(present(latVecs) .neqv. present(blurWidths))
 #:call ASSERT_CODE
     if (present(blurWidths)) then
       @:ASSERT(size(blurWidths) == this%nChrg)
@@ -144,17 +147,17 @@ contains
       !! Creating the real lattice for the Ewald summation (no neighbor list) The reciprocal part
       !! will be passed from the SCC module, since it is also needed there.
       call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs/(2.0_dp*pi), ewaldCutoff)
+    end if
+
+    !! Create blurring array
+    if (present(blurWidths)) then
+      this%tBlur = any(blurWidths > 1.0e-7_dp)
     else
-      !! Create blurring array for the cluster modell
-      if (present(blurWidths)) then
-        this%tBlur = any(abs(blurWidths) > 1.0e-7_dp)
-      else
-        this%tBlur = .false.
-      end if
-      if (this%tBlur) then
-        allocate(this%blurWidths(this%nChrg))
-        this%blurWidths = blurWidths
-      end if
+      this%tBlur = .false.
+    end if
+    if (this%tBlur) then
+      allocate(this%blurWidths(this%nChrg))
+      this%blurWidths = blurWidths
     end if
 
     this%tUpdated = .false.
@@ -190,10 +193,13 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoordsCluster(this, atomCoords)
+  subroutine updateCoordsCluster(this, env, atomCoords)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -204,10 +210,10 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
     if (this%tBlur) then
-      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & blurWidths1=this%blurWidths)
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%invRVec, blurWidths1=this%blurWidths)
     else
-      call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges)
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges, this%invRVec)
     end if
 
     this%tUpdated = .true.
@@ -216,10 +222,13 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoordsPeriodic(this, atomCoords, gLat, alpha, volume)
+  subroutine updateCoordsPeriodic(this, env, atomCoords, gLat, alpha, volume)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
@@ -239,8 +248,13 @@ contains
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
     @:ASSERT(size(gLat, dim=1) == 3)
 
-    call sumInvR(this%invRVec, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-        & this%rCellVec, gLat, alpha, volume)
+    if (this%tBlur) then
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%rCellVec, gLat, alpha, volume, this%invRVec, blurWidths1=this%blurWidths)
+    else
+      call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
+          & this%rCellVec, gLat, alpha, volume, this%invRVec)
+    end if
 
     this%tUpdated = .true.
 
@@ -264,7 +278,7 @@ contains
   end subroutine addShiftPerAtom
 
 
-  !> Adds the atomic energy contribution do to the external charges.
+  !> Adds the atomic energy contribution due to the external charges.
   subroutine addEnergyPerAtom(this, atomCharges, energy)
 
     !> External charges structure
@@ -287,10 +301,13 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcCluster(this, atomForces, chrgForces, atomCoords, atomCharges)
+  subroutine addForceDcCluster(this, env, atomForces, chrgForces, atomCoords, atomCharges)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
@@ -310,11 +327,11 @@ contains
     @:ASSERT(size(atomCoords, dim=2) == this%nAtom)
 
     if (this%tBlur) then
-      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & atomCharges, this%charges, blurWidths1=this%blurWidths)
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, atomForces, chrgForces, blurWidths1=this%blurWidths)
     else
-      call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-          & atomCharges, this%charges)
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, atomForces, chrgForces)
     end if
 
   end subroutine addForceDcCluster
@@ -322,11 +339,14 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcPeriodic(this, atomForces, chrgForces, atomCoords, atomCharges, gVec, alpha,&
-      & vol)
+  subroutine addForceDcPeriodic(this, env, atomForces, chrgForces, atomCoords, atomCharges, gVec,&
+      & alpha, vol)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Force vectors on the atoms
     real(dp), intent(inout) :: atomForces(:,:)
@@ -354,9 +374,95 @@ contains
     @:ASSERT(size(atomCoords, dim=1) == 3)
     @:ASSERT(size(atomCoords, dim=2) >= this%nAtom)
 
-    call addInvRPrime(atomForces, chrgForces, this%nAtom, this%nChrg, atomCoords, this%coords,&
-        & atomCharges, this%charges, this%rCellVec, gVec, alpha, vol)
+    if (this%tBlur) then
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, this%rCellVec, gVec, alpha, vol, atomForces, chrgForces,&
+          & blurWidths1=this%blurWidths)
+    else
+      call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
+          & this%charges, this%rCellVec, gVec, alpha, vol, atomForces, chrgForces)
+    end if
 
   end subroutine addForceDcPeriodic
+
+
+  !> Returns potential from external charges (periodic case)
+  subroutine getElStatPotentialPeriodic(this, env, locations, rCellVec, gLatPoint, alpha, volume,&
+      & V, epsSoften)
+
+    !> Instance of SCC calculation
+    class(TExtCharge), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> Real lattice points for Ewald-sum.
+    real(dp), intent(in) :: rCellVec(:,:)
+
+    !> Lattice points for reciprocal Ewald
+    real(dp), intent(in) :: gLatPoint(:,:)
+
+    !> Parameter for Ewald
+    real(dp), intent(in) :: alpha
+
+    !> Cell volume
+    real(dp), intent(in) :: volume
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(all(shape(locations) == [3, size(V)]))
+
+    V(:) = 0.0_dp
+
+    if (allocated(this%blurWidths)) then
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
+          & rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
+    else
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
+          & rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
+    end if
+
+  end subroutine getElStatPotentialPeriodic
+
+
+  !> Returns potential from external charges (cluster case)
+  subroutine getElStatPotentialCluster(this, env, locations, V, epsSoften)
+
+    !> Instance of SCC calculation
+    class(TExtCharge), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(all(shape(locations) == [3, size(V)]))
+
+    V(:) = 0.0_dp
+
+    if (allocated(this%blurWidths)) then
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges, V,&
+          & this%blurWidths, epsSoften=epsSoften)
+    else
+      call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges, V,&
+          & epsSoften=epsSoften)
+    end if
+
+  end subroutine getElStatPotentialCluster
+
 
 end module ExternalCharges
