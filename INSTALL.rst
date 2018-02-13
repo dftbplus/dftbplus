@@ -47,8 +47,8 @@ downloaded ::
 
 Some optinal software components are not distributed with the DFTB+ source code,
 but can be included during the DFTB+ compilation if they are not installed on
-your system. You are recommended to download those software components by using
-the `get_opt_externals` utility, e.g.::
+your system. We recommend you download these components by using the
+`get_opt_externals` utility, e.g.::
 
   ./utils/get_opt_externals
 
@@ -56,7 +56,7 @@ This will download all license compatible optional external components.
 
 If you wish also to download and integrate some optional components with
 *conflicting licenses* (e.g. the `DftD3 library
-<https://github.com/aradi/dftd3-lib>`_), you must explicitely specify it::
+<https://github.com/aradi/dftd3-lib>`_), you must explicitly specify it::
 
   ./utils/get_opt_externals ALL
 
