@@ -32,8 +32,8 @@ you will additionally need:
 Obtaining the source
 ====================
 
-The source code can be downloaded from the `DFTB+ homepage
-<http://www.dftbplus.org>`_.
+The source code of the last stable release can be downloaded from the `DFTB+
+homepage <http://www.dftbplus.org>`_.
 
 Alternatively you can clone the `public git repository
 <https://github.com/dftbplus/dftbplus>`_. (The tagged revisions correspond to
