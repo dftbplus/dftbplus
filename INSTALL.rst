@@ -32,33 +32,40 @@ you will additionally need:
 Obtaining the source
 ====================
 
-The source code can be downloaded from the `DFTB+ homepage
-<http://www.dftbplus.org>`_.
+The source code of the last stable release can be downloaded from the `DFTB+
+homepage <http://www.dftbplus.org>`_.
 
 Alternatively you can clone the `public git repository
-<https://github.com/dftbplus/dftbplus>`_. (The tagged revisions correspond to
+<https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
 stable releases, while the master branch contains the latest development
-version.) As the project uses git-submodules, those must be additionally
+version. As the project uses git-submodules, those must be additionally
 downloaded ::
 
   git clone https://github.com/dftbplus/dftbplus.git
   cd dftbplus
   git submodule update --init --recursive
 
-Some optional software components (e.g. the `DftD3 library
-<https://github.com/aradi/dftd3-lib>`_) are not distributed with the DFTB+
-source code, but can be included during the DFTB+ compilation if they are not
-installed on your system. You can download those optional software components by
-using the `get_opt_externals` utility, e.g.::
+Some optinal software components are not distributed with the DFTB+ source code,
+but can be included during the DFTB+ compilation if they are not installed on
+your system. We recommend you download these components by using the
+`get_opt_externals` utility, e.g.::
 
-  ./utils/get_opt_externals dftd3
+  ./utils/get_opt_externals
 
-The Slater-Koster data needed for testing can also be downloaded by using
-this tool::
+This will download all license compatible optional external components.
 
-  ./utils/get_opt_externals slakos
+If you wish also to download and integrate some optional components with
+*conflicting licenses* (e.g. the `DftD3 library
+<https://github.com/aradi/dftd3-lib>`_), you must explicitly specify it::
 
-See detailed help for this tool by issuing ``./utils/get_opt_externals -h``.
+  ./utils/get_opt_externals ALL
+
+Note: if you include components with conflicting licenses into your build, you
+are only allowed to use the resulting binary for your personal research, and are
+not permitted to distribute it.
+
+For more information see the detailed help for this tool by issuing
+``./utils/get_opt_externals -h``.
 
 
 Compile
