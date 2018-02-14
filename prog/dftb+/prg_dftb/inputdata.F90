@@ -409,19 +409,6 @@ module inputdata_module
 
   end type control
 
-  !> Atomistic geometry and boundary conditions of the system
-  type geometry
-    integer :: nrAtoms         = 0
-    logical :: tPeriodic       = .false.
-    logical :: tFracCoord      = .false.
-    integer, allocatable :: types(:)
-    real(dp), allocatable :: coords(:, :)
-    integer :: nrTypes         = 0
-    real(dp), allocatable :: origo(:)
-    real(dp), allocatable :: latVecs(:, :)
-    character(mc), allocatable :: speciesName(:)
-  end type geometry
-
 
   !> Slater-Koster data
   type slater
