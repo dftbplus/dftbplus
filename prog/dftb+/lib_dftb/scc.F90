@@ -496,7 +496,8 @@ contains
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%updateCoords(env, this%coord, this%gLatPoint, this%alpha, this%volume)
+        call this%extCharge%updateCoords(env, this%coord, this%rCellVec, this%gLatPoint,&
+            & this%alpha, this%volume)
       else
         call this%extCharge%updateCoords(env, this%coord)
       end if
@@ -758,7 +759,7 @@ contains
     if (this%tExtChrg) then
       if (this%tPeriodic) then
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
-            & this%gLatPoint, this%alpha, this%volume)
+            & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
       else
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
       end if
@@ -968,6 +969,74 @@ contains
     end if
 
   end subroutine addForceDcXlbomd
+
+
+  !> Returns potential from DFTB charges
+  subroutine getInternalElStatPotential(this, V, env, locations, epsSoften)
+
+    !> Instance of SCC calculation
+    class(TScc), intent(in) :: this
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(locations) == [3,size(V)]))
+
+    V(:) = 0.0_dp
+
+    if (this%tPeriodic) then
+      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+          & this%rCellVec, this%gLatPoint, this%alpha, this%volume, V, epsSoften=epsSoften)
+    else
+      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
+          & epsSoften=epsSoften)
+    end if
+
+  end subroutine getInternalElStatPotential
+
+
+  !> Returns potential from external charges
+  subroutine getExternalElStatPotential(this, V, env, locations, epsSoften)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(this%tInitialised)
+    
+    if (this%tExtChrg) then
+      if (this%tPeriodic) then
+        call this%extCharge%getElStatPotential(env, locations, this%rCellVec, this%gLatPoint,&
+            & this%alpha, this%volume, V, epsSoften=epsSoften)
+      else
+        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
+      end if
+    else
+      V(:) = 0.0_dp
+    end if
+
+  end subroutine getExternalElStatPotential
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1528,74 +1597,6 @@ contains
     end do
 
   end subroutine getSummedChargesPerUniqU_
-
-
-  !> Returns potential from DFTB charges
-  subroutine getInternalElStatPotential(this, V, env, locations, epsSoften)
-
-    !> Instance of SCC calculation
-    class(TScc), intent(in) :: this
-
-    !> Resulting potentials
-    real(dp), intent(out) :: V(:)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> sites to calculate potential
-    real(dp), intent(in) :: locations(:,:)
-
-    !> optional potential softening
-    real(dp), optional, intent(in) :: epsSoften
-
-    @:ASSERT(this%tInitialised)
-    @:ASSERT(all(shape(locations) == [3,size(V)]))
-
-    V(:) = 0.0_dp
-
-    if (this%tPeriodic) then
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%rCellVec, this%gLatPoint, this%alpha, this%volume, V, epsSoften=epsSoften)
-    else
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
-          & epsSoften=epsSoften)
-    end if
-
-  end subroutine getInternalElStatPotential
-
-
-  !> Returns potential from external charges
-  subroutine getExternalElStatPotential(this, V, env, locations, epsSoften)
-
-    !> Instance
-    class(TScc), intent(in) :: this
-
-    !> Resulting potentials
-    real(dp), intent(out) :: V(:)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> sites to calculate potential
-    real(dp), intent(in) :: locations(:,:)
-
-    !> optional potential softening
-    real(dp), optional, intent(in) :: epsSoften
-
-    @:ASSERT(this%tInitialised)
-    
-    if (this%tExtChrg) then
-      if (this%tPeriodic) then
-        call this%extCharge%getElStatPotential(env, locations, this%gLatPoint, this%alpha,&
-            & this%volume, V, epsSoften=epsSoften)
-      else
-        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
-      end if
-    else
-      V(:) = 0.0_dp
-    end if
-
-  end subroutine getExternalElStatPotential
 
 
 end module scc

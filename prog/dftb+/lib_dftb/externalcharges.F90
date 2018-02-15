@@ -57,9 +57,6 @@ module ExternalCharges
     !> First coordinates received?
     logical :: tUpdated = .false.
 
-    !> Real lattice points for Ewald-sum.
-    real(dp), allocatable :: rCellVec(:,:)
-
   contains
     private
 
@@ -143,10 +140,6 @@ contains
     if (this%tPeriodic) then
       !! Fold charges back to unit cell
       call foldCoordToUnitCell(this%coords, latVecs, recVecs / (2.0_dp * pi))
-
-      !! Creating the real lattice for the Ewald summation (no neighbor list) The reciprocal part
-      !! will be passed from the SCC module, since it is also needed there.
-      call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs/(2.0_dp*pi), ewaldCutoff)
     end if
 
     !! Create blurring array
@@ -187,7 +180,6 @@ contains
 
     !! Fold charges back to unit cell
     call foldCoordToUnitCell(this%coords, latVecs, recVecs / (2.0_dp * pi))
-    call getCellTranslations(dummy, this%rCellVec, latVecs, recVecs / (2.0_dp * pi), ewaldCutoff)
 
   end subroutine updateLatVecs
 
@@ -222,7 +214,7 @@ contains
 
 
   !> Builds the new shift vectors for new atom coordinates
-  subroutine updateCoordsPeriodic(this, env, atomCoords, gLat, alpha, volume)
+  subroutine updateCoordsPeriodic(this, env, atomCoords, rCellVec, gLat, alpha, volume)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
@@ -232,6 +224,9 @@ contains
 
     !> Coordinates of the atoms (not the point charges!)
     real(dp), intent(in) :: atomCoords(:,:)
+
+    !> Real lattice points for asymmetric Ewald sum
+    real(dp), intent(in) :: rCellVec(:,:)
 
     !> Reciprocal lattice vectors
     real(dp), intent(in) :: gLat(:,:)
@@ -250,10 +245,10 @@ contains
 
     if (this%tBlur) then
       call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & this%rCellVec, gLat, alpha, volume, this%invRVec, blurWidths1=this%blurWidths)
+          & rCellVec, gLat, alpha, volume, this%invRVec, blurWidths1=this%blurWidths)
     else
       call sumInvR(env, this%nAtom, this%nChrg, atomCoords, this%coords, this%charges,&
-          & this%rCellVec, gLat, alpha, volume, this%invRVec)
+          & rCellVec, gLat, alpha, volume, this%invRVec)
     end if
 
     this%tUpdated = .true.
@@ -339,8 +334,8 @@ contains
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
   !> term with the shift vectors.
-  subroutine addForceDcPeriodic(this, env, atomForces, chrgForces, atomCoords, atomCharges, gVec,&
-      & alpha, vol)
+  subroutine addForceDcPeriodic(this, env, atomForces, chrgForces, atomCoords, atomCharges,&
+      & rCellVec, gVec, alpha, vol)
 
     !> External charges structure
     class(TExtCharge), intent(in) :: this
@@ -360,6 +355,9 @@ contains
     !> Charges of the atoms.
     real(dp), intent(in) :: atomCharges(:)
 
+    !> Real lattice points for asymmetric Ewald sum
+    real(dp), intent(in) :: rCellVec(:,:)
+
     !> Reciprocal lattice vectors for the Ewald summation
     real(dp), intent(in) :: gVec(:,:)
 
@@ -376,19 +374,19 @@ contains
 
     if (this%tBlur) then
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, this%rCellVec, gVec, alpha, vol, atomForces, chrgForces,&
+          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces,&
           & blurWidths1=this%blurWidths)
     else
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, this%rCellVec, gVec, alpha, vol, atomForces, chrgForces)
+          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces)
     end if
 
   end subroutine addForceDcPeriodic
 
 
   !> Returns potential from external charges (periodic case)
-  subroutine getElStatPotentialPeriodic(this, env, locations, gLatPoint, alpha, volume, V,&
-      & epsSoften)
+  subroutine getElStatPotentialPeriodic(this, env, locations, rCellVec, gLatPoint, alpha, volume,&
+      & V, epsSoften)
 
     !> Instance of SCC calculation
     class(TExtCharge), intent(in) :: this
@@ -398,6 +396,9 @@ contains
 
     !> sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
+
+    !> Real lattice points for Ewald-sum.
+    real(dp), intent(in) :: rCellVec(:,:)
 
     !> Lattice points for reciprocal Ewald
     real(dp), intent(in) :: gLatPoint(:,:)
@@ -420,10 +421,10 @@ contains
 
     if (allocated(this%blurWidths)) then
       call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
-          & this%rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
+          & rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
     else
       call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
-          & this%rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
+          & rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
     end if
 
   end subroutine getElStatPotentialPeriodic
