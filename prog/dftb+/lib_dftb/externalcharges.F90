@@ -387,8 +387,8 @@ contains
 
 
   !> Returns potential from external charges (periodic case)
-  subroutine getElStatPotentialPeriodic(this, env, locations, rCellVec, gLatPoint, alpha, volume,&
-      & V, epsSoften)
+  subroutine getElStatPotentialPeriodic(this, env, locations, gLatPoint, alpha, volume, V,&
+      & epsSoften)
 
     !> Instance of SCC calculation
     class(TExtCharge), intent(in) :: this
@@ -398,9 +398,6 @@ contains
 
     !> sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
-
-    !> Real lattice points for Ewald-sum.
-    real(dp), intent(in) :: rCellVec(:,:)
 
     !> Lattice points for reciprocal Ewald
     real(dp), intent(in) :: gLatPoint(:,:)
@@ -423,10 +420,10 @@ contains
 
     if (allocated(this%blurWidths)) then
       call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
-          & rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
+          & this%rCellVec, gLatPoint, alpha, volume, V, this%blurWidths, epsSoften=epsSoften)
     else
       call sumInvR(env, size(V), size(this%charges), locations, this%coords, -this%charges,&
-          & rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
+          & this%rCellVec, gLatPoint, alpha, volume, V, epsSoften=epsSoften)
     end if
 
   end subroutine getElStatPotentialPeriodic
