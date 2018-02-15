@@ -347,6 +347,7 @@ contains
     real(dp), intent(out) :: invRMat(:,:)
   
     type(TNeighIterator) :: neighIter
+    type(TDynNeighList), pointer :: pNeighList
     real(dp) :: neighCoords(3, iterChunkSize)
     integer :: neighImages(iterChunkSize)
     integer :: iAt1, iAt2, iAt2f, iNeigh, nNeigh, jj, ii, iLoc, jLoc
@@ -355,11 +356,12 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     invRMat(:,:) = 0.0_dp
+    pNeighList => neighList
 
     ! Real space part of the Ewald sum.
     do jj = 1, size(invRMat, dim=2)
       iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
-      call neighList%getNeighIterator(iAt1, neighIter)
+      call TNeighIterator_init(neighIter, pNeighList, iAt1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
         call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
@@ -428,18 +430,20 @@ contains
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
 
+    type(TDynNeighList), pointer :: pNeighList
     integer :: nAtom
     integer :: iAt1, iAt2
 
     nAtom = size(invRMat, dim=1)
 
     invRMat(:,:) = 0.0_dp
+    pNeighList => neighList
 
     ! Real space part of the Ewald sum.
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      call addNeighborContribs(iAt1, neighList, coord, alpha, invRMat)
+      call addNeighborContribs(iAt1, pNeighList, coord, alpha, invRMat)
     end do
     !$OMP END PARALLEL DO
 
@@ -466,9 +470,9 @@ contains
   contains
 
     !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAt1, neighList, coords, alpha, invRMat)
+    subroutine addNeighborContribs(iAt1, pNeighList, coords, alpha, invRMat)
       integer, intent(in) :: iAt1
-      type(TDynNeighList), intent(in) :: neighList
+      type(TDynNeighList), pointer, intent(in) :: pNeighList
       real(dp), intent(in) :: coords(:,:)
       real(dp), intent(in) :: alpha
       real(dp), intent(inout) :: invRMat(:,:)
@@ -478,7 +482,7 @@ contains
       integer :: neighImages(iterChunkSize)
       integer :: iAt2f, iNeigh, nNeigh
 
-      call neighList%getNeighIterator(iAt1, neighIter)
+      call TNeighIterator_init(neighIter, pNeighList, iAt1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
         call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
@@ -812,11 +816,13 @@ contains
     !> Derivative on exit
     real(dp), intent(inout) :: deriv(:,:)
 
+    type(TDynNeighList), pointer :: pNeighList
     integer :: iAtom1, iAtom2
     real(dp) :: r(3)
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
-
+    
+    pNeighList => neighList
     allocate(localDeriv(3, nAtom))
     localDeriv(:,:) = 0.0_dp
 
@@ -826,7 +832,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
-      call addNeighborContribs(iAtom1, neighList, coord, deltaQAtom, alpha, localDeriv)
+      call addNeighborContribs(iAtom1, pNeighList, coord, deltaQAtom, alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
@@ -851,9 +857,9 @@ contains
   contains
 
     !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAtom1, neighList, coords, deltaQAtom, alpha, deriv)
+    subroutine addNeighborContribs(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
       integer, intent(in) :: iAtom1
-      type(TDynNeighList), intent(in) :: neighList
+      type(TDynNeighList), pointer, intent(in) :: pNeighList
       real(dp), intent(in) :: coords(:,:)
       real(dp), intent(in) :: deltaQAtom(:)
       real(dp), intent(in) :: alpha
@@ -865,7 +871,7 @@ contains
       integer :: iAtom2f, iNeigh, nNeigh
       real(dp) :: rr(3)
 
-      call neighList%getNeighIterator(iAtom1, neighIter)
+      call TNeighIterator_init(neighIter, pNeighList, iAtom1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
         call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
@@ -921,11 +927,13 @@ contains
     !> energy derivative to add contribution to
     real(dp), intent(inout) :: deriv(:,:)
 
+    type(TDynNeighList), pointer :: pNeighList
     integer :: iAt1, iAt2
     real(dp) :: rr(3), contrib(3), prefac
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
+    pNeighList => neighList
     allocate(localDeriv(3, nAtom))
     localDeriv(:,:) = 0.0_dp
 
@@ -935,7 +943,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME) 
     do iAt1 = iAtFirst, iAtLast
-      call addNeighborContribs(iAt1, neighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
+      call addNeighborContribs(iAt1, pNeighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
@@ -960,9 +968,9 @@ contains
   contains
 
     !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAt1, neighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
+    subroutine addNeighborContribs(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
       integer, intent(in) :: iAt1
-      type(TDynNeighList), intent(in) :: neighList
+      type(TDynNeighList), pointer, intent(in) :: pNeighList
       real(dp), intent(in) :: coords(:,:)
       real(dp), intent(in) :: dQInAtom(:)
       real(dp), intent(in) :: dQOutAtom(:)
@@ -976,7 +984,7 @@ contains
       integer :: neighImages(iterChunkSize)
       integer :: iAt2f, iNeigh, nNeigh
       
-      call neighList%getNeighIterator(iAt1, neighIter)
+      call TNeighIterator_init(neighIter, pNeighList, iAt1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
         call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
@@ -1682,6 +1690,7 @@ contains
     !> Stress tensor
     real(dp), intent(out) :: stress(:,:)
 
+    type(TDynNeighList), pointer :: pNeighList
     integer :: iAtom1, iInv, ii, jj, kk
     real(dp) :: g(3), g2, intermed, intermed2
     real(dp) :: stressTmp(3,3), localStress(3,3)
@@ -1724,13 +1733,15 @@ contains
     call assembleChunks(env, localStress)
     stress(:,:) = localStress
 
+    
     ! Real space part of the Ewald sum.
+    pNeighList => neighList
     call distributeRangeInChunks(env, 1, nAtom, iFirst, iLast)
     localStress = 0.0_dp
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME) 
     do iAtom1 = iFirst, iLast
-      call addNeighborContribs(iAtom1, neighList, coord, alpha, Q, localStress)
+      call addNeighborContribs(iAtom1, pNeighList, coord, alpha, Q, localStress)
     end do
     !$OMP END PARALLEL DO
 
@@ -1744,7 +1755,7 @@ contains
     !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
     subroutine addNeighborContribs(iAtom1, neighList, coords, alpha, dQAtom, stress)
       integer, intent(in) :: iAtom1
-      type(TDynNeighList), intent(in) :: neighList
+      type(TDynNeighList), pointer, intent(in) :: neighList
       real(dp), intent(in) :: coords(:,:)
       real(dp), intent(in) :: dQAtom(:)
       real(dp), intent(in) :: alpha
@@ -1756,7 +1767,7 @@ contains
       integer :: iAtom2f, iNeigh, nNeigh, ii, jj
       real(dp) :: r(3), f(3)
 
-      call neighList%getNeighIterator(iAtom1, neighIter)
+      call TNeighIterator_init(neighIter, pNeighList, iAtom1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
         call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)

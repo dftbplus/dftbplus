@@ -21,7 +21,7 @@ module dynneighlist
   private
 
   public :: TDynNeighList, TDynNeighList_init
-  public :: TNeighIterator
+  public :: TNeighIterator, TNeighIterator_init
 
 
   !> Dynamic neighbor list
@@ -36,7 +36,6 @@ module dynneighlist
   contains
     procedure :: updateLatVecs => TDynNeighList_updateLatVecs
     procedure :: updateCoords => TDynNeighList_updateCoords
-    procedure :: getNeighIterator => TDynNeighList_getNeighIterator
   end type TDynNeighList
 
 
@@ -122,39 +121,6 @@ contains
     this%coords0(:,:) = coords
 
   end subroutine TDynNeighList_updateCoords
-
-
-  !> Returns an iterator which can iterate over the neighbors of a given atom.
-  subroutine TDynNeighList_getNeighIterator(this, iAtom, neighIter, includeSelf)
-
-    !> Instance.
-    !>
-    !> Note: The returned iterator stores a pointer to this instance. Make sure, the passed instance
-    !> can be pointed at (target or pointer attribute) and does not get destroyed during the
-    !> lifetime of the iterator.
-    !>
-    class(TDynNeighList), target, intent(in) :: this
-
-    !> Index of the atom for which the iterator should be created.
-    integer, intent(in) :: iAtom
-
-    !> Initialized iterator on exit.
-    type(TNeighIterator), intent(out) :: neighIter
-
-    !> Whether the atom itself should be also returned as first neighbor (default: false)
-    logical, intent(in), optional :: includeSelf
-
-    type(TDynNeighList), pointer :: pDynNeighList
-
-    select type (this)
-    type is (TDynNeighList)
-      pDynNeighList => this
-      call TNeighIterator_init(neighIter, pDynNeighList, iAtom, includeSelf)
-    class default
-      call error("Can not call TNeighIterator_init with derived classes of TDynNeighList")
-    end select
-    
-  end subroutine TDynNeighList_getNeighIterator
 
 
   !> Initializes an iterator for the dynamic neighbors of a given atom.
