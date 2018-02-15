@@ -475,20 +475,23 @@ contains
 
     @:ASSERT(this%tInitialised)
 
+    this%coord = coord
+
     call updateNNeigh_(this, species, neighList)
     if (this%tPeriodic) then
       call this%ewaldNeighList%updateCoords(coord(:, 1:this%nAtom))
     end if
 
-    this%coord = coord
-
-    if (this%tPeriodic) then
-      call invRPeriodic(env, this%nAtom, this%coord, this%ewaldNeighList, this%gLatPoint,&
-          & this%alpha, this%volume, this%invRMat)
-    else
-      call invRCluster(env, this%nAtom, this%coord, this%invRMat)
+    ! If process is outside of atom grid, skip invRMat calculation
+    if (allocated(this%invRMat)) then
+      if (this%tPeriodic) then
+        call invRPeriodic(env, this%nAtom, this%coord, this%ewaldNeighList, this%gLatPoint,&
+            & this%alpha, this%volume, this%invRMat)
+      else
+        call invRCluster(env, this%nAtom, this%coord, this%invRMat)
+      end if
     end if
-
+    
     call initGamma_(this, species, neighList%iNeighbor)
 
     if (this%tExtChrg) then
