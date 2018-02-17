@@ -60,7 +60,7 @@ module coulomb
   !> Chunk size to use when obtaining neighbors dynamically via an iterator
   integer, parameter :: iterChunkSize = 1000
 
-  
+
 contains
 
 
@@ -99,7 +99,7 @@ contains
 
 
 #:if WITH_SCALAPACK
-  
+
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case (BLACS version)
   !>
   !> Note: Only the lower triangle is constructed.
@@ -145,7 +145,7 @@ contains
 
 #:else
 
-  
+
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case (serial version)
   !>
   !> Note: Only the lower triangle is constructed.
@@ -179,7 +179,7 @@ contains
   end subroutine invRClusterSerial
 
 #:endif
-  
+
 
   !> Calculates the summed 1/R vector for all atoms for the non-periodic case asymmmetric case (like
   !> interaction of atoms with point charges).
@@ -345,14 +345,14 @@ contains
 
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: invRMat(:,:)
-  
+
     type(TNeighIterator) :: neighIter
     type(TDynNeighList), pointer :: pNeighList
     real(dp) :: neighCoords(3, iterChunkSize)
     integer :: neighImages(iterChunkSize)
     integer :: iAt1, iAt2, iAt2f, iNeigh, nNeigh, jj, ii, iLoc, jLoc
     logical :: tLocal
-    
+
     @:ASSERT(volume > 0.0_dp)
 
     invRMat(:,:) = 0.0_dp
@@ -377,6 +377,8 @@ contains
     end do
 
     ! Reciprocal space part of the Ewald sum.
+    !$OMP PARALLEL DO&
+    !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, ii, iAt2) SCHEDULE(RUNTIME)
     do jj = 1, size(invRMat, dim=2)
       iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
       do ii = 1, size(invRMat, dim=1)
@@ -389,8 +391,11 @@ contains
             & - pi / (volume * alpha**2)
       end do
     end do
+    !$OMP END PARALLEL DO
 
     ! Extra contribution for self interaction.
+    !$OMP PARALLEL DO&
+    !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, tLocal, iLoc, jLoc) SCHEDULE(RUNTIME)
     do jj = 1, size(invRMat, dim=2)
       iAt1 = scalafx_indxl2g(jj, descInvRMat(NB_), grid%mycol, descInvRMat(CSRC_), grid%ncol)
       call scalafx_islocal(grid, descInvRMat, iAt1, iAt1, tLocal, iLoc, jLoc)
@@ -398,6 +403,7 @@ contains
         invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc) - 2.0_dp * alpha / sqrt(pi)
       end if
     end do
+    !$OMP END PARALLEL DO
 
   end subroutine invRPeriodicBlacs
 
@@ -582,7 +588,7 @@ contains
     call assembleChunks(env, invRVec)
 
   end subroutine sumInvRPeriodicAsymm
-  
+
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
   !> storing anything.
@@ -742,7 +748,7 @@ contains
     if (present(blurWidths1)) then
       !$OMP PARALLEL DO&
       !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp, sigma, rs)&
-      !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME) 
+      !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -799,7 +805,7 @@ contains
 
     !> Dynamic neighbor list to be used in the real part of Ewald
     type(TDynNeighList), target, intent(in) :: neighList
-    
+
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
     !> inversion related points.
     real(dp), intent(in) :: recPoint(:,:)
@@ -821,7 +827,7 @@ contains
     real(dp) :: r(3)
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
-    
+
     pNeighList => neighList
     allocate(localDeriv(3, nAtom))
     localDeriv(:,:) = 0.0_dp
@@ -907,7 +913,7 @@ contains
 
     !> Dynamic neighbor list to be used in the real part of Ewald
     type(TDynNeighList), target, intent(in) :: neighList
-    
+
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
     !> inversion related points.
     real(dp), intent(in) :: recPoint(:,:)
@@ -941,7 +947,7 @@ contains
 
     ! real space
     !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME) 
+    !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAt1 = iAtFirst, iAtLast
       call addNeighborContribs(iAt1, pNeighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
     end do
@@ -983,7 +989,7 @@ contains
       real(dp) :: prefac
       integer :: neighImages(iterChunkSize)
       integer :: iAt2f, iNeigh, nNeigh
-      
+
       call TNeighIterator_init(neighIter, pNeighList, iAt1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
@@ -1102,7 +1108,7 @@ contains
     ! reciprocal space part
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
-    !$OMP& SCHEDULE(RUNTIME) 
+    !$OMP& SCHEDULE(RUNTIME)
     do iAt0 = iAtFirst0, iAtLast0
       do iAt1 = iAtFirst1, iAtLast1
         vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
@@ -1733,13 +1739,13 @@ contains
     call assembleChunks(env, localStress)
     stress(:,:) = localStress
 
-    
+
     ! Real space part of the Ewald sum.
     pNeighList => neighList
     call distributeRangeInChunks(env, 1, nAtom, iFirst, iLast)
     localStress = 0.0_dp
     !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME) 
+    !$OMP& DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME)
     do iAtom1 = iFirst, iLast
       call addNeighborContribs(iAtom1, pNeighList, coord, alpha, Q, localStress)
     end do
@@ -1796,5 +1802,5 @@ contains
 
   end subroutine invRStress
 
-  
+
 end module coulomb

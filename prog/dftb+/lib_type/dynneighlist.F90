@@ -9,8 +9,8 @@
 
 !> Implements dynamic neighbor list with iterator.
 !>
-!> The dynamic neighbor list does not store the entire neighbor list, but creates it on the fly
-!> allowing for a low memory footprint for large neighbor list (at the cost of speed).
+!> The dynamic neighbor list does not store the entire neighbor list, but creates it on the fly,
+!> allowing for a low memory footprint for large neighbor lists (at the cost of speed).
 !>
 module dynneighlist
   use accuracy
@@ -102,7 +102,7 @@ contains
     real(dp), intent(in) :: invLatVecs(:,:)
 
     @:ASSERT(this%tPeriodic)
-    
+
     this%latVecs(:,:) = latVecs
     this%invLatVecs(:,:) = invLatVecs
 
@@ -150,7 +150,7 @@ contains
     this%cutoff2 = this%neighList%cutoff**2
     this%nAtom = this%neighList%nAtom
     this%tPeriodic = this%neighList%tPeriodic
-    
+
     this%cellVec(:) = 0.0_dp
     this%iAtom1 = iAtom
     this%coordsAtom1(:) = this%neighList%coords0(:,iAtom)
@@ -168,11 +168,11 @@ contains
     end if
 
     this%tFinished = .false.
-    
-  end subroutine TNeighIterator_init
-  
 
-  !> Returns the next neighbors.
+  end subroutine TNeighIterator_init
+
+
+  !> Returns the next group of neighbors.
   subroutine TNeighIterator_getNextNeighbors(this, nNeighbors, coords, dists, img2CentCell)
 
     !> Instance.
@@ -237,7 +237,7 @@ contains
     if (present(img2CentCell)) then
       img2CentCell(1:nNeighbors) = img2CentCellTmp(1:nNeighbors)
     end if
-    
+
   end subroutine TNeighIterator_getNextNeighbors
 
 

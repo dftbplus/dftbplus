@@ -491,7 +491,7 @@ contains
         call invRCluster(env, this%nAtom, this%coord, this%invRMat)
       end if
     end if
-    
+
     call initGamma_(this, species, neighList%iNeighbor)
 
     if (this%tExtChrg) then
@@ -1024,7 +1024,7 @@ contains
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
-    
+
     if (this%tExtChrg) then
       if (this%tPeriodic) then
         call this%extCharge%getElStatPotential(env, locations, this%rCellVec, this%gLatPoint,&
