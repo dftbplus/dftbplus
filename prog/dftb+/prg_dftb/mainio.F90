@@ -2193,7 +2193,8 @@ contains
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
-          write(fd, "(2f12.5)") Hartree__eV * eigen(iEgy, iK, iSpin), filling(iEgy, iK, iSpin)
+          write(fd, "(I6,2f12.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+              & filling(iEgy, iK, iSpin)
         end do
         write(fd,*)
       end do
@@ -2373,8 +2374,7 @@ contains
     integer :: iAt, iSpin, iEgy, iK, iSp, iSh, iOrb, kk
     logical :: tSpin
 
-    character(*), parameter :: formatEigen = "(F14.8)"
-    character(*), parameter :: formatFilling = "(F12.5)"
+    character(*), parameter :: formatEigen = "(F14.8, F9.5)"
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
@@ -2475,19 +2475,50 @@ contains
       else
         write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
       end if
-      write(fd, "(/, A)") 'Eigenvalues /H'
-      do iEgy = 1, size(eigen, dim=1)
-        write(fd, formatEigen) (eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
+      write(fd, "(/, A)") 'Eigenvalues /H and fillings'
+      do iK = 1, nKPoint, 4
+        if (nKPoint > 1) then
+          if (nKPoint - iK > 0) then
+            write(fd,"(A,I0,':',I0)")'K-points ',iK,min(iK+3,nKPoint)
+          else
+            write(fd,"(A,I0,':',I0)")'K-point ',iK
+          end if
+        end if
+        do iEgy = 1, size(eigen, dim=1)
+          write(fd, "(I6)", advance = 'no') iEgy
+          do kk = 0, 3
+            if (iK + kk > nKPoint) then
+              exit
+            end if
+            write(fd, formatEigen, advance = 'no') eigen(iEgy, iK+kk, iSpin),&
+                & filling(iEgy, iK+kk, iSpin)
+          end do
+          write(fd, formatEigen)
+        end do
+        write(fd, *)
       end do
-      write(fd, "(/, A)") 'Eigenvalues /eV'
-      do iEgy = 1, size(eigen, dim=1)
-        write(fd, formatEigen) (Hartree__eV * eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
+      write(fd, "(/, A)") 'Eigenvalues /eV and fillings'
+      do iK = 1, nKPoint, 4
+        if (nKPoint > 1) then
+          if (nKPoint - iK > 0) then
+            write(fd,"(A,I0,':',I0)")'K-points ',iK,min(iK+3,nKPoint)
+          else
+            write(fd,"(A,I0,':',I0)")'K-point ',iK
+          end if
+        end if
+        do iEgy = 1, size(eigen, dim=1)
+          write(fd, "(I6)", advance = 'no') iEgy
+          do kk = 0, 3
+            if (iK + kk > nKPoint) then
+              exit
+            end if
+            write(fd, formatEigen, advance = 'no') Hartree__eV * eigen(iEgy, iK+kk, iSpin),&
+                & filling(iEgy, iK+kk, iSpin)
+          end do
+          write(fd, formatEigen)
+        end do
+        write(fd, *)
       end do
-      write(fd, "(/, A)") 'Fillings'
-      do iEgy = 1, nLevel
-        write(fd, formatFilling) (filling(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, *)
     end do lpSpinPrint
 
     if (nSpin == 4) then
