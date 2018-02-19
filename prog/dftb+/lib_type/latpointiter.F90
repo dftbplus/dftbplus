@@ -201,7 +201,7 @@ contains
 
 
   !> Helper function to increase a tuple of 3 indices by one
-  subroutine getNextPoint(ranges, inds)
+  subroutine getNextPoint(ranges, point)
 
     !> Lower and upper bounds for the lattice point indices. Shape: (2, 3)
     integer, intent(in) :: ranges(:,:)
