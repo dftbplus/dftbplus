@@ -43,6 +43,8 @@ Fixed
 
 - Excited window selection in Cassida time-dependent calculation.
 
+- Formatting of eigenvalues and fillings in detailed.out and band.out
+
 - iPI interface with cluster geometries fixed (protocol contains redundant
   lattice information in these cases).
 
