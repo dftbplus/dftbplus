@@ -902,7 +902,7 @@ contains
 
     ! Notify various modules about coordinate changes
     if (allocated(sccCalc)) then
-      call sccCalc%updateCoords(env, coord, species, neighborList, img2CentCell)
+      call sccCalc%updateCoords(env, coord, species, neighborList)
     end if
     if (allocated(dispersion)) then
       call dispersion%updateCoords(neighborList, img2CentCell, coord, &
@@ -2479,6 +2479,7 @@ contains
     end if
 
   end subroutine getMullikenPopulation
+
 
   !> Calculates various energy contributions
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&

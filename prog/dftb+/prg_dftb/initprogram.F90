@@ -114,9 +114,6 @@ module initprogram
   !> SCC module internal variables
   type(TScc), allocatable :: sccCalc
 
-  !> Nr. of different cutoffs
-  integer, parameter :: nCutoff = 1
-
   !> nr. of atoms
   integer :: nAtom
 
@@ -235,7 +232,6 @@ module initprogram
   !> list of atomic masses for each species
   real(dp), allocatable :: speciesMass(:)
 
-
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont
 
@@ -251,10 +247,8 @@ module initprogram
   !> Cut off distance for repulsive interactions
   real(dp) :: skRepCutoff
 
-
   !> longest pair interaction
   real(dp) :: mCutoff
-
 
   !> Sparse hamiltonian matrix
   real(dp), allocatable :: ham(:,:)
@@ -2228,7 +2222,7 @@ contains
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
     write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%atomGrid%nRow, env%blacs%atomGrid%nCol
-  #:endif  
+  #:endif
 
     if (tRandomSeed) then
       write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed

@@ -27,6 +27,7 @@ module scc
   use commontypes
   use chargeconstr
   use shift
+  use dynneighlist
   implicit none
 
   private
@@ -121,26 +122,23 @@ module scc
     !> Lattice points for reciprocal Ewald
     real(dp), allocatable :: gLatPoint(:,:)
 
-    !> Real lattice points for Ewald-sum.
+    !> Real lattice points for asymmetric Ewald sum
     real(dp), allocatable :: rCellVec(:,:)
 
     !> Nr. of neighbors for short range interaction
     integer, allocatable :: nNeighShort(:,:,:,:)
 
-    !> Nr. of neigh for real Ewald
-    integer, allocatable :: nNeighEwald(:)
+    !> Dynamic neighbor list for the real space Ewald summation
+    type(TDynNeighList), allocatable :: ewaldNeighList
 
     !> Atomic coordinates
-    real(dp), allocatable :: coords(:,:)
+    real(dp), allocatable :: coord(:,:)
 
     !> lattice vectors
     real(dp), allocatable :: latVecs(:,:)
 
     !> reciprocal lattice vectors
     real(dp), allocatable :: recVecs(:,:)
-
-    !> Cutoff for real Ewald
-    real(dp) :: maxREwald
 
     !> Parameter for Ewald
     real(dp) :: alpha
@@ -171,9 +169,6 @@ module scc
 
     !> Negative gross charge per atom
     real(dp), allocatable :: deltaQAtom(:)
-
-    !> Atomic locations
-    real(dp), allocatable :: coord(:,:)
 
     !> Negative gross charge per U
     real(dp), allocatable :: deltaQUniqU(:,:)
@@ -259,7 +254,7 @@ contains
     type(TSccInp), intent(inout) :: inp
 
     integer :: iSp1, iSp2, iU1, iU2, iL
-    real(dp) :: maxGEwald
+    real(dp) :: maxREwald, maxGEwald
   #:if WITH_SCALAPACK
     integer :: nRowLoc, nColLoc
   #:endif
@@ -349,12 +344,8 @@ contains
 
     ! Initialize Ewald summation for the periodic case
     if (this%tPeriodic) then
-
-      allocate(this%latVecs(3,3))
       this%latVecs = inp%latVecs
-      allocate(this%recVecs(3,3))
       this%recVecs = inp%recVecs
-
       this%volume = inp%volume
       this%tAutoEwald = inp%ewaldAlpha <= 0.0_dp
       this%tolEwald = inp%tolEwald
@@ -363,22 +354,19 @@ contains
       else
         this%alpha = inp%ewaldAlpha
       end if
-      this%maxREwald = getMaxREwald(this%alpha, this%tolEwald)
+      maxREwald = getMaxREwald(this%alpha, this%tolEwald)
       maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
       call getLatticePoints(this%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald, &
           & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
       this%gLatPoint(:,:) = matmul(inp%recVecs, this%gLatPoint)
-      this%cutoff = max(this%cutoff, this%maxREwald)
     end if
 
     ! Number of neighbors for short range cutoff and real part of Ewald
     allocate(this%nNeighShort(this%mHubbU, this%mHubbU, this%nSpecies, this%nAtom))
     if (this%tPeriodic) then
-      allocate(this%nNeighEwald(this%nAtom))
+      allocate(this%ewaldNeighList)
+      call TDynNeighList_init(this%ewaldNeighList, maxREwald, this%nAtom, this%tPeriodic)
     end if
-
-    ! Internal storage for the atomic coordinates
-    allocate(this%coord(3,this%nAtom))
 
     ! Initialise external charges
     if (this%tExtChrg) then
@@ -386,12 +374,12 @@ contains
       if (allocated(inp%blurWidths)) then
         if (this%tPeriodic) then
           if (any(inp%blurWidths > 1.0e-7_dp)) then
-            if (1.0_dp/maxval(inp%blurWidths) < this%alpha) then
+            if (1.0_dp / maxval(inp%blurWidths) < this%alpha) then
               call error("Charge blur widths are too wide compared to the Ewald real space sum")
             end if
           end if
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
-              & inp%recVecs, this%maxREwald, blurWidths=inp%blurWidths)
+              & inp%recVecs, maxREwald, blurWidths=inp%blurWidths)
         else
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom,&
               & blurWidths=inp%blurWidths)
@@ -399,7 +387,7 @@ contains
       else
         if (this%tPeriodic) then
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
-              & inp%recVecs, this%maxREwald)
+              & inp%recVecs, maxREwald)
         else
           call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom)
         end if
@@ -468,7 +456,7 @@ contains
 
 
   !> Updates the atom coordinates for the SCC module.
-  subroutine updateCoords(this, env, coord, species, neighList, img2CentCell)
+  subroutine updateCoords(this, env, coord, species, neighList)
 
     !> Instance
     class(TScc), intent(inout) :: this
@@ -485,27 +473,31 @@ contains
     !> Neighbor list for the atoms.
     type(TNeighborList), intent(in) :: neighList
 
-    !> Mapping to the central cell for the atoms
-    integer, intent(in) :: img2CentCell(:)
-
     @:ASSERT(this%tInitialised)
-
-    call updateNNeigh_(this, species, neighList)
 
     this%coord = coord
 
+    call updateNNeigh_(this, species, neighList)
     if (this%tPeriodic) then
-      call invRPeriodic(env, this%nAtom, this%coord, this%nNeighEwald, neighList%iNeighbor,&
-          & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%invRMat)
-    else
-      call invRCluster(env, this%nAtom, this%coord, this%invRMat)
+      call this%ewaldNeighList%updateCoords(coord(:, 1:this%nAtom))
+    end if
+
+    ! If process is outside of atom grid, skip invRMat calculation
+    if (allocated(this%invRMat)) then
+      if (this%tPeriodic) then
+        call invRPeriodic(env, this%nAtom, this%coord, this%ewaldNeighList, this%gLatPoint,&
+            & this%alpha, this%volume, this%invRMat)
+      else
+        call invRCluster(env, this%nAtom, this%coord, this%invRMat)
+      end if
     end if
 
     call initGamma_(this, species, neighList%iNeighbor)
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
-        call this%extCharge%updateCoords(env, this%coord, this%gLatPoint, this%alpha, this%volume)
+        call this%extCharge%updateCoords(env, this%coord, this%rCellVec, this%gLatPoint,&
+            & this%alpha, this%volume)
       else
         call this%extCharge%updateCoords(env, this%coord)
       end if
@@ -529,8 +521,8 @@ contains
     !> New volume
     real(dp), intent(in) :: vol
 
-    real(dp) :: maxGEwald
     real(dp), allocatable :: dummy(:,:)
+    real(dp) :: maxREwald, maxGEwald
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
@@ -538,23 +530,22 @@ contains
     this%volume = vol
     if (this%tAutoEwald) then
       this%alpha = getOptimalAlphaEwald(latVec, recVec, this%volume, this%tolEwald)
-      this%maxREwald = getMaxREwald(this%alpha, this%tolEwald)
+      maxREwald = getMaxREwald(this%alpha, this%tolEwald)
     end if
     maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
     call getLatticePoints(this%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald, &
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoint = matmul(recVec, this%gLatPoint)
-    this%cutoff = max(this%cutoff, this%maxREwald)
 
-    this%latVecs = latVec
-    this%recVecs = recVec
+    this%latVecs(:,:) = latVec
+    this%recVecs(:,:) = recVec
 
     ! Fold charges back to unit cell
-    call foldCoordToUnitCell(this%coord, latVec, recVec / (2.0_dp * pi))
-    call getCellTranslations(dummy, this%rCellVec, latVec, recVec / (2.0_dp * pi), this%maxREwald)
+    call getCellTranslations(dummy, this%rCellVec, latVec, recVec / (2.0_dp * pi), maxREwald)
 
+    call this%ewaldNeighList%updateLatVecs(latVec, recVec / (2.0_dp * pi))
     if (this%tExtChrg) then
-      call this%extCharge%updateLatVecs(latVec, recVec, this%maxREwald)
+      call this%extCharge%updateLatVecs(latVec, recVec, maxREwald)
     end if
 
   end subroutine updateLatVecs
@@ -759,8 +750,8 @@ contains
 
     ! 1/R contribution
     if (this%tPeriodic) then
-      call addInvRPrime(env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor, img2CentCell,&
-          & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, force)
+      call addInvRPrime(env, this%nAtom, this%coord, this%ewaldNeighList, this%gLatPoint,&
+          & this%alpha, this%volume, this%deltaQAtom, force)
     else
       call addInvRPrime(env, this%nAtom, this%coord, this%deltaQAtom, force)
     end if
@@ -768,7 +759,7 @@ contains
     if (this%tExtChrg) then
       if (this%tPeriodic) then
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
-            & this%gLatPoint, this%alpha, this%volume)
+            & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
       else
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
       end if
@@ -816,8 +807,8 @@ contains
     ! call invRstress
 
     stTmp = 0.0_dp
-    call invRStress(env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,img2CentCell,&
-        & this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, stTmp)
+    call invRStress(env, this%nAtom, this%coord, this%ewaldNeighList, this%gLatPoint, this%alpha,&
+        & this%volume, this%deltaQAtom, stTmp)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
@@ -967,9 +958,8 @@ contains
 
     ! 1/R contribution
     if (this%tPeriodic) then
-      call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%nNeighEwald, iNeighbor,&
-          & img2CentCell, this%gLatPoint, this%alpha, this%volume, this%deltaQAtom, dQOutAtom,&
-          & force)
+      call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%ewaldNeighList, this%gLatPoint,&
+          & this%alpha, this%volume, this%deltaQAtom, dQOutAtom, force)
     else
       call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%deltaQAtom, dQOutAtom, force)
     end if
@@ -979,6 +969,74 @@ contains
     end if
 
   end subroutine addForceDcXlbomd
+
+
+  !> Returns potential from DFTB charges
+  subroutine getInternalElStatPotential(this, V, env, locations, epsSoften)
+
+    !> Instance of SCC calculation
+    class(TScc), intent(in) :: this
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(locations) == [3,size(V)]))
+
+    V(:) = 0.0_dp
+
+    if (this%tPeriodic) then
+      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
+          & this%rCellVec, this%gLatPoint, this%alpha, this%volume, V, epsSoften=epsSoften)
+    else
+      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
+          & epsSoften=epsSoften)
+    end if
+
+  end subroutine getInternalElStatPotential
+
+
+  !> Returns potential from external charges
+  subroutine getExternalElStatPotential(this, V, env, locations, epsSoften)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Resulting potentials
+    real(dp), intent(out) :: V(:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> sites to calculate potential
+    real(dp), intent(in) :: locations(:,:)
+
+    !> optional potential softening
+    real(dp), optional, intent(in) :: epsSoften
+
+    @:ASSERT(this%tInitialised)
+
+    if (this%tExtChrg) then
+      if (this%tPeriodic) then
+        call this%extCharge%getElStatPotential(env, locations, this%rCellVec, this%gLatPoint,&
+            & this%alpha, this%volume, V, epsSoften=epsSoften)
+      else
+        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
+      end if
+    else
+      V(:) = 0.0_dp
+    end if
+
+  end subroutine getExternalElStatPotential
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1011,9 +1069,6 @@ contains
         end do
       end do
     end do
-    if (this%tPeriodic) then
-      call getNrOfNeighborsForAll(this%nNeighEwald, neighList, this%maxREwald)
-    end if
 
   end subroutine updateNNeigh_
 
@@ -1542,74 +1597,6 @@ contains
     end do
 
   end subroutine getSummedChargesPerUniqU_
-
-
-  !> Returns potential from DFTB charges
-  subroutine getInternalElStatPotential(this, V, env, locations, epsSoften)
-
-    !> Instance of SCC calculation
-    class(TScc), intent(in) :: this
-
-    !> Resulting potentials
-    real(dp), intent(out) :: V(:)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> sites to calculate potential
-    real(dp), intent(in) :: locations(:,:)
-
-    !> optional potential softening
-    real(dp), optional, intent(in) :: epsSoften
-
-    @:ASSERT(this%tInitialised)
-    @:ASSERT(all(shape(locations) == [3,size(V)]))
-
-    V(:) = 0.0_dp
-
-    if (this%tPeriodic) then
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, this%rCellVec,&
-          & this%gLatPoint, this%alpha, this%volume, V, epsSoften=epsSoften)
-    else
-      call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
-          & epsSoften=epsSoften)
-    end if
-
-  end subroutine getInternalElStatPotential
-
-
-  !> Returns potential from external charges
-  subroutine getExternalElStatPotential(this, V, env, locations, epsSoften)
-
-    !> Instance
-    class(TScc), intent(in) :: this
-
-    !> Resulting potentials
-    real(dp), intent(out) :: V(:)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> sites to calculate potential
-    real(dp), intent(in) :: locations(:,:)
-
-    !> optional potential softening
-    real(dp), optional, intent(in) :: epsSoften
-
-    @:ASSERT(this%tInitialised)
-    
-    if (this%tExtChrg) then
-      if (this%tPeriodic) then
-        call this%extCharge%getElStatPotential(env, locations, this%rCellVec, this%gLatPoint,&
-            & this%alpha, this%volume, V, epsSoften=epsSoften)
-      else
-        call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
-      end if
-    else
-      V(:) = 0.0_dp
-    end if
-
-  end subroutine getExternalElStatPotential
 
 
 end module scc
