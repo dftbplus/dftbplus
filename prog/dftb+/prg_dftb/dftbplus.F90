@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@ program dftbplus
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
-  integer, parameter :: releaseYear = 2017
+  integer, parameter :: releaseYear = 2018
 
   type(TEnvironment) :: env
   type(inputData), allocatable :: input
