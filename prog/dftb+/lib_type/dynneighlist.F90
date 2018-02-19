@@ -27,12 +27,25 @@ module dynneighlist
   !> Dynamic neighbor list
   type :: TDynNeighList
     private
+
+    !> Cutoff for neighbor generation
     real(dp) :: cutoff
+
+    !> Nr. of atoms 
     integer :: nAtom
+
+    !> Coordinates of atoms (folded into unit cell, if periodic)
     real(dp), allocatable :: coords0(:,:)
+
+    !> Whether system is periodic
     logical :: tPeriodic
+
+    !> Lattice vectors, if system is periodic
     real(dp), allocatable :: latVecs(:,:)
+
+    !> Inverse lattice vectors, if system is periodic
     real(dp), allocatable :: invLatVecs(:,:)
+    
   contains
     procedure :: updateLatVecs => TDynNeighList_updateLatVecs
     procedure :: updateCoords => TDynNeighList_updateCoords
@@ -41,17 +54,41 @@ module dynneighlist
 
   !> Iterator over a dynamic neighbor list
   type :: TNeighIterator
+    private
+
+    !> Pointer to the original neighbor list
     type(TDynNeighList), pointer :: neighList
+
+    !> Lattice point generator (if system is periodic)
     type(TLatPointIter), allocatable :: latPointGen
+
+    !> Whether system is periodic
     logical :: tPeriodic
+
+    !> Lattice vectors, if system is periodic
     real(dp), allocatable :: latVecs(:,:)
+
+    !> Number of atoms
     integer :: nAtom
+
+    !> Atom for which neighbors are returned by the iterator
     integer :: iAtom1
+
+    !> Coordinates of the atom
     real(dp) :: coordsAtom1(3)
+
+    !> Neighbor atom to be returned as next
     integer :: iAtom2
+
+    !> Current cell shift vector (if system is periodic)
     real(dp) :: cellVec(3)
+
+    !> Square of the cutoff radius
     real(dp) :: cutoff2
+
+    !> Whether iterator has finished
     logical :: tFinished
+    
   contains
     procedure :: getNextNeighbors => TNeighIterator_getNextNeighbors
   end type TNeighIterator

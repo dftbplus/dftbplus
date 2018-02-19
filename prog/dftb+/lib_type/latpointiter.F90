@@ -20,15 +20,35 @@ module latpointiter
   !> Lattice point iterator
   type :: TLatPointIter
     private
+
+    !> Square of the cutoff
     real(dp) :: cutoff2
+
+    !> Lattice vectors
     real(dp) :: latVecs(3, 3)
+
+    !> Index ranges necessary to obtain all lattcie points within given cutoff
     integer :: ranges(2, 3)
+
+    !> Indices of the current lattice point
     integer :: curPoint(3)
+
+    !> Increase upper limit of necessary index ranges by this amount
     integer :: posExt = 0
+
+    !> Decrease lower limit of necessary index ranges by this amount
     integer :: negExt = 0
+
+    !> Return all lattice vector in the index ranges, not just those shorter than cutoff
     logical :: tAll = .true.
+
+    !> Whether lattice vector (0, 0, 0) should be excluded when iterationg
     logical :: tExcludeOrig = .true.
-    logical :: tNoInv = .false.
+
+    !> Whether to exclude points connected by inversion
+    logical :: tExcludeInv = .false.
+
+    !> Whether iterator has returned last point
     logical :: tFinished = .false.
   contains
     procedure :: getNextPoint => TLatPointIter_getNextPoint
@@ -81,7 +101,7 @@ contains
       this%tAll = .not. onlyInside
     end if
     if (present(reduceByInversion)) then
-      this%tNoInv = reduceByInversion
+      this%tExcludeInv = reduceByInversion
     end if
     if (present(excludeOrigin)) then
       this%tExcludeOrig = excludeOrigin
@@ -118,7 +138,7 @@ contains
       if (tFinished) then
         exit
       end if
-      if (this%tNoInv) then
+      if (this%tExcludeInv) then
         if (curPoint(1) < 0) then
           curPoint(1) = 0
         end if
@@ -130,7 +150,7 @@ contains
         end if
       end if
       if (this%tExcludeOrig .and. all(curPoint == 0)) then
-        call increaseInd(this%ranges, curPoint)
+        call getNextPoint(this%ranges, curPoint)
         cycle
       end if
       latticePoint(:) = real(curPoint, dp)
@@ -142,12 +162,12 @@ contains
       if (sum(rr**2) <= this%cutoff2) then
         exit
       end if
-      call increaseInd(this%ranges, curPoint)
+      call getNextPoint(this%ranges, curPoint)
     end do
 
     if (.not. tFinished) then
       ! generate image for next call
-      call increaseInd(this%ranges, curPoint)
+      call getNextPoint(this%ranges, curPoint)
     end if
     this%curPoint(:) = curPoint
 
@@ -181,25 +201,25 @@ contains
 
 
   !> Helper function to increase a tuple of 3 indices by one
-  subroutine increaseInd(ranges, inds)
+  subroutine getNextPoint(ranges, inds)
 
-    !> Lower and upper ranges for the indices. Shape: (2, 3)
+    !> Lower and upper bounds for the lattice point indices. Shape: (2, 3)
     integer, intent(in) :: ranges(:,:)
 
-    !> Current value of the index tuple, increased value on exit.
-    integer, intent(inout) :: inds(3)
+    !> Current lattice point, next one on exit.
+    integer, intent(inout) :: point(3)
     
-    inds(3) = inds(3) + 1
-    if (inds(3) > ranges(2, 3)) then
-      inds(3) = ranges(1, 3)
-      inds(2) = inds(2) + 1
-      if (inds(2) > ranges(2, 2)) then
-        inds(2) = ranges(1, 2)
-        inds(1) = inds(1) + 1
+    point(3) = point(3) + 1
+    if (point(3) > ranges(2, 3)) then
+      point(3) = ranges(1, 3)
+      point(2) = point(2) + 1
+      if (point(2) > ranges(2, 2)) then
+        point(2) = ranges(1, 2)
+        point(1) = point(1) + 1
       end if
     end if
 
-  end subroutine increaseInd
+  end subroutine getNextPoint
 
 
   !> Calculate the range of images of the central cell that interact
