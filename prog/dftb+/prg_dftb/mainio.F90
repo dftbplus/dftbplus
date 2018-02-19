@@ -96,7 +96,7 @@ module mainio
   character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
 
   !> Format for two using exponential notation values with units
-  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71,A)"
+  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71, A)"
 
   !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
@@ -1142,7 +1142,7 @@ contains
 
   !> Write projected eigenvectors.
   subroutine writeProjectedEigenvectors(env, regionLabels, fd, eigen, neighborList, nNeighbor,&
-      & cellVec, iCellVec, denseDesc, iPair, img2CentCell, orb, over, kPoint, kWeight, iOrbRegion,&
+      & cellVec, iCellVec, denseDesc, iPair, img2CentCell, over, kPoint, kWeight, iOrbRegion,&
       & parallelKS, eigvecsReal, workReal, eigvecsCplx, workCplx)
 
     !> Environment settings
@@ -1177,9 +1177,6 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
-
-    !> Orbital information
-    type(TOrbitals), intent(in) :: orb
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
@@ -2193,7 +2190,8 @@ contains
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
-          write(fd, "(I6,2f12.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+          ! meV accuracy for eigenvalues
+          write(fd, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
               & filling(iEgy, iK, iSpin)
         end do
         write(fd,*)
@@ -2235,7 +2233,7 @@ contains
       & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc,&
       & invLatVec, kPoints)
 
-    !> File  ID
+    !> File ID
     integer, intent(in) :: fd
 
     !> Name of file to write to
@@ -2371,10 +2369,9 @@ contains
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
-    integer :: iAt, iSpin, iEgy, iK, iSp, iSh, iOrb, kk
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
     logical :: tSpin
 
-    character(*), parameter :: formatEigen = "(F14.8, F9.5)"
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
@@ -2469,57 +2466,7 @@ contains
       write(fd, *)
     end if
 
-    lpSpinPrint: do iSpin = 1, size(eigen, dim=3)
-      if (nSpin == 2) then
-        write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
-      else
-        write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
-      end if
-      write(fd, "(/, A)") 'Eigenvalues /H and fillings'
-      do iK = 1, nKPoint, 4
-        if (nKPoint > 1) then
-          if (nKPoint - iK > 0) then
-            write(fd,"(A,I0,':',I0)")'K-points ',iK,min(iK+3,nKPoint)
-          else
-            write(fd,"(A,I0,':',I0)")'K-point ',iK
-          end if
-        end if
-        do iEgy = 1, size(eigen, dim=1)
-          write(fd, "(I6)", advance = 'no') iEgy
-          do kk = 0, 3
-            if (iK + kk > nKPoint) then
-              exit
-            end if
-            write(fd, formatEigen, advance = 'no') eigen(iEgy, iK+kk, iSpin),&
-                & filling(iEgy, iK+kk, iSpin)
-          end do
-          write(fd, formatEigen)
-        end do
-        write(fd, *)
-      end do
-      write(fd, "(/, A)") 'Eigenvalues /eV and fillings'
-      do iK = 1, nKPoint, 4
-        if (nKPoint > 1) then
-          if (nKPoint - iK > 0) then
-            write(fd,"(A,I0,':',I0)")'K-points ',iK,min(iK+3,nKPoint)
-          else
-            write(fd,"(A,I0,':',I0)")'K-point ',iK
-          end if
-        end if
-        do iEgy = 1, size(eigen, dim=1)
-          write(fd, "(I6)", advance = 'no') iEgy
-          do kk = 0, 3
-            if (iK + kk > nKPoint) then
-              exit
-            end if
-            write(fd, formatEigen, advance = 'no') Hartree__eV * eigen(iEgy, iK+kk, iSpin),&
-                & filling(iEgy, iK+kk, iSpin)
-          end do
-          write(fd, formatEigen)
-        end do
-        write(fd, *)
-      end do
-    end do lpSpinPrint
+    call writeDetailedOut1Helper1(fd, eigen, filling)
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
@@ -2761,13 +2708,77 @@ contains
 
   end subroutine writeDetailedOut1
 
+  !> Helper routine to write formatted eigenvalues and fillings
+  subroutine writeDetailedOut1Helper1(fd, eigen, filling)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Eigenvalues/single particle states
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Occupation numbers
+    real(dp), intent(in) :: filling(:,:,:)
+
+    integer :: iSpin, nSpin, iK, kk, nKPoint, iEgy, nEgy, ii
+    real(dp) :: scaleFactor
+    ! meV level accuracy format for eigenvalues
+    character(len=14), parameter :: formatEigen(2) = ["(F10.5, F9.5)", "(F10.3, F9.5)"]
+
+    nEgy = size(filling, dim=1)
+    nKPoint = size(filling, dim=2)
+    nSpin = size(filling, dim=3)
+
+    lpSpinPrint: do iSpin = 1, nSpin
+
+      if (nSpin == 2) then
+        write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
+      else
+        write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
+      end if
+
+      do ii = 1, 2
+        if (ii == 1) then
+          write(fd, "(/, A)") 'Eigenvalues /H and fillings /e'
+          scaleFactor = 1.0_dp
+        else
+          write(fd, "(/, A)") 'Eigenvalues /eV and fillings /e'
+          scaleFactor = Hartree__eV
+        end if
+        do iK = 1, nKPoint, 4
+          if (nKPoint > 1) then
+            if (nKPoint - iK > 0) then
+              write(fd, "(A, I0, ':', I0)")'K-points ', iK, min(iK+3, nKPoint)
+            else
+              write(fd, "(A, I0, ':', I0)")'K-point ', iK
+            end if
+          end if
+          do iEgy = 1, nEgy
+            write(fd, "(I6)", advance='no') iEgy
+            do kk = 0, 3
+              if (iK + kk > nKPoint) then
+                exit
+              end if
+              write(fd, formatEigen(ii), advance='no') scaleFactor * eigen(iEgy, iK+kk, iSpin),&
+                  & filling(iEgy, iK+kk, iSpin)
+            end do
+            write(fd, *)
+          end do
+        end do
+      end do
+      write(fd, *)
+
+    end do lpSpinPrint
+
+  end subroutine writeDetailedOut1Helper1
+
 
   !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile)
 
-    !> File  ID
+    !> File ID
     integer, intent(in) :: fd
 
     !> Charge self consistent?

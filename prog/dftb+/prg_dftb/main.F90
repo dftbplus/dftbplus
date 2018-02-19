@@ -381,7 +381,7 @@ contains
 
       if (tProjEigenvecs) then
         call writeProjectedEigenvectors(env, regionLabels, fdProjEig, eigen, neighborList,&
-              & nNeighbor, cellVec, iCellVec, denseDesc, iSparseStart, img2CentCell, orb, over,&
+              & nNeighbor, cellVec, iCellVec, denseDesc, iSparseStart, img2CentCell, over,&
               & kPoint, kWeight, iOrbRegion, parallelKS, eigvecsReal, SSqrReal, eigvecsCplx,&
               & SSqrCplx)
       end if
