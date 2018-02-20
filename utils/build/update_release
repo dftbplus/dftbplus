@@ -134,7 +134,7 @@ def get_release_name(tag, commit=None):
         return relname
 
     if tag is None:
-        release = 'unknown'
+        release = None
     elif tag[2]:
         release = '%d.%d.%d' % tag
     else:
@@ -142,6 +142,8 @@ def get_release_name(tag, commit=None):
 
     if commit is None:
         relname = 'release ' + release
+    elif release is None:
+        relname = 'development version (commit: %s)' % (commit,)
     else:
         relname = ('development version (commit: %s, base: %s)'
                    % (commit, release))
