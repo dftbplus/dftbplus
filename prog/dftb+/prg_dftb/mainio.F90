@@ -3615,15 +3615,40 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy)
+  subroutine printEnergies(env, energy)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> energy components
     type(TEnergies), intent(in) :: energy
 
+  #:if WITH_MPI
+    integer :: iReplica
+    real(dp), allocatable :: buffer(:,:)
+
     write(stdOut, *)
+    allocate(buffer(2,env%mpi%nReplicas))
+    buffer = 0.0_dp
+    if (env%mpi%tReplicaMaster) then
+      buffer(:, env%mpi%myReplica+1) = [energy%Etotal, energy%EMermin]
+      call mpifx_allreduceip(env%mpi%interReplicaComm, buffer, MPI_SUM)
+      do iReplica = 1, env%mpi%nReplicas
+        if (env%mpi%nReplicas > 1) then
+          write(stdOut, "(1X,'Replica : ',I0)")iReplica
+        end if
+        write(stdOut, format2U) "Total Energy", buffer(1, iReplica),"H",&
+            & Hartree__eV * buffer(1, iReplica),"eV"
+        write(stdOut, format2U) "Total Mermin free energy", buffer(2, iReplica), "H",&
+            & Hartree__eV * buffer(2, iReplica)," eV"
+      end do
+      write(stdOut, *)
+    end if
+  #:else
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
     write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
         & Hartree__eV * energy%EMermin," eV"
+  #:endif
 
   end subroutine printEnergies
 

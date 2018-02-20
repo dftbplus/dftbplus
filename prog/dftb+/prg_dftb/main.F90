@@ -403,7 +403,7 @@ contains
             & nSpin, qOutput, velocities)
       end if
 
-      call printEnergies(energy)
+      call printEnergies(env, energy)
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
