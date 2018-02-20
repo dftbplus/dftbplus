@@ -878,7 +878,7 @@ contains
     !> flag to check for first cycle through a loop
     logical :: tFirst
 
-    !> Nr. of Hamiltonians to diagonalise independently
+    !> Nr. of Hamiltonians to diagonalise independently for a structure at each k-point
     integer :: nIndepHam
 
     real(dp) :: rTmp
@@ -902,6 +902,9 @@ contains
 
     !> Is SCC cycle initialised
     type(TSccInp), allocatable :: sccInp
+
+    !> workspace
+    real(dp), allocatable :: r3Tmp(:,:,:)
 
     !> Used for indexing linear response
     integer :: homoLoc(1)
@@ -979,8 +982,27 @@ contains
       tRealHS = .false.
     end if
 
+    ! temporary change for testing purposes
+    if (input%ctrl%nReplicas > 1) then
+      allocate(r3Tmp(3,nAtom,input%ctrl%nReplicas))
+      r3Tmp = 0.0_dp
+      do ii = 1, input%ctrl%nReplicas
+        r3Tmp(:,:,ii) = input%geom%coords(:,:,1)
+        ! make small structure difference in images -- test case, to be replaced
+        r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.1_dp*(ii-1)
+      end do
+      call move_alloc(r3Tmp,input%geom%coords)
+    elseif (input%ctrl%nReplicas < 0) then
+      call error("Nonsensical replica count")
+    end if
+
   #:if WITH_MPI
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    if (input%ctrl%parallelOpts%nGroup > nIndepHam * nKPoint) then
+      write(tmpStr,"('More processor sub-groups than spins and/or k-points:&
+          & ',I0,' vs ',I0,' x ',I0)")input%ctrl%parallelOpts%nGroup, nIndepHam, nKPoint
+      call error(tmpStr)
+    end if
+    call env%initMpi(input%ctrl%parallelOpts%nGroup, input%ctrl%nReplicas)
   #:endif
   #:if WITH_SCALAPACK
     call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
@@ -1202,8 +1224,8 @@ contains
 
     ! Initial coordinates
     allocate(coord0(3, nAtom))
-    @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
-    coord0(:,:) = input%geom%coords(:,:)
+    @:ASSERT(all(shape(input%geom%coords) == [3,nAtom,input%ctrl%nReplicas]))
+    coord0(:,:) = input%geom%coords(:, :, env%mpi%myReplica+1)
     tCoordsChanged = .true.
 
     allocate(species0(nAtom))
@@ -2096,6 +2118,7 @@ contains
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      ! need to update atom grid to cope with replicas:
       call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, denseDesc)
     end associate
   #:endif

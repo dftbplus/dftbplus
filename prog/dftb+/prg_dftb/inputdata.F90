@@ -407,6 +407,9 @@ module inputdata_module
     !> Maximal timing level to show in output
     integer :: timingLevel
 
+    !> replica structures in the system
+    integer :: nReplicas = 1
+
   end type control
 
 

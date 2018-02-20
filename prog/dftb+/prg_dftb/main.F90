@@ -240,7 +240,7 @@ contains
           & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
           & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
           & potential%extAtom(:,1), absEField)
-    
+
       call mergeExternalPotentials(orb, species, potential)
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
@@ -278,6 +278,15 @@ contains
             & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
             & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
             & eigvecsCplx, rhoSqrReal)
+
+      #:if WITH_MPI
+        call mpifx_barrier(env%mpi%globalComm)
+        ! need to move into writeBandOut and modify to collect and write
+        if (env%mpi%tReplicaMaster) then
+          write(*,*)'Master of replica', env%mpi%myReplica, ' Lowest eigenvalue', minval(eigen)
+        end if
+        call mpifx_barrier(env%mpi%globalComm)
+      #:endif
 
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
@@ -1702,7 +1711,7 @@ contains
     !> Eigensolver choice
     integer, intent(in) :: solver
 
-    !> K-points and spins to be handled
+    !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> dense hamitonian matrix
@@ -1744,7 +1753,7 @@ contains
     end do
 
   #:if WITH_SCALAPACK
-    ! Distribute all eigenvalues to all nodes via global summation
+    ! Distribute all eigenvalues to all nodes in replica via global summation
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
 
@@ -1792,7 +1801,7 @@ contains
     !> Eigensolver choice
     integer, intent(in) :: solver
 
-    !> K-points and spins to be handled
+    !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> dense hamitonian matrix
@@ -1835,6 +1844,7 @@ contains
     end do
 
   #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes in replica via global summation
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
 
@@ -1885,7 +1895,7 @@ contains
     !> Eigensolver choice
     integer, intent(in) :: solver
 
-    !> K-points and spins to be handled
+    !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> eigenvalues
@@ -1951,6 +1961,7 @@ contains
     end do
 
   #:if WITH_SCALAPACK
+    ! Distribute all eigenvalues to all nodes in replica via global summation
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
 
@@ -2033,7 +2044,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute density matrix contribution from each group
-    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, rhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getDensityFromRealEigvecs
@@ -2124,7 +2135,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute density matrix contribution from each group
-    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, rhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getDensityFromCplxEigvecs
@@ -2291,13 +2302,13 @@ contains
   #:if WITH_SCALAPACK
     call env%globalTimer%startTimer(globalTimers%denseToSparse)
     ! Add up and distribute contributions from each group
-    call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, rhoPrim, MPI_SUM)
     if (allocated(iRhoPrim)) then
-      call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
+      call mpifx_allreduceip(env%mpi%intraReplicaComm, iRhoPrim, MPI_SUM)
     end if
-    call mpifx_allreduceip(env%mpi%globalComm, energy%atomLS, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, energy%atomLS, MPI_SUM)
     if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
-      call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
+      call mpifx_allreduceip(env%mpi%intraReplicaComm, orbitalL, MPI_SUM)
     end if
     call env%globalTimer%stopTimer(globalTimers%denseToSparse)
   #:endif
@@ -2779,8 +2790,8 @@ contains
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
         ! Synchronise charges in order to avoid mixers that store a history drifting apart
-        call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
-        qInpRed(:) = qInpRed / env%mpi%globalComm%size
+        call mpifx_allreduceip(env%mpi%intraReplicaComm, qInpRed, MPI_SUM)
+        qInpRed(:) = qInpRed / env%mpi%intraReplicaComm%size
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
             & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
@@ -3599,7 +3610,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute energy weighted density matrix contribution from each group
-    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, ERhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getEDensityMtxFromRealEigvecs
@@ -3758,7 +3769,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute energy weighted density matrix contribution from each group
-    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, ERhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getEDensityMtxFromComplexEigvecs
@@ -3849,7 +3860,7 @@ contains
 
   #:if WITH_SCALAPACK
     ! Add up and distribute energy weighted density matrix contribution from each group
-    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%intraReplicaComm, ERhoPrim, MPI_SUM)
   #:endif
 
   end subroutine getEDensityMtxFromPauliEigvecs

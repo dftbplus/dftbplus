@@ -48,7 +48,7 @@ contains
 
     call setChildValue(node, "TypeNames", geo%speciesNames, .false.)
     call setChildValue(node, "TypesAndCoordinates", &
-        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, .false.)
+        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1), .false.)
     call setChildValue(node, "Periodic", geo%tPeriodic, .false.)
     if (geo%tPeriodic) then
       call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
@@ -68,7 +68,7 @@ contains
 
     call writeChildValue(xf, "TypeNames", geo%speciesNames)
     call writeChildValue(xf, "TypesAndCoordinates", &
-        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
+        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1))
     call writeChildValue(xf, "Periodic", geo%tPeriodic)
     if (geo%tPeriodic) then
       call writeChildValue(xf, "LatticeVectors", geo%latVecs)
@@ -87,7 +87,7 @@ contains
     type(TGeometry), intent(out) :: geo
 
     type(string) :: modifier
-    integer :: ind
+    integer :: ind, ii
     type(listString) :: stringBuffer
     type(listRealR1) :: realBuffer
     type(listIntR1) :: intBuffer
@@ -114,7 +114,7 @@ contains
       call detailedError(typesAndCoords, "Missing coordinates")
     end if
     allocate(geo%species(geo%nAtom))
-    allocate(geo%coords(3, geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom, 1))
     allocate(tmpInt(1, geo%nAtom))
     call asArray(intBuffer, tmpInt)
     call destruct(intBuffer)
@@ -125,7 +125,7 @@ contains
       call detailedError(typesAndCoords, "Type index must be between 1 and " &
           &// i2c(geo%nSpecies) // ".")
     end if
-    call asArray(realBuffer, geo%coords)
+    call asArray(realBuffer, geo%coords(:,:,1))
     call destruct(realBuffer)
     geo%tFracCoord = .false.
     if (len(modifier) > 0) then
@@ -138,9 +138,9 @@ contains
         geo%tFracCoord = .true.
       case default
         ind = getModifierIndex(char(modifier), lengthUnits, typesAndCoords)
-        geo%coords(:,:) = geo%coords(:,:) * lengthUnits(ind)%convertValue
+        geo%coords(:,:,:) = geo%coords(:,:,:) * lengthUnits(ind)%convertValue
         call setChildValue(typesAndCoords, "", &
-            &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, &
+            &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords(:,:,1), &
             &replace=.true.)
       end select
     end if
@@ -155,7 +155,10 @@ contains
         call setChildValue(child, "", geo%latVecs, .true.)
       end if
       if (geo%tFracCoord) then
-        geo%coords = matmul(geo%latVecs, geo%coords)
+        do ii = 1, size(geo%coords, dim=3)
+          ! needs to be fixed if the lattice vectors differ between replicas:
+          geo%coords(:,:,ii) = matmul(geo%latVecs, geo%coords(:,:,ii))
+        end do
       end if
       allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
@@ -251,7 +254,7 @@ contains
 
     ! Read in sequential and species indices.
     allocate(geo%species(geo%nAtom))
-    allocate(geo%coords(3, geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom, 1))
     iStart = iOldStart
     do ii = 1, geo%nAtom
       call getNextToken(text, iTmp, iStart, iErr)
@@ -260,7 +263,7 @@ contains
       call checkError(node, iErr, "Bad species number for an atom.")
       call getNextToken(text, coords, iStart, iErr)
       call checkError(node, iErr, "Bad coordinates for an atom.")
-      geo%coords(:, ii) = coords(:)
+      geo%coords(:, ii, 1) = coords(:)
     end do
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
       call detailedError(node, &
@@ -284,9 +287,12 @@ contains
           call detailedWarning(node, &
               &"Fractional coordinates with absolute value greater than one.")
         end if
-        geo%coords = matmul(geo%latVecs, geo%coords)
+        do ii = 1, size(geo%coords, dim=3)
+          ! needs to be fixed if the lattice vectors differ between replicas:
+          geo%coords(:,:,ii) = matmul(geo%latVecs, geo%coords(:,:,ii))
+        end do
       else
-        geo%coords = geo%coords * AA__Bohr
+        geo%coords(:,:,:) = geo%coords(:,:,:) * AA__Bohr
       end if
       allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
@@ -295,7 +301,7 @@ contains
       end if
       call invert33(geo%recVecs2p, geo%latVecs, det)
     else
-      geo%coords = geo%coords * AA__Bohr
+      geo%coords(:,:,:) = geo%coords(:,:,:) * AA__Bohr
     end if
     call getNextToken(text, rTmp, iStart, iErr)
     if (iErr /= TOKEN_EOS) then

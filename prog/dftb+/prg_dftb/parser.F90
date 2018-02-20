@@ -299,6 +299,8 @@ contains
     ctrl%tForces = .false.
     ctrl%tSetFillingTemp = .false.
 
+    ctrl%nReplicas = 1
+
     call getNodeName2(node, buffer)
     driver: select case (char(buffer))
     case ("")
@@ -811,6 +813,10 @@ contains
 #:else
       call detailedError(node, "Program had been compiled without socket support")
 #:endif
+
+    case ("replica")
+
+      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
 
     case default
       call getNodeHSDName(node, buffer)
@@ -2797,8 +2803,8 @@ contains
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighborList(coords, img2CentCell, iCellVec, neighs, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec)
+      call updateNeighborList(coords, img2CentCell, iCellVec, neighs, nAllAtom, geo%coords(:,:,1),&
+          & mCutoff, rCellVec)
       allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
@@ -3431,7 +3437,7 @@ contains
     type(fnode), pointer :: child, child2, child3
     type(string) :: buffer, modifier
     type(listRealR1) :: lr1
-    
+
     call getChild(node, "ElectrostaticPotential", child, requested=.false.)
     if (.not. associated(child)) then
       return
@@ -3524,7 +3530,7 @@ contains
     real(dp) :: axes_(3,3), r33Tmp(3,3)
 
     tPeriodic = present(latvecs)
-    
+
     if (.not.tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       call detailedError(node, "Fractional grid specification only available for periodic&
           & geometries")
@@ -3578,11 +3584,11 @@ contains
         axes = axes_*spread(r3Tmp,2,3)
       end if
     end if
-    
+
     if (present(origin)) then
       origin = r3Tmpb
     end if
-    
+
     ! Fractional specification of points
     if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       points = matmul(latVecs,points)

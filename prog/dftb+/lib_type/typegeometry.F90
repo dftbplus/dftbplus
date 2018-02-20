@@ -29,8 +29,8 @@ module typegeometry
     !> atomic species
     integer, allocatable :: species(:)
 
-    !> coordinates of atoms
-    real(dp), allocatable :: coords(:,:)
+    !> coordinates of atoms, potentially in multiple replicas
+    real(dp), allocatable :: coords(:,:,:)
 
     !> number of different atomic species
     integer :: nSpecies

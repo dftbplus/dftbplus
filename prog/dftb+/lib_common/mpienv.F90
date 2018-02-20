@@ -79,7 +79,7 @@ module mpienv
 contains
 
   !> Initializes MPI environment.
-  subroutine TMpiEnv_init(this, nGroup)
+  subroutine TMpiEnv_init(this, nGroup, nReplicas)
 
     !> Initialised instance on exit
     type(TMpiEnv), intent(out) :: this
@@ -87,10 +87,10 @@ contains
     !> Number of process groups to create
     integer, intent(in) :: nGroup
 
-    character(lc) :: tmpStr
+    !> Number of structure replicas
+    integer, intent(in) :: nReplicas
 
-    ! temporarily set to 1
-    integer, parameter :: nReplicas = 1
+    character(lc) :: tmpStr
 
     call this%globalComm%init()
 
