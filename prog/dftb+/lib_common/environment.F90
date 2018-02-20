@@ -9,7 +9,7 @@
 
 !> Contains computer environment settings
 module environment
-  use globalenv, only : abort, stdOut
+  use globalenv, only : shutdown, stdOut
   use timerarray
   use fileregistry
 #:if WITH_MPI
@@ -41,7 +41,7 @@ module environment
     !> Global timers
     type(TTimerArray), public :: globalTimer
 
-    !> Registry of files, which may be open and must be closed when environment is aborted
+    !> Registry of files, which may be open and must be closed when environment is shut down
     type(TFileRegistry), public :: fileFinalizer
 
   #:if WITH_MPI
@@ -55,7 +55,7 @@ module environment
 
   contains
     procedure :: destruct => TEnvironment_destruct
-    procedure :: abort => TEnvironment_abort
+    procedure :: shutdown => TEnvironment_shutdown
     procedure :: initGlobalTimer => TEnvironment_initGlobalTimer
   #:if WITH_MPI
     procedure :: initMpi => TEnvironment_initMpi
@@ -129,16 +129,19 @@ contains
   end subroutine TEnvironment_destruct
     
   
-  !> Gracefully cleans up and aborts
-  subroutine TEnvironment_abort(this)
+  !> Gracefully cleans up and shuts down.
+  !>
+  !> Note: This routine must be collectively called by all processes.
+  !>
+  subroutine TEnvironment_shutdown(this)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
     call this%destruct()
-    call abort()
+    call shutdown()
 
-  end subroutine TEnvironment_abort
+  end subroutine TEnvironment_shutdown
 
 
   !> Initlaizes the global timer of the environment.
