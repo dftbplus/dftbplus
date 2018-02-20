@@ -1142,7 +1142,7 @@ contains
 
   !> Write projected eigenvectors.
   subroutine writeProjectedEigenvectors(env, regionLabels, fd, eigen, neighborList, nNeighbor,&
-      & cellVec, iCellVec, denseDesc, iPair, img2CentCell, over, kPoint, kWeight, iOrbRegion,&
+      & cellVec, iCellVec, denseDesc, iPair, img2CentCell, orb, over, kPoint, kWeight, iOrbRegion,&
       & parallelKS, eigvecsReal, workReal, eigvecsCplx, workCplx)
 
     !> Environment settings
@@ -1177,6 +1177,9 @@ contains
 
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
@@ -2466,7 +2469,7 @@ contains
       write(fd, *)
     end if
 
-    call writeDetailedOut1Helper1(fd, eigen, filling)
+    call writeDetailedOutEigenvalues(fd, eigen, filling)
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
@@ -2708,8 +2711,9 @@ contains
 
   end subroutine writeDetailedOut1
 
+
   !> Helper routine to write formatted eigenvalues and fillings
-  subroutine writeDetailedOut1Helper1(fd, eigen, filling)
+  subroutine writeDetailedOutEigenvalues(fd, eigen, filling)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2748,9 +2752,9 @@ contains
         do iK = 1, nKPoint, 4
           if (nKPoint > 1) then
             if (nKPoint - iK > 0) then
-              write(fd, "(A, I0, ':', I0)")'K-points ', iK, min(iK+3, nKPoint)
+              write(fd, "(A, I0, ':', I0)") 'K-points ', iK, min(iK+3, nKPoint)
             else
-              write(fd, "(A, I0, ':', I0)")'K-point ', iK
+              write(fd, "(A, I0, ':', I0)") 'K-point ', iK
             end if
           end if
           do iEgy = 1, nEgy
@@ -2759,8 +2763,8 @@ contains
               if (iK + kk > nKPoint) then
                 exit
               end if
-              write(fd, formatEigen(ii), advance='no') scaleFactor * eigen(iEgy, iK+kk, iSpin),&
-                  & filling(iEgy, iK+kk, iSpin)
+              write(fd, formatEigen(ii), advance='no') scaleFactor * eigen(iEgy, iK + kk, iSpin),&
+                  & filling(iEgy, iK + kk, iSpin)
             end do
             write(fd, *)
           end do
@@ -2770,7 +2774,7 @@ contains
 
     end do lpSpinPrint
 
-  end subroutine writeDetailedOut1Helper1
+  end subroutine writeDetailedOutEigenvalues
 
 
   !> Second group of data for detailed.out
