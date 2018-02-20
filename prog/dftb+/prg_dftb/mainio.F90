@@ -2726,8 +2726,13 @@ contains
 
     integer :: iSpin, nSpin, iK, kk, nKPoint, iEgy, nEgy, ii
     real(dp) :: scaleFactor
+
     ! meV level accuracy format for eigenvalues
-    character(len=14), parameter :: formatEigen(2) = ["(F10.5, F9.5)", "(F10.3, F9.5)"]
+    character(*), parameter :: formatEigen(2) = [&
+        & character(21) :: "(4X, F10.5, 2X, F8.5)", "(4X, F10.3, 2X, F8.5)"]
+
+    ! K-points per group
+    integer, parameter :: nKPointPerGroup = 3
 
     nEgy = size(filling, dim=1)
     nKPoint = size(filling, dim=2)
@@ -2743,23 +2748,23 @@ contains
 
       do ii = 1, 2
         if (ii == 1) then
-          write(fd, "(/, A)") 'Eigenvalues /H and fillings /e'
+          write(fd, "(/, A)") 'Eigenvalues (H) and fillings (e)'
           scaleFactor = 1.0_dp
         else
-          write(fd, "(/, A)") 'Eigenvalues /eV and fillings /e'
+          write(fd, "(/, A)") 'Eigenvalues (eV) and fillings (e)'
           scaleFactor = Hartree__eV
         end if
-        do iK = 1, nKPoint, 4
+        do iK = 1, nKPoint, nKPointPerGroup
           if (nKPoint > 1) then
             if (nKPoint - iK > 0) then
-              write(fd, "(A, I0, ':', I0)") 'K-points ', iK, min(iK+3, nKPoint)
+              write(fd, "(A, I0, ':', I0)") 'K-points ', iK, min(iK + nKPointPerGroup - 1, nKPoint)
             else
-              write(fd, "(A, I0, ':', I0)") 'K-point ', iK
+              write(fd, "(A, I0)") 'K-point ', iK
             end if
           end if
           do iEgy = 1, nEgy
-            write(fd, "(I6)", advance='no') iEgy
-            do kk = 0, 3
+            write(fd, "(I8)", advance='no') iEgy
+            do kk = 0, nKPointPerGroup - 1
               if (iK + kk > nKPoint) then
                 exit
               end if
