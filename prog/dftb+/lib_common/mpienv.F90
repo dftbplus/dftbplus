@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Contains MPI related einvironment settings
+!> Contains MPI related environment settings
 module mpienv
   use accuracy, only : lc
   use mpifx
