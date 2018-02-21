@@ -2628,13 +2628,20 @@ contains
 
     type(fnode), pointer :: child
 
+    if (allocated(ctrl%socketInput)) then
+      ! suppress file write out to disc as default, as data should usually pass through socket
+      ! interface
+      call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, .false.)
+    else
+      call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, .true.)
+    end if
+
     call getChildValue(node, "WriteAutotestTag", ctrl%tWriteTagged, .false.)
     call getChildValue(node, "WriteDetailedXML", ctrl%tWriteDetailedXML, &
         &.false.)
     call getChildValue(node, "WriteResultsTag", ctrl%tWriteResultsTag, &
         &.false.)
-    call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, &
-        &.true.)
+
 
     if (.not.(ctrl%tMD.or.ctrl%tGeoOpt)) then
       if (ctrl%tSCC) then
@@ -3254,7 +3261,13 @@ contains
       call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
           & .false.)
     end if
-    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
+    if (allocated(ctrl%socketInput)) then
+      ! suppress file write out to disc as default, as any data should usually pass through socket
+      ! interface
+      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .false.)
+    else
+      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
+    end if
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
   end subroutine readAnalysis
@@ -3431,7 +3444,7 @@ contains
     type(fnode), pointer :: child, child2, child3
     type(string) :: buffer, modifier
     type(listRealR1) :: lr1
-    
+
     call getChild(node, "ElectrostaticPotential", child, requested=.false.)
     if (.not. associated(child)) then
       return
@@ -3524,7 +3537,7 @@ contains
     real(dp) :: axes_(3,3), r33Tmp(3,3)
 
     tPeriodic = present(latvecs)
-    
+
     if (.not.tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       call detailedError(node, "Fractional grid specification only available for periodic&
           & geometries")
@@ -3578,11 +3591,11 @@ contains
         axes = axes_*spread(r3Tmp,2,3)
       end if
     end if
-    
+
     if (present(origin)) then
       origin = r3Tmpb
     end if
-    
+
     ! Fractional specification of points
     if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       points = matmul(latVecs,points)
