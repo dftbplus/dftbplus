@@ -36,6 +36,7 @@ module parser
   use commontypes
   use oldskdata
   use xmlf90
+  use rangeseparated
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
@@ -1122,6 +1123,12 @@ contains
     logical :: tBadIntegratingKPoints
     integer :: nElem
 
+    !>For rangeseparation
+    logical :: tRSep
+    real(dp) :: screeningThreshold
+    type(TRangeSepSKTag) :: rangeSepSK
+
+
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
       angShellOrdered(ii) = ii - 1
@@ -2000,6 +2007,28 @@ contains
     end if
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
+
+    !> Rangeseparation input
+    call getChild(node, "RangeSep", child, .false., modifier)
+    if (associated(child)) then
+       call getChildValue(child, "Enable", ctrl%tRangeSep, .false.)
+       call getChildValue(child, "TabulatedGamma", ctrl%tTabulatedGamma, .false.)
+       call getChildValue(child, "Algorithm", value, "NB", child=child2)
+       call getNodeName(value, buffer)
+       select case(char(buffer))
+       case ("nb")
+          write(*,*) "Using the Neighbor list-based algorithm"
+          ctrl%rangeSepAlgorithm = char(buffer)
+       case ("tr")
+          write(*,*) "Using the Thresholding algorithm"
+          ctrl%rangeSepAlgorithm = char(buffer)
+          call getChildValue(value, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
+       case default
+        call getNodeHSDName(value, buffer)
+        call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
+      end select
+    end if
+    
 
   contains
 

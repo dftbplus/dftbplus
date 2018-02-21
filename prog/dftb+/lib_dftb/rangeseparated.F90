@@ -1,8 +1,11 @@
+
+#:include 'common.fypp'
+
+
 !> Contains range separated related routines.
-module rangeseparated
-#include "allocate.h"
-#include "assert.h"  
+module rangeseparated 
   use accuracy
+  use assert
   use nonscc, only : H0Sprime
   use periodic, only : getLatticePoints
   use SlakoCont, only : OSlakoCont, getMIntegrals, getSKIntegrals
@@ -140,10 +143,10 @@ contains
       self%tSpin = tSpin
       self%tTabGamma = tTabGamma
 
-      ALLOCATE_(self%coords, (3, nAtom))
-      ALLOCATE_(self%species, (nAtom))
-      ALLOCATE_(self%lrGammaEval, (nAtom,nAtom))
-      ALLOCATE_(self%hubbu, (size(hubbu(:))))
+      allocate(self%coords(3, nAtom))
+      allocate(self%species(nAtom))
+      allocate(self%lrGammaEval(nAtom,nAtom))
+      allocate(self%hubbu(size(hubbu(:))))
       self%hubbu = hubbu
       self%species(:) = species
     end subroutine initAndAllocate
@@ -239,10 +242,10 @@ contains
       !
       write(*,'(a,3I5)') "allocating the array for lr-gamma, dimensions:",&
            & size(speciesNames),size(speciesNames), num_mesh_points
-      ALLOCATE_(self%lrGamma, (size(speciesNames),size(speciesNames)&
+      allocate(self%lrGamma(size(speciesNames),size(speciesNames)&
            &,num_mesh_points,2))
-      ALLOCATE_(self%grid, (num_mesh_points))
-      ALLOCATE_(test_array2, (num_mesh_points))
+      allocate(self%grid(num_mesh_points))
+      allocate(test_array2(num_mesh_points))
       !
       self%species(:) = species
       do ii = 1, size(speciesNames)
@@ -280,7 +283,7 @@ contains
     real(dp) :: dist
 
     write(*,*) "rangesep update coords entry"
-    ASSERT(all(shape(coords) == shape(self%coords)))
+    @:ASSERT(all(shape(coords) == shape(self%coords)))
     self%coords(:,:) = coords
     nAtom = size(self%species)
     write(*,*) "Evaluating LR-GAMMA for atom pairs"
@@ -351,12 +354,12 @@ contains
       
       matrixSize = size(hamiltonian, dim = 1)
       nAtom = size(self%species)
-      ALLOCATE_(tmpovr, (matrixSize, matrixSize))
-      ALLOCATE_(tmpDham, (matrixSize, matrixSize))
-      ALLOCATE_(tmpDRho, (matrixSize, matrixSize))
-      ALLOCATE_(tmpDDRho, (matrixSize, matrixSize))
-      ALLOCATE_(testovr, (nAtom,nAtom))
-      ALLOCATE_(ovrind, (nAtom,nAtom))
+      allocate(tmpovr(matrixSize, matrixSize))
+      allocate(tmpDham(matrixSize, matrixSize))
+      allocate(tmpDRho(matrixSize, matrixSize))
+      allocate(tmpDDRho(matrixSize, matrixSize))
+      allocate(testovr(nAtom,nAtom))
+      allocate(ovrind(nAtom,nAtom))
       tmpovr = overlap
       call blockSymmetrizeHS(tmpovr, iSquare)
       tmpDRho = deltaRho
@@ -476,8 +479,8 @@ contains
       if(.not. self%tScreeningInited) then
          write(*,'(a)') "RangeSep: Iinitialize Screening"
          self%tScreeningInited = .true.
-         ALLOCATE_(self%hprev, (matrixSize, matrixSize))
-         ALLOCATE_(self%dRhoprev, (matrixSize, matrixSize))
+         allocate(self%hprev(matrixSize, matrixSize))
+         allocate(self%dRhoprev(matrixSize, matrixSize))
          self%hprev = 0.0_dp
          self%dRhoprev = tmpDRho
       end if
@@ -578,9 +581,9 @@ contains
 
     subroutine allocateAndInit(tmpHH, tmpDRho)
       real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpDRho, tmpHH
-      ALLOCATE_(tmpHH, (size(HH, dim = 1), size(HH, dim = 2)))
+      allocate(tmpHH(size(HH, dim = 1), size(HH, dim = 2)))
       tmpHH = 0.0_dp
-      ALLOCATE_(tmpDRho, (size(densSqr, dim = 1), size(densSqr, dim = 1)))
+      allocate(tmpDRho(size(densSqr, dim = 1), size(densSqr, dim = 1)))
       tmpDRho = densSqr
       call symmetrizeSquareMatrix(tmpDRho)
     end subroutine allocateAndInit
@@ -932,7 +935,7 @@ contains
     real :: start, finish
 
     write(*,'(a)') "rangeSep: addLRGradients"
-    ASSERT(size(gradients,dim=1) == 3)
+    @:ASSERT(size(gradients,dim=1) == 3)
     call cpu_time(start)
     call allocateAndInit(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
     nAtom = size(self%species)
@@ -1026,10 +1029,10 @@ contains
       integer :: iAt1, iAt2, nAtom
 
       nAtom = size(self%species)
-      ALLOCATE_(tmpovr, (size(ovrlapMat, dim = 1), size(ovrlapMat, dim = 1)))
-      ALLOCATE_(tmpRho, (size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
-      ALLOCATE_(gammaPrimeTmp, (3, nAtom, nAtom))
-      ALLOCATE_(tmpderiv, (3, size(gradients, dim = 2)))
+      allocate(tmpovr(size(ovrlapMat, dim = 1), size(ovrlapMat, dim = 1)))
+      allocate(tmpRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
+      allocate(gammaPrimeTmp(3, nAtom, nAtom))
+      allocate(tmpderiv(3, size(gradients, dim = 2)))
       tmpovr = ovrlapMat
       tmpRho = deltaRho
       call symmetrizeSquareMatrix(tmpovr)
@@ -1091,8 +1094,8 @@ contains
     !
     call cpu_time(start)
     nAtom = size(self%species)
-    ALLOCATE_(tmpovr, (size(ovrlap, dim = 1), size(ovrlap, dim = 1)))
-    ALLOCATE_(tmpDRho, (size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
+    allocate(tmpovr(size(ovrlap, dim = 1), size(ovrlap, dim = 1)))
+    allocate(tmpDRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
     tmpovr = ovrlap
     tmpDRho = deltaRho
     call symmetrizeSquareMatrix(tmpovr)
@@ -1385,9 +1388,9 @@ contains
     !
     write(*,*) "rangesep.addGradients_tst"
     write(*,*) "deltaXDiff=", deltaXDiff
-    !ASSERT(self%tInit)
+    !@:ASSERT(self%tInit)
     ! 
-    ASSERT(size(gradients,dim=1) == 3)
+    @:ASSERT(size(gradients,dim=1) == 3)
     !
 
     !========================================== 
@@ -1778,9 +1781,9 @@ contains
     !
     write(*,*) "rangesep.addGradients_tst"
     write(*,*) "deltaXDiff=", deltaXDiff
-    !ASSERT(self%tInit)
+    !@:ASSERT(self%tInit)
     ! 
-    ASSERT(size(gradients,dim=1) == 3)
+    @:ASSERT(size(gradients,dim=1) == 3)
     !
 
     !========================================== 
@@ -2271,9 +2274,9 @@ contains
     !
     write(*,*) "rangesep.addGradients"
     write(*,*) "deltaXDiff=", deltaXDiff
-    !ASSERT(self%tInit)
+    !@:ASSERT(self%tInit)
     ! 
-    ASSERT(size(gradients,dim=1) == 3)
+    @:ASSERT(size(gradients,dim=1) == 3)
     !
 
     !========================================== 
