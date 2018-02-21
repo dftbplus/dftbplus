@@ -626,6 +626,9 @@ module initprogram
   !> Produce detailed.out
   logical :: tWriteDetailedOut
 
+  !> Write states and fillings in detailed.out
+  logical :: tWriteDetailedOutBands
+
   !> Produce band.dat
   logical :: tWriteBandDat
 
@@ -2070,6 +2073,11 @@ contains
     tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
+    if (tWriteDetailedOut) then
+      tWriteDetailedOutBands = input%ctrl%tWriteDetailedOutBands
+    else
+      tWriteDetailedOutBands = .false.
+    end if
     tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
     tWriteHS = env%tGlobalMaster .and. input%ctrl%tWriteHS
     tWriteRealHS = env%tGlobalMaster .and. input%ctrl%tWriteRealHS

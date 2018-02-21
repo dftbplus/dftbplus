@@ -2541,6 +2541,7 @@ This block collects some global options for the run.
   \kw{WriteDetailedXML} & l & & No & \\
   \kw{WriteResultsTag} & l & & No & \\
   \kw{WriteDetailedOut} & l & & Yes & \\
+  \kw{WriteDetailedOutBands} & l & WriteDetailedOut = Yes & Yes & \\
   \kwl{RestartFrequency}{kw:dftbp.RestartFrequency} & i &Driver = \cb, SCC = Yes & 20 & \\
   \kw{RandomSeed} & i & & 0 & \\
   \kw{MinimiseMemoryUsage} & l & & No & \\
@@ -2571,6 +2572,9 @@ This block collects some global options for the run.
   \verb|detailed.out|. Since this contains the detailed information
   about the last step of your run, you shouldn't turn it off without
   good reasons.
+
+\item[\is{WriteDetailedOutBands}] Controls whether \verb|detailed.out| contains
+  single particle energies and fillings.
 
 \item[\is{RestartFrequency}] Specifies the interval at which charge
   restart information should be written to disc for static SCC

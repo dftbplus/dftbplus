@@ -367,6 +367,7 @@ module inputdata_module
     logical :: tWriteDetailedXML = .false.
     logical :: tWriteResultsTag = .false.
     logical :: tWriteDetailedOut = .true.
+    logical :: tWriteDetailedOutBands = .true.
     logical :: tWriteBandDat = .true.
     logical :: oldSKInter = .false.
     logical :: tWriteHS = .false.

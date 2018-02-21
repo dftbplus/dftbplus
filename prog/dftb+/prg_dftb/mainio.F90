@@ -2230,11 +2230,10 @@ contains
 
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
-      & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
-      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
+      & tMD, tDerivs, tCoordOpt, tLatOpt, tWriteBands, iLatGeoStep, iSccIter, energy, diffElec,&
+      & sccErrorQ, indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc,&
-      & invLatVec, kPoints)
+      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc,invLatVec, kPoints)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2265,6 +2264,9 @@ contains
 
     !> Is the lattice being optimised?
     logical, intent(in) :: tLatOpt
+
+    !> Should eigenvalues and fillings be printed?
+    logical, intent(in) :: tWriteBands
 
     !> Which step of lattice optimisation is occuring
     integer, intent(in) :: iLatGeoStep
@@ -2469,7 +2471,9 @@ contains
       write(fd, *)
     end if
 
-    call writeDetailedOutEigenvalues(fd, eigen, filling)
+    if (tWriteBands) then
+      call writeDetailedOutEigenvalues(fd, eigen, filling)
+    end if
 
     if (nSpin == 4) then
       if (tPrintMulliken) then

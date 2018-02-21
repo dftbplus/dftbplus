@@ -2636,6 +2636,11 @@ contains
     call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, &
         &.true.)
 
+    if (ctrl%tWriteDetailedOut) then
+      call getChildValue(node, "WriteDetailedOutBands", ctrl%tWriteDetailedOutBands, &
+          &.true.)
+    end if
+
     if (.not.(ctrl%tMD.or.ctrl%tGeoOpt)) then
       if (ctrl%tSCC) then
         call getChildValue(node, "RestartFrequency", ctrl%restartFreq, 20)
