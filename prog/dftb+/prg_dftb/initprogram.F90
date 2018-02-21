@@ -1225,8 +1225,14 @@ contains
 
     ! Initial coordinates
     allocate(coord0(3, nAtom))
+  #:if WITH_MPI
     @:ASSERT(all(shape(input%geom%coords) == [3,nAtom,input%ctrl%nReplicas]))
     coord0(:,:) = input%geom%coords(:, :, env%mpi%myReplica+1)
+  #:else
+    @:ASSERT(all(shape(input%geom%coords) == [3,nAtom,1]))
+    coord0(:,:) = input%geom%coords(:, :, 1)
+  #:endif
+
     tCoordsChanged = .true.
 
     allocate(species0(nAtom))
