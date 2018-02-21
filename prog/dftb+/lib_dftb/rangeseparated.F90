@@ -268,6 +268,7 @@ contains
             write(*,'(a)') "Done!"
          end do
       end do
+
     end subroutine loadAndProcessTabulatedLRGammas
 
   end subroutine initModule
@@ -862,6 +863,8 @@ contains
        ! Usual case is the analytical gamma formula:
        getGammaValue = getAnalyticalGammaValue(self, Sp1, Sp2, dist)
     end if
+    
+
   end function getGammaValue
 
   !> Returns the numerical derivative of lr-gamma for iAtom1, iAtom2
@@ -3995,7 +3998,96 @@ integer :: iAtC, iAtD, iAtA, iAtB, iNeighC, iNeighD
   end subroutine addSquareHamiltonian
 
 
+
+      subroutine set_cubic_spline(xx, fct, gama)
+        real(dp), intent(in) :: xx(:)
+        real(dp), intent(in) :: fct(:)
+        real(dp), allocatable, intent(out) :: gama(:)
+        !
+        integer :: ii, kk, nn
+        real(dp) :: p,qn,sig,un,yp1,ypn
+        real(dp), allocatable :: u(:)
+        !
+        nn = size(xx)
+        allocate(gama(nn))
+        allocate(u(nn))
+        !
+        yp1=exp(-xx(1))
+        ypn=exp(-xx(nn))
+        ! natural spline
+        gama(1)=0
+        u(1)=0
+        !
+        !     gama(1)=-0.5_dp
+        !     u(1)=(3.0_dp/(xx(2)-xx(1)))*((fct(2)-fct(1))/(xx(2)-xx(1))-yp1)
+        !
+
+        do ii=2,nn-1
+           sig = (xx(ii)-xx(ii-1))/(xx(ii+1)-xx(ii-1))
+           p=sig*gama(ii-1)+2.0_dp
+           gama(ii)=(sig-1.0_dp)/p
+           u(ii)=(6.0_dp*((fct(ii+1)-fct(ii))/(xx(ii+1)-xx(ii)) - (fct(ii)-fct(ii&
+                &-1))/(xx(ii)-xx(ii-1)))/(xx(ii+1)-xx(ii-1))-sig*u(ii-1))/p
+        end do
+        ! natural spline
+        qn=0.0_dp
+        un=0.0_dp
+        !
+        !     qn=0.5_dp
+        !     un=(3.0_dp/(xx(nn)-xx(nn-1)))*(ypn-(fct(nn)-fct(nn-1))/(xx(nn)-xx(nn-1)))
+        !
+        gama(nn)=(un-qn*u(nn-1))/(qn*gama(nn-1)+1.0_dp)
+        do kk=nn-1,1,-1
+           gama(kk)=gama(kk)*gama(kk+1)+u(kk)
+        end do
+
+        gama=0.0_dp
+
+      end subroutine set_cubic_spline
   
+  !> returns cubic spline value at specified point x
+  !> Placed here, rather than in interpolation.F90, because only called here.
+  !> (algorithm is based on NR)
+  subroutine get_cubic_spline(xx, fct, dds, x, y)
+
+    !> array with abscissae
+    real(dp), intent(in) :: xx(:)
+
+    !> array with ordinate
+    real(dp), intent(in) :: fct(:)
+
+    !> splines second derivatives, derived via set cubic splines
+    real(dp), intent(in) :: dds(:)
+   
+    !> evaluation point
+    real(dp), intent(in) :: x
+
+    !> evaluated spline
+    real(dp), intent(out) :: y
+    !
+    integer :: right, left, middle
+    real(dp) :: step, A, B
+    ! bisection
+    left = 1
+    right = size(xx)
+    do
+       if((right - left) <= 1) exit
+       middle = (right + left)/2
+       if( x >= xx(middle)) then
+          left = middle
+       else 
+          right = middle
+       end if
+    end do
+    step = xx(right) - xx(left)
+    A = (xx(right) - x)/step
+    B = (x - xx(left))/step
+    ! calculate the spline value
+    y = A*fct(left)+B*fct(right)+step*step/6.0_dp*(A*A - 1.0_dp)*A*dds(left)&
+        &+step*step/6.0_dp*(B*B-1.0_dp)*B*dds(right)
+  end subroutine get_cubic_spline
+
+
 
   ! !!* returns the long-range gamma
   ! !!* @param self, class instance
