@@ -215,6 +215,7 @@ methods are available:
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\{\}~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 \begin{description}
 \item[\is{MovedAtoms}] Indices of the atoms which should be moved. The
@@ -349,6 +350,7 @@ methods are available:
   \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\{\}~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 See previous subsection for the description of the properties.
@@ -371,6 +373,7 @@ See previous subsection for the description of the properties.
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 Specific properties for this method are:
@@ -401,6 +404,7 @@ properties.\footnote{This approach is distinct from
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 Specific properties for this method are:
@@ -472,6 +476,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{Xlbomd} & p & XlbomdFast \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{XlbomdFast} & p & Xlbomd \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{Masses} & p & & & \pref{sec:dftbp.Masses} \\
+  \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
 \end{ptable}
 
 \begin{description}
@@ -893,6 +898,11 @@ Slater-Koster file. An example is given below
   }
 \end{verbatim}
 where \kw{Atoms} specifies the atom or atoms which each have a mass of \kw{MassPerAtom} assigned.
+
+\subsection{Replicas}
+\label{sec:dftbp.Replicas}
+
+Mutiple structures can be simultaneously simulated.
 
 \subsection{Socket\{\}}
 \label{sec:dftbp.Socket}

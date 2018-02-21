@@ -364,6 +364,8 @@ contains
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
+      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+
     case ("conjugategradient")
       ! Conjugate gradient location optimisation
 
@@ -417,6 +419,8 @@ contains
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
+      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+
     case("gdiis")
       ! Gradient DIIS optimisation, only stable in the quadratic region
 
@@ -468,6 +472,8 @@ contains
         end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+
+      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
 
     case ("lbfgs")
 
@@ -525,6 +531,8 @@ contains
       allocate(ctrl%lbfgsInp)
       call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
+      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
 
@@ -548,6 +556,8 @@ contains
 
       ctrl%tForces = .true.
       ctrl%tMD = .true.
+
+      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
 
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
@@ -813,10 +823,6 @@ contains
 #:else
       call detailedError(node, "Program had been compiled without socket support")
 #:endif
-
-    case ("replica")
-
-      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
 
     case default
       call getNodeHSDName(node, buffer)
