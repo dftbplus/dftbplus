@@ -6,7 +6,7 @@
 module rangeseparated 
   use accuracy
   use assert
-  use nonscc, only : H0Sprime
+  use nonscc, only : NonSccDiff
   use periodic, only : getLatticePoints
   use SlakoCont, only : OSlakoCont, getMIntegrals, getSKIntegrals
   use SK, only : rotateH0
@@ -399,7 +399,7 @@ contains
             iAt1 = ovrind(iAtMu, nAtom + 1 - kk)
             descA = getDescriptor(iAt1)
             iSp1 = self%species(iAt1)
-            nOrb1 = orb%nOrbSpecie(iSp1)
+            nOrb1 = orb%nOrbSpecies(iSp1)
             prb = pbound * testovr(iAt1, iAtMu)
             if(abs(prb) >= self%pScreeningTreshold) then
                loopNu: do iAtNu = 1, iAtMu
@@ -408,7 +408,7 @@ contains
                   loopLL: do ll = 1, nAtom
                      iAt2 = ovrind(iAtNu, nAtom + 1 - ll)
                      iSp2 = self%species(iAt2)
-                     nOrb2 = orb%nOrbSpecie(iSp2)
+                     nOrb2 = orb%nOrbSpecies(iSp2)
                      ! screening condition
                      tstbound = prb * testovr(iAt2, iAtNu)
                      if(abs(tstbound) >= self%pScreeningTreshold) then
@@ -877,6 +877,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     !
+    real(dp), parameter :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
     integer :: sp1, sp2, jj, ii
     real(dp) :: vect(3), tmp(3),tmp2(3), dist, deltah
     !
@@ -913,10 +914,11 @@ contains
   !! \param ovrlapMat
   !! \param iNeighbor
   !! \param nNeighbor
-  subroutine addLRGradients(self, gradients, deltaRho, skHamCont, skOverCont,&
+  subroutine addLRGradients(self, gradients, derivator, deltaRho, skHamCont, skOverCont,&
       & coords, species, orb, iSquare, ovrlapMat, iNeighbor, nNeighbor)
     class(RangeSepFunc), intent(inout) :: self
     real(dp), intent(inout) :: gradients(:,:)
+    class(NonSccDiff), intent(in) :: derivator
     real(dp), intent(in) :: deltaRho(:,:)
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
     real(dp), intent(in) :: coords(:,:)
@@ -949,9 +951,13 @@ contains
           sPrimeTmp2 = 0.0_dp
           sPrimeTmp = 0.0_dp
           if ( iAtK /= iAtC ) then
-             call H0Sprime(dummy, sPrimeTmp, skHamCont, skOverCont, coords, &
+             call derivator%getFirstDeriv(dummy, skHamCont, coords, &
                  &species, iAtK, iAtC, orb)
-             call H0Sprime(dummy, sPrimeTmp2, skHamCont, skOverCont, coords, &
+             call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, &
+                 &species, iAtK, iAtC, orb)
+             call derivator%getFirstDeriv(dummy, skHamCont, coords, &
+                 &species, iAtC, iAtK, orb)
+             call derivator%getFirstDeriv(sPrimeTmp2, skOverCont, coords, &
                  &species, iAtC, iAtK, orb)
              sPrimeTmp = 0.5_dp * sPrimeTmp
              sPrimeTmp2 = 0.5_dp * sPrimeTmp2
@@ -1348,10 +1354,11 @@ contains
   !!* @param self, class instance
   !!* @param gradients 
   !!* @param deltaRho, square difference DM (triangle form) 
-  subroutine addGradients_tst2(self, gradients, deltaRho, skHamCont, skOverCont,&
+  subroutine addGradients_tst2(self, gradients, derivator, deltaRho, skHamCont, skOverCont,&
       & coords, species,orb,iSquare,ovrlapMat,iNeighbor,nNeighbor)
     class(RangeSepFunc), intent(inout) :: self
     real(dp), intent(inout) :: gradients(:,:)
+    class(NonSccDiff), intent(in) :: derivator
     real(dp), intent(in) :: deltaRho(:,:)
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
     real(dp), intent(in) :: coords(:,:)
@@ -1387,7 +1394,7 @@ contains
     integer :: ccc, kkk
     !
     write(*,*) "rangesep.addGradients_tst"
-    write(*,*) "deltaXDiff=", deltaXDiff
+    !write(*,*) "deltaXDiff=", deltaXDiff
     !@:ASSERT(self%tInit)
     ! 
     @:ASSERT(size(gradients,dim=1) == 3)
@@ -1505,9 +1512,13 @@ contains
           sPrimeTmp2 = 0.0_dp
           sPrimeTmp = 0.0_dp
           if ( iAtK /= iAtC ) then
-             call H0Sprime(dummy, sPrimeTmp, skHamCont, skOverCont, coords, &
+             call derivator%getFirstDeriv(dummy, skHamCont, coords, &
                  &species, iAtK, iAtC, orb)
-             call H0Sprime(dummy, sPrimeTmp2, skHamCont, skOverCont, coords, &
+             call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, &
+                 &species, iAtK, iAtC, orb)
+             call derivator%getFirstDeriv(dummy, skHamCont, coords, &
+                 &species, iAtC, iAtK, orb)
+             call derivator%getFirstDeriv(sPrimeTmp2, skOverCont, coords, &
                  &species, iAtC, iAtK, orb)
              sPrimeTmp = 0.5_dp * sPrimeTmp
              sPrimeTmp2 = 0.5_dp * sPrimeTmp2
@@ -1742,10 +1753,11 @@ contains
   !!* @param self, class instance
   !!* @param gradients 
   !!* @param deltaRho, square difference DM (triangle form) 
-  subroutine addGradients_tst(self, gradients, deltaRho, skHamCont, skOverCont,&
+  subroutine addGradients_tst(self, gradients, derivator, deltaRho, skHamCont, skOverCont,&
       & coords, species,orb,iSquare,ovrlapMat,iNeighbor,nNeighbor)
     class(RangeSepFunc), intent(inout) :: self
     real(dp), intent(inout) :: gradients(:,:)
+    class(NonSccDiff), intent(in) :: derivator
     real(dp), intent(in) :: deltaRho(:,:)
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
     real(dp), intent(in) :: coords(:,:)
@@ -1780,7 +1792,7 @@ contains
     real(dp), allocatable :: sigmatst(:,:,:)
     !
     write(*,*) "rangesep.addGradients_tst"
-    write(*,*) "deltaXDiff=", deltaXDiff
+    !write(*,*) "deltaXDiff=", deltaXDiff
     !@:ASSERT(self%tInit)
     ! 
     @:ASSERT(size(gradients,dim=1) == 3)
@@ -1847,7 +1859,9 @@ contains
              call getGammaPrimeValue(self, tmp, iAtom1, iAtom2, coords, species)
              gammaPrimeTmp(:,iAtom1,iAtom2) = tmp(:)
              !
-             call H0Sprime(dummy, sPrimeTmp, skHamCont, skOverCont, coords, &
+             call derivator%getFirstDeriv(dummy, skHamCont, coords, &
+                 &species, iAtom1, iAtom2, orb)
+             call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, &
                  &species, iAtom1, iAtom2, orb)
              do ii =1, 3
                 ovrPrimeTmp(iSquare(iAtom1):(iSquare(iAtom1+1)-1)&
@@ -2238,10 +2252,11 @@ contains
   !!* @param self, class instance
   !!* @param gradients 
   !!* @param deltaRho, square difference DM (triangle form) 
-  subroutine addGradients(self, gradients, deltaRho, skHamCont, skOverCont,&
+  subroutine addGradients(self, gradients, derivator, deltaRho, skHamCont, skOverCont,&
       & coords, species,orb,iSquare,ovrlapMat,iNeighbor,nNeighbor)
     class(RangeSepFunc), intent(inout) :: self
     real(dp), intent(inout) :: gradients(:,:)
+    class(NonSccDiff), intent(in) :: derivator
     real(dp), intent(in) :: deltaRho(:,:)
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
     real(dp), intent(in) :: coords(:,:)
@@ -2273,7 +2288,7 @@ contains
     real(dp), allocatable :: sigmatst(:,:,:)
     !
     write(*,*) "rangesep.addGradients"
-    write(*,*) "deltaXDiff=", deltaXDiff
+    !write(*,*) "deltaXDiff=", deltaXDiff
     !@:ASSERT(self%tInit)
     ! 
     @:ASSERT(size(gradients,dim=1) == 3)
@@ -2374,9 +2389,10 @@ sigmatst(jj,ii,iAtom1) = sigmatst(jj,ii,iAtom1) + tmpovr(jj,mu)*tmpRho(mu,ii)
           ! write(*,*) "## gamma"
           ! write(*,*) self%lrGammaEval(iAtom1,iAtom2)
           !
-           call H0Sprime(dummy, sPrimeTmp, skHamCont, skOverCont, coords, &
+           call derivator%getFirstDeriv(dummy, skHamCont, coords, &
                &species, iAtom1, iAtom2, orb)
-
+           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, &
+               &species, iAtom1, iAtom2, orb)
            ! write(*,*) "ORB1", orb%nOrbAtom(iAtom1)
            ! write(*,*) "ORB2", orb%nOrbAtom(iAtom2)
            ! write(*,*) "iSq, iSq+1", iSquare(iAtom1), iSquare(iAtom1+1)-1
@@ -2872,7 +2888,7 @@ sigmatst(jj,ii,iAtom1) = sigmatst(jj,ii,iAtom1) + tmpovr(jj,mu)*tmpRho(mu,ii)
        do kk=1, nAtom
           iAtom1=ovrind(iAtom_mu,nAtom+1-kk)
           iSp1 = species(iAtom1)
-          nOrb1 = orb%nOrbSpecie(iSp1)
+          nOrb1 = orb%nOrbSpecies(iSp1)
           prb=pbound*testovr(iAtom1,iAtom_mu)
           if(abs(prb) .le. self%pScreeningTreshold) then
              !
@@ -3253,7 +3269,7 @@ integer :: iAtC, iAtD, iAtA, iAtB, iNeighC, iNeighD
     do iAtom_mu=1, nAtom
        do iAtom1=1, nAtom
           iSp1 = species(iAtom1)
-          nOrb1 = orb%nOrbSpecie(iSp1)
+          nOrb1 = orb%nOrbSpecies(iSp1)
           prb=pbound*testovr(iAtom1,iAtom_mu)
           if(abs(prb) .ge. self%pScreeningTreshold) then
              do iAtom_nu=1,iAtom_mu
@@ -3765,7 +3781,7 @@ integer :: iAtC, iAtD, iAtA, iAtB, iNeighC, iNeighD
        !
        do iAtom1=1, nAtom
           iSp1 = species(iAtom1)
-          nOrb1 = orb%nOrbSpecie(iSp1)
+          nOrb1 = orb%nOrbSpecies(iSp1)
           prb=pbound*testovr(iAtom1,iAtom_mu)
           if(abs(prb) .ge. self%pScreeningTreshold) then
              do iAtom_nu=1,iAtom_mu
