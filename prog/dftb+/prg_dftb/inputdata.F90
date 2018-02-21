@@ -396,6 +396,14 @@ module inputdata_module
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
 
+    !>Rangeseparation
+    real(dp) :: screeningThreshold
+    logical :: tRangeSep
+    real(dp) :: omega
+    character(lc) :: rangeSepType
+    logical :: tTabulatedGamma
+    character(lc) :: rangeSepAlgorithm
+
 
   #:if WITH_SOCKETS
     !> socket communication
