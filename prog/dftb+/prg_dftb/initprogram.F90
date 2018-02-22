@@ -60,6 +60,7 @@ module initprogram
   use dispersions
   use thirdorder_module
   use linresp_module
+  use RangeSeparated, only : RangeSepFunc
   use stress
   use orbitalequiv
   use commontypes
@@ -608,6 +609,28 @@ module initprogram
   !> data type for linear response
   type(linresp), save :: lresp
 
+  
+  !>Whether to run a rangeseparated calculation
+  logical :: tRangeSep 
+
+  !> Rangeseparation data
+  type(RangeSepFunc), allocatable :: rangeSep
+
+  !> DeltaRhos for calculation of rangeseperated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoIn(:), deltaRhoOut(:)
+
+  !> Holds change in deltaRho between SCC steps for rangeseparation
+  real(dp), allocatable :: deltaRhoDiff(:)
+
+  !> DeltaRhos for rangeseparation in matrix form
+  real(dp), pointer :: deltaRhoInSqr(:,:,:), deltaRhoOutSqr(:,:,:)
+
+  !> k-dependent density matrices for PbcRangeSep
+  real(dp), allocatable, target :: deltaRhoInK(:), deltaRhoOutK(:), deltaRhoDiffK(:)
+
+  !> In matrix form 
+  real(dp), pointer :: deltaRhoInSqrK(:,:,:,:), deltaRhoOutSqrK(:,:,:,:)
+
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
@@ -934,6 +957,7 @@ contains
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
+    tRangeSep = input%ctrl%tRangeSep
 
     if (t2Component) then
       nSpin = 4
@@ -1417,7 +1441,7 @@ contains
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField .or. tRangeSep
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1882,6 +1906,29 @@ contains
       qDiffRed = 0.0_dp
       qInpRed = 0.0_dp
       qOutRed = 0.0_dp
+    end if
+
+    !> Initialize rangeseparated
+    if (tRangeSep) then
+       allocate(rangeSep)
+       call rangeSep%initModule(nAtom, species0, speciesName,hubbU(1,:),&
+            &input%ctrl%screeningThreshold,input%ctrl%omega,nkPoint,tSpin,&
+            &input%ctrl%tTabulatedGamma,input%ctrl%rangeSepAlgorithm)
+       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
+       allocate(deltaRhoOut(nOrb * nOrb * nSpin))
+       allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
+    !> Initialize rangeseparated with pbc
+       allocate(deltaRhoInK(nOrb * nOrb * nSpin * nKPoint))
+       allocate(deltaRhoOutK(nOrb * nOrb * nSpin * nKPoint))
+       allocate(deltaRhoDiffK(nOrb * nOrb * nSpin * nKPoint))
+    !>Pointers required by screening algorithm
+       deltaRhoInSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoIn(1:nOrb*nOrb*nSpin)
+       deltaRhoOutSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoOut(1:nOrb*nOrb*nSpin)
+       deltaRhoInSqrK(1:nOrb,1:nOrb,1:nSpin,1:nKPoint) => deltaRhoInK(1:nOrb*nOrb*nSpin*nKPoint)
+       deltaRhoOutSqrK(1:nOrb,1:nOrb,1:nSpin,1:nKPoint) => deltaRhoOutK(1:nOrb*nOrb*nSpin*nKPoint)
+    !> Required by screening algorithm
+       nMixElements = nOrb * nOrb * nSpin
+       deltaRhoInSqr(:,:,:) = 0.0_dp     
     end if
 
     ! Initialize Mulliken charges
