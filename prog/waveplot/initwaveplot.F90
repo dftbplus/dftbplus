@@ -509,8 +509,8 @@ contains
         if (minEdge < 0.0_dp) then
           call detailedError(field, "Minimal edge length must be positive")
         end if
-        origin = minval(geo%coords, dim=2)
-        tmpvec = maxval(geo%coords, dim=2) - origin
+        origin = minval(geo%coords(:,:,1), dim=2)
+        tmpvec = maxval(geo%coords(:,:,1), dim=2) - origin
         do ii = 1, 3
           if (tmpvec(ii) < minEdge) then
             origin(ii) = origin(ii) - 0.5_dp * (minEdge - tmpvec(ii))
@@ -534,12 +534,12 @@ contains
       do iSpecies = 1 , geo%nSpecies
         mcutoffs(iSpecies) = maxval(basis(iSpecies)%cutoffs)
       end do
-      minvals = geo%coords(:,1)
-      maxvals = geo%coords(:,1)
+      minvals = geo%coords(:,1,1)
+      maxvals = geo%coords(:,1,1)
       do iAtom = 1, geo%nAtom
         iSpecies = geo%species(iAtom)
-        maxvals(:) = max(maxvals, geo%coords(:, iAtom) + mcutoffs(iSpecies))
-        minvals(:) = min(minvals, geo%coords(:, iAtom) - mcutoffs(iSpecies))
+        maxvals(:) = max(maxvals, geo%coords(:, iAtom, 1) + mcutoffs(iSpecies))
+        minvals(:) = min(minvals, geo%coords(:, iAtom, 1) - mcutoffs(iSpecies))
       end do
       origin(:) = minvals(:)
       tmpvec(:) = maxvals(:) - minvals(:)

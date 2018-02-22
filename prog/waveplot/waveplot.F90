@@ -69,13 +69,13 @@ program waveplot
     ! If tFillBox is off, coordinates must be repeated here. Otherwise the part for filling with
     ! atoms will do that.
     if (.not. tFillBox) then
-      allocate(coords(3, size(geo%coords)))
+      allocate(coords(3, size(geo%coords(:,:,1))))
       allocate(species(size(geo%species)))
-      coords(:,:) = geo%coords(:,:)
+      coords(:,:) = geo%coords(:,:,1)
       species(:) = geo%species(:)
       deallocate(geo%coords)
       deallocate(geo%species)
-      allocate(geo%coords(3, nBox * geo%nAtom))
+      allocate(geo%coords(3, nBox * geo%nAtom, 1))
       allocate(geo%species(nBox * geo%nAtom))
       ind = 0
       do i1 = 0, repeatBox(1) - 1
@@ -83,7 +83,7 @@ program waveplot
           do i3 = 0, repeatBox(3) - 1
             shift(:) = matmul(boxVecs, real((/ i1, i2, i3/), dp))
             do iAtom = 1, geo%nAtom
-              geo%coords(:,ind+iAtom) = coords(:,iAtom) + shift(:)
+              geo%coords(:,ind+iAtom,1) = coords(:,iAtom) + shift(:)
             end do
             geo%species(ind+1:ind+geo%nAtom) = species(:)
             ind = ind + geo%nAtom
@@ -149,7 +149,7 @@ program waveplot
     call invert33(invBoxVecs, boxVecs)
     call invert33(recVecs2p, geo%latVecs)
     recVecs2p = reshape(recVecs2p, (/3, 3/), order=(/2, 1/))
-    call foldCoordToUnitCell(geo%coords(:,:), geo%latVecs, recVecs2p)
+    call foldCoordToUnitCell(geo%coords(:,:,1), geo%latVecs, recVecs2p)
   end if
 
   ! Fill the box with atoms
@@ -180,7 +180,7 @@ program waveplot
     call init(speciesList)
     do iCell = 1, size(rCellVec, dim=2)
       do iAtom = 1, geo%nAtom
-        coord(:) = geo%coords(:,iAtom) + rCellVec(:,iCell)
+        coord(:) = geo%coords(:,iAtom,1) + rCellVec(:,iCell)
         frac(:) = matmul(invBoxVecs, coord - origin)
         if (all(frac > -1e-4_dp) .and. all(frac < 1.0_dp + 1e-4_dp)) then
           call append(coordList, coord)
@@ -191,9 +191,9 @@ program waveplot
     deallocate(geo%coords)
     deallocate(geo%species)
     geo%nAtom = len(coordList)
-    allocate(geo%coords(3, geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom, 1))
     allocate(geo%species(geo%nAtom))
-    call asArray(coordList, geo%coords)
+    call asArray(coordList, geo%coords(:,:,1))
     call asArray(speciesList, geo%species)
     deallocate(cellVec)
     deallocate(rCellVec)
@@ -409,7 +409,7 @@ contains
     write (fd,"(I10,3E18.10)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
     do ii = 1, geo%nAtom
       write (fd, "(I4,4E18.10)") atomicNumbers(geo%species(ii)), 0.0_dp, &
-          &geo%coords(:, ii)
+          &geo%coords(:, ii, 1)
     end do
 
     do ir1 = 1, rep(1)
