@@ -985,6 +985,10 @@ contains
       tRealHS = .false.
     end if
 
+    if (input%ctrl%nReplicas > 1 .and. .not. withMpi) then
+      call error("Replicas only available for MPI parallel code at the moment")
+    end if
+
     ! temporary change, as should be done at parser level
     if (input%ctrl%nReplicas > 1) then
       allocate(r3Tmp(3,nAtom,input%ctrl%nReplicas))

@@ -557,7 +557,11 @@ contains
       ctrl%tForces = .true.
       ctrl%tMD = .true.
 
-      call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      if (.not. withMpi) then
+        ctrl%nReplicas = 1
+      else
+        call getChildValue(node, "Replicas", ctrl%nReplicas, 1)
+      end if
 
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
