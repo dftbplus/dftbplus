@@ -108,6 +108,8 @@ module initprogram
   !> file to stop code during scc cycle
   character(*), parameter :: fStopSCC = "stop_scc"
 
+  !> prefix for files
+  character(sc) :: prefix
 
   !> Is the calculation SCC?
   logical :: tSccCalc
@@ -983,17 +985,19 @@ contains
       tRealHS = .false.
     end if
 
-    ! temporary change for testing purposes
+    ! temporary change, as should be done at parser level
     if (input%ctrl%nReplicas > 1) then
       allocate(r3Tmp(3,nAtom,input%ctrl%nReplicas))
       r3Tmp = 0.0_dp
       do ii = 1, input%ctrl%nReplicas
         r3Tmp(:,:,ii) = input%geom%coords(:,:,1)
-        ! make small structure difference in images -- test case, to be replaced
-        r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.01_dp*(ii-1)*AA__Bohr
+        !! make small structure difference in images -- test case, to be replaced
+        !r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.01_dp*(ii-1)*AA__Bohr
       end do
       call move_alloc(r3Tmp,input%geom%coords)
-    elseif (input%ctrl%nReplicas < 0) then
+    end if
+
+    if (input%ctrl%nReplicas < 0) then
       call error("Nonsensical replica count")
     end if
 
@@ -1225,13 +1229,8 @@ contains
 
     ! Initial coordinates
     allocate(coord0(3, nAtom))
-  #:if WITH_MPI
-    @:ASSERT(all(shape(input%geom%coords) == [3,nAtom,input%ctrl%nReplicas]))
-    coord0(:,:) = input%geom%coords(:, :, env%mpi%myReplica+1)
-  #:else
-    @:ASSERT(all(shape(input%geom%coords) == [3,nAtom,1]))
-    coord0(:,:) = input%geom%coords(:, :, 1)
-  #:endif
+    @:ASSERT(all(shape(input%geom%coords) == [3, nAtom, env%nReplicas]))
+    coord0(:,:) = input%geom%coords(:, :, env%myReplica+1)
 
     tCoordsChanged = .true.
 
@@ -1763,7 +1762,7 @@ contains
       if (input%ctrl%iThermostat /= 0) then
         allocate(temperatureProfile)
         call init(temperatureProfile, input%ctrl%tempMethods, input%ctrl%tempSteps,&
-            & input%ctrl%tempValues)
+            & input%ctrl%tempValues(:,env%myReplica+1))
         pTempProfile => temperatureProfile
       else
         nullify(pTempProfile)
@@ -2095,13 +2094,13 @@ contains
     allocate(nNeighbor(nAtom))
 
     ! Set various options
-    tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
-    tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
-    tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
-    tWriteHS = env%tGlobalMaster .and. input%ctrl%tWriteHS
-    tWriteRealHS = env%tGlobalMaster .and. input%ctrl%tWriteRealHS
+    tWriteAutotest = env%tReplicaMaster .and. input%ctrl%tWriteTagged
+    tWriteDetailedXML = env%tReplicaMaster .and. input%ctrl%tWriteDetailedXML
+    tWriteResultsTag = env%tReplicaMaster .and. input%ctrl%tWriteResultsTag
+    tWriteDetailedOut = env%tReplicaMaster .and. input%ctrl%tWriteDetailedOut
+    tWriteBandDat = env%tReplicaMaster .and. input%ctrl%tWriteBandDat
+    tWriteHS = env%tReplicaMaster .and. input%ctrl%tWriteHS
+    tWriteRealHS = env%tReplicaMaster .and. input%ctrl%tWriteRealHS
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
@@ -2115,7 +2114,13 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    if (env%tGlobalMaster) then
+    if (env%tReplicaMaster .and. env%nReplicas > 1) then
+      write(prefix,"('replica', I0, '_')")env%myReplica+1
+    else
+      prefix = ""
+    end if
+
+    if (env%tReplicaMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
           & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
@@ -2125,7 +2130,6 @@ contains
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      ! need to update atom grid to cope with replicas:
       call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, denseDesc)
     end associate
   #:endif
@@ -2886,33 +2890,33 @@ contains
 
     call initTaggedWriter()
     if (tWriteAutotest) then
-      call initOutputFile(autotestTag, fdAutotest)
+      call initOutputFile(trim(prefix)//autotestTag, fdAutotest)
     end if
     if (tWriteResultsTag) then
-      call initOutputFile(resultsTag, fdResultsTag)
+      call initOutputFile(trim(prefix)//resultsTag, fdResultsTag)
     end if
     if (tWriteBandDat) then
-      call initOutputFile(bandOut, fdBand)
+      call initOutputFile(trim(prefix)//bandOut, fdBand)
     end if
     fdEigvec = getFileId()
     if (tDerivs) then
-      call initOutputFile(hessianOut, fdHessian)
+      call initOutputFile(trim(prefix)//hessianOut, fdHessian)
     end if
     if (tWriteDetailedOut) then
-      call initOutputFile(userOut, fdDetailedOut)
+      call initOutputFile(trim(prefix)//userOut, fdDetailedOut)
       call env%fileFinalizer%register(fdDetailedOut)
     end if
     if (tMD) then
-      call initOutputFile(mdOut, fdMD)
+      call initOutputFile(trim(prefix)//mdOut, fdMD)
       call env%fileFinalizer%register(fdMd)
     end if
     if (tGeoOpt .or. tMD) then
-      call clearFile(trim(geoOutFile) // ".gen")
-      call clearFile(trim(geoOutFile) // ".xyz")
+      call clearFile(trim(prefix)//trim(geoOutFile) // ".gen")
+      call clearFile(trim(prefix)//trim(geoOutFile) // ".xyz")
     end if
     fdChargeBin = getFileId()
     if (allocated(esp)) then
-      call initOutputFile(esp%espOutFile, esp%fdEsp)
+      call initOutputFile(trim(prefix)//esp%espOutFile, esp%fdEsp)
     end if
 
   end subroutine initOutputFiles

@@ -32,6 +32,15 @@ module environment
     !> Whether this process is the master?
     logical, public :: tGlobalMaster = .true.
 
+    !> Whether this process is a replica master?
+    logical, public :: tReplicaMaster = .true.
+
+    !> Nr. of replicas in the system
+    integer, public :: nReplicas = 1
+
+    !> Id of current replica (starts with 0)
+    integer, public :: myReplica = 0
+
     !> Nr. of groups in the system
     integer, public :: nGroup = 1
 
@@ -183,6 +192,9 @@ contains
     ! MPI settings
     call TMpiEnv_init(this%mpi, nGroup, nReplicas)
     this%tGlobalMaster = this%mpi%tGlobalMaster
+    this%tReplicaMaster = this%mpi%tReplicaMaster
+    this%nReplicas = this%mpi%nReplicas
+    this%myReplica = this%mpi%myReplica
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
 

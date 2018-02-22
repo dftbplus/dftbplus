@@ -195,10 +195,10 @@ contains
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
-      tWriteRestart = env%tGlobalMaster&
+      tWriteRestart = env%tReplicaMaster&
           & .and. needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       if (tMD .and. tWriteRestart) then
-        call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
+        call writeMdOut1(fdMd, trim(prefix)//mdOut, iGeoStep, pMDIntegrator)
       end if
 
       if (tLatticeChanged) then
@@ -279,17 +279,8 @@ contains
             & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
             & eigvecsCplx, rhoSqrReal)
 
-      #:if WITH_MPI
-        call mpifx_barrier(env%mpi%globalComm)
-        ! need to move into writeBandOut and modify to collect and write
-        if (env%mpi%tReplicaMaster) then
-          write(*,*)'Master of replica', env%mpi%myReplica, ' Lowest eigenvalue', minval(eigen)
-        end if
-        call mpifx_barrier(env%mpi%globalComm)
-      #:endif
-
         if (tWriteBandDat) then
-          call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
+          call writeBandOut(fdBand, trim(prefix)//bandOut, eigen, filling, kWeight)
         end if
 
         if (tMulliken) then
@@ -328,7 +319,7 @@ contains
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
-          tWriteSccRestart = env%tGlobalMaster .and. &
+          tWriteSccRestart = env%tReplicaMaster .and. &
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
@@ -338,12 +329,13 @@ contains
         end if
 
         if (tWriteDetailedOut) then
-          call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
-              & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
-              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
-              & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
-              & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpinOrbit, tSccCalc, invLatVec, kPoint)
+          call writeDetailedOut1(fdDetailedOut, trim(prefix)//userOut,&
+              & tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+              & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
+              & pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam,&
+              & tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, extPressure, cellVol,&
+              & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc,&
+              & invLatVec, kPoint)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -361,10 +353,10 @@ contains
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
         call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
             & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
-            & skHamCont, skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList,&
-            & nNeighbor, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces,&
-            & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal,&
-            & rhoSqrReal, excitedDerivs, occNatural)
+            & skHamCont, skOverCont, fdAutotest, trim(prefix)//autotestTag, fdEigvec, runId,&
+            & neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell, tWriteAutotest,&
+            & tForces, tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
+            & SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
       end if
 
       if (tXlbomd) then
@@ -398,9 +390,9 @@ contains
 
       ! MD geometry files are written only later, once velocities for the current geometry are known
       if (tGeoOpt .and. tWriteRestart) then
-        call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-            & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-            & nSpin, qOutput, velocities)
+        call writeCurrentGeometry(trim(prefix)//geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo,&
+            & tFracCoord, tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep,&
+            & iLatGeoStep, nSpin, qOutput, velocities)
       end if
 
       call printEnergies(env, energy)
@@ -439,9 +431,10 @@ contains
       end if
 
       if (tWriteDetailedOut) then
-        call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd, tLinResp, tGeoOpt,&
-            & tMD, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, &
-            & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile)
+        call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd,&
+            & tLinResp, tGeoOpt, tMD, tPrintForces, tStress, tPeriodic, energy, totalStress,&
+            & totalLatDeriv, derivs, chrgForces, indMovedAtom, cellVol, intPressure,&
+            & trim(prefix)//geoOutFile)
       end if
 
       if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then
@@ -476,11 +469,11 @@ contains
 
         if (tSocket .and. env%tGlobalMaster) then
           ! stress was computed above in the force evaluation block or is 0 if aperiodic
-#:if WITH_SOCKETS
+        #:if WITH_SOCKETS
           call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
-#:else
+        #:else
           call error("Should not be here - compiled without socket support")
-#:endif
+        #:endif
         end if
 
         ! If geometry minimizer finished and the last calculated geometry is the minimal one (not
@@ -554,15 +547,15 @@ contains
             call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
                 & energy, latVec, cellVol, intPressure, extPressure, tempIon, absEField, qOutput,&
                 & q0, dipoleMoment)
-            call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
-                & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-                & nSpin, qOutput, velocities)
+            call writeCurrentGeometry(trim(prefix)//geoOutFile, pCoord0Out, .false., .true.,&
+                & .true., tFracCoord, tPeriodic, tPrintMulliken, species0, speciesName, latVec,&
+                & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
           end if
           coord0(:,:) = newCoords
           if (tWriteDetailedOut) then
-            call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic,&
-                & tStress, totalStress, totalLatDeriv, energy, tempElec, extPressure, intPressure,&
-                & tempIon)
+            call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp,&
+                & tPeriodic, tStress, totalStress, totalLatDeriv, energy, tempElec, extPressure,&
+                & intPressure, tempIon)
           end if
         else if (tSocket .and. iGeoStep < nGeoSteps) then
           ! Only receive geometry from socket, if there are still geometry iterations left
@@ -599,22 +592,22 @@ contains
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
-    if (env%tGlobalMaster) then
+    if (env%tReplicaMaster) then
       if (tWriteDetailedOut) then
-        call writeDetailedOut5(fdDetailedOut, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
-            & dipoleMoment)
+        call writeDetailedOut5(fdDetailedOut, tGeoOpt, tGeomEnd, tMd, tDerivs,&
+            & tEField, absEField, dipoleMoment)
       end if
 
       call writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
 
       if (tMD) then
-        call writeMdOut3(fdMd, mdOut)
+        call writeMdOut3(fdMd, trim(prefix)//mdOut)
       end if
     end if
 
-    if (env%tGlobalMaster .and. tDerivs) then
+    if (env%tReplicaMaster .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
-      call writeHessianOut(fdHessian, hessianOut, pDynMatrix)
+      call writeHessianOut(fdHessian, trim(prefix)//hessianOut, pDynMatrix)
     else
       nullify(pDynMatrix)
     end if
@@ -639,13 +632,13 @@ contains
         cellVol = abs(determinant33(latVec))
         energy%EGibbs = energy%EMermin + extPressure * cellVol
       end if
-      call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
-          & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
+      call writeAutotestTag(fdAutotest, trim(prefix)//autotestTag, tPeriodic, cellVol, tMulliken,&
+          & qOutput, derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
           & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(fdResultsTag, resultsTag, derivs, chrgForces, tStress, totalStress,&
-          & pDynMatrix, tPeriodic, cellVol)
+      call writeResultsTag(fdResultsTag, trim(prefix)//resultsTag, derivs, chrgForces, tStress,&
+          & totalStress, pDynMatrix, tPeriodic, cellVol)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&

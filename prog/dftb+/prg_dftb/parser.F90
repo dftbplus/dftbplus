@@ -699,7 +699,7 @@ contains
       case ("none")
         ctrl%iThermostat = 0
         allocate(ctrl%tempSteps(1))
-        allocate(ctrl%tempValues(1))
+        allocate(ctrl%tempValues(1,1))
 
         if (ctrl%tReadMDVelocities) then
           ! without a thermostat, if we know the initial velocities, we do not
@@ -2964,18 +2964,16 @@ contains
     type(string) :: modifier
 
     allocate(ctrl%tempSteps(1))
-    allocate(ctrl%tempValues(1))
+    allocate(ctrl%tempValues(1,ctrl%nReplicas))
     allocate(ctrl%tempMethods(1))
     ctrl%tempMethods(1) = 1
     ctrl%tempSteps(1) = 1
-    call getChildValue(node, "", ctrl%tempValues(1), modifier=modifier)
-    call convertByMul(char(modifier), energyUnits, node, ctrl%tempValues(1))
-    if (ctrl%tempValues(1) < 0.0_dp) then
+    call getChildValue(node, "", ctrl%tempValues(1,:), modifier=modifier)
+    call convertByMul(char(modifier), energyUnits, node, ctrl%tempValues(1,:))
+    if (any(ctrl%tempValues(1,:) < 0.0_dp)) then
       call detailedError(node, "Negative temperature.")
     end if
-    if (ctrl%tempValues(1) < minTemp) then
-      ctrl%tempValues(1) = minTemp
-    end if
+    where (ctrl%tempValues(1,:) < minTemp) ctrl%tempValues(1,:) = minTemp
 
   end subroutine readTemperature
 
@@ -3013,10 +3011,10 @@ contains
     end if
     allocate(tmpC1(len(ls)))
     allocate(ctrl%tempSteps(len(li1)))
-    allocate(ctrl%tempValues(len(lr1)))
+    allocate(ctrl%tempValues(len(lr1),1))
     call asArray(ls, tmpC1)
     call asVector(li1, ctrl%tempSteps)
-    call asVector(lr1, ctrl%tempValues)
+    call asVector(lr1, ctrl%tempValues(:,1))
     call destruct(ls)
     call destruct(li1)
     call destruct(lr1)

@@ -235,7 +235,7 @@ module inputdata_module
     logical :: tRescale = .false.
     integer, allocatable :: tempMethods(:)
     integer, allocatable :: tempSteps(:)
-    real(dp), allocatable :: tempValues(:)
+    real(dp), allocatable :: tempValues(:,:)
     logical :: tSetFillingTemp = .false.
 
     real(dp) :: tempElec      = 0.0_dp
