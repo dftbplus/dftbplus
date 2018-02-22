@@ -9,6 +9,7 @@
 
 !> Global variables and initialization for the main program.
 module initprogram
+  use omp_lib
   use mainio, only : initOutputFile
   use assert
   use globalenv
@@ -2210,13 +2211,25 @@ contains
 
   #:if WITH_MPI
     if (env%mpi%nGroup > 1) then
-      write(stdOut, "('MPI processors: ',T30,I0,' split into ',I0,' groups')")&
+      write(stdOut, "('MPI processes: ',T30,I0,' (split into ',I0,' groups)')")&
           & env%mpi%globalComm%size, env%mpi%nGroup
     else
-      write(stdOut, "('MPI processors:',T30,I0)") env%mpi%globalComm%size
+      write(stdOut, "('MPI processes:',T30,I0)") env%mpi%globalComm%size
     end if
   #:endif
 
+    write(stdOut, "('OpenMP threads: ', T30, I0)") omp_get_max_threads()
+
+  #:if WITH_MPI
+    if (omp_get_max_threads() > 1 .and. .not. input%ctrl%parallelOpts%tOmpThreads) then
+      write(stdOut, *)
+      call error("You must explicitely enable OpenMP threads (UseOmpThreads = Yes) if you&
+          & wish to run an MPI-parallelised binary with OpenMP threads. If not, make sure that&
+          & the environment variable OMP_NUM_THREADS is set to 1.")
+      write(stdOut, *)
+    end if
+  #:endif
+    
   #:if WITH_SCALAPACK
     write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol

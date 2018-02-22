@@ -11,11 +11,11 @@ ifeq ($(strip $(WITH_MPI)),1)
 ############################################################################
 
 # Compilers
-FXX = mpifort
+FXX = mpif90
 CC = pgcc
 
 # Compiler options
-FXXOPT = -O2 -Mallocatable=03
+FXXOPT = -O2 -Mallocatable=03 -mp
 CCOPT = -O2
 
 # Linker
@@ -28,7 +28,6 @@ LNOPT =
 LIB_SCALAPACK = -L$(PGI_LIBDIR)/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib -lscalapack
 
 # LAPACK/BLAS
-ATLASDIR = /usr/lib
 LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
 
 # Any other libraries to be linked
@@ -39,7 +38,7 @@ M4 = m4
 M4OPT =
 
 # Command to run the test binary
-TESTRUNNER = mpirun -n $(TESTPROC)
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS) mpiexec -n $(TEST_MPI_PROCS)
 
 else
 ############################################################################
@@ -61,14 +60,13 @@ LNOPT =
 # How to link specific libraries
 
 # LAPACK/BLAS
-# Consider using a threaded LAPACK/BLAS implementation for full performance
 LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
 
 # Any other libraries to be linked
 OTHERLIBS =
 
 # Command to run a binary
-TESTRUNNER =
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS)
 
 endif
 
@@ -89,8 +87,8 @@ LIBOPT =
 
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
-    FXXOPT = -g -traceback -Mallocatable=03
+    FXXOPT = -mp -g -traceback -Mallocatable=03
 endif
 ifeq ($(strip $(DEBUG)),2)
-    FXXOPT = -g -C -Mchkptr -traceback -Mallocatable=03
+    FXXOPT = -mp -g -C -Mchkptr -traceback -Mallocatable=03
 endif

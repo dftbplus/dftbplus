@@ -13,22 +13,21 @@ FXX = mpif90
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops
+FXXOPT = -O2 -funroll-all-loops -fopenmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Linker
 LN = $(FXX)
-LNOPT =
+LNOPT = -fopenmp
 
 # How to link specific libraries
 
 # ScaLAPACK
 SCALAPACKDIR = /usr/lib
-LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack -L$(ATLASDIR)
+LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
 
 # LAPACK/BLAS
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+LIB_LAPACK = -llapack -lblas
 
 # Any other libraries to be linked
 OTHERLIBS =
@@ -38,7 +37,7 @@ M4 = m4
 M4OPT = 
 
 # Command to run the test binary
-TESTRUNNER = mpirun -n $(TESTPROC)
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS) mpiexec -n $(TEST_MPI_PROCS)
 
 else
 ############################################################################
@@ -60,15 +59,14 @@ LNOPT = -fopenmp
 # How to link specific libraries
 
 # LAPACK/BLAS
-# Consider using a threaded LAPACK/BLAS implementation for full performance
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+# Make sure you use threaded LAPACK/BLAS (e.g. openBLAS) for full performance!
+LIB_LAPACK = -llapack -lblas
 
 # Any other libraries to be linked
-OTHERLIBS = -lgomp -lpthread
+OTHERLIBS =
 
 # Command to run a binary
-TESTRUNNER =
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS)
 
 endif
 
@@ -90,12 +88,12 @@ LIBOPT =
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS = 
-    FXXOPT = -g -Wall -std=f2008 -pedantic
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic
     CCOPT = -g -Wall -pedantic -fall-intrinsics
 endif
 
 ifeq ($(strip $(DEBUG)),2)
     OTHERLIBS = 
-    FXXOPT = -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 endif

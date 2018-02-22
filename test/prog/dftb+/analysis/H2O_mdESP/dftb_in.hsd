@@ -57,5 +57,9 @@ Parallel = {
   Blacs = BlockSize {
     4 # very small for test purposes
   }
+
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
 }
 

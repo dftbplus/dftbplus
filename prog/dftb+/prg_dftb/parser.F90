@@ -3385,6 +3385,7 @@ contains
       end if
       allocate(parallelOpts)
       call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
+      call getChildValue(node, "UseOmpThreads", parallelOpts%tOmpThreads, .not. withMpi)
       call readBlacs(node, parallelOpts%blacsOpts)
     end if
 
