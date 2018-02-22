@@ -18,7 +18,7 @@ module populations
   implicit none
   private
 
-  public :: mulliken, skewMulliken, getChargePerShell
+  public :: mulliken, skewMulliken, denseSubtractDensityOfAtoms, getChargePerShell
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -34,6 +34,14 @@ module populations
   interface skewMulliken
     module procedure skewMullikenPerBlock
   end interface skewMulliken
+
+  
+  !> Interface to subtract superposition of atomic densities from dense density matrix.
+  !> Required for rangeseparated calculations
+  interface denseSubtractDensityOfAtoms
+     module procedure denseSubtractDensityOfAtoms_nospin
+     module procedure denseSubtractDensityOfAtoms_spin
+  end interface denseSubtractDensityOfAtoms
 
 contains
 
@@ -297,6 +305,76 @@ contains
     end do
 
   end subroutine skewMullikenPerBlock
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> Works only for closed shell!
+  subroutine denseSubtractDensityOfAtoms_nospin(q0, iSquare, rho)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !>Spin polarized (lower triangular) density matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(rho, dim=3)
+    do iSpin = 1, nSpin
+       do iAtom = 1, nAtom
+          iStart = iSquare(iAtom)
+          iEnd = iSquare(iAtom + 1) - 1
+          do iOrb = 1, iEnd - iStart + 1
+             rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
+                  & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+                  & - q0(iOrb, iAtom, iSpin)
+          end do
+       end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_nospin
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> The spin unrestricted version
+  !> RangeSep: for spin-unrestricted calculation 
+  !> the initial guess should be equally distributed to
+  !> alpha and beta density matrices 
+  subroutine denseSubtractDensityOfAtoms_spin(q0, iSquare, rho, iSpin)
+ 
+    !> Rerence atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/colum of square matrix
+    integer, intent(in) :: iSquare(:)
+
+    !> Spin polarized (lower triangular) matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    !> Spin index
+    integer, intent(in) :: iSpin
+
+    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(rho, dim=3)
+    
+    do iAtom = 1, nAtom
+       iStart = iSquare(iAtom)
+       iEnd = iSquare(iAtom + 1) - 1
+       do iOrb = 1, iEnd - iStart + 1
+          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
+               & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+               & - q0(iOrb, iAtom, 1)*0.5_dp
+       end do
+    end do
+
+
+  end subroutine denseSubtractDensityOfAtoms_spin
 
 
   !> Calculate the number of charges per shell given the orbital charges.
