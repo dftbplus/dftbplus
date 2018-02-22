@@ -18,7 +18,7 @@ module populations
   implicit none
   private
 
-  public :: mulliken, skewMulliken, denseSubtractDensityOfAtoms, getChargePerShell
+  public :: mulliken, skewMulliken, denseSubtractDensityOfAtoms, denseSubtractDensityOfAtoms_nospin, getChargePerShell
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,

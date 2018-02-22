@@ -60,6 +60,7 @@ module main
   use dispersions, only : DispersionIface
   use xmlf90
   use thirdorder_module, only : ThirdOrder
+  use rangeseparated, only : RangeSepFunc
   use simplealgebra
   use message
   use repcont
@@ -208,7 +209,7 @@ contains
 
       if (tCoordsChanged) then
         call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff,&
-            & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
+            & orb, tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec, neighborList,&
             & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0,&
             & rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
       end if
@@ -275,10 +276,15 @@ contains
         call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
             & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
+            & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
             & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-            & eigvecsCplx, rhoSqrReal)
+            & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput)
 
+        !> For rangeseparated calculations deduct atomic charges from deltaRho
+        if(tRangeSep) then
+           call denseSubtractDensityOfAtoms_nospin(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
+        endif
+        
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
         end if
@@ -307,16 +313,23 @@ contains
 
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
-            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,& 
+            &qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
         tStopScc = hasStopFile(fStopScc)
 
         if (tSccCalc) then
-          call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+          if(.not. tRangeSep) then
+             call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
               & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+          else
+             call getNextInputDensity(SSqrReal, over, neighborList, nNeighbor, denseDesc%iAtomStart,&
+              & iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, iGeoStep, iSccIter, minSccIter, maxSccIter,& 
+              &sccTol, tStopScc, tReadChrg, q0, qInput, sccErrorQ, tConverged,& 
+              &deltaRhoOut, deltaRhoIn, deltaRhoDiff, deltaRhoInSqr) 
+          end if
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
           tWriteSccRestart = env%tGlobalMaster .and. &
@@ -789,7 +802,7 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff,&
-      & skRepCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
+      & skRepCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
       & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
       & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
 
@@ -828,6 +841,9 @@ contains
 
     !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
+
+    !> Rangeseparation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> image atoms to their equivalent in the central cell
     integer, allocatable, intent(inout) :: img2CentCell(:)
@@ -911,6 +927,10 @@ contains
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighborList, species)
     end if
+    if (allocated(rangeSep)) then
+       call rangeSep%updateCoords(coord0)
+    end if
+
 
   end subroutine handleCoordinateChange
 
@@ -1472,9 +1492,9 @@ contains
   subroutine getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-      & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
+      & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal)
+      & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1560,6 +1580,9 @@ contains
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: energy
 
+    !> Data for rangeseparated calculation
+    type(RangeSepFunc), intent(inout) :: rangeSep
+
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:,:)
 
@@ -1611,6 +1634,15 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
+    !> Change in density matrix during last SCC iteration 
+    real(dp), pointer, intent(inout) :: deltaRhoInSqr(:,:,:)
+    
+    !> Change in density matrix after SCC step 
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -1627,9 +1659,9 @@ contains
     if (nSpin /= 4) then
       call qm2ud(ham)
       if (tRealHS) then
-        call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
-            & eigen(:,1,:))
+         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
+              & iSparseStart, img2CentCell, orb, solver, parallelKS, rangeSep, deltaRhoInSqr, qOutput,& 
+              &HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
@@ -1650,7 +1682,7 @@ contains
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
-            & rhoSqrReal)
+            & rhoSqrReal, deltaRhoOutSqr)
       else
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
             & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS,&
@@ -1673,7 +1705,8 @@ contains
 
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigvecsReal, eigen)
+      & iSparseStart, img2CentCell, orb, solver, parallelKS, rangeSep, deltaRhoInSqr, qOutput,& 
+      &HSqrReal, SSqrReal, eigvecsReal, eigen)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1699,11 +1732,23 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
     !> Eigensolver choice
     integer, intent(in) :: solver
 
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
+
+    !>Data for rangeseparated calcualtion
+    type(RangeSepFunc), intent(inout) :: rangeSep
+    
+    !> Change in density matrix during last rangesep SCC cycle
+    real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
 
     !> dense hamitonian matrix
     real(dp), intent(out) :: HSqrReal(:,:)
@@ -1737,6 +1782,17 @@ contains
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call unpackHS(SSqrReal, over, neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
+
+      !> Add rangeseparated contribution
+      !> Assumes deltaRhoInSqr only used by rangeseparation
+      !> Should this be used elsewhere, need to pass tRangeSep
+      if(associated(deltaRhoInSqr)) then
+         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
+         call rangeSep%addLRHamiltonian(deltaRhoInSqr(:,:,iSpin), over, neighborList%iNeighbor, &
+          & nNeighbor, denseDesc%iAtomStart, iSparseStart, orb, HSqrReal(:,:), SSqrReal, & 
+          & deltaRhoInSqr(:,:,iSpin))
+      end if
+
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtx(solver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
@@ -1959,7 +2015,7 @@ contains
 
   !> Creates sparse density matrix from real eigenvectors.
   subroutine getDensityFromRealEigvecs(env, denseDesc, filling, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work, rhoSqrReal)
+      & iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2000,6 +2056,9 @@ contains
     !> Dense density matrix if needed
     real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
 
+    !> Change in density matrix during this SCC step for rangesep
+    real(dp), pointer, intent(out) :: deltaRhoOutSqr(:,:,:)
+
     integer :: iKS, iSpin
 
     rhoPrim(:,:) = 0.0_dp
@@ -2014,17 +2073,29 @@ contains
           & orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSpin))
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
-      if (tDensON2) then
-        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
-            & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iAtomStart, img2CentCell)
-      else
-        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
-      end if
-      call env%globalTimer%startTimer(globalTimers%denseToSparse)
-      call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
+      !> Either pack density matrix or delta density matrix
+      if(.not. associated(deltaRhoOutSqr)) then 
+         if (tDensON2) then
+            call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
+                & neighborlist%iNeighbor, nNeighbor, orb, denseDesc%iAtomStart, img2CentCell)
+         else
+            call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
+         end if
+         call env%globalTimer%startTimer(globalTimers%denseToSparse)
+         call packHS(rhoPrim(:,iSpin), work, neighborlist%iNeighbor, nNeighbor, orb%mOrb,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+      else
+      !> Rangeseparated case: pack delta density matrix
+         call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin),&
+              & eigvecs(:,:,iKS), filling(:,iSpin))
+         call packHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin),&
+              & neighborlist%iNeighbor, nNeighbor, orb%mOrb, denseDesc%iAtomStart,&
+              & iSparseStart, img2CentCell) 
+      end if
     #:endif
+
+
 
       if (allocated(rhoSqrReal)) then
         rhoSqrReal(:,:,iSpin) = work
@@ -2484,8 +2555,8 @@ contains
   !> Calculates various energy contributions
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
-      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep, qBlock,& 
+      &qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2552,6 +2623,9 @@ contains
 
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Data from rangeseparated calculations
+    type(RangeSepFunc), intent(inout), allocatable ::rangeSep
 
     !> block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
@@ -2632,6 +2706,10 @@ contains
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd
+    !> Add exchange conribution for rangeseprated calculations
+    if(allocated(rangeSep)) then
+       call rangeSep%addLREnergy(energy%Eelec)
+    end if
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
@@ -2752,10 +2830,12 @@ contains
     !> Imaginary part of block atomic input populations
     real(dp), intent(inout), allocatable :: qiBlockIn(:,:,:,:)
 
+
     real(dp), allocatable :: qDiffRed(:)
     integer :: nSpin
 
     nSpin = size(qOutput, dim=3)
+
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
         & qiBlockOut, iEqBlockDftbuLS)
     qDiffRed = qOutRed - qInpRed
@@ -2789,6 +2869,122 @@ contains
 
   end subroutine getNextInputCharges
 
+
+  !> Update delta density matrix rather than merely q for rangeseparation
+  subroutine getNextInputDensity(SSqrReal, over, neighborList, nNeighbor, iAtomStart,&
+       & iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, iGeoStep, iSccIter, minSccIter, maxSccIter,& 
+       &sccTol, tStopScc, tReadChrg, q0, qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff, deltaRhoInSqr)
+
+    !> Square dense overlap storage                                                 
+    real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> list of neighbours for each atom
+    type(TNeighborList), intent(in) :: neighborList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbor(:)
+
+    !>Start of atomic blocks in dense arrays
+    integer, allocatable, intent(in) :: iAtomStart(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Charge mixing object
+    type(OMixer), intent(inout) :: pChrgMixer
+
+    !> Output electrons
+    real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Atomic orbital data
+    type(TOrbitals), intent(in) :: orb
+
+    !> Number of current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Number of current SCC step
+    integer, intent(in) :: iSccIter
+
+    !> minumum number of SCC iterations to perform
+    integer, intent(in) :: minSccIter
+
+    !> maximum number of SCC iterations before terminating loop
+    integer, intent(in) :: maxSccIter
+
+    !> Tolerance on SCC charges between input and output
+    real(dp), intent(in) :: sccTol
+
+    !> Should the SCC loop stop
+    logical, intent(in) :: tStopScc
+
+    !> Were intial charges read from disc?
+    logical, intent(in) :: tReadChrg
+
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Resulting input charges for next SCC iteration
+    real(dp), intent(inout) :: qInput(:,:,:)
+
+    !> SCC error
+    real(dp), intent(out) :: sccErrorQ
+
+    !> Has the calculation converged>
+    logical, intent(out) :: tConverged
+
+    !> delta density matrix for rangeseparated calculations
+    real(dp), intent(inout) :: deltaRhoOut(:)
+
+    !> delta density matrix as inpurt for next SCC cycle
+    real(dp), intent(inout) :: deltaRhoIn(:)
+
+    !> difference of delta density matrix in and out
+    real(dp), intent(inout) :: deltaRhoDiff(:)
+
+    !> Matrix form of deltaRhoIn
+    real(dp), intent(inout) :: deltaRhoInSqr(:,:,:)
+
+
+    integer :: nSpin
+
+    nSpin = size(qOutput, dim=3)
+    
+    deltaRhoDiff(:) = deltaRhoOut - deltaRhoIn
+    sccErrorQ = maxval(abs(deltaRhoDiff))    
+    tConverged = (sccErrorQ < sccTol)&
+         & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
+
+    if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
+       if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .and. .not. tReadChrg)) then
+          deltaRhoIn(:) = deltaRhoOut
+          qInput(:,:,:) = qOutput
+       else
+          call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
+          call unpackHS(SSqrReal, over, neighborList%iNeighbor,&
+               & nNeighbor, iAtomStart, iSparseStart, img2CentCell)
+          call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
+          ! RangeSep: for spin-unrestricted calculation 
+          ! the initial guess should be equally distributed to
+          ! alpha and beta density matrices 
+          if(nSpin == 2) then
+             qInput(:,:,1) = qInput(:,:,1) + q0(:,:,1)*0.5_dp
+             qInput(:,:,2) = qInput(:,:,2) + q0(:,:,1)*0.5_dp
+          else
+             qInput(:,:,:) = qInput + q0
+          end if
+          if (nSpin == 2) then
+             call ud2qm(qInput)
+          end if
+       end if
+    end if
+
+  end subroutine getNextInputDensity
 
   !> Reduce charges according to orbital equivalency rules.
   subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu,&
