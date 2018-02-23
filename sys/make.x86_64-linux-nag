@@ -94,10 +94,10 @@ LIBOPT =
 
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
-    FXXOPT = -openmp -ieee=full -f2008 -g -gline -mismatch
+    FXXOPT = -ieee=full -f2008 -g -gline -mismatch
     CCOPT = -g -Wall -pedantic -fall-intrinsics
 endif
 ifeq ($(strip $(DEBUG)),2)
-    FXXOPT = -openmp -ieee=full -f2008 -g -gline -C=all  -nan -mtrace=all -mismatch
+    FXXOPT = -ieee=full -f2008 -g -gline -C=all -nan -mtrace=all -mismatch
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 endif
