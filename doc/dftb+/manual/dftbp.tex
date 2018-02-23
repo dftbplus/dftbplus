@@ -3016,15 +3016,16 @@ the code. They only take effect, if the code was compiled with MPI-support.
 \item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
   MPI/OpenMP-parallelisation). In order to prevent you from accidently running
   more processes and threads than appropriate for your hardware, this feature is
-  turned off by default. Consequently the MPI-parallelised binary stops if the
-  maximal number of OpenMP-threads is greater than one when DFTB+ is
-  started. (You can usually set the number of maximally allowed OpenMP-threads
-  by setting the \is{OMP\_NUM\_THREADS} environment variable in your shell.)
+  turned off by default. Consequently in this case the MPI-parallelised binary
+  will stop if the maximal number of OpenMP-threads is greater than one when
+  DFTB+ is started. (You can usually set the number of maximally allowed
+  OpenMP-threads by setting the \is{OMP\_NUM\_THREADS} environment variable in
+  your shell.)
 
   You can enable this option if you wish to run DFTB+ with hybrid
-  parallelisation. You would then typically start less MPI-processes than
-  physical cores on each node and set the number of threads accordingly.  This
-  is currently an experimental feature in DFTB+ and is recommended for
+  parallelisation. You would then typically start fewer MPI-processes than
+  physical cores on each node and also set the number of threads accordingly.
+  This is currently an experimental feature in DFTB+ and is recommended for
   experienced users only.
 
 \item[\is{Blacs}] Contain BLACS specific settings. Currently only supports

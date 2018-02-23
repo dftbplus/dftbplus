@@ -98,8 +98,8 @@ Compile
   ``BUILDDIR``), but the default location is inside the root of the source tree.
 
 
-Test
-====
+Testing DFTB+
+=============
 
 * After successful compilation, execute the tests with ::
 
@@ -108,7 +108,7 @@ Test
   You may also run the tests in parallel (option ``-j``) in order to speed this
   up.  If you use parallel testing, ensure that the number of OpenMP threads is
   reduced accordingly. As an example, assuming 4 cores in your workstation you
-  could issue::
+  could use::
 
     make -j2 test TEST_OMP_THREADS=2
 
