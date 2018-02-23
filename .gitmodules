@@ -1,7 +1,7 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
-	url = https://github.com/dftbplus/mpifx.git
-	branch = master
+	url = https://github.com/aradi/mpifx.git
+	branch = initThread
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
 	url = https://github.com/dftbplus/scalapackfx.git
