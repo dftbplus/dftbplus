@@ -97,21 +97,30 @@ Compile
   build directory location within the `make.config` file (variable
   ``BUILDDIR``), but the default location is inside the root of the source tree.
 
+
+Testing DFTB+
+=============
+
 * After successful compilation, execute the tests with ::
 
     make test
 
   You may also run the tests in parallel (option ``-j``) in order to speed this
   up.  If you use parallel testing, ensure that the number of OpenMP threads is
-  set to be 1 via the ``OMP_NUM_THREADS`` environment variable before starting
-  the tests, e.g.::
+  reduced accordingly. As an example, assuming 4 cores in your workstation you
+  could use::
 
-    export OMP_NUM_THREADS=1
+    make -j2 test TEST_OMP_THREADS=2
 
-  if using the bash shell. If you want to test the MPI-binary with more than one
-  processes, you can set the TESTPROC variable accordingly e.g::
+  If you want to test the MPI-binary with more than one MPI-processes, you can
+  set the TEST_MPI_PROCS variable accordingly e.g::
 
-    make test TESTPROC=2
+    make test TEST_MPI_PROCS=2
+
+  Testing with hybrid (MPI/OpenMP) parallelisation can be specified by setting
+  both, the ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` variables, e.g::
+
+    make test TEST_MPI_PROCS=2 TEST_OMP_THREADS=2
 
 * The compiled executables can be copied into an installation directory by ::
 

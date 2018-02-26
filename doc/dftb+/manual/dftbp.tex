@@ -3004,6 +3004,7 @@ the code. They only take effect, if the code was compiled with MPI-support.
 
 \begin{ptable}
   \kw{Groups} & i & 1 & & \\
+  \kw{UseOmpThreads} & l & .false. & & \\
   \kw{Blacs} & p & \cb & & \\
 \end{ptable}
 \begin{description}
@@ -3013,6 +3014,21 @@ the code. They only take effect, if the code was compiled with MPI-support.
   same time. The number of process groups must be a divisor of the total number
   of MPI-processes. Default: 1 (all processes work at the same k-point and spin
   at a given time).
+
+\item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
+  MPI/OpenMP-parallelisation). In order to prevent you from accidently running
+  more processes and threads than appropriate for your hardware, this feature is
+  turned off by default. Consequently in this case the MPI-parallelised binary
+  will stop if the maximal number of OpenMP-threads is greater than one when
+  DFTB+ is started. (You can usually set the number of maximally allowed
+  OpenMP-threads by setting the \is{OMP\_NUM\_THREADS} environment variable in
+  your shell.)
+
+  You can enable this option if you wish to run DFTB+ with hybrid
+  parallelisation. You would then typically start fewer MPI-processes than
+  physical cores on each node and also set the number of threads accordingly.
+  This is currently an experimental feature in DFTB+ and is recommended for
+  experienced users only.
 
 \item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
   \is{BlockSize}, which specifies the row and column block size for the
