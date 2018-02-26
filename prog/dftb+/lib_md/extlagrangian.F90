@@ -250,20 +250,16 @@ contains
 
     call this%updatePhaseAndSteps()
 
-  contains
-
-
-    !> helper function
-    function modIndex(ind)
-      integer, intent(in) :: ind
-      integer :: modIndex
-
-      modIndex = modulo(ind - 1, this%nTimeSteps + 1) + 1
-
-    end function modIndex
-
   end subroutine getNextInput
 
+  !> helper function
+  function modIndex(ind)
+    integer, intent(in) :: ind
+    integer :: modIndex
+
+    modIndex = modulo(ind - 1, this%nTimeSteps + 1) + 1
+
+  end function modIndex
 
   !> Whether next output quantity passed to the integrator should still contain
   !! fully converged values.
