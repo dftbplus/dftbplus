@@ -1340,8 +1340,37 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
-    call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, &
-        &angShells, ctrl%tOrbResolved, skInterMeth, repPoly)
+
+    !> Rangeseparation input
+    call getChild(node, "RangeSep", child, .false., modifier)
+    if (associated(child)) then
+       call getChildValue(child, "Enable", ctrl%tRangeSep, .false.)
+       call getChildValue(child, "TabulatedGamma", ctrl%tTabulatedGamma, .false.)
+       call getChildValue(child, "Algorithm", value, "NB", child=child2)
+       call getNodeName(value, buffer)
+       select case(char(buffer))
+       case ("nb")
+          write(*,*) "Using the Neighbor list-based algorithm"
+          ctrl%rangeSepAlgorithm = char(buffer)
+       case ("tr")
+          write(*,*) "Using the Thresholding algorithm"
+          ctrl%rangeSepAlgorithm = char(buffer)
+          call getChildValue(value, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
+       case default
+        call getNodeHSDName(value, buffer)
+        call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
+      end select
+    end if
+
+    if (.not. ctrl%tRangeSep) then
+       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, &
+       &angShells, ctrl%tOrbResolved, skInterMeth, repPoly)
+    else
+       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, &
+        &angShells, ctrl%tOrbResolved, skInterMeth, repPoly, rangeSepSK)
+       ctrl%rangeSepType = rangeSepSk%type
+       ctrl%omega = rangeSepSk%omega
+    end if    
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -2008,28 +2037,6 @@ contains
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
 
-    !> Rangeseparation input
-    call getChild(node, "RangeSep", child, .false., modifier)
-    if (associated(child)) then
-       call getChildValue(child, "Enable", ctrl%tRangeSep, .false.)
-       call getChildValue(child, "TabulatedGamma", ctrl%tTabulatedGamma, .false.)
-       call getChildValue(child, "Algorithm", value, "NB", child=child2)
-       call getNodeName(value, buffer)
-       select case(char(buffer))
-       case ("nb")
-          write(*,*) "Using the Neighbor list-based algorithm"
-          ctrl%rangeSepAlgorithm = char(buffer)
-       case ("tr")
-          write(*,*) "Using the Thresholding algorithm"
-          ctrl%rangeSepAlgorithm = char(buffer)
-          call getChildValue(value, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
-       case default
-        call getNodeHSDName(value, buffer)
-        call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
-      end select
-    end if
-    
-
   contains
 
 
@@ -2195,7 +2202,7 @@ contains
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
-  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly)
+  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly, rangeSepSK)
 
     !> List of SK file names to read in for every interaction
     type(ListCharLc), intent(inout) :: skFiles(:,:)
@@ -2222,6 +2229,9 @@ contains
     !> is this a polynomial or spline repulsive?
     logical, intent(in) :: repPoly(:,:)
 
+    !> if calculation rangeseparated read omega from end of SK file
+    type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInt, iSh1
     integer :: angShell(maxL+1), nShell
     logical :: readRep, readAtomic
@@ -2234,6 +2244,12 @@ contains
     type(TRepPolyIn) :: repPolyIn1, repPolyIn2
     type(ORepSpline), allocatable :: pRepSpline
     type(ORepPoly), allocatable :: pRepPoly
+
+    !>Variable for rangesep parsing
+    type(TRangeSepSKTag), allocatable :: omegaTest(:)
+    integer :: omegaTestCount
+    character(lc) :: errorStr
+
 
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
@@ -2267,15 +2283,26 @@ contains
             readRep = (iSK1 == 1 .and. iSK2 == 1)
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
-            write(stdout, "(2X,A)") trim(fileName)
-            if (readRep .and. repPoly(iSp2, iSp1)) then
-              call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
-                  &repPolyIn=repPolyIn1)
-            elseif (readRep) then
-              call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
-                  &iSp1, iSp2, repSplineIn=repSplineIn1)
+            if(.not. present(rangeSepSK)) then
+               if (readRep .and. repPoly(iSp2, iSp1)) then
+                  call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
+                       &repPolyIn=repPolyIn1)
+               elseif (readRep) then
+                  call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
+                       &iSp1, iSp2, repSplineIn=repSplineIn1)
+               else
+                  call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
+               end if
             else
-              call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
+               if (readRep .and. repPoly(iSp2, iSp1)) then
+                  call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
+                       &repPolyIn=repPolyIn1, rangeSepSK=rangeSepSK)
+               elseif (readRep) then
+                  call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
+                       &iSp1, iSp2, repSplineIn=repSplineIn1, rangeSepSK=rangeSepSK)
+               else
+                  call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
+               end if
             end if
             ind = ind + 1
           end do
