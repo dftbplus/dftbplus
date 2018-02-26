@@ -477,6 +477,7 @@ contains
 
     !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
     subroutine addNeighborContribs(iAt1, pNeighList, coords, alpha, invRMat)
+      implicit none
       integer, intent(in) :: iAt1
       type(TDynNeighList), pointer, intent(in) :: pNeighList
       real(dp), intent(in) :: coords(:,:)
@@ -864,6 +865,7 @@ contains
 
     !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
     subroutine addNeighborContribs(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
+      implicit none
       integer, intent(in) :: iAtom1
       type(TDynNeighList), pointer, intent(in) :: pNeighList
       real(dp), intent(in) :: coords(:,:)
@@ -1758,10 +1760,11 @@ contains
 
   contains
 
-    !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAtom1, neighList, coords, alpha, dQAtom, stress)
+    !> Neighbor summation with local scope fo predictable OMP <= 4.0 behaviour
+    subroutine addNeighborContribs(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
+      implicit none
       integer, intent(in) :: iAtom1
-      type(TDynNeighList), pointer, intent(in) :: neighList
+      type(TDynNeighList), pointer, intent(in) :: pNeighList
       real(dp), intent(in) :: coords(:,:)
       real(dp), intent(in) :: dQAtom(:)
       real(dp), intent(in) :: alpha
