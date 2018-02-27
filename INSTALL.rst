@@ -16,8 +16,8 @@ In order to install DFTB+, you need the following software components:
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
-* Optionally: ScaLAPACK (version 2.0 or later), if you build the
-  MPI-parallelised version of the code
+* Optionally: ScaLAPACK (version 2.0 or later) and an MPI aware Fortran
+  compiler, if you want to build the MPI-parallelised version of the code
 
 * Optionally: the ARPACK or ARPACK-ng library for excited state DFTB
   functionality; the DftD3 dispersion library (if you need this dispersion
@@ -78,7 +78,9 @@ Compile
 
       cp sys/make.x86_64-linux-gnu make.arch
 
-* Adjust the settings in `make.arch` according to your system.
+* Adjust the settings in `make.arch` according to your system. Note that there
+  are often separate settings in `make.arch` for compiling with and without
+  MPI. The code is also usually compiled with openMP enabled.
 
 * Open the file `make.config` and check the configuration options set there. In
   this file binary choices are defined as either 0 (false) or 1 (true).
@@ -97,6 +99,10 @@ Compile
   build directory location within the `make.config` file (variable
   ``BUILDDIR``), but the default location is inside the root of the source tree.
 
+* The code can be compiled with distributed memory parallelism (MPI), but for
+  smaller shared memory machines, you may find that the performance is better
+  when using OpenMP parallelism only and an optimised thread aware BLAS library.
+
 
 Testing DFTB+
 =============
@@ -111,9 +117,11 @@ Testing DFTB+
   could use::
 
     make -j2 test TEST_OMP_THREADS=2
-
-  If you want to test the MPI-binary with more than one MPI-processes, you can
-  set the TEST_MPI_PROCS variable accordingly e.g::
+  
+  for an OpenMP compiled binary.
+  
+  If you want to test the MPI enabled binary with more than one MPI-processes,
+  you can set the TEST_MPI_PROCS variable accordingly e.g::
 
     make test TEST_MPI_PROCS=2
 
@@ -121,6 +129,9 @@ Testing DFTB+
   both, the ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` variables, e.g::
 
     make test TEST_MPI_PROCS=2 TEST_OMP_THREADS=2
+
+  Note that efficient production use of the code in this mode may require
+  process affinity (settings will depend on your specific mpi implementation).
 
 * The compiled executables can be copied into an installation directory by ::
 
