@@ -2072,8 +2072,8 @@ contains
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
     tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
-    tWriteHS = env%tGlobalMaster .and. input%ctrl%tWriteHS
-    tWriteRealHS = env%tGlobalMaster .and. input%ctrl%tWriteRealHS
+    tWriteHS = input%ctrl%tWriteHS
+    tWriteRealHS = input%ctrl%tWriteRealHS
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
