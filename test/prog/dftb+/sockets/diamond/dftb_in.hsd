@@ -41,4 +41,4 @@ Parallel {
 
 # add details for the communication port to be used, this is set
 # externally by prerun.py in the created file port.txt
-<<+ port.txt
+<<+ port.hsd
