@@ -12,8 +12,15 @@ NR_STEPS = 1
 
 def connect():
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind(('localhost', 21012))
+    serversocket.bind(('localhost', 0))
     serversocket.listen(1)
+    port = serversocket.getsockname()[1]
+    file = open("port.txt","w")
+    file.write('# Set port number for this run\n')
+    file.write("*Driver = *Socket {\n")
+    file.write("  !Port = %i\n" % port)
+    file.write("}\n")
+    file.close()
     connection, address = serversocket.accept()
     return connection
 
