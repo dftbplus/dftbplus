@@ -104,7 +104,10 @@ contains
     !> Error code to emit (default: 1)
     integer, intent(in), optional :: errorCode
 
-    integer :: error, errorCode0
+    integer :: errorCode0
+  #:if WITH_MPI
+    integer :: error
+  #:endif
 
     if (.not. present(errorCode)) then
       errorCode0 = 1

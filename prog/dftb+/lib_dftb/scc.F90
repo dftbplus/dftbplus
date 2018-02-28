@@ -545,7 +545,7 @@ contains
 
     call this%ewaldNeighList%updateLatVecs(latVec, recVec / (2.0_dp * pi))
     if (this%tExtChrg) then
-      call this%extCharge%updateLatVecs(latVec, recVec, maxREwald)
+      call this%extCharge%updateLatVecs(latVec, recVec)
     end if
 
   end subroutine updateLatVecs

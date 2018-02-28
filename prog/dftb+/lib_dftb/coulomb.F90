@@ -1752,7 +1752,6 @@ contains
 
   end subroutine invRStress
 
-
   !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighborContribsStress(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
     integer, intent(in) :: iAtom1
