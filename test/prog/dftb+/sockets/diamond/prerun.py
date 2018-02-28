@@ -22,6 +22,10 @@ def connect():
     file.write("  !Port = %i\n" % port)
     file.write("}\n")
     file.close()
+    # plain text file with the same information
+    file = open("port.txt","w")
+    file.write("%i" % port)
+    file.close()
     connection, address = serversocket.accept()
     return connection
 
@@ -33,7 +37,7 @@ def main():
     latvecs /= a0
 
     connection = connect()
-
+    
     for iStep in range(NR_STEPS):
         print("Step %i" % iStep)
         connection.sendall('POSDATA     ')
