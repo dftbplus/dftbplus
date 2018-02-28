@@ -6,18 +6,18 @@ Notable project changes since release 1.3.1 (2017-02-22).
 
 
 Unreleased
-=========
+==========
 
 Added
 -----
 
 - MPI-parallelism.
 
+- Various user settings for MPI-parallelism.
+
 - Improved thread-parallelism.
 
-- Tool straingen for distorting gen-files.
-
-- Shutdown possibility when using socket driver.
+- LBGFS geometry driver.
 
 - Evaluation of electrostatic potentials at specified points in space.
 
@@ -25,7 +25,18 @@ Added
 
 - Option to read/write restart charges as ASCII text.
 
+- Timer for collecting timings and printing them at program end.
+
+- Tolerance of Ewald summation can be set in user input.
+
+- Shutdown possibility when using socket driver.
+
 - Header for code prints release / git commit version information.
+
+- Warning when downloading license incompatible external components.
+
+- Tool straingen for distorting gen-files.
+
 
 Changed
 -------
@@ -36,6 +47,13 @@ Changed
 
 - Excited state (non-force) properties for multiple excitations.
 
+- Broyden-mixer does not use file I/O.
+
+- Source code documentation is Ford-compatible.
+
+- Various refactorings to improve on modularity and code clarity.
+
+
 Fixed
 -----
 
@@ -45,8 +63,9 @@ Fixed
 
 - Formatting of eigenvalues and fillings in detailed.out and band.out
 
-- iPI interface with cluster geometries fixed (protocol contains redundant
-  lattice information in these cases).
+- iPI socket interface with cluster geometries fixed (protocol contains
+  redundant lattice information in these cases).
+
 
 17.1 (2017-06-16)
 =================

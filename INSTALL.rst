@@ -19,6 +19,9 @@ In order to install DFTB+, you need the following software components:
 * Optionally: ScaLAPACK (version 2.0 or later) and an MPI aware Fortran
   compiler, if you want to build the MPI-parallelised version of the code
 
+* Optionally: M4 preprocessor, if you want to build the MPI-parallelised version
+  of the code
+
 * Optionally: the ARPACK or ARPACK-ng library for excited state DFTB
   functionality; the DftD3 dispersion library (if you need this dispersion
   model).
