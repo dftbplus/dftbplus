@@ -1,18 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Andersen thermostat
-!!* Two versions of the Andersen thermostat are implemented, either the global
-!!* re-select or per atom reselect of velocities from the Maxwell-Boltzmann
-!!* distribution
-!!* @ref Andersen J. Chem. Phys. 72. 2384 (1980)
+#:include 'common.fypp'
+
+!> Andersen thermostat
+!> Two versions of the Andersen thermostat are implemented, either the global
+!> re-select or per atom reselect of velocities from the Maxwell-Boltzmann
+!> distribution
+!> See Andersen J. Chem. Phys. 72. 2384 (1980)
 module andersentherm
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use mdcommon
   use ranlux
@@ -21,105 +22,113 @@ module andersentherm
   private
 
   public :: OAndersenThermostat
-  public :: create, destroy, getInitVelocities, updateVelocities, state
+  public :: init, getInitVelocities, updateVelocities, state
 
-  !!* Data for the Andersen thermostat
+
+  !> Data for the Andersen thermostat
   type OAndersenThermostat
     private
-    integer :: nAtom                    !* Nr. of atoms
-    type(ORanlux), pointer :: pRanlux   !* Random number generator
-    real(dp), pointer :: mass(:)        !* Mass of the atoms
-    type(OTempProfile), pointer :: pTempProfile !* Temperature generator
-    logical :: tRescaleIndiv            !* Rescale velocities individually?
-    real(dp) :: wvScale                 !* Rescaling probability
-    type(OMDCommon), pointer :: pMDFramework  !* MD framework
+
+    !> Nr. of atoms
+    integer :: nAtom
+
+    !> Random number generator
+    type(ORanlux), allocatable :: pRanlux
+
+    !> Mass of the atoms
+    real(dp), allocatable :: mass(:)
+
+    !> Temperature generator
+    type(OTempProfile), pointer :: pTempProfile
+
+    !> Rescale velocities individually?
+    logical :: tRescaleIndiv
+
+    !> Rescaling probability
+    real(dp) :: wvScale
+
+    !> MD framework
+    type(OMDCommon) :: pMDFramework
   end type OAndersenThermostat
 
-  
-  interface create
-    module procedure AndersenThermostat_create
-  end interface
 
-  interface destroy
-    module procedure AndersenThermostat_destroy
-  end interface
+  !> Initialise thermostat object
+  interface init
+    module procedure AndersenThermostat_init
+  end interface init
 
+
+  !> Velocities at start of calculation
   interface getInitVelocities
     module procedure AndersenThermostat_getInitVelos
   end interface
 
+
+  !> New atomic velocities
   interface updateVelocities
     module procedure AndersenThermostat_updateVelos
   end interface
 
+
+  !> write state to disc
   interface state
     module procedure AndersenThermostat_state
   end interface
 
 contains
 
-  !!* Creates an Andersen thermostat instance.
-  !!* @param self Initialised instance on exit.
-  !!* @param pRanlux Pointer to the random generator.
-  !!* @param masses Masses of the atoms.
-  !!* @param tempProfile Pointer to a temperature profile object.
-  !!* @param rescaleIndiv If velocities should be rescaled per atom
-  !!* @param wvScale Rescaling probability.
-  subroutine AndersenThermostat_create(self, pRanlux, masses, tempProfile, &
-      &rescaleIndiv, wvScale, pMDFramework)
-    type(OAndersenThermostat), pointer :: self
-    type(ORanlux), pointer :: pRanlux
-    real(dp), intent(in) :: masses(:)
-    type(OTempProfile), pointer :: tempProfile
-    logical, intent(in) :: rescaleIndiv
-    real(dp), intent(in) :: wvScale
-    type(OMDCommon), pointer :: pMDFramework
 
-    ASSERT(associated(pRanlux))
-    
-    INITALLOCATE_P(self)
-    self%pRanlux => pRanlux
+  !> Creates an Andersen thermostat instance.
+  subroutine AndersenThermostat_init(self, pRanlux, masses, tempProfile, &
+      &rescaleIndiv, wvScale, pMDFramework)
+
+    !> Initialised instance on exit.
+    type(OAndersenThermostat), intent(out) :: self
+
+    !> Random generator
+    type(ORanlux), allocatable, intent(inout) :: pRanlux
+
+    !> Masses of the atoms.
+    real(dp), intent(in) :: masses(:)
+
+    !> Pointer to a temperature profile object.
+    type(OTempProfile), pointer, intent(in) :: tempProfile
+
+    !> If velocities should be rescaled per atom
+    logical, intent(in) :: rescaleIndiv
+
+    !> Rescaling probability.
+    real(dp), intent(in) :: wvScale
+
+    !> Molecular dynamics general specifications
+    type(OMDCommon), intent(in) :: pMDFramework
+
+    call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
-    INITALLOCATE_PARR(self%mass, (self%nAtom))
+    allocate(self%mass(self%nAtom))
     self%mass(:) = masses(:)
     self%pTempProfile => tempProfile
     self%tRescaleIndiv = rescaleIndiv
     self%wvScale = wvScale
-    self%pMDFramework => pMDFramework
-    
-  end subroutine AndersenThermostat_create
+    self%pMDFramework = pMDFramework
+
+  end subroutine AndersenThermostat_init
 
 
-
-  !!* Destroys an Ansersen thermostat.
-  !!* @param self AndersenThermostat instance.
-  subroutine AndersenThermostat_destroy(self)
-    type(OAndersenThermostat), pointer :: self
-
-    if (.not. associated(self)) then
-      return
-    end if
-    call destroy(self%pTempProfile)
-    DEALLOCATE_PARR(self%mass)
-    DEALLOCATE_P(self)
-    
-  end subroutine AndersenThermostat_destroy
-
-
-
-  !!* Returns the initial velocities.
-  !!* @param self AndersenThermostat instance.
-  !!* @param velocities Contains the velocities on return.
+  !> Returns the initial velocities.
   subroutine AndersenThermostat_getInitVelos(self, velocities)
-    type(OAndersenThermostat), pointer :: self
+
+    !> AndersenThermostat instance.
+    type(OAndersenThermostat), intent(inout) :: self
+
+    !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
     real(dp) :: kT
     integer :: ii
 
-    ASSERT(associated(self))
-    ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
-    
+    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+
     call getTemperature(self%pTempProfile, kT)
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
@@ -129,21 +138,21 @@ contains
 
   end subroutine AndersenThermostat_getInitVelos
 
-  
 
-  !!* Updates the provided velocities according the current temperature.
-  !!* @param self AndersenThermostat instance.
-  !!* @param velocities Updated velocities on exit.
+  !> Updates the provided velocities according the current temperature.
   subroutine AndersenThermostat_updateVelos(self, velocities)
-    type(OAndersenThermostat), pointer :: self
+
+    !> AndersenThermostat instance.
+    type(OAndersenThermostat), intent(inout) :: self
+
+    !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
     real(dp) :: rescaleChance
     real(dp) :: kT
     integer :: ii
 
-    ASSERT(associated(self))
-    ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     call getTemperature(self%pTempProfile, kT)
     if (self%tRescaleIndiv) then
@@ -169,13 +178,19 @@ contains
     end if
 
   end subroutine AndersenThermostat_updateVelos
-  
+
+
+  !> Outputs internals of thermostat
   subroutine AndersenThermostat_state(self, fd)
-    type(OAndersenThermostat), pointer :: self
-    integer,intent(in)                 :: fd
+
+    !> instance of thermostat
+    type(OAndersenThermostat), intent(in) :: self
+
+    !> filehandle to write out to
+    integer,intent(in) :: fd
 
     ! no internal state, nothing to do
-    
+
   end subroutine AndersenThermostat_state
-    
+
 end module andersentherm

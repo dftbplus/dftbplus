@@ -14,7 +14,7 @@ if sys.hexversion < 0x03050000:
 DESCRIPTION = 'Replaces the copyright header in all relevant source files.'
 
 COPYRIGHT = '''DFTB+: general package for performing fast atomistic simulations
-Copyright (C) 2017  DFTB+ developers group
+Copyright (C) 2018  DFTB+ developers group
 
 See the LICENSE file for terms of usage and distribution.'''
 
@@ -33,10 +33,16 @@ FILE_TYPES = [
     ('prog/**/*.fpp', 'fortran'),
     ('prog/**/*.inc', 'fortran'),
     ('prog/**/*.h', 'fortran'),
+    ('prog/**/*.fypp', 'fypp'),
     ('prog/**/make.*', 'makefile'),
     ('test/prog/dftb+/bin/*', 'shell'),
     ('tools/misc/*', 'python'),
+    ('tools/dptools/bin/*', 'python'),
+    ('tools/dptools/src/**/*.py', 'python'),
+    ('test/tools/dptools/**/*.py', 'python'),
     ('utils/*', 'python'),
+    ('utils/build/*.sh', 'shell'),
+    ('utils/build/*', 'python'),
     ('utils/build/cr_makedep/*', 'python'),
     ('utils/build/fpp/*', 'shell'),
 ]
@@ -88,12 +94,14 @@ def replace_header(fname, headerpattern, header):
 
 
 def pretty_header(txt, comment, marker, linelength):
-    headerseparator = comment + marker * (linelength - 2) + comment
+    commentend = comment[-1]
+    headerseparator = (comment + marker * (linelength - len(comment) - 1)
+                       + commentend)
     headerlines = [headerseparator]
     for line in txt.split('\n'):
         line = line.strip()
-        padding = linelength - 4  - len(line)
-        headerlines.append(comment + '  ' + line + ' ' * padding + comment)
+        padding = linelength - len(comment) - 3  - len(line)
+        headerlines.append(comment + '  ' + line + ' ' * padding + commentend)
     headerlines.append(headerseparator)
     return '\n'.join(headerlines)
 
@@ -111,6 +119,11 @@ SCRIPT_HEADER_PATTERN = re.compile(
     r'[ \t]*#---+#[ \t]*\n(?:[ \t]*#.*\n)*?[ \t]*#---+#[ \t]*$', re.MULTILINE)
 SCRIPT_HEADER = pretty_header(COPYRIGHT, '#', '-', 80)
 
+FYPP_HEADER_PATTERN = re.compile(
+    r'[ \t]*#!---+![ \t]*\n(?:[ \t]*#!.*\n)*?[ \t]*#!---+![ \t]*$',
+    re.MULTILINE)
+FYPP_HEADER = pretty_header(COPYRIGHT, '#!', '-', 100)
+
 
 HEADER_BY_TYPE = {
     None: (None, None),
@@ -119,6 +132,7 @@ HEADER_BY_TYPE = {
     'python': (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
     'rawtext': (RAWTEXT_HEADER_PATTERN, RAWTEXT_HEADER),
     'shell': (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+    'fypp': (FYPP_HEADER_PATTERN, FYPP_HEADER),
 }
 
 

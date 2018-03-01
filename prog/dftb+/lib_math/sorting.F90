@@ -1,76 +1,90 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Various types of sorting routines, and related stuff
-!! \todo add other algorithms, radix? definitely not quicksort though,
-!! but adaptive heap sorts?
+!> To do: add other algorithms, radix? definitely not quicksort though,
+!> but adaptive heap sorts?
 module sorting
-#include "assert.h"
+  use assert
   use accuracy, only : dp
   implicit none
   private
-  
-  public :: heap_sort, index_heap_sort, merge_sort, unique  
-  
-  !> Heap sort algorithm - O(N log(N)) performance, but not stable
+
+  public :: heap_sort, index_heap_sort, merge_sort, unique
+
+
+  !> Heap sort algorithm - O(N log(N)) time performance and in place, but not 'stable' in order of
+  !> sorting
   interface heap_sort
     module procedure heap_sort_real
     module procedure heap_sort_int
   end interface heap_sort
-  
-  !> Heap sort algorithm - O(N log(N)) performance, provides an index
-  !! vector instead of re-ordering values, again not stable
+
+
+  !> Heap sort algorithm - O(N log(N)) performance, provides an index vector instead of re-ordering
+  !> values, again not stable
   interface index_heap_sort
     module procedure index_heap_sort_real
     module procedure index_heap_sort_int
   end interface index_heap_sort
-  
-  !> Merge sort algorithm - O(N log(N)) performance, stable but
-  !! requires O(N) workspace. Versions with and without index array supplied.
+
+
+  !> Merge sort algorithm - O(N log(N)) performance, stable ordering but requires an O(N)
+  !> workspace. Versions with and without index array supplied.
   interface merge_sort
     module procedure merge_sort_int
     module procedure merge_sort_indx_int
     module procedure merge_sort_real
     module procedure merge_sort_indx_real
   end interface merge_sort
-  
-  !> Function to count number of unique elements in a sorted array of value
-  !! greater than 0 and place them at the start of the array in order
+
+
+  !> Function to count number of unique elements in a sorted array of value greater than 0 and place
+  !> them at the start of the array in order
   interface unique
     module procedure unique_int
   end interface unique
-  
+
   ! non-public interfaces
-  
+
+
+  !> internal workhorse for merge sorts
   interface MergeSort
     module procedure MergeSort_int
     module procedure MergeSort_indx_int
     module procedure MergeSort_real
     module procedure MergeSort_indx_real
   end interface MergeSort
-  
+
+
+  !> merge two arrays together in order onto a third
   interface Merge
     module procedure Merge_int
     module procedure Merge_indx_int
     module procedure Merge_real
     module procedure Merge_indx_real
   end interface Merge
-  
+
 contains
 
+
   !> real case in-place heap sort
-  !! \param array Array of values to be sorted
-  !! \param tolerance Tolerance for equality of two elements
-  !! \ref based on Numerical Recipes Software 1986-92
+  !> Based on Numerical Recipes Software 1986-92
   subroutine heap_sort_real(array, tolerance)
-    real(dp), intent(inout)        :: array(:)
+
+    !> Array of values to be sorted
+    real(dp), intent(inout) :: array(:)
+
+    !> Tolerance for equality of two elements
     real(dp), intent(in), optional :: tolerance
-    
-    integer  :: n, ir, ij, il, ii, ik
+
+    integer :: n, ir, ij, il, ii, ik
     real(dp) :: tmpReal
     real(dp) :: tol
 
@@ -120,16 +134,16 @@ contains
   end subroutine heap_sort_real
 
 
-  
   !> integer case in-place heap sort
-  !! \param array Array of values to be sorted
-  !! \ref based on Numerical Recipes Software 1986-92
+  !> based on Numerical Recipes Software 1986-92
   subroutine heap_sort_int(array)
+
+    !> Array of values to be sorted
     integer, intent(inout) :: array(:)
 
     integer :: n, ii, ir, ij, il, ik
     integer :: tmpInt
-    
+
     n = size(array)
     if (n <= 1) return
 
@@ -171,22 +185,24 @@ contains
   end subroutine  heap_sort_int
 
 
-  
   !> Real case heap sort returning an index.
-  !! \param indx Indexing array on return
-  !! \param array Array of values to be sorted
-  !! \param tolerance Tolerance for equality of two elements
-  !! \ref based on Numerical Recipes Software 1986-92
+  !> based on Numerical Recipes Software 1986-92
   subroutine index_heap_sort_real(indx, array, tolerance)
-    integer,  intent(out)          :: indx(:)
-    real(dp), intent(in)           :: array(:)
+
+    !> Indexing array on return
+    integer, intent(out) :: indx(:)
+
+    !> Array of values to be sorted
+    real(dp), intent(in) :: array(:)
+
+    !> Tolerance for equality of two elements
     real(dp), intent(in), optional :: tolerance
 
     integer :: n, ir, ij, il, ii, ik
     integer :: indxTmp
     real(dp) :: arrayTmp, tol
 
-    ASSERT(size(array)==size(indx))
+    @:ASSERT(size(array)==size(indx))
 
     if (present(tolerance)) then
       tol = tolerance
@@ -235,23 +251,24 @@ contains
       end do
       indx(ii)=indxTmp
     end do
-    
+
   end subroutine index_heap_sort_real
 
 
-  
   !> real case heap sort returning an index
-  !! \param indx Indexing array on return
-  !! \param array Array of values to be sorted
-  !! \ref based on Numerical Recipes Software 1986-92
+  !> based on Numerical Recipes Software 1986-92
   subroutine index_heap_sort_int(indx, array)
+
+    !> Indexing array on return
     integer, intent(out) :: indx(:)
+
+    !> Array of values to be sorted
     integer, intent(in) :: array(:)
-    
+
     integer :: n, ir, ij, il, ii, ik
     integer :: indxTmp, arrayTmp
 
-    ASSERT(size(array)==size(indx))
+    @:ASSERT(size(array)==size(indx))
 
     do ii=1,size(indx)
       indx(ii) = ii
@@ -294,45 +311,52 @@ contains
       end do
       indx(ii)=indxTmp
     end do
-    
+
   end subroutine index_heap_sort_int
 
-  
+
   !> Merge sort of integers
-  !! \param array vector to sort
   subroutine merge_sort_int(array)
+
+    !> vector to sort
     integer, intent(inout) :: array(:)
-    
+
     integer, allocatable :: work(:)
     integer :: n
-    
+
     n = size(array)
-    
+
     allocate(work((n+1)/2))
     call mergeSort(array,n,work)
-    deallocate(work)
-    
+
   end subroutine merge_sort_int
-  
-  !> Merge two arrays together in order onto a third  
-  !! \param A first array of values
-  !! \param NA elements in A
-  !! \param B second array of values
-  !! \param NB elements in A
-  !! \param C array to merge onto
-  !! \param NC elements in C
+
+
+  !> Merge two arrays together in order onto a third
   subroutine merge_int(NA,NB,NC,A,B,C)
-    integer, intent(in)    :: NA
-    integer, intent(in)    :: NB
-    integer, intent(in)    :: NC
-    integer, intent(in)    :: A(NA)
-    integer, intent(in)    :: B(NB)
+
+    !> first array of values
+    integer, intent(in) :: NA
+
+    !> elements in A
+    integer, intent(in) :: NB
+
+    !> second array of values
+    integer, intent(in) :: NC
+
+    !> elements in A
+    integer, intent(in) :: A(NA)
+
+    !> array to merge onto
+    integer, intent(in) :: B(NB)
+
+    !> elements in C
     integer, intent(inout) :: C(NC)
-    
+
     integer :: I, J, K
-    
-    ASSERT((na+nb)==nc)
-    
+
+    @:ASSERT((na+nb)==nc)
+
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
       if (A(I) <= B(J)) then
@@ -349,22 +373,26 @@ contains
       I = I + 1
       K = K + 1
     enddo
-    
+
   end subroutine merge_int
-  
+
+
   !> Integer merge sort
-  !! \param A array to sort
-  !! \param N number of elements in array
-  !! \param T workspace of at least (N+1)/2 size
   recursive subroutine mergeSort_int(A,N,T)
+
+    !> array to sort
     integer, intent(inout) :: A(:)
-    integer, intent(in)    :: N
-    integer, intent (out)  :: T(:)
-    
+
+    !> number of elements in array
+    integer, intent(in) :: N
+
+    !> workspace of at least (N+1)/2 size
+    integer, intent (out) :: T(:)
+
     integer :: NA, NB, V
-    
+
     if (N < 2) return
-    
+
     if (N == 2) then
       if (A(1) > A(2)) then
         V = A(1)
@@ -373,32 +401,35 @@ contains
       endif
       return
     endif
-    
+
     NA=(N+1)/2
     NB=N-NA
-    
+
     call MergeSort(A,NA,T)
     call MergeSort(A(NA+1:),NB,T)
-    
+
     if (A(NA) > A(NA+1)) then
       T(1:NA)=A(1:NA)
       call merge(NA,NB,N,T,A(NA+1:),A)
     endif
-    
+
   end subroutine MergeSort_Int
-  
+
+
   !> Merge sort of integers, using an array index instead of re-ordering
-  !! \param indx index array for sort order
-  !! \param array vector to sort
   subroutine merge_sort_indx_int(indx,array)
+
+    !> index array for sort order
     integer, intent(out) :: indx(:)
-    integer, intent(in)  :: array(:)
-    
+
+    !> vector to sort
+    integer, intent(in) :: array(:)
+
     integer, allocatable :: work(:,:), tmp(:,:)
     integer :: ii, n
-    
-    ASSERT(size(indx)==size(array))
-    
+
+    @:ASSERT(size(indx)==size(array))
+
     n = size(array)
     allocate(tmp(n,2))
     tmp(:,2) = array
@@ -407,32 +438,37 @@ contains
     end do
     allocate(work((n+1)/2,2))
     call mergeSort(tmp,n,work)
-    deallocate(work)
     indx = tmp(:,1)
-    deallocate(tmp)
-    
+
   end subroutine merge_sort_indx_int
-  
-  !> Merge two arrays together in order onto a third, where first
-  !> dimension of both is index for original order and also value  
-  !! \param A first array of values
-  !! \param NA elements in A
-  !! \param B second array of values
-  !! \param NB elements in A
-  !! \param C array to merge onto
-  !! \param NC elements in C
+
+
+  !> Merge two arrays together in order onto a third, where first dimension of both is index for
+  !> original order and also value
   subroutine merge_indx_int(NA,NB,NC,A,B,C)
-    integer, intent(in)    :: NA
-    integer, intent(in)    :: NB
-    integer, intent(in)    :: NC
-    integer, intent(in)    :: A(NA,2)
-    integer, intent(in)    :: B(NB,2)
+
+    !> first array of values
+    integer, intent(in) :: NA
+
+    !> elements in A
+    integer, intent(in) :: NB
+
+    !> second array of values
+    integer, intent(in) :: NC
+
+    !> elements in A
+    integer, intent(in) :: A(NA,2)
+
+    !> array to merge onto
+    integer, intent(in) :: B(NB,2)
+
+    !> elements in C
     integer, intent(inout) :: C(NC,2)
-    
+
     integer :: I, J, K
-    
-    ASSERT((na+nb)==nc)
-    
+
+    @:ASSERT((na+nb)==nc)
+
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
       if (A(I,2) <= B(J,2)) then
@@ -449,26 +485,30 @@ contains
       I = I + 1
       K = K + 1
     enddo
-    
+
   end subroutine merge_indx_int
-  
+
+
   !> Integer merge sort, using an index
-  !! \param A array to sort, first element of first dimension is an
-  !! index array, second element is actual value  
-  !! \param N number of elements in array
-  !! \param T workspace of at least (N+1)/2 size
   recursive subroutine mergeSort_indx_int(A,N,T)
+
+    !> array to sort, first element of first dimension is an index array, second element is actual
+    !> value
     integer, intent(inout) :: A(:,:)
-    integer, intent(in)    :: N
-    integer, intent (out)  :: T(:,:)
-    
+
+    !> N number of elements in array
+    integer, intent(in) :: N
+
+    !> workspace of at least (N+1)/2 size
+    integer, intent (out) :: T(:,:)
+
     integer :: NA, NB, V(2)
-    
-    ASSERT(size(A,dim=2) == 2)
-    ASSERT(size(T,dim=2) == 2)
-    
+
+    @:ASSERT(size(A,dim=2) == 2)
+    @:ASSERT(size(T,dim=2) == 2)
+
     if (N < 2) return
-    
+
     if (N == 2) then
       if (A(1,2) > A(2,2)) then
         V = A(1,:)
@@ -477,55 +517,63 @@ contains
       endif
       return
     endif
-    
+
     NA=(N+1)/2
     NB=N-NA
-    
+
     call MergeSort(A(:NA,:),NA,T)
     call MergeSort(A(NA+1:,:),NB,T)
-    
+
     if (A(NA,2) > A(NA+1,2)) then
       T(1:NA,:)=A(1:NA,:)
       call merge(NA,NB,N,T(:NA,:),A(NA+1:N,:),A(:N,:))
     endif
-    
+
   end subroutine mergeSort_indx_int
-  
+
+
   !> Merge sort of reals
-  !! \param array vector to sort
   subroutine merge_sort_real(array)
+
+    !> vector to sort
     real(dp), intent(inout) :: array(:)
-    
+
     real(dp), allocatable :: work(:)
     integer :: n
-    
+
     n = size(array)
-    
+
     allocate(work((n+1)/2))
     call mergeSort(array,n,work)
-    deallocate(work)
-    
+
   end subroutine merge_sort_real
-  
-  !> Merge two arrays together in order onto a third  
-  !! \param A first array of values
-  !! \param NA elements in A
-  !! \param B second array of values
-  !! \param NB elements in A
-  !! \param C array to merge onto
-  !! \param NC elements in C
+
+
+  !> Merge two arrays together in order onto a third
   subroutine merge_real(NA,NB,NC,A,B,C)
-    integer, intent(in)    :: NA
-    integer, intent(in)    :: NB
-    integer, intent(in)    :: NC
-    real(dp), intent(in)    :: A(NA)
-    real(dp), intent(in)    :: B(NB)
+
+    !> first array of values
+    integer, intent(in) :: NA
+
+    !> elements in A
+    integer, intent(in) :: NB
+
+    !> second array of values
+    integer, intent(in) :: NC
+
+    !> elements in A
+    real(dp), intent(in) :: A(NA)
+
+    !> array to merge onto
+    real(dp), intent(in) :: B(NB)
+
+    !> elements in C
     real(dp), intent(inout) :: C(NC)
-    
-    integer  :: I, J, K
-    
-    ASSERT((na+nb)==nc)
-    
+
+    integer :: I, J, K
+
+    @:ASSERT((na+nb)==nc)
+
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
       if (A(I) <= B(J)) then
@@ -542,23 +590,28 @@ contains
       I = I + 1
       K = K + 1
     enddo
-    
+
   end subroutine merge_real
-  
+
+
   !> Real merge sort
-  !! \param A array to sort
-  !! \param N number of elements in array
-  !! \param T workspace of at least (N+1)/2 size
+
   recursive subroutine mergeSort_real(A,N,T)
+
+    !> array to sort
     real(dp), intent(inout) :: A(:)
-    integer, intent(in)     :: N
-    real(dp), intent (out)  :: T(:)
-    
-    integer  :: NA, NB
+
+    !> number of elements in array
+    integer, intent(in) :: N
+
+    !> workspace of at least (N+1)/2 size
+    real(dp), intent (out) :: T(:)
+
+    integer :: NA, NB
     real(dp) :: V
-    
+
     if (N < 2) return
-    
+
     if (N == 2) then
       if (A(1) > A(2)) then
         V = A(1)
@@ -567,33 +620,39 @@ contains
       endif
       return
     endif
-    
+
     NA=(N+1)/2
     NB=N-NA
-    
+
     call MergeSort(A,NA,T)
     call MergeSort(A(NA+1:),NB,T)
-    
+
     if (A(NA) > A(NA+1)) then
       T(1:NA)=A(1:NA)
       call merge(NA,NB,N,T,A(NA+1:),A)
     endif
-    
+
   end subroutine mergeSort_real
-  
+
+
   !> Merge sort of reals, using an array index instead of re-ordering
-  !! \param indx array of sorted order
-  !! \param array vector to sort
+
   subroutine merge_sort_indx_real(indx,array, tol)
+
+    !> array of sorted order
     integer, intent(out) :: indx(:)
+
+    !> vector to sort
     real(dp), intent(in) :: array(:)
+
+    !> tollerance for comparisions
     real(dp), intent(in) :: tol
-    
+
     real(dp), allocatable :: work(:,:), tmp(:,:)
     integer :: ii, n
-    
-    ASSERT(size(indx)==size(array))
-    
+
+    @:ASSERT(size(indx)==size(array))
+
     n = size(array)
     allocate(tmp(n,2))
     tmp(:,2) = array
@@ -602,33 +661,39 @@ contains
     end do
     allocate(work((n+1)/2,2))
     call mergeSort(tmp,n,work,tol)
-    deallocate(work)
     indx = nint(tmp(:,1))
-    deallocate(tmp)
-    
+
   end subroutine merge_sort_indx_real
-  
-  !> Merge two arrays together in order onto a third, where first
-  !> dimension of both is index for original order and also value  
-  !! \param A first array of values
-  !! \param NA elements in A
-  !! \param B second array of values
-  !! \param NB elements in A
-  !! \param C array to merge onto
-  !! \param NC elements in C
+
+
+  !> Merge two arrays together in order onto a third, where first dimension of both is index for
+  !> original order and also value
   subroutine merge_indx_real(NA,NB,NC,A,B,C, tol)
-    integer, intent(in)    :: NA
-    integer, intent(in)    :: NB
-    integer, intent(in)    :: NC
-    real(dp), intent(in)    :: A(NA,2)
-    real(dp), intent(in)    :: B(NB,2)
+
+    !> first array of values
+    integer, intent(in) :: NA
+
+    !> elements in A
+    integer, intent(in) :: NB
+
+    !> second array of values
+    integer, intent(in) :: NC
+
+    !> elements in A
+    real(dp), intent(in) :: A(NA,2)
+
+    !> array to merge onto
+    real(dp), intent(in) :: B(NB,2)
+
+    !> elements in C
     real(dp), intent(inout) :: C(NC,2)
+
     real(dp), intent(in) :: tol
-    
+
     integer :: I, J, K
-    
-    ASSERT((na+nb)==nc)
-    
+
+    @:ASSERT((na+nb)==nc)
+
     I = 1; J = 1; K = 1;
     do while(I <= NA .and. J <= NB)
       if (A(I,2) <= B(J,2) .and. abs(A(I,2)-B(J,2)) > tol) then
@@ -645,28 +710,34 @@ contains
       I = I + 1
       K = K + 1
     enddo
-    
+
   end subroutine merge_indx_real
-  
+
+
   !> Real merge sort, using an index
-  !! \param A array to sort, first element of first dimension is an
-  !! index array, second element is actual value  
-  !! \param N number of elements in array
-  !! \param T workspace of at least (N+1)/2 size
   recursive subroutine mergeSort_indx_real(A,N,T,tol)
+
+    !> array to sort, first element of first dimension is an index array, second element is actual
+    !> value
     real(dp), intent(inout) :: A(:,:)
-    integer, intent(in)    :: N
-    real(dp), intent (out)  :: T(:,:)
+
+    !> number of elements in array
+    integer, intent(in) :: N
+
+    !> workspace of at least (N+1)/2 size
+    real(dp), intent (out) :: T(:,:)
+
+    !> tolerance for comparisions
     real(dp), intent(in) :: tol
-    
+
     integer :: NA, NB
     real(dp) :: V(2)
-    
-    ASSERT(size(A,dim=2) == 2)
-    ASSERT(size(T,dim=2) == 2)
-    
+
+    @:ASSERT(size(A,dim=2) == 2)
+    @:ASSERT(size(T,dim=2) == 2)
+
     if (N < 2) return
-    
+
     if (N == 2) then
       if (A(1,2) > A(2,2) .and. abs(A(1,2) - A(2,2)) > tol) then
         V = A(1,:)
@@ -675,31 +746,35 @@ contains
       endif
       return
     endif
-    
+
     NA=(N+1)/2
     NB=N-NA
-    
+
     call MergeSort(A(:NA,:),NA,T,tol)
     call MergeSort(A(NA+1:,:),NB,T,tol)
-    
+
     if (A(NA,2) > A(NA+1,2) .and. (A(NA,2) - A(NA+1,2)) > tol) then
       T(1:NA,:)=A(1:NA,:)
       call merge(NA,NB,N,T(:NA,:),A(NA+1:N,:),A(:N,:),tol)
     endif
-    
+
   end subroutine mergeSort_indx_real
-  
-  !> Function to count number of unique elements in a sorted array of value
-  !! greater than 0 and place them at the start of the array in order.
-  !! \param array Array to make unique.
-  !! \param arraySize Constraints the effect of the subroutine on the first
-  !!   n elements, where n is the value for arraySize. (default: size(array))
-  !! \return Number of unique elements.
-  !! \todo check that the elements are in sorted order, and generalise for
-  !! decreasing order as well as increasing
+
+
+  !> Function to count number of unique elements in a sorted array of value greater than 0 and place
+  !> them at the start of the array in order.
+  !> To do: check that the elements are in sorted order, and generalise for
+  !> decreasing order as well as increasing
   function unique_int(array, arraySize) result(nUnique)
+
+    !> Array to make unique.
     integer, intent(inout) :: array(:)
+
+    !> Constrains the effect of the subroutine on the first n elements, where n is the value for
+    !> arraySize. (default: size(array))
     integer, intent(in), optional :: arraySize
+
+    !> Number of unique elements.
     integer :: nUnique
 
     integer :: ii, ij, nn
@@ -710,10 +785,10 @@ contains
       nn = size(array)
     end if
 
-    ASSERT(nn >= 1 )
-    ASSERT(nn <= size(array))
-    ASSERT(all(array(:nn) > 0))
-    
+    @:ASSERT(nn >= 1 )
+    @:ASSERT(nn <= size(array))
+    @:ASSERT(all(array(:nn) > 0))
+
     ii = 1
     do ij = 2, nn
       if (array(ij) /= array(ii)) then
@@ -722,7 +797,7 @@ contains
       end if
     end do
     nUnique = ii
-    
+
   end function unique_int
-  
+
 end module sorting

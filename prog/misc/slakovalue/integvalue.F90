@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program integvalue
-#include "allocate.h"  
   use accuracy
+  use io
   use oldskdata
   use slakoeqgrid
   use fileid
@@ -39,10 +39,11 @@ program integvalue
 
 contains
 
+
   !> Prints help and stops.
   subroutine printHelp()
 
-    write(*, "(A)") &
+    write(stdout, "(A)") &
         & "Usage: integvalue  {homo|hetero}  skfile {orig|ext} col",&
         & "",&
         "Reads an SK-file, extracts the given column in the integral table and&
@@ -61,12 +62,20 @@ contains
   end subroutine printHelp
 
 
-  
   !> Process program arguments.
   !!
   subroutine processArguments(fname, homo, extended, col)
+
+    !> File name
     character(*), intent(out) :: fname
-    logical, intent(out) :: homo, extended
+
+    !> homonuclear?
+    logical, intent(out) :: homo
+
+    !> extended format
+    logical, intent(out) :: extended
+
+    !> column to extract
     integer, intent(out) :: col
 
     character(lc) :: arg
@@ -103,14 +112,21 @@ contains
 
   end subroutine processArguments
 
-  
 
   !> Returns the appropriate column of the SK-table.
   !!
   subroutine getSkColumnData(extended, skData, col, data)
+
+    !> extended format
     logical, intent(in) :: extended
+
+    !> Slater-Koster data
     type(TOldSKData), intent(in), target :: skData
+
+    !> Column to extract
     integer, intent(in) :: col
+
+    !> resulting data
     real(dp), pointer, intent(out) :: data(:,:)
 
     integer :: mycol
@@ -142,12 +158,20 @@ contains
   end subroutine getSkColumnData
 
 
-  
   !> Writes values on a given grid.
   !!
   subroutine writeValues(skgrid, rStart, dr, nPoint)
+
+    !> SK data grid
     type(OSlakoEqGrid), intent(in) :: skgrid
-    real(dp), intent(in) :: rStart, dr
+
+    !> starting distance
+    real(dp), intent(in) :: rStart
+
+    !> separation
+    real(dp), intent(in) :: dr
+
+    !> Number of points
     integer, intent(in) :: nPoint
 
     integer :: ii
@@ -158,13 +182,10 @@ contains
       call getSKIntegrals(skgrid, sk0, dist)
       call getSKIntegrals(skgrid, skp1, dist + deltaXDiff)
       call getSKIntegrals(skgrid, skm1, dist - deltaXDiff)
-      write(*, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
+      write(stdout, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
           & (skp1 + skm1 - 2.0_dp * sk0) / (deltaXDiff * deltaXDiff)
     end do
 
   end subroutine writeValues
-
-
-
 
 end program integvalue

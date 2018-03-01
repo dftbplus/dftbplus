@@ -1,16 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Calculates various types of charge populations
-!!* @todo extend to other populations than Mulliken
-!!* @author Ben Hourahine
+#:include 'common.fypp'
+
+!> Calculates various types of charge populations
+!> To do: extend to other populations than Mulliken
 module populations
-#include "assert.h"
-#include "allocate.h"  
+  use assert
   use accuracy
   use constants
   use periodic
@@ -18,108 +18,116 @@ module populations
   implicit none
   private
 
-  public :: mulliken, skewMulliken
+  public :: mulliken, skewMulliken, getChargePerShell
 
-  !!* Provides an interface to calculate Mulliken populations, either
-  !!* dual basis atomic block, orbitally resolved or atom resolved
+
+  !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
+  !> orbitally resolved or atom resolved
   interface mulliken
     module procedure mullikenPerBlock
     module procedure mullikenPerOrbital
     module procedure mullikenPerAtom
-  end interface
+  end interface mulliken
 
-  !!* Provides an interface to calculate Mulliken populations for anti-symmetric
-  !!* density matrices
+
+  !> Provides an interface to calculate Mulliken populations for anti-symmetric density matrices
   interface skewMulliken
     module procedure skewMullikenPerBlock
-  end interface
-  
-  
+  end interface skewMulliken
+
 contains
 
-  !!* Calculate the Mulliken population for each atom in the system, by summing
-  !!* the individual orbital contriutions on each atom
-  !!* @param q The charge per atom
-  !!* @param s Overlap matrix in packed format
-  !!* @param rho Density matrix in Packed format
-  !!* @param orb Information about the orbitals.
-  !!* @param iNeighbor Number of neighbours of each real atom (central cell)
-  !!* @param nNeighbor List of neighbours for each atom, starting at 0 for
-  !!* itself
-  !!* @param img2CentCell indexing array to convert images of atoms
-  !!* back into their number in the central cell
-  !!* @param iPair indexing array for the Hamiltonian
-  subroutine mullikenPerAtom(qq, over, rho, orb, iNeighbor, nNeighbor, &
-      &img2CentCell, iPair)
+
+  !> Calculate the Mulliken population for each atom in the system, by summing
+  !> the individual orbital contriutions on each atom
+  subroutine mullikenPerAtom(qq, over, rho, orb, iNeighbor, nNeighbor, img2CentCell, iPair)
+
+    !> The charge per atom
     real(dp), intent(inout) :: qq(:)
+
+    !> Overlap matrix in packed format
     real(dp), intent(in) :: over(:)
+
+    !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
+
+    !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of neighbours of each real atom (central cell)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> List of neighbours for each atom, starting at 0 for itself
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array to convert images of atoms back into their number in the central cell
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
-    
+
     real(dp), allocatable :: qPerOrbital(:,:)
     integer :: nAtom
 
     nAtom = size(orb%nOrbAtom)
-    ASSERT(size(qq) == nAtom)
-    ASSERT(size(over) == size(rho))
-    
-    ALLOCATE_(qPerOrbital,(orb%mOrb, nAtom))
+    @:ASSERT(size(qq) == nAtom)
+    @:ASSERT(size(over) == size(rho))
+
+    allocate(qPerOrbital(orb%mOrb, nAtom))
     qPerOrbital(:,:) = 0.0_dp
-    
+
     call mullikenPerOrbital( qPerOrbital,over,rho,orb,iNeighbor,nNeighbor, &
         &img2CentCell,iPair )
 
     qq(:) = qq(:) + sum(qPerOrbital, dim=1)
-    DEALLOCATE_(qPerOrbital)
+    deallocate(qPerOrbital)
 
   end subroutine mullikenPerAtom
 
-  
 
-  !!* Calculate the Mulliken population for each orbital in the system
-  !!* using purely real-space overlap and density matrix values.
-  !!* Currently Mulliken defined as 
-  !!* $q_a = \sum_k w_k\sum_{\mu on a}\sum_\nu S_{\nu\mu}(k).\rho_{\mu\nu}(k)$
-  !!* but transformed into real space sums over one triangle of real space 
-  !!* extended matrices 
-  !!* @param qq The charge per orbital
-  !!* @param over Overlap matrix in packed format
-  !!* @param rho Density matrix in Packed format
-  !!* @param orb Information about the orbitals.
-  !!* @param iNeighbor Number of neighbours of each real atom (central cell)
-  !!* @param nNeighbor List of neighbours for each atom, starting at 0 for
-  !!* itself
-  !!* @param img2CentCell indexing array to convert images of atoms
-  !!* back into their number in the central cell
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @todo add description of algorithm to programer manual / documentation.
-  subroutine mullikenPerOrbital(qq, over, rho, orb, iNeighbor, nNeighbor, &
-      &img2CentCell, iPair)    
+  !> Calculate the Mulliken population for each orbital in the system using purely real-space
+  !> overlap and density matrix values.  Currently Mulliken is transformed into real space sums over
+  !> one triangle of real space extended matrices
+  !>
+  !> To do: add description of algorithm to programer manual / documentation.
+  subroutine mullikenPerOrbital(qq, over, rho, orb, iNeighbor, nNeighbor, img2CentCell, iPair)
+
+    !> The charge per orbital
     real(dp), intent(inout) :: qq(:,:)
+
+    !> Overlap matrix in packed format
     real(dp), intent(in) :: over(:)
+
+    !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
+
+    !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of neighbours of each real atom (central cell)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> List of neighbours for each atom, starting at 0 for itself
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array to convert images of atoms back into their number in the central cell
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: sqrTmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: mulTmp(orb%mOrb**2)
+    integer :: iOrig
+    integer :: iNeigh
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: sqrTmp(orb%mOrb,orb%mOrb)
+    real(dp) :: mulTmp(orb%mOrb**2)
 
     nAtom = size(orb%nOrbAtom)
-    
-    ASSERT(all(shape(qq) == (/orb%mOrb, nAtom/)))
-    ASSERT(size(over) == size(rho))
-    
+
+    @:ASSERT(all(shape(qq) == (/orb%mOrb, nAtom/)))
+    @:ASSERT(size(over) == size(rho))
+
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
       do iNeigh = 0, nNeighbor(iAtom1)
@@ -146,42 +154,48 @@ contains
 
   end subroutine mullikenPerOrbital
 
-  !!* Calculate the Mulliken population for each element of the dual atomic 
-  !!* blockorbital in the system using purely real-space overlap and density
-  !!* matrix values.
-  !!* @param qq The charge per atom block
-  !!* @param over Overlap matrix in packed format
-  !!* @param rho Density matrix in Packed format
-  !!* @param orb Information about the orbitals.
-  !!* @param iNeighbor Number of neighbours of each real atom (central cell)
-  !!* @param nNeighbor List of neighbours for each atom, starting at 0 for
-  !!* itself
-  !!* @param img2CentCell indexing array to convert images of atoms
-  !!* back into their number in the central cell
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @todo add description of algorithm to programer manual / documentation.
-  subroutine mullikenPerBlock(qq, over, rho, orb, iNeighbor, nNeighbor, &
-      &img2CentCell, iPair)    
+
+  !> Calculate the Mulliken population for each element of the dual atomic blocks in the system
+  !> using purely real-space overlap and density matrix values.
+  !>
+  !> To do: add description of algorithm to programer manual / documentation.
+  subroutine mullikenPerBlock(qq, over, rho, orb, iNeighbor, nNeighbor, img2CentCell, iPair)
+
+    !> The charge per atom block
     real(dp), intent(inout) :: qq(:,:,:)
+
+    !> Overlap matrix in packed format
     real(dp), intent(in) :: over(:)
+
+    !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
+
+    !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of neighbours of each real atom (central cell)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> List of neighbours for each atom, starting at 0 for itself
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array to convert images of atoms back into their number in the central cell
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: STmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: rhoTmp(orb%mOrb,orb%mOrb)
-    
+    integer :: iOrig
+    integer :: iNeigh
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: STmp(orb%mOrb,orb%mOrb)
+    real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
+
     nAtom = size(orb%nOrbAtom)
-    
-    ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
-    ASSERT(size(over) == size(rho))
+
+    @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
+    @:ASSERT(size(over) == size(rho))
 
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -199,8 +213,7 @@ contains
             & sTmp(1:nOrb2,1:nOrb1) ) &
             & + matmul(transpose(sTmp(1:nOrb2,1:nOrb1)), &
             & rhoTmp(1:nOrb2,1:nOrb1) ) )
-        ! Add contribution to the other triangle sum, using the symmetry
-        ! but only when off diagonal
+        ! Add contribution to the other triangle sum, using the symmetry but only when off diagonal
         if (iAtom1 /= iAtom2f) then
           qq(1:nOrb2,1:nOrb2,iAtom2f) = qq(1:nOrb2,1:nOrb2,iAtom2f) &
               & + 0.5_dp*( matmul( rhoTmp(1:nOrb2,1:nOrb1), &
@@ -213,42 +226,48 @@ contains
 
   end subroutine mullikenPerBlock
 
-  !!* Calculate the Mulliken population for each element of the dual atomic 
-  !!* block orbital in the system using purely real-space overlap and density
-  !!* matrix values.
-  !!* @param qq The charge per atom block
-  !!* @param over Overlap matrix in packed format
-  !!* @param rho Density matrix in Packed format
-  !!* @param orb Information about the orbitals.
-  !!* @param iNeighbor Number of neighbours of each real atom (central cell)
-  !!* @param nNeighbor List of neighbours for each atom, starting at 0 for
-  !!* itself
-  !!* @param img2CentCell indexing array to convert images of atoms
-  !!* back into their number in the central cell
-  !!* @param iPair indexing array for the Hamiltonian
-  !!* @todo add description of algorithm to programer manual / documentation.
-  subroutine skewMullikenPerBlock(qq, over, rho, orb, iNeighbor, nNeighbor, &
-      &img2CentCell, iPair)    
+
+  !> Calculate the Mulliken population for each element of the dual atomic block orbital in the
+  !> system using purely real-space overlap and density matrix values.
+  !>
+  !> To do: add description of algorithm to programer manual / documentation.
+  subroutine skewMullikenPerBlock(qq, over, rho, orb, iNeighbor, nNeighbor, img2CentCell, iPair)
+
+    !> The charge per atom block
     real(dp), intent(inout) :: qq(:,:,:)
+
+    !> Overlap matrix in packed format
     real(dp), intent(in) :: over(:)
+
+    !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
+
+    !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of neighbours of each real atom (central cell)
     integer, intent(in) :: iNeighbor(0:,:)
+
+    !> List of neighbours for each atom, starting at 0 for itself
     integer, intent(in) :: nNeighbor(:)
+
+    !> indexing array to convert images of atoms back into their number in the central cell
     integer, intent(in) :: img2CentCell(:)
+
+    !> indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
-    integer   :: iOrig
-    integer   :: iNeigh
-    integer   :: nAtom, iAtom1, iAtom2, iAtom2f
-    integer   :: nOrb1, nOrb2
-    real(dp)  :: STmp(orb%mOrb,orb%mOrb)
-    real(dp)  :: rhoTmp(orb%mOrb,orb%mOrb)
-    
+    integer :: iOrig
+    integer :: iNeigh
+    integer :: nAtom, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: STmp(orb%mOrb,orb%mOrb)
+    real(dp) :: rhoTmp(orb%mOrb,orb%mOrb)
+
     nAtom = size(orb%nOrbAtom)
-    
-    ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
-    ASSERT(size(over) == size(rho))
+
+    @:ASSERT(all(shape(qq) == (/orb%mOrb,orb%mOrb,nAtom/)))
+    @:ASSERT(size(over) == size(rho))
 
     do iAtom1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -266,8 +285,7 @@ contains
             & sTmp(1:nOrb2,1:nOrb1) ) &
             & - matmul(transpose(sTmp(1:nOrb2,1:nOrb1)), &
             & rhoTmp(1:nOrb2,1:nOrb1) ) )
-        ! Add contribution to the other triangle sum, using the symmetry
-        ! but only when off diagonal
+        ! Add contribution to the other triangle sum, using the symmetry but only when off diagonal
         if (iAtom1 /= iAtom2f) then
           qq(1:nOrb2,1:nOrb2,iAtom2f) = qq(1:nOrb2,1:nOrb2,iAtom2f) &
               & + 0.5_dp*( matmul( rhoTmp(1:nOrb2,1:nOrb1), &
@@ -277,8 +295,42 @@ contains
         end if
       end do
     end do
-    
+
   end subroutine skewMullikenPerBlock
 
-  
+
+  !> Calculate the number of charges per shell given the orbital charges.
+  subroutine getChargePerShell(qq, orb, species, chargePerShell)
+
+    !> charges in each orbital, for each atom and spin channel
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Resulting charges in atomic shells
+    real(dp), intent(out) :: chargePerShell(:,:,:)
+
+    integer :: iAt, iSp, iSh
+    integer :: nAtom, nSpin
+
+    nAtom = size(chargePerShell, dim=2)
+    nSpin = size(chargePerShell, dim=3)
+    chargePerShell(:,:,:) = 0.0_dp
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      do iSh = 1, orb%nShell(iSp)
+        chargePerShell(iSh, iAt, 1:nSpin) = chargePerShell(iSh, iAt, 1:nSpin)&
+            & + sum(qq(orb%posShell(iSh, iSp) : orb%posShell(iSh + 1, iSp) - 1, iAt, 1:nSpin),&
+            & dim=1)
+      end do
+    end do
+
+  end subroutine getChargePerShell
+
+
+
 end module populations

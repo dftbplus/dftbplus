@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,14 +17,18 @@ module dftd3_module
   public :: get_atomic_number
   public :: withDftD3
 
-#ifdef WITH_DFTD3
+#:if WITH_DFTD3
 
+
+  !> Whether code was built with DFTD3 support
   logical, parameter :: withDftD3 = .true.
 
-#else
+#:else
 
+
+  !> Whether code was built with DFTD3 support
   logical, parameter :: withDftD3 = .false.
 
-#endif
+#:endif
 
 end module dftd3_module

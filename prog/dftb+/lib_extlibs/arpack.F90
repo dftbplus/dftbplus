@@ -1,29 +1,34 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Interfaces for the ARPACK routines needed in DFTB+ (currently for
-!> the linear response excited state calculations).
+#:include 'common.fypp'
+
+!> Interfaces for the ARPACK routines needed in DFTB+ (currently for the linear response excited
+!> state calculations).
 module arpack
   use accuracy, only : rsp, rdp
   implicit none
   private
-  
+
   public :: withArpack
 
-  
-#ifdef WITH_ARPACK
+#:if WITH_ARPACK
 
   public :: saupd, seupd
 
-  ! Whether code was built with Arpack support
+
+  !> Whether code was built with Arpack support
   logical, parameter :: withArpack = .true.
+
 
   !> Wrapper around ARPACK routines ssaupd/dsaupd.
   interface saupd
+
+    !> single precision Arnoldi solver call
     subroutine ssaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
         & iparam, ipntr, workd, workl, lworkl, info)
       import :: rsp
@@ -45,7 +50,9 @@ module arpack
       real(rsp), intent(inout) :: workl(lworkl)
       integer, intent(inout) :: info
     end subroutine ssaupd
-    
+
+
+    !> double precision Arnoldi solver call
     subroutine dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
         & iparam, ipntr, workd, workl, lworkl, info)
       import :: rdp
@@ -68,9 +75,13 @@ module arpack
       integer, intent(inout) :: info
     end subroutine dsaupd
   end interface saupd
-  
+
+
   !> Wrapper around ARPACK routines sseupd/dseupd.
   interface seupd
+
+
+    !> single precision return from the results of the solver
     subroutine sseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
         & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
       import :: rsp
@@ -97,7 +108,9 @@ module arpack
       real(rsp), intent(inout) :: workl(lworkl)
       integer, intent(inout) :: info
     end subroutine sseupd
-    
+
+
+    !> double precision return from the results of the solver
     subroutine dseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
         & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
       import :: rdp
@@ -125,12 +138,13 @@ module arpack
       integer, intent(inout) :: info
     end subroutine dseupd
   end interface seupd
-    
-#else
-  
-  ! Whether code was built with Arpack support
+
+#:else
+
+
+  !> Whether code was built with ARPACK support
   logical, parameter :: withArpack = .false.
-  
-#endif
-  
+
+#:endif
+
 end module arpack

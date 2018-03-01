@@ -1,115 +1,99 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Simple mixer for mixing charges
+#:include 'common.fypp'
+
+!> Simple mixer for mixing charges
 module simplemixer
-#include "assert.h"  
-#include "allocate.h"  
+  use assert
   use accuracy
   implicit none
-  
+
   private
 
-  !!* Contains data for a simple mixer
+
+  !> Contains data for a simple mixer
   type OSimpleMixer
     private
-    real(dp) :: mixParam       !* Mixing parameter
+
+    !> Mixing parameter
+    real(dp) :: mixParam
   end type OSimpleMixer
 
 
-  !!* Creates a SimpleMixer instance
-  interface create
-    module procedure SimpleMixer_create
+  !> Creates a SimpleMixer instance
+  interface init
+    module procedure SimpleMixer_init
   end interface
 
-  !!* Destroys a SimpleMixer instance
-  interface destroy
-    module procedure SimpleMixer_destroy
-  end interface
 
-  !!* Resets a SimpleMixer
+  !> Resets a SimpleMixer
   interface reset
     module procedure SimpleMixer_reset
   end interface
 
-  !!* Does the simple mixing
+
+  !> Does the simple mixing
   interface mix
     module procedure SimpleMixer_mix
   end interface
 
-
   public :: OSimpleMixer
-  public :: create, destroy, reset, mix
-
+  public :: init, reset, mix
 
 contains
 
-  !!* Creates a simple mixer
-  !!* @param self     Simple mixer instance on exit
-  !!* @param mixParam Mixing parameter
-  subroutine SimpleMixer_create(self, mixParam)
-    type(OSimpleMixer), pointer :: self
+
+  !> Creates a simple mixer
+  subroutine SimpleMixer_init(self, mixParam)
+
+    !> Simple mixer instance on exit
+    type(OSimpleMixer), intent(out) :: self
+
+    !> Mixing parameter
     real(dp), intent(in) :: mixParam
 
-    INITALLOCATE_P(self)
     self%mixParam = mixParam
 
-  end subroutine SimpleMixer_create
+  end subroutine SimpleMixer_init
 
 
-
-  !!* Destroys the simple mixer
-  !!* @param self Simple mixer to destroy.
-  subroutine SimpleMixer_destroy(self)
-    type(OSimpleMixer), pointer :: self
-
-    DEALLOCATE_P(self)
-
-  end subroutine SimpleMixer_destroy
-
-
-
-  !!* Resets the mixer
-  !!* @param self Simple mixer instance
-  !!* @param nElem Length of the vectors to mix
+  !> Resets the mixer
   subroutine SimpleMixer_reset(self, nElem)
-    type(OSimpleMixer), pointer :: self
+
+    !> Simple mixer instance
+    type(OSimpleMixer), intent(inout) :: self
+
+    !> Length of the vectors to mix
     integer, intent(in) :: nElem
 
-    ASSERT(nElem > 0)
+    @:ASSERT(nElem > 0)
 
     continue
-    
+
   end subroutine SimpleMixer_reset
 
-  
 
-  !!* Does the actual mixing
-  !!* @param self       SimpleMixer instance
-  !!* @param qInpResult Input charge on entry, mixed charge on exit
-  !!* @param qDiff      Charge difference
+  !> Does the actual mixing
   subroutine SimpleMixer_mix(self, qInpResult, qDiff)
-    type(OSimpleMixer), pointer :: self
+
+    !> SimpleMixer instance
+    type(OSimpleMixer), intent(inout) :: self
+
+    !> Input charge on entry, mixed charge on exit
     real(dp), intent(inout) :: qInpResult(:)
-    real(dp), intent(in)    :: qDiff(:)
 
-    ASSERT(size(qInpResult) == size(qDiff))
+    !> Charge difference
+    real(dp), intent(in) :: qDiff(:)
 
-    !print *, "SIMPLE MIXER:"
-    !print *, "QINPRESULT:"
-    !print *, qInpResult
-    !print *, "QDIFF:"
-    !print *, qDiff
+    @:ASSERT(size(qInpResult) == size(qDiff))
+
     qInpResult(:) = qInpResult(:) + self%mixParam * qDiff(:)
-    !print *, "MIXED CHARGES:"
-    !print *, qInpResult
-    
 
   end subroutine SimpleMixer_mix
-
 
 end module simplemixer

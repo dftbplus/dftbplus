@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -19,8 +19,8 @@ all: $(TARGETS)
 # Include common makefile
 SRCDIRS := $(ROOT)/prog/dftb+/prg_dftb
 SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
-SRCDIRS += $(ROOT)/prog/dftb+/includes
-INCDIRS := $(ROOT)/prog/dftb+/includes
+SRCDIRS += $(ROOT)/prog/dftb+/include
+INCDIRS := $(ROOT)/prog/dftb+/include
 include $(ROOT)/prog/dftb+/make.common
 
 # Target definitions (declared *after* importing necessary makefiles).
@@ -54,8 +54,10 @@ AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
 	        -d $(TAGDIFF_SCRIPT)
 
 # Get list of tests to execute, but only if test is specified as goal
+CREATE_PRETESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
+	$(shell $(ROOT)/utils/test/testlist_to_fypp < $(TESTFILE) > $(PROCESSED_TESTFILE).fypp),)
 CREATE_TESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
-	$(shell $(FPP) $(CPP) $(CPPOPT) $(TESTFILE) > $(PROCESSED_TESTFILE)),)
+	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) -DMPI_PROCS=$(TEST_MPI_PROCS) -DOMP_THREADS=$(TEST_OMP_THREADS) $(PROCESSED_TESTFILE).fypp > $(PROCESSED_TESTFILE)),)
 TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(AUTOTEST_CMD) -f $(PROCESSED_TESTFILE) -l),)
 
@@ -64,7 +66,8 @@ TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 
 # Prepare and run individual tests, possibly in parallel.
 $(TESTS):
-	@$(AUTOTEST_CMD) -p ./dftb+ -s P,R $(AUTOTEST_FLAGS) $@
+	@$(AUTOTEST_CMD) -P "$(TESTRUNNER)" -p ./dftb+ -Q "$(POSTRUN)" -s P,R \
+            $(AUTOTEST_FLAGS) $@
 
 # Run calculations and immediately compare (possibly in parallel),
 # then summarize.  The dependency ensures proper sequencing.

@@ -77,7 +77,6 @@ Driver = VelocityVerlet {
        -18.56146256     56.49301574     28.09392963
        -27.26300528      0.33622906     41.02743533
   }
-  OutputPrefix = "dna.md"
   MDRestartFrequency = 10
 }	       			
 
@@ -132,3 +131,10 @@ Options = {
 ParserOptions = {
   ParserVersion = 4
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

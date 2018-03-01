@@ -1,12 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains names of various units and their conversion factors to the
-!!* corresponding unit used internal in the code (atomic units). 
+!> Contains names of various units and their conversion factors to the corresponding unit used
+!> internal in the code (atomic units).
 module unitconversion
   use constants
   implicit none
@@ -14,17 +14,22 @@ module unitconversion
   public
 
 
-  !!* Contains name of a unit and its conversion factor
+  !> Contains name of a unit and its conversion factor
   type unit
+
+    !> label for conversion factor
     character(20) :: name
-    real(dp) :: value
+
+    !> its value
+    real(dp) :: convertValue
   end type unit
 
 
-  !!* Number of length units
+  !> Number of length units
   integer, parameter :: nLengthUnit = 8
 
-  !!* Length units
+
+  !> Length units
   type(unit), parameter :: lengthUnits(nLengthUnit) = (/ &
       &unit("angstrom            ", AA__Bohr), &
       &unit("aa                  ", AA__Bohr), &
@@ -36,11 +41,12 @@ module unitconversion
       &unit("au                  ", 1.0_dp) &
       /)
 
-  
-  !!* Number of energy units
+
+  !> Number of energy units
   integer, parameter :: nEnergyUnit = 13
 
-  !!* Energy units
+
+  !> Energy units
   type(unit), parameter :: energyUnits(nEnergyUnit) = (/ &
       &unit("rydberg             ", 0.5_dp), &
       &unit("ry                  ", 0.5_dp), &
@@ -58,10 +64,11 @@ module unitconversion
       &/)
 
 
-  !!* Number of force units
+  !> Number of force units
   integer, parameter :: nForceUnit = 7
 
-  !!* Force units
+
+  !> Force units
   type(unit), parameter :: forceUnits(nForceUnit) = (/ &
       &unit("ev/angstrom         ", eV__Hartree / AA__Bohr), &
       &unit("ev/aa               ", eV__Hartree / AA__Bohr), &
@@ -73,10 +80,11 @@ module unitconversion
       &/)
 
 
-  !!* Number of time units
+  !> Number of time units
   integer, parameter :: nTimeUnit = 7
-  
-  !!* Time units
+
+
+  !> Time units
   type(unit), parameter :: timeUnits(nTimeUnit) = (/ &
       &unit("femtosecond         ", fs__au), &
       &unit("fs                  ", fs__au), &
@@ -85,23 +93,27 @@ module unitconversion
       &unit("second              ", 1e15_dp * fs__au), &
       &unit("s                   ", 1e15_dp * fs__au), &
       &unit("au                  ", 1.0_dp) &
-      &/)  
+      &/)
 
-  !!* Number of frequency units
+
+  !> Number of frequency units
   integer, parameter :: nFreqUnit = 4
-  
-  !!* Frequency units
+
+
+  !> Frequency units
   type(unit), parameter :: freqUnits(nFreqUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("hz                  ", 1e-15_dp * au__fs), &
       &unit("thz                 ", 1e-3_dp * au__fs), &
       &unit("cm^-1               ", 1e-8_dp * Bohr__AA * c) &
-      &/)  
-  
-  !!* Number of volume units
+      &/)
+
+
+  !> Number of volume units
   integer, parameter :: nVolumeUnit = 8
-  
-  !!* Volume units
+
+
+  !> Volume units
   type(unit), parameter :: volumeUnits(nVolumeUnit) = (/ &
       &unit("angstrom^3          ", AA__Bohr**3), &
       &unit("aa^3                ", AA__Bohr**3), &
@@ -112,12 +124,13 @@ module unitconversion
       &unit("bohr^3              ", 1.0_dp), &
       &unit("au                  ", 1.0_dp) &
       &/)
-  
-  
-  !!* Number of charge units
+
+
+  !> Number of charge units
   integer, parameter :: nChargeUnit = 4
-  
-  !!* Volume units
+
+
+  !> Volume units
   type(unit), parameter :: chargeUnits(nChargeUnit) = (/ &
       &unit("coulomb             ", Coulomb__au), &
       &unit("c                   ", Coulomb__au), &
@@ -125,19 +138,23 @@ module unitconversion
       &unit("au                  ", 1.0_dp) &
       &/)
 
-  !!* Number of electric field units
+
+  !> Number of electric field units
   integer, parameter :: nEFieldUnit = 2
-  
-  !!* Electric field units
+
+
+  !> Electric field units
   type(unit), parameter :: EFieldUnits(nEFieldUnit) = (/ &
       &unit("v/m                 ", V_m__au), &
       &unit("au                  ", 1.0_dp) &
       &/)
-  
-  !!* Number of magnetic field units
+
+
+  !> Number of magnetic field units
   integer, parameter :: nBFieldUnit = 5
-  
-  !!* Magnetic field units (Atomic "Gaussian" CGS unit system!)
+
+
+  !> Magnetic field units (Atomic "Gaussian" CGS unit system!)
   type(unit), parameter :: BFieldUnits(nBFieldUnit) = (/ &
       &unit("t                 ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
       &unit("tesla             ", 1.0E+24_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
@@ -145,20 +162,24 @@ module unitconversion
       &unit("g                 ", 1.0E+20_dp*c/(hbar*Coulomb__au*AA__Bohr**2)),&
       &unit("au                  ", 1.0_dp) &
       &/)
-  
-  !!* Number of pressure units
+
+
+  !> Number of pressure units
   integer, parameter :: nPressureUnit = 2
-  
-  !!* Pressure units
+
+
+  !> Pressure units
   type(unit), parameter :: pressureUnits(nPressureUnit) = (/ &
       &unit("pa                  ", pascal__au),&
       &unit("au                  ", 1.0_dp) &
       &/)
-  
-  !!* Number of velocity units
+
+
+  !> Number of velocity units
   integer, parameter :: nVelocityUnit = 4
-  
-  !!* Velocity units
+
+
+  !> Velocity units
   type(unit), parameter :: velocityUnits(nVelocityUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("m/s                 ", 1e10_dp * AA__Bohr / (1e15_dp * fs__au) ),&
@@ -166,21 +187,25 @@ module unitconversion
       &unit("aa/ps               ", AA__Bohr / (1e3_dp * fs__au) ) &
       &/)
 
-  !!* Number of mass units
+
+  !> Number of mass units
   integer, parameter :: nMassUnit = 4
-  
-  !!* Number of dipole units
+
+
+  !> Number of dipole units
   integer, parameter :: nDipoleUnit = 4
-  
-  !!* Dipole units
+
+
+  !> Dipole units
   type(unit), parameter :: dipoleUnits(nDipoleUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("debye               ", Debye__au ), &
       &unit("cm                  ", Coulomb__au*1.0e10_dp*AA__Bohr ), &
       &unit("coulombmeter        ", Coulomb__au*1.0e10_dp*AA__Bohr ) &
       &/)
-  
-  !!* Mass units
+
+
+  !> Mass units
   type(unit), parameter :: MassUnits(nMassUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("amu                 ", amu__au ), &

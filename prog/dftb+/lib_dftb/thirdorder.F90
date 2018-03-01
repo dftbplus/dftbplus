@@ -1,14 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Routines implementing the full 3rd order DFTB.
 module thirdorder_module
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use commontypes, only : TOrbitals
   use shortgamma, only : expGammaCutoff
@@ -19,23 +20,30 @@ module thirdorder_module
 
   public :: ThirdOrderInp, ThirdOrder, ThirdOrder_init
 
+
   !> Input for the 3rd order module
   type ThirdOrderInp
+
 
     !> Orbital information
     type(TOrbitals), pointer :: orb
 
+
     !> Hubbard U values. Shape: [nShell, nSpecies]
     real(dp), allocatable :: hubbUs(:,:)
+
 
     !> Hubbard U derivatives. Shape: [nShell, nSpecies]
     real(dp), allocatable :: hubbUDerivs(:,:)
 
+
     !> Whether interaction should be damped when given atom is involved.
     logical, allocatable :: damped(:)
 
+
     !> Exponention of the damping
     real(dp) :: dampExp
+
 
     !> Whether third order should be considered shell resolved. If not,
     !! only the first shell of each atom in hubbUs and hubbUDerivs is used.
@@ -64,23 +72,24 @@ module thirdorder_module
     procedure :: getCutoff
     procedure :: updateCoords
     procedure :: updateCharges
-    procedure :: getShiftPerAtom
-    procedure :: getShiftPerShell
+    procedure :: getShifts
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
     procedure :: addGradientDc
     procedure :: addGradientDcXlbomd
   end type ThirdOrder
 
-
 contains
+
 
   !> Initializes instance.
   !!
   subroutine ThirdOrder_init(this, inp)
 
+
     !> Instance.
     type(ThirdOrder), intent(out) :: this
+
 
     !> Input data.
     type(ThirdOrderInp), intent(in) :: inp
@@ -96,26 +105,26 @@ contains
       this%dUdQ = inp%hubbUDerivs
     else
       this%mShells = 1
-      ALLOCATE_(this%nShells, (this%nSpecies))
+      allocate(this%nShells(this%nSpecies))
       this%nShells(:) = 1
       this%UU = inp%hubbUs(1:1, :)
       this%dUdQ = inp%hubbUDerivs(1:1, :)
     end if
-    
-    ALLOCATE_(this%cutoffs, (this%nSpecies, this%nSpecies))
+
+    allocate(this%cutoffs(this%nSpecies, this%nSpecies))
     call calcCutoffs(this%UU, this%nShells, this%cutoffs)
     this%maxCutoff = maxval(this%cutoffs)
 
-    ALLOCATE_(this%nNeigh, (this%nSpecies, this%nAtoms))
-    ALLOCATE_(this%nNeighMax, (this%nAtoms))
-    ALLOCATE_(this%chargesPerAtom, (this%nAtoms))
-    ALLOCATE_(this%chargesPerShell, (this%mShells, this%nAtoms))
-    ALLOCATE_(this%shift1, (this%mShells, this%nAtoms))
-    ALLOCATE_(this%shift2, (this%mShells, this%nAtoms))
-    ALLOCATE_(this%shift3, (this%nAtoms))
-    ALLOCATE_(this%gamma3ab, (this%mShells, this%mShells, 0, this%nAtoms))
-    ALLOCATE_(this%gamma3ba, (this%mShells, this%mShells, 0, this%nAtoms))
-    ALLOCATE_(this%damped, (this%nSpecies))
+    allocate(this%nNeigh(this%nSpecies, this%nAtoms))
+    allocate(this%nNeighMax(this%nAtoms))
+    allocate(this%chargesPerAtom(this%nAtoms))
+    allocate(this%chargesPerShell(this%mShells, this%nAtoms))
+    allocate(this%shift1(this%mShells, this%nAtoms))
+    allocate(this%shift2(this%mShells, this%nAtoms))
+    allocate(this%shift3(this%nAtoms))
+    allocate(this%gamma3ab(this%mShells, this%mShells, 0, this%nAtoms))
+    allocate(this%gamma3ba(this%mShells, this%mShells, 0, this%nAtoms))
+    allocate(this%damped(this%nSpecies))
     this%damped = inp%damped
     this%dampExp = inp%dampExp
 
@@ -126,8 +135,10 @@ contains
   !!
   function getCutoff(this) result(cutoff)
 
+
     !> Instance
     class(ThirdOrder), intent(inout) :: this
+
 
     !> Cutoff
     real(dp) :: cutoff
@@ -140,11 +151,14 @@ contains
   !> Updates data structures if there are changed coordinates for the instance.
   subroutine updateCoords(this, neighList, species)
 
+
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
 
+
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighList
+
 
     !> Species for all atoms, shape: [nAllAtom].
     integer, intent(in) :: species(:)
@@ -163,10 +177,10 @@ contains
     this%nNeighMax = maxval(this%nNeigh, dim=1)
 
     if (size(this%gamma3ab, dim=3) < maxval(this%nNeighMax) + 1) then
-      DEALLOCATE_(this%gamma3ab)
-      DEALLOCATE_(this%gamma3ba)
-      ALLOCATE_(this%gamma3ab, (this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
-      ALLOCATE_(this%gamma3ba, (this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
+      deallocate(this%gamma3ab)
+      deallocate(this%gamma3ba)
+      allocate(this%gamma3ab(this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
+      allocate(this%gamma3ba(this%mShells, this%mShells, 0:maxval(this%nNeighMax), this%nAtoms))
     end if
     this%gamma3ab(:,:,:,:) = 0.0_dp
     this%gamma3ba(:,:,:,:) = 0.0_dp
@@ -193,27 +207,34 @@ contains
   end subroutine updateCoords
 
 
-  !> Signalizes changed charges for the instance.
+  !> Updates with changed charges for the instance.
   !!
   subroutine updateCharges(this, species, neighList, qq, q0, img2CentCell, orb)
+
 
     !> Instance
     class(ThirdOrder), intent(inout) :: this
 
+
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)
+
 
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighList
 
+
     !> Orbital charges.
     real(dp), intent(in) :: qq(:,:,:)
+
 
     !> Reference orbital charges.
     real(dp), intent(in) :: q0(:,:,:)
 
+
     !> Mapping on atoms in central cell.
     integer, intent(in) :: img2CentCell(:)
+
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -221,19 +242,19 @@ contains
     real(dp), allocatable :: chargesPerShell(:,:)
     integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh
 
-    ASSERT(size(species) == this%nAtoms)
-    ASSERT(size(qq, dim=2) == this%nAtoms)
-    ASSERT(size(q0, dim=2) == this%nAtoms)
+    @:ASSERT(size(species) == this%nAtoms)
+    @:ASSERT(size(qq, dim=2) == this%nAtoms)
+    @:ASSERT(size(q0, dim=2) == this%nAtoms)
 
     if (this%shellResolved) then
-      call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
+      call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
           & dQShell=this%chargesPerShell)
     else
       ! First (only) component of this%chargesPerShell contains atomic charge
-      ALLOCATE_(chargesPerShell, (this%mShellsReal, this%nAtoms))
-      call getNetCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom, dQShell=chargesPerShell)
+      allocate(chargesPerShell(this%mShellsReal, this%nAtoms))
+      call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom,&
+          & dQShell=chargesPerShell)
       this%chargesPerShell(1,:) = sum(chargesPerShell, dim=1)
-      DEALLOCATE_(chargesPerShell)
     end if
 
     this%shift1(:,:) = 0.0_dp
@@ -280,45 +301,29 @@ contains
 
   !> Returns shifts per atom.
   !!
-  subroutine getShiftPerAtom(this, shift)
+  subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
 
     !> Shift per atom.
-    real(dp), intent(out) :: shift(:)
-
-    ASSERT(size(shift) == this%nAtoms)
-
-    if (this%shellResolved) then
-      shift(:) = this%shift3
-    else
-      shift(:) = this%shift1(1,:) + this%shift2(1,:) + this%shift3
-    end if
-
-  end subroutine getShiftPerAtom
-
-
-  !> Returns shifts per shell.
-  !!
-  subroutine getShiftPerShell(this, shift)
-
-    !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    real(dp), intent(out) :: shiftPerAtom(:)
 
     !> Shift per shell.
-    real(dp), intent(out) :: shift(:,:)
+    real(dp), intent(out) :: shiftPerShell(:,:)
 
-    ASSERT(size(shift, dim=1) == this%mShellsReal)
-    ASSERT(size(shift, dim=2) == this%nAtoms)
+    @:ASSERT(size(shiftPerAtom) == this%nAtoms)
+    @:ASSERT(size(shiftPerShell, dim=1) == this%mShellsReal)
 
     if (this%shellResolved) then
-      shift(:,:) = this%shift1 + this%shift2
+      shiftPerAtom(:) = this%shift3
+      shiftPerShell(:,:) = this%shift1 + this%shift2
     else
-      shift(:,:) = 0.0_dp
+      shiftPerAtom(:) = this%shift1(1,:) + this%shift2(1,:) + this%shift3
+      shiftPerShell(:,:) = 0.0_dp
     end if
 
-  end subroutine getShiftPerShell
+  end subroutine getShifts
 
 
   !> Returns energy per atom.
@@ -327,7 +332,7 @@ contains
     class(ThirdOrder), intent(inout) :: this
     real(dp), intent(out) :: energyPerAtom(:)
 
-    ASSERT(size(energyPerAtom) == this%nAtoms)
+    @:ASSERT(size(energyPerAtom) == this%nAtoms)
 
     energyPerAtom(:) = (1.0_dp / 3.0_dp) * (&
         & sum((this%shift1 + this%shift2) * this%chargesPerShell, dim=1)&
@@ -346,36 +351,41 @@ contains
   !!
   subroutine getEnergyPerAtomXlbomd(this, qOut, q0, species, orb, energyPerAtom)
 
+
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
+
 
     !> Output populations determined after the diagonalization.
     real(dp), intent(in) :: qOut(:,:,:)
 
+
     !> Reference populations.
     real(dp), intent(in) :: q0(:,:,:)
+
 
     !> Species of each atom.
     integer, intent(in) :: species(:)
 
+
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
+
 
     !> Energy per atom for linearized case.
     real(dp), intent(out) :: energyPerAtom(:)
 
     real(dp), allocatable :: qOutAtom(:), qOutShell(:,:), qOutShellTmp(:,:)
 
-    ALLOCATE_(qOutAtom, (this%nAtoms))
-    ALLOCATE_(qOutShell, (this%mShells, this%nAtoms))
+    allocate(qOutAtom(this%nAtoms))
+    allocate(qOutShell(this%mShells, this%nAtoms))
     if (this%shellResolved) then
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
     else
       ! First (only) component of qOutShell contains atomic charge
-      ALLOCATE_(qOutShellTmp, (this%mShellsReal, this%nAtoms))
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
+      allocate(qOutShellTmp(this%mShellsReal, this%nAtoms))
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
-      DEALLOCATE_(qOutShellTmp)
     end if
     energyPerAtom(:) = sum(this%shift1 * qOutShell, dim=1)&
         & + sum(this%shift2 * (qOutShell - this%chargesPerShell), dim=1)&
@@ -391,17 +401,22 @@ contains
     !! Instance.
     class(ThirdOrder), intent(inout) :: this
 
+
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighList
+
 
     !> Specie for each atom.
     integer, intent(in) :: species(:)
 
+
     !> Coordinate of each atom.
     real(dp), intent(in) :: coords(:,:)
 
+
     !> Mapping of atoms to cetnral cell.
     integer, intent(in) :: img2CentCell(:)
+
 
     !> Gradient on exit.
     real(dp), intent(inout) :: derivs(:,:)
@@ -448,29 +463,38 @@ contains
   subroutine addGradientDcXlbomd(this, neighList, species, coords, img2CentCell, qOut, q0, orb,&
       & derivs)
 
+
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
+
 
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighList
 
+
     !> Specie for each atom.
     integer, intent(in) :: species(:)
+
 
     !> Coordinate of each atom.
     real(dp), intent(in) :: coords(:,:)
 
+
     !> Mapping of atoms to cetnral cell.
     integer, intent(in) :: img2CentCell(:)
+
 
     !> Output populations determined after the diagonalization.
     real(dp), intent(in) :: qOut(:,:,:)
 
+
     !> Reference populations.
     real(dp), intent(in) :: q0(:,:,:)
 
+
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
+
 
     !> Modified gradient on exit.
     real(dp), intent(inout) :: derivs(:,:)
@@ -482,18 +506,17 @@ contains
     real(dp) :: tmp3(3)
     logical :: damping
 
-    ALLOCATE_(qOutAtom, (this%nAtoms))
-    ALLOCATE_(qOutShell, (this%mShells, this%nAtoms))
-    ALLOCATE_(qDiffAtom, (this%nAtoms))
-    ALLOCATE_(qDiffShell, (this%mShells, this%nAtoms))
+    allocate(qOutAtom(this%nAtoms))
+    allocate(qOutShell(this%mShells, this%nAtoms))
+    allocate(qDiffAtom(this%nAtoms))
+    allocate(qDiffShell(this%mShells, this%nAtoms))
     if (this%shellResolved) then
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShell)
     else
       ! First (only) component of qOutShell contains atomic charge
-      ALLOCATE_(qOutShellTmp, (this%mShellsReal, this%nAtoms))
-      call getNetCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
+      allocate(qOutShellTmp(this%mShellsReal, this%nAtoms))
+      call getSummedCharges(species, orb, qOut, q0, dQAtom=qOutAtom, dQShell=qOutShellTmp)
       qOutShell(1,:) = sum(qOutShellTmp, dim=1)
-      DEALLOCATE_(qOutShellTmp)
     end if
 
     qDiffAtom(:) = qOutAtom - this%chargesPerAtom
@@ -542,14 +565,19 @@ contains
 
   end subroutine addGradientDcXlbomd
 
+! Private routines
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!! Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> calculate short range cut off distance
   subroutine calcCutoffs(hubbUs, nShells, cutoffs)
+
+    !> Hubard U values
     real(dp), intent(in) :: hubbUs(:,:)
+
+    !> Shells on atoms
     integer, intent(in) :: nShells(:)
+
+    !> resulting cutoff distances
     real(dp), intent(out) :: cutoffs(:,:)
 
     integer :: nSpecies
@@ -558,7 +586,7 @@ contains
     integer :: iSp1, iSp2
 
     nSpecies = size(cutoffs, dim=1)
-    ALLOCATE_(minUs, (nSpecies))
+    allocate(minUs(nSpecies))
     do iSp1 = 1, nSpecies
       minUs(iSp1) = minval(hubbUs(1:nShells(iSp1), iSp1))
     end do
@@ -573,9 +601,12 @@ contains
   end subroutine calcCutoffs
 
 
-  ! Gamma_AB = dgamma_AB/dUa * (dUa/dQa)
+  !> Gamma_AB = dgamma_AB/dUa * (dUa/dQa)
   function gamma3(Ua, Ub, dUa, rab, damping, xi) result(res)
-    real(dp), intent(in) :: Ua, Ub, dUa, rab
+    real(dp), intent(in) :: Ua
+    real(dp), intent(in) :: Ub
+    real(dp), intent(in) :: dUa
+    real(dp), intent(in) :: rab
     logical, intent(in) :: damping
     real(dp), intent(in) :: xi
     real(dp) :: res
@@ -585,7 +616,7 @@ contains
   end function gamma3
 
 
-  ! dGamma_AB/dr
+  !> dGamma_AB/dr
   function gamma3pR(Ua, Ub, dUa, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, dUa, rab
     logical, intent(in) :: damping
@@ -597,9 +628,9 @@ contains
   end function gamma3pR
 
 
-  ! dgamma_AB/dUa
-  ! Sign convention: routine delivers dgamma_AB/dUa with the right sign.
-  ! Energy contributions must be therefore summed with *positive* sign.
+  !> dgamma_AB/dUa
+  !> Sign convention: routine delivers dgamma_AB/dUa with the right sign.
+  !> Energy contributions must be therefore summed with *positive* sign.
   function gamma2pU(Ua, Ub, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab
     logical, intent(in) :: damping
@@ -635,9 +666,9 @@ contains
   end function gamma2pU
 
 
-  ! d^2gamma_AB/dUa*dr
-  ! Sign convention: routine delivers d^2gamma_AB/dUa*dr with the right sign.
-  ! Gradient contributions must be therefore summed with *positive* sign.
+  !> d^2gamma_AB/dUa*dr
+  !> Sign convention: routine delivers d^2gamma_AB/dUa*dr with the right sign.
+  !> Gradient contributions must be therefore summed with *positive* sign.
   function gamma2pUpR(Ua, Ub, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab
     logical, intent(in) :: damping
@@ -674,8 +705,8 @@ contains
   end function gamma2pUpR
 
 
-  ! \frac{d\gamma}{dU_{l_a}} for r = 0
-  ! Eq S7 in Gaus et al. (2015) JCTC 11:4205-4219, DOI: 10.1021/acs.jctc.5b00600
+  !> \frac{d\gamma}{dU_{l_a}} for r = 0
+  !> Eq S7 in Gaus et al. (2015) JCTC 11:4205-4219, DOI: 10.1021/acs.jctc.5b00600
   function dGdUr0(tauA, tauB) result(res)
     real(dp), intent(in) :: tauA, tauB
     real(dp) :: res
@@ -692,7 +723,7 @@ contains
   end function dGdUr0
 
 
-  ! S1(tauA,tauB,r): Short range SCC when tauA <> tauB and r <> 0
+  !> S1(tauA,tauB,r): Short range SCC when tauA <> tauB and r <> 0
   function short_1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -702,7 +733,7 @@ contains
   end function short_1
 
 
-  ! S2(tau,r), short range SCC when tauA = tauB = tau and r <> 0.
+  !> S2(tau,r), short range SCC when tauA = tauB = tau and r <> 0.
   function short_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -712,7 +743,7 @@ contains
   end function short_2
 
 
-  ! dS1(tauA,tauB,r)/dtauA
+  !> dS1(tauA,tauB,r)/dtauA
   function shortpT_1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -723,7 +754,7 @@ contains
   end function shortpT_1
 
 
-  ! dS2(tauA,tauB,r)/dtauA
+  !> dS2(tauA,tauB,r)/dtauA
   function shortpT_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -733,7 +764,7 @@ contains
   end function shortpT_2
 
 
-  ! dS1(tauA,tauB,r)/dr
+  !> dS1(tauA,tauB,r)/dr
   function shortpR_1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -744,7 +775,7 @@ contains
   end function shortpR_1
 
 
-  ! dS2(tauA,tauB,r)/dr
+  !> dS2(tauA,tauB,r)/dr
   function shortpR_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -754,7 +785,7 @@ contains
   end function shortpR_2
 
 
-  ! d^2S1(tauA,tauB,r)/dtauA*dr
+  !> d^2S1(tauA,tauB,r)/dtauA*dr
   function shortpTpR_1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -766,7 +797,7 @@ contains
   end function shortpTpR_1
 
 
-  ! d^2S2(tau,r)/dtau*dr
+  !> d^2S2(tau,r)/dtau*dr
   function shortpTpR_2(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -777,7 +808,7 @@ contains
   end function shortpTpR_2
 
 
-  ! f(tauA,tauB,r)
+  !> f(tauA,tauB,r)
   function ff(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -788,7 +819,7 @@ contains
   end function ff
 
 
-  ! df(tauA,tauB,r)/dtauA
+  !> df(tauA,tauB,r)/dtauA
   function fpT1(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -799,7 +830,7 @@ contains
   end function fpT1
 
 
-  ! df(tauB,tauA,rab)/dtauA
+  !> df(tauB,tauA,rab)/dtauA
   function fpT2(tauB, tauA , rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -810,7 +841,7 @@ contains
   end function fpT2
 
 
-  ! df(tauA, tauB,r)/dr
+  !> df(tauA, tauB,r)/dr
   function fpR(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -820,7 +851,7 @@ contains
   end function fpR
 
 
-  ! d^2f(tauA,tauB,r)/dtauA*dr
+  !> d^2f(tauA,tauB,r)/dtauA*dr
   function fpT1pR(tauA, tauB, rab) result(res)
     real(dp), intent(in) :: tauA, tauB, rab
     real(dp) :: res
@@ -830,7 +861,7 @@ contains
   end function fpT1pR
 
 
-  ! d^2f(tauB,tauA,r)/dtauA*dr
+  !> d^2f(tauB,tauA,r)/dtauA*dr
   function fpT2pR(tauB, tauA, rab) result(res)
     real(dp), intent(in) :: tauB, tauA, rab
     real(dp) :: res
@@ -840,7 +871,7 @@ contains
   end function fpT2pR
 
 
-  ! g(tau,r)
+  !> g(tau,r)
   function gg(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -851,7 +882,7 @@ contains
   end function gg
 
 
-  ! dg(tau,rab)/dtau
+  !> dg(tau,rab)/dtau
   function gpT(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -861,7 +892,7 @@ contains
   end function gpT
 
 
-  ! dg(tau,r)/dr
+  !> dg(tau,r)/dr
   function gpR(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -871,7 +902,7 @@ contains
   end function gpR
 
 
-  ! d^2g(tau,r)/dtau*dr
+  !> d^2g(tau,r)/dtau*dr
   function gpTpR(tau, rab) result(res)
     real(dp), intent(in) :: tau, rab
     real(dp) :: res
@@ -881,7 +912,7 @@ contains
   end function gpTpR
 
 
-  ! Damping: h(Ua,Ub)
+  !> Damping: h(Ua,Ub)
   function hh(Ua, Ub, rab, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab, xi
     real(dp) :: res
@@ -891,7 +922,7 @@ contains
   end function hh
 
 
-  ! dh(Ua,Ub)/dUa
+  !> dh(Ua,Ub)/dUa
   function hpU(Ua, Ub, rab, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab, xi
     real(dp) :: res
@@ -901,7 +932,7 @@ contains
   end function hpU
 
 
-  ! dh(Ua,Ub)/dr
+  !> dh(Ua,Ub)/dr
   function hpR(Ua, Ub, rab, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab, xi
     real(dp) :: res
@@ -911,7 +942,7 @@ contains
   end function hpR
 
 
-  ! dh(Ua,Ub)/dUa*dr
+  !> dh(Ua,Ub)/dUa*dr
   function hpUpR(Ua, Ub, rab, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab, xi
     real(dp) :: res
@@ -920,6 +951,5 @@ contains
         & * (rab**2 * (0.5_dp * (Ua + Ub))**xi - 1.0_dp) * hh(Ua, Ub, rab, xi)
 
   end function hpUpR
-
 
 end module thirdorder_module

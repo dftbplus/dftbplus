@@ -12,7 +12,6 @@ Driver = VelocityVerlet {
   Thermostat = None {
     InitialTemperature [Kelvin] = 273.150000000000
   }
-  OutputPrefix = "geom.out"
 }
 
 Hamiltonian = DFTB {
@@ -21,7 +20,6 @@ Hamiltonian = DFTB {
   MaxSCCIterations = 1000
   Mixer = Broyden {
     MixingParameter = 5.000000000000000E-002
-    CachedIterations = 8
   }
   MaxAngularMomentum = {
     H = "s"
@@ -46,3 +44,10 @@ Options = {
 ParserOptions = {
   ParserVersion = 3
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

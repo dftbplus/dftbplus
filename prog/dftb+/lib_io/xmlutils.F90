@@ -1,12 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
+!> Utilities for processing an XML tree
 module xmlutils
-#include "assert.h"  
+  use assert
   use charmanip
   use xmlf90
   implicit none
@@ -17,23 +20,25 @@ module xmlutils
   public :: getTagsWithoutAttribute, removeChildNodes, removeNodes
   public :: getChildrenByName
 
-
 contains
 
-  !!* Returns first child with a certain name.
-  !!* @param node Parent node containing children
-  !!* @param name Child name to look for (empty string returns the node itself)
-  !!* @return Pointer to child with the specified name or null pointer if not
-  !!*   found. If the name parameter was empty, a pointer to the node itself
-  !!*   will be returned.
+
+  !> Returns first child with the specified name.
   function getFirstChildByName(node, name) result(child)
+
+    !> Parent node containing children
     type(fnode), pointer :: node
+
+    !> Child name to look for (empty string returns the node itself)
     character(len=*), intent(in) :: name
+
+    !> Pointer to child with the specified name or null pointer if not found. If the name parameter
+    !> was empty, a pointer to the node itself will be returned.
     type(fnode), pointer :: child
 
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (len(name) == 0) then
       child => node
@@ -47,26 +52,26 @@ contains
         child => getNextSibling(child)
       end do
     end if
-    call unstring(buffer)
 
   end function getFirstChildByName
-    
 
 
-  !!* Returns last child with a certain name.
-  !!* @param node Parent node containing children
-  !!* @param name Child name to look for (empty string returns the node itself)
-  !!* @return Pointer to child with the specified name or null pointer if not
-  !!*   found. If the name parameter was empty, a pointer to the node itself
-  !!*   will be returned.
+  !> Returns last child with the specified name.
   function getLastChildByName(node, name) result(child)
+
+    !> Parent node containing children
     type(fnode), pointer :: node
+
+    !> Child name to look for (empty string returns the node itself)
     character(len=*), intent(in) :: name
+
+    !> Pointer to child with the specified name or null pointer if not found. If the name parameter
+    !> was empty, a pointer to the node itself will be returned.
     type(fnode), pointer :: child
 
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     if (len(name) == 0) then
       child => node
@@ -80,25 +85,26 @@ contains
         child => getPreviousSibling(child)
       end do
     end if
-    call unstring(buffer)
 
   end function getLastChildByName
 
 
-  
-  !!* Returns a list of children with a specific node name.
-  !!* @param node      Parent node to investigate.
-  !!* @param name      Name of the children to look for.
-  !!* @param childList List of the children on return.
+  !> Returns a list of children with the specified node name.
   function getChildrenByName(node, name) result(childList)
+
+    !> Parent node to investigate.
     type(fnode), pointer :: node
+
+    !> Name of the children to look for.
     character(len=*), intent(in) :: name
+
+    !> List of the children on return.
     type(fnodeList), pointer :: childList
 
     type(fnode), pointer :: child
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     nullify(childList)
     if (len(name) == 0) then
@@ -113,22 +119,20 @@ contains
       end if
       child => getNextSibling(child)
     end do
-    call unstring(buffer)
 
   end function getChildrenByName
 
-    
 
-
-  !!* Remove text nodes with only whitespace characters from node and children.
-  !!* @param node Node to investigate
+  !> Remove text nodes with only whitespace characters from node and children.
   recursive subroutine removeSpace(node)
+
+    !> Node to investigate
     type(fnode), pointer :: node
 
     type(fnode), pointer :: child, child2, dummy
     type(string) :: buffer
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child => getFirstChild(node)
     do while (associated(child))
@@ -144,28 +148,30 @@ contains
       end if
       child => child2
     end do
-    call unstring(buffer)
 
   end subroutine removeSpace
 
 
-
-  !!* Collects nodes in a tree without a specific attribute.
-  !!* @param node     Tree to investigate
-  !!* @param name     Name of the attribute to look for
-  !!* @param rootOnly Should children of a found attributeless node be ignored?
-  !!* @return List of the nodes without the specified attribute
+  !> Collects nodes in a tree that are without a specific attribute.
   function getTagsWithoutAttribute(node, name, rootOnly) result(nodeList)
+
+    !> Tree to investigate
     type(fnode), pointer :: node
+
+    !> Name of the attribute to look for
     character(len=*), intent(in) :: name
+
+    !> Should children of a found attribute-less node be ignored?
     logical, intent(in), optional :: rootOnly
+
+    !> List of the nodes without the specified attribute
     type(fnodeList), pointer :: nodeList
-    
+
     logical :: tRootOnly
 
-    ASSERT(associated(node))
-    ASSERT(len(name) > 0)
-    
+    @:ASSERT(associated(node))
+    @:ASSERT(len(name) > 0)
+
     if (present(rootOnly)) then
       tRootOnly = rootOnly
     else
@@ -177,23 +183,26 @@ contains
   end function getTagsWithoutAttribute
 
 
-
-  !!* Recursive working subroutine for the getTagsWithoutAttribute routine
-  !!* @param node     Tree to investigate
-  !!* @param name     Name of the attribute to look for
-  !!* @param rootOnly Should children of a found attributeless node be ignored? 
-  !!* @param nodeList List of the nodes without the specified attribute
+  !> Recursive working subroutine for the getTagsWithoutAttribute routine
   recursive subroutine getTagsWithoutAttr_recursive(node, name, rootOnly, &
       &nodeList)
+
+    !> Tree to investigate
     type(fnode), pointer :: node
+
+    !> Name of the attribute to look for
     character(len=*), intent(in) :: name
+
+    !> Should children of a found attribute-less node be ignored?
     logical, intent(in) :: rootOnly
+
+    !> List of the nodes without the specified attribute
     type(fnodeList), pointer :: nodeList
-    
+
     type(fnode), pointer :: attr, child
 
-    ASSERT(associated(node))
-    ASSERT(len(name) > 0)
+    @:ASSERT(associated(node))
+    @:ASSERT(len(name) > 0)
 
     attr => getAttributeNode(node, name)
     if (.not. associated(attr)) then
@@ -209,19 +218,19 @@ contains
       end if
       child => getNextSibling(child)
     end do
-    
+
   end subroutine getTagsWithoutAttr_recursive
 
-  
 
-  !!* Remove and destroy all children of a node.
-  !!* @param node Node to process
+  !> Remove and destroy all children of a node.
   subroutine removeChildNodes(node)
+
+    !> Node to process
     type(fnode), pointer :: node
 
     type(fnode), pointer :: child, child2
 
-    ASSERT(associated(node))
+    @:ASSERT(associated(node))
 
     child => getFirstChild(node)
     do while (associated(child))
@@ -230,28 +239,26 @@ contains
       call destroyNode(child)
       child => child2
     end do
-    
+
   end subroutine removeChildNodes
 
 
-
-  !!* Removes nodes from a tree and destroys them.
-  !!* @param nodeList Contains the nodes to remove
-  !!* @caveat The nodes must not be each others children.
+  !> Removes nodes from a tree and destroys them.
+  !> Caveat: The nodes must not be children of each other.
   subroutine removeNodes(nodeList)
+
+    !> Contains the nodes to remove
     type(fnodeList), pointer :: nodeList
 
     type(fnode), pointer :: child
     integer :: ii
-    
+
     do ii = 0, getLength(nodeList) - 1
       child => item(nodeList, ii)
       child => removeChild(getParentNode(child), child)
       call destroyNode(child)
     end do
-    
+
   end subroutine removeNodes
-
-
 
 end module xmlutils

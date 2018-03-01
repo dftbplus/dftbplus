@@ -1,39 +1,46 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains routines to locate a value in an ascending array using bisection
-!!* @todo Proper documentation, more traps? Complex case?
+!> Contains routines to locate a value in an ascending array using bisection
 module bisect
   use accuracy, only : dp
   implicit none
 
-  !!* Bisection driver to find a point in an array xx(:) between xx(1) and
-  !!* xx(size(xx)) such that element indexed j is less than the value x queried
-  !!* @param j located element such that xx(j) < x < xx(j+1)
-  !!* @param xx array of values in monotonic order to search through
-  !!* @param value to locate j for
+
+  !> Bisection driver to find a point in an array xx(:) between xx(1) and xx(size(xx)) such that
+  !> element indexed j is less than the value x queried
   interface bisection
     module procedure bisection_real
     module procedure bisection_int
   end interface bisection
-  
+
 contains
 
-  !!* real(dp) case for bisection search
+
+  !> real case for bisection search
   subroutine bisection_real(j,xx,x, tol)
-    integer,  intent(out)          :: j
-    real(dp), intent(in)           :: xx(:), x
+
+    !> located element such that xx(j) < x < xx(j+1)
+    integer, intent(out) :: j
+
+    !> array of values in monotonic order to search through
+    real(dp), intent(in) :: xx(:)
+
+    !> value to locate j for
+    real(dp), intent(in) :: x
+
+    !> Tolerance for equality comparision
     real(dp), intent(in), optional :: tol
-    
-    integer  :: n
-    integer  :: jlower,jupper,jcurr
+
+    integer :: n
+    integer :: jlower,jupper,jcurr
     real(dp) :: rTol      !! real tolerance
-    logical  :: ascending
-    
+    logical :: ascending
+
     n = size(xx)
     if (n == 0) then
       j = 0
@@ -45,7 +52,7 @@ contains
     else
       rTol = epsilon(0.0_dp)
     end if
-    
+
     if (x  < xx(1) - rTol) then
       j = 0
     else if (abs(x - xx(1)) <= rTol) then
@@ -70,10 +77,19 @@ contains
     end if
   end subroutine bisection_real
 
-  !!* integer case for bisection search
+
+  !> integer case for bisection search
   subroutine bisection_int(j,xx,x)
+
+    !> located element such that xx(j) < x < xx(j+1)
     integer, intent(out) :: j
-    integer, intent(in) :: xx(:), x
+
+    !> array of values in monotonic order to search through
+    integer, intent(in) :: xx(:)
+
+    !> value to locate j for
+    integer, intent(in) :: x
+
     integer :: n
     integer :: jlower,jupper,jcurr
 

@@ -1,57 +1,54 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* High quality pseudo random generator for "luxury pseudorandom numbers".
-!!* @desc
-!!* <p>
-!!*   This is a subtract-and-borrow random generator proposed by Masaglia and
-!!*   Zaman, implemented by F. James with the name RCARRY in 1991, and later
-!!*   improved by M. Luescher in 1993. Fortran 77 coded by F. James 1993.
-!!*   The current version is a repackaging of the integer based version made
-!!*   by K.G. Hamilton and F. James.
-!!* </p>
-!!* <p>
-!!*  The following luxury levels are available:
-!!*  <table border="1">
-!!*    <tr><th>Level</th><th>p</th><th>Description</th></tr>
-!!*    <tr><td>0</td><td>24</td><td>Equivalent to the original RCARRY of
-!!*      Marsaglia and Zaman, very long period, but fails many tests.</td></tr>
-!!*   <tr><td>1</td><td>48</td><td>Considerable improvement in quality over
-!!*     level 0, now passes the gap test, but still fails spectral test.
-!!*   </td></tr>
-!!*   <tr><td>2</td><td>97</td><td>Passes all known tests, but theoretically
-!!*     still defective</td></tr>
-!!*   <tr><td>3</td><td>223</td><td>DEFAULT VALUE. Any theoretically possible
-!!*     correlations have very small chance of being observed.</td></tr>
-!!*   <tr><td>4</td><td>389</td><td>Highest possible luxury, all 24 bits 
-!!*     chaotic.</td></tr>
-!!*   </table>
-!!* </p>
-!!* <p>
-!!*   The validation was made by obtaining the difference between the F90
-!!*   version of the original code and the current module for 1e5 calls 
-!!*   each filling a vector with 1e6 random numbers. (i686-linux-ifort81,
-!!*   DEBUG=0) Luxury level was 3, the initial seed 123456. Since the original
-!!*   code uses single precision, while the current code uses double precision,
-!!*   differences less than 1e-11 occur in the generated numbers. The integers
-!!*   describing the inner state of the generators had been compared after each
-!!*   call and had been found to be identical every time.
-!!* </p>
-!!* @see M. Luscher, Computer Physics Communications  79 (1994) 100
-!!* @see F. James, Computer Physics Communications 79 (1994) 111
+#:include 'common.fypp'
+
+!> High quality pseudo random generator for "luxury pseudorandom numbers".
+!>
+!>   This is a subtract-and-borrow random generator proposed by Masaglia and
+!>   Zaman, implemented by F. James with the name RCARRY in 1991, and later
+!>   improved by M. Luescher in 1993. Fortran 77 coded by F. James 1993.
+!>   The current version is a repackaging of the integer based version made
+!>   by K.G. Hamilton and F. James.
+!>
+!>  The following luxury levels are available:
+!>
+!> Level 0 p=24 Equivalent to the original RCARRY of Marsaglia and Zaman, very long period, but
+!> fails many tests.
+!>
+!> Level 1 p=48 Considerable improvement in quality over level 0, now passes the gap test, but still
+!> fails spectral test.
+!>
+!> Level 2 p=97 Passes all known tests, but theoretically still defective
+!>
+!> Level 3 p=223 DEFAULT VALUE. Any theoretically possible correlations have very small chance of
+!> being observed.
+!>
+!> Level 4 p=389 Highest possible luxury, all 24 bits chaotic.
+!>
+!>
+!> The validation was made by obtaining the difference between the F90 version of the original code
+!> and the current module for 1e5 calls each filling a vector with 1e6 random
+!> numbers. (i686-linux-ifort81, DEBUG=0) Luxury level was 3, the initial seed 123456. Since the
+!> original code uses single precision, while the current code uses double precision, differences
+!> less than 1e-11 occur in the generated numbers. The integers describing the inner state of the
+!> generators had been compared after each call and had been found to be identical every time.
+!>
+!> See M. Luscher, Computer Physics Communications 79 (1994) 100 and F. James, Computer Physics
+!> Communications 79 (1994) 111
 module ranlux
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy, only : dp
   implicit none
 
   private
 
-  !!* Internal variables for the luxury pseudorandom generator
+
+  !> Internal variables for the luxury pseudorandom generator
   type ORanlux
     integer :: next(24)
     integer :: luxlev
@@ -66,80 +63,87 @@ module ranlux
   end type ORanlux
 
 
-  !!* Creates a ranlux random number generator
-  interface create
-    module procedure Ranlux_create_default
-    module procedure Ranlux_create_restart
-  end interface
+  !> Creates a ranlux random number generator
+  interface init
+    module procedure Ranlux_init_default
+    !module procedure Ranlux_init_restart
+  end interface init
 
-  !!* Destroy the generator
-  interface destroy
-    module procedure Ranlux_destroy
-  end interface
 
-  !!* Fills a vector with random numbers
+  !> Fills a vector with random numbers
   interface getRandom
     module procedure Ranlux_getRandomVector
     module procedure Ranlux_getRandom2DArray
     module procedure Ranlux_getRandomNumber
-  end interface
+  end interface getRandom
 
-  !!* Return the state of the generator
+
+  !> Return the state of the generator
   interface getState
     module procedure Ranlux_getState
-  end interface
+  end interface getState
 
   public :: ORanlux
-  public :: create, destroy, getRandom, getState
-  
+  public :: init, getRandom, getState
 
-  !!* Maximal luxury level
+
+  !> Maximal luxury level
   integer, parameter :: maxlev = 4
 
-  !!* Default luxury level
+
+  !> Default luxury level
   integer, parameter :: lxdflt = 3
 
-  !!* Default seed
+
+  !> Default seed
   integer, parameter :: jsdflt = 314159265
 
-  !!* Nr. of random numbers to throw away to destroy coherence
+
+  !> Nr. of random numbers to throw away to destroy coherence
   integer, parameter :: ndskip(0:maxlev) = (/ 0, 24, 73, 199, 365 /)
 
-  !! 2**24 as integer
+
+  !> 2**24 as integer
   integer, parameter :: itwo24 = 2**24
 
-  !!* Auxiliary constant
+
+  !> Auxiliary constant
   integer, parameter :: icons = 2147483563
 
-  !!* Mask for the lowest 24 bits
+
+  !> Mask for the lowest 24 bits
   integer, parameter :: masklo = itwo24 - 1
 
-  !!* Mask for all but the lowest 24 bits
-  integer, parameter :: maskhi = not(masklo)
 
+  !> Mask for all but the lowest 24 bits
+  integer, parameter :: maskhi = not(masklo)
 
 contains
 
-  !!* Creates and initializes a random generator
-  !!* @param self     Initialized random generator on exit
-  !!* @param luxlev   Luxury level. Possible values: 0, 1, 2, 3, 4. (Default: 3)
-  !!* @param initSeed Initial seed value. (Default: 314159265)
-  subroutine Ranlux_create_default(self, luxlev, initSeed)
-    type(ORanlux), pointer :: self
+
+  !> Creates and initializes a random generator
+  subroutine Ranlux_init_default(self, luxlev, initSeed)
+
+    !> Initialized random generator on exit
+    type(ORanlux), intent(out) :: self
+
+    !> Luxury level. Possible values: 0, 1, 2, 3, 4. (Default: 3)
     integer, intent(in), optional :: luxlev
+
+    !> Initial seed value. (Default: 314159265)
     integer, intent(in), optional :: initSeed
 
     integer :: jseed
     integer :: ii, kk
 
-    ASSERT_ENV(if (present(luxlev)) then)
-    ASSERT(  luxlev >= 0 .and. luxlev <= maxlev)
-    ASSERT_ENV(end if)
-    ASSERT_ENV(if (present(initSeed)) then)
-    ASSERT(  initSeed > 0)
-    ASSERT_ENV(end if)
-
-    INITALLOCATE_P(self)
+#:call ASSERT_CODE
+    if (present(luxlev)) then
+      @:ASSERT(luxlev >= 0 .and. luxlev <= maxlev)
+    end if
+    if (present(initSeed)) then
+      @:ASSERT(initSeed > 0)
+    end if
+#:endcall ASSERT_CODE
 
     !! Set luxury level
     self%luxlev = lxdflt
@@ -172,7 +176,7 @@ contains
       self%iseeds(ii) = mod(jseed,itwo24)
       self%next(ii) = ii - 1
     end do
-    
+
     self%twom12 = self%twom24 * 4096.0_dp
     self%next(1) = 24
     self%i24 = 24
@@ -181,25 +185,22 @@ contains
     if (iand(self%iseeds(24), maskhi) /= 0) then
       self%icarry = 1
     end if
-    
-  end subroutine Ranlux_create_default
+
+  end subroutine Ranlux_init_default
 
 
+  !> Creates and initializes a random generator with previously saved values.
+  subroutine Ranlux_init_restart(self, isdext)
 
-  !!* Creates and initializes a random generator with previously saved
-  !!* values.
-  !!* @param self   Initialized random generator instance on exit
-  !!* @param isdext Contains the state of a saved generator as
-  !!*   produced by Ranlux_getState.
-  subroutine Ranlux_create_restart(self, isdext)
-    type(ORanlux), pointer :: self
+    !> Initialized random generator instance on exit
+    type(ORanlux), intent(out) :: self
+
+    !> Contains the state of a saved generator as produced by Ranlux_getState.
     integer, intent(in) :: isdext(:)
 
     integer :: ii, isd
 
-    ASSERT(size(isdext) == 25)
-
-    INITALLOCATE_P(self)
+    @:ASSERT(size(isdext) == 25)
 
     self%twom24 = 1.0_dp
     do ii = 1, 24
@@ -231,67 +232,54 @@ contains
       self%luxlev = maxlev
     end if
 
-  end subroutine Ranlux_create_restart
-
-  
-
-  !!* Destroys the random number generator
-  !!* @param self Ranlux instance.
-  subroutine Ranlux_destroy(self)
-    type(ORanlux), pointer :: self
-
-    DEALLOCATE_P(self)
-
-  end subroutine Ranlux_destroy
+  end subroutine Ranlux_init_restart
 
 
-  
-  !!* Fills a given vector with random numbers.
-  !!* @param self Ranlux instance
-  !!* @param rvec Vector containing the random numbers on exit.
+  !> Fills a given vector with random numbers.
   subroutine Ranlux_getRandomVector(self, rvec)
-    type(ORanlux), pointer :: self
-    real(dp), intent(out) :: rvec(:)
 
-    ASSERT(associated(self))
+    !> Ranlux instance
+    type(ORanlux), intent(inout) :: self
+
+    !> Vector containing the random numbers on exit.
+    real(dp), intent(out) :: rvec(:)
 
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
-    
+
   end subroutine Ranlux_getRandomVector
-  
-  !!* Fills a given 2D array with random numbers.
-  !!* @param self Ranlux instance
-  !!* @param r2Darray Vector containing the random numbers on exit.
+
+
+  !> Fills a given 2D array with random numbers.
   subroutine Ranlux_getRandom2DArray(self, r2Darray)
-    type(ORanlux), pointer :: self
+
+    !> Ranlux instance
+    type(ORanlux), intent(inout) :: self
+
+    !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: r2Darray(:,:)
-    
+
     real(dp), allocatable :: rvec(:)
 
-    ASSERT(associated(self))
-
-    ALLOCATE_(rvec,(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
+    allocate(rvec(size(r2Darray,dim=1)*size(r2Darray,dim=2)))
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
     r2Darray = reshape(rvec,shape(r2Darray))
-    DEALLOCATE_(rvec)
-    
-  end subroutine Ranlux_getRandom2DArray
-  
 
-  
-  !!* Returns a random number
-  !!* @param self Ranlux instance
-  !!* @param rnum Contains the random number on exit. 
+  end subroutine Ranlux_getRandom2DArray
+
+
+  !> Returns a random number
   subroutine Ranlux_getRandomNumber(self, rnum)
-    type(ORanlux), pointer :: self
+
+    !> Ranlux instance
+    type(ORanlux), intent(inout) :: self
+
+    !> Contains the random number on exit.
     real(dp), intent(out) :: rnum
 
     real(dp) :: rvec(1)
 
-    ASSERT(associated(self))
-    
     call getRandomVector_local(rvec, self%iseeds, self%icarry, self%in24, &
         &self%i24, self%j24, self%next, self%nskip, self%twom24, self%twom12)
     rnum = rvec(1)
@@ -299,35 +287,45 @@ contains
   end subroutine Ranlux_getRandomNumber
 
 
+  !> Workhorse for the Ranlux_getRandom* methods.
+  subroutine getRandomVector_local(rvec,iseeds,icarry,in24,i24,j24,next,nskip,twom24,twom12)
 
-  !!* Workhorse for the Ranlux_getRandom* methods.
-  !!* @param rvec    Vector containing the random numbers on exit
-  !!* @param iseeds  Stored seeds
-  !!* @param icarry  Carry bit
-  !!* @param in24    Auxiliary variable
-  !!* @param i24     Auxiliary variable
-  !!* @param j24     Auxiliary variable
-  !!* @param next    Auxiliary variable
-  !!* @param nskip   Nr. of numbers to throw away to destroy coherence
-  !!* @param twom24  2**-24 as real
-  !!* @param twom12  2**-12 as real
-  subroutine getRandomVector_local(rvec, iseeds, icarry, in24, i24, j24, next, &
-      & nskip, twom24, twom12)
+    !> Vector containing the random numbers on exit
     real(dp), intent(out) :: rvec(:)
+
+    !> Stored seeds
     integer, intent(inout) :: iseeds(:)
+
+    !> Carry bit
     integer, intent(inout) :: icarry
+
+    !> Auxiliary variable
     integer, intent(inout) :: in24
-    integer, intent(inout) :: i24, j24
+
+    !> Auxiliary variable
+    integer, intent(inout) :: i24
+
+    !> Auxiliary variable
+    integer, intent(inout) :: j24
+
+    !> Auxiliary variable
     integer, intent(in) :: next(:)
-    real(dp), intent(in) :: twom24, twom12
+
+    !> Nr. of numbers to throw away to destroy coherence
+    real(dp), intent(in) :: twom24
+
+    !> 2**-24 as real
+    real(dp), intent(in) :: twom12
+
+    !> 2**-12 as real
     integer, intent(in) :: nskip
 
     integer :: lenv, ivec, iuni
     real(dp) :: uni
     integer :: isk
 
-    ASSERT(size(iseeds) == 24)
-    ASSERT(size(next) == 24)
+    @:ASSERT(size(iseeds) == 24)
+    @:ASSERT(size(next) == 24)
 
     lenv = size(rvec)
     do ivec = 1, lenv
@@ -371,17 +369,16 @@ contains
   end subroutine getRandomVector_local
 
 
-
-  !!* Saves the state of the random generator in an integer array
-  !!* @param self   Ranlux instance.
-  !!* @param isdext Contains the state of the generator as integer array.
+  !> Saves the state of the random generator in an integer array
   subroutine Ranlux_getState(self, isdext)
-    type(ORanlux), pointer :: self
+
+    !> Ranlux instance.
+    type(ORanlux), intent(in) :: self
+
+    !> Contains the state of the generator as integer array.
     integer, intent(out) :: isdext(:)
 
-    ASSERT(associated(self))
-
-    ASSERT(size(isdext) == 25)
+    @:ASSERT(size(isdext) == 25)
 
     isdext(1:24) = self%iseeds(1:24)
     isdext(25) = self%i24 + 100 * self%j24 + 10000 * self%in24 &
@@ -389,8 +386,7 @@ contains
     if (self%icarry /= 0) then
       isdext(25) = -isdext(25)
     end if
-    
+
   end subroutine Ranlux_getState
 
-  
 end module ranlux

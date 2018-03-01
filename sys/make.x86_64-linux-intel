@@ -3,6 +3,48 @@
 # ifort/icc 17.0
 ############################################################################
 
+ifeq ($(strip $(WITH_MPI)),1)
+############################################################################
+# MPI settings
+############################################################################
+
+# Compilers
+FXX = mpif90
+CC = icc
+
+# Compiler options
+FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
+CCOPT = -O2 -ip
+
+# Linker
+LN = $(FXX)
+LNOPT =
+
+# How to link specific libraries
+
+# ScaLAPACK
+# Make sure you link the correct flavour of mkl_blacs for your MPI-environment
+MKL_LIBDIR = $(MKLROOT)/lib/intel64
+LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64
+
+# LAPACK/BLAS
+LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
+
+# Any other libraries to be linked
+OTHERLIBS = -liomp5
+
+# M4 preprocessor settings
+M4 = m4
+M4OPT = 
+
+# Command to run the test binary
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS) mpiexec -n $(TEST_MPI_PROCS)
+
+else
+############################################################################
+# NON-MPI settings
+############################################################################
+
 # Compilers
 FXX = ifort
 CC = icc
@@ -11,32 +53,34 @@ CC = icc
 FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
-# Preprocessor
-CPP = cpp -traditional
-CPPOPT =
-
-# Fortran preprocessor (invokes CPP as defined above and process the result)
-FPP = $(ROOT)/utils/build/fpp/fpp.sh nocntln
-
 # Linker
 LN = $(FXX)
-LNOPT =  -static
-
-# Library options in general
-LIBOPT =
+LNOPT =
 
 # How to link specific libraries
+
+# LAPACK/BLAS
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_BLAS   = -L$(MKL_LIBDIR) -Wl,--start-group \
-  -lmkl_intel_lp64 \
-  -lmkl_intel_thread \
-  -lmkl_core \
-  -Wl,--end-group
-LIB_LAPACK =
+LIB_LAPACK   = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
 
 # Any other libraries to be linked
-OTHERLIBS = -liomp5 -pthread
+OTHERLIBS = -liomp5
 
+# Command to run a binary
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS)
+
+endif
+
+############################################################################
+# General settings
+############################################################################
+
+# Preprocessor
+FYPP = $(ROOT)/external/fypp/bin/fypp
+FYPPOPT =
+
+# Library options in general
+LIBOPT = 
 
 ############################################################################
 # Developer settings
@@ -44,10 +88,10 @@ OTHERLIBS = -liomp5 -pthread
 
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
-    FXXOPT = -g -warn all -stand f08 -standard-semantics -diag-error-limit 1 -traceback
+    FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -diag-error-limit 1 -traceback
     CCOPT = -g -warn all
 endif
 ifeq ($(strip $(DEBUG)),2)
-    FXXOPT = -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
+    FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
     CCOPT = -g -warn all -check
 endif

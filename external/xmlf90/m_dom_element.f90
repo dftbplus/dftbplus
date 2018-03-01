@@ -96,7 +96,6 @@ CONTAINS
 
      enddo
 
-     call unstring(name)
     end subroutine search
 
   end function getElementsByTagName
@@ -271,7 +270,6 @@ CONTAINS
     endif
     call destroyNode(np)
     head%nodeValue = buffer
-    call unstring(buffer)
     
   end subroutine concatenateText
 

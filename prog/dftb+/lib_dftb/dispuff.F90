@@ -1,21 +1,22 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Dispersion a la Uff, similar to Thomas Heines approach in the deMon code.
-!!
-!! \ref L. Zheckov et al., JCTC 1, 841-847 (2005)
-!!
-!! \note Periodic case could be inaccurate, if two atoms are very close to
-!!   each other.
-!!
-!! \todo Take the reciprocal lattice vectors from outside.
-!!
+#:include 'common.fypp'
+
+!> Dispersion a la UFF, similar to Thomas Heine's approach in the deMon code.
+!>
+!> See L. Zheckov et al., JCTC 1, 841-847 (2005)
+!>
+!> Note: Periodic case could be inaccurate, if two atoms are very close to each other.
+!>
+!> To Do: Take the reciprocal lattice vectors from outside.
+!>
 module dispuff_module
-#include "assert.h"
+  use assert
   use accuracy
   use simplealgebra, only : determinant33
   use lapackroutines, only : matinv
@@ -29,12 +30,14 @@ module dispuff_module
   public :: DispUffInp, DispUff, DispUff_init
 
 
-  !! Input structure for the van der Waals initialization.
+  !> Input structure for the van der Waals initialization.
   type :: DispUffInp
-    !> potential depths (nSpecies)
+
+    !> potential depths (sized as nSpecies)
     real(dp), allocatable :: energies(:)
 
-    !> van der Waals radii (nSpecies)
+
+    !> van der Waals radii (sized as nSpecies)
     real(dp), allocatable :: distances(:)
   end type DispUffInp
 
@@ -42,22 +45,55 @@ module dispuff_module
   !> Internal state of the van der Waals dispersion module.
   type, extends(DispersionIface) :: DispUff
     private
-    integer :: nAtom, nSpecies  ! Nr. of atoms, species
-    real(dp), allocatable :: c6(:,:)  ! Prefactors for r^-6
-    real(dp), allocatable :: c12(:,:)  ! Prefactors for r^-12
-    real(dp), allocatable :: cPoly(:,:,:)  ! Prefactors for polynomial
-    real(dp), allocatable :: r0(:,:)  ! Switching radius
-    real(dp) :: rCutoff  ! Real space cutoff
-    logical :: tPeriodic  ! Periodic system?
-    real(dp) :: vol  ! Volume of the unit cell
-    real(dp) :: eta  ! Ewald summation parameter
-    real(dp) :: ewaldRCut, ewaldGCut  ! Ewald cutoff radii
-    real(dp) :: c6sum  ! Sum of the c6 coeffs.
-    real(dp), allocatable :: gLatPoints(:,:) ! Reciprocal lattice vectors
+
+    !> Nr. of atoms, species
+    integer :: nAtom, nSpecies
+
+    !> Prefactors for r^{-6}
+    real(dp), allocatable :: c6(:,:)
+
+    !> Prefactors for r^{-12}
+    real(dp), allocatable :: c12(:,:)
+
+    !> Prefactors for polynomial
+    real(dp), allocatable :: cPoly(:,:,:)
+
+    !> Switching radius
+    real(dp), allocatable :: r0(:,:)
+
+    !> Real space cutoff
+    real(dp) :: rCutoff
+
+    !> Periodic system?
+    logical :: tPeriodic
+
+    !> Volume of the unit cell
+    real(dp) :: vol
+
+    !> Ewald summation parameter
+    real(dp) :: eta
+
+    !> Ewald cutoff radii
+    real(dp) :: ewaldRCut, ewaldGCut
+
+    !> Sum of the c6 coeffs.
+    real(dp) :: c6sum
+
+    !> Reciprocal lattice vectors
+    real(dp), allocatable :: gLatPoints(:,:)
+
+    !> energies for atoms
     real(dp), allocatable :: energies(:)
+
+    !> gradient contribution
     real(dp), allocatable :: gradients(:,:)
-    real(dp) :: stress(3,3) = 0.0_dp  ! stress tensor component
-    logical :: coordsUpdated = .false.  ! If first coordinate update
+
+    !> stress tensor component
+    real(dp) :: stress(3,3) = 0.0_dp
+
+    !> If first coordinate update
+    logical :: coordsUpdated = .false.
+
   contains
     procedure :: updateCoords
     procedure :: updateLatVecs
@@ -67,40 +103,41 @@ module dispuff_module
     procedure :: getRCutoff
   end type DispUff
 
-
-
 contains
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Public routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Inits a DispUff instance.
-  !!
-  !! \param inp Specific input parameters for Slater-Kirkwood.
-  !! \param nAtom Nr. of atoms in the system.
-  !! \param species0 Species of every atom in the unit cell.
-  !! \param latVecs Lattice vectors, if system is periodic.
-  !!
   subroutine DispUff_init(this, inp, nAtom, species0, latVecs)
+
+    !> data structure to initialise
     type(DispUff), intent(out) :: this
+
+    !> Specific input parameters for Slater-Kirkwood.
     type(DispUffInp), intent(in) :: inp
+
+    !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
+
+    !> Species of every atom in the unit cell.
     integer, intent(in), optional :: species0(:)
+
+    !> Lattice vectors, if system is periodic.
     real(dp), intent(in), optional :: latVecs(:,:)
 
     integer :: iSp1, iSp2, iAt1
     real(dp), allocatable :: dij(:,:), rij(:,:)
     real(dp) :: preU0, preU5, preU10, c6sum
 
-    ASSERT(size(inp%energies) > 0)
-    ASSERT(size(inp%distances) == size(inp%energies))
-    ASSERT(all(inp%energies >= 0.0_dp))
-    ASSERT(all(inp%distances >= 0.0_dp))
-    ASSERT(present(latVecs) .eqv. present(species0))
-    ASSERT_ENV(if (present(latVecs)) then)
-    ASSERT_ENV(ASSERT(all(shape(latVecs) == [3, 3])))
-    ASSERT_ENV(end if)
+    @:ASSERT(size(inp%energies) > 0)
+    @:ASSERT(size(inp%distances) == size(inp%energies))
+    @:ASSERT(all(inp%energies >= 0.0_dp))
+    @:ASSERT(all(inp%distances >= 0.0_dp))
+    @:ASSERT(present(latVecs) .eqv. present(species0))
+#:call ASSERT_CODE
+    if (present(latVecs)) then
+      @:ASSERT(all(shape(latVecs) == [3, 3]))
+    end if
+#:endcall ASSERT_CODE
 
     this%nSpecies = size(inp%energies)
     this%nAtom = nAtom
@@ -129,9 +166,8 @@ contains
 
     this%tPeriodic = present(latVecs)
     if (this%tPeriodic) then
-      ! Cutoff for the direct summation of r^(-12) terms. To be sure, it is
-      ! delivering the required accuracy, dispTol is strengthened by two orders
-      ! of magnitude more.
+      ! Cutoff for the direct summation of r^(-12) terms. To be sure, it is delivering the required
+      ! accuracy, dispTol is strengthened by two orders of magnitude more.
       this%rCutoff = (maxval(this%c12) &
           & / (tolDispersion * 1.0e-2_dp))**(1.0_dp / 12.0_dp)
       ! Summing with loop to avoid creation of (nAtom, nAtom) tmp array.
@@ -152,19 +188,22 @@ contains
 
   end subroutine DispUff_init
 
-
   !> Notifies the objects about changed coordinates.
-  !!
-  !! \param neigh  Updated neighbor list.
-  !! \param img2CentCell  Updated mapping to central cell.
-  !! \param coord  Updated coordinates.
-  !! \param species0  Species of the atoms in the unit cell.
-  !!
   subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+
+    !> Instance of dispersion to update
     class(DispUff), intent(inout) :: this
+
+    !> Updated neighbor list.
     type(TNeighborList), intent(in) :: neigh
+
+    !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
+
+    !> Updated coordinates.
     real(dp), intent(in) :: coords(:,:)
+
+    !> Species of the atoms in the unit cell.
     integer, intent(in) :: species0(:)
 
     integer, allocatable :: nNeigh(:)
@@ -191,19 +230,19 @@ contains
 
   end subroutine updateCoords
 
-
   !> Notifies the object about updated lattice vectors.
-  !!
-  !! \param latVecs  New lattice vectors
-  !!
   subroutine updateLatVecs(this, latVecs)
+
+    !> Instance to update
     class(DispUff), intent(inout) :: this
+
+    !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
     real(dp) :: recVecs(3, 3), invRecVecs(3, 3)
 
-    ASSERT(this%tPeriodic)
-    ASSERT(all(shape(latVecs) == [3, 3]))
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latVecs) == [3, 3]))
 
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
@@ -221,114 +260,128 @@ contains
 
   end subroutine updateLatVecs
 
-
   !> Returns the atomic resolved energies due to the dispersion.
-  !!
-  !! \param energies  Contains the atomic energy contributions on exit.
-  !!
   subroutine getEnergies(this, energies)
+
+    !> Instance of dispersion
     class(DispUff), intent(inout) :: this
+
+    !> Contains the atomic energy contributions on exit.
     real(dp), intent(out) :: energies(:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(size(energies) == this%nAtom)
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
 
     energies(:) = this%energies(:)
 
   end subroutine getEnergies
 
-
   !> Adds the atomic gradients to the provided vector.
-  !!
-  !! \param gradients  The vector to increase by the gradients.
-  !!
   subroutine addGradients(this, gradients)
+
+    !> Instance of dispersion
     class(DispUff), intent(inout) :: this
+
+    !> The vector to increase by the gradients.
     real(dp), intent(inout) :: gradients(:,:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(all(shape(gradients) == [3, this%nAtom]))
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     gradients(:,:) = gradients(:,:) + this%gradients(:,:)
 
   end subroutine addGradients
 
-
   !> Returns the stress tensor.
-  !!
-  !! \param stress tensor from the dispersion
-  !!
   subroutine getStress(this, stress)
+
+    !> Instance of dispersion
     class(DispUff), intent(inout) :: this
+
+    !> tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
-    ASSERT(this%coordsUpdated)
-    ASSERT(all(shape(stress) == [3, 3]))
+    @:ASSERT(this%coordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
 
     stress = this%stress
 
   end subroutine getStress
 
-
   !> Estimates the real space cutoff of the dispersion interaction.
-  !!
-  !! \return Cutoff
-  !!
   function getRCutoff(this) result(cutoff)
+
+    !> Instance of dispersion
     class(DispUff), intent(inout) :: this
+
+    !> Cutoff distance
     real(dp) :: cutoff
 
     cutoff = max(this%rCutoff, this%ewaldRCut)
 
   end function getRCutoff
 
+  !> Returns the energy per atom and the gradients for the cluster case
+  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbors, iNeighbor, &
+      & neighDist2, img2CentCell, c6, c12, cPoly, r0, energies, gradients, removeR6, stress, vol)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !! Returns the energy per atom and the gradients for the cluster case
-  !!
-  !! \param nAtom Nr. of atoms (without periodic images)
-  !! \param coords Coordinates of the atoms (including images)
-  !! \param species Species of every atom.
-  !! \param nNeighbors Nr. of neighbors for each atom
-  !! \param iNeighbor Neighborlist.
-  !! \param neighDist2 Square distances of the neighbours.
-  !! \param img2CentCell Mapping into the central cell.
-  !! \param c6 Prefactors for the r^-6 potential
-  !! \param c12 Prefactors for the r^-12 potential
-  !! \param cPoly Prefactors for the polynomial part.
-  !! \param r0 Distances where polynomial repr. should change to LJ.
-  !! \param energies Updated energy vector at return
-  !! \param gradients Updated gradient vector at return
-  !! \param removeR6 If yes, the 1/r^6 term is substracted from every
-  !!   interaction.
-  !!
-  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbors, &
-      &iNeighbor, neighDist2, img2CentCell, c6, c12, cPoly, r0, energies, &
-      &gradients, removeR6, stress, vol)
+    !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
+
+    !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
+
+    !> Species of every atom.
     integer, intent(in) :: species(:)
-    integer, intent(in) :: nNeighbors(:), iNeighbor(0:,:)
+
+    !> Nr. of neighbors for each atom
+    integer, intent(in) :: nNeighbors(:)
+
+    !> Neighborlist.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
+
+    !> Mapping into the central cell.
     integer, intent(in) :: img2CentCell(:)
-    real(dp), intent(in) :: c6(:,:), c12(:,:), cPoly(:,:,:), r0(:,:)
-    real(dp), intent(out) :: energies(:), gradients(:,:)
+
+    !> Prefactors for the r^{-6} potential
+    real(dp), intent(in) :: c6(:,:)
+
+    !> Prefactors for the r^{-12} potential
+    real(dp), intent(in) :: c12(:,:)
+
+    !> Prefactors for the polynomial part.
+    real(dp), intent(in) :: cPoly(:,:,:)
+
+    !> Distances where polynomial repr. should change to LJ.
+    real(dp), intent(in) :: r0(:,:)
+
+    !> Updated energy vector at return
+    real(dp), intent(out) :: energies(:)
+
+    !> Updated gradient vector at return
+    real(dp), intent(out) :: gradients(:,:)
+
+    !> If yes, the 1/r^6 term is substracted from every interaction.
     logical , intent(in), optional :: removeR6
+
     real(dp), intent(out), optional :: stress(:,:)
+
     real(dp), intent(in), optional :: vol
 
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh, ii
     real(dp) :: rr, r2, r5, r6, r10, r12, k1, k2, dE, dGr, u0, u1, u2, f6
     real(dp) :: gr(3), vec(3)
 
-    ASSERT_ENV(if (present(stress)) then)
-    ASSERT_ENV(  ASSERT(all(shape(stress) == [3, 3])))
-    ASSERT_ENV(endif)
+#:call ASSERT_CODE
+    if (present(stress)) then
+      @:ASSERT(all(shape(stress) == [3, 3]))
+    end if
+#:endcall ASSERT_CODE
 
-    !! Cluster case => explicit sum of the contributions
+    ! Cluster case => explicit sum of the contributions
     if (present(removeR6)) then
       if (removeR6) then
         f6 = 0.0_dp

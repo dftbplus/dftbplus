@@ -1,20 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Storage of integer vectors in a FIFO (first in first out) way and wrappers 
-!!* for different data types and matrix ranks.
-!!* additional
-!!* @desc
-!!*   You can store and access vectors as FIFO. A given number of vectors is
-!!*   kept in the memory, if there are more, they are written to disc.
-!!* @note In order to use the FIFO you have create and reset it.
+#:include 'common.fypp'
+
+!> Storage of integer vectors in a FIFO (first in first out) queue and wrappers for different data
+!> types and matrix ranks.
+!> You can store and access vectors as FIFO. A given number of vectors is kept in the memory, if
+!> there are more, they are written to disc.
+!> note that in order to use the FIFO you have create and reset it.
 module fifo
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy
   use fileid
   implicit none
@@ -22,108 +21,140 @@ module fifo
 
   public :: OFifoIntR1, OFifoRealR1, OFifoRealR2, OFifoCplxR1, OFifoCplxR2
   public :: init, destruct, reset, get, push, restart
-  
 
+
+  !> First-in-first-out queue for reals
   type OFifoIntR1
     private
-    integer :: nElem                    !* Nr. of elements in stored vectors
-    integer :: bufferSize               !* Nr. of vectors kept in memory
-    integer :: fileId                   !* File id for "swap" file
-    character(len=50) :: fileName       !* File name for "swap" file
-    integer :: nStored                  !* Nr. of vectors stored in the fifo
-    integer :: storePos                 !* Where to put next one in the buffer
-    integer :: readPos                  !* Where to read the next from
-    integer :: iMode                    !* Last operation (undefined/read/write)
-    logical :: tBufferFull              !* Buffer full, open swap file
-    integer, pointer :: buffer(:,:)     !* The buffer itself.
-    logical :: tInit = .false.          !* Is the buffer initialised?
+
+    !> Nr. of elements in stored vectors
+    integer :: nElem
+
+    !> Nr. of vectors kept in memory
+    integer :: bufferSize
+
+    !> File id for "swap" file
+    integer :: fileId
+
+    !> File name for "swap" file
+    character(len=50) :: fileName
+
+    !> Nr. of vectors stored in the fifo
+    integer :: nStored
+
+    !> Where to put next one in the buffer
+    integer :: storePos
+
+    !> Where to read the next from
+    integer :: readPos
+
+    !> Last operation (undefined/read/write)
+    integer :: iMode
+
+    !> Buffer full, open swap file
+    logical :: tBufferFull
+
+    !> The buffer itself.
+    integer, allocatable :: buffer(:,:)
+
+    !> Is the buffer initialised?
+    logical :: tInit = .false.
   end type OFifoIntR1
 
-  
+
+  !> Real 1D vector
   type OFifoRealR1
     private
     type(OFifoIntR1) :: fifoIntR1
     integer :: nElem
     integer :: equivIntSize
-    integer, pointer :: convBuffer(:) => null()
+    integer, allocatable :: convBuffer(:)
     logical :: tInit = .false.
   end type OFifoRealR1
 
 
+  !> Real 2D array
   type OFifoRealR2
     private
     type(OFifoRealR1) :: fifoRealR1
-    integer :: shape(2)
+    integer :: arrayShape(2)
     integer :: bufferSize
     logical :: tInit = .false.
   end type OFifoRealR2
 
 
+  !> Complex 1D vector
   type OFifoCplxR1
     private
     type(OFifoIntR1) :: fifoIntR1
     integer :: nElem
     integer :: equivIntSize
-    integer, pointer :: convBuffer(:) => null()
+    integer, allocatable :: convBuffer(:)
     logical :: tInit = .false.
   end type OFifoCplxR1
 
-  
+
+  !> Complex 2D array
   type OFifoCplxR2
     private
     type(OFifoCplxR1) :: fifoCplxR1
-    integer :: shape(2)
+    integer :: arrayShape(2)
     integer :: bufferSize
     logical :: tInit = .false.
   end type OFifoCplxR2
 
 
-  !!* Creates a fifo
+  !> Initialises a fifo
   interface init
     module procedure FifoIntR1_init
     module procedure FifoRealR1_init
     module procedure FifoRealR2_init
     module procedure FifoCplxR1_init
     module procedure FifoCplxR2_init
-  end interface
+  end interface init
 
-  !!* Destroys the fifo
+
+  !> Destroys a fifo
   interface destruct
     module procedure FifoIntR1_destruct
     module procedure FifoRealR1_destruct
     module procedure FifoRealR2_destruct
     module procedure FifoCplxR1_destruct
     module procedure FifoCplxR2_destruct
-  end interface
+  end interface destruct
 
-  !!* Resets the fifo
+
+  !> Resets the fifo
   interface reset
     module procedure FifoIntR1_reset
     module procedure FifoRealR1_reset
     module procedure FifoRealR2_reset
     module procedure FifoCplxR1_reset
     module procedure FifoCplxR2_reset
-  end interface
+  end interface reset
 
-  !!* Returns the next vector from the FIFO.
+
+  !> Returns the next vector from the FIFO.
   interface get
     module procedure FifoIntR1_get
     module procedure FifoRealR1_get
     module procedure FifoRealR2_get
     module procedure FifoCplxR1_get
     module procedure FifoCplxR2_get
-  end interface
+  end interface get
 
-  !!* Puts a new vector on the FIFO.
+
+  !> Puts a new vector on the FIFO.
   interface push
     module procedure FifoIntR1_push
     module procedure FifoRealR1_push
     module procedure FifoRealR2_push
     module procedure FifoCplxR1_push
     module procedure FifoCplxR2_push
-  end interface
+  end interface push
 
-  !!* Rewinds for reading from the beginning
+
+  !> Rewinds for reading from the beginning
   interface restart
     module procedure FifoIntR1_restart
     module procedure FifoRealR1_restart
@@ -131,108 +162,62 @@ module fifo
     module procedure FifoCplxR1_restart
     module procedure FifoCplxR2_restart
   end interface restart
-  
-  integer, parameter :: modeUndefined = 0   !* Undefined fifo state
-  integer, parameter :: modeRead = 1        !* Last operation was reading
-  integer, parameter :: modeWrite = 2       !* Last operation was writing
 
+
+  !> Undefined fifo state
+  integer, parameter :: modeUndefined = 0
+
+  !> Last operation was reading
+  integer, parameter :: modeRead = 1
+
+  !> Last operation was writing
+  integer, parameter :: modeWrite = 2
 
 contains
 
 
-  !!* Creates a FifoIntR1 instance, which stores rank 1 vectors.
-  !!* @param sf  Initialised FifoIntR1 instance on exit.
-  !!* @param bufferSize Nr. of vectors to keep in the memory (>=0)
-  !!* @param fileName   Name of the file to keep the vectors on the disc.
-  !!* @caveat This routine relies on the fact that file IDs have maximal 5
-  !!*   digits.
+  !> Creates a FifoIntR1 instance, which stores rank 1 vectors.
+  !> Caveat: this routine relies on the fact that file IDs have maximum of 5 digits.
   subroutine FifoIntR1_init(sf, bufferSize, fileName)
-    type(OFifoIntR1), intent(inout) :: sf
+
+    !> Initialised FifoIntR1 instance on exit.
+    type(OFifoIntR1), intent(out) :: sf
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in) :: bufferSize
+
+    !> Name of the file to keep the vectors on the disc.
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
-    ASSERT(bufferSize >= 0)
-    ASSERT(len(fileName) > 0)
-    
+    @:ASSERT(bufferSize >= 0)
+    @:ASSERT(len(fileName) > 0)
+
     sf%nElem = 0
     sf%bufferSize = bufferSize
     sf%fileId = getFileId()
+    @:ASSERT(sf%fileId <= 99999)
     write(sf%fileName, "(A,I5.5)") &
         &fileName(1:min(len_trim(fileName),len(sf%fileName)-5)), sf%fileId
-    INITALLOCATE_PARR(sf%buffer, (sf%nElem, sf%bufferSize))
+    allocate(sf%buffer(sf%nElem, sf%bufferSize))
     open(sf%fileId, file=sf%fileName, status="replace", form="unformatted",&
         &action="write")
     close(sf%fileId)
     sf%tInit = .true.
-    
+
   end subroutine FifoIntR1_init
 
 
-
-  !!* Resets FifoIntR1
-  !!* @param sf  FifoIntR1 instance.
-  !!* @param nElem Nr. of elements in the rank one vectors
-  subroutine FifoIntR1_reset(sf, nElem, bufferSize)
-    type(OFifoIntR1), intent(inout) :: sf
-    integer, intent(in) :: nElem
-    integer, intent(in), optional :: bufferSize
-
-    logical :: tOpened, tRealloc
-
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
-
-    tRealloc = (nElem /= sf%nElem)
-    if (present(bufferSize)) then
-      if (bufferSize /= sf%bufferSize) then
-        sf%bufferSize = bufferSize
-        tRealloc = .true.
-      end if
-    end if
-
-    !! Reallocate buffer if nr. of elements changed
-    if (tRealloc) then
-      sf%nElem = nElem
-      DEALLOCATE_PARR(sf%buffer)
-      ALLOCATE_PARR(sf%buffer, (sf%nElem, sf%bufferSize))
-    end if
-    
-    !! is there data left in the file on disc?
-    if (sf%bufferSize < sf%nStored) then
-      !! Empty file on the disc
-      inquire(sf%fileId, opened=tOpened)
-      if (tOpened) then
-        close(sf%fileId)
-      end if
-      open(sf%fileId, file=sf%fileName, status="replace", form="unformatted",&
-          &action="write")
-      close(sf%fileId)
-    end if
-
-    !! Set initial variables
-    if (sf%bufferSize == 0) then
-      sf%tBufferFull = .true.
-    else
-      sf%tBufferFull = .false.
-    end if
-    sf%nStored = 0
-    sf%storePos = 0
-    sf%readPos = 0
-    sf%iMode = modeUndefined
-    
-  end subroutine FifoIntR1_reset
-
-  
-
-  !!* Destroys FifoIntR1 nobject.
-  !!* @param sf  FifoIntR1 instance.
+  !> Destroy FifoIntR1 object.
   subroutine FifoIntR1_destruct(sf)
+
+    !> FifoIntR1 instance.
     type(OFifoIntR1), intent(inout) :: sf
 
     logical :: tOpened
 
-    ASSERT(sf%tInit)
+    if (.not. sf%tInit) then
+      return
+    end if
 
     if (sf%tBufferFull) then
       inquire(sf%fileId, opened=tOpened)
@@ -242,27 +227,84 @@ contains
     end if
     open(sf%fileId, file=sf%fileName)
     close(sf%fileId, status="delete")
-    DEALLOCATE_PARR(sf%buffer)
-    sf%tInit = .false.
-    
+
   end subroutine FifoIntR1_destruct
 
-  
 
-  !!* Adds a new vector to the FIFO.
-  !!* @param sf   FifoIntR1 instance
-  !!* @param vector Vector to store
-  subroutine FifoIntR1_push(sf, vector)
+  !> Resets FifoIntR1
+  subroutine FifoIntR1_reset(sf, nElem, bufferSize)
+
+    !> FifoIntR1 instance.
     type(OFifoIntR1), intent(inout) :: sf
+
+    !> Nr. of elements in the rank one vectors
+    integer, intent(in) :: nElem
+
+    !> In memory buffer size, before disc space is used
+    integer, intent(in), optional :: bufferSize
+
+    logical :: tOpened, tRealloc
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
+
+    tRealloc = (nElem /= sf%nElem)
+    if (present(bufferSize)) then
+      if (bufferSize /= sf%bufferSize) then
+        sf%bufferSize = bufferSize
+        tRealloc = .true.
+      end if
+    end if
+
+    ! Reallocate buffer if nr. of elements changed
+    if (tRealloc) then
+      sf%nElem = nElem
+      deallocate(sf%buffer)
+      allocate(sf%buffer(sf%nElem, sf%bufferSize))
+    end if
+
+    ! is there data left in the file on disc?
+    if (sf%bufferSize < sf%nStored) then
+      ! Empty file on the disc
+      inquire(sf%fileId, opened=tOpened)
+      if (tOpened) then
+        close(sf%fileId)
+      end if
+      open(sf%fileId, file=sf%fileName, status="replace", form="unformatted",&
+          &action="write")
+      close(sf%fileId)
+    end if
+
+    ! Set initial variables
+    if (sf%bufferSize == 0) then
+      sf%tBufferFull = .true.
+    else
+      sf%tBufferFull = .false.
+    end if
+    sf%nStored = 0
+    sf%storePos = 0
+    sf%readPos = 0
+    sf%iMode = modeUndefined
+
+  end subroutine FifoIntR1_reset
+
+
+  !> Adds a new vector to the FIFO.
+  subroutine FifoIntR1_push(sf, vector)
+
+    !> FifoIntR1 instance
+    type(OFifoIntR1), intent(inout) :: sf
+
+    !> Vector to store
     integer, intent(in) :: vector(:)
 
     integer :: ii
     logical :: tOpened
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
-    !! Change to write mode if necessary
+    ! Change to write mode if necessary
     if (sf%iMode /= modeWrite) then
       if (sf%tBufferFull) then
         inquire(sf%fileId, opened=tOpened)
@@ -275,7 +317,7 @@ contains
 
     sf%nStored = sf%nStored + 1
 
-    !! If buffer size is zero, vector is written directly to the disc.
+    ! If buffer size is zero, vector is written directly to the disc.
     if (sf%bufferSize == 0) then
       open(sf%fileId, file=sf%fileName, status="old", form="unformatted", &
           &position="append", action="write")
@@ -284,10 +326,10 @@ contains
       return
     end if
 
-    !! Get the next storing position /mod(storePos-1+1, bufferSize) + 1/
+    ! Get the next storing position /mod(storePos-1+1, bufferSize) + 1/
     sf%storePos = mod(sf%storePos, sf%bufferSize) + 1
 
-    !! If buffer is full, oldest vector is written to disc before replaced
+    ! If buffer is full, oldest vector is written to disc before replaced
     if (sf%tBufferFull) then
       open(sf%fileId, file=sf%fileName, status="old", form="unformatted", &
           &position="append", action="write")
@@ -301,31 +343,31 @@ contains
   end subroutine FifoIntR1_push
 
 
-  !!* Returns the current vector from the FIFO without deleting it.
-  !!* @param sf   FifoIntR1 instance
-  !!* @param vector Contains the vector on exit.
-  !!* @desc
-  !!*   This subroutines returns the vectors contained in the FIFO in the
-  !!*   appropriate order (first in first out). The vectors are not deleted
-  !!*   from the fifo. If all the vectors had been returned, or the subsequent
-  !!*   get calls had been interrupted by a push-call, the vectors will be
-  !!*   returned beginning with the most recent again.
+  !> Returns the current vector from the FIFO without deleting it.
+  !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
+  !> first out). The vectors are not deleted from the fifo. If all the vectors had been returned, or
+  !> the subsequent get calls had been interrupted by a push-call, the vectors will be returned
+  !> beginning with the most recent again.
   subroutine FifoIntR1_get(sf, vector)
+
+    !> FifoIntR1 instance
     type(OFifoIntR1), intent(inout) :: sf
+
+    !> Contains the vector on exit.
     integer, intent(out) :: vector(:)
 
     integer :: ind, ii
-    
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
-    ASSERT(sf%nStored > 0)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%nStored > 0)
 
     if (sf%iMode /= modeRead) then
       call restart(sf)
     end if
 
-    !! If vector to return is recent enough, return it from the buffer
-    !! otherwise read it from the disc.
+    ! If vector to return is recent enough, return it from the buffer
+    ! otherwise read it from the disc.
     sf%readPos = sf%readPos + 1
     if (sf%readPos > sf%nStored - sf%bufferSize) then
       ind = mod(sf%storePos + sf%bufferSize &
@@ -335,13 +377,13 @@ contains
       read (sf%fileId) (vector(ii), ii = 1, sf%nElem)
     end if
 
-    !! Close file if all old entries had been read from it.
+    ! Close file if all old entries had been read from it.
     if (sf%tBufferFull &
         &.and. (sf%readPos == sf%nStored - sf%bufferSize)) then
       close(sf%fileId)
     end if
 
-    !! If all entries had been returned, set fifo in an undefined state
+    ! If all entries had been returned, set fifo in an undefined state
     if (sf%readPos == sf%nStored) then
       sf%iMode = modeUndefined
     end if
@@ -349,10 +391,10 @@ contains
   end subroutine FifoIntR1_get
 
 
-  
-  !!* Rewinds the FIFO, so that reading starts with first element again.
-  !!
+  !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoIntR1_restart(sf)
+
+    !> FIFO object
     type(OFifoIntR1), intent(inout) :: sf
 
     logical :: tOpened
@@ -367,116 +409,112 @@ contains
     end if
     sf%readPos = 0
     sf%iMode = modeRead
-    
-  end subroutine FifoIntR1_restart
-  
-  
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  FifoRealR1
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !!* Creates a FifoRealR1 instance, which stores rank 1 vectors.
-  !!* @param sf  Initialised FifoIntR1 instance on exit.
-  !!* @param bufferSize Nr. of vectors to keep in the memory (>=0)
-  !!* @param fileName   Name of the file to keep the vectors on the disc.
-  !!* @caveat This routine relies on the fact that file IDs have maximal 5
-  !!*   digits.
+  end subroutine FifoIntR1_restart
+
+
+  !> Creates a FifoRealR1 instance, which stores rank 1 vectors.
   subroutine FifoRealR1_init(sf, bufferSize, fileName)
-    type(OFifoRealR1), intent(inout) :: sf
+
+    !> Initialised FifoIntR1 instance on exit.
+    type(OFifoRealR1), intent(out) :: sf
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in) :: bufferSize
+
+    !> Name of the file to keep the vectors on the disc.
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
     sf%equivIntSize = 0
-    ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+    allocate(sf%convBuffer(sf%equivIntSize))
     sf%tInit = .true.
-    
+
   end subroutine FifoRealR1_init
 
 
+  !> Destruct FifoRealR1 object.
+  subroutine FifoRealR1_destruct(sf)
 
-  !!* Resets FifoRealR1
-  !!* @param sf  FifoRealR1 instance.
-  !!* @param nElem Nr. of elements in the rank one vectors
-  subroutine FifoRealR1_reset(sf, nElem, bufferSize)
+    !> FifoRealR1 instance.
     type(OFifoRealR1), intent(inout) :: sf
+
+    call destruct(sf%fifoIntR1)
+
+  end subroutine FifoRealR1_destruct
+
+
+  !> Resets FifoRealR1
+  subroutine FifoRealR1_reset(sf, nElem, bufferSize)
+
+    !> FifoRealR1 instance.
+    type(OFifoRealR1), intent(inout) :: sf
+
+    !> Nr. of elements in the rank one vectors
     integer, intent(in) :: nElem
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in), optional :: bufferSize
 
     real(dp), allocatable :: buffer(:)
     integer :: equiv(1)
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
-      DEALLOCATE_PARR(sf%convBuffer)
+      deallocate(sf%convBuffer)
       sf%nElem = nElem
-      ALLOCATE_(buffer, (nElem))
+      allocate(buffer(nElem))
       sf%equivIntSize = size(transfer(buffer, equiv))
-      DEALLOCATE_(buffer)
-      ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+      deallocate(buffer)
+      allocate(sf%convBuffer(sf%equivIntSize))
     end if
     if (present(bufferSize)) then
       call reset(sf%fifoIntR1, sf%equivIntSize, bufferSize)
     else
       call reset(sf%fifoIntR1, sf%equivIntSize)
     end if
-    
+
   end subroutine FifoRealR1_reset
 
-  
 
-  !!* Destroys FifoRealR1 object.
-  !!* @param sf  FifoRealR1 instance.
-  subroutine FifoRealR1_destruct(sf)
-    type(OFifoRealR1), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-
-    call destruct(sf%fifoIntR1)
-    DEALLOCATE_PARR(sf%convBuffer)
-    sf%tInit = .false.
-    
-  end subroutine FifoRealR1_destruct
-
-  
-
-  !!* Adds a new vector to the FIFO.
-  !!* @param sf   FifoRealR1 instance
-  !!* @param vector Vector to store
+  !> Adds a new vector to the FIFO.
   subroutine FifoRealR1_push(sf, vector)
+
+    !> FifoRealR1 instance
     type(OFifoRealR1), intent(inout) :: sf
+
+    !> Vector to store
     real(dp), intent(in) :: vector(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     sf%convBuffer = transfer(vector, sf%convBuffer, sf%equivIntSize)
     call push(sf%fifoIntR1, sf%convBuffer)
 
   end subroutine FifoRealR1_push
 
-  
 
-  !!* Returns the current vector from the FIFO without deleting it.
-  !!* @param sf   FifoRealR1 instance
-  !!* @param vector Contains the vector on exit.
-  !!* @desc
-  !!*   This subroutines returns the vectors contained in the FIFO in the
-  !!*   appropriate order (first in first out). The vectors are not deleted
-  !!*   from the fifo. If all the vectors had been returned, or the subsequent
-  !!*   get calls had been interrupted by a push-call, the vectors will be
-  !!*   returned beginning with the most recent again.
+  !> Returns the current vector from the FIFO without deleting it.
+  !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
+  !> first out). The vectors are not deleted from the fifo. If all the vectors had been returned, or
+  !> the subsequent get calls had been interrupted by a push-call, the vectors will be returned
+  !> beginning with the most recent again.
   subroutine FifoRealR1_get(sf, vector)
+
+    !> FifoRealR1 instance
     type(OFifoRealR1), intent(inout) :: sf
+
+    !> Contains the vector on exit.
     real(dp), intent(out) :: vector(:)
-    
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     call get(sf%fifoIntR1, sf%convBuffer)
     vector(:) = transfer(sf%convBuffer, vector, sf%nElem)
@@ -484,362 +522,350 @@ contains
   end subroutine FifoRealR1_get
 
 
-  !!* Rewinds the FIFO, so that reading starts with first element again.
-  !!
+  !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoRealR1_restart(sf)
+
+    !> fifo object
     type(OFifoRealR1), intent(inout) :: sf
 
     call restart(sf%fifoIntR1)
-    
-  end subroutine FifoRealR1_restart
-  
-  
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  FifoRealR2
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !!* Creates a FifoRealR2 instance, which stores rank 2 matrices.
-  !!* @param sf  Initialised FifoIntR1 instance on exit.
-  !!* @param bufferSize Nr. of vectors to keep in the memory (>=0)
-  !!* @param fileName   Name of the file to keep the vectors on the disc.
-  !!* @caveat This routine relies on the fact that file IDs have maximal 5
-  !!*   digits.
+  end subroutine FifoRealR1_restart
+
+
+  !> Creates a FifoRealR2 instance, which stores rank 2 matrices.
   subroutine FifoRealR2_init(sf, bufferSize, fileName)
-    type(OFifoRealR2), intent(inout) :: sf
+
+    !> Initialised FifoIntR2 instance on exit.
+    type(OFifoRealR2), intent(out) :: sf
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in) :: bufferSize
+
+    !> Name of the file to keep the vectors on the disc.
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
-    sf%shape(:) = 0
-    sf%bufferSize = bufferSize    
+    sf%arrayShape(:) = 0
+    sf%bufferSize = bufferSize
     call init(sf%fifoRealR1, 0, fileName)
     sf%tInit = .true.
-    
+
   end subroutine FifoRealR2_init
 
 
-
-  !!* Resets FifoRealR2
-  !!* @param sf  FifoRealR2 instance.
-  !!* @param nElem Nr. of elements in the rank one vectors
-  subroutine FifoRealR2_reset(sf, newShape)
-    type(OFifoRealR2), intent(inout) :: sf
-    integer, intent(in) :: newShape(:)
-
-    ASSERT(sf%tInit)
-    ASSERT(size(newShape) == 2)
-    ASSERT(all(newShape > 0))
-
-    sf%shape(:) = newShape(:)
-    call reset(sf%fifoRealR1, sf%shape(1), bufferSize=sf%bufferSize*sf%shape(2))
-    
-  end subroutine FifoRealR2_reset
-
-  
-
-  !!* Destroys FifoRealR2 object.
-  !!* @param sf  FifoRealR2 instance.
+  !> Destroy a FifoRealR2 object.
   subroutine FifoRealR2_destruct(sf)
+
+    !> FifoRealR2 instance.
     type(OFifoRealR2), intent(inout) :: sf
 
-    ASSERT(sf%tInit)
+    call destruct(sf%fifoRealR1)
 
-    sf%tInit = .false.
-    
   end subroutine FifoRealR2_destruct
 
-  
 
-  !!* Adds a new vector to the FIFO.
-  !!* @param sf   FifoRealR2 instance
-  !!* @param vector Vector to store
-  subroutine FifoRealR2_push(sf, data)
+  !> Resets FifoRealR2
+  subroutine FifoRealR2_reset(sf, newShape)
+
+    !> FifoRealR2 instance.
     type(OFifoRealR2), intent(inout) :: sf
+
+    !> Nr. of elements in the vectors
+    integer, intent(in) :: newShape(2)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(newShape > 0))
+
+    sf%arrayShape = newShape
+    call reset(sf%fifoRealR1, sf%arrayShape(1), bufferSize=sf%bufferSize*sf%arrayShape(2))
+
+  end subroutine FifoRealR2_reset
+
+
+  !> Adds a new vector to the FIFO.
+  subroutine FifoRealR2_push(sf, data)
+
+    !> FifoRealR2 instance
+    type(OFifoRealR2), intent(inout) :: sf
+
+    !> Array to store
     real(dp), intent(in) :: data(:,:)
 
     integer :: ii
 
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%arrayShape))
 
-    do ii = 1, sf%shape(2)
+    do ii = 1, sf%arrayShape(2)
       call push(sf%fifoRealR1, data(:,ii))
     end do
 
   end subroutine FifoRealR2_push
 
-  
 
-  !!* Returns the current vector from the FIFO without deleting it.
-  !!* @param sf   FifoRealR2 instance
-  !!* @param vector Contains the vector on exit.
-  !!* @desc
-  !!*   This subroutines returns the vectors contained in the FIFO in the
-  !!*   appropriate order (first in first out). The vectors are not deleted
-  !!*   from the fifo. If all the vectors had been returned, or the subsequent
-  !!*   get calls had been interrupted by a push-call, the vectors will be
-  !!*   returned beginning with the most recent again.
+  !> Returns the current vector from the FIFO without deleting it.
+  !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
+  !> first out). The vectors are not deleted from the fifo. If all the vectors had been returned, or
+  !> the subsequent get calls had been interrupted by a push-call, the vectors will be returned
+  !> beginning with the most recent again.
   subroutine FifoRealR2_get(sf, data)
+
+    !> FifoRealR2 instance
     type(OFifoRealR2), intent(inout) :: sf
+
+    !> Contains the vector on exit.
     real(dp), intent(out) :: data(:,:)
 
     integer :: ii
-    
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
 
-    do ii = 1, sf%shape(2)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%arrayShape))
+
+    do ii = 1, sf%arrayShape(2)
       call get(sf%fifoRealR1, data(:,ii))
     end do
 
   end subroutine FifoRealR2_get
 
 
-  !!* Rewinds the FIFO, so that reading starts with first element again.
-  !!
+  !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoRealR2_restart(sf)
+
+    !> FifoRealR2 instance
     type(OFifoRealR2), intent(inout) :: sf
 
     call restart(sf%fifoRealR1)
-    
-  end subroutine FifoRealR2_restart
-  
-  
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  FifoCplxR1
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !!* Creates a FifoCplxR1 instance, which stores rank 1 vectors.
-  !!* @param sf  Initialised FifoIntR1 instance on exit.
-  !!* @param bufferSize Nr. of vectors to keep in the memory (>=0)
-  !!* @param fileName   Name of the file to keep the vectors on the disc.
-  !!* @caveat This routine relies on the fact that file IDs have maximal 5
-  !!*   digits.
+  end subroutine FifoRealR2_restart
+
+
+  !> Creates a FifoCplxR1 instance, which stores rank 1 vectors.
   subroutine FifoCplxR1_init(sf, bufferSize, fileName)
-    type(OFifoCplxR1), intent(inout) :: sf
+
+    !> Initialised FifoIntR1 instance on exit.
+    type(OFifoCplxR1), intent(out) :: sf
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in) :: bufferSize
+
+    !> Name of the file to keep the vectors on the disc.
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
     call init(sf%fifoIntR1, bufferSize, fileName)
     sf%nElem = 0
     sf%equivIntSize = 0
-    ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+    allocate(sf%convBuffer(sf%equivIntSize))
     sf%tInit = .true.
-    
+
   end subroutine FifoCplxR1_init
 
 
+  !> Destroy a FifoCplxR1 object.
+  subroutine FifoCplxR1_destruct(sf)
 
-  !!* Resets FifoCplxR1
-  !!* @param sf  FifoCplxR1 instance.
-  !!* @param nElem Nr. of elements in the rank one vectors
-  subroutine FifoCplxR1_reset(sf, nElem, bufferSize)
+    !> FifoCplxR1 instance.
     type(OFifoCplxR1), intent(inout) :: sf
+
+    call destruct(sf%fifoIntR1)
+
+  end subroutine FifoCplxR1_destruct
+
+
+  !> Resets a FifoCplxR1
+  subroutine FifoCplxR1_reset(sf, nElem, bufferSize)
+
+    !> FifoCplxR1 instance.
+    type(OFifoCplxR1), intent(inout) :: sf
+
+    !> Nr. of elements in the rank one vectors
     integer, intent(in) :: nElem
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in), optional :: bufferSize
 
     complex(dp), allocatable :: buffer(:)
     integer :: equiv(1)
 
-    ASSERT(sf%tInit)
-    ASSERT(nElem > 0)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(nElem > 0)
 
     if (nElem /= sf%nElem) then
-      DEALLOCATE_PARR(sf%convBuffer)
+      deallocate(sf%convBuffer)
       sf%nElem = nElem
-      ALLOCATE_(buffer, (nElem))
+      allocate(buffer(nElem))
       sf%equivIntSize = size(transfer(buffer, equiv))
-      DEALLOCATE_(buffer)
-      ALLOCATE_PARR(sf%convBuffer, (sf%equivIntSize))
+      deallocate(buffer)
+      allocate(sf%convBuffer(sf%equivIntSize))
     end if
     if (present(bufferSize)) then
       call reset(sf%fifoIntR1, sf%equivIntSize, bufferSize)
     else
       call reset(sf%fifoIntR1, sf%equivIntSize)
     end if
-    
+
   end subroutine FifoCplxR1_reset
 
-  
 
-  !!* Destroys FifoCplxR1 nobject.
-  !!* @param sf  FifoCplxR1 instance.
-  subroutine FifoCplxR1_destruct(sf)
-    type(OFifoCplxR1), intent(inout) :: sf
-
-    ASSERT(sf%tInit)
-
-    call destruct(sf%fifoIntR1)
-    DEALLOCATE_PARR(sf%convBuffer)
-    sf%tInit = .false.
-    
-  end subroutine FifoCplxR1_destruct
-
-  
-
-  !!* Adds a new vector to the FIFO.
-  !!* @param sf   FifoCplxR1 instance
-  !!* @param vector Vector to store
+  !> Adds a new vector to the FIFO.
   subroutine FifoCplxR1_push(sf, vector)
+
+    !> FifoCplxR1 instance
     type(OFifoCplxR1), intent(inout) :: sf
+
+    !> Vector to store
     complex(dp), intent(in) :: vector(:)
 
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     sf%convBuffer = transfer(vector, sf%convBuffer, sf%equivIntSize)
     call push(sf%fifoIntR1, sf%convBuffer)
 
   end subroutine FifoCplxR1_push
 
-  
 
-  !!* Returns the current vector from the FIFO without deleting it.
-  !!* @param sf   FifoCplxR1 instance
-  !!* @param vector Contains the vector on exit.
-  !!* @desc
-  !!*   This subroutines returns the vectors contained in the FIFO in the
-  !!*   appropriate order (first in first out). The vectors are not deleted
-  !!*   from the fifo. If all the vectors had been returned, or the subsequent
-  !!*   get calls had been interrupted by a push-call, the vectors will be
-  !!*   returned beginning with the most recent again.
+  !> Returns the current vector from the FIFO without deleting it.
+  !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
+  !> first out). The vectors are not deleted from the fifo. If all the vectors had been returned, or
+  !> the subsequent get calls had been interrupted by a push-call, the vectors will be returned
+  !> beginning with the most recent again.
   subroutine FifoCplxR1_get(sf, vector)
+
+    !> FifoCplxR1 instance
     type(OFifoCplxR1), intent(inout) :: sf
+
+    !> Contains the vector on exit.
     complex(dp), intent(out) :: vector(:)
-    
-    ASSERT(sf%tInit)
-    ASSERT(size(vector) == sf%nElem)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(size(vector) == sf%nElem)
 
     call get(sf%fifoIntR1, sf%convBuffer)
     vector(:) = transfer(sf%convBuffer, vector, sf%nElem)
 
   end subroutine FifoCplxR1_get
 
-  
-  
-  !!* Rewinds the FIFO, so that reading starts with first element again.
-  !!
+
+  !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoCplxR1_restart(sf)
+
+    !> FifoCplxR1 instance
     type(OFifoCplxR1), intent(inout) :: sf
 
     call restart(sf%fifoIntR1)
-    
-  end subroutine FifoCplxR1_restart
-  
-  
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!  FifoCplxR2
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !!* Creates a FifoCplxR2 instance, which stores rank 2 matrices.
-  !!* @param sf  Initialised FifoIntR1 instance on exit.
-  !!* @param bufferSize Nr. of vectors to keep in the memory (>=0)
-  !!* @param fileName   Name of the file to keep the vectors on the disc.
-  !!* @caveat This routine relies on the fact that file IDs have maximal 5
-  !!*   digits.
+  end subroutine FifoCplxR1_restart
+
+
+  !> Creates a FifoCplxR2 instance, which stores rank 2 matrices.
   subroutine FifoCplxR2_init(sf, bufferSize, fileName)
-    type(OFifoCplxR2), intent(inout) :: sf
+
+    !> Initialised FifoCplxR2 instance on exit.
+    type(OFifoCplxR2), intent(out) :: sf
+
+    !> Nr. of vectors to keep in the memory (>=0)
     integer, intent(in) :: bufferSize
+
+    !> Name of the file to keep the vectors on the disc.
     character(len=*), intent(in) :: fileName
 
-    ASSERT(.not. sf%tInit)
+    @:ASSERT(.not. sf%tInit)
 
-    sf%shape(:) = 0
+    sf%arrayShape(:) = 0
     sf%bufferSize = bufferSize
     call init(sf%fifoCplxR1, 0, fileName)
     sf%tInit = .true.
-    
+
   end subroutine FifoCplxR2_init
 
 
-
-  !!* Resets FifoCplxR2
-  !!* @param sf  FifoCplxR2 instance.
-  !!* @param nElem Nr. of elements in the rank one vectors
-  subroutine FifoCplxR2_reset(sf, newShape)
-    type(OFifoCplxR2), intent(inout) :: sf
-    integer, intent(in) :: newShape(:)
-
-    ASSERT(sf%tInit)
-    ASSERT(size(newShape) == 2)
-    ASSERT(all(newShape > 0))
-
-    sf%shape(:) = newShape(:)
-    call reset(sf%fifoCplxR1, sf%shape(1), bufferSize=sf%bufferSize*sf%shape(2))
-    
-  end subroutine FifoCplxR2_reset
-
-  
-
-  !!* Destroys FifoCplxR2 object.
-  !!* @param sf  FifoCplxR2 instance.
+  !> Destroy a FifoCplxR2 object.
   subroutine FifoCplxR2_destruct(sf)
+
+    !> FifoCplxR2 instance.
     type(OFifoCplxR2), intent(inout) :: sf
 
-    ASSERT(sf%tInit)
+    call destruct(sf%fifoCplxR1)
 
-    sf%tInit = .false.
-    
   end subroutine FifoCplxR2_destruct
 
-  
 
-  !!* Adds a new vector to the FIFO.
-  !!* @param sf   FifoCplxR2 instance
-  !!* @param vector Vector to store
-  subroutine FifoCplxR2_push(sf, data)
+  !> Resets a FifoCplxR2 instance
+  subroutine FifoCplxR2_reset(sf, newShape)
+
+    !> FifoCplxR2 instance.
     type(OFifoCplxR2), intent(inout) :: sf
+
+    !> Nr. of elements in the arrays
+    integer, intent(in) :: newShape(2)
+
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(newShape > 0))
+
+    sf%arrayShape = newShape
+    call reset(sf%fifoCplxR1, sf%arrayShape(1), bufferSize=sf%bufferSize*sf%arrayShape(2))
+
+  end subroutine FifoCplxR2_reset
+
+
+  !> Adds a new vector to the FIFO.
+  subroutine FifoCplxR2_push(sf, data)
+
+    !> FifoCplxR2 instance
+    type(OFifoCplxR2), intent(inout) :: sf
+
+    !> Vector to store
     complex(dp), intent(in) :: data(:,:)
 
     integer :: ii
 
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%arrayShape))
 
-    do ii = 1, sf%shape(2)
+    do ii = 1, sf%arrayShape(2)
       call push(sf%fifoCplxR1, data(:,ii))
     end do
 
   end subroutine FifoCplxR2_push
 
-  
 
-  !!* Returns the current vector from the FIFO without deleting it.
-  !!* @param sf   FifoCplxR2 instance
-  !!* @param vector Contains the vector on exit.
-  !!* @desc
-  !!*   This subroutines returns the vectors contained in the FIFO in the
-  !!*   appropriate order (first in first out). The vectors are not deleted
-  !!*   from the fifo. If all the vectors had been returned, or the subsequent
-  !!*   get calls had been interrupted by a push-call, the vectors will be
-  !!*   returned beginning with the most recent again.
+  !> Returns the current vector from the FIFO without deleting it.
+  !> This subroutines returns the vectors contained in the FIFO in the appropriate order (first in
+  !> first out). The vectors are not deleted from the fifo. If all the vectors had been returned, or
+  !> the subsequent get calls had been interrupted by a push-call, the vectors will be returned
+  !> beginning with the most recent again.
   subroutine FifoCplxR2_get(sf, data)
+
+    !> FifoCplxR2 instance
     type(OFifoCplxR2), intent(inout) :: sf
+
+    !> Contains the array on exit.
     complex(dp), intent(out) :: data(:,:)
 
     integer :: ii
-    
-    ASSERT(sf%tInit)
-    ASSERT(all(shape(data) == sf%shape))
 
-    do ii = 1, sf%shape(2)
+    @:ASSERT(sf%tInit)
+    @:ASSERT(all(shape(data) == sf%arrayShape))
+
+    do ii = 1, sf%arrayShape(2)
       call get(sf%fifoCplxR1, data(:,ii))
     end do
 
   end subroutine FifoCplxR2_get
 
 
-  !!* Rewinds the FIFO, so that reading starts with first element again.
-  !!
+  !> Rewinds the FIFO, so that reading starts with first element again.
   subroutine FifoCplxR2_restart(sf)
+
+    !> instance of a fifo
     type(OFifoCplxR2), intent(inout) :: sf
 
     call restart(sf%fifoCplxR1)
-    
+
   end subroutine FifoCplxR2_restart
-  
-  
+
 end module fifo

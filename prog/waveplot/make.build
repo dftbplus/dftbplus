@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -19,9 +19,9 @@ all: $(TARGETS)
 # Include common makefile
 SRCDIRS := $(ROOT)/prog/waveplot
 SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
-SRCDIRS += $(ROOT)/prog/dftb+/includes
-INCDIRS := $(ROOT)/prog/dftb+/includes
-include $(ROOT)/prog/dftb+/make.common
+SRCDIRS += $(ROOT)/prog/dftb+/include
+INCDIRS := $(ROOT)/prog/dftb+/include
+include $(ROOT)/prog/waveplot/make.common
 
 # Target definitions (declared *after* importing necessary makefiles).
 waveplot: $(waveplot.o)

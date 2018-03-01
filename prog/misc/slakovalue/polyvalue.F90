@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program polyvalue
-#include "allocate.h"  
   use accuracy
+  use io
   use reppoly
   use fileid
   use message
@@ -18,7 +18,7 @@ program polyvalue
   character(lc) :: arg, fname
   logical :: homo
   type(tRepPolyIn) :: repPolyIn
-  type(ORepPoly), pointer :: pRepPoly
+  type(ORepPoly) :: pRepPoly
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2, rDummy
@@ -28,7 +28,7 @@ program polyvalue
   end if
   call get_command_argument(1, arg)
   if (arg == "-h" .or. arg == "--help") then
-    write(*, "(A)") &
+    write(stdout, "(A)") &
         & "Usage: polyvalue  homo | hetero  skfile",&
         & "",&
         & "Reads an SK-file, extracts the polynomial repulsive from it and &
@@ -61,7 +61,6 @@ program polyvalue
       & (rDummy, ii = 11, 20)
   close(fp)
 
-  INITALLOCATE_P(pRepPoly)
   call init(pRepPoly, repPolyIn)
   npoint = floor((repPolyIn%cutoff - rstart) / dr) + 1
   rr(:) = 0.0_dp
@@ -69,8 +68,7 @@ program polyvalue
     rr(1) = rStart + real(ii, dp) * dr
     call getenergy(pRepPoly, energy, rr(1))
     call getenergyderiv(pRepPoly, grad, rr, d2)
-    write(*, "(4E23.15)") rr(1), energy, grad(1), d2
+    write(stdout, "(4E23.15)") rr(1), energy, grad(1), d2
   end do
-  DEALLOCATE_P(pRepPoly)
 
 end program polyvalue

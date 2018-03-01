@@ -1,0 +1,80 @@
+
+\chapter{Description of restart files}
+\label{app:restartfiles}
+
+\subsection{charges.bin / charges.dat}
+
+Initial charges and the current orbital charges are stored in these files. Both
+contain the same information, but \verb|charges.bin| is stored as unformatted
+binary data, while \verb|charges.dat| is a text file.
+
+The first line of the file is:
+\begin{verbatim}
+  version tBlockCharges tImaginaryBlock nSpin CheckSum
+\end{verbatim}
+
+Where version is currently 3, tBlockCharges and tImaginaryBlock are logical
+variables as to whether real and imaginary block charges are present. nSpin is
+the number of spin channels (1, 2 or 4 for spin free, collinear and
+non-collinear) and checksum is the totals for the charges in each spin channel.
+
+The subsequent nAtom $\times$ nSpin lines contain the individual orbital
+occupations for each atom in spin channel 1 (then 2 $\ldots$ 4, if present).
+
+If tBlockCharges is true, then the on-site block charges for each atom and spin
+channel are stored, followed by the imaginary part if tImaginaryBlock is true.
+
+Examples of the contents of \verb|charges.dat| are given below for an H$_2$O
+molecule in the $yz$ aligned with its dipole along $y$.  Using the mio-1-1
+Slater-Koster set, this file would contain:
+\begin{tiny}
+\begin{verbatim}
+           3 F F           1   8.0000000000000018
+   6.5926151655316767        0.0000000000000000        0.0000000000000000        0.0000000000000000
+  0.70369241723366482
+  0.70369241723466003
+\end{verbatim}
+\end{tiny}
+
+When \is{OrbitalResolved = No}. So, this is version 3 of the format, without
+block charges and it is spin free with 8 electrons. The electronic charges are
+grouped into the lowest atomic orbitals of each atom in this case. There is some
+small numerical noise in some of these these values ($<10^{-14}$).
+
+With \is{OrbitalResolved = Yes}, the oxygen has 1.7 $2s$ electrons and 4.83 $2p$
+orbitals (electrons listed in the lowest labelled state in each shell).
+\begin{tiny}
+\begin{verbatim}
+           3 F F           1   8.0000000000000018
+   1.7335403452609417        4.8346073382345685        0.0000000000000000        0.0000000000000000
+  0.71592615825295036
+  0.71592615825154060
+\end{verbatim}
+\end{tiny}
+
+While for a pseudo-SIC calculation, where the net spin is 0:
+\begin{tiny}
+\begin{verbatim}
+           3 T F           2   8.0000000000000018        0.0000000000000000
+   1.7566193972978825        1.7147230821039328        1.2018994732683752        2.0000000000000013
+  0.66337902366501833
+  0.66337902366479040
+   0.0000000000000000        0.0000000000000000        0.0000000000000000        0.0000000000000000
+   0.0000000000000000
+   0.0000000000000000
+   1.7566193972978825      -0.28455491415632111        7.9592308124161928E-014  -7.7482799007142168E-027
+ -0.28455491415632111        1.7147230821039328        5.6922736516833719E-014   4.1776281206242259E-026
+   7.9592308124161928E-014   5.6922736516833719E-014   1.2018994732683752       -4.6749196043609904E-016
+  -7.7482799007142168E-027   4.1776281206242259E-026  -4.6749196043609904E-016   2.0000000000000013
+  0.66337902366501833
+  0.66337902366479040
+   0.0000000000000000        0.0000000000000000        0.0000000000000000        0.0000000000000000
+   0.0000000000000000        0.0000000000000000        0.0000000000000000        0.0000000000000000
+   0.0000000000000000        0.0000000000000000        0.0000000000000000        0.0000000000000000
+   0.0000000000000000        0.0000000000000000        0.0000000000000000        0.0000000000000000
+   0.0000000000000000
+   0.0000000000000000
+\end{verbatim}
+\end{tiny}
+Note the 0 blocks for the spin polarisation in channel 2, and also that the
+diagonal of the block charges matches the orbital charges for the atoms.

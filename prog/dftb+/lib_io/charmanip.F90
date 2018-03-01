@@ -1,57 +1,77 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Contains character manipulation routines
+#:include 'common.fypp'
+
+!> Contains character manipulation routines
 module charmanip
-#include "assert.h"  
+  use assert
   implicit none
 
   private
-  
-  !! Quotation related quantities
+
+  ! Quotation related quantities
+
+  !> count of these
   integer, parameter :: nQuoteChar = 2
+
+  !> types of quote mark
   character(len=1), parameter :: quoteChars(nQuoteChar) = (/ "'", '"' /)
 
-  !! Whitespace like characters
+  ! Whitespace like characters
+
+  !> blank space
   character(len=1), parameter :: space = " "
+
+  !> line feed character
   character(len=1), parameter :: lineFeed = achar(10)
+
+  !> carriage return
   character(len=1), parameter :: carriageReturn = achar(13)
+
+  !> tab symbol
   character(len=1), parameter :: tabulator = achar(9)
 
+
+  !> collected whitespace characters
   character(len=*), parameter :: whiteSpaces = space // lineFeed &
       &// carriageReturn // tabulator
 
-  !! Whitespace characters not treated as such by fortran
+
+  !> Whitespace characters not treated as such by fortran
   character(len=*), parameter :: unhandledWhiteSpaces = lineFeed // tabulator
 
-  !! Newline character
+
+  !> Newline character
   character(len=*), parameter :: newline = lineFeed
 
-  !! Maximal character length for integers (including sign)
+
+  !> Maximal character length for integers (including sign)
   integer, parameter :: maxIntLen = range(1) + 2
-  
 
-
-  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c, i2c_len
+  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c
   public :: getNextQuotationPos, getFirstOccurance, complementaryScan
   public :: unquotedScan
   public :: space, lineFeed, carriageReturn, tabulator, whiteSpaces, newline
   public :: convertWhitespaces
 
-
 contains
-  
-  !!* Returns the first unquoted occurance of a substring in a string
-  !!* @param string    String to investigate (hay)
-  !!* @param substring Substring to look for (needle)
-  !!* @return Position of the first occurance or zero if substring was not found
+
+
+  !> Returns the first unquoted occurance of a substring in a string
   function unquotedIndex(string, substring) result(unqIndex)
+
+    !> String to investigate (hay)
     character(len=*), intent(in) :: string
+
+    !> Substring to look for (needle)
     character(len=*), intent(in) :: substring
+
+    !> Position of the first occurance or zero if substring was not found
     integer :: unqIndex
 
     integer :: strPos, quoteStart, quoteEnd
@@ -66,15 +86,17 @@ contains
 
     do while (.not. tFinished)
 
-      !! Occurance of substr after last quotation end -> get next quotation
+
+      ! Occurance of substr after last quotation end -> get next quotation
       if (strPos > quoteEnd) then
         shift = quoteEnd
         call getNextQuotationPos(string(shift+1:lenStr), quoteStart, quoteEnd)
         quoteStart = quoteStart + shift
         quoteEnd = quoteEnd + shift
 
-      !! Substring occurs after quotation start but before quotation end ->
-      !! Look for next occurance. (If not found, no unquoted occurance exists.)
+
+        ! Substring occurs after quotation start but before quotation end -> Look for next
+        ! occurance. (If not found, no unquoted occurance exists.)
       elseif (strPos > quoteStart) then
         shift = strPos
         strPos = index(string(strPos+1:lenStr), substring)
@@ -84,26 +106,29 @@ contains
           strPos = strPos + shift
         end if
 
-      !! Substring before quotation start -> unquoted occurance found
+
+        ! Substring before quotation start -> unquoted occurance found
       else
         tFinished = .true.
       end if
     end do
-    
+
     unqIndex = strPos
 
   end function unquotedIndex
 
 
-
-  !!* Unquotes a string by removing the paired quotation marks
-  !!* @param string   String to remove the quotation marks from
-  !!* @param optLower Should unquoted part of string be converted to lowercase?
-  !!* @param return   Unquoted string
+  !> Unquotes a string by removing the paired quotation marks
   function unquote(string, optLower) result(unquoted)
-    character(len=*), intent(in)  :: string
+
+    !> String to remove the quotation marks from
+    character(len=*), intent(in) :: string
+
+    !> Should unquoted part of string be converted to lowercase?
     logical, intent(in), optional :: optLower
-    character(len=len(string))    :: unquoted
+
+    !> Unquoted string
+    character(len=len(string)) :: unquoted
 
     integer :: quoteStart, quoteEnd, shift
     integer :: tmp
@@ -122,7 +147,7 @@ contains
     lastPos = 1
     tFinished = .false.
     lenStr = len(string)
-    
+
     do while (.not. tFinished)
       shift = quoteEnd
       call getNextQuotationPos(string(shift+1:), quoteStart, quoteEnd)
@@ -150,18 +175,20 @@ contains
     end do
 
   end function unquote
-  
 
 
-  !!* Returns the starting and ending position of the next quotation
-  !!* @param str    String to investigate
-  !!* @param qStart Starting position of the quotation on return
-  !!* @param qEnd   Ending position of the quotation on return
-  !!* @note Starting and ending positions contain integers greater than the
-  !!*   string length, if they are not present in it.
+  !> Returns the starting and ending position of the next quotation
+  !> Note: Starting and ending positions are retuned as integer greater than the string length if
+  !> there is not a match for the quotes string
   subroutine getNextQuotationPos(str, qStart, qEnd)
+
+    !> String to investigate
     character(len=*), intent(in) :: str
+
+    !> Starting position of the quotation on return
     integer, intent(out) :: qStart
+
+    !> Ending position of the quotation on return
     integer, intent(out) :: qEnd
 
     integer :: iType, tmp, lenStr
@@ -178,7 +205,7 @@ contains
       end if
     end do
 
-    !! If quotation start was found, look for the appropriate quotation end
+    ! If quotation start was found, look for the appropriate quotation end
     if (qStart < lenStr) then
       qEnd = index(str(qStart+1:), quoteChars(iType))
       if (qEnd == 0) then
@@ -189,31 +216,36 @@ contains
     else
       qEnd = qStart + 1
     end if
-    
+
   end subroutine getNextQuotationPos
 
 
-
-  !!* Returns the first occurance of any of the passed substrings in a string
-  !!* @param iSubstr Index of the first occuring substring or 0.
-  !!* @param pos     Position of the first occurance
-  !!* @param string  String to investigate
-  !!* @param substrs Array of substrings to look for
-  !!* @param masks   Flag for every substring, if it should be considered.
+  !> Returns the first occurance of any of the passed substrings in a string
   subroutine getFirstOccurance(string, substrs, masks, iSubstr, pos)
+
+    !> String to investigate
     character(len=*), intent(in) :: string
+
+    !> substrings to search for
     character(len=*), intent(in) :: substrs(:)
+
+    !> mask for supplied substrings
     logical, intent(in) :: masks(:)
+
+    !> which substring was found
     integer, intent(out) :: iSubstr
+
+    !> its position in the string
     integer, intent(out) :: pos
 
     integer :: ii, iTmp, nSubstr
 
     nSubstr = size(substrs)
 
-    ASSERT(size(masks) == nSubstr)
-    
-    !! Get first occurance of a separator
+    @:ASSERT(size(masks) == nSubstr)
+
+
+    !> Get first occurance of a separator
     iSubstr = 0
     pos = len(string) + 1
     do ii = 1, nSubstr
@@ -225,21 +257,23 @@ contains
         end if
       end if
     end do
-    
+
   end subroutine getFirstOccurance
 
 
-
-  !!* Scans a string for the first character not part of a supplied set.
-  !!* @param string String to investigate
-  !!* @param set    Set containing the non-interesting characters
-  !!* @param back   If search should be made backwards
-  !!* @return Index of the first character not contained in the set or zero
-  !!*   if not found.
+  !> Scans a string for the first character not part of a supplied set.
   pure function complementaryScan(string, set, back) result(ind)
+
+    !> String to investigate
     character(len=*), intent(in) :: string
+
+    !> Set containing the non-interesting characters
     character(len=*), intent(in) :: set
+
+    !> If search should be made backwards
     logical, intent(in), optional :: back
+
+    !> Index of the first character not contained in the set or zero if not found.
     integer :: ind
 
     character(len=1) :: cc
@@ -273,18 +307,20 @@ contains
         exit
       end if
     end do
-    
+
   end function complementaryScan
 
 
-
-  !!* Returns the first unquoted occurance of a substring in a string
-  !!* @param string    String to investigate (hay)
-  !!* @param substring Substring to look for (needle)
-  !!* @return Position of the first occurance or zero if substring was not found
+  !> Returns the first unquoted occurance of a substring in a string
   function unquotedScan(string, set) result(unqIndex)
+
+    !> String to investigate (hay)
     character(len=*), intent(in) :: string
+
+    !> Substring to look for (needle)
     character(len=*), intent(in) :: set
+
+    !> Position of the first occurance or zero if substring was not found
     integer :: unqIndex
 
     integer :: strPos, quoteStart, quoteEnd
@@ -298,15 +334,16 @@ contains
 
     do while (.not. tFinished)
 
-      !! Occurance after last quotation end -> get next quotation
+
+      !> Occurance after last quotation end -> get next quotation
       if (strPos > quoteEnd) then
         shift = quoteEnd
         call getNextQuotationPos(string(shift+1:), quoteStart, quoteEnd)
         quoteStart = quoteStart + shift
         quoteEnd = quoteEnd + shift
 
-      !! Char occurs after quotation start but before quotation end ->
-      !! Look for next occurance. (If not found, no unquoted occurance exists.)
+        ! Char occurs after quotation start but before quotation end ->
+        ! Look for next occurance. (If not found, no unquoted occurance exists.)
       elseif (strPos > quoteStart) then
         shift = strPos
         strPos = scan(string(shift+1:), set)
@@ -316,49 +353,51 @@ contains
           strPos = strPos + shift
         end if
 
-      !! Substring before quotation start -> unquoted occurance found
+        ! Substring before quotation start -> unquoted occurance found
       else
         tFinished = .true.
       end if
     end do
-    
+
     unqIndex = strPos
 
   end function unquotedScan
 
 
-
-  !!* Length of a trimmed string if CR, LF and TAB count as trimmed characters.
-  !!* @param string String to investigate
-  !!* @return Length of the string
+  !> Length of a trimmed string if CR, LF and TAB count as trimmed characters.
   pure function len_trim2(string)
+
+    !> String to investigate
     character(len=*), intent(in) :: string
+
+    !> Length of the string
     integer :: len_trim2
 
     len_trim2 = complementaryScan(string, whiteSpaces, back=.true.)
-    
+
   end function len_trim2
 
 
-
-  !!* Returns a trimmed string if CR, LF and TAB count as trimmed characters.
-  !!* @param String to trim
-  !!* @return Trimmed string
+  !> Returns a trimmed string if CR, LF and TAB count as trimmed characters.
   function trim2(string)
+
+    !> String to trim
     character(len=*), intent(in) :: string
-    character(len=len_trim2(string)) :: trim2
-  
-    trim2 = string(:len(trim2))
+
+    character(:), allocatable :: trim2
+
+    trim2 = string(:len_trim2(string))
 
   end function trim2
 
 
-
-  !!* Returns a lowercase string
-  !!* @param str String to convert to lowercase
-  !!* @return Lowercase string
+  !> Returns a lowercase string
   pure function tolower(str) result(lower)
+
+    !> String to convert to lowercase
     character(len=*), intent(in) :: str
+
+    !> Lowercase string
     character(len=len(str)) :: lower
 
     integer :: ii, iTmp
@@ -375,45 +414,28 @@ contains
   end function tolower
 
 
-  
-  !!* Calculates for i2c the length of the string to hold the converted number
-  !!* @param number Number to convert
-  !!* @return Len of the string representation.
-  pure function i2c_len(number)
-    integer, intent(in) :: number
-    integer :: i2c_len
-    
-    character(len=maxIntLen) :: i2c
-    
-    write (i2c, "(I0)") number
-    i2c_len = len_trim(i2c)
-    
-  end function i2c_len
 
-
-
-  !!* Converts an integer to a character string
-  !!* @param number Integer to convert
-  !!* @return String containing the converted number
-  !!* @caveat Works only if the integer can be represented in 10 characters
-  !!* - waiting for fortran 2003 to allow dynamical character strings
+  !> Converts an integer to a character string
   pure function i2c(number)
+
+    !> Integer to convert
     integer, intent(in) :: number
-    character(len=i2c_len(number)) :: i2c
+
+    !> converted string
+    character(:), allocatable :: i2c
 
     character(len=maxIntLen) :: buffer
 
-    write (buffer, "(I0)") number
+    write(buffer, "(I0)") number
     i2c = trim(buffer)
-    
+
   end function i2c
 
 
-
-  !!* Replaces whitespace characters not recognised by Fortran as such by
-  !!* spaces.
-  !!* @param str String to process.
+  !> Replaces whitespace characters not recognised by Fortran as such by spaces.
   subroutine convertWhitespaces(str)
+
+    !> String to process.
     character(len=*), intent(inout) :: str
 
     integer :: ii
@@ -425,7 +447,5 @@ contains
     end do
 
   end subroutine convertWhitespaces
-
-
 
 end module charmanip

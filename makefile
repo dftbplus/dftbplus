@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -10,6 +10,7 @@ ROOT := $(PWD)
 .PHONY: default misc all
 default: dftb+ modes waveplot
 misc: misc_skderivs misc_slakovalue
+all: default misc
 
 .PHONY: install install_misc install_all
 install: install_dftb+ install_modes install_waveplot install_dptools
@@ -32,15 +33,30 @@ endif
 # Build targets
 ################################################################################
 
+# You can disable automatic release determination by setting the release
+# explicitely in the RELEASE file in the source root directory.
+.PHONY: update_release
+update_release:
+	mkdir -p $(BUILDDIR)
+	[ -r $(ROOT)/RELEASE ] && cp -a $(ROOT)/RELEASE $(BUILDDIR)/RELEASE \
+        || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE \
+        || echo "(UNKNOWN RELEASE)" > $(BUILDDIR)/RELEASE
+
 .PHONY: dftb+ modes waveplot
 dftb+ modes waveplot:
 	mkdir -p $(BUILDDIR)/prog/$@
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-dftb+: external_xmlf90 external_fsockets
-ifeq ($(strip $(COMPILE_DFTD3)),1)
+dftb+: update_release external_xmlf90
+ifeq ($(strip $(WITH_SOCKETS)),1)
+dftb+: external_fsockets
+endif
+ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
 dftb+: external_dftd3
+endif
+ifeq ($(strip $(WITH_MPI)),1)
+dftb+: external_mpifx external_scalapackfx
 endif
 modes: external_xmlf90
 waveplot: external_xmlf90
@@ -58,8 +74,10 @@ misc_skderivs: external_xmlf90
 
 EXTERNAL_NAME = $(subst external_,,$@)
 
-.PHONY: external_xmlf90 external_fsockets external_dftd3
-external_xmlf90 external_fsockets external_dftd3:
+EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
+    external_scalapackfx
+.PHONY: $(EXTERNALS)
+$(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)
 	$(MAKE) -C $(BUILDDIR)/external/$(EXTERNAL_NAME) \
           -f $(ROOT)/external/$(EXTERNAL_NAME)/make.dpbuild \
@@ -133,3 +151,13 @@ check_dptools_py3:
 .PHONY: distclean
 distclean:
 	rm -rf $(BUILDDIR)
+
+# Create a source distribution from current git check-out
+# Note: check-out must contain all submodules
+ARCHIVE_NAME := dftbplus
+.PHONY: sourcedist
+sourcedist:
+	rm -rf $(BUILDDIR)/_sourcedist
+	mkdir -p $(BUILDDIR)/_sourcedist
+	$(ROOT)/utils/build/make_archive.sh $(ARCHIVE_NAME) \
+            $(BUILDDIR)/_sourcedist

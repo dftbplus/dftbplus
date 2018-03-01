@@ -497,7 +497,6 @@ CONTAINS
          previous_clone => clone
 
       enddo
-      call unstring(name)
 
     end subroutine recursive_clone
 

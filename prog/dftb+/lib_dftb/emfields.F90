@@ -1,16 +1,18 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !!* Module for external electromagnetic fields - currently scalar magnetic field
 module emfields
-#include "assert.h"
-#include "allocate.h"
+  use assert
   use accuracy, only : dp
   use constants
+  use io
   use angmomentum, only : Loperators
   use simplealgebra, only : cross3
   use commontypes, only : TOrbitals
@@ -65,7 +67,7 @@ contains
 !            & coords(:,iAt2)+coords(:,iAt1))
 !        phase = -.025_dp * alpha_fs &
 !            & *dot_product(tmpA(:,2),BField)
-!        write(*,*)'phase :',phase
+!        write(stdout, *)'phase :',phase
 !        iH0(iOrig+1:iOrig+nOrb2*nOrb1) = sin(phase) * &
 !            & H0(iOrig+1:iOrig+nOrb2*nOrb1)
 !        H0(iOrig+1:iOrig+nOrb2*nOrb1) = cos(phase) * &
@@ -76,7 +78,7 @@ contains
 !  end subroutine MagField
 
 
-  !!* Constructs shift potential for scalar potential part of megnetic field 
+  !!* Constructs shift potential for scalar potential part of megnetic field
   !!* @param shift block shift from the potential
   !!* @param iShift imaginary block shift from the potential
   !!* @param BFieldStrength magnetic field strength - atomi CGS units
@@ -90,17 +92,17 @@ contains
     real(dp), intent(in)        :: BfieldVector(3)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in)         :: species(:)
-    
+
     integer :: iAt, nAtom, iSpin, nSpin, iSp, iSh, iOrb, nSpecies
     integer :: ii, jj, kk, ll, mm, iStart, iEnd
     complex(dp), allocatable :: Lz(:,:)
     complex(dp), allocatable :: Lplus(:,:)
     real(dp), allocatable :: SpeciesL(:,:,:,:)
-    
+
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
     nSpecies = maxval(species(1:nAtom))
-    
+
     ! spin Zeeman part
     select case(nSpin)
     case(2) ! z aligned electron spins
@@ -128,11 +130,11 @@ contains
     end select
 
     ! Orbital Zeeman part
-    
-    ALLOCATE_(SpeciesL,(orb%mOrb,orb%mOrb,3,nSpecies))
+
+    allocate(SpeciesL(orb%mOrb,orb%mOrb,3,nSpecies))
     SpeciesL = 0.0_dp
-    ALLOCATE_(Lz,(orb%mOrb,orb%mOrb))
-    ALLOCATE_(Lplus,(orb%mOrb,orb%mOrb))
+    allocate(Lz(orb%mOrb,orb%mOrb))
+    allocate(Lplus(orb%mOrb,orb%mOrb))
     do ii = 1, nSpecies
       do jj = 1, orb%nShell(ii)
         Lz = 0.0_dp
@@ -150,12 +152,10 @@ contains
             & = aimag(Lz(1:2*kk+1,1:2*kk+1))
       end do
     end do
-    DEALLOCATE_(Lplus)
-    DEALLOCATE_(Lz)
 
     do ii = 1, nAtom
       iSp = species(ii)
-      mm = orb%nOrbSpecies(iSp)      
+      mm = orb%nOrbSpecies(iSp)
       do jj = 1, orb%nShell(iSp)
         iStart = orb%posShell(jj,iSp)
         iEnd = orb%posShell(jj+1,iSp)-1
@@ -167,9 +167,7 @@ contains
         end do
       end do
     end do
-    
-    DEALLOCATE_(SpeciesL)
-    
+
   end subroutine shiftB_
-  
+
 end module emfields

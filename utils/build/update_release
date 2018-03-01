@@ -1,0 +1,200 @@
+#!/usr/bin/env python
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+
+"""Determines the release from the git tags and updates a given release file
+with that information.
+
+Usage:
+
+    update_release RELEASE_FILE
+
+where RELEASE_FILE is the file, in which the release information should be
+updated. If RELEASE_FILE is not present, it will be created. If it is present
+and contains already the right release information, it will be left unchanged.
+"""
+
+import re
+import subprocess as sub
+import sys
+import os.path
+
+# Pattern to match revision tag names
+REVISION_PATTERN = re.compile(
+    r'(?P<year>\d\d)\.(?P<major>\d+)(?:\.(?P<minor>\d+))?$')
+
+# Name of git command
+GITCMD = 'git'
+
+
+def main():
+    """Main script
+    """
+    scriptDir = os.path.dirname(sys.argv[0])
+    rootDir = os.path.realpath(os.path.join(scriptDir, '../..'))
+    release_file = sys.argv[1]
+
+    current_tag = get_current_tag(rootDir)
+    if current_tag:
+        update_release(release_file, get_release_name(current_tag))
+        sys.exit(0)
+
+    last_tag = get_last_tag(rootDir)
+    current_commit = get_current_commit(rootDir)
+    if current_commit is None:
+        sys.stderr.write('Warning: Commit could not be determined\n')
+    update_release(release_file, get_release_name(last_tag, current_commit))
+
+
+def get_current_tag(rootDir):
+    """Returns release tag belonging to current commit.
+
+    Args:
+        rootDir: Root directory of the git repository
+
+    Returns:
+        Current release tag as (year, major, minor) integer tuple or None if
+        no release tag belongs to current commit or if the git command failed.
+    """
+    cmd = [GITCMD, 'tag', '--contains']
+    try:
+        proc = sub.Popen(cmd, cwd=rootDir, stdout=sub.PIPE, stderr=sub.PIPE)
+    except OSError:
+        return None
+    rawtags = proc.stdout.read().split()
+    tags = convert_tags(rawtags)
+    if tags:
+        tags.sort()
+        return tags[-1]
+    else:
+        return None
+
+
+def get_last_tag(rootDir):
+    """Returns latest release tag available in the repository.
+
+    Args:
+        rootDir: Root directory of the git repository
+
+    Returns:
+        Latest release tag as (year, major, minor) integer tuple or None if
+        no release tag could be found or if the git command failed.
+    """
+    cmd = [GITCMD, 'tag', '--merged']
+    try:
+        proc = sub.Popen(cmd, cwd=rootDir, stdout=sub.PIPE, stderr=sub.PIPE)
+    except OSError:
+        return None
+    rawtags = proc.stdout.read().split()
+    tags = convert_tags(rawtags)
+    if tags:
+        tags.sort()
+        return tags[-1]
+    else:
+        return None
+
+
+def get_current_commit(rootDir):
+    """Returns current commit id.
+
+    Args:
+        rootDir: Root directory of the git repository
+
+    Returns:
+        Current commit id or None if the git command failed.
+    """
+    cmd = [GITCMD, 'rev-parse', '--short', 'HEAD']
+    try:
+        proc = sub.Popen(cmd, cwd=rootDir, stdout=sub.PIPE, stderr=sub.PIPE)
+    except OSError:
+        return None
+    commit = proc.stdout.read().strip()
+    return decode(commit)
+
+
+def get_release_name(tag, commit=None):
+    """Returns the name of the release.
+
+    Args:
+        tag: Release tag as found in the repository. If commit argument is also
+            supplied, it is assumed that the tag is the latest release tag, and
+            represents an earlier state of the code. It may be None, if last tag
+            could not be determined.
+        commit: Optional commit tag.
+
+    Returns:
+        String representation of the release name.
+    """
+    if tag is None and commit is None:
+        relname = '(Unknown release)'
+        return relname
+
+    if tag is None:
+        release = None
+    elif tag[2]:
+        release = '%d.%d.%d' % tag
+    else:
+        release = '%d.%d' % tag[0:2]
+
+    if commit is None:
+        relname = 'release ' + release
+    elif release is None:
+        relname = 'development version (commit: %s)' % (commit,)
+    else:
+        relname = ('development version (commit: %s, base: %s)'
+                   % (commit, release))
+    return relname
+
+
+def convert_tags(rawtags):
+    """Converts list of raw tag names to tag-tuples.
+
+    Args:
+        rawtags: List of raw tag names from the git repository
+
+    Returns:
+        List of (year, majory, minor) integer tuples.
+    """
+    tags = []
+    for rawtag in rawtags:
+        match = REVISION_PATTERN.match(decode(rawtag))
+        if match:
+            year, major, minor = match.groups()
+            if minor is None:
+                minor = 0
+            tags.append((int(year), int(major), int(minor)))
+    return tags
+
+
+def update_release(release_file, release_name):
+    """Updates the release file with release name, if it changed.
+
+    Args:
+        release_file: File where to write the release name. If the file already
+            exists and contains the same release name, it is left unchanged.
+        release_name: Name of the current release.
+    """
+    old_release_name = ''
+    if os.path.exists(release_file):
+        with open(release_file, 'r') as fp:
+            old_release_name = fp.read().strip()
+    if old_release_name != release_name:
+        with open(release_file, 'w') as fp:
+            fp.write(release_name)
+
+
+# Convert bytes to string when using Python 3
+if sys.version_info[0] >= 3:
+    def decode(str):
+        return str.decode()
+else:
+    def decode(str):
+        return str
+
+
+if __name__ == '__main__':
+    main()

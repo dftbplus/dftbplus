@@ -1,17 +1,18 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* A cache for calculating molecule orbitals on a grid.
-!!* @desc This object is responsible for reading in the eigenvectors from a
-!!* specified file and passing the appropriate eigenvectors to the molecule
-!!* orbital calculator.
+#:include 'common.fypp'
+
+!> A cache for calculating molecule orbitals on a grid.
+!> This object is responsible for reading in the eigenvectors from a specified file and passing the
+!> appropriate eigenvectors to the molecule orbital calculator.
 module GridCache
-# include "allocate.h"
-# include "assert.h"
+  use assert
+  use io
   use Constants
   use Accuracy
   use FileId
@@ -22,110 +23,167 @@ module GridCache
   private
   save
 
-  !!* Contains the data for a grid cache
+
+  !> Contains the data for a grid cache
   type OGridCache
-    type(OMolecularOrbital), pointer :: molorb  !* Molecular orbital calculator
-    real(dp) :: gridVec(3,3)                    !* Grid vectors
-    real(dp) :: origin(3)                       !* Origin of the grid
-    real(dp), pointer :: eigenvecReal(:,:)      !* Real eigenvectors
-    complex(dp), pointer :: eigenvecCmpl(:,:)   !* Complex eigenvectors
-    integer, pointer :: levelIndex(:,:)         !* Parameters of the levels
-    integer :: nReadEigVec                      !* Eigenvectors read so far
-    integer :: iGrid                            !* Grids processed so far
-    integer :: nGrid                            !* Nr. of grids to process
-    integer :: cachePos                         !* Position in the cache
-    logical :: tFinished                        !* Are we ready?
-    integer :: fdEigVec                         !* File descriptor for eigenvec
-    integer :: nOrb                             !* Size of the eigenvectors
-    integer :: nAllLevel                        !* Levels in the eigenvec file
-    integer :: nAllKPoint                       !* K-points in the eigenv. file
-    integer :: nAllSpin                         !* Spins in the eigenvec. file
-    logical :: tVerbose                         !* Verbose?
-    integer :: nCached                          !* Nr. of cached grids
-    real(dp), pointer :: gridCacheReal(:,:,:,:) !* Cache for real grids
-    complex(dp), pointer :: gridCacheCmpl(:,:,:,:) !* Cache for complex grids
-    real(dp), pointer :: kPoints(:,:)              !* KPoints
-    logical :: tReal                            !* Are eigenvectors real
-    logical :: tInitialised = .false.           !* Initialised?
+
+    !> Molecular orbital calculator
+    type(OMolecularOrbital), pointer :: molorb
+
+    !> Grid vectors
+    real(dp) :: gridVec(3,3)
+
+    !> Origin of the grid
+    real(dp) :: origin(3)
+
+    !> Real eigenvectors
+    real(dp), allocatable :: eigenvecReal(:,:)
+
+    !> Complex eigenvectors
+    complex(dp), allocatable :: eigenvecCmpl(:,:)
+
+    !> Parameters of the levels
+    integer, allocatable :: levelIndex(:,:)
+
+    !> Eigenvectors read so far
+    integer :: nReadEigVec
+
+    !> Grids processed so far
+    integer :: iGrid
+
+    !> Nr. of grids to process
+    integer :: nGrid
+
+    !> Position in the cache
+    integer :: cachePos
+
+    !> Are we ready?
+    logical :: tFinished
+
+    !> File descriptor for eigenvec
+    integer :: fdEigVec
+
+    !> Size of the eigenvectors
+    integer :: nOrb
+
+    !> Levels in the eigenvec file
+    integer :: nAllLevel
+
+    !> K-points in the eigenv. file
+    integer :: nAllKPoint
+
+    !> Spins in the eigenvec. file
+    integer :: nAllSpin
+
+    !> Verbose?
+    logical :: tVerbose
+
+    !> Nr. of cached grids
+    integer :: nCached
+
+    !> Cache for real grids
+    real(dp), allocatable :: gridCacheReal(:,:,:,:)
+
+    !> Cache for complex grids
+    complex(dp), allocatable :: gridCacheCmpl(:,:,:,:)
+
+    !> KPoints
+    real(dp), allocatable :: kPoints(:,:)
+
+    !> Are eigenvectors real
+    logical :: tReal
+
+    !> Initialised?
+    logical :: tInitialised = .false.
   end type OGridCache
-  
-  !!* Initialises a GridCache instance.
+
+
+  !> Initialises a GridCache instance.
   interface init
     module procedure GridCache_init
   end interface
 
-  !!* Deinitialises a GridCache instance.
-  interface destruct
-    module procedure GridCache_destruct
-  end interface
 
-  !!* Delivers the next molecular orbital grid from the cache
+  !> Delivers the next molecular orbital grid from the cache
   interface next
     module procedure GridCache_next_real
     module procedure GridCache_next_cmpl
   end interface
 
   public :: OGridCache
-  public :: init, destruct, next
+  public :: init, next
 
-  
 contains
 
-  !!* Initialises a GridCache instance
-  !!* @param sf           The structure to initialise
-  !!* @param levelIndex   Contains indexes (spin, kpoint, state) of the levels
-  !!*                     which must be calculated
-  !!* @param nOrb         Nr. of orbitals (elements) in an eigenvectors
-  !!* @param nAllLevel    Nr. of levels, for which eigenvector is provided in
-  !!*                     the eigenvector file
-  !!* @param nAllKPoint   Nr. of k-points for which eigenvectors are provided.
-  !!* @param nAllSpin     Nr. of all spins for which eigenvectors are provided.
-  !!* @param nCached      Nr. of cached grids
-  !!* @param nPoints      Nr. of grid points along the grid vectors
-  !!* @param tVerbose     If verbosity should turned on
-  !!* @param eigenvecbin  Name of the binary eigenvector file
-  !!* @param gridVec      Grid vectors
-  !!* @param origin       Origin of the grid
-  !!* @param kPointCoords Coordinates of the k-points
-  !!* @param tReal        If grids and eigenvectors are real
-  !!* @param molorb       Molecular orbital calculator
-  !!* @caveat Level index is not allowed to contain duplicate entries!
+
+  !> Initialises a GridCache instance
+  !> Caveat: Level index is not allowed to contain duplicate entries!
   subroutine GridCache_init(sf, levelIndex, nOrb, nAllLevel, &
       &nAllKPoint, nAllSpin, nCached, nPoints, tVerbose, eigvecbin, gridVec, &
       &origin, kPointCoords, tReal, molorb)
+
+    !> The structure to initialise
     type(OGridCache), intent(inout) :: sf
+
+    !> Contains indexes (spin, kpoint, state) of the levels which must be calculated
     integer, intent(in) :: levelIndex(:,:)
+
+    !> Nr. of orbitals (elements) in an eigenvectors
     integer, intent(in) :: nOrb
+
+    !> Nr. of levels, for which eigenvector is provided in the eigenvector file
     integer, intent(in) :: nAllLevel
+
+    !> Nr. of k-points for which eigenvectors are provided.
     integer, intent(in) :: nAllKPoint
+
+    !> Nr. of all spins for which eigenvectors are provided.
     integer, intent(in) :: nAllSpin
+
+    !> Nr. of cached grids
     integer, intent(in) :: nCached
+
+    !> Nr. of grid points along the grid vectors
     integer, intent(in) :: nPoints(:)
+
+    !> If verbosity should turned on
     logical, intent(in) :: tVerbose
+
+    !> Name of the binary eigenvector file
     character(len=*), intent(in) :: eigvecbin
+
+    !> Grid vectors
     real(dp), intent(in) :: gridVec(:,:)
+
+    !> Origin of the grid
     real(dp), intent(in) :: origin(:)
+
+    !> Coordinates of the k-points
     real(dp), intent(in) :: kPointCoords(:,:)
-    logical, intent(in)  :: tReal
-    type(OMolecularOrbital), pointer :: molorb
+
+    !> If grids and eigenvectors are real
+    logical, intent(in) :: tReal
+
+    !> Molecular orbital calculator
+    type(OMolecularOrbital), pointer, intent(in) :: molorb
 
     integer ::nAll
     integer :: iSpin, iKPoint, iLevel, ind, ii, iostat
     integer :: curVec(3)
     logical :: tFound
 
-    ASSERT(.not. sf%tInitialised)
-    ASSERT(size(levelIndex, dim=1) == 3)
-    ASSERT(size(levelIndex, dim=2) > 0)
-    ASSERT(minval(levelIndex) > 0)
-    ASSERT(maxval(levelIndex(1,:)) <= nAllLevel)
-    ASSERT(maxval(levelIndex(2,:)) <= nAllKPoint)
-    ASSERT(maxval(levelIndex(3,:)) <= nAllSpin)
-    ASSERT(associated(molorb))
-    ASSERT(all(shape(gridVec) == (/3, 3/)))
-    ASSERT(size(origin) == 3)
-    ASSERT(size(nPoints) == 3)
-    ASSERT(all(shape(kPointCoords) == (/ 3, nAllKPoint /)))
+    @:ASSERT(.not. sf%tInitialised)
+    @:ASSERT(size(levelIndex, dim=1) == 3)
+    @:ASSERT(size(levelIndex, dim=2) > 0)
+    @:ASSERT(minval(levelIndex) > 0)
+    @:ASSERT(maxval(levelIndex(1,:)) <= nAllLevel)
+    @:ASSERT(maxval(levelIndex(2,:)) <= nAllKPoint)
+    @:ASSERT(maxval(levelIndex(3,:)) <= nAllSpin)
+    @:ASSERT(associated(molorb))
+    @:ASSERT(all(shape(gridVec) == (/3, 3/)))
+    @:ASSERT(size(origin) == 3)
+    @:ASSERT(size(nPoints) == 3)
+    @:ASSERT(all(shape(kPointCoords) == (/ 3, nAllKPoint /)))
 
     sf%molorb => molorb
     sf%gridVec(:,:) = gridVec(:,:)
@@ -135,27 +193,21 @@ contains
     sf%nAllKPoint = nAllKPoint
     sf%nAllSpin = nAllSpin
     sf%tVerbose = tVerbose
-    ALLOCATE_PARR(sf%kPoints, (3, nAllKPoint))
+    allocate(sf%kPoints(3, nAllKPoint))
     sf%kPoints(:,:) = 2.0_dp * pi * kPointCoords(:,:)
     sf%nCached = nCached
     sf%tReal = tReal
     if (sf%tReal) then
-      ALLOCATE_PARR(sf%gridCacheReal, (nPoints(1), nPoints(2), nPoints(3), \
-          nCached))
-      ALLOCATE_PARR(sf%eigenvecReal, (sf%nOrb, sf%nCached))
-      sf%gridCacheCmpl => null()
-      sf%eigenvecCmpl => null()
+      allocate(sf%gridCacheReal(nPoints(1), nPoints(2), nPoints(3), nCached))
+      allocate(sf%eigenvecReal(sf%nOrb, sf%nCached))
     else
-      sf%gridCacheReal => null()
-      sf%eigenvecReal => null()
-      ALLOCATE_PARR(sf%gridCacheCmpl, (nPoints(1), nPoints(2), nPoints(3), \
-          nCached))
-      ALLOCATE_PARR(sf%eigenvecCmpl, (sf%nOrb, sf%nCached))
+      allocate(sf%gridCacheCmpl(nPoints(1), nPoints(2), nPoints(3), nCached))
+      allocate(sf%eigenvecCmpl(sf%nOrb, sf%nCached))
     end if
-    
+
     nAll = size(levelIndex, dim=2)
-    ALLOCATE_PARR(sf%levelIndex, (3, nAll))
-    !! Make sure, entries are correctly sorted in the list
+    allocate(sf%levelIndex(3, nAll))
+    ! Make sure, entries are correctly sorted in the list
     ind = 1
     do iSpin = 1, nAllSpin
       do iKPoint = 1, nAllKPoint
@@ -175,7 +227,7 @@ contains
         end do
       end do
     end do
-    ASSERT(ind == nAll + 1)
+    @:ASSERT(ind == nAll + 1)
     sf%nGrid = nAll
     sf%iGrid = 1
     sf%cachePos = 1
@@ -189,20 +241,23 @@ contains
     end if
     read (sf%fdEigVec) ii
     sf%tInitialised = .true.
-    
+
   end subroutine GridCache_init
 
-  
 
-  !!* Returns the next entry from the cache
-  !!* @param sf          Gridcache instance
-  !!* @param gridValReal Contains the molecular orbital on the grid on exit
-  !!* @param levelIndex  Indices of the moleular orbital (spin, kpoint, level)
-  !!* @param tFinished   If all orbitals had been processed.
+  !> Returns the next entry from the cache
   subroutine GridCache_next_real(sf, gridValReal, levelIndex, tFinished)
+
+    !> Gridcache instance
     type(OGridCache), intent(inout) :: sf
+
+    !> Contains the molecular orbital on the grid on exit
     real(dp), pointer :: gridValReal(:,:,:)
+
+    !> Indices of the moleular orbital (spin, kpoint, level)
     integer, intent(out) :: levelIndex(:)
+
+    !> If all orbitals had been processed.
     logical, intent(out) :: tFinished
 
     complex(dp), pointer, save :: gridValCmpl(:,:,:) => null()
@@ -211,17 +266,20 @@ contains
 
   end subroutine GridCache_next_real
 
-  
 
-  !!* Returns the next entry from the cache
-  !!* @param sf          Gridcache instance
-  !!* @param gridValCmpl Contains the molecular orbital on the grid on exit
-  !!* @param levelIndex  Indices of the moleular orbital (spin, kpoint, level)
-  !!* @param tFinished   If all orbitals had been processed.
+  !> Returns the next entry from the cache
   subroutine GridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
+
+    !> Gridcache instance
     type(OGridCache), intent(inout) :: sf
+
+    !> Contains the molecular orbital on the grid on exit
     complex(dp), pointer :: gridValCmpl(:,:,:)
+
+    !> Indices of the moleular orbital (spin, kpoint, level)
     integer, intent(out) :: levelIndex(:)
+
+    !> If all orbitals had been processed.
     logical, intent(out) :: tFinished
 
     real(dp), pointer, save :: gridValReal(:,:,:) => null()
@@ -229,31 +287,35 @@ contains
     call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine GridCache_next_cmpl
-  
-  
 
-  !!* Working subroutine for the GridCache_next_* subroutines
-  !!* @param sf          Gridcache instance
-  !!* @param gridValReal Contains the real grid onexit
-  !!* @param gridValCmpl Contains the complex grid on exit
-  !!* @param levelIndex  Level indexes of the processed orbital on exit
-  !!* @param tFinished   If all orbitals had been processed.
+
+  !> Working subroutine for the GridCache_next_* subroutines
   subroutine local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+
+    !> Gridcache instance
     type(OGridCache), intent(inout), target :: sf
+
+    !> Contains the real grid onexit
     real(dp), pointer :: gridValReal(:,:,:)
+
+    !> Contains the complex grid on exit
     complex(dp), pointer :: gridValCmpl(:,:,:)
+
+    !> Level indexes of the processed orbital on exit
     integer, intent(out) :: levelIndex(:)
+
+    !> If all orbitals had been processed.
     logical, intent(out) :: tFinished
-    
+
     integer :: iEnd, iStartAbs, iEndAbs, iLevel, iKPoint, iSpin
     integer :: ind, tmp
     real(dp), pointer :: eigReal(:,:)
     complex(dp), pointer :: eigCmpl(:,:)
 
-    ASSERT(sf%tInitialised)
-    ASSERT(.not. sf%tFinished)
+    @:ASSERT(sf%tInitialised)
+    @:ASSERT(.not. sf%tFinished)
 
-    !! We passed back everything from the cache, fill it with new grids
+    ! We passed back everything from the cache, fill it with new grids
     if (mod(sf%cachePos - 1, sf%nCached) == 0) then
       sf%cachePos = 1
       iStartAbs = sf%iGrid
@@ -266,10 +328,10 @@ contains
           read (sf%fdEigVec) sf%eigenvecReal(:,ind)
         else
           read (sf%fdEigVec) sf%eigenvecCmpl(:,ind)
-        end if        
+        end if
         sf%nReadEigVec = sf%nReadEigVec + 1
 
-        !! If eigenvec belongs to a level which must be plotted, keep it
+        ! If eigenvec belongs to a level which must be plotted, keep it
         iSpin = (sf%nReadEigVec - 1) / (sf%nAllLevel * sf%nAllKPoint) + 1
         tmp = mod(sf%nReadEigVec - 1, sf%nAllLevel * sf%nAllKPoint)
         iKPoint = tmp / sf%nAllLevel + 1
@@ -278,14 +340,14 @@ contains
             &== sf%levelIndex(:,iStartAbs+ind-1))) then
           ind = ind + 1
           if (sf%tVerbose) then
-            write (*, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
+            write(stdout, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
           end if
         end if
       end do
 
-      !! Get molecular orbital for that eigenvector
+      ! Get molecular orbital for that eigenvector
       if (sf%tVerbose) then
-        write(*, "(/,A,/)") "Calculating grid"
+        write(stdout, "(/,A,/)") "Calculating grid"
       end if
       if (sf%tReal) then
         eigReal => sf%eigenvecReal(:, :iEnd)
@@ -299,15 +361,15 @@ contains
       end if
     end if
 
-    !! Return the appropriate grid
+    ! Return the appropriate grid
     if (sf%tReal) then
       gridValReal => sf%gridCacheReal(:,:,:,sf%cachePos)
     else
       gridValCmpl => sf%gridCacheCmpl(:,:,:,sf%cachePos)
     end if
     levelIndex(:) = sf%levelIndex(:,sf%iGrid)
-    
-    !! Increase cache and grid counters
+
+    ! Increase cache and grid counters
     sf%iGrid = sf%iGrid + 1
     sf%cachePos = sf%cachePos + 1
     if (sf%iGrid > sf%nGrid) then
@@ -315,26 +377,7 @@ contains
       close(sf%fdEigVec)
     end if
     tFinished = sf%tFinished
-    
+
   end subroutine local_next
 
-  
-
-  !!* Deinitialises a GridCache instance
-  !!* @param sf GridCache instance
-  subroutine GridCache_destruct(sf)
-    type(OGridCache), intent(inout) :: sf
-
-    call destruct(sf%molorb)
-    DEALLOCATE_PARR(sf%eigenvecReal)
-    DEALLOCATE_PARR(sf%eigenvecCmpl)
-    DEALLOCATE_PARR(sf%levelIndex)
-    DEALLOCATE_PARR(sf%gridCacheReal)
-    DEALLOCATE_PARR(sf%gridCacheCmpl)
-    DEALLOCATE_PARR(sf%kPoints)
-    
-  end subroutine GridCache_destruct
-
-
-  
 end module GridCache

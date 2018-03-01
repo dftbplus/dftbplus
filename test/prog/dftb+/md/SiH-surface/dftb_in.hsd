@@ -59,7 +59,6 @@ Driver = VelocityVerlet {
     0.00000000      0.00000000      0.00000000
     0.00000000      0.00000000      0.00000000
   }
-  OutputPrefix = "geom.out"
   KeepStationary = Yes # sum of velocities maintained as 0
 }
 
@@ -93,3 +92,10 @@ Options = {
 ParserOptions = {
   ParserVersion = 4
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

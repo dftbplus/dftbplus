@@ -1,71 +1,75 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!!* Routines to calculate a Slater type orbital (STO)
+#:include 'common.fypp'
+
+!> Routines to calculate a Slater type orbital (STO)
 module Slater
-# include "assert.h"
-# include "allocate.h"
+  use assert
   use accuracy
   implicit none
 
   private
   save
-  
+
+
+  !> Data for STOs
   type OSlaterOrbital
     private
     integer :: nPow
     integer :: nAlpha
     integer :: ll
-    real(dp), pointer :: aa(:,:) => null()
-    real(dp), pointer :: alpha(:) => null()
-    real(dp), pointer :: gridValue(:) => null()
+    real(dp), allocatable :: aa(:,:)
+    real(dp), allocatable :: alpha(:)
+    real(dp), allocatable :: gridValue(:)
     real(dp) :: gridDist
     integer :: nGrid
   end type OSlaterOrbital
 
-  !!* Initialises a SlaterOrbital
+
+  !> Initialises a SlaterOrbital
   interface init
     module procedure SlaterOrbital_init
   end interface
 
-  !!* Destructs a SlaterOrbital
-  interface destruct
-    module procedure SlaterOrbital_destruct
-  end interface
 
-  !!* Returns the value of a Slater orbital in a given point
+  !> Returns the value of a Slater orbital in a given point
   interface getValue
     module procedure SlaterOrbital_getValue
   end interface
 
-  !!* Assignement operator for SlaterOrbital to assure proper allocation
+
+  !> Assignement operator for SlaterOrbital to assure proper allocation
   interface assignment(=)
     module procedure SlaterOrbital_assign
   end interface
 
-
   public :: RealTessY
-  public :: OSlaterOrbital, init, destruct, getValue, assignment(=)
-  
+  public :: OSlaterOrbital, init, getValue, assignment(=)
 
 contains
 
 
-  !!* Returns the real tesseral spherical harmonics in a given point
-  !!* @param ll    Angular momentum of the spherical harmonics (0 <= ll <= 3)
-  !!* @param mm    Magnetic quantum number
-  !!* @param coord Coordinate where the value should be calculated
-  !!* @param rrOpt Length of the coordinate vector, if known in advance
-  !!* @note This function only work for angular momenta between 0 and 3 (s-f).
+  !> Returns the real tesseral spherical harmonics in a given point
+  !> This function only work for angular momenta between 0 and 3 (s-f).
   function RealTessY(ll, mm, coord, rrOpt) result (rty)
+
+    !> Angular momentum of the spherical harmonics (0 <= ll <= 3)
     integer, intent(in) :: ll
+
+    !> Magnetic quantum number
     integer, intent(in) :: mm
+
+    !> Coordinate where the value should be calculated
     real(dp), intent(in) :: coord(:)
+
+    !> Length of the coordinate vector, if known in advance
     real(dp), intent(in), optional :: rrOpt
+
     real(dp) :: rty
 
     real(dp) :: rr, xx, yy, zz
@@ -76,11 +80,11 @@ contains
       rr = sqrt(sum(coord**2))
     end if
 
-    ASSERT(ll >= 0 .and. ll <= 3)
-    ASSERT(abs(mm) <= ll)
-    ASSERT(size(coord) == 3)
-    ASSERT(rr >= 0.0_dp)
-    
+    @:ASSERT(ll >= 0 .and. ll <= 3)
+    @:ASSERT(abs(mm) <= ll)
+    @:ASSERT(size(coord) == 3)
+    @:ASSERT(rr >= 0.0_dp)
+
     xx = coord(1)
     yy = coord(2)
     zz = coord(3)
@@ -89,7 +93,7 @@ contains
       rty = 0.0_dp
       return
     end if
-    
+
     select case (ll)
     case(0)
       rty = 0.2820947917738782_dp
@@ -124,8 +128,9 @@ contains
         rty = 0.5462742152960395_dp * (xx**2 - yy**2) / rr**2
       end select
     case(3)
-      ! general set for f orbitals (not cubic), see
-      ! http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
+
+      !> general set for f orbitals (not cubic), see
+      !> http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
       select case (mm)
       case(-3)
         ! y(3x**2-y**2)
@@ -158,20 +163,25 @@ contains
   end function RealTessY
 
 
-
-  !!* Initialises a SlaterOrbital.
-  !!* @param self       SlaterOrbital instance to initialise
-  !!* @param aa         Summation coefficients (nCoeffPerAlpha, nAlpha)
-  !!* @param alpha      Exponential coefficients
-  !!* @param ll         Angular momentum of the orbital
-  !!* @param resolution Grid distance for the orbital
-  !!* @param cutoff     Cutoff, after which orbital is assumed to be zero
+  !> Initialises a SlaterOrbital.
   subroutine SlaterOrbital_init(self, aa, alpha, ll, resolution, cutoff)
+
+    !> SlaterOrbital instance to initialise
     type(OSlaterOrbital), intent(inout) :: self
+
+    !> Summation coefficients (nCoeffPerAlpha, nAlpha)
     real(dp), intent(in) :: aa(:,:)
+
+    !> Exponential coefficients
     real(dp), intent(in) :: alpha(:)
+
+    !> Angular momentum of the orbital
     integer, intent(in) :: ll
+
+    !> Grid distance for the orbital
     real(dp), intent(in) :: resolution
+
+    !> Cutoff, after which orbital is assumed to be zero
     real(dp), intent(in) :: cutoff
 
     integer :: nAlpha
@@ -182,62 +192,50 @@ contains
     nAlpha = size(alpha)
     nPow = size(aa, dim=1)
 
-    ASSERT(size(aa, dim=2) == nAlpha)
-    ASSERT(cutoff > 0.0_dp)
-    ASSERT(resolution > 0.0_dp)
-    
-    INITALLOCATE_PARR(self%aa, (nPow, nAlpha))
-    INITALLOCATE_PARR(self%alpha, (nAlpha))
+    @:ASSERT(size(aa, dim=2) == nAlpha)
+    @:ASSERT(cutoff > 0.0_dp)
+    @:ASSERT(resolution > 0.0_dp)
 
-    !! Storing parameter. (This is theoretically superflous now, since
-    !! the function is calculated only once at initialisation time and stored
-    !! on a grid.)
+    allocate(self%aa(nPow, nAlpha))
+    allocate(self%alpha(nAlpha))
+
+    ! Storing parameter. (This is theoretically now superfluous, since the function is calculated
+    ! only once at initialisation time and stored on a grid.)
     self%aa(:,:) = aa
     self%alpha(:) = -1.0_dp * alpha
     self%nPow = nPow
     self%nAlpha = nAlpha
     self%ll = ll
 
-    !! Obtain STO on a grid
+    ! Obtain STO on a grid
     self%nGrid = floor(cutoff / resolution) + 2
     self%gridDist = resolution
-    INITALLOCATE_PARR(self%gridValue, (self%nGrid))
+    allocate(self%gridValue(self%nGrid))
     do iGrid = 1, self%nGrid
       rr = real(iGrid - 1, dp) * resolution
       call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, self%alpha, &
           &rr, self%gridValue(iGrid))
     end do
-    
+
   end subroutine SlaterOrbital_init
 
 
-
-  !!* Desctruct SlaterOrbital
-  !!* @param self SlaterOrbital instance.
-  subroutine SlaterOrbital_destruct(self)
-    type(OSlaterOrbital), intent(inout) :: self
-
-    DEALLOCATE_PARR(self%aa)
-    DEALLOCATE_PARR(self%alpha)
-    DEALLOCATE_PARR(self%gridValue)
-    
-  end subroutine SlaterOrbital_destruct
-
-
-
-  !!* Retunrns the value of the SlaterOrbital in a given point
-  !!* @param self SlaterOrbital instance
-  !!* @param rr   Distance, where STO should be calculated
-  !!* @param sto  Contains the value of the function on return
+  !> Retunrns the value of the SlaterOrbital in a given point
   subroutine SlaterOrbital_getValue(self, rr, sto)
+
+    !> SlaterOrbital instance
     type(OSlaterOrbital), intent(in) :: self
-    real(dp), intent(in)  :: rr
+
+    !> Distance, where STO should be calculated
+    real(dp), intent(in) :: rr
+
+    !> Contains the value of the function on return
     real(dp), intent(out) :: sto
 
     integer :: ind
     real(dp) :: frac
 
-    ASSERT(rr >= 0.0_dp)
+    @:ASSERT(rr >= 0.0_dp)
 
     ! ind = 1 means zero distance as rr = (ind - 1) * gridDist
     ind = floor(rr / self%gridDist) + 1
@@ -248,27 +246,32 @@ contains
     else
       sto = 0.0_dp
     end if
-    
+
   end subroutine SlaterOrbital_getValue
 
 
+  !> Calculates the value of an STO analytically
+  subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, sto)
 
-  !!* Calculates the value of an STO analytically
-  !!* @param ll     Angular momentum of the STO
-  !!* @param nPow   Maximal power of the distance in the STO
-  !!* @param nAlpha Number of exponential coefficients
-  !!* @param aa     Summation coefficients (nPow, nAlpha)
-  !!* @param alpha  Exponential coefficients
-  !!* @param rr     Distance, where the STO should be calculated
-  !!* @param sto    Value of the STO on return
-  subroutine SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, alpha, rr, &
-      &sto)
+    !> Angular momentum of the STO
     integer, intent(in) :: ll
+
+    !> Maximal power of the distance in the STO
     integer, intent(in) :: nPow
+
+    !> Number of exponential coefficients
     integer, intent(in) :: nAlpha
+
+    !> Summation coefficients (nPow, nAlpha)
     real(dp), intent(in) :: aa(:,:)
+
+    !> Exponential coefficients
     real(dp), intent(in) :: alpha(:)
-    real(dp), intent(in)  :: rr
+
+    !> Distance, where the STO should be calculated
+    real(dp), intent(in) :: rr
+
+    !> Value of the STO on return
     real(dp), intent(out) :: sto
 
     real(dp) :: pows(nPow)
@@ -293,22 +296,20 @@ contains
       end do
       sto = sto + rTmp * exp(alpha(ii)*rr)
     end do
-    
+
   end subroutine SlaterOrbital_getValue_explicit
 
 
-
-  !!* An STO assignement with proper memory allocation (deep copy)
-  !!* @param left  Left value of the assignment
-  !!* @param right Right value of the assignment
-  !!* @note This subroutine must be elemental, so the usuall macros for the
-  !!*   allocation/deallocation can not be used, since they contain 
-  !!*   io-statements.
+  !> An STO assignement with proper memory allocation (deep copy)
   elemental subroutine SlaterOrbital_assign(left, right)
+
+    !> Left value of the assignment
     type(OSlaterOrbital), intent(inout) :: left
+
+    !> Right value of the assignment
     type(OSlaterOrbital), intent(in) :: right
 
-    if (associated(left%aa)) then
+    if (allocated(left%aa)) then
       deallocate(left%aa)
       deallocate(left%alpha)
     end if
@@ -325,7 +326,5 @@ contains
     left%nGrid = right%nGrid
 
   end subroutine SlaterOrbital_assign
-
-
 
 end module Slater
