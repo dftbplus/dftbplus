@@ -5,8 +5,8 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
+18.1 (2018-03-02)
+=================
 
 Added
 -----
@@ -41,7 +41,7 @@ Added
 Changed
 -------
 
-- Using allocatables instead of pointers whenever possible.
+- Using allocatables instead of pointers where possible.
 
 - Change to use the Fypp-preprocessor.
 
