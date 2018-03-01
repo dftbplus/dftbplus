@@ -64,6 +64,9 @@ TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 
 .PHONY: $(TESTS) test
 
+# set threads as dictated in make.config
+$(TESTS): export OMP_NUM_THREADS = $(TEST_OMP_THREADS)
+
 # Prepare and run individual tests, possibly in parallel.
 $(TESTS):
 	@$(AUTOTEST_CMD) -P "$(TESTRUNNER)" -p ./dftb+ -Q "$(POSTRUN)" -s P,R \
