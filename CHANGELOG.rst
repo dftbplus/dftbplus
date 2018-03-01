@@ -41,7 +41,7 @@ Added
 Changed
 -------
 
-- Using allocatables instead of pointers whenever possible.
+- Using allocatables instead of pointers where possible.
 
 - Change to use the Fypp-preprocessor.
 
