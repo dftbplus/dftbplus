@@ -2127,7 +2127,7 @@ The \kw{External} field keyword has the following options
 
 The \is{Dispersion} block controls whether DFTB interactions should be
 empirically corrected for van der Waals interactions, since DFTB (and
-SCC-DFTB) does not include these effects. Currently, three different
+SCC-DFTB) does not include these effects. Currently, five different
 dispersion correction schemes are implemented (for the detailed
 description of the methods see the following subsections):
 \begin{itemize}
@@ -2141,6 +2141,10 @@ description of the methods see the following subsections):
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.
+
+\item \is{Ts} Tkatchenko-Sheffler dispersion (CITATION?)
+
+\item \is{Mbd} Many-body dispersion model by Tkatchenko (CITATION?)
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2412,6 +2416,63 @@ parameters are taken to be the same as in the dftd3 code.
   dispersion interactions.
 
 \end{description}
+
+\subsubsection{TS}
+\label{sec:dftbp.DispTS}
+
+Applies the Tkatchenko-Sheffler dispersion model. (CITATION?)
+
+The following keywords can be used with this disperison model:
+\begin{ptable}
+  \kw{EnergyAccuracy} & r & & 1e-7 & \\
+  \kw{ForceAccuracy} & r & & 1e-6 & \\
+  \kw{Damping} & r & & 20.0 & \\
+  \kw{RangeSeparation} & & & 0.94 & \\
+  \kw{ReferenceSet} & & & "TS" & \\
+\end{ptable}
+\begin{description}
+\item[\is{EnergyAccuracy}] \modif{\modtype{energy}} Specifies the energy accuracy
+  of the dispersion calculation.
+\item[\is{ForceAccuracy}] \modif{\modtype{force}} Specifies the force accuracy
+  of the dispersion calculation.
+\item[\is{Damping}] Damping factor.
+\item[\is{RangeSeparation}] Range separation parameter. The default value is the
+  DFTB LDA-value. Note, that various DFTB-parametrisations may require different
+  values.
+\item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
+  are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
+  calculating surfaces).
+\end{description}
+
+
+\subsubsection{Mbd}
+
+Applies the Tkatchenko many-body-dispersion model. (CITATION?)
+
+The following keywords can be used with this disperison model:
+\begin{ptable}
+  \kw{Beta} & r & & 0.83 & \\
+  \kw{NOmegaGrid} & i & & 15 & \\
+  \kw{KGrid} & 3r & &  & \\
+  \kw{KGridShift} & & & 0.5 0.5 0.5 & \\
+  \kw{VacuumAxis} & & & No No No & \\
+  \kw{ReferenceSet} & & & "TS" & \\
+\end{ptable}
+\begin{description}
+\item[\is{Beta}] Range separation parameter. Default value is optimised for pure
+  DFT LDA functionals. The value may be different for various SK-sets.
+\item[\is{NOmegaGrid}] \modif{\modtype{force}} Number of integration points.
+\item[\is{KGrid}] Monkhorst-Pack-like k-point grid to integrate the Hamiltonian
+  of the interacting dipoles over the Brillouin-zone. Note, that this grid is
+  independent from the k-point grid used to integrate the atomic Hamiltonian.
+\item[\is{KGrid}] Shift of the Monhkhorst-Pack grid.
+\item[\is{VacuumAxis}] Set \is{Yes} for each axis, where there is vacuum between
+  the periodically repeated images of the cntrall cell.
+\item[\is{ReferenceSet}] Reference values for the free atoms. Possible choices
+  are \is{TS} (mostly used for molecules) and \is{TSsurf} (mostly used when
+  calculating surfaces).
+\end{description}
+
 
 
 \subsection{DFTB3}
