@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -27,6 +27,7 @@ module inputdata_module
   use ipisocket, only : IpiSocketCommInp
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
+  use elstatpot, only : TElStatPotentialsInp
   implicit none
   private
   save
@@ -54,7 +55,16 @@ module inputdata_module
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts
 
+    !> Whether hybrid parallelisation is enable
+    logical :: tOmpThreads
+
   end type TParallelOpts
+
+
+  !> LBFGS input settings
+  type TLbfgsInput
+    integer :: memory
+  end type TLbfgsInput
 
 
   !> Main control data for program as extracted by the parser
@@ -128,6 +138,9 @@ module inputdata_module
 
     !> printout of Mulliken
     logical :: tPrintMulliken   = .false.
+
+    !> electrostatic potential evaluation and printing
+    type(TElStatPotentialsInp), allocatable :: elStatPotentialsInp
 
     !> Localise electronic states
     logical :: tLocalise   = .false.
@@ -386,6 +399,10 @@ module inputdata_module
 
     type(linrespini) :: lrespini
 
+    !> LBFGS input
+    type(TLbfgsInput), allocatable :: lbfgsInp
+
+
   #:if WITH_SOCKETS
     !> socket communication
     type(IpiSocketCommInp), allocatable :: socketInput
@@ -397,20 +414,6 @@ module inputdata_module
     integer :: timingLevel
 
   end type control
-
-
-  !> Atomistic geometry and boundary conditions of the system
-  type geometry
-    integer :: nrAtoms         = 0
-    logical :: tPeriodic       = .false.
-    logical :: tFracCoord      = .false.
-    integer, allocatable :: types(:)
-    real(dp), allocatable :: coords(:, :)
-    integer :: nrTypes         = 0
-    real(dp), allocatable :: origo(:)
-    real(dp), allocatable :: latVecs(:, :)
-    character(mc), allocatable :: speciesName(:)
-  end type geometry
 
 
   !> Slater-Koster data

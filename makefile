@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -63,7 +63,7 @@ dftb+: update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
 dftb+: external_fsockets
 endif
-ifeq ($(strip $(COMPILE_DFTD3)),1)
+ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
 dftb+: external_dftd3
 endif
 ifeq ($(strip $(WITH_MPI)),1)

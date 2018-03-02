@@ -6,41 +6,82 @@ Notable project changes since release 1.3.1 (2017-02-22).
 
 
 Unreleased
-=========
+==========
 
 Added
 -----
 
-- MPI-parallelisation.
-
-- Improved thread-parallesation.
-
-- Tool straingen for straining periodic gen-files.
-
-- Shutdown possibility when using socket driver.
-
-- Option to read/write restart charges as ASCII text
-
-- Header for code prints release / git comit version information
 
 Changed
 -------
 
-- Using allocatables instead of pointers whenever possible.
-
-- Change to Fypp-preprocessor
-
-- Excited state (non-force) properties for multiple excitations
 
 Fixed
 -----
 
-- Keyword Atoms in modes_in.hsd consider only the first specified entry
+Compilation when socket interface disabled.
 
-- Excited window selection in Cassida time-dependent calculation
+18.1 (2018-03-02)
+=================
 
-- iPI interface with cluster geometries fixed (protocol contains redundant
-  lattice information in these cases)
+Added
+-----
+
+- MPI-parallelism.
+
+- Various user settings for MPI-parallelism.
+
+- Improved thread-parallelism.
+
+- LBGFS geometry driver.
+
+- Evaluation of electrostatic potentials at specified points in space.
+
+- Blurred external charges for periodic systems.
+
+- Option to read/write restart charges as ASCII text.
+
+- Timer for collecting timings and printing them at program end.
+
+- Tolerance of Ewald summation can be set in user input.
+
+- Shutdown possibility when using socket driver.
+
+- Header for code prints release / git commit version information.
+
+- Warning when downloading license incompatible external components.
+
+- Tool straingen for distorting gen-files.
+
+
+Changed
+-------
+
+- Using allocatables instead of pointers where possible.
+
+- Change to use the Fypp-preprocessor.
+
+- Excited state (non-force) properties for multiple excitations.
+
+- Broyden-mixer does not use file I/O.
+
+- Source code documentation is Ford-compatible.
+
+- Various refactorings to improve on modularity and code clarity.
+
+
+Fixed
+-----
+
+- Keyword Atoms in modes_in.hsd consider only the first specified entry.
+
+- Excited window selection in Cassida time-dependent calculation.
+
+- Formatting of eigenvalues and fillings in detailed.out and band.out
+
+- iPI socket interface with cluster geometries fixed (protocol contains
+  redundant lattice information in these cases).
+
 
 17.1 (2017-06-16)
 =================

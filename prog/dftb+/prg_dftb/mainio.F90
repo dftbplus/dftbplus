@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -41,6 +41,7 @@ module mainio
   use mdintegrator, only : OMdIntegrator, state
   use formatout
   use sccinit, only : writeQToFile
+  use elstatpot, only : TElStatPotentials
   use message
 #:if WITH_SOCKETS
   use ipisocket
@@ -63,6 +64,7 @@ module mainio
   public :: writeDetailedOut4, writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
   public :: writeCharges
+  public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
@@ -94,7 +96,7 @@ module mainio
   character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
 
   !> Format for two using exponential notation values with units
-  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71,A)"
+  character(len=*), parameter :: format2Ue = "(A, ':', T37, E13.6, T51, A, T57, E13.6, T71, A)"
 
   !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
@@ -671,6 +673,7 @@ contains
       iS = parallelKS%localKS(2, iKS)
       do iEig = 1, denseDesc%nOrb
         call hemv(rVecTemp, SSqr, eigvecs(:,iEig,iS))
+        rVecTemp = rVecTemp * eigvecs(:,iEig,iS)
         call writeSingleRealEigvecTxt(fd, eigvecs(:,iEig,iS), rVecTemp, iS, iEig, orb, species,&
             & speciesName, nAtom)
       end do
@@ -801,7 +804,8 @@ contains
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nEigvec
           if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
             call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
             call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
@@ -1774,7 +1778,8 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
           if (env%blacs%orbitalGrid%master) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS), localEigvec)
+            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+                & localEigvec)
             call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
             call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
@@ -1902,7 +1907,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation)
+      & gibbsFree, endCoords, tLocalise, localisation, esp)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -1958,6 +1963,9 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    !> Object holding the potentials and their locations
+    type(TElStatPotentials), allocatable, intent(in) :: esp
+
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
 
@@ -1994,6 +2002,12 @@ contains
     call writeTagged(fd, tag_endCoord, endCoords)
     if (tLocalise) then
       call writeTagged(fd, tag_pmlocalise, localisation)
+    end if
+    if (allocated(esp)) then
+      call writeTagged(fd, tag_internfield, -esp%intPotential)
+      if (allocated(esp%extPotential)) then
+        call writeTagged(fd, tag_externfield, -esp%extPotential)
+      end if
     end if
     close(fd)
 
@@ -2179,7 +2193,9 @@ contains
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
-          write(fd, "(2f12.5)") Hartree__eV * eigen(iEgy, iK, iSpin), filling(iEgy, iK, iSpin)
+          ! meV accuracy for eigenvalues
+          write(fd, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+              & filling(iEgy, iK, iSpin)
         end do
         write(fd,*)
       end do
@@ -2219,7 +2235,7 @@ contains
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, tEField, tPeriodic,&
       & nSpin, tSpinOrbit, tScc, invLatVec, kPoints, qOnsite)
 
-    !> File  ID
+    !> File ID
     integer, intent(in) :: fd
 
     !> Name of file to write to
@@ -2346,11 +2362,9 @@ contains
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
-    integer :: iAt, iSpin, iEgy, iK, iSp, iSh, iOrb, kk
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
     logical :: tSpin
 
-    character(*), parameter :: formatEigen = "(F14.8)"
-    character(*), parameter :: formatFilling = "(F12.5)"
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
@@ -2455,26 +2469,7 @@ contains
       end if
     end if
 
-    lpSpinPrint: do iSpin = 1, size(eigen, dim=3)
-      if (nSpin == 2) then
-        write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
-      else
-        write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
-      end if
-      write(fd, "(/, A)") 'Eigenvalues /H'
-      do iEgy = 1, size(eigen, dim=1)
-        write(fd, formatEigen) (eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, "(/, A)") 'Eigenvalues /eV'
-      do iEgy = 1, size(eigen, dim=1)
-        write(fd, formatEigen) (Hartree__eV * eigen(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, "(/, A)") 'Fillings'
-      do iEgy = 1, nLevel
-        write(fd, formatFilling) (filling(iEgy, iK, iSpin), iK = 1, nKPoint)
-      end do
-      write(fd, *)
-    end do lpSpinPrint
+    call writeDetailedOutEigenvalues(fd, eigen, filling)
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
@@ -2760,12 +2755,82 @@ contains
   end subroutine writeDetailedOut1a
 
 
+  !> Helper routine to write formatted eigenvalues and fillings
+  subroutine writeDetailedOutEigenvalues(fd, eigen, filling)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Eigenvalues/single particle states
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Occupation numbers
+    real(dp), intent(in) :: filling(:,:,:)
+
+    integer :: iSpin, nSpin, iK, kk, nKPoint, iEgy, nEgy, ii
+    real(dp) :: scaleFactor
+
+    ! meV level accuracy format for eigenvalues
+    character(*), parameter :: formatEigen(2) = [&
+        & character(21) :: "(4X, F10.5, 2X, F8.5)", "(4X, F10.3, 2X, F8.5)"]
+
+    ! K-points per group
+    integer, parameter :: nKPointPerGroup = 3
+
+    nEgy = size(filling, dim=1)
+    nKPoint = size(filling, dim=2)
+    nSpin = size(filling, dim=3)
+
+    lpSpinPrint: do iSpin = 1, nSpin
+
+      if (nSpin == 2) then
+        write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
+      else
+        write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
+      end if
+
+      do ii = 1, 2
+        if (ii == 1) then
+          write(fd, "(/, A)") 'Eigenvalues (H) and fillings (e)'
+          scaleFactor = 1.0_dp
+        else
+          write(fd, "(/, A)") 'Eigenvalues (eV) and fillings (e)'
+          scaleFactor = Hartree__eV
+        end if
+        do iK = 1, nKPoint, nKPointPerGroup
+          if (nKPoint > 1) then
+            if (nKPoint - iK > 0) then
+              write(fd, "(A, I0, ':', I0)") 'K-points ', iK, min(iK + nKPointPerGroup - 1, nKPoint)
+            else
+              write(fd, "(A, I0)") 'K-point ', iK
+            end if
+          end if
+          do iEgy = 1, nEgy
+            write(fd, "(I8)", advance='no') iEgy
+            do kk = 0, nKPointPerGroup - 1
+              if (iK + kk > nKPoint) then
+                exit
+              end if
+              write(fd, formatEigen(ii), advance='no') scaleFactor * eigen(iEgy, iK + kk, iSpin),&
+                  & filling(iEgy, iK + kk, iSpin)
+            end do
+            write(fd, *)
+          end do
+        end do
+      end do
+      write(fd, *)
+
+    end do lpSpinPrint
+
+  end subroutine writeDetailedOutEigenvalues
+
+
   !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile)
 
-    !> File  ID
+    !> File ID
     integer, intent(in) :: fd
 
     !> Charge self consistent?
@@ -4171,6 +4236,89 @@ contains
     end do
 
   end subroutine finishProjEigvecFiles
+
+
+  !> Electrostatic potential at specified points
+  subroutine writeEsp(esp, env, iGeoStep, nGeoSteps)
+
+    !> Object holding the potentials and their locations
+    type(TElStatPotentials), intent(in) :: esp
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Step of the geometry driver
+    integer, intent(in) :: iGeoStep
+
+    !> Number of geometry steps
+    integer, intent(in) :: nGeoSteps
+
+    integer :: ii
+    character(lc) :: tmpStr
+
+    if (env%tGlobalMaster) then
+      if (esp%tAppendEsp) then
+        open(esp%fdEsp, file=trim(esp%EspOutFile), position="append")
+      else
+        open(esp%fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
+      end if
+      ! Header with presence of external field and regular grid size
+      write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
+          & esp%gridDimensioning, size(esp%intPotential)
+      if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
+        write(esp%fdEsp,"(A)")trim(tmpStr)
+        if (all(esp%gridDimensioning > 0)) then
+          write(esp%fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
+          do ii = 1, 3
+            write(esp%fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
+          end do
+        end if
+      end if
+
+      if (nGeoSteps > 0) then
+        write(tmpStr, "(' Geo ', I0)")iGeoStep
+      else
+        write(tmpStr,*)
+      end if
+
+      ! actually print the potentials, note the sign changes, as inside DFTB+ potentials are defined
+      ! as though the charge on electrons is positive.
+      if (all(esp%gridDimensioning > 0)) then
+        ! Regular point distribution, do not print positions
+        if (allocated(esp%extPotential)) then
+          write(esp%fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
+                & -esp%extPotential(ii) * Hartree__eV
+          end do
+        else
+          write(esp%fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
+          end do
+        end if
+      else
+        ! Scattered points, print locations
+        if (allocated(esp%extPotential)) then
+          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
+              & External (V)', trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+                & -esp%intPotential(ii) * Hartree__eV, -esp%extPotential(ii) * Hartree__eV
+          end do
+        else
+          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
+              & trim(tmpStr)
+          do ii = 1, size(esp%espGrid,dim=2)
+            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+                & -esp%intPotential(ii) * Hartree__eV
+          end do
+        end if
+      end if
+      close(esp%fdEsp)
+    end if
+
+  end subroutine writeEsp
 
 
 end module mainio

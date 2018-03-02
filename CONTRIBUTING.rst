@@ -12,8 +12,8 @@ How to contribute
 
 The preferred method is to fork the project on `github
 <https://github.com/dftbplus/dftbplus/>`_), make your changes and then create a
-pull request. Your changes should be based on the **devel** branch, not the
-master. Before you start, please familiarise yourself with our developers guide
+pull request. Your changes should be based on the master branch. Before you
+start, please familiarise yourself with our developers guide
 `<http://dftbplus-develguide.readthedocs.io/en/latest/>`_ to understand our git
 workflow and style conventions.
 
