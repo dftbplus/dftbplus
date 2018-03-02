@@ -19,6 +19,7 @@ Changed
 Fixed
 -----
 
+Compilation when socket interface disabled.
 
 18.1 (2018-03-02)
 =================
