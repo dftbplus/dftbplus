@@ -132,17 +132,6 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
-# TRANSPORT
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-  COMPILED_EXTERNALS += _extlib_mudpack
-  L_INCS += $(POISSON_INCS)
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
-  COMPILED_EXTERNALS += _extlib_libnegf
-  L_INCS += $(LIBNEGF_INCS) 
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
-  FYPPOPT += -DWITH_TRANSPORT
-endif
-
 ifeq ($(strip $(WITH_MPI)),1)
   #
   # MPI settings
@@ -166,6 +155,18 @@ ifeq ($(strip $(WITH_MPI)),1)
   PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
   L_LIBS += $(L_LIBS_LAPACKBLAS)
+
+  # TRANSPORT
+  ifeq ($(strip $(WITH_TRANSPORT)),1)
+    COMPILED_EXTERNALS += _extlib_mudpack
+    L_INCS += $(POISSON_INCS)
+    L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
+    COMPILED_EXTERNALS += _extlib_libnegf
+    L_INCS += $(LIBNEGF_INCS)
+    L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
+    FYPPOPT += -DWITH_TRANSPORT
+  endif
+
 else
   #
   # NON-MPI settings
@@ -191,7 +192,6 @@ else
     L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
   endif
 endif
-
 
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@

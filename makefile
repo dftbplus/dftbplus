@@ -50,19 +50,19 @@ dftb+ modes waveplot:
 
 dftb+: update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
-dftb+: external_fsockets
+  dftb+: external_fsockets
 endif
 ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
-dftb+: external_dftd3
+  dftb+: external_dftd3
 endif
 ifeq ($(strip $(WITH_MPI)),1)
-dftb+: external_mpifx external_scalapackfx
+  dftb+: external_mpifx external_scalapackfx
+  ifeq ($(strip $(WITH_TRANSPORT)),1)
+    dftb+: external_libnegf
+    external_libnegf: external_mpifx
+    dftb+: external_mudpack
+  endif
 endif
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-dftb+: external_libnegf 
-external_libnegf: external_mpifx
-dftb+: external_mudpack
-endif	
 modes: external_xmlf90
 waveplot: external_xmlf90
 
