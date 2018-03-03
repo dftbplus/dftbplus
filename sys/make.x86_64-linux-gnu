@@ -31,7 +31,7 @@ ATLASDIR = /usr/lib
 LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
 
 # Any other libraries to be linked
-OTHERLIBS =
+OTHERLIBS = -lgomp -lpthread
 
 # M4 preprocessor settings
 M4 = m4
