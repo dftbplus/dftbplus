@@ -1,7 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from __future__ import print_function
 import struct
 import socket
+import time
 import numpy as np
 import numpy.linalg as la
 from sockettools import frac2cart, readgen, receive_all, a0
@@ -62,6 +63,7 @@ def main():
         unpacked_data = struct.unpack('i', buf)
         print(unpacked_data)
 
+    time.sleep(2)
     connection.shutdown(socket.SHUT_RDWR)
     connection.close()
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -264,7 +264,7 @@ contains
       call destruct(realBuffer)
     end if
 
-    call getChildValue(root, "WriteHSDInput", tWriteHSD, .true.)
+    call getChildValue(root, "WriteHSDInput", tWriteHSD, .false.)
     call getChildValue(root, "WriteXMLInput", tWriteXML, .false.)
 
     !! Issue warning about unprocessed nodes

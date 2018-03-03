@@ -14,7 +14,7 @@ if sys.hexversion < 0x03050000:
 DESCRIPTION = 'Replaces the copyright header in all relevant source files.'
 
 COPYRIGHT = '''DFTB+: general package for performing fast atomistic simulations
-Copyright (C) 2017  DFTB+ developers group
+Copyright (C) 2018  DFTB+ developers group
 
 See the LICENSE file for terms of usage and distribution.'''
 
@@ -37,6 +37,9 @@ FILE_TYPES = [
     ('prog/**/make.*', 'makefile'),
     ('test/prog/dftb+/bin/*', 'shell'),
     ('tools/misc/*', 'python'),
+    ('tools/dptools/bin/*', 'python'),
+    ('tools/dptools/src/**/*.py', 'python'),
+    ('test/tools/dptools/**/*.py', 'python'),
     ('utils/*', 'python'),
     ('utils/build/*.sh', 'shell'),
     ('utils/build/*', 'python'),

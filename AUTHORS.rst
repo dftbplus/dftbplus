@@ -36,3 +36,6 @@ contributed to DFTB+ :
   QuantumWise A/S, Denmark)
 
 * Michael Sternberg (Argonne National Laboratory, USA)
+
+* Frank Stuckenberg (University of Bremen, Germany)
+
