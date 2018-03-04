@@ -17,6 +17,7 @@
 module globalenv
   use, intrinsic :: iso_fortran_env, only : output_unit
 #:if WITH_MPI
+  use mpi, only : MPI_COMM_WORLD
   use mpifx
 #:endif
   implicit none
@@ -52,20 +53,40 @@ module globalenv
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv()
+  subroutine initGlobalEnv(outputUnit, mpiComm)
 
+    !> Customised global standard output
+    integer, intent(in), optional :: outputUnit
+
+    !> Customised global MPI communicator
+    integer, intent(in), optional :: mpiComm
+
+    integer :: mpiComm0, outputUnit0
+
+    if (present(outputUnit)) then
+      outputUnit0 = outputUnit
+    else
+      outputUnit0 = stdOut0
+    end if
+    
   #:if WITH_MPI
+    if (present(mpiComm)) then
+      mpiComm0 = mpiComm
+    else
+      mpiComm0 = MPI_COMM_WORLD
+    end if
+
     call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
-    call globalMpiComm%init()
+    call globalMpiComm%init(commid=mpiComm0)
     if (globalMpiComm%master) then
-      stdOut = stdOut0
+      stdOut = outputUnit0
     else
       stdOut = 1
       open(stdOut, file="/dev/null", action="write")
     end if
     tIoProc = globalMpiComm%master
   #:else
-    stdOut = stdOut0
+    stdOut = outputUnit0
   #:endif
 
   end subroutine initGlobalEnv
