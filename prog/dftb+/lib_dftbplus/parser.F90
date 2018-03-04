@@ -15,7 +15,7 @@ module parser
   use constants
   use inputdata_module
   use typegeometryhsd
-  use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
   use hsdutils
   use hsdutils2
   use charmanip
@@ -40,29 +40,15 @@ module parser
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
   implicit none
-
   private
 
-  public :: parseHsdInput, parserVersion
+  public :: parserVersion, rootTag
+  public :: TParserFlags
+  public :: readHsdFile, parseHsdTree
 
-
-  ! Default file names
-
-  !> Main HSD input file
-  character(len=*), parameter :: hsdInputName = "dftb_in.hsd"
-
-  !> XML input file
-  character(len=*), parameter :: xmlInputName = "dftb_in.xml"
-
-  !> Processed HSD input
-  character(len=*), parameter :: hsdProcInputName = "dftb_pin.hsd"
-
-  !> Processed  XML input
-  character(len=*), parameter :: xmlProcInputName = "dftb_pin.xml"
 
   !> Tag at the head of the input document tree
-  character(len=*), parameter :: rootTag = "dftb_in"
-
+  character(len=*), parameter :: rootTag = "dftbplusInput"
 
   !> Version of the current parser
   integer, parameter :: parserVersion = 5
@@ -90,75 +76,66 @@ module parser
 
 contains
 
+  !> Reads the HSD input from a file
+  subroutine readHsdFile(hsdFile, hsdTree)
+
+    !> Name of the input file
+    character(*), intent(in) :: hsdFile
+
+    !> Data tree representation of the input
+    type(fnode), pointer :: hsdTree
+    
+    call parseHSD(rootTag, hsdFile, hsdTree)
+
+  end subroutine readHsdFile
+    
 
   !> Parse input from an HSD/XML file
-  subroutine parseHsdInput(input)
+  subroutine parseHsdTree(hsdTree, input, parserFlags)
+
+    !> Tree representation of the input
+    type(fnode), pointer :: hsdTree
 
     !> Returns initialised input variables on exit
     type(inputData), intent(out) :: input
 
-    type(fnode), pointer :: hsdTree
+    !> Special block containings parser related settings
+    type(TParserFlags), intent(out) :: parserFlags
+
     type(fnode), pointer :: root, tmp, hamNode, child, dummy
-    type(TParserflags) :: parserFlags
-    logical :: tHSD, missing
-
-    write(stdOut, "(/, A, /)") "***  Parsing and initializing"
-
-    ! Read in the input
-    call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, tHSD, &
-        &missing)
-
-    !! If input is missing return
-    if (missing) then
-      call error("No input file found.")
-    end if
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
-    if (tHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
-    end if
     write(stdout, "(A)") repeat("-", 80)
 
-    ! Get the root of all evil ;-)
     call getChild(hsdTree, rootTag, root)
 
     ! Handle parser options
-    call getChildValue(root, "ParserOptions", dummy, "", child=child, &
-        &list=.true., allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(root, "ParserOptions", dummy, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dummyValue=.true.)
     call readParserOptions(child, root, parserFlags)
 
-    ! Read in the different blocks
-
-    ! Atomic geometry and boundary conditions
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
 
-    ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
 
-    ! Geometry driver
     call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
     call readDriver(tmp, child, input%geom, input%ctrl)
 
-    ! excited state options
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
 
-    ! Analysis of properties
     call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readAnalysis(child, input%ctrl, input%geom)
 
-    ! Options for calculation
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl)
 
-    ! Read W values if needed by Hamitonian or excited state calculation
+    ! W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
     call readParallel(root, input%ctrl%parallelOpts)
@@ -166,29 +143,7 @@ contains
     ! input data strucutre has been initialised
     input%tInitialized = .true.
 
-    ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
-
-    ! Dump processed tree in HSD and XML format
-    if (tIoProc .and. parserFlags%tWriteHSD) then
-      call dumpHSD(hsdTree, hsdProcInputName)
-      write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
-          &// hsdProcInputName // "'"
-    end if
-    if (tIoProc .and. parserFlags%tWriteXML) then
-      call dumpHSDAsXML(hsdTree, xmlProcInputName)
-      write(stdout, '(A,/)') "Processed input in XML format written to '" &
-          &// xmlProcInputName // "'"
-    end if
-
-    ! Stop, if only parsing is required
-    if (parserFlags%tStop) then
-      call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
-    end if
-
-    call destroyNode(hsdTree)
-
-  end subroutine parseHsdInput
+  end subroutine parseHsdTree
 
 
   !> Read in parser options (options not passed to the main code)

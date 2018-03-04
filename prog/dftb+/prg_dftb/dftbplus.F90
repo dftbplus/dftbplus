@@ -13,7 +13,7 @@ program dftbplus
   use main, only : runDftbPlus
   use inputdata_module, only : inputData
   use formatout, only : printDftbHeader
-  use parser, only : parseHsdInput
+  use hsdhelpers
   use initprogram, only : initProgramVariables
   implicit none
 
