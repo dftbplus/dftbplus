@@ -175,7 +175,6 @@ module initprogram
   !> Tollerance for SCC cycle
   real(dp) :: sccTol
 
-
   !> lattice vectors as columns
   real(dp), allocatable, target :: latVec(:,:)
 
@@ -353,6 +352,8 @@ module initprogram
   !> maximal number of SCC iterations
   integer :: maxSccIter
 
+  !> Minimal number of SCC iterations
+  integer :: minSccIter
 
   !> is this a spin polarized calculation?
   logical :: tSpin
@@ -791,6 +792,31 @@ module initprogram
 
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
+
+  !> external electric field
+  real(dp) :: Efield(3), absEfield
+
+  !> derivative of cell volume wrt to lattice vectors, needed for pV term
+  real(dp) :: extLatDerivs(3,3)
+
+  !> internal pressure within the cell
+  real(dp) :: intPressure
+
+  !> Derivative of total energy with respect to lattice vectors
+  !> Sign convention: This is in the uphill energy direction for the lattice vectors (each row
+  !> pertaining to a separate lattice vector), i.e. opposite to the force.
+  !>
+  !> The component of a derivative vector that is orthogonal to the plane containing the other two
+  !> lattice vectors will expand (contract) the supercell if it is on the opposite (same) same
+  !> side of the plane as its associated lattice vector.
+  !>
+  !> In the special case of cartesian axis aligned orthorhombic lattice vectors, negative diagonal
+  !> elements expand the supercell.
+  real(dp) :: totalLatDeriv(3,3)
+  
+  !> Stress tensors for various contribution in periodic calculations
+  !> Sign convention: Positive diagonal elements expand the supercell
+  real(dp) :: totalStress(3,3)
 
   private :: createRandomGenerators
 
@@ -1812,6 +1838,11 @@ contains
       end if
       allocate(xlbomdIntegrator)
       call Xlbomd_init(xlbomdIntegrator, input%ctrl%xlbomd, nIneqOrb)
+    end if
+
+    minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin)
+    if (tXlbomd) then
+      call xlbomdIntegrator%setDefaultSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
 
     if (tDerivs) then
@@ -3318,6 +3349,37 @@ contains
 
   end subroutine getDenseDescCommon
 
+
+  !> Initialises SCC related parameters before geometry loop starts
+  function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)
+
+    !> Is this a self consistent calculation
+    logical, intent(in) :: tSccCalc
+
+    !> Are there orbital potentials present
+    logical, intent(in) :: tDftbU
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> Minimum possible number of self consistent iterations
+    integer :: minSccIter
+
+    if (tSccCalc) then
+      if (tDftbU) then
+        minSccIter = 2
+      else
+        if (nSpin == 1) then
+          minSccIter = 1
+        else
+          minSccIter = 2
+        end if
+      end if
+    else
+      minSccIter = 1
+    end if
+
+  end function getMinSccIters
 
 
 end module initprogram

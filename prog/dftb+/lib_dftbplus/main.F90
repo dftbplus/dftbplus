@@ -16,6 +16,9 @@ module main
   use scalapackfx
   use scalafxext
 #:endif
+#:if WITH_SOCKETS
+  use ipisocket, only : IpiSocketComm
+#:endif  
   use assert
   use constants
   use globalenv
@@ -93,34 +96,6 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> energy in previous scc cycles
-    real(dp) :: Eold
-
-    !> Stress tensors for various contribution in periodic calculations
-    !> Sign convention: Positive diagonal elements expand the supercell
-    real(dp) :: totalStress(3,3)
-
-    !> Derivative of total energy with respect to lattice vectors
-    !> Sign convention: This is in the uphill energy direction for the lattice vectors (each row
-    !> pertaining to a separate lattice vector), i.e. opposite to the force.
-    !>
-    !> The component of a derivative vector that is orthogonal to the plane containing the other two
-    !> lattice vectors will expand (contract) the supercell if it is on the opposite (same) same
-    !> side of the plane as its associated lattice vector.
-    !>
-    !> In the special case of cartesian axis aligned orthorhombic lattice vectors, negative diagonal
-    !> elements expand the supercell.
-    real(dp) :: totalLatDeriv(3,3)
-
-    !> derivative of cell volume wrt to lattice vectors, needed for pV term
-    real(dp) :: extLatDerivs(3,3)
-
-    !> whether scc converged
-    logical :: tConverged
-
-    !> internal pressure within the cell
-    real(dp) :: intPressure
-
     !> Geometry steps so far
     integer :: iGeoStep
 
@@ -130,12 +105,19 @@ contains
     !> Do we have the final geometry?
     logical :: tGeomEnd
 
-    !> Has this completed?
-    logical :: tCoordEnd
-
     !> do we take an optimization step on the lattice or the internal coordinates if optimizing both
     !> in a periodic geometry
     logical :: tCoordStep
+
+    !> if scc/geometry driver should be stopped
+    logical :: tStopScc, tStopDriver
+
+    !> locality measure for the wavefunction
+    real(dp) :: localisation
+
+    !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case
+    !> of conjugate gradient/steepest descent the geometries are written anyway
+    logical :: tWriteRestart
 
     !> lattice vectors returned by the optimizer
     real(dp) :: constrLatDerivs(9)
@@ -143,45 +125,10 @@ contains
     !> MD instantaneous thermal energy
     real(dp) :: tempIon
 
-    !> external electric field
-    real(dp) :: Efield(3), absEfield
-
-    !> Difference between last calculated and new geometry.
-    real(dp) :: diffGeo
-
-    !> Loop variables
-    integer :: iSCCIter
-
-    !> Charge error in the last iterations
-    real(dp) :: sccErrorQ, diffElec
-
-    !> flag to write out geometries (and charge data if scc) when moving atoms about - in the case
-    !> of conjugate gradient/steepest descent the geometries are written anyway
-    logical :: tWriteRestart
-
-    !> Minimal number of SCC iterations
-    integer :: minSCCIter
-
-    !> if scc/geometry driver should be stopped
-    logical :: tStopSCC, tStopDriver
-
-    !> Whether scc restart info should be written in current iteration
-    logical :: tWriteSccRestart
-
-    !> Whether charges should be written
     logical :: tWriteCharges
-
-    !> locality measure for the wavefunction
-    real(dp) :: localisation
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
-
-    minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin)
-
-    if (tXlbomd) then
-      call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, maxSccIter, sccTol)
-    end if
 
     ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
@@ -190,396 +137,45 @@ contains
     tCoordsChanged = .true.
 
     ! Main geometry loop
-    lpGeomOpt: do iGeoStep = 0, nGeoSteps
-      call env%globalTimer%startTimer(globalTimers%preSccInit)
-
-      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
-
+    geoOpt: do iGeoStep = 0, nGeoSteps
       tWriteRestart = env%tGlobalMaster&
           & .and. needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
-      if (tMD .and. tWriteRestart) then
-        call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
-      end if
-
-      if (tLatticeChanged) then
-        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutoff,&
-            & dispersion, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
-      end if
-
-      if (tCoordsChanged) then
-        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff,&
-            & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
-            & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0,&
-            & rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
-      end if
-
-      if (tSccCalc) then
-        call reset(pChrgMixer, nMixElements)
-      end if
-
-      call env%globalTimer%startTimer(globalTimers%sparseH0S)
-      call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor,&
-          & species, iSparseStart, orb)
-      call buildS(env, over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
-          & iSparseStart, orb)
-      call env%globalTimer%stopTimer(globalTimers%sparseH0S)
-
-      if (tSetFillingTemp) then
-        call getTemperature(temperatureProfile, tempElec)
-      end if
-
-      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
-          & energy%atomRep, energy%ERep)
-
-      if (tDispersion) then
-        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
-      end if
-
-      call resetExternalPotentials(potential)
-      call setUpExternalElectricField(tEField, tTDEField, tPeriodic, EFieldStrength,&
-          & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
-          & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
-          & potential%extAtom(:,1), absEField)
-    
-      call mergeExternalPotentials(orb, species, potential)
-
-      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
-
-      call env%globalTimer%stopTimer(globalTimers%preSccInit)
-
-      call env%globalTimer%startTimer(globalTimers%scc)
-      lpSCC: do iSccIter = 1, maxSccIter
-        call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-        if (tSccCalc) then
-          call getChargePerShell(qInput, orb, species, chargePerShell)
-          call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-              & neighborList, img2CentCell, spinW, thirdOrd, potential)
-          call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-        end if
-        potential%intBlock = potential%intBlock + potential%extBlock
-
-        call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
-            & img2CentCell, potential, ham, iHam)
-
-        if (tWriteRealHS .or. tWriteHS) then
-          if (withMpi) then
-            call error("Writing of HS not working with MPI yet")
-          else
-            call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec,&
-                & ham, iHam)
-          end if
-        end if
-
-        call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
-            & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
-            & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-            & eigvecsCplx, rhoSqrReal)
-
-        if (tWriteBandDat) then
-          call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
-        end if
-
-        if (tMulliken) then
-          call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
-              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-        end if
-
-        ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
-        if (tDualSpinOrbit) then
-          call getLDual(orbitalL, qiBlockOut, orb, species)
-        end if
-
-        ! Note: if XLBOMD is active, potential created with input charges is needed later,
-        ! therefore it should not be overwritten here.
-        if (tSccCalc .and. .not. tXlbomd) then
-          call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-          call getChargePerShell(qOutput, orb, species, chargePerShell)
-          call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-              & neighborList, img2CentCell, spinW, thirdOrd, potential)
-          call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-          potential%intBlock = potential%intBlock + potential%extBlock
-        end if
-
-        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
-            & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
-            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
-
-        tStopScc = hasStopFile(fStopScc)
-
-        if (tSccCalc) then
-          call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
-              & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
-              & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
-          call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
-          call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
-          tWriteSccRestart = env%tGlobalMaster .and. &
-              & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
-              & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
-          if (tWriteSccRestart) then
-            call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn,&
-                & qiBlockIn)
-          end if
-        end if
-
-        if (tWriteDetailedOut) then
-          call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
-              & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
-              & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
-              & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
-              & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpinOrbit, tSccCalc, invLatVec, kPoint)
-        end if
-
-        if (tConverged .or. tStopScc) then
-          exit lpSCC
-        end if
-
-      end do lpSCC
-      call env%globalTimer%stopTimer(globalTimers%scc)
-
-      call env%globalTimer%startTimer(globalTimers%postSCC)
-      if (tLinResp) then
-        if (withMpi) then
-          call error("Linear response calc. does not work with MPI yet")
-        end if
-        call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-        call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
-            & skHamCont, skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList,&
-            & nNeighbor, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces,&
-            & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal,&
-            & rhoSqrReal, excitedDerivs, occNatural)
-      end if
-
-      if (tXlbomd) then
-        call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
-            & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
-            & qiBlockIn)
-      end if
-
-      if (tDipole) then
-        call getDipoleMoment(qOutput, q0, coord, dipoleMoment)
-      #:call DEBUG_CODE
-        call checkDipoleViaHellmannFeynman(size(h0), rhoPrim, q0, coord0, over, orb, neighborList,&
-            & nNeighbor, species, iSparseStart, img2CentCell)
-      #:endcall DEBUG_CODE
-      end if
-
-      call env%globalTimer%startTimer(globalTimers%eigvecWriting)
-      if (tPrintEigVecs) then
-        call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVec,&
-            & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
-            & parallelKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
-      end if
-
-      if (tProjEigenvecs) then
-        call writeProjectedEigenvectors(env, regionLabels, fdProjEig, eigen, neighborList,&
-              & nNeighbor, cellVec, iCellVec, denseDesc, iSparseStart, img2CentCell, orb, over,&
-              & kPoint, kWeight, iOrbRegion, parallelKS, eigvecsReal, SSqrReal, eigvecsCplx,&
-              & SSqrCplx)
-      end if
-      call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
-
-      ! MD geometry files are written only later, once velocities for the current geometry are known
-      if (tGeoOpt .and. tWriteRestart) then
-        call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-            & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-            & nSpin, qOutput, velocities)
-      end if
-
-      call printEnergies(energy)
-
-      if (tForces) then
-        call env%globalTimer%startTimer(globalTimers%forceCalc)
-        call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
-        call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
-            & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-            & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
-            & SSqrCplx)
-        call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
-        call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
-            & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-            & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-            & chrgForces, dispersion)
-        if (tLinResp) then
-          derivs(:,:) = derivs + excitedDerivs
-        end if
-        call env%globalTimer%stopTimer(globalTimers%forceCalc)
-
-        if (tStress) then
-          call env%globalTimer%startTimer(globalTimers%stressCalc)
-          call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
-              & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-              & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
-              & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
-          call env%globalTimer%stopTimer(globalTimers%stressCalc)
-          call printVolume(cellVol)
-          ! MD case includes the atomic kinetic energy contribution, so print that later
-          if (.not. tMD) then
-            call printPressureAndFreeEnergy(extPressure, intPressure, energy%EGibbs)
-          end if
-        end if
-
-      end if
-
-      if (tWriteDetailedOut) then
-        call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd, tLinResp, tGeoOpt,&
-            & tMD, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, &
-            & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile)
-      end if
-
-      if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then
-        call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-        if (tUseConvergedForces) then
-          call env%shutdown()
-        end if
-      end if
-
-      if (tSccCalc .and. allocated(esp) .and. (.not. (tGeoOpt .or. tMD) .or. &
-          & needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq))) then
-        call esp%evaluate(env, sccCalc, EField)
-        call writeEsp(esp, env, iGeoStep, nGeoSteps)
+      call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+      call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc)
+      call postProcessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
+          & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+      call printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtom)
+    #:if WITH_SOCKETS
+      call sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
+    #:endif
+      tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
+          & .and. maxSccIter > 1
+      if (tWriteCharges) then
+        call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn)
       end if
 
       if (tForces) then
-        if (allocated(conAtom)) then
-          call constrainForces(conAtom, conVec, derivs)
-        end if
-
-        if (tCoordOpt) then
-          call printMaxForce(maxval(abs(derivs(:, indMovedAtom))))
-        end if
-
-        if (tLatOpt) then
-          ! Only include the extLatDerivs contribution if not MD, as the barostat would otherwise
-          ! take care of this, hence add it here rather than to totalLatDeriv itself
-          call constrainLatticeDerivs(totalLatDeriv + extLatDerivs, normOrigLatVec,&
-              & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
-          call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
-        end if
-
-        if (tSocket .and. env%tGlobalMaster) then
-          ! stress was computed above in the force evaluation block or is 0 if aperiodic
-#:if WITH_SOCKETS
-          call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
-#:else
-          call error("Should not be here - compiled without socket support")
-#:endif
-        end if
-
-        ! If geometry minimizer finished and the last calculated geometry is the minimal one (not
-        ! necessarily the case, depends on the optimizer!) we are finished.  Otherwise we have to
-        ! recalculate everything at the converged geometry.
-
-        if (tGeomEnd) then
-          call env%globalTimer%stopTimer(globalTimers%postSCC)
-          exit lpGeomOpt
-        end if
-
-        tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
-            & .and. maxSccIter > 1
-        if (tWriteCharges) then
-          call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn)
-        end if
-
-        ! initially assume coordinates are not being updated
-        tCoordsChanged = .false.
-        tLatticeChanged = .false.
-
-        if (tDerivs) then
-          call getNextDerivStep(derivDriver, derivs, indMovedAtom, coord0, tGeomEnd)
-          if (tGeomEnd) then
-            call env%globalTimer%stopTimer(globalTimers%postSCC)
-            exit lpGeomOpt
-          end if
-          tCoordsChanged = .true.
-        else if (tGeoOpt) then
-          tCoordsChanged = .true.
-          if (tCoordStep) then
-            call getNextCoordinateOptStep(pGeoCoordOpt, energy%EMermin, derivs, indMovedAtom,&
-                & coord0, diffGeo, tCoordEnd)
-            if (.not. tLatOpt) then
-              tGeomEnd = tCoordEnd
-            end if
-            if (.not. tGeomEnd .and. tCoordEnd .and. diffGeo < tolSameDist) then
-              tCoordStep = .false.
-            end if
-          else
-            call getNextLatticeOptStep(pGeoLatOpt, energy%EGibbs, constrLatDerivs, origLatVec,&
-                & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0,&
-                & diffGeo, tGeomEnd)
-            iLatGeoStep = iLatGeoStep + 1
-            tLatticeChanged = .true.
-            if (.not. tGeomEnd .and. tCoordOpt) then
-              tCoordStep = .true.
-              call reset(pGeoCoordOpt, reshape(coord0(:, indMovedAtom), [nMovedCoord]))
-            end if
-          end if
-          if (tGeomEnd .and. diffGeo < tolSameDist) then
-            call env%globalTimer%stopTimer(globalTimers%postSCC)
-            exit lpGeomOpt
-          end if
-        else if (tMD) then
-          ! New MD coordinates saved in a temporary variable, as writeCurrentGeometry() below
-          ! needs the old ones to write out consistent geometries and velocities.
-          newCoords(:,:) = coord0
-          call getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, derivs, movedMass,&
-              & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy,&
-              & newCoords, latVec, intPressure, totalStress, totalLatDeriv, velocities, tempIon)
-          tCoordsChanged = .true.
-          tLatticeChanged = tBarostat
-          call printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, tempIon,&
-              & intPressure, extPressure, energy)
-          if (tWriteRestart) then
-            if (tPeriodic) then
-              cellVol = abs(determinant33(latVec))
-              energy%EGibbs = energy%EMermin + extPressure * cellVol
-            end if
-            call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-                & energy, latVec, cellVol, intPressure, extPressure, tempIon, absEField, qOutput,&
-                & q0, dipoleMoment)
-            call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
-                & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-                & nSpin, qOutput, velocities)
-          end if
-          coord0(:,:) = newCoords
-          if (tWriteDetailedOut) then
-            call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic,&
-                & tStress, totalStress, totalLatDeriv, energy, tempElec, extPressure, intPressure,&
-                & tempIon)
-          end if
-        else if (tSocket .and. iGeoStep < nGeoSteps) then
-          ! Only receive geometry from socket, if there are still geometry iterations left
-        #:if WITH_SOCKETS
-          call receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVec, tCoordsChanged,&
-              & tLatticeChanged, tStopDriver)
-        #:else
-          call error("Internal error: code compiled without socket support")
-        #:endif
-        end if
+        call getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
+            & iLatGeoStep, tempIon)
       end if
 
-      if (tWriteDetailedOut) then
-        call writeDetailedOut4(fdDetailedOut, tMD, energy, tempIon)
+      if (tWriteDetailedOut .and. tMd) then
+        call writeDetailedOut4(fdDetailedOut, energy, tempIon)
+      end if
+
+      if (tGeomEnd) then
+        call env%globalTimer%stopTimer(globalTimers%postSCC)
+        exit geoOpt
       end if
 
       tStopDriver = tStopScc .or. tStopDriver .or. hasStopFile(fStopDriver)
       if (tStopDriver) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
-        exit lpGeomOpt
+        exit geoOpt
       end if
-
       call env%globalTimer%stopTimer(globalTimers%postSCC)
-
-    end do lpGeomOpt
-
+    end do geoOpt
+    
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
   #:if WITH_SOCKETS
@@ -650,6 +246,466 @@ contains
   end subroutine runDftbPlus
 
 
+  !> Process current geometry
+  subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc)
+    use initprogram
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
+    !> flag to write out geometries (and charge data if scc)
+    logical, intent(in) :: tWriteRestart
+
+    !> if scc/geometry driver should be stopped
+    logical, intent(inout) :: tStopDriver
+
+    !> if scc driver should be stopped
+    logical, intent(out) :: tStopScc
+
+    !> Charge error in the last iterations
+    real(dp) :: sccErrorQ, diffElec
+
+    !> Loop variables
+    integer :: iSccIter
+
+    !> energy in previous scc cycles
+    real(dp) :: Eold
+
+    !> whether scc converged
+    logical :: tConverged
+
+    !> Whether scc restart info should be written in current iteration
+    logical :: tWriteSccRestart
+
+
+    call env%globalTimer%startTimer(globalTimers%preSccInit)
+
+    if (tMD .and. tWriteRestart) then
+      call writeMdOut1(fdMd, mdOut, iGeoStep, pMDIntegrator)
+    end if
+
+    if (tLatticeChanged) then
+      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutoff,&
+          & dispersion, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
+    end if
+
+    if (tCoordsChanged) then
+      call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff,&
+          & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
+          & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0,&
+          & rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+    end if
+
+    if (tSccCalc) then
+      call reset(pChrgMixer, nMixElements)
+    end if
+
+    call env%globalTimer%startTimer(globalTimers%sparseH0S)
+    call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor,&
+        & species, iSparseStart, orb)
+    call buildS(env, over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
+        & iSparseStart, orb)
+    call env%globalTimer%stopTimer(globalTimers%sparseH0S)
+
+    if (tSetFillingTemp) then
+      call getTemperature(temperatureProfile, tempElec)
+    end if
+
+    call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
+        & energy%atomRep, energy%ERep)
+
+    if (tDispersion) then
+      call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
+    end if
+
+    call resetExternalPotentials(potential)
+    call setUpExternalElectricField(tEField, tTDEField, tPeriodic, EFieldStrength,&
+        & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
+        & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
+        & potential%extAtom(:,1), absEField)
+
+    call mergeExternalPotentials(orb, species, potential)
+
+    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
+
+    call env%globalTimer%stopTimer(globalTimers%preSccInit)
+
+    call env%globalTimer%startTimer(globalTimers%scc)
+    lpSCC: do iSccIter = 1, maxSccIter
+      call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+      if (tSccCalc) then
+        call getChargePerShell(qInput, orb, species, chargePerShell)
+        call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
+            & neighborList, img2CentCell, spinW, thirdOrd, potential)
+        call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+      end if
+      potential%intBlock = potential%intBlock + potential%extBlock
+
+      call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
+          & img2CentCell, potential, ham, iHam)
+
+      if (tWriteRealHS .or. tWriteHS) then
+        if (withMpi) then
+          call error("Writing of HS not working with MPI yet")
+        else
+          call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec,&
+              & ham, iHam)
+        end if
+      end if
+
+      call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
+          & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
+          & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
+          & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+          & eigvecsCplx, rhoSqrReal)
+
+      if (tWriteBandDat) then
+        call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
+      end if
+
+      if (tMulliken) then
+        call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
+            & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+      end if
+
+      ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
+      if (tDualSpinOrbit) then
+        call getLDual(orbitalL, qiBlockOut, orb, species)
+      end if
+
+      ! Note: if XLBOMD is active, potential created with input charges is needed later,
+      ! therefore it should not be overwritten here.
+      if (tSccCalc .and. .not. tXlbomd) then
+        call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+        call getChargePerShell(qOutput, orb, species, chargePerShell)
+        call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
+            & neighborList, img2CentCell, spinW, thirdOrd, potential)
+        call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+        potential%intBlock = potential%intBlock + potential%extBlock
+      end if
+
+      call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
+          & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
+          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
+          & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+
+      tStopScc = hasStopFile(fStopScc)
+
+      if (tSccCalc) then
+        call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+            & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
+            & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
+            & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+        call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
+        call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
+        tWriteSccRestart = env%tGlobalMaster .and. &
+            & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
+            & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
+        if (tWriteSccRestart) then
+          call writeCharges(fCharges, fdCharges, tWriteChrgAscii, orb, qInput, qBlockIn,&
+              & qiBlockIn)
+        end if
+      end if
+
+      if (tWriteDetailedOut) then
+        call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
+            & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
+            & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
+            & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
+            & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
+            & tSpinOrbit, tSccCalc, invLatVec, kPoint)
+      end if
+
+      if (tConverged .or. tStopScc) then
+        exit lpSCC
+      end if
+
+    end do lpSCC
+    call env%globalTimer%stopTimer(globalTimers%scc)
+
+    call env%globalTimer%startTimer(globalTimers%postSCC)
+    if (tLinResp) then
+      if (withMpi) then
+        call error("Linear response calc. does not work with MPI yet")
+      end if
+      call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
+      call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
+          & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
+          & skHamCont, skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList,&
+          & nNeighbor, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces,&
+          & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal,&
+          & rhoSqrReal, excitedDerivs, occNatural)
+    end if
+
+    if (tXlbomd) then
+      call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
+          & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
+          & qiBlockIn)
+    end if
+
+    if (tDipole) then
+      call getDipoleMoment(qOutput, q0, coord, dipoleMoment)
+    #:call DEBUG_CODE
+      call checkDipoleViaHellmannFeynman(size(h0), rhoPrim, q0, coord0, over, orb, neighborList,&
+          & nNeighbor, species, iSparseStart, img2CentCell)
+    #:endcall DEBUG_CODE
+    end if
+
+    call env%globalTimer%startTimer(globalTimers%eigvecWriting)
+    if (tPrintEigVecs) then
+      call writeEigenvectors(env, fdEigvec, runId, neighborList, nNeighbor, cellVec, iCellVec,&
+          & denseDesc, iSparseStart, img2CentCell, species, speciesName, orb, kPoint, over,&
+          & parallelKS, tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
+    end if
+
+    if (tProjEigenvecs) then
+      call writeProjectedEigenvectors(env, regionLabels, fdProjEig, eigen, neighborList,&
+          & nNeighbor, cellVec, iCellVec, denseDesc, iSparseStart, img2CentCell, orb, over,&
+          & kPoint, kWeight, iOrbRegion, parallelKS, eigvecsReal, SSqrReal, eigvecsCplx,&
+          & SSqrCplx)
+    end if
+    call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
+
+    ! MD geometry files are written only later, once velocities for the current geometry are known
+    if (tGeoOpt .and. tWriteRestart) then
+      call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
+          & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+          & nSpin, qOutput, velocities)
+    end if
+
+    call printEnergies(energy)
+
+    if (tForces) then
+      call env%globalTimer%startTimer(globalTimers%forceCalc)
+      call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
+      call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
+          & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+          & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
+          & SSqrCplx)
+      call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
+      call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
+          & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+          & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
+          & chrgForces, dispersion)
+      if (tLinResp) then
+        derivs(:,:) = derivs + excitedDerivs
+      end if
+      call env%globalTimer%stopTimer(globalTimers%forceCalc)
+
+      if (tStress) then
+        call env%globalTimer%startTimer(globalTimers%stressCalc)
+        call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
+            & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+            & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
+            & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+        call env%globalTimer%stopTimer(globalTimers%stressCalc)
+        call printVolume(cellVol)
+        ! MD case includes the atomic kinetic energy contribution, so print that later
+        if (.not. tMD) then
+          call printPressureAndFreeEnergy(extPressure, intPressure, energy%EGibbs)
+        end if
+      end if
+
+    end if
+
+    if (tWriteDetailedOut) then
+      call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd, tLinResp, tGeoOpt,&
+          & tMD, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, &
+          & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile)
+    end if
+
+    if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then
+      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
+      if (tUseConvergedForces) then
+        call env%shutdown()
+      end if
+    end if
+
+    if (tSccCalc .and. allocated(esp) .and. (.not. (tGeoOpt .or. tMD) .or. &
+        & needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq))) then
+      call esp%evaluate(env, sccCalc, EField)
+      call writeEsp(esp, env, iGeoStep, nGeoSteps)
+    end if
+
+  end subroutine processGeometry
+
+
+  subroutine postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDerivs,&
+      & extLatDerivs, normLatVecs, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic,&
+      & constrLatDerivs)
+
+    !> On input energy derivatives, on exit resulting projected derivatives
+    real(dp), intent(inout) :: derivs(:,:)
+
+    !> Atoms being constrained
+    integer, allocatable, intent(in) :: conAtom(:)
+
+    !> Vector to project out forces
+    real(dp), allocatable, intent(in) :: conVec(:,:)
+
+    !> Whether lattice optimisation is on
+    logical, intent(in) :: tLatOpt
+
+    !> Derivative of total energy with respect to lattice vectors
+    real(dp) :: totalLatDerivs(:,:)
+    
+    !> derivative of cell volume wrt to lattice vectors, needed for pV term
+    real(dp), intent(in) :: extLatDerivs(:,:)
+
+    !> Unit normals parallel to lattice vectors
+    real(dp), intent(in) :: normLatVecs(:,:)
+
+    !> Are the angles of the lattice being fixed during optimisation?
+    logical, intent(in) :: tLatOptFixAng
+
+    !> Are the magnitude of the lattice vectors fixed
+    logical, intent(in) :: tLatOptFixLen(:)
+
+    !> Is the optimisation isotropic
+    logical, intent(in) :: tLatOptIsotropic
+
+    !> Lattice vectors returned by the optimizer
+    real(dp), intent(out) :: constrLatDerivs(:)
+
+    if (allocated(conAtom)) then
+      call constrainForces(conAtom, conVec, derivs)
+    end if
+
+    if (tLatOpt) then
+      ! Only include the extLatDerivs contribution if not MD, as the barostat would otherwise
+      ! take care of this, hence add it here rather than to totalLatDeriv itself
+      call constrainLatticeDerivs(totalLatDerivs + extLatDerivs, normLatVecs, tLatOptFixAng,&
+          & tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+    end if
+
+  end subroutine postprocessDerivs
+
+
+  subroutine getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
+      & iLatGeoStep, tempIon)
+    use initprogram
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> flag to write out geometries (and charge data if scc)
+    logical, intent(in) :: tWriteRestart
+
+    !> lattice vectors returned by the optimizer
+    real(dp), intent(in) :: constrLatDerivs(:)
+
+    !> do we take an optimization step on the lattice or the internal coordinates if optimizing both
+    !> in a periodic geometry
+    logical, intent(inout) :: tCoordStep
+
+    !> Do we have the final geometry?
+    logical, intent(inout) :: tGeomEnd
+
+    !> Current lattice step
+    integer, intent(inout) :: iLatGeoStep
+
+    !> MD instantaneous thermal energy
+    real(dp), intent(out) :: tempIon
+
+
+    !> Difference between last calculated and new geometry.
+    real(dp) :: diffGeo
+
+    !> Has this completed?
+    logical :: tCoordEnd
+
+    ! initially assume that coordinates and lattice vectors won't be updated
+    tCoordsChanged = .false.
+    tLatticeChanged = .false.
+
+    if (tDerivs) then
+      call getNextDerivStep(derivDriver, derivs, indMovedAtom, coord0, tGeomEnd)
+      if (tGeomEnd) then
+        call env%globalTimer%stopTimer(globalTimers%postSCC)
+        return
+      end if
+      tCoordsChanged = .true.
+    else if (tGeoOpt) then
+      tCoordsChanged = .true.
+      if (tCoordStep) then
+        call getNextCoordinateOptStep(pGeoCoordOpt, energy%EMermin, derivs, indMovedAtom,&
+            & coord0, diffGeo, tCoordEnd)
+        if (.not. tLatOpt) then
+          tGeomEnd = tCoordEnd
+        end if
+        if (.not. tGeomEnd .and. tCoordEnd .and. diffGeo < tolSameDist) then
+          tCoordStep = .false.
+        end if
+      else
+        call getNextLatticeOptStep(pGeoLatOpt, energy%EGibbs, constrLatDerivs, origLatVec,&
+            & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0,&
+            & diffGeo, tGeomEnd)
+        iLatGeoStep = iLatGeoStep + 1
+        tLatticeChanged = .true.
+        if (.not. tGeomEnd .and. tCoordOpt) then
+          tCoordStep = .true.
+          call reset(pGeoCoordOpt, reshape(coord0(:, indMovedAtom), [nMovedCoord]))
+        end if
+      end if
+      if (tGeomEnd .and. diffGeo < tolSameDist) then
+        call env%globalTimer%stopTimer(globalTimers%postSCC)
+        return
+      end if
+    else if (tMD) then
+      ! New MD coordinates saved in a temporary variable, as writeCurrentGeometry() below
+      ! needs the old ones to write out consistent geometries and velocities.
+      newCoords(:,:) = coord0
+      call getNextMdStep(pMdIntegrator, pMdFrame, temperatureProfile, derivs, movedMass,&
+          & mass, cellVol, invLatVec, species0, indMovedAtom, tStress, tBarostat, energy,&
+          & newCoords, latVec, intPressure, totalStress, totalLatDeriv, velocities, tempIon)
+      tCoordsChanged = .true.
+      tLatticeChanged = tBarostat
+      call printMdInfo(tSetFillingTemp, tEField, tPeriodic, tempElec, absEField, tempIon,&
+          & intPressure, extPressure, energy)
+      if (tWriteRestart) then
+        if (tPeriodic) then
+          cellVol = abs(determinant33(latVec))
+          energy%EGibbs = energy%EMermin + extPressure * cellVol
+        end if
+        call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
+            & energy, latVec, cellVol, intPressure, extPressure, tempIon, absEField, qOutput,&
+            & q0, dipoleMoment)
+        call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
+            & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+            & nSpin, qOutput, velocities)
+      end if
+      coord0(:,:) = newCoords
+      if (tWriteDetailedOut) then
+        call writeDetailedOut3(fdDetailedOut, tPrintForces, tSetFillingTemp, tPeriodic,&
+            & tStress, totalStress, totalLatDeriv, energy, tempElec, extPressure, intPressure,&
+            & tempIon)
+      end if
+    else if (tSocket .and. iGeoStep < nGeoSteps) then
+      ! Only receive geometry from socket, if there are still geometry iterations left
+    #:if WITH_SOCKETS
+      call receiveGeometryFromSocket(env, socket, tPeriodic, coord0, latVec, tCoordsChanged,&
+          & tLatticeChanged, tStopDriver)
+    #:else
+      call error("Internal error: code compiled without socket support")
+    #:endif
+    end if
+
+  end subroutine getNextGeometry
+  
+
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
       & iGeoStep, iLatGeoStep)
@@ -687,38 +743,6 @@ contains
     iLatGeoStep = 0
 
   end subroutine initGeoOptParameters
-
-
-  !> Initialises SCC related parameters before geometry loop starts
-  function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)
-
-    !> Is this a self consistent calculation
-    logical, intent(in) :: tSccCalc
-
-    !> Are there orbital potentials present
-    logical, intent(in) :: tDftbU
-
-    !> Number of spin channels
-    integer, intent(in) :: nSpin
-
-    !> Minimum possible number of self consistent iterations
-    integer :: minSccIter
-
-    if (tSccCalc) then
-      if (tDftbU) then
-        minSccIter = 2
-      else
-        if (nSpin == 1) then
-          minSccIter = 1
-        else
-          minSccIter = 2
-        end if
-      end if
-    else
-      minSccIter = 1
-    end if
-
-  end function getMinSccIters
 
 
   !> Does the operations that are necessary after a lattice vector update
@@ -1232,7 +1256,7 @@ contains
     logical, intent(out) :: tConverged
 
     if (allocated(xlbomdIntegrator)) then
-      call xlbomdIntegrator%getSCCParameters(minSCCIter, maxSccIter, sccTol)
+      call xlbomdIntegrator%getSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
 
     tConverged = (.not. tSccCalc)
@@ -2761,12 +2785,12 @@ contains
     qDiffRed = qOutRed - qInpRed
     sccErrorQ = maxval(abs(qDiffRed))
     tConverged = (sccErrorQ < sccTol)&
-        & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
-    if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
+        & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
+    if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
       ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
       ! point. (Unless charges had been initialized externally)
-      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tDFTBU) .and. .not. tReadChrg) then
+      if ((iSccIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tDFTBU) .and. .not. tReadChrg) then
         qInpRed(:) = qOutRed
         qInput(:,:,:) = qOutput
         if (allocated(qBlockIn)) then
@@ -2928,7 +2952,7 @@ contains
     !> difference in electronic energies between iterations
     real(dp), intent(out) :: diffElec
 
-    if (iScciter > 1) then
+    if (iSccIter > 1) then
       diffElec = Eelec - EelecOld
     else
       diffElec = 0.0_dp
@@ -4206,7 +4230,7 @@ contains
 
 
   !> Removes forces components along constraint directions
-  subroutine constrainForces(conAtom, conVec, derivss)
+  subroutine constrainForces(conAtom, conVec, derivs)
 
     !> atoms being constrained
     integer, intent(in) :: conAtom(:)
@@ -4215,15 +4239,15 @@ contains
     real(dp), intent(in) :: conVec(:,:)
 
     !> on input energy derivatives, on exit resulting projected derivatives
-    real(dp), intent(inout) :: derivss(:,:)
+    real(dp), intent(inout) :: derivs(:,:)
 
     integer :: ii, iAtom
 
     ! Set force components along constraint vectors zero
     do ii = 1, size(conAtom)
       iAtom = conAtom(ii)
-      derivss(:,iAtom) = derivss(:,iAtom)&
-          & - conVec(:,ii) * dot_product(conVec(:,ii), derivss(:,iAtom))
+      derivs(:,iAtom) = derivs(:,iAtom)&
+          & - conVec(:,ii) * dot_product(conVec(:,ii), derivs(:,iAtom))
     end do
 
   end subroutine constrainForces
@@ -4700,5 +4724,42 @@ contains
 
   end subroutine calcPipekMezeyLocalisation
 
+  
+  subroutine printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtoms)
+    real(dp), intent(in) :: derivs(:,:)
+    real(dp), intent(in) :: constrLatDerivs(:)
+    logical, intent(in) :: tCoordOpt
+    logical, intent(in) :: tLatOpt
+    integer, intent(in) :: indMovedAtoms(:)
+  
+    if (tCoordOpt) then
+      call printMaxForce(maxval(abs(derivs(:, indMovedAtoms))))
+    end if
+    if (tLatOpt) then
+      call printMaxLatticeForce(maxval(abs(constrLatDerivs)))
+    end if
 
+  end subroutine printMaxForces
+
+
+#:if WITH_SOCKETS
+  
+  subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
+    type(TEnvironment), intent(in) :: env
+    type(IpiSocketComm), intent(in) :: socket
+    real(dp), intent(in) :: energy
+    real(dp), intent(in) :: TS
+    real(dp), intent(in) :: derivs(:,:)
+    real(dp), intent(in) :: totalStress(:,:)
+    real(dp), intent(in) :: cellVol
+
+    if (env%tGlobalMaster) then
+      ! stress was computed above in the force evaluation block or is 0 if aperiodic
+      call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
+    end if
+
+  end subroutine sendEnergyAndForces
+
+#:endif
+    
 end module main

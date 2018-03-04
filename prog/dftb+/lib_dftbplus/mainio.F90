@@ -2993,13 +2993,10 @@ contains
   end subroutine writeDetailedOut3
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, tMd, energy, tempIon)
+  subroutine writeDetailedOut4(fd, energy, tempIon)
 
     !> File ID
     integer, intent(in) :: fd
-
-    !> Is this an MD calculation
-    logical, intent(in) :: tMd
 
     !> Energy contributions
     type(TEnergies), intent(in) :: energy
@@ -3007,15 +3004,14 @@ contains
     !> Atomic kinetic energy
     real(dp), intent(in) :: tempIon
 
-    if (tMd) then
-      write(fd, format1U) "MD Kinetic Energy", energy%Ekin, "H"
-      write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
-          & Hartree__eV * energy%EMerminKin, "eV"
-      write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
-      write(fd, *)
-    end if
+    write(fd, format1U) "MD Kinetic Energy", energy%Ekin, "H"
+    write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
+        & Hartree__eV * energy%EMerminKin, "eV"
+    write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
+    write(fd, *)
 
   end subroutine writeDetailedOut4
+
 
   !> Fifth group of data for detailed.out
   subroutine writeDetailedOut5(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
