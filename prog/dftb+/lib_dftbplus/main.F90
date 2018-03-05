@@ -79,6 +79,7 @@ module main
   private
 
   public :: runDftbPlus
+  public :: processGeometry
 
   !> O(N^2) density matrix creation
   logical, parameter :: tDensON2 = .false.
@@ -240,8 +241,6 @@ contains
     end if
 
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
-
-    call destructProgramVariables()
 
   end subroutine runDftbPlus
 

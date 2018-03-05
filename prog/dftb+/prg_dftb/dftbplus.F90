@@ -14,7 +14,7 @@ program dftbplus
   use inputdata_module, only : inputData
   use formatout, only : printDftbHeader
   use hsdhelpers, only : parseHsdInput
-  use initprogram, only : initProgramVariables
+  use initprogram, only : initProgramVariables, destructProgramVariables
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
@@ -31,6 +31,7 @@ program dftbplus
   call initProgramVariables(input, env)
   deallocate(input)
   call runDftbPlus(env)
+  call destructProgramVariables()
   call env%destruct()
   call destructGlobalEnv()
 
