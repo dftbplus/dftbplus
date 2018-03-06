@@ -2626,14 +2626,14 @@ contains
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
+    logical :: tWriteDetailedOutDef
 
-    if (allocated(ctrl%socketInput)) then
-      ! suppress file write out to disc as default, as data should usually pass through socket
-      ! interface
-      call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, .false.)
-    else
-      call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, .true.)
-    end if
+  #:if WITH_SOCKETS
+    tWriteDetailedOutDef = .not. allocated(ctrl%socketInput)
+  #:else
+    tWriteDetailedOutDef = .true.
+  #:endif
+    call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, tWriteDetailedOutDef)
 
     call getChildValue(node, "WriteAutotestTag", ctrl%tWriteTagged, .false.)
     call getChildValue(node, "WriteDetailedXML", ctrl%tWriteDetailedXML, &
@@ -3173,6 +3173,7 @@ contains
     character(lc) :: strTmp
     type(listRealR1) :: lr1
     logical :: tPipekDense
+    logical :: tWriteBandDatDef
 
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
@@ -3260,13 +3261,12 @@ contains
       call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
           & .false.)
     end if
-    if (allocated(ctrl%socketInput)) then
-      ! suppress file write out to disc as default, as any data should usually pass through socket
-      ! interface
-      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .false.)
-    else
-      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
-    end if
+  #:if WITH_SOCKETS
+    tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+  #:else
+    tWriteBandDatDef = .true.
+  #:endif
+    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
   end subroutine readAnalysis
