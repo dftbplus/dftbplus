@@ -39,7 +39,7 @@ module environment
     integer, public :: myGroup = 0
 
     !> Global timers
-    type(TTimerArray), public :: globalTimer
+    type(TTimerArray), public, allocatable :: globalTimer
 
     !> Registry of files, which may be open and must be closed when environment is shut down
     type(TFileRegistry), public :: fileFinalizer
@@ -122,7 +122,9 @@ contains
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call this%globalTimer%writeTimings()
+    if (allocated(this%globalTimer)) then
+      call this%globalTimer%writeTimings()
+    end if
     call this%fileFinalizer%closeAll()
     flush(stdOut)
 
@@ -159,6 +161,7 @@ contains
     !> File unit into which the table should be written
     integer, intent(in) :: unit
 
+    allocate(this%globalTimer)
     call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
         & unit=unit)
 

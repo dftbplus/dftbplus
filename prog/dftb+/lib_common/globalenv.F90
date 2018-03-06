@@ -48,6 +48,9 @@ module globalenv
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
+  !> Whether MPI finalization should be skipped at the end
+  logical :: doMpiFinalization = .true.
+
 
 
 contains
@@ -72,11 +75,12 @@ contains
   #:if WITH_MPI
     if (present(mpiComm)) then
       mpiComm0 = mpiComm
+      doMpiFinalization = .false.
     else
       mpiComm0 = MPI_COMM_WORLD
+      call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
     end if
 
-    call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
     call globalMpiComm%init(commid=mpiComm0)
     if (globalMpiComm%master) then
       stdOut = outputUnit0
@@ -96,7 +100,9 @@ contains
   subroutine destructGlobalEnv()
 
   #:if WITH_MPI
-    call mpifx_finalize()
+    if (doMpiFinalization) then
+      call mpifx_finalize()
+    end if
   #:endif
 
   end subroutine destructGlobalEnv

@@ -1,0 +1,26 @@
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2017  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+.SUFFIXES:
+.SUFFIXES: .f .f90 .o
+
+TARGETS = test_serial
+
+.PHONY: all
+all: $(TARGETS)
+
+include $(ROOT)/make.config
+
+vpath % $(ROOT)/test/api/mm
+
+INCOPTS = -I$(BUILDDIR)/api/mm -I$(BUILDDIR)/external/xmlf90
+LIBOPTS = -L$(BUILDDIR)/api/mm -ldftbplus_mm -L$(BUILDDIR)/external/xmlf90 -lxmlf90
+
+%.o: %.f90
+	$(FXX) $(FXXOPT) $(INCOPTS) -o $@ -c $<
+
+test_serial: test_serial.o
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)

@@ -10,14 +10,17 @@ ROOT := $(PWD)
 .PHONY: default misc all
 default: dftb+ modes waveplot
 misc: misc_skderivs misc_slakovalue
+api: api_mm
 all: default misc
 
 .PHONY: install install_misc install_all
 install: install_dftb+ install_modes install_waveplot install_dptools
 install_misc: install_misc_skderivs install_misc_slakovalue
+install_api: install_api_mm
 
 .PHONY: test
 test: test_dftb+ test_dptools
+test_api: test_api_mm
 
 .PHONY: check
 check: check_dptools
@@ -48,16 +51,17 @@ dftb+ modes waveplot:
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-dftb+: update_release external_xmlf90
+DFTBPLUS_DEPS := update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
-dftb+: external_fsockets
+DFTBPLUS_DEPS += external_fsockets
 endif
 ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
-dftb+: external_dftd3
+DFTBPLUS_DEPS += external_dftd3
 endif
 ifeq ($(strip $(WITH_MPI)),1)
-dftb+: external_mpifx external_scalapackfx
+DFTBPLUS_DEPS += external_mpifx external_scalapackfx
 endif
+dftb+: $(DFTBPLUS_DEPS)
 modes: external_xmlf90
 waveplot: external_xmlf90
 
@@ -83,6 +87,19 @@ $(EXTERNALS):
           -f $(ROOT)/external/$(EXTERNAL_NAME)/make.dpbuild \
           ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
+
+API_NAME = $(subst api_,,$@)
+
+.PHONY: api_mm
+api_mm:
+	mkdir -p $(BUILDDIR)/api/$(API_NAME)
+	$(MAKE) -C $(BUILDDIR)/api/$(API_NAME) \
+	    -f $(ROOT)/api/$(API_NAME)/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
+
+api_mm: $(DFTBPLUS_DEPS)
+
 ################################################################################
 # Test targets
 ################################################################################
@@ -95,6 +112,14 @@ test_dftb+:
 
 test_dftb+: dftb+
 
+.PHONY: test_api_mm
+test_api_mm:
+	mkdir -p $(BUILDDIR)/test/api/$(subst test_api_,,$@)
+	$(MAKE) -C $(BUILDDIR)/test/api/$(subst test_api_,,$@) \
+	    -f $(ROOT)/test/api/$(subst test_api_,,$@)/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
+test_api_mm: api_mm
 
 test_dptools:
 	mkdir -p $(BUILDDIR)/test/tools/dptools
@@ -128,6 +153,13 @@ PYTHON := python
 install_dptools:
 	cd $(ROOT)/tools/dptools \
             && $(PYTHON) setup.py install --prefix $(INSTALLDIR)
+
+
+.PHONY: install_api_mm
+install_api_mm:
+	$(MAKE) -C $(BUILDDIR)/api/$(subst install_api_,,$@) \
+	    -f $(ROOT)/api/$(subst install_api_,,$@)/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
 
 ################################################################################
 # Check targets

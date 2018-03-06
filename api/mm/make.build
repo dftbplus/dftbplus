@@ -1,0 +1,27 @@
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2017  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+
+TARGETS = libdftbplus_mm.a
+
+.PHONY: all
+all: $(TARGETS)
+
+# Include common makefile
+SRCDIRS := $(ROOT)/api/mm
+SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
+SRCDIRS += $(ROOT)/prog/dftb+/include
+INCDIRS := $(ROOT)/prog/dftb+/include
+include $(ROOT)/prog/dftb+/make.common
+
+libdftbplus_mm.a: $(dftbplus.o)
+	ar r $@ $(filter-out _%,$^)
+
+install: $(TARGETS)
+	mkdir -p $(INSTALLDIR)/lib
+	cp $^ $(INSTALLDIR)/lib
+	mkdir -p $(INSTALLDIR)/include
+	cp *.mod $(INSTALLDIR)/include
