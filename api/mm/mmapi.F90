@@ -15,6 +15,7 @@ module mmapi
   use environment
   use mainapi
   use parser
+  use hsdutils
   use inputData_module
   use xmlf90
   implicit none
@@ -28,7 +29,9 @@ module mmapi
 
 
   type :: TDftbPlusInput
-    type(fnode), pointer :: hsdTree
+    type(fnode), pointer :: hsdTree => null()
+  contains
+    procedure :: getRootNode => TDftbPlusInput_getRootNode
   end type TDftbPlusInput
 
   
@@ -36,7 +39,8 @@ module mmapi
     private
     type(TEnvironment) :: env
   contains
-    procedure :: getInputFromFile => TDftbPlus_getInputFromFile
+    procedure, nopass :: getInputFromFile => TDftbPlus_getInputFromFile
+    procedure, nopass :: getEmptyInput => TDftbPlus_getEmptyInput
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     procedure :: setGeometry => TDftbPlus_setGeometry
     procedure :: getEnergy => TDftbPlus_getEnergy
@@ -46,6 +50,19 @@ module mmapi
 
 
 contains
+
+  subroutine TDftbPlusInput_getRootNode(this, root)
+    class(TDftbPlusInput), intent(in) :: this
+    type(fnode), pointer, intent(out) :: root
+
+    if (.not. associated(this%hsdTree)) then
+      print *, 'ERROR: input has not been created yet!'
+      stop
+    end if
+    call getChild(this%hsdTree, rootTag, root)
+
+  end subroutine TDftbPlusInput_getRootNode
+    
 
   subroutine TDftbPlus_init(this, outputUnit, mpiComm)
     type(TDftbPlus), intent(out) :: this
@@ -82,15 +99,25 @@ contains
   end subroutine TDftbPlus_destruct
 
 
-
-  subroutine TDftbPlus_getInputFromFile(this, fileName, input)
-    class(TDftbPlus), intent(inout) :: this
+  subroutine TDftbPlus_getInputFromFile(fileName, input)
     character(*), intent(in) :: fileName
     type(TDftbPlusInput), intent(out) :: input
 
     call readHsdFile(fileName, input%hsdTree)
 
   end subroutine TDftbPlus_getInputFromFile
+
+
+  subroutine TDftbPlus_getEmptyInput(input)
+    type(TDftbPlusInput), intent(out) :: input
+
+    type(fnode), pointer :: root, dummy
+
+    input%hsdTree => createDocumentNode()
+    root => createElement(rootTag)
+    dummy => appendChild(input%hsdTree, root)
+    
+  end subroutine TDftbPlus_getEmptyInput
 
 
   subroutine TDftbPlus_setupCalculator(this, input)

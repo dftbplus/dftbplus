@@ -48,7 +48,7 @@ module parser
 
 
   !> Tag at the head of the input document tree
-  character(len=*), parameter :: rootTag = "dftbplusInput"
+  character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
   integer, parameter :: parserVersion = 5

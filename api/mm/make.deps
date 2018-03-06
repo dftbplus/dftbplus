@@ -1,10 +1,15 @@
-dftbplus.o: _mod_mmapi common.fypp
-dftbplus.o = dftbplus.o $(_mod_mmapi) $(common.fypp)
+dftbplus.o: _mod_mmapi _mod_hsdapi common.fypp
+dftbplus.o = dftbplus.o $(_mod_mmapi) $(_mod_hsdapi) $(common.fypp)
 _mod_dftbplus: dftbplus.o
 _mod_dftbplus = $(dftbplus.o)
 
-mmapi.o: _mod_inputdata_module common.fypp _mod_globalenv _mod_iso_fortran_env _mod_parser _mod_mainapi _mod_environment _mod_xmlf90 _mod_accuracy
-mmapi.o = mmapi.o $(_mod_inputdata_module) $(common.fypp) $(_mod_globalenv) $(_mod_iso_fortran_env) $(_mod_parser) $(_mod_mainapi) $(_mod_environment) $(_mod_xmlf90) $(_mod_accuracy)
+hsdapi.o: _mod_xmlf90 _mod_hsdparser common.fypp _mod_hsdutils
+hsdapi.o = hsdapi.o $(_mod_xmlf90) $(_mod_hsdparser) $(common.fypp) $(_mod_hsdutils)
+_mod_hsdapi: hsdapi.o
+_mod_hsdapi = $(hsdapi.o)
+
+mmapi.o: _mod_inputdata_module common.fypp _mod_globalenv _mod_iso_fortran_env _mod_parser _mod_mainapi _mod_environment _mod_xmlf90 _mod_accuracy _mod_hsdutils
+mmapi.o = mmapi.o $(_mod_inputdata_module) $(common.fypp) $(_mod_globalenv) $(_mod_iso_fortran_env) $(_mod_parser) $(_mod_mainapi) $(_mod_environment) $(_mod_xmlf90) $(_mod_accuracy) $(_mod_hsdutils)
 _mod_mmapi: mmapi.o
 _mod_mmapi = $(mmapi.o)
 

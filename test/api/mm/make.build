@@ -7,7 +7,7 @@
 .SUFFIXES:
 .SUFFIXES: .f .f90 .o
 
-TARGETS = test_serial
+TARGETS = test_serial test_treeinit
 
 .PHONY: all
 all: $(TARGETS)
@@ -23,4 +23,7 @@ LIBOPTS = -L$(BUILDDIR)/api/mm -ldftbplus_mm -L$(BUILDDIR)/external/xmlf90 -lxml
 	$(FXX) $(FXXOPT) $(INCOPTS) -o $@ -c $<
 
 test_serial: test_serial.o
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+
+test_treeinit: test_treeinit.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)

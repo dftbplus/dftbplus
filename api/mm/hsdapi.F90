@@ -7,10 +7,16 @@
 
 #:include 'common.fypp'
 
-!> DFTB+ library
-module dftbplus
-  use mmapi
-  use hsdapi
+!> Proviedes access to HSD manipulation functions
+module hsdapi
+  use hsdparser, only : dumpHsd
+  use hsdutils
+  use xmlf90
   implicit none
+  private
 
-end module dftbplus
+  public :: fnode, fnodeList
+  public :: getChild, getChildren, setChild, getChildValue, setChildValue
+  public :: dumpHsd
+
+end module hsdapi

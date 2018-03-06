@@ -11,3 +11,4 @@ make.config
 __pycache__
 .idea
 RELEASE
+tools/dptools/build
