@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> H5 H-bond correction dispersion model.
+!> H5 H-bond correction.
 module h5correction
   use accuracy
   implicit none
