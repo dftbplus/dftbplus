@@ -12,7 +12,10 @@ from sockettools import frac2cart, readgen, receive_all, a0
 NR_STEPS = 5
 
 def connect():
-    server_address = '/tmp/ipi_dftb_cluster'
+
+    pid = os.getpid()
+
+    server_address = '/tmp/ipi_dftb%i' % pid
 
     # Make sure the socket does not already exist
     try:
@@ -20,6 +23,18 @@ def connect():
     except OSError:
         if os.path.exists(server_address):
             raise
+
+    # write file for dftb_in.hsd to include:
+    file = open("file.hsd","w")
+    file.write('# The externally set filename for this run\n')
+    file.write("+Driver = +Socket {\n")
+    file.write('  !File = "dftb%i"\n' % pid)
+    file.write("}\n")
+    file.close()
+    # plain text file with the same information
+    file = open("file.txt","w")
+    file.write("/tmp/ipi_dftb%i" % pid)
+    file.close()
 
     serversocket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     serversocket.bind(server_address)

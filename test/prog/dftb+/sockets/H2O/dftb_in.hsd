@@ -3,7 +3,6 @@ Geometry = GenFormat {
 }
 
 Driver = Socket {
-    File = "dftb"
     Verbosity = 0 # quiet
     Protocol = i-PI {} # i-PI interface
     MaxSteps = 1 # Terminate this instance fairly quickly
@@ -45,3 +44,6 @@ Parallel {
   UseOmpThreads = Yes
 }
 
+# add details for the communication file to be used, this is set
+# externally by prerun.py in the created file.txt
+<<+ file.hsd
