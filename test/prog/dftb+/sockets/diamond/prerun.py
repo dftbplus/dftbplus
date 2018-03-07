@@ -18,7 +18,7 @@ def connect():
     # write file for dftb_in.hsd to include:
     file = open("port.hsd","w")
     file.write('# The externally set port number for this run\n')
-    file.write("*Driver = *Socket {\n")
+    file.write("+Driver = +Socket {\n")
     file.write("  !Port = %i\n" % port)
     file.write("}\n")
     file.close()
