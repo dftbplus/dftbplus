@@ -157,7 +157,7 @@ contains
 
       if (tForces) then
         call getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
-            & iLatGeoStep, tempIon)
+            & tStopDriver, iLatGeoStep, tempIon)
       end if
 
       if (tWriteDetailedOut .and. tMd) then
@@ -591,7 +591,7 @@ contains
 
 
   subroutine getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
-      & iLatGeoStep, tempIon)
+      & tStopDriver, iLatGeoStep, tempIon)
     use initprogram
 
     !> Environment settings
@@ -612,6 +612,9 @@ contains
 
     !> Do we have the final geometry?
     logical, intent(inout) :: tGeomEnd
+
+    !> If geometry driver should be stopped
+    logical, intent(inout) :: tStopDriver
 
     !> Current lattice step
     integer, intent(inout) :: iLatGeoStep
@@ -4745,9 +4748,9 @@ contains
   
   subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
     type(TEnvironment), intent(in) :: env
-    type(IpiSocketComm), intent(in) :: socket
-    real(dp), intent(in) :: energy
-    real(dp), intent(in) :: TS
+    type(IpiSocketComm), intent(inout) :: socket
+    type(TEnergies), intent(in) :: energy
+    real(dp), intent(in) :: TS(:)
     real(dp), intent(in) :: derivs(:,:)
     real(dp), intent(in) :: totalStress(:,:)
     real(dp), intent(in) :: cellVol
