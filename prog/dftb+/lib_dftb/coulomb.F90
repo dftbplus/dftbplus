@@ -449,7 +449,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      call addNeighborContribs(iAt1, pNeighList, coord, alpha, invRMat)
+      call addNeighborContribsIS(iAt1, pNeighList, coord, alpha, invRMat)
     end do
     !$OMP END PARALLEL DO
 
@@ -473,35 +473,33 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-  contains
-
-    !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAt1, pNeighList, coords, alpha, invRMat)
-      integer, intent(in) :: iAt1
-      type(TDynNeighList), pointer, intent(in) :: pNeighList
-      real(dp), intent(in) :: coords(:,:)
-      real(dp), intent(in) :: alpha
-      real(dp), intent(inout) :: invRMat(:,:)
-
-      type(TNeighIterator) :: neighIter
-      real(dp) :: neighCoords(3, iterChunkSize)
-      integer :: neighImages(iterChunkSize)
-      integer :: iAt2f, iNeigh, nNeigh
-
-      call TNeighIterator_init(neighIter, pNeighList, iAt1)
-      nNeigh = iterChunkSize
-      do while (nNeigh == iterChunkSize)
-        call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
-        do iNeigh = 1, nNeigh
-          iAt2f = neighImages(iNeigh)
-          invRMat(iAt2f, iAt1) = invRMat(iAt2f, iAt1)&
-              & + rTerm(sqrt(sum((coords(:,iAt1) - neighCoords(:,iNeigh))**2)), alpha)
-        end do
-      end do
-
-    end subroutine addNeighborContribs
-
   end subroutine invRPeriodicSerial
+
+  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighborContribsIS(iAt1, pNeighList, coords, alpha, invRMat)
+    integer, intent(in) :: iAt1
+    type(TDynNeighList), pointer, intent(in) :: pNeighList
+    real(dp), intent(in) :: coords(:,:)
+    real(dp), intent(in) :: alpha
+    real(dp), intent(inout) :: invRMat(:,:)
+
+    type(TNeighIterator) :: neighIter
+    real(dp) :: neighCoords(3, iterChunkSize)
+    integer :: neighImages(iterChunkSize)
+    integer :: iAt2f, iNeigh, nNeigh
+
+    call TNeighIterator_init(neighIter, pNeighList, iAt1)
+    nNeigh = iterChunkSize
+    do while (nNeigh == iterChunkSize)
+      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      do iNeigh = 1, nNeigh
+        iAt2f = neighImages(iNeigh)
+        invRMat(iAt2f, iAt1) = invRMat(iAt2f, iAt1)&
+            & + rTerm(sqrt(sum((coords(:,iAt1) - neighCoords(:,iNeigh))**2)), alpha)
+      end do
+    end do
+
+  end subroutine addNeighborContribsIS
 
 #:endif
 
@@ -838,7 +836,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
-      call addNeighborContribs(iAtom1, pNeighList, coord, deltaQAtom, alpha, localDeriv)
+      call addNeighborContribsInvRP(iAtom1, pNeighList, coord, deltaQAtom, alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
@@ -860,42 +858,40 @@ contains
 
     deriv(:,:) = deriv + localDeriv
 
-  contains
-
-    !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
-      integer, intent(in) :: iAtom1
-      type(TDynNeighList), pointer, intent(in) :: pNeighList
-      real(dp), intent(in) :: coords(:,:)
-      real(dp), intent(in) :: deltaQAtom(:)
-      real(dp), intent(in) :: alpha
-      real(dp), intent(inout) :: deriv(:,:)
-
-      type(TNeighIterator) :: neighIter
-      real(dp) :: neighCoords(3, iterChunkSize)
-      integer :: neighImages(iterChunkSize)
-      integer :: iAtom2f, iNeigh, nNeigh
-      real(dp) :: rr(3)
-
-      call TNeighIterator_init(neighIter, pNeighList, iAtom1)
-      nNeigh = iterChunkSize
-      do while (nNeigh == iterChunkSize)
-        call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
-        do iNeigh = 1, nNeigh
-          iAtom2f = neighImages(iNeigh)
-          if (iAtom2f /= iAtom1) then
-            rr(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
-            deriv(:,iAtom1) = deriv(:,iAtom1)&
-                & + derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
-            deriv(:,iAtom2f) = deriv(:,iAtom2f)&
-                & - derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
-          end if
-        end do
-      end do
-
-    end subroutine addNeighborContribs
-
   end subroutine addInvRPrimePeriodic
+
+  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighborContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
+    integer, intent(in) :: iAtom1
+    type(TDynNeighList), pointer, intent(in) :: pNeighList
+    real(dp), intent(in) :: coords(:,:)
+    real(dp), intent(in) :: deltaQAtom(:)
+    real(dp), intent(in) :: alpha
+    real(dp), intent(inout) :: deriv(:,:)
+
+    type(TNeighIterator) :: neighIter
+    real(dp) :: neighCoords(3, iterChunkSize)
+    integer :: neighImages(iterChunkSize)
+    integer :: iAtom2f, iNeigh, nNeigh
+    real(dp) :: rr(3)
+
+    call TNeighIterator_init(neighIter, pNeighList, iAtom1)
+    nNeigh = iterChunkSize
+    do while (nNeigh == iterChunkSize)
+      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      do iNeigh = 1, nNeigh
+        iAtom2f = neighImages(iNeigh)
+        if (iAtom2f /= iAtom1) then
+          rr(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
+          deriv(:,iAtom1) = deriv(:,iAtom1)&
+              & + derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
+          deriv(:,iAtom2f) = deriv(:,iAtom2f)&
+              & - derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
+        end if
+      end do
+    end do
+
+  end subroutine addNeighborContribsInvRP
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
@@ -949,7 +945,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAt1 = iAtFirst, iAtLast
-      call addNeighborContribs(iAt1, pNeighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
+      call addNeighborContribsXl(iAt1, pNeighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
@@ -971,46 +967,44 @@ contains
     call assembleChunks(env, localDeriv)
     deriv(:,:) = deriv + localDeriv
 
-  contains
-
-    !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
-      integer, intent(in) :: iAt1
-      type(TDynNeighList), pointer, intent(in) :: pNeighList
-      real(dp), intent(in) :: coords(:,:)
-      real(dp), intent(in) :: dQInAtom(:)
-      real(dp), intent(in) :: dQOutAtom(:)
-      real(dp), intent(in) :: alpha
-      real(dp), intent(inout) :: deriv(:,:)
-
-      type(TNeighIterator) :: neighIter
-      real(dp) :: neighCoords(3, iterChunkSize)
-      real(dp) :: rr(3), contrib(3)
-      real(dp) :: prefac
-      integer :: neighImages(iterChunkSize)
-      integer :: iAt2f, iNeigh, nNeigh
-
-      call TNeighIterator_init(neighIter, pNeighList, iAt1)
-      nNeigh = iterChunkSize
-      do while (nNeigh == iterChunkSize)
-        call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
-        do iNeigh = 1, nNeigh
-          iAt2f = neighImages(iNeigh)
-          if (iAt2f == iAt1) then
-            cycle
-          end if
-          rr(:) = coords(:,iAt1) - neighCoords(:,iNeigh)
-          prefac = dQOutAtom(iAt1) * dQInAtom(iAt2f) + dQInAtom(iAt1) * dQOutAtom(iAt2f)&
-              & - dQInAtom(iAt1) * dQInAtom(iAt2f)
-          contrib(:) = prefac * derivRTerm(rr, alpha)
-          deriv(:,iAt1) = deriv(:,iAt1) + contrib
-          deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
-        end do
-      end do
-
-    end subroutine addNeighborContribs
-
   end subroutine addInvRPrimeXlbomdPeriodic
+
+  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighborContribsXl(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
+    integer, intent(in) :: iAt1
+    type(TDynNeighList), pointer, intent(in) :: pNeighList
+    real(dp), intent(in) :: coords(:,:)
+    real(dp), intent(in) :: dQInAtom(:)
+    real(dp), intent(in) :: dQOutAtom(:)
+    real(dp), intent(in) :: alpha
+    real(dp), intent(inout) :: deriv(:,:)
+
+    type(TNeighIterator) :: neighIter
+    real(dp) :: neighCoords(3, iterChunkSize)
+    real(dp) :: rr(3), contrib(3)
+    real(dp) :: prefac
+    integer :: neighImages(iterChunkSize)
+    integer :: iAt2f, iNeigh, nNeigh
+
+    call TNeighIterator_init(neighIter, pNeighList, iAt1)
+    nNeigh = iterChunkSize
+    do while (nNeigh == iterChunkSize)
+      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      do iNeigh = 1, nNeigh
+        iAt2f = neighImages(iNeigh)
+        if (iAt2f == iAt1) then
+          cycle
+        end if
+        rr(:) = coords(:,iAt1) - neighCoords(:,iNeigh)
+        prefac = dQOutAtom(iAt1) * dQInAtom(iAt2f) + dQInAtom(iAt1) * dQOutAtom(iAt2f)&
+            & - dQInAtom(iAt1) * dQInAtom(iAt2f)
+        contrib(:) = prefac * derivRTerm(rr, alpha)
+        deriv(:,iAt1) = deriv(:,iAt1) + contrib
+        deriv(:,iAt2f) = deriv(:,iAt2f) - contrib
+      end do
+    end do
+
+  end subroutine addNeighborContribsXl
 
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
@@ -1747,7 +1741,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME)
     do iAtom1 = iFirst, iLast
-      call addNeighborContribs(iAtom1, pNeighList, coord, alpha, Q, localStress)
+      call addNeighborContribsStress(iAtom1, pNeighList, coord, alpha, Q, localStress)
     end do
     !$OMP END PARALLEL DO
 
@@ -1756,51 +1750,49 @@ contains
 
     stress(:,:) = stress / volume
 
-  contains
-
-    !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-    subroutine addNeighborContribs(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
-      integer, intent(in) :: iAtom1
-      type(TDynNeighList), pointer, intent(in) :: pNeighList
-      real(dp), intent(in) :: coords(:,:)
-      real(dp), intent(in) :: dQAtom(:)
-      real(dp), intent(in) :: alpha
-      real(dp), intent(inout) :: stress(:,:)
-
-      type(TNeighIterator) :: neighIter
-      real(dp) :: neighCoords(3, iterChunkSize)
-      integer :: neighImages(iterChunkSize)
-      integer :: iAtom2f, iNeigh, nNeigh, ii, jj
-      real(dp) :: r(3), f(3)
-
-      call TNeighIterator_init(neighIter, pNeighList, iAtom1)
-      nNeigh = iterChunkSize
-      do while (nNeigh == iterChunkSize)
-        call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
-        do iNeigh = 1, nNeigh
-          iAtom2f = neighImages(iNeigh)
-          r(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
-          f(:) = derivRTerm(r, alpha) * dQAtom(iAtom1) * dQAtom(iAtom2f)
-          if (iAtom2f /= iAtom1) then
-            do ii = 1, 3
-              do jj = 1, 3
-                stress(jj,ii) = stress(jj,ii) + (r(jj) * f(ii) + f(jj) * r(ii))
-              end do
-            end do
-          else
-            do ii = 1, 3
-              do jj = 1, 3
-                stress(jj,ii) = stress(jj,ii) + 0.5_dp * (r(jj) * f(ii) + f(jj) * r(ii))
-              end do
-            end do
-          end if
-        end do
-      end do
-
-    end subroutine addNeighborContribs
-
-
   end subroutine invRStress
+
+  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighborContribsStress(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
+    integer, intent(in) :: iAtom1
+    type(TDynNeighList), pointer, intent(in) :: pNeighList
+    real(dp), intent(in) :: coords(:,:)
+    real(dp), intent(in) :: dQAtom(:)
+    real(dp), intent(in) :: alpha
+    real(dp), intent(inout) :: stress(:,:)
+
+    type(TNeighIterator) :: neighIter
+    real(dp) :: neighCoords(3, iterChunkSize)
+    integer :: neighImages(iterChunkSize)
+    integer :: iAtom2f, iNeigh, nNeigh, ii, jj
+    real(dp) :: r(3), f(3)
+
+    call TNeighIterator_init(neighIter, pNeighList, iAtom1)
+    nNeigh = iterChunkSize
+    do while (nNeigh == iterChunkSize)
+      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      do iNeigh = 1, nNeigh
+        iAtom2f = neighImages(iNeigh)
+        r(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
+        f(:) = derivRTerm(r, alpha) * dQAtom(iAtom1) * dQAtom(iAtom2f)
+        if (iAtom2f /= iAtom1) then
+          do ii = 1, 3
+            do jj = 1, 3
+              stress(jj,ii) = stress(jj,ii) + (r(jj) * f(ii) + f(jj) * r(ii))
+            end do
+          end do
+        else
+          do ii = 1, 3
+            do jj = 1, 3
+              stress(jj,ii) = stress(jj,ii) + 0.5_dp * (r(jj) * f(ii) + f(jj) * r(ii))
+            end do
+          end do
+        end if
+      end do
+    end do
+
+  end subroutine addNeighborContribsStress
+
 
 
 end module coulomb
