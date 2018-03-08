@@ -1151,20 +1151,22 @@ contains
       ! H5 correction
       ! On/Off flag is read from the input
       sccInp%use_h5 = input%ctrl%tH5
-      ! Create H5 object
-      allocate(pH5Correction)
-      call H5Corr_init(pH5Correction)
-      ! Set up the H5 correction - data from input
-      pH5Correction%rscale = input%ctrl%h5rcut
-      pH5Correction%wscale = input%ctrl%h5w
-      pH5Correction%elementPara = input%ctrl%h5elementPara
-      ! Set up the H5 correction - other data needed
-      pH5Correction%nSpecies = nType
-      pH5Correction%species_name = speciesName
-      ! Debug printing
-      ! call pH5Correction%printH5Setup
-      ! Pass the correction object to SCC
-      sccInp%h5correction = pH5Correction
+      if (sccInp%use_h5) then
+        ! Create H5 object
+        allocate(pH5Correction)
+        call H5Corr_init(pH5Correction)
+        ! Set up the H5 correction - data from input
+        pH5Correction%rscale = input%ctrl%h5rcut
+        pH5Correction%wscale = input%ctrl%h5w
+        pH5Correction%elementPara = input%ctrl%h5elementPara
+        ! Set up the H5 correction - other data needed
+        pH5Correction%nSpecies = nType
+        pH5Correction%species_name = speciesName
+        ! Debug printing
+        ! call pH5Correction%printH5Setup
+        ! Pass the correction object to SCC
+        sccInp%h5correction = pH5Correction
+      end if
       ! H5 correction end
 
       nExtChrg = input%ctrl%nExtChrg
