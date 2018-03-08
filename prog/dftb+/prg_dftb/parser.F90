@@ -1437,6 +1437,16 @@ contains
           call getChildValue(child2, "RCut", ctrl%h5rcut, 0.714_dp)
           call getChildValue(child2, "W", ctrl%h5w, 0.25_dp)
         end if
+        ! Get parameters for elements
+        allocate(ctrl%h5elementPara(geo%nSpecies))
+        ! Default value is zero
+        ctrl%h5elementPara(:) = 0.0_dp
+        call getChild(node, "H5CorrectionSpecies", child2, requested=.true.)
+        if (associated(child2)) then
+          do iSp1 = 1, geo%nSpecies
+            call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5elementPara(iSp1), 0.0_dp)
+          end do
+        end if
       end if
       ! H5 end
 

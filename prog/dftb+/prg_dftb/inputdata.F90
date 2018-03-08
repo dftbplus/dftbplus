@@ -355,6 +355,7 @@ module inputdata_module
     ! (as published for DFTB3):
     real(dp) :: h5rcut = 0.714
     real(dp) :: h5w = 0.25
+    real(dp), allocatable :: h5elementPara(:)
     ! H5 correction end
 
 

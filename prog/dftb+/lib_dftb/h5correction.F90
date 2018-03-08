@@ -23,6 +23,9 @@ module h5correction
     integer :: nSpecies
     !> Species names for H5 correction
     character(mc), allocatable :: species_name(:)
+    !> Elementwise parameters for species
+    real(dp), allocatable :: elementPara(:)
+
   contains
 
     procedure :: printH5Setup
@@ -41,10 +44,19 @@ contains
   end subroutine H5Corr_init
 
   subroutine printH5Setup(this)
+     ! Arguments
      class(H5Corr), intent(inout) :: this
+     ! Local variables
+     integer :: iSp1
+
       write(37,*) "H5 setup:"
       write(37,*) "   rscale = ", this%rscale
       write(37,*) "   wscale = ", this%wscale
+      write(37,*) "H5 species parameters:"
+      do iSp1 = 1, this%nSpecies
+        write(37,*) "   ", this%species_name(iSp1), " = ", this%elementPara(iSp1)
+      end do
+
   end subroutine printH5Setup
 
   ! This method gets H5 parameters for a pair of species.
