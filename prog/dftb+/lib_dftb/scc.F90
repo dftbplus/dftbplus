@@ -435,8 +435,7 @@ contains
     ! Input data are saved in the SCC object
     this%use_h5 = inp%use_h5
     if (this%use_h5) then
-        ! Copy species names
-        allocate(this%h5correction)
+        ! Copy correction object build in initprogram
         this%h5correction = inp%h5correction
     end if 
     ! H5 correction end
