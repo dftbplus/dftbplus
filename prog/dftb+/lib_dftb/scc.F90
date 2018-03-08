@@ -78,10 +78,10 @@ module scc
     real(dp) :: tolEwald = 0.0_dp
 
     !> Flag for activating the H5 H-bond correction
-    logical :: use_h5
+    logical :: useH5
 
     !> H5 correction object
-    type(H5Corr), allocatable :: h5correction
+    type(H5Corr), allocatable :: h5Correction
 
   end type TSccInp
 
@@ -222,10 +222,10 @@ module scc
 #:endif
 
     !> Flag for activating the H5 H-bond correction
-    logical :: use_h5
+    logical :: useH5
 
     !> H5 correction object
-    type(H5Corr), allocatable :: h5correction
+    type(H5Corr), allocatable :: h5Correction
 
   contains
     procedure :: getCutoff
@@ -433,10 +433,10 @@ contains
 
     ! H5 correction
     ! Input data are saved in the SCC object
-    this%use_h5 = inp%use_h5
-    if (this%use_h5) then
+    this%useH5 = inp%useH5
+    if (this%useH5) then
         ! Copy correction object build in initprogram
-        this%h5correction = inp%h5correction
+        this%h5Correction = inp%h5Correction
     end if 
     ! H5 correction end
 
@@ -1335,8 +1335,9 @@ contains
               else
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 ! H5 correction
-                if (this%use_h5) then
-                        call this%h5correction%scaleShortGamma(this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
+                if (this%useH5) then
+                        call this%h5Correction%scaleShortGamma(&
+                            &this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
                 end if
                 ! H5 correction end
               end if
@@ -1395,9 +1396,10 @@ contains
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
                 ! H5 correction
-                if (this%use_h5) then
+                if (this%useH5) then
                   tmpGamma = expGamma(rab, u2, u1)
-                  call this%h5correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2, rab)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, &
+                      &iSp1, iSp2, rab)
                 end if
                 ! H5 correction end
               end if
