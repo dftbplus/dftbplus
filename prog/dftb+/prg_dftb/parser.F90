@@ -1423,28 +1423,28 @@ contains
 
       ! H5 correction
       ! Keyword H5Correction switches the correction on and off (default)
-      call getChildValue(node, "H5Correction", ctrl%tH5, .false.)
+      call getChildValue(node, "H5Correction", ctrl%h5SwitchedOn, .false.)
       ! H5 should not be used with X-H damping
-      if (ctrl%tDampH .and. ctrl%tH5) then
+      if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
               call error("H5 correction is not compatible with X-H damping")
       end if
       ! Parameters for the correction
-      if (ctrl%tH5) then
+      if (ctrl%h5SwitchedOn) then
         ! Get child node with global parameters
         call getChild(node, "H5CorrectionParams", child2, requested=.false.)
         if (associated(child2)) then
           ! Defaults for DFTB3 are provided
-          call getChildValue(child2, "RCut", ctrl%h5rcut, 0.714_dp)
-          call getChildValue(child2, "W", ctrl%h5w, 0.25_dp)
+          call getChildValue(child2, "RCut", ctrl%h5RScale, 0.714_dp)
+          call getChildValue(child2, "W", ctrl%h5WScale, 0.25_dp)
         end if
         ! Get parameters for elements
-        allocate(ctrl%h5elementPara(geo%nSpecies))
+        allocate(ctrl%h5ElementPara(geo%nSpecies))
         ! Default value is zero
-        ctrl%h5elementPara(:) = 0.0_dp
+        ctrl%h5ElementPara(:) = 0.0_dp
         call getChild(node, "H5CorrectionSpecies", child2, requested=.true.)
         if (associated(child2)) then
           do iSp1 = 1, geo%nSpecies
-            call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5elementPara(iSp1), 0.0_dp)
+            call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5ElementPara(iSp1), 0.0_dp)
           end do
         end if
       end if

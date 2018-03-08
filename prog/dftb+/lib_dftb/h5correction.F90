@@ -18,11 +18,11 @@ module h5correction
   !> Internal data of the H5 correction
   type :: H5Corr
     !> Global parameters
-    real(dp) :: rscale, wscale
+    real(dp) :: rScale, wScale
     !> Nr. of rpecies
     integer :: nSpecies
     !> Species names for H5 correction
-    character(mc), allocatable :: species_name(:)
+    character(mc), allocatable :: speciesName(:)
     !> Elementwise parameters for species
     real(dp), allocatable :: elementPara(:)
 
@@ -41,143 +41,140 @@ contains
   subroutine H5Corr_init(this)
     !> Initialised instance at return.
     type(H5Corr), intent(out) :: this
-
   end subroutine H5Corr_init
 
   subroutine printH5Setup(this)
-     ! Arguments
-     class(H5Corr), intent(in) :: this
-     ! Local variables
-     integer :: iSp1
+    ! Arguments
+    class(H5Corr), intent(in) :: this
+    ! Local variables
+    integer :: iSp1
 
-      write(37,*) "H5 setup:"
-      write(37,*) "   rscale = ", this%rscale
-      write(37,*) "   wscale = ", this%wscale
-      write(37,*) "H5 species parameters:"
-      do iSp1 = 1, this%nSpecies
-        write(37,*) "   ", this%species_name(iSp1), " = ", this%elementPara(iSp1)
-      end do
-
+     write(37,*) "H5 setup:"
+     write(37,*) "   rScale = ", this%rScale
+     write(37,*) "   wScale = ", this%wScale
+     write(37,*) "H5 species parameters:"
+     do iSp1 = 1, this%nSpecies
+       write(37,*) "   ", this%speciesName(iSp1), " = ", this%elementPara(iSp1)
+     end do
   end subroutine printH5Setup
 
   ! This method gets H5 parameters for a pair of species.
-  ! It also returns a logical value do_corr if the correction should be applied
+  ! It also returns a logical value applyCorrection if the correction should be applied
   ! to this pair.
-  subroutine getParams(this, iSp1, iSp2, do_corr, h5scaling, sumvdw)
-     ! Arguments
-     class(H5Corr), intent(in) :: this
-     integer, intent(in) :: iSp1, iSp2
-     logical, intent(out) :: do_corr
-     real(dp), intent(out) :: h5scaling, sumvdw
+  subroutine getParams(this, iSp1, iSp2, applyCorrection, h5Scaling, sumVDW)
+    ! Arguments
+    class(H5Corr), intent(in) :: this
+    integer, intent(in) :: iSp1, iSp2
+    logical, intent(out) :: applyCorrection
+    real(dp), intent(out) :: h5Scaling, sumVDW
 
-     ! Local variables
-     character(mc) :: spname1, spname2
-     integer :: iSpHeavy
-     character(mc) :: spnameHeavy
+    ! Local variables
+    character(mc) :: spName1, spName2
+    integer :: iSpHeavy
+    character(mc) :: spNameHeavy
 
-     spname1 = this%species_name(iSp1)
-     spname2 = this%species_name(iSp2)
-     do_corr = .false.
+    spName1 = this%speciesName(iSp1)
+    spName2 = this%speciesName(iSp2)
+    applyCorrection = .false.
 
-     ! If there is one hydrogen and one other atom, save the heavy atom,
-     ! otherwise return with do_corr = false
-     if (spname1 .ne. "H" .and. spname2 == "H") then
-             iSpHeavy = iSp1
-             spnameHeavy = spname1
-     else if (spname2 .ne. "H" .and. spname1 == "H") then
-             iSpHeavy = iSp2
-             spnameHeavy = spname2
-     else
-             return
-     end if
+    ! If there is one hydrogen and one other atom, save the heavy atom,
+    ! otherwise return with applyCorrection = false
+    if (spName1 .ne. "H" .and. spName2 == "H") then
+      iSpHeavy = iSp1
+      spNameHeavy = spName1
+    else if (spName2 .ne. "H" .and. spName1 == "H") then
+      iSpHeavy = iSp2
+      spNameHeavy = spName2
+    else
+      return
+    end if
    
-     ! For each species the correction is applied to,
-     ! the correction is enabled and corresponding
-     ! parameters are returned
-     if (spnameHeavy == "O" ) then
-             ! Correction for OH
-             do_corr = .true.
-             ! Parameters
-             h5scaling = this%elementPara(iSpHeavy)
-             sumvdw = 2.72_dp
-             return
-     end if
+    ! For each species the correction is applied to,
+    ! the correction is enabled and corresponding
+    ! parameters are returned
+    if (spNameHeavy == "O" ) then
+      ! Correction for OH
+      applyCorrection = .true.
+      ! Parameters
+      h5Scaling = this%elementPara(iSpHeavy)
+      sumVDW = 2.72_dp
+      return
+    end if
 
-     if (spnameHeavy == "N" ) then
-             ! Correction for NH
-             do_corr = .true.
-             ! Parameters
-             h5scaling = this%elementPara(iSpHeavy)
-             sumvdw = 2.75_dp
-             return
-     end if
+    if (spNameHeavy == "N" ) then
+      ! Correction for NH
+      applyCorrection = .true.
+      ! Parameters
+      h5Scaling = this%elementPara(iSpHeavy)
+      sumVDW = 2.75_dp
+      return
+    end if
 
-     if (spnameHeavy == "S" ) then
-             ! Correction for SH
-             do_corr = .true.
-             ! Parameters
-             h5scaling = this%elementPara(iSpHeavy)
-             sumvdw = 3.00_dp
-             return
-     end if
+    if (spNameHeavy == "S" ) then
+      ! Correction for SH
+      applyCorrection = .true.
+      ! Parameters
+      h5Scaling = this%elementPara(iSpHeavy)
+      sumVDW = 3.00_dp
+      return
+    end if
   end subroutine getParams
 
   subroutine scaleShortGamma(this, shortGamma, iSp1, iSp2, rab)
-     ! Arguments
-     class(H5Corr), intent(in) :: this
-     real(dp), intent(inout) :: shortGamma
-     integer, intent(in) :: iSp1, iSp2
-     real(dp), intent(in) :: rab
-     
-     ! Local variables
-     real(dp) :: h5scaling, gauss, sumvdw, fwhm, r0, c
-     logical :: do_corr
+    ! Arguments
+    class(H5Corr), intent(in) :: this
+    real(dp), intent(inout) :: shortGamma
+    integer, intent(in) :: iSp1, iSp2
+    real(dp), intent(in) :: rab
+    
+    ! Local variables
+    real(dp) :: h5Scaling, gauss, sumVDW, fwhm, r0, c
+    logical :: applyCorrection
 
-     ! Get parameters for current pair of species
-     call this%getParams(iSp1, iSp2, do_corr, h5scaling, sumvdw)
+    ! Get parameters for current pair of species
+    call this%getParams(iSp1, iSp2, applyCorrection, h5Scaling, sumVDW)
 
-     ! If applicable to the current pair, modify the gamma
-     if (do_corr) then
-             ! Gaussian calculation
-             fwhm = this%wscale * sumvdw
-             r0 = this%rscale * sumvdw
-             c = fwhm / 2.35482_dp
-             gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5scaling
-             ! Apply the correction to original gamma
-             ShortGamma = ShortGamma * (1.0_dp + gauss) - gauss / rab
-     end if
+    ! If applicable to the current pair, modify the gamma
+    if (applyCorrection) then
+      ! Gaussian calculation
+      fwhm = this%wScale * sumVDW
+      r0 = this%rScale * sumVDW
+      c = fwhm / 2.35482_dp
+      gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5Scaling
+      ! Apply the correction to original gamma
+      shortGamma = shortGamma * (1.0_dp + gauss) - gauss / rab
+    end if
   end subroutine scaleShortGamma
 
   subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
-     ! Arguments
-     class(H5Corr), intent(in) :: this
-     real(dp), intent(in) :: shortGamma
-     real(dp), intent(inout) :: shortGammaDeriv
-     integer, intent(in) :: iSp1, iSp2
-     real(dp), intent(in) :: rab
-     
-     ! Local variables
-     real(dp) :: h5scaling, gauss, sumvdw, fwhm, r0, c, dgauss, deriv1, deriv2
-     logical :: do_corr
+    ! Arguments
+    class(H5Corr), intent(in) :: this
+    real(dp), intent(in) :: shortGamma
+    real(dp), intent(inout) :: shortGammaDeriv
+    integer, intent(in) :: iSp1, iSp2
+    real(dp), intent(in) :: rab
+    
+    ! Local variables
+    real(dp) :: h5Scaling, gauss, sumVDW, fwhm, r0, c, dgauss, deriv1, deriv2
+    logical :: applyCorrection
 
-     ! Get parameters for current pair of species
-     call this%getParams(iSp1, iSp2, do_corr, h5scaling, sumvdw)
+    ! Get parameters for current pair of species
+    call this%getParams(iSp1, iSp2, applyCorrection, h5Scaling, sumVDW)
 
-     ! If applicable to the current pair, modify the gamma
-     if (do_corr) then
-             ! Gaussian calculation
-             fwhm = this%wscale * sumvdw
-             r0 = this%rscale * sumvdw
-             c = fwhm / 2.35482_dp
-             gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5scaling
-             ! Derivative calculation
-             dgauss = -1.0 * (0.5291772083 * ( 0.5291772083 * rab - r0 ) ) / c**2 * gauss
+    ! If applicable to the current pair, modify the gamma
+    if (applyCorrection) then
+      ! Gaussian calculation
+      fwhm = this%wScale * sumVDW
+      r0 = this%rScale * sumVDW
+      c = fwhm / 2.35482_dp
+      gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5Scaling
+      ! Derivative calculation
+      dgauss = -1.0 * (0.5291772083 * ( 0.5291772083 * rab - r0 ) ) / c**2 * gauss
 
-             deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0+gauss)
-             deriv2 = dgauss/rab - (h5scaling*exp(-1.0*(0.5*(0.5291772083*rab - r0)**2)/c**2))/rab**2
-             shortGammaDeriv = deriv1 - deriv2
-     end if
-   end subroutine scaleShortGammaDeriv
-
+      deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0+gauss)
+      deriv2 = dgauss/rab - (h5Scaling*exp(-1.0*(0.5*(0.5291772083*rab - r0)**2)/c**2))/rab**2
+      shortGammaDeriv = deriv1 - deriv2
+    end if
+  end subroutine scaleShortGammaDeriv
 
 end module h5correction
