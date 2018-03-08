@@ -1370,6 +1370,9 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
+    ! H5 correction temp. vars
+    real(dp) :: tmpGamma
+    ! H5 correction end
 
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == this%nAtom)
@@ -1392,6 +1395,12 @@ contains
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                ! H5 correction
+                if (this%use_h5) then
+                  tmpGamma = expGamma(rab, u2, u1)
+                  call this%h5correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2, rab)
+                end if
+                ! H5 correction end
               end if
               do ii = 1,3
                 force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU(iU1,iAt1) * &

@@ -31,6 +31,7 @@ module h5correction
     procedure :: printH5Setup
     procedure :: getParams
     procedure :: scaleShortGamma
+    procedure :: scaleShortGammaDeriv
 
   end type H5Corr
 
@@ -45,7 +46,7 @@ contains
 
   subroutine printH5Setup(this)
      ! Arguments
-     class(H5Corr), intent(inout) :: this
+     class(H5Corr), intent(in) :: this
      ! Local variables
      integer :: iSp1
 
@@ -64,7 +65,7 @@ contains
   ! to this pair.
   subroutine getParams(this, iSp1, iSp2, do_corr, h5scaling, sumvdw)
      ! Arguments
-     class(H5Corr), intent(inout) :: this
+     class(H5Corr), intent(in) :: this
      integer, intent(in) :: iSp1, iSp2
      logical, intent(out) :: do_corr
      real(dp), intent(out) :: h5scaling, sumvdw
@@ -123,7 +124,7 @@ contains
 
   subroutine scaleShortGamma(this, shortGamma, iSp1, iSp2, rab)
      ! Arguments
-     class(H5Corr), intent(inout) :: this
+     class(H5Corr), intent(in) :: this
      real(dp), intent(inout) :: shortGamma
      integer, intent(in) :: iSp1, iSp2
      real(dp), intent(in) :: rab
@@ -141,13 +142,42 @@ contains
              fwhm = this%wscale * sumvdw
              r0 = this%rscale * sumvdw
              c = fwhm / 2.35482_dp
-             gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2)
-             gauss = gauss * h5scaling
+             gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5scaling
              ! Apply the correction to original gamma
-             ShortGamma = ShortGamma * (1.0_dp + gauss)
-             ShortGamma = ShortGamma - gauss / rab
+             ShortGamma = ShortGamma * (1.0_dp + gauss) - gauss / rab
      end if
   end subroutine scaleShortGamma
+
+  subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
+     ! Arguments
+     class(H5Corr), intent(in) :: this
+     real(dp), intent(in) :: shortGamma
+     real(dp), intent(inout) :: shortGammaDeriv
+     integer, intent(in) :: iSp1, iSp2
+     real(dp), intent(in) :: rab
+     
+     ! Local variables
+     real(dp) :: h5scaling, gauss, sumvdw, fwhm, r0, c, dgauss, deriv1, deriv2
+     logical :: do_corr
+
+     ! Get parameters for current pair of species
+     call this%getParams(iSp1, iSp2, do_corr, h5scaling, sumvdw)
+
+     ! If applicable to the current pair, modify the gamma
+     if (do_corr) then
+             ! Gaussian calculation
+             fwhm = this%wscale * sumvdw
+             r0 = this%rscale * sumvdw
+             c = fwhm / 2.35482_dp
+             gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5scaling
+             ! Derivative calculation
+             dgauss = -1.0 * (0.5291772083 * ( 0.5291772083 * rab - r0 ) ) / c**2 * gauss
+
+             deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0+gauss)
+             deriv2 = dgauss/rab - (h5scaling*exp(-1.0*(0.5*(0.5291772083*rab - r0)**2)/c**2))/rab**2
+             shortGammaDeriv = deriv1 - deriv2
+     end if
+   end subroutine scaleShortGammaDeriv
 
 
 end module h5correction
