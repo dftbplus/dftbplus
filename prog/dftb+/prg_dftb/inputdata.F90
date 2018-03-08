@@ -351,6 +351,10 @@ module inputdata_module
     ! H5 correction
     !> H5 correction On/Off(default) flag
     logical ::tH5 = .false.
+    ! Default values used when parameter block not found in input
+    ! (as published for DFTB3):
+    real(dp) :: h5rcut = 0.714
+    real(dp) :: h5w = 0.25
     ! H5 correction end
 
 

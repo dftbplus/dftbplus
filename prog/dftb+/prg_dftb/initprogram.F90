@@ -1154,8 +1154,8 @@ contains
       sccInp%use_h5 = input%ctrl%tH5
       ! Allocate H5 input object
       allocate(pH5Input)
-      pH5Input%rscale = 0.714
-      pH5Input%wscale = 0.25
+      pH5Input%rscale = input%ctrl%h5rcut
+      pH5Input%wscale = input%ctrl%h5w
       pH5Input%nSpecies = nType
       pH5Input%species_name = speciesName
       ! Create H5 object

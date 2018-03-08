@@ -1428,6 +1428,16 @@ contains
       if (ctrl%tDampH .and. ctrl%tH5) then
               call error("H5 correction is not compatible with X-H damping")
       end if
+      ! Parameters for the correction
+      if (ctrl%tH5) then
+        ! Get child node with global parameters
+        call getChild(node, "H5CorrectionParams", child2, requested=.false.)
+        if (associated(child2)) then
+          ! Defaults for DFTB3 are provided
+          call getChildValue(child2, "RCut", ctrl%h5rcut, 0.714_dp)
+          call getChildValue(child2, "W", ctrl%h5w, 0.25_dp)
+        end if
+      end if
       ! H5 end
 
       ! spin
