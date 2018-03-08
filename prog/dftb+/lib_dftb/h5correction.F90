@@ -13,18 +13,7 @@ module h5correction
   implicit none
   private
 
-  public :: H5Inp, H5Corr, H5Corr_init
-
-  !> Input structure for the H5 correction
-  type :: H5Inp
-    !> Global parameters
-    real(dp) :: rscale, wscale
-    !> Nr. of rpecies
-    integer :: nSpecies
-    !> Species names for H5 correction
-    character(mc), allocatable :: species_name(:)
-  end type H5Inp
-
+  public :: H5Corr, H5Corr_init
 
   !> Internal data of the H5 correction
   type :: H5Corr
@@ -45,21 +34,10 @@ module h5correction
 contains
 
   !> Inits a H5Corr instance.
-  subroutine H5Corr_init(this, inp)
+  subroutine H5Corr_init(this)
     !> Initialised instance at return.
     type(H5Corr), intent(out) :: this
 
-    !> Specific input parameters for H5 correction
-    type(H5Inp), intent(in) :: inp
-
-    ! Copy parameters
-    this%rscale = inp%rscale
-    this%wscale = inp%wscale
-
-    ! Copy species names
-    this%nSpecies = inp%nSpecies
-    allocate(this%species_name(this%nSpecies))
-    this%species_name = inp%species_name
   end subroutine H5Corr_init
 
   subroutine printH5Setup(this)
