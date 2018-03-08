@@ -873,7 +873,6 @@ contains
   #:endif
 
     ! H5 correction
-    type(H5Inp), allocatable :: pH5Input
     type(H5Corr), allocatable :: pH5Correction
     ! H5 correction end
 
@@ -1152,16 +1151,16 @@ contains
       ! H5 correction
       ! On/Off flag is read from the input
       sccInp%use_h5 = input%ctrl%tH5
-      ! Allocate H5 input object
-      allocate(pH5Input)
-      pH5Input%rscale = input%ctrl%h5rcut
-      pH5Input%wscale = input%ctrl%h5w
-      pH5Input%nSpecies = nType
-      pH5Input%species_name = speciesName
       ! Create H5 object
       allocate(pH5Correction)
-      call H5Corr_init(pH5Correction, pH5Input)
-      !call pH5Correction%printH5Setup()
+      call H5Corr_init(pH5Correction)
+      ! Set up the H5 correction - data from input
+      pH5Correction%rscale = input%ctrl%h5rcut
+      pH5Correction%wscale = input%ctrl%h5w
+      ! Set up the H5 correction - other data needed
+      pH5Correction%nSpecies = nType
+      pH5Correction%species_name = speciesName
+      ! Pass the correction object to SCC
       sccInp%h5correction = pH5Correction
       ! H5 correction end
 
