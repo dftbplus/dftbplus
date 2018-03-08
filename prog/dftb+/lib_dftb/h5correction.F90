@@ -71,33 +71,53 @@ contains
 
      ! Local variables
      character(mc) :: spname1, spname2
+     integer :: iSpHeavy
+     character(mc) :: spnameHeavy
 
      spname1 = this%species_name(iSp1)
      spname2 = this%species_name(iSp2)
      do_corr = .false.
-     
-     if ((spname1 == "O" .and. spname2 == "H") .or. (spname1 == "H" .and. spname2 == "O")) then
+
+     ! If there is one hydrogen and one other atom, save the heavy atom,
+     ! otherwise return with do_corr = false
+     if (spname1 .ne. "H" .and. spname2 == "H") then
+             iSpHeavy = iSp1
+             spnameHeavy = spname1
+     else if (spname2 .ne. "H" .and. spname1 == "H") then
+             iSpHeavy = iSp2
+             spnameHeavy = spname2
+     else
+             return
+     end if
+   
+     ! For each species the correction is applied to,
+     ! the correction is enabled and corresponding
+     ! parameters are returned
+     if (spnameHeavy == "O" ) then
              ! Correction for OH
              do_corr = .true.
              ! Parameters
-             h5scaling = 0.06_dp
+             h5scaling = this%elementPara(iSpHeavy)
              sumvdw = 2.72_dp
+             return
      end if
 
-     if ((spname1 == "N" .and. spname2 == "H") .or. (spname1 == "H" .and. spname2 == "N")) then
+     if (spnameHeavy == "N" ) then
              ! Correction for NH
              do_corr = .true.
              ! Parameters
-             h5scaling = 0.18_dp
+             h5scaling = this%elementPara(iSpHeavy)
              sumvdw = 2.75_dp
+             return
      end if
 
-     if ((spname1 == "S" .and. spname2 == "H") .or. (spname1 == "H" .and. spname2 == "S")) then
+     if (spnameHeavy == "S" ) then
              ! Correction for SH
              do_corr = .true.
              ! Parameters
-             h5scaling = 0.21_dp
+             h5scaling = this%elementPara(iSpHeavy)
              sumvdw = 3.00_dp
+             return
      end if
   end subroutine getParams
 
