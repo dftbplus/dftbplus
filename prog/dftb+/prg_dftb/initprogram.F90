@@ -2633,6 +2633,12 @@ contains
         write(stdOut, strTmp) "Damped species(s):", pack(speciesName, tDampedShort)
         deallocate(tDampedShort)
       end if
+
+      ! H5 correction
+      if (input%ctrl%h5SwitchedOn) then
+        write(stdOut, "(A,T30,A)") "H5 correction for H-bonds", "Yes"
+      end if
+     ! H5 correction end
     end if
 
     write(stdOut, "(A,':')") "Extra options"
