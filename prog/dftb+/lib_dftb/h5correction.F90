@@ -37,12 +37,13 @@ module h5correction
 
 contains
 
-  !> Inits a H5Corr instance.
+  !> Initialization of a H5Corr instance.
   subroutine H5Corr_init(this)
     !> Initialised instance at return.
     type(H5Corr), intent(out) :: this
   end subroutine H5Corr_init
 
+  !> Print all the parameters for debugging
   subroutine printH5Setup(this)
     ! Arguments
     class(H5Corr), intent(in) :: this
@@ -58,15 +59,21 @@ contains
      end do
   end subroutine printH5Setup
 
-  ! This method gets H5 parameters for a pair of species.
-  ! It also returns a logical value applyCorrection if the correction should be applied
-  ! to this pair.
+  !> Get H5 parameters for a pair of species
   subroutine getParams(this, iSp1, iSp2, applyCorrection, h5Scaling, sumVDW)
+    !> Returns a flag whether the correction is applied to the pair,
+    !> and the species-specific parameters
+
     ! Arguments
     class(H5Corr), intent(in) :: this
+    !> Input: specie names
     integer, intent(in) :: iSp1, iSp2
+    !> Output: flag indicating if the correction is applied to that pair
     logical, intent(out) :: applyCorrection
-    real(dp), intent(out) :: h5Scaling, sumVDW
+    !> Output: pair-specific scaling factor
+    real(dp), intent(out) :: h5Scaling
+    !> Output: Sum of vdW radii of the pair
+    real(dp), intent(out) :: sumVDW
 
     ! Local variables
     character(mc) :: spName1, spName2
@@ -120,7 +127,10 @@ contains
     end if
   end subroutine getParams
 
+  !> Apply the correction to the short-range part of gamma function
   subroutine scaleShortGamma(this, shortGamma, iSp1, iSp2, rab)
+    !> Returns modified shortGamma
+
     ! Arguments
     class(H5Corr), intent(in) :: this
     real(dp), intent(inout) :: shortGamma
@@ -146,7 +156,10 @@ contains
     end if
   end subroutine scaleShortGamma
 
+  !> Apply the correction to the derivative of the short-range part of gamma function
   subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
+    !> Returns modified shortGamma derivative
+
     ! Arguments
     class(H5Corr), intent(in) :: this
     real(dp), intent(in) :: shortGamma
@@ -170,7 +183,6 @@ contains
       gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5Scaling
       ! Derivative calculation
       dgauss = -1.0 * (0.5291772083 * ( 0.5291772083 * rab - r0 ) ) / c**2 * gauss
-
       deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0+gauss)
       deriv2 = dgauss/rab - (h5Scaling*exp(-1.0*(0.5*(0.5291772083*rab - r0)**2)/c**2))/rab**2
       shortGammaDeriv = deriv1 - deriv2
