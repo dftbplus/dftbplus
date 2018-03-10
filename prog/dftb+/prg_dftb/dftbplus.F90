@@ -31,7 +31,6 @@ program dftbplus
   call initProgramVariables(input, env)
   deallocate(input)
   call runDftbPlus(env)
-  call runDftbPlus(env)
   call env%destruct()
 
 end program dftbplus
