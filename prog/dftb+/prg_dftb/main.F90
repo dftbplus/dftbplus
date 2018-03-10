@@ -562,11 +562,11 @@ contains
 
         if (tSocket .and. env%tGlobalMaster) then
           ! stress was computed above in the force evaluation block or is 0 if aperiodic
-#:if WITH_SOCKETS
+        #:if WITH_SOCKETS
           call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
-#:else
+        #:else
           call error("Should not be here - compiled without socket support")
-#:endif
+        #:endif
         end if
 
         ! If geometry minimizer finished and the last calculated geometry is the minimal one (not
@@ -3688,6 +3688,7 @@ contains
     !> Electrochemical potentials per contact and spin
     real(dp), intent(in) :: mu(:,:)
 
+    !> Energy weighted sparse matrix
     real(dp), intent(out) :: ERhoPrim(:)
 
     !> Storage for dense hamiltonian matrix
@@ -3906,7 +3907,11 @@ contains
 
     !> Occupations of single particle states in the ground state
     real(dp), intent(in) :: filling(:,:,:)
+
+    !> eigen-values of the system
     real(dp), intent(in) :: eigen(:,:,:)
+
+    !> k-points of the system
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -3942,8 +3947,13 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
+    !> Eigenvectors of the system
     complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
+
+    !> work array (sized like overlap matrix)
     complex(dp), intent(inout) :: work(:,:)
+
+    !> Energy weighted sparse density matrix (charge only part)
     real(dp), intent(out) :: ERhoPrim(:)
 
     complex(dp), allocatable :: work2(:,:)
@@ -3968,8 +3978,8 @@ contains
       case(forceOrig)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
-        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK,iS),&
-            & eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
+        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+            & filling(:,iK,iS), eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
       #:else
         if (tDensON2) then
           call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
