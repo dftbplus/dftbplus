@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -521,6 +521,62 @@ contains
         end if
       end if
       ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+
+    case ("lbfgs")
+
+      ctrl%iGeoOpt = 4
+
+      ctrl%tForces = .true.
+      ctrl%restartFreq = 1
+      call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
+      if (ctrl%tLatOpt) then
+        call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, &
+            & modifier=modifier, child=child)
+        call convertByMul(char(modifier), pressureUnits, child, &
+            & ctrl%pressure)
+        call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
+        if (ctrl%tLatOptFixAng) then
+          call getChildValue(node, "FixLengths", ctrl%tLatOptFixLen, &
+              & (/.false.,.false.,.false./))
+        else
+          call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
+        end if
+        call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
+      end if
+      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+          &multiple=.true.)
+      call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
+          &child, ctrl%indMovedAtom)
+
+      ctrl%nrMoved = size(ctrl%indMovedAtom)
+      ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
+      if (ctrl%tCoordOpt) then
+        call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
+      end if
+      call getChildValue(node, "MaxForceComponent", ctrl%maxForce, 1e-4_dp, &
+          &modifier=modifier, child=field)
+      call convertByMul(char(modifier), forceUnits, field, ctrl%maxForce)
+      call getChildValue(node, "MaxSteps", ctrl%maxRun, 200)
+      call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
+      ctrl%outFile = unquote(char(buffer2))
+      call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
+      call getChildValue(node, "ConvergentForcesOnly", ctrl%tConvrgForces, &
+          & .true.)
+      call readGeoConstraints(node, ctrl, geom%nAtom)
+      if (ctrl%tLatOpt) then
+        if (ctrl%nrConstr/=0) then
+          call error("Lattice optimisation and constraints currently&
+              & incompatible.")
+        end if
+        if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
+          call error("Subset of optimising atoms not currently possible with&
+              & lattice optimisation.")
+        end if
+      end if
+      ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+
+      allocate(ctrl%lbfgsInp)
+      call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
 
     case("secondderivatives")
       ! currently only numerical derivatives of forces is implemented
@@ -1538,9 +1594,7 @@ contains
         call error("External charges can only be used in an SCC calculation")
       end if
       call init(lCharges)
-      if (.not. geo%tPeriodic) then
-        call init(lBlurs)
-      end if
+      call init(lBlurs)
       fp = getFileId()
       ctrl%nExtChrg = 0
       do ii = 1, getLength(children)
@@ -1578,19 +1632,17 @@ contains
         end select
         call convertByMul(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
         call append(lCharges, tmpR2)
-        if (.not. geo%tPeriodic) then
-          call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
-              &modifier=modifier, child=child3)
-          if (rTmp < 0.0_dp) then
-            call detailedError(child3, "Gaussian blur width may not be &
-                &negative")
-          end if
-          call convertByMul(char(modifier), lengthUnits, child3, rTmp)
-          allocate(tmpR1(size(tmpR2, dim=2)))
-          tmpR1(:) = rTmp
-          call append(lBlurs, tmpR1)
-          deallocate(tmpR1)
+        call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
+            &modifier=modifier, child=child3)
+        if (rTmp < 0.0_dp) then
+          call detailedError(child3, "Gaussian blur width may not be &
+              &negative")
         end if
+        call convertByMul(char(modifier), lengthUnits, child3, rTmp)
+        allocate(tmpR1(size(tmpR2, dim=2)))
+        tmpR1(:) = rTmp
+        call append(lBlurs, tmpR1)
+        deallocate(tmpR1)
         deallocate(tmpR2)
       end do
 
@@ -1602,15 +1654,13 @@ contains
       end do
       call destruct(lCharges)
 
-      if (.not. geo%tPeriodic) then
-        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
-        ind = 1
-        do ii = 1, len(lBlurs)
-          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
-          ind = ind + nElem
-        end do
-        call destruct(lBlurs)
-      end if
+      allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
+      ind = 1
+      do ii = 1, len(lBlurs)
+        call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+        ind = ind + nElem
+      end do
+      call destruct(lBlurs)
     else
       ctrl%nExtChrg = 0
     end if
@@ -1808,14 +1858,6 @@ contains
         end if
         deallocate(tmpI1)
         deallocate(kpts)
-        if (ctrl%tSCC .and. ctrl%maxIter /= 1) then
-          write(errorStr, "(A,I3)") "SCC cycle with k-lines probably will&
-              & not converge, SCC iterations set to:", ctrl%maxIter
-          call warning(errorStr)
-        end if
-        if (ctrl%tSCC .and. .not.ctrl%tReadChrg) then
-          call warning("It is strongly suggested you use the ReadInitialCharges option.")
-        end if
 
       case (textNodeName)
 
@@ -1859,6 +1901,15 @@ contains
         ii = 100
       end if
       call getChildValue(node, "MaxSCCIterations", ctrl%maxIter, ii)
+    end if
+
+    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. ctrl%maxIter /= 1) then
+      write(errorStr, "(A,I3)") "SCC cycle with these k-points probably will&
+          & not correctly calculate many properties, SCC iterations set to:", ctrl%maxIter
+      call warning(errorStr)
+    end if
+    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
+      call warning("It is strongly suggested you use the ReadInitialCharges option.")
     end if
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
@@ -2697,14 +2748,21 @@ contains
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
+    logical :: tWriteDetailedOutDef
+
+  #:if WITH_SOCKETS
+    tWriteDetailedOutDef = .not. allocated(ctrl%socketInput)
+  #:else
+    tWriteDetailedOutDef = .true.
+  #:endif
+    call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, tWriteDetailedOutDef)
 
     call getChildValue(node, "WriteAutotestTag", ctrl%tWriteTagged, .false.)
     call getChildValue(node, "WriteDetailedXML", ctrl%tWriteDetailedXML, &
         &.false.)
     call getChildValue(node, "WriteResultsTag", ctrl%tWriteResultsTag, &
         &.false.)
-    call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, &
-        &.true.)
+
 
     if (.not.(ctrl%tMD.or.ctrl%tGeoOpt)) then
       if (ctrl%tSCC) then
@@ -2726,7 +2784,7 @@ contains
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
   #:if DEBUG > 0
-    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 3)
+    call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, -1)
   #:else
     call getChildValue(node, "TimingVerbosity", ctrl%timingLevel, 1)
   #:endif
@@ -3252,6 +3310,7 @@ contains
     character(lc) :: strTmp
     type(listRealR1) :: lr1
     logical :: tPipekDense
+    logical :: tWriteBandDatDef
 
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
@@ -3328,6 +3387,8 @@ contains
       end if
     end if
 
+    call readElectrostaticPotential(node, geo, ctrl)
+
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
@@ -3337,7 +3398,12 @@ contains
       call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
           & .false.)
     end if
-    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
+  #:if WITH_SOCKETS
+    tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+  #:else
+    tWriteBandDatDef = .true.
+  #:endif
+    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
 #:if WITH_TRANSPORT
@@ -4804,6 +4870,7 @@ contains
       end if
       allocate(parallelOpts)
       call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
+      call getChildValue(node, "UseOmpThreads", parallelOpts%tOmpThreads, .not. withMpi)
       call readBlacs(node, parallelOpts%blacsOpts)
     end if
 
@@ -4835,5 +4902,184 @@ contains
 
   end subroutine readBlacs
 
+
+  subroutine readElectrostaticPotential(node, geo, ctrl)
+
+    !> Node containing optional electrostatic settings
+    type(fnode), pointer, intent(in) :: node
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Control structure
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: child, child2, child3
+    type(string) :: buffer, modifier
+    type(listRealR1) :: lr1
+
+    call getChild(node, "ElectrostaticPotential", child, requested=.false.)
+    if (.not. associated(child)) then
+      return
+    end if
+
+    if (.not. ctrl%tSCC) then
+      call error("Electrostatic potentials only available in an SCC calculation")
+    end if
+    allocate(ctrl%elStatPotentialsInp)
+    call getChildValue(child, "OutputFile", buffer, "ESP.dat")
+    ctrl%elStatPotentialsInp%espOutFile = unquote(char(buffer))
+    ctrl%elStatPotentialsInp%tAppendEsp = .false.
+    if (ctrl%tGeoOpt .or. ctrl%tMD) then
+      call getChildValue(child, "AppendFile", ctrl%elStatPotentialsInp%tAppendEsp, .false.)
+    end if
+    call init(lr1)
+    ! discrete points
+    call getChildValue(child, "Points", child2, "", child=child3, &
+        & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(child2, buffer)
+    if (char(buffer) /= "") then
+      call getChildValue(child3, "", 3, lr1, modifier=modifier)
+      allocate(ctrl%elStatPotentialsInp%espGrid(3,len(lr1)))
+      call asArray(lr1, ctrl%elStatPotentialsInp%espGrid)
+      if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+        ctrl%elStatPotentialsInp%espGrid = matmul(geo%latVecs, ctrl%elStatPotentialsInp%espGrid)
+      else
+        call convertByMul(char(modifier), lengthUnits, child3,&
+            & ctrl%elStatPotentialsInp%espGrid)
+      end if
+    end if
+    call destruct(lr1)
+
+    ! grid specification for points instead
+    call getChild(child, "Grid", child=child2, modifier=modifier, requested=.false.)
+    if (associated(child2)) then
+      if (allocated(ctrl%elStatPotentialsInp%espGrid)) then
+        call error("Both grid and point specification not both currently possible")
+      end if
+      if (geo%tPeriodic) then
+        call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
+            & latVecs=geo%latVecs, nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & origin=ctrl%elStatPotentialsInp%origin,&
+            & axes=ctrl%elStatPotentialsInp%axes)
+      else
+        call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
+            & nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & origin=ctrl%elStatPotentialsInp%origin,&
+            & axes=ctrl%elStatPotentialsInp%axes)
+      end if
+    end if
+    if (.not.allocated(ctrl%elStatPotentialsInp%espGrid)) then
+      call detailedError(child,"Either a grid or set of points must be specified")
+    end if
+    call getChildValue(child, "Softening", ctrl%elStatPotentialsInp%softenESP, 1.0E-6_dp,&
+        & modifier=modifier, child=child2)
+    call convertByMul(char(modifier), lengthUnits, child2, ctrl%elStatPotentialsInp%softenEsp)
+
+  end subroutine readElectrostaticPotential
+
+
+  !> Read in a grid specification
+  subroutine readGrid(points, node, modifier, latVecs, nPoints, origin, axes)
+
+    !> Points in the grid
+    real(dp), allocatable, intent(out) :: points(:,:)
+
+    !> input data to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> unit modifier for the grid
+    type(string), intent(in) :: modifier
+
+    !> geometry of the system
+    real(dp), intent(in), optional :: latVecs(:,:)
+
+    !> Number of grid points in each direction, if required
+    integer, intent(out), optional :: nPoints(3)
+
+    !> origin of grid if required
+    real(dp), intent(out), optional :: origin(3)
+
+    !> axes of the grid if required
+    real(dp), intent(out), optional :: axes(3,3)
+
+    type(fnode), pointer :: child
+    real(dp) :: r3Tmp(3), r3Tmpb(3)
+    integer :: i3Tmp(3), iPt, ii, jj, kk
+    logical :: tPeriodic
+    real(dp) :: axes_(3,3), r33Tmp(3,3)
+
+    tPeriodic = present(latvecs)
+
+    if (.not.tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+      call detailedError(node, "Fractional grid specification only available for periodic&
+          & geometries")
+    end if
+
+    call getChildValue(node, "Spacing", r3Tmp, child=child)
+    call getChildValue(node, "Origin", r3Tmpb, child=child)
+    call getChildValue(node, "GridPoints", i3Tmp, child=child)
+    if (any(i3Tmp < 1)) then
+      call detailedError(child,"Grid must be at least 1x1x1")
+    end if
+    if (any(abs(r3Tmp) < epsilon(1.0_dp) .and. i3Tmp > 1)) then
+      call detailedError(child,"Grid spacings must be non-zero")
+    end if
+    allocate(points(3,product(i3Tmp)))
+    if (present(nPoints)) then
+      nPoints = i3Tmp
+    end if
+
+    !  length not fraction modifier
+    if (.not.(tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f"))) then
+      call convertByMul(char(modifier), lengthUnits, child, r3Tmp)
+      call convertByMul(char(modifier), lengthUnits, child, r3Tmpb)
+    end if
+
+    points = 0.0_dp
+    iPt = 0
+    do ii = 0, i3Tmp(1)-1
+      do jj = 0, i3Tmp(2)-1
+        do kk = 0, i3Tmp(3)-1
+          iPt = iPt + 1
+          points(1,iPt) = ii * r3Tmp(1) + r3Tmpb(1)
+          points(2,iPt) = jj * r3Tmp(2) + r3Tmpb(2)
+          points(3,iPt) = kk * r3Tmp(3) + r3Tmpb(3)
+        end do
+      end do
+    end do
+
+    ! transformation matrix on directions, could use a 4x4 homogeneous coordinate transform instead
+    if (.not.(char(modifier) == "F" .or. char(modifier) == "f") .or. .not.tPeriodic) then
+      r33Tmp = reshape([1,0,0,0,1,0,0,0,1],[3,3])
+      call getChildValue(node, "Directions", axes_, r33Tmp, child=child)
+      if (abs(determinant33(axes_)) < epsilon(1.0_dp)) then
+        call detailedError(child, "Dependent axis directions")
+      end if
+      do ii = 1, 3
+        axes_(:,ii) = axes_(:,ii) / sqrt(sum(axes_(:,ii)**2))
+      end do
+      points = matmul(axes_,points)
+      if (present(axes)) then
+        axes = axes_*spread(r3Tmp,2,3)
+      end if
+    end if
+
+    if (present(origin)) then
+      origin = r3Tmpb
+    end if
+
+    ! Fractional specification of points
+    if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+      points = matmul(latVecs,points)
+      if (present(origin)) then
+        origin = matmul(latVecs,origin)
+      end if
+      if (present(axes)) then
+        axes = latVecs * spread(r3Tmp,2,3)
+      end if
+    end if
+
+  end subroutine readGrid
 
 end module parser

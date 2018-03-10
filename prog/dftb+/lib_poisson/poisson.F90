@@ -24,7 +24,6 @@ module poisson
   use fancybc
   use mpi_poisson 
   use fileid
-  use iso_c_binding, only : c_loc
   implicit none
   private
   
@@ -396,9 +395,9 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
  !**********************************************************************************
  select case(SCC_in)
 
-    !/////////////////////////////////////////////////////////////////
+ !/////////////////////////////////////////////////////////////////
  case(GetPOT)     !Poisson called in order to calculate potential in SCC
-    !/////////////////////////////////////////////////////////////////
+ !/////////////////////////////////////////////////////////////////
 
    !**********************************************************************************
    ! 5.  Setting boundary conditions, iparm(2..7)
@@ -534,7 +533,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     !--------------------------------------------------------------------------
     if (ncont.gt.0) then
 
-       allocate(bulk(ncont))
+      allocate(bulk(ncont))
        call create_phi_bulk(bulk,iparm,dlx,dly,dlz,cont_mem)
 
        if(InitPot.and.id0.and.niter.eq.1.and.verbose.gt.VBT) then
@@ -565,28 +564,26 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
        ! -----------------------------------------------------------------------
        if (InitPot) then
           
-          if (ReadBulk) then   !Read old bulk potential
-             if (id0.and.verbose.gt.VBT) call message_clock('Read bulk potential ')           
-             call readbulk_pot(bulk)
-             if (id0.and.verbose.gt.VBT) call write_clock               
-
-          endif    ! do not change (readbulk can change)
-          if (.not.ReadBulk) then
-             
-             if (id0.and.verbose.gt.VBT) call message_clock('Compute bulk potential ')   
-             call compbulk_pot(bulk,iparm,fparm)
-             ReadBulk=.true.
-             if (id0.and.verbose.gt.VBT) call write_clock     
-            
-          end if !Compute bulk potential 
+         if (ReadBulk) then   !Read old bulk potential
+           if (id0.and.verbose.gt.VBT) call message_clock('Read bulk potential ')           
+           call readbulk_pot(bulk)
+           if (id0.and.verbose.gt.VBT) call write_clock               
+         endif    ! do not change (readbulk can change)
+         
+         if (.not.ReadBulk) then
+           if (id0.and.verbose.gt.VBT) call message_clock('Compute bulk potential ')   
+           call compbulk_pot(bulk,iparm,fparm)
+           ReadBulk=.true.
+           if (id0.and.verbose.gt.VBT) call write_clock     
+         end if !Compute bulk potential 
                     
-        else  
-             if(id0.and.verbose.gt.VBT) write(*,*) 'No bulk potential'
-        endif
+       else  
+         if(id0.and.verbose.gt.VBT) write(*,*) 'No bulk potential'
+       endif
        
     else
-        ! allocate fake bulk to avoid problems    
-        allocate(bulk(0))
+       ! allocate fake bulk to avoid problems    
+       allocate(bulk(0))
     endif
 
     !write(*,*) 'debug bulk potential'
@@ -601,44 +598,43 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
     do m=1,ncont
 
-       na = bulk(m)%iparm(14)
-       nb = bulk(m)%iparm(15)
-       nc = bulk(m)%iparm(16)
+      na = bulk(m)%iparm(14)
+      nb = bulk(m)%iparm(15)
+      nc = bulk(m)%iparm(16)
   
-       bulk(m)%val(1:na,1:nb,1:nc) = bulk(m)%val(1:na,1:nb,1:nc) + mu(m)
+      bulk(m)%val(1:na,1:nb,1:nc) = bulk(m)%val(1:na,1:nb,1:nc) + mu(m)
 
-       if (contdir(m).gt.0) then        
-          s = iparm(abs(contdir(m))+13) 
-       else
-          s = 1
-       end if
-       
-       ! Dirichlet BC 
-       if (id0) then
-         select case(abs(contdir(m)))        
-         case(1)
-            do i = 1, nb 
-              phi(s,1:na,i) = bulk(m)%val(1:na,i,1)
-            enddo   
-         case(2)     
-            do i = 1, nb 
-              phi(i,s,1:na) = bulk(m)%val(1:na,i,1)
-            enddo   
-         case(3)
-            do i = 1, nb 
-              phi(1:na,i,s) = bulk(m)%val(1:na,i,1)
-            enddo   
-         end select
-       endif
-       
+      if (contdir(m).gt.0) then        
+         s = iparm(abs(contdir(m))+13) 
+      else
+         s = 1
+      end if
+      
+      ! Dirichlet BC
+      if (id0) then
+        select case(abs(contdir(m)))        
+        case(1)
+          do i = 1, nb 
+            phi(s,1:na,i) = bulk(m)%val(1:na,i,1)
+          enddo   
+        case(2)     
+          do i = 1, nb 
+             phi(i,s,1:na) = bulk(m)%val(1:na,i,1)
+          enddo   
+        case(3)
+          do i = 1, nb 
+             phi(1:na,i,s) = bulk(m)%val(1:na,i,1)
+          enddo   
+        end select
+      endif
+
     enddo
     
     !*********************************************************************************
     ! Charge density evaluation on the grid points 
     !*********************************************************************************
-    
-    call set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
+    call set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
 
     !*********************************************************************************
@@ -650,14 +646,14 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     if (id0) then
 
       call log_gallocate(work,worksize)
-         
+       
       do i = 0,1
         iparm(1) = i
-      
+    
         if (i.eq.1) then
            if (verbose.gt.VBT) call message_clock('Solving Poisson equation ') 
         endif
- 
+
         if (DoGate) then
            call mud3(iparm,fparm,work,coef_gate,bndyc,rhs,phi,mgopt,err)
         elseif (DoCilGate) then
@@ -665,39 +661,37 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
         elseif (DoTip) then
            call mud3(iparm,fparm,work,coef_tip,bndyc,rhs,phi,mgopt,err)
         elseif (cluster.and.period) then
-           !call mud3sp(iparm,fparm,work,cofx,cofy,cofz,bndyc,rhs,phi,mgopt,err)
            call mud3(iparm,fparm,work,coef,bndyc,rhs,phi,mgopt,err)
         else
            call mud3(iparm,fparm,work,coef,bndyc,rhs,phi,mgopt,err)
         end if
         
         worksize = iparm(22)
-        !if (cluster.and.period) worksize = iparm(21)
- 
-        if(err.ne.0.and.err.ne.9) then
-           if(err.gt.0) then
-              write(*,*) 
-              write(*,*) 'Fatal Error in poisson solver:',err
-              stop          
-           endif
-        endif
+
+        if (err.ne.0.and.err.ne.9) then
+          if(err.gt.0) then
+             write(*,*) 
+             write(*,*) 'Fatal Error in poisson solver:',err
+             stop          
+          end if
+        end if
         if (err.eq.9) then
-           call log_gdeallocate(work)
-           call log_gallocate(work,worksize)
-        endif
+          call log_gdeallocate(work)
+          call log_gallocate(work,worksize)
+        end if
       end do
- 
+
       if (verbose.gt.VBT) call write_clock
- 
+
       if (err.lt.-1) then
         write(*,*) 'Non-fatal Error in poisson solver:',err
       endif
- 
+
       ncycles = iparm(23)
       call log_gdeallocate(work)
-    end if  
-  
-    if (id0) then 
+    end if
+
+    if (id0) then
       if (verbose.gt.30) then 
         write(*,'(1x,73("-"))') 
         write(*,*) 'Relative Poisson Error =',fparm(8)
@@ -705,12 +699,13 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
         write(*,'(1x,73("-"))') 
         flush(6)
       end if   
- 
+
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
         write(*,*) 'ERROR: convergence not obtained'
         stop
       end if
     end if
+
     !--------------------------------------------
     ! Shift of the Hamiltonian matrix elements 
     !--------------------------------------------
@@ -724,32 +719,30 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     call destroy_phi_bulk(bulk)
     deallocate(bulk,stat=err)
 
-  !//////////////////////////////////////////////////////////////////////
-  case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient 
-  !//////////////////////////////////////////////////////////////////////
+ !//////////////////////////////////////////////////////////////////////
+ case(GetGRAD)    ! Poisson called in order to calculate atomic shift gradient 
+ !//////////////////////////////////////////////////////////////////////
    
-    if(id0) call gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
+   if (id0) call gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
    
    
-  !////////////////////////////////////////////////////////////////////////
-  case(SavePOT)    ! Poisson called in order to save potential and charge density
-  !////////////////////////////////////////////////////////////////////////
+ !////////////////////////////////////////////////////////////////////////
+ case(SavePOT)    ! Poisson called in order to save potential and charge density
+ !////////////////////////////////////////////////////////////////////////
 
-    call save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
+    if (id0) call save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
    
-  !///////////////////////////////////////////
-  case(CLEAN)       ! Deallocate Poisson variables
-  !///////////////////////////////////////////      
+ !///////////////////////////////////////////
+ case(CLEAN)       ! Deallocate Poisson variables
+ !///////////////////////////////////////////      
        
-    if (allocated(phi)) call log_gdeallocate(phi)
-    if (allocated(rhs)) call log_gdeallocate(rhs)
-    niter = 0
+   if (allocated(phi)) call log_gdeallocate(phi)
+   if (allocated(rhs)) call log_gdeallocate(rhs)
+   niter = 0
 
-  end select
+ end select
 
   niter=niter+1
-
-  return
 
 end subroutine Mudpack_drv
 
@@ -760,12 +753,12 @@ end subroutine Mudpack_drv
 
 subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
- integer :: iparm(23)
- real(kind=dp) :: fparm(8),dlx,dly,dlz
- real(kind=dp), dimension(:,:,:), allocatable :: rhs
- Type(super_array) :: bulk(:)
+  integer :: iparm(23)
+  real(kind=dp) :: fparm(8),dlx,dly,dlz
+  real(kind=dp), dimension(:,:,:) :: rhs
+  type(super_array) :: bulk(:)
 
-#:if WITH_MPI
+ #:if WITH_MPI
   !---------------------------------------------------------------------
   ! MPI parallelization of the r.h.s. assembly (charge density)
   ! This is done slicing the grid along the z-direction, iparm(16)
@@ -777,9 +770,9 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
   real(kind=dp) :: fparm_tmp(8)
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
   integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs
-
+ 
   if (numprocs > 1) then
-
+ 
     call log_gallocate(dim_rhs,numprocs)
     call log_gallocate(istart,numprocs)
     call log_gallocate(iend,numprocs)
@@ -789,13 +782,13 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
  
     ! set start/end and size handled by each processor
     do i = 1,numprocs
-       istart(i) = (i-1)*npid+1
-       if (i .ne. numprocs) then
-          iend(i) = i*npid
-       else
-          iend(i) = iparm(16)
-       endif
-       dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
+      istart(i) = (i-1)*npid+1
+      if (i .ne. numprocs) then
+         iend(i) = i*npid
+      else
+         iend(i) = iparm(16)
+      endif
+      dim_rhs(i) = iparm(14)*iparm(15)*(iend(i)-istart(i)+1)
     end do
     ! Define a subproblem with appropriate iparm_tmp
     iparm_tmp = iparm
@@ -835,16 +828,17 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     if (id0.and.verbose.gt.VBT) call write_clock
  
     ! gather all partial results on master node 0
-    call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
+    !call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
+    rhs = rhs_par 
  
     call log_gdeallocate(rhs_par)
     call log_gdeallocate(dim_rhs)
     call log_gdeallocate(istart)
     call log_gdeallocate(iend)
-  
-  else  
-
-#:endif
+ 
+  else
+ 
+ #:endif
 
     if (do_renorm) then
       call renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed_renorm)
@@ -852,26 +846,26 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     endif
    
     call charge_density(iparm,fparm,dlx,dly,dlz,rhs)
-    
-    if (DoGate) then
-       call gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
-    endif
-    
-    if (DoCilGate) then
-       call cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
-    endif
-    
-    if (DoTip) then
-       call tip_bound(iparm,fparm,dlx,dly,dlz,rhs)
-    endif
-   
-#:if WITH_MPI
- end if
-#:endif
 
- if (any(localBC.gt.0)) then
+    if (DoGate) then
+      call gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
+    endif
+ 
+    if (DoCilGate) then
+      call cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
+    endif
+ 
+    if (DoTip) then
+      call tip_bound(iparm,fparm,dlx,dly,dlz,rhs)
+    endif
+
+ #:if WITH_MPI
+  endif
+ #:endif
+
+  if (any(localBC.gt.0)) then
     call local_bound(iparm,fparm,x,rhs,bulk)
- endif 
+  endif 
 
 end subroutine set_rhs
 
@@ -1162,86 +1156,244 @@ end subroutine distribute_atoms
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
  
- integer :: iparm(23)
- real(kind=dp), dimension(:,:) :: V_atm
- real(kind=dp) :: dlx,dly,dlz
- real(kind=dp) :: fparm(8)
- real(kind=dp) :: phi(:,:,:)
- Type(super_array) :: phi_bulk(:)
+  integer, intent(in) :: iparm(23)
+  real(kind=dp), intent(in) :: fparm(8)
+  real(kind=dp), intent(in) :: dlx,dly,dlz
+  real(kind=dp), intent(in) :: phi(:,:,:)
+  type(super_array), intent(in) :: phi_bulk(:)
+  real(kind=dp), dimension(:,:), intent(inout) :: V_atm
+ 
+  !Internal variables
+ 
+  integer :: i,j,k,atm,f,s,pl
+  real(kind=dp) :: g,Norm,xi(3),deltaR, vol, V_tmp, expgr
+  integer :: m,a,b,c
+ 
+  real(dp) :: dl(3), xmin(3), xmax(3), xhlp(3), dla, dlb, dlc
+  integer :: imin(3), imax(3), n_cell(3), ii, jj, kk, rag(3)
+  integer :: ncx,ncy,ncz, npx, npy, npz, nsh,l
+  integer :: ierr
+  integer, dimension(:), allocatable :: istart, iend, displ, dims 
+ 
+  dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
+ 
+  do i = 1,3
+     if (period_dir(i)) then
+        n_cell(i) = nint(PoissBox(i,i)/boxsiz(i,i)) + 2 
+        rag(i) = 1
+     else
+        n_cell(i) = 0
+        rag(i) = 0    
+     end if
+  end do
+ 
+  ! NOTE: DO NOT INITIALIZE V_atm = 0 here
+  
+  ! define aliases
+  ncx = n_cell(1); ncy = n_cell(2); ncz = n_cell(3)
+  npx = iparm(14)-rag(1); npy = iparm(15)-rag(2); npz = iparm(16)-rag(3)
+ 
+  atoms: do atm = 1, iatm(2)  
+ 
+     xhlp(:)=x(:,atm)
+     do while (xhlp(1).lt.fparm(1))
+        xhlp(1)=xhlp(1)+PoissBox(1,1)
+     enddo
+     do while (xhlp(1).gt.fparm(2))
+        xhlp(1)=xhlp(1)-PoissBox(1,1)
+     enddo
+     do while (xhlp(2).lt.fparm(3))
+        xhlp(2)=xhlp(2)+PoissBox(2,2)
+     enddo
+     do while (xhlp(2).gt.fparm(4))
+        xhlp(2)=xhlp(2)-PoissBox(2,2)
+     enddo
+     do while (xhlp(3).lt.fparm(5))
+        xhlp(3)=xhlp(3)+PoissBox(3,3)
+     enddo
+     do while (xhlp(3).gt.fparm(6))
+        xhlp(3)=xhlp(3)-PoissBox(3,3)
+     enddo
+ 
+     ! Set boundaries of a box around the atom 
+     xmin(:) = xhlp(:) - deltaR_max
+     xmax(:) = xhlp(:) + deltaR_max
+     
+     ! Cut out box out of PoissonBox imin imax start from 0
+     do i=1,3
+        imin(i) = nint( (xmin(i) - fparm(2*i-1))/dl(i) ) !+ 1 
+        imax(i) = nint( (xmax(i) - fparm(2*i-1))/dl(i) ) !+ 1
+        if (.not.period_dir(i)) then
+           imin(i) = max( 0, imin(i) )
+           imax(i) = min( iparm(13+i)-1, imax(i) )
+        endif
+     enddo
+        
+     nsh = lmax(izp(atm))+1     
+     shells: do l = 1, nsh
+        g = 3.2d0*uhubb(l,izp(atm))
+        vol = dlx*dly*dlz 
+        Norm=0.d0
+        V_tmp = 0.d0
+                 
+        do i = imin(1),imax(1)
+           
+           xi(1) = fparm(1) + i*dlx
+           ii=mod(i + ncx*npx, npx) + 1  
+           
+           do j = imin(2),imax(2)
+              
+              xi(2) = fparm(3) + j*dly 
+              jj=mod(j + ncy*npy, npy) + 1       
+              
+              do k = imin(3),imax(3)
+                 !Compute point coordinates
+              
+                 xi(3) = fparm(5) + k*dlz
+                 kk=mod(k + ncz*npz, npz) + 1
+ 
+                 ! Compute distance from atom 
+                 deltaR = sqrt(dot_product(xi-xhlp, xi-xhlp))
+                 if (deltaR.gt.deltaR_max) then
+                    cycle
+                 else
+                   expgr = exp(-g*deltaR)
+                   V_tmp = V_tmp - phi(ii,jj,kk)*expgr*vol
+                   !(Normalization g**3*dlx*dly*dlz/(8.0*pi) included in Norm)
+                   Norm = Norm + expgr*vol
+                 end if
+              end do
+           end do
+        end do        
+        
+        !-------------------------------------------------------------------------------
+        ! Hamiltonian shifts correction with contacts bulk-potential or bias 
+        !-------------------------------------------------------------------------------
+        do m = 1, ncont
+ 
+           s=sign(1,contdir(m))
+           f=(s-1)/2
+ 
+           a=phi_bulk(m)%a
+           b=phi_bulk(m)%b
+           c=phi_bulk(m)%c
+ 
+           dla=phi_bulk(m)%dla
+           dlb=phi_bulk(m)%dlb
+           dlc=phi_bulk(m)%dlc
+ 
+           vol = dla*dlb*dlc 
+ 
+           if(abs( xhlp(c)-fparm( 2*c + f ) ).lt.deltaR_max) then
+           !We add the shift due to 2nd PL, too. This is consistent
+           !with the calculation of chrge density which uses both
+           !contact PLs 
+           do pl = 1,2
+              do i = 1,phi_bulk(m)%iparm(14)
+                 do j = 1,phi_bulk(m)%iparm(15)
+                    do k = 2,phi_bulk(m)%iparm(16)
+                       
+                       xi(a) = fparm( 2*a-1 ) +   (i - 1)*dla 
+                       xi(b) = fparm( 2*b-1 ) +   (j - 1)*dlb    
+                       !This line is modified to include 2nd PL 
+                       xi(c) = fparm( 2*c+f ) + s*(k - 1)*dlc +s*(pl-1)*phi_bulk(m)%L_PL
+                       
+ 
+                       ! This is relying on the fact that the grid of the contact bulk 
+                       ! potential is ordered from the device outwards. 
+ 
+                       deltaR = sqrt(dot_product(xi-xhlp, xi-xhlp))
+                       if (deltaR.gt.deltaR_max) then
+                          cycle
+                       else    
+                          expgr = exp(-g*deltaR)
+                          V_tmp = V_tmp - phi_bulk(m)%val(i,j,k)*expgr*vol
+                          Norm = Norm + expgr*vol
+                       end if
+                    end do
+                 end do
+              end do
+           end do
+ 
+           end if
+ 
+        end do
+        !------------------------------------------------------------------------------ 
+        V_atm(l,atm)= V_tmp/Norm
+ 
+     end do shells
+  end do atoms
+ 
+  ! biasshift here 
+  do m = 1, ncont
+     do atm=iatc(3,m),iatc(2,m)
+        do l = 1, lmax(izp(atm))+1 
+           V_atm(l,atm) = V_atm(l,atm) - mu(m) 
+        end do
+     end do
+  end do
+ 
+end subroutine shift_Ham
 
- !Internal variables
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
- integer :: i,j,k,atm,f,s,pl
- real(kind=dp) :: g,Norm,xi(3),deltaR, vol, V_tmp, expgr
- integer :: m,a,b,c
+subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
 
- real(dp) :: dl(3), xmin(3), xmax(3), xhlp(3), dla, dlb, dlc
- integer :: imin(3), imax(3), n_cell(3), ii, jj, kk, rag(3)
- integer :: ncx,ncy,ncz, npx, npy, npz, nsh,l
- integer :: ierr
- integer, dimension(:), allocatable :: istart, iend, displ, dims 
-
- dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
-
- do i = 1,3
-    if (period_dir(i)) then
-       n_cell(i) = nint(PoissBox(i,i)/boxsiz(i,i)) + 2 
-       rag(i) = 1
-    else
-       n_cell(i) = 0
-       rag(i) = 0    
-    end if
- end do
-
- ! define aliases
- ncx = n_cell(1); ncy = n_cell(2); ncz = n_cell(3)
- npx = iparm(14)-rag(1); npy = iparm(15)-rag(2); npz = iparm(16)-rag(3)
-
- V_atm = 0.0_dp
-
- atoms: do atm = 1, iatm(2)    
-
-    xhlp(:)=x(:,atm)
-    do while (xhlp(1).lt.fparm(1))
-       xhlp(1)=xhlp(1)+PoissBox(1,1)
-    enddo
-    do while (xhlp(1).gt.fparm(2))
-       xhlp(1)=xhlp(1)-PoissBox(1,1)
-    enddo
-    do while (xhlp(2).lt.fparm(3))
-       xhlp(2)=xhlp(2)+PoissBox(2,2)
-    enddo
-    do while (xhlp(2).gt.fparm(4))
-       xhlp(2)=xhlp(2)-PoissBox(2,2)
-    enddo
-    do while (xhlp(3).lt.fparm(5))
-       xhlp(3)=xhlp(3)+PoissBox(3,3)
-    enddo
-    do while (xhlp(3).gt.fparm(6))
-       xhlp(3)=xhlp(3)-PoissBox(3,3)
-    enddo
-
-    ! Set boundaries of a box around the atom 
-    xmin(:) = xhlp(:) - deltaR_max
-    xmax(:) = xhlp(:) + deltaR_max
-    
-    ! Cut out box out of PoissonBox imin imax start from 0
-    do i=1,3
-       imin(i) = nint( (xmin(i) - fparm(2*i-1))/dl(i) ) !+ 1 
-       imax(i) = nint( (xmax(i) - fparm(2*i-1))/dl(i) ) !+ 1
-       if (.not.period_dir(i)) then
-          imin(i) = max( 0, imin(i) )
-          imax(i) = min( iparm(13+i)-1, imax(i) )
-       endif
-    enddo
-       
-    nsh = lmax(izp(atm))+1     
-    shells: do l = 1, nsh
-       g = 3.2d0*uhubb(l,izp(atm))
-       vol = dlx*dly*dlz 
-       Norm=0.d0
-       V_tmp = 0.d0
+  real(kind=dp), intent(in) :: phi(:,:,:)
+  integer, intent(in) :: iparm(23) 
+  real(kind=dp), intent(in) :: fparm(8)
+  real(kind=dp), intent(in) :: dlx,dly,dlz
+  real(kind=dp), intent(inout), dimension(:,:) :: grad_V
+  
+ 
+  integer :: i,j,k,atm, l, nsh
+  real(kind=dp) :: xi(3),g,deltaR,tmp_Gr(3)
+ 
+  real(dp) :: dl(3), xmin(3), xmax(3), tmp, Norm
+  integer :: imin(3), imax(3), n_cell(3), ii, jj, kk
+  integer :: ncx,ncy,ncz, ragx, ragy, ragz, npx, npy, npz, rag(3)
+ 
+  grad_V = 0.0_dp
+ 
+  dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
+ 
+  do i = 1,3
+     if (period_dir(i)) then
+        n_cell(i) = nint(PoissBox(i,i)/boxsiz(i,i)) + 2
+        rag(i) = 1
+     else
+        n_cell(i) = 0
+        rag(i) = 0
+     end if
+  end do
+ 
+  ! define aliases
+  ragx = rag(1); ragy = rag(2); ragz = rag(3)
+  ncx = n_cell(1); ncy = n_cell(2); ncz = n_cell(3)
+  npx = iparm(14)-ragx; npy = iparm(15)-ragy; npz = iparm(16)-ragz
+  
+  do atm = iatm(1),iatm(2)
+     
+     ! Set boundaries of a box around the atom 
+     xmin(:) = x(:,atm) - deltaR_max
+     xmax(:) = x(:,atm) + deltaR_max
+     
+     ! Cut out box out of PoissonBox
+     do i=1,3
+        imin(i) = int( (xmin(i) - fparm(2*i-1))/dl(i) ) !+ 1 
+        imax(i) = int( (xmax(i) - fparm(2*i-1))/dl(i) ) !+ 1
+        if (.not.period_dir(i)) then
+           imin(i) = max( 0, imin(i) )
+           imax(i) = min( iparm(13+i)-1, imax(i) )
+        endif
+     enddo
                 
+     nsh = lmax(izp(atm))+1
+     do l = 1, nsh                      
+       g = 3.2d0*uhubb(l,izp(atm))
+       tmp_Gr = 0.d0
+       Norm = 0.d0
+ 
        do i = imin(1),imax(1)
           
           xi(1) = fparm(1) + i*dlx
@@ -1254,205 +1406,45 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
              
              do k = imin(3),imax(3)
                 !Compute point coordinates
-             
+                
                 xi(3) = fparm(5) + k*dlz
                 kk=mod(k + ncz*npz, npz) + 1
-
+                
                 ! Compute distance from atom 
-                deltaR = sqrt(dot_product(xi-xhlp, xi-xhlp))
-                if (deltaR.gt.deltaR_max) then
+                
+                deltaR = sqrt(dot_product(xi(:)-x(:,atm), xi(:)-x(:,atm)))
+                if (deltaR.gt.deltaR_max .or. deltaR.eq.0.d0) then
                    cycle
                 else
-                  expgr = exp(-g*deltaR)
-                  V_tmp = V_tmp - phi(ii,jj,kk)*expgr*vol
-                  !(Normalization g**3*dlx*dly*dlz/(8.0*pi) included in Norm)
-                  Norm = Norm + expgr*vol
+ 
+                   tmp= exp(-g*deltaR)/deltaR
+                   tmp_Gr = tmp_Gr + tmp*(xi(:)-x(:,atm))*phi(ii,jj,kk)
+                   
+                   Norm = Norm + exp(-g*deltaR) 
+                   !(Normalization g**3*dlx*dly*dlz/(8.0*pi) included in Norm)
                 end if
              end do
           end do
-       end do        
-       
-       !-------------------------------------------------------------------------------
-       ! Hamiltonian shifts correction with contacts bulk-potential or bias 
-       !-------------------------------------------------------------------------------
-       do m = 1, ncont
-
-          s=sign(1,contdir(m))
-          f=(s-1)/2
-
-          a=phi_bulk(m)%a
-          b=phi_bulk(m)%b
-          c=phi_bulk(m)%c
-
-          dla=phi_bulk(m)%dla
-          dlb=phi_bulk(m)%dlb
-          dlc=phi_bulk(m)%dlc
-
-          vol = dla*dlb*dlc 
-
-          if(abs( xhlp(c)-fparm( 2*c + f ) ).lt.deltaR_max) then
-          !We add the shift due to 2nd PL, too. This is consistent
-          !with the calculation of chrge density which uses both
-          !contact PLs 
-          do pl = 1,2
-             do i = 1,phi_bulk(m)%iparm(14)
-                do j = 1,phi_bulk(m)%iparm(15)
-                   do k = 2,phi_bulk(m)%iparm(16)
-                      
-                      xi(a) = fparm( 2*a-1 ) +   (i - 1)*dla 
-                      xi(b) = fparm( 2*b-1 ) +   (j - 1)*dlb    
-                      !This line is modified to include 2nd PL 
-                      xi(c) = fparm( 2*c+f ) + s*(k - 1)*dlc +s*(pl-1)*phi_bulk(m)%L_PL
-                      
-
-                      ! This is relying on the fact that the grid of the contact bulk 
-                      ! potential is ordered from the device outwards. 
-
-                      deltaR = sqrt(dot_product(xi-xhlp, xi-xhlp))
-                      if (deltaR.gt.deltaR_max) then
-                         cycle
-                      else    
-                         expgr = exp(-g*deltaR)
-                         V_tmp = V_tmp - phi_bulk(m)%val(i,j,k)*expgr*vol
-                         Norm = Norm + expgr*vol
-                      end if
-                   end do
-                end do
-             end do
-          end do
-
-          end if
-
        end do
-       !------------------------------------------------------------------------------ 
-       V_atm(l,atm)= V_tmp/Norm
-
-    end do shells
- end do atoms
-
- ! biasshift here 
- do m = 1, ncont
-    do atm=iatc(3,m),iatc(2,m)
-       do l = 1, lmax(izp(atm))+1 
-          V_atm(l,atm) = V_atm(l,atm) - mu(m) 
-       end do
-    end do
- end do
  
-end subroutine shift_Ham
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
-
- integer :: iparm(23) 
- real(kind=dp) :: dlx,dly,dlz
- real(kind=dp), dimension(:,:) :: grad_V
- real(kind=dp) :: fparm(8)
- real(kind=dp) :: phi(:,:,:)
- 
-
- integer :: i,j,k,atm, l, nsh
- real(kind=dp) :: xi(3),g,deltaR,tmp_Gr(3)
-
- real(dp) :: dl(3), xmin(3), xmax(3), tmp, Norm
- integer :: imin(3), imax(3), n_cell(3), ii, jj, kk
- integer :: ncx,ncy,ncz, ragx, ragy, ragz, npx, npy, npz, rag(3)
-
- grad_V = 0.0_dp
-
- dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
-
- do i = 1,3
-    if (period_dir(i)) then
-       n_cell(i) = nint(PoissBox(i,i)/boxsiz(i,i)) + 2
-       rag(i) = 1
-    else
-       n_cell(i) = 0
-       rag(i) = 0
-    end if
- end do
-
- ! define aliases
- ragx = rag(1); ragy = rag(2); ragz = rag(3)
- ncx = n_cell(1); ncy = n_cell(2); ncz = n_cell(3)
- npx = iparm(14)-ragx; npy = iparm(15)-ragy; npz = iparm(16)-ragz
- 
- do atm = iatm(1),iatm(2)
-    
-    ! Set boundaries of a box around the atom 
-    xmin(:) = x(:,atm) - deltaR_max
-    xmax(:) = x(:,atm) + deltaR_max
-    
-    ! Cut out box out of PoissonBox
-    do i=1,3
-       imin(i) = int( (xmin(i) - fparm(2*i-1))/dl(i) ) !+ 1 
-       imax(i) = int( (xmax(i) - fparm(2*i-1))/dl(i) ) !+ 1
-       if (.not.period_dir(i)) then
-          imin(i) = max( 0, imin(i) )
-          imax(i) = min( iparm(13+i)-1, imax(i) )
-       endif
-    enddo
-               
-    nsh = lmax(izp(atm))+1
-    do l = 1, nsh                      
-      g = 3.2d0*uhubb(l,izp(atm))
-      tmp_Gr = 0.d0
-      Norm = 0.d0
-
-      do i = imin(1),imax(1)
-         
-         xi(1) = fparm(1) + i*dlx
-         ii=mod(i + ncx*npx, npx) + 1  
-         
-         do j = imin(2),imax(2)
-            
-            xi(2) = fparm(3) + j*dly 
-            jj=mod(j + ncy*npy, npy) + 1       
-            
-            do k = imin(3),imax(3)
-               !Compute point coordinates
-               
-               xi(3) = fparm(5) + k*dlz
-               kk=mod(k + ncz*npz, npz) + 1
-               
-               ! Compute distance from atom 
-               
-               deltaR = sqrt(dot_product(xi(:)-x(:,atm), xi(:)-x(:,atm)))
-               if (deltaR.gt.deltaR_max .or. deltaR.eq.0.d0) then
-                  cycle
-               else
-
-                  tmp= exp(-g*deltaR)/deltaR
-                  tmp_Gr = tmp_Gr + tmp*(xi(:)-x(:,atm))*phi(ii,jj,kk)
+       grad_V(:,atm)= grad_V(:,atm)+ tmp_gr(:)*g*dQmat(l,atm)/Norm
                   
-                  Norm = Norm + exp(-g*deltaR) 
-                  !(Normalization g**3*dlx*dly*dlz/(8.0*pi) included in Norm)
-               end if
-            end do
-         end do
-      end do
-
-      grad_V(:,atm)= grad_V(:,atm)+ tmp_gr(:)*g*dQmat(l,atm)/Norm
-                 
-    end do 
-    
- end do
+     end do 
+  end do
 
 end subroutine gradient_V
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   
-  implicit none
-  
-  integer :: iparm(23) 
-  real(kind=dp) :: fparm(8)
-  real(kind=dp) :: rhs(iparm(14),iparm(15),iparm(16))
-  real(kind=dp) :: phi(iparm(14),iparm(15),iparm(16))
+  integer, intent(in) :: iparm(23) 
+  real(kind=dp), intent(in) :: fparm(8)
+  real(kind=dp), intent(in) :: dlx,dly,dlz
+  real(kind=dp), intent(in) :: phi(:,:,:)
+  real(kind=dp), intent(in) :: rhs(:,:,:)
   
   integer :: i,j,k,nx_fix,ny_fix,nz_fix,FixDir, fp
-  real(kind=dp) :: xi,yj,zk,dlx,dly,dlz
+  real(kind=dp) :: xi,yj,zk
   real(kind=dp) :: z_min_gate, z_max_gate, z_min_ox, z_max_ox 
   logical :: tmpLogic
   
@@ -1522,257 +1514,329 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   
   if (id0.and.(FixDir.ne.0)) then   
 
-      select case(FixDir)
-         
-      case(1)
-        
-        nx_fix = nint(((fparm(2)-fparm(1))*PoissPlane(2))/dlx) + 1            
-        fp = getFileId()
-        open(fp,file='pot2D.dat') 
-        do j = 1,iparm(15)
-          yj = fparm(3) + (j - 1)*dly 
-          do k = 1,iparm(16)
-             zk = fparm(5) + (k - 1)*dlz
-             write(fp,'(E17.8,E17.8,E17.8)') yj*a_u, zk*a_u, phi(nx_fix&
-                 &,j,k)*hartree
-             
-           end do
+    select case(FixDir)
+    case(1)
+      nx_fix = nint(((fparm(2)-fparm(1))*PoissPlane(2))/dlx) + 1            
+      fp = getFileId()
+      open(fp,file='pot2D.dat') 
+      do j = 1,iparm(15)
+        yj = fparm(3) + (j - 1)*dly 
+        do k = 1,iparm(16)
+           zk = fparm(5) + (k - 1)*dlz
+           write(fp,'(E17.8,E17.8,E17.8)') yj*a_u, zk*a_u, phi(nx_fix&
+               &,j,k)*hartree
+           
          end do
-         close(fp)
-         
-         open(fp,file='chr2D.dat') 
-         do j = 1,iparm(15)
-           yj = fparm(3) + (j - 1)*dly 
-           do k = 1,iparm(16)
-             zk = fparm(5) + (k - 1)*dlz
-             write(fp,'(E17.8,E17.8,E17.8)') yj*a_u, zk*a_u, rhs(nx_fix&
-                 &,j,k)/(-4.0*4.0*atan(1.d0))
-             
-           end do
-         end do
-         close(fp)
-         
-         open(fp,file='box2d.dat')
-         write(fp,'(I6,I6)') iparm(15),iparm(16)
-         close(fp)
-         
-       case(2)
-         
-         ny_fix = nint(((fparm(4)-fparm(3))*PoissPlane(2))/dly) + 1            
-         fp = getFileId()
-         open(fp,file='pot2D.dat') 
-         do i = 1,iparm(14)
-           xi = fparm(1) + (i - 1)*dlx  
-           do k = 1,iparm(16)
-             zk = fparm(5) + (k - 1)*dlz
-             write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, zk*a_u, phi(i,ny_fix,k)*hartree
-           end do
-         end do
-         close(fp)
-         
-         open(fp,file='chr2D.dat') 
-         do i = 1,iparm(14)
-           xi = fparm(1) + (i - 1)*dlx  
-           do k = 1,iparm(16)
-             zk = fparm(5) + (k - 1)*dlz
-             write(fp,'(E17.8,E17.8,E17.8)')  xi*a_u, zk*a_u, rhs(i&
-                 &,ny_fix,k)/(-4.0*4.0*atan(1.d0))
-             
-           end do
-         end do
-         close(fp)
-         
-         open(fp,file='box2d.dat')
-         write(fp,'(I6,I6)') iparm(14),iparm(16)
-         close(fp)
-                  
-       case(3)
-         
-         nz_fix = nint(((fparm(6)-fparm(5))*PoissPlane(2))/dlz) + 1            
-         fp = getFileId()
-         open(fp,file='pot2D.dat') 
-         do i = 1,iparm(14)
-           xi = fparm(1) + (i - 1)*dlx  
-           do j = 1,iparm(15)
-             yj = fparm(3) + (j - 1)*dly
-             write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, yj*a_u, phi(i,j&
-                 &,nz_fix)*hartree
-             
-           end do
-         end do
-         close(fp)
-         
-         open(fp,file='chr2D.dat') 
-         do i = 1,iparm(14)
-           xi = fparm(1) + (i - 1)*dlx  
-           do j = 1,iparm(15)
-             yj = fparm(3) + (j - 1)*dly
-             write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, yj*a_u, rhs(i,j&
-                 &,nz_fix)/(-4.0*4.0*atan(1.d0))
-             
-           end do
-         end do
-         close(fp)        
-         
-         open(fp,file='box2d.dat')
-         write(fp,'(I6,I6)') iparm(14),iparm(15)
-         close(fp)
-         
-       end select
+       end do
+       close(fp)
        
-     end if
-     
-     
-     !-----------------------------
-     ! Saving gate geometry data
-     !-----------------------------
-     
-     if (id0.and.DoCilGate) then             
+       open(fp,file='chr2D.dat') 
+       do j = 1,iparm(15)
+         yj = fparm(3) + (j - 1)*dly 
+         do k = 1,iparm(16)
+           zk = fparm(5) + (k - 1)*dlz
+           write(fp,'(E17.8,E17.8,E17.8)') yj*a_u, zk*a_u, rhs(nx_fix&
+               &,j,k)/(-4.0*4.0*atan(1.d0))
+           
+         end do
+       end do
+       close(fp)
        
-         z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0  
-         z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
-         z_min_ox = cntr_gate(biasdir) - OxLength/2.d0  
-         z_max_ox = cntr_gate(biasdir) + OxLength/2.d0  
-         fp = getFileId()
-         open(fp,file='gate.dat')
-         write(fp,'(i2)') biasdir
-         write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
-         write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
-         write(fp,'(E17.8,E17.8)') Rmin_Gate*a_u,Rmin_Ins*a_u             
-         write(fp,'(E17.8,E17.8)') cntr_gate(1)*a_u,cntr_gate(2)*a_u,cntr_gate(3)*a_u 
-         close(fp)
-         
+       open(fp,file='box2d.dat')
+       write(fp,'(I6,I6)') iparm(15),iparm(16)
+       close(fp)
        
-     end if
-     if (id0.and.DoGate) then             
-         fp = getFileId()
-         open(fp,file='gate.dat')
-         write(fp,'(i2)') gatedir, biasdir
-
-         z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0  
-         z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
-         write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
-         
-         do i=1,3
-           if (i.ne.gatedir .and. i.ne.biasdir) exit
-         enddo
-         z_min_gate = cntr_gate(i) - GateLength_t/2.d0  
-         z_max_gate = cntr_gate(i) + GateLength_t/2.d0
-         write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
-         
-         z_min_ox = cntr_gate(gatedir) - OxLength/2.d0  
-         z_max_ox = cntr_gate(gatedir) + OxLength/2.d0  
-         write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
-         write(fp,'(E17.8,E17.8)') Rmin_Gate*a_u,Rmin_Ins*a_u             
-         write(fp,'(E17.8,E17.8)') cntr_gate(1)*a_u,cntr_gate(2)*a_u,cntr_gate(3)*a_u 
-         close(fp)
-       
-     end if
-     
-     
-   end subroutine save_pot
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-  
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   ! Perform a standard gamma-functional calculation for periodic systems 
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   subroutine set_phi_periodic(phi, iparm, fparm)
-     real(dp), dimension(:,:,:) :: phi
-     integer, dimension(:) :: iparm
-     real(dp), dimension(:) :: fparm
-
-     real(dp) :: distR(3), deltaQ, uhatm, sh_pot, lng_pot
-     real(dp) :: basis(3,3), recbasis(3,3), vol, alpha, tol
-     integer :: i,j,k,l, nx,ny,nz, atom, nsh, ml, stepx, stepy, stepz
-     real(dp) :: xi, yj, zk, dlx, dly, dlz
- 
-     dlx = (fparm(2) - fparm(1))/(iparm(14) - 1) 
-     dly = (fparm(4) - fparm(3))/(iparm(15) - 1) 
-     dlz = (fparm(6) - fparm(5))/(iparm(16) - 1)
-
-     basis(1,1) = fparm(2)-fparm(1)
-     basis(1,2) = 0.0_dp
-     basis(1,3) = 0.0_dp
-     basis(2,1) = 0.0_dp
-     basis(2,2) = fparm(4)-fparm(3)
-     basis(2,3) = 0.0_dp  
-     basis(3,1) = 0.0_dp
-     basis(3,2) = 0.0_dp
-     basis(3,3) = fparm(6)-fparm(5)
-
-     CALL REZVOL(basis,recbasis,vol)     
-     ! choose good convergence parameter alpha
-     alpha = getalpha(basis)
-
-     nx=iparm(14)
-     ny=iparm(15)
-     nz=iparm(16)
-
-     ml = minloc( (/ny*nz,nx*nz,nx*ny/), 1 )
-
-     select case(ml)   
-     case(1)
-        stepx = nx - 1  
-        stepy = 1 
-        stepz = 1
      case(2)
-        stepx = 1  
-        stepy = ny - 1
-        stepz = 1       
+       ny_fix = nint(((fparm(4)-fparm(3))*PoissPlane(2))/dly) + 1            
+       fp = getFileId()
+       open(fp,file='pot2D.dat') 
+       do i = 1,iparm(14)
+         xi = fparm(1) + (i - 1)*dlx  
+         do k = 1,iparm(16)
+           zk = fparm(5) + (k - 1)*dlz
+           write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, zk*a_u, phi(i,ny_fix,k)*hartree
+         end do
+       end do
+       close(fp)
+       
+       open(fp,file='chr2D.dat') 
+       do i = 1,iparm(14)
+         xi = fparm(1) + (i - 1)*dlx  
+         do k = 1,iparm(16)
+           zk = fparm(5) + (k - 1)*dlz
+           write(fp,'(E17.8,E17.8,E17.8)')  xi*a_u, zk*a_u, rhs(i&
+               &,ny_fix,k)/(-4.0*4.0*atan(1.d0))
+           
+         end do
+       end do
+       close(fp)
+       
+       open(fp,file='box2d.dat')
+       write(fp,'(I6,I6)') iparm(14),iparm(16)
+       close(fp)
+                
      case(3)
-        stepx = 1 
-        stepy = 1
-        stepz = nz - 1      
+       nz_fix = nint(((fparm(6)-fparm(5))*PoissPlane(2))/dlz) + 1            
+       fp = getFileId()
+       open(fp,file='pot2D.dat') 
+       do i = 1,iparm(14)
+         xi = fparm(1) + (i - 1)*dlx  
+         do j = 1,iparm(15)
+           yj = fparm(3) + (j - 1)*dly
+           write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, yj*a_u, phi(i,j&
+               &,nz_fix)*hartree
+           
+         end do
+       end do
+       close(fp)
+       
+       open(fp,file='chr2D.dat') 
+       do i = 1,iparm(14)
+         xi = fparm(1) + (i - 1)*dlx  
+         do j = 1,iparm(15)
+           yj = fparm(3) + (j - 1)*dly
+           write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, yj*a_u, rhs(i,j&
+               &,nz_fix)/(-4.0*4.0*atan(1.d0))
+           
+         end do
+       end do
+       close(fp)        
+       
+       open(fp,file='box2d.dat')
+       write(fp,'(I6,I6)') iparm(14),iparm(15)
+       close(fp)
+       
      end select
+   end if
+   
+   !-----------------------------
+   ! Saving gate geometry data
+   !-----------------------------
+   
+   if (id0.and.DoCilGate) then             
+     z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0  
+     z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
+     z_min_ox = cntr_gate(biasdir) - OxLength/2.d0  
+     z_max_ox = cntr_gate(biasdir) + OxLength/2.d0  
+     fp = getFileId()
+     open(fp,file='gate.dat')
+     write(fp,'(i2)') biasdir
+     write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
+     write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
+     write(fp,'(E17.8,E17.8)') Rmin_Gate*a_u,Rmin_Ins*a_u             
+     write(fp,'(E17.8,E17.8)') cntr_gate(1)*a_u,cntr_gate(2)*a_u,cntr_gate(3)*a_u 
+     close(fp)
+   end if
+
+   if (id0.and.DoGate) then             
+     fp = getFileId()
+     open(fp,file='gate.dat')
+     write(fp,'(i2)') gatedir, biasdir
+
+     z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0  
+     z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
+     write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
      
-     tol = 1.0d-5
+     do i=1,3
+       if (i.ne.gatedir .and. i.ne.biasdir) exit
+     enddo
+     z_min_gate = cntr_gate(i) - GateLength_t/2.d0  
+     z_max_gate = cntr_gate(i) + GateLength_t/2.d0
+     write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
+     
+     z_min_ox = cntr_gate(gatedir) - OxLength/2.d0  
+     z_max_ox = cntr_gate(gatedir) + OxLength/2.d0  
+     write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
+     write(fp,'(E17.8,E17.8)') Rmin_Gate*a_u,Rmin_Ins*a_u             
+     write(fp,'(E17.8,E17.8)') cntr_gate(1)*a_u,cntr_gate(2)*a_u,cntr_gate(3)*a_u 
+     close(fp)
+   end if
+     
+ end subroutine save_pot
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ ! Perform a standard gamma-functional calculation for periodic systems 
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ subroutine set_phi_periodic(phi, iparm, fparm)
+   real(dp), dimension(:,:,:) :: phi
+   integer, dimension(:) :: iparm
+   real(dp), dimension(:) :: fparm
 
-     do k = 1, nz, stepz
+   real(dp) :: distR(3), deltaQ, uhatm, sh_pot, lng_pot
+   real(dp) :: basis(3,3), recbasis(3,3), vol, alpha, tol
+   integer :: i,j,k,l, nx,ny,nz, atom, nsh, ml, stepx, stepy, stepz
+   real(dp) :: xi, yj, zk, dlx, dly, dlz
 
-        zk = fparm(1) + (k-1)*dlz
+   dlx = (fparm(2) - fparm(1))/(iparm(14) - 1) 
+   dly = (fparm(4) - fparm(3))/(iparm(15) - 1) 
+   dlz = (fparm(6) - fparm(5))/(iparm(16) - 1)
 
-        do j = 1, ny, stepy
+   basis(1,1) = fparm(2)-fparm(1)
+   basis(1,2) = 0.0_dp
+   basis(1,3) = 0.0_dp
+   basis(2,1) = 0.0_dp
+   basis(2,2) = fparm(4)-fparm(3)
+   basis(2,3) = 0.0_dp  
+   basis(3,1) = 0.0_dp
+   basis(3,2) = 0.0_dp
+   basis(3,3) = fparm(6)-fparm(5)
 
-           yj = fparm(1) + (k-1)*dly
+   CALL REZVOL(basis,recbasis,vol)     
+   ! choose good convergence parameter alpha
+   alpha = getalpha(basis)
 
-           do i = 1, nx, stepx
+   nx=iparm(14)
+   ny=iparm(15)
+   nz=iparm(16)
 
-              xi = fparm(1) + (k-1)*dlx
+   ml = minloc( (/ny*nz,nx*nz,nx*ny/), 1 )
 
-              do atom = iatm(1), iatm(2)
+   select case(ml)   
+   case(1)
+      stepx = nx - 1  
+      stepy = 1 
+      stepz = 1
+   case(2)
+      stepx = 1  
+      stepy = ny - 1
+      stepz = 1       
+   case(3)
+      stepx = 1 
+      stepy = 1
+      stepz = nz - 1      
+   end select
+   
+   tol = 1.0d-5
 
-                 distR(1) = xi - x(1,atom)
-                 distR(2) = yj - x(2,atom)
-                 distR(3) = zk - x(3,atom)
+   do k = 1, nz, stepz
+     zk = fparm(1) + (k-1)*dlz
+     do j = 1, ny, stepy
+       yj = fparm(1) + (k-1)*dly
+       do i = 1, nx, stepx
+         xi = fparm(1) + (k-1)*dlx
+         do atom = iatm(1), iatm(2)
 
-                 nsh = lmax(izp(atom))+1 
-                 
-                 ! Compute L-independent part:
-                 call long_pot(distR,basis,recbasis,alpha,vol,tol,lng_pot)
-                 ! total atomic charge
-                 deltaQ = sum(dQmat(1:nsh,atom) )
-                 phi(i,j,k) = phi(i,j,k) + deltaQ*lng_pot
-                 
-                 ! compute L-dependent part:
-                 do l = 1, nsh
-                    deltaQ = dQmat(l,atom) 
-                    uhatm = uhubb(l,izp(atom)) 
-                    
-                    call short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot)
-                    
-                    !OMP CRITICAL
-                    phi(i,j,k) = phi(i,j,k) - sh_pot
-                    !OMP END CRITICAL
-                 enddo
-                                  
-              enddo
-              
-           end do
-        end do
+            distR(1) = xi - x(1,atom)
+            distR(2) = yj - x(2,atom)
+            distR(3) = zk - x(3,atom)
+
+            nsh = lmax(izp(atom))+1 
+            
+            ! Compute L-independent part:
+            call long_pot(distR,basis,recbasis,alpha,vol,tol,lng_pot)
+            ! total atomic charge
+            deltaQ = sum(dQmat(1:nsh,atom) )
+            phi(i,j,k) = phi(i,j,k) + deltaQ*lng_pot
+            
+            ! compute L-dependent part:
+            do l = 1, nsh
+               deltaQ = dQmat(l,atom) 
+               uhatm = uhubb(l,izp(atom)) 
+               
+               call short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot)
+               
+               !OMP CRITICAL
+               phi(i,j,k) = phi(i,j,k) - sh_pot
+               !OMP END CRITICAL
+            end do
+                             
+         end do
+       end do
      end do
+   end do
 
 
-   end subroutine set_phi_periodic
+ end subroutine set_phi_periodic
+
+
+
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+ ! CALL - BACK functions used by libmesh poisson
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ real(dp) function rho(xx1,yy1,zz1)
+   
+   real(dp) :: xx1,yy1,zz1
+   
+   real(dp) :: xx,yy,zz
+   real(dp) :: deltaR, tau 
+   integer :: typ,atom, nsh,l
+   
+   
+   xx=xx1+PoissBounds(1,1)
+   yy=yy1+PoissBounds(2,1)
+   zz=zz1+PoissBounds(3,1)
+   
+   rho = 0.d0
+   if (.not.period) then
+      
+      do atom = 1,natoms   
+         
+         deltaR = sqrt((xx - x(1,atom))**2 + (yy - x(2,atom))**2 + (zz - x(3,atom))**2) 
+         if (deltaR.gt.deltaR_max) then
+            cycle
+         else
+         
+           nsh = lmax(izp(atom))+1
+           do l = 1, nsh                      
+             tau = 3.2d0*uhubb(l,izp(atom))
+            
+             rho = rho - 0.5d0* dQmat(l,atom) * (tau)**3 * exp(-tau*deltaR)
+             ! written this way rho contains -4*pi factor 
+           end do
+         end if
+         
+      end do
+      
+   else !Periodic structure 
+      
+      write(*,*) 'periodic poisson not yet implemented'
+      
+   end if
+   
+   rho=-rho/4.d0/Pi  !now rho is really charge density
+   
+ end function rho
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ real(dp) function n_alpha(atom,xx1,yy1,zz1)
+        
+   integer :: atom
+   real(dp) :: xx1,yy1,zz1
+   
+   real(dp) :: xx,yy,zz,g
+   real(dp) :: deltaR
+   integer :: l, nsh
+   
+   xx=xx1+PoissBounds(1,1)
+   yy=yy1+PoissBounds(2,1)
+   zz=zz1+PoissBounds(3,1)
+   
+   n_alpha=0.d0
+   
+   deltaR = sqrt((xx - x(1,atom))**2 + (yy - x(2,atom))**2 + (zz - x(3,atom))**2) 
+   if (deltaR.lt.deltaR_max) then
+      
+      nsh = lmax(izp(atom))+1
+      do l = 1, nsh
+         g = 3.2d0*uhubb(l,izp(atom))             
+         n_alpha  = (g**3)*exp(-g*deltaR)
+         n_alpha  = n_alpha/8.d0/Pi     
+      enddo
+   end if
+   
+ end function n_alpha
+ !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ function booltoint(bool)
+   logical bool
+   integer booltoint
+
+   booltoint = 0
+   if (bool) booltoint = 1
+
+ end function booltoint
+
+end module poisson
 
 
 
@@ -1850,95 +1914,3 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 !!$      return
 !!$
 !!$   end subroutine libmesh_drv
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-   ! CALL - BACK functions used by libmesh poisson
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-   real(dp) function rho(xx1,yy1,zz1)
-     
-     real(dp) :: xx1,yy1,zz1
-     
-     real(dp) :: xx,yy,zz
-     real(dp) :: deltaR, tau 
-     integer :: typ,atom, nsh,l
-     
-     
-     xx=xx1+PoissBounds(1,1)
-     yy=yy1+PoissBounds(2,1)
-     zz=zz1+PoissBounds(3,1)
-     
-     rho = 0.d0
-     if (.not.period) then
-        
-        do atom = 1,natoms   
-           
-           deltaR = sqrt((xx - x(1,atom))**2 + (yy - x(2,atom))**2 + (zz - x(3,atom))**2) 
-           if (deltaR.gt.deltaR_max) then
-              cycle
-           else
-           
-             nsh = lmax(izp(atom))+1
-             do l = 1, nsh                      
-               tau = 3.2d0*uhubb(l,izp(atom))
-              
-               rho = rho - 0.5d0* dQmat(l,atom) * (tau)**3 * exp(-tau*deltaR)
-               ! written this way rho contains -4*pi factor 
-             end do
-           end if
-           
-        end do
-        
-     else !Periodic structure 
-        
-        write(*,*) 'periodic poisson not yet implemented'
-        
-     end if
-     
-     rho=-rho/4.d0/Pi  !now rho is really charge density
-     
-   end function rho
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   real(dp) function n_alpha(atom,xx1,yy1,zz1)
-          
-     integer :: atom
-     real(dp) :: xx1,yy1,zz1
-     
-     real(dp) :: xx,yy,zz,g
-     real(dp) :: deltaR
-     integer :: l, nsh
-     
-     xx=xx1+PoissBounds(1,1)
-     yy=yy1+PoissBounds(2,1)
-     zz=zz1+PoissBounds(3,1)
-     
-     !write(*,'(f15.8 f15.8 f15.8)',ADVANCE='NO') xx,yy,zz
-
-     n_alpha=0.d0
-     
-     deltaR = sqrt((xx - x(1,atom))**2 + (yy - x(2,atom))**2 + (zz - x(3,atom))**2) 
-     if (deltaR.lt.deltaR_max) then
-        
-        nsh = lmax(izp(atom))+1
-        do l = 1, nsh
-           g = 3.2d0*uhubb(l,izp(atom))             
-           n_alpha  = (g**3)*exp(-g*deltaR)
-           n_alpha  = n_alpha/8.d0/Pi     
-        enddo
-     end if
-     
-     !write(*,*) n_alpha, deltaR, deltaR_max
-
-     return
-     
-   end function n_alpha
-
-   function booltoint(bool)
-     logical bool
-     integer booltoint
-
-     booltoint = 0
-     if (bool) booltoint = 1
-
-   end function booltoint
-
- end module poisson

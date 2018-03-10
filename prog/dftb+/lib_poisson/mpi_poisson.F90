@@ -23,7 +23,7 @@ module mpi_poisson
   contains
 
   subroutine  poiss_mpi_init(comm)
-        
+
       type(mpifx_comm), intent(in) :: comm
 
       global_comm = comm 

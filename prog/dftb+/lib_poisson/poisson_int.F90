@@ -54,8 +54,8 @@ module poisson_int
 #:if WITH_MPI
   use libmpifx_module 
 #:endif
-  use gclock
   use system_calls, only: create_directory
+  use gclock
   implicit none
   private
 
@@ -119,9 +119,9 @@ module poisson_int
  
     !! Initialize renormalization factors for grid projection
  
-    if(error.ne.0) then 
-        call poiss_destroy()
-        initinfo = .false.; return
+    if (error.ne.0) then 
+      call poiss_destroy()
+      initinfo = .false.; return
     endif       
  
     call init_defaults()            !init default values for parameters

@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -18,7 +18,8 @@ _PAT_BLOCK = re.compile(r"""KPT\s*(?P<ikpt>\d+)\s+
                             (?:KWEIGHT\s*
                                 (?P<kweight>\d+\.\d+(?:[eE][+-]\d+)?)\s+)?
                             (?P<vals>
-                                (?:(?:[+-]?\d+\.\d+(?:[eE][+-]\d+)?\s+){2})+)
+                                (?:(\d+\s+)?
+                                (?:[+-]?\d+\.\d+(?:[eE][+-]\d+)?\s+){2})+)
                             """, re.VERBOSE | re.MULTILINE)
 
 
@@ -72,9 +73,19 @@ class BandOut:
                 kweights.append(float(kweight))
             else:
                 kweights.append(1.0)
-            tmp = np.array(match.group("vals").split(), dtype=float)
-            eigvalarrays.append(tmp.reshape((-1, 2)))
+            vals = match.group("vals")
+            tmp = np.array(vals.split(), dtype=float)
+
+            # Only keep last two data columns
+            # (optional first column, if present, contains sequential numbering)
+            nrows = vals.strip().count('\n') + 1
+            ncols = len(tmp) / nrows
+            tmp.shape = (nrows, ncols)
+            tmp = tmp[:, ncols - 2 : ncols]
+            
+            eigvalarrays.append(tmp)
             match = _PAT_BLOCK.search(txt, match.end())
+
         nspin = len(ispins)
         nkpt = len(eigvalarrays) / nspin
         eigvalspin = np.array(eigvalarrays)

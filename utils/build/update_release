@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -134,7 +134,7 @@ def get_release_name(tag, commit=None):
         return relname
 
     if tag is None:
-        release = 'unknown'
+        release = None
     elif tag[2]:
         release = '%d.%d.%d' % tag
     else:
@@ -142,9 +142,11 @@ def get_release_name(tag, commit=None):
 
     if commit is None:
         relname = 'release ' + release
+    elif release is None:
+        relname = 'development version (commit: %s)' % (commit,)
     else:
-        relname = ('development version (base: %s, commit: %s)'
-                   % (release, commit))
+        relname = ('development version (commit: %s, base: %s)'
+                   % (commit, release))
     return relname
 
 

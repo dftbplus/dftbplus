@@ -13,7 +13,7 @@ FXX = mpif90
 CC = icc
 
 # Compiler options
-FXXOPT = -O2 -ip -standard-semantics -heap-arrays 10 #-qopenmp 
+FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
 # Linker
@@ -23,8 +23,9 @@ LNOPT =
 # How to link specific libraries
 
 # ScaLAPACK
+# Make sure you link the correct flavour of mkl_blacs for your MPI-environment
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64
+LIB_SCALAPACK = -L$(MKL_LIBDIR) -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64
 
 # LAPACK/BLAS
 LIB_LAPACK = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
@@ -37,7 +38,7 @@ M4 = m4
 M4OPT = 
 
 # Command to run the test binary
-TESTRUNNER = mpirun -n $(TESTPROC)
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS) mpiexec -n $(TEST_MPI_PROCS)
 
 else
 ############################################################################
@@ -54,25 +55,19 @@ CCOPT = -O2 -ip
 
 # Linker
 LN = $(FXX)
-#Note: with mkl-11.1 problems with static libraries
-#LNOPT = -static
-LNOPT = 
+LNOPT =
 
 # How to link specific libraries
 
 # LAPACK/BLAS
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_LAPACK   = -L$(MKL_LIBDIR) -Wl,--start-group \
-  -lmkl_intel_lp64 \
-  -lmkl_intel_thread \
-  -lmkl_core \
-  -Wl,--end-group
+LIB_LAPACK   = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
 
 # Any other libraries to be linked
 OTHERLIBS = -liomp5 
 
 # Command to run a binary
-TESTRUNNER =
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS)
 
 endif
 
@@ -93,10 +88,10 @@ LIBOPT =
 
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
-    FXXOPT = -g -warn all -stand f08 -standard-semantics -diag-error-limit 1 -traceback
+    FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -diag-error-limit 1 -traceback
     CCOPT = -g -warn all
 endif
 ifeq ($(strip $(DEBUG)),2)
-    FXXOPT = -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
+    FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
     CCOPT = -g -warn all -check
 endif

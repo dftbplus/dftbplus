@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -88,6 +88,12 @@ module taggedoutput
 
   !> total projected DOS vector
   character(*), parameter, public :: tag_ldos = 'total_localdos'  
+
+  !> Internal electric field
+  character(*), parameter, public :: tag_internfield = 'internal_efield'
+
+  !> External electric field
+  character(*), parameter, public :: tag_externfield = 'external_efield'
 
   ! general format strings
 
