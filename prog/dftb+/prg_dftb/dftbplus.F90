@@ -32,5 +32,6 @@ program dftbplus
   deallocate(input)
   call runDftbPlus(env)
   call env%destruct()
+  call destructGlobalEnv()
 
 end program dftbplus
