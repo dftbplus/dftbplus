@@ -1,0 +1,60 @@
+Geometry = GenFormat {
+    8  F
+    Ga As
+    1 1 0.00 0.00 0.00
+    2 2 0.25 0.25 0.25
+    3 1 0.50 0.50 0.00
+    4 2 0.75 0.75 0.25
+    5 1 0.50 0.00 0.50
+    6 2 0.75 0.25 0.75
+    7 1 0.00 0.50 0.50
+    8 2 0.25 0.75 0.75
+    0.0 0.0 0.0
+    0.5849298026E+01 0 0
+    0 0.5849298026E+01 0
+    0 0 0.5849298026E+01
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    MaxAngularMomentum = {
+        Ga = "d"
+        As = "p"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    KPointsAndWeights = SupercellFolding {
+        6 0 0
+        0 6 0
+        0 0 6
+        0.5 0.5 0.5
+    }
+}
+
+Analysis = {
+    AtomResolvedEnergies = Yes
+    ElectrostaticPotential = {
+        Grid [F] = {
+            Spacing = {.5 .5 .5}
+            Origin = {0 0 0}
+            GridPoints = {3 3 3}
+        }
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

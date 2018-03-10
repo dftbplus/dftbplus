@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -898,14 +898,15 @@ contains
     allocate(ciTmp1(nOrb))
     allocate(ciTmp2(nOrb))
 
+    S = cmplx(0,0,dp)
+    call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair,&
+        & img2CentCell)
+
     lpLocalise: do iIter = 1, nIter
 
       write(stdout, *)'Iter', iIter
 
       alphamax = 0.0_dp
-
-      call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair,&
-          & img2CentCell)
 
       ! sweep over all pairs of levels at that k-point
       do iLev1 = 1, nLev

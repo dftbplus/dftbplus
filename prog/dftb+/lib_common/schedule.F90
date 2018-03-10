@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,8 @@ module schedule
   implicit none
   private
 
-  public :: distributeRangeInChunks, assembleChunks
+  public :: distributeRangeInChunks, distributeRangeInChunks2
+  public :: assembleChunks
 
 #:for _, _, NAME in CHUNK_TYPES
   interface assembleChunks
@@ -59,6 +60,62 @@ contains
   #:endif
 
   end subroutine distributeRangeInChunks
+
+
+  !> Distributes a ranges in a double loop in chunks over processes within a process group.
+  !>
+  !> It will chop the loop with the wider range into chunks and leave the other intact.
+  !>
+  subroutine distributeRangeInChunks2(env, globalFirst1, globalLast1, globalFirst2, globalLast2,&
+      & localFirst1, localLast1, localFirst2, localLast2)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> First element of the range for the outer loop
+    integer, intent(in) :: globalFirst1
+
+    !> Last element of the range for the outer loop
+    integer, intent(in) :: globalLast1
+
+    !> First element of the range for the inner loop
+    integer, intent(in) :: globalFirst2
+
+    !> Last element of the range for the inner loop
+    integer, intent(in) :: globalLast2
+
+    !> First element to process locally
+    integer, intent(out) :: localFirst1
+
+    !> Last element to process locally
+    integer, intent(out) :: localLast1
+
+    !> First element to process locally
+    integer, intent(out) :: localFirst2
+
+    !> Last element to process locally
+    integer, intent(out) :: localLast2
+
+  #:if WITH_MPI
+    if (globalLast1 - globalFirst1 >= globalLast2 - globalFirst2) then
+      call getChunkRanges(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst1,&
+          & globalLast1, localFirst1, localLast1)
+      localFirst2 = globalFirst2
+      localLast2 = globalLast2
+    else
+      localFirst1 = globalFirst1
+      localLast1 = globalLast1
+      call getChunkRanges(env%mpi%groupComm%size, env%mpi%groupComm%rank, globalFirst2,&
+          & globalLast2, localFirst2, localLast2)
+    end if
+  #:else
+    localFirst1 = globalFirst1
+    localLast1 = globalLast1
+    localFirst2 = globalFirst2
+    localLast2 = globalLast2
+  #:endif
+
+  end subroutine distributeRangeInChunks2
 
 
 #:for DTYPE, RANK, NAME in CHUNK_TYPES

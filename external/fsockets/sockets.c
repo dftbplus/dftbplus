@@ -189,10 +189,9 @@ Args:
 }
 
 
-void shutdown_socket(int sockfd)
-/* Shuts down the socket.
+void close_socket(int sockfd)
+/* Closes the socket.
 */
 {
-  shutdown(sockfd, 2);
   close(sockfd);
 }

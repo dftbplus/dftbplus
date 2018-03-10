@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -82,6 +82,12 @@ module taggedoutput
 
   !> total stress tensor for periodic geometries
   character(*), parameter, public :: tag_stressTot = 'stress'
+
+  !> Internal electric field
+  character(*), parameter, public :: tag_internfield = 'internal_efield'
+
+  !> External electric field
+  character(*), parameter, public :: tag_externfield = 'external_efield'
 
   ! general format strings
 
