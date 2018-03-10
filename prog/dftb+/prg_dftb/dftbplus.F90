@@ -30,6 +30,8 @@ program dftbplus
   call TEnvironment_init(env)
   call initProgramVariables(input, env)
   call runDftbPlus(env, input)
+  deallocate(input)
   call env%destruct()
+  call destructGlobalEnv()
 
 end program dftbplus
