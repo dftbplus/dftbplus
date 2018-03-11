@@ -829,6 +829,7 @@ until speedups are observed.
 
 
 \section{Analysis}
+\label{sec:transport.Analysis}
 
 The \kw{Analyis} block is used to specify post-scf calculations such as
 tunneling or projected DOS.
@@ -845,9 +846,9 @@ Analysis{
 
 \htsection{TunnelingAndDos}
 
-This method block can be specified in \is{Analysis} \pref{Analysis} and it is
-used to calculate the transmission by means of Caroli formula, the current by
-means of Landauer formula and the Density of States from the spectral
+This method block can be specified in \is{Analysis} \pref{sec:dftbp.Analysis}
+and it is used to calculate the transmission by means of Caroli formula, the
+current by means of Landauer formula and the Density of States from the spectral
 function. This block can only be specified if an open boundary system has been
 defined in \is{Transport} (see p.\pref{Transport}).
  
@@ -926,12 +927,12 @@ Example:
 
 \begin{description}
 
-\item[\is{Orthonormal}] L\:owdin transformation applied to the whole system.
-\item[\is{OrthonormalDevice}] L\:owdin transformation applied to the device region.
+\item[\is{Orthonormal}] L\"owdin transformation applied to the whole system.
+\item[\is{OrthonormalDevice}] L\"owdin transformation applied to the device region.
 \item[\iscb{VibronicElastic}] \label{elastic} Block used to specify the type of
             model based on NEGF elastic scattering (energy conserving). 
-\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing model based on 
-	B\:uttiker probes. 
+\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing
+  model based on B\"uttiker probes.
 
 \end{description}
 
@@ -969,8 +970,8 @@ if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Ham
   \end{verbatim}
 
 
-The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\:uttiker Probes theory.
-B\:uttiker probes are local by construction, however probes can be defined on atomic blocks using 
+The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\"uttiker Probes theory.
+B\"uttiker probes are local by construction, however probes can be defined on atomic blocks using 
 the \is{AtomBlock} logical flag.
 
 \begin{description}
