@@ -1,4 +1,4 @@
-  ! **************************************************************************
+! **************************************************************************
 ! *                INTERFACE of LIBNEGF for DFTB+
 ! *
 ! *  call negf_init(transpar, greendens, tundos, mpicomm, itempElec, initinfo)
@@ -23,7 +23,8 @@ module negf_int
                     !       & TNEGFGreenDensInfo, TTransPar, Telph
   use libnegf
   use mat_conv
-  use sparse2dense 
+  use sparse2dense
+  use densedescr
   use commonTypes, only : TOrbitals
   use libmpifx_module
 
@@ -420,8 +421,8 @@ module negf_int
   end subroutine negf_destroy
 
   !------------------------------------------------------------------------------
-  subroutine negf_init_str(structure, transpar, greendens, iNeigh, nNeigh, img2CentCell)
-    Type(TNEGFStructure), intent(in) :: structure
+  subroutine negf_init_str(denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
+    Type(TDenseDescr), intent(in) :: denseDescr
     Type(TTranspar), intent(in) :: transpar
     Type(TNEGFGreenDensInfo) :: greendens
     Integer, intent(in) :: nNeigh(:)
@@ -445,7 +446,8 @@ module negf_int
        nbl = greendens%nPLs
     endif
     if (nbl.eq.0) STOP 'Internal ERROR: nbl = 0 ?!'
-    natoms = structure%nAtom
+
+    natoms = size(denseDescr%iatomstart) - 1
 
     allocate(PL_end(nbl))
     allocate(atomst(nbl+1))
@@ -456,10 +458,7 @@ module negf_int
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
-    if (size(structure%iatomstart) /= natoms+1) then
-      print*,"ERROR: size mismatch iatomstart =",size(structure%iatomstart), natoms+1
-    endif   
-    ind(1:natoms+1)=structure%iatomstart(1:natoms+1) - 1
+    ind(:) = DenseDescr%iatomstart(:) - 1
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)

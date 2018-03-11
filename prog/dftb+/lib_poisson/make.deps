@@ -39,8 +39,8 @@ _mod_gradient: gradient.o
 _mod_gradient = $(gradient.o)
 
 #:if WITH_MPI
-mpi_poisson.o: common.fypp _mod_mpi _mod_libmpifx_module
-mpi_poisson.o = mpi_poisson.o $(common.fypp) $(_mod_mpi) $(_mod_libmpifx_module)
+mpi_poisson.o: common.fypp _mod_libmpifx_module
+mpi_poisson.o = mpi_poisson.o $(common.fypp) $(_mod_libmpifx_module)
 _mod_mpi_poisson: mpi_poisson.o
 _mod_mpi_poisson = $(mpi_poisson.o)
 #:else

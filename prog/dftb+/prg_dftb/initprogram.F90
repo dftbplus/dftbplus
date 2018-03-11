@@ -809,7 +809,6 @@ module initprogram
   !> Transport variables
   !> Container for the atomistic structure for poisson
   type(TPoissonStructure) :: poissStr
-  type(TNEGFStructure) :: negfStr
   type(TTransPar) :: transpar
   type(TNEGFInfo) :: ginfo
 
@@ -3004,12 +3003,9 @@ contains
 
     if (tNegf) then
       print*,'init negf'    
-      negfStr%nAtom = nAtom
       if (size(DenseDesc%iAtomStart) /= nAtom+1) then
         stop 'Internal error: DenseDesc not created'
       end if   
-      allocate(negfStr%iAtomStart(nAtom+1))
-      negfStr%iAtomStart = DenseDesc%iAtomStart
 
       ! Some sanity checks and initialization of GDFTB/NEGF
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos,&

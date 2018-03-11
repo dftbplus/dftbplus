@@ -6,18 +6,12 @@ module libnegf_vars
   implicit none
   private
 
-  public :: TNEGFStructure
   public :: TNEGFTunDos
   public :: TNEGFGreenDensInfo
   public :: TTransPar
   public :: ContactInfo
   public :: TElph
 
-  type TNEGFStructure
-    integer               :: nAtom          ! number of atoms in central cell 
-    ! atom START pos for squared H/S
-    integer, allocatable, dimension(:) :: iatomstart 
-  end type TNEGFStructure
 
 
   !> Options for electron-phonon model
