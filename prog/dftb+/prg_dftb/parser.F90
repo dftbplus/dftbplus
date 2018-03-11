@@ -4246,14 +4246,10 @@ contains
       select case (char(method2))
       case ("allorbitals")  
         call getChild(child, "AllOrbitals", child2, requested=.false.)
-        !if (associated(child2)) then
         call getChildValue(child2, "", elph%coupling, child=field)
         call convertByMul(char(modif), energyUnits, field, elph%coupling)
-        !endif
-        !if (.not.done)
       case ("atomcoupling")
         call getChild(child, "AtomCoupling", child2, requested=.false.)
-        !if (associated(child3)) then
         allocate(atmCoupling(atm_range(2)-atm_range(1)+1))
         atmCoupling = 0.d0
         call getChildren(child2, "AtomList", children)
@@ -4281,13 +4277,10 @@ contains
           norbs = norbs + orb%nOrbAtom(ii)
         enddo
         deallocate(atmCoupling)
-        !endif
-        !if (.not.done) then
       case ("constant")    
         call getChildValue(child, "Constant", tmp, child=field)
         call convertByMul(char(modif), energyUnits, field, tmp)
         elph%coupling = tmp
-        !endif
       case default
         call detailedError(node, "El-Ph Coupling definition unknown")
       end select
@@ -4366,14 +4359,10 @@ contains
       select case (char(method2))
       case ("allorbitals")  
         call getChild(child, "AllOrbitals", child2, requested=.false.)
-        !if (associated(child2)) then
         call getChildValue(child2, "", elph%coupling, child=field)
         call convertByMul(char(modif), energyUnits, field, elph%coupling)
-        !endif
-        !if (.not.done)
       case ("atomcoupling")
         call getChild(child, "AtomCoupling", child2, requested=.false.)
-        !if (associated(child3)) then
         allocate(atmCoupling(atm_range(2)-atm_range(1)+1))
         atmCoupling = 0.d0
         call getChildren(child2, "AtomList", children)
@@ -4401,13 +4390,10 @@ contains
           norbs = norbs + orb%nOrbAtom(ii)
         enddo
         deallocate(atmCoupling)
-        !endif
-        !if (.not.done) then
       case ("constant")    
         call getChildValue(child, "Constant", tmp, child=field)
         call convertByMul(char(modif), energyUnits, field, tmp)
         elph%coupling = tmp
-        !endif
       case default
         call detailedError(node, "BP Coupling definition unknown")
       end select

@@ -905,9 +905,11 @@ Example:
 
    \begin{verbatim}
    Dephasing {
-     OrthonormalDevice = Yes
+     Orthonormal = Yes|No
+     OrthonormalDevice = Yes|No
      VibronicElastic = local { 
-       AtomBlock = Yes
+       AtomBlock = Yes|No
+       SemiLocal = Yes|No
        Coupling [eV] = Constant { 0.1 }
        MaxSCBAIterations = 100
      }
@@ -915,8 +917,8 @@ Example:
    \end{verbatim}
 
 \begin{ptable}
-  \kw{OrthonormalDevice} & l &  & No &  \\
   \kw{Orthonormal} & l &  & No &  \\
+  \kw{OrthonormalDevice} & l &  & No &  \\
   \kw{ButtikerProbes} & p & &  &  \\
   \kw{VibronicElastic} & p & &  &  \\
   \hline
@@ -926,29 +928,32 @@ Example:
 
 \item[\is{Orthonormal}] L\:owdin transformation applied to the whole system.
 \item[\is{OrthonormalDevice}] L\:owdin transformation applied to the device region.
-\item[\iscb{ButtikerProbes}] \label{Buttiker} This block is used to specify B\:uttiker 
-	probes. Buttiker Probes can be either of type \is{ZeroPotential} or ...
-	
+\item[\iscb{VibronicElastic}] \label{elastic} Block used to specify the type of
+            model based on NEGF elastic scattering (energy conserving). 
+\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing model based on 
+	B\:uttiker probes. 
+
+\end{description}
+
+The \iscb{VibronicElastic} model computes the NEGF self-energies. Currently only the \is{Local} 
+implementation is available. This means that the self-energies are non-zero on the diagonal 
+matrix-elements or atomic blocks of the Density Matrix. 
+More precisely, if both \is{AtomBlock=No} and \is{SemiLocal=No}, then the self-energies are 
+strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagonal; 
+if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.  
+
+\begin{description}
+\item[\is{AtomBlock}] if Yes then self-energies are computed on the atomic blocks
+\item[\is{SemiLocal}] if Yes then self-energies are computed on atomic and non-zero overlap blocks	
+\item[\is{Coupling}] sets the electron-phonon coupling energy: 
+\item[\iscb{Constant}] sets the same coupling constant for all atoms. 
+\item[\iscb{AtomCoupling}] can be used to define electron-phonon coupling on each atom. 
+\item[\iscb{AllOrbitals}] accepts a list of numbers to sets couplings for each orbital. 
+\item[\is{MaxSCBAIterations}] sets the maximum number of self-consitent Born iterations to be performed.	
+\end{description}
+
   \begin{verbatim}
-  BuettikerProbes = ZeroPotential {
-    Coupling [eV] = constant{ 0.5 }
-  }
-  \end{verbatim}
-
-\item[\is{Coupling}] is the system/probe coupling energy.
-   	
-
-
-\item[\iscb{VibronicElastic}] \label{elastic} This block is used to specify the
-	elastic dephasing model. This can be \is{elastic} or ...
-
-\item[\is{Coupling}] is the electron-phonon coupling energy. \is{Coupling} can be 
-	\is{Constant}, uniform on the whole device region or can be defined for 
-	each atom using the key \is{AtomCoupling} and \is{AtomList}. Example:
-
-\begin{verbatim}
   VibronicElastic = local { 
-    AtomBlock = Yes
     Coupling [eV] = AtomCoupling { 
       AtomList { Atoms = 1
                  Value = 0.1
@@ -964,7 +969,26 @@ Example:
   \end{verbatim}
 
 
+The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\:uttiker Probes theory.
+B\:uttiker probes are local by construction, however probes can be defined on atomic blocks using 
+the \is{AtomBlock} logical flag.
+
+\begin{description}
+  \item[\iscb{ZeroPotential}] sets the zero-potential condition on the probes 
+  \item[\iscb{ZeroCurrent}] sets the zero-current condition on the probes 
+  \item[\is{Coupling}] is the system/probe coupling energy. Block-options are the same as
+	  in \is{VibronicElastic}.
+  \item[\is{MaxSCBAIterations}] Maximum number of iterations to solve the probe constrain.	  
 \end{description}
+
+Example:
+   \begin{verbatim}
+   BuettikerProbes = ZeroPotential|ZeroCurrent {
+     AtomBlock = Yes|No
+     SemiLocal = Yes|No
+     Coupling [eV] = constant{ 0.5 }
+   }
+   \end{verbatim}
 
 \section{Troubleshooting}
 
