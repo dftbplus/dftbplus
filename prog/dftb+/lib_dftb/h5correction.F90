@@ -7,7 +7,9 @@
 
 #:include 'common.fypp'
 
-!> H5 H-bond correction.
+!> H5 H-bond correction. Scales the gamma function at short-range
+!> in pairs of hydrogen and an H-bond acceptor element.
+!> See http://dx.doi.org/10.1021/acs.jctc.7b00629 for details.
 module h5correction
   use accuracy
   implicit none
