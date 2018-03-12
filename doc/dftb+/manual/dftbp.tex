@@ -994,6 +994,7 @@ following properties:
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
   \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{DampXHExponent} & r & DampXH = Yes & - & \\
+  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.DFTB3}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -2439,6 +2440,30 @@ modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
 
 \item[\is{DampXHExponent}] Sets the parameter $\zeta$ for the short range
   damping. (See keyword \is{DampXH} above.)
+
+\item[\is{HBondCorrection}] Setting this keyword to \is{H5 \{\}} activates the
+  H5 correction for hydrogen bonds.\cite{rezac-jctc-13-2017} 
+  \emph{This correction is used instead of
+  the \is{DampXH} damping.} When no additional parameters are provided in the input,
+  the default parameter set is used (it was developed for the DFTB3/3OB setup).
+  If you want to specify the parameters manually, the complete input (with default
+  values of the parameters) is:
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  HBondCorrection = H5 {
+    RCut = 0.714
+    W = 0.25
+    H5CorrectionSpecies = {
+      O = 0.06
+      N = 0.18
+      S = 0.21
+    }
+  }
+  :
+}
+
+\end{verbatim}
 
 \item[\is{ThirdOrder}] If set to \is{Yes} the \textit{on-site} 3rd order
   correction \cite{yang-JPCA-111-10861} is switched on. This corrects the
