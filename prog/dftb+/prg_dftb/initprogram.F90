@@ -2630,7 +2630,7 @@ contains
 
       ! H5 correction
       if (input%ctrl%h5SwitchedOn) then
-        write(stdOut, "(A,T30,A)") "H5 correction for H-bonds", "Yes"
+        write(stdOut, "(A,T30,A)") "H-bond correction:", "H5"
       end if
      ! H5 correction end
     end if

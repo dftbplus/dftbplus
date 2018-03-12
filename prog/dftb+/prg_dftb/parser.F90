@@ -1422,34 +1422,40 @@ contains
       end if
 
       ! H5 correction
-      ! Keyword H5Correction switches the correction on and off (default)
-      call getChildValue(node, "H5Correction", ctrl%h5SwitchedOn, .false.)
-      ! H5 should not be used with X-H damping
-      if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
-              call error("H5 correction is not compatible with X-H damping")
-      end if
-      ! Parameters for the correction
-      if (ctrl%h5SwitchedOn) then
-        ! Correction is used, initialize the parameters
-        ! Get child node with global parameters
-        call getChild(node, "H5CorrectionParams", child2, requested=.false.)
-        if (associated(child2)) then
-          ! Defaults are -1.0 to identify thet the parametrers were not read
-          call getChildValue(child2, "RCut", ctrl%h5RScale, -1.0_dp)
-          call getChildValue(child2, "W", ctrl%h5WScale, -1.0_dp)
+      call getChildValue(node, "HBondCorrection", value, "None", child=child)
+      call getNodeName(value, buffer)
+      select case(char(buffer))
+      case ("none")
+        ctrl%h5SwitchedOn = .false.
+      case ("h5")
+        ! Switch the correction on
+        ctrl%h5SwitchedOn = .true.
+
+        ! H5 should not be used with X-H damping
+        if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
+          call error("H5 correction is not compatible with X-H damping")
         end if
+
+        ! Read global parameters
+        ! Defaults are -1.0 to identify thet the parametrers were not read
+        call getChildValue(value, "RCut", ctrl%h5RScale, -1.0_dp)
+        call getChildValue(value, "W", ctrl%h5WScale, -1.0_dp)
+
         ! Get parameters for elements
         allocate(ctrl%h5ElementPara(geo%nSpecies))
         ! Default value is -1, this indicates that the parameter was not set up
         ! and should be handled as such later
         ctrl%h5ElementPara(:) = -1.0_dp
-        call getChild(node, "H5CorrectionSpecies", child2, requested=.false.)
+        call getChild(Value, "H5CorrectionSpecies", child2, requested=.false.)
         if (associated(child2)) then
           do iSp1 = 1, geo%nSpecies
             call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5ElementPara(iSp1), -1.0_dp)
           end do
         end if
-      end if
+      case default
+        call getNodeHSDName(value, buffer)
+        call detailedError(child, "Invalid value of HBondCorrection '" // char(buffer) // "'")
+      end select
       ! H5 end
 
       ! spin
