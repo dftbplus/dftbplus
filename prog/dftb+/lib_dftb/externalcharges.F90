@@ -13,7 +13,7 @@ module ExternalCharges
   use accuracy
   use blasroutines
   use coulomb
-  use constants
+  use dftb_constants
   use periodic, only : getCellTranslations, foldCoordToUnitCell
   use environment
   implicit none

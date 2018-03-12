@@ -20,7 +20,7 @@ module main
   use ipisocket, only : IpiSocketComm
 #:endif  
   use assert
-  use constants
+  use dftb_constants
   use globalenv
   use environment
   use densedescr

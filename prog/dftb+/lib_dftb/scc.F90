@@ -20,7 +20,7 @@ module scc
   use coulomb
   use shortgamma
   use fileid
-  use constants
+  use dftb_constants
   use periodic
   use externalcharges
   use blasroutines

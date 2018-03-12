@@ -17,7 +17,7 @@ module initprogram
   use scalapackfx
   use inputdata_module
   use densedescr
-  use constants
+  use dftb_constants
   use periodic
   use accuracy
   use intrinsicpr

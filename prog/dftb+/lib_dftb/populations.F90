@@ -12,7 +12,7 @@
 module populations
   use assert
   use accuracy
-  use constants
+  use dftb_constants
   use periodic
   use commontypes
   implicit none

@@ -15,7 +15,7 @@ module spinorbit
   use environment
   use assert
   use accuracy, only : dp
-  use constants, only : imag
+  use dftb_constants, only : imag
   use angmomentum, only : getLOperators
   use commontypes, only : TOrbitals
   use densedescr

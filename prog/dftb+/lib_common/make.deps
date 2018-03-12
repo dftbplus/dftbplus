@@ -15,8 +15,8 @@ _mod_blacsenv = $(blacsenv.o)
 
 constants.o: _mod_accuracy
 constants.o = constants.o $(_mod_accuracy)
-_mod_constants: constants.o
-_mod_constants = $(constants.o)
+_mod_dftb_constants: constants.o
+_mod_dftb_constants = $(constants.o)
 
 #:if WITH_MPI
 #:if WITH_SCALAPACK
@@ -50,8 +50,8 @@ _mod_fileregistry: fileregistry.o
 _mod_fileregistry = $(fileregistry.o)
 
 #:if WITH_MPI
-globalenv.o: common.fypp _mod_mpifx
-globalenv.o = globalenv.o $(common.fypp) $(_mod_mpifx)
+globalenv.o: common.fypp _mod_mpifx _mod_mpi
+globalenv.o = globalenv.o $(common.fypp) $(_mod_mpifx) $(_mod_mpi)
 _mod_globalenv: globalenv.o
 _mod_globalenv = $(globalenv.o)
 #:else
@@ -98,8 +98,8 @@ timerarray.o = timerarray.o $(_mod_accuracy) $(_mod_assert) $(common.fypp) $(_mo
 _mod_timerarray: timerarray.o
 _mod_timerarray = $(timerarray.o)
 
-unitconversion.o: _mod_constants
-unitconversion.o = unitconversion.o $(_mod_constants)
+unitconversion.o: _mod_dftb_constants
+unitconversion.o = unitconversion.o $(_mod_dftb_constants)
 _mod_unitconversion: unitconversion.o
 _mod_unitconversion = $(unitconversion.o)
 

@@ -18,8 +18,8 @@ extlagrangian.o = extlagrangian.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
 _mod_extlagrangian_module: extlagrangian.o
 _mod_extlagrangian_module = $(extlagrangian.o)
 
-mdcommon.o: _mod_accuracy common.fypp _mod_assert _mod_constants _mod_ranlux
-mdcommon.o = mdcommon.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_constants) $(_mod_ranlux)
+mdcommon.o: _mod_accuracy common.fypp _mod_assert _mod_ranlux _mod_dftb_constants
+mdcommon.o = mdcommon.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_ranlux) $(_mod_dftb_constants)
 _mod_mdcommon: mdcommon.o
 _mod_mdcommon = $(mdcommon.o)
 

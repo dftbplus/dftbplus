@@ -14,7 +14,7 @@
 module dispcommon
   use assert
   use accuracy
-  use constants, only : pi
+  use dftb_constants, only : pi
   use message
   use sorting
   use simplealgebra, only : cross3

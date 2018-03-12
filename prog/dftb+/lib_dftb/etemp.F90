@@ -19,7 +19,7 @@ module etemp
   use message
   use hermite
   use sorting
-  use constants
+  use dftb_constants
   use factorial, only : fact
   implicit none
   private

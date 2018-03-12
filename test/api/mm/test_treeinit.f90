@@ -8,7 +8,7 @@
 program test_cluster
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
-  use constants, only : AA__Bohr
+  use dftb_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)

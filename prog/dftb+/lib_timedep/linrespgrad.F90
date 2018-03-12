@@ -16,7 +16,7 @@ module linrespgrad
   use slakocont
   use shortgamma
   use accuracy
-  use constants, only : Hartree__eV, au__Debye
+  use dftb_constants, only : Hartree__eV, au__Debye
   use nonscc, only : NonSccDiff
   use scc, only : TScc
   use blasroutines

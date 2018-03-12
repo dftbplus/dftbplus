@@ -11,7 +11,7 @@
 module periodic
   use assert
   use accuracy
-  use constants, only : pi
+  use dftb_constants, only : pi
   use message
   use sorting
   use bisect

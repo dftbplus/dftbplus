@@ -11,7 +11,7 @@
 module mdcommon
   use assert
   use accuracy
-  use constants
+  use dftb_constants
   use ranlux
   implicit none
   private

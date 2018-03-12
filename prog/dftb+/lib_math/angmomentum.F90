@@ -14,7 +14,7 @@ module angmomentum
 #:endif
   use assert
   use accuracy, only : dp
-  use constants, only : imag
+  use dftb_constants, only : imag
   use qm
   use commontypes, only : TOrbitals
   use environment

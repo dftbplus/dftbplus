@@ -13,7 +13,7 @@
 module sparse2dense
   use assert
   use accuracy
-  use constants, only : pi, imag
+  use dftb_constants, only : pi, imag
   use commontypes
   use memman
   use periodic, only : TNeighborList

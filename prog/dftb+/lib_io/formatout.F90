@@ -13,7 +13,7 @@ module formatout
   use assert
   use accuracy
   use fileid
-  use constants
+  use dftb_constants
   use lapackroutines, only: matinv
   use sparse2dense
   implicit none

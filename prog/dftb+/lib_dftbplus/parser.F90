@@ -12,7 +12,7 @@ module parser
   use globalenv
   use assert
   use accuracy
-  use constants
+  use dftb_constants
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD

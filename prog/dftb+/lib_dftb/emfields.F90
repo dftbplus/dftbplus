@@ -11,7 +11,7 @@
 module emfields
   use assert
   use accuracy, only : dp
-  use constants
+  use dftb_constants
   use io
   use angmomentum, only : Loperators
   use simplealgebra, only : cross3

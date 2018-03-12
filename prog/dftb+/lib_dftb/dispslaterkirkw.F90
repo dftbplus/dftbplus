@@ -27,7 +27,7 @@ module dispslaterkirkw
   use simplealgebra, only : determinant33
   use lapackroutines, only : matinv
   use periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
-  use constants, only : pi
+  use dftb_constants, only : pi
   use dispiface
   use dispcommon
   use message

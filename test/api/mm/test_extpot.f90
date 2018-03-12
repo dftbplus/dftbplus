@@ -75,7 +75,7 @@ program test_extpot
   use, intrinsic :: iso_fortran_env, only : output_unit
   use test_extpot_module
   use dftbplus
-  use constants, only : AA__Bohr
+  use dftb_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: nAtom = 3

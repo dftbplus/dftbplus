@@ -21,7 +21,7 @@ module coulomb
   use accuracy
   use message
   use errorfunction
-  use constants, only : pi
+  use dftb_constants, only : pi
   use dynneighlist
   implicit none
 

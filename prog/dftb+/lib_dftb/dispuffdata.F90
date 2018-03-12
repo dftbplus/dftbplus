@@ -10,7 +10,7 @@ module dispuffdata
   use accuracy
   use message, only : error
   use charmanip, only : tolower
-  use constants
+  use dftb_constants
   implicit none
   private
 

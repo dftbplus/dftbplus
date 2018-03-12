@@ -24,7 +24,7 @@ module mainio
   use densedescr
   use assert
   use accuracy
-  use constants
+  use dftb_constants
   use periodic
   use commontypes
   use fifo

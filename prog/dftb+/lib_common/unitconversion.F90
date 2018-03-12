@@ -8,7 +8,7 @@
 !> Contains names of various units and their conversion factors to the corresponding unit used
 !> internal in the code (atomic units).
 module unitconversion
-  use constants
+  use dftb_constants
   implicit none
 
   public

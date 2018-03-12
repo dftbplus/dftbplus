@@ -34,7 +34,7 @@
 module linemin
   use assert
   use accuracy
-  use constants, only : goldenMeanP1
+  use dftb_constants, only : goldenMeanP1
   implicit none
 
   private

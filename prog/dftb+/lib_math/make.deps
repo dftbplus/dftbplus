@@ -1,11 +1,11 @@
 #:if WITH_SCALAPACK
-angmomentum.o: _mod_commontypes common.fypp _mod_constants _mod_environment _mod_densedescr _mod_assert _mod_qm _mod_accuracy _mod_scalapackfx
-angmomentum.o = angmomentum.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_environment) $(_mod_densedescr) $(_mod_assert) $(_mod_qm) $(_mod_accuracy) $(_mod_scalapackfx)
+angmomentum.o: _mod_commontypes common.fypp _mod_environment _mod_densedescr _mod_dftb_constants _mod_assert _mod_qm _mod_accuracy _mod_scalapackfx
+angmomentum.o = angmomentum.o $(_mod_commontypes) $(common.fypp) $(_mod_environment) $(_mod_densedescr) $(_mod_dftb_constants) $(_mod_assert) $(_mod_qm) $(_mod_accuracy) $(_mod_scalapackfx)
 _mod_angmomentum: angmomentum.o
 _mod_angmomentum = $(angmomentum.o)
 #:else
-angmomentum.o: _mod_commontypes common.fypp _mod_constants _mod_environment _mod_densedescr _mod_assert _mod_qm _mod_accuracy
-angmomentum.o = angmomentum.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_environment) $(_mod_densedescr) $(_mod_assert) $(_mod_qm) $(_mod_accuracy)
+angmomentum.o: _mod_commontypes common.fypp _mod_environment _mod_densedescr _mod_dftb_constants _mod_assert _mod_qm _mod_accuracy
+angmomentum.o = angmomentum.o $(_mod_commontypes) $(common.fypp) $(_mod_environment) $(_mod_densedescr) $(_mod_dftb_constants) $(_mod_assert) $(_mod_qm) $(_mod_accuracy)
 _mod_angmomentum: angmomentum.o
 _mod_angmomentum = $(angmomentum.o)
 #:endif

@@ -12,7 +12,7 @@
 module oldskdata
   use assert
   use accuracy
-  use constants
+  use dftb_constants
   use repspline, only : TRepSplineIn
   use reppoly, only : TRepPolyIn
   use fileid
