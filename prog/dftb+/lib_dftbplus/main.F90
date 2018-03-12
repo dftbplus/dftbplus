@@ -75,6 +75,7 @@ module main
   use mdintegrator
   use tempprofile
   use elstatpot, only : TElStatPotentials
+  use initprogram, only : TRefExtPot
   implicit none
   private
 
@@ -323,11 +324,11 @@ contains
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp)
     end if
 
-    call resetExternalPotentials(potential)
+    call resetExternalPotentials(refExtPot, potential)
     call setUpExternalElectricField(tEField, tTDEField, tPeriodic, EFieldStrength,&
         & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
-        & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
-        & potential%extAtom(:,1), absEField)
+        & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, potential%extAtom(:,1),&
+        & potential%extGrad, EField, absEField)
 
     call mergeExternalPotentials(orb, species, potential)
 
@@ -393,7 +394,7 @@ contains
         potential%intBlock = potential%intBlock + potential%extBlock
       end if
 
-      call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
+      call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
           & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
           & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
           & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
@@ -492,10 +493,9 @@ contains
           & tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx,&
           & SSqrCplx)
       call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
-      call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
-          & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-          & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-          & chrgForces, dispersion)
+      call getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
+          & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
+          & iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces, dispersion)
       if (tLinResp) then
         derivs(:,:) = derivs + excitedDerivs
       end if
@@ -503,10 +503,10 @@ contains
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
-        call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
-            & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-            & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
-            & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+        call getStress(env, sccCalc, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0,&
+            & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
+            & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
+            & totalLatDeriv, intPressure, iRhoPrim, dispersion)
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
         call printVolume(cellVol)
         ! MD case includes the atomic kinetic energy contribution, so print that later
@@ -1096,14 +1096,31 @@ contains
 
 
   !> Sets the external potential components to zero
-  subroutine resetExternalPotentials(potential)
+  subroutine resetExternalPotentials(refExtPot, potential)
+
+    !> Reference external potential (usually set via API)
+    type(TRefExtPot), intent(in) :: refExtPot
 
     !> Potential contributions
     type(TPotentials), intent(inout) :: potential
 
-    potential%extAtom(:,:) = 0.0_dp
-    potential%extShell(:,:,:) = 0.0_dp
+    if (allocated(refExtPot%atomPot)) then
+      potential%extAtom(:,:) = refExtPot%atomPot
+    else
+      potential%extAtom(:,:) = 0.0_dp
+    end if
+    if (allocated(refExtPot%shellPot)) then
+      potential%extShell(:,:,:) = refExtPot%shellPot
+    else
+      potential%extShell(:,:,:) = 0.0_dp
+    end if
     potential%extBlock(:,:,:,:) = 0.0_dp
+    if (allocated(refExtPot%potGrad)) then
+      potential%extGrad(:,:) = refExtPot%potGrad
+    else
+      potential%extGrad(:,:) = 0.0_dp
+    end if
+    
 
   end subroutine resetExternalPotentials
 
@@ -1129,7 +1146,7 @@ contains
   !> Sets up electric external field
   subroutine setUpExternalElectricField(tEfield, tTimeDepEField, tPeriodic, EFieldStrength,&
       & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec, img2CentCell,&
-      & cellVec, deltaT, iGeoStep, coord0Fold, coord, EField, extAtomPot, absEField)
+      & cellVec, deltaT, iGeoStep, coord0Fold, coord, extAtomPot, extPotGrad, EField, absEField)
 
     !> Whether electric field should be considered at all
     logical, intent(in) :: tEfield
@@ -1181,11 +1198,14 @@ contains
     !> all coordinates
     real(dp), intent(in) :: coord(:,:)
 
+    !> Potentials on atomic sites
+    real(dp), intent(inout) :: extAtomPot(:)
+
+    !> Gradient of potential on atomic sites with respect of nucleus positions. Shape: (3, nAtom)
+    real(dp), intent(inout) :: extPotGrad(:,:)
+
     !> Resulting electric field
     real(dp), intent(out) :: EField(:)
-
-    !> Potentials on atomic sites
-    real(dp), intent(out) :: extAtomPot(:)
 
     !> Magnitude of the field
     real(dp), intent(out) :: absEField
@@ -1197,7 +1217,6 @@ contains
     if (.not. tEField) then
       EField(:) = 0.0_dp
       absEField = 0.0_dp
-      extAtomPot(:) = 0.0_dp
       return
     end if
 
@@ -1225,13 +1244,14 @@ contains
         end do
       end do
       do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = dot_product(coord0Fold(:, iAt1), Efield)
+        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord0Fold(:, iAt1), Efield)
       end do
     else
       do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = dot_product(coord(:, iAt1), Efield)
+        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord(:, iAt1), Efield)
       end do
     end if
+    extPotGrad(:,:) = extPotGrad + spread(EField, 2, nAtom)
 
   end subroutine setUpExternalElectricField
 
@@ -2508,7 +2528,7 @@ contains
 
 
   !> Calculates various energy contributions
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
+  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
       & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
       & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
@@ -2529,7 +2549,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> is an external electric field present
-    logical, intent(in) :: tEField
+    logical, intent(in) :: tExtField
 
     !> Is the extended Lagrangian being used for MD
     logical, intent(in) :: tXlbomd
@@ -2613,7 +2633,7 @@ contains
         & img2CentCell, iSparseStart)
     energy%EnonSCC =  sum(energy%atomNonSCC)
 
-    if (tEfield) then
+    if (tExtField) then
       energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
       energy%Eext = sum(energy%atomExt)
     end if
@@ -3882,7 +3902,7 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
+  subroutine getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces,&
       & dispersion)
@@ -3894,16 +3914,13 @@ contains
     type(TScc), allocatable, intent(in) :: sccCalc
 
     !> external electric field
-    logical, intent(in) :: tEField
+    logical, intent(in) :: tExtField
 
     !> extended Lagrangian active?
     logical, intent(in) :: tXlbomd
 
     !> method for calculating derivatives of S and H0
     type(NonSccDiff), intent(in) :: nonSccDeriv
-
-    !> Any applied electric field
-    real(dp), intent(in) :: Efield(:)
 
     !> sparse density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -3967,7 +3984,7 @@ contains
 
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
-    integer :: nAtom
+    integer :: nAtom, iAt
     integer :: ii
 
     tSccCalc = allocated(sccCalc)
@@ -3977,7 +3994,7 @@ contains
 
     derivs(:,:) = 0.0_dp
 
-    if (.not. (tSccCalc .or. tEField)) then
+    if (.not. (tSccCalc .or. tExtField)) then
       ! No external or internal potentials
       if (tImHam) then
         call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&
@@ -4025,9 +4042,10 @@ contains
         end if
       end if
 
-      if (tEField) then
-        do ii = 1, 3
-          derivs(ii,:) = derivs(ii,:) - sum(q0(:,:,1) - qOutput(:,:,1), dim=1) * EField(ii)
+      if (tExtField) then
+        do iAt = 1, nAtom
+          derivs(:, iAt) = derivs(:, iAt)&
+              & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extGrad(:, iAt)
         end do
       end if
     end if
@@ -4045,8 +4063,8 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
-      & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
+  subroutine getStress(env, sccCalc, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0,&
+      & skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
       & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
       & totalLatDeriv, intPressure, iRhoPrim, dispersion)
 
@@ -4056,14 +4074,11 @@ contains
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
 
-    !> External electric field
-    logical, intent(in) :: tEField
+    !> External field
+    logical, intent(in) :: tExtField
 
     !> method for calculating derivatives of S and H0
     type(NonSccDiff), intent(in) :: nonSccDeriv
-
-    !> external electric field
-    real(dp), intent(in) :: Efield(:)
 
     !> density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -4170,8 +4185,8 @@ contains
       totalStress(:,:) = totalStress + tmpStress
     end if
 
-    if (tEField) then
-      call getEFieldStress(latVec, cellVol, q0, qOutput, Efield, coord0, tmpStress)
+    if (tExtField) then
+      call getExtFieldStress(latVec, cellVol, q0, qOutput, potential%extGrad, coord0, tmpStress)
       totalStress(:,:) = totalStress + tmpStress
     end if
 
@@ -4186,7 +4201,7 @@ contains
 
 
   !> Calculates stress from external electric field.
-  subroutine getEFieldStress(latVec, cellVol, q0, qOutput, Efield, coord0, stress)
+  subroutine getExtFieldStress(latVec, cellVol, q0, qOutput, extPotGrad, coord0, stress)
 
     !> lattice vectors
     real(dp), intent(in) :: latVec(:,:)
@@ -4200,8 +4215,8 @@ contains
     !> number of electrons in each orbital
     real(dp), intent(in) :: qOutput(:,:,:)
 
-    !> external electric field
-    real(dp), intent(in) :: Efield(:)
+    !> Gradient of the external field
+    real(dp), intent(in) :: extPotGrad(:,:)
 
     !> central cell coordinates of atoms
     real(dp), intent(inout) :: coord0(:,:)
@@ -4221,14 +4236,15 @@ contains
       do ii = 1, 3
         do jj = 1, 3
           latDerivs(jj,ii) =  latDerivs(jj,ii)&
-              & - sum(q0(:,iAtom,1) - qOutput(:,iAtom,1), dim=1) * EField(ii) * coord0(jj,iAtom)
+              & - sum(q0(:,iAtom,1) - qOutput(:,iAtom,1), dim=1) * extPotGrad(ii, iAtom)&
+              & * coord0(jj, iAtom)
         end do
       end do
     end do
     call frac2cart(coord0, latVec)
     stress(:,:) = -matmul(latDerivs, transpose(latVec)) / cellVol
 
-  end subroutine getEFieldStress
+  end subroutine getExtFieldStress
 
 
   !> Removes forces components along constraint directions

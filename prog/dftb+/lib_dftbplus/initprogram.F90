@@ -81,6 +81,15 @@ module initprogram
   use formatout
   implicit none
 
+
+  !> Container for external potentials
+  type :: TRefExtPot
+    real(dp), allocatable :: atomPot(:,:)
+    real(dp), allocatable :: shellPot(:,:,:)
+    real(dp), allocatable :: potGrad(:,:)
+  end type TRefExtPot
+
+
   !> Tagged output files (machine readable)
   character(*), parameter :: autotestTag = "autotest.tag"
 
@@ -562,6 +571,9 @@ module initprogram
   !> external electric field
   logical :: tEField = .false.
 
+  !> Arbitrary external field (including electric)
+  logical :: tExtField = .false.
+
   !> field strength
   real(dp) :: EFieldStrength = 0.0_dp
 
@@ -735,6 +747,9 @@ module initprogram
 
   !> Potentials for orbitals
   type(TPotentials) :: potential
+
+  !> Reference external potential (usual provided via API)
+  type(TRefExtPot) :: refExtPot
 
   !> Energy derivative with respect to atomic positions
   real(dp), allocatable :: derivs(:,:)
@@ -1444,7 +1459,8 @@ contains
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
+    tExtField = tEField
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1866,7 +1882,6 @@ contains
       ! parser should catch all of these:
       @:ASSERT(.not.tTDEfield .or. tMD)
     else
-      tEField = .false.
       EFieldStrength = 0.0_dp
       EfieldVector(:) = 0.0_dp
       tTDEfield = .false.

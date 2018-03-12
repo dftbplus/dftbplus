@@ -30,9 +30,10 @@ program test_cluster
   integer :: devNull
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pOptions, pParserOpts
 
-  open(newunit=devNull, file="/dev/null", action="write")
-
-  call TDftbPlus_init(dftbp, outputUnit=devNull)
+  ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+  !open(newunit=devNull, file="/dev/null", action="write")
+  !call TDftbPlus_init(dftbp, outputUnit=devNull)
+  call TDftbPlus_init(dftbp)
 
   ! You should provide the dftb_in.hsd and skfiles as found in the
   ! test/prog/dftb+/non-scc/Si_2/ folder
@@ -50,7 +51,7 @@ program test_cluster
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
   call setChildValue(pMaxAng, "Si", "p")
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChildValue(pSlakos, "Si-Si", "./Si-Si.skf")
+  call setChildValue(pSlakos, "Si-Si", "./external/slakos/origin/pbc-0-3/Si-Si.skf")
   call setChildValue(pDftb, "KPointsAndWeights", reshape([&
       &  0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
       & -0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&

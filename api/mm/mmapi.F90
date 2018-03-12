@@ -43,8 +43,10 @@ module mmapi
     procedure, nopass :: getEmptyInput => TDftbPlus_getEmptyInput
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     procedure :: setGeometry => TDftbPlus_setGeometry
+    procedure :: setExternalPotential => TDftbPlus_setExternalPotential
     procedure :: getEnergy => TDftbPlus_getEnergy
     procedure :: getGradients => TDftbPlus_getGradients
+    procedure :: getGrossCharges => TDftbPlus_getGrossCharges
   end type TDftbPlus
 
 
@@ -138,9 +140,20 @@ contains
     real(dp), intent(in) :: coords(:,:)
     real(dp), intent(in), optional :: latVecs(:,:)
 
-    call updateGeometry(coords, latVecs)
+    call setGeometry(coords, latVecs)
 
   end subroutine TDftbPlus_setGeometry
+
+
+  subroutine TDftbPlus_setExternalPotential(this, atomPot, shellPot, potGrad)
+    class(TDftbPlus), intent(inout) :: this
+    real(dp), intent(in), optional :: atomPot(:)
+    real(dp), intent(in), optional :: shellPot(:,:)
+    real(dp), intent(in), optional :: potGrad(:,:)
+
+    call setExternalPotential(atomPot, shellPot, potGrad)
+
+  end subroutine TDftbPlus_setExternalPotential
 
   
   subroutine TDftbPlus_getEnergy(this, merminEnergy)
@@ -159,6 +172,15 @@ contains
     call getGradients(this%env, gradients)
     
   end subroutine TDftbPlus_getGradients
+
+
+  subroutine TDftbPlus_getGrossCharges(this, atomCharges)
+    class(TDftbPlus), intent(inout) :: this
+    real(dp), intent(out) :: atomCharges(:)
+
+    call getGrossCharges(atomCharges)
+
+  end subroutine TDftbPlus_getGrossCharges
 
 
 end module mmapi

@@ -9,21 +9,23 @@
 
 module mainapi
   use environment, only : TEnvironment
+  use assert
   use accuracy, only : dp
   use main, only : processGeometry
   use initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
-      & tCoordsChanged, tLatticeChanged, energy, derivs
+      & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
+      & nAtom, nSpin, q0, qOutput
   implicit none
   private
 
   public :: initProgramVariables, destructProgramVariables
-  public :: updateGeometry
-  public :: getEnergy, getGradients
+  public :: setGeometry, setExternalPotential
+  public :: getEnergy, getGradients, getGrossCharges
 
 contains
 
 
-  subroutine updateGeometry(coords, latVecs)
+  subroutine setGeometry(coords, latVecs)
     real(dp), intent(in) :: coords(:,:)
     real(dp), intent(in), optional :: latVecs(:,:)
     
@@ -36,7 +38,7 @@ contains
       tLatticeChanged = .false.
     end if
 
-  end subroutine updateGeometry
+  end subroutine setGeometry
 
 
   subroutine getEnergy(env, merminEnergy)
@@ -59,6 +61,62 @@ contains
   end subroutine getGradients
 
 
+  subroutine getGrossCharges(atomCharges)
+    real(dp), intent(out) :: atomCharges(:)
+
+    atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
+    
+  end subroutine getGrossCharges
+
+
+  !> Sets up an external electrostatic potential.
+  !>
+  !> Sign convention: charge of electron is considered to be negative.
+  !>
+  subroutine setExternalPotential(atomPot, shellPot, potGrad)
+
+    !> Atomic external potential
+    real(dp), intent(in), optional :: atomPot(:)
+
+    !> Shell resolved electrostatic potential
+    real(dp), intent(in), optional :: shellPot(:,:)
+
+    !> Gradient of the electrostatic potential
+    real(dp), intent(in), optional :: potGrad(:,:)
+
+    ! Using explicit allocation instead of F2003 automatic ones in order to stop eventual
+    ! shape mismatches already at this point rather than later deep in the main code
+    if (present(atomPot)) then
+      if (.not. allocated(refExtPot%atomPot)) then
+        allocate(refExtPot%atomPot(nAtom, nSpin))
+      end if
+      @:ASSERT(all(shape(atomPot) == [nAtom]))
+      refExtPot%atomPot(:,1) = -atomPot
+    end if
+    if (present(shellPot)) then
+      if (.not. allocated(refExtPot%shellPot)) then
+        allocate(refExtPot%shellPot(orb%mShell, nAtom, nSpin))
+      end if
+      @:ASSERT(all(shape(shellPot) == [orb%mShell, nAtom]))
+      refExtPot%shellPot(:,:,1) = -shellPot
+    end if
+    if (present(potGrad)) then
+      if (.not. allocated(refExtPot%potGrad)) then
+        allocate(refExtPot%potGrad(3, nAtom))
+      end if
+      @:ASSERT(all(shape(potGrad) == [3, nAtom]))
+      refExtPot%potGrad(:,:) = -potGrad
+    end if
+    tExtField = .true.
+
+  end subroutine setExternalPotential
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!  Private routines
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
   subroutine recalcGeometry(env)
     type(TEnvironment), intent(inout) :: env
 

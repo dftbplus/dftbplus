@@ -45,6 +45,9 @@ module potentials
     !> external block and spin resolved potential
     real(dp), allocatable :: extBlock(:,:,:,:)
 
+    !> gradient of the external potential with respect of nucleus coordinates
+    real(dp), allocatable :: extGrad(:,:)
+
     !> pSIC/DFTB+U etc. potential
     real(dp), allocatable :: orbitalBlock(:,:,:,:)
 
@@ -88,6 +91,7 @@ contains
     allocate(self%extAtom(nAtom,nSpin))
     allocate(self%extShell(orb%mShell,nAtom,nSpin))
     allocate(self%extBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    allocate(self%extGrad(3, nAtom))
     allocate(self%orbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     allocate(self%iorbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     self%intAtom = 0.0_dp
@@ -96,6 +100,7 @@ contains
     self%extAtom = 0.0_dp
     self%extShell = 0.0_dp
     self%extBlock = 0.0_dp
+    self%extGrad(:,:) = 0.0_dp
     self%orbitalBlock = 0.0_dp
     self%iorbitalBlock = 0.0_dp
     self%tInitialised = .true.
