@@ -1152,16 +1152,10 @@ contains
       ! On/Off flag is read from the input
       sccInp%useH5 = input%ctrl%h5SwitchedOn
       if (sccInp%useH5) then
-        ! Create H5 object
+        ! Create H5 object, passing all parameters it uses
         allocate(pH5Correction)
-        call H5Corr_init(pH5Correction)
-        ! Set up the H5 correction - data from input
-        pH5Correction%rScale = input%ctrl%h5RScale
-        pH5Correction%wScale = input%ctrl%h5WScale
-        pH5Correction%elementPara = input%ctrl%h5ElementPara
-        ! Set up the H5 correction - other data needed
-        pH5Correction%nSpecies = nType
-        pH5Correction%speciesName = speciesName
+        call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&
+            &input%ctrl%h5WScale, input%ctrl%h5ElementPara)
         ! Debug printing
         ! call pH5Correction%printH5Setup
         ! Pass the correction object to SCC

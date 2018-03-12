@@ -351,10 +351,9 @@ module inputdata_module
     ! H5 correction
     !> H5 correction On/Off(default) flag
     logical ::h5SwitchedOn = .false.
-    ! Default values used when parameter block not found in input
-    ! (as published for DFTB3):
-    real(dp) :: h5RScale = 0.714
-    real(dp) :: h5WScale = 0.25
+    !> Global parameters - set to -1 to identify they were not initialized
+    real(dp) :: h5RScale = -1.0_dp
+    real(dp) :: h5WScale = -1.0_dp
     real(dp), allocatable :: h5ElementPara(:)
     ! H5 correction end
 
