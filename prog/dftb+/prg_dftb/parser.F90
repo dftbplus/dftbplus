@@ -1430,21 +1430,23 @@ contains
       end if
       ! Parameters for the correction
       if (ctrl%h5SwitchedOn) then
+        ! Correction is used, initialize the parameters
         ! Get child node with global parameters
         call getChild(node, "H5CorrectionParams", child2, requested=.false.)
         if (associated(child2)) then
-          ! Defaults for DFTB3 are provided
-          call getChildValue(child2, "RCut", ctrl%h5RScale, 0.714_dp)
-          call getChildValue(child2, "W", ctrl%h5WScale, 0.25_dp)
+          ! Defaults are -1.0 to identify thet the parametrers were not read
+          call getChildValue(child2, "RCut", ctrl%h5RScale, -1.0_dp)
+          call getChildValue(child2, "W", ctrl%h5WScale, -1.0_dp)
         end if
         ! Get parameters for elements
         allocate(ctrl%h5ElementPara(geo%nSpecies))
-        ! Default value is zero
-        ctrl%h5ElementPara(:) = 0.0_dp
-        call getChild(node, "H5CorrectionSpecies", child2, requested=.true.)
+        ! Default value is -1, this indicates that the parameter was not set up
+        ! and should be handled as such later
+        ctrl%h5ElementPara(:) = -1.0_dp
+        call getChild(node, "H5CorrectionSpecies", child2, requested=.false.)
         if (associated(child2)) then
           do iSp1 = 1, geo%nSpecies
-            call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5ElementPara(iSp1), 0.0_dp)
+            call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5ElementPara(iSp1), -1.0_dp)
           end do
         end if
       end if

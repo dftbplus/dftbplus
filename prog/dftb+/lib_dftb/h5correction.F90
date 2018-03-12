@@ -38,9 +38,58 @@ module h5correction
 contains
 
   !> Initialization of a H5Corr instance.
-  subroutine H5Corr_init(this)
+  subroutine H5Corr_init(this, nType, typeNames, r, w, elePara)
     !> Initialised instance at return.
     type(H5Corr), intent(out) :: this
+    !> Number of atom types/species
+    integer, intent(in) :: nType
+    !> Names of the species
+    character(mc), allocatable, intent(in) :: typeNames(:)
+    !> r - global parameter
+    real(dp), intent(in) :: r
+    !> w - global parameter
+    real(dp), intent(in) :: w
+    !> elementwise scaling factors
+    real(dp), allocatable :: elePara(:)
+
+    ! Local vars
+    integer :: iSp
+
+    ! Save system information used by H5
+    this%nSpecies = nType
+    this%speciesName = typeNames
+
+    ! Save H5 parameters
+    this%rScale = r
+    this%wScale = w
+    this%elementPara = elePara
+
+    ! Initialize the parameters
+    ! If value of the parameter is -1.0, it was not read from the input,
+    ! and default value will be used
+    if (this%rScale == -1.0_dp) then
+            this%rScale = 0.714_dp
+    end if
+
+    if (this%wScale == -1.0_dp) then
+            this%wScale = 0.25_dp
+    end if
+
+    do iSp = 1, this%nSpecies
+      if (this%elementPara(iSp) == -1.0_dp) then
+        ! Default values taken from the paper for O,N and S, zero for other elements
+        if (this%speciesName(iSp) == "O") then
+          this%elementPara(iSp) =  0.06_dp
+        else if (this%speciesName(iSp) == "N") then
+          this%elementPara(iSp) = 0.18_dp
+        else if (this%speciesName(iSp) == "S") then
+          this%elementPara(iSp) =  0.21_dp
+        else
+          this%elementPara(iSp) = 0.0_dp
+        end if
+      end if
+    end do
+
   end subroutine H5Corr_init
 
   !> Print all the parameters for debugging
