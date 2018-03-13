@@ -287,27 +287,34 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     integer :: i, j, c
-    real(dp) :: r, repE, dEdR
+    real(dp) :: r, repE, dEdR, dCdR
 
-    ! Parameters
+    ! Parameters (with conversion to a.u.)
     real(dp) :: k = 0.30_dp * 0.001593601371772_dp
     real(dp) :: e = 14.31_dp
-    real(dp) :: r0 = 2.35_dp
+    real(dp) :: r0 = 2.35_dp / 0.5291772083_dp
 
     @:ASSERT(all(shape(coords) == [3, this%nAtom]))
 
+    ! Calculate the repulsion energy and gradients
     repE = 0.0_dp
     do i = 1, this%nAtom
       if (this%izp(i) == 1) then
         do j = i + 1, this%nAtom
           if (this%izp(j) == 1) then
-            ! Distance in Angstrom
+            ! Distance in a.u.
             r = sqrt((coords(1,i) - coords(1,j))**2 + (coords(2,i) - coords(2,j))**2 &
-                & + (coords(3,i) - coords(3,j))**2) * 0.5291772083_dp
+                & + (coords(3,i) - coords(3,j))**2)
             ! Repulsion energy in a.u.
             repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
             ! Derivative
             dEdR = -k * (1.0 / (1.0 + exp(-e*(r/r0-1.0)))**2 * e/r0 * exp(-e*(r/r0-1.0)))
+            ! Apply it to the atoms
+            do c = 1, 3
+              dCdR = (coords(c,i) - coords(c,j)) / r
+              this%gradients(c,i) = this%gradients(c,i) + dEdR * dCdR
+              this%gradients(c,j) = this%gradients(c,j) - dEdR * dCdR
+            end do
           end if
         end do
       end if
