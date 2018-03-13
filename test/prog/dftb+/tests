@@ -164,4 +164,4 @@ scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 h-bonds/H5_defaults                    #? MPI_PROCS <= 1
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 1
 h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 1
-
+h-bonds/D3H5_water_dimer               #? MPI_PROCS <= 1
