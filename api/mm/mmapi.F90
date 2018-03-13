@@ -24,6 +24,7 @@ module mmapi
   public :: TDftbPlus
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
+  public :: getMaxAngFromSlakoFile
 
   integer :: nDftbPlusCalc = 0
 
@@ -181,6 +182,22 @@ contains
     call getGrossCharges(atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
+
+
+  function getMaxAngFromSlakoFile(slakoFile) result(maxAng)
+    character(*), intent(in) :: slakoFile
+    integer :: maxAng
+
+    real(dp) :: dr
+    integer :: nGridPoints, nShells
+    integer :: fd
+
+    open(newunit=fd, file=slakoFile, status="old", action="read")
+    read(fd, *) dr, nGridPoints, nShells
+    close(fd)
+    maxAng = nShells - 1
+
+  end function getMaxAngFromSlakoFile
 
 
 end module mmapi
