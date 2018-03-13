@@ -26,6 +26,9 @@ module dispdftd3_module
     integer :: version
     real(dp) :: cutoff, cutoffCN
     logical :: threebody, numgrad
+    ! D3H5 - additional H-H repulsion
+    logical :: hhrepulsion
+    ! D3H5 end
   end type DispDftD3Inp
 
 
@@ -60,6 +63,9 @@ module dispdftd3_module
     !> are  the coordinates current?
     logical :: tCoordsUpdated = .false.
 
+    ! D3H5 - additional H-H repulsion
+    logical :: tHHRepulsion
+    ! D3H5 end
   contains
 
     !> update internal store of coordinates
@@ -79,6 +85,9 @@ module dispdftd3_module
 
     !> cutoff distance in real space for dispersion
     procedure :: getRCutoff
+
+    !> add D3H5 H-H repulsion to the results
+    procedure :: addHHRepulsion
   end type DispDftD3
 
 contains
@@ -120,6 +129,9 @@ contains
     d3inp%numgrad = inp%numgrad
     d3inp%cutoff = inp%cutoff
     d3inp%cutoff_cn = inp%cutoffCN
+    ! D3H5 - additional H-H repulsion
+    this%tHHRepulsion = inp%hhrepulsion
+    ! D3H5 end
 
     allocate(this%calculator)
     call dftd3_init(this%calculator, d3inp)
@@ -168,6 +180,11 @@ contains
     else
       call dftd3_dispersion(this%calculator, coords, this%izp, this%dispE, &
           & this%gradients)
+      ! D3H5 - additional H-H repulsion
+      if (this%tHHRepulsion) then
+        call this%addHHRepulsion(coords)
+      end if
+      ! D3H5 end
     end if
     this%tCoordsUpdated = .true.
 
@@ -260,5 +277,44 @@ contains
     cutoff = 0.0_dp
 
   end function getRCutoff
+
+  ! D3H5 - additional H-H repulsion
+  !> Add the H-H repulsion for D3H5
+  subroutine addHHRepulsion(this, coords)
+    !> Instance of D3
+    class(DispDftD3), intent(inout) :: this
+    !> Current coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    integer :: i, j, c
+    real(dp) :: r, repE, dEdR
+
+    ! Parameters
+    real(dp) :: k = 0.30_dp * 0.001593601371772_dp
+    real(dp) :: e = 14.31_dp
+    real(dp) :: r0 = 2.35_dp
+
+    @:ASSERT(all(shape(coords) == [3, this%nAtom]))
+
+    repE = 0.0_dp
+    do i = 1, this%nAtom
+      if (this%izp(i) == 1) then
+        do j = i + 1, this%nAtom
+          if (this%izp(j) == 1) then
+            ! Distance in Angstrom
+            r = sqrt((coords(1,i) - coords(1,j))**2 + (coords(2,i) - coords(2,j))**2 &
+                & + (coords(3,i) - coords(3,j))**2) * 0.5291772083_dp
+            ! Repulsion energy in a.u.
+            repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
+            ! Derivative
+            dEdR = -k * (1.0 / (1.0 + exp(-e*(r/r0-1.0)))**2 * e/r0 * exp(-e*(r/r0-1.0)))
+          end if
+        end do
+      end if
+    end do 
+    ! Add the repulsion energy to the result
+    this%dispE = this%dispE + repE
+  end subroutine addHHRepulsion
+  ! D3H5 end
 
 end module dispdftd3_module

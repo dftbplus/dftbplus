@@ -2976,6 +2976,9 @@ contains
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCN)
     call getChildValue(node, "threebody", input%threebody, default=.false.)
+    ! D3H5 - additional H-H repulsion
+    call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
+    ! D3H5 end
     input%numgrad = .false.
 
   end subroutine readDispDFTD3
