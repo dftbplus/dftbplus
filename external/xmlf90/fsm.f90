@@ -1,10 +1,10 @@
-module m_fsm
+module xmlf90_fsm
 !
-use m_buffer
-use m_dictionary
-use m_charset
-use m_entities
-use m_elstack
+use xmlf90_buffer
+use xmlf90_dictionary
+use xmlf90_charset
+use xmlf90_entities
+use xmlf90_elstack
 
 implicit none
 
@@ -731,7 +731,7 @@ if (fx%state == ERROR) signal  = EXCEPTION
 
 end subroutine evolve_fsm
 
-end module m_fsm
+end module xmlf90_fsm
 
 
 

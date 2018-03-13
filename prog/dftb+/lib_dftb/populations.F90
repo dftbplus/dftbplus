@@ -9,12 +9,12 @@
 
 !> Calculates various types of charge populations
 !> To do: extend to other populations than Mulliken
-module populations
-  use assert
-  use accuracy
-  use dftb_constants
-  use periodic
-  use commontypes
+module dftbp_populations
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_periodic
+  use dftbp_commontypes
   implicit none
   private
 
@@ -333,4 +333,4 @@ contains
 
 
 
-end module populations
+end module dftbp_populations

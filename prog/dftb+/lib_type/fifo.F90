@@ -12,10 +12,10 @@
 !> You can store and access vectors as FIFO. A given number of vectors is kept in the memory, if
 !> there are more, they are written to disc.
 !> note that in order to use the FIFO you have create and reset it.
-module fifo
-  use assert
-  use accuracy
-  use fileid
+module dftbp_fifo
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_fileid
   implicit none
   private
 
@@ -868,4 +868,4 @@ contains
 
   end subroutine FifoCplxR2_restart
 
-end module fifo
+end module dftbp_fifo

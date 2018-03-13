@@ -10,14 +10,14 @@
 !> Implements a random generator pool, returning random generators on request. The status of the
 !> subsequently returned random generators (and hence the random numbers they will produce) is
 !> uniquely determined by the seed value used to initialise the random generator pool itself.
-module randomgenpool
+module dftbp_randomgenpool
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use environment
-  use accuracy, only : dp
-  use ranlux
-  use assert
+  use dftbp_environment
+  use dftbp_accuracy, only : dp
+  use dftbp_ranlux
+  use dftbp_assert
   implicit none
   private
 
@@ -164,4 +164,4 @@ contains
 
   end subroutine getGenerator
 
-end module randomgenpool
+end module dftbp_randomgenpool

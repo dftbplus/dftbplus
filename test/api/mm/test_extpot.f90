@@ -75,7 +75,7 @@ program test_extpot
   use, intrinsic :: iso_fortran_env, only : output_unit
   use test_extpot_module
   use dftbplus
-  use dftb_constants, only : AA__Bohr
+  use dftbp_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: nAtom = 3
@@ -178,7 +178,4 @@ program test_extpot
   call TDftbPlus_destruct(dftbp)
 
 
-contains
-
-  
 end program test_extpot

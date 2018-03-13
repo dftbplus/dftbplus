@@ -8,77 +8,77 @@
 #:include 'common.fypp'
 
 !> Global variables and initialization for the main program.
-module initprogram
+module dftbp_initprogram
   use omp_lib
-  use mainio, only : initOutputFile
-  use assert
-  use globalenv
-  use environment
-  use scalapackfx
-  use inputdata_module
-  use densedescr
-  use dftb_constants
-  use periodic
-  use accuracy
-  use intrinsicpr
-  use shortgamma
-  use coulomb
-  use message
-  use mixer
-  use simplemixer
-  use andersonmixer
-  use broydenmixer
-  use diismixer
+  use dftbp_mainio, only : initOutputFile
+  use dftbp_assert
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_scalapackfx
+  use dftbp_inputdata_module
+  use dftbp_densedescr
+  use dftbp_constants
+  use dftbp_periodic
+  use dftbp_accuracy
+  use dftbp_intrinsicpr
+  use dftbp_shortgamma
+  use dftbp_coulomb
+  use dftbp_message
+  use dftbp_mixer
+  use dftbp_simplemixer
+  use dftbp_andersonmixer
+  use dftbp_broydenmixer
+  use dftbp_diismixer
 
-  use geoopt
-  use conjgrad
-  use steepdesc
-  use gdiis
-  use lbfgs
+  use dftbp_geoopt
+  use dftbp_conjgrad
+  use dftbp_steepdesc
+  use dftbp_gdiis
+  use dftbp_lbfgs
 
-  use randomgenpool
-  use ranlux
-  use mdcommon
-  use mdintegrator
-  use velocityverlet
-  use thermostat
-  use dummytherm
-  use andersentherm
-  use berendsentherm
-  use nhctherm
-  use tempprofile
-  use numderivs2
-  use lapackroutines
-  use simplealgebra
-  use nonscc
-  use scc
-  use sccinit
-  use slakocont
-  use repcont
-  use fileid
-  use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbplusu
-  use dispersions
-  use thirdorder_module
-  use linresp_module
-  use stress
-  use orbitalequiv
-  use commontypes
-  use sorting, only : heap_sort
-  use fifo
-  use linkedlist
-  use xlbomd_module
-  use etemp, only : Fermi
+  use dftbp_randomgenpool
+  use dftbp_ranlux
+  use dftbp_mdcommon
+  use dftbp_mdintegrator
+  use dftbp_velocityverlet
+  use dftbp_thermostat
+  use dftbp_dummytherm
+  use dftbp_andersentherm
+  use dftbp_berendsentherm
+  use dftbp_nhctherm
+  use dftbp_tempprofile
+  use dftbp_numderivs2
+  use dftbp_lapackroutines
+  use dftbp_simplealgebra
+  use dftbp_nonscc
+  use dftbp_scc
+  use dftbp_sccinit
+  use dftbp_slakocont
+  use dftbp_repcont
+  use dftbp_fileid
+  use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
+  use dftbp_dftbplusu
+  use dftbp_dispersions
+  use dftbp_thirdorder_module
+  use dftbp_linresp_module
+  use dftbp_stress
+  use dftbp_orbitalequiv
+  use dftbp_commontypes
+  use dftbp_sorting, only : heap_sort
+  use dftbp_fifo
+  use dftbp_linkedlist
+  use dftbp_xlbomd_module
+  use dftbp_etemp, only : Fermi
 #:if WITH_SOCKETS
-  use mainio, only : receiveGeometryFromSocket
-  use ipisocket
+  use dftbp_mainio, only : receiveGeometryFromSocket
+  use dftbp_ipisocket
 #:endif
-  use elstatpot
-  use pmlocalisation
-  use energies
-  use potentials
-  use taggedoutput
-  use formatout
+  use dftbp_elstatpot
+  use dftbp_pmlocalisation
+  use dftbp_energies
+  use dftbp_potentials
+  use dftbp_taggedoutput
+  use dftbp_formatout
   implicit none
 
 
@@ -3397,4 +3397,4 @@ contains
   end function getMinSccIters
 
 
-end module initprogram
+end module dftbp_initprogram

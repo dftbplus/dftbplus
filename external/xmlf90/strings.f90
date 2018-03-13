@@ -7,7 +7,7 @@
 ! This is a stripped down version of the original m_strings module containing
 ! only the functions necessary for xml-parsing
 
-module m_strings
+module xmlf90_strings
   implicit none
   private
 
@@ -628,4 +628,4 @@ contains
 
 
 
-end module m_strings
+end module xmlf90_strings

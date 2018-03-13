@@ -1,4 +1,4 @@
-module m_dom_error
+module xmlf90_dom_error
 
 implicit none
   
@@ -34,4 +34,4 @@ CONTAINS
     print *, 1.0 / sin(3.141592654)
   end subroutine dom_error
 
-end module m_dom_error
+end module xmlf90_dom_error

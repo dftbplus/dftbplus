@@ -8,12 +8,12 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program splvalue
-  use accuracy
-  use io
-  use repspline
-  use oldskdata, only : readsplinerep
-  use fileid
-  use message
+  use dftbp_accuracy
+  use dftbp_io
+  use dftbp_repspline
+  use dftbp_oldskdata, only : readsplinerep
+  use dftbp_fileid
+  use dftbp_message
   implicit none
 
   character(*), parameter :: fname = "test.skf"

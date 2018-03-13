@@ -1,4 +1,4 @@
-module m_io
+module xmlf90_io
 
 implicit none
   
@@ -84,7 +84,7 @@ close(unit=lun,status="delete")
 end subroutine find_eor_eof
 
 ! ----------------------------------------------------------------------
-end module m_io
+end module xmlf90_io
 
 
 

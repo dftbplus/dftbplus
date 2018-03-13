@@ -8,14 +8,14 @@
 #:include 'common.fypp'
 
 !> Contains subroutines for formatted output of data
-module formatout
-  use globalenv
-  use assert
-  use accuracy
-  use fileid
-  use dftb_constants
-  use lapackroutines, only: matinv
-  use sparse2dense
+module dftbp_formatout
+  use dftbp_globalenv
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_fileid
+  use dftbp_constants
+  use dftbp_lapackroutines, only: matinv
+  use dftbp_sparse2dense
   implicit none
   private
 
@@ -531,4 +531,4 @@ contains
 
   end subroutine writeSparse
 
-end module formatout
+end module dftbp_formatout

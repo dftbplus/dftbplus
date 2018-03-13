@@ -7,7 +7,7 @@
 
 program test_cluster
   use dftbplus
-  use dftb_constants, only : AA__Bohr
+  use dftbp_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)

@@ -7,12 +7,12 @@
 
 #:include 'common.fypp'
 
-module mainapi
-  use environment, only : TEnvironment
-  use assert
-  use accuracy, only : dp
-  use main, only : processGeometry
-  use initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
+module dftbp_mainapi
+  use dftbp_environment, only : TEnvironment
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_main, only : processGeometry
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
       & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
       & nAtom, nSpin, q0, qOutput
   implicit none
@@ -131,4 +131,4 @@ contains
   end subroutine recalcGeometry
 
   
-end module mainapi
+end module dftbp_mainapi

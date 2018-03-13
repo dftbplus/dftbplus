@@ -9,14 +9,14 @@
 
 !> Program for calculating system normal modes from a Hessian
 program modes
-  use assert
-  use io
-  use InitModes
-  use accuracy, only : dp, lc
-  use constants, only : Hartree__cm, Bohr__AA, pi
-  use TypeGeometry
-  use eigensolver, only : heev
-  use TaggedOutput
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_initmodes
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_constants, only : Hartree__cm, Bohr__AA, pi
+  use dftbp_typegeometry
+  use dftbp_eigensolver, only : heev
+  use dftbp_taggedoutput
   implicit none
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom

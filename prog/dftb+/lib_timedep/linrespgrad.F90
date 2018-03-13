@@ -8,23 +8,23 @@
 #:include 'common.fypp'
 
 !> Linear response excitations and gradients with respect to atomic coordinates
-module linrespgrad
-  use assert
-  use arpack
-  use linrespcommon
-  use commontypes
-  use slakocont
-  use shortgamma
-  use accuracy
-  use dftb_constants, only : Hartree__eV, au__Debye
-  use nonscc, only : NonSccDiff
-  use scc, only : TScc
-  use blasroutines
-  use eigensolver
-  use message
-  use taggedoutput
-  use sorting
-  use qm
+module dftbp_linrespgrad
+  use dftbp_assert
+  use dftbp_arpack
+  use dftbp_linrespcommon
+  use dftbp_commontypes
+  use dftbp_slakocont
+  use dftbp_shortgamma
+  use dftbp_accuracy
+  use dftbp_constants, only : Hartree__eV, au__Debye
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_scc, only : TScc
+  use dftbp_blasroutines
+  use dftbp_eigensolver
+  use dftbp_message
+  use dftbp_taggedoutput
+  use dftbp_sorting
+  use dftbp_qm
   implicit none
   private
 
@@ -2397,4 +2397,4 @@ contains
 
   end subroutine writeSPExcitations
 
-end module linrespgrad
+end module dftbp_linrespgrad

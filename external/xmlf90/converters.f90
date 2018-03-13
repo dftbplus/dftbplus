@@ -1,6 +1,6 @@
-module m_converters
+module xmlf90_converters
 
-use m_debug
+use xmlf90_debug
 
 implicit none
 
@@ -171,7 +171,7 @@ enddo
 end subroutine token_analysis
 
 
-end module m_converters
+end module xmlf90_converters
 
 
 

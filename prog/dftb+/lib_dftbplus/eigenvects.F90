@@ -9,13 +9,13 @@
 
 !> Module to wrap around the process of converting from a Hamiltonian and overlap in sparse form
 !> into eigenvectors
-module eigenvects
-  use assert
-  use accuracy
-  use eigensolver
-  use message
+module dftbp_eigenvects
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_eigensolver
+  use dftbp_message
 #:if WITH_SCALAPACK
-  use scalapackfx
+  use dftbp_scalapackfx
 #:endif
   implicit none
   private
@@ -216,4 +216,4 @@ contains
 
 #:endif
 
-end module eigenvects
+end module dftbp_eigenvects

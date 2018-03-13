@@ -8,16 +8,16 @@
 #:include 'common.fypp'
 
 !> Proviedes DFTB+ API for MM-type high level access
-module mmapi
-  use accuracy
+module dftbp_mmapi
   use iso_fortran_env, only : output_unit
-  use globalenv
-  use environment
-  use mainapi
-  use parser
-  use hsdutils
-  use inputData_module
-  use xmlf90
+  use dftbp_accuracy
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_mainapi
+  use dftbp_parser
+  use dftbp_hsdutils
+  use dftbp_inputdata_module
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -200,4 +200,4 @@ contains
   end function getMaxAngFromSlakoFile
 
 
-end module mmapi
+end module dftbp_mmapi

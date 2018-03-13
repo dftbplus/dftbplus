@@ -9,8 +9,8 @@
 
 !> DFTB+ library
 module dftbplus
-  use mmapi
-  use hsdapi
+  use dftbp_mmapi
+  use dftbp_hsdapi
   implicit none
 
 end module dftbplus

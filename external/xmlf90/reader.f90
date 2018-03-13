@@ -1,6 +1,6 @@
-module m_reader
+module xmlf90_reader
 
-use m_io
+use xmlf90_io
 
 implicit none
 
@@ -288,7 +288,7 @@ enddo
 
 end subroutine sync_file
 
-end module m_reader
+end module xmlf90_reader
 
 
 

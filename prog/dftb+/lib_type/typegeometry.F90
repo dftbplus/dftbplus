@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> data type and associated routines for specifying atomic geometry and boundary conditions
-module typegeometry
-  use accuracy
+module dftbp_typegeometry
+  use dftbp_accuracy
   implicit none
   private
 
@@ -95,4 +95,4 @@ contains
 
   end subroutine Geometry_normalize
 
-end module typegeometry
+end module dftbp_typegeometry

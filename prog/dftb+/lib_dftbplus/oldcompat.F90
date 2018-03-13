@@ -7,14 +7,14 @@
 
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
-module oldcompat
-  use accuracy, only : dp
-  use message
-  use hsdutils
-  use hsdutils2
-  use charmanip
-  use xmlutils
-  use xmlf90
+module dftbp_oldcompat
+  use dftbp_accuracy, only : dp
+  use dftbp_message
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_charmanip
+  use dftbp_xmlutils
+  use dftbp_xmlf90
   implicit None
   private
 
@@ -335,4 +335,4 @@ contains
 
   end subroutine convert_4_5
 
-end module oldcompat
+end module dftbp_oldcompat

@@ -1,6 +1,6 @@
-module m_dom_nodelist
+module xmlf90_dom_nodelist
 
-use m_dom_types
+use xmlf90_dom_types
 
 implicit none
 
@@ -134,5 +134,5 @@ CONTAINS
 
   end subroutine append_nl
 
-end module m_dom_nodelist
+end module xmlf90_dom_nodelist
 

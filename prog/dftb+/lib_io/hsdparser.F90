@@ -16,13 +16,13 @@
 !> detected during the processing of the DOM-tree.
 !>
 !> For the specification of the HSD format see the sample input
-module hsdparser
-  use assert
-  use message
-  use fileid
-  use charmanip
-  use xmlutils
-  use xmlf90
+module dftbp_hsdparser
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_fileid
+  use dftbp_charmanip
+  use dftbp_xmlutils
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -1043,4 +1043,4 @@ contains
 
   end subroutine getHSDPath_recursive
 
-end module hsdparser
+end module dftbp_hsdparser

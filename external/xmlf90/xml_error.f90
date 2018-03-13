@@ -1,8 +1,8 @@
-module m_xml_error
+module xmlf90_xml_error
 !
 ! Error handling
 !
-  use m_elstack
+  use xmlf90_elstack
 
   implicit none
   
@@ -78,7 +78,7 @@ xml_stderr  = unit
 
 end subroutine set_xml_stderr
 
-end module m_xml_error
+end module xmlf90_xml_error
 
 
 

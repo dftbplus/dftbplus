@@ -1,4 +1,4 @@
-module m_charset
+module xmlf90_charset
 !
 ! One-byte only, sorry
 !
@@ -194,7 +194,7 @@ valid_chars = whitespace + (/ (i, i=33,255) /)
 end subroutine setup_xml_charsets
 !--------------------------------------------------------
 
-end module m_charset
+end module xmlf90_charset
 
 
 

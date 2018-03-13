@@ -1,4 +1,4 @@
-module m_wxml_text
+module xmlf90_wxml_text
 
   implicit none
 
@@ -74,4 +74,4 @@ CONTAINS
       end function str_real_sp
 
 
-end module m_wxml_text
+end module xmlf90_wxml_text

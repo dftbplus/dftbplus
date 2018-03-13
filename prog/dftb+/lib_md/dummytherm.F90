@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Dummy thermostat, delivers only initial velocities according to the Maxwell-Boltzmann statistics.
-module dummytherm
-  use assert
-  use accuracy
-  use mdcommon
-  use ranlux
+module dftbp_dummytherm
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_mdcommon
+  use dftbp_ranlux
   implicit none
   private
 
@@ -121,4 +121,4 @@ contains
 
   end subroutine DummyThermostat_state
 
-end module dummytherm
+end module dftbp_dummytherm

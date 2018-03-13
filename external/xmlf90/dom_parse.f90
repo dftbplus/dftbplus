@@ -1,13 +1,13 @@
-module m_dom_parse
+module xmlf90_dom_parse
 
-  use m_dom_types
-  use m_dom_element
-  use m_dom_document
-  use m_dom_node
+  use xmlf90_dom_types
+  use xmlf90_dom_element
+  use xmlf90_dom_document
+  use xmlf90_dom_node
 !  use m_dom_namednodemap
-  use m_dom_debug
+  use xmlf90_dom_debug
 
-  use flib_sax
+  use xmlf90_flib_sax
 
   implicit none
   
@@ -151,4 +151,4 @@ CONTAINS
   end function parsefile
 
 
-END MODULE m_dom_parse
+END MODULE xmlf90_dom_parse

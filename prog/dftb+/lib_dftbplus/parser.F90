@@ -8,36 +8,36 @@
 #:include 'common.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
-module parser
-  use globalenv
-  use assert
-  use accuracy
-  use dftb_constants
-  use inputdata_module
-  use typegeometryhsd
-  use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
-  use hsdutils
-  use hsdutils2
-  use charmanip
-  use message
-  use linkedlist
-  use fileid
-  use unitconversion
-  use oldcompat
-  use lapackroutines, only : matinv
-  use periodic
-  use simplealgebra, only: determinant33
-  use dispersions
-  use slakocont
-  use slakoeqgrid
-  use repcont
-  use repspline
-  use reppoly
-  use commontypes
-  use oldskdata
-  use xmlf90
+module dftbp_parser
+  use dftbp_globalenv
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_inputdata_module
+  use dftbp_typegeometryhsd
+  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_charmanip
+  use dftbp_message
+  use dftbp_linkedlist
+  use dftbp_fileid
+  use dftbp_unitconversion
+  use dftbp_oldcompat
+  use dftbp_lapackroutines, only : matinv
+  use dftbp_periodic
+  use dftbp_simplealgebra, only: determinant33
+  use dftbp_dispersions
+  use dftbp_slakocont
+  use dftbp_slakoeqgrid
+  use dftbp_repcont
+  use dftbp_repspline
+  use dftbp_reppoly
+  use dftbp_commontypes
+  use dftbp_oldskdata
+  use dftbp_xmlf90
 #:if WITH_SOCKETS
-  use ipisocket, only : IPI_PROTOCOLS
+  use dftbp_ipisocket, only : IPI_PROTOCOLS
 #:endif
   implicit none
   private
@@ -3565,4 +3565,4 @@ contains
 
   end subroutine readGrid
 
-end module parser
+end module dftbp_parser

@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module test_extpot_module
+module test_amber_module
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -68,14 +68,14 @@ contains
     
   end subroutine calcGradOnExtCharges
 
-end module test_extpot_module
+end module test_amber_module
 
 
-program test_extpot
+program test_amber
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use test_extpot_module
+  use test_amber_module
   use dftbplus
-  use dftb_constants, only : AA__Bohr
+  use dftbp_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: nAtom = 3
@@ -187,7 +187,4 @@ program test_extpot
   call TDftbPlus_destruct(dftbp)
 
 
-contains
-
-  
-end program test_extpot
+end program test_amber

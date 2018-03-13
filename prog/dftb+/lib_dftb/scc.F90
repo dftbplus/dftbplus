@@ -8,26 +8,26 @@
 #:include 'common.fypp'
 
 !> Functions and local variables for the SCC calculation.
-module scc
+module dftbp_scc
 #:if WITH_SCALAPACK
-  use mpifx
-  use scalapackfx
+  use dftbp_mpifx
+  use dftbp_scalapackfx
 #:endif
-  use environment
-  use assert
-  use accuracy
-  use message
-  use coulomb
-  use shortgamma
-  use fileid
-  use dftb_constants
-  use periodic
-  use externalcharges
-  use blasroutines
-  use commontypes
-  use chargeconstr
-  use shift
-  use dynneighlist
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_coulomb
+  use dftbp_shortgamma
+  use dftbp_fileid
+  use dftbp_constants
+  use dftbp_periodic
+  use dftbp_externalcharges
+  use dftbp_blasroutines
+  use dftbp_commontypes
+  use dftbp_chargeconstr
+  use dftbp_shift
+  use dftbp_dynneighlist
   implicit none
 
   private
@@ -1599,4 +1599,4 @@ contains
   end subroutine getSummedChargesPerUniqU_
 
 
-end module scc
+end module dftbp_scc

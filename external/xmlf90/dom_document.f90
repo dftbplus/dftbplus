@@ -1,7 +1,7 @@
-module m_dom_document
+module xmlf90_dom_document
 
-use m_dom_types
-use m_strings
+use xmlf90_dom_types
+use xmlf90_strings
 
 implicit none
 
@@ -120,4 +120,4 @@ CONTAINS
   end function createCdataSection
 
   
-end module m_dom_document
+end module xmlf90_dom_document

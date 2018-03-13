@@ -8,14 +8,14 @@
 #:include 'common.fypp'
 
 !> Routines for calculating the interaction with external charges
-module ExternalCharges
-  use assert
-  use accuracy
-  use blasroutines
-  use coulomb
-  use dftb_constants
-  use periodic, only : getCellTranslations, foldCoordToUnitCell
-  use environment
+module dftbp_externalcharges
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blasroutines
+  use dftbp_coulomb
+  use dftbp_constants
+  use dftbp_periodic, only : getCellTranslations, foldCoordToUnitCell
+  use dftbp_environment
   implicit none
 
   private
@@ -456,4 +456,4 @@ contains
   end subroutine getElStatPotentialCluster
 
 
-end module ExternalCharges
+end module dftbp_externalcharges

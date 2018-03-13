@@ -16,19 +16,19 @@
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
 !> * Onsite corrections are not included in this version
-module linresp_module
-  use assert
-  use accuracy
-  use message
-  use commontypes
-  use slakocont
-  use fileid
-  use scc, only : TScc
-  use nonscc, only : NonSccDiff
-  use densedescr
+module dftbp_linresp_module
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_slakocont
+  use dftbp_fileid
+  use dftbp_scc, only : TScc
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_densedescr
 #:if WITH_ARPACK
   ! code is compiled with arpack available
-  use linrespgrad
+  use dftbp_linrespgrad
 #:endif
   implicit none
   private
@@ -439,4 +439,4 @@ contains
 
   end subroutine LinResp_addGradients
 
-end module linresp_module
+end module dftbp_linresp_module

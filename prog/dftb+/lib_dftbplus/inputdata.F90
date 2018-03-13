@@ -8,23 +8,23 @@
 #:include 'common.fypp'
 
 !> Contains data type representing the input data for DFTB
-module inputdata_module
-  use assert
-  use accuracy
-  use typegeometry
-  use message
-  use dispersions, only : DispersionInp
-  use linresp_module, only : linrespini
-  use slakocont
-  use commontypes
-  use repcont
-  use linkedlist
-  use xlbomd_module
+module dftbp_inputdata_module
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_typegeometry
+  use dftbp_message
+  use dftbp_dispersions, only : DispersionInp
+  use dftbp_linresp_module, only : linrespini
+  use dftbp_slakocont
+  use dftbp_commontypes
+  use dftbp_repcont
+  use dftbp_linkedlist
+  use dftbp_xlbomd_module
 #:if WITH_SOCKETS
-  use ipisocket, only : IpiSocketCommInp
+  use dftbp_ipisocket, only : IpiSocketCommInp
 #:endif
-  use pmlocalisation, only : TPipekMezeyInp
-  use elstatpot, only : TElStatPotentialsInp
+  use dftbp_pmlocalisation, only : TPipekMezeyInp
+  use dftbp_elstatpot, only : TElStatPotentialsInp
   implicit none
   private
   save
@@ -478,4 +478,4 @@ contains
 
   end subroutine Control_destruct
 
-end module inputdata_module
+end module dftbp_inputdata_module

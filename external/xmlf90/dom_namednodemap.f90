@@ -1,10 +1,10 @@
-module m_dom_namednodemap
+module xmlf90_dom_namednodemap
 !
 ! This is basically a dictionary module, but written with the
 ! DOM node structure in mind.
 !
-use m_dom_types
-use m_strings
+use xmlf90_dom_types
+use xmlf90_strings
 
 implicit none
 
@@ -204,4 +204,4 @@ CONTAINS
   end function removeNamedItem
 
 
-end module m_dom_namednodemap
+end module xmlf90_dom_namednodemap

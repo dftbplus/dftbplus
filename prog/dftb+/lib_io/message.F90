@@ -9,8 +9,8 @@
 !> during run time.
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
-module message
-  use globalenv
+module dftbp_message
+  use dftbp_globalenv
   implicit none
   private
 
@@ -94,4 +94,4 @@ contains
 
   end subroutine error_array
 
-end module message
+end module dftbp_message

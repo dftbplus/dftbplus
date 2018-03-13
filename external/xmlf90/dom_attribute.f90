@@ -1,8 +1,8 @@
-module m_dom_attribute
+module xmlf90_dom_attribute
 
-use m_dom_types
-use m_dom_node
-use m_strings
+use xmlf90_dom_types
+use xmlf90_dom_node
+use xmlf90_strings
 
 implicit none
 
@@ -95,4 +95,4 @@ CONTAINS
   end function attr_val_len
 
 
-end module m_dom_attribute
+end module xmlf90_dom_attribute

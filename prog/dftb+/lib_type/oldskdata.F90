@@ -9,14 +9,14 @@
 
 !> Contains type for representing the data stored in the old SK-file format and subroutines to read
 !> that data from file.
-module oldskdata
-  use assert
-  use accuracy
-  use dftb_constants
-  use repspline, only : TRepSplineIn
-  use reppoly, only : TRepPolyIn
-  use fileid
-  use message
+module dftbp_oldskdata
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_repspline, only : TRepSplineIn
+  use dftbp_reppoly, only : TRepPolyIn
+  use dftbp_fileid
+  use dftbp_message
   implicit none
   private
 
@@ -277,4 +277,4 @@ contains
 
   end subroutine checkIOError
 
-end module oldskdata
+end module dftbp_oldskdata

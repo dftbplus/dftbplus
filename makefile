@@ -11,7 +11,7 @@ ROOT := $(PWD)
 default: dftb+ modes waveplot
 misc: misc_skderivs misc_slakovalue
 api: api_mm
-all: default misc
+all: default misc api
 
 .PHONY: install install_misc install_all
 install: install_dftb+ install_modes install_waveplot install_dptools

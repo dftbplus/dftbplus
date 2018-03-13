@@ -1,12 +1,12 @@
-module m_dom_node
+module xmlf90_dom_node
 
-use m_dom_types
-use m_dom_nodelist
-use m_dom_namednodemap
-use m_dom_debug
-use m_dom_error
+use xmlf90_dom_types
+use xmlf90_dom_nodelist
+use xmlf90_dom_namednodemap
+use xmlf90_dom_debug
+use xmlf90_dom_error
 
-use m_strings
+use xmlf90_strings
 
 implicit none
 
@@ -558,5 +558,5 @@ CONTAINS
 
 !----------------------------------------------------------------------
 
-end module m_dom_node
+end module xmlf90_dom_node
 

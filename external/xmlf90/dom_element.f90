@@ -1,13 +1,13 @@
-module m_dom_element
+module xmlf90_dom_element
 
-use m_dom_types
-use m_dom_namednodemap
-use m_dom_nodelist
-use m_dom_attribute
-use m_dom_document
-use m_dom_debug
-use m_dom_node
-use m_strings
+use xmlf90_dom_types
+use xmlf90_dom_namednodemap
+use xmlf90_dom_nodelist
+use xmlf90_dom_attribute
+use xmlf90_dom_document
+use xmlf90_dom_debug
+use xmlf90_dom_node
+use xmlf90_strings
 implicit none
 
 private
@@ -291,4 +291,4 @@ CONTAINS
 
 
 
-end module m_dom_element
+end module xmlf90_dom_element

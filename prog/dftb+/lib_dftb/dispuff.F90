@@ -15,15 +15,15 @@
 !>
 !> To Do: Take the reciprocal lattice vectors from outside.
 !>
-module dispuff_module
-  use assert
-  use accuracy
-  use simplealgebra, only : determinant33
-  use lapackroutines, only : matinv
-  use periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
-  use dftb_constants, only: pi
-  use dispiface
-  use dispcommon
+module dftbp_dispuff_module
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_simplealgebra, only : determinant33
+  use dftbp_lapackroutines, only : matinv
+  use dftbp_periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
+  use dftbp_constants, only: pi
+  use dftbp_dispiface
+  use dftbp_dispcommon
   implicit none
   private
 
@@ -451,4 +451,4 @@ contains
 
   end subroutine getDispEnergyAndGrad_cluster
 
-end module dispuff_module
+end module dftbp_dispuff_module

@@ -1,6 +1,6 @@
-Module m_dom_types
+Module xmlf90_dom_types
 
-  use m_strings
+  use xmlf90_strings
 
   implicit none
 
@@ -212,5 +212,5 @@ CONTAINS
 
   end subroutine destroyNode
 
-end module m_dom_types
+end module xmlf90_dom_types
 

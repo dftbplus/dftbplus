@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Contains routines to write out various data structures in a comprehensive tagged format.
-module taggedoutput
-  use assert
-  use accuracy, only : dp
+module dftbp_taggedoutput
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
   implicit none
   private
 
@@ -861,4 +861,4 @@ contains
 
   end function getLabel
 
-end module taggedoutput
+end module dftbp_taggedoutput

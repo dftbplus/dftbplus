@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> DFT-D3 dispersion model.
-module dispdftd3_module
-  use assert
-  use accuracy
-  use dispiface
-  use dftd3_module
+module dftbp_dispdftd3_module
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_dispiface
+  use dftbp_dftd3_module
   implicit none
   private
 
@@ -261,4 +261,4 @@ contains
 
   end function getRCutoff
 
-end module dispdftd3_module
+end module dftbp_dispdftd3_module

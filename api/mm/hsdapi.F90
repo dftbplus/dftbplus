@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Proviedes access to HSD manipulation functions
-module hsdapi
-  use hsdparser, only : dumpHsd
-  use hsdutils
-  use xmlf90
+module dftbp_hsdapi
+  use dftbp_hsdparser, only : dumpHsd
+  use dftbp_hsdutils
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -19,4 +19,4 @@ module hsdapi
   public :: getChild, getChildren, setChild, getChildValue, setChildValue
   public :: dumpHsd
 
-end module hsdapi
+end module dftbp_hsdapi

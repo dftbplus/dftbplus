@@ -8,74 +8,74 @@
 #:include 'common.fypp'
 
 !> The main routines for DFTB+
-module main
+module dftbp_main
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
 #:if WITH_SCALAPACK
-  use scalapackfx
-  use scalafxext
+  use dftbp_scalapackfx
+  use dftbp_scalafxext
 #:endif
 #:if WITH_SOCKETS
-  use ipisocket, only : IpiSocketComm
+  use dftbp_ipisocket, only : IpiSocketComm
 #:endif  
-  use assert
-  use dftb_constants
-  use globalenv
-  use environment
-  use densedescr
-  use inputdata_module
-  use nonscc
-  use eigenvects
-  use repulsive
-  use etemp
-  use populations
-  use densitymatrix
-  use forces
-  use stress
-  use scc
-  use sccinit
-  use externalcharges
-  use periodic
-  use mixer
-  use geoopt
-  use numderivs2
-  use spin
-  use dftbplusu
-  use fileid
-  use mdcommon
-  use energies
-  use potentials
-  use orbitalequiv
-  use parser
-  use sparse2dense
-  use blasroutines, only : symm, hemm
-  use hsdutils
-  use charmanip
-  use shift
-  use spinorbit
-  use angmomentum
-  use elecconstraints
-  use pmlocalisation, only : TPipekMezey
-  use linresp_module
-  use mainio
-  use commontypes
-  use dispersions, only : DispersionIface
-  use xmlf90
-  use thirdorder_module, only : ThirdOrder
-  use simplealgebra
-  use message
-  use repcont
-  use xlbomd_module
-  use fifo
-  use slakocont
-  use linkedlist
-  use lapackroutines
-  use mdcommon
-  use mdintegrator
-  use tempprofile
-  use elstatpot, only : TElStatPotentials
-  use initprogram, only : TRefExtPot
+  use dftbp_assert
+  use dftbp_constants
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_densedescr
+  use dftbp_inputdata_module
+  use dftbp_nonscc
+  use dftbp_eigenvects
+  use dftbp_repulsive
+  use dftbp_etemp
+  use dftbp_populations
+  use dftbp_densitymatrix
+  use dftbp_forces
+  use dftbp_stress
+  use dftbp_scc
+  use dftbp_sccinit
+  use dftbp_externalcharges
+  use dftbp_periodic
+  use dftbp_mixer
+  use dftbp_geoopt
+  use dftbp_numderivs2
+  use dftbp_spin
+  use dftbp_dftbplusu
+  use dftbp_fileid
+  use dftbp_mdcommon
+  use dftbp_energies
+  use dftbp_potentials
+  use dftbp_orbitalequiv
+  use dftbp_parser
+  use dftbp_sparse2dense
+  use dftbp_blasroutines, only : symm, hemm
+  use dftbp_hsdutils
+  use dftbp_charmanip
+  use dftbp_shift
+  use dftbp_spinorbit
+  use dftbp_angmomentum
+  use dftbp_elecconstraints
+  use dftbp_pmlocalisation, only : TPipekMezey
+  use dftbp_linresp_module
+  use dftbp_mainio
+  use dftbp_commontypes
+  use dftbp_dispersions, only : DispersionIface
+  use dftbp_xmlf90
+  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_simplealgebra
+  use dftbp_message
+  use dftbp_repcont
+  use dftbp_xlbomd_module
+  use dftbp_fifo
+  use dftbp_slakocont
+  use dftbp_linkedlist
+  use dftbp_lapackroutines
+  use dftbp_mdcommon
+  use dftbp_mdintegrator
+  use dftbp_tempprofile
+  use dftbp_elstatpot, only : TElStatPotentials
+  use dftbp_initprogram, only : TRefExtPot
   implicit none
   private
 
@@ -93,7 +93,7 @@ contains
 
   !> The main DFTB program itself
   subroutine runDftbPlus(env)
-    use initprogram
+    use dftbp_initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -248,7 +248,7 @@ contains
 
   !> Process current geometry
   subroutine processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc)
-    use initprogram
+    use dftbp_initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -592,7 +592,7 @@ contains
 
   subroutine getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
       & tStopDriver, iLatGeoStep, tempIon)
-    use initprogram
+    use dftbp_initprogram
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4780,4 +4780,4 @@ contains
 
 #:endif
     
-end module main
+end module dftbp_main

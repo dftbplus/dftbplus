@@ -21,16 +21,16 @@
 !>
 !> Todo: The generation of the reciprocal lattice vectors should not be done localy, but somewhere
 !> outside, since the Coulomb module does the same.
-module dispslaterkirkw
-  use assert
-  use accuracy
-  use simplealgebra, only : determinant33
-  use lapackroutines, only : matinv
-  use periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
-  use dftb_constants, only : pi
-  use dispiface
-  use dispcommon
-  use message
+module dftbp_dispslaterkirkw
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_simplealgebra, only : determinant33
+  use dftbp_lapackroutines, only : matinv
+  use dftbp_periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
+  use dftbp_constants, only : pi
+  use dftbp_dispiface
+  use dftbp_dispcommon
+  use dftbp_message
   implicit none
   private
 
@@ -474,4 +474,4 @@ function getDampCutoff_(r0, tol) result(xx)
 
 end function getDampCutoff_
 
-end module dispslaterkirkw
+end module dftbp_dispslaterkirkw

@@ -8,23 +8,23 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising modes.
-module InitModes
-  use assert
-  use io
-  use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
-  use XMLUtils
-  use HSDUtils
-  use HSDUtils2
-  use flib_dom
-  use linkedlist
-  use CharManip
-  use Accuracy
-  use Constants
-  use TypeGeometryHSD
-  use Message
-  use FileId
-  use UnitConversion
-  use OldSKData
+module dftbp_initmodes
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_xmlutils
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use xmlf90_flib_dom
+  use dftbp_linkedlist
+  use dftbp_charmanip
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_typegeometryhsd
+  use dftbp_message
+  use dftbp_fileid
+  use dftbp_unitconversion
+  use dftbp_oldskdata
   implicit none
 
   private
@@ -319,4 +319,4 @@ contains
 
   end subroutine readGeometry
 
-end module InitModes
+end module dftbp_initmodes

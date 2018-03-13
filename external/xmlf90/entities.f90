@@ -1,4 +1,4 @@
-module m_entities
+module xmlf90_entities
   
 !
 ! Entity management
@@ -7,7 +7,7 @@ module m_entities
 !    1. The five standard entities (gt,lt,amp,apos,quot)
 !    2. Character entities  (but only within the range of the char intrinsic)
 !
-use m_buffer
+use xmlf90_buffer
 
   implicit none
 
@@ -130,7 +130,7 @@ enddo
 
 end subroutine entity_filter
 
-end module m_entities
+end module xmlf90_entities
 
 
 

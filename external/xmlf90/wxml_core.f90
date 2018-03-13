@@ -1,8 +1,8 @@
-module m_wxml_core
+module xmlf90_wxml_core
 
-use m_wxml_buffer
-use m_wxml_elstack
-use m_wxml_dictionary
+use xmlf90_wxml_buffer
+use xmlf90_wxml_elstack
+use xmlf90_wxml_dictionary
 
 implicit none
 
@@ -379,5 +379,5 @@ end subroutine write_attributes
       endif
     end subroutine xml_AddArray_real_sp
 
-end module m_wxml_core
+end module xmlf90_wxml_core
 

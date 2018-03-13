@@ -7,15 +7,15 @@
 
 #:include "common.fypp"
 
-module hsdhelpers
-  use globalenv, only : stdOut, tIoProc
-  use parser
-  use hsdparser
-  use hsdutils
-  use hsdutils2
-  use inputdata_module
-  use message
-  use xmlf90, only : fnode, destroyNode
+module dftbp_hsdhelpers
+  use dftbp_globalenv, only : stdOut, tIoProc
+  use dftbp_parser
+  use dftbp_hsdparser
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_inputdata_module
+  use dftbp_message
+  use dftbp_xmlf90, only : fnode, destroyNode
   implicit none
   private
 
@@ -93,4 +93,4 @@ contains
   end subroutine doPostParseJobs
 
 
-end module hsdhelpers
+end module dftbp_hsdhelpers

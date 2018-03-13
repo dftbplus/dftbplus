@@ -1,18 +1,18 @@
-module m_xml_parser
+module xmlf90_xml_parser
 
   
 !
 ! Basic module to parse XML in the SAX spirit.
 !
 
-use m_buffer
-use m_reader
-use m_fsm
-use m_dictionary
-use m_debug
-use m_xml_error
-use m_elstack          ! For element nesting checks
-use m_entities
+use xmlf90_buffer
+use xmlf90_reader
+use xmlf90_fsm
+use xmlf90_dictionary
+use xmlf90_debug
+use xmlf90_xml_error
+use xmlf90_elstack          ! For element nesting checks
+use xmlf90_entities
 !
 
 implicit none
@@ -140,7 +140,7 @@ optional                            :: empty_element_handler
 
 interface
    subroutine begin_element_handler(name,attributes)
-   use m_dictionary
+   use xmlf90_dictionary
    character(len=*), intent(in)     :: name
    type(dictionary_t), intent(in)   :: attributes
    end subroutine begin_element_handler
@@ -158,7 +158,7 @@ interface
    end subroutine comment_handler
 
    subroutine xml_declaration_handler(name,attributes)
-   use m_dictionary
+   use xmlf90_dictionary
    character(len=*), intent(in)     :: name
    type(dictionary_t), intent(in)   :: attributes
    end subroutine xml_declaration_handler
@@ -172,7 +172,7 @@ interface
    end subroutine cdata_section_handler
 
    subroutine error_handler(error_info)
-   use m_xml_error
+   use xmlf90_xml_error
    type(xml_error_t), intent(in)            :: error_info
    end subroutine error_handler
 
@@ -181,7 +181,7 @@ interface
    end subroutine signal_handler
 
    subroutine empty_element_handler(name,attributes)
-   use m_dictionary
+   use xmlf90_dictionary
    character(len=*), intent(in)     :: name
    type(dictionary_t), intent(in)   :: attributes
    end subroutine empty_element_handler
@@ -503,7 +503,7 @@ attributes = fxml%fx%attributes
 
 end subroutine xml_attributes
 
-end module m_xml_parser
+end module xmlf90_xml_parser
 
 
 

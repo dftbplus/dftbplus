@@ -12,39 +12,39 @@
 #:include 'common.fypp'
 
 !> Various I/O routines for the main program.
-module mainio
+module dftbp_mainio
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
 #:if WITH_SCALAPACK
-  use scalapackfx
+  use dftbp_scalapackfx
 #:endif
-  use globalenv
-  use environment
-  use densedescr
-  use assert
-  use accuracy
-  use dftb_constants
-  use periodic
-  use commontypes
-  use fifo
-  use sparse2dense
-  use blasroutines
-  use charmanip, only : i2c
-  use linkedlist
-  use taggedoutput
-  use fileid
-  use spin, only : qm2ud
-  use energies
-  use xmlf90
-  use hsdutils, only : writeChildValue
-  use mdintegrator, only : OMdIntegrator, state
-  use formatout
-  use sccinit, only : writeQToFile
-  use elstatpot, only : TElStatPotentials
-  use message
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_densedescr
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_periodic
+  use dftbp_commontypes
+  use dftbp_fifo
+  use dftbp_sparse2dense
+  use dftbp_blasroutines
+  use dftbp_charmanip, only : i2c
+  use dftbp_linkedlist
+  use dftbp_taggedoutput
+  use dftbp_fileid
+  use dftbp_spin, only : qm2ud
+  use dftbp_energies
+  use dftbp_xmlf90
+  use dftbp_hsdutils, only : writeChildValue
+  use dftbp_mdintegrator, only : OMdIntegrator, state
+  use dftbp_formatout
+  use dftbp_sccinit, only : writeQToFile
+  use dftbp_elstatpot, only : TElStatPotentials
+  use dftbp_message
 #:if WITH_SOCKETS
-  use ipisocket
+  use dftbp_ipisocket
 #:endif
   implicit none
   private
@@ -4274,4 +4274,4 @@ contains
   end subroutine writeEsp
 
 
-end module mainio
+end module dftbp_mainio

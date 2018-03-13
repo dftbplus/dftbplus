@@ -1,25 +1,28 @@
-module m_elstack
-
-use m_buffer
+module xmlf90_wxml_elstack
 
 implicit none
-
+  
 private
 
 !
 ! Simple stack to keep track of which elements have appeared so far
 !
-integer, parameter, private            :: STACK_SIZE = 40
+integer, parameter, private            :: STACK_SIZE = 20
 
 type, public :: elstack_t
 private
-      integer                                :: n_items
-      type(buffer_t), dimension(STACK_SIZE)  :: data
+      integer                                    :: n_items
+      character(len=100), dimension(STACK_SIZE)  :: data
 end type elstack_t
 
 public  :: push_elstack, pop_elstack, reset_elstack, print_elstack
-public  :: init_elstack
 public  :: get_top_elstack, is_empty, get_elstack_signature
+public  :: len
+
+interface len
+   module procedure number_of_items
+end interface
+private :: number_of_items
 
 interface is_empty
       module procedure is_empty_elstack
@@ -29,27 +32,11 @@ private :: is_empty_elstack
 CONTAINS
 
 !-----------------------------------------------------------------
-subroutine init_elstack(elstack)
-type(elstack_t), intent(inout)  :: elstack
-
-integer :: i
-
-elstack%n_items = 0
-do i = 1, STACK_SIZE                   ! to avoid "undefined status"
-      call init_buffer(elstack%data(i))
-enddo
-end subroutine init_elstack
-
-!-----------------------------------------------------------------
 subroutine reset_elstack(elstack)
 type(elstack_t), intent(inout)  :: elstack
 
-integer :: i
-
 elstack%n_items = 0
-do i = 1, STACK_SIZE                  
-      call reset_buffer(elstack%data(i))
-enddo
+
 end subroutine reset_elstack
 
 !-----------------------------------------------------------------
@@ -61,8 +48,16 @@ answer = (elstack%n_items == 0)
 end function is_empty_elstack
 
 !-----------------------------------------------------------------
+function number_of_items(elstack) result(n)
+type(elstack_t), intent(in)  :: elstack
+integer                      :: n
+
+n = elstack%n_items
+end function number_of_items
+
+!-----------------------------------------------------------------
 subroutine push_elstack(item,elstack)
-type(buffer_t), intent(in)      :: item
+character(len=*), intent(in)      :: item
 type(elstack_t), intent(inout)  :: elstack
 
 integer   :: n
@@ -80,7 +75,7 @@ end subroutine push_elstack
 !-----------------------------------------------------------------
 subroutine pop_elstack(elstack,item)
 type(elstack_t), intent(inout)     :: elstack
-type(buffer_t), intent(out)        :: item
+character(len=*), intent(out)        :: item
 
 !
 ! We assume the elstack is not empty... (the user has called is_empty first)
@@ -102,7 +97,7 @@ subroutine get_top_elstack(elstack,item)
 ! Get the top element of the stack, *without popping it*.
 !
 type(elstack_t), intent(in)        :: elstack
-type(buffer_t), intent(out)        :: item
+character(len=*), intent(out)        :: item
 
 !
 ! We assume the elstack is not empty... (the user has called is_empty first)
@@ -124,7 +119,7 @@ integer, intent(in)           :: unit
 integer   :: i
 
 do i = elstack%n_items, 1, -1
-      write(unit=unit,fmt=*) str(elstack%data(i))
+      write(unit=unit,fmt=*) trim(elstack%data(i))
 enddo
 
 end subroutine print_elstack
@@ -138,18 +133,13 @@ integer   :: i, length, j
 string = ""
 j = 0
 do i = 1, elstack%n_items
-   length = len(elstack%data(i))
+   length = len_trim(elstack%data(i))
    string(j+1:j+1) = "/"
    j = j+1
-   string(j+1:j+length) = str(elstack%data(i))
+   string(j+1:j+length) = trim(elstack%data(i))
    j = j + length
 enddo
 
 end subroutine get_elstack_signature
 
-end module m_elstack
-
-
-
-
-
+end module xmlf90_wxml_elstack

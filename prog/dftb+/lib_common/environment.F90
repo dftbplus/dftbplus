@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Contains computer environment settings
-module environment
-  use globalenv, only : shutdown, stdOut
-  use timerarray
-  use fileregistry
+module dftbp_environment
+  use dftbp_globalenv, only : shutdown, stdOut
+  use dftbp_timerarray
+  use dftbp_fileregistry
 #:if WITH_MPI
-  use mpienv
+  use dftbp_mpienv
 #:endif
 #:if WITH_SCALAPACK
-  use blacsenv
+  use dftbp_blacsenv
 #:endif
   implicit none
   private
@@ -218,4 +218,4 @@ contains
 #:endif
 
 
-end module environment
+end module dftbp_environment
