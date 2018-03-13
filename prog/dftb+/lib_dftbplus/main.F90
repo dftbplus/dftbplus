@@ -148,7 +148,9 @@ contains
           & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
       call printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtom)
     #:if WITH_SOCKETS
-      call sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
+      if (tSocket) then
+        call sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
+      end if
     #:endif
       tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
           & .and. maxSccIter > 1
