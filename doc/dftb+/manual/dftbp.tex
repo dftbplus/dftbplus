@@ -994,7 +994,7 @@ following properties:
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
   \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{DampXHExponent} & r & DampXH = Yes & - & \\
-  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.DFTB3}\\
+  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.D3H5}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -2142,6 +2142,9 @@ description of the methods see the following subsections):
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.
+  A modification of the D3 dispersion to be used as a part of the
+  D3H5 correction\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5})
+  is also available.
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2414,6 +2417,15 @@ parameters are taken to be the same as in the dftd3 code.
 
 \end{description}
 
+To calculate the D3 dispersion as used in the DFTB3-D3H5 method\cite{rezac-jctc-13-2017}
+(see section \ref{sec:dftbp.D3H5} for details and parameter values),
+an additional repulsion term is applied to all hydrogen--hydrogen pairs.
+It is activated by the following option:
+\begin{description}
+\item[\is{HHRepulsion}] Adds a hydrogen--hydrogen repulsion term to the D3 dispersion
+	energy as used in the DFTB3-D3H method. Default value is \is{No}.
+\end{description}
+
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}
@@ -2441,30 +2453,6 @@ modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
 \item[\is{DampXHExponent}] Sets the parameter $\zeta$ for the short range
   damping. (See keyword \is{DampXH} above.)
 
-\item[\is{HBondCorrection}] Setting this keyword to \is{H5 \{\}} activates the
-  H5 correction for hydrogen bonds.\cite{rezac-jctc-13-2017} 
-  \emph{This correction is used instead of
-  the \is{DampXH} damping.} When no additional parameters are provided in the input,
-  the default parameter set is used (it was developed for the DFTB3/3OB setup).
-  If you want to specify the parameters manually, the complete input (with default
-  values of the parameters) is:
-\begin{verbatim}
-Hamiltonian = DFTB {
-  :
-  HBondCorrection = H5 {
-    RCut = 0.714
-    W = 0.25
-    H5CorrectionSpecies = {
-      O = 0.06
-      N = 0.18
-      S = 0.21
-    }
-  }
-  :
-}
-
-\end{verbatim}
-
 \item[\is{ThirdOrder}] If set to \is{Yes} the \textit{on-site} 3rd order
   correction \cite{yang-JPCA-111-10861} is switched on. This corrects the
   SCC-Hamiltonian with the derivatives of the Hubbard U parameters, which you
@@ -2490,6 +2478,62 @@ Hamiltonian = DFTB {
   HubbardDerivs {
     O = -0.14
     H = -0.07
+  }
+  :
+}
+
+\end{verbatim}
+
+\subsection{DFTB3-D3H5}
+\label{sec:dftbp.D3H5}
+
+DFTB3-D3H5 \cite{rezac-jctc-13-2017} is a variant of DFTB3 with corrections for
+non-covalent interactions (dispersion an hydrogen bonds).
+It consists of a third-order DFTB calculation with the 3OB parameter set where
+the gamma-function damping (\is{DampXH}) is replaced by the H5 correction, and
+a D3 dispersion correction to which an additional repulsive term was added to
+prevent hydrogen--hydrogen close contacts.
+
+\begin{description}
+\item[\is{HBondCorrection}] Setting this keyword to \is{H5 \{\}} activates the
+  H5 correction for hydrogen bonds.\cite{rezac-jctc-13-2017} 
+  When no additional parameters are provided in the input,
+  the default parameter set is used (it was developed for the DFTB3/3OB setup).
+  If you want to specify the parameters manually, the complete input (with default
+  values of the parameters) is:
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  HBondCorrection = H5 {
+    RCut = 0.714
+    W = 0.25
+    H5CorrectionSpecies = {
+      O = 0.06
+      N = 0.18
+      S = 0.21
+    }
+  }
+  :
+}
+
+\end{verbatim}
+\end{description}
+
+To complete the DFTB3-D3H5 calculation, a specific parametrization of the D3
+dispersion has to be used. In addition to setting up the values of the parameters,
+the hydrogen--hydrogen repulsion has to be also activated. The complete input
+is:
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  Dispersion = DftD3 {
+    Damping = ZeroDamping {
+      sr6 = 1.25
+      alpha6 = 29.61
+    }
+    s6 = 1.0
+    s8 = 0.49
+    HHRepulsion = Yes
   }
   :
 }
