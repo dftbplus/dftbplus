@@ -5,78 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module test_extpot_module
-  implicit none
-
-  integer, parameter :: dp = kind(1.0d0)
-
-contains
-
-  subroutine calcExternalPotential(atomCoords, extCharges, extPot, extPotGrad)
-    real(dp), intent(in) :: atomCoords(:,:)
-    real(dp), intent(in) :: extCharges(:,:)
-    real(dp), intent(out) :: extPot(:)
-    real(dp), intent(out) :: extPotGrad(:,:)
-
-    real(dp) :: atomPos(3), chargePos(3)
-    real(dp) :: chargeQ, dist
-    integer :: nAtom, nExtChrg
-    integer :: iAt, iExtChrg
-
-    nAtom = size(atomCoords, dim=2)
-    nExtChrg = size(extCharges, dim=2)
-    extPot(:) = 0.0_dp
-    extPotGrad(:,:) = 0.0_dp
-    do iAt = 1, nAtom
-      atomPos(:) = atomCoords(:, iAt)
-      do iExtChrg = 1, nExtChrg
-        chargePos(:) = extCharges(1:3, iExtChrg)
-        chargeQ = extCharges(4, iExtChrg)
-        dist = sqrt(sum((atomPos - chargePos)**2))
-        extPot(iAt) = extPot(iAt) + chargeQ / dist
-        extPotGrad(:, iAt) = extPotGrad(:, iAt) - chargeQ * (atomPos - chargePos) / dist**3
-      end do
-    end do
-
-  end subroutine calcExternalPotential
-
-
-  subroutine calcGradOnExtCharges(atomCoords, atomCharges, extCharges, extChargeGrads)
-    real(dp), intent(in) :: atomCoords(:,:)
-    real(dp), intent(in) :: atomCharges(:)
-    real(dp), intent(in) :: extCharges(:,:)
-    real(dp), intent(out) :: extChargeGrads(:,:)
-
-    real(dp) :: atomPos(3), chargePos(3)
-    real(dp) :: atomQ, chargeQ, dist
-    integer :: nAtom, nExtChrg
-    integer :: iAt, iExtChrg
-
-    nAtom = size(atomCoords, dim=2)
-    nExtChrg = size(extCharges, dim=2)
-    do iExtChrg = 1, nExtChrg
-      chargePos(:) = extCharges(1:3, iExtChrg)
-      chargeQ = extCharges(4, iExtChrg)
-      do iAt = 1, nAtom
-        atomPos(:) = atomCoords(:, iAt)
-        atomQ = atomCharges(iAt)
-        dist = sqrt(sum((atomPos - chargePos)**2))
-        extChargeGrads(:, iExtChrg) = extChargeGrads(:, iExtChrg) &
-            & - atomQ * chargeQ * (chargePos - atomPos) / dist**3
-      end do
-    end do
-    
-  end subroutine calcGradOnExtCharges
-
-end module test_extpot_module
-
-
 program test_extpot
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use test_extpot_module
   use dftbplus
   use dftbp_constants, only : AA__Bohr
   implicit none
+
+  integer, parameter :: dp = kind(1.0d0)
 
   integer, parameter :: nAtom = 3
 
@@ -145,12 +80,13 @@ program test_extpot
 
   coords(:,:) = initialCoords
   call dftbp%setGeometry(coords)
-  call calcExternalPotential(coords, extCharges, extPot, extPotGrad)
+  call getPointChargePotential(extCharges(1:3,:), extCharges(4,:), coords, extPot, extPotGrad)
   call dftbp%setExternalPotential(atomPot=extPot, potGrad=extPotGrad)
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getGrossCharges(atomCharges)
-  call calcGradOnExtCharges(coords, atomCharges, extCharges, extChargeGrads)
+  call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
+      & extChargeGrads)
 
   print "(A,F15.10)", 'Expected Mermin Energy:', -0.398548033919583E+001_dp
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
