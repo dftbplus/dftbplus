@@ -25,6 +25,7 @@ module dftbp_mmapi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
   public :: getMaxAngFromSlakoFile
+  public :: getPointChargePotential, getPointChargeGradients
 
   integer :: nDftbPlusCalc = 0
 
@@ -198,6 +199,66 @@ contains
     maxAng = nShells - 1
 
   end function getMaxAngFromSlakoFile
+
+
+  subroutine getPointChargePotential(coordsMm, chargesMm, coordsQm, extPot, extPotGrad)
+    real(dp), intent(in) :: coordsMm(:,:)
+    real(dp), intent(in) :: chargesMm(:)
+    real(dp), intent(in) :: coordsQm(:,:)
+    real(dp), intent(out) :: extPot(:)
+    real(dp), intent(out) :: extPotGrad(:,:)
+
+    real(dp) :: atomPosQm(3), atomPosMm(3)
+    real(dp) :: chargeMm, dist
+    integer :: nAtomQm, nAtomMm
+    integer :: iAtQm, iAtMm
+
+    nAtomQm = size(coordsQm, dim=2)
+    nAtomMm = size(coordsMm, dim=2)
+    extPot(:) = 0.0_dp
+    extPotGrad(:,:) = 0.0_dp
+    do iAtQm = 1, nAtomQm
+      atomPosQm(:) = coordsQm(:, iAtQm)
+      do iAtMm = 1, nAtomMm
+        atomPosMm(:) = coordsMm(1:3, iAtMm)
+        chargeMm = chargesMm(iAtMm)
+        dist = sqrt(sum((atomPosQm - atomPosMm)**2))
+        extPot(iAtQm) = extPot(iAtQm) + chargeMm / dist
+        extPotGrad(:, iAtQm) = extPotGrad(:, iAtQm) - chargeMm * (atomPosQm - atomPosMm) / dist**3
+      end do
+    end do
+
+  end subroutine getPointChargePotential
+
+
+  subroutine getPointChargeGradients(coordsQm, chargesQm, coordsMm, chargesMm, gradients)
+    real(dp), intent(in) :: coordsQm(:,:)
+    real(dp), intent(in) :: chargesQm(:)
+    real(dp), intent(in) :: coordsMm(:,:)
+    real(dp), intent(in) :: chargesMm(:)
+    real(dp), intent(out) :: gradients(:,:)
+
+    real(dp) :: atomPosQm(3), atomPosMm(3)
+    real(dp) :: chargeQm, chargeMm, dist
+    integer :: nAtomQm, nAtomMm
+    integer :: iAtQm, iAtMm
+
+    nAtomQm = size(coordsQm, dim=2)
+    nAtomMm = size(coordsMm, dim=2)
+    do iAtMm = 1, nAtomMm
+      atomPosMm(:) = coordsMm(:, iAtMm)
+      chargeMm = chargesMm(iAtMm)
+      do iAtQm = 1, nAtomQm
+        atomPosQm(:) = coordsQm(:, iAtQm)
+        chargeQm = chargesQm(iAtQm)
+        dist = sqrt(sum((atomPosQm - atomPosMm)**2))
+        gradients(:, iAtMm) = gradients(:, iAtMm) &
+            & - chargeQm * chargeMm * (atomPosMm - atomPosQm) / dist**3
+      end do
+    end do
+    
+  end subroutine getPointChargeGradients
+
 
 
 end module dftbp_mmapi
