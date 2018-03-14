@@ -243,6 +243,7 @@ contains
     integer :: nAtomQm, nAtomMm
     integer :: iAtQm, iAtMm
 
+    gradients(:,:) = 0.0_dp
     nAtomQm = size(coordsQm, dim=2)
     nAtomMm = size(coordsMm, dim=2)
     do iAtMm = 1, nAtomMm
@@ -258,7 +259,6 @@ contains
     end do
     
   end subroutine getPointChargeGradients
-
 
 
 end module dftbp_mmapi
