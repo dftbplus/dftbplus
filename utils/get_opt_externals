@@ -87,7 +87,7 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts Slater-Koster files.'''
 
-    urlprefix = 'http://www.dftb.org/fileadmin/DFTB/public/slako'
+    urlprefix = 'https://www.dftb.org/fileadmin/DFTB/public/slako'
     sksets = {
         'mio-1-1.tar.xz': 'mio/mio-1-1.tar.xz',
         'hyb-0-2.tar.xz': 'hyb/hyb-0-2.tar.xz',

@@ -16,6 +16,12 @@ module main
   use scalapackfx
   use scalafxext
 #:endif
+#:if WITH_PROGRESS
+  use sp2progress
+  use prg_sp2parser_mod
+  use bml
+  use sparse2bml
+#:endif
   use assert
   use constants
   use globalenv
@@ -218,8 +224,20 @@ contains
 
       call buildH0(H0, skHamCont, atomEigVal, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
+
       call buildS(over, skOverCont, coord, nNeighbor, neighborList%iNeighbor, species,&
           & iSparseStart, orb)
+
+#:if WITH_PROGRESS
+      ! The following will build the inverse overlap congruence transformation
+      ! which in necessary to perform linear scaling using the SP2 algorithm.
+      if (tCoordsChanged) then
+        call buildZprg(zsp, over, over_bml, zmat_bml, zk1_bml, zk2_bml, zk3_bml, &
+            & zk4_bml, zk5_bml, zk6_bml, neighborList, nNeighbor, &
+            & iSparseStart, img2CentCell, parallelKS, denseDesc, orb, initz)
+            call bml_print_matrix("zmat_bml",zmat_bml,1,10,1,10)
+      endif
+#:endif
 
       if (tSetFillingTemp) then
         call getTemperature(temperatureProfile, tempElec)
@@ -301,6 +319,7 @@ contains
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
           potential%intBlock = potential%intBlock + potential%extBlock
+
         end if
 
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
@@ -1605,9 +1624,25 @@ contains
     if (nSpin /= 4) then
       call qm2ud(ham)
       if (tRealHS) then
+#:if WITH_PROGRESS
+        if(.not.initsp2)then
+          call prg_parse_sp2(sp2,"progress.in")
+          if(sp2%mdim < 0)sp2%mdim = orb%norb
+          initsp2 = .true.
+        endif
+        if(sp2%flavor .ne. "None") then
+          call sp2prg(sp2, ham, zmat_bml, rhoPrim, neighborList, nNeighbor, iSparseStart, img2CentCell, solver,&
+              & parallelKS, denseDesc, orb, nEl, initsp2)
+        else
+          call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
+              & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
+              & eigen(:,1,:))
+        endif
+#:else
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
             & eigen(:,1,:))
+#:endif
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
@@ -1619,16 +1654,34 @@ contains
           & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
-
+#:if WITH_PROGRESS
+    if(sp2%flavor == "None") then
+      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+          & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
+    endif
+#:else
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
-
+#:endif
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
       if (tRealHS) then
+#:if WITH_PROGRESS
+        if(sp2%flavor == "None") then
+          call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
+              & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
+              & rhoSqrReal)
+              call bml_zero_matrix("dense",bml_element_real,dp,orb%norb,orb%norb,rho_bml)
+              call foldToRealBml(rhoPrim(:,parallelKS%localKS(2, 1)), neighborList%iNeighbor, nNeighbor, orb, &
+                   denseDesc%iAtomStart, iSparseStart, img2CentCell, rho_bml, sp2%threshold)
+                   call bml_print_matrix("rho_bml", rho_bml, 1, 10, 1, 10)
+              !  stop
+        endif
+#:else
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
             & rhoSqrReal)
+#:endif
       else
         call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
             & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS,&
@@ -1644,6 +1697,8 @@ contains
           & rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
+
+
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   end subroutine getDensity

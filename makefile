@@ -66,7 +66,7 @@ misc_skderivs: external_xmlf90
 EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx
+    external_scalapackfx 
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)

@@ -178,6 +178,18 @@ else
   endif
 endif
 
+
+# PROGRESS
+ifeq ($(strip $(WITH_PROGRESS)),1)
+    #COMPILED_EXTERNALS += _extlib_progress
+    #PROGRESS_LIBS := -L$(BUILDROOT)/external/progress
+    #PROGRESS_INCS := -I$(BUILDROOT)/external/progress
+    FYPPOPT += -DWITH_PROGRESS
+   # L_LIBS += $(if $(filter _extlib_progress, $^), $(PROGRESS_LIBS))
+    L_LIBS += $(PROGRESS_LIBS)
+    L_INCS += $(PROGRESS_INCS)
+endif
+
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@
 __FORCE__:
