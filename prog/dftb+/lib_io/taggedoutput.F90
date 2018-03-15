@@ -83,6 +83,9 @@ module taggedoutput
   !> total stress tensor for periodic geometries
   character(*), parameter, public :: tag_stressTot = 'stress'
 
+  !> total internal energy
+  character(*), parameter, public :: tag_egyTotal   = 'total_energy'
+
   !> Internal electric field
   character(*), parameter, public :: tag_internfield = 'internal_efield'
 

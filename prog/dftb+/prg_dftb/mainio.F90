@@ -2015,7 +2015,7 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fd, fileName, derivs, chrgForces, tStress, totalStress,&
+  subroutine writeResultsTag(fd, fileName, energy, derivs, chrgForces, tStress, totalStress,&
       & pDynMatrix, tPeriodic, cellVol)
 
     !> File ID to write to
@@ -2023,6 +2023,9 @@ contains
 
     !> Name of output file
     character(*), intent(in) :: fileName
+
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: energy
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2048,6 +2051,10 @@ contains
     @:ASSERT(tPeriodic .eqv. tStress)
 
     open(fd, file=fileName, action="write", status="replace")
+
+    call writeTagged(fd, tag_freeEgy, energy%EMermin)
+    call writeTagged(fd, tag_egyTotal, energy%ETotal)
+
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
     end if
