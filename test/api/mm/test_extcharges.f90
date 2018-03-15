@@ -5,11 +5,10 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-program test_extpot
+program test_extcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_constants, only : AA__Bohr
-  use extchargepot
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -33,11 +32,20 @@ program test_extpot
       &  0.43463718188810203E+01_dp, -0.58581533211004997E+01_dp,  0.26456176288841000E+01_dp, -1.9_dp&
       &], [4, nExtChrg])
 
+  character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
+      & "external/slakos/origin/mio-1-1/O-O.skf",&
+      & "external/slakos/origin/mio-1-1/H-O.skf",&
+      & "external/slakos/origin/mio-1-1/O-H.skf",&
+      & "external/slakos/origin/mio-1-1/H-H.skf"], [2, 2])
+
+  character(1), parameter :: maxAngNames(4) = ["s", "p", "d", "f"]
+  
+
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
 
   real(dp) :: merminEnergy
-  real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
+  real(dp) :: coords(3, nAtom), gradients(3, nAtom)
   real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
   integer :: devNull
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
@@ -62,8 +70,8 @@ program test_extpot
   call setChildValue(pDftb, "Scc", .true.)
   call setChildValue(pDftb, "SccTolerance", 1e-12_dp)
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
-  call setChildValue(pMaxAng, "O", "p")
-  call setChildValue(pMaxAng, "H", "s")
+  call setChildValue(pMaxAng, "O", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1))
+  call setChildValue(pMaxAng, "H", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "external/slakos/origin/mio-1-1/")
@@ -80,14 +88,12 @@ program test_extpot
   call dftbp%setupCalculator(input)
 
   coords(:,:) = initialCoords
+  call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:))
   call dftbp%setGeometry(coords)
-  call getPointChargePotential(extCharges(1:3,:), extCharges(4,:), coords, extPot, extPotGrad)
-  call dftbp%setExternalPotential(atomPot=extPot, potGrad=extPotGrad)
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
+  call dftbp%getExtChargeGradients(extChargeGrads)
   call dftbp%getGrossCharges(atomCharges)
-  call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
-      & extChargeGrads)
 
   print "(A,F15.10)", 'Expected Mermin Energy:', -0.398548033919583E+001_dp
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
@@ -115,4 +121,4 @@ program test_extpot
   call TDftbPlus_destruct(dftbp)
 
 
-end program test_extpot
+end program test_extcharges

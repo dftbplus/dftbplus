@@ -14,13 +14,13 @@ module dftbp_mainapi
   use dftbp_main, only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
       & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
-      & nAtom, nSpin, q0, qOutput
+      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces
   implicit none
   private
 
   public :: initProgramVariables, destructProgramVariables
-  public :: setGeometry, setExternalPotential
-  public :: getEnergy, getGradients, getGrossCharges
+  public :: setGeometry, setExternalPotential, setExternalCharges
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
 
 contains
 
@@ -111,6 +111,41 @@ contains
 
   end subroutine setExternalPotential
 
+
+  !> Sets up external point charges
+  subroutine setExternalCharges(chargeCoords, chargeQs, blurWidths)
+
+    !> Coordiante of the external charges
+    real(dp), intent(in) :: chargeCoords(:,:)
+
+    !> Charges of the external point charges (sign convention: electron is negative)
+    real(dp), intent(in) :: chargeQs(:)
+
+    !> Widths of the Gaussian for each charge used for blurring (0.0 = no blurring)
+    real(dp), intent(in), optional :: blurWidths(:)
+
+    tExtChrg = .true.
+    if (tForces) then
+      if (.not. allocated(chrgForces)) then
+        allocate(chrgForces(3, size(chargeQs)))
+      end if
+    end if
+    call sccCalc%setExternalCharges(chargeCoords, chargeQs)
+    
+  end subroutine setExternalCharges
+
+
+  !> Returns the gradient acting on the external point charges
+  subroutine getExtChargeGradients(chargeGradients)
+
+    !> Gradients
+    real(dp), intent(out) :: chargeGradients(:,:)
+
+    @:ASSERT(tForces .and. allocated(chrgForces))
+
+    chargeGradients(:,:) = chrgForces
+    
+  end subroutine getExtChargeGradients
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

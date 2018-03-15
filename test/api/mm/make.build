@@ -7,7 +7,7 @@
 .SUFFIXES:
 .SUFFIXES: .f .f90 .o
 
-TARGETS = test_fileinit test_treeinit test_extpot test_amber
+TARGETS = test_fileinit test_treeinit test_extpot test_extpot2 test_extcharges
 
 .PHONY: all
 all: $(TARGETS)
@@ -28,8 +28,13 @@ test_fileinit: test_fileinit.o
 test_treeinit: test_treeinit.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
 
-test_extpot: test_extpot.o
+test_extpot: test_extpot.o extchargepot.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
 
-test_amber: test_amber.o
+test_extpot2: test_extpot2.o extchargepot.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+
+test_extcharges: test_extcharges.o
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+
+test_extpot.o test_extpot2.o: extchargepot.o

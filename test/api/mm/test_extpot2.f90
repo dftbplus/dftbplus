@@ -9,6 +9,7 @@ program test_amber
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_constants, only : AA__Bohr
+  use extchargepot
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)

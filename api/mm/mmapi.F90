@@ -25,7 +25,6 @@ module dftbp_mmapi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
   public :: getMaxAngFromSlakoFile
-  public :: getPointChargePotential, getPointChargeGradients
 
   integer :: nDftbPlusCalc = 0
 
@@ -46,8 +45,10 @@ module dftbp_mmapi
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     procedure :: setGeometry => TDftbPlus_setGeometry
     procedure :: setExternalPotential => TDftbPlus_setExternalPotential
+    procedure :: setExternalCharges => TDftbPlus_setExternalCharges
     procedure :: getEnergy => TDftbPlus_getEnergy
     procedure :: getGradients => TDftbPlus_getGradients
+    procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
   end type TDftbPlus
 
@@ -55,8 +56,13 @@ module dftbp_mmapi
 
 contains
 
+  !> Returns the root node of the input, so that it can be further processed
   subroutine TDftbPlusInput_getRootNode(this, root)
+
+    !> Instance.
     class(TDftbPlusInput), intent(in) :: this
+
+    !> Pointer to root node
     type(fnode), pointer, intent(out) :: root
 
     if (.not. associated(this%hsdTree)) then
@@ -68,9 +74,21 @@ contains
   end subroutine TDftbPlusInput_getRootNode
     
 
+  !> Initalises an DFTB+ instance.
+  !>
+  !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
+  !> initialised within one process. Therefore, this routine can not be called twice, unless the
+  !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
+  !>
   subroutine TDftbPlus_init(this, outputUnit, mpiComm)
+
+    !> Instance.
     type(TDftbPlus), intent(out) :: this
+
+    !> Unit where to write the output (note: also error messages are written here)
     integer, intent(in), optional :: outputUnit
+
+    !> MPI-communicator to use (placholder only, the API does not work with MPI yet)
     integer, intent(in), optional :: mpiComm
 
     integer :: stdOut
@@ -93,7 +111,10 @@ contains
   end subroutine TDftbPlus_init
 
 
+  !> Destructs a DFTB+ instance.
   subroutine TDftbPlus_destruct(this)
+
+    !> Instance
     type(TDftbPlus), intent(inout) :: this
 
     call this%env%destruct()
@@ -103,8 +124,13 @@ contains
   end subroutine TDftbPlus_destruct
 
 
+  !> Fills up the input by parsing an HSD file
   subroutine TDftbPlus_getInputFromFile(fileName, input)
+
+    !> Name of the file to parse
     character(*), intent(in) :: fileName
+
+    !> Input containing the tree representation of the parsed HSD file.
     type(TDftbPlusInput), intent(out) :: input
 
     call readHsdFile(fileName, input%hsdTree)
@@ -112,7 +138,10 @@ contains
   end subroutine TDftbPlus_getInputFromFile
 
 
+  !> Creates an input with no entries.
   subroutine TDftbPlus_getEmptyInput(input)
+
+    !> Instance.
     type(TDftbPlusInput), intent(out) :: input
 
     type(fnode), pointer :: root, dummy
@@ -124,8 +153,13 @@ contains
   end subroutine TDftbPlus_getEmptyInput
 
 
+  !> Sets up the calculator using a given input.
   subroutine TDftbPlus_setupCalculator(this, input)
+
+    !> Instance.
     class(TDftbPlus), intent(inout) :: this
+
+    !> Representation of the DFTB+ input.
     type(TDftbPlusInput), intent(inout) :: input
 
     type(TParserFlags) :: parserFlags
@@ -137,8 +171,13 @@ contains
   end subroutine TDftbPlus_setupCalculator
 
 
+  !> Sets the geometry in the calculator.
   subroutine TDftbPlus_setGeometry(this, coords, latVecs)
+
+    !> Instance.
     class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
     real(dp), intent(in) :: coords(:,:)
     real(dp), intent(in), optional :: latVecs(:,:)
 
@@ -147,19 +186,50 @@ contains
   end subroutine TDftbPlus_setGeometry
 
 
-  subroutine TDftbPlus_setExternalPotential(this, atomPot, shellPot, potGrad)
+  !> Sets an external potential.
+  subroutine TDftbPlus_setExternalPotential(this, atomPot, potGrad)
+
+    !> Instance.
     class(TDftbPlus), intent(inout) :: this
+
+    !> Potential acting on each atom. Shape: (nAtom)
     real(dp), intent(in), optional :: atomPot(:)
-    real(dp), intent(in), optional :: shellPot(:,:)
+
+    !> Gradient of the potential  on each atom. Shape: (3, nAtom)
     real(dp), intent(in), optional :: potGrad(:,:)
 
     call setExternalPotential(atomPot, shellPot, potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
 
-  
-  subroutine TDftbPlus_getEnergy(this, merminEnergy)
+
+  !> Sets external point charges.
+  subroutine TDftbPlus_setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
+
+    !> Instance
     class(TDftbPlus), intent(inout) :: this
+
+    !> Coordiante of the external charges
+    real(dp), intent(in) :: chargeCoords(:,:)
+
+    !> Charges of the external point charges (sign convention: electron is negative)
+    real(dp), intent(in) :: chargeQs(:)
+
+    !> Widths of the Gaussian for each charge used for blurring (0.0 = no blurring)
+    real(dp), intent(in), optional :: blurWidths(:)
+
+    call setExternalCharges(chargeCoords, chargeQs, blurWidths)
+    
+  end subroutine TDftbPlus_setExternalCharges
+
+
+  !> Return the energy of the current system.
+  subroutine TDftbPlus_getEnergy(this, merminEnergy)
+
+    !> Instance.
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Mermin free energy.
     real(dp), intent(out) :: merminEnergy
 
     call getEnergy(this%env, merminEnergy)
@@ -167,8 +237,13 @@ contains
   end subroutine TDftbPlus_getEnergy
 
 
+  !> Returns the gradient on the atoms in the system.
   subroutine TDftbPlus_getGradients(this, gradients)
+
+    !> Instance.
     class(TDftbPlus), intent(inout) :: this
+
+    !> Gradients on the atoms.
     real(dp), intent(out) :: gradients(:,:)
 
     call getGradients(this%env, gradients)
@@ -176,8 +251,30 @@ contains
   end subroutine TDftbPlus_getGradients
 
 
-  subroutine TDftbPlus_getGrossCharges(this, atomCharges)
+  !> Returns the gradients on the external charges.
+  !>
+  !> This function may only be called, if TDftbPlus_setExternalCharges was called before.
+  !>
+  subroutine TDftbPlus_getExtChargeGradients(this, gradients)
+
+    !> Instance.
     class(TDftbPlus), intent(inout) :: this
+
+    !> Gradients acting on the external charges.
+    real(dp), intent(out) :: gradients(:,:)
+
+    call getExtChargeGradients(gradients)
+
+  end subroutine TDftbPlus_getExtChargeGradients
+
+
+  !> Returnss the gross charges of each atom.
+  subroutine TDftbPlus_getGrossCharges(this, atomCharges)
+
+    !> Instance.
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic gross charges.
     real(dp), intent(out) :: atomCharges(:)
 
     call getGrossCharges(atomCharges)
@@ -185,8 +282,17 @@ contains
   end subroutine TDftbPlus_getGrossCharges
 
 
+  !> Reads out the angular momentum from the an SK-file.
+  !>
+  !> NOTE: This only works with handcrafted (non-standard) SK-files, where the nr. of shells
+  !>   has been added as 3rd entry to the first line of the homo-nuclear SK-files.
+  !>
   function getMaxAngFromSlakoFile(slakoFile) result(maxAng)
+
+    !> Instance.
     character(*), intent(in) :: slakoFile
+
+    !> Maximal angular momentum found in the file
     integer :: maxAng
 
     real(dp) :: dr
@@ -199,66 +305,6 @@ contains
     maxAng = nShells - 1
 
   end function getMaxAngFromSlakoFile
-
-
-  subroutine getPointChargePotential(coordsMm, chargesMm, coordsQm, extPot, extPotGrad)
-    real(dp), intent(in) :: coordsMm(:,:)
-    real(dp), intent(in) :: chargesMm(:)
-    real(dp), intent(in) :: coordsQm(:,:)
-    real(dp), intent(out) :: extPot(:)
-    real(dp), intent(out) :: extPotGrad(:,:)
-
-    real(dp) :: atomPosQm(3), atomPosMm(3)
-    real(dp) :: chargeMm, dist
-    integer :: nAtomQm, nAtomMm
-    integer :: iAtQm, iAtMm
-
-    nAtomQm = size(coordsQm, dim=2)
-    nAtomMm = size(coordsMm, dim=2)
-    extPot(:) = 0.0_dp
-    extPotGrad(:,:) = 0.0_dp
-    do iAtQm = 1, nAtomQm
-      atomPosQm(:) = coordsQm(:, iAtQm)
-      do iAtMm = 1, nAtomMm
-        atomPosMm(:) = coordsMm(1:3, iAtMm)
-        chargeMm = chargesMm(iAtMm)
-        dist = sqrt(sum((atomPosQm - atomPosMm)**2))
-        extPot(iAtQm) = extPot(iAtQm) + chargeMm / dist
-        extPotGrad(:, iAtQm) = extPotGrad(:, iAtQm) - chargeMm * (atomPosQm - atomPosMm) / dist**3
-      end do
-    end do
-
-  end subroutine getPointChargePotential
-
-
-  subroutine getPointChargeGradients(coordsQm, chargesQm, coordsMm, chargesMm, gradients)
-    real(dp), intent(in) :: coordsQm(:,:)
-    real(dp), intent(in) :: chargesQm(:)
-    real(dp), intent(in) :: coordsMm(:,:)
-    real(dp), intent(in) :: chargesMm(:)
-    real(dp), intent(out) :: gradients(:,:)
-
-    real(dp) :: atomPosQm(3), atomPosMm(3)
-    real(dp) :: chargeQm, chargeMm, dist
-    integer :: nAtomQm, nAtomMm
-    integer :: iAtQm, iAtMm
-
-    gradients(:,:) = 0.0_dp
-    nAtomQm = size(coordsQm, dim=2)
-    nAtomMm = size(coordsMm, dim=2)
-    do iAtMm = 1, nAtomMm
-      atomPosMm(:) = coordsMm(:, iAtMm)
-      chargeMm = chargesMm(iAtMm)
-      do iAtQm = 1, nAtomQm
-        atomPosQm(:) = coordsQm(:, iAtQm)
-        chargeQm = chargesQm(iAtQm)
-        dist = sqrt(sum((atomPosQm - atomPosMm)**2))
-        gradients(:, iAtMm) = gradients(:, iAtMm) &
-            & - chargeQm * chargeMm * (atomPosMm - atomPosQm) / dist**3
-      end do
-    end do
-    
-  end subroutine getPointChargeGradients
 
 
 end module dftbp_mmapi
