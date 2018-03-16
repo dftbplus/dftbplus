@@ -198,7 +198,8 @@ contains
     !> Gradient of the potential  on each atom. Shape: (3, nAtom)
     real(dp), intent(in), optional :: potGrad(:,:)
 
-    call setExternalPotential(atomPot, shellPot, potGrad)
+!AWG    call setExternalPotential(atomPot, shellPot, potGrad)
+    call setExternalPotential(atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
 
