@@ -2980,7 +2980,7 @@ contains
     end associate
     
     if (tPoisson) then
-      print*,'init poisson'    
+      write(stdOut,*)'init poisson'    
       poissStr%nAtom = nAtom
       poissStr%nSpecies = nType
       poissStr%specie0 => species0
@@ -3002,15 +3002,14 @@ contains
     end if
 
     if (tNegf) then
-      print*,'init negf'    
+      write(stdOut,*) 'init negf'    
       if (size(DenseDesc%iAtomStart) /= nAtom+1) then
         stop 'Internal error: DenseDesc not created'
       end if   
 
       ! Some sanity checks and initialization of GDFTB/NEGF
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos,&
-           & env%mpi%globalComm, tempElec, tInitialized)     
-      if (.not. tInitialized) call error("libnegf not initialized")
+           & env%mpi%globalComm, tempElec)     
      
       ginfo = input%ginfo 
 

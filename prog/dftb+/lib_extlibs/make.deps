@@ -45,8 +45,8 @@ _mod_mpifx: mpifx.o
 _mod_mpifx = $(mpifx.o)
 #:endif
 
-negf_int.o: _mod_sparse2dense _mod_libnegf_vars _mod_commontypes _mod_libnegf _mod_libmpifx_module _mod_densedescr _mod_mat_conv _mod_formatout _mod_globals _mod_accuracy
-negf_int.o = negf_int.o $(_mod_sparse2dense) $(_mod_libnegf_vars) $(_mod_commontypes) $(_mod_libnegf) $(_mod_libmpifx_module) $(_mod_densedescr) $(_mod_mat_conv) $(_mod_formatout) $(_mod_globals) $(_mod_accuracy)
+negf_int.o: _mod_sparse2dense _mod_libnegf_vars _mod_commontypes _mod_globalenv _mod_libnegf _mod_libmpifx_module _mod_densedescr _mod_mat_conv _mod_formatout _mod_message _mod_globals _mod_accuracy
+negf_int.o = negf_int.o $(_mod_sparse2dense) $(_mod_libnegf_vars) $(_mod_commontypes) $(_mod_globalenv) $(_mod_libnegf) $(_mod_libmpifx_module) $(_mod_densedescr) $(_mod_mat_conv) $(_mod_formatout) $(_mod_message) $(_mod_globals) $(_mod_accuracy)
 _mod_negf_int: negf_int.o
 _mod_negf_int = $(negf_int.o)
 
