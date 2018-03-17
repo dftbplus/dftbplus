@@ -2408,7 +2408,7 @@ contains
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
 
-    !> wheter we solve NEGF 
+    !> whether we solve NEGF
     logical, intent(in) :: tNegf
 
     !> Reciprocal lattice vectors if periodic

@@ -4315,7 +4315,7 @@ contains
       #:if WITH_TRANSPORT
         call poiss_getshift(dummyArray, tmpDerivs)
       #:endif
-        derivs = derivs + tmpDerivs
+        derivs(:,:) = derivs + tmpDerivs
       else
 
         if (tExtChrg) then
@@ -4360,7 +4360,7 @@ contains
 
     call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
         & img2CentCell)
-    derivs = derivs + tmpDerivs
+    derivs(:,:) = derivs + tmpDerivs
 
   end subroutine getGradients
 

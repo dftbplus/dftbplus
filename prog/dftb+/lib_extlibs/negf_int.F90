@@ -19,6 +19,7 @@ module negf_int
   use libnegf, only : init_negf, init_structure, log_deallocatep, pass_hs, set_bp_dephasing
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
   use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
+  use libnegf, only : read_negf_in, negf_partition_info, printcsr
   use mat_conv
   use sparse2dense
   use densedescr
@@ -1058,10 +1059,9 @@ module negf_int
         negf%NumStates=csrHam%ncol
       end if
 
-      !*** ORTOGONALIZATIONS ***
-      ! THIS MAKES SENSE ONLY FOR A REAL MATRIX: k=0 && collinear spin
-      ! TEMPORARY HACKING: we save H, S on files as square-matrices
-      !                    then reload them and perfom Lowdin tranf.
+      !*** ORTHOGONALIZATIONS ***
+      ! THIS MAKES SENSE ONLY FOR A REAL MATRIX: k=0 && collinear spin TEMPORARY HACKING: we save H,
+      ! S on files as square-matrices then reload them and perfom Lowdin tranf.
       if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
         &(negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
             
