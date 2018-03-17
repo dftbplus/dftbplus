@@ -9,8 +9,16 @@
 module negf_int
   
   use accuracy
+  use constants
   use libnegf_vars
-  use libnegf
+  use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
+  use libnegf, only : z_CSR
+  use libnegf, only : associate_current, associate_ldos, associate_transmission, compute_current
+  use libnegf, only : compute_density_dft, compute_ldos, create, create_scratch, destroy
+  use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use libnegf, only : init_negf, init_structure, log_deallocatep, pass_hs, set_bp_dephasing
+  use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
+  use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
   use mat_conv
   use sparse2dense
   use densedescr
@@ -64,9 +72,9 @@ module negf_int
     real(dp), intent(in) :: tempElec
     
     ! local variables
-    real(dp), dimension(:), allocatable :: pot, eFermi
+    real(dp), allocatable :: pot(:), eFermi(:)
     integer :: i, l, ncont, nc_vec(1), j, nldos
-    integer, dimension(:), allocatable :: sizes
+    integer, allocatable :: sizes(:)
     type(lnParams) :: params
 
     call negf_mpi_init(mpicomm)
@@ -83,7 +91,7 @@ module negf_int
     call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
     
-    if (id0) then
+    if (tIoProc) then
       call create_scratch(negf)
     end if
     
@@ -99,8 +107,12 @@ module negf_int
           params%verbose = greendens%verbose
        endif
     else
-       if (tundos%defined) params%verbose = tundos%verbose
-       if (greendens%defined) params%verbose = greendens%verbose
+      if (tundos%defined) then
+        params%verbose = tundos%verbose
+      end if
+      if (greendens%defined) then
+        params%verbose = greendens%verbose
+      end if
     end if
     ! ------------------------------------------------------------------------------
     ! This parameter is used to set the averall drop threshold in libnegf
@@ -205,11 +217,17 @@ module negf_int
       params%n_kt = greendens%nkt           ! n*kT for Fermi
  
       !Read G.F. from very first iter
-      if (greendens%readSGF .and. .not.greendens%saveSGF) params%readOldSGF=0
+      if (greendens%readSGF .and. .not.greendens%saveSGF) then
+        params%readOldSGF=0
+      end if
       !compute G.F. at every iteration
-      if (.not.greendens%readSGF .and. .not.greendens%saveSGF) params%readOldSGF=1
+      if (.not.greendens%readSGF .and. .not.greendens%saveSGF) then
+        params%readOldSGF=1
+      end if
       !Default Write on first iter
-      if (.not.greendens%readSGF .and. greendens%saveSGF) params%readOldSGF=2
+      if (.not.greendens%readSGF .and. greendens%saveSGF) then
+        params%readOldSGF=2
+      end if
 
       if(any(params%kbT_dm > 0) .and. greendens%nPoles == 0) then
         call error("Number of Poles = 0 but T > 0")
@@ -258,9 +276,11 @@ module negf_int
     
     ! Energy conversion only affects output units.
     ! The library writes energies as (E * negf%eneconv)
-    params%eneconv = HAR
+    params%eneconv = Hartree__eV
 
-    if (allocated(sizes)) deallocate(sizes)
+    if (allocated(sizes)) then
+      deallocate(sizes)
+    end if
 
     call set_params(negf,params)
 
@@ -394,10 +414,12 @@ module negf_int
 
     write(stdOut, *)
     write(stdOut, *) 'Release NEGF memory:'
-    if (id0) then
-      call writePeakInfo(6)
-      call writeMemInfo(6)
-    end if
+    !if (tIoProc) then
+    !  call writePeakInfo(6)
+    !  call writeMemInfo(6)
+    !end if
+    call writePeakInfo(stdOut)
+    call writeMemInfo(stdOut)
 
   end subroutine negf_destroy
 
@@ -506,7 +528,9 @@ module negf_int
          end if
          
          do m = 1, transpar%nPLs
-           if (minv(m,j1).eq.j1) cblk(j1) = m
+           if (minv(m,j1).eq.j1) then
+             cblk(j1) = m
+           end if
          end do
          
        end do
@@ -581,8 +605,9 @@ module negf_int
        stop 'UNSUPPORTED CASE in negf_density'
     endif
 
-    if (params%DorE.eq.'N') return
-    ! ---------------------------------------------
+    if (params%DorE.eq.'N') then
+      return
+    end if
 
     call pass_HS(negf,HH,SS)
  
@@ -637,7 +662,7 @@ module negf_int
 
     integer :: fdUnit
     
-    write(stdOut, *) 'Dumping H and S on files...'
+    write(stdOut, *) 'Dumping H and S in files...'
     
     open(newunit=fdUnit, file='HH.dat')
     write(fdUnit, *) '% Size =',HH%nrow, HH%ncol
@@ -680,11 +705,11 @@ module negf_int
       call MakeHHSS(H_dev,S_dev,HH,SS)
     end if
 
-    !!if(negf%tManyBody) call MakeHS_dev
+    !if(negf%tManyBody) call MakeHS_dev
 
   end subroutine
   !------------------------------------------------------------------------------
-         
+
   !------------------------------------------------------------------------------
   ! INTERFACE subroutine to call current computation
   !------------------------------------------------------------------------------
@@ -729,7 +754,6 @@ module negf_int
 
 
   !> Calculates density matrix with Green's functions
-  !!
   subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, kPoints, kWeights, mu, rho, Eband, Ef, E0, TS)
@@ -753,9 +777,9 @@ module negf_int
     
     call negf_mpi_init(mpicomm)
 
-    !! We need this now for different fermi levels in colinear spin
-    !! Note: the spin polirized does not work with
-    !! built-int potentials (the unpolarized does) in the poisson
+    ! We need this now for different fermi levels in colinear spin
+    ! Note: the spin polirized does not work with
+    ! built-int potentials (the unpolarized does) in the poisson
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
     rho = 0.0_dp
@@ -790,7 +814,7 @@ module negf_int
 
       call destruct(csrDens)
 
-      !! Set some fake energies:
+      ! Set some fake energies:
       Eband(iS) = 0.0_dp
       Ef(iS) = mu(1,iS)
       TS(iS) = 0.0_dp
@@ -809,7 +833,6 @@ module negf_int
   end subroutine calcdensity_green
 
   !> Calculates E-density matrix with Green's functions
-  !!
   subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, kPoints, kWeights, mu, rhoE)
@@ -831,11 +854,11 @@ module negf_int
     type(z_CSR) :: csrEDens
     
     call negf_mpi_init(mpicomm)
-    !! We need this now for different fermi levels in colinear spin
-    !! Note: the spin polirized does not work with
-    !! built-int potentials (the unpolarized does) in the poisson
-    !! I do not set the fermi because it seems that in libnegf it is
-    !! not really needed
+    ! We need this now for different fermi levels in colinear spin
+    ! Note: the spin polirized does not work with
+    ! built-int potentials (the unpolarized does) in the poisson
+    ! I do not set the fermi because it seems that in libnegf it is
+    ! not really needed
 
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
@@ -902,6 +925,7 @@ module negf_int
     real(dp), allocatable :: ldosSKRes(:,:,:)
     integer :: iKS, iK, iS, nKS, nKPoint, nSpin, ii, jj, err
     type(lnParams) :: params
+    integer :: fdUnit
     
     call negf_mpi_init(mpicomm)
 
@@ -940,16 +964,19 @@ module negf_int
     if (allocated(ldosTot)) then
       
       ! Write Total localDOS on a separate file (optional)
-      if (id0 .and. writeLDOS) then
-        open(65000,file='localDOS.dat')
+      if (tIoProc .and. writeLDOS) then
+        open(newunit=fdUnit, file='localDOS.dat')
         do ii=1,size(ldosTot,1)
-          write(65000,*) (params%Emin+(ii-1)*params%Estep) * HAR, &
+          write(fdUnit,*) (params%Emin+(ii-1)*params%Estep) * Hartree__eV, &
               (ldosTot(ii,jj), jj=1,size(ldosTot,2))
         enddo
-        close(65000)
+        close(fdUnit)
       endif
+      
     else
+      
       allocate(ldosTot(0,0))
+      
     endif
     
     
@@ -979,11 +1006,11 @@ module negf_int
     real(dp), allocatable, intent(inout) :: currTot(:)
     logical, intent(in) :: writeLDOS
     logical, intent(in) :: writeTunn
-    !! We need this now for different fermi levels in colinear spin
-    !! Note: the spin polirized does not work with
-    !! built-int potentials (the unpolarized does) in the poisson
-    !! I do not set the fermi because it seems that in libnegf it is
-    !! not really needed
+    ! We need this now for different fermi levels in colinear spin
+    ! Note: the spin polirized does not work with
+    ! built-int potentials (the unpolarized does) in the poisson
+    ! I do not set the fermi because it seems that in libnegf it is
+    ! not really needed
     real(dp), intent(in) :: mu(:,:)
     
     real(dp), pointer    :: tunnMat(:,:)=>null()
@@ -994,7 +1021,7 @@ module negf_int
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
-    integer :: i,j,k,NumStates,icont                                       !DAR
+    integer :: i, j, k, NumStates, icont
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     
     call negf_mpi_init(mpicomm)
@@ -1027,7 +1054,9 @@ module negf_int
       
       call set_params(negf, params)
       
-      if (negf%NumStates.eq.0) negf%NumStates=csrHam%ncol
+      if (negf%NumStates.eq.0) then
+        negf%NumStates=csrHam%ncol
+      end if
 
       !*** ORTOGONALIZATIONS ***
       ! THIS MAKES SENSE ONLY FOR A REAL MATRIX: k=0 && collinear spin
@@ -1038,8 +1067,12 @@ module negf_int
             
           NumStates = negf%NumStates
         
-          if (.not.allocated(H_all)) allocate(H_all(NumStates,NumStates))
-          if (.not.allocated(S_all)) allocate(S_all(NumStates,NumStates))
+          if (.not.allocated(H_all)) then
+            allocate(H_all(NumStates,NumStates))
+          end if
+          if (.not.allocated(S_all)) then
+            allocate(S_all(NumStates,NumStates))
+          end if
       
           !open(11,file='H_dftb.mtr')
           !read(11,*);read(11,*);read(11,*);read(11,*);read(11,*);
@@ -1117,11 +1150,12 @@ module negf_int
     
     if (allocated(tunnTot)) then
       ! Write Total tunneling on a separate file (optional)
-      if (id0 .and. writeTunn) then
-        call write_file(negf, tunnTot, tunnSKRes, 'tunneling', &
-                         & groupKS, kpoints, kWeights)
+      if (tIoProc .and. writeTunn) then
+        call write_file(negf, tunnTot, tunnSKRes, 'tunneling', groupKS, kpoints, kWeights)
       endif 
-      if (allocated(tunnSKRes)) deallocate(tunnSKRes)
+      if (allocated(tunnSKRes)) then
+        deallocate(tunnSKRes)
+      end if
     else
       ! needed to avoid some segfault
       allocate(tunnTot(0,0))
@@ -1130,7 +1164,7 @@ module negf_int
     !!DAR begin - print tunn_mat_bp
     !#if (negf%tZeroCurrent) then
     !#  call mpifx_allreduceip(mpicomm, negf%tunn_mat, MPI_SUM)
-    !#  if (id0) call write_file(negf, negf%tunn_mat, tunnSKRes, 'tunneling_bp', &
+    !#  if (tIoProc) call write_file(negf, negf%tunn_mat, tunnSKRes, 'tunneling_bp', &
     !#        & groupKS, kpoints, kWeights)
     !#  if (allocated(tunnSKRes)) deallocate(tunnSKRes)
     !#end if
@@ -1138,11 +1172,12 @@ module negf_int
 
     if (allocated(ldosTot)) then
       ! Write Total localDOS on a separate file (optional)
-      if (id0 .and. writeLDOS) then
-        call write_file(negf, ldosTot, ldosSKRes, 'localDOS', &
-                         & groupKS, kpoints, kWeights)
+      if (tIoProc .and. writeLDOS) then
+        call write_file(negf, ldosTot, ldosSKRes, 'localDOS', groupKS, kpoints, kWeights)
       end if
-      if (allocated(ldosSKRes)) deallocate(ldosSKRes)
+      if (allocated(ldosSKRes)) then
+        deallocate(ldosSKRes)
+      end if
     else
       ! needed to avoid some segfault
       allocate(ldosTot(0,0))
@@ -1210,7 +1245,7 @@ module negf_int
     real(dp), intent(in) :: kPoints(:,:)
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, jj, nKS, iKS, nK, nS, iK, iS
+    integer :: ii, jj, nKS, iKS, nK, nS, iK, iS, fdUnit
     type(lnParams) :: params
 
     call get_params(negf, params)
@@ -1219,41 +1254,40 @@ module negf_int
     nK = size(kpoints, dim=2)
     nS = nKS/nK
 
-    open(65000,file=trim(filename)//'.dat')
+    open(newunit=fdUnit, file=trim(filename)//'.dat')
     do ii=1,size(pTot,1)
-      write(65000,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
+      write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
       do jj=1,size(pTot,2)
-        !write(65000,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
-        write(65000,'(f20.8)',ADVANCE='NO') pTot(ii,jj)                     !DAR
+        !write(fdUnit,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
+        write(fdUnit,'(f20.8)',ADVANCE='NO') pTot(ii,jj)                     !DAR
       enddo
-      write(65000,*)
+      write(fdUnit,*)
     enddo
-    close(65000)
+    close(fdUnit)
 
     if (nKS.gt.1) then
-      open(65000,file=trim(filename)//'_kpoints.dat')
-      write(65000,*)  '# NKpoints = ', nK
-      write(65000,*)  '# NSpin = ', nS
-      write(65000,*)  '# Energy [eV], <spin k1 k2 k3 weight> '
-      write(65000,'(A1)', ADVANCE='NO') '# '
+      open(newunit=fdUnit, file=trim(filename)//'_kpoints.dat')
+      write(fdUnit,*)  '# NKpoints = ', nK
+      write(fdUnit,*)  '# NSpin = ', nS
+      write(fdUnit,*)  '# Energy [eV], <spin k1 k2 k3 weight> '
+      write(fdUnit,'(A1)', ADVANCE='NO') '# '
       do iKS = 1,nKS
         iK = groupKS(1,iKS)
         iS = groupKS(2,iKS)
-        write(65000,'(i5.2)', ADVANCE='NO') iS
-        write(65000,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
-                                                                      & kWeights(iK)
+        write(fdUnit,'(i5.2)', ADVANCE='NO') iS
+        write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
       end do
-      write(65000,*)
+      write(fdUnit,*)
       do ii=1,size(pSKRes(:,:,1),1)
-        write(65000,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * HAR
+        write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
         do jj=1,size(pSKRes(:,:,1),2)
           do iKS = 1,nKS
-            write(65000,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iKS)
+            write(fdUnit,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iKS)
           enddo
-          write(65000,*)
+          write(fdUnit,*)
         enddo
       enddo
-      close(65000)
+      close(fdUnit)
     end if
 
   end subroutine write_file
@@ -1279,11 +1313,11 @@ module negf_int
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
     real(dp), intent(in) :: coord(:,:)
     logical, intent(in) :: dumpDens
-    !! We need this now for different fermi levels in colinear spin
-    !! Note: the spin polirized does not work with
-    !! built-int potentials (the unpolarized does) in the poisson
-    !! I do not set the fermi because it seems that in libnegf it is
-    !! not really needed
+    ! We need this now for different fermi levels in colinear spin
+    ! Note: spin polarized does not work with
+    ! built-int potentials (the unpolarized does) in the poisson
+    ! I do not set the fermi because it seems that in libnegf it is
+    ! not really needed
     real(dp), intent(in) :: chempot(:,:)
     
     integer :: n,m, mu, nu, nAtom, irow, nrow, ncont
@@ -1297,6 +1331,7 @@ module negf_int
     integer :: iSCCiter=2
     type(z_CSR) :: csrDens, csrEDens
     type(lnParams) :: params
+    integer :: fdUnit
     
     call negf_mpi_init(mpicomm)
 
@@ -1348,9 +1383,14 @@ module negf_int
           &,nneig,nn)
       
       
-      if (iS .eq. 1) sp = 'u'
-      if (iS .eq. 2) sp = 'd'
-      open(207,file='lcurrents_'//sp//'.dat')
+      if (iS .eq. 1) then
+        sp = 'u'
+      end if
+      if (iS .eq. 2) then
+        sp = 'd'
+      end if
+      
+      open(newUnit = fdUnit, file = 'lcurrents_'//sp//'.dat')
 
       do m = 1, nAtom
 
@@ -1360,7 +1400,7 @@ module negf_int
         mOrb = orb%nOrbAtom(m)
         iRow = iAtomStart(m)
 
-        write(207,'(I5,3(F12.6),I3)',advance='NO') m, coord(:,m), nn(m)
+        write(fdUnit,'(I5,3(F12.6),I3)',advance='NO') m, coord(:,m), nn(m)
 
         do inn = 1, nn(m)
           n = nneig(m,inn)
@@ -1378,18 +1418,18 @@ module negf_int
             enddo
           enddo
           ! pi-factor  comes from  Gn = rho * pi
-          write(207,'(I5,ES17.8)',advance='NO') n, 2.d0*params%g_spin*pi*eovh*Im(inn)
+          write(fdUnit,'(I5,ES17.8)',advance='NO') n, 2.d0*params%g_spin*pi*eovh*Im(inn)
 
         enddo
 
-        write(207,*)
+        write(fdUnit,*)
 
         deallocate(Im)
 
       enddo
     enddo
 
-    close(207)
+    close(fdUnit)
     call destruct(csrDens)
     call destruct(csrEDens)
     deallocate(nneig)
@@ -1420,7 +1460,9 @@ module negf_int
 
     do m = 1, nAtom
       do inn = 1, nNeighbor(m)
-        if (inn.gt.NMAX) exit
+        if (inn.gt.NMAX) then
+          exit
+        end if
         n = img2CentCell(iNeighbor(inn,m))
         if(nn(m).le.NMAX-1) then
           nn(m)=nn(m)+1
@@ -1483,29 +1525,32 @@ module negf_int
 
   subroutine ReadDFTB(H,S)
     real(dp), dimension(:,:), allocatable :: H, S
-    integer :: i,j,k,l,m,n,NumStates
+    integer :: i,j,k,l,m,n,NumStates, fdUnit
 
     NumStates = negf%NumStates
 
     write(stdOut,"(' Hamiltonian is read from the file ',A)")trim('H_dftb.mtr')
-    open(11,file='H_dftb.mtr',action="read")
-    read(11,*);read(11,*);read(11,*);read(11,*);read(11,*)
+
+    
+    open(newunit=fdUnit, file='H_dftb.mtr', action="read")
+    read(fdUnit,*);read(fdUnit,*);read(fdUnit,*);read(fdUnit,*);read(fdUnit,*)
     if(.not.allocated(H)) allocate(H(NumStates,NumStates))
-    H=0.0_dp
+    H = 0.0_dp
     do i=1,NumStates
-       read(11,*) H(i,1:NumStates)
+       read(fdUnit,*) H(i,1:NumStates)
     end do
-    close(11)
-    H=H/HAR
+    close(fdUnit)
+    
+    H = H * eV__Hartree
     write(stdOut,"(' Overlap is read from the file ',A)")trim('S_dftb.mtr')
-    open(11,file='S_dftb.mtr',action="read")
-    read(11,*);read(11,*);read(11,*);read(11,*);read(11,*)
+    open(newunit=fdUnit, file='S_dftb.mtr', action="read")
+    read(fdUnit,*);read(fdUnit,*);read(fdUnit,*);read(fdUnit,*);read(fdUnit,*)
     if(.not.allocated(S)) allocate(S(NumStates,NumStates))
     S=0.0_dp
     do i=1,NumStates
-       read(11,*) S(i,1:NumStates)
+       read(fdUnit,*) S(i,1:NumStates)
     end do
-    close(11)
+    close(fdUnit)
 
   end subroutine ReadDFTB
 
@@ -1515,19 +1560,19 @@ module negf_int
 
   subroutine ReadModel(H,S)
     real(dp), dimension(:,:), allocatable :: H, S
-    integer :: i,j,k,l,m,n,NumStates
+    integer :: i,j,k,l,m,n,NumStates, fdUnit
 
     NumStates = negf%NumStates
 
     write(stdOut,"(' Hamiltonian is read from the file ',A)")trim('H.mtr')
-    open(11,file='H.mtr',action="read")
+    open(newunit = fdUnit,file='H.mtr',action="read")
     if(.not.allocated(H)) allocate(H(NumStates,NumStates))
     H=0.0_dp
     do i=1,NumStates
-      read(11,*) H(i,1:NumStates)
+      read(fdUnit,*) H(i,1:NumStates)
     end do
-    close(11)
-    H=H/HAR
+    close(fdUnit)
+    H=H * eV__Hartree
     if(.not.allocated(S)) allocate(S(NumStates,NumStates))
     S=0.0_dp
     do i=1,NumStates
@@ -1632,68 +1677,68 @@ module negf_int
 
     use globals, only : LST
     
-    Integer :: ncont, nbl, ii, jj, ist, iend
+    Integer :: ncont, nbl, ii, jj, ist, iend, fdUnit
     Integer, dimension(:), allocatable :: PL_end, cont_end, surf_end
     character(32) :: tmp
     character(LST) :: file_re_H, file_im_H, file_re_S, file_im_S
     integer, dimension(:), allocatable :: cblk
 
-    open(101, file='log', action="write")
+    open(newunit=fdUnit, file='log', action="write")
     
-    write(101,"('negf%H%nnz               = ',I6)") negf%H%nnz
-    write(101,"('negf%H%nrow              = ',I6)") negf%H%nrow
-    write(101,"('negf%H%ncol              = ',I6)") negf%H%ncol
-    write(101,"('negf%H%nzval             = ',10000000F8.4)") negf%H%nzval
-    write(101,"('negf%H%colind            = ',10000000I6)") negf%H%colind
-    write(101,"('negf%H%rowpnt            = ',10000000I6)") negf%H%rowpnt
-    write(101,"('negf%isSid               = ',L6)") negf%isSid
-    write(101,"('negf%S%nnz               = ',I6)") negf%S%nnz
-    write(101,"('negf%S%nrow              = ',I6)") negf%S%nrow
-    write(101,"('negf%S%ncol              = ',I6)") negf%S%ncol
-    write(101,"('negf%S%nzval             = ',10000000F8.4)") negf%S%nzval
-    write(101,"('negf%S%colind            = ',10000000I6)") negf%S%colind
-    write(101,"('negf%S%rowpnt            = ',10000000I6)") negf%S%rowpnt
-    write(101,"('negf%str%num_conts       = ',I6)") negf%str%num_conts
-    write(101,"('negf%str%num_PLs         = ',I6)") negf%str%num_PLs
-    write(101,"('negf%str%active_cont     = ',I6)") negf%str%active_cont
-    write(101,"('negf%str%mat_B_start     = ',I6,I6)") negf%str%mat_B_start
-    write(101,"('negf%str%mat_C_start     = ',I6,I6)") negf%str%mat_C_start
-    write(101,"('negf%str%mat_C_end       = ',I6,I6)") negf%str%mat_C_end
-    write(101,"('negf%str%cblk            = ',I6,I6)") negf%str%cblk
-    write(101,"('negf%str%cont_dim        = ',I6,I6)") negf%str%cont_dim
-    write(101,"('negf%str%mat_PL_start    = ',10000000I6)") negf%str%mat_PL_start
-    write(101,"('negf%str%mat_PL_end      = ',10000000I6)") negf%str%mat_PL_end
-    write(101,"('negf%str%central_dim     = ',I6)") negf%str%central_dim
-    write(101,"('negf%str%total_dim       = ',I6)") negf%str%total_dim
-    write(101,"('negf%Ec, negf%Ev         = ',3F8.4)") negf%Ec, negf%Ev
-    write(101,"('negf%DeltaEc, %DeltaEv   = ',3F8.4)") negf%DeltaEc, negf%DeltaEv
-    write(101,"('negf%Emin, %Emax, %Estep = ',3F8.4)") negf%Emin, negf%Emax, negf%Estep
-    write(101,"('negf%kbT_dm              = ',10000000E12.4)") negf%cont(:)%kbT_dm
-    write(101,"('negf%kbT_t               = ',10000000E12.4)") negf%cont(:)%kbT_t
-    write(101,"('negf%mu_n                = ',10000000F8.4)") negf%cont(:)%mu_n
-    write(101,"('negf%mu_p                = ',10000000F8.4)") negf%cont(:)%mu_p
-    write(101,"('negf%mu                  = ',10000000F8.4)") negf%cont(:)%mu
-    write(101,"('negf%delta               = ',10000000E12.4)") negf%delta
-    write(101,"('negf%Np_real             = ',10000000I6)") negf%Np_real
-    write(101,"('negf%n_kt                = ',I6)") negf%n_kt
-    write(101,"('negf%n_poles             = ',I6)") negf%n_poles
-    write(101,"('negf%wght                = ',E12.4)") negf%wght
-    write(101,"('negf%g_spin              = ',E12.4)") negf%g_spin
-    write(101,"('negf%nLDOS               = ',I6)") negf%nLDOS
+    write(fdUnit,"('negf%H%nnz               = ',I6)") negf%H%nnz
+    write(fdUnit,"('negf%H%nrow              = ',I6)") negf%H%nrow
+    write(fdUnit,"('negf%H%ncol              = ',I6)") negf%H%ncol
+    write(fdUnit,"('negf%H%nzval             = ',10000000F8.4)") negf%H%nzval
+    write(fdUnit,"('negf%H%colind            = ',10000000I6)") negf%H%colind
+    write(fdUnit,"('negf%H%rowpnt            = ',10000000I6)") negf%H%rowpnt
+    write(fdUnit,"('negf%isSid               = ',L6)") negf%isSid
+    write(fdUnit,"('negf%S%nnz               = ',I6)") negf%S%nnz
+    write(fdUnit,"('negf%S%nrow              = ',I6)") negf%S%nrow
+    write(fdUnit,"('negf%S%ncol              = ',I6)") negf%S%ncol
+    write(fdUnit,"('negf%S%nzval             = ',10000000F8.4)") negf%S%nzval
+    write(fdUnit,"('negf%S%colind            = ',10000000I6)") negf%S%colind
+    write(fdUnit,"('negf%S%rowpnt            = ',10000000I6)") negf%S%rowpnt
+    write(fdUnit,"('negf%str%num_conts       = ',I6)") negf%str%num_conts
+    write(fdUnit,"('negf%str%num_PLs         = ',I6)") negf%str%num_PLs
+    write(fdUnit,"('negf%str%active_cont     = ',I6)") negf%str%active_cont
+    write(fdUnit,"('negf%str%mat_B_start     = ',I6,I6)") negf%str%mat_B_start
+    write(fdUnit,"('negf%str%mat_C_start     = ',I6,I6)") negf%str%mat_C_start
+    write(fdUnit,"('negf%str%mat_C_end       = ',I6,I6)") negf%str%mat_C_end
+    write(fdUnit,"('negf%str%cblk            = ',I6,I6)") negf%str%cblk
+    write(fdUnit,"('negf%str%cont_dim        = ',I6,I6)") negf%str%cont_dim
+    write(fdUnit,"('negf%str%mat_PL_start    = ',10000000I6)") negf%str%mat_PL_start
+    write(fdUnit,"('negf%str%mat_PL_end      = ',10000000I6)") negf%str%mat_PL_end
+    write(fdUnit,"('negf%str%central_dim     = ',I6)") negf%str%central_dim
+    write(fdUnit,"('negf%str%total_dim       = ',I6)") negf%str%total_dim
+    write(fdUnit,"('negf%Ec, negf%Ev         = ',3F8.4)") negf%Ec, negf%Ev
+    write(fdUnit,"('negf%DeltaEc, %DeltaEv   = ',3F8.4)") negf%DeltaEc, negf%DeltaEv
+    write(fdUnit,"('negf%Emin, %Emax, %Estep = ',3F8.4)") negf%Emin, negf%Emax, negf%Estep
+    write(fdUnit,"('negf%kbT_dm              = ',10000000E12.4)") negf%cont(:)%kbT_dm
+    write(fdUnit,"('negf%kbT_t               = ',10000000E12.4)") negf%cont(:)%kbT_t
+    write(fdUnit,"('negf%mu_n                = ',10000000F8.4)") negf%cont(:)%mu_n
+    write(fdUnit,"('negf%mu_p                = ',10000000F8.4)") negf%cont(:)%mu_p
+    write(fdUnit,"('negf%mu                  = ',10000000F8.4)") negf%cont(:)%mu
+    write(fdUnit,"('negf%delta               = ',10000000E12.4)") negf%delta
+    write(fdUnit,"('negf%Np_real             = ',10000000I6)") negf%Np_real
+    write(fdUnit,"('negf%n_kt                = ',I6)") negf%n_kt
+    write(fdUnit,"('negf%n_poles             = ',I6)") negf%n_poles
+    write(fdUnit,"('negf%wght                = ',E12.4)") negf%wght
+    write(fdUnit,"('negf%g_spin              = ',E12.4)") negf%g_spin
+    write(fdUnit,"('negf%nLDOS               = ',I6)") negf%nLDOS
     do ii = 1, negf%nLDOS
-      write(101,"('negf%LDOS(',I4,')%indexes   = ',10000000I6)") ii, negf%LDOS(ii)%indexes
+      write(fdUnit,"('negf%LDOS(',I4,')%indexes   = ',10000000I6)") ii, negf%LDOS(ii)%indexes
     end do
-    write(101,"('negf%Np_n                = ',10000000I6)") negf%Np_n
-    write(101,"('negf%Np_p                = ',10000000I6)") negf%Np_p
+    write(fdUnit,"('negf%Np_n                = ',10000000I6)") negf%Np_n
+    write(fdUnit,"('negf%Np_p                = ',10000000I6)") negf%Np_p
 
-    close (10)
+    close (fdUnit)
 
     write(stdOut, *)
     write(stdOut, "(' negf parameters are written to the log file')")
         
   end subroutine check_negf_params
-  !-----------------------------------------------------------------------------
- 
+
+
   !-----------------------------------------------------------------------------
   subroutine orthogonalization(H,S)
 
@@ -1787,7 +1832,7 @@ module negf_int
     !Save H_dftb_orth.mtr to file
     !open(12,file='H_dftb_orth.mtr',action="write")
     !do i = 1,N
-    !  write(12,*) H(i,1:N)*HAR
+    !  write(12,*) H(i,1:N)* Hartree__eV
     !end do
     !close(12)
   end subroutine orthogonalization
@@ -1902,7 +1947,7 @@ module negf_int
     !Save H_dftb_orth.mtr to file
     !open(12,file='H_dftb_orth.mtr',action="write")
     !do i=1,N
-    !   write(12,*) H(i,1:N)*HAR
+    !   write(12,*) H(i,1:N)*Hartree__eV
     !end do
     !close(12)
 
@@ -1939,7 +1984,7 @@ module negf_int
   !  unitOfEnergy%name = "H"
   !  unitOfCurrent%name = "A"
   !
-  !  if (id0) then
+  !  if (tIoProc) then
   !  write(*,*)
   !  write(*,'(80("="))')
   !  write(*,*) '                            COMPUTATION OF TRANSPORT         '
@@ -1973,7 +2018,7 @@ module negf_int
   !
   !  if(negf%tWrite_ldos) call WriteLDOS
   !
-  !  if (id0.and.negf%verbose.gt.30) then
+  !  if (tIoProc.and.negf%verbose.gt.30) then
   !    write(*,*)
   !    write(*,'(80("="))')
   !    write(*,*) '                          LibNEGF: Current calculation'
@@ -1987,7 +2032,7 @@ module negf_int
   !  call associate_ldos(negf, ledos)
   !  call associate_transmission(negf, tunn)
   !
-  !  if (id0.and.negf%verbose.gt.30) then
+  !  if (tIoProc.and.negf%verbose.gt.30) then
   !    write(*,*)
   !    write(*,'(80("="))')
   !    write(*,*) '                           LibNEGF: Current finished'
@@ -2004,7 +2049,7 @@ module negf_int
   !       call mpifx_allreduceip(mpicomm, negf%cont(icont)%SelfEnergy, MPI_SUM)
   !  end do
   !
-  !  if (id0) then
+  !  if (tIoProc) then
   !    do icont=1,negf%str%num_conts
   !      if(negf%cont(icont)%tWriteSelfEnergy) then
   !        open(14,form="unformatted",file=trim(negf%cont(icont)%name)//'-SelfEnergy.mgf' &
@@ -2024,7 +2069,7 @@ module negf_int
   !          call mpifx_allreduceip(mpicomm, negf%cont(icont)%SurfaceGF, MPI_SUM)
   !  end do
   !
-  !  if (id0) then
+  !  if (tIoProc) then
   !    do icont=1,negf%str%num_conts
   !      if (negf%cont(icont)%tWriteSurfaceGF) then
   !        open(14,form="unformatted",file=trim(negf%cont(icont)%name)//'-SurfaceGF.mgf' &
@@ -2045,7 +2090,7 @@ module negf_int
   !
   !  currents = currents * convertCurrent(unitOfEnergy, unitOfCurrent)
   !
-  !  if (id0) then
+  !  if (tIoProc) then
   !    do i=1, size(currents)
   !      write(*,'(1x,a,i3,i3,a,ES14.5,a,a)') &
   !           & ' contacts: ',negf%ni(i),negf%nf(i), &
@@ -2054,10 +2099,10 @@ module negf_int
   !  endif
   !
   !  call mpifx_allreduceip(mpicomm, tunn, MPI_SUM)
-  !  if (id0 .and. tundos%writeTunn) then
+  !  if (tIoProc .and. tundos%writeTunn) then
   !     open(65000,file='tunneling.dat')
   !     do i=1,size(tunn,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*HAR
+  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
   !        do j=1,size(tunn,2)
   !           write(65000,'(f20.8)',ADVANCE='NO') tunn(i,j)
   !        enddo
@@ -2068,10 +2113,10 @@ module negf_int
   !
   !  if(negf%tZeroCurrent) then
   !     call mpifx_allreduceip(mpicomm, negf%tunn_mat_bp, MPI_SUM)
-  !  if (id0 .and. tundos%writeTunn) then
+  !  if (tIoProc .and. tundos%writeTunn) then
   !     open(65000,file='tunneling_bp.dat')
   !     do i=1,size(negf%tunn_mat_bp,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*HAR
+  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
   !        do j=1,size(negf%tunn_mat_bp,2)
   !           write(65000,'(f20.8)',ADVANCE='NO') negf%tunn_mat_bp(i,j)
   !        enddo
@@ -2083,10 +2128,10 @@ module negf_int
   !
   !  if ((.not.allocated(negf%inter)).and.(.not.negf%tDephasingBP)) then
   !  call mpifx_allreduceip(mpicomm, ledos, MPI_SUM)
-  !  if (id0 .and. tundos%writeLDOS) then
+  !  if (tIoProc .and. tundos%writeLDOS) then
   !     open(65000,file='localDOS.dat')
   !     do i=1,size(ledos,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*HAR
+  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
   !        do j=1,size(ledos,2)
   !           write(65000,'(f20.8)',ADVANCE='NO') ledos(i,j)
   !        enddo
@@ -2097,10 +2142,10 @@ module negf_int
   !  end if
   !
   !  if (negf%tWrite_ldos) call mpifx_allreduceip(mpicomm, ledos, MPI_SUM)
-  !  if (id0 .and. negf%tWrite_ldos) then
+  !  if (tIoProc .and. negf%tWrite_ldos) then
   !     open(65000,file='localDOS.dat')
   !     do i=1,size(ledos,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*HAR
+  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
   !        do j=1,size(ledos,2)
   !           write(65000,'(f20.8)',ADVANCE='NO') ledos(i,j)
   !        enddo
@@ -2109,7 +2154,7 @@ module negf_int
   !     close(65000)
   !  end if
   !
-  !  if (id0) print*,'calculation of current done'
+  !  if (tIoProc) print*,'calculation of current done'
   !
   !end subroutine negf_current_nogeom
   !-----------------------------------------------------------------------------
