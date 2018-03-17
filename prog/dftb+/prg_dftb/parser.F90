@@ -3565,11 +3565,9 @@ contains
     call getChildren(root, "Contact", pNodeList)
 
     tp%ncont = getLength(pNodeList)
-
     if (tp%ncont < 2) then
-      call detailedError(pGeom, "At least two contacts must be defined")
+      call detailedError(root, "At least two contacts must be defined")
     end if
-
     allocate(tp%contacts(tp%ncont))
     !! Parse contact geometry
 
