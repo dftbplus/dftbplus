@@ -14,6 +14,7 @@ module eigenvects
   use accuracy
   use eigensolver
   use message
+  use solvertypes
 #:if WITH_SCALAPACK
   use scalapackfx
 #:endif
@@ -69,11 +70,11 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
     select case(iSolver)
-    case(1)
+    case(solverQR)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(2)
+    case(solverDAC)
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(3)
+    case(solverRR)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
@@ -109,11 +110,11 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
     select case(iSolver)
-    case(1)
+    case(solverQR)
       call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(2)
+    case(solverDAC)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(3)
+    case(solverRR)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
@@ -155,12 +156,12 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
     select case(iSolver)
-    case(1)
+    case(solverQR)
       call scalafx_psygv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
-    case(2)
+    case(solverDAC)
       call scalafx_psygvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
           & allocfix=.true.)
-    case(3)
+    case(solverRR)
       call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
     case default
       call error('Unknown eigensolver')
@@ -201,12 +202,12 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
     select case(iSolver)
-    case(1)
+    case(solverQR)
       call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
-    case(2)
+    case(solverDAC)
       call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
           & allocfix=.true.)
-    case(3)
+    case(solverRR)
       call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
     case default
       call error('Unknown eigensolver')

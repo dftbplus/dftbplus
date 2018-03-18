@@ -272,7 +272,7 @@ contains
       call mergeExternalPotentials(orb, species, potential)
 
       ! Dirty trick to jump out in case of non-scc calculations with transport only
-      if (solver == onlytransport) then
+      if (solver == solverOnlyTransport) then
         ! we open detailedout here since we jump out lpGeomOpt
         call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
         ! We need to define hamltonian by adding the potential

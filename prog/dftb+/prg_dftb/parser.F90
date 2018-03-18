@@ -1751,8 +1751,8 @@ contains
     case ("divideandconquer")
       ctrl%iSolver = solverDAC
     case ("relativelyrobust")
-      ctrl%iSolver = solverRR1
-#:if WITH_TRANSPORT      
+      ctrl%iSolver = solverRR
+  #:if WITH_TRANSPORT
     case ("greensfunction")
       ctrl%iSolver = solverGF
       call readGreensFunction(value, greendens, tp, ctrl%tempElec)
@@ -1760,8 +1760,8 @@ contains
       ! initQFromFile    
       ctrl%tFixEf = .true.
     case ("transportonly")
-      ctrl%iSolver = onlyTransport
-#:endif
+      ctrl%iSolver = solverOnlyTransport
+  #:endif
     end select
     
     ! Charge

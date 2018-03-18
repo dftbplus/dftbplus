@@ -1427,11 +1427,11 @@ contains
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
       select case (iMixer)
-      case (1)
+      case (mixerSimple)
         allocate(pSimplemixer)
         call init(pSimpleMixer, mixParam)
         call init(pChrgMixer, pSimpleMixer)
-      case (2)
+      case (mixerAnderson)
         allocate(pAndersonMixer)
         if (input%ctrl%andersonNrDynMix > 0) then
           call init(pAndersonMixer, nGeneration, mixParam, &
@@ -1442,12 +1442,12 @@ contains
               &input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
         end if
         call init(pChrgMixer, pAndersonMixer)
-      case (3)
+      case (mixerBroyden)
         allocate(pBroydenMixer)
         call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
-      case(4)
+      case(mixerDIIS)
         allocate(pDIISMixer)
         call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
         call init(pChrgMixer, pDIISMixer)
@@ -1585,7 +1585,7 @@ contains
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, &
             & input%ctrl%deltaGeoOpt, input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
-      case (4)
+      case (optLBFGS)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
             & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
@@ -2413,7 +2413,7 @@ contains
       case (optDIIS)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
             &// trim(strTmp)
-      case (4)
+      case (optLBFGS)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
@@ -2471,13 +2471,11 @@ contains
       write (strTmp, "(A)") "Standard"
     case(solverDAC)
       write (strTmp, "(A)") "Divide and Conquer"
-    case(solverRR1)
-      write (strTmp, "(A)") "Relatively robust (version 1)"
-    case(solverRR2)
-      write (strTmp, "(A)") "Relativel robust (version 2)"
+    case(solverRR)
+      write (strTmp, "(A)") "Relatively robust"
     case(solverGF)
       write (strTmp, "(A)") "Green's functions"
-    case(onlyTransport)
+    case(solverOnlyTransport)
       write (strTmp, "(A)") "Transport Only (no energies)"
     case default
       call error("Unknown eigensolver!")
@@ -2778,8 +2776,7 @@ contains
     case(forceOrig)
       write(stdOut, "(A,T30,A)") "Force type", "original"
     case(forceRediag)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized &
-          & eigenvalues"
+      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
     case(forceDynT0)
       write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
     case(forceDynT)
@@ -2942,7 +2939,7 @@ contains
     ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
     !       introducing 'TransportOnly' option the logic is bit more
     !       involved: Contacts are not uploded in case of non-scc calculations 
-    if (solver == onlyTransport .and. .not.tSccCalc) then
+    if (solver == solverOnlyTransport .and. .not.tSccCalc) then
       tUpload = .false.
     end if  
     ! whether tunneling is computed
