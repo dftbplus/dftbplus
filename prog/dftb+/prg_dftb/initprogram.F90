@@ -2177,19 +2177,21 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    if (env%tGlobalMaster) then
-      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
-    end if
-
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
   #:if WITH_TRANSPORT
     call initTransport(env, input)
   #:else
     tPoisson = .false.
-  #:endif  
+  #:endif
+
+    tWriteBandDat = tWriteBandDat .and. .not. tNegf
+
+    if (env%tGlobalMaster) then
+      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
+          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
+    end if
 
     if (tPoisson) then
       electrostatics = poisson
@@ -2924,7 +2926,7 @@ contains
     type(TEnvironment), intent(in) :: env
     type(inputData), intent(in) :: input
   
-    !> Wheter transport has been initialized
+    !> Whether transport has been initialized
     logical :: tInitialized
     integer :: iSpin, isz
     integer :: nSpinChannels
@@ -3009,7 +3011,7 @@ contains
 
       ! Some sanity checks and initialization of GDFTB/NEGF
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos,&
-           & env%mpi%globalComm, tempElec)     
+           & env%mpi%globalComm, tempElec, solver)
      
       ginfo = input%ginfo 
 

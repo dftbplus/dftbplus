@@ -28,6 +28,7 @@ module negf_int
   use FormatOut
   use globalenv
   use message
+  use solvertypes
 
   implicit none
   private
@@ -64,13 +65,16 @@ module negf_int
   !> Init gDFTB environment and variables
   !>
   !> Note: mpicomm should be the global commworld here
-  subroutine negf_init(transpar, greendens, tundos, mpicomm, tempElec)
+  subroutine negf_init(transpar, greendens, tundos, mpicomm, tempElec, solver)
     
     Type(TTranspar), intent(in) :: transpar
     Type(TNEGFGreenDensInfo), intent(in) :: greendens
     Type(TNEGFTunDos), intent(in) :: tundos
     Type(mpifx_comm), intent(in) :: mpicomm
     real(dp), intent(in) :: tempElec
+
+    !> Which solver call is used in the main code
+    integer, intent(in) :: solver
     
     ! local variables
     real(dp), allocatable :: pot(:), eFermi(:)
@@ -92,7 +96,7 @@ module negf_int
     call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
     
-    if (tIoProc) then
+    if (tIoProc .and. transpar%defined .and. solver == solverGF) then
       call create_scratch(negf)
     end if
     
