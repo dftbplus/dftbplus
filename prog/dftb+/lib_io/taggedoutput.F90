@@ -68,6 +68,9 @@ module taggedoutput
   !> Gibbs free energy for finite pressure periodic systems
   character(*), parameter, public :: tag_Gibbsfree = 'gibbs_energy'
 
+  !> Gross atomic charges
+  character(*), parameter, public :: tag_qOutAtGross  = 'gross_atomic_charges'
+
   !> numerically calculated second derivatives matrix
   character(*), parameter, public :: tag_HessianNum = 'hessian_numerical'
 
