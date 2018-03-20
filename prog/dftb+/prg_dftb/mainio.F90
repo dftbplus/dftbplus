@@ -1905,7 +1905,7 @@ contains
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, q0, derivs,&
+  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
       & gibbsFree, endCoords, tLocalise, localisation, esp)
 
@@ -1926,9 +1926,6 @@ contains
 
     !> Output Mulliken charges
     real(dp), intent(in) :: qOutput(:,:,:)
-
-    !> Reference atomic charges
-    real(dp), intent(in) :: q0(:,:,:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -1980,7 +1977,6 @@ contains
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
       call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
-      call writeTagged(fd, tag_qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1), dim=1))
     end if
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
@@ -2020,7 +2016,7 @@ contains
 
   !> Writes out machine readable data
   subroutine writeResultsTag(fd, fileName, energy, derivs, chrgForces, tStress, totalStress,&
-      & pDynMatrix, tPeriodic, cellVol)
+      & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -2052,6 +2048,17 @@ contains
     !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
 
+    !> Are Mulliken charges to be output
+    logical, intent(in) :: tMulliken
+
+    !> Output Mulliken charges
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    real(dp), allocatable :: qOutputUpDown(:,:,:)
+
     @:ASSERT(tPeriodic .eqv. tStress)
 
     open(fd, file=fileName, action="write", status="replace")
@@ -2074,6 +2081,14 @@ contains
     if (tPeriodic) then
       call writeTagged(fd, tag_volume, cellVol)
     end if
+
+    if (tMulliken) then
+      qOutputUpDown = qOutput
+      call qm2ud(qOutputUpDown)
+      call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
+      call writeTagged(fd, tag_qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1), dim=1))
+    end if
+
     close(fd)
 
   end subroutine writeResultsTag
