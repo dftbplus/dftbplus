@@ -2775,8 +2775,6 @@ contains
     select case (forceType)
     case(forceOrig)
       write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceRediag)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
     case(forceDynT0)
       write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
     case(forceDynT)

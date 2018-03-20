@@ -37,12 +37,10 @@ module solvertypes
 
   !> Conventional forces
   integer, parameter :: forceOrig = 0
-  !> Re-evaluate eigenvalues for forces
-  integer, parameter :: forceRediag = 1
   !> convergence corrected at 0 temperature
-  integer, parameter :: forceDynT0 = 2
+  integer, parameter :: forceDynT0 = 1
   !> convergence corrected at finite temperature
-  integer, parameter :: forceDynT = 3
+  integer, parameter :: forceDynT = 2
 
 
   ! eigen- or alternative solvers
