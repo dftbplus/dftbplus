@@ -23,8 +23,11 @@ program test_extcharges
       & 0.000000000000000E+00_dp,  0.000000000000000E+00_dp,  0.147977639152057E+01_dp,&
       & 0.000000000000000E+00_dp,  0.000000000000000E+00_dp, -0.147977639152057E+01_dp], [3, nAtom])
 
-  ! H2O atom types
-  integer, parameter :: species(nAtom) = [1, 2, 2]
+  ! Atomic number of each atom
+  integer, parameter :: atomTypes(nAtom) = [8, 1, 1]
+
+  character(2), parameter :: atomTypeNames(10) = [character(2) ::&
+      & "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"]
 
   ! External charges (positions and charges)
   real(dp), parameter :: extCharges(4, nExtChrg) = reshape([&
@@ -44,6 +47,8 @@ program test_extcharges
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
 
+  integer, allocatable :: species(:)
+  character(2), allocatable :: speciesNames(:)
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
   real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
@@ -62,7 +67,14 @@ program test_extcharges
   call input%getRootNode(pRoot)
   call setChild(pRoot, "Geometry", pGeo)
   call setChildValue(pGeo, "Periodic", .false.)
-  call setChildValue(pGeo, "TypeNames", ["O", "H"])
+
+  ! Demonstrates how to convert the atom types if they are not numbered from 1 but use atomic
+  ! numbers instead. The atomTypeNames array is optional, if not present, the resulting type names
+  ! (which will have to be used at other places) will be X1, X2, etc.
+  print "(A)", "Converting atom types"
+  call convertAtomTypesToSpecies(atomTypes, species, speciesNames, atomTypeNames)
+  
+  call setChildValue(pGeo, "TypeNames", speciesNames)
   coords(:,:) = 0.0_dp
   call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
   call setChild(pRoot, "Hamiltonian", pHam)
@@ -70,8 +82,10 @@ program test_extcharges
   call setChildValue(pDftb, "Scc", .true.)
   call setChildValue(pDftb, "SccTolerance", 1e-12_dp)
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
-  call setChildValue(pMaxAng, "O", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1))
-  call setChildValue(pMaxAng, "H", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
+  call setChildValue(pMaxAng, speciesNames(1),&
+      & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1))
+  call setChildValue(pMaxAng, speciesNames(2),&
+      & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "external/slakos/origin/mio-1-1/")

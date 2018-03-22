@@ -24,7 +24,7 @@ module dftbp_mmapi
   public :: TDftbPlus
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
-  public :: getMaxAngFromSlakoFile
+  public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
   integer :: nDftbPlusCalc = 0
 
@@ -306,5 +306,54 @@ contains
 
   end function getMaxAngFromSlakoFile
 
+
+  !> Converts atom types to species.
+  subroutine convertAtomTypesToSpecies(typeNumbers, species, speciesNames, typeNames)
+
+    !> Type number of each atom is the system. It can be arbitrary number (e.g. atomic number)
+    integer, intent(in) :: typeNumbers(:)
+
+    !> Species index for each atom (1 for the first atom type found, 2 for the second, etc.)
+    integer, allocatable, intent(out) :: species(:)
+
+    !> Names of each species, usually X1, X2 unless typeNames have been specified.
+    character(*), allocatable, intent(out) :: speciesNames(:)
+
+    !> Array of type names, indexed by the type numbers.
+    character(*), intent(in), optional :: typeNames(:)
+
+    integer, allocatable :: uniqueTypeNumbers(:)
+    integer :: nAtom, nSpecies
+    integer :: iAt, iSp, curType
+    
+    nAtom = size(typeNumbers)
+
+    allocate(uniqueTypeNumbers(nAtom))
+    nSpecies = 0
+    do iAt = 1, nAtom
+      curType = typeNumbers(iAt)
+      if (.not. any(uniqueTypeNumbers(1:nSpecies) == curType)) then
+        nSpecies = nSpecies + 1
+        uniqueTypeNumbers(nSpecies) = curType
+      end if
+    end do
+
+    allocate(species(nAtom))
+    do iSp = 1, nSpecies
+      where (typeNumbers == uniqueTypeNumbers(iSp))
+        species = iSp
+      end where
+    end do
+
+    allocate(speciesNames(nSpecies))
+    do iSp = 1, nSpecies
+      if (present(typeNames)) then
+        speciesNames(iSp) = typeNames(uniqueTypeNumbers(iSp))
+      else
+        write(speciesNames(iSp), "(A,I0)") "X", iSp
+      end if
+    end do
+
+  end subroutine convertAtomTypesToSpecies
 
 end module dftbp_mmapi
