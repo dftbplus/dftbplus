@@ -137,11 +137,11 @@ def main():
         bb = 1.0 / sigma
         broadening_function = lambda x: 1.0 / (1.0 + np.cosh(bb * x))
     elif broadening == GAUSS_BROADENING:
-        aa = 1.0 / (sigma * np.sqrt(2.0 * np.pi))
-        bb = -0.5 / sigma**2
+        aa = 1.0 / (sigma * np.sqrt(np.pi))
+        bb = -1.0 / sigma**2
         broadening_function = lambda x: np.exp(bb * x * x)
-    else:
-        aa = 1.0
+    else: # Methfessel-Paxton
+        aa = 1.0 / sigma
         bb = 1.0 / sigma
         order = int(args.mporder) + 1 # order = 0 => Gaussian
         coefs = np.zeros(2*order, dtype=float)
