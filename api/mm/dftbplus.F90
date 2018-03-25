@@ -10,6 +10,7 @@
 !> DFTB+ library
 module dftbplus
   use dftbp_mmapi
+  use dftbp_capi
   use dftbp_hsdapi
   implicit none
 

@@ -1,5 +1,10 @@
-dftbplus.o: common.fypp _mod_dftbp_hsdapi _mod_dftbp_mmapi
-dftbplus.o = dftbplus.o $(common.fypp) $(_mod_dftbp_hsdapi) $(_mod_dftbp_mmapi)
+capi.o: _mod_dftbp_mmapi _mod_dftbp_accuracy
+capi.o = capi.o $(_mod_dftbp_mmapi) $(_mod_dftbp_accuracy)
+_mod_dftbp_capi: capi.o
+_mod_dftbp_capi = $(capi.o)
+
+dftbplus.o: common.fypp _mod_dftbp_hsdapi _mod_dftbp_mmapi _mod_dftbp_capi
+dftbplus.o = dftbplus.o $(common.fypp) $(_mod_dftbp_hsdapi) $(_mod_dftbp_mmapi) $(_mod_dftbp_capi)
 _mod_dftbplus: dftbplus.o
 _mod_dftbplus = $(dftbplus.o)
 

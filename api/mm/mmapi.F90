@@ -43,13 +43,14 @@ module dftbp_mmapi
     procedure, nopass :: getInputFromFile => TDftbPlus_getInputFromFile
     procedure, nopass :: getEmptyInput => TDftbPlus_getEmptyInput
     procedure :: setupCalculator => TDftbPlus_setupCalculator
-    procedure :: setGeometry => TDftbPlus_setGeometry
-    procedure :: setExternalPotential => TDftbPlus_setExternalPotential
-    procedure :: setExternalCharges => TDftbPlus_setExternalCharges
+    procedure, nopass :: setGeometry => TDftbPlus_setGeometry
+    procedure, nopass :: setExternalPotential => TDftbPlus_setExternalPotential
+    procedure, nopass :: setExternalCharges => TDftbPlus_setExternalCharges
     procedure :: getEnergy => TDftbPlus_getEnergy
     procedure :: getGradients => TDftbPlus_getGradients
-    procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
-    procedure :: getGrossCharges => TDftbPlus_getGrossCharges
+    procedure, nopass :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
+    procedure, nopass :: getGrossCharges => TDftbPlus_getGrossCharges
+    procedure, nopass :: nrOfAtoms => TDftbPlus_nrOfAtoms
   end type TDftbPlus
 
 
@@ -172,10 +173,7 @@ contains
 
 
   !> Sets the geometry in the calculator.
-  subroutine TDftbPlus_setGeometry(this, coords, latVecs)
-
-    !> Instance.
-    class(TDftbPlus), intent(inout) :: this
+  subroutine TDftbPlus_setGeometry(coords, latVecs)
 
     !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
     real(dp), intent(in) :: coords(:,:)
@@ -187,10 +185,7 @@ contains
 
 
   !> Sets an external potential.
-  subroutine TDftbPlus_setExternalPotential(this, atomPot, potGrad)
-
-    !> Instance.
-    class(TDftbPlus), intent(inout) :: this
+  subroutine TDftbPlus_setExternalPotential(atomPot, potGrad)
 
     !> Potential acting on each atom. Shape: (nAtom)
     real(dp), intent(in), optional :: atomPot(:)
@@ -204,10 +199,7 @@ contains
 
 
   !> Sets external point charges.
-  subroutine TDftbPlus_setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
-
-    !> Instance
-    class(TDftbPlus), intent(inout) :: this
+  subroutine TDftbPlus_setExternalCharges(chargeCoords, chargeQs, blurWidths)
 
     !> Coordiante of the external charges
     real(dp), intent(in) :: chargeCoords(:,:)
@@ -255,10 +247,7 @@ contains
   !>
   !> This function may only be called, if TDftbPlus_setExternalCharges was called before.
   !>
-  subroutine TDftbPlus_getExtChargeGradients(this, gradients)
-
-    !> Instance.
-    class(TDftbPlus), intent(inout) :: this
+  subroutine TDftbPlus_getExtChargeGradients(gradients)
 
     !> Gradients acting on the external charges.
     real(dp), intent(out) :: gradients(:,:)
@@ -269,10 +258,7 @@ contains
 
 
   !> Returnss the gross charges of each atom.
-  subroutine TDftbPlus_getGrossCharges(this, atomCharges)
-
-    !> Instance.
-    class(TDftbPlus), intent(inout) :: this
+  subroutine TDftbPlus_getGrossCharges(atomCharges)
 
     !> Atomic gross charges.
     real(dp), intent(out) :: atomCharges(:)
@@ -280,6 +266,14 @@ contains
     call getGrossCharges(atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
+
+
+  function TDftbPlus_nrOfAtoms() result(nAtom)
+    integer :: nAtom
+
+    nAtom = nrOfAtoms()
+
+  end function TDftbPlus_nrOfAtoms
 
 
   !> Reads out the angular momentum from the an SK-file.

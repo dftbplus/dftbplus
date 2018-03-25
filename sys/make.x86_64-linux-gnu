@@ -74,12 +74,19 @@ endif
 # General settings
 ############################################################################
 
+# Linker for c executables
+LN_C = $(CC)
+LNOPT_C =
+
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT =
 
 # Library options in general
-LIBOPT = 
+LIBOPT =
+
+# Additional libraries needed to be linked when linking C-executables
+OTHERLIBS_C = -lgfortran -lm
 
 ############################################################################
 # Developer settings
@@ -88,12 +95,12 @@ LIBOPT =
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS = 
-    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic
+    FXXOPT = -fopenmp -g -Wall -pedantic #-std=f2008 
     CCOPT = -g -Wall -pedantic -fall-intrinsics
 endif
 
 ifeq ($(strip $(DEBUG)),2)
     OTHERLIBS = 
-    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT = -fopenmp -g -Wall -pedantic -fbounds-check #-std=f2008
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 endif

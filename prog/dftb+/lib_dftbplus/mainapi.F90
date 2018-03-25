@@ -21,6 +21,7 @@ module dftbp_mainapi
   public :: initProgramVariables, destructProgramVariables
   public :: setGeometry, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
+  public :: nrOfAtoms
 
 contains
 
@@ -146,6 +147,14 @@ contains
     chargeGradients(:,:) = chrgForces
     
   end subroutine getExtChargeGradients
+
+
+  function nrOfAtoms()
+    integer :: nrOfAtoms
+
+    nrOfAtoms = nAtom
+
+  end function nrOfAtoms
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
