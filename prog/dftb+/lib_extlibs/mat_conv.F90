@@ -17,30 +17,6 @@ module mat_conv
 
   public :: init,   destruct
   public :: foldToCSR, unfoldFromCSR
-  public :: TDftbMat_r, TDftbMat_z
-
-  type TDftbMat_r
-    real(dp), pointer    :: sparse(:)       !The sparse matrix to convert
-    integer, pointer     :: nOrb(:)         !Orbitals per atom
-    integer, pointer     :: iSquare(:)      !Starting positions of the atoms
-    integer, pointer     :: iPair(:,:)      !Starting position of atom-neighbor
-    integer, pointer     :: iNeighbor(:,:)  !Index of neighbors
-    integer, pointer     :: nNeighbor(:)    !Number of neighbors
-    integer, pointer     :: img2CentCell(:) !Image in the central cell
-    integer, pointer     :: mAngAtom(:)     !Angular momentum of each atom
-    integer              :: mmAng           !Maximal angular momentum 
-  end type TDftbMat_r
-
-  type TDftbMat_z
-    complex(dp), pointer :: sparse(:)       ! The sparse matrix to convert
-    integer, pointer     :: nOrb(:)         ! Orbitals per atom
-    integer, pointer     :: iSquare(:)      ! Starting positions of the atoms
-    integer, pointer     :: iPair(:,:)      ! Starting position of atom-neighbor
-    integer, pointer     :: iNeighbor(:,:)  ! Index of neighbors
-    integer, pointer     :: nNeighbor(:)    ! Number of neighbors
-    integer, pointer     :: img2CentCell(:) ! Image in the central cell
-    type(TOrbitals), pointer :: orb         ! Orbitals
-  end type TDftbMat_z
 
   !!* Creates a Compressed Sparse Row matrix with equivalent sparsity structure
   !!* as the internal sparse matrixes.
