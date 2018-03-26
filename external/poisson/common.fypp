@@ -1,0 +1,72 @@
+#!-------------------------------------------------------------------------------------------------!
+#!  DFTB+: general package for performing fast atomistic simulations                               !
+#!  Copyright (C) 2018  DFTB+ developers group                                                     !
+#!                                                                                                 !
+#!  See the LICENSE file for terms of usage and distribution.                                      !
+#!-------------------------------------------------------------------------------------------------!
+#!
+#:mute
+#:if not defined('_COMMON_FYPP_')
+#:set _COMMON_FYPP_
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Default values for all preprocessor variables
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#:if not defined('DEBUG')
+  #:set DEBUG = 0
+#:endif
+
+#:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
+#:set WITH_MPI = defined('WITH_MPI')
+#:set WITH_POISSON = defined('WITH_POISSON')
+
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! ASSERT and DEBUG related macros
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#! Check a condition if WITH_ASSERT is True and call assertError if condition is False.
+#:def ASSERT(cond)
+  #:if WITH_ASSERT
+  if (.not. (${cond}$)) then
+    call assertError("${_FILE_}$", ${_LINE_}$)
+  end if
+  #:endif
+#:enddef ASSERT
+
+
+#! Insert code if WITH_ASSERT is True.
+#:def ASSERT_CODE(code)
+  #:if WITH_ASSERT
+  $:code
+  #:endif
+#:enddef ASSERT_CODE
+
+
+#! Insert code if DEBUG level is greater than zero.
+#:def DEBUG_CODE(code)
+  #:if DEBUG > 0
+  $:code
+  #:endif
+#:enddef DEBUG_CODE
+
+#:endif
+
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Misc macros
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#! Gives a Fortran logical values corresponding to a bool expr.
+#:def FORTRAN_LOGICAL(expr)
+#{if expr}#.true.#{else}#.false.#{endif}#
+#:enddef FORTRAN_LOGICAL
+
+#! Returns the suffix for a dummy argument for a given rank
+#:def FORTRAN_ARG_DIM_SUFFIX(rank)
+#{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
+#:enddef
+
+#:endmute
+        
