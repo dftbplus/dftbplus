@@ -271,7 +271,7 @@ contains
 
       call mergeExternalPotentials(orb, species, potential)
 
-      ! Dirty trick to jump out in case of non-scc calculations with transport only
+      ! For non-scc calculations with transport only, jump out of geometry loop
       if (solver == solverOnlyTransport) then
         ! we open detailedout here since we jump out lpGeomOpt
         call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
@@ -299,7 +299,7 @@ contains
           call getChargePerShell(qInput, orb, species, chargePerShell)
 
         #:if WITH_TRANSPORT
-          ! Overrides uploaded contact charges
+          ! Overrides input charges with uploaded contact charges
           if (tUpload) then
             call overrideContactCharges(qInput, chargeUp, transpar)
           end if
@@ -363,6 +363,7 @@ contains
           call getChargePerShell(qOutput, orb, species, chargePerShell)
 
         #:if WITH_TRANSPORT
+          ! Overrides input charges with uploaded contact charges
           if (tUpload) then
             call overrideContactCharges(qOutput, chargeUp, transpar)
           end if
@@ -716,7 +717,7 @@ contains
 
   #:if WITH_TRANSPORT
     if (tContCalc) then
-      ! Note: shift and charge are saved in QM representation (not UD)
+      ! Note: shift and charges are saved in QM representation (not UD)
       associate(tp => transpar)
       call writeContShifts(tp%contacts(tp%taskContInd)%output, orb, potential%intShell, qOutput)
       end associate
@@ -1459,6 +1460,7 @@ contains
   end subroutine resetInternalPotentials
 
 #:if WITH_TRANSPORT
+  !> Replace charges with those from the stored contact values
   subroutine overrideContactCharges(qInput, chargeUp, transpar)
     !> input charges
     real(dp), intent(inout) :: qInput(:,:,:)
