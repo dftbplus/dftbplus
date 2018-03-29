@@ -455,11 +455,11 @@ module inputdata_module
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
-#:if WITH_TRANSPORT
+  #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
     type(TPoissonInfo) :: poisson
-#:endif
+  #:endif
   end type inputData
 
 
