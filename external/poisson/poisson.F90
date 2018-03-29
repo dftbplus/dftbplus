@@ -17,224 +17,319 @@ module poisson
   use gprecision
   use gallocation  
   use parameters
-  use structure 
+  use structure
+  use parcheck                
   use gewald
   use bulkpot
   use gclock
   use fancybc
-  use mpi_poisson 
-  use fileid
+  use mpi_poisson
+  use io 
   implicit none
   private
   
   integer, PARAMETER :: VBT=30
 
+  ! from parameters
+  public :: MAXNCONT
+  public :: verbose, biasdir, gatedir, contdir, ncont, ni, nf
+  public :: iatc, iatm, ncdim, mbound_end, maxiter, localBC, poissBC
+  public :: overrideBC, overrBulkBC, maxpoissiter
+  public :: hartree, a_u, Temp, telec, deltaR_max, LmbMax, gate
+  public :: GateLength_l, GateLength_t, OxLength, Efermi
+  public :: bias_dEf, Rmin_Ins, Rmin_Gate, dr_eps
+  public :: eps_r, cntr_gate, tip_atom, base_atom1, base_atom2, tipbias
+  public :: DOS, delta, racc, PoissAcc, dmin, PoissBox, PoissBounds
+  public :: PoissPlane,mu,cntr_cont,R_cont,dR_cont,x0,y0,z0,bufferBox
+  public :: etb ,cluster ,SavePot ,SaveNNList,SaveHS,FictCont,FoundBox,DoPoisson
+  public :: Readold,InitPot,DoGate,DoCilGate,DoTip,ReadBulk,mixed
+  public :: do_renorm, fixed_renorm
+  public :: scratchfolder
+  public :: init_defaults
+  public :: set_verbose, set_scratch, set_contdir, set_cluster
+  public :: set_fermi, set_potentials, set_builtin
+  public :: set_temperature, set_ncont, set_mol_indeces, set_cont_indeces
+  public :: set_dopoisson, set_poissonbox, set_poissongrid, set_accuracy  
+  ! from structure
+  public :: init_structure, init_charges, init_skdata
+  public :: natoms, dQmat, lmax, uhubb, izp, period
+  ! from parcheck
+  public :: check_poisson_box, check_contacts, check_localbc
+  public :: check_parameters, write_parameters, check_biasdir
+  ! from mpi_poisson 
+  public :: poiss_mpi_init, poiss_mpi_split, global_comm, poiss_comm
+  public :: id0, active_id, numprocs
+  
+  public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
+  public :: poiss_updcoords, poiss_savepotential, poiss_freepoisson
 
- public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
- !public :: libmesh_drv
+ contains
+
+ !------------------------------------------------------------------------------
+ ! Utility subroutine to build gDFTB supercell
+ !------------------------------------------------------------------------------
+ subroutine poiss_supercell(slkcutoff)
+   real(dp) :: slkcutoff
+  
+   if (active_id) then
+     call gamma_summind(slkcutoff)
+                         
+     call buildsupercell() !(computes ss_natoms and allocates inside ss_x, ss_izp)
+                           ! period_dir should have been computed (check_biasdir)
+   endif
+ end subroutine poiss_supercell
+
+ !------------------------------------------------------------------------------
+ subroutine poiss_freepoisson()
+
+   real(kind=dp), DIMENSION(3,1) :: fakegrad
+   real(kind=dp), DIMENSION(1,1) :: fakeshift
+   integer :: PoissFlag, ndim 
+
+   if (active_id) then
+     PoissFlag=3
+     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)  
+   endif
  
- !interface 
- !   subroutine libmesh_entry(nn, ndim, ind, Lx, Ly, Lz, X_atm, Y_atm, Z_atm,&
- !                     bc_values,periodic,V_orb)
- !     use precision
- !     integer  :: nn, ndim, ind(*),periodic(3)
- !     real(kind=dp) ::  Lx,Ly,Lz,bc_values(2)
- !     real(kind=dp) :: X_atm(*),Y_atm(*),Z_atm(*),V_orb(*) 
- !   end  subroutine libmesh_entry
- !end interface
-
-contains
-
-subroutine init_poissbox
-
- integer :: i,m,s,f
- real(kind=dp) :: bound(MAXNCONT) 
- real(kind=dp) :: edge,tmp,Lx 
- integer :: tmpdir(3)
-
-!**********************************************************************************
-! 1. Set Poisson Box 
-!**********************************************************************************
-
- !  e.g.: x direction
- !                     +++++++++++++++++++++++
- !            ---------+---------------------+---------
- ! <--- contdir(1)=-1 |+C1|    MOLECULE   |C2+| contdir(2)=1 --->   
- !            ---------+---------------------+---------
- !                     +++++++++++++++++++++++
- !  ------------------------------------------------------------------>x    
- 
- ! The first check is used to decide the position of the molecular atoms
- ! with respect to contact 1. 
- ! The idea is to define the Poisson box from the atoms closer to the 
- ! molecule, e.g. :
- !           +++++++++++++++++++
- !  ---------+-----------------+---------
- !     C1   |+|    MOLECULE   |+|   C2 
- !  ---------+-----------------+---------
- !           +++++++++++++++++++
- ! 
- ! The box is cut in the middle between the contact and molecule atoms 
- ! closer to the boundary. Note that in this way it's easier to  reload
- ! chunks of periodic potentials from bulk calculations (GP: patch from Stan)
- ! If a buffer length for the box is defined, then the box boundary are shifted
- ! inside the contact region, according to the buffer parameter 
- ! (can be used to reproduce old default settings)
-
- do m = 1, ncont
-    
-    f=abs(contdir(m))
-    if (contdir(m).gt.0) then     
-      edge = 0.5_dp * (maxval(x(f,iatm(1):iatm(2))) + minval(x(f,iatc(3,m):iatc(2,m))))
-      bound(m) = edge + bufferBox
-    else                          
-      edge = 0.5_dp * (minval(x(f,iatm(1):iatm(2))) + maxval(x(f,iatc(3,m):iatc(2,m))))
-      bound(m) = edge - bufferBox
-    end if
-    
- end do
-
- tmpdir(:) = 0
- !check if there are two or more contacts in the same direction
- do m=1,ncont
-    f=abs(contdir(m))
-    do s=m+1,ncont
-       if( f.eq.abs(contdir(s)) .and. contdir(m).eq.-contdir(s) ) then                 
-          PoissBox(f,f)= abs(bound(s) -  bound(m)) !set PoissonBox to the direction of m and s
-          
-          PoissBounds(f,2) = max(bound(s),bound(m))
-          PoissBounds(f,1) = min(bound(s),bound(m)) 
-          
-          tmpdir(f)=1
-       endif
-       if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-          if(id0) write(*,*) 'ERROR: contacts in the same direction must be aligned'
-          STOP    
-       endif
-    enddo
-    ! Adjust PoissonBox if there are no facing contacts
-    if(tmpdir(f).eq.0) then
-
-       if (contdir(m).gt.0) then     
-          !fparm((f*2)-1) = bound(m) - PoissBox(f,f)
-          PoissBounds(f,1) = min( bound(m) - PoissBox(f,f), &
-                             minval(x(f,1:iatm(2)))-2.d0*deltaR_max )
-          PoissBounds(f,2) = bound(m)
-       else                          
-          !fparm((f*2))   = bound(m) + PoissBox(f,f)
-          PoissBounds(f,2) = max( bound(m) + PoissBox(f,f), &
-                             maxval(x(f,1:iatm(2)))+2.d0*deltaR_max )
-          PoissBounds(f,1) = bound(m)
-       end if
-       PoissBox(f,f) = PoissBounds(f,2)-PoissBounds(f,1)
-       tmpdir(f)=1
-    endif
-    
- enddo
- 
- !------------------------------------------------------
- ! Range of the remaining spatial variables 
- !------------------------------------------------------
- do i = 1, 3
-    if (period_dir(i)) then
-       PoissBox(i,i) = boxsiz(i,i)
-    endif
- end do
-
- !if (cluster.and.period) then
-    !do i = 1, 3
-    !   PoissBounds(i,2) = maxval(x(i,:))
-    !   PoissBounds(i,1) = minval(x(i,:))       
-    !end do
- !   f = contdir(1)
- !   PoissBox(f,f) = boxsiz(f,f)
- !end if 
-
- ! set bounds (PoissBox)
- ! Set PoissonBox in the directions where there are no facing contacts
- do i = 1, 3
-    
-    f=iatm(2)
-    if (tmpdir(i) .eq. 0) then
-       
-       tmp=(maxval(x(i,1:f))-minval(x(i,1:f))+2.d0*deltaR_max)
-
-       if(any(localBC.gt.0)) then
-          tmp = tmp - 2.d0*deltaR_max + 2.d0*maxval(dR_cont)
-       endif
-       
-       if (.not.period_dir(i).and.PoissBox(i,i).le.tmp) PoissBox(i,i) = tmp
-          
-       Lx= maxval(x(i,1:f))+minval(x(i,1:f))
-       
-       PoissBounds(i,2) = ( Lx+PoissBox(i,i) )/2.d0 
-       PoissBounds(i,1) = ( Lx-PoissBox(i,i) )/2.d0 
-
-    end if
-    
- end do
-
- !-------------------------------
- ! Checking Poisson Box
- !---- ---------------------------
- do i=1,3  
-    if(PoissBox(i,i).le.0.d0) then
-       if(id0) write(*,*) "----------------------------------------------------"
-       if(id0) write(*,*) "ERROR: PoissBox negative !                          "
-       if(id0) write(*,*) "----------------------------------------------------"
-       flush(6)
-       stop
-    end if
- enddo
- !-------------------------------
- ! Checking for gate dimension
- !-------------------------------
- if (DoGate) then
-    biasdir = abs(contdir(1))
-    if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-       if(id0) write(*,*) "----------------------------------------------------"
-       if(id0) write(*,*) "WARNING: Gate Distance too large!                   "
-       if(id0) write(*,*) "----------------------------------------------------"
-       flush(6)
-    end if
- endif
- 
- if (DoCilGate) then
+   if(allocated(x)) call log_gdeallocate(x)
+   if(allocated(izp)) call log_gdeallocate(izp) 
+   if(allocated(dQmat)) call log_gdeallocate(dQmat)
+   if(allocated(uhubb)) call log_gdeallocate(uhubb)
+   if(allocated(lmax)) call log_gdeallocate(lmax)
+   if(allocated(renorm)) call log_gdeallocate(renorm)
+   if (id0) then
+     call writePeakInfo(6)
+     call writeMemInfo(6)
+   endif
    
-    biasdir = abs(contdir(1))
+ end subroutine poiss_freepoisson
 
-    if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-       if(id0) write(*,*) "------------------------------------------"
-       if(id0) write(*,*) "Gate insulator is longer than Poisson box!"
-       if(id0) write(*,*) "------------------------------------------"
-       flush(6)
-    end if
+ ! -----------------------------------------------------------------------------
+ subroutine poiss_savepotential()
     
-    do i = 1,3
-       if (i.eq.biasdir) then
-          cycle
-       end if
-       if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-          if(id0) write(*,*) "----------------------------------------------------"
-          if(id0) write(*,*) "Gate transversal section is bigger than Poisson box!"
-          if(id0) write(*,*) "----------------------------------------------------"
-          flush(6)
-          exit
-       end if
-    end do
+   real(kind=dp), DIMENSION(3,1) :: fakegrad
+   real(kind=dp), DIMENSION(1,1) :: fakeshift
+   integer :: PoissFlag, ndim
+ 
+   if (active_id) then
+ 
+     if(.not.SavePot) return
+  
+     write(stdOut,"('>> Saving Poisson output in potential.dat')")
+  
+     PoissFlag=2
+     
+     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)
+   
+   endif
+
+ end subroutine poiss_savepotential
+  
+ !------------------------------------------------------------------------------
+ subroutine poiss_updcoords(x0)
+   real(dp), dimension(:,:), intent(in) :: x0
+
+   if (active_id) then
+     x = x0
+     do_renorm = .true.
+   endif
+ end subroutine poiss_updcoords
+
+ ! -----------------------------------------------------------------------------
+ subroutine poiss_setparameters(st_tempElec)
+   real(dp), intent(in)  :: st_tempElec       ! electron temperature 
     
- end if
+   telec=st_tempElec
 
- !---------------------------------------
- ! Gate geometry mid point definition
- !---------------------------------------
- if (DoGate.or.DoCilGate) then
-    do i = 1,3
-       cntr_gate(i) = ( PoissBounds(i,2) + PoissBounds(i,1) )/2.d0
-    end do
- end if
+ end subroutine poiss_setparameters
 
-end subroutine init_poissbox
+ ! -----------------------------------------------------------------------------
+ subroutine init_poissbox
+
+  integer :: i,m,s,f
+  real(kind=dp) :: bound(MAXNCONT) 
+  real(kind=dp) :: edge,tmp,Lx 
+  integer :: tmpdir(3)
+
+  !*******************************************************************************
+  ! 1. Set Poisson Box 
+  !*******************************************************************************
+
+  !  e.g.: x direction
+  !                     +++++++++++++++++++++++
+  !            ---------+---------------------+---------
+  ! <--- contdir(1)=-1 |+C1|    MOLECULE   |C2+| contdir(2)=1 --->   
+  !            ---------+---------------------+---------
+  !                     +++++++++++++++++++++++
+  !  ------------------------------------------------------------------>x    
+  
+  ! The first check is used to decide the position of the molecular atoms
+  ! with respect to contact 1. 
+  ! The idea is to define the Poisson box from the atoms closer to the 
+  ! molecule, e.g. :
+  !           +++++++++++++++++++
+  !  ---------+-----------------+---------
+  !     C1   |+|    MOLECULE   |+|   C2 
+  !  ---------+-----------------+---------
+  !           +++++++++++++++++++
+  ! 
+  ! The box is cut in the middle between the contact and molecule atoms 
+  ! closer to the boundary. Note that in this way it's easier to  reload
+  ! chunks of periodic potentials from bulk calculations (GP: patch from Stan)
+  ! If a buffer length for the box is defined, then the box boundary are shifted
+  ! inside the contact region, according to the buffer parameter 
+  ! (can be used to reproduce old default settings)
+
+  do m = 1, ncont
+     
+     f=abs(contdir(m))
+     if (contdir(m).gt.0) then     
+       edge = 0.5_dp * (maxval(x(f,iatm(1):iatm(2))) + minval(x(f,iatc(3,m):iatc(2,m))))
+       bound(m) = edge + bufferBox
+     else                          
+       edge = 0.5_dp * (minval(x(f,iatm(1):iatm(2))) + maxval(x(f,iatc(3,m):iatc(2,m))))
+       bound(m) = edge - bufferBox
+     end if
+     
+  end do
+
+  tmpdir(:) = 0
+  !check if there are two or more contacts in the same direction
+  do m=1,ncont
+     f=abs(contdir(m))
+     do s=m+1,ncont
+        if( f.eq.abs(contdir(s)) .and. contdir(m).eq.-contdir(s) ) then                 
+           PoissBox(f,f)= abs(bound(s) -  bound(m)) !set PoissonBox to the direction of m and s
+           
+           PoissBounds(f,2) = max(bound(s),bound(m))
+           PoissBounds(f,1) = min(bound(s),bound(m)) 
+           
+           tmpdir(f)=1
+        endif
+        if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
+           write(stdOut,*) 'ERROR: contacts in the same direction must be aligned'
+           STOP    
+        endif
+     enddo
+     ! Adjust PoissonBox if there are no facing contacts
+     if(tmpdir(f).eq.0) then
+
+        if (contdir(m).gt.0) then     
+           !fparm((f*2)-1) = bound(m) - PoissBox(f,f)
+           PoissBounds(f,1) = min( bound(m) - PoissBox(f,f), &
+                              minval(x(f,1:iatm(2)))-2.d0*deltaR_max )
+           PoissBounds(f,2) = bound(m)
+        else                          
+           !fparm((f*2))   = bound(m) + PoissBox(f,f)
+           PoissBounds(f,2) = max( bound(m) + PoissBox(f,f), &
+                              maxval(x(f,1:iatm(2)))+2.d0*deltaR_max )
+           PoissBounds(f,1) = bound(m)
+        end if
+        PoissBox(f,f) = PoissBounds(f,2)-PoissBounds(f,1)
+        tmpdir(f)=1
+     endif
+     
+  enddo
+  
+  !------------------------------------------------------
+  ! Range of the remaining spatial variables 
+  !------------------------------------------------------
+  do i = 1, 3
+     if (period_dir(i)) then
+        PoissBox(i,i) = boxsiz(i,i)
+     endif
+  end do
+
+  !if (cluster.and.period) then
+     !do i = 1, 3
+     !   PoissBounds(i,2) = maxval(x(i,:))
+     !   PoissBounds(i,1) = minval(x(i,:))       
+     !end do
+  !   f = contdir(1)
+  !   PoissBox(f,f) = boxsiz(f,f)
+  !end if 
+
+  ! set bounds (PoissBox)
+  ! Set PoissonBox in the directions where there are no facing contacts
+  do i = 1, 3
+     
+     f=iatm(2)
+     if (tmpdir(i) .eq. 0) then
+        
+        tmp=(maxval(x(i,1:f))-minval(x(i,1:f))+2.d0*deltaR_max)
+
+        if(any(localBC.gt.0)) then
+           tmp = tmp - 2.d0*deltaR_max + 2.d0*maxval(dR_cont)
+        endif
+        
+        if (.not.period_dir(i).and.PoissBox(i,i).le.tmp) PoissBox(i,i) = tmp
+           
+        Lx= maxval(x(i,1:f))+minval(x(i,1:f))
+        
+        PoissBounds(i,2) = ( Lx+PoissBox(i,i) )/2.d0 
+        PoissBounds(i,1) = ( Lx-PoissBox(i,i) )/2.d0 
+
+     end if
+     
+  end do
+
+  !-------------------------------
+  ! Checking Poisson Box
+  !---- ---------------------------
+  do i=1,3  
+     if(PoissBox(i,i).le.0.d0) then
+        write(stdOut,*) "----------------------------------------------------"
+        write(stdOut,*) "ERROR: PoissBox negative !                          "
+        write(stdOut,*) "----------------------------------------------------"
+        stop
+     end if
+  enddo
+  !-------------------------------
+  ! Checking for gate dimension
+  !-------------------------------
+  if (DoGate) then
+     biasdir = abs(contdir(1))
+     if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
+        write(stdOut,*) "----------------------------------------------------"
+        write(stdOut,*) "WARNING: Gate Distance too large!                   "
+        write(stdOut,*) "----------------------------------------------------"
+     end if
+  endif
+  
+  if (DoCilGate) then
+    
+     biasdir = abs(contdir(1))
+
+     if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
+        write(stdOut,*) "------------------------------------------"
+        write(stdOut,*) "Gate insulator is longer than Poisson box!"
+        write(stdOut,*) "------------------------------------------"
+     end if
+     
+     do i = 1,3
+        if (i.eq.biasdir) then
+           cycle
+        end if
+        if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
+           write(stdOut,*) "----------------------------------------------------"
+           write(stdOut,*) "Gate transversal section is bigger than Poisson box!"
+           write(stdOut,*) "----------------------------------------------------"
+           exit
+        end if
+     end do
+     
+  end if
+
+  !---------------------------------------
+  ! Gate geometry mid point definition
+  !---------------------------------------
+  if (DoGate.or.DoCilGate) then
+     do i = 1,3
+        cntr_gate(i) = ( PoissBounds(i,2) + PoissBounds(i,1) )/2.d0
+     end do
+  end if
+
+ end subroutine init_poissbox
 ! -----------------------------------------------------------------------------------
 ! -----------------------------------------------------------------------------------  
 subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
@@ -269,7 +364,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
  Type(super_array), ALLOCATABLE, DIMENSION(:) :: bulk
 
- integer :: isx, jsy, ksz, nn
+ integer :: isx, jsy, ksz
  integer, save :: niter = 1
  
  integer :: na,nb,nc, cont_mem
@@ -277,7 +372,6 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
  character(50) :: BCinfo
  !e.g.: tmpdir (1) = 0 if there aren't two or more contacts in the same "x direction"
 
- nn = natoms ! from globals
  iparm = 0
 
  if (SCC_in.ne.3) then
@@ -331,24 +425,24 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
        end if
     end do
 
-    if (id0.and.niter.eq.1.and.verbose.gt.30) then
-       write(*,'(73("-"))')
-       write(*,*) "Poisson Box internally adjusted:"
-       write(*,'(a,f12.5,f12.5,a11,l3)') ' x range=',PoissBounds(1,1)*a_u,&
+    if (niter.eq.1.and.verbose.gt.30) then
+       write(stdOut,'(73("-"))')
+       write(stdOut,*) "Poisson Box internally adjusted:"
+       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' x range=',PoissBounds(1,1)*a_u,&
             PoissBounds(1,2)*a_u,'; Periodic:',period_dir(1) 
-       write(*,'(a,f12.5,f12.5,a11,l3)') ' y range=',PoissBounds(2,1)*a_u,&
+       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' y range=',PoissBounds(2,1)*a_u,&
             PoissBounds(2,2)*a_u,'; Periodic:',period_dir(2)
-       write(*,'(a,f12.5,f12.5,a11,l3)') ' z range=',PoissBounds(3,1)*a_u,&
+       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' z range=',PoissBounds(3,1)*a_u,&
             PoissBounds(3,2)*a_u,'; Periodic:',period_dir(3)
 
-       write(*,*) 'Mesh details:' 
-       write(*,'(a,f10.3,a,i4,a,f9.5)') ' Lx=',PoissBox(1,1)*a_u,& 
+       write(stdOut,*) 'Mesh details:' 
+       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lx=',PoissBox(1,1)*a_u,& 
             '  nx=',iparm(14),'   dlx=',dlx*a_u
-       write(*,'(a,f10.3,a,i4,a,f9.5)') ' Ly=',PoissBox(2,2)*a_u,& 
+       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Ly=',PoissBox(2,2)*a_u,& 
             '  ny=',iparm(15),'   dly=',dly*a_u
-       write(*,'(a,f10.3,a,i4,a,f9.5)') ' Lz=',PoissBox(3,3)*a_u,&
+       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lz=',PoissBox(3,3)*a_u,&
             '  nz=',iparm(16),'   dlz=',dlz*a_u
-       write(*,'(73("-"))')
+       write(stdOut,'(73("-"))')
     endif
 
     !--------------------------
@@ -476,24 +570,24 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
 
     if(id0.and.niter.eq.1.and.verbose.gt.VBT) then
-      write(*,*) 'Device Region Boundary Conditions:' 
+      write(stdOut,*) 'Boundary Conditions:' 
       BCinfo = 'x: '//boundary2string(iparm(2),mixed(1))
-      if(overrideBC(1).ne.0) BCinfo = trim(BCinfo)//' (o)'
+      if (overrideBC(1).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
       BCinfo = trim(BCinfo)//'  '//boundary2string(iparm(3),mixed(2))
-      if(overrideBC(2).ne.0) BCinfo = trim(BCinfo)//' (o)'
-      write(*,*) trim(BCinfo)
+      if (overrideBC(2).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
+      write(stdOut,*) trim(BCinfo)
 
       BCinfo = 'y: '//boundary2string(iparm(4),mixed(3))
-      if(overrideBC(3).ne.0) BCinfo = trim(BCinfo)//' (o)'
+      if (overrideBC(3).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
       BCinfo = trim(BCinfo)//'  '//boundary2string(iparm(5),mixed(4))
-      if(overrideBC(4).ne.0) BCinfo = trim(BCinfo)//' (o)'
-      write(*,*) trim(BCinfo)
+      if (overrideBC(4).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
+      write(stdOut,*) trim(BCinfo)
 
       BCinfo = 'z: '//boundary2string(iparm(6),mixed(5))
-      if(overrideBC(5).ne.0) BCinfo = trim(BCinfo)//' (o)' 
+      if (overrideBC(5).ne.0) BCinfo = trim(BCinfo)//' (overridden)' 
       BCinfo = trim(BCinfo)//'  '//boundary2string(iparm(7),mixed(6))
-      if(overrideBC(6).ne.0) BCinfo = trim(BCinfo)//' (o)'
-      write(*,*) trim(BCinfo)
+      if (overrideBC(6).ne.0) BCinfo = trim(BCinfo)//' (overridden)'
+      write(stdOut,*) trim(BCinfo)
     endif
 
     !------------------------------------------
@@ -526,9 +620,11 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
                                     
     !--------------------------------------------------------------------------
     if (cluster.and.period .and. niter.eq.1) then
-       if (id0.and.verbose.gt.VBT) call message_clock('Computing Ewalds ')
-       if (id0) call set_phi_periodic(phi,iparm,fparm)
-       if (id0.and.verbose.gt.VBT) call write_clock
+      if (id0) then
+        if (verbose.gt.VBT) call message_clock(stdOut,'Computing Ewalds ')
+        call set_phi_periodic(phi,iparm,fparm)
+        if (verbose.gt.VBT) call write_clock(stdOut)
+      end if  
     end if
     !--------------------------------------------------------------------------
     if (ncont.gt.0) then
@@ -537,26 +633,26 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
        call create_phi_bulk(bulk,iparm,dlx,dly,dlz,cont_mem)
 
        if(InitPot.and.id0.and.niter.eq.1.and.verbose.gt.VBT) then
-         write(*,*) 'Bulk Potential Info:'
+         write(stdOut,*) 'Bulk Potential Info:'
          do m = 1,ncont 
-            write(*,*) 'contact',m
+            write(stdOut,*) 'contact',m
             if (bulk(m)%doEwald) then
-               write(*,*) 'BC = all periodic solved with Ewalds on two planes'  
+               write(stdOut,*) 'BC = all periodic solved with Ewalds on two planes'  
             endif
-            write(*,*) 'x: '//boundary2string(bulk(m)%iparm(2))//'  '&
+            write(stdOut,*) 'x: '//boundary2string(bulk(m)%iparm(2))//'  '&
                             //boundary2string(bulk(m)%iparm(3))
-            write(*,*) 'y: '//boundary2string(bulk(m)%iparm(4))//'  '&
+            write(stdOut,*) 'y: '//boundary2string(bulk(m)%iparm(4))//'  '&
                             //boundary2string(bulk(m)%iparm(5))  
-            write(*,*) 'z: '//boundary2string(bulk(m)%iparm(6))//'  '&
+            write(stdOut,*) 'z: '//boundary2string(bulk(m)%iparm(6))//'  '&
                             //boundary2string(bulk(m)%iparm(7)) 
          enddo
        endif
 
        if(id0.and.niter.eq.1.and.verbose.gt.VBT) then
-         write(*,*) 'Memory required for Poisson:', & 
+         write(stdOut,*) 'Memory required for Poisson:', & 
                           (2*size(phi)+iparm(21)+cont_mem)*8.d0/1d6,'Mb'
          
-         write(*,'(73("-"))')
+         write(stdOut,'(73("-"))')
        endif
 
        ! -----------------------------------------------------------------------
@@ -565,20 +661,20 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
        if (InitPot) then
           
          if (ReadBulk) then   !Read old bulk potential
-           if (id0.and.verbose.gt.VBT) call message_clock('Read bulk potential ')           
+           if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Read bulk potential ')           
            call readbulk_pot(bulk)
-           if (id0.and.verbose.gt.VBT) call write_clock               
+           if (id0.and.verbose.gt.VBT) call write_clock(stdOut)               
          endif    ! do not change (readbulk can change)
          
          if (.not.ReadBulk) then
-           if (id0.and.verbose.gt.VBT) call message_clock('Compute bulk potential ')   
+           if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Compute bulk potential ')   
            call compbulk_pot(bulk,iparm,fparm)
            ReadBulk=.true.
-           if (id0.and.verbose.gt.VBT) call write_clock     
+           if (id0.and.verbose.gt.VBT) call write_clock(stdOut)     
          end if !Compute bulk potential 
                     
        else  
-         if(id0.and.verbose.gt.VBT) write(*,*) 'No bulk potential'
+         if(id0.and.verbose.gt.VBT) write(stdOut,*) 'No bulk potential'
        endif
        
     else
@@ -586,7 +682,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
        allocate(bulk(0))
     endif
 
-    !write(*,*) 'debug bulk potential'
+    !write(stdOut,*) 'debug bulk potential'
     !do m=1,ncont
     !  call write_super_array(bulk(m)) 
     !  call save_bulkpot(bulk,m)
@@ -651,7 +747,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
         iparm(1) = i
     
         if (i.eq.1) then
-           if (verbose.gt.VBT) call message_clock('Solving Poisson equation ') 
+           if (verbose.gt.VBT) call message_clock(stdOut,'Solving Poisson equation ') 
         endif
 
         if (DoGate) then
@@ -670,8 +766,8 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
         if (err.ne.0.and.err.ne.9) then
           if(err.gt.0) then
-             write(*,*) 
-             write(*,*) 'Fatal Error in poisson solver:',err
+             write(stdOut,*) 
+             write(stdOut,*) 'Fatal Error in poisson solver:',err
              stop          
           end if
         end if
@@ -681,10 +777,10 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
         end if
       end do
 
-      if (verbose.gt.VBT) call write_clock
+      if (verbose.gt.VBT) call write_clock(stdOut)
 
       if (err.lt.-1) then
-        write(*,*) 'Non-fatal Error in poisson solver:',err
+        write(stdOut,*) 'Non-fatal Error in poisson solver:',err
       endif
 
       ncycles = iparm(23)
@@ -693,15 +789,15 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
     if (id0) then
       if (verbose.gt.30) then 
-        write(*,'(1x,73("-"))') 
-        write(*,*) 'Relative Poisson Error =',fparm(8)
-        write(*,'(a,i3,a,i3)') ' Number of cycles executed =',ncycles,'/',iparm(18)
-        write(*,'(1x,73("-"))') 
+        write(stdOut,'(1x,73("-"))') 
+        write(stdOut,*) 'Relative Poisson Error =',fparm(8)
+        write(stdOut,'(a,i3,a,i3)') ' Number of cycles executed =',ncycles,'/',iparm(18)
+        write(stdOut,'(1x,73("-"))') 
         flush(6)
       end if   
 
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-        write(*,*) 'ERROR: convergence not obtained'
+        write(stdOut,*) 'ERROR: convergence not obtained'
         stop
       end if
     end if
@@ -710,11 +806,11 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     ! Shift of the Hamiltonian matrix elements 
     !--------------------------------------------
   
-    if (id0.and.verbose.gt.VBT) call message_clock('Computing Hamiltonian shifts ')
+    if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Computing Hamiltonian shifts ')
 
     if (id0) call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
 
-    if (id0.and.verbose.gt.VBT) call write_clock   
+    if (id0.and.verbose.gt.VBT) call write_clock(stdOut)   
 
     call destroy_phi_bulk(bulk)
     deallocate(bulk,stat=err)
@@ -802,7 +898,7 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
     !---------------------------------------------------------------------
  
-    if (id0.and.verbose.gt.VBT) call message_clock('Building charge density ')
+    if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Building charge density ')
  
     !! Set a renormalization volume for grid projection
  
@@ -825,11 +921,10 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
        call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
     endif
  
-    if (id0.and.verbose.gt.VBT) call write_clock
+    if (id0.and.verbose.gt.VBT) call write_clock(stdOut)
  
     ! gather all partial results on master node 0
-    !call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
-    rhs = rhs_par 
+    call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
  
     call log_gdeallocate(rhs_par)
     call log_gdeallocate(dim_rhs)
@@ -1451,18 +1546,17 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   FixDir=int(PoissPlane(1)) 
   
   if (verbose.gt.70) then 
-    if(id0) write(*,'(1x,a)') 'Saving charge density and potential ...'
+    if(id0) write(stdOut,'(1x,a)') 'Saving charge density and potential ...'
   endif
 
   ! Saving 3D potential and density
   !--------------------------------------------  
   if (id0.and.(FixDir.eq.0)) then
-     fp = getFileId()
-     open(fp,file='box3d.dat')
+     open(newunit=fp,file='box3d.dat')
      write(fp,*) iparm(14),iparm(15),iparm(16)
      close(fp)
 
-     open(fp,file='Xvector.dat')
+     open(newunit=fp,file='Xvector.dat')
      do i = 1,iparm(14)  
         xi = fparm(1) + (i - 1)*dlx
         xi = xi*a_u
@@ -1470,7 +1564,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      end do
      close(fp)
 
-     open(fp,file='Yvector.dat')
+     open(newunit=fp,file='Yvector.dat')
      do j = 1,iparm(15)
         yj = fparm(3) + (j - 1)*dly  
         yj = yj*a_u
@@ -1478,7 +1572,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      end do
      close(fp)
 
-     open(fp,file='Zvector.dat')
+     open(newunit=fp,file='Zvector.dat')
      do k = 1,iparm(16)  
         zk = fparm(5) + (k - 1)*dlz
         zk = zk*a_u
@@ -1486,7 +1580,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      end do
      close(fp)
      
-     open(fp,file='potential.dat') 
+     open(newunit=fp,file='potential.dat') 
      do i = 1,iparm(14)  
         do j = 1,iparm(15)
            do k = 1,iparm(16)
@@ -1496,7 +1590,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      end do
      close(fp)
      
-     open(fp,file='charge_density.dat') 
+     open(newunit=fp,file='charge_density.dat') 
      do i = 1,iparm(14)  
         do j = 1,iparm(15)
            do k = 1,iparm(16)
@@ -1517,8 +1611,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
     select case(FixDir)
     case(1)
       nx_fix = nint(((fparm(2)-fparm(1))*PoissPlane(2))/dlx) + 1            
-      fp = getFileId()
-      open(fp,file='pot2D.dat') 
+      open(newunit=fp,file='pot2D.dat') 
       do j = 1,iparm(15)
         yj = fparm(3) + (j - 1)*dly 
         do k = 1,iparm(16)
@@ -1530,7 +1623,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)
        
-       open(fp,file='chr2D.dat') 
+       open(newunit=fp,file='chr2D.dat') 
        do j = 1,iparm(15)
          yj = fparm(3) + (j - 1)*dly 
          do k = 1,iparm(16)
@@ -1542,14 +1635,13 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)
        
-       open(fp,file='box2d.dat')
+       open(newunit=fp,file='box2d.dat')
        write(fp,'(I6,I6)') iparm(15),iparm(16)
        close(fp)
        
      case(2)
        ny_fix = nint(((fparm(4)-fparm(3))*PoissPlane(2))/dly) + 1            
-       fp = getFileId()
-       open(fp,file='pot2D.dat') 
+       open(newunit=fp,file='pot2D.dat') 
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx  
          do k = 1,iparm(16)
@@ -1559,7 +1651,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)
        
-       open(fp,file='chr2D.dat') 
+       open(newunit=fp,file='chr2D.dat') 
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx  
          do k = 1,iparm(16)
@@ -1577,7 +1669,6 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
                 
      case(3)
        nz_fix = nint(((fparm(6)-fparm(5))*PoissPlane(2))/dlz) + 1            
-       fp = getFileId()
        open(fp,file='pot2D.dat') 
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx  
@@ -1590,7 +1681,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)
        
-       open(fp,file='chr2D.dat') 
+       open(newunit=fp,file='chr2D.dat') 
        do i = 1,iparm(14)
          xi = fparm(1) + (i - 1)*dlx  
          do j = 1,iparm(15)
@@ -1602,7 +1693,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
        end do
        close(fp)        
        
-       open(fp,file='box2d.dat')
+       open(newunit=fp,file='box2d.dat')
        write(fp,'(I6,I6)') iparm(14),iparm(15)
        close(fp)
        
@@ -1618,8 +1709,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
      z_min_ox = cntr_gate(biasdir) - OxLength/2.d0  
      z_max_ox = cntr_gate(biasdir) + OxLength/2.d0  
-     fp = getFileId()
-     open(fp,file='gate.dat')
+     open(newunit=fp,file='gate.dat')
      write(fp,'(i2)') biasdir
      write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
      write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
@@ -1629,8 +1719,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
    end if
 
    if (id0.and.DoGate) then             
-     fp = getFileId()
-     open(fp,file='gate.dat')
+     open(newunit=fp,file='gate.dat')
      write(fp,'(i2)') gatedir, biasdir
 
      z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0  
@@ -1790,7 +1879,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
       
    else !Periodic structure 
       
-      write(*,*) 'periodic poisson not yet implemented'
+      write(stdOut,*) 'periodic poisson not yet implemented'
       
    end if
    
@@ -1885,7 +1974,7 @@ end module poisson
 !!$                         bc_pot_value,periodic,V_orb)
 !!$
 !!$      if(id0.and.verbose.gt.VBT) call write_message('libmesh done')      
-!!$      if(id0.and.verbose.gt.VBT) call write_clock  
+!!$      if(id0.and.verbose.gt.VBT) call write_clock(stdOut)  
 !!$
 !!$      call log_gdeallocate(X_atm)
 !!$      call log_gdeallocate(Y_atm)

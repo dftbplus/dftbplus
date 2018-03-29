@@ -2,8 +2,9 @@ module parcheck
 
   use gprecision
   use parameters
-  use structure, only : natoms, nbeweg, x, boxsiz, period, period_dir
+  use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
+  use io
 
 implicit none
 private
@@ -23,15 +24,15 @@ contains
    if(period) then
       !cheks that the latt vect are directed along x,y,z
       !if (boxsiz(1,2).ne.0.d0 .or. boxsiz(1,3).ne. 0.d0 .or. boxsiz(2,3).ne. 0.d0) then
-      !   STOP 'ERROR: Supercell box is not compatible with Poisson solver'
+      !   stop 'ERROR: Supercell box is not compatible with Poisson solver'
       !end if   
       !
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
          if (id0.and.verbose > 30) then
-            if (id0) write(*,*) 'Box for Poisson not Found: Set equal to supercell box' 
+            write(stdOut,*) 'Box for Poisson not Found: Set equal to supercell box' 
             do i=1,3
-               if (id0) write(*,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
+               write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
             end do
          end if
       else
@@ -44,17 +45,17 @@ contains
    else
       if (.not.FoundBox) then
          if (id0 .and. verbose > 30) then
-            write(*,*) 'Box for Poisson not Found'
+            write(stdOut,*) 'Box for Poisson not Found'
          end if
-         STOP 'ERROR: No way to build box for Poisson'
+         stop 'ERROR: No way to build box for Poisson'
       end if
    end if
 
 
    !if(period.and.DoGate) then
    !   if (verbose > 30) then
-   !      if (id0) write(*,*) 'Periodic system is not compatible with Gate'
-   !      if (id0) write(*,*) 'Periodicity set to F'
+   !      if (id0) write(stdOut,*) 'Periodic system is not compatible with Gate'
+   !      if (id0) write(stdOut,*) 'Periodicity set to F'
    !   end if
    !   period=.false.
    !endif
@@ -71,16 +72,16 @@ contains
      if (ncont.eq.2) then
        !if(mu(ni(1)).eq.0.d0) mu(ni(1))=0.d0
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
-       if ( contdir(1).ne.contdir(2) ) then
-         if(localBC(1).eq.0) then
-           if (id0) write(*,*) 'ERROR: local BC should be used when &
+       if (contdir(1).ne.contdir(2)) then
+         if (localBC(1).eq.0) then
+           write(stdOut,*) 'ERROR: local BC should be used when &
                & contacts are in different directions'
-           STOP        
+           stop        
          endif
          if(DoCilGate) then
-           if(id0) write(*,*) 'ERROR: contacts must be in the same &
+           write(stdOut,*) 'ERROR: contacts must be in the same &
                & direction when using cylindrical gate'
-           STOP
+           stop
          endif
 
        end if
@@ -113,7 +114,7 @@ contains
    end if
    
    if (period_dir(3) .and. numprocs>1) then
-     if(id0) write(*,*) 'ERROR: periodicity along z is incompatible with &
+     write(stdOut,*) 'ERROR: periodicity along z is incompatible with &
                 & grid parallelization strategy'
      stop
    end if
@@ -144,61 +145,60 @@ contains
    if (id0.and.verbose.gt.40) then
       
       !if (DoTransport.or.DoGreenDens) then
-      !   write(*,*) 'Conversion factor Ang/a.u.',a_u
-      !   write(*,*) 'Conversion factor eV/a.u.',hartree
-      !   write(*,*) "Delta for Green's function=",delta*hartree 
+      !   write(stdOut,*) 'Conversion factor Ang/a.u.',a_u
+      !   write(stdOut,*) 'Conversion factor eV/a.u.',hartree
+      !   write(stdOut,*) "Delta for Green's function=",delta*hartree 
       !end if
  
       !if (DoGreenDens) then
-      !   write(*,*) 'Contour integration parameters:'
-      !   write(*,'(a4,4(i4))') 'Np=',Np(1),Np(2),Np(3)
-      !   write(*,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree
-      !   write(*,*) 'N_omega=',N_omega
-      !   write(*,*) "ReadOld Surface Green=",Readold
+      !   write(stdOut,*) 'Contour integration parameters:'
+      !   write(stdOut,'(a4,4(i4))') 'Np=',Np(1),Np(2),Np(3)
+      !   write(stdOut,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree
+      !   write(stdOut,*) 'N_omega=',N_omega
+      !   write(stdOut,*) "ReadOld Surface Green=",Readold
       !end if 
 
       !if (DoTransport) then
-      !   write(*,*) 'Temperature for electronic distribution=',Temp
+      !   write(stdOut,*) 'Temperature for electronic distribution=',Temp
       !endif
 
       if (DoPoisson) then
-         write(*,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*a_u,PoissBox(2,2)*a_u,&
+         write(stdOut,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*a_u,PoissBox(2,2)*a_u,&
               PoissBox(3,3)*a_u, '  A'
-         write(*,*) 'PoissAcc=',PoissAcc
+         write(stdOut,*) 'PoissAcc=',PoissAcc
          if(initPot) then
-            write(*,*) 'Bulk Boundary Potential:    Yes'
+            write(stdOut,*) 'Bulk Boundary Potential:    Yes'
          else
-            write(*,*) 'Bulk Boundary Potential:    No'
+            write(stdOut,*) 'Bulk Boundary Potential:    No'
          endif
    
-         write(*,*) 'Atomic cutoff radius=', deltaR_max*a_u,'A'
-         
-         if(DoGate) write(*,*) 'Gate: Planar'
-         if(DoCilGate) write(*,*) 'Gate: Cylindrical'
+         write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*a_u,'A'
          
          if (DoGate) then
-            write(*,*) 'Gate bias=',gate*hartree,'V'
-            write(*,*) 'Gate length l=',GateLength_l*a_u,'A'
-            write(*,*) 'Gate length t=',GateLength_t*a_u,'A'
-            write(*,*) 'Gate distance=',Rmin_Gate*a_u,'A'           
+            write(stdOut,*) 'Gate: Planar'
+            write(stdOut,*) 'Gate bias=',gate*hartree,'V'
+            write(stdOut,*) 'Gate length l=',GateLength_l*a_u,'A'
+            write(stdOut,*) 'Gate length t=',GateLength_t*a_u,'A'
+            write(stdOut,*) 'Gate distance=',Rmin_Gate*a_u,'A'           
          endif
          if (DoCilGate) then
-            write(*,*) 'Gate bias=',gate*hartree,'V'
-            write(*,*) 'Gate length=',GateLength_l*a_u,'A'
-            write(*,*) 'Oxide length=',OxLength*a_u,'A'
-            write(*,*) 'Inner gate radius=',Rmin_Gate*a_u,'A'
-            write(*,*) 'Inner oxide radius=',Rmin_Ins*a_u,'A'    
-            write(*,*) 'Dielectric constant of gate insulator=',eps_r
-            write(*,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*a_u)
+            write(stdOut,*) 'Gate: Cylindrical'
+            write(stdOut,*) 'Gate bias=',gate*hartree,'V'
+            write(stdOut,*) 'Gate length=',GateLength_l*a_u,'A'
+            write(stdOut,*) 'Oxide length=',OxLength*a_u,'A'
+            write(stdOut,*) 'Inner gate radius=',Rmin_Gate*a_u,'A'
+            write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*a_u,'A'    
+            write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
+            write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*a_u)
          end if
          if (any(localBC.gt.0)) then
             do i=1,ncont
-               if (localBC(i).eq.1) write(*,*) 'Local Boundary Conditions= Circular'
-               if (localBC(i).eq.2) write(*,*) 'Local Boundary Conditions= Squared'
-               write(*,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*a_u,'A'
+               if (localBC(i).eq.1) write(stdOut,*) 'Local Boundary Conditions= Circular'
+               if (localBC(i).eq.2) write(stdOut,*) 'Local Boundary Conditions= Squared'
+               write(stdOut,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*a_u,'A'
             enddo
          endif
-         write(*,*)
+         write(stdOut,*)
       endif
 
       
@@ -264,17 +264,17 @@ contains
       enddo
    endif
    if (err.eq.1 .and. id0) then
-      write(*,*)
-      write(*,*) 'ERROR: BoundaryRegion{} sets a Dirichlet BC'
-      write(*,*) '       not compatible with overrideDefaultBC=Neumann'
+      write(stdOut,*)
+      write(stdOut,*) 'ERROR: BoundaryRegion{} sets a Dirichlet BC'
+      write(stdOut,*) '       not compatible with overrideDefaultBC=Neumann'
    endif
    if (err.eq.2 .and. id0) then
-      write(*,*)
-      write(*,*) 'WARNING: '
-      write(*,*) 'BoundaryRegion{} sets a mixed Neumann/Dirichlet BC'
-      write(*,*) 'User setting OverrideDefaultBC = Dirichlet'
-      write(*,*) 'has been disregarded !'
-      write(*,*)
+      write(stdOut,*)
+      write(stdOut,*) 'WARNING: '
+      write(stdOut,*) 'BoundaryRegion{} sets a mixed Neumann/Dirichlet BC'
+      write(stdOut,*) 'User setting OverrideDefaultBC = Dirichlet'
+      write(stdOut,*) 'has been disregarded !'
+      write(stdOut,*)
    endif
    
 
@@ -286,22 +286,22 @@ contains
     
    if(cluster) then
       if (id0) then
-          write(*,'(1x,a)',advance='NO') 'System Type: UNCONTACTED '
+          write(stdOut,'(1x,a)',advance='NO') 'System Type: UNCONTACTED '
           if(period) then
-             write(*,'(a)',advance='NO') 'PERIODIC '
+             write(stdOut,'(a)',advance='NO') 'PERIODIC '
           else
-             write(*,'(a)',advance='NO') 'CLUSTER '
+             write(stdOut,'(a)',advance='NO') 'CLUSTER '
           endif
-          write(*,*) 'STRUCTURE'
-          write(*,'(1x,a,I3)') 'periodicity direction:',contdir(1)
+          write(stdOut,*) 'STRUCTURE'
+          write(stdOut,'(1x,a,I3)') 'periodicity direction:',contdir(1)
       endif  
    endif
 
 
    if(id0.and.verbose.gt.50) then      
-      write(*,'(a)') 'CENTRAL REGION'
-      write(*,'(1x,a,2I6)') 'Atom start - end = ',iatm(1), iatm(2)
-      write(*,*)
+      write(stdOut,'(a)') 'CENTRAL REGION'
+      write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatm(1), iatm(2)
+      write(stdOut,*)
    endif
 
    
@@ -326,12 +326,12 @@ contains
          ! ---------------------------------------------------
 
          if (id0) then
-           write(*,'(a,I3)') 'CONTACT #',i
-           write(*,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
-           write(*,'(1x,a,I3)') 'direction:',contdir(i)
-           write(*,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
-           write(*,*) 'mu=',mu(i)*hartree,'V'
-           write(*,*) 
+           write(stdOut,'(a,I3)') 'CONTACT #',i
+           write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
+           write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
+           write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
+           write(stdOut,*) 'mu=',mu(i)*hartree,'V'
+           write(stdOut,*) 
          end if
 
       end do !ncont
@@ -344,30 +344,28 @@ contains
    if (.not.cluster) then
       do i=1,ncont
          if (iatc(1,i).lt.iatm(2)) then 
-            if(id0) write(*,*) 'ERROR: The contacts MUST be defined after the scattering region'
-            STOP
+            if(id0) write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
+            stop
          endif
       enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-      if(id0) write(*,*) 'ERROR: The number of atoms in the scattering region is higer'
-      if(id0) write(*,*) '       than the total number of atoms'
-      STOP
+      write(stdOut,*) 'ERROR: The number of atoms in the scattering region is higer'
+      write(stdOut,*) '       than the total number of atoms'
+      stop
    endif
-   if(DoGate) then
-      if(gatedir.ne.2) then 
-         if (id0) write(*,*) "ERROR: gate direction must be along y"
-         STOP
+   if (DoGate) then
+      if (gatedir.ne.2) then 
+         write(stdOut,*) "ERROR: gate direction must be along y"
+         stop
       endif
       if(any(abs(contdir(:)).eq.gatedir)) then
-         if (id0) write(*,*) "ERROR: gate direction along contacts!?"
-         STOP
+         if (id0) write(stdOut,*) "ERROR: gate direction along contacts!?"
+         stop
       endif
    endif
 
    !    Checks if the number of mouvable atoms is set correctly
-   if(nbeweg > natoms) nbeweg=natoms 
-   if(nbeweg > (iatm(2)-iatm(1)+1)) nbeweg=iatm(2)-iatm(1)+1
 
  end subroutine check_contacts
 

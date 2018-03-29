@@ -1,7 +1,7 @@
 !!$#define "MEMLOG"
 
 module gallocation
-
+  use io
   use gprecision
   
   integer, save :: iolog
@@ -53,7 +53,7 @@ contains
     if(.not. associated(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*4    
           if (alloc_mem.gt.peak_mem) then
@@ -78,7 +78,7 @@ contains
     if(.not. associated(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -103,7 +103,7 @@ contains
     if(.not. associated(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*2*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -129,7 +129,7 @@ contains
     if(.not. associated(array)) then
        allocate(array(row,col),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*4    
           if (alloc_mem.gt.peak_mem) then
@@ -154,7 +154,7 @@ contains
     if(.not. associated(array)) then
        allocate(array(row,col),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -179,7 +179,7 @@ contains
     if(.not. associated(array)) then
        allocate(array(row,col),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*2*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -205,7 +205,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*4    
           if (alloc_mem.gt.peak_mem) then
@@ -230,7 +230,7 @@ contains
     if(.not.ALLOCATED(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -255,7 +255,7 @@ contains
     if(.not.ALLOCATED(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*2*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -281,7 +281,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*4    
           if (alloc_mem.gt.peak_mem) then
@@ -306,7 +306,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -331,7 +331,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*2*dp    
           if (alloc_mem.gt.peak_mem) then
@@ -357,7 +357,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col,dep),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*4    
           if (alloc_mem.gt.peak_mem) then
@@ -382,7 +382,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col,dep),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*dp   
           if (alloc_mem.gt.peak_mem) then
@@ -407,7 +407,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col,dep),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*2*dp   
           if (alloc_mem.gt.peak_mem) then
@@ -432,7 +432,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(row,col,dep,qep),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*dp   
           if (alloc_mem.gt.peak_mem) then
@@ -459,7 +459,7 @@ contains
     if(.not. allocated(array)) then
        allocate(array(length),stat=ierr)
        if (ierr.ne.0) then
-          write(*,*) "ALLOCATION ERROR"; STOP
+          write(stdOut,*) "ALLOCATION ERROR"; STOP
        else
           alloc_mem= alloc_mem + size(array)*4    
           if (alloc_mem.gt.peak_mem) then
@@ -485,7 +485,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_pi
 
@@ -500,7 +500,7 @@ contains
 #:endif
 
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_pd
 
@@ -514,7 +514,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_pz
   !--------------------------------------------------------------- 
@@ -529,7 +529,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_pi2
 
@@ -544,7 +544,7 @@ contains
 #:endif
 
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_pd2
 
@@ -558,7 +558,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
      endif
    end subroutine deallocate_pz2
 
@@ -575,7 +575,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_l
   
@@ -589,7 +589,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_i
 
@@ -604,7 +604,7 @@ contains
 #:endif
 
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_d
 
@@ -618,7 +618,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_z
 
@@ -633,7 +633,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_i2
 
@@ -647,7 +647,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_d2
 
@@ -661,7 +661,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_z2
   ! ------------------------------------------------------------
@@ -676,7 +676,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_i3
 
@@ -690,7 +690,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_d3
 
@@ -704,7 +704,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_z3
 
@@ -718,7 +718,7 @@ contains
        call writeMemLog  
 #:endif
     else 
-       write(*,*) 'Warning in deallocation: array is not allocated' 
+       write(stdOut,*) 'Warning in deallocation: array is not allocated' 
     endif
   end subroutine deallocate_d4
 
@@ -757,7 +757,7 @@ contains
     if(iofile.ne.6) then
        open(iofile,file='memory.log',iostat=err)
        if (err.ne.0) then
-          write(*,*) 'Cannot open memory log-file'
+          write(stdOut,*) 'Cannot open memory log-file'
           stop
        endif
     endif

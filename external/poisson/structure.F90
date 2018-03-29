@@ -2,45 +2,192 @@ module structure
 
   use gprecision
   use gallocation
-
+  use mpi_poisson
    
   implicit none
   private
   
-  integer,  public, save :: natoms, nbeweg
-  integer, ALLOCATABLE, public, save :: izp(:)       ! specie
-  !integer, ALLOCATABLE, public, save :: ind(:)       ! iAtomStart(N) starting from 1
+  integer,  public, save :: natoms
+  integer, allocatable, public, save :: izp(:)       ! specie
   integer,  public, save :: nlat(3)
   integer,  public, save :: ntypes
   
+  real(kind=dp), allocatable, public, save :: x(:,:)
+ 
+  real(kind=dp), allocatable, public, save :: ss_x(:,:)  !supercell coords
   integer,  public, save :: ss_natoms                !supercell atoms
-  integer, ALLOCATABLE, public, save :: ss_izp(:)
+  integer, allocatable, public, save :: ss_izp(:)
   integer, public, save :: ss_f(3)
   
   integer, public, allocatable, save :: lmax(:)        !(MAXTYP)
   real(dp), public, allocatable, save :: uhubb(:,:)    !(NORB,MAXTYP)
   
- 
-  real(kind=dp), ALLOCATABLE, public, save :: x(:,:)
-  real(kind=dp), ALLOCATABLE, public, save :: ss_x(:,:)  !supercell coords
   
   real(kind=dp),  public, save :: boxsiz(3,3), xinvbox(3,3), xnullvec(3)
-  real(kind=dp),  public, save :: nel
-  real(kind=dp), ALLOCATABLE, public, save :: dQmat(:,:) ! nshells,natoms
-  real(kind=dp), ALLOCATABLE,  public, save :: xm(:)     ! mass of atomic specie (ntypes)
-  real(kind=dp), ALLOCATABLE,  public, save :: xmrc(:)   ! reciprocal mass       (ntypes)
-  
   logical,  public, save :: period
   logical,  public, save :: period_dir(3)
   
+  
+  real(kind=dp), allocatable, public, save :: dQmat(:,:) ! nshells,natoms
+  
   character(3), public, save :: atnames(92)
+  
+  !! Renormalization volumes: to ensure charge neutrality
+  real(kind=dp), public, allocatable :: renorm(:,:)
+
 
   public :: find_ntypes, buildsupercell, inversebox
   public :: shortvertice, difback
   public :: coordback, gamma_summind
-
+  public :: init_structure, init_charges, init_skdata
 
   contains
+
+  ! -----------------------------------------------------------------------------
+  !  FILL UP Structure 
+  ! -----------------------------------------------------------------------------
+  subroutine init_structure(st_nAtom, st_nSpecies, st_specie0, st_x0, &
+              st_latVecs, st_isperiodic)
+
+    integer, intent(in)   :: st_nAtom          ! number of Atoms in central cell 
+    integer, intent(in)   :: st_nSpecies       ! number of Species
+    integer, intent(in)   :: st_specie0(:)     ! type of each Atoms (nAtom)
+    real(dp), intent(in)  :: st_x0(:,:)        ! coordinates in central cell
+    real(dp), intent(in)  :: st_latVecs(3,3)   ! lattice vectors
+    logical, intent(in)   :: st_isperiodic     ! periodic structure
+
+    integer :: i,j
+    real(dp) :: side(3)
+    integer :: dir(3)
+ 
+    if (active_id) then
+ 
+      natoms=st_nAtom
+      ntypes=st_nSpecies
+       
+      dir = (/ 1, 2, 3 /)
+      boxsiz(1:3,1:3) = 0_dp
+      ! the latVec structure is :
+      !   
+      !  [e_x1, e_x2, e_x3]
+      !  [e_y1, e_y2, e_y3] 
+      !  [e_z1, e_z2, e_z3]
+  
+      ! computes the three sides
+      ! side(:) = sqrt(sum(st_latVecs,dim=1)**2)
+  
+      boxsiz(:,:) = transpose(st_latVecs(:,:))
+  
+      do i = 1, 3 
+         if (abs(boxsiz(i,i))<1.0d-4) then
+           do j = i+1, 3      
+             if (abs(boxsiz(j,i))>1.d-4) then
+               side(:)=boxsiz(i,:)
+               boxsiz(i,:)=boxsiz(j,:)
+               boxsiz(j,:)=side(:)
+             endif  
+           enddo
+         endif
+         if(boxsiz(i,i)<0.d0) boxsiz(i,:)=-boxsiz(i,:)
+      enddo
+  
+      call inversebox()
+    
+      period=st_isperiodic
+  
+      call log_gallocate(x,3,natoms)
+      x(1:3,1:natoms)=st_x0(1:3,1:natoms)
+  
+      call log_gallocate(izp,natoms)   
+      izp(1:natoms)=st_specie0(1:natoms)
+  
+    endif 
+  
+  end subroutine init_structure
+
+  !------------------------------------------------------------------------------
+  subroutine init_charges()
+    integer :: nshells
+ 
+    if (active_id) then
+      nshells = maxval(lmax)+1 
+      call log_gallocate(dQmat,nshells,natoms)
+    endif
+  end subroutine init_charges
+
+  !------------------------------------------------------------------------------
+  subroutine init_skdata(nShell, angShell, hubbU, err)
+    integer, intent(in) :: nShell(:)
+    integer, intent(in) :: angShell(:,:)
+    real(dp), intent(in) :: hubbU(:,:)
+    integer, intent(out) :: err
+
+    integer :: i,j,nshells
+
+    err=0
+
+    if (active_id) then
+
+      ! set maximum angular momentum per specie
+      call log_gallocate(lmax,ntypes)
+ 
+      !checks that all atoms have shells in s,p,d sequence
+      do i = 1, ntypes
+         do j= 1, nShell(i)
+            if (angShell(j,i).ne.j-1) then
+               err=1
+            end if   
+         enddo 
+         lmax(i) = angShell(nShell(i),i)
+      enddo
+      if (err.ne.0) then
+         return
+      endif
+  
+      ! set Hubbard parameters
+      nshells = maxval(lmax)+1
+  
+      call log_gallocate(uhubb,nshells,ntypes)
+  
+      do i = 1,ntypes
+        do j = 1,nshells
+           uhubb(j,i) = hubbU(j,i)
+        enddo   
+      end do
+ 
+    endif
+  
+  end subroutine init_skdata
+
+  !----------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  subroutine echo_init()
+
+    integer :: i
+ 
+    if (active_id) then
+ 
+      write(*,*) 'natoms=',natoms
+      write(*,*) 'ntypes=',ntypes
+      write(*,*) 'is Periodic=',period
+ 
+      !write(*,*) 'coordinates='
+      !do i=1,natoms
+      !   write(*,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
+      !enddo
+ 
+      !write(*,*) 'ind='
+      !write(*,*) ind(1:natoms+1)
+      write(*,*) '  qzero,   uhubb,   lmax' 
+ 
+      do i=1,ntypes  
+         write(*,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
+      enddo
+ 
+    endif
+
+  end subroutine echo_init
+
   ! ------------------------------------------------------------------
   subroutine find_ss(M,ii,jj,kk)
 
@@ -159,6 +306,8 @@ module structure
      real(dp) xx,yy,zz
      real(dp) xx1,xy1,xz1
 
+     xnullvec = 0.0_dp
+
      xx1=(xx-xnullvec(1))*xinvbox(1,1)+(yy-xnullvec(2))*xinvbox(2,1)+(zz-xnullvec(3))*xinvbox(3,1)
      xy1=(xx-xnullvec(1))*xinvbox(1,2)+(yy-xnullvec(2))*xinvbox(2,2)+(zz-xnullvec(3))*xinvbox(3,2)
      xz1=(xx-xnullvec(1))*xinvbox(1,3)+(yy-xnullvec(2))*xinvbox(2,3)+(zz-xnullvec(3))*xinvbox(3,3)
@@ -270,8 +419,6 @@ module structure
 
      if (.not.allocated(ss_x)) call log_gallocate(ss_x,3,ss_natoms)
      if (.not.allocated(ss_izp)) call log_gallocate(ss_izp,ss_natoms)
-     !call log_gallocate(ss_fat,ss_natoms)
-     !call log_gallocate(ss_ind,ss_natoms+1)
      
      ijk(1)=0;  ijk(2)=-1; ijk(3)=1;  ijk(4)=-2;  ijk(5)=2;  
      ijk(6)=-3; ijk(7)=3;  ijk(8)=-4; ijk(9)=4; 
@@ -285,7 +432,6 @@ module structure
                  nu=ijk(i); nv=ijk(j); nw=ijk(k); 
                  ss_x(:,algn)=x(:,n)+nu*boxsiz(1,:)+nv*boxsiz(2,:)+nw*boxsiz(3,:)
                  ss_izp(algn)=izp(n)
-                 !ss_atf(algn)=i+j*maxf+k*maxf*maxf !repres. in maxf base
                  algn=algn+1 
                  
               enddo

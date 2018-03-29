@@ -1,5 +1,5 @@
 module poisson_vars
-  use gprecision
+  use Accuracy, only : dp 
   use CommonTypes
   implicit none
   private

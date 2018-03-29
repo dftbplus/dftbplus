@@ -50,6 +50,23 @@ negf_int.o = negf_int.o $(_mod_sparse2dense) $(_mod_libnegf_vars) $(_mod_commont
 _mod_negf_int: negf_int.o
 _mod_negf_int = $(negf_int.o)
 
+#:if WITH_MPI
+poisson_int.o: _mod_libnegf_vars _mod_commontypes common.fypp _mod_constants _mod_poisson_vars _mod_system_calls _mod_accuracy _mod_poisson _mod_libmpifx_module
+poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_poisson_vars) $(_mod_system_calls) $(_mod_accuracy) $(_mod_poisson) $(_mod_libmpifx_module)
+_mod_poisson_int: poisson_int.o
+_mod_poisson_int = $(poisson_int.o)
+#:else
+poisson_int.o: _mod_libnegf_vars _mod_commontypes common.fypp _mod_constants _mod_poisson_vars _mod_system_calls _mod_accuracy _mod_poisson
+poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_poisson_vars) $(_mod_system_calls) $(_mod_accuracy) $(_mod_poisson)
+_mod_poisson_int: poisson_int.o
+_mod_poisson_int = $(poisson_int.o)
+#:endif
+
+poisson_vars.o: _mod_commontypes _mod_accuracy
+poisson_vars.o = poisson_vars.o $(_mod_commontypes) $(_mod_accuracy)
+_mod_poisson_vars: poisson_vars.o
+_mod_poisson_vars = $(poisson_vars.o)
+
 #:if WITH_SCALAPACK
 scalapackfx.o: common.fypp _mod_libscalapackfx_module
 scalapackfx.o = scalapackfx.o $(common.fypp) $(_mod_libscalapackfx_module)

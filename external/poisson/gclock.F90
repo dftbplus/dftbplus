@@ -21,8 +21,8 @@
 
 module gclock
 
-  implicit none
-  private
+ implicit none
+ private
   
  integer, PARAMETER :: NMAXCLKS=5
  integer, public, save :: t1(NMAXCLKS),t2(NMAXCLKS),cr,cm,nclks=0,cpos=0
@@ -32,8 +32,9 @@ module gclock
  
 contains
 
- subroutine message_clock(message)
+ subroutine message_clock(stdOut, message)
 
+   integer :: stdOut    
    character(*) :: message
    integer :: l_mess
    character(2) :: str_mess, str_dots
@@ -43,13 +44,13 @@ contains
    write(str_dots,'(I2)') 54-l_mess
 
    if (nclks.gt.0 .and. cpos.gt.0) then
-       write(6,*)
+       write(stdOut,*)
        sus(nclks) = .true.
    endif
 
-   write(6,FMT='(A'//str_mess//','//str_dots//'("."))',ADVANCE='NO') message 
+   write(stdOut,FMT='(A'//str_mess//','//str_dots//'("."))',ADVANCE='NO') message 
 
-   flush(6)
+   flush(stdOut)
 
    cpos=54
 
@@ -67,7 +68,8 @@ contains
  end subroutine set_clock
 
 
- subroutine write_clock(message)
+ subroutine write_clock(stdOut, message)
+   integer :: stdOut    
    character(*), optional :: message
 
    integer :: l_mess
@@ -76,16 +78,16 @@ contains
    if (nclks.gt.0) then
       call SYSTEM_CLOCK(t2(nclks),cr,cm) 
       if (sus(nclks)) then
-         write(6,FMT='(54("."))',ADVANCE='NO')  
+         write(stdOut,FMT='(54("."))',ADVANCE='NO')  
          sus(nclks)=.false.
       endif   
       if (present(message)) then
         l_mess=len(message)
         write(str_mess,'(I2)') l_mess
         write(str_dots,'(I2)') 54-l_mess
-        write(6,FMT='(A'//str_mess//','//str_dots//'("."))',ADVANCE='NO') message 
+        write(stdOut,FMT='(A'//str_mess//','//str_dots//'("."))',ADVANCE='NO') message 
       end if
-      write(6,*) (t2(nclks)-t1(nclks))*1.0/cr,"sec"
+      write(stdOut,*) (t2(nclks)-t1(nclks))*1.0/cr,"sec"
       nclks=nclks-1
       cpos=0
    endif

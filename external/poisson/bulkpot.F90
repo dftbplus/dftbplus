@@ -1,281 +1,282 @@
 Module bulkpot
   
-use gprecision
-use gconstants, only: Pi
-use gallocation
-use parameters
-use structure
-use mpi_poisson
-use gewald
-use fileid
+ use gprecision
+ use gconstants, only: Pi
+ use gallocation
+ use parameters
+ use structure
+ use mpi_poisson
+ use gewald
 
-implicit none
-private
+ implicit none
+ private
 
-public :: super_array, create_super_array,destroy_super_array
-public :: create_phi_bulk,destroy_phi_bulk,readbulk_pot,compbulk_pot
-public :: save_bulkpot, write_super_array
+ public :: super_array, create_super_array,destroy_super_array
+ public :: create_phi_bulk,destroy_phi_bulk,readbulk_pot,compbulk_pot
+ public :: save_bulkpot, write_super_array
 
-Type super_array  
-  integer :: a,b,c
-  integer :: iparm(23)
-  real(kind=dp) :: fparm(8)
-  real(kind=dp) :: dla,dlb,dlc
-  integer :: ibsize
-  integer :: natm_PL
-  real(kind=dp) :: L_PL
-  real(kind=dp), DIMENSION (:,:,:), ALLOCATABLE :: val 
-  real(kind=dp), DIMENSION (:,:,:), ALLOCATABLE :: rhs
-  logical :: doEwald
-end Type  super_array
-
-
-contains
-!%--------------------------------------------------------------------------
-subroutine create_super_array(SA,na,nb,nc)
-
-  Type(super_array) :: SA
-  integer :: na,nb,nc
-
-  call log_gallocate(SA%val,na,nb,nc)
-
-  SA%ibsize=na*nb*nc
-
-end subroutine create_super_array
-!%--------------------------------------------------------------------------
-subroutine destroy_super_array(SA)
-
-  Type(super_array) :: SA
-
-  call log_gdeallocate(SA%val)
-
-end subroutine destroy_super_array
-!%--------------------------------------------------------------------------
-    
-
-subroutine write_super_array(SA)
-
-  Type(super_array) :: SA
-
-  if (id0) then
-    write(*,*) SA%a,SA%b,SA%c
-    write(*,*) SA%dla,SA%dlb,SA%dlc
-    write(*,*) 'size',SA%ibsize
-    write(*,*) 'iparm',SA%iparm
-    write(*,*) 'fparm',SA%fparm
-    write(*,*) 'natm_PL',SA%natm_PL
-    write(*,*) 'L_PL',SA%L_PL  
-    write(*,*) 'rhs',size(SA%rhs)
-    write(*,*) 'val',size(SA%val)
-  endif
-
-end subroutine write_super_array
-!%--------------------------------------------------------------------------  
-subroutine create_phi_bulk(phi_bulk,iparm,dlx,dly,dlz,cont_mem)
-
-  type(super_array) :: phi_bulk(:)
-  integer :: iparm(23)
-  integer :: cont_mem,na,nb,nc,m
-  real(kind=dp) :: dlx,dly,dlz
-  integer :: nstart, nlast, num_p, i
-
-  cont_mem=0
-
-  do m=1,ncont
-
-    nstart = iatc(3,m)
-    nlast  = iatc(2,m)
-    phi_bulk(m)%natm_PL = (nlast-nstart+1)/2
-    phi_bulk(m)%doEwald = .false.
-
-    select case(abs(contdir(m)))    
-      ! contacts are internally oriented along z.
-    case(1)
-      phi_bulk(m)%a = 2   !(y)
-      phi_bulk(m)%b = 3   !(z)
-      phi_bulk(m)%c = 1   !(x)
-      phi_bulk(m)%dla = dly
-      phi_bulk(m)%dlb = dlz
-      phi_bulk(m)%dlc = dlx
-
-      ! set the bulk contact periodicity in x
-      phi_bulk(m)%iparm(2)= iparm(4)    !Copy from device
-      phi_bulk(m)%iparm(3)= iparm(5)    !     "     "         
-      phi_bulk(m)%iparm(4)= iparm(6)    !     "     "   
-      phi_bulk(m)%iparm(5)= iparm(7)    !     "     "  
-      phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
-      phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
-
-      if(overrBulkBC(3).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(3)
-      if(overrBulkBC(4).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(4)
-      if(overrBulkBC(5).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(5)
-      if(overrBulkBC(6).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(6)
-      !------------------------------------------------------
-      phi_bulk(m)%iparm(8)  = iparm(9)  ! iyp 
-      phi_bulk(m)%iparm(9)  = iparm(10) ! izp
-      phi_bulk(m)%iparm(10) = iparm(8)  ! ixp
-    
-      phi_bulk(m)%iparm(11) = iparm(12) !highest grid in a  (y)
-      phi_bulk(m)%iparm(12) = iparm(13) !highest grid in b  (z)
-
-      ! define the PL periodicity     
-      phi_bulk(m)%L_PL = abs(x(1,nstart+phi_bulk(m)%natm_PL)-x(1,nstart))
-      ! find the right grid
-      do i = 1,50 
-         phi_bulk(m)%iparm(13) = i      !highest grid in c  (x)
-         num_p = phi_bulk(m)%iparm(10) *(2**(i - 1)) + 1 
-         if (phi_bulk(m)%L_PL/(num_p - 1).le.dmin(1)) then
-            phi_bulk(m)%dlc = phi_bulk(m)%L_PL/(num_p - 1) 
-            exit 
-         end if
-      end do
-      phi_bulk(m)%iparm(14) = iparm(15) !# grid points in a (y)
-      phi_bulk(m)%iparm(15) = iparm(16) !# grid points in b (z)
-      phi_bulk(m)%iparm(16) = num_p     !# grid points in c (x)
-      
-    case(2)
-      phi_bulk(m)%a = 3  !(z)
-      phi_bulk(m)%b = 1  !(x)
-      phi_bulk(m)%c = 2  !(y)
-      phi_bulk(m)%dla = dlz
-      phi_bulk(m)%dlb = dlx
-      phi_bulk(m)%dlc = dly
-      ! set the bulk contact periodicity in y
-      phi_bulk(m)%iparm(2)= iparm(6)    !Copy from device
-      phi_bulk(m)%iparm(3)= iparm(7)    !     "     "         
-      phi_bulk(m)%iparm(4)= iparm(2)    !     "     "   
-      phi_bulk(m)%iparm(5)= iparm(3)    !     "     "  
-      phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
-      phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
-
-      if(overrBulkBC(5).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(5)
-      if(overrBulkBC(6).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(6)
-      if(overrBulkBC(1).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(1)
-      if(overrBulkBC(2).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(2)
-      !------------------------------------------------------
-      phi_bulk(m)%iparm(8)  = iparm(10) ! izp 
-      phi_bulk(m)%iparm(9)  = iparm(8)  ! ixp
-      phi_bulk(m)%iparm(10) = iparm(9)  ! iyp
-    
-      phi_bulk(m)%iparm(11) = iparm(13) !highest grid in a  (z)
-      phi_bulk(m)%iparm(12) = iparm(11) !highest grid in b  (x)
-
-      ! define the PL periodicity    
-      phi_bulk(m)%L_PL = abs(x(2,nstart+phi_bulk(m)%natm_PL)-x(2,nstart))
-      ! find the right grid
-      do i = 1,50 
-         phi_bulk(m)%iparm(13) = i      !highest grid in c  (y)
-         num_p = phi_bulk(m)%iparm(10) *(2**(i - 1)) + 1 
-         if (phi_bulk(m)%L_PL/(num_p - 1).le.dmin(2)) then
-            phi_bulk(m)%dlc = phi_bulk(m)%L_PL/(num_p - 1)
-            exit 
-         end if
-      end do
-      
-      phi_bulk(m)%iparm(14) = iparm(16) !# grid points in a (z)
-      phi_bulk(m)%iparm(15) = iparm(14) !# grid points in b (x)
-      phi_bulk(m)%iparm(16) = num_p     !# grid points in c (y)
-            
-    case(3)
-      phi_bulk(m)%a = 1   !(x)
-      phi_bulk(m)%b = 2   !(y)
-      phi_bulk(m)%c = 3   !(z)
-      phi_bulk(m)%dla = dlx
-      phi_bulk(m)%dlb = dly
-      phi_bulk(m)%dlc = dlz
-      ! set the bulk contact periodicity in z
-      phi_bulk(m)%iparm(2)= iparm(2)    !Copy from device
-      phi_bulk(m)%iparm(3)= iparm(3)    !     "     "         
-      phi_bulk(m)%iparm(4)= iparm(4)    !     "     "   
-      phi_bulk(m)%iparm(5)= iparm(5)    !     "     " 
-      phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
-      phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
-
-      if(overrBulkBC(1).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(1)
-      if(overrBulkBC(2).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(2)
-      if(overrBulkBC(3).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(3)
-      if(overrBulkBC(4).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(4) 
-      !------------------------------------------------------
-      phi_bulk(m)%iparm(8)  = iparm(8)  ! ixp 
-      phi_bulk(m)%iparm(9)  = iparm(9)  ! iyp
-      phi_bulk(m)%iparm(10) = iparm(10) ! izp
-
-      phi_bulk(m)%iparm(11) = iparm(11) !highest grid in a  (x) 
-      phi_bulk(m)%iparm(12) = iparm(12) !highest grid in b  (y)
-
-      ! define the PL periodicity    
-      phi_bulk(m)%L_PL = abs(x(3,nstart+phi_bulk(m)%natm_PL)-x(3,nstart))
-      ! find the right grid
-      do i = 1,50 
-         phi_bulk(m)%iparm(13) = i      !highest grid in c  (z)
-         num_p = phi_bulk(m)%iparm(10) *(2**(i - 1)) + 1 
-         if (phi_bulk(m)%L_PL/(num_p - 1).le.dmin(3)) then
-            phi_bulk(m)%dlc = phi_bulk(m)%L_PL/(num_p - 1) 
-            exit 
-         end if
-      end do
-
-      phi_bulk(m)%iparm(14) = iparm(14) !# grid points in a (x)
-      phi_bulk(m)%iparm(15) = iparm(15) !# grid points in b (y)
-      phi_bulk(m)%iparm(16) = num_p     !# grid points in c (z)
-
-    end select
-
-    na= phi_bulk(m)%iparm(14)               !# grid points in a
-    nb= phi_bulk(m)%iparm(15)               !# grid points in b
-    nc= phi_bulk(m)%iparm(16)               !# grid points in c
-
-    ! CASE ALL PERIODIC:
-    ! Choose the smallest area where compute Ewald sums 
-    ! Override periodic BC with Dirichlet
-    if ( all(phi_bulk(m)%iparm(2:7).eq.0) ) then
-      phi_bulk(m)%doEwald=.true.
-      if(nb*nc .lt. na*nc) then
-         phi_bulk(m)%iparm(2)= 1           !Dirichlet in a 
-         phi_bulk(m)%iparm(3)= 1           !     "     "  a
-      else 
-         phi_bulk(m)%iparm(4)= 1           !Dirichlet in b 
-         phi_bulk(m)%iparm(5)= 1           !     "     "  b
-      endif
-    end if
-
-    ! CASE PERIODIC & NEUMANN:
-    ! Override with Dirichlet.
-    if ( sum(phi_bulk(m)%iparm(2:7)).eq.8 ) then
-         phi_bulk(m)%iparm(2)= 1           !Dirichlet in a 
-         phi_bulk(m)%iparm(3)= 1           !     "     "  a
-         phi_bulk(m)%iparm(4)= 1           !Dirichlet in b 
-         phi_bulk(m)%iparm(5)= 1           !     "     "  b     
-    endif
+ type super_array  
+   integer :: a,b,c
+   integer :: iparm(23)
+   real(kind=dp) :: fparm(8)
+   real(kind=dp) :: dla,dlb,dlc
+   integer :: ibsize
+   integer :: natm_PL
+   real(kind=dp) :: L_PL
+   real(kind=dp), DIMENSION (:,:,:), ALLOCATABLE :: val 
+   real(kind=dp), DIMENSION (:,:,:), ALLOCATABLE :: rhs
+   logical :: doEwald
+ end type  super_array
 
 
-    !------------------------------------------------------
-    phi_bulk(m)%iparm(17) = 0            ! no initial guess
-    phi_bulk(m)%iparm(18) = 50 !iparm(18)    ! # of iterations
-    phi_bulk(m)%iparm(19) = 0            ! Gauss-Siedel
-    phi_bulk(m)%iparm(20) = 7*(na+2)*(nb+2)*(nc+2)/2
-    
-    call log_gallocate(phi_bulk(m)%rhs,na,nb,nc)
-    
-    !write(*,*) '%LOC rhs=',%LOC(phi_bulk(m)%rhs)
-    cont_mem = na*nb*nc          
-    
-    cont_mem = cont_mem+na*nb*nc 
-    
-    phi_bulk(m)%ibsize = cont_mem 
-    
-    call log_gallocate(phi_bulk(m)%val,na,nb,nc)
-    
-    phi_bulk(m)%val(1:na,1:nb,1:nc)=0.d0
-    
-    !write(*,*) '%LOC val=',%LOC(phi_bulk(m)%val)
-    
-    !if(id0.and.verbose.gt.80) then
-    !   write(*,*) 'Bulk Potential Contact #',m,nstart,nlast
-    !   write(*,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*a_u
-    !   write(*,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*a_u
-    !   write(*,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*a_u
-    !endif
+ contains
+ !%--------------------------------------------------------------------------
+ subroutine create_super_array(SA,na,nb,nc)
+
+   type(super_array) :: SA
+   integer :: na,nb,nc
+
+   call log_gallocate(SA%val,na,nb,nc)
+
+   SA%ibsize=na*nb*nc
+
+ end subroutine create_super_array
+ 
+ !%--------------------------------------------------------------------------
+ subroutine destroy_super_array(SA)
+
+   type(super_array) :: SA
+
+   call log_gdeallocate(SA%val)
+
+ end subroutine destroy_super_array
+ !%--------------------------------------------------------------------------
+   
+
+ subroutine write_super_array(SA)
+
+   type(super_array) :: SA
+
+   if (id0) then
+     write(*,*) SA%a,SA%b,SA%c
+     write(*,*) SA%dla,SA%dlb,SA%dlc
+     write(*,*) 'size',SA%ibsize
+     write(*,*) 'iparm',SA%iparm
+     write(*,*) 'fparm',SA%fparm
+     write(*,*) 'natm_PL',SA%natm_PL
+     write(*,*) 'L_PL',SA%L_PL  
+     write(*,*) 'rhs',size(SA%rhs)
+     write(*,*) 'val',size(SA%val)
+   endif
+
+ end subroutine write_super_array
+ 
+ !%--------------------------------------------------------------------------  
+ subroutine create_phi_bulk(phi_bulk,iparm,dlx,dly,dlz,cont_mem)
+
+ type(super_array) :: phi_bulk(:)
+ integer :: iparm(23)
+ integer :: cont_mem,na,nb,nc,m
+ real(kind=dp) :: dlx,dly,dlz
+ integer :: nstart, nlast, num_p, i
+
+ cont_mem=0
+
+ do m=1,ncont
+
+   nstart = iatc(3,m)
+   nlast  = iatc(2,m)
+   phi_bulk(m)%natm_PL = (nlast-nstart+1)/2
+   phi_bulk(m)%doEwald = .false.
+
+   select case(abs(contdir(m)))    
+     ! contacts are internally oriented along z.
+   case(1)
+     phi_bulk(m)%a = 2   !(y)
+     phi_bulk(m)%b = 3   !(z)
+     phi_bulk(m)%c = 1   !(x)
+     phi_bulk(m)%dla = dly
+     phi_bulk(m)%dlb = dlz
+     phi_bulk(m)%dlc = dlx
+
+     ! set the bulk contact periodicity in x
+     phi_bulk(m)%iparm(2)= iparm(4)    !Copy from device
+     phi_bulk(m)%iparm(3)= iparm(5)    !     "     "         
+     phi_bulk(m)%iparm(4)= iparm(6)    !     "     "   
+     phi_bulk(m)%iparm(5)= iparm(7)    !     "     "  
+     phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
+     phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
+
+     if(overrBulkBC(3).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(3)
+     if(overrBulkBC(4).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(4)
+     if(overrBulkBC(5).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(5)
+     if(overrBulkBC(6).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(6)
+     !------------------------------------------------------
+     phi_bulk(m)%iparm(8)  = iparm(9)  ! iyp 
+     phi_bulk(m)%iparm(9)  = iparm(10) ! izp
+     phi_bulk(m)%iparm(10) = iparm(8)  ! ixp
+   
+     phi_bulk(m)%iparm(11) = iparm(12) !highest grid in a  (y)
+     phi_bulk(m)%iparm(12) = iparm(13) !highest grid in b  (z)
+
+     ! define the PL periodicity     
+     phi_bulk(m)%L_PL = abs(x(1,nstart+phi_bulk(m)%natm_PL)-x(1,nstart))
+     ! find the right grid
+     do i = 1,50 
+        phi_bulk(m)%iparm(13) = i      !highest grid in c  (x)
+        num_p = phi_bulk(m)%iparm(10) *(2**(i - 1)) + 1 
+        if (phi_bulk(m)%L_PL/(num_p - 1).le.dmin(1)) then
+           phi_bulk(m)%dlc = phi_bulk(m)%L_PL/(num_p - 1) 
+           exit 
+        end if
+     end do
+     phi_bulk(m)%iparm(14) = iparm(15) !# grid points in a (y)
+     phi_bulk(m)%iparm(15) = iparm(16) !# grid points in b (z)
+     phi_bulk(m)%iparm(16) = num_p     !# grid points in c (x)
+     
+   case(2)
+     phi_bulk(m)%a = 3  !(z)
+     phi_bulk(m)%b = 1  !(x)
+     phi_bulk(m)%c = 2  !(y)
+     phi_bulk(m)%dla = dlz
+     phi_bulk(m)%dlb = dlx
+     phi_bulk(m)%dlc = dly
+     ! set the bulk contact periodicity in y
+     phi_bulk(m)%iparm(2)= iparm(6)    !Copy from device
+     phi_bulk(m)%iparm(3)= iparm(7)    !     "     "         
+     phi_bulk(m)%iparm(4)= iparm(2)    !     "     "   
+     phi_bulk(m)%iparm(5)= iparm(3)    !     "     "  
+     phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
+     phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
+
+     if(overrBulkBC(5).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(5)
+     if(overrBulkBC(6).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(6)
+     if(overrBulkBC(1).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(1)
+     if(overrBulkBC(2).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(2)
+     !------------------------------------------------------
+     phi_bulk(m)%iparm(8)  = iparm(10) ! izp 
+     phi_bulk(m)%iparm(9)  = iparm(8)  ! ixp
+     phi_bulk(m)%iparm(10) = iparm(9)  ! iyp
+   
+     phi_bulk(m)%iparm(11) = iparm(13) !highest grid in a  (z)
+     phi_bulk(m)%iparm(12) = iparm(11) !highest grid in b  (x)
+
+     ! define the PL periodicity    
+     phi_bulk(m)%L_PL = abs(x(2,nstart+phi_bulk(m)%natm_PL)-x(2,nstart))
+     ! find the right grid
+     do i = 1,50 
+        phi_bulk(m)%iparm(13) = i      !highest grid in c  (y)
+        num_p = phi_bulk(m)%iparm(10) *(2**(i - 1)) + 1 
+        if (phi_bulk(m)%L_PL/(num_p - 1).le.dmin(2)) then
+           phi_bulk(m)%dlc = phi_bulk(m)%L_PL/(num_p - 1)
+           exit 
+        end if
+     end do
+     
+     phi_bulk(m)%iparm(14) = iparm(16) !# grid points in a (z)
+     phi_bulk(m)%iparm(15) = iparm(14) !# grid points in b (x)
+     phi_bulk(m)%iparm(16) = num_p     !# grid points in c (y)
+           
+   case(3)
+     phi_bulk(m)%a = 1   !(x)
+     phi_bulk(m)%b = 2   !(y)
+     phi_bulk(m)%c = 3   !(z)
+     phi_bulk(m)%dla = dlx
+     phi_bulk(m)%dlb = dly
+     phi_bulk(m)%dlc = dlz
+     ! set the bulk contact periodicity in z
+     phi_bulk(m)%iparm(2)= iparm(2)    !Copy from device
+     phi_bulk(m)%iparm(3)= iparm(3)    !     "     "         
+     phi_bulk(m)%iparm(4)= iparm(4)    !     "     "   
+     phi_bulk(m)%iparm(5)= iparm(5)    !     "     " 
+     phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
+     phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
+
+     if(overrBulkBC(1).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(1)
+     if(overrBulkBC(2).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(2)
+     if(overrBulkBC(3).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(3)
+     if(overrBulkBC(4).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(4) 
+     !------------------------------------------------------
+     phi_bulk(m)%iparm(8)  = iparm(8)  ! ixp 
+     phi_bulk(m)%iparm(9)  = iparm(9)  ! iyp
+     phi_bulk(m)%iparm(10) = iparm(10) ! izp
+
+     phi_bulk(m)%iparm(11) = iparm(11) !highest grid in a  (x) 
+     phi_bulk(m)%iparm(12) = iparm(12) !highest grid in b  (y)
+
+     ! define the PL periodicity    
+     phi_bulk(m)%L_PL = abs(x(3,nstart+phi_bulk(m)%natm_PL)-x(3,nstart))
+     ! find the right grid
+     do i = 1,50 
+        phi_bulk(m)%iparm(13) = i      !highest grid in c  (z)
+        num_p = phi_bulk(m)%iparm(10) *(2**(i - 1)) + 1 
+        if (phi_bulk(m)%L_PL/(num_p - 1).le.dmin(3)) then
+           phi_bulk(m)%dlc = phi_bulk(m)%L_PL/(num_p - 1) 
+           exit 
+        end if
+     end do
+
+     phi_bulk(m)%iparm(14) = iparm(14) !# grid points in a (x)
+     phi_bulk(m)%iparm(15) = iparm(15) !# grid points in b (y)
+     phi_bulk(m)%iparm(16) = num_p     !# grid points in c (z)
+
+   end select
+
+   na= phi_bulk(m)%iparm(14)               !# grid points in a
+   nb= phi_bulk(m)%iparm(15)               !# grid points in b
+   nc= phi_bulk(m)%iparm(16)               !# grid points in c
+
+   ! CASE ALL PERIODIC:
+   ! Choose the smallest area where compute Ewald sums 
+   ! Override periodic BC with Dirichlet
+   if ( all(phi_bulk(m)%iparm(2:7).eq.0) ) then
+     phi_bulk(m)%doEwald=.true.
+     if(nb*nc .lt. na*nc) then
+        phi_bulk(m)%iparm(2)= 1           !Dirichlet in a 
+        phi_bulk(m)%iparm(3)= 1           !     "     "  a
+     else 
+        phi_bulk(m)%iparm(4)= 1           !Dirichlet in b 
+        phi_bulk(m)%iparm(5)= 1           !     "     "  b
+     endif
+   end if
+
+   ! CASE PERIODIC & NEUMANN:
+   ! Override with Dirichlet.
+   if ( sum(phi_bulk(m)%iparm(2:7)).eq.8 ) then
+        phi_bulk(m)%iparm(2)= 1           !Dirichlet in a 
+        phi_bulk(m)%iparm(3)= 1           !     "     "  a
+        phi_bulk(m)%iparm(4)= 1           !Dirichlet in b 
+        phi_bulk(m)%iparm(5)= 1           !     "     "  b     
+   endif
+
+
+   !------------------------------------------------------
+   phi_bulk(m)%iparm(17) = 0            ! no initial guess
+   phi_bulk(m)%iparm(18) = 50 !iparm(18)    ! # of iterations
+   phi_bulk(m)%iparm(19) = 0            ! Gauss-Siedel
+   phi_bulk(m)%iparm(20) = 7*(na+2)*(nb+2)*(nc+2)/2
+   
+   call log_gallocate(phi_bulk(m)%rhs,na,nb,nc)
+   
+   !write(*,*) '%LOC rhs=',%LOC(phi_bulk(m)%rhs)
+   cont_mem = na*nb*nc          
+   
+   cont_mem = cont_mem+na*nb*nc 
+   
+   phi_bulk(m)%ibsize = cont_mem 
+   
+   call log_gallocate(phi_bulk(m)%val,na,nb,nc)
+   
+   phi_bulk(m)%val(1:na,1:nb,1:nc)=0.d0
+   
+   !write(*,*) '%LOC val=',%LOC(phi_bulk(m)%val)
+   
+   !if(id0.and.verbose.gt.80) then
+   !   write(*,*) 'Bulk Potential Contact #',m,nstart,nlast
+   !   write(*,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*a_u
+   !   write(*,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*a_u
+   !   write(*,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*a_u
+   !endif
 
   enddo
 
@@ -312,22 +313,20 @@ Subroutine readbulk_pot(phi_bulk)
     write(m_id,'(i2.2)') m
     inquire(file='contacts/BulkPot_'//m_id//'.DAT',exist=lex)
     if (.not.lex) then
-         write(*,*) 'ERROR: file contacts/BulkPot_'//m_id//'.DAT not found'
-         STOP
+      write(*,*) 'ERROR: file contacts/BulkPot_'//m_id//'.DAT not found'
+      STOP
     else    
-        fp = getFileId()
-         open(fp,file='contacts/BulkPot_'//m_id//'.DAT',form='formatted')
+      open(newunit=fp,file='contacts/BulkPot_'//m_id//'.DAT',form='formatted')
     endif   
     
     read(fp,*) a,b,c
     
     if (a.ne.phi_bulk(m)%iparm(14) .or. &
-         b.ne.phi_bulk(m)%iparm(15) .or. &
-         c.ne.phi_bulk(m)%iparm(16)) then
-         if(id0) write(*,*) 'Warning: incompatible BulkPot: will be recomputed'   
-         ReadBulk = .false.
-         return
-    
+      b.ne.phi_bulk(m)%iparm(15) .or. &
+      c.ne.phi_bulk(m)%iparm(16)) then
+      if(id0) write(*,*) 'Warning: incompatible BulkPot: will be recomputed'   
+      ReadBulk = .false.
+      return
     endif
     
     do i = 1,phi_bulk(m)%iparm(14)  
@@ -487,8 +486,7 @@ subroutine save_bulkpot(phi_bulk,m)
 
   write(m_id,'(i2.2)') m
   
-  fp = getFileId()
-  open(fp,file='contacts/BulkPot_'//m_id//'.DAT',form='formatted')
+  open(newunit=fp,file='contacts/BulkPot_'//m_id//'.DAT',form='formatted')
  
   write(fp,'(3(i5))') phi_bulk(m)%iparm(14), &
                       phi_bulk(m)%iparm(15), &
@@ -504,37 +502,27 @@ subroutine save_bulkpot(phi_bulk,m)
   
   close(fp)
  
-  !open(20,file='contacts/BulkRhs_'//m_id//'.DAT',form='formatted')
-  !do i = 1,phi_bulk(m)%iparm(14)  
-  !   do j = 1,phi_bulk(m)%iparm(15)
-  !      do k = 1,phi_bulk(m)%iparm(16)
-  !         write(20,*) phi_bulk(m)%rhs(i,j,k)
-  !      end do
-  !   end do
-  !end do
-  !close(20)
-  fp2  = getFileId()
-  open(fp2,file='contacts/Xvector_'//m_id//'.dat')
+  open(newunit=fp,file='contacts/Xvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(14) 
      xk=  phi_bulk(m)%fparm(1)+(k-1)*phi_bulk(m)%dla  
-     write(fp2,'(E17.8)',ADVANCE='NO') xk*a_u
+     write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
   enddo
-  close(fp2)
-  open(fp2,file='contacts/Yvector_'//m_id//'.dat')
+  close(fp)
+  open(newunit=fp,file='contacts/Yvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(15)    
      xk=  phi_bulk(m)%fparm(3)+(k-1)*phi_bulk(m)%dlb 
-     write(fp2,'(E17.8)',ADVANCE='NO') xk*a_u
+     write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
   enddo
-  close(fp2)
-  open(fp2,file='contacts/Zvector_'//m_id//'.dat')
+  close(fp)
+  open(newunit=fp,file='contacts/Zvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(16)    
      xk=  phi_bulk(m)%fparm(5)+(k-1)*phi_bulk(m)%dlc 
-     write(fp2,'(E17.8)',ADVANCE='NO') xk*a_u
+     write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
   enddo
-  close(fp2)
-  open(fp2,file='contacts/box3d_'//m_id//'.dat') 
-  write(fp2,*) phi_bulk(m)%iparm(14),phi_bulk(m)%iparm(15),phi_bulk(m)%iparm(16) 
-  close(fp2)
+  close(fp)
+  open(newunit=fp,file='contacts/box3d_'//m_id//'.dat') 
+  write(fp,*) phi_bulk(m)%iparm(14),phi_bulk(m)%iparm(15),phi_bulk(m)%iparm(16) 
+  close(fp)
  
 end subroutine save_bulkpot
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
