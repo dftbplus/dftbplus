@@ -59,7 +59,10 @@ module poisson
   ! from mpi_poisson 
   public :: poiss_mpi_init, poiss_mpi_split, global_comm, poiss_comm
   public :: id0, active_id, numprocs
-  
+  ! from io
+  public :: set_stdout
+
+
   public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
   public :: poiss_updcoords, poiss_savepotential, poiss_freepoisson
 
@@ -805,14 +808,14 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     !--------------------------------------------
     ! Shift of the Hamiltonian matrix elements 
     !--------------------------------------------
-  
-    if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Computing Hamiltonian shifts ')
-
-    if (id0) call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
-
-    if (id0.and.verbose.gt.VBT) call write_clock(stdOut)   
-
+    if (id0) then  
+      if (verbose.gt.VBT) call message_clock(stdOut,'Computing Hamiltonian shifts ')
+      call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
+      if (verbose.gt.VBT) call write_clock(stdOut)   
+    end if
+    
     call destroy_phi_bulk(bulk)
+
     deallocate(bulk,stat=err)
 
  !//////////////////////////////////////////////////////////////////////

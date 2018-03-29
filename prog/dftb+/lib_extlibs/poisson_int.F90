@@ -27,6 +27,7 @@ module poisson_int
   use poisson_vars, only : TPoissonInfo, TPoissonStructure, TSKdata
   use libnegf_vars, only : TTransPar
   use CommonTypes, only : TOrbitals
+  use globalenv, only : stdOut
   use poisson
 #:if WITH_MPI
   use libmpifx_module 
@@ -58,7 +59,7 @@ module poisson_int
   Type(TPoissonInfo) :: poissoninfo
   Type(TTransPar) :: transpar
   Type(mpifx_comm), intent(in) :: mpicomm
-  logical, intent(OUT) :: initinfo
+  logical, intent(out) :: initinfo
 
   ! local variables
   integer :: i,error  
@@ -75,11 +76,11 @@ module poisson_int
   call mpi_barrier(mpicomm, error)
 #:endif
 
-  if (id0) then
-    write(*,*)
-    write(*,*) 'Poisson Initializations'
-    write(*,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
-  end if 
+  write(stdOut,*)
+  write(stdOut,*) 'Poisson Initializations'
+  write(stdOut,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
+
+  call set_stdout(stdOut)
 
   call set_scratch(poissoninfo%scratch)
 
@@ -94,9 +95,9 @@ module poisson_int
 
     call init_skdata(skdata%orb%nShell, skdata%orb%angShell, skdata%hubbU, error)
 
-    if (error.ne.0 .and. id0) then
-       write(*,*) 'I am sorry... cannot preceed'
-       write(*,*) 'orbital shells should be in the order s,p,d'
+    if (error.ne.0) then
+       write(stdOut,*) 'I am sorry... cannot preceed'
+       write(stdOut,*) 'orbital shells should be in the order s,p,d'
        stop 
     endif
  
@@ -167,13 +168,13 @@ module poisson_int
     deltaR_max = poissoninfo%maxRadAtomDens
     ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
     if (deltaR_max < 0.0_dp) then
-      if (id0) write(*,*) "Atomic density tolerance: ", -deltaR_max
+      write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
       deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
     end if
-    if (id0)  write(*,*) "Atomic density cutoff: ", deltaR_max,"a.u."
+    write(stdOut,*) "Atomic density cutoff: ", deltaR_max,"a.u."
  
     if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-      call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
+      call checkDensityCutoff(stdOut, deltaR_max, transpar%contacts(:)%length)
     end if
  
     dR_cont = poissoninfo%bufferLocBC
@@ -217,7 +218,7 @@ module poisson_int
     ! DoTip,tip_atom,base_atom1,base_atom2
     !-----------------------------------------------------------------------------+
  
-    if (id0) write(*,'(79(">"))')
+    write(stdOut,'(79(">"))')
   
   endif 
 
@@ -230,8 +231,8 @@ end subroutine poiss_init
 subroutine poiss_destroy()
 
   if (active_id) then
-    if (id0) write(*,'(A)')
-    if (id0) write(*,'(A)') 'Release Poisson Memory:'
+    write(stdOut,'(A)')
+    write(stdOut,'(A)') 'Release Poisson Memory:'
     call poiss_freepoisson()
   endif 
 
@@ -241,7 +242,6 @@ end subroutine poiss_destroy
 ! inTERFACE subroutine to call Poisson 
 !----------------------------------------------------------------------------
 subroutine poiss_getshift(V_L_atm,grad_V)
-
   real(kind=dp), DIMENSION(:,:), intent(inout) :: V_L_atm
   real(kind=dp), DIMENSION(:,:), optional :: grad_V
 
@@ -265,37 +265,38 @@ subroutine poiss_getshift(V_L_atm,grad_V)
     ! Sets a local copy of V_orb for shift calculations. 
     ! This will change soon by passing directly V_orb
     !ndim = ind(natoms+1)
-    !write(*,*) 'Calling Poisson Solver'
-    !write(*,*) 'cluster box:',cluster
-    !write(*,*) 'periodic box:',period
-    !write(*,*) 'periodic dir:',period_dir
-    !write(*,*) 'contact dir:',contdir(1:ncont)
-    !write(*,*) 'bias dir:',BiasDir 
-    !write(*,*) 'Do Gate:',DoGate, GateDir
-    !write(*,*) 'Do Cil Gate:',DoCilGate
-    !write(*,*) 'Do Tip:',DoTip 
-    !write(*,*) 'Use bulk potential:',InitPot
-    !write(*,*) 'Read old bulk pot:',ReadBulk
-    !write(*,*) 'Local BC:',LocalBC
+    !write(stdOut,*) 'Calling Poisson Solver'
+    !write(stdOut,*) 'cluster box:',cluster
+    !write(stdOut,*) 'periodic box:',period
+    !write(stdOut,*) 'periodic dir:',period_dir
+    !write(stdOut,*) 'contact dir:',contdir(1:ncont)
+    !write(stdOut,*) 'bias dir:',BiasDir 
+    !write(stdOut,*) 'Do Gate:',DoGate, GateDir
+    !write(stdOut,*) 'Do Cil Gate:',DoCilGate
+    !write(stdOut,*) 'Do Tip:',DoTip 
+    !write(stdOut,*) 'Use bulk potential:',InitPot
+    !write(stdOut,*) 'Read old bulk pot:',ReadBulk
+    !write(stdOut,*) 'Local BC:',LocalBC
 
     ! .....................................................
     select case(PoissFlag)
     case(0)
-      if (id0.and.verbose.gt.30) then
-        write(*,*)
-        write(*,'(80("="))')
-        write(*,*) '                       SOLVinG POISSON EQUATION         '
-        write(*,'(80("="))') 
-      endif
+      if (verbose.gt.30) then
+        write(stdOut,*)
+        write(stdOut,'(80("="))')
+        write(stdOut,*) '                       SOLVING POISSON EQUATION         '
+        write(stdOut,'(80("="))') 
+      end if
       call init_PoissBox
       call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
     case(1)
       call mudpack_drv(PoissFlag,V_L_atm,grad_V)
     end select
 
-    if (id0.and.verbose.gt.30) write(*,'(80("*"))')
-
-  endif
+    if (verbose.gt.30) then
+      write(stdOut,'(80("*"))')
+    end if
+  end if
 
 #:if WITH_MPI
   call mpifx_barrier(global_comm, ierr)
@@ -371,7 +372,8 @@ end subroutine poiss_updcharges
   !> Checks whether density cutoff fits into the PLs and stop if not.
   !! \param rr  Density cutoff.
   !! \param pllens  Lengths of the principal layers in the contacts.
-  subroutine checkDensityCutoff(rr, pllens)
+  subroutine checkDensityCutoff(stdOut, rr, pllens)
+    integer, intent(in) :: stdOut
     real(dp), intent(in) :: rr, pllens(:)
 
     integer :: ii
@@ -380,13 +382,11 @@ end subroutine poiss_updcharges
     ! have a factor 2 in fron of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
-        if (id0) then
-          write(*,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with&
-              & PL width in conctact ", ii, "."
-          write(*,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
-          write(*,"(A)") "Either enlarge PL width in the contact or increase&
-              & AtomDensityCutoff or AtomDensityTolerance."
-        end if    
+        write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with&
+            & PL width in conctact ", ii, "."
+        write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
+        write(stdOut,"(A)") "Either enlarge PL width in the contact or increase&
+            & AtomDensityCutoff or AtomDensityTolerance."
         stop
       end if
     end do

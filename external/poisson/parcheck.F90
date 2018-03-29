@@ -29,7 +29,7 @@ contains
       !
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
-         if (id0.and.verbose > 30) then
+         if (verbose > 30) then
             write(stdOut,*) 'Box for Poisson not Found: Set equal to supercell box' 
             do i=1,3
                write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
@@ -44,7 +44,7 @@ contains
       end if
    else
       if (.not.FoundBox) then
-         if (id0 .and. verbose > 30) then
+         if (verbose > 30) then
             write(stdOut,*) 'Box for Poisson not Found'
          end if
          stop 'ERROR: No way to build box for Poisson'
@@ -325,14 +325,12 @@ contains
          !endif
          ! ---------------------------------------------------
 
-         if (id0) then
-           write(stdOut,'(a,I3)') 'CONTACT #',i
-           write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
-           write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
-           write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
-           write(stdOut,*) 'mu=',mu(i)*hartree,'V'
-           write(stdOut,*) 
-         end if
+         write(stdOut,'(a,I3)') 'CONTACT #',i
+         write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
+         write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
+         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
+         write(stdOut,*) 'mu=',mu(i)*hartree,'V'
+         write(stdOut,*) 
 
       end do !ncont
    endif !cluster
@@ -344,7 +342,7 @@ contains
    if (.not.cluster) then
       do i=1,ncont
          if (iatc(1,i).lt.iatm(2)) then 
-            if(id0) write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
+            write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
             stop
          endif
       enddo
@@ -360,7 +358,7 @@ contains
          stop
       endif
       if(any(abs(contdir(:)).eq.gatedir)) then
-         if (id0) write(stdOut,*) "ERROR: gate direction along contacts!?"
+         write(stdOut,*) "ERROR: gate direction along contacts!?"
          stop
       endif
    endif
