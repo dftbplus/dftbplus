@@ -75,7 +75,7 @@ module main
   use elstatpot, only : TElStatPotentials
 
 #:if WITH_TRANSPORT
-  use libnegf_vars
+  use libnegf_vars, only : TTransPar
   use negf_int
   use poisson_int
 #:endif
