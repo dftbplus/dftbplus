@@ -502,34 +502,25 @@ subroutine save_bulkpot(phi_bulk,m)
   
   close(fp)
  
-  !open(20,file='contacts/BulkRhs_'//m_id//'.DAT',form='formatted')
-  !do i = 1,phi_bulk(m)%iparm(14)  
-  !   do j = 1,phi_bulk(m)%iparm(15)
-  !      do k = 1,phi_bulk(m)%iparm(16)
-  !         write(20,*) phi_bulk(m)%rhs(i,j,k)
-  !      end do
-  !   end do
-  !end do
-  !close(20)
-  open(fp,file='contacts/Xvector_'//m_id//'.dat')
+  open(newunit=fp,file='contacts/Xvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(14) 
      xk=  phi_bulk(m)%fparm(1)+(k-1)*phi_bulk(m)%dla  
      write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
   enddo
   close(fp)
-  open(fp,file='contacts/Yvector_'//m_id//'.dat')
+  open(newunit=fp,file='contacts/Yvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(15)    
      xk=  phi_bulk(m)%fparm(3)+(k-1)*phi_bulk(m)%dlb 
      write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
   enddo
   close(fp)
-  open(fp,file='contacts/Zvector_'//m_id//'.dat')
+  open(newunit=fp,file='contacts/Zvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(16)    
      xk=  phi_bulk(m)%fparm(5)+(k-1)*phi_bulk(m)%dlc 
      write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
   enddo
   close(fp)
-  open(fp,file='contacts/box3d_'//m_id//'.dat') 
+  open(newunit=fp,file='contacts/box3d_'//m_id//'.dat') 
   write(fp,*) phi_bulk(m)%iparm(14),phi_bulk(m)%iparm(15),phi_bulk(m)%iparm(16) 
   close(fp)
  

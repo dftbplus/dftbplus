@@ -16,6 +16,8 @@
 .SUFFIXES:
 .SUFFIXES: .F90 .o
 
+.SECONDARY: %.o
+
 TARGETLIB = libpoisson.a
 
 vpath % $(SRCDIR)
@@ -25,7 +27,7 @@ all: $(TARGETLIB)
 
 include $(SRCDIR)/make.deps
 
-$(TARGETLIB): $(poisson.o)
+$(TARGETLIB): $(objs)
 	ar r $@ $^
 
 %.f90: %.F90

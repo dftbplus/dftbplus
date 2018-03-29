@@ -60,7 +60,7 @@ ifeq ($(strip $(WITH_MPI)),1)
   ifeq ($(strip $(WITH_TRANSPORT)),1)
     dftb+: external_libnegf external_poisson
     external_libnegf: external_mpifx
-    external_poisson: external_mpifx
+    external_poisson: external_mpifx external_libnegf
   endif
 endif
 modes: external_xmlf90
