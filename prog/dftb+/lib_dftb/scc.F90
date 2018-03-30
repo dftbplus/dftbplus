@@ -251,7 +251,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Scc input
-    type(TSccInp), intent(inout) :: inp
+    type(TSccInp), intent(in) :: inp
 
     integer :: iSp1, iSp2, iU1, iU2, iL
     real(dp) :: maxREwald, maxGEwald
