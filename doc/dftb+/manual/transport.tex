@@ -146,11 +146,11 @@ Transport {
 \begin{ptable}
   \kw{Id} & s &  & &  \\
   \kw{AtomRange} &2i& &  &  \\
-  \kw{ShiftAccuracy} & r & & 1e-8 & \\
+  \kw{ShiftAccuracy} & r & & 1e-5 & \\
   \kw{FermiLevel} &r& &  &  \\
   \kw{Potential} & r &  & 0.0 & \\
   \kw{WideBand} & l & & No & \\
-  \kw{LevelSpacing} & r & WideBand = Yes & 20.0 & \\
+  \kw{LevelSpacing} & r & WideBand = Yes & 0.735 & \\
   \hline
 \end{ptable}
 
@@ -161,32 +161,32 @@ user can add a keyword that specifies the accuracy for the internal check of the
 PLs.
 
 \begin{description}
-\item[\is{Id}] Assign a label to each contact. 
+\item[\is{Id}] Assign a text label to the contact (must be 50 or fewer
+  characters).
 \item[\is{AtomRange}] \label{AtomRange} Defines the first and last atom of the
   device region.  {\bf Note} that the contacts should be defined in order of
   increasing atomic range.
-
-\item[\is{ShiftAccuracy}]\modif{\modtype{length}} It can be used to set the
-  absolute accuracy used to check the PL consistency (see above). The default is
-  $10^{-5}$ atomic units. Please be aware that using a large values may hide
-  errors due to a non consistent definition of the contacts, therefore it should
-  not be modified.
-  \item[\is{FermiLevel}]\modif{\modtype{energy}} Specifies the contact Fermi
-    levels.
-  \item[\is{Potential}]\modif{\modtype{energy}} Specifies the electrostatic
-    potential applied to each contact. The natural units of this quantity are
-    potential energy (e.g., V). They can be loosely identified with eV or
-    a.u. since in both these units the electronic charge is practically defined
-    as $e=1$.
-  \item[\is{WideBand}] Use the wide band approximation for the contact. If set
-    to Yes, the surface green's function of the contact is not explicitly
-    calculated but rather assumed to be local and constant according to a
-    specified density of states.
-  \item[\is{LevelSpacing}]\modif{\modtype{energy}} Specify the inverse of the
-    density of states per atom to be used in the Wide Band approximation. As an
-    example, the DOS of gold at the Fermi level is $0.05
-    \mathrm{ev}^{-1}\mathrm{atom}^{-1}$, which corresponds to an energy spacing
-    of $20$ Ev $ \simeq 0.735$ Hartree (the default value).
+\item[\is{ShiftAccuracy}]\modif{\modtype{length}} Used to set the absolute
+  accuracy used to check principal layer (PL) consistency (see above). The
+  default is $10^{-5}$ atomic units. Please be aware that using a large values
+  may hide errors due to a non-consistent definition of the contacts, therefore
+  it should not be modified.
+\item[\is{FermiLevel}]\modif{\modtype{energy}} Specifies the Fermi level in the
+  contact.
+\item[\is{Potential}]\modif{\modtype{energy}} Specifies the electrostatic
+  potential applied to the contact. The natural units of this quantity are a
+  potential energy. They can be loosely identified with electron-volts or atomic
+  units since in both these unit systems the electronic charge is defined as
+  $e=1$.
+\item[\is{WideBand}] Use the wide band approximation for the contact. If set to
+  \is{Yes}, the surface Green's function of the contact is not explicitly
+  calculated but rather assumed to be local and constant according to a
+  specified density of states.
+\item[\is{LevelSpacing}]\modif{\modtype{energy}} Specify the inverse of the
+  density of states per atom to be used in the Wide Band approximation. As an
+  example, the DOS of gold at the Fermi level is 0.05~ev$^{-1}$atom$^{-1}$,
+  which corresponds to an energy spacing of 20~eV $\approx$0.735~Hartree (the
+  default value).
 \end{description}
 
 \htcbsubsection{Task = ContactHamiltonian} \label{Task} The \is{Task} option is
@@ -206,15 +206,15 @@ Task = ContactHamiltonian {
 When \kw{Task}=\is{ContactHamiltonian} the following options can be defined
 
 \begin{ptable}
-  \kw{ContactId} & s &  & &  \\
-  \kw{ContactSeparation} & r & & 1e3 &  \\
+  \kw{ContactId} & s &  & & \\
+  \kw{ContactSeparation} & r & & 1e3 & \\
   \hline
 \end{ptable}
 
 \begin{description}
-\item[\is{ContactId}] Id of the contact to be calculated.
+\item[\is{ContactId}] Id label of the contact to be calculated.
 \item[\is{ContactSeparation}]\modif{\modtype{length}} Dummy separation in
-  transverse direction (see following explanation).
+  transverse direction (see the following explanation).
 \end{description}
 
 The contact calculation computes the {\em bulk} Hamiltonian and self-consistent
@@ -228,13 +228,13 @@ as a {\em cluster}, the contact calculation is performed for a {\em supercell}
 in which the contact is treated as one-dimensional wire. However, since \dftbp
 does not support pure one- and two-dimensional calculations, dummy lattice
 vectors are defined for the two remaining directions. The default value for
-these lattice vectors is 1000 a.u. (527 \AA), which should guarantee sufficient
-wire-wire distance to avoid Coulomb interactions. The user can specify and
-alternative contact separation using the keyword \is{ContactSeparation} placed
-in the \kw{ContactHamiltonian} block.  Each contact computation produces one
-output file called \verb|shiftcont_ContactId.dat| storing energy shifts and
-Mulliken charges that must be present in the working folder in all subsequent
-transport calculations.
+these lattice vectors is 1000~a.u.\ (527~{\AA}), which should guarantee
+sufficient wire-wire distance to avoid Coulomb interactions. The user can
+specify and alternative contact separation using the keyword
+\is{ContactSeparation} placed in the \kw{ContactHamiltonian} block.  Each
+contact computation produces one output file called
+\verb|shiftcont_ContactId.dat| storing energy shifts and Mulliken charges that
+must be present in the working folder in all subsequent transport calculations.
 
 {\bf Note} that during the contact calculation you will need to perform a
 k-point integration.  Whenever the system is defined as a cluster, \dftbp{} will
@@ -264,8 +264,9 @@ KpointsAndWeights = SupercellFolding {
 \end{verbatim}
 
 On the other hand, if your structure is defined as a supercell (as an example, a
-molecule with bulk contacts) and the transport direction is along y, your the
-source contact calculation will have an input file similar to:
+molecule with bulk contacts) and the transport direction is along the $y$
+direction, your the source contact calculation will have an input file similar
+to:
 
 \begin{verbatim}
 ...
@@ -323,7 +324,7 @@ integration when the structure is defined as a cluster, just as in a regular
 \dftbp{} calculation.
 
  
-\htsection{GreensFunction} 
+\htsection{GreensFunction}
 
 In order to activate Green's functions calculations the user must define the
 keyword \is{EigenSolver = GreensFunction} in the \is{Hamiltonian} section. The
@@ -379,10 +380,10 @@ only.
   axis integration for non-equilibrium calculations. Note: \kw{RealAxisStep} and
   \kw{RealAxisPoints} can not be both defined at the same time.
  
-  \item[\is{RealAxisPoints}] The number of points along the real axis
-    integration needed in non-equilibrium calculations. The default depends on
-    the electronic temperature and bias. Note: \kw{RealAxisStep} and
-    \kw{RealAxisPoints} can not be both defined at the same time.
+\item[\is{RealAxisPoints}] The number of points along the real axis integration
+  needed in non-equilibrium calculations. The default depends on the electronic
+  temperature and bias. Note: \kw{RealAxisStep} and \kw{RealAxisPoints} can not
+  be both defined at the same time.
  
 \item[\is{SaveSurfaceGFs}] As the SCC cycle usually needs to repeat the
   calculation of the Green's function at given energy points and as the surface
