@@ -3529,39 +3529,44 @@ contains
 
 #:if WITH_TRANSPORT
   !> Read geometry information for transport calculation
-  subroutine readTransportGeometry(root, geom, tp)
+  subroutine readTransportGeometry(root, geom, transpar)
+
+    !> Root node containing the current block
     type(fnode), pointer :: root
+
+    !> geometry of the system, which may be modified for some types of calculation
     type(TGeometry), intent(inout) :: geom
-    type(TTransPar), intent(inout) :: tp
+
+    !> Parameters of the transport calculation
+    type(TTransPar), intent(inout) :: transpar
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
     type(string) :: buffer, modif
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
-    real(dp) :: acc, contactRange(2), sep
-    type(listInt) :: li                                                     !DAR
+    real(dp) :: acc, contactRange(2), lateralContactSeparation
+    type(listInt) :: li
 
-    tp%defined = .true.
-    tp%tPeriodic1D = .not. geom%tPeriodic
+    transpar%defined = .true.
+    transpar%tPeriodic1D = .not. geom%tPeriodic
     call getChild(root, "Device", pDevice)
-    call getChildValue(pDevice, "AtomRange", tp%idxdevice)
+    call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
     call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
-    call readFirstLayerAtoms(pTmp, tp%PL, tp%nPLs, tp%idxdevice)
+    call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
 
-    !DAR begin
     call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
     if (associated(pTmp)) then
       call init(li)
       call getChildValue(pTmp, "", li)
-      allocate(tp%cblk(len(li)))
-      call asArray(li,tp%cblk)
+      allocate(transpar%cblk(len(li)))
+      call asArray(li,transpar%cblk)
       call destruct(li)
     end if
-    !DAR end
+
 
     if (.not.associated(pTmp)) then
-      call setChildValue(pDevice, "FirstLayerAtoms", tp%PL)
+      call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
     end if
     !! Note: we parse first the task because we need to know it to defined the
     !! mandatory contact entries. On the other hand we need to wait that
@@ -3571,34 +3576,39 @@ contains
     call getNodeName(pTaskType, buffer)
     call getChildren(root, "Contact", pNodeList)
 
-    tp%ncont = getLength(pNodeList)
-    if (tp%ncont < 2) then
+    transpar%ncont = getLength(pNodeList)
+    if (transpar%ncont < 2) then
       call detailedError(root, "At least two contacts must be defined")
     end if
-    allocate(tp%contacts(tp%ncont))
+    allocate(transpar%contacts(transpar%ncont))
     !! Parse contact geometry
 
-    call readContacts(pNodeList, tp%contacts, geom, (buffer .eq. "uploadcontacts"))
+    call readContacts(pNodeList, transpar%contacts, geom, (buffer .eq. "uploadcontacts"))
 
     select case (char(buffer))
 
     case ("contacthamiltonian")
-      tp%taskUpload = .false.
-      call getChildValue(pTaskType, "ContactId", buffer, child=pTmp)
-      contact = getContactByName(tp%contacts(:)%name, tolower(trim(unquote(char(buffer)))), pTmp)
-      tp%taskContInd = contact
-      tp%contacts(contact)%output = "shiftcont_" // trim(tp%contacts(contact)%name) // ".dat"
-      if (.not. geom%tPeriodic) then
-        call getChildValue(pTaskType, "ContactSeparation", sep, 1000.0_dp,&
-            & modifier=modif, child=field)
-        call convertByMul(char(modif),lengthUnits,field,sep)
-      end if
-      tp%tPeriodic1D = .not. geom%tPeriodic
 
-      call reduceGeometry(tp%contacts(contact)%lattice, tp%contacts(contact)%idxrange, sep, geom)
+      transpar%taskUpload = .false.
+      call getChildValue(pTaskType, "ContactId", buffer, child=pTmp)
+      contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
+          & pTmp)
+      transpar%taskContInd = contact
+      transpar%contacts(contact)%output = "shiftcont_" // trim(transpar%contacts(contact)%name) //&
+          & ".dat"
+      if (.not. geom%tPeriodic) then
+        call getChildValue(pTaskType, "ContactSeparation", lateralContactSeparation, 1000.0_dp,&
+            & modifier=modif, child=field)
+        call convertByMul(char(modif),lengthUnits,field,lateralContactSeparation)
+      end if
+      transpar%tPeriodic1D = .not. geom%tPeriodic
+
+      call reduceGeometry(transpar%contacts(contact)%lattice, transpar%contacts(contact)%idxrange,&
+          & lateralContactSeparation, geom)
 
     case ("uploadcontacts")
-      tp%taskUpload = .true.
+
+      transpar%taskUpload = .true.
 
     case default
 
@@ -3609,14 +3619,22 @@ contains
 
    call destroyNodeList(pNodeList)
 
-
   end subroutine readTransportGeometry
 
+
   !> Reduce the geometry for the contact calculation
-  subroutine reduceGeometry(contactVec, contactRange, sep, geom)
+  subroutine reduceGeometry(contactVec, contactRange, lateralContactSeparation, geom)
+
+    !> Vector between principle layers in the contact
     real(dp), intent(in) :: contactVec(3)
+
+    !> Range of atoms in the contact
     integer, intent(in) :: contactRange(2)
-    real(dp), intent(in) :: sep
+
+    !> Lateral separation distance between contacts in a periodic box
+    real(dp), intent(in) :: lateralContactSeparation
+
+    !> atomic geometry
     type(TGeometry), intent(inout) :: geom
 
     real(dp) :: contUnitVec(3), dots(3), newLatVecs(3, 3), newOrigin(3)
@@ -3658,7 +3676,7 @@ contains
       do ii = 2, 3
         minProj = 0_dp !minval(matmul(newLatVecs(:,ii), geom%coords))
         maxProj = 0_dp !maxval(matmul(newLatVecs(:,ii), geom%coords))
-        newLatVecs(:,ii) = ((maxProj - minProj) + sep) * newLatVecs(:,ii)
+        newLatVecs(:,ii) = ((maxProj - minProj) + lateralContactSeparation) * newLatVecs(:,ii)
       end do
     end if
     call setLattice(geom, newOrigin, newLatVecs)
@@ -4107,64 +4125,86 @@ contains
 
 
   !> Sanity checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVector(atomrange, geom, id, pContact, acc, &
-      &contactVec, contactDir)
+  subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
+      & contactDir)
+
+    !> Range of atoms in the contact
     integer, intent(in) :: atomrange(2)
+
+    !> Atomic geometry, including the contact atoms
     type(TGeometry), intent(in) :: geom
+
+    !> Index for this contact
     integer, intent(in) :: id
+
+    !> Contact name
+    character(mc), intent(in) :: name
+
+    !> Node in the parser, needed for error handling
     type(fnode), pointer :: pContact
-    real(dp), intent(in) :: acc
+
+    !> Allowed discrepancy in positions of atoms between the contact's two  principle layers
+    real(dp), intent(in) :: contactLayerTol
+
+    !> Vector direction between principal layers in the contact
     real(dp), intent(out) :: contactVec(3)
+
+    !> Which supercell vector the contact vector is parallel to
     integer, intent(out) :: contactDir
 
-    integer :: iStart, iStart2, iEnd
+    integer :: iStart, iStart2, iEnd, ii
     logical :: mask(3)
+    character(lc) :: errorStr
 
     !! Sanity check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
-    if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom &
-        &.or. iEnd > geom%nAtom .or. iEnd < iStart) then
+    if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom .or. iEnd > geom%nAtom) then
       call detailedError(pContact, "Invalid atom range '" // i2c(iStart) &
           &// " " // i2c(iEnd) // "', values should be between " // i2c(1) &
           &// " and " // i2c(geom%nAtom) // ".")
     end if
+    if (iEnd < iStart) then
+      call detailedError(pContact, "Invalid atom order in contact '" // i2c(iStart) // " " //&
+          & i2c(iEnd) // "', should be asscending order.")
+    end if
+
     if (mod(iEnd - iStart + 1, 2) /= 0) then
       call detailedError(pContact, "Nr. of atoms in the contact must be even")
     end if
 
-    ! Determining contact vector
+    ! Determining intra-contact layer vector
     iStart2 = iStart + (iEnd - iStart + 1) / 2
     contactVec = geom%coords(:,iStart) - geom%coords(:,iStart2)
-    if (any(sqrt(sum(&
-        &(geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd) &
-        &- spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1)) &
-        &> acc)) then
-      write(stdout,*) 'coords:', geom%coords(:,iStart)
-      write(stdout,*) 'coords:', geom%coords(:,iStart2)
-      write(stdout,*) 'Contact Vector:', contactVec(1:3)
-      write(stdout,*) iStart,iStart2,iEnd
-      write(stdout,*) 'X:'
-      write(stdout,*) ((geom%coords(1,iStart:iStart2-1)&
-          & - geom%coords(1,iStart2:iEnd)&
-          & - spread(contactVec(1), dim=1, ncopies=iStart2-iStart)))
-      write(stdout,*) 'Y:'
-      write(stdout,*) ((geom%coords(2,iStart:iStart2-1)&
-          & - geom%coords(2,iStart2:iEnd) &
-          & - spread(contactVec(2), dim=1, ncopies=iStart2-iStart)))
-      write(stdout,*) 'Z:'
-      write(stdout,*) ((geom%coords(3,iStart:iStart2-1)&
-          & - geom%coords(3,iStart2:iEnd) &
-          &- spread(contactVec(3), dim=1, ncopies=iStart2-iStart)))
-      call error("Contact " // i2c(id) &
-          &// " does not consist of two rigidly shifted layers")
+
+    if (any(sum( (geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
+        & - spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1) > contactLayerTol**2))&
+        & then
+      write(stdout,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
+      write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
+      write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
+      do ii = 0, iStart2 -1 -iStart
+        if (sum((geom%coords(:,ii+iStart)-geom%coords(:,ii+iStart2) - contactVec)**2)&
+            & > contactLayerTol**2) then
+          write(stdout,"(1X,A,I0,A,I0,A)")'Atoms ',iStart+ii, ' and ', iStart2+ii,&
+              & ' inconsistent with the contact vector.'
+          exit
+        end if
+      end do
+      write(stdout,*)'Mismatches in atomic positions in the two layers:'
+      write(stdout,"(3F20.12)")((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
+          & - spread(contactVec(:), dim=2, ncopies=iStart2-iStart))) * Bohr__AA
+
+      write (errorStr,"('Contact ',A,' (',A,') does not consist of two rigidly shifted layers')")&
+          & i2c(id), trim(name)
+      call error(errorStr)
+
     end if
 
-    ! Determine to which axes it is parallel.
-    mask = (abs(abs(contactVec)  - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
+    ! Determine to which axis the contact vector is parallel.
+    mask = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning("Contact vector " // i2c(id) // " not parallel to any&
-          & of the coordinate axis.")
+      call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
       contactDir = 0
     else
       ! Workaround for bug in Intel compiler (can not use index function)
@@ -4545,26 +4585,23 @@ contains
     type(TGeometry), intent(in) :: geom
     logical, intent(in) :: upload
 
-    real(dp) :: acc
-    integer :: ncont, ii, jj
+    real(dp) :: contactLayerTol
+    integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
-
     type(listReal) :: fermiBuffer
 
-    !write(stdout,"('Contacts:')")
 
-    ncont = size(contacts)
-    do ii = 1,ncont
+    do ii = 1, size(contacts)
+
       contacts(ii)%wideBand = .false.
-      contacts(ii)%wideBandDos = 0.0
+      contacts(ii)%wideBandDos = 0.0_dp
 
       call getItem1(pNodeList, ii, pNode)
       call getChildValue(pNode, "Id", buffer, child=pTmp)
       buffer = tolower(trim(unquote(char(buffer))))
       if (len(buffer) > mc) then
-        call detailedError(pTmp, "Contact id may not be longer than " &
-            &// i2c(mc) // " characters.")
+        call detailedError(pTmp, "Contact id may not be longer than " // i2c(mc) // " characters.")
       end if
       contacts(ii)%name = char(buffer)
       if (any(contacts(1:ii-1)%name == contacts(ii)%name)) then
@@ -4572,47 +4609,45 @@ contains
             &//  "' already in use")
       end if
 
-      call getChildValue(pNode,"ShiftAccuracy",acc, 1e-5_dp, modifier=modif&
-          &, child=field)
-      call convertByMul(char(modif),lengthUnits,field,acc)
+      call getChildValue(pNode, "ShiftAccuracy", contactLayerTol, 1e-5_dp, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-      !if (acc > 1.0_dp) then
-      !  contactVecs(:,ii) = (/ 0.d0, 0.d0, acc /)
-      !  ginfo%transport%cdir(ii) = 3
-      !else
-      call getContactVector(contacts(ii)%idxrange, geom, ii, pTmp, acc, &
-                              & contacts(ii)%lattice, contacts(ii)%dir)
-      !endif
+      call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
+          & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
       contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
-      ! Contact temperatures. A negative default is used so it is quite clear
-      ! when the user sets a different value. In such a case
-      ! this overrides values defined in Filling block
+
+      ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
+      ! different value. In such a case this overrides values defined in the Filling block
       call getChild(pNode,"Temperature", field, requested=.false.)
       if (associated(field)) then
-         call getChildValue(pNode, "Temperature", contacts(ii)%kbT,&
-                         &0.0_dp, modifier=modif, child=field)
-         call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
+        call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
+            & child=field)
+        call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
       else
-         contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
-       end if
+        contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
+      end if
 
       if (upload) then
-        call getChildValue(pNode, 'potential', contacts(ii)%potential,&
-                            &0.0_dp, modifier=modif, child=field)
+        call getChildValue(pNode, 'potential', contacts(ii)%potential, 0.0_dp, modifier=modif,&
+            & child=field)
         call convertByMul(char(modif), energyUnits, field, contacts(ii)%potential)
+
         call getChildValue(pNode, "wideBand", contacts(ii)%wideBand, .false.)
+
         if (contacts(ii)%wideBand) then
-          call getChildValue(pNode, 'LevelSpacing', contacts(ii)%wideBandDos, &
-                             &0.735_dp, modifier=modif, child=field)
-          call convertByMul(char(modif), energyUnits, field,&
-                              &contacts(ii)%wideBandDos)
-          !WideBandApproximation is defined as energy spacing between levels
-          !In the code the inverse value (Density of states) is used
-          !Convert the negf input value. Default is 20.e eV
+
+          ! WideBandApproximation is defined as energy spacing between levels of the contact. In the
+          ! code the inverse value (Density of states) is used. Convert the negf input
+          ! value. Default is 20 / e eV.
+          call getChildValue(pNode, 'LevelSpacing', contacts(ii)%wideBandDos, 0.735_dp,&
+              & modifier=modif, child=field)
+          call convertByMul(char(modif), energyUnits, field, contacts(ii)%wideBandDos)
           contacts(ii)%wideBandDos = 1.d0 / contacts(ii)%wideBandDos
+
         end if
-        !! Fermi level: in case of colinear spin we accept two values
-        !! (up and down)
+
+        ! Fermi level: in case of colinear spin we accept two values (up and down)
         call init(fermiBuffer)
         call getChildValue(pNode, "FermiLevel", fermiBuffer, modifier=modif)
         if (len(fermiBuffer) .eq. 1 .or. len(fermiBuffer) .eq. 2) then
