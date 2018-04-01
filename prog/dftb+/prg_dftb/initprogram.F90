@@ -780,9 +780,6 @@ module initprogram
   !> File descriptor for extra MD output
   integer :: fdMD
 
-  !> File descriptor for numerical Hessian
-  integer :: fdHessian
-
   !> File descriptor for charge restart file
   integer :: fdCharges
 
@@ -2087,7 +2084,7 @@ contains
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
+          & fdDetailedOut, fdMd, fdCharges, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2807,7 +2804,7 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdHessian,&
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
       & fdDetailedOut, fdMd, fdChargeBin, esp)
 
     !> Environment
@@ -2846,9 +2843,6 @@ contains
     !> File unit for band structure
     integer, intent(out) :: fdBand
 
-    !> File unit for second derivatives information
-    integer, intent(out) :: fdHessian
-
     !> File unit for detailed.out
     integer, intent(out) :: fdDetailedOut
 
@@ -2872,7 +2866,7 @@ contains
       call initOutputFile(bandOut, fdBand)
     end if
     if (tDerivs) then
-      call initOutputFile(hessianOut, fdHessian)
+      call initOutputFile(hessianOut)
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(userOut, fdDetailedOut)

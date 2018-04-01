@@ -1855,11 +1855,18 @@ contains
     character(*), intent(in) :: fileName
 
     !> Associated file ID
-    integer, intent(out) :: fd
+    integer, intent(out), optional :: fd
 
-    fd = getFileId()
-    open(fd, file=fileName, action="write", status="replace")
-    close(fd)
+    integer :: fdTmp
+    
+    if (present(fd)) then
+      fd = getFileId()
+      open(fd, file=fileName, action="write", status="replace")
+      close(fd)
+    else
+      open(newUnit=fdTmp, file=fileName, action="write", status="replace")
+      close(fdTmp)
+    end if
 
   end subroutine initOutputFile
 
@@ -2193,10 +2200,7 @@ contains
 
 
   !> Write the second derivative matrix
-  subroutine writeHessianOut(fd, fileName, pDynMatrix)
-
-    !> File ID
-    integer, intent(in) :: fd
+  subroutine writeHessianOut(fileName, pDynMatrix)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2204,9 +2208,9 @@ contains
     !> Dynamical (Hessian) matrix
     real(dp), intent(in) :: pDynMatrix(:,:)
 
-    integer :: ii
+    integer :: ii, fd
 
-    open(unit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     do ii = 1, size(pDynMatrix, dim=2)
       write(fd, formatHessian) pDynMatrix(:, ii)
     end do

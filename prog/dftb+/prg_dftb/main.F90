@@ -604,7 +604,7 @@ contains
 
     if (env%tGlobalMaster .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
-      call writeHessianOut(fdHessian, hessianOut, pDynMatrix)
+      call writeHessianOut(hessianOut, pDynMatrix)
     else
       nullify(pDynMatrix)
     end if
