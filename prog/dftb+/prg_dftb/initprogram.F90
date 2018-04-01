@@ -774,9 +774,6 @@ module initprogram
   !> File descriptor for the band structure output
   integer :: fdBand
 
-  !> File descriptor for the eigenvector output
-  integer :: fdEigvec
-
   !> File descriptor for detailed.tag
   integer :: fdResultsTag
 
@@ -2090,7 +2087,7 @@ contains
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
+          & fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2810,8 +2807,8 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, esp)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdHessian,&
+      & fdDetailedOut, fdMd, fdChargeBin, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2849,9 +2846,6 @@ contains
     !> File unit for band structure
     integer, intent(out) :: fdBand
 
-    !> File unit for eigenvectors
-    integer, intent(out) :: fdEigvec
-
     !> File unit for second derivatives information
     integer, intent(out) :: fdHessian
 
@@ -2877,7 +2871,6 @@ contains
     if (tWriteBandDat) then
       call initOutputFile(bandOut, fdBand)
     end if
-    fdEigvec = getFileId()
     if (tDerivs) then
       call initOutputFile(hessianOut, fdHessian)
     end if
