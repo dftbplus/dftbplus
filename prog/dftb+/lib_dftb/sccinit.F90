@@ -332,16 +332,13 @@ contains
 
 
   !> Write the current charges to an external file
-  subroutine writeQToFile(qq, fileName, fd, tWriteAscii, orb, qBlock, qiBlock)
+  subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
 
     !> Name of the file to write the charges
     character(*), intent(in) :: fileName
-
-    !> File descriptor to use for the file
-    integer, intent(in) :: fd
 
     !> Write in a ascii format (T) or binary (F)
     logical, intent(in) :: tWriteAscii
@@ -357,7 +354,7 @@ contains
 
     integer :: nAtom, nOrb, nSpin
     integer :: iAtom, iOrb, iSpin, ii
-    integer :: iErr
+    integer :: iErr, fd
     logical :: tqBlock, tqiBlock
 
     nAtom = size(qq, dim=2)
@@ -381,10 +378,11 @@ contains
 #:endcall ASSERT_CODE
 
     if (tWriteAscii) then
-      open(fd, file=trim(fileName)//'.dat', position="rewind", status="replace")
+      open(newunit=fd, file=trim(fileName)//'.dat', position="rewind", status="replace")
       write(fd, *, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
     else
-      open(fd, file=trim(fileName)//'.bin', position="rewind", status="replace", form="unformatted")
+      open(newunit=fd, file=trim(fileName)//'.bin', position="rewind", status="replace",&
+          & form="unformatted")
       write(fd, iostat=iErr) restartFormat, tqBlock, tqiBlock, nSpin, sum(sum(qq, dim=1), dim=1)
     end if
     if (iErr /= 0) then

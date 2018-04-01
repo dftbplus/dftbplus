@@ -773,9 +773,6 @@ module initprogram
   !> File descriptor for extra MD output
   integer :: fdMD
 
-  !> File descriptor for charge restart file
-  integer :: fdCharges
-
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
@@ -2077,7 +2074,7 @@ contains
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdDetailedOut,&
-          & fdMd, fdCharges, esp)
+          & fdMd, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2791,7 +2788,7 @@ contains
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdDetailedOut,&
-      & fdMd, fdChargeBin, esp)
+      & fdMd, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2832,9 +2829,6 @@ contains
     !> File unit for information during molecular dynamics
     integer, intent(out) :: fdMd
 
-    !> File descriptor for charge restart file
-    integer, intent(out) :: fdChargeBin
-
     !> Electrostatic potentials if requested
     type(TElStatPotentials), allocatable, intent(inout) :: esp
 
@@ -2863,7 +2857,6 @@ contains
       call clearFile(trim(geoOutFile) // ".gen")
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
-    fdChargeBin = getFileId()
     if (allocated(esp)) then
       call initOutputFile(esp%espOutFile, esp%fdEsp)
     end if
