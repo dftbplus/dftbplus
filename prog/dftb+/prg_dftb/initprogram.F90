@@ -761,9 +761,6 @@ module initprogram
   !> Dynamical (Hessian) matrix
   real(dp), pointer :: pDynMatrix(:,:)
 
-  !> File descriptor for the tagged writer
-  integer :: fdAutotest
-
   !> File descriptor for the human readable output
   integer :: fdDetailedOut
 
@@ -2070,7 +2067,7 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdDetailedOut, fdMd, esp)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2783,7 +2780,7 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdDetailedOut, fdMd, esp)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2812,9 +2809,6 @@ contains
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
 
-    !> File unit for autotest data
-    integer, intent(out) :: fdAutotest
-
     !> File unit for detailed.out
     integer, intent(out) :: fdDetailedOut
 
@@ -2826,7 +2820,7 @@ contains
 
     call initTaggedWriter()
     if (tWriteAutotest) then
-      call initOutputFile(autotestTag, fdAutotest)
+      call initOutputFile(autotestTag)
     end if
     if (tWriteResultsTag) then
       call initOutputFile(resultsTag)

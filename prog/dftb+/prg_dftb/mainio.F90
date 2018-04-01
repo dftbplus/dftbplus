@@ -1873,12 +1873,9 @@ contains
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
+  subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
       & gibbsFree, endCoords, tLocalise, localisation, esp)
-
-    !> File ID to write to
-    integer, intent(in) :: fd
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1935,9 +1932,9 @@ contains
     type(TElStatPotentials), allocatable, intent(in) :: esp
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
+    integer :: fd
 
-
-    open(fd, file=fileName, action="write", status="old", position="append")
+    open(newunit=fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
       call writeTagged(fd, tag_volume, cellVol)
     end if

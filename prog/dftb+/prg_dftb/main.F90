@@ -351,7 +351,7 @@ contains
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
         call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
             & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
-            & skHamCont, skOverCont, fdAutotest, autotestTag, runId, neighborList, nNeighbor,&
+            & skHamCont, skOverCont, autotestTag, runId, neighborList, nNeighbor,&
             & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect,&
             & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal, rhoSqrReal,&
             & excitedDerivs, occNatural)
@@ -628,7 +628,7 @@ contains
         cellVol = abs(determinant33(latVec))
         energy%EGibbs = energy%EMermin + extPressure * cellVol
       end if
-      call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
+      call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
           & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
           & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
     end if
@@ -3027,7 +3027,7 @@ contains
  !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
       & eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont,&
-      & fdAutotest, autotestTag, runId, neighborList, nNeighbor, denseDesc, iSparseStart,&
+      & autotestTag, runId, neighborList, nNeighbor, denseDesc, iSparseStart,&
       & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, work, rhoSqrReal, excitedDerivs, occNatural)
 
@@ -3078,9 +3078,6 @@ contains
 
     !> overlap information
     type(OSlakoCont), intent(in) :: skOverCont
-
-    !> file ID for regression data
-    integer, intent(in) :: fdAutotest
 
     !> File name for regression data
     character(*), intent(in) :: autotestTag
@@ -3139,7 +3136,7 @@ contains
     real(dp), allocatable :: dQAtom(:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: iSpin, nSpin, nAtom
+    integer :: iSpin, nSpin, nAtom, fdAutotest
     logical :: tSpin
 
     nAtom = size(qOutput, dim=2)
@@ -3159,7 +3156,7 @@ contains
       end do
     end if
     if (tWriteAutotest) then
-      open(fdAutotest, file=autotestTag, position="append")
+      open(newUnit=fdAutotest, file=autotestTag, position="append")
     end if
 
     if (tLinRespZVect) then
