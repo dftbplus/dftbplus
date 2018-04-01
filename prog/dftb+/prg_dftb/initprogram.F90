@@ -583,10 +583,6 @@ module initprogram
   !> PDOS region labels
   type(listCharLc), save :: regionLabels
 
-  !> file units for PDOS results
-  integer, allocatable, save :: fdProjEig(:)
-
-
   !> Third order DFTB
   logical :: t3rd
 
@@ -2194,13 +2190,6 @@ contains
         end if
         deallocate(iAtomRegion)
       end do
-
-      allocate(fdProjEig(len(iOrbRegion)))
-      do ii = 1, len(iOrbRegion)
-        fdProjEig(ii) = getFileId()
-      end do
-    else
-      allocate(fdProjEig(0))
     end if
 
   #:if WITH_MPI
