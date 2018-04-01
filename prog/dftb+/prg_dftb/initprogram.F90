@@ -2850,7 +2850,7 @@ contains
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
     if (allocated(esp)) then
-      call initOutputFile(esp%espOutFile, esp%fdEsp)
+      call initOutputFile(esp%espOutFile)
     end if
 
   end subroutine initOutputFiles

@@ -4193,24 +4193,24 @@ contains
     !> Number of geometry steps
     integer, intent(in) :: nGeoSteps
 
-    integer :: ii
+    integer :: ii, fdEsp
     character(lc) :: tmpStr
 
     if (env%tGlobalMaster) then
       if (esp%tAppendEsp) then
-        open(esp%fdEsp, file=trim(esp%EspOutFile), position="append")
+        open(newunit=fdEsp, file=trim(esp%EspOutFile), position="append")
       else
-        open(esp%fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
+        open(newunit=fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
       end if
       ! Header with presence of external field and regular grid size
       write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
           & esp%gridDimensioning, size(esp%intPotential)
       if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
-        write(esp%fdEsp,"(A)")trim(tmpStr)
+        write(fdEsp,"(A)")trim(tmpStr)
         if (all(esp%gridDimensioning > 0)) then
-          write(esp%fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
+          write(fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
           do ii = 1, 3
-            write(esp%fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
+            write(fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
           end do
         end if
       end if
@@ -4226,36 +4226,36 @@ contains
       if (all(esp%gridDimensioning > 0)) then
         ! Regular point distribution, do not print positions
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
+            write(fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
                 & -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
+            write(fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
           end do
         end if
       else
         ! Scattered points, print locations
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
+          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
               & External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV, -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
+          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
               & trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV
           end do
         end if
       end if
-      close(esp%fdEsp)
+      close(fdEsp)
     end if
 
   end subroutine writeEsp
