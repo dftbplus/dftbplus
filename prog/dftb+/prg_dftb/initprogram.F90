@@ -767,9 +767,6 @@ module initprogram
   !> File descriptor for the human readable output
   integer :: fdDetailedOut
 
-  !> File descriptor for the band structure output
-  integer :: fdBand
-
   !> File descriptor for detailed.tag
   integer :: fdResultsTag
 
@@ -2079,8 +2076,8 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdDetailedOut, fdMd, fdCharges, esp)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdDetailedOut,&
+          & fdMd, fdCharges, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2793,8 +2790,8 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-      & fdDetailedOut, fdMd, fdChargeBin, esp)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdDetailedOut,&
+      & fdMd, fdChargeBin, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2829,9 +2826,6 @@ contains
     !> File unit for tagged results data
     integer, intent(out) :: fdResultsTag
 
-    !> File unit for band structure
-    integer, intent(out) :: fdBand
-
     !> File unit for detailed.out
     integer, intent(out) :: fdDetailedOut
 
@@ -2852,7 +2846,7 @@ contains
       call initOutputFile(resultsTag, fdResultsTag)
     end if
     if (tWriteBandDat) then
-      call initOutputFile(bandOut, fdBand)
+      call initOutputFile(bandOut)
     end if
     if (tDerivs) then
       call initOutputFile(hessianOut)

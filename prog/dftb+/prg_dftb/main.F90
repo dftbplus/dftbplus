@@ -280,7 +280,7 @@ contains
             & eigvecsCplx, rhoSqrReal)
 
         if (tWriteBandDat) then
-          call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
+          call writeBandOut(bandOut, eigen, filling, kWeight)
         end if
 
         if (tMulliken) then

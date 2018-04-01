@@ -2163,10 +2163,7 @@ contains
 
 
   !> Write the band structure data out
-  subroutine writeBandOut(fd, fileName, eigen, filling, kWeight)
-
-    !> File  ID
-    integer, intent(in) :: fd
+  subroutine writeBandOut(fileName, eigen, filling, kWeight)
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2180,9 +2177,9 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
-    integer :: iSpin, iK, iEgy
+    integer :: iSpin, iK, iEgy, fd
 
-    open(unit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     do iSpin = 1, size(eigen, dim=3)
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
