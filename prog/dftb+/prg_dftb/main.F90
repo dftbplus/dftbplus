@@ -633,8 +633,8 @@ contains
           & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(fdResultsTag, resultsTag, energy, derivs, chrgForces, tStress,&
-          & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
+      call writeResultsTag(resultsTag, energy, derivs, chrgForces, tStress, totalStress,&
+          & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&

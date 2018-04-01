@@ -767,9 +767,6 @@ module initprogram
   !> File descriptor for the human readable output
   integer :: fdDetailedOut
 
-  !> File descriptor for detailed.tag
-  integer :: fdResultsTag
-
   !> File descriptor for extra MD output
   integer :: fdMD
 
@@ -2073,8 +2070,7 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdDetailedOut,&
-          & fdMd, esp)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdDetailedOut, fdMd, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2787,8 +2783,7 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdDetailedOut,&
-      & fdMd, esp)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdDetailedOut, fdMd, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2820,9 +2815,6 @@ contains
     !> File unit for autotest data
     integer, intent(out) :: fdAutotest
 
-    !> File unit for tagged results data
-    integer, intent(out) :: fdResultsTag
-
     !> File unit for detailed.out
     integer, intent(out) :: fdDetailedOut
 
@@ -2837,7 +2829,7 @@ contains
       call initOutputFile(autotestTag, fdAutotest)
     end if
     if (tWriteResultsTag) then
-      call initOutputFile(resultsTag, fdResultsTag)
+      call initOutputFile(resultsTag)
     end if
     if (tWriteBandDat) then
       call initOutputFile(bandOut)

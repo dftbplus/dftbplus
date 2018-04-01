@@ -1858,7 +1858,7 @@ contains
     integer, intent(out), optional :: fd
 
     integer :: fdTmp
-    
+
     if (present(fd)) then
       fd = getFileId()
       open(fd, file=fileName, action="write", status="replace")
@@ -1983,11 +1983,8 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fd, fileName, energy, derivs, chrgForces, tStress, totalStress,&
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress, totalStress,&
       & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
-
-    !> File ID to write to
-    integer, intent(in) :: fd
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2026,10 +2023,11 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
+    integer :: fd
 
     @:ASSERT(tPeriodic .eqv. tStress)
 
-    open(fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
 
     call writeTagged(fd, tag_freeEgy, energy%EMermin)
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
