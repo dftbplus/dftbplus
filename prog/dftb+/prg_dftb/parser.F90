@@ -3649,6 +3649,7 @@ contains
       if (count(mask) /= 1) then
         call error("Too many lattice vectors parallel to the contact")
       end if
+      ! Workaround for bug in Intel compiler (can not use index function)
       ind = 1
       do while (.not. mask(ind))
         ind = ind + 1
@@ -3659,6 +3660,7 @@ contains
     else
       newLatVecs(:,1) = 2.0_dp * contactVec
       mask = abs(contactVec) > 1e-8_dp
+      ! Workaround for bug in Intel compiler (can not use index function)
       ind = 1
       do while (.not. mask(ind))
         ind = ind + 1

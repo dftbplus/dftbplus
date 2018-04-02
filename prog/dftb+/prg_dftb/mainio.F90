@@ -3555,9 +3555,8 @@ contains
     integer, allocatable :: nOrbAtom(:)
 
     shiftPerL = 0.0_dp
-    fdH = getFileId()
 
-    open(fdH, file=fShifts, form="formatted")
+    open(newunit=fdH, file=fShifts, form="formatted")
     read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
 
     if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell &
