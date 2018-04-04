@@ -263,13 +263,9 @@ contains
             & img2CentCell, potential, ham, iHam)
 
         if (tWriteRealHS .or. tWriteHS) then
-          if (withMpi) then
-            call error("Writing of HS not working with MPI yet")
-          else
-            call writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec,&
-                & ham, iHam)
-          end if
+          call writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighborList,&
+              & nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec,&
+              & cellVec, ham, iHam)
         end if
 
         call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
