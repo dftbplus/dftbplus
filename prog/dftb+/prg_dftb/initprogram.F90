@@ -2155,6 +2155,18 @@ contains
 
     tWriteBandDat = tWriteBandDat .and. .not. tNegf
 
+    if (tNegf) then
+      if (tDispersion) then
+        call error("Dispersion not currently avalable with transport calculations")
+      end if
+      if (tLinResp) then
+        call error("Linear response is not compatible with transport calculations")
+      end if
+      if (nSpin > 2) then
+        call error("Non-colinear spin not currently compatible with transport calculations")
+      end if
+    end if
+
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
@@ -2747,7 +2759,7 @@ contains
 
     if (tLinResp) then
       if (tDFTBU) then
-        call error("Linear response is not compatible with Orbitally dependant functionals yet")
+        call error("Linear response is not compatible with orbitally dependant functionals yet")
       end if
 
       if (tForces .and. nSpin > 1) then
@@ -3360,6 +3372,7 @@ contains
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
     integer :: iCont, iStart, iEnd, ii
     integer :: fdH
+    character(lc) :: strTmp
 
     nSpin = size(charges, dim=3)
 
@@ -3378,11 +3391,18 @@ contains
       iEnd = tp%contacts(iCont)%idxrange(2)
       nContAtom = iEnd - iStart + 1
 
-      if (nAtomSt /= nContAtom .or. mShellSt /= orb%mShell .or. mOrbSt /= orb%mOrb) then
-        call error("Mismatch in number of atoms or max shell per atom.")
+      if (nAtomSt /= nContAtom) then
+        call error("Mismatch in number of atoms.")
+      end if
+      if (mShellSt /= orb%mShell) then
+        call error("Mismatch in max shell per atom.")
+      end if
+      if (mOrbSt /= orb%mOrb) then
+        call error("Mismatch in orbitals per atom.")
       end if
       if (nSpin /= nSpinSt) then
-        call error("Mismatch in number of atoms or max shell per atom.")
+        write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
+        call error(trim(strTmp))
       end if
 
       allocate(nOrbAtom(nAtomSt))
