@@ -100,14 +100,17 @@ contains
     class(H5Corr), intent(in) :: this
     ! Local variables
     integer :: iSp1
+    integer :: h5unit
 
-     write(37,*) "H5 setup:"
-     write(37,*) "   rScale = ", this%rScale
-     write(37,*) "   wScale = ", this%wScale
-     write(37,*) "H5 species parameters:"
+     open(newunit=h5unit,file='h5_debugging.dat')
+     write(h5unit,*) "H5 setup:"
+     write(h5unit,*) "   rScale = ", this%rScale
+     write(h5unit,*) "   wScale = ", this%wScale
+     write(h5unit,*) "H5 species parameters:"
      do iSp1 = 1, this%nSpecies
-       write(37,*) "   ", this%speciesName(iSp1), " = ", this%elementPara(iSp1)
+       write(h5unit,*) "   ", this%speciesName(iSp1), " = ", this%elementPara(iSp1)
      end do
+     close(h5unit)
   end subroutine printH5Setup
 
   !> Get H5 parameters for a pair of species
