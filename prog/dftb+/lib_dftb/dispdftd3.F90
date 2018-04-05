@@ -13,6 +13,7 @@ module dispdftd3_module
   use accuracy
   use dispiface
   use dftd3_module
+  use constants
   implicit none
   private
 
@@ -289,10 +290,10 @@ contains
     integer :: i, j, c
     real(dp) :: r, repE, dEdR, dCdR
 
-    ! Parameters (with conversion to a.u.)
-    real(dp) :: k = 0.30_dp * 0.001593601371772_dp
+    ! Parameters (as published, with conversion to a.u.)
+    real(dp) :: k = 0.30_dp * kcal_mol__Hartree
     real(dp) :: e = 14.31_dp
-    real(dp) :: r0 = 2.35_dp / 0.5291772083_dp
+    real(dp) :: r0 = 2.35_dp * AA__Bohr
 
     @:ASSERT(all(shape(coords) == [3, this%nAtom]))
 
@@ -308,7 +309,7 @@ contains
             ! Repulsion energy in a.u.
             repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
             ! Derivative
-            dEdR = -k * (1.0 / (1.0 + exp(-e*(r/r0-1.0)))**2 * e/r0 * exp(-e*(r/r0-1.0)))
+            dEdR = -k * (1.0_dp / (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2 * e/r0 * exp(-e*(r/r0-1.0_dp)))
             ! Apply it to the atoms
             do c = 1, 3
               dCdR = (coords(c,i) - coords(c,j)) / r
