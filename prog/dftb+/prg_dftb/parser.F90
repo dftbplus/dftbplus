@@ -1437,7 +1437,7 @@ contains
         end if
 
         ! Read global parameters
-        ! Defaults are -1.0 to identify thet the parametrers were not read
+        ! Defaults are -1.0 to identify that the parametrers were not read
         call getChildValue(value, "RCut", ctrl%h5RScale, -1.0_dp)
         call getChildValue(value, "W", ctrl%h5WScale, -1.0_dp)
 

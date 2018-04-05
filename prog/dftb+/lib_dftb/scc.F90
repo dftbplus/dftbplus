@@ -96,7 +96,7 @@ module scc
     !> Nr. of atoms
     integer :: nAtom
 
-    !> Nr. of rpecies
+    !> Nr. of species
     integer :: nSpecies
 
     !> Max nr. of orbitals per atom
