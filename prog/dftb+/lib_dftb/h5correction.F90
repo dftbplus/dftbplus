@@ -12,6 +12,7 @@
 !> See http://dx.doi.org/10.1021/acs.jctc.7b00629 for details.
 module h5correction
   use accuracy
+  use constants
   implicit none
   private
 
@@ -203,8 +204,10 @@ contains
       ! Gaussian calculation
       fwhm = this%wScale * sumVDW
       r0 = this%rScale * sumVDW
+      ! Conversion from full-width-at-half-maximum to c
+      ! 2.35482 == 2*sqrt(2*ln(2))
       c = fwhm / 2.35482_dp
-      gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5Scaling
+      gauss = exp(-1.0_dp * ((rab*Bohr__AA)-r0)**2 / 2.0_dp / c**2) * h5Scaling
       ! Apply the correction to original gamma
       shortGamma = shortGamma * (1.0_dp + gauss) - gauss / rab
     end if
@@ -233,12 +236,14 @@ contains
       ! Gaussian calculation
       fwhm = this%wScale * sumVDW
       r0 = this%rScale * sumVDW
+      ! Conversion from full-width-at-half-maximum to c
+      ! 2.35482 == 2*sqrt(2*ln(2))
       c = fwhm / 2.35482_dp
-      gauss = exp(-1.0_dp * ((rab*0.5291772083_dp)-r0)**2 / 2.0_dp / c**2) * h5Scaling
+      gauss = exp(-1.0_dp * ((rab*Bohr__AA)-r0)**2 / 2.0_dp / c**2) * h5Scaling
       ! Derivative calculation
-      dgauss = -1.0 * (0.5291772083 * ( 0.5291772083 * rab - r0 ) ) / c**2 * gauss
-      deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0+gauss)
-      deriv2 = dgauss/rab - (h5Scaling*exp(-1.0*(0.5*(0.5291772083*rab - r0)**2)/c**2))/rab**2
+      dgauss = -1.0_dp * (Bohr__AA * ( Bohr__AA * rab - r0 ) ) / c**2 * gauss
+      deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0_dp+gauss)
+      deriv2 = dgauss/rab - (h5Scaling*exp(-1.0_dp*(0.5_dp*(Bohr__AA*rab - r0)**2)/c**2))/rab**2
       shortGammaDeriv = deriv1 - deriv2
     end if
   end subroutine scaleShortGammaDeriv
