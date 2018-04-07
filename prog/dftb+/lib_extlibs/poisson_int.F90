@@ -1,36 +1,25 @@
-! **************************************************************************
-! *                inTERFACE of Poisson for DFTB+
-! *
-! *  call poiss_init(structure,skdata,gdftbinfo)
-! *
-! *  call poiss_updcharges(qmulli_orb)
-! *
-! *  call poiss_updcoords(x0)
-! *
-! *  call poiss_getshift(V_atm,grad_V)
-! *
-! *  call poiss_destroy()
-! *
-! * ----------------------------------------------------------------------
-! * Known Bugs & Problems:
-! *
-! *
-! *
-! * ----------------------------------------------------------------------
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 #:include "common.fypp"
 
-
+!> Interface to libPoisson routines
 module poisson_init
 
-  use Accuracy, only : dp
-  use Constants, only : pi
+  use accuracy, only : dp
+  use constants, only : pi
   use libnegf_vars, only : TTransPar
-  use CommonTypes, only : TOrbitals
+  use commonTypes, only : TOrbitals
   use globalenv, only : stdOut
   use poisson
 #:if WITH_MPI
   use libmpifx_module
 #:endif
+  use message
   use system_calls, only: create_directory
   implicit none
   private
@@ -40,7 +29,6 @@ module poisson_init
   public :: poiss_destroy
   public :: poiss_updcoords
   public :: poiss_savepotential
-
   public :: TPoissonInfo
   public :: TPoissonStructure
 
@@ -177,312 +165,306 @@ module poisson_init
   end type TPoissonInfo
 
 
- contains
+contains
 
-!------------------------------------------------------------------------------
-! Init gDFTB environment and varibles
-!------------------------------------------------------------------------------
- subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar,&
-        & mpicomm, initinfo)
+  !> Initialise gDFTB environment and variables
+  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
 
-  Type(TPoissonStructure), intent(in) :: structure
+    !> initialisation choices for poisson solver
+    Type(TPoissonStructure), intent(in) :: structure
 
-   !> data structure with atomic orbital information
+    !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Hubbard Us (orbital, atom)
     real(dp), intent(in) :: hubbU(:,:)
 
-  Type(TPoissonInfo) :: poissoninfo
-  Type(TTransPar) :: transpar
-  Type(mpifx_comm), intent(in) :: mpicomm
-  logical, intent(out) :: initinfo
+    Type(TPoissonInfo) :: poissoninfo
+    Type(TTransPar) :: transpar
+    Type(mpifx_comm), intent(in) :: mpicomm
+    logical, intent(out) :: initinfo
 
-  ! local variables
-  integer :: i,error
+    ! local variables
+    integer :: i, iErr
 
-  error = 0
-  initinfo = .true.
+    iErr = 0
+    initinfo = .true.
 
-#:if WITH_MPI
-  if (poissoninfo%maxNumNodes>mpicomm%size) then
-    poissoninfo%maxNumNodes = mpicomm%size
-  end if
-  call poiss_mpi_init(mpicomm)
-  call poiss_mpi_split(poissoninfo%maxNumNodes)
-  call mpi_barrier(mpicomm, error)
-#:endif
+  #:if WITH_MPI
+    if (poissoninfo%maxNumNodes > mpicomm%size) then
+      poissoninfo%maxNumNodes = mpicomm%size
+    end if
+    call poiss_mpi_init(mpicomm)
+    call poiss_mpi_split(poissoninfo%maxNumNodes)
+    call mpi_barrier(mpicomm, iErr)
+  #:endif
 
-  write(stdOut,*)
-  write(stdOut,*) 'Poisson Initializations'
-  write(stdOut,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
+    write(stdOut,*)
+    write(stdOut,*) 'Poisson Initializations'
+    write(stdOut,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
 
-  call set_stdout(stdOut)
+    !> notify solver of standard out unit
+    call set_stdout(stdOut)
 
-  call set_scratch(poissoninfo%scratch)
+    call set_scratch(poissoninfo%scratch)
 
-  if (id0) then
-    call create_directory(trim(scratchfolder),error)
-  end if
+    if (id0) then
+      call create_directory(trim(scratchfolder),iErr)
+    end if
 
-  if (active_id) then
+    if (active_id) then
 
-    call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, &
+      call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, &
           & structure%x0, structure%latVecs, structure%isperiodic)
 
-    call init_skdata(orb%nShell, orb%angShell, hubbU, error)
+      call init_skdata(orb%nShell, orb%angShell, hubbU, iErr)
 
-    if (error.ne.0) then
-       write(stdOut,*) 'I am sorry... cannot preceed'
-       write(stdOut,*) 'orbital shells should be in the order s,p,d'
-       stop
-    endif
+      if (iErr.ne.0) then
+        call error("I am sorry... cannot preceed. orbital shells should be in the order s,p,d")
+      endif
 
-    call init_charges()
+      call init_charges()
 
-    !! Initialize renormalization factors for grid projection
+      !! Initialize renormalization factors for grid projection
 
-    if (error.ne.0) then
-      call poiss_destroy()
-      initinfo = .false.
-      return
-    endif
+      if (iErr.ne.0) then
+        call poiss_destroy()
+        initinfo = .false.
+        return
+      endif
 
-    call init_defaults()            !init default values for parameters
+      call init_defaults()            !init default values for parameters
 
-    call set_verbose(poissonInfo%verbose)
+      call set_verbose(poissonInfo%verbose)
 
-    call set_temperature(0.0_dp)
+      call set_temperature(0.0_dp)
 
-    !-----------------------------------------------------------------------------
-    ! GP: verify if the calculation is on an open system (cluster=false) or not
-    !
-    !     note: in previous versions only ncont was checked but this is not
-    !     sufficient as it does not take into account a contact calculation
-    !     with poisson solver, where the transport block is defined
-    !-----------------------------------------------------------------------------
-    if (transpar%defined .and. transpar%taskUpload) then
-      call set_ncont(transpar%ncont)         !init the number of contacts as in dftb+
-    else
-      call set_ncont(0)
-    endif
-    call set_cluster(.false.)
-    if (.not.transpar%defined) then
-      call set_cluster(.true.)
-    endif
-    if (transpar%defined .and. (.not. transpar%taskUpload)) then
-      call set_cluster(.true.)
-    endif
+      !-----------------------------------------------------------------------------
+      ! GP: verify if the calculation is on an open system (cluster=false) or not
+      !
+      !     note: in previous versions only ncont was checked but this is not
+      !     sufficient as it does not take into account a contact calculation
+      !     with poisson solver, where the transport block is defined
+      !-----------------------------------------------------------------------------
+      if (transpar%defined .and. transpar%taskUpload) then
+        call set_ncont(transpar%ncont)         !init the number of contacts as in dftb+
+      else
+        call set_ncont(0)
+      endif
+      call set_cluster(.false.)
+      if (.not.transpar%defined) then
+        call set_cluster(.true.)
+      endif
+      if (transpar%defined .and. (.not. transpar%taskUpload)) then
+        call set_cluster(.true.)
+      endif
 
-    !-----------------------------------------------------------------------------+
-    ! TRANSPORT PARAMETER NEEDED FOR POISSON (contact partitioning)
-    !-----------------------------------------------------------------------------+
-    call set_mol_indeces(transpar%idxdevice(1:2), structure%natom)
-    call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(1), 1)
-    call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(2), 2)
-    call set_contdir(transpar%contacts(1:ncont)%dir)
-    call set_fermi(transpar%contacts(1:ncont)%eFermi(1))
-    call set_potentials(transpar%contacts(1:ncont)%potential)
-    call set_builtin()
+      !-----------------------------------------------------------------------------+
+      ! TRANSPORT PARAMETER NEEDED FOR POISSON (contact partitioning)
+      !-----------------------------------------------------------------------------+
+      call set_mol_indeces(transpar%idxdevice(1:2), structure%natom)
+      call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(1), 1)
+      call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(2), 2)
+      call set_contdir(transpar%contacts(1:ncont)%dir)
+      call set_fermi(transpar%contacts(1:ncont)%eFermi(1))
+      call set_potentials(transpar%contacts(1:ncont)%potential)
+      call set_builtin()
 
-    call set_dopoisson(poissoninfo%defined)
-    call set_poissonbox(poissoninfo%poissBox)
-    call set_poissongrid(poissoninfo%poissGrid)
-    call set_accuracy(poissoninfo%poissAcc)
+      call set_dopoisson(poissoninfo%defined)
+      call set_poissonbox(poissoninfo%poissBox)
+      call set_poissongrid(poissoninfo%poissGrid)
+      call set_accuracy(poissoninfo%poissAcc)
 
-    FoundBox = poissoninfo%foundBox
-    InitPot = poissoninfo%bulkBC
-    ReadBulk = poissoninfo%readBulkPot
-    MaxPoissIter = poissoninfo%maxPoissIter
-    select case (poissoninfo%localBCType)
-    case('G')
+      FoundBox = poissoninfo%foundBox
+      InitPot = poissoninfo%bulkBC
+      ReadBulk = poissoninfo%readBulkPot
+      MaxPoissIter = poissoninfo%maxPoissIter
+      select case (poissoninfo%localBCType)
+      case('G')
         localBC = 0
-    case('C')
+      case('C')
         localBC = 1
-    case('S')
+      case('S')
         localBC = 2
-    end select
-    deltaR_max = poissoninfo%maxRadAtomDens
-    ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
-    if (deltaR_max < 0.0_dp) then
-      write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
-      deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
-    end if
-    write(stdOut,*) "Atomic density cutoff: ", deltaR_max,"a.u."
+      end select
+      deltaR_max = poissoninfo%maxRadAtomDens
 
-    if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-      call checkDensityCutoff(stdOut, deltaR_max, transpar%contacts(:)%length)
-    end if
-
-    dR_cont = poissoninfo%bufferLocBC
-    bufferBox = poissoninfo%bufferBox
-    SavePot = poissoninfo%savePotential
-    overrideBC = poissoninfo%overrideBC
-    overrBulkBC = poissoninfo%overrBulkBC
-    !-----------------------------------------------------------------------------+
-    ! Gate settings
-    DoGate=.false.
-    DoCilGate=.false.
-    if (poissoninfo%gateType.eq.'C')   DoCilGate = .true.
-    if (poissoninfo%gateType.eq.'P')   DoGate = .true.
-
-    Gate = poissoninfo%gatePot
-    GateLength_l = poissoninfo%gateLength_l
-    GateLength_t = poissoninfo%gateLength_t
-    GateDir = poissoninfo%gatedir   ! Planar gate must be along y
-    OxLength = poissoninfo%insLength
-    Rmin_Gate = poissoninfo%gateRad
-    Rmin_Ins = poissoninfo%insRad
-    eps_r = poissoninfo%eps_r
-    dr_eps = poissoninfo%dr_eps
-
-    ! Use fixed analytical renormalization (approximate) or new numerical one??
-    fixed_renorm = .not.(poissoninfo%exactRenorm)
-
-    ! Performs parameters checks
-    call check_biasdir()
-    call check_poisson_box()
-    if (any(overrideBC.ne.0)) period = .false.
-    call check_parameters()
-    call check_localbc()
-    call write_parameters()
-    call check_contacts()
-
-    !-----------------------------------------------------------------------------+
-    ! Parameters from old PAR.in not yet parsed:
-    !
-    ! PoissPlane
-    ! DoTip,tip_atom,base_atom1,base_atom2
-    !-----------------------------------------------------------------------------+
-
-    write(stdOut,'(79(">"))')
-
-  endif
-
-end subroutine poiss_init
-
-!--------------------------------------------------------------------------
-!----------------------------------------------------------------------------
-! Release gDFTB varibles
-!----------------------------------------------------------------------------
-subroutine poiss_destroy()
-
-  if (active_id) then
-    write(stdOut,'(A)')
-    write(stdOut,'(A)') 'Release Poisson Memory:'
-    call poiss_freepoisson()
-  endif
-
-end subroutine poiss_destroy
-
-!----------------------------------------------------------------------------
-! inTERFACE subroutine to call Poisson
-!----------------------------------------------------------------------------
-subroutine poiss_getshift(V_L_atm,grad_V)
-  real(kind=dp), DIMENSION(:,:), intent(inout) :: V_L_atm
-  real(kind=dp), DIMENSION(:,:), optional :: grad_V
-
-  real(kind=dp), DIMENSION(3,1) :: fakegrad
-
-  integer :: ndim, ierr, array_size
-  integer :: PoissFlag
-
-  ! The subroutine gives the atom shifts.
-
-  ! Poiss Flag is a control flag:
-  ! 0 - potential in SCC
-  ! 1 - atomic shift component of gradient
-
-  !! This iformation is needed by all nodes
-  PoissFlag=0
-  if(present(grad_V)) PoissFlag=1
-
-  if (active_id) then
-
-    ! Sets a local copy of V_orb for shift calculations.
-    ! This will change soon by passing directly V_orb
-    !ndim = ind(natoms+1)
-    !write(stdOut,*) 'Calling Poisson Solver'
-    !write(stdOut,*) 'cluster box:',cluster
-    !write(stdOut,*) 'periodic box:',period
-    !write(stdOut,*) 'periodic dir:',period_dir
-    !write(stdOut,*) 'contact dir:',contdir(1:ncont)
-    !write(stdOut,*) 'bias dir:',BiasDir
-    !write(stdOut,*) 'Do Gate:',DoGate, GateDir
-    !write(stdOut,*) 'Do Cil Gate:',DoCilGate
-    !write(stdOut,*) 'Do Tip:',DoTip
-    !write(stdOut,*) 'Use bulk potential:',InitPot
-    !write(stdOut,*) 'Read old bulk pot:',ReadBulk
-    !write(stdOut,*) 'Local BC:',LocalBC
-
-    ! .....................................................
-    select case(PoissFlag)
-    case(0)
-      if (verbose.gt.30) then
-        write(stdOut,*)
-        write(stdOut,'(80("="))')
-        write(stdOut,*) '                       SOLVING POISSON EQUATION         '
-        write(stdOut,'(80("="))')
+      ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
+      if (deltaR_max < 0.0_dp) then
+        write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
+        deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
       end if
-      call init_PoissBox
-      call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
-    case(1)
-      call mudpack_drv(PoissFlag,V_L_atm,grad_V)
-    end select
 
-    if (verbose.gt.30) then
-      write(stdOut,'(80("*"))')
+      write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
+
+      if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
+        call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
+      end if
+
+      dR_cont = poissoninfo%bufferLocBC
+      bufferBox = poissoninfo%bufferBox
+      SavePot = poissoninfo%savePotential
+      overrideBC = poissoninfo%overrideBC
+      overrBulkBC = poissoninfo%overrBulkBC
+      !-----------------------------------------------------------------------------+
+      ! Gate settings
+      DoGate=.false.
+      DoCilGate=.false.
+      if (poissoninfo%gateType.eq.'C') then
+        DoCilGate = .true.
+      end if
+      if (poissoninfo%gateType.eq.'P') then
+        DoGate = .true.
+      end if
+
+      Gate = poissoninfo%gatePot
+      GateLength_l = poissoninfo%gateLength_l
+      GateLength_t = poissoninfo%gateLength_t
+      GateDir = poissoninfo%gatedir   ! Planar gate must be along y
+      OxLength = poissoninfo%insLength
+      Rmin_Gate = poissoninfo%gateRad
+      Rmin_Ins = poissoninfo%insRad
+      eps_r = poissoninfo%eps_r
+      dr_eps = poissoninfo%dr_eps
+
+      ! Use fixed analytical renormalization (approximate) or new numerical one??
+      fixed_renorm = .not.(poissoninfo%exactRenorm)
+
+      ! Performs parameters checks
+      call check_biasdir()
+      call check_poisson_box()
+      if (any(overrideBC.ne.0)) then
+        period = .false.
+      end if
+      call check_parameters()
+      call check_localbc()
+      call write_parameters()
+      call check_contacts()
+
+      !-----------------------------------------------------------------------------+
+      ! Parameters from old PAR.in not yet parsed:
+      !
+      ! PoissPlane
+      ! DoTip,tip_atom,base_atom1,base_atom2
+      !-----------------------------------------------------------------------------+
+
+      write(stdOut,'(79(">"))')
+
+    endif
+
+  end subroutine poiss_init
+
+  !--------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  ! Release gDFTB varibles
+  !----------------------------------------------------------------------------
+  subroutine poiss_destroy()
+
+    if (active_id) then
+      write(stdOut,'(A)')
+      write(stdOut,'(A)') 'Release Poisson Memory:'
+      call poiss_freepoisson()
+    endif
+
+  end subroutine poiss_destroy
+
+  !> Interface subroutine to call Poisson
+  subroutine poiss_getshift(V_L_atm,grad_V)
+    real(kind=dp), DIMENSION(:,:), intent(inout) :: V_L_atm
+    real(kind=dp), DIMENSION(:,:), optional :: grad_V
+
+    real(kind=dp), DIMENSION(3,1) :: fakegrad
+
+    integer :: ndim, ierr, array_size
+    integer :: PoissFlag
+
+    ! The subroutine gives the atom shifts.
+
+    ! Poiss Flag is a control flag:
+    ! 0 - potential in SCC
+    ! 1 - atomic shift component of gradient
+
+    !! This iformation is needed by all nodes
+    PoissFlag=0
+    if(present(grad_V)) then
+      PoissFlag=1
     end if
-  end if
 
-#:if WITH_MPI
-  call mpifx_barrier(global_comm, ierr)
-  select case(PoissFlag)
-    !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
-  case(0)
-    call mpifx_bcast(global_comm, V_L_atm)
-  case(1)
-    call mpifx_bcast(global_comm, V_L_atm)
-    call mpifx_bcast(global_comm, grad_V)
-  end select
-  call mpifx_barrier(global_comm)
-#:endif
-
-end subroutine poiss_getshift
+    if (active_id) then
 
 
+      select case(PoissFlag)
+      case(0)
+        if (verbose.gt.30) then
+          write(stdOut,*)
+          write(stdOut,'(80("="))')
+          write(stdOut,*) '                       SOLVING POISSON EQUATION         '
+          write(stdOut,'(80("="))')
+        end if
+        call init_PoissBox
+        call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
+      case(1)
+        call mudpack_drv(PoissFlag,V_L_atm,grad_V)
+      end select
+
+      if (verbose.gt.30) then
+        write(stdOut,'(80("*"))')
+      end if
+    end if
+
+  #:if WITH_MPI
+    call mpifx_barrier(global_comm, ierr)
+    select case(PoissFlag)
+      !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
+    case(0)
+      call mpifx_bcast(global_comm, V_L_atm)
+    case(1)
+      call mpifx_bcast(global_comm, V_L_atm)
+      call mpifx_bcast(global_comm, grad_V)
+    end select
+    call mpifx_barrier(global_comm)
+  #:endif
+
+  end subroutine poiss_getshift
 
 
-!----------------------------------------------------------------
-! inTERFACE subroutine to overlaod Mulliken charges
-!----------------------------------------------------------------
-subroutine poiss_updcharges(q,q0)
-  real(dp), dimension(:,:), intent(in) :: q, q0
 
-  integer :: nsh, l, i, o, orb
-  real(dp) :: Qtmp
 
-  if (active_id) then
+  !> Interface subroutine to overload Mulliken charges stored in libPoisson
+  subroutine poiss_updcharges(q,q0)
 
-    if (size(q, dim=2).ne.natoms) stop 'ERROR in udpcharges size of q'
+    !> populations
+    real(dp), intent(in) :: q(:,:)
 
-    do i = 1, natoms
-      nsh = lmax(izp(i))+1
-      orb=0
-      do l = 1, nsh
-      Qtmp = 0.d0
-         do o= 1,2*l-1
-           orb = orb + 1
-           ! - is for negative electron charge density
-           Qtmp = Qtmp + q0(orb,i)-q(orb,i)
-         enddo
-       dQmat(l,i) = Qtmp
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:)
+
+    integer :: nsh, l, i, o, orb
+    real(dp) :: Qtmp
+
+    if (active_id) then
+
+      if (size(q, dim=2).ne.natoms) then
+        call error('ERROR in udpcharges size of q')
+      end if
+
+      do i = 1, natoms
+        nsh = lmax(izp(i))+1
+        orb=0
+        do l = 1, nsh
+          Qtmp = 0.d0
+          do o= 1,2*l-1
+            orb = orb + 1
+            ! - is for negative electron charge density
+            Qtmp = Qtmp + q0(orb,i)-q(orb,i)
+          enddo
+          dQmat(l,i) = Qtmp
+        enddo
       enddo
-    enddo
 
-  endif
+    endif
 
-end subroutine poiss_updcharges
+  end subroutine poiss_updcharges
 
 
   !> Calculates the atom density cutoff from the density tolerance.
@@ -490,7 +472,14 @@ end subroutine poiss_updcharges
   !! \param uhubb  List of atomic Hubbard U values.
   !! \return  Maximal atom density cutoff.
   function getAtomDensityCutoff(denstol, uhubb) result(res)
-    real(dp), intent(in) :: denstol, uhubb(:,:)
+
+    !> Density tolerance.
+    real(dp), intent(in) :: denstol
+
+    !> List of atomic Hubbard U values.
+    real(dp), intent(in) :: uhubb(:,:)
+
+    !> Maximal atom density cutoff.
     real(dp) :: res
 
     integer :: typ, nsh
@@ -507,49 +496,29 @@ end subroutine poiss_updcharges
 
 
   !> Checks whether density cutoff fits into the PLs and stop if not.
-  !! \param rr  Density cutoff.
-  !! \param pllens  Lengths of the principal layers in the contacts.
-  subroutine checkDensityCutoff(stdOut, rr, pllens)
-    integer, intent(in) :: stdOut
-    real(dp), intent(in) :: rr, pllens(:)
+  subroutine checkDensityCutoff(rr, pllens)
+
+    !> Density cutoff.
+    real(dp), intent(in) :: rr
+
+    !> Lengths of the principal layers in the contacts.
+    real(dp), intent(in) :: pllens(:)
 
     integer :: ii
 
     ! GP In Poisson both the contact layers are used, which is the reason why we
-    ! have a factor 2 in fron of pllens
+    ! have a factor 2 in front of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
         write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with&
             & PL width in conctact ", ii, "."
         write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
-        write(stdOut,"(A)") "Either enlarge PL width in the contact or increase&
-            & AtomDensityCutoff or AtomDensityTolerance."
-        stop
+        call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
+            & AtomDensityTolerance.")
       end if
     end do
 
   end subroutine checkDensityCutoff
 
-
-
-! ---------------------------------------------------------------
-!subroutine poiss_mulliken(csrDens, csrOver, kweight, q_atoms)
-!   type(z_CSR) :: csrDens, csrOver
-!   real(dp) :: kweight
-!   real(dp), dimension(:) :: q_atoms
-!
-!   real(dp), dimension(:), allocatable :: qmulli
-!
-!   call log_gallocate(qmulli,csrOver%nrow)
-!
-!   qmulli=0.d0
-!
-!   call mulliken(csrDens,csrOver,qmulli)
-!
-!   q_atoms = q_atoms + qmat*kweight
-!
-!   call log_gdeallocate(qmulli)
-!
-!end subroutine poiss_mulliken
 
 end module poisson_init
