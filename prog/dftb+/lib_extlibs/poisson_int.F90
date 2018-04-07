@@ -66,7 +66,7 @@ module poisson_init
   end type TPoissonStructure
 
 
-  !> Informations for the Poisson solver
+  !> Information for the Poisson solver
   type TPoissonInfo
 
     !> verbosity level of the library
@@ -179,9 +179,16 @@ contains
     !> Hubbard Us (orbital, atom)
     real(dp), intent(in) :: hubbU(:,:)
 
-    Type(TPoissonInfo) :: poissoninfo
-    Type(TTransPar) :: transpar
+    !> Solver settings
+    Type(TPoissonInfo), intent(in) :: poissoninfo
+
+    !> Transport parameters
+    Type(TTransPar), intent(in) :: transpar
+
+    !> MPI details
     Type(mpifx_comm), intent(in) :: mpicomm
+
+    !> Success of initialisation
     logical, intent(out) :: initinfo
 
     ! local variables
@@ -191,16 +198,13 @@ contains
     initinfo = .true.
 
   #:if WITH_MPI
-    if (poissoninfo%maxNumNodes > mpicomm%size) then
-      poissoninfo%maxNumNodes = mpicomm%size
-    end if
     call poiss_mpi_init(mpicomm)
-    call poiss_mpi_split(poissoninfo%maxNumNodes)
+    call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
     call mpi_barrier(mpicomm, iErr)
   #:endif
 
     write(stdOut,*)
-    write(stdOut,*) 'Poisson Initializations'
+    write(stdOut,*) 'Poisson Initialisation'
     write(stdOut,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
 
     !> notify solver of standard out unit
@@ -220,12 +224,12 @@ contains
       call init_skdata(orb%nShell, orb%angShell, hubbU, iErr)
 
       if (iErr.ne.0) then
-        call error("I am sorry... cannot preceed. orbital shells should be in the order s,p,d")
+        call error("I am sorry... cannot proceed. orbital shells should be in the order s,p,d")
       endif
 
       call init_charges()
 
-      !! Initialize renormalization factors for grid projection
+      ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
         call poiss_destroy()
@@ -354,10 +358,8 @@ contains
 
   end subroutine poiss_init
 
-  !--------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  ! Release gDFTB varibles
-  !----------------------------------------------------------------------------
+
+  !> Release gDFTB varibles in poisson library
   subroutine poiss_destroy()
 
     if (active_id) then
@@ -368,12 +370,17 @@ contains
 
   end subroutine poiss_destroy
 
+
   !> Interface subroutine to call Poisson
   subroutine poiss_getshift(V_L_atm,grad_V)
-    real(kind=dp), DIMENSION(:,:), intent(inout) :: V_L_atm
-    real(kind=dp), DIMENSION(:,:), optional :: grad_V
 
-    real(kind=dp), DIMENSION(3,1) :: fakegrad
+    !> potential at atom sites
+    real(dp), intent(inout) :: V_L_atm(:,:)
+
+    !> Gradient of potential
+    real(dp), intent(out), optional :: grad_V(:,:)
+
+    real(dp) :: fakegrad(3,1)
 
     integer :: ndim, ierr, array_size
     integer :: PoissFlag
@@ -384,14 +391,13 @@ contains
     ! 0 - potential in SCC
     ! 1 - atomic shift component of gradient
 
-    !! This iformation is needed by all nodes
+    ! This information is needed by all nodes
     PoissFlag=0
     if(present(grad_V)) then
       PoissFlag=1
     end if
 
     if (active_id) then
-
 
       select case(PoissFlag)
       case(0)
@@ -415,7 +421,7 @@ contains
   #:if WITH_MPI
     call mpifx_barrier(global_comm, ierr)
     select case(PoissFlag)
-      !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
+      ! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
     case(0)
       call mpifx_bcast(global_comm, V_L_atm)
     case(1)
@@ -426,8 +432,6 @@ contains
   #:endif
 
   end subroutine poiss_getshift
-
-
 
 
   !> Interface subroutine to overload Mulliken charges stored in libPoisson
@@ -468,9 +472,6 @@ contains
 
 
   !> Calculates the atom density cutoff from the density tolerance.
-  !! \param denstol  Density tolerance.
-  !! \param uhubb  List of atomic Hubbard U values.
-  !! \return  Maximal atom density cutoff.
   function getAtomDensityCutoff(denstol, uhubb) result(res)
 
     !> Density tolerance.
@@ -511,7 +512,7 @@ contains
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
         write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with&
-            & PL width in conctact ", ii, "."
+            & PL width in contact ", ii, "."
         write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
         call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
             & AtomDensityTolerance.")
