@@ -83,8 +83,7 @@ module initprogram
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
-  use poisson_vars
-  use poisson_int
+  use poisson_init
 #:endif
   implicit none
 
@@ -812,8 +811,6 @@ module initprogram
   type(TTransPar) :: transpar
   type(TNEGFInfo) :: ginfo
 
-  !> Container of some SK data for poisson
-  type(TSKData) :: gdftbSKData
 #:endif
 
   !> Whether contact Hamiltonians are uploaded
@@ -2941,10 +2938,7 @@ contains
         poissStr%latVecs(:,:) = 0.0_dp
       end if
       poissStr%tempElec = tempElec
-      gdftbSKData%hubbU => hubbU
-      gdftbSKData%mCutoff = skCutoff
-      gdftbSKData%orb => orb
-      call poiss_init(poissStr, gdftbSKData, input%poisson, input%transpar, env%mpi%globalComm,&
+      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
       if (.not. tInitialized) then
         call error("gdftb not initialized")

@@ -77,7 +77,7 @@ module main
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
-  use poisson_int
+  use poisson_init
 #:endif
 
 

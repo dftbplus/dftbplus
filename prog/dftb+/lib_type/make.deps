@@ -83,8 +83,8 @@ parallelks.o = parallelks.o $(_mod_environment) $(common.fypp)
 _mod_parallelks: parallelks.o
 _mod_parallelks = $(parallelks.o)
 
-typegeometry.o: _mod_lapackroutines _mod_accuracy
-typegeometry.o = typegeometry.o $(_mod_lapackroutines) $(_mod_accuracy)
+typegeometry.o: _mod_lapackroutines common.fypp _mod_accuracy
+typegeometry.o = typegeometry.o $(_mod_lapackroutines) $(common.fypp) $(_mod_accuracy)
 _mod_typegeometry: typegeometry.o
 _mod_typegeometry = $(typegeometry.o)
 

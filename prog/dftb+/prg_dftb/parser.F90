@@ -43,7 +43,7 @@ module parser
 #:endif
   use wrappedintrinsics
 #:if WITH_TRANSPORT
-  use poisson_vars
+  use poisson_init
   use libnegf_vars
 #:endif
   implicit none

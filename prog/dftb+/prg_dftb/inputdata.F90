@@ -28,7 +28,7 @@ module inputdata_module
 
 #:if WITH_TRANSPORT
   use libnegf_vars
-  use poisson_vars
+  use poisson_init
 #:endif
 
   implicit none

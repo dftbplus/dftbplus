@@ -2,7 +2,7 @@
 ! *                inTERFACE of Poisson for DFTB+
 ! *
 ! *  call poiss_init(structure,skdata,gdftbinfo)
-! *  
+! *
 ! *  call poiss_updcharges(qmulli_orb)
 ! *
 ! *  call poiss_updcoords(x0)
@@ -11,66 +11,203 @@
 ! *
 ! *  call poiss_destroy()
 ! *
-! * ---------------------------------------------------------------------- 
+! * ----------------------------------------------------------------------
 ! * Known Bugs & Problems:
-! * 
 ! *
 ! *
-! * ---------------------------------------------------------------------- 
+! *
+! * ----------------------------------------------------------------------
 #:include "common.fypp"
 
 
-module poisson_int
+module poisson_init
 
-  use Accuracy, only : dp 
+  use Accuracy, only : dp
   use Constants, only : pi
-  use poisson_vars, only : TPoissonInfo, TPoissonStructure, TSKdata
   use libnegf_vars, only : TTransPar
   use CommonTypes, only : TOrbitals
   use globalenv, only : stdOut
   use poisson
 #:if WITH_MPI
-  use libmpifx_module 
+  use libmpifx_module
 #:endif
   use system_calls, only: create_directory
   implicit none
   private
 
-  public :: poiss_init  
-  public :: poiss_updcharges, poiss_getshift 
+  public :: poiss_init
+  public :: poiss_updcharges, poiss_getshift
   public :: poiss_destroy
   public :: poiss_updcoords
   public :: poiss_savepotential
 
- 
+  public :: TPoissonInfo
+  public :: TPoissonStructure
+
+
+  !> Geometry of the atoms for the Poisson solver
+  type TPoissonStructure
+
+    !> number of atoms in central cell
+    integer :: nAtom
+
+    !> number of species
+    integer :: nSpecies
+
+    !> type of the atoms (nAtom)
+    integer, pointer :: specie0(:)
+
+    !> atom START pos for squared H/S
+    integer, pointer :: iatomstart(:)
+
+    !> coordinates in central cell
+    real(dp), pointer :: x0(:,:)
+
+    !> total number of electrons
+    real(dp) :: nel
+
+    !> lattice vectors
+    real(dp) :: latVecs(3,3)
+
+    !> electron temperature
+    real(dp) :: tempElec
+
+    !> tells whether the system is periodic
+    logical :: isperiodic
+
+  end type TPoissonStructure
+
+
+  !> Informations for the Poisson solver
+  type TPoissonInfo
+
+    !> verbosity level of the library
+    integer :: verbose
+
+    !> solve or not Poisson
+    logical :: defined = .false.
+
+    !> Poisson box
+    real(dp) :: poissBox(3)
+
+    !> Minimal grid spacing
+    real(dp) :: poissGrid(3)
+
+    !> (.false. for periodic systems!)
+    logical :: foundBox
+
+    !> Maximum radius of atom density
+    real(dp) :: maxRadAtomDens
+
+    !> solution accuracy
+    real(dp) :: poissAcc
+
+    !> use bulk potential as BC
+    logical :: bulkBC
+
+    !> read bulk potential from file
+    logical :: readBulkPot
+
+    !> activates local BC mode (C|S)
+    character(1) :: localBCType
+
+    !> buffer spacing of local BC
+    real(dp) :: bufferLocBC
+
+    !> forced BC in each direction
+    integer :: overrideBC(6)
+
+    !> forced BC on bulk potential
+    integer :: overrBulkBC(6)
+
+    !> save the potential on a file
+    logical :: savePotential = .false.
+
+    !> Recompute poisson after D.M.
+    logical :: solveTwice  = .false.
+
+    !> maximum number of poisson iter
+    integer :: maxPoissIter
+
+    !> Planar or cylindrical gate
+    character(1) :: gateType
+
+    !> gate direction
+    integer :: gatedir
+
+    !> Gate potential
+    real(dp) :: gatePot
+
+    !> Gate length along transport direction
+    real(dp) :: gateLength_l
+
+    !> Gate length in transverse direction
+    real(dp) :: gateLength_t
+
+    !> Insulator length
+    real(dp) :: insLength
+
+    !> Radius of insulator
+    real(dp) :: insRad
+
+    !> Radius of gate
+    real(dp) :: gateRad
+
+    !> Insulator relative dielect.
+    real(dp) :: eps_r
+
+    !> Buffer layer between dielectric and vacuum
+    real(dp) :: dr_eps
+
+    !> Box buffer inside the contact region
+    real(dp) :: bufferBox
+
+    !> Use new numerical renormalization volume (preserves total charge)
+    logical :: exactRenorm
+
+    !> Check whether density cut off fits into the PLs
+    logical :: cutoffcheck
+
+    !> Number of Nodes for parallel P.
+    integer :: maxNumNodes
+
+    !> scratch folder name
+    character(:), allocatable :: scratch
+
+  end type TPoissonInfo
+
 
  contains
-    
+
 !------------------------------------------------------------------------------
 ! Init gDFTB environment and varibles
 !------------------------------------------------------------------------------
- subroutine poiss_init(structure, skdata, poissoninfo, transpar,&
+ subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar,&
         & mpicomm, initinfo)
-      
-  implicit none
 
   Type(TPoissonStructure), intent(in) :: structure
-  Type(TSKdata), intent(in) :: skdata
+
+   !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Hubbard Us (orbital, atom)
+    real(dp), intent(in) :: hubbU(:,:)
+
   Type(TPoissonInfo) :: poissoninfo
   Type(TTransPar) :: transpar
   Type(mpifx_comm), intent(in) :: mpicomm
   logical, intent(out) :: initinfo
 
   ! local variables
-  integer :: i,error  
+  integer :: i,error
 
-  error = 0 
+  error = 0
   initinfo = .true.
 
 #:if WITH_MPI
   if (poissoninfo%maxNumNodes>mpicomm%size) then
     poissoninfo%maxNumNodes = mpicomm%size
-  end if   
+  end if
   call poiss_mpi_init(mpicomm)
   call poiss_mpi_split(poissoninfo%maxNumNodes)
   call mpi_barrier(mpicomm, error)
@@ -87,48 +224,48 @@ module poisson_int
   if (id0) then
     call create_directory(trim(scratchfolder),error)
   end if
-  
+
   if (active_id) then
 
     call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, &
           & structure%x0, structure%latVecs, structure%isperiodic)
 
-    call init_skdata(skdata%orb%nShell, skdata%orb%angShell, skdata%hubbU, error)
+    call init_skdata(orb%nShell, orb%angShell, hubbU, error)
 
     if (error.ne.0) then
        write(stdOut,*) 'I am sorry... cannot preceed'
        write(stdOut,*) 'orbital shells should be in the order s,p,d'
-       stop 
+       stop
     endif
- 
+
     call init_charges()
- 
+
     !! Initialize renormalization factors for grid projection
- 
-    if (error.ne.0) then 
+
+    if (error.ne.0) then
       call poiss_destroy()
       initinfo = .false.
       return
-    endif       
- 
+    endif
+
     call init_defaults()            !init default values for parameters
- 
+
     call set_verbose(poissonInfo%verbose)
- 
+
     call set_temperature(0.0_dp)
- 
+
     !-----------------------------------------------------------------------------
     ! GP: verify if the calculation is on an open system (cluster=false) or not
     !
-    !     note: in previous versions only ncont was checked but this is not 
-    !     sufficient as it does not take into account a contact calculation 
+    !     note: in previous versions only ncont was checked but this is not
+    !     sufficient as it does not take into account a contact calculation
     !     with poisson solver, where the transport block is defined
-    !-----------------------------------------------------------------------------  
+    !-----------------------------------------------------------------------------
     if (transpar%defined .and. transpar%taskUpload) then
       call set_ncont(transpar%ncont)         !init the number of contacts as in dftb+
     else
       call set_ncont(0)
-    endif  
+    endif
     call set_cluster(.false.)
     if (.not.transpar%defined) then
       call set_cluster(.true.)
@@ -136,13 +273,13 @@ module poisson_int
     if (transpar%defined .and. (.not. transpar%taskUpload)) then
       call set_cluster(.true.)
     endif
- 
+
     !-----------------------------------------------------------------------------+
     ! TRANSPORT PARAMETER NEEDED FOR POISSON (contact partitioning)
     !-----------------------------------------------------------------------------+
     call set_mol_indeces(transpar%idxdevice(1:2), structure%natom)
     call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(1), 1)
-    call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(2), 2) 
+    call set_cont_indeces(transpar%contacts(1:ncont)%idxrange(2), 2)
     call set_contdir(transpar%contacts(1:ncont)%dir)
     call set_fermi(transpar%contacts(1:ncont)%eFermi(1))
     call set_potentials(transpar%contacts(1:ncont)%potential)
@@ -153,16 +290,16 @@ module poisson_int
     call set_poissongrid(poissoninfo%poissGrid)
     call set_accuracy(poissoninfo%poissAcc)
 
-    FoundBox = poissoninfo%foundBox 
+    FoundBox = poissoninfo%foundBox
     InitPot = poissoninfo%bulkBC
     ReadBulk = poissoninfo%readBulkPot
     MaxPoissIter = poissoninfo%maxPoissIter
     select case (poissoninfo%localBCType)
     case('G')
         localBC = 0
-    case('C')       
+    case('C')
         localBC = 1
-    case('S')       
+    case('S')
         localBC = 2
     end select
     deltaR_max = poissoninfo%maxRadAtomDens
@@ -172,55 +309,55 @@ module poisson_int
       deltaR_max = getAtomDensityCutoff(-deltaR_max, uhubb)
     end if
     write(stdOut,*) "Atomic density cutoff: ", deltaR_max,"a.u."
- 
+
     if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
       call checkDensityCutoff(stdOut, deltaR_max, transpar%contacts(:)%length)
     end if
- 
+
     dR_cont = poissoninfo%bufferLocBC
     bufferBox = poissoninfo%bufferBox
     SavePot = poissoninfo%savePotential
     overrideBC = poissoninfo%overrideBC
     overrBulkBC = poissoninfo%overrBulkBC
-    !-----------------------------------------------------------------------------+  
+    !-----------------------------------------------------------------------------+
     ! Gate settings
     DoGate=.false.
     DoCilGate=.false.
     if (poissoninfo%gateType.eq.'C')   DoCilGate = .true.
     if (poissoninfo%gateType.eq.'P')   DoGate = .true.
-    
+
     Gate = poissoninfo%gatePot
     GateLength_l = poissoninfo%gateLength_l
     GateLength_t = poissoninfo%gateLength_t
     GateDir = poissoninfo%gatedir   ! Planar gate must be along y
     OxLength = poissoninfo%insLength
     Rmin_Gate = poissoninfo%gateRad
-    Rmin_Ins = poissoninfo%insRad  
+    Rmin_Ins = poissoninfo%insRad
     eps_r = poissoninfo%eps_r
     dr_eps = poissoninfo%dr_eps
- 
+
     ! Use fixed analytical renormalization (approximate) or new numerical one??
     fixed_renorm = .not.(poissoninfo%exactRenorm)
- 
-    ! Performs parameters checks    
+
+    ! Performs parameters checks
     call check_biasdir()
     call check_poisson_box()
     if (any(overrideBC.ne.0)) period = .false.
-    call check_parameters() 
+    call check_parameters()
     call check_localbc()
     call write_parameters()
     call check_contacts()
- 
+
     !-----------------------------------------------------------------------------+
     ! Parameters from old PAR.in not yet parsed:
     !
     ! PoissPlane
     ! DoTip,tip_atom,base_atom1,base_atom2
     !-----------------------------------------------------------------------------+
- 
+
     write(stdOut,'(79(">"))')
-  
-  endif 
+
+  endif
 
 end subroutine poiss_init
 
@@ -234,12 +371,12 @@ subroutine poiss_destroy()
     write(stdOut,'(A)')
     write(stdOut,'(A)') 'Release Poisson Memory:'
     call poiss_freepoisson()
-  endif 
+  endif
 
 end subroutine poiss_destroy
 
 !----------------------------------------------------------------------------
-! inTERFACE subroutine to call Poisson 
+! inTERFACE subroutine to call Poisson
 !----------------------------------------------------------------------------
 subroutine poiss_getshift(V_L_atm,grad_V)
   real(kind=dp), DIMENSION(:,:), intent(inout) :: V_L_atm
@@ -250,19 +387,19 @@ subroutine poiss_getshift(V_L_atm,grad_V)
   integer :: ndim, ierr, array_size
   integer :: PoissFlag
 
-  ! The subroutine gives the atom shifts.  
+  ! The subroutine gives the atom shifts.
 
   ! Poiss Flag is a control flag:
   ! 0 - potential in SCC
   ! 1 - atomic shift component of gradient
 
   !! This iformation is needed by all nodes
-  PoissFlag=0  
+  PoissFlag=0
   if(present(grad_V)) PoissFlag=1
 
   if (active_id) then
 
-    ! Sets a local copy of V_orb for shift calculations. 
+    ! Sets a local copy of V_orb for shift calculations.
     ! This will change soon by passing directly V_orb
     !ndim = ind(natoms+1)
     !write(stdOut,*) 'Calling Poisson Solver'
@@ -270,10 +407,10 @@ subroutine poiss_getshift(V_L_atm,grad_V)
     !write(stdOut,*) 'periodic box:',period
     !write(stdOut,*) 'periodic dir:',period_dir
     !write(stdOut,*) 'contact dir:',contdir(1:ncont)
-    !write(stdOut,*) 'bias dir:',BiasDir 
+    !write(stdOut,*) 'bias dir:',BiasDir
     !write(stdOut,*) 'Do Gate:',DoGate, GateDir
     !write(stdOut,*) 'Do Cil Gate:',DoCilGate
-    !write(stdOut,*) 'Do Tip:',DoTip 
+    !write(stdOut,*) 'Do Tip:',DoTip
     !write(stdOut,*) 'Use bulk potential:',InitPot
     !write(stdOut,*) 'Read old bulk pot:',ReadBulk
     !write(stdOut,*) 'Local BC:',LocalBC
@@ -285,7 +422,7 @@ subroutine poiss_getshift(V_L_atm,grad_V)
         write(stdOut,*)
         write(stdOut,'(80("="))')
         write(stdOut,*) '                       SOLVING POISSON EQUATION         '
-        write(stdOut,'(80("="))') 
+        write(stdOut,'(80("="))')
       end if
       call init_PoissBox
       call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
@@ -304,7 +441,7 @@ subroutine poiss_getshift(V_L_atm,grad_V)
     !! Note: V_L_atm and grad_V are allocated for all processes in dftb+.F90
   case(0)
     call mpifx_bcast(global_comm, V_L_atm)
-  case(1) 
+  case(1)
     call mpifx_bcast(global_comm, V_L_atm)
     call mpifx_bcast(global_comm, grad_V)
   end select
@@ -317,32 +454,32 @@ end subroutine poiss_getshift
 
 
 !----------------------------------------------------------------
-! inTERFACE subroutine to overlaod Mulliken charges 
+! inTERFACE subroutine to overlaod Mulliken charges
 !----------------------------------------------------------------
 subroutine poiss_updcharges(q,q0)
   real(dp), dimension(:,:), intent(in) :: q, q0
 
-  integer :: nsh, l, i, o, orb 
+  integer :: nsh, l, i, o, orb
   real(dp) :: Qtmp
 
   if (active_id) then
 
     if (size(q, dim=2).ne.natoms) stop 'ERROR in udpcharges size of q'
- 
+
     do i = 1, natoms
       nsh = lmax(izp(i))+1
       orb=0
-      do l = 1, nsh 
+      do l = 1, nsh
       Qtmp = 0.d0
-         do o= 1,2*l-1 
+         do o= 1,2*l-1
            orb = orb + 1
            ! - is for negative electron charge density
-           Qtmp = Qtmp + q0(orb,i)-q(orb,i)  
-         enddo  
+           Qtmp = Qtmp + q0(orb,i)-q(orb,i)
+         enddo
        dQmat(l,i) = Qtmp
       enddo
     enddo
-  
+
   endif
 
 end subroutine poiss_updcharges
@@ -358,7 +495,7 @@ end subroutine poiss_updcharges
 
     integer :: typ, nsh
     real(dp) :: tau
-    
+
     res = 0.0_dp
     do typ = 1, size(uhubb,2)
       nsh = lmax(typ)+1
@@ -368,7 +505,7 @@ end subroutine poiss_updcharges
 
   end function getAtomDensityCutoff
 
-  
+
   !> Checks whether density cutoff fits into the PLs and stop if not.
   !! \param rr  Density cutoff.
   !! \param pllens  Lengths of the principal layers in the contacts.
@@ -392,14 +529,14 @@ end subroutine poiss_updcharges
     end do
 
   end subroutine checkDensityCutoff
-  
-  
+
+
 
 ! ---------------------------------------------------------------
 !subroutine poiss_mulliken(csrDens, csrOver, kweight, q_atoms)
 !   type(z_CSR) :: csrDens, csrOver
 !   real(dp) :: kweight
-!   real(dp), dimension(:) :: q_atoms     
+!   real(dp), dimension(:) :: q_atoms
 !
 !   real(dp), dimension(:), allocatable :: qmulli
 !
@@ -413,6 +550,6 @@ end subroutine poiss_updcharges
 !
 !   call log_gdeallocate(qmulli)
 !
-!end subroutine poiss_mulliken     
+!end subroutine poiss_mulliken
 
-end module poisson_int
+end module poisson_init
