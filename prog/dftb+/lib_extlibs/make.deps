@@ -13,6 +13,11 @@ dftd3.o = dftd3.o $(_mod_dftd3_api)
 _mod_dftd3_module: dftd3.o
 _mod_dftd3_module = $(dftd3.o)
 
+elsi.o: common.fypp
+elsi.o = elsi.o $(common.fypp)
+_mod_elsiinterface: elsi.o
+_mod_elsiinterface = $(elsi.o)
+
 fsockets.o: _mod_f90sockets
 fsockets.o = fsockets.o $(_mod_f90sockets)
 _mod_fsockets: fsockets.o

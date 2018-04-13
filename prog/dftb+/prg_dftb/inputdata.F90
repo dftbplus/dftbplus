@@ -196,6 +196,7 @@ module inputdata_module
     real(dp), allocatable :: initialCharges(:)
     logical :: tDFTBU        = .false.
     integer :: iSolver       = 0
+    integer :: iSolverOption = 0
     integer :: iMixSwitch    = 0
     integer :: maxIter       = 0
     real(dp) :: almix         = 0.0_dp

@@ -21,6 +21,10 @@ Additionally there are optional requirements for some DFTB+ features:
 * ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
   want to build the MPI-parallelised version of the code
 
+* In addition to ScaLAPACK, the `ELSI
+  <https://wordpress.elsi-interchange.org/>`_ libray for large scale systems can
+  also be used.
+
 * The M4 preprocessor, if you want to build the MPI-parallelised version of the
   code
 

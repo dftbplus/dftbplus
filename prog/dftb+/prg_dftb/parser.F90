@@ -39,6 +39,7 @@ module parser
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
+  use elsiInterface
   implicit none
 
   private
@@ -1610,6 +1611,22 @@ contains
       ctrl%iSolver = 2
     case ("relativelyrobust")
       ctrl%iSolver = 3
+    case ("elpa")
+      if (.not.withELSI) then
+        call error("Not compiled with ELPA support via ELSI")
+      end if
+      ctrl%iSolver = 4
+      call getChildValue(value, "Mode", ctrl%iSolverOption, 2)
+    case ("omm")
+      if (.not.withELSI) then
+        call error("Not compiled with libOMM support via ELSI")
+      end if
+      ctrl%iSolver = 5
+    case ("pexsi")
+      if (.not.withPEXSI) then
+        call error("Not compiled with PEXSI support via ELSI")
+      end if
+      ctrl%iSolver = 6
     end select
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD

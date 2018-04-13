@@ -7,7 +7,7 @@
 
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
-#.PRECIOUS: %.f90
+.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
 
@@ -142,6 +142,17 @@ ifeq ($(strip $(WITH_MPI)),1)
   MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
   L_LIBS += $(MPIFX_LIBS)
   L_INCS += $(MPIFX_INCS)
+
+  # ELSI library
+  ifeq ($(strip $(WITH_ELSI)),1)
+    L_INCS += -I$(ELSIINCDIR)
+    L_LIBS += $(LIB_ELSI)
+    FYPPOPT += -DWITH_ELSI
+    ifeq ($(strip $(WITH_PEXSI)),1)
+      FYPPOPT += -DWITH_PEXSI
+      L_LIBS += $(LIB_PEXSI)
+    endif
+  endif
 
   SCALAPACKFX_LIBS := -L$(BUILDROOT)/external/scalapackfx -lscalapackfx
   SCALAPACKFX_INCS := -I$(BUILDROOT)/external/scalapackfx

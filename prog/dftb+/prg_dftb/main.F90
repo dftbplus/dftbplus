@@ -15,7 +15,11 @@ module main
 #:if WITH_SCALAPACK
   use scalapackfx
   use scalafxext
+#:if WITH_ELSI
+  use elsi
 #:endif
+#:endif
+  use solvers
   use assert
   use constants
   use globalenv
@@ -189,9 +193,54 @@ contains
     ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
 
+  #:if WITH_SCALAPACK
+    if (tRealHS .and. .not.(nSpin > 2 .or. t2Component)) then
+      ! spin channels share common overlap, no k-points, purely real calculation
+      allocate(electronicSolver%tCholeskiiDecomposed(1))
+    else
+      allocate(electronicSolver%tCholeskiiDecomposed(parallelKS%nLocalKS))
+    end if
+    electronicSolver%tCholeskiiDecomposed = .false.
+  #:endif
+
     ! Main geometry loop
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
       call env%globalTimer%startTimer(globalTimers%preSccInit)
+
+    #:if WITH_SCALAPACK
+      ! prompt eigenvecs routines to store Choleskii factors
+      electronicSolver%tCholeskiiDecomposed = .false.
+    #:endif
+
+    #:if WITH_ELSI
+      if (electronicSolver%tUsingELSI) then
+
+        if (iGeoStep /= 0) then
+          ! destroy previous instance of solver
+          call elsi_finalize(electronicSolver%elsiHandle)
+        end if
+
+        call elsi_init(electronicSolver%elsiHandle, electronicSolver%ELSI_SOLVER,&
+            & electronicSolver%ELSI_parallel, electronicSolver%ELSI_BLACS_DENSE,&
+            & electronicSolver%ELSI_n_basis, electronicSolver%ELSI_n_electron,&
+            & electronicSolver%ELSI_n_state)
+        call elsi_set_mpi_global(electronicSolver%elsiHandle, electronicSolver%ELSI_MPI_COMM_WORLD)
+        call elsi_set_sing_check(electronicSolver%elsiHandle, 0) ! disable singularity check
+        call elsi_set_mpi(electronicSolver%elsiHandle, electronicSolver%ELSI_my_COMM_WORLD)
+        call elsi_set_blacs(electronicSolver%elsiHandle,electronicSolver%ELSI_MPI_COMM_WORLD,&
+            & electronicSolver%ELSI_blockSize)
+        select case(electronicSolver%ELSI_SOLVER_option)
+        case(1)
+          call elsi_set_elpa_solver(electronicSolver%elsiHandle, 1)
+        case(2)
+          call elsi_set_elpa_solver(electronicSolver%elsiHandle, 2)
+        case default
+          call error("Unknown ELPA solver modes")
+        end select
+        call elsi_set_output(electronicSolver%elsiHandle, electronicSolver%ELSI_OutputLevel)
+
+      end if
+    #:endif
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
@@ -240,7 +289,7 @@ contains
           & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
           & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
           & potential%extAtom(:,1), absEField)
-    
+
       call mergeExternalPotentials(orb, species, potential)
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
@@ -273,7 +322,7 @@ contains
             & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
             & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
             & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-            & eigvecsCplx, rhoSqrReal)
+            & eigvecsCplx, rhoSqrReal, electronicSolver)
 
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
@@ -1470,7 +1519,7 @@ contains
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal)
+      & rhoSqrReal, electronicSolver)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1607,6 +1656,9 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
+    !> Solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -1625,16 +1677,16 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
-            & eigen(:,1,:))
+            & eigen(:,1,:), electronicSolver)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
-            & SSqrCplx, eigVecsCplx, eigen)
+            & SSqrCplx, eigVecsCplx, eigen, electronicSolver)
       end if
     else
       call buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
-          & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
+          & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, electronicSolver, xi, species)
     end if
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
@@ -1669,7 +1721,8 @@ contains
 
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigvecsReal, eigen)
+      & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigvecsReal, eigen,&
+      & electronicSolver)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1713,6 +1766,9 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
+    !> Solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
     integer :: iKS, iSpin
 
     eigen(:,:) = 0.0_dp
@@ -1722,11 +1778,13 @@ contains
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
           & iSparseStart, img2CentCell, denseDesc, HSqrReal)
-      call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
-          & img2CentCell, denseDesc, SSqrReal)
+      if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
+        call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
+            & img2CentCell, denseDesc, SSqrReal)
+      end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
-          & eigen(:,iSpin), eigvecsReal(:,:,iKS))
+          & eigen(:,iSpin), eigvecsReal(:,:,iKS), electronicSolver)
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor,&
@@ -1750,7 +1808,7 @@ contains
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, eigen)
+      & eigvecsCplx, eigen, electronicSolver)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1803,6 +1861,9 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:,:)
 
+    !> Solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
     integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
@@ -1813,11 +1874,13 @@ contains
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHSCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor,&
           & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
-      call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+      if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+        call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+            & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+      end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
-          & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
+      call diagDenseMtxBlacs(solver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx,&
+          & SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), electronicSolver)
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1825,7 +1888,7 @@ contains
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
+      call diagDenseMtx(solver, parallelKS, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -1840,7 +1903,7 @@ contains
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
   subroutine buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList,&
       & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen,&
-      & HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi, species)
+      & HSqrCplx, SSqrCplx, eigvecsCplx, iHam, electronicSolver, xi, species)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1899,6 +1962,9 @@ contains
     !> imaginary part of the hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
+    !> Solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
@@ -1920,8 +1986,10 @@ contains
         call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
             & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx)
       end if
-      call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
-          & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
+      if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+        call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+            & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
+      endif
     #:else
       if (allocated(iHam)) then
         call unpackHPauli(ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iSparseStart, &
@@ -1938,8 +2006,8 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
-      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx, eigen(:,iK),&
-          & eigvecsCplx(:,:,iKS))
+      call diagDenseMtxBlacs(solver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx,&
+          & SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS), electronicSolver)
     #:else
       call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
@@ -3571,7 +3639,7 @@ contains
         call pblasfx_psymm(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr,&
             & eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
         call unpackHSRealBlacs(env%blacs, over, neighborlist%iNeighbor, nNeighbor, iSparseStart,&
-            & img2CentCell, denseDesc, work)
+              & img2CentCell, denseDesc, work)
         call psymmatinv(denseDesc%blacsOrbSqr, work)
         call pblasfx_psymm(work, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)

@@ -1695,6 +1695,24 @@ Example:\invparskip
   Eigensolver = DivideAndConquer {}
 \end{verbatim}
 
+For ScaLAPACK enabled compilation, all three solvers are also available.
+
+If the ELSI library is also included~\cite{YU2018267}, the additional \kw{ELPA}
+solver becomes available. This is avalable with either single or two stage
+solution methods (the second of these is claimed to be more efficiently parallel
+for large problems).
+
+Example:\invparskip
+\begin{verbatim}
+  Eigensolver = ELPA {
+    Mode = 2
+  }
+\end{verbatim}
+
+One caveat for this solver is that the number of parallel groups (see
+p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
+case of collinear spin polarisation). Calculations without k-points can use
+either one or two groups in the case of collinear spin polarisation.
 
 \subsection{Filling}
 \label{sec:dftbp.Filling}

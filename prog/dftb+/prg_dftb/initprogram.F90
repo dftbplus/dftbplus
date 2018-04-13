@@ -15,6 +15,11 @@ module initprogram
   use globalenv
   use environment
   use scalapackfx
+#:if WITH_ELSI
+  use ELSI
+#:endif
+  use solvers
+  use elsiInterface
   use inputdata_module
   use densedescr
   use constants
@@ -792,6 +797,8 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  type(TElectronicSolver) :: electronicSolver
+
   private :: createRandomGenerators
 
 contains
@@ -995,7 +1002,42 @@ contains
           & boundary conditions!")
     end if
     tFracCoord = input%geom%tFracCoord
+
     solver = input%ctrl%iSolver
+    electronicSolver%tUsingELSI = .false.
+    select case (solver)
+    case(4,5,6)
+      ! ELPA
+      if (.not.withELSI) then
+        call error("This binary was not compiled with ELSI support enabled")
+      end if
+
+    #:if WITH_ELSI
+      electronicSolver%tUsingELSI = .true.
+
+      nAllOrb = nOrb
+      if (t2Component) then
+        nAllOrb = 2 * nAllOrb
+      end if
+      electronicSolver%ELSI_SOLVER = 1
+      electronicSolver%ELSI_parallel = 1
+      electronicSolver%ELSI_BLACS_DENSE = 0
+      electronicSolver%ELSI_n_basis = nAllOrb
+      electronicSolver%ELSI_n_electron = real(nAllOrb,dp)
+      electronicSolver%ELSI_n_state = nAllOrb
+      electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
+      electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
+      electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
+      electronicSolver%ELSI_SOLVER_option = input%ctrl%iSolverOption
+      ! customize output level, note there are levels 0..3 not DFTB+ 0..2
+      electronicSolver%ELSI_OutputLevel = 0
+    #:call DEBUG_CODE
+      electronicSolver%ELSI_OutputLevel = 3
+    #:endcall DEBUG_CODE
+
+    #:endif
+    end select
+
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
@@ -2229,7 +2271,7 @@ contains
       write(stdOut, *)
     end if
   #:endif
-    
+
   #:if WITH_SCALAPACK
     write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
@@ -2363,9 +2405,16 @@ contains
     case(2)
       write (strTmp, "(A)") "Divide and Conquer"
     case(3)
-      write (strTmp, "(A)") "Relatively robust (version 1)"
+      write (strTmp, "(A)") "Relatively robust"
     case(4)
-      write (strTmp, "(A)") "Relativel robust (version 2)"
+      if (electronicSolver%ELSI_SOLVER_option == 1) then
+        write (strTmp, "(A)") "ELSI interface to the 1 stage ELPA solver"
+      else
+        write (strTmp, "(A)") "ELSI interface to the 2 stage ELPA solver"
+      end if
+    case(5,6)
+      write (strTmp, "(A)") "ELSI solvers"
+      call error("Terminated")
     case default
       call error("Unknown eigensolver!")
     end select
@@ -2727,6 +2776,12 @@ contains
 
   !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
+
+  #:if WITH_ELSI
+    if (electronicSolver%tUsingELSI) then
+      call elsi_finalize(electronicSolver%elsiHandle)
+    end if
+  #:endif
 
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)

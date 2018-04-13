@@ -11,6 +11,7 @@ Unreleased
 Added
 -----
 
+- Use of the ELSI library.
 
 Changed
 -------
