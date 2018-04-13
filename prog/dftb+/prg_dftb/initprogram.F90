@@ -1292,16 +1292,14 @@ contains
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
         allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, &
-            & nUJ, niUJ, iUJ)
+        call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
         nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
         !  iEqBlockDFTBU does not include diagonal elements, so in the case of
         !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
         !  return 0
         if (tImHam) then
           allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-          call DFTBU_blockIndx(iEqBlockDFTBULS,nMixElements , orb, species0, &
-            & nUJ, niUJ, iUJ)
+          call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
         end if
       end if
@@ -2013,11 +2011,9 @@ contains
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
       if (tDFTBU) then
-        call AppendBlock_reduce( qBlockIn,iEqBlockDFTBU, orb, &
-            & qInpRed )
+        call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
         if (tImHam) then
-          call AppendBlock_reduce( qiBlockIn,iEqBlockDFTBULS, orb, &
-              & qInpRed, skew=.true. )
+          call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
         end if
       end if
 
@@ -2296,8 +2292,8 @@ contains
       !write(stdOut, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
-        write(stdOut, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
-        !  use module to reverse look up name
+        write(stdOut, "(A,':',T30,A)") "Orbital functional",&
+            & trim(plusUFunctionals%names(nDFTBUfunc))
       end if
     else
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
@@ -2644,8 +2640,7 @@ contains
     end select
 
     if ((tSpinOrbit .and. tDFTBU) .and. tForces)  then
-      call error("Currently there is a force bug for dual DFTB+U with spin &
-          &orbit coupling")
+      call error("Currently there is a force bug for dual DFTB+U with spin orbit coupling")
     end if
 
     if (.not.tStress) then
@@ -2666,8 +2661,7 @@ contains
 
     if (tLinResp) then
       if (tDFTBU) then
-        call error("Linear response is not compatible with Orbitally dependant&
-            & functionals yet")
+        call error("Linear response is not compatible with Orbitally dependant functionals yet")
       end if
 
       if (tForces .and. nSpin > 1) then
