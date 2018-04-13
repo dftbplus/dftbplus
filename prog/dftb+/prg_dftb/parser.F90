@@ -706,7 +706,7 @@ contains
         end if
       case default
         call getNodeHSDName(value, buffer2)
-        call detailedError(child, "Invalid thermostat '" // char(buffer) // "'")
+        call detailedError(child, "Invalid thermostat '" // char(buffer2) // "'")
       end select thermostat
 
       if (ctrl%maxRun < -1) then
