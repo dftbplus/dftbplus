@@ -1980,7 +1980,7 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress, totalStress,&
+  subroutine writeResultsTag(fileName, energy, E0, Eband, derivs, chrgForces, tStress, totalStress,&
       & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> Name of output file
@@ -1988,6 +1988,12 @@ contains
 
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
+
+    !> Energy extrapolated to zero temperature
+    real(dp), intent(in) :: E0(:)
+
+    !> Band structure energy
+    real(dp), intent(in) :: Eband(:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2028,6 +2034,7 @@ contains
 
     call writeTagged(fd, tag_freeEgy, energy%EMermin)
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
+    call writeTagged(fd, tag_egy0Total, energy%EMermin -sum(Eband) + sum(E0) )
 
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)

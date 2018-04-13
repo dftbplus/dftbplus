@@ -629,7 +629,7 @@ contains
           & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(resultsTag, energy, derivs, chrgForces, tStress, totalStress,&
+      call writeResultsTag(resultsTag, energy, E0, Eband, derivs, chrgForces, tStress, totalStress,&
           & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
     end if
     if (tWriteDetailedXML) then
