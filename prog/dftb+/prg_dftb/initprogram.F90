@@ -583,10 +583,6 @@ module initprogram
   !> PDOS region labels
   type(listCharLc), save :: regionLabels
 
-  !> file units for PDOS results
-  integer, allocatable, save :: fdProjEig(:)
-
-
   !> Third order DFTB
   logical :: t3rd
 
@@ -765,29 +761,11 @@ module initprogram
   !> Dynamical (Hessian) matrix
   real(dp), pointer :: pDynMatrix(:,:)
 
-  !> File descriptor for the tagged writer
-  integer :: fdAutotest
-
   !> File descriptor for the human readable output
   integer :: fdDetailedOut
 
-  !> File descriptor for the band structure output
-  integer :: fdBand
-
-  !> File descriptor for the eigenvector output
-  integer :: fdEigvec
-
-  !> File descriptor for detailed.tag
-  integer :: fdResultsTag
-
   !> File descriptor for extra MD output
   integer :: fdMD
-
-  !> File descriptor for numerical Hessian
-  integer :: fdHessian
-
-  !> File descriptor for charge restart file
-  integer :: fdCharges
 
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
@@ -2089,8 +2067,7 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2200,13 +2177,6 @@ contains
         end if
         deallocate(iAtomRegion)
       end do
-
-      allocate(fdProjEig(len(iOrbRegion)))
-      do ii = 1, len(iOrbRegion)
-        fdProjEig(ii) = getFileId()
-      end do
-    else
-      allocate(fdProjEig(0))
     end if
 
   #:if WITH_MPI
@@ -2810,8 +2780,7 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, esp)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2840,46 +2809,27 @@ contains
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
 
-    !> File unit for autotest data
-    integer, intent(out) :: fdAutotest
-
-    !> File unit for tagged results data
-    integer, intent(out) :: fdResultsTag
-
-    !> File unit for band structure
-    integer, intent(out) :: fdBand
-
-    !> File unit for eigenvectors
-    integer, intent(out) :: fdEigvec
-
-    !> File unit for second derivatives information
-    integer, intent(out) :: fdHessian
-
     !> File unit for detailed.out
     integer, intent(out) :: fdDetailedOut
 
     !> File unit for information during molecular dynamics
     integer, intent(out) :: fdMd
 
-    !> File descriptor for charge restart file
-    integer, intent(out) :: fdChargeBin
-
     !> Electrostatic potentials if requested
     type(TElStatPotentials), allocatable, intent(inout) :: esp
 
     call initTaggedWriter()
     if (tWriteAutotest) then
-      call initOutputFile(autotestTag, fdAutotest)
+      call initOutputFile(autotestTag)
     end if
     if (tWriteResultsTag) then
-      call initOutputFile(resultsTag, fdResultsTag)
+      call initOutputFile(resultsTag)
     end if
     if (tWriteBandDat) then
-      call initOutputFile(bandOut, fdBand)
+      call initOutputFile(bandOut)
     end if
-    fdEigvec = getFileId()
     if (tDerivs) then
-      call initOutputFile(hessianOut, fdHessian)
+      call initOutputFile(hessianOut)
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(userOut, fdDetailedOut)
@@ -2893,9 +2843,8 @@ contains
       call clearFile(trim(geoOutFile) // ".gen")
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
-    fdChargeBin = getFileId()
     if (allocated(esp)) then
-      call initOutputFile(esp%espOutFile, esp%fdEsp)
+      call initOutputFile(esp%espOutFile)
     end if
 
   end subroutine initOutputFiles

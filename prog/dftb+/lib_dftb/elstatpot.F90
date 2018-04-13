@@ -63,9 +63,6 @@ module elstatpot
     !> Value of a short-distance softening term
     real(dp) :: softenEsp
 
-    !> file unit for ESP result
-    integer :: fdEsp
-
     !> File containing output potentials
     character(lc) :: espOutFile
 
