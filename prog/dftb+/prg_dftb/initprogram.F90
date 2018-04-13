@@ -2322,8 +2322,8 @@ contains
       !write(stdOut, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
-        !  use module to reverse look up name
-        write(stdOut, "(A,':',T30,A)") "Orbital functional", trim(DFTBplsU_functionals(nDFTBUfunc))
+        write(stdOut, "(A,':',T30,A)") "Orbital functional",&
+            & trim(plusUFunctionals%names(nDFTBUfunc))
       end if
     else
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"

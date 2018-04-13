@@ -20,17 +20,31 @@ module dftbplusu
   private
 
   public :: getDftbUShift, AppendBlock_reduce, Block_expand
-  public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx, DFTBplsU_functionals
-  public :: DFTBplusU_FLL, DFTBplusU_PSIC
+  public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
+  public :: plusUFunctionals
 
-  !> labels for the functionals
-  character(len=sc), parameter :: DFTBplsU_functionals(2) = ['FLL ', 'pSIC']
+  
+  !> Contains functional characteristics
+  type :: TPlusUFuncHelper
 
-  !> Definition of a type of functional
-  integer, parameter :: DFTBplusU_FLL = 1
+    !> Fully localised limit
+    integer :: fll = 1
 
-  !> Definition of a type of functional
-  integer, parameter :: DFTBplusU_pSIC = 2
+    !> Pseudo self-interaction corrected functional
+    integer :: pSic = 2
+
+    !> Possible functional indices
+    integer :: indices(2) = [1, 2]
+
+    !> Functional names (to be used in output)
+    character(sc) :: names(2) = [character(sc) :: 'FLL', 'pSIC']
+    
+  end type TPlusUFuncHelper
+
+
+  !> Can be queried for functional indices and names
+  type(TPlusUFuncHelper), parameter :: plusUFunctionals = TPlusUFuncHelper()
+
 
   !> Potential shift from LDA+U type potentials
   interface getDftbUShift
@@ -87,12 +101,12 @@ contains
     if (present(functional)) then
       iFunctional = functional
     else
-      iFunctional = DFTBplusU_FLL
+      iFunctional = plusUFunctionals%fll
     end if
 
-    @:ASSERT(iFunctional==DFTBplusU_FLL .or. iFunctional==DFTBplusU_pSIC)
+    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
 
-    if (iFunctional == DFTBplusU_FLL) then
+    if (iFunctional == plusUFunctionals%fll) then
       ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)
@@ -194,12 +208,12 @@ contains
     if (present(functional)) then
       iFunctional = functional
     else
-      iFunctional = DFTBplusU_FLL
+      iFunctional = plusUFunctionals%fll
     end if
 
-    @:ASSERT(iFunctional==DFTBplusU_FLL .or. iFunctional==DFTBplusU_pSIC)
+    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
 
-    if (iFunctional == DFTBplusU_FLL) then
+    if (iFunctional == plusUFunctionals%fll) then
       ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)
@@ -304,10 +318,10 @@ contains
     if (present(functional)) then
       iFunctional = functional
     else
-      iFunctional = DFTBplusU_FLL
+      iFunctional = plusUFunctionals%fll
     end if
 
-    @:ASSERT(iFunctional==DFTBplusU_FLL .or. iFunctional==DFTBplusU_pSIC)
+    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
 
     do iSp = 1, nSpin
       do iAt = 1, nAtom
@@ -362,7 +376,7 @@ contains
     end if
 
     ! only trace of the identity (charge) part of the density matrix appears in this term
-    if (iFunctional == DFTBplusU_FLL) then
+    if (iFunctional == plusUFunctionals%fll) then
       do iAt = 1, nAtom
         iSpecies = species(iAt)
         do ii = 1, nUJ(iSpecies)

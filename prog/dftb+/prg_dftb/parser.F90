@@ -1821,9 +1821,9 @@ contains
       call getChildValue(child, "Functional", buffer, "fll")
       select case(tolower(char(buffer)))
       case ("fll")
-        ctrl%DFTBUfunc = DFTBplusU_FLL
+        ctrl%DFTBUfunc = plusUFunctionals%fll
       case ("psic")
-        ctrl%DFTBUfunc = DFTBplusU_pSIC
+        ctrl%DFTBUfunc = plusUFunctionals%pSic
       case default
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
