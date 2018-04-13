@@ -1425,6 +1425,8 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
+    call finishProjEigvecFiles(fd)
+
   end subroutine writeProjRealEigvecsSerial
 
 #:endif
