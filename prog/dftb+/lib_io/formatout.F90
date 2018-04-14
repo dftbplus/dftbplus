@@ -14,7 +14,6 @@ module formatout
   use message
   use assert
   use accuracy
-  use fileid
   use constants
   use lapackroutines, only: matinv
   use sparse2dense
@@ -61,12 +60,9 @@ contains
     !> name of the file which should be cleared
     character(len=*), intent(in) :: fileName
 
-    integer, save :: fd = -1
+    integer :: fd
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-    open(fd, file=fileName, status="replace", position="rewind")
+    open(newunit=fd, file=fileName, status="replace", position="rewind")
     close(fd)
 
   end subroutine clearFile_fname
@@ -93,14 +89,11 @@ contains
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
-    integer, save :: fd = -1
+    integer :: fd
 
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-    open(fd, file=fileName, form="formatted", action="write", status="replace")
+    open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
 
@@ -216,21 +209,19 @@ contains
     !> Whether geometry should be appended (default: it is overwritten)
     logical, intent(in), optional :: append
 
-    integer, save :: fd = -1
+    integer :: fd
     logical :: append0
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
     if (present(append)) then
       append0 = append
     else
       append0 = .false.
     end if
     if (append) then
-      open(fd, file=fileName, action="write", form="formatted", status="old", position="append")
+      open(newunit=fd, file=fileName, action="write", form="formatted", status="old",&
+          & position="append")
     else
-      open(fd, file=fileName, action="write", form="formatted", status="replace")
+      open(newunit=fd, file=fileName, action="write", form="formatted", status="replace")
     end if
     call writeXYZFormat(fd, coord, species, speciesName, charges, velocities, comment)
     close(fd)
@@ -392,8 +383,7 @@ contains
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
 
     allocate(square(nOrb, nOrb))
-    fd = getFileId()
-    open(fd, file=fname, form="formatted", status="replace")
+    open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
     write(fd, "(1X,L10,I10,I10,I10)") .true., nOrb, 1
 
@@ -460,8 +450,7 @@ contains
     nKPoint = size(kPoints, dim =2)
 
     allocate(square(nOrb, nOrb))
-    fd = getFileId()
-    open(fd, file=fname, form="formatted", status="replace")
+    open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
     write(fd, "(1X,L10,I10,I10)") .false., nOrb, nKPoint
 
@@ -521,8 +510,7 @@ contains
 
     nAtom = size(nNeighbor)
 
-    fd = getFileId()
-    open(fd, file=fname, form="formatted", status="replace")
+    open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10)") "#", "NATOM"
     write(fd, "(1X,I10)") nAtom
     write(fd, "(A1,A10,A10,A10)") "#", "IATOM", "NNEIGH", "NORB"

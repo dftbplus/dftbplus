@@ -21,7 +21,6 @@ module parser
   use charmanip
   use message
   use linkedlist
-  use fileid
   use unitconversion
   use oldcompat
   use lapackroutines, only : matinv
@@ -1505,7 +1504,6 @@ contains
       end if
       call init(lCharges)
       call init(lBlurs)
-      fp = getFileId()
       ctrl%nExtChrg = 0
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
@@ -1524,8 +1522,8 @@ contains
           call getChildValue(value, "Records", ind)
           call getChildValue(value, "File", buffer2)
           allocate(tmpR2(4, ind))
-          open(fp, file=unquote(char(buffer2)), form="formatted", &
-              &status="old", action="read", iostat=iErr)
+          open(newunit=fp, file=unquote(char(buffer2)), form="formatted", status="old",&
+              & action="read", iostat=iErr)
           if (iErr /= 0) then
             call detailedError(value, "Could not open file '" &
                 &// trim(unquote(char(buffer2))) // "' for direct reading" )
