@@ -229,14 +229,16 @@ contains
         call elsi_set_mpi(electronicSolver%elsiHandle, electronicSolver%ELSI_my_COMM_WORLD)
         call elsi_set_blacs(electronicSolver%elsiHandle,electronicSolver%ELSI_MPI_COMM_WORLD,&
             & electronicSolver%ELSI_blockSize)
-        select case(electronicSolver%ELSI_SOLVER_option)
-        case(1)
-          call elsi_set_elpa_solver(electronicSolver%elsiHandle, 1)
-        case(2)
-          call elsi_set_elpa_solver(electronicSolver%elsiHandle, 2)
-        case default
-          call error("Unknown ELPA solver modes")
-        end select
+        if (electronicSolver%ELSI_SOLVER == 1) then
+          select case(electronicSolver%ELSI_SOLVER_option)
+          case(1)
+            call elsi_set_elpa_solver(electronicSolver%elsiHandle, 1)
+          case(2)
+            call elsi_set_elpa_solver(electronicSolver%elsiHandle, 2)
+          case default
+            call error("Unknown ELPA solver modes")
+          end select
+        end if
         call elsi_set_output(electronicSolver%elsiHandle, electronicSolver%ELSI_OutputLevel)
 
       end if
@@ -1671,50 +1673,92 @@ contains
       end if
     end if
 
-    call env%globalTimer%startTimer(globalTimers%diagonalization)
-    if (nSpin /= 4) then
-      call qm2ud(ham)
-      if (tRealHS) then
-        call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
-            & eigen(:,1,:), electronicSolver)
-      else
-        call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
-            & SSqrCplx, eigVecsCplx, eigen, electronicSolver)
-      end if
-    else
-      call buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-          & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
-          & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, electronicSolver, xi, species)
-    end if
-    call env%globalTimer%stopTimer(globalTimers%diagonalization)
+    write(*,*)'CASE ',solver
 
-    call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
+    select case(solver)
+    case(5)
+      ! libOMM
 
-    call env%globalTimer%startTimer(globalTimers%densityMatrix)
-    if (nSpin /= 4) then
-      if (tRealHS) then
-        call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
-            & rhoSqrReal)
-      else
-        call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
-            & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS,&
-            & eigvecsCplx, rhoPrim, SSqrCplx)
+      call env%globalTimer%startTimer(globalTimers%densityMatrix)
+      eigen(:,:,:) = 0.0_dp
+    #:if WITH_SCALAPACK
+
+      call unpackHSRealBlacs(env%blacs, ham(:,1), neighborList%iNeighbor, nNeighbor,&
+          & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+      call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
+          & img2CentCell, denseDesc, SSqrReal)
+
+      call elsi_set_omm_n_elpa(electronicSolver%elsiHandle, 0)
+      call elsi_set_omm_tol(electronicSolver%elsiHandle, 1.0E-14_dp)
+
+      if (nSpin == 1) then
+        if (tRealHS) then
+          allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
+          call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
+              & Eband(1))
+          write(*,*)'OK 2',Eband(1)
+        end if
       end if
-      call ud2qm(rhoPrim)
-    else
-      ! Pauli structure of eigenvectors
-      filling(:,:,1) = 2.0_dp * filling(:,:,1)
-      call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
-          & tMulliken, kPoint, kWeight, filling(:,:,1), neighborList, nNeighbor, orb, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, species, parallelKS, eigVecsCplx, SSqrCplx, energy,&
-          & rhoPrim, xi, orbitalL, iRhoPrim)
-      filling(:,:,1) = 0.5_dp * filling(:,:,1)
-    end if
-    call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+
+      call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1), neighborList%iNeighbor,&
+          & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,1))
+
+      !rhoPrim(:,1) = 2.0_dp * rhoPrim(:,1)
+
+      deallocate(rhoSqrReal)
+
+    #:else
+      call error("Should not be here")
+    #:endif
+
+      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+
+    case(1,2,3,4)
+      call env%globalTimer%startTimer(globalTimers%diagonalization)
+      if (nSpin /= 4) then
+        call qm2ud(ham)
+        if (tRealHS) then
+          call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
+              & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
+              & eigen(:,1,:), electronicSolver)
+        else
+          call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
+              & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
+              & SSqrCplx, eigVecsCplx, eigen, electronicSolver)
+        end if
+      else
+        call buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
+            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
+            & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, electronicSolver, xi, species)
+      end if
+      call env%globalTimer%stopTimer(globalTimers%diagonalization)
+
+      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+          & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
+
+      call env%globalTimer%startTimer(globalTimers%densityMatrix)
+      if (nSpin /= 4) then
+        if (tRealHS) then
+          call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighborList, nNeighbor,&
+              & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
+              & rhoSqrReal)
+        else
+          call getDensityFromCplxEigvecs(env, denseDesc, filling, kPoint, kWeight, neighborList,&
+              & nNeighbor, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS,&
+              & eigvecsCplx, rhoPrim, SSqrCplx)
+        end if
+        call ud2qm(rhoPrim)
+      else
+        ! Pauli structure of eigenvectors
+        filling(:,:,1) = 2.0_dp * filling(:,:,1)
+        call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
+            & tMulliken, kPoint, kWeight, filling(:,:,1), neighborList, nNeighbor, orb,&
+            & iSparseStart, img2CentCell, iCellVec, cellVec, species, parallelKS, eigVecsCplx,&
+            & SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim)
+        filling(:,:,1) = 0.5_dp * filling(:,:,1)
+      end if
+      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+    end select
 
   end subroutine getDensity
 

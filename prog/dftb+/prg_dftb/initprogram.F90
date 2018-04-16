@@ -1019,7 +1019,7 @@ contains
       if (t2Component) then
         nAllOrb = 2 * nAllOrb
       end if
-      electronicSolver%ELSI_SOLVER = 1
+      electronicSolver%ELSI_SOLVER = solver -3
       electronicSolver%ELSI_parallel = 1
       electronicSolver%ELSI_BLACS_DENSE = 0
       electronicSolver%ELSI_n_basis = nAllOrb
@@ -1315,6 +1315,15 @@ contains
     if (.not.all(nEl(:) >= 0.0_dp)) then
       call error("Less than 0 electrons!")
     end if
+
+    if (solver > 3 .and. solver < 6) then
+      electronicSolver%ELSI_n_electron = sum(nEl)
+      if (solver == 5) then
+        electronicSolver%ELSI_n_state = int(sum(nEl)*0.5_dp) ! spin degeneracies
+      end if
+      write(*,*)'States',electronicSolver%ELSI_n_state
+    end if
+
 
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
@@ -2412,7 +2421,9 @@ contains
       else
         write (strTmp, "(A)") "ELSI interface to the 2 stage ELPA solver"
       end if
-    case(5,6)
+    case(5)
+      write (strTmp, "(A)") "ELSI solvers libOMM"
+    case(6)
       write (strTmp, "(A)") "ELSI solvers"
       call error("Terminated")
     case default

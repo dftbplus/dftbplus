@@ -3,19 +3,19 @@ dftbplus.o = dftbplus.o $(_mod_main) $(_mod_inputdata_module) $(common.fypp) $(_
 
 #:if WITH_SCALAPACK
 #:if WITH_ELSI
-eigenvects.o: common.fypp _mod_message _mod_assert _mod_solvers _mod_eigensolver _mod_accuracy _mod_scalapackfx _mod_elsi
-eigenvects.o = eigenvects.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_solvers) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_scalapackfx) $(_mod_elsi)
+eigenvects.o: common.fypp _mod_message _mod_assert _mod_solvers _mod_parallelks _mod_eigensolver _mod_accuracy _mod_scalapackfx _mod_elsi
+eigenvects.o = eigenvects.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_solvers) $(_mod_parallelks) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_scalapackfx) $(_mod_elsi)
 _mod_eigenvects: eigenvects.o
 _mod_eigenvects = $(eigenvects.o)
 #:else
-eigenvects.o: common.fypp _mod_message _mod_assert _mod_solvers _mod_eigensolver _mod_accuracy _mod_scalapackfx
-eigenvects.o = eigenvects.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_solvers) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_scalapackfx)
+eigenvects.o: common.fypp _mod_message _mod_assert _mod_solvers _mod_parallelks _mod_eigensolver _mod_accuracy _mod_scalapackfx
+eigenvects.o = eigenvects.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_solvers) $(_mod_parallelks) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_scalapackfx)
 _mod_eigenvects: eigenvects.o
 _mod_eigenvects = $(eigenvects.o)
 #:endif
 #:else
-eigenvects.o: common.fypp _mod_message _mod_assert _mod_solvers _mod_eigensolver _mod_accuracy
-eigenvects.o = eigenvects.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_solvers) $(_mod_eigensolver) $(_mod_accuracy)
+eigenvects.o: common.fypp _mod_message _mod_assert _mod_solvers _mod_parallelks _mod_eigensolver _mod_accuracy
+eigenvects.o = eigenvects.o $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_solvers) $(_mod_parallelks) $(_mod_eigensolver) $(_mod_accuracy)
 _mod_eigenvects: eigenvects.o
 _mod_eigenvects = $(eigenvects.o)
 #:endif
