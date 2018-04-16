@@ -155,13 +155,13 @@ contains
    
     ! For each species the correction is applied to,
     ! the correction is enabled and corresponding
-    ! parameters are returned
+    ! parameters are returned (in atomic units)
     if (spNameHeavy == "O" ) then
       ! Correction for OH
       applyCorrection = .true.
       ! Parameters
       h5Scaling = this%elementPara(iSpHeavy)
-      sumVDW = 2.72_dp
+      sumVDW = 2.72_dp * AA__Bohr
       return
     end if
 
@@ -170,7 +170,7 @@ contains
       applyCorrection = .true.
       ! Parameters
       h5Scaling = this%elementPara(iSpHeavy)
-      sumVDW = 2.75_dp
+      sumVDW = 2.75_dp * AA__Bohr
       return
     end if
 
@@ -179,7 +179,7 @@ contains
       applyCorrection = .true.
       ! Parameters
       h5Scaling = this%elementPara(iSpHeavy)
-      sumVDW = 3.00_dp
+      sumVDW = 3.00_dp * AA__Bohr
       return
     end if
 
@@ -212,7 +212,7 @@ contains
       ! Conversion from full-width-at-half-maximum to c
       ! 2.35482 == 2*sqrt(2*ln(2))
       c = fwhm / 2.35482_dp
-      gauss = exp(-1.0_dp * ((rab*Bohr__AA)-r0)**2 / 2.0_dp / c**2) * h5Scaling
+      gauss = exp(-1.0_dp * ((rab)-r0)**2 / 2.0_dp / c**2) * h5Scaling
       ! Apply the correction to original gamma
       shortGamma = shortGamma * (1.0_dp + gauss) - gauss / rab
     end if
@@ -244,11 +244,11 @@ contains
       ! Conversion from full-width-at-half-maximum to c
       ! 2.35482 == 2*sqrt(2*ln(2))
       c = fwhm / 2.35482_dp
-      gauss = exp(-1.0_dp * ((rab*Bohr__AA)-r0)**2 / 2.0_dp / c**2) * h5Scaling
+      gauss = exp(-1.0_dp * ((rab)-r0)**2 / 2.0_dp / c**2) * h5Scaling
       ! Derivative calculation
-      dgauss = -1.0_dp * (Bohr__AA * ( Bohr__AA * rab - r0 ) ) / c**2 * gauss
+      dgauss = -1.0_dp * (rab - r0) / c**2 * gauss
       deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0_dp+gauss)
-      deriv2 = dgauss/rab - (h5Scaling*exp(-1.0_dp*(0.5_dp*(Bohr__AA*rab - r0)**2)/c**2))/rab**2
+      deriv2 = dgauss/rab - (h5Scaling*exp(-1.0_dp*(0.5_dp*(rab - r0)**2)/c**2))/rab**2
       shortGammaDeriv = deriv1 - deriv2
     end if
   end subroutine scaleShortGammaDeriv
