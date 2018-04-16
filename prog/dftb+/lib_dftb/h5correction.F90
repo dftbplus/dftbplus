@@ -148,6 +148,8 @@ contains
       iSpHeavy = iSp2
       spNameHeavy = spName2
     else
+      ! If the pair can not make H-bond, return immediately
+      ! with applyCorrection = .false.
       return
     end if
    
@@ -180,6 +182,9 @@ contains
       sumVDW = 3.00_dp
       return
     end if
+
+    ! If there are not parameters for this H-bond, return
+    ! with applyCorrection = .false.
   end subroutine getParams
 
   !> Apply the correction to the short-range part of gamma function
