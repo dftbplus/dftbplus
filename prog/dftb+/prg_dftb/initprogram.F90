@@ -1150,8 +1150,7 @@ contains
 
       ! H5 correction
       ! On/Off flag is read from the input
-      sccInp%useH5 = input%ctrl%h5SwitchedOn
-      if (sccInp%useH5) then
+      if (input%ctrl%h5SwitchedOn) then
         ! Create H5 object, passing all parameters it uses
         allocate(pH5Correction)
         call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&

@@ -77,9 +77,6 @@ module scc
     !> Ewald tollerance
     real(dp) :: tolEwald = 0.0_dp
 
-    !> Flag for activating the H5 H-bond correction
-    logical :: useH5
-
     !> H5 correction object
     type(H5Corr), allocatable :: h5Correction
 
@@ -433,7 +430,7 @@ contains
 
     ! H5 correction
     ! Input data are saved in the SCC object
-    this%useH5 = inp%useH5
+    this%useH5 = allocated(inp%h5Correction)
     if (this%useH5) then
         ! Copy correction object build in initprogram
         this%h5Correction = inp%h5Correction
