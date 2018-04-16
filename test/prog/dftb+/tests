@@ -161,7 +161,7 @@ geoopt/Vsi+O                           #? MPI_PROCS <= 4
 scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 
 scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 
-h-bonds/H5_defaults                    #? MPI_PROCS <= 1
-h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 1
-h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 1
-h-bonds/D3H5_water_dimer               #? MPI_PROCS <= 1
+h-bonds/H5_defaults                    
+h-bonds/H5_ONS_forces                  
+h-bonds/H5_ONS_forces_eq               
+h-bonds/D3H5_water_dimer               #? WITH_DFTD3
