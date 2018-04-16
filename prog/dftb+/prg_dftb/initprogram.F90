@@ -1011,31 +1011,6 @@ contains
       if (.not.withELSI) then
         call error("This binary was not compiled with ELSI support enabled")
       end if
-
-    #:if WITH_ELSI
-      electronicSolver%tUsingELSI = .true.
-
-      nAllOrb = nOrb
-      if (t2Component) then
-        nAllOrb = 2 * nAllOrb
-      end if
-      electronicSolver%ELSI_SOLVER = solver -3
-      electronicSolver%ELSI_parallel = 1
-      electronicSolver%ELSI_BLACS_DENSE = 0
-      electronicSolver%ELSI_n_basis = nAllOrb
-      electronicSolver%ELSI_n_electron = real(nAllOrb,dp)
-      electronicSolver%ELSI_n_state = nAllOrb
-      electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
-      electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
-      electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
-      electronicSolver%ELSI_SOLVER_option = input%ctrl%iSolverOption
-      ! customize output level, note there are levels 0..3 not DFTB+ 0..2
-      electronicSolver%ELSI_OutputLevel = 0
-    #:call DEBUG_CODE
-      electronicSolver%ELSI_OutputLevel = 3
-    #:endcall DEBUG_CODE
-
-    #:endif
     end select
 
     if (tSccCalc) then
@@ -1317,11 +1292,34 @@ contains
     end if
 
     if (solver > 3 .and. solver < 6) then
+
+      electronicSolver%tUsingELSI = .true.
+
+    #:if WITH_ELSI
+      nAllOrb = nOrb
+      if (t2Component) then
+        nAllOrb = 2 * nAllOrb
+      end if
+      electronicSolver%ELSI_SOLVER = solver -3
+      electronicSolver%ELSI_parallel = 1
+      electronicSolver%ELSI_BLACS_DENSE = 0
+      electronicSolver%ELSI_n_basis = nAllOrb
       electronicSolver%ELSI_n_electron = sum(nEl)
+      electronicSolver%ELSI_n_state = nAllOrb
+      electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
+      electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
+      electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
+      electronicSolver%ELSI_SOLVER_option = input%ctrl%iSolverOption
+      ! customize output level, note there are levels 0..3 not DFTB+ 0..2
+      electronicSolver%ELSI_OutputLevel = 0
+    #:call DEBUG_CODE
+      electronicSolver%ELSI_OutputLevel = 3
+    #:endcall DEBUG_CODE
+
       if (solver == 5) then
         electronicSolver%ELSI_n_state = int(sum(nEl)*0.5_dp) ! spin degeneracies
       end if
-      write(*,*)'States',electronicSolver%ELSI_n_state
+    #:endif
     end if
 
 

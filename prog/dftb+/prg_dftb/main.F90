@@ -214,33 +214,7 @@ contains
 
     #:if WITH_ELSI
       if (electronicSolver%tUsingELSI) then
-
-        if (iGeoStep /= 0) then
-          ! destroy previous instance of solver
-          call elsi_finalize(electronicSolver%elsiHandle)
-        end if
-
-        call elsi_init(electronicSolver%elsiHandle, electronicSolver%ELSI_SOLVER,&
-            & electronicSolver%ELSI_parallel, electronicSolver%ELSI_BLACS_DENSE,&
-            & electronicSolver%ELSI_n_basis, electronicSolver%ELSI_n_electron,&
-            & electronicSolver%ELSI_n_state)
-        call elsi_set_mpi_global(electronicSolver%elsiHandle, electronicSolver%ELSI_MPI_COMM_WORLD)
-        call elsi_set_sing_check(electronicSolver%elsiHandle, 0) ! disable singularity check
-        call elsi_set_mpi(electronicSolver%elsiHandle, electronicSolver%ELSI_my_COMM_WORLD)
-        call elsi_set_blacs(electronicSolver%elsiHandle,electronicSolver%ELSI_MPI_COMM_WORLD,&
-            & electronicSolver%ELSI_blockSize)
-        if (electronicSolver%ELSI_SOLVER == 1) then
-          select case(electronicSolver%ELSI_SOLVER_option)
-          case(1)
-            call elsi_set_elpa_solver(electronicSolver%elsiHandle, 1)
-          case(2)
-            call elsi_set_elpa_solver(electronicSolver%elsiHandle, 2)
-          case default
-            call error("Unknown ELPA solver modes")
-          end select
-        end if
-        call elsi_set_output(electronicSolver%elsiHandle, electronicSolver%ELSI_OutputLevel)
-
+        call electronicSolver%resetELSI()
       end if
     #:endif
 
@@ -1932,7 +1906,7 @@ contains
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtx(solver, parallelKS, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
+      call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
