@@ -18,12 +18,12 @@ all: libmbd
 	touch -r $(OBJDIR)/libmbd.a $(STAMPFILE)
 
 libmbd:
-	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/lib/make.build \
-	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)/origin/lib"
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" VPATH="$(SRCDIR)/origin/src"
 
 clean:
-	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/lib/make.build \
-	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)/origin/lib" clean
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" VPATH="$(SRCDIR)/origin/src" clean
 
 ### Local Variables:
 ### mode:makefile

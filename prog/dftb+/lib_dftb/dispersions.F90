@@ -14,7 +14,7 @@ module dispersions
   use dispuff_module
   use dispuffdata
   use dispslaterkirkw
-  use mbd, only : TMbdInit
+  use mbd_module, only : TMbdInit => mbd_input
 #:if WITH_DFTD3
   use dispdftd3_module
 #:endif

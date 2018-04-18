@@ -3359,22 +3359,22 @@ contains
 
     character(80) :: tmpStr
 
-    write(stdOut, "(A)") ""
-    if (input%only_ts_energy) then
+    write(stdOut, "(A)") ''
+    if (input%dispersion_type == 'ts') then
       write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
       write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      select case (trim(input%params))
-      case ('tssurf')
-        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('TSSURF')
-        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('ts')
+      ! select case (trim(input%params))
+      ! case ('tssurf')
+      !   write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      ! case ('TSSURF')
+      !   write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      ! case ('ts')
+      !   write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      ! case ('TS')
+      !   write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      ! case default
         write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case ('TS')
-        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case default
-        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      end select
+      ! end select
       write(stdOut, "(A)") "  Mode                      " // trim(adjustl(tmpStr))
       write(tmpStr,"(E18.6)") input%ts_f_acc
       write(stdOut, "(A)") '  TSForceAccuracy           ' // trim(adjustl(tmpStr))
@@ -3383,18 +3383,18 @@ contains
     else
       write(stdOut,"(A)") "Using MBD model [Phys. Rev. Lett. 108, 236402 (2012)]"
       write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      select case (trim(input%params))
-      case ('tssurf')
-        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('TSSURF')
-        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      case ('ts')
+      ! select case (trim(input%params))
+      ! case ('tssurf')
+      !   write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      ! case ('TSSURF')
+      !   write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      ! case ('ts')
+      !   write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      ! case ('TS')
+      !   write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      ! case default
         write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case ('TS')
-        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      case default
-        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      end select
+      ! end select
       write(stdOut,"(A)") "  Parameters                "//trim(adjustl(tmpStr))
       write(stdOut,"(A)") '  Module                    mbdvdw'
       write(stdOut,"(A)") '  MBD eigensolver           QR (LAPACK)'
@@ -3411,11 +3411,11 @@ contains
       write(tmpStr, "(I3)") input%n_omega_grid
       write(stdOut, "(A)") "  Gridsize (frequencies)    "//trim(adjustl(tmpStr))
     end if
-    if (input%mbd_debug) then
-      write(stdOut,"(A)") "  Full Debug printing       Yes"
-    else
-      write(stdOut,"(A)") "  Full Debug printing       No"
-    endif
+    ! if (input%mbd_debug) then
+    !   write(stdOut,"(A)") "  Full Debug printing       Yes"
+    ! else
+    !   write(stdOut,"(A)") "  Full Debug printing       No"
+    ! endif
     write(stdOut,"(A)") ""
 
   end subroutine writeMbdInfo

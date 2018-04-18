@@ -1,28 +1,20 @@
 #:include "common.fypp"
 
 !> Imports the functionality of libMBD.
-module mbd
+module mbd_module
 #:if WITH_MBD
-  use libmbd
+  use mbd_api
 #:endif
   implicit none
-  private
-
-#:if WITH_MBD
-  public:: TMbdInit, TMbd
-  public:: TMbd_init, TMbd_destruct
-#:else
-  public :: TMbd, TMbdInit
-#:endif
 
 #:if not WITH_MBD
   ! Dummy empty type
-  type :: TMbdInit
-  end type TMbdInit
+  type :: mbd_input
+  end type mbd_input
 
   ! Dummy empty type
-  type :: TMbd
-  end type TMbd
+  type :: mbd_calc
+  end type mbd_calc
 #:endif
 
-end module mbd
+end module mbd_module

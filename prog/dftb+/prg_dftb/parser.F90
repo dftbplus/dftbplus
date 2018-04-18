@@ -2971,17 +2971,20 @@ contains
     type(string) :: buffer
     type(fnode), pointer :: child
 
-    input%only_ts_energy = .true.
+    ! TODO there should be a mechanism that allows either TS or MBD, not both,
+    ! or we have to initialize two different mbd_calc instances
+    input%dispersion_type = 'ts'
     call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, 1e-7_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
     call getChildValue(node, "ForceAccuracy", input%ts_f_acc, 1e-6_dp, modifier=buffer, child=child)
     call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
     call getChildValue(node, "Damping", input%ts_d, 20.0_dp)
-    call getChildValue(node, "RangeSeparation", input%ts_s_r, 0.94_dp)
-    call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
-    input%params = tolower(unquote(char(buffer)))
-    call checkManyBodyDispRefName(input%params, child)
+    call getChildValue(node, "RangeSeparation", input%ts_sr, 0.94_dp)
+    ! TODO this is currently hardcoded within manybodydisp::MBDinit
+    ! call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
+    ! input%params = tolower(unquote(char(buffer)))
+    ! call checkManyBodyDispRefName(input%params, child)
 
   end subroutine readDispTs
 
@@ -2993,15 +2996,16 @@ contains
     type(string) :: buffer
     type(fnode), pointer :: child
 
-    input%only_ts_energy = .false.
-    call getChildValue(node, "Beta", input%beta, 0.83_dp)
+    input%dispersion_type = 'mbd'
+    call getChildValue(node, "Beta", input%mbd_beta, 0.83_dp)
     call getChildValue(node, "NOmegaGrid", input%n_omega_grid, 15)
     call getChildValue(node, "KGrid", input%k_grid)
-    call getChildValue(node, "KGridShift", input%k_grid_shift, [0.5_dp, 0.5_dp, 0.5_dp])
+    call getChildValue(node, "KGridShift", input%k_grid_shift, 0.5_dp)
     call getChildValue(node, "VacuumAxis", input%vacuum_axis, [.false., .false., .false.])
-    call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
-    input%params = tolower(unquote(char(buffer)))
-    call checkManyBodyDispRefName(input%params, child)
+    ! TODO this is currently hardcoded within manybodydisp::MBDinit
+    ! call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
+    ! input%params = tolower(unquote(char(buffer)))
+    ! call checkManyBodyDispRefName(input%params, child)
 
   end subroutine readDispMbd
 
