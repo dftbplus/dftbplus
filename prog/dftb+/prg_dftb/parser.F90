@@ -28,6 +28,7 @@ module parser
   use periodic
   use simplealgebra, only: determinant33
   use dispersions
+  use dftbplusu
   use slakocont
   use slakoeqgrid
   use repcont
@@ -706,7 +707,7 @@ contains
         end if
       case default
         call getNodeHSDName(value, buffer2)
-        call detailedError(child, "Invalid thermostat '" // char(buffer) // "'")
+        call detailedError(child, "Invalid thermostat '" // char(buffer2) // "'")
       end select thermostat
 
       if (ctrl%maxRun < -1) then
@@ -1820,10 +1821,9 @@ contains
       call getChildValue(child, "Functional", buffer, "fll")
       select case(tolower(char(buffer)))
       case ("fll")
-        ctrl%DFTBUfunc = 1 ! change this to get value from DFTB+U module named variables to avoid
-        ! ambiguity
+        ctrl%DFTBUfunc = plusUFunctionals%fll
       case ("psic")
-        ctrl%DFTBUfunc = 2
+        ctrl%DFTBUfunc = plusUFunctionals%pSic
       case default
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
@@ -1928,10 +1928,6 @@ contains
 
     end if
 
-    if (ctrl%tDFTBU .and. .not. ctrl%tSpin) then
-      call error("DFTB+U only supported for spin polarised calculations.")
-    end if
-
     ! Dispersion
     call getChildValue(node, "Dispersion", value, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true.)
@@ -2001,166 +1997,165 @@ contains
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
 
-  contains
-
-
-    !> Reads inital charges
-    subroutine getInitialCharges(node, geo, initCharges)
-
-      !> relevant node in input tree
-      type(fnode), pointer :: node
-
-      !> geometry, including atomic type information
-      type(TGeometry), intent(in) :: geo
-
-      !> initial atomic charges
-      real(dp), allocatable :: initCharges(:)
-
-      type(fnode), pointer :: child, child2, child3, val
-      type(fnodeList), pointer :: children
-      integer, allocatable :: pTmpI1(:)
-      type(string) :: buffer
-      real(dp) :: rTmp
-      integer :: ii, jj, iAt
-
-      call getChildValue(node, "InitialCharges", val, "", child=child, &
-          &allowEmptyValue=.true., dummyValue=.true., list=.true.)
-
-      ! Read either all atom charges, or individual atom specifications
-      call getChild(child, "AllAtomCharges", child2, requested=.false.)
-      if (associated(child2)) then
-        allocate(initCharges(geo%nAtom))
-        call getChildValue(child2, "", initCharges)
-      else
-        call getChildren(child, "AtomCharge", children)
-        if (getLength(children) > 0) then
-          allocate(initCharges(geo%nAtom))
-          initCharges = 0.0_dp
-        end if
-        do ii = 1, getLength(children)
-          call getItem1(children, ii, child2)
-          call getChildValue(child2, "Atoms", buffer, child=child3, &
-              &multiple=.true.)
-          call convAtomRangeToInt(char(buffer), geo%speciesNames, &
-              &geo%species, child3, pTmpI1)
-          call getChildValue(child2, "ChargePerAtom", rTmp)
-          do jj = 1, size(pTmpI1)
-            iAt = pTmpI1(jj)
-            if (initCharges(iAt) /= 0.0_dp) then
-              call detailedWarning(child3, "Previous setting for the charge &
-                  &of atom" // i2c(iAt) // " overwritten")
-            end if
-            initCharges(iAt) = rTmp
-          end do
-          deallocate(pTmpI1)
-        end do
-        call destroyNodeList(children)
-      end if
-
-    end subroutine getInitialCharges
-
-
-    !> Reads initial spins
-    subroutine getInitialSpins(node, geo, nSpin, initSpins)
-
-      !> relevant node in input data
-      type(fnode), pointer :: node
-
-      !> geometry, including atomic information
-      type(TGeometry), intent(in) :: geo
-
-      !> number of spin channels
-      integer, intent(in) :: nSpin
-
-      !> initial spins on return
-      real(dp), allocatable :: initSpins(:,:)
-
-      type(fnode), pointer :: child, child2, child3, val
-      type(fnodeList), pointer :: children
-      integer, allocatable :: pTmpI1(:)
-      type(string) :: buffer
-      real(dp), allocatable :: rTmp(:)
-      integer :: ii, jj, iAt
-
-      @:ASSERT(nSpin == 1 .or. nSpin == 3)
-
-      call getChildValue(node, "InitialSpins", val, "", child=child, &
-          &allowEmptyValue=.true., dummyValue=.true., list=.true.)
-
-      ! Read either all atom spins, or individual spin specifications
-      call getChild(child, "AllAtomSpins", child2, requested=.false.)
-      if (associated(child2)) then
-        allocate(initSpins(nSpin, geo%nAtom))
-        call getChildValue(child2, "", initSpins)
-      else
-        call getChildren(child, "AtomSpin", children)
-        if (getLength(children) > 0) then
-          allocate(initSpins(nSpin, geo%nAtom))
-          initSpins = 0.0_dp
-        end if
-        allocate(rTmp(nSpin))
-        do ii = 1, getLength(children)
-          call getItem1(children, ii, child2)
-          call getChildValue(child2, "Atoms", buffer, child=child3, &
-              &multiple=.true.)
-          call convAtomRangeToInt(char(buffer), geo%speciesNames, &
-              &geo%species, child3, pTmpI1)
-          call getChildValue(child2, "SpinPerAtom", rTmp)
-          do jj = 1, size(pTmpI1)
-            iAt = pTmpI1(jj)
-            if (any(initSpins(:,iAt) /= 0.0_dp)) then
-              call detailedWarning(child3, "Previoius setting for the spin &
-                  &of atom" // i2c(iAt) // " overwritten")
-            end if
-            initSpins(:,iAt) = rTmp
-          end do
-          deallocate(pTmpI1)
-        end do
-        deallocate(rTmp)
-        call destroyNodeList(children)
-      end if
-
-    end subroutine getInitialSpins
-
-
-    !> Reads numerical differentiation method to be used
-    subroutine readDifferentiation(node, ctrl)
-
-      !> relevant node in input tree
-      type(fnode), pointer, intent(in) :: node
-
-      !> control structure to fill
-      type(control), intent(inout) :: ctrl
-
-
-      !> default of a reasonable choice for round off when using a second order finite difference
-      !> formula
-      real(dp), parameter :: defDelta = epsilon(1.0_dp)**0.25_dp
-
-      type(string) :: buffer
-      type(fnode), pointer :: val, child
-
-      call getChildValue(node, "Differentiation", val, "FiniteDiff",&
-          & child=child)
-      call getNodeName(val, buffer)
-      select case (char(buffer))
-      case ("finitediff")
-        ctrl%iDerivMethod = 1
-        call getChildValue(val, "Delta", ctrl%deriv1stDelta, defDelta,&
-            & modifier=modifier, child=child)
-        call convertByMul(char(modifier), lengthUnits, child,&
-            & ctrl%deriv1stDelta)
-      case ("richardson")
-        ctrl%iDerivMethod = 2
-      case default
-        call getNodeHSDName(val, buffer)
-        call detailedError(child, "Invalid derivative calculation '" &
-            & // char(buffer) // "'")
-      end select
-
-    end subroutine readDifferentiation
-
   end subroutine readDFTBHam
+
+
+  !> Reads inital charges
+  subroutine getInitialCharges(node, geo, initCharges)
+
+    !> relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> geometry, including atomic type information
+    type(TGeometry), intent(in) :: geo
+
+    !> initial atomic charges
+    real(dp), allocatable :: initCharges(:)
+
+    type(fnode), pointer :: child, child2, child3, val
+    type(fnodeList), pointer :: children
+    integer, allocatable :: pTmpI1(:)
+    type(string) :: buffer
+    real(dp) :: rTmp
+    integer :: ii, jj, iAt
+
+    call getChildValue(node, "InitialCharges", val, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true., list=.true.)
+
+    ! Read either all atom charges, or individual atom specifications
+    call getChild(child, "AllAtomCharges", child2, requested=.false.)
+    if (associated(child2)) then
+      allocate(initCharges(geo%nAtom))
+      call getChildValue(child2, "", initCharges)
+    else
+      call getChildren(child, "AtomCharge", children)
+      if (getLength(children) > 0) then
+        allocate(initCharges(geo%nAtom))
+        initCharges = 0.0_dp
+      end if
+      do ii = 1, getLength(children)
+        call getItem1(children, ii, child2)
+        call getChildValue(child2, "Atoms", buffer, child=child3, &
+            &multiple=.true.)
+        call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+            &geo%species, child3, pTmpI1)
+        call getChildValue(child2, "ChargePerAtom", rTmp)
+        do jj = 1, size(pTmpI1)
+          iAt = pTmpI1(jj)
+          if (initCharges(iAt) /= 0.0_dp) then
+            call detailedWarning(child3, "Previous setting for the charge &
+                &of atom" // i2c(iAt) // " overwritten")
+          end if
+          initCharges(iAt) = rTmp
+        end do
+        deallocate(pTmpI1)
+      end do
+      call destroyNodeList(children)
+    end if
+
+  end subroutine getInitialCharges
+
+
+  !> Reads initial spins
+  subroutine getInitialSpins(node, geo, nSpin, initSpins)
+
+    !> relevant node in input data
+    type(fnode), pointer :: node
+
+    !> geometry, including atomic information
+    type(TGeometry), intent(in) :: geo
+
+    !> number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> initial spins on return
+    real(dp), allocatable :: initSpins(:,:)
+
+    type(fnode), pointer :: child, child2, child3, val
+    type(fnodeList), pointer :: children
+    integer, allocatable :: pTmpI1(:)
+    type(string) :: buffer
+    real(dp), allocatable :: rTmp(:)
+    integer :: ii, jj, iAt
+
+    @:ASSERT(nSpin == 1 .or. nSpin == 3)
+
+    call getChildValue(node, "InitialSpins", val, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true., list=.true.)
+
+    ! Read either all atom spins, or individual spin specifications
+    call getChild(child, "AllAtomSpins", child2, requested=.false.)
+    if (associated(child2)) then
+      allocate(initSpins(nSpin, geo%nAtom))
+      call getChildValue(child2, "", initSpins)
+    else
+      call getChildren(child, "AtomSpin", children)
+      if (getLength(children) > 0) then
+        allocate(initSpins(nSpin, geo%nAtom))
+        initSpins = 0.0_dp
+      end if
+      allocate(rTmp(nSpin))
+      do ii = 1, getLength(children)
+        call getItem1(children, ii, child2)
+        call getChildValue(child2, "Atoms", buffer, child=child3, &
+            &multiple=.true.)
+        call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+            &geo%species, child3, pTmpI1)
+        call getChildValue(child2, "SpinPerAtom", rTmp)
+        do jj = 1, size(pTmpI1)
+          iAt = pTmpI1(jj)
+          if (any(initSpins(:,iAt) /= 0.0_dp)) then
+            call detailedWarning(child3, "Previoius setting for the spin &
+                &of atom" // i2c(iAt) // " overwritten")
+          end if
+          initSpins(:,iAt) = rTmp
+        end do
+        deallocate(pTmpI1)
+      end do
+      deallocate(rTmp)
+      call destroyNodeList(children)
+    end if
+
+  end subroutine getInitialSpins
+
+
+  !> Reads numerical differentiation method to be used
+  subroutine readDifferentiation(node, ctrl)
+
+    !> relevant node in input tree
+    type(fnode), pointer, intent(in) :: node
+
+    !> control structure to fill
+    type(control), intent(inout) :: ctrl
+
+
+    !> default of a reasonable choice for round off when using a second order finite difference
+    !> formula
+    real(dp), parameter :: defDelta = epsilon(1.0_dp)**0.25_dp
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: val, child
+
+    call getChildValue(node, "Differentiation", val, "FiniteDiff",&
+        & child=child)
+    call getNodeName(val, buffer)
+    select case (char(buffer))
+    case ("finitediff")
+      ctrl%iDerivMethod = 1
+      call getChildValue(val, "Delta", ctrl%deriv1stDelta, defDelta,&
+          & modifier=modifier, child=child)
+      call convertByMul(char(modifier), lengthUnits, child,&
+          & ctrl%deriv1stDelta)
+    case ("richardson")
+      ctrl%iDerivMethod = 2
+    case default
+      call getNodeHSDName(val, buffer)
+      call detailedError(child, "Invalid derivative calculation '" &
+          & // char(buffer) // "'")
+    end select
+
+  end subroutine readDifferentiation
+
 
 
   !> Reads Slater-Koster files
@@ -2627,14 +2622,21 @@ contains
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
+    logical :: tWriteDetailedOutDef
+
+  #:if WITH_SOCKETS
+    tWriteDetailedOutDef = .not. allocated(ctrl%socketInput)
+  #:else
+    tWriteDetailedOutDef = .true.
+  #:endif
+    call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, tWriteDetailedOutDef)
 
     call getChildValue(node, "WriteAutotestTag", ctrl%tWriteTagged, .false.)
     call getChildValue(node, "WriteDetailedXML", ctrl%tWriteDetailedXML, &
         &.false.)
     call getChildValue(node, "WriteResultsTag", ctrl%tWriteResultsTag, &
         &.false.)
-    call getChildValue(node, "WriteDetailedOut", ctrl%tWriteDetailedOut, &
-        &.true.)
+
 
     if (ctrl%tWriteDetailedOut) then
       call getChildValue(node, "WriteDetailedOutBands", ctrl%tWriteDetailedOutBands, &
@@ -3172,6 +3174,7 @@ contains
     character(lc) :: strTmp
     type(listRealR1) :: lr1
     logical :: tPipekDense
+    logical :: tWriteBandDatDef
 
     call getChildValue(node, "ProjectStates", val, "", child=child, &
         & allowEmptyValue=.true., list=.true.)
@@ -3259,7 +3262,12 @@ contains
       call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
           & .false.)
     end if
-    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
+  #:if WITH_SOCKETS
+    tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+  #:else
+    tWriteBandDatDef = .true.
+  #:endif
+    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
   end subroutine readAnalysis
@@ -3390,6 +3398,7 @@ contains
       end if
       allocate(parallelOpts)
       call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
+      call getChildValue(node, "UseOmpThreads", parallelOpts%tOmpThreads, .not. withMpi)
       call readBlacs(node, parallelOpts%blacsOpts)
     end if
 
@@ -3436,7 +3445,7 @@ contains
     type(fnode), pointer :: child, child2, child3
     type(string) :: buffer, modifier
     type(listRealR1) :: lr1
-    
+
     call getChild(node, "ElectrostaticPotential", child, requested=.false.)
     if (.not. associated(child)) then
       return
@@ -3529,7 +3538,7 @@ contains
     real(dp) :: axes_(3,3), r33Tmp(3,3)
 
     tPeriodic = present(latvecs)
-    
+
     if (.not.tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       call detailedError(node, "Fractional grid specification only available for periodic&
           & geometries")
@@ -3583,11 +3592,11 @@ contains
         axes = axes_*spread(r3Tmp,2,3)
       end if
     end if
-    
+
     if (present(origin)) then
       origin = r3Tmpb
     end if
-    
+
     ! Fractional specification of points
     if (tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
       points = matmul(latVecs,points)

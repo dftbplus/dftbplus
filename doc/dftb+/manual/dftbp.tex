@@ -948,7 +948,9 @@ Driver = Socket {
 }
 \end{verbatim}
 
-
+Please note that this driver changes the default behaviour of some options to
+remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
+\is{WriteBandOut} = \is{No}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Hamiltonian
@@ -2564,9 +2566,10 @@ This block collects some global options for the run.
   is needed among others by the \verb|waveplot| utility for
   visualising molecular orbitals.)
 
-\item[\is{WriteResultsTag}] Turns the creation of the
-  \verb|results.tag| file on and off. (That file is used by several
-  utilities processing the results of \dftbp.)
+\item[\is{WriteResultsTag}] Turns the creation of the \verb|results.tag| file on
+  and off. (That file is used by several utilities processing the results of
+  \dftbp.) For a description of the file format see
+  p.~\pref{sec:dftbp.results}.
 
 \item[\is{WriteDetailedOut}] Controls the creation of the file
   \verb|detailed.out|. Since this contains the detailed information
@@ -2747,7 +2750,11 @@ For systems with non-gamma-point $k$-points, no further options are available.
 \begin{verbatim}
 Analysis = {
   Localise = {
-    PipekMezey = Yes        # Default options otherwise
+    PipekMezey = {
+       # These are the default options, which are also set if the bracket is left empty.
+       Tollerance = 1.0E-4
+       MaxIterations = 100
+    }  
   }
 }
 \end{verbatim}
@@ -3006,6 +3013,7 @@ the code. They only take effect, if the code was compiled with MPI-support.
 
 \begin{ptable}
   \kw{Groups} & i & 1 & & \\
+  \kw{UseOmpThreads} & l & .false. & & \\
   \kw{Blacs} & p & \cb & & \\
 \end{ptable}
 \begin{description}
@@ -3015,6 +3023,21 @@ the code. They only take effect, if the code was compiled with MPI-support.
   same time. The number of process groups must be a divisor of the total number
   of MPI-processes. Default: 1 (all processes work at the same k-point and spin
   at a given time).
+
+\item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
+  MPI/OpenMP-parallelisation). In order to prevent you from accidently running
+  more processes and threads than appropriate for your hardware, this feature is
+  turned off by default. Consequently in this case the MPI-parallelised binary
+  will stop if the maximal number of OpenMP-threads is greater than one when
+  DFTB+ is started. (You can usually set the number of maximally allowed
+  OpenMP-threads by setting the \is{OMP\_NUM\_THREADS} environment variable in
+  your shell.)
+
+  You can enable this option if you wish to run DFTB+ with hybrid
+  parallelisation. You would then typically start fewer MPI-processes than
+  physical cores on each node and also set the number of threads accordingly.
+  This is currently an experimental feature in DFTB+ and is recommended for
+  experienced users only.
 
 \item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
   \is{BlockSize}, which specifies the row and column block size for the
@@ -3040,6 +3063,38 @@ This chapter contains the description of some of the output files of
 \dftbp{} where the output format is not self documenting. Unless
 indicated otherwise, numbers in the output files are given in atomic
 units (with Hartree as the energy unit).
+
+\section{results.tag}
+\label{sec:dftbp.results}
+\index{results.tag}
+
+This contains machine readable results labeled with the type and size of the
+data blocks. The results are given in atomic units and are formatted as:
+\begin{verbatim}
+label               :type:shape:
+\end{verbatim}
+
+The variable type is real, complex, integer or logical. The shape information is
+\newline :ndim: size$_1$,size$_2$,$\ldots$,size$_{ndim}$:\newline where ndim is
+the number of dimensions, organised with the Fortran convention and of size
+size$_1 \times$size$_2 \times$size$_2 \times \ldots$.
+
+In the special case of scalar variables the shape is :0:.
+
+A typical example of mixed scalar and both one and two dimensional results would
+be similar to:
+\begin{verbatim}
+mermin_energy       :real:0:
+ -0.672967201447815E+000
+total_energy        :real:0:
+ -0.672879398682698E+000
+forces              :real:2:3,3
+ -0.243590222274811E+000 -0.199780753617099E-001 -0.000000000000000E+000
+  0.465478448963764E+000 -0.228550455811745E+000 -0.000000000000000E+000
+ -0.221888226688953E+000  0.248528531173455E+000 -0.000000000000000E+000
+gross_atomic_charges:real:1:3
+  0.171448741143825E+000 -0.254714832621691E+000  0.832660914778645E-001
+\end{verbatim}
 
 \section{hamsqrN.dat, oversqr.dat}
 \label{sec:dftbp.hamsqr}

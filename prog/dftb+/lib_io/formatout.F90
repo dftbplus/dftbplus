@@ -10,6 +10,8 @@
 !> Contains subroutines for formatted output of data
 module formatout
   use globalenv
+  use environment
+  use message
   use assert
   use accuracy
   use fileid
@@ -351,8 +353,11 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_real(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
+  subroutine writeSparseAsSquare_real(env, fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
       & img2CentCell)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Name of the file to write the matrix to.
     character(len=*), intent(in) :: fname
@@ -380,6 +385,10 @@ contains
     character(mc) :: strForm
     integer :: fd, nOrb
 
+    if (withMpi) then
+      call error("Writing of HS not working with MPI yet")
+    end if
+
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
 
     allocate(square(nOrb, nOrb))
@@ -402,8 +411,11 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_cplx(fname, sparse, kPoints, iNeighbor, nNeighbor, iAtomStart, &
-      & iPair, img2CentCell, iCellVec, cellVec)
+  subroutine writeSparseAsSquare_cplx(env, fname, sparse, kPoints, iNeighbor, nNeighbor,&
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Name of the file to write the matrix into.
     character(len=*), intent(in) :: fname
@@ -440,6 +452,10 @@ contains
     integer :: fd, nOrb, nKPoint
     integer :: iK
 
+    if (withMpi) then
+      call error("Writing of HS not working with MPI yet")
+    end if
+
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
     nKPoint = size(kPoints, dim =2)
 
@@ -465,7 +481,7 @@ contains
 
 
   !> Writes a sparse matrix to a file.
-  subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
+  subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,&
       & iCellVec, cellVec)
 
     !> Name of the file to write the matrix to.
@@ -498,6 +514,10 @@ contains
     integer :: fd, nAtom
     integer :: iAt1, iAt2, iAt2f, iNeigh, iOrig, nOrb1, nOrb2
     character(mc) :: strForm
+
+    if (.not. tIoProc) then
+      return
+    end if
 
     nAtom = size(nNeighbor)
 

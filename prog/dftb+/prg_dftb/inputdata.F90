@@ -52,6 +52,9 @@ module inputdata_module
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts
 
+    !> Whether hybrid parallelisation is enable
+    logical :: tOmpThreads
+
   end type TParallelOpts
 
 

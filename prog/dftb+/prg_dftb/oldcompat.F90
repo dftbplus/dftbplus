@@ -199,33 +199,30 @@ contains
       call setNodeName(node, "InitialSpins")
     end if
 
-  contains
-
-
-    !> Helper function for Range keyword
-    subroutine replaceRange(node)
-
-      !> node to process
-      type(fnode), pointer :: node
-
-      type(fnode), pointer :: node2
-      integer :: bounds(2)
-
-      if (associated(node)) then
-        call getChild(node, "Range", node2, requested=.false.)
-        if (associated(node2)) then
-          call getChildValue(node2, "", bounds)
-          call removeChildNodes(node)
-          call setChildValue(node, "", &
-              &i2c(bounds(1)) // ":" // i2c(bounds(2)), replace=.true.)
-          call detailedWarning(node, "Specification 'Range { start end }' &
-              &not supported any more, using 'start:end' instead")
-        end if
-      end if
-
-    end subroutine replaceRange
-
   end subroutine convert_3_4
+
+  !> Helper function for Range keyword in convert_3_4
+  subroutine replaceRange(node)
+
+    !> node to process
+    type(fnode), pointer :: node
+
+    type(fnode), pointer :: node2
+    integer :: bounds(2)
+
+    if (associated(node)) then
+      call getChild(node, "Range", node2, requested=.false.)
+      if (associated(node2)) then
+        call getChildValue(node2, "", bounds)
+        call removeChildNodes(node)
+        call setChildValue(node, "", &
+            &i2c(bounds(1)) // ":" // i2c(bounds(2)), replace=.true.)
+        call detailedWarning(node, "Specification 'Range { start end }' &
+            &not supported any more, using 'start:end' instead")
+      end if
+    end if
+
+  end subroutine replaceRange
 
 
   !> Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
