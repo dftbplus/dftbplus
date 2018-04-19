@@ -635,6 +635,9 @@ module initprogram
   !> Produce band.dat
   logical :: tWriteBandDat
 
+  !> write band data in detailed.out
+  logical :: tWriteDetailedOutBands = .true.
+
   !> Should HS (square) be printed?
   logical :: tWriteHS
 
@@ -1004,6 +1007,8 @@ contains
     tFracCoord = input%geom%tFracCoord
 
     solver = input%ctrl%iSolver
+    electronicSolver%solver = solver
+
     electronicSolver%tUsingELSI = .false.
     select case (solver)
     case(4,5,6)
@@ -1304,8 +1309,14 @@ contains
       electronicSolver%ELSI_parallel = 1
       electronicSolver%ELSI_BLACS_DENSE = 0
       electronicSolver%ELSI_n_basis = nAllOrb
-      electronicSolver%ELSI_n_electron = sum(nEl)
-      electronicSolver%ELSI_n_state = nAllOrb
+      electronicSolver%ELSI_n_electron = sum(nEl) !* 0.5_dp
+
+      if (electronicSolver%ELSI_SOLVER == 2) then
+        electronicSolver%ELSI_n_state = nint(electronicSolver%ELSI_n_electron)
+      else
+        electronicSolver%ELSI_n_state = nAllOrb
+      end if
+
       electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
       electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
       electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
@@ -1317,7 +1328,8 @@ contains
     #:endcall DEBUG_CODE
 
       if (solver == 5) then
-        electronicSolver%ELSI_n_state = int(sum(nEl)*0.5_dp) ! spin degeneracies
+        electronicSolver%ELSI_n_state = nint(sum(nEl)*0.5_dp) ! spin degeneracies
+        tWriteDetailedOutBands = .false.
       end if
     #:endif
     end if
@@ -2120,7 +2132,7 @@ contains
     tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
+    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat .and. (solver /= 5)
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
 

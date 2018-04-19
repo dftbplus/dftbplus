@@ -25,6 +25,9 @@ module solvers
     !> Are Choleskii factors already available for the overlap matrix
     logical, public, allocatable :: tCholeskiiDecomposed(:)
 
+    !> Electronic solver number
+    integer :: solver
+
     integer, public :: ELSI_SOLVER_Option
 
   #:if WITH_ELSI
@@ -70,7 +73,8 @@ contains
     call elsi_set_sing_check(this%elsiHandle, 0) ! disable singularity check
     call elsi_set_mpi(this%elsiHandle, this%ELSI_my_COMM_WORLD)
     call elsi_set_blacs(this%elsiHandle,this%ELSI_MPI_COMM_WORLD, this%ELSI_blockSize)
-    if (this%ELSI_SOLVER == 1) then
+    select case(this%ELSI_SOLVER)
+    case(1)
       select case(this%ELSI_SOLVER_option)
       case(1)
         call elsi_set_elpa_solver(this%elsiHandle, 1)
@@ -79,7 +83,9 @@ contains
       case default
         call error("Unknown ELPA solver modes")
       end select
-    end if
+    case(2)
+      call elsi_set_omm_flavor(this%elsiHandle, 0)
+    end select
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)
 
   end subroutine resetELSI

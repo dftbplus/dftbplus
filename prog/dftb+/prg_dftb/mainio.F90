@@ -2257,10 +2257,9 @@ contains
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
-      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
+      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, tWriteBands, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc,&
-      & invLatVec, kPoints)
+      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, invLatVec, kPoints)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2327,6 +2326,9 @@ contains
 
     !> Occupation numbers
     real(dp), intent(in) :: filling(:,:,:)
+
+    !> Should eigenvalues and fillings be printed?
+    logical, intent(in) :: tWriteBands
 
     !> Type containing atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -2495,7 +2497,9 @@ contains
       write(fd, *)
     end if
 
-    call writeDetailedOutEigenvalues(fd, eigen, filling)
+    if (tWriteBands) then
+      call writeDetailedOutEigenvalues(fd, eigen, filling)
+    end if
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
