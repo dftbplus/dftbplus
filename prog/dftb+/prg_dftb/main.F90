@@ -3526,10 +3526,14 @@ contains
           & parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
     else if (tRealHS) then
       if (electronicSolver%solver == 5) then
+      #:if WITH_ELSI
         call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
         ERhoPrim = 0.0_dp
         call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighborList%iNeighbor,&
             & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+      #:else
+        call error("Should not be here without ELSI support included in compilation")
+      #:endif
       else
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen, neighborList,&
             & nNeighbor, orb, iSparseStart, img2CentCell, ham, over, parallelKS, HSqrReal,&
