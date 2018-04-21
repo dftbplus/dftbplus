@@ -80,6 +80,12 @@ module solvers
     real(dp), public :: ELSI_OMM_Tolerance
     logical, public :: ELSI_OMM_Choleskii
 
+    ! PEXSI settings
+    real(dp), public :: ELSI_PEXSI_mu_min
+    real(dp), public :: ELSI_PEXSI_mu_max
+    real(dp), public :: ELSI_PEXSI_DeltaVmin
+    real(dp), public :: ELSI_PEXSI_DeltaVmax
+
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_reset = 0
 
@@ -129,6 +135,7 @@ contains
 
     select case(this%ELSI_SOLVER)
     case(1)
+      ! ELPA
       select case(this%ELSI_ELPA_SOLVER_Option)
       case(1)
         call elsi_set_elpa_solver(this%elsiHandle, 1)
@@ -138,6 +145,7 @@ contains
         call error("Unknown ELPA solver modes")
       end select
     case(2)
+      ! libOMM
       if (this%ELSI_OMM_Choleskii) then
         call elsi_set_omm_flavor(this%elsiHandle, 2)
       else
@@ -145,6 +153,19 @@ contains
       end if
       call elsi_set_omm_n_elpa(this%elsiHandle, this%ELSI_OMM_iter)
       call elsi_set_omm_tol(this%elsiHandle, this%ELSI_OMM_Tolerance)
+
+    case(3)
+      ! PEXSI
+      this%ELSI_PEXSI_mu_min = -10.0_dp
+      this%ELSI_PEXSI_mu_max = 10.0_dp
+      this%ELSI_PEXSI_DeltaVmin = 0.0_dp
+      this%ELSI_PEXSI_DeltaVmax = 0.0_dp
+
+      call elsi_set_pexsi_np_per_pole(this%elsiHandle, 1)
+
+      call elsi_set_pexsi_mu_min(this%elsiHandle, this%ELSI_PEXSI_mu_min +this%ELSI_PEXSI_DeltaVmin)
+      call elsi_set_pexsi_mu_max(this%elsiHandle, this%ELSI_PEXSI_mu_max +this%ELSI_PEXSI_DeltaVmax)
+
     end select
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)
 

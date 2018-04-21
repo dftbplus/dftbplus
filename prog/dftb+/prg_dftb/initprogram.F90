@@ -986,6 +986,8 @@ contains
     select case (electronicSolver%iSolver)
     case(4,5,6)
       ! ELSI
+
+      electronicSolver%tUsingELSI = .true.
       if (.not.withELSI) then
         call error("This binary was not compiled with ELSI support enabled")
       end if
@@ -1269,9 +1271,7 @@ contains
       call error("Less than 0 electrons!")
     end if
 
-    if (electronicSolver%iSolver > 3 .and. electronicSolver%iSolver < 6) then
-
-      electronicSolver%tUsingELSI = .true.
+    if (electronicSolver%iSolver > 3) then
 
     #:if WITH_ELSI
       nAllOrb = nOrb
@@ -1304,13 +1304,16 @@ contains
       electronicSolver%ELSI_OMM_Tolerance = input%ctrl%solver%OMM_Tolerance
       electronicSolver%ELSI_OMM_Choleskii = input%ctrl%solver%OMM_Choleskii
 
+      ! PEXSI settings
+
       ! customize output level, note there are levels 0..3 not DFTB+ 0..2
       electronicSolver%ELSI_OutputLevel = 0
     #:call DEBUG_CODE
       electronicSolver%ELSI_OutputLevel = 3
     #:endcall DEBUG_CODE
 
-      if (electronicSolver%iSolver == 5) then
+      ! electron count, currently for closed shell
+      if (electronicSolver%iSolver >= 5) then
         electronicSolver%ELSI_n_state = nint(sum(nEl)*0.5_dp) ! spin degeneracies
         tWriteDetailedOutBands = .false.
       end if
@@ -2112,7 +2115,7 @@ contains
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
     tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat&
-        & .and. (electronicSolver%iSolver /= 5)
+        & .and. (electronicSolver%iSolver < 5)
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
 
@@ -2415,8 +2418,7 @@ contains
       call error("Should not be here")
     #:endif
     case(6)
-      write (strTmp, "(A)") "ELSI solvers"
-      call error("Terminated")
+      write (strTmp, "(A)") "ELSI solvers PEXSI"
     case default
       call error("Unknown eigensolver!")
     end select

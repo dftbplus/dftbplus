@@ -283,6 +283,10 @@ contains
         end if
         potential%intBlock = potential%intBlock + potential%extBlock
 
+        if (electronicSolver%iSolver == 6) then
+          ! should update Delta V ranges here
+        end if
+
         call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
 
@@ -1640,43 +1644,6 @@ contains
     end if
 
     select case(electronicSolver%iSolver)
-    case(5)
-      ! libOMM
-
-      call env%globalTimer%startTimer(globalTimers%densityMatrix)
-      eigen(:,:,:) = 0.0_dp
-    #:if WITH_SCALAPACK
-
-      call unpackHSRealBlacs(env%blacs, ham(:,1), neighborList%iNeighbor, nNeighbor, iSparseStart,&
-          & img2CentCell, denseDesc, HSqrReal)
-      if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
-        call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
-            & img2CentCell, denseDesc, SSqrReal)
-        if (electronicSolver%ELSI_OMM_Choleskii) then
-          electronicSolver%tCholeskiiDecomposed(1) = .true.
-        end if
-      end if
-
-      if (nSpin == 1) then
-        if (tRealHS) then
-          allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
-          call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
-              & Eband(1))
-        end if
-      end if
-
-      rhoPrim = 0.0_dp
-
-      call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1), neighborList%iNeighbor,&
-          & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,1))
-
-      deallocate(rhoSqrReal)
-
-    #:else
-      call error("Should not be here")
-    #:endif
-
-      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
     case(1,2,3,4)
       call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -1723,6 +1690,57 @@ contains
         filling(:,:,1) = 0.5_dp * filling(:,:,1)
       end if
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+
+    case(5, 6)
+      ! libOMM, PEXSI
+
+      call env%globalTimer%startTimer(globalTimers%densityMatrix)
+      eigen(:,:,:) = 0.0_dp
+    #:if WITH_SCALAPACK
+
+      call unpackHSRealBlacs(env%blacs, ham(:,1), neighborList%iNeighbor, nNeighbor, iSparseStart,&
+          & img2CentCell, denseDesc, HSqrReal)
+      if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
+        call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
+            & img2CentCell, denseDesc, SSqrReal)
+        if (electronicSolver%ELSI_OMM_Choleskii) then
+          electronicSolver%tCholeskiiDecomposed(1) = .true.
+        end if
+      end if
+
+      if (electronicSolver%iSolver == 6) then
+        call elsi_set_pexsi_mu_min(electronicSolver%elsiHandle, electronicSolver%ELSI_PEXSI_mu_min&
+            & + electronicSolver%ELSI_PEXSI_DeltaVmin)
+        call elsi_set_pexsi_mu_max(electronicSolver%elsiHandle, electronicSolver%ELSI_PEXSI_mu_max&
+            & + electronicSolver%ELSI_PEXSI_DeltaVmax)
+      end if
+
+      if (nSpin == 1) then
+        if (tRealHS) then
+          allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
+          call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
+              & Eband(1))
+        end if
+      end if
+
+      if (electronicSolver%iSolver == 6) then
+        call elsi_get_pexsi_mu_min(electronicSolver%elsiHandle, electronicSolver%ELSI_PEXSI_mu_min)
+        call elsi_get_pexsi_mu_max(electronicSolver%elsiHandle, electronicSolver%ELSI_PEXSI_mu_max)
+      end if
+
+      rhoPrim = 0.0_dp
+
+      call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1), neighborList%iNeighbor,&
+          & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,1))
+
+      deallocate(rhoSqrReal)
+
+    #:else
+      call error("Should not be here")
+    #:endif
+
+      call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+
     end select
 
   end subroutine getDensity
@@ -3506,7 +3524,7 @@ contains
           & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
           & parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
     else if (tRealHS) then
-      if (electronicSolver%iSolver == 5) then
+      if (electronicSolver%iSolver >= 5) then
       #:if WITH_ELSI
         call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
         ERhoPrim = 0.0_dp
