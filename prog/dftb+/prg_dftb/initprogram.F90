@@ -1007,7 +1007,7 @@ contains
     electronicSolver%tUsingELSI = .false.
     select case (electronicSolver%iSolver)
     case(4,5,6)
-      ! ELPA
+      ! ELSI
       if (.not.withELSI) then
         call error("This binary was not compiled with ELSI support enabled")
       end if
@@ -1315,6 +1315,8 @@ contains
       electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
       electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
       electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
+
+      electronicSolver%ELSI_mu_broaden_scheme = min(iDistribFn,2)
 
       ! ELPA settings
       electronicSolver%ELSI_ELPA_SOLVER_Option = input%ctrl%solver%ELPA_Solver
@@ -2430,14 +2432,22 @@ contains
     case(3)
       write (strTmp, "(A)") "Relatively robust"
     case(4)
+    #:if WITH_ELSI
       if (electronicSolver%ELSI_ELPA_SOLVER_Option == 1) then
         write (strTmp, "(A)") "ELSI interface to the 1 stage ELPA solver"
       else
         write (strTmp, "(A)") "ELSI interface to the 2 stage ELPA solver"
       end if
+    #:else
+      call error("Should not be here")
+    #:endif
     case(5)
+    #:if WITH_ELSI
       write (strTmp, "(A,I0,A,E8.2)") "ELSI solvers libOMM with ",&
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
+    #:else
+      call error("Should not be here")
+    #:endif
     case(6)
       write (strTmp, "(A)") "ELSI solvers"
       call error("Terminated")

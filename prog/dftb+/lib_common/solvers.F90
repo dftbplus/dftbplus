@@ -58,6 +58,7 @@ module solvers
   #:if WITH_ELSI
     !> Handle for the ELSI library
     type(elsi_handle), public :: elsiHandle
+
     integer, public :: ELSI_SOLVER
     integer, public :: ELSI_OutputLevel
     integer, public :: ELSI_parallel
@@ -69,8 +70,12 @@ module solvers
     integer, public :: ELSI_my_COMM_WORLD
     integer, public :: ELSI_blockSize
 
+    integer, public :: ELSI_mu_broaden_scheme
+
+    ! ELPA settings
     integer, public :: ELSI_ELPA_SOLVER_Option
 
+    ! OMM settings
     integer, public :: ELSI_OMM_iter
     real(dp), public :: ELSI_OMM_Tolerance
     logical, public :: ELSI_OMM_Choleskii
@@ -119,6 +124,9 @@ contains
     call elsi_set_sing_check(this%elsiHandle, 0) ! disable singularity check
     call elsi_set_mpi(this%elsiHandle, this%ELSI_my_COMM_WORLD)
     call elsi_set_blacs(this%elsiHandle,this%ELSI_MPI_COMM_WORLD, this%ELSI_blockSize)
+
+    call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)
+
     select case(this%ELSI_SOLVER)
     case(1)
       select case(this%ELSI_ELPA_SOLVER_Option)
