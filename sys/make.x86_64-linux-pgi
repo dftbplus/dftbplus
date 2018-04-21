@@ -30,6 +30,26 @@ LIB_SCALAPACK = -L$(PGI_LIBDIR)/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib -lsc
 # LAPACK/BLAS
 LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
 
+# ELSI
+ifeq ($(strip $(WITH_ELSI)),1)
+
+# Include directory for ELSI
+ELSIINCDIR := 
+
+# Library path and files for libOMM and ELPA parts of ELSI
+ELSIDIR :=  
+LIB_ELSI := -L$(ELSIDIR) -lelsi -lOMM -lMatrixSwitch -lelpa -lfortjson
+
+ifeq ($(strip $(WITH_PEXSI)),1)
+
+# Scotch and PEXSI libraries
+SCOTCHDIR := 
+LIB_PEXSI := -lpexsi -lsuperlu_dist -L$(SCOTCHDIR) -lptscotchparmetis    \
+-lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr -lstdc++ -lmpi++
+
+endif
+endif
+
 # Any other libraries to be linked
 OTHERLIBS =
 
