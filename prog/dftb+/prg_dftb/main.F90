@@ -293,11 +293,11 @@ contains
         end if
 
         call getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
-            & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
-            & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-            & eigvecsCplx, rhoSqrReal, electronicSolver)
+            & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, electronicSolver,&
+            & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
+            & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband,&
+            & TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
+            & SSqrCplx, eigvecsCplx, rhoSqrReal)
 
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
@@ -1487,11 +1487,11 @@ contains
   !> as those unpacked quantities do not exist elsewhere.
   !>
   subroutine getDensity(env, denseDesc, ham, over, neighborList, nNeighbor, iSparseStart,&
-      & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
+      & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, electronicSolver, tRealHS,&
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal, electronicSolver)
+      & rhoSqrReal)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1535,8 +1535,8 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
 
-    !> Eigensolver choice
-    integer, intent(in) :: solver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> Is the hamitonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
@@ -1628,9 +1628,6 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
-    !> Solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -1643,7 +1640,7 @@ contains
       end if
     end if
 
-    select case(solver)
+    select case(electronicSolver%iSolver)
     case(5)
       ! libOMM
 
@@ -1656,10 +1653,10 @@ contains
       if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
         call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
             & img2CentCell, denseDesc, SSqrReal)
-        electronicSolver%tCholeskiiDecomposed(1) = .true.
+        if (electronicSolver%ELSI_OMM_Choleskii) then
+          electronicSolver%tCholeskiiDecomposed(1) = .true.
+        end if
       end if
-
-      call elsi_set_omm_n_elpa(electronicSolver%elsiHandle, 2)
 
       if (nSpin == 1) then
         if (tRealHS) then
@@ -1688,17 +1685,17 @@ contains
         call qm2ud(ham)
         if (tRealHS) then
           call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-              & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigVecsReal,&
-              & eigen(:,1,:), electronicSolver)
+              & iSparseStart, img2CentCell, electronicSolver, parallelKS, HSqrReal, SSqrReal,&
+              & eigVecsReal, eigen(:,1,:))
         else
           call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-              & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx,&
-              & SSqrCplx, eigVecsCplx, eigen, electronicSolver)
+              & iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver, parallelKS,&
+              & HSqrCplx, SSqrCplx, eigVecsCplx, eigen)
         end if
       else
         call buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen(:,:,1),&
-            & HSqrCplx, SSqrCplx, eigVecsCplx, iHam, electronicSolver, xi, species)
+            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver, parallelKS,&
+            & eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
       end if
       call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
@@ -1734,8 +1731,8 @@ contains
 
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, solver, parallelKS, HSqrReal, SSqrReal, eigvecsReal, eigen,&
-      & electronicSolver)
+      & iSparseStart, img2CentCell, electronicSolver, parallelKS, HSqrReal, SSqrReal, eigvecsReal,&
+      & eigen)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1761,8 +1758,8 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> Eigensolver choice
-    integer, intent(in) :: solver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
@@ -1779,9 +1776,6 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
-    !> Solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
     integer :: iKS, iSpin
 
     eigen(:,:) = 0.0_dp
@@ -1796,8 +1790,8 @@ contains
             & img2CentCell, denseDesc, SSqrReal)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtxBlacs(solver, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal, eigen(:,iSpin)&
-          &, eigvecsReal(:,:,iKS), electronicSolver)
+      call diagDenseMtxBlacs(electronicSolver, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
+          & eigen(:,iSpin), eigvecsReal(:,:,iKS))
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrReal, ham(:,iSpin), neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart&
@@ -1820,8 +1814,8 @@ contains
 
   !> Builds and diagonalises dense k-point dependent Hamiltonians.
   subroutine buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, solver, parallelKS, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, eigen, electronicSolver)
+      & iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver, parallelKS, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, eigen)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1856,8 +1850,8 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> Eigensolver choice
-    integer, intent(in) :: solver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
@@ -1874,9 +1868,6 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:,:)
 
-    !> Solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
     integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
@@ -1892,8 +1883,8 @@ contains
             & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtxBlacs(solver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx,&
-          & SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS), electronicSolver)
+      call diagDenseMtxBlacs(electronicSolver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr,&
+          & HSqrCplx, SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
@@ -1901,7 +1892,7 @@ contains
       call unpackHS(SSqrCplx, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor, iCellVec,&
           & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
+      call diagDenseMtx(electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -1915,8 +1906,8 @@ contains
 
   !> Builds and diagonalizes Pauli two-component Hamiltonians.
   subroutine buildAndDiagDensePauliHam(env, denseDesc, ham, over, kPoint, neighborList, nNeighbor,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, orb, solver, parallelKS, eigen, HSqrCplx,&
-      & SSqrCplx, eigvecsCplx, iHam, electronicSolver, xi, species)
+      & iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver, parallelKS, eigen,&
+      & HSqrCplx, SSqrCplx, eigvecsCplx, iHam, xi, species)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1954,8 +1945,8 @@ contains
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Eigensolver choice
-    integer, intent(in) :: solver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
@@ -1974,9 +1965,6 @@ contains
 
     !> imaginary part of the hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
-
-    !> Solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
@@ -2019,10 +2007,10 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
-      call diagDenseMtxBlacs(solver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx,&
-          & SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS), electronicSolver)
+      call diagDenseMtxBlacs(electronicSolver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr,&
+          & HSqrCplx, SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS))
     #:else
-      call diagDenseMtx(solver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
+      call diagDenseMtx(electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
@@ -3447,7 +3435,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> Solver information
+    !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> Dense matrix descriptor
@@ -3525,7 +3513,7 @@ contains
           & neighborList, nNeighbor, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
           & parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
     else if (tRealHS) then
-      if (electronicSolver%solver == 5) then
+      if (electronicSolver%iSolver == 5) then
       #:if WITH_ELSI
         call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
         ERhoPrim = 0.0_dp

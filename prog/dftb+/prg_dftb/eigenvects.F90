@@ -49,10 +49,10 @@ contains
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
   !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
-  subroutine diagDenseRealMtx(iSolver, jobz, HSqrReal, SSqrReal, eigen)
+  subroutine diagDenseRealMtx(electronicSolver, jobz, HSqrReal, SSqrReal, eigen)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
@@ -73,7 +73,7 @@ contains
     @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    select case(iSolver)
+    select case(electronicSolver%iSolver)
     case(1)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(2)
@@ -90,10 +90,10 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
   !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
   !> effect of lapack)
-  subroutine diagDenseComplexMtx(iSolver, jobz, HSqrCplx, SSqrCplx, eigen)
+  subroutine diagDenseComplexMtx(electronicSolver, jobz, HSqrCplx, SSqrCplx, eigen)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
@@ -113,7 +113,7 @@ contains
     @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    select case(iSolver)
+    select case(electronicSolver%iSolver)
     case(1)
       call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(2)
@@ -132,11 +132,10 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseRealMtxBlacs(iSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs,&
-      & electronicSolver)
+  subroutine diagDenseRealMtxBlacs(electronicSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
     character, intent(in) :: jobz
@@ -157,9 +156,6 @@ contains
     !> Eigenvectors
     real(dp), intent(out) :: eigenVecs(:,:)
 
-    !> Solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
     real(dp), save, allocatable :: SSqrTmp(:,:)
 
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -175,7 +171,7 @@ contains
       SSqrTmp = SSqr
     end if
 
-    select case(iSolver)
+    select case(electronicSolver%iSolver)
     case(1)
       call scalafx_psygv(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
           & jobz=jobz, skipchol=electronicSolver%tCholeskiiDecomposed(1))
@@ -213,11 +209,11 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseCplxMtxBlacs(iSolver, parallelKS, iKS, jobz, desc, HSqr, SSqr, eigenVals,&
-      & eigenVecs, electronicSolver)
+  subroutine diagDenseCplxMtxBlacs(electronicSolver, parallelKS, iKS, jobz, desc, HSqr, SSqr,&
+      & eigenVals, eigenVecs)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> K-points and spins in use
     type(TParallelKS), intent(in) :: parallelKS
@@ -244,9 +240,6 @@ contains
     !> Eigenvectors
     complex(dp), intent(out) :: eigenVecs(:,:)
 
-    !> Solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
     complex(dp), save, allocatable :: SSqrTmp(:,:,:)
 
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -263,7 +256,7 @@ contains
       SSqr = SSqrTmp(:,:,iKS)
     end if
 
-    select case(iSolver)
+    select case(electronicSolver%iSolver)
     case(1)
       call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz, &
           & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))

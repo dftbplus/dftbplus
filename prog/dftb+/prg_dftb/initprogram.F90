@@ -351,10 +351,6 @@ module initprogram
   !> MD stepsize
   real(dp) :: deltaT
 
-
-  !> eigensolver
-  integer :: solver
-
   !> maximal number of SCC iterations
   integer :: maxSccIter
 
@@ -1006,11 +1002,10 @@ contains
     end if
     tFracCoord = input%geom%tFracCoord
 
-    solver = input%ctrl%iSolver
-    electronicSolver%solver = solver
+    electronicSolver%iSolver = input%ctrl%solver%iSolver
 
     electronicSolver%tUsingELSI = .false.
-    select case (solver)
+    select case (electronicSolver%iSolver)
     case(4,5,6)
       ! ELPA
       if (.not.withELSI) then
@@ -1296,7 +1291,7 @@ contains
       call error("Less than 0 electrons!")
     end if
 
-    if (solver > 3 .and. solver < 6) then
+    if (electronicSolver%iSolver > 3 .and. electronicSolver%iSolver < 6) then
 
       electronicSolver%tUsingELSI = .true.
 
@@ -1305,7 +1300,7 @@ contains
       if (t2Component) then
         nAllOrb = 2 * nAllOrb
       end if
-      electronicSolver%ELSI_SOLVER = solver -3
+      electronicSolver%ELSI_SOLVER = electronicSolver%iSolver -3
       electronicSolver%ELSI_parallel = 1
       electronicSolver%ELSI_BLACS_DENSE = 0
       electronicSolver%ELSI_n_basis = nAllOrb
@@ -1320,14 +1315,22 @@ contains
       electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
       electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
       electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
-      electronicSolver%ELSI_SOLVER_option = input%ctrl%iSolverOption
+
+      ! ELPA settings
+      electronicSolver%ELSI_ELPA_SOLVER_Option = input%ctrl%solver%ELPA_Solver
+
+      ! OMM settings
+      electronicSolver%ELSI_OMM_iter = input%ctrl%solver%OMM_IterationsELPA
+      electronicSolver%ELSI_OMM_Tolerance = input%ctrl%solver%OMM_Tolerance
+      electronicSolver%ELSI_OMM_Choleskii = input%ctrl%solver%OMM_Choleskii
+
       ! customize output level, note there are levels 0..3 not DFTB+ 0..2
       electronicSolver%ELSI_OutputLevel = 0
     #:call DEBUG_CODE
       electronicSolver%ELSI_OutputLevel = 3
     #:endcall DEBUG_CODE
 
-      if (solver == 5) then
+      if (electronicSolver%iSolver == 5) then
         electronicSolver%ELSI_n_state = nint(sum(nEl)*0.5_dp) ! spin degeneracies
         tWriteDetailedOutBands = .false.
       end if
@@ -2132,7 +2135,8 @@ contains
     tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat .and. (solver /= 5)
+    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat&
+        & .and. (electronicSolver%iSolver /= 5)
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
 
@@ -2418,7 +2422,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
-    select case (solver)
+    select case (electronicSolver%iSolver)
     case(1)
       write (strTmp, "(A)") "Standard"
     case(2)
@@ -2426,13 +2430,14 @@ contains
     case(3)
       write (strTmp, "(A)") "Relatively robust"
     case(4)
-      if (electronicSolver%ELSI_SOLVER_option == 1) then
+      if (electronicSolver%ELSI_ELPA_SOLVER_Option == 1) then
         write (strTmp, "(A)") "ELSI interface to the 1 stage ELPA solver"
       else
         write (strTmp, "(A)") "ELSI interface to the 2 stage ELPA solver"
       end if
     case(5)
-      write (strTmp, "(A)") "ELSI solvers libOMM"
+      write (strTmp, "(A,I0,A,E8.2)") "ELSI solvers libOMM with ",&
+          & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
     case(6)
       write (strTmp, "(A)") "ELSI solvers"
       call error("Terminated")

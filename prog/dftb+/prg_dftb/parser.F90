@@ -1606,27 +1606,34 @@ contains
     call getNodeName(value, buffer)
     select case(char(buffer))
     case ("qr")
-      ctrl%iSolver = 1
+      ctrl%solver%isolver = 1
     case ("divideandconquer")
-      ctrl%iSolver = 2
+      ctrl%solver%isolver = 2
     case ("relativelyrobust")
-      ctrl%iSolver = 3
+      ctrl%solver%isolver = 3
     case ("elpa")
       if (.not.withELSI) then
         call error("Not compiled with ELPA support via ELSI")
       end if
-      ctrl%iSolver = 4
-      call getChildValue(value, "Mode", ctrl%iSolverOption, 2)
+      ctrl%solver%isolver = 4
+    #:if WITH_ELSI
+      call getChildValue(value, "Mode", ctrl%solver%ELPA_Solver, 2)
+    #:endif
     case ("omm")
       if (.not.withELSI) then
         call error("Not compiled with libOMM support via ELSI")
       end if
-      ctrl%iSolver = 5
+      ctrl%solver%isolver = 5
+    #:if WITH_ELSI
+      call getChildValue(value, "nIterationsELPA", ctrl%solver%OMM_IterationsELPA, 5)
+      call getChildValue(value, "Tolerance", ctrl%solver%OMM_Tolerance, 1.0E-10_dp)
+      call getChildValue(value, "Choleskii", ctrl%solver%OMM_Choleskii, .true.)
+    #:endif
     case ("pexsi")
       if (.not.withPEXSI) then
         call error("Not compiled with PEXSI support via ELSI")
       end if
-      ctrl%iSolver = 6
+      ctrl%solver%isolver = 6
     end select
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD

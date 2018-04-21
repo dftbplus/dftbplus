@@ -18,6 +18,7 @@ module inputdata_module
   use slakocont
   use commontypes
   use repcont
+  use solvers
   use linkedlist
   use xlbomd_module
 #:if WITH_SOCKETS
@@ -195,8 +196,10 @@ module inputdata_module
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
     logical :: tDFTBU        = .false.
-    integer :: iSolver       = 0
-    integer :: iSolverOption = 0
+
+    !> Electronic/eigenvalue solver options
+    type(TElectronicSolverInp) :: solver
+
     integer :: iMixSwitch    = 0
     integer :: maxIter       = 0
     real(dp) :: almix         = 0.0_dp

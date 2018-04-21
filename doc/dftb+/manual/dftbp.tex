@@ -1698,9 +1698,12 @@ Example:\invparskip
 For ScaLAPACK enabled compilation, all three solvers are also available.
 
 If the ELSI library is also included~\cite{YU2018267}, the additional \kw{ELPA}
-solver becomes available. This is avalable with either single or two stage
-solution methods (the second of these is claimed to be more efficiently parallel
-for large problems).
+and \kw{OMM} solvers become available.
+
+\subsubsection{ELPA}
+
+This is avalable with either single or two stage solution methods (the second of
+these is claimed to be more efficiently parallel for large problems).
 
 Example:\invparskip
 \begin{verbatim}
@@ -1713,6 +1716,29 @@ One caveat for this solver is that the number of parallel groups (see
 p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
 case of collinear spin polarisation). Calculations without k-points can use
 either one or two groups in the case of collinear spin polarisation.
+
+\subsubsection{OMM}
+
+This method minimises the single particle density matrix, so does not make band
+structure information available. It is only stable for insulating grounds
+states, i.e., systems with a HOMO-LUMO (band) gap.
+
+The orbital minimisation method has three options:
+
+\begin{ptable}
+  \kw{nInterationsELPA} & i& & 5 & \\
+  \kw{Tolerance} & r& & 1E-10 & \\
+  \kw{Choleskii} & l& & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{nInterationsELPA}] Number of initial iterations to be performed with
+  ELPA before the OMM method starts.
+\item[\is{Tolerance}] Minimisation tolerance for this solver, larger values are
+  faster by may be less stable.
+\item[\is{Choleskii}] Whether the overlap is Choleskii factorised before
+  applying OMM. This may increase stability of this method.
+\end{description}
+
 
 \subsection{Filling}
 \label{sec:dftbp.Filling}
