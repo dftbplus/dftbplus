@@ -28,6 +28,7 @@ module parser
   use periodic
   use simplealgebra, only: determinant33
   use dispersions
+  use dftbplusu
   use slakocont
   use slakoeqgrid
   use repcont
@@ -707,7 +708,7 @@ contains
         end if
       case default
         call getNodeHSDName(value, buffer2)
-        call detailedError(child, "Invalid thermostat '" // char(buffer) // "'")
+        call detailedError(child, "Invalid thermostat '" // char(buffer2) // "'")
       end select thermostat
 
       if (ctrl%maxRun < -1) then
@@ -1844,10 +1845,9 @@ contains
       call getChildValue(child, "Functional", buffer, "fll")
       select case(tolower(char(buffer)))
       case ("fll")
-        ctrl%DFTBUfunc = 1 ! change this to get value from DFTB+U module named variables to avoid
-        ! ambiguity
+        ctrl%DFTBUfunc = plusUFunctionals%fll
       case ("psic")
-        ctrl%DFTBUfunc = 2
+        ctrl%DFTBUfunc = plusUFunctionals%pSic
       case default
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
@@ -1950,10 +1950,6 @@ contains
 
       ctrl%tDFTBU = .true.
 
-    end if
-
-    if (ctrl%tDFTBU .and. .not. ctrl%tSpin) then
-      call error("DFTB+U only supported for spin polarised calculations.")
     end if
 
     ! Dispersion

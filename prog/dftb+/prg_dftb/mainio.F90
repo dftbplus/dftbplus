@@ -106,15 +106,12 @@ module mainio
 contains
 
   !> Writes the eigenvectors to disc.
-  subroutine writeEigenvectors(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec,&
+  subroutine writeEigenvectors(env, runId, neighborList, nNeighbor, cellVec, iCellVec,&
       & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
       & tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-
-    !> File ID for ground state eigenvectors
-    integer, intent(in) :: fd
 
     !> Job ID for future identification
     integer, intent(in) :: runId
@@ -177,11 +174,11 @@ contains
     @:ASSERT(allocated(SSqrReal) .neqv. allocated(SSqrCplx))
 
     if (allocated(eigvecsCplx)) then
-      call writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
+      call writeCplxEigvecs(env, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
           & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
           & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx)
     else
-      call writeRealEigvecs(env, fd, runId, neighborList, nNeighbor, denseDesc, iPair,&
+      call writeRealEigvecs(env, runId, neighborList, nNeighbor, denseDesc, iPair,&
           & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt,&
           & eigvecsReal, SSqrReal)
     end if
@@ -190,15 +187,12 @@ contains
 
 
   !> Writes real eigenvectors
-  subroutine writeRealEigvecs(env, fd, runId, neighborList, nNeighbor, denseDesc, iPair,&
+  subroutine writeRealEigvecs(env, runId, neighborList, nNeighbor, denseDesc, iPair,&
       & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt, eigvecsReal,&
       & SSqrReal, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-
-    !> File ID for ground state eigenvectors
-    integer, intent(in) :: fd
 
     !> Job ID for future identification
     integer, intent(in) :: runId
@@ -246,17 +240,16 @@ contains
     character(len=*), intent(in), optional :: fileName
 
   #:if WITH_SCALAPACK
-    call writeRealEigvecsBinBlacs(env, denseDesc, eigvecsReal, fd, runId, parallelKS,&
-        & fileName=fileName)
+    call writeRealEigvecsBinBlacs(env, denseDesc, eigvecsReal, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
-      call writeRealEigvecsTxtBlacs(env, denseDesc, eigvecsReal, fd, parallelKS, orb, over,&
+      call writeRealEigvecsTxtBlacs(env, denseDesc, eigvecsReal, parallelKS, orb, over,&
           & neighborList%iNeighbor, nNeighbor, iPair, img2CentCell, species, speciesName,&
           & fileName=fileName)
     end if
   #:else
-    call writeRealEigvecsBinSerial(eigvecsReal, fd, runId, parallelKS, fileName=fileName)
+    call writeRealEigvecsBinSerial(eigvecsReal, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
-      call writeRealEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+      call writeRealEigvecsTxtSerial(neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
           & orb, species, speciesName, over, parallelKS, eigvecsReal, SSqrReal, fileName=fileName)
     end if
   #:endif
@@ -265,15 +258,12 @@ contains
 
 
   !> Writes complex eigenvectors.
-  subroutine writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec,&
-      & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
-      & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName)
+  subroutine writeCplxEigvecs(env, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
+      & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS, tPrintEigvecsTxt,&
+      & eigvecsCplx, SSqrCplx, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-
-    !> File ID for ground state eigenvectors
-    integer, intent(in) :: fd
 
     !> Job ID for future identification
     integer, intent(in) :: runId
@@ -330,28 +320,27 @@ contains
     character(len=*), intent(in), optional :: fileName
 
   #:if WITH_SCALAPACK
-    call writeCplxEigvecsBinBlacs(env, denseDesc, eigvecsCplx, fd, runId, parallelKS,&
-        & fileName=fileName)
+    call writeCplxEigvecsBinBlacs(env, denseDesc, eigvecsCplx, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
-        call writePauliEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, parallelKS, orb, over,&
-            & kPoint, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell,&
-            & species, speciesName, fileName=fileName)
+        call writePauliEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, parallelKS, orb, over, kPoint,&
+            & neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell, species,&
+            & speciesName, fileName=fileName)
       else
-        call writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, parallelKS, orb, over,&
-            & kPoint, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell,&
-            & species, speciesName, fileName=fileName)
+        call writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, parallelKS, orb, over, kPoint,&
+            & neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell, species,&
+            & speciesName, fileName=fileName)
       end if
     end if
   #:else
-    call writeCplxEigvecsBinSerial(eigvecsCplx, fd, runId, parallelKS, fileName=fileName)
+    call writeCplxEigvecsBinSerial(eigvecsCplx, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
-        call writePauliEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair,&
-            & img2CentCell, iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint,&
-            & eigvecsCplx, SSqrCplx, fileName=fileName)
+        call writePauliEigvecsTxtSerial(neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+            & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint, eigvecsCplx,&
+            & SSqrCplx, fileName=fileName)
       else
-        call writeCplxEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+        call writeCplxEigvecsTxtSerial(neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
             & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint, eigvecsCplx,&
             & SSqrCplx, fileName=fileName)
       end if
@@ -366,7 +355,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into binary output file (BLACS version).
-  subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, fd, runId, parallelKS, fileName)
+  subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, runId, parallelKS, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -376,9 +365,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     ${DTYPE}$(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Id of the current program run.
     integer, intent(in) :: runId
@@ -392,7 +378,7 @@ contains
     type(linecomm) :: collector
     ${DTYPE}$(dp), allocatable :: localEigvec(:)
     integer :: nOrb
-    integer :: iKS, iGroup, iEig
+    integer :: iKS, iGroup, iEig, fd
 
     nOrb = denseDesc%fullSize
     allocate(localEigvec(nOrb))
@@ -448,13 +434,10 @@ contains
 #:else
 
   !> Writes ${DTYPE}$ eigenvectors in binary format.
-  subroutine write${NAME}$EigvecsBinSerial(eigvecs, fd, runId, parallelKS, fileName)
+  subroutine write${NAME}$EigvecsBinSerial(eigvecs, runId, parallelKS, fileName)
 
     !> Square Hamiltonian (or work array)
     ${DTYPE}$(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Id of the current program run.
     integer, intent(in) :: runId
@@ -466,7 +449,7 @@ contains
     character(len=*), intent(in), optional :: fileName
 
     integer :: iKS, iSpin
-    integer :: ii
+    integer :: ii, fd
 
     call prepareEigvecFileBin(fd, runId, fileName)
     do iKS = 1, parallelKS%nLocalKS
@@ -487,7 +470,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
-  subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, parallelKS, orb, over,&
+  subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, parallelKS, orb, over,&
       & iNeighbor, nNeighbor, iSparseStart, img2CentCell, species, speciesName, fileName)
 
     !> Environment settings
@@ -498,9 +481,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     real(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -536,7 +516,7 @@ contains
     real(dp), allocatable :: localEigvec(:), localFrac(:)
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:)
     integer :: nOrb, nAtom
-    integer :: iKS, iS, iGroup, iEig
+    integer :: iKS, iS, iGroup, iEig, fd
 
     nOrb = denseDesc%fullSize
     nAtom = size(nNeighbor)
@@ -615,11 +595,8 @@ contains
 #:else
 
     !> Writes real eigenvectors in text form.
-  subroutine writeRealEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writeRealEigvecsTxtSerial(neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
       & orb, species, speciesName, over, parallelKS, eigvecs, SSqr, fileName)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighlist
@@ -662,7 +639,7 @@ contains
 
     real(dp), allocatable :: rVecTemp(:)
     integer :: nAtom
-    integer :: iKS, iS, iEig
+    integer :: iKS, iS, iEig, fd
 
     nAtom = size(nNeighbor)
     call prepareEigvecFileTxt(fd, .false., fileName)
@@ -688,9 +665,9 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, parallelKS, orb, over,&
-      & kPoints, iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
-      & speciesName, fileName)
+  subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, parallelKS, orb, over, kPoints,&
+      & iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species, speciesName,&
+      & fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -700,9 +677,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fdEigvec
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -748,7 +722,7 @@ contains
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     real(dp), allocatable :: localFrac(:), globalFrac(:,:)
     integer :: nEigvec, nAtom
-    integer :: iKS, iK, iS, iGroup, iEig
+    integer :: iKS, iK, iS, iGroup, iEig, fd
 
     nEigvec = denseDesc%nOrb
     nAtom = size(nNeighbor)
@@ -762,7 +736,7 @@ contains
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
     if (env%mpi%tGlobalMaster) then
-      call prepareEigvecFileTxt(fdEigvec, .false., fileName)
+      call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
     if (env%mpi%tGlobalMaster) then
@@ -789,8 +763,8 @@ contains
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
               call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
-            call writeSingleCplxEigvecTxt(fdEigvec, localEigvec, localFrac, iS, iK, iEig, orb,&
-                & species, speciesName, nAtom)
+            call writeSingleCplxEigvecTxt(fd, localEigvec, localFrac, iS, iK, iEig, orb, species,&
+                & speciesName, nAtom)
           end do
         end do group
       end do
@@ -818,7 +792,7 @@ contains
     end if
 
     if (env%mpi%tGlobalMaster) then
-      close(fdEigvec)
+      close(fd)
     end if
 
   end subroutine writeCplxEigvecsTxtBlacs
@@ -826,12 +800,9 @@ contains
 #:else
 
     !> Writes complex eigenvectors in text form.
-  subroutine writeCplxEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writeCplxEigvecsTxtSerial(neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
       & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoints, eigvecs, SSqr,&
       & fileName)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighlist
@@ -884,7 +855,7 @@ contains
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:)
     integer :: nEigvecs, nAtom
-    integer :: iKS, iK, iS, iEig
+    integer :: iKS, iK, iS, iEig, fd
 
     nAtom = size(nNeighbor)
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
@@ -914,7 +885,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, parallelKS, orb, over, kPoints,&
+  subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, parallelKS, orb, over, kPoints,&
       & iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species, speciesName,&
       & fileName)
 
@@ -926,9 +897,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -974,7 +942,7 @@ contains
     complex(dp), allocatable :: localEigvec(:), localSDotC(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: nAtom, nOrb
-    integer :: iKS, iK, iGroup, iEig
+    integer :: iKS, iK, iGroup, iEig, fd
 
     nOrb = denseDesc%fullSize
     nAtom = size(nNeighbor)
@@ -1056,12 +1024,9 @@ contains
 #:else
 
     !> Writes complex eigenvectors in text form.
-  subroutine writePauliEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writePauliEigvecsTxtSerial(neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
       & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoints, eigvecs, SSqr,&
       & fileName)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Neighbor list.
     type(TNeighborList), intent(in) :: neighlist
@@ -1114,7 +1079,7 @@ contains
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:,:)
     integer :: nEigvecs, nAtom
-    integer :: iKS, iK, iEig
+    integer :: iKS, iK, iEig, fd
 
     nAtom = size(nNeighbor)
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
@@ -1141,7 +1106,7 @@ contains
 
 
   !> Write projected eigenvectors.
-  subroutine writeProjectedEigenvectors(env, regionLabels, fd, eigen, neighborList, nNeighbor,&
+  subroutine writeProjectedEigenvectors(env, regionLabels, eigen, neighborList, nNeighbor,&
       & cellVec, iCellVec, denseDesc, iPair, img2CentCell, orb, over, kPoint, kWeight, iOrbRegion,&
       & parallelKS, eigvecsReal, workReal, eigvecsCplx, workCplx)
 
@@ -1150,9 +1115,6 @@ contains
 
     !> File name prefix for each region
     type(ListCharLc), intent(inout) :: regionLabels
-
-    !> File descriptor for each region
-    integer, intent(in) :: fd(:)
 
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
@@ -1189,6 +1151,8 @@ contains
 
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
+
+    !> Orbital regions to project
     type(ListIntR1), intent(inout) :: iOrbRegion
 
     !> K-points and spins to process
@@ -1212,31 +1176,31 @@ contains
   #:if WITH_SCALAPACK
     if (allocated(eigvecsCplx)) then
       if (denseDesc%t2Component) then
-        call writeProjPauliEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
+        call writeProjPauliEigvecsBlacs(env, denseDesc, regionLabels, iOrbRegion, eigen,&
             & eigvecsCplx, orb, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
             & img2CentCell, iCellVec, cellVec)
       else
-        call writeProjCplxEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen&
+        call writeProjCplxEigvecsBlacs(env, denseDesc, regionLabels, iOrbRegion, eigen&
             &,eigvecsCplx, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
             & img2CentCell, iCellVec, cellVec)
       end if
     else
-      call writeProjRealEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
+      call writeProjRealEigvecsBlacs(env, denseDesc, regionLabels, iOrbRegion, eigen,&
           & eigvecsReal, parallelKS, over, neighborList, nNeighbor, iPair, img2CentCell)
     end if
   #:else
     if (allocated(eigvecsCplx)) then
       if (denseDesc%t2Component) then
-        call writeProjPauliEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
+        call writeProjPauliEigvecsSerial(regionLabels, eigen, neighborList, nNeighbor, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       else
-        call writeProjCplxEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
+        call writeProjCplxEigvecsSerial(regionLabels, eigen, neighborList, nNeighbor, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       end if
     else
-      call writeProjRealEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, denseDesc,&
+      call writeProjRealEigvecsSerial(regionLabels, eigen, neighborList, nNeighbor, denseDesc,&
           & iPair, img2CentCell, over, parallelKS, eigvecsReal, workReal, iOrbRegion)
     end if
   #:endif
@@ -1247,7 +1211,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
-  subroutine writeProjRealEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
+  subroutine writeProjRealEigvecsBlacs(env, denseDesc, fileNames, iOrbRegion, eigvals,&
       & eigvecs, parallelKS, over, neighborList, nNeighbor, iSparseStart, img2CentCell)
 
     !> Environment settings
@@ -1258,9 +1222,6 @@ contains
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> File descriptor for a not yet opened file for  each region
-    integer, intent(in) :: fd(:)
 
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
@@ -1293,8 +1254,10 @@ contains
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:), localFrac(:)
     integer :: nOrb, nReg
     integer :: iKS, iS, iGroup, iEig
+    integer, allocatable :: fd(:)
 
-    nReg = size(fd)
+    nReg = len(iOrbRegion)
+    allocate(fd(nReg))
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1364,14 +1327,11 @@ contains
 #:else
 
     !> Write the projected eigenstates into text files
-  subroutine writeProjRealEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, denseDesc,&
+  subroutine writeProjRealEigvecsSerial(fileNames, eigvals, neighlist, nNeighbor, denseDesc,&
       & iPair, img2CentCell, over, parallelKS, eigvecs, work, iOrbRegion)
 
     !> List with fileNames for each region
     type(listCharLc), intent(inout) :: fileNames
-
-    !> File unit IDs for each of the regions
-    integer, intent(in) :: fd(:)
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1408,6 +1368,9 @@ contains
 
     integer :: iKS, iS, iEig
     real(dp), allocatable :: rVecTemp(:)
+    integer, allocatable :: fd(:)
+
+    allocate(fd(len(iOrbRegion)))
 
     call prepareProjEigvecFiles(fd, fileNames)
 
@@ -1425,6 +1388,8 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
+    call finishProjEigvecFiles(fd)
+
   end subroutine writeProjRealEigvecsSerial
 
 #:endif
@@ -1433,7 +1398,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeProjCplxEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
+  subroutine writeProjCplxEigvecsBlacs(env, denseDesc, fileNames, iOrbRegion, eigvals,&
       & eigvecs, parallelKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec)
 
@@ -1445,9 +1410,6 @@ contains
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> File descriptor for a not yet opened file for  each region
-    integer, intent(in) :: fd(:)
 
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
@@ -1493,8 +1455,10 @@ contains
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: nOrb, nReg
     integer :: iKS, iK, iS, iGroup, iEig
+    integer, allocatable :: fd(:)
 
-    nReg = size(fd)
+    nReg = len(iOrbRegion)
+    allocate(fd(nReg))
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1567,15 +1531,12 @@ contains
 #:else
 
   !> Write the projected complex eigenstates into text files.
-  subroutine writeProjCplxEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
+  subroutine writeProjCplxEigvecsSerial(fileNames, eigvals, neighlist, nNeighbor, cellVec,&
       & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, parallelKS, eigvecs,&
       & work, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd(:)
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1624,8 +1585,10 @@ contains
 
     integer :: iKS, iS, iK, iEig, nOrb
     complex(dp), allocatable :: cVecTemp(:)
+    integer, allocatable :: fd(:)
 
     nOrb = denseDesc%fullSize
+    allocate(fd(len(iOrbRegion)))
 
     call prepareProjEigvecFiles(fd, fileNames)
 
@@ -1654,7 +1617,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeProjPauliEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
+  subroutine writeProjPauliEigvecsBlacs(env, denseDesc, fileNames, iOrbRegion, eigvals,&
       & eigvecs, orb, parallelKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
       & img2CentCell, iCellVec, cellVec)
 
@@ -1666,9 +1629,6 @@ contains
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> File descriptor for a not yet opened file for  each region
-    integer, intent(in) :: fd(:)
 
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
@@ -1718,7 +1678,9 @@ contains
     real(dp), allocatable :: fracs(:,:)
     integer :: nOrb
     integer :: iKS, iK, iGroup, iEig
+    integer, allocatable :: fd(:)
 
+    allocate(fd(len(iOrbRegion)))
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1800,15 +1762,12 @@ contains
 #:else
 
   !> Write the projected complex eigenstates into text files.
-  subroutine writeProjPauliEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
+  subroutine writeProjPauliEigvecsSerial(fileNames, eigvals, neighlist, nNeighbor, cellVec,&
       & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, parallelKS, eigvecs,&
       & work, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd(:)
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1859,7 +1818,9 @@ contains
     real(dp), allocatable :: fracs(:,:)
     integer :: nOrb
     integer :: iKS, iK, iEig
+    integer, allocatable :: fd(:)
 
+    allocate(fd(len(iOrbRegion)))
     nOrb = denseDesc%fullSize
 
     call prepareProjEigvecFiles(fd, fileNames)
@@ -1894,23 +1855,27 @@ contains
     character(*), intent(in) :: fileName
 
     !> Associated file ID
-    integer, intent(out) :: fd
+    integer, intent(out), optional :: fd
 
-    fd = getFileId()
-    open(fd, file=fileName, action="write", status="replace")
-    close(fd)
+    integer :: fdTmp
+
+    if (present(fd)) then
+      fd = getFileId()
+      open(fd, file=fileName, action="write", status="replace")
+      close(fd)
+    else
+      open(newUnit=fdTmp, file=fileName, action="write", status="replace")
+      close(fdTmp)
+    end if
 
   end subroutine initOutputFile
 
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
+  subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
       & gibbsFree, endCoords, tLocalise, localisation, esp)
-
-    !> File ID to write to
-    integer, intent(in) :: fd
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1967,9 +1932,9 @@ contains
     type(TElStatPotentials), allocatable, intent(in) :: esp
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
+    integer :: fd
 
-
-    open(fd, file=fileName, action="write", status="old", position="append")
+    open(newunit=fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
       call writeTagged(fd, tag_volume, cellVol)
     end if
@@ -2015,11 +1980,8 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fd, fileName, energy, derivs, chrgForces, tStress, totalStress,&
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress, totalStress,&
       & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
-
-    !> File ID to write to
-    integer, intent(in) :: fd
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2058,10 +2020,11 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
+    integer :: fd
 
     @:ASSERT(tPeriodic .eqv. tStress)
 
-    open(fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
 
     call writeTagged(fd, tag_freeEgy, energy%EMermin)
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
@@ -2195,10 +2158,7 @@ contains
 
 
   !> Write the band structure data out
-  subroutine writeBandOut(fd, fileName, eigen, filling, kWeight)
-
-    !> File  ID
-    integer, intent(in) :: fd
+  subroutine writeBandOut(fileName, eigen, filling, kWeight)
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2212,9 +2172,9 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
-    integer :: iSpin, iK, iEgy
+    integer :: iSpin, iK, iEgy, fd
 
-    open(unit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     do iSpin = 1, size(eigen, dim=3)
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
@@ -2232,10 +2192,7 @@ contains
 
 
   !> Write the second derivative matrix
-  subroutine writeHessianOut(fd, fileName, pDynMatrix)
-
-    !> File ID
-    integer, intent(in) :: fd
+  subroutine writeHessianOut(fileName, pDynMatrix)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2243,9 +2200,9 @@ contains
     !> Dynamical (Hessian) matrix
     real(dp), intent(in) :: pDynMatrix(:,:)
 
-    integer :: ii
+    integer :: ii, fd
 
-    open(unit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     do ii = 1, size(pDynMatrix, dim=2)
       write(fd, formatHessian) pDynMatrix(:, ii)
     end do
@@ -3244,13 +3201,10 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, fdCharges, tWriteBinary, orb, qInput, qBlockIn, qiBlockIn)
+  subroutine writeCharges(fCharges, tWriteBinary, orb, qInput, qBlockIn, qiBlockIn)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
-
-    !> File descriptor for charge output
-    integer, intent(in) :: fdCharges
 
     !> Charges should be output in binary (T) or ascii (F)
     logical, intent(in) :: tWriteBinary
@@ -3269,12 +3223,12 @@ contains
 
     if (allocated(qBlockIn)) then
       if (allocated(qiBlockIn)) then
-        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn, qiBlockIn)
+        call writeQToFile(qInput, fCharges, tWriteBinary, orb, qBlockIn, qiBlockIn)
       else
-        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn)
+        call writeQToFile(qInput, fCharges, tWriteBinary, orb, qBlockIn)
       end if
     else
-      call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb)
+      call writeQToFile(qInput, fCharges, tWriteBinary, orb)
     end if
     write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)
 
@@ -3830,8 +3784,8 @@ contains
   !> Prepares binary eigenvector file for writing.
   subroutine prepareEigvecFileBin(fd, runId, fileName)
 
-    !> File descriptor to use
-    integer, intent(in) :: fd
+    !> New file ID for the results
+    integer, intent(out) :: fd
 
     !> Run id to write into the file header
     integer, intent(in) :: runId
@@ -3843,9 +3797,9 @@ contains
 
     if (present(fileName)) then
       write(tmpStr, "(A,A)") trim(fileName), ".bin"
-      open(fd, file=tmpStr, action="write", status="replace", form="unformatted")
+      open(newunit=fd, file=tmpStr, action="write", status="replace", form="unformatted")
     else
-      open(fd, file=eigvecBin, action="write", status="replace", form="unformatted")
+      open(newunit=fd, file=eigvecBin, action="write", status="replace", form="unformatted")
     end if
     write(fd) runId
 
@@ -3855,8 +3809,8 @@ contains
   !> Prepares text eigenvector file for writing.
   subroutine prepareEigvecFileTxt(fd, t2Component, fileName)
 
-    !> File descriptor to use
-    integer, intent(in) :: fd
+    !> New file ID for the results
+    integer, intent(out) :: fd
 
     !> Whether eigenvectors present 2-component Pauli vectors
     logical, intent(in) :: t2Component
@@ -3868,9 +3822,9 @@ contains
 
     if (present(fileName)) then
       write(tmpStr, "(A,A)") trim(fileName), ".out"
-      open(fd, file=tmpStr, action="write", status="replace", position="rewind")
+      open(newunit=fd, file=tmpStr, action="write", status="replace", position="rewind")
     else
-      open(fd, file=eigvecOut, action="write", status="replace", position="rewind")
+      open(newunit=fd, file=eigvecOut, action="write", status="replace", position="rewind")
     end if
     write(fd, "(A/)") "Coefficients and Mulliken populations of the atomic orbitals"
     if (t2Component) then
@@ -4202,7 +4156,7 @@ contains
   subroutine prepareProjEigvecFiles(fd, fileNames)
 
     !> File descriptor for a not yet opened file for each region
-    integer, intent(in) :: fd(:)
+    integer, intent(out) :: fd(:)
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
@@ -4212,7 +4166,7 @@ contains
 
     do iReg = 1, size(fd)
       call get(fileNames, tmpStr, iReg)
-      open(fd(iReg), file=tmpStr, action="write", status="replace", form="formatted")
+      open(newunit=fd(iReg), file=tmpStr, action="write", status="replace", form="formatted")
     end do
 
   end subroutine prepareProjEigvecFiles
@@ -4248,24 +4202,24 @@ contains
     !> Number of geometry steps
     integer, intent(in) :: nGeoSteps
 
-    integer :: ii
+    integer :: ii, fdEsp
     character(lc) :: tmpStr
 
     if (env%tGlobalMaster) then
       if (esp%tAppendEsp) then
-        open(esp%fdEsp, file=trim(esp%EspOutFile), position="append")
+        open(newunit=fdEsp, file=trim(esp%EspOutFile), position="append")
       else
-        open(esp%fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
+        open(newunit=fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
       end if
       ! Header with presence of external field and regular grid size
       write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
           & esp%gridDimensioning, size(esp%intPotential)
       if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
-        write(esp%fdEsp,"(A)")trim(tmpStr)
+        write(fdEsp,"(A)")trim(tmpStr)
         if (all(esp%gridDimensioning > 0)) then
-          write(esp%fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
+          write(fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
           do ii = 1, 3
-            write(esp%fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
+            write(fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
           end do
         end if
       end if
@@ -4281,36 +4235,36 @@ contains
       if (all(esp%gridDimensioning > 0)) then
         ! Regular point distribution, do not print positions
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
+            write(fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
                 & -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
+            write(fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
           end do
         end if
       else
         ! Scattered points, print locations
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
+          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
               & External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV, -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
+          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
               & trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV
           end do
         end if
       end if
-      close(esp%fdEsp)
+      close(fdEsp)
     end if
 
   end subroutine writeEsp

@@ -584,10 +584,6 @@ module initprogram
   !> PDOS region labels
   type(listCharLc), save :: regionLabels
 
-  !> file units for PDOS results
-  integer, allocatable, save :: fdProjEig(:)
-
-
   !> Third order DFTB
   logical :: t3rd
 
@@ -769,29 +765,11 @@ module initprogram
   !> Dynamical (Hessian) matrix
   real(dp), pointer :: pDynMatrix(:,:)
 
-  !> File descriptor for the tagged writer
-  integer :: fdAutotest
-
   !> File descriptor for the human readable output
   integer :: fdDetailedOut
 
-  !> File descriptor for the band structure output
-  integer :: fdBand
-
-  !> File descriptor for the eigenvector output
-  integer :: fdEigvec
-
-  !> File descriptor for detailed.tag
-  integer :: fdResultsTag
-
   !> File descriptor for extra MD output
   integer :: fdMD
-
-  !> File descriptor for numerical Hessian
-  integer :: fdHessian
-
-  !> File descriptor for charge restart file
-  integer :: fdCharges
 
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
@@ -1380,16 +1358,14 @@ contains
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
         allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, &
-            & nUJ, niUJ, iUJ)
+        call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
         nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
         !  iEqBlockDFTBU does not include diagonal elements, so in the case of
         !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
         !  return 0
         if (tImHam) then
           allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-          call DFTBU_blockIndx(iEqBlockDFTBULS,nMixElements , orb, species0, &
-            & nUJ, niUJ, iUJ)
+          call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
         end if
       end if
@@ -2101,11 +2077,9 @@ contains
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
       if (tDFTBU) then
-        call AppendBlock_reduce( qBlockIn,iEqBlockDFTBU, orb, &
-            & qInpRed )
+        call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
         if (tImHam) then
-          call AppendBlock_reduce( qiBlockIn,iEqBlockDFTBULS, orb, &
-              & qInpRed, skew=.true. )
+          call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
         end if
       end if
 
@@ -2156,8 +2130,7 @@ contains
 
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
+          & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2267,13 +2240,6 @@ contains
         end if
         deallocate(iAtomRegion)
       end do
-
-      allocate(fdProjEig(len(iOrbRegion)))
-      do ii = 1, len(iOrbRegion)
-        fdProjEig(ii) = getFileId()
-      end do
-    else
-      allocate(fdProjEig(0))
     end if
 
   #:if WITH_MPI
@@ -2393,8 +2359,8 @@ contains
       !write(stdOut, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
-        write(stdOut, "(A,':',T30,I14)") "Orbital functional number",nDFTBUfunc !
-        !  use module to reverse look up name
+        write(stdOut, "(A,':',T30,A)") "Orbital functional",&
+            & trim(plusUFunctionals%names(nDFTBUfunc))
       end if
     else
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
@@ -2759,8 +2725,7 @@ contains
     end select
 
     if ((tSpinOrbit .and. tDFTBU) .and. tForces)  then
-      call error("Currently there is a force bug for dual DFTB+U with spin &
-          &orbit coupling")
+      call error("Currently there is a force bug for dual DFTB+U with spin orbit coupling")
     end if
 
     if (.not.tStress) then
@@ -2781,8 +2746,7 @@ contains
 
     if (tLinResp) then
       if (tDFTBU) then
-        call error("Linear response is not compatible with Orbitally dependant&
-            & functionals yet")
+        call error("Linear response is not compatible with Orbitally dependant functionals yet")
       end if
 
       if (tForces .and. nSpin > 1) then
@@ -2901,8 +2865,7 @@ contains
 
   !> Initialises (clears) output files.
   subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
-      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, esp)
+      & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
 
     !> Environment
     type(TEnvironment), intent(inout) :: env
@@ -2931,46 +2894,27 @@ contains
     !> Filename for geometry output
     character(*), intent(in) :: geoOutFile
 
-    !> File unit for autotest data
-    integer, intent(out) :: fdAutotest
-
-    !> File unit for tagged results data
-    integer, intent(out) :: fdResultsTag
-
-    !> File unit for band structure
-    integer, intent(out) :: fdBand
-
-    !> File unit for eigenvectors
-    integer, intent(out) :: fdEigvec
-
-    !> File unit for second derivatives information
-    integer, intent(out) :: fdHessian
-
     !> File unit for detailed.out
     integer, intent(out) :: fdDetailedOut
 
     !> File unit for information during molecular dynamics
     integer, intent(out) :: fdMd
 
-    !> File descriptor for charge restart file
-    integer, intent(out) :: fdChargeBin
-
     !> Electrostatic potentials if requested
     type(TElStatPotentials), allocatable, intent(inout) :: esp
 
     call initTaggedWriter()
     if (tWriteAutotest) then
-      call initOutputFile(autotestTag, fdAutotest)
+      call initOutputFile(autotestTag)
     end if
     if (tWriteResultsTag) then
-      call initOutputFile(resultsTag, fdResultsTag)
+      call initOutputFile(resultsTag)
     end if
     if (tWriteBandDat) then
-      call initOutputFile(bandOut, fdBand)
+      call initOutputFile(bandOut)
     end if
-    fdEigvec = getFileId()
     if (tDerivs) then
-      call initOutputFile(hessianOut, fdHessian)
+      call initOutputFile(hessianOut)
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(userOut, fdDetailedOut)
@@ -2984,9 +2928,8 @@ contains
       call clearFile(trim(geoOutFile) // ".gen")
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
-    fdChargeBin = getFileId()
     if (allocated(esp)) then
-      call initOutputFile(esp%espOutFile, esp%fdEsp)
+      call initOutputFile(esp%espOutFile)
     end if
 
   end subroutine initOutputFiles
