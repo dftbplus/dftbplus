@@ -281,9 +281,9 @@ contains
             & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
-        if(tRangeSep) then
+        if (tRangeSep) then
            call denseSubtractDensityOfAtoms_nospin(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
-        endif
+        end if
         
         if (tWriteBandDat) then
           call writeBandOut(fdBand, bandOut, eigen, filling, kWeight)
@@ -420,7 +420,7 @@ contains
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
             & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-            & chrgForces, dispersion)
+            & chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr)
         if (tLinResp) then
           derivs(:,:) = derivs + excitedDerivs
         end if
@@ -4055,7 +4055,7 @@ contains
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces,&
-      & dispersion)
+      & dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4135,6 +4135,21 @@ contains
     !> dispersion interactions
     class(DispersionIface), intent(inout), allocatable :: dispersion
 
+    !> Data from rangeseparated calculations
+    type(RangeSepFunc), intent(inout), allocatable ::rangeSep
+
+    !> dense overlap matrix, required for rangeSep
+    real(dp) :: SSqrReal(:,:)
+
+    !> sparse overlap matrix, required for rangeSep
+    real(dp), intent(in) :: over(:)
+
+    !> Dense matrix descriptor,required for rangeSep
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Change in density matrix during this SCC step for rangesep
+    real(dp), pointer, intent(in) :: deltaRhoOutSqr(:,:,:)
+
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom
@@ -4204,6 +4219,13 @@ contains
 
     if (allocated(dispersion)) then
       call dispersion%addGradients(derivs)
+    end if
+
+    if (allocated(rangeSep)) then
+       call unpackHS(SSqrReal, over, neighborList%iNeighbor,&
+            & nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+       call rangeSep%addLRGradients(derivs, NonSccDeriv, deltaRhoOutSqr(:,:,1),skHamCont, &
+            &skOverCont, coord, species, orb, denseDesc%iAtomStart, SSqrReal,neighborList%iNeighbor, nNeighbor)
     end if
 
     allocate(tmpDerivs(3, nAtom))
