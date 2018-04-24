@@ -332,7 +332,6 @@ contains
     integer, allocatable :: ovrind(:,:)
     integer, parameter :: DESC_LEN = 3, ISTART = 1, IEND = 2, INORB = 3
 
-    !write(*,'(a)') "RangeSep: Adding LR contribution to Hamiltonian (TR Algorithm)"
     call cpu_time(start)
     call allocateAndInit(tmpovr, tmpDham, tmpDRho, tmpDDRho, testovr, ovrind)
     call evaluateHamiltonian(tmpDHam)
@@ -510,7 +509,6 @@ contains
     real(dp), intent(inout) :: energy    
 
     energy = energy + self%lrenergy
-    !write(*,*) 'rangeSep%addLREnergy', self%lrenergy
     ! hack for spin unrestricted calculation
     self%lrenergy = 0.0_dp
   end subroutine addLRenergy
@@ -569,7 +567,6 @@ contains
     integer :: mu, nu
     real :: start, finish
 
-    write(*,'(a)') "RangeSep: Adding LR contribution to Hamiltonian (NB Algorithm)"
     call cpu_time(start)
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
@@ -939,7 +936,6 @@ contains
     real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpovr(:,:), tmpRho(:,:), tmpderiv(:,:)
     real :: start, finish
 
-    write(*,'(a)') "rangeSep: addLRGradients"
     @:ASSERT(size(gradients,dim=1) == 3)
     call cpu_time(start)
     call allocateAndInit(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
@@ -1025,9 +1021,6 @@ contains
     gradients(:,:) = gradients + tmpderiv * (-0.25_dp)
     
     call cpu_time(finish)
-    write(*,'(a)') "Neighbor list based eval:"
-    print '("-> done. time = ", f10.4, " sec.")', finish - start  
-
     deallocate(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
 
   contains 
@@ -1047,7 +1040,6 @@ contains
       call symmetrizeSquareMatrix(tmpovr)
       call symmetrizeSquareMatrix(tmpRho)
       ! precompute the gamma derivatives
-      write(*,'(a)') "precomputing the lr-gamma derivatives"
       gammaPrimeTmp = 0.0_dp
       do iAt1 = 1, nAtom
          do iAt2 = 1, nAtom
@@ -1455,7 +1447,6 @@ contains
     end do
     
     ! precompute the gamma derivatives
-    write(*,*) "precomputing the lr-gamma derivatives"
  !   ovrPrimeTmp = 0.0_dp
     gammaPrimeTmp = 0.0_dp
     do iAtom1 = 1, nAtom
@@ -1626,9 +1617,8 @@ contains
     gradients(:,:)=gradients+tmpderiv
     
     call cpu_time(finish2)
-    write(*,'(a)') "Neighbor list based eval:"
-    print '("-> done. time = ", f10.4, " sec.")', finish2&
-        &-start2  
+ 
+
 
 
 !      write(*,*) "LR-FORCES 2:"
