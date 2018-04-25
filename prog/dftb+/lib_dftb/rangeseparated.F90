@@ -282,12 +282,10 @@ contains
 
     integer :: nAtom, iAtom1,iAtom2,ii,iSp1,iSp2
     real(dp) :: dist
-
-    write(*,*) "rangesep update coords entry"
+   
     @:ASSERT(all(shape(coords) == shape(self%coords)))
     self%coords(:,:) = coords
     nAtom = size(self%species)
-    write(*,*) "Evaluating LR-GAMMA for atom pairs"
     dist = 0.0_dp
     do iAtom1 = 1, nAtom
        do iAtom2 = 1, iAtom1
@@ -302,7 +300,6 @@ contains
           self%lrGammaEval(iAtom2, iAtom1) = self%lrGammaEval(iAtom1, iAtom2)
        end do
     end do
-    print *, "Range separated coordinates updated"
     ! reinit the screening
     if( self%tScreeningInited) then
        self%hprev = 0.0_dp
