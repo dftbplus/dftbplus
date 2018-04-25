@@ -1672,6 +1672,9 @@ contains
 
       deallocate(rhoSqrReal)
 
+      ! Add up and distribute density matrix contribution from each group
+      call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+
     #:else
       call error("Should not be here")
     #:endif
@@ -3512,6 +3515,7 @@ contains
         ERhoPrim = 0.0_dp
         call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighborList%iNeighbor,&
             & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+        call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
       #:else
         call error("Should not be here without ELSI support included in compilation")
       #:endif
