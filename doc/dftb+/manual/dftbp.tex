@@ -994,6 +994,7 @@ following properties:
   \kw{DampXHExponent} & r & DampXH = Yes & - & \\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
+  \kw{RangeSep} & p &  & \cb & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
@@ -2468,6 +2469,43 @@ Hamiltonian = DFTB {
 }
 
 \end{verbatim}
+
+\subsection{RangeSep}
+\label{sec:dftbp.RangeSep}
+
+The \kw{RangeSep} keyword specifies the use of the long-range corrected formalism
+in DFTB. The electrostatic interaction is split up into long and short ranged
+components according to
+\begin{equation*}
+\frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
+\end{equation*}
+with the range-separation parameter $\omega$, which is set in the
+Slater-Koster files. The option should only be used with corresponding
+parameter sets created for use with long-range correction.
+Note that the present release does not yet support long-range corrected
+excited states calculations with LC-TD-DFTB, and the \kw{RangeSep} keyword can therefore not
+be used in conjungtion with the \kw{ExcitedState} keyword.
+
+The \kw{RangeSep} field keyword has the following options
+\begin{ptable}
+  \kw{Enable}  & l &  & No & \\
+  \kw{Algorithm} & m & & TR\{ 1e-5 \} & \\
+\end{ptable}
+\begin{description}
+\item[\is{Enable}] Turns on long-range correction.
+\item[\is{Alogrithm}] Method used for distance dependent screening to ensure
+  quadratic scaling with system size. Supports two options:
+\begin{description}
+\item[\is{TR\{\}}] Screening according to estimated magnitude of terms. This
+  is the recommended choice. The
+  threshold value is passed as an option, e.g.
+\begin{verbatim}
+Algorithm = TR{ 1e-6 }
+\end{verbatim}
+for screening with threshold 1e-6. The default value is 1e-5.
+\item[\is{NB\{\}}] Neighbor list based screening.
+\end{description}
+\end{description}
 
 \subsection{Differentiation}
 \label{sec:dftbp.Differentiation}
