@@ -68,6 +68,7 @@ module solvers
     integer, public :: ELSI_n_state
     integer, public :: ELSI_MPI_COMM_WORLD
     integer, public :: ELSI_my_COMM_WORLD
+    integer, public :: ELSI_my_BLACS_Ctxt
     integer, public :: ELSI_blockSize
 
     integer, public :: ELSI_mu_broaden_scheme
@@ -129,7 +130,7 @@ contains
     call elsi_set_mpi_global(this%elsiHandle, this%ELSI_MPI_COMM_WORLD)
     call elsi_set_sing_check(this%elsiHandle, 0) ! disable singularity check
     call elsi_set_mpi(this%elsiHandle, this%ELSI_my_COMM_WORLD)
-    call elsi_set_blacs(this%elsiHandle,this%ELSI_MPI_COMM_WORLD, this%ELSI_blockSize)
+    call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_blockSize)
 
     call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)
 
@@ -168,6 +169,9 @@ contains
 
     end select
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)
+    if (this%ELSI_OutputLevel == 3) then
+      call elsi_set_output_log(this%elsiHandle, 1)
+    end if
 
   end subroutine resetELSI
 
