@@ -1346,7 +1346,7 @@ contains
     if (associated(child)) then
        call getChildValue(child, "Enable", ctrl%tRangeSep, .false.)
        call getChildValue(child, "TabulatedGamma", ctrl%tTabulatedGamma, .false.)
-       call getChildValue(child, "Algorithm", value, "NB", child=child2)
+       call getChildValue(child, "Algorithm", value, "TR", child=child2)
        call getNodeName(value, buffer)
        select case(char(buffer))
        case ("nb")
