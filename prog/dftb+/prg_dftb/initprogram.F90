@@ -1292,6 +1292,7 @@ contains
 
       electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
       electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
+      electronicSolver%ELSI_my_BLACS_Ctxt = env%blacs%orbitalGrid%ctxt
       electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
 
       electronicSolver%ELSI_mu_broaden_scheme = min(iDistribFn,2)
