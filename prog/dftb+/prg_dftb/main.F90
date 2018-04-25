@@ -1644,7 +1644,6 @@ contains
     end if
 
     select case(electronicSolver%iSolver)
-
     case(1,2,3,4)
       call env%globalTimer%startTimer(globalTimers%diagonalization)
       if (nSpin /= 4) then
@@ -1734,6 +1733,9 @@ contains
           & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,1))
 
       deallocate(rhoSqrReal)
+
+      ! Add up and distribute density matrix contribution from each group
+      call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
 
     #:else
       call error("Should not be here")
@@ -3530,6 +3532,7 @@ contains
         ERhoPrim = 0.0_dp
         call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighborList%iNeighbor,&
             & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+        call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
       #:else
         call error("Should not be here without ELSI support included in compilation")
       #:endif
