@@ -474,7 +474,6 @@ contains
       real(dp), allocatable, intent(in) :: tmpDRho(:,:)
 
       if(.not. self%tScreeningInited) then
-         write(*,'(a)') "RangeSep: Iinitialize Screening"
          self%tScreeningInited = .true.
          allocate(self%hprev(matrixSize, matrixSize))
          allocate(self%dRhoprev(matrixSize, matrixSize))
