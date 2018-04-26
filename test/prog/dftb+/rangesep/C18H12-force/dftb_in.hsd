@@ -54,16 +54,19 @@ Hamiltonian = DFTB {
 
   RangeSep = {
     Enable = Yes
-    Algorithm= TR {Threshold = 1.0e-8	  }
+    Algorithm = TR { Threshold = 1.0e-8 }
   }
 }
 
 Options = {
-  CalculateForces = Yes
   WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
   AtomResolvedEnergies = Yes
 }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 5
 }
