@@ -2245,10 +2245,6 @@ contains
     type(ORepSpline), allocatable :: pRepSpline
     type(ORepPoly), allocatable :: pRepPoly
 
-    !>Variable for rangesep parsing
-    type(TRangeSepSKTag), allocatable :: omegaTest(:)
-    integer :: omegaTestCount
-    character(lc) :: errorStr
 
 
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
