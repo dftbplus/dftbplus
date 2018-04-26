@@ -253,11 +253,9 @@ contains
                read(95,*) self%grid(kk),self%lrGamma(ii,jj,kk,1)
             end do
             close(95)
-            ! 
-            write(*,'(a)') "prepare the interpolation"
+
             call set_cubic_spline(self%grid,self%lrGamma(ii,jj,:,1),test_array2)
             self%lrGamma(ii,jj,:,2)=test_array2
-            write(*,'(a)') "Done!"
          end do
       end do
 
@@ -329,7 +327,6 @@ contains
     self%lrenergy = evaluateEnergy()
     call deallocateTempMatrices()
     call cpu_time(finish)
-    !print '("--> Done. time = ", f10.4, " sec.")', finish - start  
 
   contains
 
@@ -561,7 +558,6 @@ contains
     HH = HH + tmpHH
     call evaluateEnergy()
     call cpu_time(finish)
-    print '("--> Done. time = ", f10.4, " sec.")', finish - start  
     
   contains
 
@@ -1107,7 +1103,6 @@ contains
     energy = -energy / 8.0_dp
 
     call cpu_time(finish)
-    print '("-> rangeSep.evaluateLREnergyDirect done. time = ", f10.4, " sec.")', finish - start  
 
   end function evaluateLREnergyDirect
 
