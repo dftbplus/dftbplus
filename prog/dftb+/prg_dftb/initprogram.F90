@@ -2425,6 +2425,11 @@ contains
     end select
     write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
 
+    if (omp_get_max_threads() > 1&
+        & .and. (electronicSolver%iSolver >= 4 .and. electronicSolver%iSolver <= 6)) then
+      call warning("ELSI solvers not tested with multiple openMP threads")
+    end if
+
     if (tSccCalc) then
       select case (iMixer)
       case(1)
