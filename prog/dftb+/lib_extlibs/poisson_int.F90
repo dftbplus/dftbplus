@@ -81,31 +81,31 @@ module poisson_init
     !> Minimal grid spacing
     real(dp) :: poissGrid(3)
 
-    !> (.false. for periodic systems!)
+    !> Has a containing box been identified for the structure? (.false. for periodic systems!)
     logical :: foundBox
 
-    !> Maximum radius of atom density
+    !> Maximum radius of atom charge density
     real(dp) :: maxRadAtomDens
 
-    !> solution accuracy
+    !> Required solution accuracy
     real(dp) :: poissAcc
 
-    !> use bulk potential as BC
+    !> use bulk potential as boundary condition
     logical :: bulkBC
 
     !> read bulk potential from file
     logical :: readBulkPot
 
-    !> activates local BC mode (C|S)
+    !> activates local boundary conditions mode (C|S)
     character(1) :: localBCType
 
-    !> buffer spacing of local BC
+    !> buffer spacing of local boundary condition
     real(dp) :: bufferLocBC
 
-    !> forced BC in each direction
+    !> forced boundary conditions in each direction
     integer :: overrideBC(6)
 
-    !> forced BC on bulk potential
+    !> forced boundary conditions on bulk potential
     integer :: overrBulkBC(6)
 
     !> save the potential on a file
@@ -176,7 +176,7 @@ contains
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Hubbard Us (orbital, atom)
+    !> Hubbard Us stored as (orbital, atom)
     real(dp), intent(in) :: hubbU(:,:)
 
     !> Solver settings
@@ -201,25 +201,30 @@ contains
     call poiss_mpi_init(mpicomm)
     call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
     call mpi_barrier(mpicomm, iErr)
+  #:else
+    call error("The Poisson solver currently requires MPI parallelism to be enabled")
   #:endif
 
     write(stdOut,*)
     write(stdOut,*) 'Poisson Initialisation'
     write(stdOut,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
 
-    !> notify solver of standard out unit
+    ! notify solver of standard out unit
     call set_stdout(stdOut)
 
+    ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
 
     if (id0) then
+      ! only use a scratch folder on the master node
       call create_directory(trim(scratchfolder),iErr)
     end if
 
     if (active_id) then
+      ! processors over which the right hand side of the Poisson equation is parallelised
 
-      call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, &
-          & structure%x0, structure%latVecs, structure%isperiodic)
+      call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
+          & structure%latVecs, structure%isperiodic)
 
       call init_skdata(orb%nShell, orb%angShell, hubbU, iErr)
 
@@ -237,7 +242,8 @@ contains
         return
       endif
 
-      call init_defaults()            !init default values for parameters
+      !init default values for parameters
+      call init_defaults()
 
       call set_verbose(poissonInfo%verbose)
 
@@ -251,7 +257,8 @@ contains
       !     with poisson solver, where the transport block is defined
       !-----------------------------------------------------------------------------
       if (transpar%defined .and. transpar%taskUpload) then
-        call set_ncont(transpar%ncont)         !init the number of contacts as in dftb+
+        !init the number of contacts as in dftb+
+        call set_ncont(transpar%ncont)
       else
         call set_ncont(0)
       endif
@@ -324,7 +331,10 @@ contains
       Gate = poissoninfo%gatePot
       GateLength_l = poissoninfo%gateLength_l
       GateLength_t = poissoninfo%gateLength_t
-      GateDir = poissoninfo%gatedir   ! Planar gate must be along y
+
+      ! Planar gate must be along y
+      GateDir = poissoninfo%gatedir
+
       OxLength = poissoninfo%insLength
       Rmin_Gate = poissoninfo%gateRad
       Rmin_Ins = poissoninfo%insRad
@@ -511,8 +521,8 @@ contains
     ! have a factor 2 in front of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
-        write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with&
-            & PL width in contact ", ii, "."
+        write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
+            & layer width in contact ", ii, "."
         write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
         call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
             & AtomDensityTolerance.")
