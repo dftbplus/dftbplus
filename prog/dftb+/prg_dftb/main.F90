@@ -214,7 +214,7 @@ contains
 
     #:if WITH_ELSI
       if (electronicSolver%tUsingELSI) then
-        call electronicSolver%resetELSI()
+        call electronicSolver%resetELSI(tempElec)
       end if
     #:endif
 
@@ -267,6 +267,18 @@ contains
 
       call mergeExternalPotentials(orb, species, potential)
 
+      if (electronicSolver%iSolver == 6) then
+        ! update Delta V ranges here for PEXSI
+        if (tSccCalc) then
+          allocate(electronicSolver%ELSI_PEXSI_VOld(size(potential%intBlock(:,:,:,1))))
+          electronicSolver%ELSI_PEXSI_VOld = reshape( &
+              & potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+              & [size(potential%extBlock(:,:,:,1))] )
+        end if
+        electronicSolver%ELSI_PEXSI_DeltaVmin = 0.0_dp
+        electronicSolver%ELSI_PEXSI_DeltaVmax = 0.0_dp
+      end if
+
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
 
       call env%globalTimer%stopTimer(globalTimers%preSccInit)
@@ -284,7 +296,20 @@ contains
         potential%intBlock = potential%intBlock + potential%extBlock
 
         if (electronicSolver%iSolver == 6) then
-          ! should update Delta V ranges here
+          ! update Delta V ranges here for PEXSI
+          if (tSccCalc) then
+            electronicSolver%ELSI_PEXSI_DeltaVmin =&
+                & minval(electronicSolver%ELSI_PEXSI_VOld&
+                & -reshape(potential%intBlock(:,:,:,1)+potential%extBlock(:,:,:,1),&
+                & [size(potential%extBlock(:,:,:,1))]))
+            electronicSolver%ELSI_PEXSI_DeltaVmax =&
+                & maxval(electronicSolver%ELSI_PEXSI_VOld&
+                & -reshape(potential%intBlock(:,:,:,1)+potential%extBlock(:,:,:,1),&
+                & [size(potential%extBlock(:,:,:,1))]))
+            electronicSolver%ELSI_PEXSI_VOld = reshape( &
+                & potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+                & [size(potential%extBlock(:,:,:,1))] )
+          end if
         end if
 
         call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
@@ -1719,6 +1744,10 @@ contains
           allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
           call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
               & Eband(1))
+
+          call elsi_get_mu(electronicSolver%elsiHandle, Ef(1))
+          call elsi_get_entropy(electronicSolver%elsiHandle, TS(1))
+
         end if
       end if
 

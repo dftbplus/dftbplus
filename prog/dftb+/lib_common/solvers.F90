@@ -86,6 +86,7 @@ module solvers
     real(dp), public :: ELSI_PEXSI_mu_max
     real(dp), public :: ELSI_PEXSI_DeltaVmin
     real(dp), public :: ELSI_PEXSI_DeltaVmax
+    real(dp), public, allocatable :: ELSI_PEXSI_VOld(:)
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_reset = 0
@@ -116,8 +117,13 @@ contains
 
 #: if WITH_ELSI
 
-  subroutine resetELSI(this)
+  subroutine resetELSI(this, tempElec)
+
+    !> Instance
     class(TElectronicSolver), intent(inout) :: this
+
+    !> electron temperature
+    real(dp), intent(in) :: tempElec
 
     if (this%nELSI_reset > 0) then
       ! destroy previous instance of solver
@@ -133,6 +139,9 @@ contains
     call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_blockSize)
 
     call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)
+
+    ! set filling temperature/width
+    call elsi_set_mu_broaden_width(this%elsiHandle, tempElec)
 
     select case(this%ELSI_SOLVER)
     case(1)
