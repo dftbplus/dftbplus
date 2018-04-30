@@ -16,6 +16,7 @@ program modes
   use constants, only : Hartree__cm, Bohr__AA, pi
   use TypeGeometry
   use eigensolver, only : heev
+  use blasroutines, only : her
   use TaggedOutput
   implicit none
 
@@ -25,6 +26,9 @@ program modes
   real(dp), allocatable :: displ(:,:,:)
 
   character(lc) :: lcTmp, lcTmp2
+
+  real(dp), allocatable :: vector(:), proj(:,:)
+
 
   ! Allocate resources
   call initProgramVariables()
@@ -47,6 +51,42 @@ program modes
       end do
     end do
   end do
+
+  if (tRemoveTranslate) then
+    allocate(vector(nDerivs))
+    allocate(proj(nDerivs,nDerivs))
+
+    do jj = 1, nDerivs
+      dynMatrix(jj,jj+1:) = dynMatrix(jj+1:,jj)
+    end do
+    
+    proj = 0.0_dp
+    do jj = 1, nDerivs
+      proj(jj,jj) = 1.0_dp
+    end do
+
+    ! translation direction
+    do ii = 1, 3
+
+      vector = 0.0_dp
+      do jj = ii, nDerivs, 3
+        vector(jj) = 1.0_dp
+      end do
+      vector = vector / sqrt(sum(vector**2))
+
+      call her(proj,-1.0_dp,vector)
+
+    end do
+
+    do jj = 1, nDerivs
+      proj(jj,jj+1:) = proj(jj+1:,jj)
+    end do
+    
+    dynMatrix = matmul(proj,matmul(dynMatrix,proj))
+
+    deallocate(vector)
+    deallocate(proj)
+  end if
 
   ! solve the eigenproblem
   if (tPlotModes) then
