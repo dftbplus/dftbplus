@@ -89,6 +89,9 @@ module InitModes
   !> Remove translation modes
   logical, public :: tRemoveTranslate
 
+  !> Remove rotation modes
+  logical, public :: tRemoveRotate
+
   !> modes to produce xyz file for
   integer, allocatable, public :: modesToPlot(:)
 
@@ -159,6 +162,7 @@ contains
     call readGeometry(tmp, geo)
 
     call getChildValue(root, "RemoveTranslation", tRemoveTranslate, .false.)
+    call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
     call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
