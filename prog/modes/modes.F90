@@ -64,26 +64,25 @@ program modes
   end if
 
   if (tRemoveTranslate .or. tRemoveRotate) then
-    allocate(vectorsToNull(nDerivs,nToNull))
-    allocate(projector(nDerivs,nDerivs))
-    projector = 0.0_dp
-    vectorsToNull = 0.0_dp
+    allocate(vectorsToNull(nDerivs, nToNull))
+    allocate(projector(nDerivs, nDerivs))
+    projector(:,:) = 0.0_dp
+    vectorsToNull(:,:) = 0.0_dp
 
     ! symmetrize dynamical matrix
     do jj = 1, nDerivs
-      dynMatrix(jj,jj+1:) = dynMatrix(jj+1:,jj)
+      dynMatrix(jj, jj + 1 :) = dynMatrix(jj + 1 :, jj)
     end do
 
     do jj = 1, nDerivs
-      projector(jj,jj) = 1.0_dp
+      projector(jj, jj) = 1.0_dp
     end do
 
     if (tRemoveTranslate) then
-      ! translation directions
-      do ii = 1, 3
-        do jj = ii, nDerivs, 3
-          vectorsToNull(jj,ii) = 1.0_dp
-        end do
+      do iAt = 1, nMovedAtom
+        vectorsToNull((iAt - 1) * 3 + 1, 1) = 1.0_dp
+        vectorsToNull((iAt - 1) * 3 + 2, 2) = 1.0_dp
+        vectorsToNull((iAt - 1) * 3 + 3, 3) = 1.0_dp
       end do
     end if
 
@@ -93,29 +92,35 @@ program modes
         call warning("Rotational modes were requested to be removed for a periodic geometry -&
             & results probably unphysical!")
       end if
-      centreOfMass = 0.0_dp
+      centreOfMass(:) = 0.0_dp
       do iAt = 1, nMovedAtom
-        centreOfMass = centreOfMass + geo%coords(:,iAt) * atomicMasses(iAt)
+        centreOfMass(:) = centreOfMass + geo%coords(:,iAt) * atomicMasses(iAt)
       end do
-      centreOfMass = centreOfMass / sum(atomicMasses(:nMovedAtom))
+      centreOfMass(:) = centreOfMass / sum(atomicMasses(:nMovedAtom))
       do ii = 1, 3
-        vTmp = 0.0_dp
+        vTmp(:) = 0.0_dp
         vTmp(ii) = 1.0_dp
         do iAt = 1, nMovedAtom
-          call cross3(rTmp,vTmp,geo%coords(:,iAt)-centreOfMass)
-          vectorsToNull((iAt-1)*3+1:iAt*3,nToNull-ii+1) = rTmp
+          call cross3(rTmp, vTmp, geo%coords(:,iAt) - centreOfMass)
+          vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
         end do
       end do
     end if
 
+    ! Change from displacements to weighted displacements basis of the Hessian
+    do iAt = 1, nMovedAtom
+      vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) =&
+          & vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) * sqrt(atomicMasses(iAt))
+    end do
+
     ! normalise non-null vectors
     do ii = 1, nToNull
-      if (sum(vectorsToNull(:,ii)**2) > epsilon(1.0)) then
+      if (sum(vectorsToNull(:,ii)**2) > epsilon(1.0_dp)) then
         vectorsToNull(:,ii) = vectorsToNull(:,ii) / sqrt(sum(vectorsToNull(:,ii)**2))
       end if
     end do
 
-    call herk(projector,vectorsToNull,alpha=-1.0_dp,beta=1.0_dp)
+    call herk(projector, vectorsToNull, alpha=-1.0_dp, beta=1.0_dp)
 
     ! copy to other triangle
     do jj = 1, nDerivs
@@ -123,7 +128,7 @@ program modes
     end do
 
     ! project out removed degrees of freedom
-    dynMatrix = matmul(projector,matmul(dynMatrix,projector))
+    dynMatrix = matmul(projector, matmul(dynMatrix, projector))
 
     deallocate(vectorsToNull)
     deallocate(projector)
