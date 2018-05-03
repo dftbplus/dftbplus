@@ -3,6 +3,11 @@ initmodes.o = initmodes.o $(_mod_hsdparser) $(common.fypp) $(_mod_fileid) $(_mod
 _mod_initmodes: initmodes.o
 _mod_initmodes = $(initmodes.o)
 
-modes.o: common.fypp _mod_constants _mod_assert _mod_taggedoutput _mod_initmodes _mod_eigensolver _mod_accuracy _mod_io _mod_typegeometry
-modes.o = modes.o $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_taggedoutput) $(_mod_initmodes) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_io) $(_mod_typegeometry)
+modeprojection.o: common.fypp _mod_message _mod_blasroutines _mod_simplealgebra _mod_eigensolver _mod_accuracy _mod_typegeometry
+modeprojection.o = modeprojection.o $(common.fypp) $(_mod_message) $(_mod_blasroutines) $(_mod_simplealgebra) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_typegeometry)
+_mod_modeprojection: modeprojection.o
+_mod_modeprojection = $(modeprojection.o)
+
+modes.o: common.fypp _mod_constants _mod_message _mod_assert _mod_taggedoutput _mod_modeprojection _mod_initmodes _mod_eigensolver _mod_accuracy _mod_io _mod_typegeometry
+modes.o = modes.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_taggedoutput) $(_mod_modeprojection) $(_mod_initmodes) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_io) $(_mod_typegeometry)
 

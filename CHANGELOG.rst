@@ -11,7 +11,9 @@ Unreleased
 Added
 -----
 
+- Option for removing translational and rotational degrees of freedom in modes
 
+  
 Changed
 -------
 
@@ -19,7 +21,8 @@ Changed
 Fixed
 -----
 
-Compilation when socket interface disabled.
+- Compilation when socket interface disabled.
+
 
 18.1 (2018-03-02)
 =================

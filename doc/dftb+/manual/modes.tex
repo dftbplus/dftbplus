@@ -28,6 +28,8 @@ Additionally optional definitions may be present:
   \kw{Atoms} & i+|m &  & 1:-1 & \\
   \kw{WriteHSDInput} & l & & No & \\
   \kw{WriteXMLInput} & l & & No & \\
+  \kw{RemoveTranslation} & l & & No & \\
+  \kw{RemoveRotation} & l & & No & \\
 \end{ptableh}
 
 \begin{description}
@@ -48,6 +50,11 @@ Additionally optional definitions may be present:
   out in HSD format. (You shouldn't turn it off without good reason.)
 \item[\is{WriteXMLInput}] Specifies, if the processed input should be written
   out in XML format.
+\item[\is{RemoveTranslation}] Explicitly set the 3 translational modes of the
+  system to be at 0 frequency.
+\item[\is{RemoveRotation}] Explicitly set the rotation modes of the system to be
+  at 0 frequency. Note, for periodic systems, this is usually incorrect (if used
+  for a molecule full inside the central cell, it may be harmless).
 \end{description}
 
 
