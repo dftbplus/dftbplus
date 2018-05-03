@@ -16,10 +16,9 @@ program modes
   use constants, only : Hartree__cm, Bohr__AA, pi
   use TypeGeometry
   use eigensolver, only : heev
-  use blasroutines, only : herk
-  use simplealgebra, only : cross3
   use TaggedOutput
   use Message
+  use projectOutNullModes
   implicit none
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
@@ -28,10 +27,6 @@ program modes
   real(dp), allocatable :: displ(:,:,:)
 
   character(lc) :: lcTmp, lcTmp2
-
-  real(dp), allocatable :: vectorsToNull(:,:), projector(:,:)
-  real(dp) :: centreOfMass(3), rTmp(3), vTmp(3)
-  integer :: nToNull
 
   ! Allocate resources
   call initProgramVariables()
@@ -55,84 +50,8 @@ program modes
     end do
   end do
 
-  nToNull = 0
-  if (tRemoveTranslate) then
-    nToNull = nToNull + 3
-  end if
-  if (tRemoveRotate) then
-    nToNull = nToNull + 3
-  end if
-
-  if (tRemoveTranslate .or. tRemoveRotate) then
-    allocate(vectorsToNull(nDerivs, nToNull))
-    allocate(projector(nDerivs, nDerivs))
-    projector(:,:) = 0.0_dp
-    vectorsToNull(:,:) = 0.0_dp
-
-    ! symmetrize dynamical matrix
-    do jj = 1, nDerivs
-      dynMatrix(jj, jj + 1 :) = dynMatrix(jj + 1 :, jj)
-    end do
-
-    do jj = 1, nDerivs
-      projector(jj, jj) = 1.0_dp
-    end do
-
-    if (tRemoveTranslate) then
-      do iAt = 1, nMovedAtom
-        vectorsToNull((iAt - 1) * 3 + 1, 1) = 1.0_dp
-        vectorsToNull((iAt - 1) * 3 + 2, 2) = 1.0_dp
-        vectorsToNull((iAt - 1) * 3 + 3, 3) = 1.0_dp
-      end do
-    end if
-
-    if (tRemoveRotate) then
-      ! rotation directions
-      if (geo%tPeriodic) then
-        call warning("Rotational modes were requested to be removed for a periodic geometry -&
-            & results probably unphysical!")
-      end if
-      centreOfMass(:) = 0.0_dp
-      do iAt = 1, nMovedAtom
-        centreOfMass(:) = centreOfMass + geo%coords(:,iAt) * atomicMasses(iAt)
-      end do
-      centreOfMass(:) = centreOfMass / sum(atomicMasses(:nMovedAtom))
-      do ii = 1, 3
-        vTmp(:) = 0.0_dp
-        vTmp(ii) = 1.0_dp
-        do iAt = 1, nMovedAtom
-          call cross3(rTmp, vTmp, geo%coords(:,iAt) - centreOfMass)
-          vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
-        end do
-      end do
-    end if
-
-    ! Change from displacements to weighted displacements basis of the Hessian
-    do iAt = 1, nMovedAtom
-      vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) =&
-          & vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) * sqrt(atomicMasses(iAt))
-    end do
-
-    ! normalise non-null vectors
-    do ii = 1, nToNull
-      if (sum(vectorsToNull(:,ii)**2) > epsilon(1.0_dp)) then
-        vectorsToNull(:,ii) = vectorsToNull(:,ii) / sqrt(sum(vectorsToNull(:,ii)**2))
-      end if
-    end do
-
-    call herk(projector, vectorsToNull, alpha=-1.0_dp, beta=1.0_dp)
-
-    ! copy to other triangle
-    do jj = 1, nDerivs
-      projector(jj,jj+1:) = projector(jj+1:,jj)
-    end do
-
-    ! project out removed degrees of freedom
-    dynMatrix = matmul(projector, matmul(dynMatrix, projector))
-
-    deallocate(vectorsToNull)
-    deallocate(projector)
-  end if
+  ! remove translations or rotations if neccessary
+  call project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
 
   ! solve the eigenproblem
   if (tPlotModes) then
