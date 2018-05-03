@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Removal of translation or rotation related modes
-module projectOutNullModes
+module modeprojection
   use accuracy, only : dp
   use message
-  use TypeGeometry
+  use typegeometry
   use blasroutines, only : herk
   use simplealgebra, only : cross3
   use eigensolver, only : heev
@@ -48,7 +48,7 @@ contains
     real(dp), intent(in) :: atomicMasses(:)
 
     real(dp), allocatable :: vectorsToNull(:,:), projector(:,:)
-    real(dp) :: centreOfMass(3), rTmp(3), vTmp(3), I(3,3), moments(3)
+    real(dp) :: centreOfMass(3), rTmp(3), vTmp(3), inertia(3,3), moments(3)
     integer :: nToNull, ii, jj, iAt
 
     nToNull = 0
@@ -96,7 +96,7 @@ contains
       end do
       centreOfMass(:) = centreOfMass / sum(atomicMasses(:nMovedAtom))
 
-      call principleAxes(I, moments, geo%coords, atomicMasses, centreOfMass, nMovedAtom)
+      call getPrincipleAxes(inertia, moments, geo%coords, atomicMasses, centreOfMass, nMovedAtom)
 
       ! axis to project with respect to
       do ii = 1, 3
@@ -104,7 +104,7 @@ contains
           ! zero moment of inertia - linear molecule, and this direction is along its axis
           cycle
         end if
-        vTmp(:) = I(:,ii)
+        vTmp(:) = inertia(:,ii)
         do iAt = 1, nMovedAtom
           call cross3(rTmp, vTmp, geo%coords(:,iAt) - centreOfMass)
           vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
@@ -135,17 +135,18 @@ contains
     end do
 
     ! project out removed degrees of freedom
-    dynMatrix = matmul(projector, matmul(dynMatrix, projector))
+    dynMatrix(:,:) = matmul(projector, matmul(dynMatrix, projector))
 
     deallocate(projector)
 
   end subroutine project
 
+
   !> Principle moment of inertia axes
-  subroutine principleAxes(I, ei, coords, masses, centreOfMass, nMovedAtom)
+  subroutine getPrincipleAxes(inertia, ei, coords, masses, centreOfMass, nMovedAtom)
 
     !> Intertia axes
-    real(dp), intent(out) :: I(3,3)
+    real(dp), intent(out) :: inertia(3,3)
 
     !> Moments
     real(dp), intent(out) :: ei(3)
@@ -164,25 +165,25 @@ contains
 
     integer :: ii, jj, iAt
 
-    I(:,:) = 0.0_dp
+    inertia(:,:) = 0.0_dp
     ei(:) = 0.0_dp
 
     do iAt = 1, nMovedAtom
       do ii = 1, 3
-        I(ii, ii) = I(ii, ii) + masses(iAt) * sum((coords(:,iAt) - centreOfMass(:))**2)
+        inertia(ii, ii) = inertia(ii, ii) + masses(iAt) * sum((coords(:,iAt) - centreOfMass(:))**2)
       end do
     end do
     do iAt = 1, nMovedAtom
       do ii = 1, 3
         do jj = 1, 3
-          I(jj, ii) = I(jj, ii) - masses(iAt) * (coords(jj,iAt) - centreOfMass(jj))&
+          inertia(jj, ii) = inertia(jj, ii) - masses(iAt) * (coords(jj,iAt) - centreOfMass(jj))&
               & * (coords(ii,iAt) - centreOfMass(ii))
         end do
       end do
     end do
 
-    call heev(I(:,:), ei(:), 'U', 'V')
+    call heev(inertia, ei, 'U', 'V')
 
-  end subroutine principleAxes
+  end subroutine getPrincipleAxes
 
-end module projectOutNullModes
+end module modeprojection
