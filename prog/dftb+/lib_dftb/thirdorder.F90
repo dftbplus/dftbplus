@@ -545,7 +545,7 @@ contains
     real(dp) :: rab, tmp, tmp3(3), stTmp(3,3), prefac, vect(3)
     logical :: damping
 
-    stTmp = 0.0_dp
+    stTmp(:,:) = 0.0_dp
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iNeigh = 1, this%nNeighMax(iAt1)
