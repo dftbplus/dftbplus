@@ -21,6 +21,7 @@ dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
+h-bonds/D3H5_water_dimer               #? WITH_DFTD3
 non-scc/CH4                            #? MPI_PROCS <= 1
 non-scc/decapentaene                   #? MPI_PROCS <= 2
 scc/2H2O-3rdorder                      #? MPI_PROCS <= 1
@@ -88,6 +89,10 @@ timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/OCH2-S1-Opt                    #? WITH_ARPACK and MPI_PROCS <= 1
+
+h-bonds/H5_defaults                    #? MPI_PROCS <= 4
+h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 4
+h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 4
 
 md/Si_8_restart                        #? MPI_PROCS <= 1
 spin/GaAs_2                            #? MPI_PROCS <= 1
@@ -158,10 +163,5 @@ non-scc/Si_216                         #? MPI_PROCS <= 4
 md/ptcda-xlbomd-ldep                   #? MPI_PROCS <= 4
 geoopt/Vsi+O_lbfgs                     #? MPI_PROCS <= 4
 geoopt/Vsi+O                           #? MPI_PROCS <= 4
-scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 
+scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0
 scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
-
-h-bonds/H5_defaults                    
-h-bonds/H5_ONS_forces                  
-h-bonds/H5_ONS_forces_eq               
-h-bonds/D3H5_water_dimer               #? WITH_DFTD3
