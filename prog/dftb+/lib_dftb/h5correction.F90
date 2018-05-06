@@ -12,6 +12,7 @@
 module h5correction
   use accuracy
   use constants
+  use vdwdata
   implicit none
   private
 
@@ -162,12 +163,15 @@ contains
     ! Local variables
     character(mc) :: spName1, spName2
     integer :: iSpHeavy
+    real(dp) :: VDWH, VDWheavy
+    logical :: tFoundRadii
 
     spName1 = this%speciesName(iSp1)
     spName2 = this%speciesName(iSp2)
+
     applyCorrection = .false.
 
-    ! If the pair can not make an H-bond, return immediately with applyCorrection = .false.
+    ! If the pair cannot make an H-bond, return immediately with applyCorrection = .false.
     if (all([spName1, spName2] .ne. "H")) then
       return
     end if
@@ -184,36 +188,24 @@ contains
       iSpHeavy = iSp2
     end if
 
-    ! For each species the correction is applied to, the correction is enabled and corresponding
-    ! parameters are returned (in atomic units)
-    applyCorrection = .true.
+    call getVDWdata("H", VDWH)
+    call getVDWdata(this%speciesName(iSpHeavy), VDWheavy, found=tFoundRadii)
+
     h5Scaling = this%elementPara(iSpHeavy)
 
-    select case(this%speciesName(iSpHeavy))
-    case("O")
-      ! Correction for OH
-      sumVDW = 2.72_dp * AA__Bohr
-    case("N")
-      ! Correction for NH
-      sumVDW = 2.75_dp * AA__Bohr
-    case("S")
-      ! Correction for SH
-      sumVDW = 3.00_dp * AA__Bohr
-    case default
-      ! If there are not parameters for this H-bond, return
-
-      ! should get this distance from the input if possible, rather than just passing on anything
-      ! other than ONS automatically:
-
-      applyCorrection = .false.
-    end select
+    if (tFoundRadii .and. h5Scaling /= 0.0_dp) then
+      applyCorrection = .true.
+      sumVDW = VDWH + VDWheavy
+    else
+      ! If there are no parameters for this H-bond, return
+    end if
 
   end subroutine getParams
 
   !> Apply the correction to the short-range part of gamma function, returning modified shortGamma
   subroutine scaleShortGamma(this, shortGamma, iSp1, iSp2, rab)
 
-    !>
+    !> instance of the correction
     class(H5Corr), intent(in) :: this
 
     !> short range gamma value
@@ -251,11 +243,22 @@ contains
   subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
     !> Returns modified shortGamma derivative
 
-    ! Arguments
+    !> instance of the correction
     class(H5Corr), intent(in) :: this
+
+    !> short range gamma
     real(dp), intent(in) :: shortGamma
+
+    !> derivative of short range gamma to scale
     real(dp), intent(inout) :: shortGammaDeriv
-    integer, intent(in) :: iSp1, iSp2
+
+    !> species of first atom in the pair
+    integer, intent(in) :: iSp1
+
+    !> species of second atom in the pair
+    integer, intent(in) :: iSp2
+
+    !> separation of pair
     real(dp), intent(in) :: rab
 
     ! Local variables
@@ -267,17 +270,18 @@ contains
 
     ! If applicable to the current pair, modify the gamma
     if (applyCorrection) then
-      ! Gaussian calculation
+      ! Gaussian function parameters
       fwhm = this%wScale * sumVDW
       r0 = this%rScale * sumVDW
       c = fwhm * gaussianWidthFactor
-      gauss = exp(-0.5_dp * ((rab)-r0)**2 / c**2) * h5Scaling
+      gauss = exp(-0.5_dp * (rab - r0)**2 / c**2) * h5Scaling
       ! Derivative calculation
-      dgauss = -1.0_dp * (rab - r0) / c**2 * gauss
+      dgauss = -gauss * (rab - r0) / c**2
       deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0_dp+gauss)
-      deriv2 = dgauss/rab - (h5Scaling*exp(-1.0_dp*(0.5_dp*(rab - r0)**2)/c**2))/rab**2
+      deriv2 = dgauss/rab - (h5Scaling*exp(-0.5_dp * ( (rab - r0)**2 ) / c**2 ) )/rab**2
       shortGammaDeriv = deriv1 - deriv2
     end if
+
   end subroutine scaleShortGammaDeriv
 
 end module h5correction

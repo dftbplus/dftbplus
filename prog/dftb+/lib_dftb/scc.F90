@@ -1327,14 +1327,13 @@ contains
             u2 = this%uniqHubbU(iU2, iSp2)
             if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, &
-                    & this%dampExp)
+                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, this%dampExp)
               else
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 ! H5 correction
                 if (this%useH5) then
-                        call this%h5Correction%scaleShortGamma(&
-                            &this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
+                  call this%h5Correction%scaleShortGamma(&
+                      & this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
                 end if
                 ! H5 correction end
               end if
@@ -1395,8 +1394,8 @@ contains
                 ! H5 correction
                 if (this%useH5) then
                   tmpGamma = expGamma(rab, u2, u1)
-                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, &
-                      &iSp1, iSp2, rab)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
+                      & rab)
                 end if
                 ! H5 correction end
               end if
