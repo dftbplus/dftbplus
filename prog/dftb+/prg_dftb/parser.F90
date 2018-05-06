@@ -1436,15 +1436,15 @@ contains
           call error("H5 correction is not compatible with X-H damping")
         end if
 
-        ! Read global parameters
-        ! Defaults are -1.0 to identify that the parametrers were not read
+        ! Read global parameters Defaults are -1.0 to identify that the parameters were not read, so
+        ! default values to be used
         call getChildValue(value, "RCut", ctrl%h5RScale, -1.0_dp)
         call getChildValue(value, "W", ctrl%h5WScale, -1.0_dp)
 
         ! Get parameters for elements
         allocate(ctrl%h5ElementPara(geo%nSpecies))
-        ! Default value is -1, this indicates that the parameter was not set up
-        ! and should be handled as such later
+        ! Default value is -1, this indicates that the parameter was not set up and should be
+        ! handled as such later
         ctrl%h5ElementPara(:) = -1.0_dp
         call getChild(Value, "H5CorrectionSpecies", child2, requested=.false.)
         if (associated(child2)) then

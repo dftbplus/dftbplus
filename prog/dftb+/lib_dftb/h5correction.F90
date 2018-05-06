@@ -11,8 +11,8 @@
 !> See http://dx.doi.org/10.1021/acs.jctc.7b00629 for details.
 module h5correction
   use accuracy
-  use constants
   use vdwdata
+  use message, only : warning
   implicit none
   private
 
@@ -193,6 +193,11 @@ contains
 
     h5Scaling = this%elementPara(iSpHeavy)
 
+    if (.not.tFoundRadii) then
+      call warning("The van de  Waals radius for " // trim(this%speciesName(iSpHeavy)) //&
+          & " is not available, but is needed for the H5 correction, so is neglected")
+    end if
+
     if (tFoundRadii .and. h5Scaling /= 0.0_dp) then
       applyCorrection = .true.
       sumVDW = VDWH + VDWheavy
@@ -277,7 +282,7 @@ contains
       gauss = exp(-0.5_dp * (rab - r0)**2 / c**2) * h5Scaling
       ! Derivative calculation
       dgauss = -gauss * (rab - r0) / c**2
-      deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0_dp+gauss)
+      deriv1 = shortGamma * dgauss + shortGammaDeriv * (1.0_dp + gauss)
       deriv2 = dgauss/rab - (h5Scaling*exp(-0.5_dp * ( (rab - r0)**2 ) / c**2 ) )/rab**2
       shortGammaDeriv = deriv1 - deriv2
     end if

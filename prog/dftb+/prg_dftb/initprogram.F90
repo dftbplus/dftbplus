@@ -1152,6 +1152,9 @@ contains
       ! On/Off flag is read from the input
       if (input%ctrl%h5SwitchedOn) then
         ! Create H5 object, passing all parameters it uses
+        if (any(tDampedShort)) then
+          call error("H5 correction is not compatible with X-H damping")
+        end if
         allocate(pH5Correction)
         call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&
             &input%ctrl%h5WScale, input%ctrl%h5ElementPara)
@@ -2249,7 +2252,7 @@ contains
       write(stdOut, *)
     end if
   #:endif
-    
+
   #:if WITH_SCALAPACK
     write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol

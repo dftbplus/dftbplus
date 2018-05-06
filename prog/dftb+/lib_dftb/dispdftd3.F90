@@ -27,9 +27,10 @@ module dispdftd3_module
     integer :: version
     real(dp) :: cutoff, cutoffCN
     logical :: threebody, numgrad
-    ! D3H5 - additional H-H repulsion
+
+    !> D3H5 - additional H-H repulsion
     logical :: hhrepulsion
-    ! D3H5 end
+
   end type DispDftD3Inp
 
 
@@ -61,12 +62,12 @@ module dispdftd3_module
     !> is this periodic
     logical :: tPeriodic
 
-    !> are  the coordinates current?
+    !> are the coordinates current?
     logical :: tCoordsUpdated = .false.
 
-    ! D3H5 - additional H-H repulsion
+    !> D3H5 - additional H-H repulsion
     logical :: tHHRepulsion
-    ! D3H5 end
+
   contains
 
     !> update internal store of coordinates
@@ -89,6 +90,7 @@ module dispdftd3_module
 
     !> add D3H5 H-H repulsion to the results
     procedure :: addHHRepulsion
+
   end type DispDftD3
 
 contains
@@ -130,18 +132,16 @@ contains
     d3inp%numgrad = inp%numgrad
     d3inp%cutoff = inp%cutoff
     d3inp%cutoff_cn = inp%cutoffCN
+
     ! D3H5 - additional H-H repulsion
     this%tHHRepulsion = inp%hhrepulsion
-    ! D3H5 end
 
     allocate(this%calculator)
     call dftd3_init(this%calculator, d3inp)
     if (inp%tBeckeJohnson) then
-      call dftd3_set_params(this%calculator, [inp%s6, inp%a1, inp%s8, &
-          & inp%a2, 0.0_dp], 4)
+      call dftd3_set_params(this%calculator, [inp%s6, inp%a1, inp%s8, inp%a2, 0.0_dp], 4)
     else
-      call dftd3_set_params(this%calculator, [inp%s6, inp%sr6, inp%s8, &
-          & inp%sr8, inp%alpha6], 3)
+      call dftd3_set_params(this%calculator, [inp%s6, inp%sr6, inp%s8, inp%sr8, inp%alpha6], 3)
     end if
 
     allocate(this%izp(nAtom))
@@ -176,16 +176,16 @@ contains
     if (this%tPeriodic) then
       ! dftd3 calculates the periodic images by itself -> only coords in central cell must be
       ! passed.
-      call dftd3_pbc_dispersion(this%calculator, coords(:, 1:this%nAtom), &
-          & this%izp, this%latVecs, this%dispE, this%gradients, this%stress)
+      call dftd3_pbc_dispersion(this%calculator, coords(:, 1:this%nAtom), this%izp, this%latVecs,&
+          & this%dispE, this%gradients, this%stress)
     else
-      call dftd3_dispersion(this%calculator, coords, this%izp, this%dispE, &
-          & this%gradients)
-      ! D3H5 - additional H-H repulsion
+      call dftd3_dispersion(this%calculator, coords, this%izp, this%dispE, this%gradients)
+
       if (this%tHHRepulsion) then
+        ! D3H5 - additional H-H repulsion
         call this%addHHRepulsion(coords)
       end if
-      ! D3H5 end
+
     end if
     this%tCoordsUpdated = .true.
 
@@ -279,50 +279,49 @@ contains
 
   end function getRCutoff
 
-  ! D3H5 - additional H-H repulsion
-  !> Add the H-H repulsion for D3H5
+  !> Add the additional H-H repulsion for D3H5
   subroutine addHHRepulsion(this, coords)
+
     !> Instance of D3
     class(DispDftD3), intent(inout) :: this
+
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: i, j, c
-    real(dp) :: r, repE, dEdR, dCdR
+    integer :: ii, jj
+    real(dp) :: r, repE, dEdR, dCdR(3)
 
     ! Parameters (as published, with conversion to a.u.)
-    real(dp) :: k = 0.30_dp * kcal_mol__Hartree
-    real(dp) :: e = 14.31_dp
-    real(dp) :: r0 = 2.35_dp * AA__Bohr
+    real(dp), parameter :: k = 0.30_dp * kcal_mol__Hartree
+    real(dp), parameter :: e = 14.31_dp
+    real(dp), parameter :: r0 = 2.35_dp * AA__Bohr
 
     @:ASSERT(all(shape(coords) == [3, this%nAtom]))
 
     ! Calculate the repulsion energy and gradients
     repE = 0.0_dp
-    do i = 1, this%nAtom
-      if (this%izp(i) == 1) then
-        do j = i + 1, this%nAtom
-          if (this%izp(j) == 1) then
+    do ii = 1, this%nAtom
+      if (this%izp(ii) == 1) then
+        do jj = ii + 1, this%nAtom
+          if (this%izp(jj) == 1) then
             ! Distance in a.u.
-            r = sqrt((coords(1,i) - coords(1,j))**2 + (coords(2,i) - coords(2,j))**2 &
-                & + (coords(3,i) - coords(3,j))**2)
+            r = sqrt( sum((coords(:,ii) - coords(:,jj))**2) )
             ! Repulsion energy in a.u.
             repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
             ! Derivative
-            dEdR = -k * (1.0_dp / (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2 * e/r0 * exp(-e*(r/r0-1.0_dp)))
+            dEdR = -k * e * exp(-e*(r/r0 -1.0_dp)) / (r0 * (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2)
             ! Apply it to the atoms
-            do c = 1, 3
-              dCdR = (coords(c,i) - coords(c,j)) / r
-              this%gradients(c,i) = this%gradients(c,i) + dEdR * dCdR
-              this%gradients(c,j) = this%gradients(c,j) - dEdR * dCdR
-            end do
+            dCdR(:) = (coords(:,ii) - coords(:,jj)) / r
+            this%gradients(:,ii) = this%gradients(:,ii) + dEdR * dCdR
+            this%gradients(:,jj) = this%gradients(:,jj) - dEdR * dCdR
           end if
         end do
       end if
-    end do 
+    end do
+
     ! Add the repulsion energy to the result
     this%dispE = this%dispE + repE
+
   end subroutine addHHRepulsion
-  ! D3H5 end
 
 end module dispdftd3_module

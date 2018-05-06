@@ -128,8 +128,8 @@ forces.o = forces.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_e
 _mod_forces: forces.o
 _mod_forces = $(forces.o)
 
-h5correction.o: _mod_vdwdata common.fypp _mod_accuracy _mod_constants
-h5correction.o = h5correction.o $(_mod_vdwdata) $(common.fypp) $(_mod_accuracy) $(_mod_constants)
+h5correction.o: _mod_vdwdata common.fypp _mod_accuracy _mod_message
+h5correction.o = h5correction.o $(_mod_vdwdata) $(common.fypp) $(_mod_accuracy) $(_mod_message)
 _mod_h5correction: h5correction.o
 _mod_h5correction = $(h5correction.o)
 
