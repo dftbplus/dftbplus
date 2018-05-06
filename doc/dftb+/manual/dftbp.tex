@@ -2141,10 +2141,10 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.
-  A modification of the D3 dispersion to be used as a part of the
-  D3H5 correction\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5})
-  is also available.
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.  A modification of
+  the D3 dispersion to be used as a part of the D3H5
+  correction~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}) is
+  also available.
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2404,6 +2404,7 @@ parameters are taken to be the same as in the dftd3 code.
   \kw{Cutoff} & r & & $\sqrt{9000}$ & \\
   \kw{CutoffCN} & r & & $40$ & \\
   \kw{Threebody} & l & & No & \\
+  \kw{HHRepulsion} & l & & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when calculating
@@ -2415,17 +2416,11 @@ parameters are taken to be the same as in the dftd3 code.
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
 
+\item[\is{HHRepulsion}] To calculate the D3 dispersion, as used in the
+  DFTB3-D3H5 method~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}
+  for details and parameter values), an additional repulsion term is applied to
+  all hydrogen--hydrogen pairs.
 \end{description}
-
-To calculate the D3 dispersion as used in the DFTB3-D3H5 method\cite{rezac-jctc-13-2017}
-(see section \ref{sec:dftbp.D3H5} for details and parameter values),
-an additional repulsion term is applied to all hydrogen--hydrogen pairs.
-It is activated by the following option:
-\begin{description}
-\item[\is{HHRepulsion}] Adds a hydrogen--hydrogen repulsion term to the D3 dispersion
-	energy as used in the DFTB3-D3H method. Default value is \is{No}.
-\end{description}
-
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}
@@ -2487,20 +2482,20 @@ Hamiltonian = DFTB {
 \subsection{DFTB3-D3H5}
 \label{sec:dftbp.D3H5}
 
-DFTB3-D3H5 \cite{rezac-jctc-13-2017} is a variant of DFTB3 with corrections for
-non-covalent interactions (dispersion and hydrogen bonds).
-It consists of a third-order DFTB calculation with the 3OB parameter set where
-the gamma-function damping (\is{DampXH}) is replaced by the H5 correction, and
-a D3 dispersion correction to which an additional repulsive term was added to
-prevent hydrogen--hydrogen close contacts.
+DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with corrections for
+non-covalent interactions (dispersion and hydrogen bonds).  It consists of a
+third-order DFTB calculation with the 3OB parameter set where the gamma-function
+damping (\is{DampXH}) is replaced by the H5 correction, and an additional D3
+dispersion correction to which a repulsive term was added to prevent
+hydrogen--hydrogen close approach.
 
 \begin{description}
 \item[\is{HBondCorrection}] Setting this keyword to \is{H5 \{\}} activates the
-  H5 correction for hydrogen bonds.\cite{rezac-jctc-13-2017} 
-  When no additional parameters are provided in the input,
-  the default parameter set is used (it was developed for the DFTB3/3OB setup).
-  If you want to specify the parameters manually, the complete input (with default
-  values of the parameters) is:
+  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
+  parameters are provided in the input, suitable parameters for H-\{O,N,S\}
+  systems are used (it was developed for the DFTB3/3OB model and parameters). If
+  you want to specify the parameters manually, an example input (using values
+  which match the default choices for the parameters) is:
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
@@ -2515,14 +2510,18 @@ Hamiltonian = DFTB {
   }
   :
 }
-
 \end{verbatim}
+
 \end{description}
 
-To complete the DFTB3-D3H5 calculation, a specific parametrization of the D3
-dispersion has to be used. In addition to setting up the values of the parameters,
-the hydrogen--hydrogen repulsion has to be also activated. The complete input
-is:
+\textbf{Note:} that the van de Waals radii of atoms are also required, \dftbp{}
+stores these for most of the periodic table, but for case that are not available
+their contribution to this correction are neglected.
+
+For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
+has to be used. In addition to setting up appropriate values of the D3
+parameters, the hydrogen--hydrogen repulsion has to also be activated. The
+complete input is:
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
@@ -2537,7 +2536,6 @@ Hamiltonian = DFTB {
   }
   :
 }
-
 \end{verbatim}
 
 \subsection{Differentiation}
