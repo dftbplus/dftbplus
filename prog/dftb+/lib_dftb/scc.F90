@@ -1437,6 +1437,9 @@ contains
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
     real(dp) :: intermed(3), vect(3)
+    ! H5 correction temp. vars
+    real(dp) :: tmpGamma
+    ! H5 correction end
 
     @:ASSERT(all(shape(st)==(/3,3/)))
     @:ASSERT(this%tInitialised)
@@ -1461,11 +1464,18 @@ contains
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                ! H5 correction
+                if (this%useH5) then
+                  tmpGamma = expGamma(rab, u2, u1)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
+                      & rab)
+                end if
+                ! H5 correction end
               end if
               do ii = 1,3
                 intermed(ii) = intermed(ii) &
-                    & - this%deltaQUniqU(iU1,iAt1) * this%deltaQUniqU(iU2,iAt2f) &
-                    & *tmpGammaPrime*vect(ii)/rab
+                    & - this%deltaQUniqU(iU1,iAt1) * this%deltaQUniqU(iU2,iAt2f)&
+                    & * tmpGammaPrime*vect(ii)/rab
               end do
             end if
           end do

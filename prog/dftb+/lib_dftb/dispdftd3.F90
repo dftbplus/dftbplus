@@ -13,7 +13,8 @@ module dispdftd3_module
   use accuracy
   use dispiface
   use dftd3_module
-  use periodic, only: TNeighborList, getNrOfNeighborsForAll
+  use periodic, only : TNeighborList, getNrOfNeighborsForAll
+  use simplealgebra, only : determinant33
   use constants
   implicit none
   private
@@ -159,7 +160,7 @@ contains
   !> Notifies the objects about changed coordinates.
   subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
 
-    !> Instance of stress data
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> Updated neighbor list.
@@ -186,7 +187,7 @@ contains
     end if
 
     if (this%tHHRepulsion) then
-      ! D3H5 - additional H-H repulsion
+      ! D3H5 - additional H-H repulsion contributions to energy, forces and stress (if periodic)
       call this%addHHRepulsion(coords, neigh, img2CentCell)
     end if
 
@@ -198,7 +199,7 @@ contains
   !> Notifies the object about updated lattice vectors.
   subroutine updateLatVecs(this, latVecs)
 
-    !> Instance of stress data
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> New lattice vectors
@@ -215,7 +216,7 @@ contains
   !> Returns the atomic resolved energies due to the dispersion.
   subroutine getEnergies(this, energies)
 
-    !> Instance of stress data
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> Contains the atomic energy contributions on exit.
@@ -234,7 +235,7 @@ contains
   !> Adds the atomic gradients to the provided vector.
   subroutine addGradients(this, gradients)
 
-    !> Instance of stress data
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> The vector to increase by the gradients.
@@ -252,7 +253,7 @@ contains
   !> Returns the stress tensor.
   subroutine getStress(this, stress)
 
-    !> Instance of stress data
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> stress tensor from the dispersion
@@ -270,7 +271,7 @@ contains
   !> Estimates the real space cutoff of the dispersion interaction.
   function getRCutoff(this) result(cutoff)
 
-    !> Instance of stress data
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> Resulting cutoff
@@ -285,7 +286,7 @@ contains
   !> Add the additional H-H repulsion for D3H5
   subroutine addHHRepulsion(this, coords, neigh, img2CentCell)
 
-    !> Instance of D3
+    !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
     !> Current coordinates
@@ -297,14 +298,17 @@ contains
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: iAt1, iNeigh, iAt2, iAt2f
-    real(dp) :: r, repE, dEdR, dCdR(3)
+    integer :: iAt1, iNeigh, iAt2, iAt2f, ii
+    real(dp) :: r, repE, dEdR, dCdR(3), cellVol, stTmp(3,3), vect(3), prefac
     integer, allocatable :: nNeigh(:)
 
     ! Parameters (as published, with conversion to a.u.)
     real(dp), parameter :: k = 0.30_dp * kcal_mol__Hartree
     real(dp), parameter :: e = 14.31_dp
     real(dp), parameter :: r0 = 2.35_dp * AA__Bohr
+
+    ! stress tensor contribution, if periodic
+    stTmp(:,:) = 0.0_dp
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighborsForAll(nNeigh, neigh, HHRepCutOff)
@@ -321,21 +325,41 @@ contains
         if (this%izp(iAt2f) /= 1) then
           cycle
         end if
+        if (iAt1 == iAt2f) then
+          prefac = 0.5_dp
+        else
+          prefac = 1.0_dp
+        end if
         ! Distance in a.u.
-        r = sqrt( sum((coords(:,iAt1) - coords(:,iAt2))**2) )
+        vect(:) = coords(:,iAt1) - coords(:,iAt2)
+        r = sqrt( sum(vect**2) )
         ! Repulsion energy in a.u.
         repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
         ! Derivative
         dEdR = -k * e * exp(-e*(r/r0 -1.0_dp)) / (r0 * (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2)
         ! Apply it to the atoms
         dCdR(:) = (coords(:,iAt1) - coords(:,iAt2)) / r
-        this%gradients(:,iAt1) = this%gradients(:,iAt1) + dEdR * dCdR
-        this%gradients(:,iAt2f) = this%gradients(:,iAt2f) - dEdR * dCdR
+        this%gradients(:,iAt1) = this%gradients(:,iAt1) + dEdR * dCdR(:)
+        this%gradients(:,iAt2f) = this%gradients(:,iAt2f) - dEdR * dCdR(:)
+
+        if (this%tPeriodic) then
+          ! stress tensor contribution
+          do ii = 1, 3
+            stTmp(:, ii) = stTmp(:, ii) + prefac * vect(ii) * dEdR * dCdR(:)
+          end do
+        end if
+
       end do
     end do
 
     ! Add the repulsion energy to the result
     this%dispE = this%dispE + repE
+
+    if (this%tPeriodic) then
+      ! Addition to stress tensor
+      cellVol = abs(determinant33(this%latVecs))
+      this%stress = this%stress - stTmp / cellVol
+    end if
 
   end subroutine addHHRepulsion
 
