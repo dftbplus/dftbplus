@@ -39,7 +39,6 @@ module main
   use numderivs2
   use spin
   use dftbplusu
-  use fileid
   use mdcommon
   use energies
   use potentials
@@ -64,7 +63,6 @@ module main
   use message
   use repcont
   use xlbomd_module
-  use fifo
   use slakocont
   use linkedlist
   use lapackroutines
