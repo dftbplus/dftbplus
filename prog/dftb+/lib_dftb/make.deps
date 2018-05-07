@@ -56,8 +56,8 @@ dispcommon.o = dispcommon.o $(common.fypp) $(_mod_constants) $(_mod_sorting) $(_
 _mod_dispcommon: dispcommon.o
 _mod_dispcommon = $(dispcommon.o)
 
-dispdftd3.o: common.fypp _mod_constants _mod_dftd3_module _mod_dispiface _mod_assert _mod_accuracy
-dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_constants) $(_mod_dftd3_module) $(_mod_dispiface) $(_mod_assert) $(_mod_accuracy)
+dispdftd3.o: common.fypp _mod_constants _mod_dftd3_module _mod_dispiface _mod_assert _mod_periodic _mod_accuracy
+dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_constants) $(_mod_dftd3_module) $(_mod_dispiface) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
 _mod_dispdftd3_module: dispdftd3.o
 _mod_dispdftd3_module = $(dispdftd3.o)
 

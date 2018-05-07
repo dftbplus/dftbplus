@@ -11,6 +11,8 @@ module dispiface
   use periodic, only : TNeighborList
   implicit none
 
+  private
+  public :: DispersionIface
 
   !> Interface for classes providing dispersion.
   type, abstract :: DispersionIface

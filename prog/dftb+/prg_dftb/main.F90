@@ -892,8 +892,8 @@ contains
       call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
     end if
 
-    call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, &
-        &neighborList, nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
+    call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, neighborList,&
+        & nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
     call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
     call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iSparseStart,&
@@ -905,8 +905,7 @@ contains
       call sccCalc%updateCoords(env, coord, species, neighborList)
     end if
     if (allocated(dispersion)) then
-      call dispersion%updateCoords(neighborList, img2CentCell, coord, &
-          & species0)
+      call dispersion%updateCoords(neighborList, img2CentCell, coord, species0)
     end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighborList, species)

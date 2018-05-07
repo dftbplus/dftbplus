@@ -13,12 +13,15 @@ module dispdftd3_module
   use accuracy
   use dispiface
   use dftd3_module
+  use periodic, only: TNeighborList, getNrOfNeighborsForAll
   use constants
   implicit none
   private
 
-  public :: DispDftD3Inp, DispDftD3, DispDftD3_init
+  public :: DispDftD3Inp, DispDftD3, DispDftD3_init, HHRepCutOff
 
+  ! cut-off distance in Bohr for the H-H repulsion term dropping below 1E-10
+  real(dp), parameter :: HHRepCutOff = 10.0_dp
 
   !> Input structure for the DFT-D3 initialization.
   type :: DispDftD3Inp
@@ -180,13 +183,13 @@ contains
           & this%dispE, this%gradients, this%stress)
     else
       call dftd3_dispersion(this%calculator, coords, this%izp, this%dispE, this%gradients)
-
-      if (this%tHHRepulsion) then
-        ! D3H5 - additional H-H repulsion
-        call this%addHHRepulsion(coords)
-      end if
-
     end if
+
+    if (this%tHHRepulsion) then
+      ! D3H5 - additional H-H repulsion
+      call this%addHHRepulsion(coords, neigh, img2CentCell)
+    end if
+
     this%tCoordsUpdated = .true.
 
   end subroutine updateCoords
@@ -280,7 +283,7 @@ contains
   end function getRCutoff
 
   !> Add the additional H-H repulsion for D3H5
-  subroutine addHHRepulsion(this, coords)
+  subroutine addHHRepulsion(this, coords, neigh, img2CentCell)
 
     !> Instance of D3
     class(DispDftD3), intent(inout) :: this
@@ -288,35 +291,47 @@ contains
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: ii, jj
+    !> Neighbor list.
+    type(TNeighborList), intent(in) :: neigh
+
+    !> Updated mapping to central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: r, repE, dEdR, dCdR(3)
+    integer, allocatable :: nNeigh(:)
 
     ! Parameters (as published, with conversion to a.u.)
     real(dp), parameter :: k = 0.30_dp * kcal_mol__Hartree
     real(dp), parameter :: e = 14.31_dp
     real(dp), parameter :: r0 = 2.35_dp * AA__Bohr
 
-    @:ASSERT(all(shape(coords) == [3, this%nAtom]))
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighborsForAll(nNeigh, neigh, HHRepCutOff)
 
     ! Calculate the repulsion energy and gradients
     repE = 0.0_dp
-    do ii = 1, this%nAtom
-      if (this%izp(ii) == 1) then
-        do jj = ii + 1, this%nAtom
-          if (this%izp(jj) == 1) then
-            ! Distance in a.u.
-            r = sqrt( sum((coords(:,ii) - coords(:,jj))**2) )
-            ! Repulsion energy in a.u.
-            repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
-            ! Derivative
-            dEdR = -k * e * exp(-e*(r/r0 -1.0_dp)) / (r0 * (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2)
-            ! Apply it to the atoms
-            dCdR(:) = (coords(:,ii) - coords(:,jj)) / r
-            this%gradients(:,ii) = this%gradients(:,ii) + dEdR * dCdR
-            this%gradients(:,jj) = this%gradients(:,jj) - dEdR * dCdR
-          end if
-        end do
+    do iAt1 = 1, this%nAtom
+      if (this%izp(iAt1) /= 1) then
+        cycle
       end if
+      do iNeigh = 1, nNeigh(iAt1)
+        iAt2 = neigh%iNeighbor(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        if (this%izp(iAt2f) /= 1) then
+          cycle
+        end if
+        ! Distance in a.u.
+        r = sqrt( sum((coords(:,iAt1) - coords(:,iAt2))**2) )
+        ! Repulsion energy in a.u.
+        repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
+        ! Derivative
+        dEdR = -k * e * exp(-e*(r/r0 -1.0_dp)) / (r0 * (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2)
+        ! Apply it to the atoms
+        dCdR(:) = (coords(:,iAt1) - coords(:,iAt2)) / r
+        this%gradients(:,iAt1) = this%gradients(:,iAt1) + dEdR * dCdR
+        this%gradients(:,iAt2f) = this%gradients(:,iAt2f) - dEdR * dCdR
+      end do
     end do
 
     ! Add the repulsion energy to the result

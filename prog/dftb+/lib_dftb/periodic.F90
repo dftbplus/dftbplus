@@ -77,6 +77,7 @@ module periodic
 
     !> initialised data
     logical :: initialized = .false.
+
   end type TNeighborList
 
 contains

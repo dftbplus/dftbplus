@@ -874,7 +874,7 @@ contains
 
     ! H5 correction
     type(H5Corr), allocatable :: pH5Correction
-    ! H5 correction end
+    logical :: tHHRepulsion = .false.
 
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
@@ -1151,6 +1151,9 @@ contains
       ! H5 correction
       ! On/Off flag is read from the input
       if (input%ctrl%h5SwitchedOn) then
+        if (.not. any(speciesMass < 3.5_dp * amu__au)) then
+          call error("H5 correction used without H atoms present")
+        end if
         if (any(tDampedShort)) then
           call error("H5 correction is not compatible with X-H damping")
         end if
@@ -1163,7 +1166,6 @@ contains
         ! Pass the correction object to SCC
         sccInp%h5Correction = pH5Correction
       end if
-      ! H5 correction end
 
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
@@ -1619,7 +1621,11 @@ contains
         if (tPeriodic) then
           call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName, latVec)
           if (input%ctrl%dispInp%dftd3%hhrepulsion) then
-            call error("H-H repulsion not implmented for periodic systems")
+            mCutoff = max(mCutoff, HHRepCutoff)
+            tHHRepulsion = .true.
+            if (.not. any(speciesMass < 3.5_dp * amu__au)) then
+              call error("H-H repulsion correction used without H atoms present")
+            end if
           end if
         else
           call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName)
@@ -2634,6 +2640,9 @@ contains
       ! H5 correction
       if (input%ctrl%h5SwitchedOn) then
         write(stdOut, "(A,T30,A)") "H-bond correction:", "H5"
+      end if
+      if (tHHRepulsion) then
+        write(stdOut, "(A,T30,A)") "H-H repulsion correction:", "H5"
       end if
      ! H5 correction end
     end if
