@@ -100,6 +100,20 @@ module blasroutines
     module procedure hemm_dblecmplx
   end interface hemm
 
+ !> SCAL scales a vector by a constant
+ !> Wrapper for the level 1 blas routine
+  interface scal
+    module procedure scal_cmplx
+    module procedure scal_dblecmplx
+ end interface scal
+
+ !> SCAL scales a vector by a constant
+ !> Wrapper for the level 1 blas routine
+ interface swap
+    module procedure swap_cmplx
+    module procedure swap_dblecmplx
+ end interface swap
+
 contains
 
 
@@ -1901,5 +1915,75 @@ contains
     call zhemm(side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc)
 
   end subroutine hemm_dblecmplx
+
+
+  !> simple precision complex matrix scaling
+  subroutine scal_cmplx(a,alpha)
+
+    !> contains the matrix to be scaled
+    complex(rsp), intent(inout) :: a(:,:)
+
+    !> scaling factor
+    complex(rsp), intent(in) :: alpha
+
+    integer :: n, m
+
+    n = size(a, dim=1)
+    m = size(a, dim=2)
+
+    call cscal(n*m, alpha, a, 1)
+  end subroutine scal_cmplx
+
+
+  !> double precision complex matrix scaling
+  subroutine scal_dblecmplx(a,alpha)
+
+    !> contains the matrix to be scaled
+    complex(rdp), intent(inout) :: a(:,:)
+
+    !> scaling factor
+    complex(rdp), intent(in) :: alpha
+
+    integer :: n, m
+
+    n = size(a, dim=1)
+    m = size(a, dim=2)
+
+    call zscal(n*m, alpha, a, 1)
+  end subroutine scal_dblecmplx
+
+
+  !> simple precision complex matrix swapping
+  subroutine swap_cmplx(a,b)
+
+    !> matrices to be swapped
+    complex(rsp), intent(inout) :: a(:,:), b(:,:)
+
+    integer :: n, m
+    @:ASSERT(size(a,dim=1) == size(b,dim=1))
+    @:ASSERT(size(a,dim=2) == size(b,dim=2))
+
+    n = size(a, dim=1)
+    m = size(a, dim=2)
+
+    call cswap(n*m, a, 1, b, 1)
+  end subroutine swap_cmplx
+
+
+  !> double precision complex matrix swapping
+  subroutine swap_dblecmplx(a,b)
+
+    !> matrices to be swapped
+    complex(rdp), intent(inout) :: a(:,:), b(:,:)
+
+    integer :: n, m
+    @:ASSERT(size(a,dim=1) == size(b,dim=1))
+    @:ASSERT(size(a,dim=2) == size(b,dim=2))
+
+    n = size(a, dim=1)
+    m = size(a, dim=2)
+
+    call zswap(n*m, a, 1, b, 1)
+  end subroutine swap_dblecmplx
 
 end module blasroutines

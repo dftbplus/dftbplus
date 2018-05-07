@@ -599,10 +599,10 @@ contains
     end if
        
     !! Here time propagation is called
-    if (tElecDynamics) then
+    if (tElectronDynamics) then
        call runDynamics(elecDyn, eigvecsReal, ham, H0, q0, over, filling, neighborList, &
             &nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW, &
-            &pRepCont, sccCalc)
+            &pRepCont, sccCalc, env)
     end if
 
     if (allocated(pipekMezey)) then

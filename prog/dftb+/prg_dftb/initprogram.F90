@@ -797,8 +797,8 @@ module initprogram
   integer :: timingLevel
 
   !> Electron dynamics
-  logical :: tElecDynamics
-  type(ElecDynamics) :: elecDyn
+  logical :: tElectronDynamics
+  type(TElecDynamics) :: elecDyn
 
   private :: createRandomGenerators
 
@@ -2657,10 +2657,10 @@ contains
    end if
    
    ! Electron dynamics stuff
-   tElecDynamics = allocated(input%ctrl%elecDynInp)
-   if (tElecDynamics) then
-      call initElecDynamics(elecDyn, input%ctrl%elecDynInp, & 
-           &species0, speciesName, env)
+   tElectronDynamics = allocated(input%ctrl%elecDynInp)
+   if (tElectronDynamics) then
+      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, & 
+           &species0, speciesName)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)

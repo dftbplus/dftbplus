@@ -377,7 +377,7 @@ module inputdata_module
     type(linrespini) :: lrespini
 
     !> ElectronDynamics
-    type(ElecDynamicsInp), allocatable :: elecDynInp
+    type(TElecDynamicsInp), allocatable :: elecDynInp
 
   #:if WITH_SOCKETS
     !> socket communication

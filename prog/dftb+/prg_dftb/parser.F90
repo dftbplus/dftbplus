@@ -3312,28 +3312,29 @@ contains
 
   end subroutine readCustomisedHubbards
 
-  
+
   !> Reads the electron dynamics block
   subroutine readElecDynamics(node, input)
     type(fnode), pointer :: node
-    type(ElecDynamicsInp), intent(inout) :: input 
+    type(TElecDynamicsInp), intent(inout) :: input
     type(fnode), pointer :: value, child
     type(string) :: buffer, modifier
 
-    call getChildValue(node, "Nsteps", input%tdSteps)
-    call getChildValue(node, "TimeStep", input%tdDt, modifier=modifier, &
-         & child=child)    
-    call convertByMul(char(modifier), timeUnits, child, input%tdDt)
+    call getChildValue(node, "Nsteps", input%Steps)
+    call getChildValue(node, "TimeStep", input%Dt, modifier=modifier, &
+         & child=child)
+    call convertByMul(char(modifier), timeUnits, child, input%Dt)
 
     call getChildValue(node, "FieldIntensity", input%tdField, &
          & modifier=modifier, child=child)
     call convertByMul(char(modifier), EFieldUnits, child, &
          & input%tdField)
 
-    call getChildValue(node, "Populations", input%tdPopulations, .false.)
-    call getChildValue(node, "SaveEvery", input%tdSaveEvery, 50)
-    call getChildValue(node, "Restart", input%tdRestart, .false.)
-    call getChildValue(node, "WriteRestart", input%tdWriteRestart, .true.) 
+    call getChildValue(node, "Populations", input%Populations, .false.)
+    call getChildValue(node, "SaveEvery", input%SaveEvery, 50)
+    call getChildValue(node, "Restart", input%Restart, .false.)
+    call getChildValue(node, "WriteRestart", input%WriteRestart, .true.)
+    call getChildValue(node, "RestartFrequency", input%restartFreq, 10)
 
     !! Different perturbation types
     call getChildValue(node, "Perturbation", value, "None", child=child)
@@ -3341,25 +3342,25 @@ contains
     select case(char(buffer))
 
     case ("kick")
-       input%tdType = iKick
-       call getChildValue(value, "PolarizationDirection", input%tdPolDir)
-       if (input%tdPolDir > 4) then
+       input%PertType = iKick
+       call getChildValue(value, "PolarizationDirection", input%PolDir)
+       if (input%PolDir > 4) then
           call detailedError(child, "Wrong specified polarization direction")
        end if
-       call getChildValue(value, "SpinType", input%tdSpType, iTDSinglet)
+       call getChildValue(value, "SpinType", input%SpType, iTDSinglet)
 
     case ("laser")
-       input%tdType = iLaser
-       call getChildValue(value, "PolarizationDirection", input%tdReFieldPolVec)
-       call getChildValue(value, "ImagPolarizationDirection", input%tdImFieldPolVec, &
+       input%PertType = iLaser
+       call getChildValue(value, "PolarizationDirection", input%ReFieldPolVec)
+       call getChildValue(value, "ImagPolarizationDirection", input%ImFieldPolVec, &
             & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-       call getChildValue(value, "LaserEnergy", input%tdOmega, &
+       call getChildValue(value, "LaserEnergy", input%Omega, &
             & modifier=modifier, child=child)
-       call convertByMul(char(modifier), energyUnits, child, input%tdOmega)
-       call getChildValue(value, "Phase", input%tdPhase, 0.0_dp)
+       call convertByMul(char(modifier), energyUnits, child, input%Omega)
+       call getChildValue(value, "Phase", input%Phase, 0.0_dp)
 
     case ("none")
-       input%tdType = iNoTDPert
+       input%PertType = iNoTDPert
 
     case default
        call detailedError(child, "Unknown perturbation type " // char(buffer))
@@ -3371,37 +3372,37 @@ contains
     select case(char(buffer))
 
     case("constant")
-       input%tdEnvType = iTDConstant
+       input%EnvType = iTDConstant
 
     case("gaussian")
-       input%tdEnvType = iTDGaussian
-       call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime0)
+       input%EnvType = iTDGaussian
+       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, &
+            & child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value, "Time1", input%tdTime1, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
+       call getChildValue(value, "Time1", input%Time1, modifier=modifier, &
+            & child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("sin2")
-       input%tdEnvType = iTDSin2
-       call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime0)
+       input%EnvType = iTDSin2
+       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, &
+            & child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value, "Time1", input%tdTime1, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
+       call getChildValue(value, "Time1", input%Time1, modifier=modifier, &
+            & child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("from_file")
-       input%tdEnvType = iTDFromFile 
-       call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime0)
+       input%EnvType = iTDFromFile
+       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, &
+            & child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value, "Time1", input%tdTime1, input%tdDT * input%tdSteps , &
-            & modifier=modifier, child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
+       call getChildValue(value, "Time1", input%Time1, input%Dt * input%Steps , &
+            & modifier=modifier, child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case default
        call detailedError(value, "Unknown envelope shape " // char(buffer))
@@ -3409,7 +3410,7 @@ contains
 
   end subroutine readElecDynamics
 
-  
+
   !> Reads the parallel block.
   subroutine readParallel(root, parallelOpts)
 
@@ -3463,5 +3464,5 @@ contains
 
   end subroutine readBlacs
 
-  
+
 end module parser
