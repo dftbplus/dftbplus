@@ -57,7 +57,7 @@ module environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(9) = [&
+  type(TTimerItem), parameter :: globalTimerItems(11) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("SCC", 1),&
@@ -66,7 +66,9 @@ module environment
       & TTimerItem("Post-SCC processing", 1),&
       & TTimerItem("Eigenvector writing", 2),&
       & TTimerItem("Force calculation", 2),&
-      & TTimerItem("Post-geometry optimisation", 1)]
+      & TTimerItem("Post-geometry optimisation", 1),&
+      & TTimerItem("Electron dynamics initialisation", 1),&
+      & TTimerItem("Electron dynamics loop", 1)]
 
   type :: TGlobalTimersHelper
     integer :: globalInit = 1
@@ -78,6 +80,8 @@ module environment
     integer :: eigvecWriting = 7
     integer :: forceCalc = 8
     integer :: postGeoOpt = 9
+    integer :: elecDynInit = 10
+    integer :: elecDynLoop = 11
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()

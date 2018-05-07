@@ -200,7 +200,7 @@ contains
     character(4) :: dumpIdx
 
     ! Initialize timer
-!    call env%globalTimer%startTimer(globalTimers%elecDynInit)
+    call env%globalTimer%startTimer(globalTimers%elecDynInit)
     if (this%Restart) then
        call readRestart(Rho, Ssqr, coord, startTime)
     end if
@@ -230,11 +230,11 @@ contains
          & nNeighbor, orb, iSquare, iPair, img2CentCell, ham0, qq, q0, &
          & potential, chargePerShell, coord, pRepCont)
 
-!    call env%globalTimer%stopTimer(globalTimers%elecDynInit)
+    call env%globalTimer%stopTimer(globalTimers%elecDynInit)
     ! End of initialization
 
     !! Main loop
-!    call env%globalTimer%startTimer(globalTimers%elecDynLoop)
+    call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call tic(iTimeLoop)
 
     write(stdOut,"(A)")'Starting dynamics'
@@ -279,7 +279,7 @@ contains
     end do
 
     write(stdOut, "(A)") 'Dynamics finished OK!'
-!    call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
+    call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat)
   end subroutine doDynamics
 
