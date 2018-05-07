@@ -96,6 +96,7 @@ timedep/OCH2-S1-Opt                    #? WITH_ARPACK and MPI_PROCS <= 1
 h-bonds/H5_defaults                    #? MPI_PROCS <= 4
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 4
 h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 4
+h-bonds/D3H5_ice                       #? MPI_PROCS <= 4
 
 md/Si_8_restart                        #? MPI_PROCS <= 1
 spin/GaAs_2                            #? MPI_PROCS <= 1
