@@ -2964,8 +2964,7 @@ contains
       call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
     case default
       call getNodeHSDName(childval, buffer)
-      call detailedError(child, "Invalid damping method '" // char(buffer) &
-          & // "'")
+      call detailedError(child, "Invalid damping method '" // char(buffer) // "'")
     end select
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8, default=0.5883_dp)
@@ -2978,7 +2977,7 @@ contains
     call getChildValue(node, "threebody", input%threebody, default=.false.)
     ! D3H5 - additional H-H repulsion
     call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
-    ! D3H5 end
+
     input%numgrad = .false.
 
   end subroutine readDispDFTD3

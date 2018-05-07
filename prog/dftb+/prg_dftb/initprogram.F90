@@ -1151,10 +1151,10 @@ contains
       ! H5 correction
       ! On/Off flag is read from the input
       if (input%ctrl%h5SwitchedOn) then
-        ! Create H5 object, passing all parameters it uses
         if (any(tDampedShort)) then
           call error("H5 correction is not compatible with X-H damping")
         end if
+        ! Create H5 object, passing all parameters it uses
         allocate(pH5Correction)
         call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&
             &input%ctrl%h5WScale, input%ctrl%h5ElementPara)
@@ -1617,11 +1617,12 @@ contains
       elseif (allocated(input%ctrl%dispInp%dftd3)) then
         allocate(dftd3)
         if (tPeriodic) then
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, &
-              & species0, speciesName, latVec)
+          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName, latVec)
+          if (input%ctrl%dispInp%dftd3%hhrepulsion) then
+            call error("H-H repulsion not implmented for periodic systems")
+          end if
         else
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, &
-              & species0, speciesName)
+          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName)
         end if
         call move_alloc(dftd3, dispersion)
     #:endif
