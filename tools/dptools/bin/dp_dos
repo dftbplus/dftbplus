@@ -6,18 +6,21 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
-'''Convolves band.out-like files into DOS/PDOS via Gaussian broadening'''
+'''Convolves band.out-like files into DOS/PDOS via broadening functions'''
 
 from __future__ import print_function
 import argparse
+import math
 import numpy as np
+import numpy.polynomial.hermite as  H
 from dptools.bandout import BandOut
 
 USAGE = """
-Reads the band structure information stored in a file INPUT created by DFTB+
-(usually band.out for DOS and region*.out for PDOS) and convolves the
-eigenlevels with gaussians to produce nice DOS/PDOS curves. The result is stored
-in the file OUTPUT in NXY-format.
+Reads the band structure information stored in a file INPUT created by
+DFTB+ (usually band.out for DOS and region*.out for PDOS) and
+convolves the eigenlevels with a broadening function to produce nice
+DOS/PDOS curves. The result is stored in the file OUTPUT in
+NXY-format.
 
 IMPORTANT: If you create PDOS, you have to weight the levels by the
 'occupation' numbers (using option '-w'), otherwise you will obtain the total
@@ -32,16 +35,19 @@ DEFAULT_GRID_SEPARATION = 0.01
 
 GAUSS_BROADENING = "gauss"
 FERMI_BROADENING = "fermi"
-BROADENING_FUNCTIONS = [GAUSS_BROADENING, FERMI_BROADENING]
+MP_BROADENING = "mp"
+BROADENING_FUNCTIONS = [GAUSS_BROADENING, FERMI_BROADENING, MP_BROADENING]
 
 DEFAULT_RANGES = {
     GAUSS_BROADENING: 3.5,
     FERMI_BROADENING: 7.0,
+    MP_BROADENING: 3.5,
 }
 
 DEFAULT_WIDTHS = {
     GAUSS_BROADENING: 0.1,
     FERMI_BROADENING: 0.1,
+    MP_BROADENING: 0.1,
 }
 
 
@@ -63,16 +69,21 @@ def parse_arguments():
                         choices=BROADENING_FUNCTIONS, default=GAUSS_BROADENING,
                         help=msg)
 
-    msg = "broadening width sigma (default: gauss {:.2f}, fermi {:.2f})"\
-        .format(DEFAULT_WIDTHS[GAUSS_BROADENING],
-                DEFAULT_WIDTHS[FERMI_BROADENING])
+    msg = "order of mp function"
+    parser.add_argument("-o", "--mporder", dest="mporder", help=msg)
+
+    msg = "broadening width sigma (default: gauss {:.2f}, fermi {:.2f}, mp{:.2f})"\
+          .format(DEFAULT_WIDTHS[GAUSS_BROADENING],
+                  DEFAULT_WIDTHS[FERMI_BROADENING],
+                  DEFAULT_WIDTHS[MP_BROADENING])
     parser.add_argument("-b", "--broadening-width", type=float, metavar="WIDTH",
                         dest="broadwidth", help=msg, default=-1.0)
 
     msg = "number of sigmas after which the broadening function is "\
-          "considered to be zero (default: gauss {0:.2f}, fermi {1:.2f})"\
+          "considered to be zero (default: gauss {0:.2f}, fermi {1:.2f}, mp {1:.2f})"\
         .format(DEFAULT_RANGES[GAUSS_BROADENING],
-                DEFAULT_RANGES[FERMI_BROADENING])
+                DEFAULT_RANGES[FERMI_BROADENING],
+                DEFAULT_RANGES[MP_BROADENING])
     parser.add_argument("-s", "--sigma-range", type=float, metavar="RANGE",
                         dest="broadrange", default=-1.0, help=msg)
 
@@ -86,7 +97,14 @@ def parse_arguments():
     msg = "output file name"
     parser.add_argument("outputfile", help=msg)
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.mporder:
+        if args.broadening != 'mp':
+            msg = '--mporder can only be set when --broadening-function=mp.'
+            parser.error(msg)
+        if args.mporder < 1:
+            parser.error('--mporder must be positive.')
+    return args
 
 
 
@@ -114,14 +132,24 @@ def main():
     if not args.occweight:
         eigvals[:, :, :, 1] = 1.0
 
-    if broadening == GAUSS_BROADENING:
-        aa = 1.0 / (sigma * np.sqrt(2.0 * np.pi))
-        bb = -0.5 / sigma**2
-        broadening_function = lambda x: np.exp(bb * x * x)
-    else:
+    if broadening == FERMI_BROADENING:
         aa = 0.5 / sigma
         bb = 1.0 / sigma
         broadening_function = lambda x: 1.0 / (1.0 + np.cosh(bb * x))
+    elif broadening == GAUSS_BROADENING:
+        aa = 1.0 / (sigma * np.sqrt(np.pi))
+        bb = -1.0 / sigma**2
+        broadening_function = lambda x: np.exp(bb * x * x)
+    else: # Methfessel-Paxton
+        aa = 1.0 / sigma
+        bb = 1.0 / sigma
+        order = int(args.mporder) + 1 # order = 0 => Gaussian
+        coefs = np.zeros(2*order, dtype=float)
+        for ii in range(order):
+            coefs[2*ii] = ((-1)**ii) / (math.factorial(ii) * (4**ii) \
+                                        * math.sqrt(math.pi))
+        broadening_function = lambda x: H.hermval(bb * x, coefs) \
+                              * np.exp(-x * x * bb * bb)
 
     dsigma = sigmarange * sigma
     gridres = args.gridres
@@ -132,8 +160,10 @@ def main():
     if args.verbose:
         if broadening == GAUSS_BROADENING:
             print("Gaussian broadening")
-        else:
+        elif broadening == FERMI_BROADENING:
             print("Fermi-function compatible broadening")
+        else:
+            print("Methfessel-Paxton compatible broadening")
         print("Broadening by {0:.2f} eV".format(sigma))
         if args.occweight:
             print("Weighting DOS by second column of data")
@@ -161,7 +191,6 @@ def main():
                 dx = eigval - xvals[ilower:iupper+1]
                 yvals[ispin, ilower:iupper+1] += (
                     (prefac * occ) * broadening_function(dx))
-
     # Write resulting DOS
     fp = open(outfile, "w")
     if bandout.nspin == 1:

@@ -21,6 +21,29 @@ module dftbplusu
 
   public :: getDftbUShift, AppendBlock_reduce, Block_expand
   public :: E_DFTBU, DFTBplsU_getOrbitalEquiv, DFTBU_blockIndx
+  public :: plusUFunctionals
+
+  
+  !> Contains functional characteristics
+  type :: TPlusUFuncHelper
+
+    !> Fully localised limit
+    integer :: fll = 1
+
+    !> Pseudo self-interaction corrected functional
+    integer :: pSic = 2
+
+    !> Possible functional indices
+    integer :: indices(2) = [1, 2]
+
+    !> Functional names (to be used in output)
+    character(sc) :: names(2) = [character(sc) :: 'FLL', 'pSIC']
+    
+  end type TPlusUFuncHelper
+
+
+  !> Can be queried for functional indices and names
+  type(TPlusUFuncHelper), parameter :: plusUFunctionals = TPlusUFuncHelper()
 
 
   !> Potential shift from LDA+U type potentials
@@ -48,7 +71,7 @@ contains
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
 
-    !> choice of functional, so far FLL, pSIC (1,2)
+    !> choice of functional, so far FLL, pSIC
     integer, intent(in), optional :: functional
 
     !> list of U-J values for each species
@@ -64,11 +87,8 @@ contains
     integer, intent(in) :: iUJ(:,:,:)
 
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
-
     integer :: iFunctional
-
     integer :: iStart1, iEnd1, iStart2, iEnd2
-
     integer :: ii, jj, kk, ll, ik
 
     @:ASSERT(all(shape(shift)==shape(qBlock)))
@@ -78,17 +98,16 @@ contains
     nAtom = size(shift,dim=3)
     nSpin = size(shift,dim=4)
 
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-
     if (present(functional)) then
       iFunctional = functional
     else
-      iFunctional = 1
+      iFunctional = plusUFunctionals%fll
     end if
 
-    @:ASSERT(iFunctional==1 .or. iFunctional==2)
+    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
 
-    if (iFunctional == 1) then
+    if (iFunctional == plusUFunctionals%fll) then
+      ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)
         do ii = 1, nUJ(iSpecies)
@@ -96,8 +115,7 @@ contains
             iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
             iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
             do kk = iStart1, iEnd1
-              shift(kk,kk,iAt,1) = shift(kk,kk,iAt,1) &
-                  & + 0.5_dp * UJ(ii,iSpecies)
+              shift(kk,kk,iAt,1) = shift(kk,kk,iAt,1) + 0.5_dp * UJ(ii,iSpecies)
             end do
           end do
         end do
@@ -116,9 +134,9 @@ contains
               iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
-                  shift(ll,kk,iAt,iSp) = shift(ll,kk,iAt,iSp) &
-                      & - UJ(ii,iSpecies) * 0.5_dp*qBlock(ll,kk,iAt,iSp)
                   ! factor of 1/2 as using qm not Pauli matrix coefficients
+                  shift(ll,kk,iAt,iSp) = shift(ll,kk,iAt,iSp) &
+                      & - UJ(ii,iSpecies) * 0.5_dp * qBlock(ll,kk,iAt,iSp)
                 end do
               end do
             end do
@@ -133,14 +151,14 @@ contains
   !> Construct the orbital contribution to the Hamiltonian
   !>
   !> Ref: Petukhov, Mazin, Chioncel, and Lichtenstein Physical Review B 67, 153106 (2003)
-  subroutine shift_iU(shiftR, shiftI, qBlockR, qBlockI, species, orb, functional, UJ, nUJ, niUJ, &
+  subroutine shift_iU(shiftRe, shiftIm, qBlockR, qBlockI, species, orb, functional, UJ, nUJ, niUJ, &
       & iUJ)
 
     !> Real part of shift
-    real(dp), intent(inout) :: shiftR(:,:,:,:)
+    real(dp), intent(inout) :: shiftRe(:,:,:,:)
 
     !> imaginary part of shift
-    real(dp), intent(inout) :: shiftI(:,:,:,:)
+    real(dp), intent(inout) :: shiftIm(:,:,:,:)
 
     !> real part of block charges
     real(dp), intent(in) :: qBlockR(:,:,:,:)
@@ -174,26 +192,29 @@ contains
     integer :: iStart1, iEnd1, iStart2, iEnd2
     integer :: ii, jj, kk, ll, ik
 
-    @:ASSERT(all(shape(shiftR)==shape(qBlockR)))
-    @:ASSERT(all(shape(shiftI)==shape(qBlockI)))
-    @:ASSERT(all(shape(shiftR)==shape(shiftI)))
-    @:ASSERT(size(shiftR,dim=1)==orb%mOrb)
-    @:ASSERT(size(shiftR,dim=2)==orb%mOrb)
+    @:ASSERT(all(shape(shiftRe)==shape(qBlockR)))
+    @:ASSERT(all(shape(shiftIm)==shape(qBlockI)))
+    @:ASSERT(all(shape(shiftRe)==shape(shiftIm)))
+    @:ASSERT(size(shiftRe,dim=1)==orb%mOrb)
+    @:ASSERT(size(shiftRe,dim=2)==orb%mOrb)
 
-    nAtom = size(shiftR,dim=3)
-    nSpin = size(shiftR,dim=4)
+    nAtom = size(shiftRe,dim=3)
+    nSpin = size(shiftRe,dim=4)
 
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    ! should not get here without spin-orbit present (unless absorbing potentials get added in
+    ! future)
+    @:ASSERT(nSpin == 4)
 
     if (present(functional)) then
       iFunctional = functional
     else
-      iFunctional = 1
+      iFunctional = plusUFunctionals%fll
     end if
 
-    @:ASSERT(iFunctional==1 .or. iFunctional==2)
+    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
 
-    if (iFunctional == 1) then
+    if (iFunctional == plusUFunctionals%fll) then
+      ! move empty states on affected orbitals upwards
       do iAt = 1, nAtom
         iSpecies = species(iAt)
         do ii = 1, nUJ(iSpecies)
@@ -201,8 +222,7 @@ contains
             iStart1 = orb%posShell(iUJ(jj,ii,iSpecies),iSpecies)
             iEnd1 = orb%posShell(iUJ(jj,ii,iSpecies)+1,iSpecies)-1
             do kk = iStart1, iEnd1
-              shiftR(kk,kk,iAt,1) = shiftR(kk,kk,iAt,1) &
-                  & + 0.5_dp * UJ(ii,iSpecies)
+              shiftRe(kk,kk,iAt,1) = shiftRe(kk,kk,iAt,1) + 0.5_dp * UJ(ii,iSpecies)
             end do
           end do
         end do
@@ -221,11 +241,11 @@ contains
               iEnd2 = orb%posShell(iUJ(ik,ii,iSpecies)+1,iSpecies)-1
               do kk = iStart1, iEnd1
                 do ll = iStart2, iEnd2
-                  shiftR(ll,kk,iAt,iSp) = shiftR(ll,kk,iAt,iSp) &
-                      & - UJ(ii,iSpecies) * 0.5_dp*qBlockR(ll,kk,iAt,iSp)
-                  shiftI(ll,kk,iAt,iSp) = shiftI(ll,kk,iAt,iSp) &
-                      & - UJ(ii,iSpecies) * 0.5_dp*qBlockI(ll,kk,iAt,iSp)
                   ! factor of 1/2 as using qm not Pauli matrix coefficients
+                  shiftRe(ll,kk,iAt,iSp) = shiftRe(ll,kk,iAt,iSp) &
+                      & - UJ(ii,iSpecies) * 0.5_dp * qBlockR(ll,kk,iAt,iSp)
+                  shiftIm(ll,kk,iAt,iSp) = shiftIm(ll,kk,iAt,iSp) &
+                      & - UJ(ii,iSpecies) * 0.5_dp * qBlockI(ll,kk,iAt,iSp)
                 end do
               end do
             end do
@@ -284,14 +304,13 @@ contains
     nAtom = size(qBlock,dim=3)
     nSpin = size(qBlock,dim=4)
 
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(qiBlock)) then
       @:ASSERT(all(shape(qiBlock)==shape(qBlock)))
       @:ASSERT(nSpin == 4)
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(egy)==nAtom)
 
     egy(:) = 0.0_dp
@@ -299,10 +318,10 @@ contains
     if (present(functional)) then
       iFunctional = functional
     else
-      iFunctional = 1
+      iFunctional = plusUFunctionals%fll
     end if
 
-    @:ASSERT(iFunctional==1 .or. iFunctional==2)
+    @:ASSERT(any(plusUFunctionals%indices == iFunctional))
 
     do iSp = 1, nSpin
       do iAt = 1, nAtom
@@ -322,8 +341,9 @@ contains
               end do
             end do
           end do
-          egy(iAt) = egy(iAt) - 0.25_dp * UJ(ii,iSpecies) *sum(blockTmp(:,:)**2)
-          ! extra factor of 1/2 as using qm not Pauli matrix coefficients
+          ! factor of 1/2 as using qm not Pauli matrix coefficients, and another from the +U
+          ! functional itself
+          egy(iAt) = egy(iAt) - 0.25_dp * UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
         end do
       end do
     end do
@@ -347,14 +367,16 @@ contains
                 end do
               end do
             end do
-            egy(iAt) = egy(iAt) - 0.25_dp*UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
+            ! factor of 1/2 as using qm not Pauli matrix coefficients, and another from the +U
+            ! functional itself
+            egy(iAt) = egy(iAt) - 0.25_dp * UJ(ii,iSpecies) * sum(blockTmp(:,:)**2)
           end do
         end do
       end do
     end if
 
     ! only trace of the identity (charge) part of the density matrix appears in this term
-    if (iFunctional == 1) then
+    if (iFunctional == plusUFunctionals%fll) then
       do iAt = 1, nAtom
         iSpecies = species(iAt)
         do ii = 1, nUJ(iSpecies)
@@ -409,7 +431,6 @@ contains
     nAtom = size(equiv, dim=2)
     nSpin = size(equiv, dim=3)
 
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(equiv, dim=1) == orb%mOrb)
     @:ASSERT(size(nUJ) == maxval(species))
     @:ASSERT(all(nUJ <= orb%mShell))
@@ -481,7 +502,6 @@ contains
 
     nAtom = size(iEqBlockDFTBU, dim=3)
     nSpin = size(iEqBlockDFTBU, dim=4)
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
     @:ASSERT(size(iEqBlockDFTBU, dim=1) == orb%mOrb)
     @:ASSERT(size(iEqBlockDFTBU, dim=2) == orb%mOrb)
@@ -550,7 +570,6 @@ contains
     @:ASSERT(size(input, dim=1) == orb%mOrb)
     @:ASSERT(size(input, dim=2) == orb%mOrb)
     @:ASSERT(all(shape(equiv) == (/ orb%mOrb, orb%mOrb, nAtom, nSpin /)))
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
     if (present(skew)) then
       iSkew = skew
@@ -629,14 +648,13 @@ contains
       iSkew = .false.
     end if
 
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(output, dim=1) == orb%mOrb)
     @:ASSERT(size(output, dim=2) == orb%mOrb)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(orbEquiv)) then
       @:ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
     @:ASSERT(all(shape(blockEquiv) == shape(output)))
 
     output = 0.0_dp

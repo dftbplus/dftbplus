@@ -2632,9 +2632,10 @@ This block collects some global options for the run.
   is needed among others by the \verb|waveplot| utility for
   visualising molecular orbitals.)
 
-\item[\is{WriteResultsTag}] Turns the creation of the
-  \verb|results.tag| file on and off. (That file is used by several
-  utilities processing the results of \dftbp.)
+\item[\is{WriteResultsTag}] Turns the creation of the \verb|results.tag| file on
+  and off. (That file is used by several utilities processing the results of
+  \dftbp.) For a description of the file format see
+  p.~\pref{sec:dftbp.results}.
 
 \item[\is{WriteDetailedOut}] Controls the creation of the file
   \verb|detailed.out|. Since this contains the detailed information
@@ -3125,6 +3126,38 @@ This chapter contains the description of some of the output files of
 \dftbp{} where the output format is not self documenting. Unless
 indicated otherwise, numbers in the output files are given in atomic
 units (with Hartree as the energy unit).
+
+\section{results.tag}
+\label{sec:dftbp.results}
+\index{results.tag}
+
+This contains machine readable results labeled with the type and size of the
+data blocks. The results are given in atomic units and are formatted as:
+\begin{verbatim}
+label               :type:shape:
+\end{verbatim}
+
+The variable type is real, complex, integer or logical. The shape information is
+\newline :ndim: size$_1$,size$_2$,$\ldots$,size$_{ndim}$:\newline where ndim is
+the number of dimensions, organised with the Fortran convention and of size
+size$_1 \times$size$_2 \times$size$_2 \times \ldots$.
+
+In the special case of scalar variables the shape is :0:.
+
+A typical example of mixed scalar and both one and two dimensional results would
+be similar to:
+\begin{verbatim}
+mermin_energy       :real:0:
+ -0.672967201447815E+000
+total_energy        :real:0:
+ -0.672879398682698E+000
+forces              :real:2:3,3
+ -0.243590222274811E+000 -0.199780753617099E-001 -0.000000000000000E+000
+  0.465478448963764E+000 -0.228550455811745E+000 -0.000000000000000E+000
+ -0.221888226688953E+000  0.248528531173455E+000 -0.000000000000000E+000
+gross_atomic_charges:real:1:3
+  0.171448741143825E+000 -0.254714832621691E+000  0.832660914778645E-001
+\end{verbatim}
 
 \section{hamsqrN.dat, oversqr.dat}
 \label{sec:dftbp.hamsqr}

@@ -297,6 +297,9 @@ contains
 
     @:ASSERT(volume > 0.0_dp)
 
+    ! Somewhat redundant test, but stops compiler complaints as for serial case nAtom not referenced
+    @:ASSERT(size(coord,dim=2) >= nAtom)
+
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc == -1) then
       return
