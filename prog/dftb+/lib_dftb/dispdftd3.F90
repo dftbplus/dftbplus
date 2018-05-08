@@ -302,10 +302,10 @@ contains
     real(dp) :: r, repE, dEdR, dCdR(3), cellVol, stTmp(3,3), vect(3), prefac
     integer, allocatable :: nNeigh(:)
 
-    ! Parameters (as published, with conversion to a.u.)
-    real(dp), parameter :: k = 0.30_dp * kcal_mol__Hartree
-    real(dp), parameter :: e = 14.31_dp
-    real(dp), parameter :: r0 = 2.35_dp * AA__Bohr
+    ! Parameters (as published in dx.doi.org/10.1021/ct200751e )
+    real(dp), parameter :: k = 0.30_dp * kcal_mol__Hartree !  s_HH
+    real(dp), parameter :: e = 14.31_dp ! e_HH
+    real(dp), parameter :: r0 = 2.35_dp * AA__Bohr ! r_0,HH
 
     ! stress tensor contribution, if periodic
     stTmp(:,:) = 0.0_dp
