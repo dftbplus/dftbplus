@@ -2208,7 +2208,7 @@ A Slater-Kirkwood type dispersion model is also implemented in
 \dftbp{} as described in
 Ref.~\cite{elstner-jcp-114-5149}.\footnote{Please note, that
   Ref.~\cite{elstner-jcp-114-5149} contains two typos: equation (7)
-  should be read $C_6^{\alpha\beta} = \frac{2 C_6^\alpha C_6^\beta
+  should read $C_6^{\alpha\beta} = \frac{2 C_6^\alpha C_6^\beta
     p_\alpha p_\beta}{p_\alpha^2 C_6^\beta + p_\beta^2 C_6^\alpha}$,
   in equation (9) the contribution from the dispersion should be
   $E_{\text{dis}} = -\frac{1}{2} \sum_{\alpha\beta}
@@ -2419,7 +2419,7 @@ parameters are taken to be the same as in the dftd3 code.
 \item[\is{HHRepulsion}] To calculate the D3 dispersion, as used in the
   DFTB3-D3H5 method~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}
   for details and parameter values), an additional repulsion term is applied to
-  all hydrogen--hydrogen pairs.
+  all hydrogen--hydrogen pairs~\cite{rezac-jctc-8-2012}.
 \end{description}
 
 \subsection{DFTB3}
@@ -2476,26 +2476,26 @@ Hamiltonian = DFTB {
   }
   :
 }
-
 \end{verbatim}
+\end{description}
 
 \subsection{DFTB3-D3H5}
 \label{sec:dftbp.D3H5}
 
 DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with corrections for
 non-covalent interactions (dispersion and hydrogen bonds).  It consists of a
-third-order DFTB calculation with the 3OB parameter set where the gamma-function
-damping (\is{DampXH}) is replaced by the H5 correction, and an additional D3
-dispersion correction to which a repulsive term was added to prevent
-hydrogen--hydrogen close approach.
+third-order DFTB calculation used with the 3OB parameter set, but where the
+gamma-function damping (\is{DampXH}) is replaced by the H5 correction, and an
+additional D3 dispersion correction to which a repulsive term was added to
+prevent hydrogen--hydrogen close approach.
 
 \begin{description}
-\item[\is{HBondCorrection}] Setting this keyword to \is{H5 \{\}} activates the
-  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
-  parameters are provided in the input, suitable parameters for H-\{O,N,S\}
-  systems are used (it was developed for the DFTB3/3OB model and parameters). If
-  you want to specify the parameters manually, an example input (using values
-  which match the default choices for the parameters) is:
+\item[\is{HBondCorrection}] Setting this keyword to \iscb{H5} activates the
+  correction for hydrogen bonds \cite{rezac-jctc-13-2017}. If no additional
+  parameters are provided in the input, suitable values for H-\{O,N,S\} systems
+  are used (it was developed for the DFTB3/3OB model and parameters). If you
+  want to specify the parameters manually, an example input (using values which
+  match the default choices for the parameters) is:
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
@@ -2520,8 +2520,8 @@ their contribution to this correction are neglected.
 
 For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
-parameters, the hydrogen--hydrogen repulsion has to also be activated. The
-complete input is:
+parameters~\cite{rezac-jctc-13-2017}, the hydrogen--hydrogen repulsion of
+Ref.~\cite{rezac-jctc-8-2012} has to also be activated. The complete input is:
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
@@ -2594,8 +2594,6 @@ Example:
 \begin{verbatim}
 ForceEvaluation = 'dynamics'
 \end{verbatim}
-
-\end{description}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
