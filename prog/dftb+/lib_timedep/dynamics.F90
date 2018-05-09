@@ -23,6 +23,7 @@ module timeprop_module
   use repulsive
   use periodic
   use environment
+  use timer
 
   implicit none
 
@@ -184,20 +185,21 @@ contains
     type(TOrbitals), intent(in) :: orb
     type(TEnvironment), intent(inout) :: env
 
-    complex(cp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs), T1(this%nOrbs,this%nOrbs)
+    complex(cp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(cp) :: Rho(this%nOrbs,this%nOrbs,this%nSpin), Rhoold(this%nOrbs,this%nOrbs,this%nSpin)
-    complex(cp) :: H1(this%nOrbs,this%nOrbs,this%nSpin)
+    complex(cp) :: H1(this%nOrbs,this%nOrbs,this%nSpin), T1(this%nOrbs,this%nOrbs)
     complex(cp) :: Rhonew(this%nOrbs,this%nOrbs,this%nSpin)
     complex(cp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
-    real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin), dipole(3,this%nSpin)
-    real(dp) :: chargePerShell(orb%mShell,this%nAtom,this%nSpin)
+    real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
+    real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
     real(dp), allocatable :: rhoPrim(:,:), ham0(:)
-    real(dp) :: time, dTime, startTime = 0.0_dp, timeInit = 0.0_dp, timeElec = 0.0_dp
+    real(dp) :: time, dTime, startTime = 0.0_dp, timeElec = 0.0_dp
     integer :: dipoleDat, qDat, energyDat, populDat(2)
-    integer :: iStep = 0, iAtom, iSpin, iTimeInit, iTimeElec, iTimeLoop
+    integer :: iStep = 0, iAtom, iSpin
     type(TPotentials) :: potential
     type(TEnergies) :: energy
     character(4) :: dumpIdx
+    type(TTimer) :: loopTime
 
     ! Initialize timer
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
@@ -235,7 +237,7 @@ contains
 
     !! Main loop
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
-    call tic(iTimeLoop)
+    call loopTime%start()
 
     write(stdOut,"(A)")'Starting dynamics'
 
@@ -272,9 +274,10 @@ contains
        end do
 
        if (mod(iStep,this%Nsteps/10) == 0) then
-          call tac(dTime,iTimeLoop)
-          write(stdOut,"(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ', dTime, &
-               & 'average time per loop ', dTime/(iStep+1)
+          call loopTime%stop()
+          timeElec  = loopTime%getWallClockTime()
+          write(stdOut,"(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ', &
+               & timeElec, 'average time per loop ', timeElec/(iStep+1)
        end if
     end do
 
@@ -855,20 +858,5 @@ contains
          & (real(T2(iOrb, iOrb), dp), iOrb=1, this%nOrbs)
 
   end subroutine getTDPopulations
-
-
-  !! Timing functions
-  subroutine tic(t)
-    integer, intent(out) :: t
-    call system_clock(t)
-  end subroutine tic
-
-  subroutine tac(deltat,ti)
-    integer, intent(in) :: ti
-    real(dp), intent(out) :: deltat
-    integer :: tf,rate
-    call system_clock(tf, rate)
-    deltat = real(tf-ti, dp)/real(rate, dp)
-  end subroutine tac
 
 end module timeprop_module
