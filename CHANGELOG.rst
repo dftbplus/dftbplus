@@ -23,6 +23,7 @@ Fixed
 
 - Compilation when socket interface disabled.
 
+- Stress tensor evaluation for 3rd order DFTB
 
 18.1 (2018-03-02)
 =================
