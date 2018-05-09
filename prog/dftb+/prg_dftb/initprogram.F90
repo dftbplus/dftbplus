@@ -55,7 +55,6 @@ module initprogram
   use sccinit
   use slakocont
   use repcont
-  use fileid
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
   use dispersions
@@ -65,7 +64,6 @@ module initprogram
   use orbitalequiv
   use commontypes
   use sorting, only : heap_sort
-  use fifo
   use linkedlist
   use xlbomd_module
   use etemp, only : Fermi

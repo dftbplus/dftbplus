@@ -190,8 +190,8 @@ _mod_scc: scc.o
 _mod_scc = $(scc.o)
 #:endif
 
-sccinit.o: _mod_commontypes common.fypp _mod_charmanip _mod_fileid _mod_assert _mod_message _mod_accuracy _mod_io
-sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_charmanip) $(_mod_fileid) $(_mod_assert) $(_mod_message) $(_mod_accuracy) $(_mod_io)
+sccinit.o: _mod_commontypes common.fypp _mod_message _mod_assert _mod_charmanip _mod_accuracy _mod_io
+sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_accuracy) $(_mod_io)
 _mod_sccinit: sccinit.o
 _mod_sccinit = $(sccinit.o)
 

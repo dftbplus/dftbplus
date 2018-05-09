@@ -27,7 +27,6 @@ module mainio
   use constants
   use periodic
   use commontypes
-  use fifo
   use sparse2dense
   use blasroutines
   use charmanip, only : i2c
