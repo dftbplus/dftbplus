@@ -407,8 +407,8 @@ contains
 
         if (tStress) then
           call env%globalTimer%startTimer(globalTimers%stressCalc)
-          call getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
-              & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+          call getStress(env, sccCalc, thirdOrd, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
+              & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
               & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
               & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
           call env%globalTimer%stopTimer(globalTimers%stressCalc)
@@ -4022,16 +4022,19 @@ contains
 
 
   !> Calculates stress tensor and lattice derivatives.
-  subroutine getStress(env, sccCalc, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim, qOutput,&
-      & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
-      & iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0, totalStress,&
-      & totalLatDeriv, intPressure, iRhoPrim, dispersion)
+  subroutine getStress(env, sccCalc, thirdOrd, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
+      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
+      & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
+
+    !> Is 3rd order SCC being used
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> External electric field
     logical, intent(in) :: tEField
@@ -4130,6 +4133,9 @@ contains
             & iSparseStart, orb, potential%intBlock, cellVol)
       end if
       call sccCalc%addStressDc(totalStress, env, species, neighborList%iNeighbor, img2CentCell)
+      if (allocated(thirdOrd)) then
+        call thirdOrd%addStressDc(neighborList, species, coord, img2CentCell, cellVol, totalStress)
+      end if
     else
       if (tImHam) then
         call getBlockiStress(env, totalStress, nonSccDeriv, rhoPrim, iRhoPrim, ERhoPrim, skHamCont,&

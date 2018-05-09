@@ -41,6 +41,8 @@ geoopt/H2O-constr                      #? MPI_PROCS <= 1
 legacy/SiC_polyRep                     #? MPI_PROCS <= 1
 scc/C4H8_3rdfull                       #? MPI_PROCS <= 1
 scc/C4H8_3rdfull-damp                  #? MPI_PROCS <= 1
+scc/CH2_n_3rdfull                      #? MPI_PROCS <= 1
+scc/CH2_n_3rdfull_damp                 #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
