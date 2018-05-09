@@ -3330,10 +3330,10 @@ contains
     call convertByMul(char(modifier), EFieldUnits, child, &
          & input%tdField)
 
-    call getChildValue(node, "Populations", input%Populations, .false.)
+    call getChildValue(node, "Populations", input%tPopulations, .false.)
     call getChildValue(node, "SaveEvery", input%SaveEvery, 50)
-    call getChildValue(node, "Restart", input%Restart, .false.)
-    call getChildValue(node, "WriteRestart", input%WriteRestart, .true.)
+    call getChildValue(node, "Restart", input%tRestart, .false.)
+    call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
     call getChildValue(node, "RestartFrequency", input%restartFreq, 10)
 
     !! Different perturbation types

@@ -30,7 +30,7 @@ module timeprop_module
      real(dp) :: tdField, Dt, Omega, ReFieldPolVec(3), ImFieldPolVec(3)
      real(dp) :: Time0, Time1
      integer :: PolDir, Steps, SaveEvery, PertType, EnvType, SpType, restartFreq
-     logical :: Populations, Restart, WriteRestart
+     logical :: tPopulations, tRestart, tWriteRestart
      real(dp) :: Phase
   end type TElecDynamicsInp
 
@@ -43,9 +43,9 @@ module timeprop_module
      integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartEvery
      integer, allocatable :: species(:), PolDirs(:)
      character(mc), allocatable :: speciesName(:)
-     logical :: Populations, SpinPol=.false.
-     logical :: Restart, WriteRestart
-     logical :: doLaser = .false., doKick = .false., EnvFromFile = .false.
+     logical :: tPopulations, tSpinPol=.false.
+     logical :: tRestart, tWriteRestart
+     logical :: tLaser = .false., tKick = .false., tEnvFromFile = .false.
      type(TScc), allocatable :: sccCalc
   end type TElecDynamics
 
@@ -82,9 +82,9 @@ contains
     this%PertType = inp%PertType
     this%EnvType = inp%EnvType
     this%SpType = inp%SpType
-    this%Populations = inp%Populations
-    this%Restart = inp%Restart
-    this%WriteRestart = inp%WriteRestart
+    this%tPopulations = inp%tPopulations
+    this%tRestart = inp%tRestart
+    this%tWriteRestart = inp%tWriteRestart
     this%phase = inp%Phase
     this%SaveEvery = inp%SaveEvery
     this%restartEvery = int(inp%Steps/inp%restartFreq)
@@ -98,24 +98,24 @@ contains
     end if
 
     if (inp%PertType == iLaser) then
-       this%doLaser = .true.
+       this%tLaser = .true.
     else if (inp%PertType == iKick) then
-       this%doKick = .true.
+       this%tKick = .true.
     end if
 
-    if (this%doLaser) then
+    if (this%tLaser) then
        this%Omega = inp%Omega
        this%FieldDir = inp%ReFieldPolVec + imag * inp%ImFieldPolVec
        norm = sqrt(sum(this%FieldDir(:)*conjg(this%FieldDir(:))))
        this%FieldDir = this%FieldDir/norm ! normalize polarization vector
        allocate(this%TDFunction(0:this%Nsteps, 3))
        if (this%EnvType == iTDFromFile) then
-          this%EnvFromFile = .true.
+          this%tEnvFromFile = .true.
        end if
        call getTDFunction(this)
     end if
 
-    if (this%doKick) then
+    if (this%tKick) then
        if (inp%PolDir == 4) then
           allocate(this%PolDirs(3))
           this%PolDirs(:) = (/ 1, 2, 3 /)
@@ -148,14 +148,14 @@ contains
 
     this%nSpin = size(ham(:,:), dim=2)
     if (this%nSpin > 1) then
-       this%SpinPol = .true.
+       this%tSpinPol = .true.
        call qm2ud(q0)
     end if
 
     this%nOrbs = size(Hsq, dim=1)
     this%nAtom = size(coord, dim=2)
 
-    if (this%doKick) then
+    if (this%tKick) then
        do iPol = 1, size(this%PolDirs)
           this%currPolDir = this%PolDirs(iPol)
           call doDynamics(this,Hsq,ham,H0,q0,over,filling,neighborList,nNeighbor, &
@@ -201,7 +201,7 @@ contains
 
     ! Initialize timer
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
-    if (this%Restart) then
+    if (this%tRestart) then
        call readRestart(Rho, Ssqr, coord, startTime)
     end if
 
@@ -218,7 +218,7 @@ contains
          &neighborList%iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
 
     ! Apply kick to Rho if necessary
-    if (this%doKick) then
+    if (this%tKick) then
        call kickDM(this, Rho, Ssqr, Sinv, iSquare, coord)
     end if
 
@@ -242,7 +242,7 @@ contains
     do iStep = 0, this%Nsteps
        time = iStep * this%Dt + startTime
 
-       if (.not. this%Restart .or. iStep > 0) then
+       if (.not. this%tRestart .or. iStep > 0) then
           call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
        end if
 
@@ -251,7 +251,7 @@ contains
             & potential, neighborList%iNeighbor, nNeighbor, iSquare, iPair, &
             & img2CentCell, iStep, chargePerShell, W, env)
 
-       if ((this%WriteRestart) .and. (iStep > 0) .and. &
+       if ((this%tWriteRestart) .and. (iStep > 0) .and. &
             & (mod(iStep, this%restartEvery) == 0)) then
           call writeRestart(Rho, Ssqr, coord, time)
        end if
@@ -266,7 +266,7 @@ contains
                & H1(:,:,iSpin), Sinv, T1, 2.0_dp * this%Dt)
           call swap(Rhoold(:,:,iSpin), Rho(:,:,iSpin))
 
-          if ((this%Populations) .and. (mod(iStep, this%SaveEvery) == 0)) then
+          if ((this%tPopulations) .and. (mod(iStep, this%SaveEvery) == 0)) then
              call getTDPopulations(this, Rho, Eiginv, EiginvAdj, T1, populDat, time, iSpin)
           end if
        end do
@@ -323,7 +323,7 @@ contains
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
 
     ! Build spin contribution (if necessary)
-    if (this%SpinPol) then
+    if (this%tSpinPol) then
        call getSpinShift(shellPot, chargePerShell, this%species, orb, W)
        potential%intShell = potential%intShell + shellPot
     end if
@@ -332,7 +332,7 @@ contains
     call total_shift(potential%intBlock, potential%intShell, orb, this%species)
 
     !! Add time dependent field if necessary
-    if (this%doLaser) then
+    if (this%tLaser) then
        do iAtom = 1, this%nAtom
           potential%extAtom(iAtom, 1) = dot_product(coord(:,iAtom), &
                & this%TDFunction(iStep, :))
@@ -457,7 +457,7 @@ contains
                & * this%FieldDir)
        end if
 
-       if (this%EnvFromFile) then
+       if (this%tEnvFromFile) then
           read(laserDat, *)time, tdfun(1), tdfun(2), tdfun(3)
           this%TDFunction(iStep, :) = this%TDFunction(iStep, :) + tdfun * (Bohr__AA / Hartree__eV)
        else
@@ -536,7 +536,7 @@ contains
          &iNeighbor, nNeighbor, img2CentCell, iPair)
     energy%EnonSCC =  sum(energy%atomNonSCC)
 
-    if (this%doLaser) then ! energy in external field
+    if (this%tLaser) then ! energy in external field
        energy%atomExt = -sum(q0(:, :, 1) - qq(:, :, 1),dim=1) &
             & * potential%extAtom(:,1)
        energy%Eext =  sum(energy%atomExt)
@@ -607,7 +607,7 @@ contains
        T3 = 0.0_dp
     end do
 
-    if (this%Populations) then
+    if (this%tPopulations) then
        allocate(Eiginv(this%nOrbs, this%nOrbs, this%nSpin))
        allocate(EiginvAdj(this%nOrbs, this%nOrbs, this%nSpin))
        do iSpin=1,this%nSpin
@@ -686,7 +686,7 @@ contains
     integer :: iSpin
     logical :: exist
 
-    if (this%doKick) then
+    if (this%tKick) then
        if (this%currPolDir == 1) then
           dipoleFileName = 'mux.dat'
        else if (this%currPolDir == 2) then
@@ -702,7 +702,7 @@ contains
     call openFile(this, qDat, 'qsvst.dat')
     call openFile(this, energyDat, 'energyvst.dat')
 
-    if (this%Populations) then
+    if (this%tPopulations) then
        do iSpin=1,this%nSpin
           write(strSpin,'(i1)')iSpin
           call openFile(this, populDat(iSpin), 'molPopul' // trim(strSpin) // '.dat')
@@ -720,7 +720,7 @@ contains
     close(qDat)
     close(energyDat)
 
-    if (this%Populations) then
+    if (this%tPopulations) then
        do iSpin = 1, this%nSpin
           close(populDat(iSpin))
        end do
@@ -735,7 +735,7 @@ contains
     integer :: unitName
     character(*) :: fileName
 
-    if (this%Restart) then
+    if (this%tRestart) then
        inquire(file=fileName, exist=exist)
     end if
 
