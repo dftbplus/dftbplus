@@ -27,6 +27,7 @@ module timeprop_module
 
   implicit none
 
+  !> Data type to  initialize electronic dynamics variables from parser
   type TElecDynamicsInp
      real(dp) :: tdField, Dt, Omega, ReFieldPolVec(3), ImFieldPolVec(3)
      real(dp) :: Time0, Time1
@@ -35,6 +36,7 @@ module timeprop_module
      real(dp) :: Phase
   end type TElecDynamicsInp
 
+  !> Data type for electronic dynamics internal settings
   type TElecDynamics
      private
      real(dp) :: Field, Dt, Omega, Time0, Time1
@@ -56,23 +58,31 @@ module timeprop_module
   public :: iTDConstant, iTDGaussian, iTDSin2, iTDFromFile
   public :: iTDSinglet, iTDTriplet
 
-  !! Enumerating available types of perturbation
+  !> Enumerating available types of perturbation
   integer, parameter :: iKick = 1, iLaser = 2, iNoTDPert = 3
 
-  !! Enumerating available types of envelope function
+  !> Enumerating available types of envelope function
   integer, parameter :: iTDConstant = 1, iTDGaussian = 2, iTDSin2 = 3, iTDFromFile = 4
 
-  !! Enumerating available types of spin polarized spectra
+  !> Enumerating available types of spin polarized spectra
   integer, parameter :: iTDSinglet = 1, iTDTriplet = 2
 
 
 contains
 
-  !! This initializes the input variables
+  !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
+
+    !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(in) :: inp
+
+    !> species of all atoms in the system
     integer, allocatable, intent(in) :: species(:)
+
+    !> label for each atomic chemical species
     character(mc), allocatable, intent(in) :: speciesName(:)
 
     real(dp) :: norm
@@ -128,21 +138,64 @@ contains
   end subroutine TElecDynamics_init
 
 
-  !! Driver of calculation in order to perform a spectrum
+  !> Driver of time dependent propagation to calculate wither spectrum or laser
   subroutine runDynamics(this, Hsq, ham, H0, q0, over, filling, neighborList, nNeighbor,&
        &iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, sccCalc, env)
+
+    !> ElecDynamics instance
     type(TElecDynamics) :: this
-    real(dp), intent(inout) :: Hsq(:,:,:), H0(:), q0(:,:,:)
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), coord(:,:)
-    real(dp), intent(in) :: W(:,:,:), filling(:,:,:)
+
+    !> Eigenvectors
+    real(dp), intent(inout) :: Hsq(:,:,:)
+
+    !> Sparse storage for non-SCC hamitonian
+    real(dp), intent(inout) :: H0(:)
+
+    !> reference atomic occupations
+    real(dp), intent(inout) :: q0(:,:,:)
+
+    !> resulting hamitonian (sparse)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> overlap (sparse)
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> atomic coordinates
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> spin constants
+    real(dp), intent(in) :: W(:,:,:)
+
+    !> occupations
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> Number of neighbours for each of the atoms
     integer, intent(inout) :: nNeighbor(:)
-    integer, allocatable, intent(inout) :: iPair(:,:), img2CentCell(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, allocatable, intent(inout) :: iPair(:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
+    !> list of neighbours for each atom
     type(TNeighborList), intent(inout) :: neighborList
+
+    !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> SCC module internal variables
     type(TScc), intent(in) :: sccCalc
+
+    !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
     integer :: iPol
 
     this%sccCalc = sccCalc
@@ -170,20 +223,61 @@ contains
   end subroutine runDynamics
 
 
-  !! Runs the electronic dynamics of the system
+  !> Runs the electronic dynamics of the system
   subroutine doDynamics(this,Hsq,ham,H0,q0,over,filling,neighborList,nNeighbor, &
        &iSquare,iPair,img2CentCell,orb,coord,W,pRepCont,env)
+
+    !> ElecDynamics instance
     type(TElecDynamics) :: this
-    real(dp), intent(inout) :: Hsq(:,:,:), H0(:), q0(:,:,:)
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), coord(:,:)
-    real(dp), intent(in) :: W(:,:,:), filling(:,:,:)
+
+    !> Eigenvectors
+    real(dp), intent(inout) :: Hsq(:,:,:)
+
+    !> Sparse storage for non-SCC hamitonian
+    real(dp), intent(inout) :: H0(:)
+
+    !> reference atomic occupations
+    real(dp), intent(inout) :: q0(:,:,:)
+
+    !> resulting hamitonian (sparse)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> overlap (sparse)
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> atomic coordinates
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> spin constants
+    real(dp), intent(in) :: W(:,:,:)
+
+    !> occupations
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> Number of neighbours for each of the atoms
     integer, intent(inout) :: nNeighbor(:)
-    integer, allocatable, intent(inout) :: iPair(:,:), img2CentCell(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, allocatable, intent(inout) :: iPair(:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
+    !> list of neighbours for each atom
     type(TNeighborList), intent(inout) :: neighborList
+
+    !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
 
     complex(cp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(cp) :: Rho(this%nOrbs,this%nOrbs,this%nSpin), Rhoold(this%nOrbs,this%nOrbs,this%nSpin)
@@ -201,23 +295,22 @@ contains
     character(4) :: dumpIdx
     type(TTimer) :: loopTime
 
-    ! Initialize timer
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
     if (this%tRestart) then
        call readRestart(Rho, Ssqr, coord, startTime)
     end if
 
-    ! Initialize stuff
     call createMatrices(this, Rho, H1, Ssqr, Sinv, H0, ham0, &
          & over, ham, Hsq, filling, orb, rhoPrim, potential, &
          & neighborList%iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, &
          & Eiginv, EiginvAdj, energy)
-    ! Initialize output files
+
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, Rho, Ssqr, coord, iSquare) !q_0
     call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, &  !H1_0
-         &neighborList%iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
+         &neighborList%iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, &
+         &iStep, chargePerShell, W, env)
 
     ! Apply kick to Rho if necessary
     if (this%tKick) then
@@ -288,25 +381,70 @@ contains
 
 
 
-  !! Applies SCC to hamiltonian and adds TD perturbation (if any)
+  !> Updates the hamiltonian with SCC and external TD field (if any) contributions
   subroutine updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, &
        &iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
-    type(TElecDynamics), intent(inout) :: this
+
+    !> ElecDynamics instance
+    type(TElecDynamics) :: this
+
+    !> Square hamiltonian
     complex(cp), intent(inout) :: H1(:,:,:)
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), coord(:,:)
+
+    !> resulting hamitonian (sparse)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> overlap (sparse)
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> Sparse storage for non-SCC hamitonian
     real(dp), intent(in) :: ham0(:)
-    real(dp), intent(inout) :: qq(:,:,:), q0(:,:,:)
-    real(dp), intent(in) :: W(:,:,:)
+
+    !> atomic ocupations
+    real(dp), intent(inout) :: qq(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(inout) :: q0(:,:,:)
+
+    !> atomic coordinates
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: iNeighbor(0:,:),nNeighbor(:)
-    integer, intent(in) :: iSquare(:), iPair(0:,:), img2CentCell(:)
+
+    !> potential acting on the system
+    type(TPotentials), intent(inout) :: potential
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iPair(0:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> current step of the propagation
     integer, intent(in) :: iStep
+
+    !> electrons in each atomi shell
     real(dp), intent(inout) :: chargePerShell(:,:,:)
+
+    !> spin constants
+    real(dp), intent(in) :: W(:,:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
     real(dp) :: T2(this%nOrbs,this%nOrbs)
     real(dp) :: shellPot(orb%mShell, this%nAtom, this%nSpin), atomPot(this%nAtom, this%nSpin)
-    type(TPotentials), intent(inout) :: potential
     integer :: iAtom, iSpin
-    type(TEnvironment), intent(inout) :: env
 
     ham(:,1) = ham0(:)
 
@@ -364,8 +502,10 @@ contains
   end subroutine updateH
 
 
-  !! Clear potential object
+  !> Clear potential object
   subroutine clearPotential(potential)
+
+    !> potential acting on the system
     type(TPotentials), intent(inout) :: potential
 
     potential%intAtom = 0.0_dp
@@ -377,12 +517,24 @@ contains
   end subroutine clearPotential
 
 
-  !! Kick the density matrix for spectrum calculations
+  !> Kick the density matrix for spectrum calculations
   subroutine kickDM(this, Rho, Ssqr, Sinv, iSquare, coord)
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    complex(cp), intent(in) :: Ssqr(:,:), Sinv(:,:)
+
+    !> Square overlap
+    complex(cp), intent(in) :: Ssqr(:,:)
+
+    !> Square overlap inverse
+    complex(cp), intent(in) :: Sinv(:,:)
+
+    !> Density matrix
     complex(cp), intent(inout) :: Rho(:,:,:)
+
+    !> atomic coordinates
     real(dp), allocatable, intent(in) :: coord(:,:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
     complex(cp) :: T1(this%nOrbs, this%nOrbs, this%nSpin), T3(this%nOrbs, this%nOrbs, this%nSpin)
@@ -424,9 +576,12 @@ contains
   end subroutine kickDM
 
 
-  !! Calculate envelope function
+  !> Creates array for external TD field
   subroutine getTDFunction(this)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
     real(dp) :: midPulse, deltaT, angFreq, E0, time, envelope
     real(dp) :: tdfun(3)
     integer :: iStep, laserDat
@@ -474,13 +629,36 @@ contains
   end subroutine getTDFunction
 
 
-  !! Calculate charges, dipole moments
+  !> Calculate charges, dipole moments
   subroutine getChargeDipole(this, deltaQ, qq, dipole, q0, Rho, Ssqr, coord, iSquare)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    real(dp), intent(out) :: qq(:,:,:), dipole(:,:), deltaQ(:,:)
-    real(dp), intent(in) :: coord(:,:), q0(:,:,:)
-    complex(cp), intent(in) :: Rho(:,:,:), Ssqr(:,:)
+
+    !> Positive gross charge
+    real(dp), intent(out) :: deltaQ(:,:)
+
+    !> Dipole moment
+    real(dp), intent(out) :: dipole(:,:)
+
+    !> atomic ocupations
+    real(dp), intent(out) :: qq(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Density matrix
+    complex(cp), intent(in) :: Rho(:,:,:)
+
+    !> Square overlap matrix
+    complex(cp), intent(in) :: Ssqr(:,:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
     integer :: iAt, iOrb, iSpin, iOrb2
 
     qq = 0.0_dp
@@ -506,25 +684,63 @@ contains
   end subroutine getChargeDipole
 
 
-  !! Calculate energy
+  !> Calculate energy
   subroutine getTDEnergy(this, energy, rhoPrim, Rho, iNeighbor, &
        & nNeighbor, orb, iSquare, iPair, img2CentCell, ham0, qq, q0, &
        & potential, chargePerShell, coord, pRepCont)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> data type for energy components and total
     type(TEnergies), intent(inout) :: energy
+
+    !> sparse density matrix
     real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
+
+    !> Density matrix
     complex(cp), intent(in) :: Rho(:,:,:)
+
+    !> Sparse storage for non-SCC hamitonian
     real(dp), intent(in) :: ham0(:)
+
+    !> atomic ocupations
     real(dp), intent(inout) :: qq(:,:,:)
+
+    !> reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: iNeighbor(0:,:),nNeighbor(:)
-    integer, intent(in) :: iSquare(:), iPair(0:,:), img2CentCell(:)
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iPair(0:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> electrons in each atomi shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
+
+    !> potential acting on the system
     type(TPotentials), intent(in) :: potential
-    integer :: iSpin
+
+    !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
+
+    !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
+
+    integer :: iSpin
 
     iSpin = 1
 
@@ -571,25 +787,78 @@ contains
   end subroutine getTDEnergy
 
 
-  !! Create all necessary matrices for dynamics
+  !> Create all necessary matrices and instances for dynamics
   subroutine createMatrices(this, Rho, H1, Ssqr, Sinv, H0, ham0, &
        & over, ham, Hsq, filling, orb, rhoPrim, potential, &
        & iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, Eiginv, &
        & EiginvAdj, energy)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Eigenvectors
     real(dp), intent(inout) :: Hsq(:,:,:)
-    real(dp), allocatable, intent(in) :: over(:), ham(:,:)
-    real(dp), intent(in) :: filling(:,:,:), H0(:)
-    integer, intent(in) :: iNeighbor(0:,:),nNeighbor(:)
-    integer, intent(in) :: iSquare(:), iPair(0:,:), img2CentCell(:)
+
+    !> overlap (sparse)
+    real(dp), allocatable, intent(in) :: over(:)
+
+    !> resulting hamitonian (sparse)
+    real(dp), allocatable, intent(in) :: ham(:,:)
+
+    !> occupations
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> Sparse storage for non-SCC hamitonian
+    real(dp), intent(in) :: H0(:)
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iPair(0:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> potential acting on the system
     type(TPotentials), intent(out) :: potential
+
+    !> data type for energy components and total
     type(TEnergies), intent(out) :: energy
 
-    real(dp), allocatable, intent(out) :: rhoPrim(:,:), ham0(:)
-    complex(cp), intent(out) :: Ssqr(:,:), Sinv(:,:), H1(:,:,:)
+    !> sparse density matrix
+    real(dp), allocatable, intent(out) :: rhoPrim(:,:)
+
+    !> Sparse storage for non-SCC hamitonian
+    real(dp), allocatable, intent(out) :: ham0(:)
+
+    !> Square overlap matrix
+    complex(cp), intent(out) :: Ssqr(:,:)
+
+    !> Square overlap inverse
+    complex(cp), intent(out) :: Sinv(:,:)
+
+    !> Square hamiltonian
+    complex(cp), intent(out) :: H1(:,:,:)
+
+    !> Density matrix
     complex(cp), intent(out) :: Rho(:,:,:)
-    complex(cp), allocatable, intent(out), optional :: Eiginv(:,:,:), EiginvAdj(:,:,:)
+
+    !> Inverse of eigenvectors matrix (for populations)
+    complex(cp), allocatable, intent(out), optional :: Eiginv(:,:,:)
+
+    !> Adjoint of the inverse of eigenvectors matrix (for populations)
+    complex(cp), allocatable, intent(out), optional :: EiginvAdj(:,:,:)
+
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
     integer :: iSpin, iOrb, iOrb2
 
@@ -641,13 +910,26 @@ contains
   end subroutine createMatrices
 
 
-  !! Perfoms a step backwards to boot the dynamics using the Euler algorithm
+  !> Perfoms a step backwards to boot the dynamics using the Euler algorithm
   subroutine initializePropagator(this, step, Rhoold, Rho, H1, Sinv)
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    complex(cp), intent(in) :: Rho(:,:,:), Sinv(:,:)
-    complex(cp), intent(inout) :: H1(:,:,:) ! Warning! H1 is modified
+
+    !> Density matrix
+    complex(cp), intent(in) :: Rho(:,:,:)
+
+    !> Square overlap inverse
+    complex(cp), intent(in) :: Sinv(:,:)
+
+    !> Square hamiltonian
+    complex(cp), intent(inout) :: H1(:,:,:)
+
+    !> Density matrix at previous step
     complex(cp), intent(out) :: Rhoold(:,:,:)
-    real(dp), intent(in) :: step ! Step with its sign, to perform Euler backwards (-) or forwards (+)
+
+    !> Time step in atomic units (with sign, to perform step backwards or forwards)
+    real(dp), intent(in) :: step
+
     complex(cp) :: T1(this%nOrbs,this%nOrbs)
     integer :: iSpin
 
@@ -663,12 +945,28 @@ contains
   end subroutine initializePropagator
 
 
-  !! Propagate Rho, notice that H = iH (coeficients are real)
+  !> Propagate Rho, notice that H = iH (coeficients are real)
   subroutine propagateRho(this, Rhoold, Rho, H1, Sinv, T1, step)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> Density matrix at previous step
     complex(cp), intent(inout) :: Rhoold(:,:)
-    complex(cp), intent(in) :: Rho(:,:), H1(:,:), Sinv(:,:)
+
+    !> Density matrix
+    complex(cp), intent(in) :: Rho(:,:)
+
+    !> Square hamiltonian
+    complex(cp), intent(in) :: H1(:,:)
+
+    !> Square overlap inverse
+    complex(cp), intent(in) :: Sinv(:,:)
+
+    !> Auxiliary matrix
     complex(cp), intent(out) :: T1(:,:)
+
+    !> Time step in atomic units
     real(dp), intent(in) :: step
 
     call gemm(T1, Sinv, H1, cmplx(1, 0, cp), cmplx(0, 0, cp), &
@@ -680,10 +978,24 @@ contains
   end subroutine propagateRho
 
 
-  !! Initialize output files
+  !> Initialize output files
   subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    integer, intent(out) :: dipoleDat, qDat, energyDat, populDat(2)
+
+    !> Dipole output file ID
+    integer, intent(out) :: dipoleDat
+
+    !> Charge output file ID
+    integer, intent(out) :: qDat
+
+    !> Energy output file ID
+    integer, intent(out) :: energyDat
+
+    !> Populations  output file ID
+    integer, intent(out) :: populDat(2)
+
     character(20) :: dipoleFileName
     character(1) :: strSpin
     integer :: iSpin
@@ -714,9 +1026,25 @@ contains
 
   end subroutine initTDOutput
 
+
+  !> Close output files
   subroutine closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    integer, intent(in) :: dipoleDat, qDat, energyDat, populDat(2)
+
+    !> Dipole output file ID
+    integer, intent(out) :: dipoleDat
+
+    !> Charge output file ID
+    integer, intent(out) :: qDat
+
+    !> Energy output file ID
+    integer, intent(out) :: energyDat
+
+    !> Populations output file ID
+    integer, intent(in) :: populDat(2)
+
     integer :: iSpin
 
     close(dipoleDat)
@@ -731,12 +1059,19 @@ contains
   end subroutine closeTDOutputs
 
 
-  !! Open files in different ways deppending on their previous existance
+  !> Open files in different ways deppending on their previous existance
   subroutine openFile(this, unitName, fileName)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    logical :: exist=.false.
+
+    !> File ID
     integer :: unitName
+
+    !> Name of the file to open
     character(*) :: fileName
+
+    logical :: exist=.false.
 
     if (this%tRestart) then
        inquire(file=fileName, exist=exist)
@@ -750,11 +1085,19 @@ contains
   end subroutine openFile
 
 
-  !! Write to and read from restart files
+  !> Write to and read from restart files
   subroutine writeRestart(Rho, Ssqr, coord, time, dumpName)
+
     complex(cp), intent(in) :: Rho(:,:,:), Ssqr(:,:)
-    real(dp), intent(in) :: coord(:,:), time
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> elapsed simulated time in atomic units
+    real(dp), intent(in) :: time
+
+    !> name of the dump file
     character(len=*), intent(in), optional :: dumpName
+
     integer :: dumpBin
 
     if (present(dumpName)) then
@@ -770,8 +1113,19 @@ contains
 
 
   subroutine readRestart(Rho, Ssqr, coord, time)
-    complex(cp), intent(out) :: Rho(:,:,:), Ssqr(:,:)
-    real(dp), intent(out) :: coord(:,:), time
+
+    !> Density Matrix
+    complex(cp), intent(out) :: Rho(:,:,:)
+
+    !> Square overlap matrix
+    complex(cp), intent(out) :: Ssqr(:,:)
+
+    !> atomic coordinates
+    real(dp), intent(out) :: coord(:,:)
+
+    !> Previous simulation elapsed time until restart file writing
+    real(dp), intent(out) :: time
+
     integer :: dumpBin
 
     open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', &
@@ -781,34 +1135,71 @@ contains
   end subroutine readRestart
 
 
-  !! Write results to file
+  !> Write results to file
   subroutine writeTDOutputs(this, dipoleDat, qDat, energyDat, &
        & time, energy, dipole, deltaQ, iStep)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> data type for energy components and total
     type(TEnergies), intent(in) :: energy
-    integer, intent(in) :: dipoleDat, qDat, energyDat
-    real(dp), intent(in) :: time, dipole(:,:), deltaQ(:,:)
+
+    !> Dipole output file ID
+    integer, intent(out) :: dipoleDat
+
+    !> Charge output file ID
+    integer, intent(out) :: qDat
+
+    !> Energy output file ID
+    integer, intent(out) :: energyDat
+
+    !> Elapsed simulation time
+    real(dp), intent(in) :: time
+
+    !> Dipole moment
+    real(dp), intent(in) :: dipole(:,:)
+
+    !> Positive gross charge
+    real(dp), intent(in) :: deltaQ(:,:)
+
+    !> current step of the propagation
     integer, intent(in) :: iStep
+
     integer :: iAtom, iSpin, iDir
 
     write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, &
          & energy%eSCC, energy%Espin, energy%Eext, energy%Erep
+
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
          & iSpin=1, this%nSpin)
+
     if (mod(iStep, this%SaveEvery) == 0) then
-       write(qDat, '(*(2x,F25.15))') time * au__fs, sum(deltaQ), (sum(deltaQ(iAtom,:)), iAtom=1, this%nAtom)
+       write(qDat, '(*(2x,F25.15))') time * au__fs, sum(deltaQ),&
+            & (sum(deltaQ(iAtom,:)), iAtom=1, this%nAtom)
     end if
 
   end subroutine writeTDOutputs
 
 
-  !! Initialize matrices for populations
+  !> Initialize matrices for populations
   subroutine tdPopulInit(this, Eiginv, EiginvAdj, HSq, iSpin)
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
-    complex(cp), intent(out) :: Eiginv(:,:,:), EiginvAdj(:,:,:)
+
+    !> Inverse of eigenvectors matrix (for populations)
+    complex(cp), intent(out) :: Eiginv(:,:,:)
+
+    !> Adjoint of the inverse of eigenvectors matrix (for populations)
+    complex(cp), intent(out) :: EiginvAdj(:,:,:)
+
+    !> Eigenvectors
     real(dp), intent(in) :: Hsq(:,:,:)
-    real(dp), allocatable :: T2(:,:), T3(:,:)
+
+    !> Spin index
     integer, intent(in) :: iSpin
+
+    real(dp), allocatable :: T2(:,:), T3(:,:)
     integer :: iOrb, iOrb2
 
     allocate(T2(this%nOrbs, this%nOrbs), T3(this%nOrbs, this%nOrbs))
@@ -836,17 +1227,36 @@ contains
   end subroutine tdPopulInit
 
 
-  !! Calculate populations at each time step
+  !> Calculate populations at each time step
   subroutine getTDPopulations(this, Rho, Eiginv, EiginvAdj, T1, &
        & populDat, time, iSpin)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> Density Matrix
     complex(cp), intent(in) :: Rho(:,:,:)
-    complex(cp), intent(inout) :: Eiginv(:,:,:), EiginvAdj(:,:,:)
+    !> Inverse of eigenvectors matrix (for populations)
+
+    complex(cp), intent(inout) :: Eiginv(:,:,:)
+
+    !> Adjoint of the inverse of eigenvectors matrix (for populations)
+    complex(cp), intent(inout) :: EiginvAdj(:,:,:)
+
+    !> Auxiliary matrix
     complex(cp), intent(inout) :: T1(:,:)
-    complex(cp) :: T2(this%nOrbs, this%nOrbs)  ! Does it allocate every time?
-    real(dp) :: T3(this%nOrbs, this%nOrbs)
+
+    !> Elapsed simulation time
     real(dp), intent(in) :: time
-    integer, intent(in) :: populDat(2), iSpin
+
+    !> Populations output file ID
+    integer, intent(in) :: populDat(2)
+
+    !> Spin index
+    integer, intent(in) :: iSpin
+
+    complex(cp) :: T2(this%nOrbs, this%nOrbs)
+    real(dp) :: T3(this%nOrbs, this%nOrbs)
     integer :: iOrb
 
     T3 = 0.0_dp

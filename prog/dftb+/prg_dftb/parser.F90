@@ -3200,7 +3200,6 @@ contains
     call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, .true.)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
-    !! Electron dynamics stuff
     call getChild(node, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
        allocate(ctrl%elecDynInp)
@@ -3315,8 +3314,13 @@ contains
 
   !> Reads the electron dynamics block
   subroutine readElecDynamics(node, input)
+
+    !> input data to parse
     type(fnode), pointer :: node
+
+    !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(inout) :: input
+
     type(fnode), pointer :: value, child
     type(string) :: buffer, modifier
 
