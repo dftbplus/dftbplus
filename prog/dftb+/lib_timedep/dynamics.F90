@@ -31,7 +31,7 @@ module timeprop_module
   type TElecDynamicsInp
      real(dp) :: tdField, Dt, Omega, ReFieldPolVec(3), ImFieldPolVec(3)
      real(dp) :: Time0, Time1
-     integer :: PolDir, Steps, SaveEvery, PertType, EnvType, SpType, restartFreq
+     integer :: PolDir, Steps, writeFreq, PertType, EnvType, SpType, restartFreq
      logical :: tPopulations, tRestart, tWriteRestart
      real(dp) :: Phase
   end type TElecDynamicsInp
@@ -42,8 +42,8 @@ module timeprop_module
      real(dp) :: Field, Dt, Omega, Time0, Time1
      complex(cp) :: FieldDir(3)
      real(dp), allocatable :: TDFunction(:, :), phase
-     integer :: Nsteps, SaveEvery, PertType, EnvType, SpType
-     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartEvery
+     integer :: Nsteps, writeFreq, PertType, EnvType, SpType
+     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
      integer, allocatable :: species(:), PolDirs(:)
      character(mc), allocatable :: speciesName(:)
      logical :: tPopulations, tSpinPol=.false.
@@ -97,8 +97,8 @@ contains
     this%tRestart = inp%tRestart
     this%tWriteRestart = inp%tWriteRestart
     this%phase = inp%Phase
-    this%SaveEvery = inp%SaveEvery
-    this%restartEvery = int(inp%Steps/inp%restartFreq)
+    this%writeFreq = inp%writeFreq
+    this%restartFreq = inp%restartFreq
     allocate(this%species, source=species)
     allocate(this%speciesName, source=speciesName)
     allocate(this%sccCalc)
@@ -347,7 +347,7 @@ contains
             & img2CentCell, iStep, chargePerShell, W, env)
 
        if ((this%tWriteRestart) .and. (iStep > 0) .and. &
-            & (mod(iStep, this%restartEvery) == 0)) then
+            & (mod(iStep, this%restartFreq) == 0)) then
           call writeRestart(Rho, Ssqr, coord, time)
        end if
 
@@ -361,7 +361,7 @@ contains
                & H1(:,:,iSpin), Sinv, T1, 2.0_dp * this%Dt)
           call swap(Rhoold(:,:,iSpin), Rho(:,:,iSpin))
 
-          if ((this%tPopulations) .and. (mod(iStep, this%SaveEvery) == 0)) then
+          if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
              call getTDPopulations(this, Rho, Eiginv, EiginvAdj, T1, populDat, time, iSpin)
           end if
        end do
@@ -1174,7 +1174,7 @@ contains
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
          & iSpin=1, this%nSpin)
 
-    if (mod(iStep, this%SaveEvery) == 0) then
+    if (mod(iStep, this%writeFreq) == 0) then
        write(qDat, '(*(2x,F25.15))') time * au__fs, sum(deltaQ),&
             & (sum(deltaQ(iAtom,:)), iAtom=1, this%nAtom)
     end if

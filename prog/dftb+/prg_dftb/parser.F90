@@ -3321,24 +3321,22 @@ contains
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(inout) :: input
 
-    type(fnode), pointer :: value, child
-    type(string) :: buffer, modifier
+    type(fnode), pointer :: value, value2, child, child2
+    type(string) :: buffer, buffer2, modifier
 
-    call getChildValue(node, "Nsteps", input%Steps)
+    call getChildValue(node, "Steps", input%Steps)
     call getChildValue(node, "TimeStep", input%Dt, modifier=modifier, &
          & child=child)
     call convertByMul(char(modifier), timeUnits, child, input%Dt)
 
-    call getChildValue(node, "FieldIntensity", input%tdField, &
-         & modifier=modifier, child=child)
-    call convertByMul(char(modifier), EFieldUnits, child, &
-         & input%tdField)
+    call getChildValue(node, "FieldIntensity", input%tdField, modifier=modifier, child=child)
+    call convertByMul(char(modifier), EFieldUnits, child, input%tdField)
 
     call getChildValue(node, "Populations", input%tPopulations, .false.)
-    call getChildValue(node, "SaveEvery", input%SaveEvery, 50)
+    call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
     call getChildValue(node, "Restart", input%tRestart, .false.)
     call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
-    call getChildValue(node, "RestartFrequency", input%restartFreq, 10)
+    call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
 
     !! Different perturbation types
     call getChildValue(node, "Perturbation", value, "None", child=child)
@@ -3348,18 +3346,28 @@ contains
     case ("kick")
        input%PertType = iKick
        call getChildValue(value, "PolarizationDirection", input%PolDir)
-       if (input%PolDir > 4) then
+       if (input%PolDir < 1 .or. input%PolDir > 4) then
           call detailedError(child, "Wrong specified polarization direction")
        end if
-       call getChildValue(value, "SpinType", input%SpType, iTDSinglet)
+
+       call getChildValue(value, "SpinType", value2, "singlet", child=child2)
+       call getNodeName(value2, buffer2)
+
+       select case(char(buffer2))
+       case ("singlet")
+          input%SpType = iTDSinglet
+       case ("triplet")
+          input%SpType = iTDTriplet
+       case default
+          call detailedError(child2, "Unknown spectrum spin type " // char(buffer2))
+       end select
 
     case ("laser")
        input%PertType = iLaser
        call getChildValue(value, "PolarizationDirection", input%ReFieldPolVec)
        call getChildValue(value, "ImagPolarizationDirection", input%ImFieldPolVec, &
             & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-       call getChildValue(value, "LaserEnergy", input%Omega, &
-            & modifier=modifier, child=child)
+       call getChildValue(value, "LaserEnergy", input%Omega, modifier=modifier, child=child)
        call convertByMul(char(modifier), energyUnits, child, input%Omega)
        call getChildValue(value, "Phase", input%Phase, 0.0_dp)
 
@@ -3380,33 +3388,24 @@ contains
 
     case("gaussian")
        input%EnvType = iTDGaussian
-       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, &
-            & child=child)
+       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value, "Time1", input%Time1, modifier=modifier, &
-            & child=child)
+       call getChildValue(value, "Time1", input%Time1, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("sin2")
        input%EnvType = iTDSin2
-       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, &
-            & child=child)
+       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value, "Time1", input%Time1, modifier=modifier, &
-            & child=child)
+       call getChildValue(value, "Time1", input%Time1, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
-    case("from_file")
+    case("fromfile")
        input%EnvType = iTDFromFile
-       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, &
-            & child=child)
+       call getChildValue(value, "Time0", input%Time0, 0.0_dp, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time0)
-
-       call getChildValue(value, "Time1", input%Time1, input%Dt * input%Steps , &
-            & modifier=modifier, child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case default
        call detailedError(value, "Unknown envelope shape " // char(buffer))

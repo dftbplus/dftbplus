@@ -100,15 +100,15 @@ module blasroutines
     module procedure hemm_dblecmplx
   end interface hemm
 
- !> SCAL scales a vector by a constant
- !> Wrapper for the level 1 blas routine
+ !> SCAL scales a vector or matrix x by a constant: x = alpha*x where alpha is a scalar
+ !> Wrapper for the level 1 blas routine (only for matrices)
   interface scal
     module procedure scal_cmplx
     module procedure scal_dblecmplx
  end interface scal
 
- !> SCAL scales a vector by a constant
- !> Wrapper for the level 1 blas routine
+ !> Given two vectors or matrices x and y, SWAP routines return vectors y and x swapped
+ !> Wrapper for the level 1 blas routine (only for matrices)
  interface swap
     module procedure swap_cmplx
     module procedure swap_dblecmplx

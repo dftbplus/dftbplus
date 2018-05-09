@@ -1240,7 +1240,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-    
+
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -1432,7 +1432,7 @@ contains
        call error("This ForceEvaluation method requires the electron&
            & temperature to be zero")
     end if
-!    if (tForces) then
+    if (tForces) then
       select case(input%ctrl%iDerivMethod)
       case (1)
         ! set step size from input
@@ -1445,7 +1445,7 @@ contains
       case (2)
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
-!    end if
+    end if
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
@@ -1704,7 +1704,7 @@ contains
 
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
-    
+
 
     ! MD stuff
     if (tMD) then
@@ -2655,12 +2655,11 @@ contains
       end if
 
    end if
-   
+
    ! Electron dynamics stuff
    tElectronDynamics = allocated(input%ctrl%elecDynInp)
    if (tElectronDynamics) then
-      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, & 
-           &species0, speciesName)
+      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
