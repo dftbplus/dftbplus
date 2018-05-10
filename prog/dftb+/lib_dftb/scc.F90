@@ -219,7 +219,7 @@ module scc
 #:endif
 
     !> Flag for activating the H5 H-bond correction
-    logical :: useH5
+    logical :: tH5
 
     !> H5 correction object
     type(H5Corr), allocatable :: h5Correction
@@ -429,14 +429,10 @@ contains
     this%dampExp = inp%dampExp
 
     ! H5 correction
-    ! Input data are saved in the SCC object
-    this%useH5 = allocated(inp%h5Correction)
-    if (this%useH5) then
-        ! Copy correction object build in initprogram
-        this%h5Correction = inp%h5Correction
-    end if 
-    ! H5 correction end
-
+    this%tH5 = allocated(inp%h5Correction)
+    if (this%tH5) then
+      this%h5Correction = inp%h5Correction
+    end if
 
     this%tInitialised = .true.
 
@@ -1330,12 +1326,10 @@ contains
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, this%dampExp)
               else
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
-                ! H5 correction
-                if (this%useH5) then
+                if (this%tH5) then
                   call this%h5Correction%scaleShortGamma(&
                       & this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
                 end if
-                ! H5 correction end
               end if
             end if
           end do
@@ -1366,9 +1360,7 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, u1, u2
-    ! H5 correction temp. vars
     real(dp) :: tmpGamma
-    ! H5 correction end
 
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == this%nAtom)
@@ -1391,13 +1383,11 @@ contains
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
-                ! H5 correction
-                if (this%useH5) then
+                if (this%tH5) then
                   tmpGamma = expGamma(rab, u2, u1)
                   call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
                       & rab)
                 end if
-                ! H5 correction end
               end if
               do ii = 1,3
                 force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU(iU1,iAt1) * &
@@ -1464,13 +1454,11 @@ contains
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
-                ! H5 correction
-                if (this%useH5) then
+                if (this%tH5) then
                   tmpGamma = expGamma(rab, u2, u1)
                   call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
                       & rab)
                 end if
-                ! H5 correction end
               end if
               do ii = 1,3
                 intermed(ii) = intermed(ii) &

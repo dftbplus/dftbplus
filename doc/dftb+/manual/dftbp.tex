@@ -2502,7 +2502,7 @@ Hamiltonian = DFTB {
   HBondCorrection = H5 {
     RCut = 0.714
     W = 0.25
-    H5CorrectionSpecies = {
+    H5CorrectionSpecies {
       O = 0.06
       N = 0.18
       S = 0.21
@@ -2514,9 +2514,9 @@ Hamiltonian = DFTB {
 
 \end{description}
 
-\textbf{Note:} that the van de Waals radii of atoms are also required, \dftbp{}
-stores these for most of the periodic table, but for case that are not available
-their contribution to this correction are neglected.
+\textbf{Note:} The van der Waals radii of atoms are also required. \dftbp{}
+stores these for most of the periodic table, but for cases that are not
+available their contribution to this correction are neglected.
 
 For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3

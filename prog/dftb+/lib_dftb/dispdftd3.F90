@@ -19,10 +19,11 @@ module dispdftd3_module
   implicit none
   private
 
-  public :: DispDftD3Inp, DispDftD3, DispDftD3_init, HHRepCutOff
+  public :: DispDftD3Inp, DispDftD3, DispDftD3_init
+  public :: hhRepCutOff
 
   ! cut-off distance in Bohr for the H-H repulsion term dropping below 1E-10
-  real(dp), parameter :: HHRepCutOff = 10.0_dp
+  real(dp), parameter :: hhRepCutOff = 10.0_dp
 
   !> Input structure for the DFT-D3 initialization.
   type :: DispDftD3Inp
@@ -137,7 +138,6 @@ contains
     d3inp%cutoff = inp%cutoff
     d3inp%cutoff_cn = inp%cutoffCN
 
-    ! D3H5 - additional H-H repulsion
     this%tHHRepulsion = inp%hhrepulsion
 
     allocate(this%calculator)
@@ -283,6 +283,7 @@ contains
 
   end function getRCutoff
 
+
   !> Add the additional H-H repulsion for D3H5
   subroutine addHHRepulsion(this, coords, neigh, img2CentCell)
 
@@ -298,22 +299,22 @@ contains
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
 
+    ! Parameters (as published in dx.doi.org/10.1021/ct200751e )
+    real(dp), parameter :: kk = 0.30_dp * kcal_mol__Hartree  ! s_HH
+    real(dp), parameter :: ee = 14.31_dp  ! e_HH
+    real(dp), parameter :: r0 = 2.35_dp * AA__Bohr  ! r_0,HH
+
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii
-    real(dp) :: r, repE, dEdR, dCdR(3), cellVol, stTmp(3,3), vect(3), prefac
+    real(dp) :: rr, repE, dEdR, dCdR(3), cellVol, stressTmp(3,3), vect(3), prefac
     integer, allocatable :: nNeigh(:)
 
-    ! Parameters (as published in dx.doi.org/10.1021/ct200751e )
-    real(dp), parameter :: k = 0.30_dp * kcal_mol__Hartree !  s_HH
-    real(dp), parameter :: e = 14.31_dp ! e_HH
-    real(dp), parameter :: r0 = 2.35_dp * AA__Bohr ! r_0,HH
-
-    ! stress tensor contribution, if periodic
-    stTmp(:,:) = 0.0_dp
+    if (this%tPeriodic) then
+      stressTmp(:,:) = 0.0_dp
+    end if
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighborsForAll(nNeigh, neigh, HHRepCutOff)
 
-    ! Calculate the repulsion energy and gradients
     repE = 0.0_dp
     do iAt1 = 1, this%nAtom
       if (this%izp(iAt1) /= 1) then
@@ -330,35 +331,28 @@ contains
         else
           prefac = 1.0_dp
         end if
-        ! Distance in a.u.
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        r = sqrt( sum(vect**2) )
-        ! Repulsion energy in a.u.
-        repE = repE + k * (1.0_dp - 1.0_dp/(1.0_dp + exp(-e*(r/r0 - 1.0_dp))))
-        ! Derivative
-        dEdR = -k * e * exp(-e*(r/r0 -1.0_dp)) / (r0 * (1.0_dp + exp(-e*(r/r0-1.0_dp)))**2)
-        ! Apply it to the atoms
-        dCdR(:) = (coords(:,iAt1) - coords(:,iAt2)) / r
-        this%gradients(:,iAt1) = this%gradients(:,iAt1) + dEdR * dCdR(:)
-        this%gradients(:,iAt2f) = this%gradients(:,iAt2f) - dEdR * dCdR(:)
+        rr = sqrt(sum(vect**2))
+        repE = repE + kk * (1.0_dp - 1.0_dp / (1.0_dp + exp(-ee * (rr / r0 - 1.0_dp))))
+        dEdR = -kk * ee * exp(-ee * (rr / r0 -1.0_dp))&
+            & / (r0 * (1.0_dp + exp(-ee * (rr / r0 - 1.0_dp)))**2)
+        dCdR(:) = (coords(:,iAt1) - coords(:,iAt2)) / rr
+        this%gradients(:,iAt1) = this%gradients(:,iAt1) + dEdR * dCdR
+        this%gradients(:,iAt2f) = this%gradients(:,iAt2f) - dEdR * dCdR
 
         if (this%tPeriodic) then
-          ! stress tensor contribution
           do ii = 1, 3
-            stTmp(:, ii) = stTmp(:, ii) + prefac * vect(ii) * dEdR * dCdR(:)
+            stressTmp(:, ii) = stressTmp(:, ii) + prefac * vect(ii) * dEdR * dCdR
           end do
         end if
-
       end do
     end do
 
-    ! Add the repulsion energy to the result
     this%dispE = this%dispE + repE
 
     if (this%tPeriodic) then
-      ! Addition to stress tensor
       cellVol = abs(determinant33(this%latVecs))
-      this%stress = this%stress - stTmp / cellVol
+      this%stress = this%stress - stressTmp / cellVol
     end if
 
   end subroutine addHHRepulsion

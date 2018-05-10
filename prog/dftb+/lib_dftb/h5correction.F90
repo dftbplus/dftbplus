@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -45,8 +45,9 @@ module h5correction
 
   end type H5Corr
 
+
   ! Conversion from full-width-at-half-maximum to c 2.35482 == 2*sqrt(2*ln(2))
-  real(dp), parameter :: gaussianWidthFactor = 0.5_dp / sqrt(2.0_dp*log(2.0_dp)) ! 2.35482_dp
+  real(dp), parameter :: gaussianWidthFactor = 0.5_dp / sqrt(2.0_dp * log(2.0_dp))  ! 2.35482_dp
 
 contains
 

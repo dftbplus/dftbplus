@@ -1456,7 +1456,6 @@ contains
         call getNodeHSDName(value, buffer)
         call detailedError(child, "Invalid value of HBondCorrection '" // char(buffer) // "'")
       end select
-      ! H5 end
 
       ! spin
       call getChildValue(node, "SpinPolarisation", value, "", child=child, &

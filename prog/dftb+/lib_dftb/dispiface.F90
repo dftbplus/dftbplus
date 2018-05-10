@@ -10,8 +10,8 @@ module dispiface
   use accuracy, only : dp
   use periodic, only : TNeighborList
   implicit none
-
   private
+  
   public :: DispersionIface
 
   !> Interface for classes providing dispersion.
@@ -37,8 +37,8 @@ module dispiface
     procedure(getStressIface), deferred :: getStress
   end type DispersionIface
 
-  abstract interface
 
+  abstract interface
 
     !> Update internal stored coordinate
     subroutine updateCoordsIface(this, neigh, img2CentCell, coords, species0)

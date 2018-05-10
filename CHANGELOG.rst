@@ -11,7 +11,9 @@ Unreleased
 Added
 -----
 
-- Option for removing translational and rotational degrees of freedom in modes
+- Option for removing translational and rotational degrees of freedom in modes.
+
+- H5 correction for hydrogen bonds.
 
   
 Changed

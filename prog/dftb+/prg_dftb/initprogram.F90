@@ -1125,7 +1125,6 @@ contains
       sccInp%dampExp = input%ctrl%dampExp
 
       ! H5 correction
-      ! On/Off flag is read from the input
       if (input%ctrl%h5SwitchedOn) then
         if (.not. any(speciesMass < 3.5_dp * amu__au)) then
           call error("H5 correction used without H atoms present")
@@ -1133,13 +1132,11 @@ contains
         if (any(tDampedShort)) then
           call error("H5 correction is not compatible with X-H damping")
         end if
-        ! Create H5 object, passing all parameters it uses
         allocate(pH5Correction)
         call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&
             &input%ctrl%h5WScale, input%ctrl%h5ElementPara)
         ! Debug printing
-        ! call pH5Correction%printH5Setup
-        ! Pass the correction object to SCC
+        ! call pH5Correction%printH5Setup()
         sccInp%h5Correction = pH5Correction
       end if
 
@@ -2601,14 +2598,12 @@ contains
         deallocate(tDampedShort)
       end if
 
-      ! H5 correction
       if (input%ctrl%h5SwitchedOn) then
         write(stdOut, "(A,T30,A)") "H-bond correction:", "H5"
       end if
       if (tHHRepulsion) then
         write(stdOut, "(A,T30,A)") "H-H repulsion correction:", "H5"
       end if
-     ! H5 correction end
     end if
 
     write(stdOut, "(A,':')") "Extra options"
