@@ -27,7 +27,7 @@ Hamiltonian = DFTB {
   SCC = Yes
   MaxSCCIterations = 199
   SCCTolerance = 1.0e-05
-  SpinPolarisation = {}
+  SpinPolarisation {}
   Mixer = Broyden {
     MixingParameter = 0.2
   }
@@ -50,7 +50,7 @@ Hamiltonian = DFTB {
   HBondCorrection = H5 {
     RCut = 0.714
     W = 0.25
-    H5CorrectionSpecies = {
+    H5CorrectionSpecies {
       O = 0.06
       N = 0.18
       S = 0.21
@@ -65,10 +65,14 @@ Hamiltonian = DFTB {
     O = -0.1575
   }
 }
-Options =  {
-  CalculateForces = Yes
+Options {
   WriteAutotestTag = Yes
 }
+
+Analysis {
+  CalculateForces = Yes
+}
+
 ParserOptions =  {
-  ParserVersion = 3
+  ParserVersion = 5
 }
