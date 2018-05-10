@@ -1135,8 +1135,8 @@ contains
         allocate(pH5Correction)
         call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&
             &input%ctrl%h5WScale, input%ctrl%h5ElementPara)
-        ! Debug printing
-        ! call pH5Correction%printH5Setup()
+        ! Writing debug info
+        ! call pH5Correction%writeH5Setup()
         sccInp%h5Correction = pH5Correction
       end if
 
