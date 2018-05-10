@@ -193,7 +193,7 @@ contains
 
     h5Scaling = this%elementPara(iSpHeavy)
 
-    if (.not.tFoundRadii) then
+    if (.not.tFoundRadii .and. h5Scaling /= 0.0_dp) then
       call warning("The van de  Waals radius for " // trim(this%speciesName(iSpHeavy)) //&
           & " is not available, but is needed for the H5 correction, so is neglected")
     end if
