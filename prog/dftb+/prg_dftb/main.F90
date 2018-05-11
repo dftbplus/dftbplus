@@ -200,15 +200,15 @@ contains
       end if
 
       if (tLatticeChanged) then
-        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutoff,&
-            & dispersion, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
+        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutOff, dispersion,&
+            & recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
       end if
 
       if (tCoordsChanged) then
-        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, skRepCutoff,&
+        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, repCutoff,&
             & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
-            & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham, over, H0,&
-            & rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+            & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, nNeighborRep,&
+            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
       end if
 
       if (tSccCalc) then
@@ -226,7 +226,7 @@ contains
         call getTemperature(temperatureProfile, tempElec)
       end if
 
-      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
+      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighborRep, neighborList, pRepCont,&
           & energy%atomRep, energy%ERep)
 
       if (tDispersion) then
@@ -238,7 +238,7 @@ contains
           & EFieldVector, EFieldOmega, EFieldPhase, neighborList, nNeighbor, iCellVec,&
           & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, EField,&
           & potential%extAtom(:,1), absEField)
-    
+
       call mergeExternalPotentials(orb, species, potential)
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
@@ -397,9 +397,9 @@ contains
             & SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
-            & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-            & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-            & chrgForces, dispersion)
+            & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, nNeighborRep,&
+            & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim,&
+            & thirdOrd, chrgForces, dispersion)
         if (tLinResp) then
           derivs(:,:) = derivs + excitedDerivs
         end if
@@ -408,9 +408,10 @@ contains
         if (tStress) then
           call env%globalTimer%startTimer(globalTimers%stressCalc)
           call getStress(env, sccCalc, thirdOrd, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
-              & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-              & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
-              & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+              & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor,&
+              & nNeighborRep, species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
+              & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
+              & dispersion)
           call env%globalTimer%stopTimer(globalTimers%stressCalc)
           call printVolume(cellVol)
           ! MD case includes the atomic kinetic energy contribution, so print that later
@@ -714,8 +715,8 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutoff,&
-      & dispersion, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
+  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
+      & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -730,7 +731,7 @@ contains
     real(dp), intent(in) :: extPressure
 
     !> Maximum distance for interactions
-    real(dp), intent(inout) :: mCutoff
+    real(dp), intent(inout) :: mCutOff
 
     !> Dispersion interactions object
     class(DispersionIface), allocatable, intent(inout) :: dispersion
@@ -768,21 +769,21 @@ contains
     end if
     if (allocated(sccCalc)) then
       call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
-      mCutoff = max(mCutoff, sccCalc%getCutoff())
+      mCutOff = max(mCutOff, sccCalc%getCutOff())
     end if
     if (allocated(dispersion)) then
       call dispersion%updateLatVecs(latVecs)
-      mCutoff = max(mCutoff, dispersion%getRCutoff())
+      mCutOff = max(mCutOff, dispersion%getRCutOff())
     end if
-    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
+    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
 
   end subroutine handleLatticeChange
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff,&
-      & skRepCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
-      & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, ham,&
+  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutOff, repCutOff,&
+      & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
+      & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, nNeighborRep, ham,&
       & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
 
     !> Environment settings
@@ -800,11 +801,11 @@ contains
     !> chemical species of central cell atoms
     integer, intent(in) :: species0(:)
 
-    !> Longest cutoff distance that neighbour maps are generated
-    real(dp), intent(in) :: mCutoff
+    !> Longest cut-off distance that neighbour maps are generated
+    real(dp), intent(in) :: mCutOff
 
-    !> Cutoff for repulsive interaction from SK data
-    real(dp), intent(in) :: skRepCutoff
+    !> Cut-off distance for repulsive interactions
+    real(dp), intent(in) :: repCutOff
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -851,6 +852,9 @@ contains
     !> Number of neighbours of each real atom
     integer, intent(out) :: nNeighbor(:)
 
+    !> Number of neighbours of each real atom close enough for repulsive interactions
+    integer, intent(out) :: nNeighborRep(:)
+
     !> Sparse hamiltonian storage
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
@@ -884,13 +888,16 @@ contains
       call foldCoordToUnitCell(coord0Fold, latVec, invLatVec)
     end if
 
-    call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, &
-        &neighborList, nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
+    call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, neighborList,&
+        & nAllAtom, coord0Fold, species0, mCutOff, rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
-    call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
+    call getNrOfNeighborsForAll(nNeighbor, neighborList, mCutOff)
     call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iSparseStart,&
         & sparseSize)
     call reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
+
+    ! count neighbours for repulsive interactions between atoms
+    call getNrOfNeighborsForAll(nNeighborRep, neighborList, repCutOff)
 
     ! Notify various modules about coordinate changes
     if (allocated(sccCalc)) then
@@ -1010,7 +1017,7 @@ contains
 
 
   !> Calculates repulsive energy for current geometry
-  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList,&
+  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighborRep, neighborList,&
       & pRepCont, Eatom, Etotal)
 
     !> All atomic coordinates
@@ -1022,8 +1029,8 @@ contains
     !> Image atom indices to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> Number of neighbours for each actual atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Number of neighbours for each atom within the repulsive distance
+    integer, intent(in) :: nNeighborRep(:)
 
     !> List of neighbours for each atom
     type(TNeighborList), intent(in) :: neighborList
@@ -1037,7 +1044,8 @@ contains
     !> Total energy
     real(dp), intent(out) :: Etotal
 
-    call getERep(Eatom, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont, img2CentCell)
+    call getERep(Eatom, coord, nNeighborRep, neighborList%iNeighbor, species, pRepCont,&
+        & img2CentCell)
     Etotal = sum(Eatom)
 
   end subroutine calcRepulsiveEnergy
@@ -2473,7 +2481,7 @@ contains
   end subroutine getMullikenPopulation
 
 
-  !> Calculates various energy contributions
+  !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
       & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
@@ -2518,7 +2526,7 @@ contains
     !> neighbour list
     type(TNeighborList), intent(in) :: neighborList
 
-    !> Number of neighbours within cutoff for each atom
+    !> Number of neighbours within cut-off for each atom
     integer, intent(in) :: nNeighbor(:)
 
     !> image to real atom mapping
@@ -3860,9 +3868,9 @@ contains
 
   !> Calculates the gradients
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
-      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-      & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces,&
-      & dispersion)
+      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, nNeighborRep,&
+      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
+      & chrgForces, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3908,6 +3916,9 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
+
+    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
+    integer, intent(in) :: nNeighborRep(:)
 
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -4014,7 +4025,7 @@ contains
     end if
 
     allocate(tmpDerivs(3, nAtom))
-    call getERepDeriv(tmpDerivs, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont,&
+    call getERepDeriv(tmpDerivs, coord, nNeighborRep, neighborList%iNeighbor, species, pRepCont,&
         & img2CentCell)
     derivs(:,:) = derivs + tmpDerivs
 
@@ -4023,9 +4034,9 @@ contains
 
   !> Calculates stress tensor and lattice derivatives.
   subroutine getStress(env, sccCalc, thirdOrd, tEField, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
-      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-      & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, nNeighborRep,&
+      & species, img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol,&
+      & coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4071,6 +4082,9 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbor(:)
+
+    !> Number of neighbours for each of the atoms closer than the repulsive cut-off
+    integer, intent(in) :: nNeighborRep(:)
 
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
@@ -4158,7 +4172,7 @@ contains
       totalStress(:,:) = totalStress + tmpStress
     end if
 
-    call getRepulsiveStress(tmpStress, coord, nNeighbor, neighborList%iNeighbor, species,&
+    call getRepulsiveStress(tmpStress, coord, nNeighborRep, neighborList%iNeighbor, species,&
         & img2CentCell, pRepCont, cellVol)
     totalStress(:,:) = totalStress + tmpStress
 

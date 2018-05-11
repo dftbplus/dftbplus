@@ -113,8 +113,8 @@ module scc
     !> Short range interaction
     real(dp), allocatable :: shortGamma(:,:,:,:)
 
-    !> Cutoff for short range int.
-    real(dp), allocatable :: shortCutoff(:,:,:,:)
+    !> CutOff for short range int.
+    real(dp), allocatable :: shortCutOff(:,:,:,:)
 
     !> Maximal cutoff
     real(dp) :: cutoff
@@ -125,7 +125,7 @@ module scc
     !> Real lattice points for asymmetric Ewald sum
     real(dp), allocatable :: rCellVec(:,:)
 
-    !> Nr. of neighbors for short range interaction
+    !> Nr. of neighbors for short range part of gamma
     integer, allocatable :: nNeighShort(:,:,:,:)
 
     !> Dynamic neighbor list for the real space Ewald summation
@@ -215,7 +215,7 @@ module scc
 #:endif
 
   contains
-    procedure :: getCutoff
+    procedure :: getCutOff
     procedure :: getEwaldPar
     procedure :: updateCoords
     procedure :: updateLatVecs
@@ -327,20 +327,20 @@ contains
     this%mHubbU = maxval(this%nHubbU)
 
     ! Get cutoff for short range coulomb
-    allocate(this%shortCutoff(this%mHubbU, this%mHubbU, this%nSpecies, this%nSpecies))
-    this%shortCutoff(:,:,:,:) = 0.0_dp
+    allocate(this%shortCutOff(this%mHubbU, this%mHubbU, this%nSpecies, this%nSpecies))
+    this%shortCutOff(:,:,:,:) = 0.0_dp
     do iSp1 = 1, this%nSpecies
       do iSp2 = iSp1, this%nSpecies
         do iU1 = 1, this%nHubbU(iSp1)
           do iU2 = 1, this%nHubbU(iSp2)
-            this%shortCutoff(iU2, iU1, iSp2, iSp1) = &
-                & expGammaCutoff(this%uniqHubbU(iU2, iSp2), this%uniqHubbU(iU1, iSp1))
-            this%shortCutoff(iU1, iU2, iSp1, iSp2) = this%shortCutoff(iU2, iU1, iSp2, iSp1)
+            this%shortCutOff(iU2, iU1, iSp2, iSp1) = &
+                & expGammaCutOff(this%uniqHubbU(iU2, iSp2), this%uniqHubbU(iU1, iSp1))
+            this%shortCutOff(iU1, iU2, iSp1, iSp2) = this%shortCutOff(iU2, iU1, iSp2, iSp1)
           end do
         end do
       end do
     end do
-    this%cutoff = maxval(this%shortCutoff)
+    this%cutoff = maxval(this%shortCutOff)
 
     ! Initialize Ewald summation for the periodic case
     if (this%tPeriodic) then
@@ -425,7 +425,7 @@ contains
 
   !> Returns a minimal cutoff for the neighborlist, which must be passed to various functions in
   !> this module.
-  function getCutoff(this) result(cutoff)
+  function getCutOff(this) result(cutoff)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -437,7 +437,7 @@ contains
     @:ASSERT(this%tInitialised)
     cutoff = this%cutoff
 
-  end function getCutoff
+  end function getCutOff
 
 
   !> Returns the currenty used alpha parameter of the Ewald-summation
@@ -1063,8 +1063,8 @@ contains
       do iSp2 = 1, this%nSpecies
         do iU1 = 1, this%nHubbU(species(iAt1))
           do iU2 = 1, this%nHubbU(iSp2)
-            this%nNeighShort(iU2, iU1, iSp2, iAt1) = &
-                &getNrOfNeighbors(neighList, this%shortCutoff(iU2, iU1, iSp2, species(iAt1)), iAt1)
+            this%nNeighShort(iU2, iU1, iSp2, iAt1) =&
+                & getNrOfNeighbors(neighList, this%shortCutOff(iU2, iU1, iSp2, species(iAt1)), iAt1)
           end do
         end do
       end do

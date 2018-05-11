@@ -210,8 +210,11 @@ module initprogram
   !> ADT for neighbor parameters
   type(TNeighborList), allocatable, save :: neighborList
 
-  !> nr. of neighbors for atoms out to SK + rep distance
+  !> nr. of neighbors for atoms out to max interaction distance (excluding Ewald terms)
   integer, allocatable :: nNeighbor(:)
+
+  !> nr. of neighbors for atoms within Erep interaction distance (usually short)
+  integer, allocatable :: nNeighborRep(:)
 
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iSparseStart(:,:)
@@ -241,13 +244,13 @@ module initprogram
   type(ORepCont) :: pRepCont
 
   !> Cut off distance for Slater-Koster interactions
-  real(dp) :: skCutoff
+  real(dp) :: skCutOff
 
   !> Cut off distance for repulsive interactions
-  real(dp) :: skRepCutoff
+  real(dp) :: repCutOff
 
-  !> longest pair interaction
-  real(dp) :: mCutoff
+  !> longest range of interactions for which neighbours are required
+  real(dp) :: mCutOff
 
   !> Sparse hamiltonian matrix
   real(dp), allocatable :: ham(:,:)
@@ -1067,10 +1070,10 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    ! Cutoffs from SlaKo and repulsive
-    skCutoff = max(getCutoff(skHamCont), getCutoff(skOverCont))
-    skRepCutoff = max(skCutoff, getCutoff(pRepCont))
-    mCutoff = skRepCutoff
+    ! Cut-offs from SlaKo and repulsive
+    skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
+    repCutOff = getCutOff(pRepCont)
+    mCutOff = max(skCutOff, repCutOff)
 
     ! Get species names and output file
     geoOutFile = input%ctrl%outFile
@@ -1152,7 +1155,9 @@ contains
       sccInp%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
-      mCutoff = max(mCutoff, sccCalc%getCutoff())
+
+      ! Longest cut-off including the softening part of gamma
+      mCutOff = max(mCutOff, sccCalc%getCutOff())
 
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
         call error("Onsite third order DFTB only compatible with orbital non&
@@ -1173,7 +1178,7 @@ contains
         thirdInp%shellResolved = input%ctrl%tOrbResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
-        mCutoff = max(mCutoff, thirdOrd%getCutoff())
+        mCutOff = max(mCutOff, thirdOrd%getCutOff())
       end if
     end if
 
@@ -1577,7 +1582,7 @@ contains
         call move_alloc(dftd3, dispersion)
     #:endif
       end if
-      mCutoff = max(mCutoff, dispersion%getRCutoff())
+      mCutOff = max(mCutOff, dispersion%getRCutOff())
 
     end if
 
@@ -2023,9 +2028,9 @@ contains
       end if
     end if
 
-    ! Initalize images (translations)
+    ! Initialise images (translations)
     if (tPeriodic) then
-      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutoff)
+      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutOff)
     else
       allocate(cellVec(3, 1))
       allocate(rCellVec(3, 1))
@@ -2037,6 +2042,7 @@ contains
     allocate(neighborList)
     call init(neighborList, nAtom, nInitNeighbor)
     allocate(nNeighbor(nAtom))
+    allocate(nNeighborRep(nAtom))
 
     ! Set various options
     tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
@@ -2193,7 +2199,7 @@ contains
       write(stdOut, *)
     end if
   #:endif
-    
+
   #:if WITH_SCALAPACK
     write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
