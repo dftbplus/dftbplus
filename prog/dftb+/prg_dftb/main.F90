@@ -206,9 +206,9 @@ contains
 
       if (tCoordsChanged) then
         call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, repCutoff,&
-            & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
-            & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, nNeighborRep,&
-            & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+            & skCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
+            & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
+            & nNeighborRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
       end if
 
       if (tSccCalc) then
@@ -782,9 +782,9 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutOff, repCutOff,&
-      & orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec, neighborList,&
-      & nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor, nNeighborRep, ham,&
-      & over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
+      & skCutOff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
+      & neighborList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbor,&
+      & nNeighborRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -806,6 +806,9 @@ contains
 
     !> Cut-off distance for repulsive interactions
     real(dp), intent(in) :: repCutOff
+
+    !> Cut-off distance for Slater-Koster interactions
+    real(dp), intent(in) :: skCutOff
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -891,7 +894,8 @@ contains
     call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, neighborList,&
         & nAllAtom, coord0Fold, species0, mCutOff, rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
-    call getNrOfNeighborsForAll(nNeighbor, neighborList, mCutOff)
+    call getNrOfNeighborsForAll(nNeighbor, neighborList, skCutOff)
+
     call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iSparseStart,&
         & sparseSize)
     call reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
