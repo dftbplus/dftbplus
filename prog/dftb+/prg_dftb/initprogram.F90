@@ -1296,6 +1296,12 @@ contains
       electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
 
       electronicSolver%ELSI_mu_broaden_scheme = min(iDistribFn,2)
+      if (iDistribFn > 1) then
+        ! set Meth-Pax order
+        electronicSolver%ELSI_mu_mp_order = iDistribFn - 2
+      else
+        electronicSolver%ELSI_mu_mp_order = 0
+      end if
 
       ! ELPA settings
       electronicSolver%ELSI_ELPA_SOLVER_Option = input%ctrl%solver%ELPA_Solver
@@ -1306,6 +1312,7 @@ contains
       electronicSolver%ELSI_OMM_Choleskii = input%ctrl%solver%OMM_Choleskii
 
       ! PEXSI settings
+      electronicSolver%ELSI_PEXSI_n_pole = input%ctrl%solver%PEXSI_n_pole
 
       ! customize output level, note there are levels 0..3 not DFTB+ 0..2
       electronicSolver%ELSI_OutputLevel = 0
@@ -2424,6 +2431,12 @@ contains
       call error("Unknown eigensolver!")
     end select
     write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+
+  #:if WITH_ELSI
+    if (electronicSolver%iSolver == 6) then
+      write(stdOut, "(T30,A,1X,I0)") "Solver poles", electronicSolver%ELSI_PEXSI_n_pole
+    end if
+  #:endif
 
     if (omp_get_max_threads() > 1&
         & .and. (electronicSolver%iSolver >= 4 .and. electronicSolver%iSolver <= 6)) then

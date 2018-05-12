@@ -39,6 +39,9 @@ module solvers
     !> Should the overlap be factorized before minimization
     logical :: OMM_Choleskii = .true.
 
+    !> number of poles for PEXSI expansion
+    integer :: PEXSI_n_pole = 20
+
   #:endif
 
   end type TElectronicSolverInp
@@ -72,6 +75,7 @@ module solvers
     integer, public :: ELSI_blockSize
 
     integer, public :: ELSI_mu_broaden_scheme
+    integer, public :: ELSI_mu_mp_order
 
     ! ELPA settings
     integer, public :: ELSI_ELPA_SOLVER_Option
@@ -87,6 +91,7 @@ module solvers
     real(dp), public :: ELSI_PEXSI_DeltaVmin
     real(dp), public :: ELSI_PEXSI_DeltaVmax
     real(dp), public, allocatable :: ELSI_PEXSI_VOld(:)
+    integer, public :: ELSI_PEXSI_n_pole
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_reset = 0
@@ -139,6 +144,9 @@ contains
     call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_blockSize)
 
     call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)
+    if (this%ELSI_mu_broaden_scheme == 2) then
+      call elsi_set_mu_mp_order(this%elsiHandle, this%ELSI_mu_mp_order)
+    end if
 
     ! set filling temperature/width
     call elsi_set_mu_broaden_width(this%elsiHandle, tempElec)
@@ -175,6 +183,12 @@ contains
 
       call elsi_set_pexsi_mu_min(this%elsiHandle, this%ELSI_PEXSI_mu_min +this%ELSI_PEXSI_DeltaVmin)
       call elsi_set_pexsi_mu_max(this%elsiHandle, this%ELSI_PEXSI_mu_max +this%ELSI_PEXSI_DeltaVmax)
+
+      ! set filling temperature/width
+      call elsi_set_pexsi_temp(this%elsiHandle, tempElec)
+
+      ! number of poles for the expansion
+      call elsi_set_pexsi_n_pole(this%elsiHandle, this%ELSI_PEXSI_n_pole)
 
     end select
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)

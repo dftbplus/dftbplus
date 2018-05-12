@@ -382,7 +382,8 @@ contains
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & tWriteDetailedOutBands, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
               & qBlockOut, Ef, Eband, TS, E0, extPressure, cellVol, tAtomicEnergy, tDispersion,&
-              & tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint)
+              & tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint,&
+              & electronicSolver)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -1745,11 +1746,11 @@ contains
           call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
               & Eband(1))
 
-          call elsi_get_mu(electronicSolver%elsiHandle, Ef(1))
-          call elsi_get_entropy(electronicSolver%elsiHandle, TS(1))
-
         end if
       end if
+
+      call elsi_get_mu(electronicSolver%elsiHandle, Ef(1))
+      call elsi_get_entropy(electronicSolver%elsiHandle, TS(1))
 
       if (electronicSolver%iSolver == 6) then
         call elsi_get_pexsi_mu_min(electronicSolver%elsiHandle, electronicSolver%ELSI_PEXSI_mu_min)

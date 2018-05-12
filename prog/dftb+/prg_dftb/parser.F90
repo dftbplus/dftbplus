@@ -1634,6 +1634,7 @@ contains
       if (.not.withPEXSI) then
         call error("Not compiled with PEXSI support via ELSI")
       end if
+      call getChildValue(value, "Poles", ctrl%solver%PEXSI_n_pole, 20)
       ctrl%solver%isolver = 6
     end select
 

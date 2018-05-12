@@ -34,6 +34,7 @@ module mainio
   use linkedlist
   use taggedoutput
   use fileid
+  use solvers
   use spin, only : qm2ud
   use energies
   use xmlf90
@@ -2216,7 +2217,8 @@ contains
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, tWriteBands, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, invLatVec, kPoints)
+      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, invLatVec,&
+      & kPoints, electronicSolver)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2352,6 +2354,9 @@ contains
 
     !> K-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2618,11 +2623,17 @@ contains
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
       write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
-      write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
-      write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
-      write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
-          & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
-      write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
+      if (electronicSolver%iSolver /= 6) then
+        write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
+      end if
+      if (electronicSolver%iSolver < 5) then
+        write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
+        write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
+            & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+      end if
+      if (electronicSolver%iSolver /= 6) then
+        write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
+      end if
       if (tPrintMulliken) then
         if (nSpin == 2) then
           write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
@@ -2666,8 +2677,10 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
-        & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    if (electronicSolver%iSolver /= 6) then
+      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
+          & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
       write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
           & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
