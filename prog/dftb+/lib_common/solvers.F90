@@ -42,6 +42,16 @@ module solvers
     !> number of poles for PEXSI expansion
     integer :: PEXSI_n_pole = 20
 
+    !> number of interpolation points for mu (Fermi) search
+    integer :: PEXSI_n_mu = 2
+
+    !> number of processors for symbolic factorisation
+    integer :: PEXSI_np_symbo = 1
+
+    !> spectral radius (range of eigenvalues) if available
+    real(dp) :: PEXSI_delta_e = 10.0_dp
+
+
   #:endif
 
   end type TElectronicSolverInp
@@ -92,6 +102,9 @@ module solvers
     real(dp), public :: ELSI_PEXSI_DeltaVmax
     real(dp), public, allocatable :: ELSI_PEXSI_VOld(:)
     integer, public :: ELSI_PEXSI_n_pole
+    integer, public :: ELSI_PEXSI_n_mu
+    integer, public :: ELSI_PEXSI_np_symbo
+    real(dp), public :: ELSI_PEXSI_delta_e
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_reset = 0
@@ -189,6 +202,15 @@ contains
 
       ! number of poles for the expansion
       call elsi_set_pexsi_n_pole(this%elsiHandle, this%ELSI_PEXSI_n_pole)
+
+      ! number of interpolation points for mu
+      call elsi_set_pexsi_n_mu(this%elsiHandle, this%ELSI_PEXSI_n_mu)
+
+      ! number of processors for symbolic factorisation task
+      call elsi_set_pexsi_np_symbo(this%elsiHandle, this%ELSI_PEXSI_np_symbo)
+
+      ! spectral radius (range of eigenspectrum, if known, otherwise defaul usually fine)
+      call elsi_set_pexsi_delta_e(this%elsiHandle, this%ELSI_PEXSI_delta_e)
 
     end select
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)

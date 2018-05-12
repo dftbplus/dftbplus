@@ -1313,6 +1313,9 @@ contains
 
       ! PEXSI settings
       electronicSolver%ELSI_PEXSI_n_pole = input%ctrl%solver%PEXSI_n_pole
+      electronicSolver%ELSI_PEXSI_n_mu = input%ctrl%solver%PEXSI_n_mu
+      electronicSolver%ELSI_PEXSI_np_symbo = input%ctrl%solver%PEXSI_np_symbo
+      electronicSolver%ELSI_PEXSI_delta_e = input%ctrl%solver%PEXSI_delta_e
 
       ! customize output level, note there are levels 0..3 not DFTB+ 0..2
       electronicSolver%ELSI_OutputLevel = 0
@@ -2435,6 +2438,9 @@ contains
   #:if WITH_ELSI
     if (electronicSolver%iSolver == 6) then
       write(stdOut, "(T30,A,1X,I0)") "Solver poles", electronicSolver%ELSI_PEXSI_n_pole
+      write(stdOut, "(T30,A,1X,I0)") "Solver interpolation pts.", electronicSolver%ELSI_PEXSI_n_mu
+      write(stdOut, "(T30,A,1X,I0)") "Symbolic factorisation procs.",&
+          & electronicSolver%ELSI_PEXSI_np_symbo
     end if
   #:endif
 

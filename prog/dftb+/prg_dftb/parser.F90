@@ -1635,6 +1635,11 @@ contains
         call error("Not compiled with PEXSI support via ELSI")
       end if
       call getChildValue(value, "Poles", ctrl%solver%PEXSI_n_pole, 20)
+      call getChildValue(value, "muPoints", ctrl%solver%PEXSI_n_mu, 2)
+      call getChildValue(value, "SymbolicFactorProcs", ctrl%solver%PEXSI_np_symbo, 1)
+      call getChildValue(value, "SpectralRadius", ctrl%solver%PEXSI_delta_e, 10.0_dp,&
+          & modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, ctrl%solver%PEXSI_delta_e)
       ctrl%solver%isolver = 6
     end select
 
