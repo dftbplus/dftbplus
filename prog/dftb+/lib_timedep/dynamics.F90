@@ -24,6 +24,7 @@ module timeprop_module
   use periodic
   use environment
   use timer
+  use taggedoutput
 
   implicit none
 
@@ -43,11 +44,11 @@ module timeprop_module
      complex(cp) :: FieldDir(3)
      real(dp), allocatable :: TDFunction(:, :), phase
      integer :: Nsteps, writeFreq, PertType, EnvType, SpType
-     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
+     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq, fdAutotest
      integer, allocatable :: species(:), PolDirs(:)
      character(mc), allocatable :: speciesName(:)
      logical :: tPopulations, tSpinPol=.false.
-     logical :: tRestart, tWriteRestart
+     logical :: tRestart, tWriteRestart, tWriteAutotest
      logical :: tLaser = .false., tKick = .false., tEnvFromFile = .false.
      type(TScc), allocatable :: sccCalc
   end type TElecDynamics
@@ -71,7 +72,8 @@ module timeprop_module
 contains
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName)
+  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, fdAutotest, &
+       &autotestTag)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -84,6 +86,15 @@ contains
 
     !> label for each atomic chemical species
     character(mc), allocatable, intent(in) :: speciesName(:)
+
+    !> produce tagged output?
+    logical, intent(in) :: tWriteAutotest
+
+    !> File unit for autotest data
+    integer, intent(in) :: fdAutotest
+
+    !> Tagged output files (machine readable)
+    character(*), intent(in) :: autotestTag
 
     real(dp) :: norm
 
@@ -135,6 +146,13 @@ contains
           this%PolDirs(1) = inp%PolDir
        end if
     end if
+
+    this%tWriteAutotest = tWriteAutotest
+    if (tWriteAutotest) then
+       this%fdAutotest = fdAutotest
+       open(fdAutotest, file=autotestTag, position="append")
+    end if
+
   end subroutine TElecDynamics_init
 
 
@@ -376,6 +394,9 @@ contains
 
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
+    if (this%tWriteAutotest) then
+       call writeTDAutotest(this, dipole, energy, deltaQ)
+    end if
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat)
   end subroutine doDynamics
 
@@ -1056,6 +1077,10 @@ contains
           close(populDat(iSpin))
        end do
     end if
+
+    if (this%tWriteAutotest) then
+       close(this%fdAutotest)
+    end if
   end subroutine closeTDOutputs
 
 
@@ -1268,5 +1293,23 @@ contains
          & (real(T2(iOrb, iOrb), dp), iOrb=1, this%nOrbs)
 
   end subroutine getTDPopulations
+
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ)
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(in) :: this
+
+    !> Dipole moment
+    real(dp), intent(in) :: dipole(:,:)
+
+    !> data type for energy components and total
+    type(TEnergies), intent(in) :: energy
+
+    !> Positive gross charge
+    real(dp), intent(in) :: deltaQ(:,:)
+
+    call writeTagged(this%fdAutotest, tag_tdenergy, energy%eSCC)
+    call writeTagged(this%fdAutotest, tag_tddipole, dipole)
+    call writeTagged(this%fdAutotest, tag_tdcharges, deltaQ)
+  end subroutine writeTDAutotest
 
 end module timeprop_module
