@@ -966,6 +966,14 @@ contains
 
   #:if WITH_MPI
 
+    if (input%ctrl%parallelOpts%nGroup > nIndepHam * nKPoint) then
+      write(stdOut, *)"Parallel groups only relevant for tasks split over sufficent spins and/or&
+          & k-points"
+      write(tmpStr,"('Nr. groups:',I4,', Nr. indepdendent spins times k-points:',I4)")&
+          & input%ctrl%parallelOpts%nGroup, nIndepHam * nKPoint
+      call error(trim(tmpStr))
+    end if
+
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
   #:endif
   #:if WITH_SCALAPACK
