@@ -965,6 +965,7 @@ contains
     end if
 
   #:if WITH_MPI
+
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
   #:endif
   #:if WITH_SCALAPACK
@@ -1313,6 +1314,7 @@ contains
 
       ! PEXSI settings
       electronicSolver%ELSI_PEXSI_n_pole = input%ctrl%solver%PEXSI_n_pole
+      electronicSolver%ELSI_PEXSI_np_per_pole = input%ctrl%solver%PEXSI_np_per_pole
       electronicSolver%ELSI_PEXSI_n_mu = input%ctrl%solver%PEXSI_n_mu
       electronicSolver%ELSI_PEXSI_np_symbo = input%ctrl%solver%PEXSI_np_symbo
       electronicSolver%ELSI_PEXSI_delta_e = input%ctrl%solver%PEXSI_delta_e
@@ -2437,16 +2439,26 @@ contains
 
   #:if WITH_ELSI
     if (electronicSolver%iSolver == 6) then
+      if ( mod( env%mpi%globalComm%size,&
+          & electronicSolver%ELSI_PEXSI_np_per_pole*electronicSolver%ELSI_PEXSI_n_mu) /= 0 ) then
+        call error("MPI processors must be an integer multiple of processors per pole times mu&
+            & points for PEXSI")
+      end if
       write(stdOut, "(T30,A,1X,I0)") "Solver poles", electronicSolver%ELSI_PEXSI_n_pole
+      write(stdOut, "(T30,A,1X,I0)") "Solver procs. / pole", electronicSolver%ELSI_PEXSI_np_per_pole
       write(stdOut, "(T30,A,1X,I0)") "Solver interpolation pts.", electronicSolver%ELSI_PEXSI_n_mu
       write(stdOut, "(T30,A,1X,I0)") "Symbolic factorisation procs.",&
           & electronicSolver%ELSI_PEXSI_np_symbo
     end if
   #:endif
 
-    if (omp_get_max_threads() > 1&
-        & .and. (electronicSolver%iSolver >= 4 .and. electronicSolver%iSolver <= 6)) then
-      call warning("ELSI solvers not tested with multiple openMP threads")
+    if (omp_get_max_threads() > 1) then
+      select case(electronicSolver%iSolver)
+      case (4,5)
+        call warning("ELSI solvers not tested with multiple openMP threads")
+      case(6)
+        call error("PEXSI solver not available with multiple openMP threads")
+      end select
     end if
 
     if (tSccCalc) then

@@ -42,6 +42,9 @@ module solvers
     !> number of poles for PEXSI expansion
     integer :: PEXSI_n_pole = 20
 
+    !> number of processors per pole for PEXSI
+    integer :: PEXSI_np_per_pole = 1
+
     !> number of interpolation points for mu (Fermi) search
     integer :: PEXSI_n_mu = 2
 
@@ -50,7 +53,6 @@ module solvers
 
     !> spectral radius (range of eigenvalues) if available
     real(dp) :: PEXSI_delta_e = 10.0_dp
-
 
   #:endif
 
@@ -102,6 +104,7 @@ module solvers
     real(dp), public :: ELSI_PEXSI_DeltaVmax
     real(dp), public, allocatable :: ELSI_PEXSI_VOld(:)
     integer, public :: ELSI_PEXSI_n_pole
+    integer, public :: ELSI_PEXSI_np_per_pole
     integer, public :: ELSI_PEXSI_n_mu
     integer, public :: ELSI_PEXSI_np_symbo
     real(dp), public :: ELSI_PEXSI_delta_e
@@ -192,7 +195,8 @@ contains
       this%ELSI_PEXSI_DeltaVmin = 0.0_dp
       this%ELSI_PEXSI_DeltaVmax = 0.0_dp
 
-      call elsi_set_pexsi_np_per_pole(this%elsiHandle, 1)
+      ! processors per pole to invert for
+      call elsi_set_pexsi_np_per_pole(this%elsiHandle, this%ELSI_PEXSI_np_per_pole)
 
       call elsi_set_pexsi_mu_min(this%elsiHandle, this%ELSI_PEXSI_mu_min +this%ELSI_PEXSI_DeltaVmin)
       call elsi_set_pexsi_mu_max(this%elsiHandle, this%ELSI_PEXSI_mu_max +this%ELSI_PEXSI_DeltaVmax)
