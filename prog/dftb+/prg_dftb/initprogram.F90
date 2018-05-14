@@ -998,6 +998,14 @@ contains
       end if
     end select
 
+    select case (electronicSolver%iSolver)
+    case(5,6)
+      if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        call error("This solver requires as many parallel processor groups as there are independent&
+            & spin and k-point combinations")
+      end if
+    end select
+
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
@@ -1286,7 +1294,7 @@ contains
       end if
 
       call init(input%ctrl%solver, electronicSolver, env, nAllOrb, nEl, iDistribFn,&
-          & tWriteDetailedOutBands)
+          & tWriteDetailedOutBands, nIndepHam, nKpoint)
 
     #:endif
 

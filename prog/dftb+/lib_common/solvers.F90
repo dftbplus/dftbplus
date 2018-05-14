@@ -95,6 +95,7 @@ module solvers
 
     !> Dense BLACS
     integer, public :: ELSI_BLACS_DENSE
+
     integer, public :: ELSI_n_basis
     real(dp), public :: ELSI_n_electron
     integer, public :: ELSI_n_state
@@ -102,6 +103,9 @@ module solvers
     integer, public :: ELSI_my_COMM_WORLD
     integer, public :: ELSI_my_BLACS_Ctxt
     integer, public :: ELSI_blockSize
+
+    integer, public :: ELSI_n_spin
+    integer, public :: ELSI_n_kpoint
 
     integer, public :: ELSI_mu_broaden_scheme
     integer, public :: ELSI_mu_mp_order
@@ -156,7 +160,8 @@ contains
 #: if WITH_ELSI
 
   !> Initialise extra settings relevant to ELSI in the solver data structure
-  subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands)
+  subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands,&
+      & nSpin, nKPoint)
 
     !> input structure for ELSI
     type(TElectronicSolverInp), intent(in) :: inp
@@ -178,6 +183,12 @@ contains
 
     !> Should bands be produced?
     logical, intent(inout) :: tWriteDetailedOutBands
+
+    !> total number of spin channels. In the case of non-collinear, should pass 1
+    integer, intent(in) :: nSpin
+
+    !> total number of k-points
+    integer, intent(in) :: nKPoint
 
     ! use of ELSI to solve electronic states
     this%tUsingELSI = .true.
@@ -214,6 +225,9 @@ contains
 
     ! number of electrons in the problem
     this%ELSI_n_electron = sum(nEl)
+
+    this%ELSI_n_spin = nSpin
+    this%ELSI_n_kpoint = nKPoint
 
     this%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
     this%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
@@ -255,13 +269,22 @@ contains
 
   !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
   !> refactorization option
-  subroutine resetELSI(this, tempElec)
+  subroutine resetELSI(this, tempElec, iSpin, iKPoint, kWeight)
 
     !> Instance
     class(TElectronicSolver), intent(inout) :: this
 
     !> electron temperature
     real(dp), intent(in) :: tempElec
+
+    !> current spin value, se to be 1 if non-collinear
+    integer, intent(in) :: iSpin
+
+    !> current k-point value
+    integer, intent(in) :: iKPoint
+
+    !> weight for current k-point
+    real(dp), intent(in) :: kWeight
 
     if (this%nELSI_resets > 0) then
       ! destroy previous instance of solver if called before
@@ -334,6 +357,15 @@ contains
       call elsi_set_pexsi_delta_e(this%elsiHandle, this%ELSI_PEXSI_delta_e)
 
     end select
+
+    if (this%ELSI_SOLVER > 1) then
+      if (this%ELSI_n_spin > 1) then
+        call elsi_set_spin(this%elsiHandle, this%ELSI_n_spin, iSpin)
+      end if
+      if (this%ELSI_n_kpoint > 1) then
+        call elsi_set_kpoint(this%elsiHandle, this%ELSI_n_kpoint, iKPoint, kWeight)
+      end if
+    end if
 
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)
     if (this%ELSI_OutputLevel == 3) then

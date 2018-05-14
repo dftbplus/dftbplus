@@ -214,7 +214,9 @@ contains
 
     #:if WITH_ELSI
       if (electronicSolver%tUsingELSI) then
-        call electronicSolver%resetELSI(tempElec)
+        ! as each spin and k-point combination forms a separate group, iKS = 1
+        call electronicSolver%resetELSI( tempElec, parallelKS%localKS(2, 1),&
+            & parallelKS%localKS(2, 2), kWeight(parallelKS%localKS(1, 1)) )
       end if
     #:endif
 
