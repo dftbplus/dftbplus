@@ -146,3 +146,10 @@ non-scc/Si_216                         #? NPROC <= 4
 md/ptcda-xlbomd-ldep                   #? NPROC <= 4
 geoopt/Vsi+O                           #? NPROC <= 4
 scc/SiC64+V_dynforce                   #? NPROC <= 4 and NPROC % 2 == 0
+
+timeprop/benzene_kick                  #? NPROC <= 4
+timeprop/benzene_laser                 #? NPROC <= 4
+timeprop/benzene_sin2                  #? NPROC <= 4
+timeprop/benzene_gaussian              #? NPROC <= 4
+timeprop/H2_singlet                    #? NPROC <= 4
+timeprop/H2_triplet                    #? NPROC <= 4
