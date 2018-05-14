@@ -991,12 +991,8 @@ contains
 
     electronicSolver%iSolver = input%ctrl%solver%iSolver
 
-    electronicSolver%tUsingELSI = .false.
     select case (electronicSolver%iSolver)
     case(4,5,6)
-      ! ELSI
-
-      electronicSolver%tUsingELSI = .true.
       if (.not.withELSI) then
         call error("This binary was not compiled with ELSI support enabled")
       end if
@@ -1283,62 +1279,17 @@ contains
     if (electronicSolver%iSolver > 3) then
 
     #:if WITH_ELSI
+
       nAllOrb = nOrb
       if (t2Component) then
         nAllOrb = 2 * nAllOrb
       end if
-      electronicSolver%ELSI_SOLVER = electronicSolver%iSolver -3
-      electronicSolver%ELSI_parallel = 1
-      electronicSolver%ELSI_BLACS_DENSE = 0
-      electronicSolver%ELSI_n_basis = nAllOrb
-      electronicSolver%ELSI_n_electron = sum(nEl) !* 0.5_dp
 
-      if (electronicSolver%ELSI_SOLVER == 2) then
-        electronicSolver%ELSI_n_state = nint(electronicSolver%ELSI_n_electron)
-      else
-        electronicSolver%ELSI_n_state = nAllOrb
-      end if
+      call init(input%ctrl%solver, electronicSolver, env, nAllOrb, nEl, iDistribFn,&
+          & tWriteDetailedOutBands)
 
-      electronicSolver%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
-      electronicSolver%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
-      electronicSolver%ELSI_my_BLACS_Ctxt = env%blacs%orbitalGrid%ctxt
-      electronicSolver%ELSI_blockSize = input%ctrl%parallelOpts%blacsOpts%blockSize
-
-      electronicSolver%ELSI_mu_broaden_scheme = min(iDistribFn,2)
-      if (iDistribFn > 1) then
-        ! set Meth-Pax order
-        electronicSolver%ELSI_mu_mp_order = iDistribFn - 2
-      else
-        electronicSolver%ELSI_mu_mp_order = 0
-      end if
-
-      ! ELPA settings
-      electronicSolver%ELSI_ELPA_SOLVER_Option = input%ctrl%solver%ELPA_Solver
-
-      ! OMM settings
-      electronicSolver%ELSI_OMM_iter = input%ctrl%solver%OMM_IterationsELPA
-      electronicSolver%ELSI_OMM_Tolerance = input%ctrl%solver%OMM_Tolerance
-      electronicSolver%ELSI_OMM_Choleskii = input%ctrl%solver%OMM_Choleskii
-
-      ! PEXSI settings
-      electronicSolver%ELSI_PEXSI_n_pole = input%ctrl%solver%PEXSI_n_pole
-      electronicSolver%ELSI_PEXSI_np_per_pole = input%ctrl%solver%PEXSI_np_per_pole
-      electronicSolver%ELSI_PEXSI_n_mu = input%ctrl%solver%PEXSI_n_mu
-      electronicSolver%ELSI_PEXSI_np_symbo = input%ctrl%solver%PEXSI_np_symbo
-      electronicSolver%ELSI_PEXSI_delta_e = input%ctrl%solver%PEXSI_delta_e
-
-      ! customize output level, note there are levels 0..3 not DFTB+ 0..2
-      electronicSolver%ELSI_OutputLevel = 0
-    #:call DEBUG_CODE
-      electronicSolver%ELSI_OutputLevel = 3
-    #:endcall DEBUG_CODE
-
-      ! electron count, currently for closed shell
-      if (electronicSolver%iSolver >= 5) then
-        electronicSolver%ELSI_n_state = nint(sum(nEl)*0.5_dp) ! spin degeneracies
-        tWriteDetailedOutBands = .false.
-      end if
     #:endif
+
     end if
 
 

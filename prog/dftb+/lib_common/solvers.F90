@@ -11,6 +11,7 @@
 module solvers
   use accuracy
   use message
+  use environment
 #:if WITH_ELSI
   use ELSI
 #:endif
@@ -18,6 +19,15 @@ module solvers
 
   private
   public :: TElectronicSolverInp, TElectronicSolver
+#:if WITH_ELSI
+  public :: init
+#:endif
+
+#:if WITH_ELSI
+  interface init
+    module procedure init_ELSI
+  end interface init
+#:endif
 
   !> Input for electronic/eigen solver block
   type :: TElectronicSolverInp
@@ -74,9 +84,16 @@ module solvers
     !> Handle for the ELSI library
     type(elsi_handle), public :: elsiHandle
 
+    !> solver number
     integer, public :: ELSI_SOLVER
+
+    !> level of output from solver
     integer, public :: ELSI_OutputLevel
+
+    !> parallelisation strategy
     integer, public :: ELSI_parallel
+
+    !> Dense BLACS
     integer, public :: ELSI_BLACS_DENSE
     integer, public :: ELSI_n_basis
     real(dp), public :: ELSI_n_electron
@@ -110,7 +127,7 @@ module solvers
     real(dp), public :: ELSI_PEXSI_delta_e
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
-    integer :: nELSI_reset = 0
+    integer :: nELSI_resets = 0
 
   contains
 
@@ -138,6 +155,106 @@ contains
 
 #: if WITH_ELSI
 
+  !> Initialise extra settings relevant to ELSI in the solver data structure
+  subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands)
+
+    !> input structure for ELSI
+    type(TElectronicSolverInp), intent(in) :: inp
+
+    !> control structure for solvers, including ELSI data
+    type(TElectronicSolver), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> number of orbitals in the system
+    integer, intent(in) :: nBasisFn
+
+    !> number of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> filling function
+    integer, intent(in) :: iDistribFn
+
+    !> Should bands be produced?
+    logical, intent(inout) :: tWriteDetailedOutBands
+
+    ! use of ELSI to solve electronic states
+    this%tUsingELSI = .true.
+
+    ! DFTB+ to ELSI solver index
+    this%ELSI_SOLVER = this%iSolver -3
+
+    select case(this%ELSI_SOLVER)
+    case (1)
+      ! ELPA is asked for all states
+      this%ELSI_n_state = nBasisFn
+    case (2)
+      ! OMM solves only over occupied space
+      ! spin degeneracies for closed shell
+      this%ELSI_n_state = nint(sum(nEl)*0.5_dp)
+    case (3)
+      ! PEXSI ignores this
+      this%ELSI_n_state = nBasisFn
+    end select
+
+    ! bands only available for ELPA
+    if (this%ELSI_SOLVER > 1) then
+      tWriteDetailedOutBands = .false.
+    end if
+
+    ! data as dense BLACS blocks
+    this%ELSI_BLACS_DENSE = 0
+
+    ! parallelism with multiple processes
+    this%ELSI_parallel = 1
+
+    ! number of basis functions
+    this%ELSI_n_basis = nBasisFn
+
+    ! number of electrons in the problem
+    this%ELSI_n_electron = sum(nEl)
+
+    this%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
+    this%ELSI_my_COMM_WORLD = env%mpi%groupComm%id
+    this%ELSI_my_BLACS_Ctxt = env%blacs%orbitalGrid%ctxt
+
+    ! assumes row and column sizes the same
+    this%ELSI_blockSize = env%blacs%rowBlockSize
+
+    this%ELSI_mu_broaden_scheme = min(iDistribFn,2)
+    if (iDistribFn > 1) then
+      ! set Meth-Pax order
+      this%ELSI_mu_mp_order = iDistribFn - 2
+    else
+      this%ELSI_mu_mp_order = 0
+    end if
+
+    ! ELPA settings
+    this%ELSI_ELPA_SOLVER_Option = inp%ELPA_Solver
+
+    ! OMM settings
+    this%ELSI_OMM_iter = inp%OMM_IterationsELPA
+    this%ELSI_OMM_Tolerance = inp%OMM_Tolerance
+    this%ELSI_OMM_Choleskii = inp%OMM_Choleskii
+
+    ! PEXSI settings
+    this%ELSI_PEXSI_n_pole = inp%PEXSI_n_pole
+    this%ELSI_PEXSI_np_per_pole = inp%PEXSI_np_per_pole
+    this%ELSI_PEXSI_n_mu = inp%PEXSI_n_mu
+    this%ELSI_PEXSI_np_symbo = inp%PEXSI_np_symbo
+    this%ELSI_PEXSI_delta_e = inp%PEXSI_delta_e
+
+    ! customize output level, note there are levels 0..3 not DFTB+ 0..2
+    this%ELSI_OutputLevel = 0
+  #:call DEBUG_CODE
+    this%ELSI_OutputLevel = 3
+  #:endcall DEBUG_CODE
+
+  end subroutine init_ELSI
+
+  !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
+  !> refactorization option
   subroutine resetELSI(this, tempElec)
 
     !> Instance
@@ -146,11 +263,11 @@ contains
     !> electron temperature
     real(dp), intent(in) :: tempElec
 
-    if (this%nELSI_reset > 0) then
-      ! destroy previous instance of solver
+    if (this%nELSI_resets > 0) then
+      ! destroy previous instance of solver if called before
       call elsi_finalize(this%elsiHandle)
     end if
-    this%nELSI_reset = this%nELSI_reset + 1
+    this%nELSI_resets = this%nELSI_resets + 1
 
     call elsi_init(this%elsiHandle, this%ELSI_SOLVER, this%ELSI_parallel, this%ELSI_BLACS_DENSE,&
         & this%ELSI_n_basis, this%ELSI_n_electron, this%ELSI_n_state)
@@ -217,6 +334,7 @@ contains
       call elsi_set_pexsi_delta_e(this%elsiHandle, this%ELSI_PEXSI_delta_e)
 
     end select
+
     call elsi_set_output(this%elsiHandle, this%ELSI_OutputLevel)
     if (this%ELSI_OutputLevel == 3) then
       call elsi_set_output_log(this%elsiHandle, 1)
