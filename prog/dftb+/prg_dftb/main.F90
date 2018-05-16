@@ -448,7 +448,7 @@ contains
             & nSpin, qOutput, velocities)
       end if
 
-      call printEnergies(energy)
+      call printEnergies(energy, electronicSolver)
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)

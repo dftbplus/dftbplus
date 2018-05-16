@@ -2631,7 +2631,7 @@ contains
         write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
             & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
       end if
-      if (electronicSolver%iSolver /= 6) then
+      if (electronicSolver%iSolver < 4) then
         write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       end if
       if (tPrintMulliken) then
@@ -2677,7 +2677,7 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    if (electronicSolver%iSolver /= 6) then
+    if (electronicSolver%iSolver < 4) then
       write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
           & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
     end if
@@ -3620,15 +3620,20 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy)
+  subroutine printEnergies(energy, electronicSolver)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
 
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-        & Hartree__eV * energy%EMermin," eV"
+    if (electronicSolver%iSolver < 4) then
+      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+          & Hartree__eV * energy%EMermin," eV"
+    end if
 
   end subroutine printEnergies
 
