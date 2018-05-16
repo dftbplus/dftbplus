@@ -376,7 +376,7 @@ contains
     if (this%ELSI_SOLVER > 1) then
       if (this%ELSI_n_spin > 1) then
         call elsi_set_spin(this%elsiHandle, this%ELSI_n_spin, iSpin)
-        call elsi_set_mu_spin_degen(this%elsiHandle, this%ELSI_spin_degeneracy)
+        !call elsi_set_mu_spin_degen(this%elsiHandle, this%ELSI_spin_degeneracy)
       end if
       if (this%ELSI_n_kpoint > 1) then
         call elsi_set_kpoint(this%elsiHandle, this%ELSI_n_kpoint, iKPoint, kWeight)

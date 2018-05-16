@@ -1626,6 +1626,9 @@ contains
       end if
       ctrl%solver%isolver = 5
     #:if WITH_ELSI
+      if (.not.ctrl%tSpinSharedEf) then
+        call detailedError(value, "This solver currently requires spin values to be relaxed")
+      end if
       call getChildValue(value, "nIterationsELPA", ctrl%solver%OMM_IterationsELPA, 5)
       call getChildValue(value, "Tolerance", ctrl%solver%OMM_Tolerance, 1.0E-10_dp)
       call getChildValue(value, "Choleskii", ctrl%solver%OMM_Choleskii, .true.)
@@ -1634,6 +1637,11 @@ contains
       if (.not.withPEXSI) then
         call error("Not compiled with PEXSI support via ELSI")
       end if
+      ctrl%solver%isolver = 6
+    #:if WITH_ELSI
+      if (.not.ctrl%tSpinSharedEf) then
+        call detailedError(value, "This solver currently requires spin values to be relaxed")
+      end if
       call getChildValue(value, "Poles", ctrl%solver%PEXSI_n_pole, 20)
       call getChildValue(value, "ProcsPerPole", ctrl%solver%PEXSI_np_per_pole, 1)
       call getChildValue(value, "muPoints", ctrl%solver%PEXSI_n_mu, 2)
@@ -1641,7 +1649,7 @@ contains
       call getChildValue(value, "SpectralRadius", ctrl%solver%PEXSI_delta_e, 10.0_dp,&
           & modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, ctrl%solver%PEXSI_delta_e)
-      ctrl%solver%isolver = 6
+    #:endif
     end select
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD

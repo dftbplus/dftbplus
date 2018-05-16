@@ -92,6 +92,7 @@ Hamiltonian = DFTB {
     Charge = +1
     SpinPolarisation = Colinear {
         UnpairedElectrons = 1
+	RelaxTotalSpin = Yes
     }
     SpinConstants = {
         C = -0.031
