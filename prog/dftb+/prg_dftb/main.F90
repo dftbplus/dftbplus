@@ -166,6 +166,9 @@ contains
     !> Minimal number of SCC iterations
     integer :: minSCCIter
 
+    !> label for k-point and spin cases
+    integer :: iKS
+
     !> if scc/geometry driver should be stopped
     logical :: tStopSCC, tStopDriver
 
@@ -214,9 +217,10 @@ contains
 
     #:if WITH_ELSI
       if (electronicSolver%tUsingELSI) then
-        ! as each spin and k-point combination forms a separate group, iKS = 1
-        call electronicSolver%resetELSI( tempElec, parallelKS%localKS(2, 1),&
-            & parallelKS%localKS(2, 2), kWeight(parallelKS%localKS(1, 1)) )
+        ! as each spin and k-point combination forms a separate group for this solver, iKS = 1
+        iKS = 1
+        call electronicSolver%resetELSI( tempElec, parallelKS%localKS(2, iKS),&
+            & parallelKS%localKS(1, iKS), kWeight(parallelKS%localKS(1, iKS)) )
       end if
     #:endif
 
@@ -1722,7 +1726,7 @@ contains
       ! libOMM, PEXSI
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
-      eigen(:,:,:) = 0.0_dp
+
     #:if WITH_SCALAPACK
 
       call unpackHSRealBlacs(env%blacs, ham(:,1), neighborList%iNeighbor, nNeighbor, iSparseStart,&

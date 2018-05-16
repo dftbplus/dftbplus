@@ -81,34 +81,36 @@ module solvers
     integer :: iSolver
 
   #:if WITH_ELSI
+
     !> Handle for the ELSI library
     type(elsi_handle), public :: elsiHandle
 
     !> solver number
-    integer, public :: ELSI_SOLVER
+    integer :: ELSI_SOLVER
 
     !> level of output from solver
-    integer, public :: ELSI_OutputLevel
+    integer :: ELSI_OutputLevel
 
     !> parallelisation strategy
-    integer, public :: ELSI_parallel
+    integer :: ELSI_parallel
 
     !> Dense BLACS
-    integer, public :: ELSI_BLACS_DENSE
+    integer :: ELSI_BLACS_DENSE
 
-    integer, public :: ELSI_n_basis
-    real(dp), public :: ELSI_n_electron
-    integer, public :: ELSI_n_state
-    integer, public :: ELSI_MPI_COMM_WORLD
-    integer, public :: ELSI_my_COMM_WORLD
-    integer, public :: ELSI_my_BLACS_Ctxt
-    integer, public :: ELSI_blockSize
+    integer :: ELSI_n_basis
+    real(dp) :: ELSI_n_electron
+    real(dp) :: ELSI_spin_degeneracy
+    integer :: ELSI_n_state
+    integer :: ELSI_MPI_COMM_WORLD
+    integer :: ELSI_my_COMM_WORLD
+    integer :: ELSI_my_BLACS_Ctxt
+    integer :: ELSI_blockSize
 
-    integer, public :: ELSI_n_spin
-    integer, public :: ELSI_n_kpoint
+    integer :: ELSI_n_spin
+    integer :: ELSI_n_kpoint
 
-    integer, public :: ELSI_mu_broaden_scheme
-    integer, public :: ELSI_mu_mp_order
+    integer :: ELSI_mu_broaden_scheme
+    integer :: ELSI_mu_mp_order
 
     ! ELPA settings
     integer, public :: ELSI_ELPA_SOLVER_Option
@@ -123,12 +125,12 @@ module solvers
     real(dp), public :: ELSI_PEXSI_mu_max
     real(dp), public :: ELSI_PEXSI_DeltaVmin
     real(dp), public :: ELSI_PEXSI_DeltaVmax
-    real(dp), public, allocatable :: ELSI_PEXSI_VOld(:)
+    real(dp), allocatable, public :: ELSI_PEXSI_VOld(:)
     integer, public :: ELSI_PEXSI_n_pole
     integer, public :: ELSI_PEXSI_np_per_pole
     integer, public :: ELSI_PEXSI_n_mu
     integer, public :: ELSI_PEXSI_np_symbo
-    real(dp), public :: ELSI_PEXSI_delta_e
+    real(dp) :: ELSI_PEXSI_delta_e
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_resets = 0
@@ -161,7 +163,7 @@ contains
 
   !> Initialise extra settings relevant to ELSI in the solver data structure
   subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands,&
-      & nSpin, nKPoint)
+      & nIndepHam, nSpin, nKPoint)
 
     !> input structure for ELSI
     type(TElectronicSolverInp), intent(in) :: inp
@@ -184,7 +186,10 @@ contains
     !> Should bands be produced?
     logical, intent(inout) :: tWriteDetailedOutBands
 
-    !> total number of spin channels. In the case of non-collinear, should pass 1
+    !> total number of independent spin channels. In the case of non-collinear, should pass 1
+    integer, intent(in) :: nIndepHam
+
+    !> total number of spin channels.
     integer, intent(in) :: nSpin
 
     !> total number of k-points
@@ -203,7 +208,11 @@ contains
     case (2)
       ! OMM solves only over occupied space
       ! spin degeneracies for closed shell
-      this%ELSI_n_state = nint(sum(nEl)*0.5_dp)
+      if (nSpin == 1) then
+        this%ELSI_n_state = nint(sum(nEl)*0.5_dp)
+      else
+        this%ELSI_n_state = nint(sum(nEl))
+      end if
     case (3)
       ! PEXSI ignores this
       this%ELSI_n_state = nBasisFn
@@ -226,7 +235,13 @@ contains
     ! number of electrons in the problem
     this%ELSI_n_electron = sum(nEl)
 
-    this%ELSI_n_spin = nSpin
+    if (nSpin == 2) then
+      this%ELSI_spin_degeneracy = nEl(1) - nEl(2)
+    else
+      this%ELSI_spin_degeneracy = 0.0_dp
+    end if
+
+    this%ELSI_n_spin = nIndepHam
     this%ELSI_n_kpoint = nKPoint
 
     this%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
@@ -361,6 +376,7 @@ contains
     if (this%ELSI_SOLVER > 1) then
       if (this%ELSI_n_spin > 1) then
         call elsi_set_spin(this%elsiHandle, this%ELSI_n_spin, iSpin)
+        call elsi_set_mu_spin_degen(this%elsiHandle, this%ELSI_spin_degeneracy)
       end if
       if (this%ELSI_n_kpoint > 1) then
         call elsi_set_kpoint(this%elsiHandle, this%ELSI_n_kpoint, iKPoint, kWeight)

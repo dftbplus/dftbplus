@@ -1294,7 +1294,7 @@ contains
       end if
 
       call init(input%ctrl%solver, electronicSolver, env, nAllOrb, nEl, iDistribFn,&
-          & tWriteDetailedOutBands, nIndepHam, nKpoint)
+          & tWriteDetailedOutBands, nIndepHam, nSpin, nKpoint)
 
     #:endif
 
@@ -2124,13 +2124,13 @@ contains
     end associate
   #:endif
 
-    call initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit,&
-        & tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb,&
-        & nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
-        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS, E0, Eband,&
-        & eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx,&
-        & HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities,&
-        & movedVelo, movedAccel, movedMass, dipoleMoment)
+    call initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
+        & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+        & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+        & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
+        & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
+        & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
+        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -2942,16 +2942,19 @@ contains
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken,&
-      & tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
-      & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc,&
-      & rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS,&
-      & E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural,&
-      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+  subroutine initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
+      & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+      & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+      & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
+      & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
+      & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
+      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
+
+    !> electronic solver for the system
+    type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> Are forces required
     logical, intent(in) :: tForces
@@ -3154,8 +3157,11 @@ contains
     allocate(TS(nSpinHams))
     allocate(E0(nSpinHams))
     allocate(Eband(nSpinHams))
-    allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
-    allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+
+    if (electronicSolver%iSolver < 5) then
+      allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
+      allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+    end if
 
     allocate(coord0Fold(3, nAtom))
 
