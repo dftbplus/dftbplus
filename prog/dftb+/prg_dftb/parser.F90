@@ -1626,7 +1626,7 @@ contains
       end if
       ctrl%solver%isolver = 5
     #:if WITH_ELSI
-      if (.not.ctrl%tSpinSharedEf) then
+      if (.not.ctrl%tSpinSharedEf .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
         call detailedError(value, "This solver currently requires spin values to be relaxed")
       end if
       call getChildValue(value, "nIterationsELPA", ctrl%solver%OMM_IterationsELPA, 5)
@@ -1639,7 +1639,7 @@ contains
       end if
       ctrl%solver%isolver = 6
     #:if WITH_ELSI
-      if (.not.ctrl%tSpinSharedEf) then
+      if (.not.ctrl%tSpinSharedEf .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
         call detailedError(value, "This solver currently requires spin values to be relaxed")
       end if
       call getChildValue(value, "Poles", ctrl%solver%PEXSI_n_pole, 20)
