@@ -3161,6 +3161,10 @@ contains
     if (electronicSolver%iSolver < 5) then
       allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
       allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+    else
+      ! due to use of the shape elsewhere in determining kpoints and spin channels:
+      allocate(eigen(0, nKPoint, nSpinHams))
+      allocate(filling(0, nKpoint, nSpinHams))
     end if
 
     allocate(coord0Fold(3, nAtom))
