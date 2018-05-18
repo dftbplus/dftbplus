@@ -1,7 +1,7 @@
 !!$#define "MEMLOG"
 
 module gallocation
-  use io
+  use std_io
   use gprecision
   
   integer, save :: iolog

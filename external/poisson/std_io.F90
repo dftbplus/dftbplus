@@ -1,4 +1,4 @@
-module io
+module std_io
   implicit none
   private
 
@@ -20,4 +20,4 @@ module io
 
 
 
-end module io
+end module std_io

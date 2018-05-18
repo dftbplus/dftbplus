@@ -4,7 +4,7 @@ module parcheck
   use parameters
   use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
-  use io
+  use std_io
 
 implicit none
 private
