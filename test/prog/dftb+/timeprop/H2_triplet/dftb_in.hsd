@@ -33,7 +33,6 @@ Hamiltonian = DFTB {
 }
 
 Options = {
-  CalculateForces = Yes
   WriteAutotestTag = Yes
 }
 

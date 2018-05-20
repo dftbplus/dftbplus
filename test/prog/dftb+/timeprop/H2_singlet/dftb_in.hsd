@@ -33,13 +33,9 @@ Hamiltonian = DFTB {
 }
 
 Options = {
-  CalculateForces = Yes
   WriteAutotestTag = Yes
 }
 
-ParserOptions = {
-  ParserVersion = 4
-}
  Analysis = {
     ElectronDynamics = {
       Steps = 20000

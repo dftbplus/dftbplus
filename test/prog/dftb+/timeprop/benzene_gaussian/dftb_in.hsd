@@ -36,9 +36,6 @@ Options = {
   WriteAutotestTag = Yes
 }
 
-ParserOptions = {
-  ParserVersion = 3
-}
  Analysis = {
     ElectronDynamics = {
       Steps = 20000
