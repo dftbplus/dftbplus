@@ -2842,21 +2842,32 @@ Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 / \beta^2)$, where
 
 Applies a sin$^2$ envelope function:
 
-$$ f(y) = 
+$$ f(t) = 
  \begin{cases}
     \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
-    0 & t < t_0 \text{or} t > t_0 + \tau \\
+    0 & t < t_0 \text{  or  } t > t_0 + \tau \\
   \end{cases} $$
 
-\begin{ptable}
-  \kw{Time0} & r &  & 0 & \\
-  \kw{Time1} & r & & - & \\
-\end{ptable}
+The properties of this method are the same as for the Gaussian (\kw{Time0}, \kw{Time1}) and have the same meaning.
 
-\begin{description}
- \item[\is{Time0}] Time at which the pulse starts.
- \item[\is{Time1}] Time at which the pulse ends. Is equal to Time0 + $\tau$.
-\end{description}
+  Example:\invparskip
+\begin{verbatim}
+  ElectronDynamics = {
+    Steps = 40000
+    TimeStep = 0.1
+    # Total time will be then 4000 a.u. = 96.8 fs
+    FieldIntensity [v/a] = 0.01
+    Perturbation = Laser {
+      PolarizationDirection = 0.5 0.5 0
+      LaserEnergy [ev] = 2.55
+    }
+    EnvelopeShape = Sin2 {
+      Time1 [fs] = 30.0
+    }
+    Populations = Yes
+  }
+\end{verbatim}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
