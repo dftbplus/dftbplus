@@ -2392,13 +2392,13 @@ contains
     #:endif
     case(5)
     #:if WITH_ELSI
-      write (strTmp, "(A,I0,A,E8.2)") "ELSI solvers libOMM with ",&
+      write (strTmp, "(A,I0,A,E8.2)") "ELSI solver libOMM with ",&
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
     #:else
       call error("Should not be here")
     #:endif
     case(6)
-      write (strTmp, "(A)") "ELSI solvers PEXSI"
+      write (strTmp, "(A)") "ELSI solver PEXSI"
     case default
       call error("Unknown eigensolver!")
     end select
