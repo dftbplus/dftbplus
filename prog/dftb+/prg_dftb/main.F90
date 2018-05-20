@@ -1663,7 +1663,8 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
-    integer :: nSpin, iSp, iKS
+    integer :: nSpin, iKS, iSp, iK
+    complex(dp), allocatable :: rhoSqrCplx(:,:)
 
     nSpin = size(ham, dim=2)
 
@@ -1793,6 +1794,64 @@ contains
 
         else ! k-points
 
+          if (nSpin == 2 .and. .not. tSpinSharedEf) then
+            call error("ELSI currently requires shared Fermi levels over spin")
+          end if
+
+          iSp = parallelKS%localKS(2, iKS)
+          iK = parallelKS%localKS(1, iKS)
+
+          HSqrCplx = 0.0_dp
+          call unpackHSCplxBlacs(env%blacs, ham(:,iSp), kPoint(:,iK), neighborList%iNeighbor,&
+              & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
+          if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+            SSqrCplx = 0.0_dp
+            call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor,&
+                & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
+            electronicSolver%tCholeskiiDecomposed(iKS) = .true.
+          end if
+
+          if (electronicSolver%iSolver == 6) then
+            call elsi_set_pexsi_mu_min(electronicSolver%elsiHandle,&
+                & electronicSolver%ELSI_PEXSI_mu_min + electronicSolver%ELSI_PEXSI_DeltaVmin)
+            call elsi_set_pexsi_mu_max(electronicSolver%elsiHandle,&
+                & electronicSolver%ELSI_PEXSI_mu_max + electronicSolver%ELSI_PEXSI_DeltaVmax)
+          end if
+
+          allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
+          rhoSqrCplx = 0.0_dp
+          Eband = 0.0_dp
+
+          call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
+              & Eband(iSp))
+          Ef = 0.0_dp
+          TS = 0.0_dp
+          ! until groups get sorted out
+          if (env%mpi%tGlobalMaster) then
+            call elsi_get_mu(electronicSolver%elsiHandle, Ef(iSp))
+            call elsi_get_entropy(electronicSolver%elsiHandle, TS(iSp))
+            Ef(:) = Ef(iSp)
+            TS(:) = TS(iSp)
+          end if
+          call mpifx_allreduceip(env%mpi%globalComm, Ef, MPI_SUM)
+          call mpifx_allreduceip(env%mpi%globalComm, TS, MPI_SUM)
+
+          if (electronicSolver%iSolver == 6) then
+            call elsi_get_pexsi_mu_min(electronicSolver%elsiHandle,&
+                & electronicSolver%ELSI_PEXSI_mu_min)
+            call elsi_get_pexsi_mu_max(electronicSolver%elsiHandle,&
+                & electronicSolver%ELSI_PEXSI_mu_max)
+          end if
+
+          rhoPrim = 0.0_dp
+
+          call packRhoCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
+              & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+              & img2CentCell, rhoPrim(:,iSp))
+
+          deallocate(rhoSqrCplx)
+          ! Add up and distribute density matrix contribution from each group
+          call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
         end if
 
         call ud2qm(rhoPrim)
