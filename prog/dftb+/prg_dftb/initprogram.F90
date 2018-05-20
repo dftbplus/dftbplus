@@ -2660,7 +2660,7 @@ contains
    tElectronDynamics = allocated(input%ctrl%elecDynInp)
    if (tElectronDynamics) then
       call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
-           &tWriteAutotest, fdAutotest, autotestTag)
+           &tWriteAutotest, autotestTag)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
