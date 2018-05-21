@@ -1665,8 +1665,10 @@ contains
 
     integer :: nSpin, iKS, iSp, iK
     complex(dp), allocatable :: rhoSqrCplx(:,:)
+    logical :: tImHam
 
     nSpin = size(ham, dim=2)
+    tImHam = allocated(iRhoPrim)
 
     ! Hack due to not using Pauli-type structure for diagonalisation
     if (nSpin > 1) then
@@ -1856,9 +1858,77 @@ contains
 
         call ud2qm(rhoPrim)
 
-      else
+      else ! nSpin == 4
 
-        rhoPrim(:,:) = 2.0_dp * rhoPrim(:,:)
+        rhoPrim(:,:) = 0.0_dp
+        if (allocated(iRhoPrim)) then
+          iRhoPrim(:,:) = 0.0_dp
+        end if
+
+        iKS = 1
+        iK = parallelKS%localKS(1, iKS)
+        iSp = 1
+
+        if (allocated(iHam)) then
+          call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+              & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx, iorig&
+              &=iHam)
+        else
+          call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+              & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, HSqrCplx)
+        end if
+        if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+          call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighborList%iNeighbor, nNeighbor,&
+              & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, SSqrCplx)
+        endif
+
+        if (electronicSolver%iSolver == 6) then
+          call elsi_set_pexsi_mu_min(electronicSolver%elsiHandle,&
+              & electronicSolver%ELSI_PEXSI_mu_min + electronicSolver%ELSI_PEXSI_DeltaVmin)
+          call elsi_set_pexsi_mu_max(electronicSolver%elsiHandle,&
+              & electronicSolver%ELSI_PEXSI_mu_max + electronicSolver%ELSI_PEXSI_DeltaVmax)
+        end if
+
+        allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
+        rhoSqrCplx = 0.0_dp
+        Eband = 0.0_dp
+
+        call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
+            & Eband(iSp))
+        Ef = 0.0_dp
+        TS = 0.0_dp
+        ! until groups get sorted out
+        if (env%mpi%tGlobalMaster) then
+          call elsi_get_mu(electronicSolver%elsiHandle, Ef(iSp))
+          call elsi_get_entropy(electronicSolver%elsiHandle, TS(iSp))
+          Ef(:) = Ef(iSp)
+          TS(:) = TS(iSp)
+        end if
+        call mpifx_allreduceip(env%mpi%globalComm, Ef, MPI_SUM)
+        call mpifx_allreduceip(env%mpi%globalComm, TS, MPI_SUM)
+
+        if (electronicSolver%iSolver == 6) then
+          call elsi_get_pexsi_mu_min(electronicSolver%elsiHandle,&
+              & electronicSolver%ELSI_PEXSI_mu_min)
+          call elsi_get_pexsi_mu_max(electronicSolver%elsiHandle,&
+              & electronicSolver%ELSI_PEXSI_mu_max)
+        end if
+
+        rhoPrim = 0.0_dp
+
+        if (tImHam) then
+          call packRhoPauliBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
+              & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+              & img2CentCell, rhoPrim, iRhoPrim)
+        else
+          call packRhoPauliBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
+              & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+              & img2CentCell, rhoPrim)
+        end if
+
+        deallocate(rhoSqrCplx)
+        ! Add up and distribute density matrix contribution from each group
+        call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
 
       end if
 
@@ -3657,10 +3727,11 @@ contains
         ERhoPrim = 0.0_dp
         ! iKS always 1
         iK = parallelKS%localKS(1, 1)
-        call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+        call packERhoPauliBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
             & neighborList%iNeighbor, nNeighbor, orb%mOrb, iCellVec, cellVec, iSparseStart,&
             & img2CentCell, ERhoPrim)
         call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+        ERhoPrim(:) = 0.5_dp * ERhoPrim(:)
       #:else
         call error("Should not be here without ELSI support included in compilation")
       #:endif
@@ -3669,7 +3740,7 @@ contains
       if (electronicSolver%iSolver >= 5) then
       #:if WITH_ELSI
         call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
-        ERhoPrim = 0.0_dp
+        ERhoPrim(:) = 0.0_dp
         call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighborList%iNeighbor,&
             & nNeighbor, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
         call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
@@ -3689,7 +3760,7 @@ contains
       else
       #:if WITH_ELSI
         call elsi_get_edm_complex(electronicSolver%elsiHandle, SSqrCplx)
-        ERhoPrim = 0.0_dp
+        ERhoPrim(:) = 0.0_dp
         ! iKS always 1
         iK = parallelKS%localKS(1, 1)
         call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
