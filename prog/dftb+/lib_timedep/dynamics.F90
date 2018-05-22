@@ -9,7 +9,9 @@
 
 !> Implements real-time time-dependent DFTB by numerically propagating the electronic one-electron
 !> density matrix of the system in the presence of an external perturbation (kick or laser)
-!> Negre, C. F. A, Fuertes, V. C., Oviedo, M. B., Oliva, F. Y., & Sanchez, C. G.
+!> 1) Oviedo, M. B., Negre, C. F. A. & Sánchez, C. G. Physical Chemistry Chemical Physics,
+!> 12(25), 6706 (2010) https://doi.org/10.1039/b926051j
+!> 2) Negre, C. F. A, Fuertes, V. C., Oviedo, M. B., Oliva, F. Y. & Sanchez, C. G.
 !> Journal of Physical Chemistry C, 116(28), 14748–14753 (2012) https://doi.org/10.1021/jp210248k
 
 module timeprop_module
