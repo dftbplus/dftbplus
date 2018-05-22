@@ -273,6 +273,7 @@ contains
 
       call mergeExternalPotentials(orb, species, potential)
 
+     #:if  WITH_ELSI
       if (electronicSolver%iSolver == 6) then
         ! update Delta V ranges here for PEXSI
         if (tSccCalc) then
@@ -284,6 +285,7 @@ contains
         electronicSolver%ELSI_PEXSI_DeltaVmin = 0.0_dp
         electronicSolver%ELSI_PEXSI_DeltaVmax = 0.0_dp
       end if
+    #:endif
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
 
@@ -301,6 +303,7 @@ contains
         end if
         potential%intBlock = potential%intBlock + potential%extBlock
 
+      #:if  WITH_ELSI
         if (electronicSolver%iSolver == 6) then
           ! update Delta V ranges here for PEXSI
           if (tSccCalc) then
@@ -317,6 +320,7 @@ contains
                 & [size(potential%extBlock(:,:,:,1))] )
           end if
         end if
+      #:endif
 
         call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
