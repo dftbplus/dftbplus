@@ -10,3 +10,5 @@ make.arch
 make.config
 __pycache__
 .idea
+
+test/prog/dftb\+/timeprop/

@@ -3204,7 +3204,7 @@ contains
     call getChild(node, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
        allocate(ctrl%elecDynInp)
-       call readElecDynamics(child, ctrl%elecDynInp, geo)
+       call readElecDynamics(child, ctrl%elecDynInp, geo, ctrl%masses)
     end if
 
   end subroutine readAnalysis
@@ -3314,12 +3314,14 @@ contains
 
   
   !> Reads the electron dynamics block
-  subroutine readElecDynamics(node, input, geo)
+  subroutine readElecDynamics(node, input, geo, masses)
     type(fnode), pointer :: node
     type(ElecDynamicsInp), intent(inout) :: input 
     type(TGeometry), intent(in) :: geo
     type(fnode), pointer :: value, child
     type(string) :: buffer, modifier
+    !> masses to be returned
+    real(dp), allocatable, intent(inout) :: masses(:)
 
     call getChildValue(node, "Nsteps", input%tdSteps)
     call getChildValue(node, "TimeStep", input%tdDt, modifier=modifier, &
@@ -3347,7 +3349,7 @@ contains
     if (input%tdEulerEvery < 2) then
        call detailedError(child, "Wrong number of Euler steps, should be above 50")
     end if
-    if (input%tdEulerEvery > 2) then
+    if (input%tdEulerEvery > 50) then
        input%tddoEulers = .true.
     end if
 
@@ -3373,6 +3375,16 @@ contains
             & modifier=modifier, child=child)
        call convertByMul(char(modifier), energyUnits, child, input%tdOmega)
        call getChildValue(value, "Phase", input%tdPhase, 0.0_dp)
+       call getChildValue(value, "ExcitedAtoms", buffer, "1:-1", child=child, &
+            &multiple=.true.)
+       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
+            &child, input%indExcitedAtom)
+
+       input%nExcitedAtom = size(input%indExcitedAtom)
+       if (input%nExcitedAtom == 0) then
+          call error("No atoms specified for laser excitation.")
+       end if
+
 
     case ("kick+laser")
        input%tdType = iKickAndLaser
@@ -3432,16 +3444,6 @@ contains
             & child=child)    
        call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
 
-    case("cos")
-       input%tdEnvType = iTDCos
-       call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime0)
-
-       call getChildValue(value, "Time1", input%tdTime1, modifier=modifier, &
-            & child=child)    
-       call convertByMul(char(modifier), timeUnits, child, input%tdTime1)
-
     case("from_file")
        input%tdEnvType = iTDFromFile 
        call getChildValue(value, "Time0", input%tdTime0, 0.0_dp, modifier=modifier, &
@@ -3455,11 +3457,6 @@ contains
     case default
        call detailedError(value, "Unknown envelope shape " // char(buffer))
     end select
-
-    if (input%tdEnvType == iTDCos) then
-       call detailedError(child, "Envelope function not implemented yet")
-    end if
-
 
     !! Non-adiabatic molecular dynamics
     call getChildValue(node, "IonDynamics", input%tdIons, .false.)
@@ -3490,6 +3487,7 @@ contains
              input%tempAtom = minTemp
           end if
        end if
+       call getInputMasses(node, geo, masses)
     end if
 
   end subroutine readElecDynamics
