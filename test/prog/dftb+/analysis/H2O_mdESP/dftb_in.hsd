@@ -1,0 +1,65 @@
+Geometry = GenFormat {
+ 3  C
+  O H
+     1    1    0.00000000000  -1.00000000000   0.00000000000
+     2    2    0.00000000000   0.00000000000   0.78306400000
+     3    2    0.00000000000   0.00000000000  -0.78306400000
+}
+
+Driver = VelocityVerlet {
+  Steps = 20
+  TimeStep [Femtosecond] = 0.1
+  Thermostat = None {
+    InitialTemperature [Kelvin] = 273.15
+  }
+  OutputPrefix = "geo_end"
+  MDRestartFrequency = 10
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.000000000000000E-010
+  MaxAngularMomentum = {
+    O = "p"
+    H = "s"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 273.15
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Analysis = {
+  ElectrostaticPotential = {
+      Grid [AA] = {
+          Spacing = {1.0 1.0 1.0}
+          Origin = {0 -2 -2}
+          GridPoints = {1 5 5}
+      }
+      AppendFile = Yes
+  }
+}
+
+
+Options = {
+  WriteAutotestTag = Yes  
+  RandomSeed = 31421
+}
+
+ParserOptions = {
+  ParserVersion = 5
+}
+
+Parallel = {
+  Blacs = BlockSize {
+    4 # very small for test purposes
+  }
+
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

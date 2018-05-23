@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -57,7 +57,7 @@ AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
 CREATE_PRETESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(ROOT)/utils/test/testlist_to_fypp < $(TESTFILE) > $(PROCESSED_TESTFILE).fypp),)
 CREATE_TESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
-	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) -DNPROC=$(TESTPROC) $(PROCESSED_TESTFILE).fypp > $(PROCESSED_TESTFILE)),)
+	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) -DMPI_PROCS=$(TEST_MPI_PROCS) -DOMP_THREADS=$(TEST_OMP_THREADS) $(PROCESSED_TESTFILE).fypp > $(PROCESSED_TESTFILE)),)
 TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(AUTOTEST_CMD) -f $(PROCESSED_TESTFILE) -l),)
 

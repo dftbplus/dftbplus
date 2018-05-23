@@ -86,3 +86,10 @@ Analysis = {
   MullikenAnalysis = Yes
   CalculateForces = Yes
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

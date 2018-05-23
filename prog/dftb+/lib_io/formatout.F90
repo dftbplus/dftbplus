@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,9 +10,10 @@
 !> Contains subroutines for formatted output of data
 module formatout
   use globalenv
+  use environment
+  use message
   use assert
   use accuracy
-  use fileid
   use constants
   use lapackroutines, only: matinv
   use sparse2dense
@@ -59,12 +60,9 @@ contains
     !> name of the file which should be cleared
     character(len=*), intent(in) :: fileName
 
-    integer, save :: fd = -1
+    integer :: fd
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-    open(fd, file=fileName, status="replace", position="rewind")
+    open(newunit=fd, file=fileName, status="replace", position="rewind")
     close(fd)
 
   end subroutine clearFile_fname
@@ -91,14 +89,11 @@ contains
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
-    integer, save :: fd = -1
+    integer :: fd
 
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-    open(fd, file=fileName, form="formatted", action="write", status="replace")
+    open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
 
@@ -214,21 +209,19 @@ contains
     !> Whether geometry should be appended (default: it is overwritten)
     logical, intent(in), optional :: append
 
-    integer, save :: fd = -1
+    integer :: fd
     logical :: append0
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
     if (present(append)) then
       append0 = append
     else
       append0 = .false.
     end if
     if (append) then
-      open(fd, file=fileName, action="write", form="formatted", status="old", position="append")
+      open(newunit=fd, file=fileName, action="write", form="formatted", status="old",&
+          & position="append")
     else
-      open(fd, file=fileName, action="write", form="formatted", status="replace")
+      open(newunit=fd, file=fileName, action="write", form="formatted", status="replace")
     end if
     call writeXYZFormat(fd, coord, species, speciesName, charges, velocities, comment)
     close(fd)
@@ -327,7 +320,7 @@ contains
     integer, parameter :: headerWidth = 80
 
     write(stdOut, '(2A,/,A)') vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdOut, '(4A)') vbar, '  DFTB+ (Release ', release, ')'
+    write(stdOut, '(3A)') vbar, '  DFTB+ ', trim(release)
     write(stdOut, '(A)') vbar
     write(stdOut, '(2A,I0,A)') vbar, '  Copyright (C) ', year, '  DFTB+ developers group'
     write(stdOut, '(A,/,2A,/,A)') vbar, vbar, repeat(hbar, headerWidth - 1), vbar
@@ -351,8 +344,11 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_real(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
+  subroutine writeSparseAsSquare_real(env, fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
       & img2CentCell)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Name of the file to write the matrix to.
     character(len=*), intent(in) :: fname
@@ -380,11 +376,14 @@ contains
     character(mc) :: strForm
     integer :: fd, nOrb
 
+    if (withMpi) then
+      call error("Writing of HS not working with MPI yet")
+    end if
+
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
 
     allocate(square(nOrb, nOrb))
-    fd = getFileId()
-    open(fd, file=fname, form="formatted", status="replace")
+    open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
     write(fd, "(1X,L10,I10,I10,I10)") .true., nOrb, 1
 
@@ -402,8 +401,11 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_cplx(fname, sparse, kPoints, iNeighbor, nNeighbor, iAtomStart, &
-      & iPair, img2CentCell, iCellVec, cellVec)
+  subroutine writeSparseAsSquare_cplx(env, fname, sparse, kPoints, iNeighbor, nNeighbor,&
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Name of the file to write the matrix into.
     character(len=*), intent(in) :: fname
@@ -440,12 +442,15 @@ contains
     integer :: fd, nOrb, nKPoint
     integer :: iK
 
+    if (withMpi) then
+      call error("Writing of HS not working with MPI yet")
+    end if
+
     nOrb = iAtomStart(size(nNeighbor) + 1) - 1
     nKPoint = size(kPoints, dim =2)
 
     allocate(square(nOrb, nOrb))
-    fd = getFileId()
-    open(fd, file=fname, form="formatted", status="replace")
+    open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
     write(fd, "(1X,L10,I10,I10)") .false., nOrb, nKPoint
 
@@ -465,7 +470,7 @@ contains
 
 
   !> Writes a sparse matrix to a file.
-  subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
+  subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,&
       & iCellVec, cellVec)
 
     !> Name of the file to write the matrix to.
@@ -499,10 +504,13 @@ contains
     integer :: iAt1, iAt2, iAt2f, iNeigh, iOrig, nOrb1, nOrb2
     character(mc) :: strForm
 
+    if (.not. tIoProc) then
+      return
+    end if
+
     nAtom = size(nNeighbor)
 
-    fd = getFileId()
-    open(fd, file=fname, form="formatted", status="replace")
+    open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10)") "#", "NATOM"
     write(fd, "(1X,I10)") nAtom
     write(fd, "(A1,A10,A10,A10)") "#", "IATOM", "NNEIGH", "NORB"

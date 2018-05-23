@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -68,6 +68,9 @@ module taggedoutput
   !> Gibbs free energy for finite pressure periodic systems
   character(*), parameter, public :: tag_Gibbsfree = 'gibbs_energy'
 
+  !> Gross atomic charges
+  character(*), parameter, public :: tag_qOutAtGross  = 'gross_atomic_charges'
+
   !> numerically calculated second derivatives matrix
   character(*), parameter, public :: tag_HessianNum = 'hessian_numerical'
 
@@ -91,6 +94,15 @@ module taggedoutput
 
   !> final negative gross atomic Mulliken charges after real-time propagation
   character(*), parameter, public :: tag_tdcharges = 'final_td_charges'
+
+  !> total internal energy
+  character(*), parameter, public :: tag_egyTotal   = 'total_energy'
+
+  !> Internal electric field
+  character(*), parameter, public :: tag_internfield = 'internal_efield'
+
+  !> External electric field
+  character(*), parameter, public :: tag_externfield = 'external_efield'
 
   ! general format strings
 
