@@ -164,9 +164,9 @@ geoopt/Vsi+O                           #? MPI_PROCS <= 4
 scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 
 scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 
-timeprop/benzene_kick                  #? NPROC <= 4
-timeprop/benzene_laser                 #? NPROC <= 4
-timeprop/benzene_sin2                  #? NPROC <= 4
-timeprop/benzene_gaussian              #? NPROC <= 4
-timeprop/H2_singlet                    #? NPROC <= 4
-timeprop/H2_triplet                    #? NPROC <= 4
+timeprop/benzene_kick                  #? MPI_PROCS <= 1
+timeprop/benzene_laser                 #? MPI_PROCS <= 1
+timeprop/benzene_sin2                  #? MPI_PROCS <= 1
+timeprop/benzene_gaussian              #? MPI_PROCS <= 1
+timeprop/H2_singlet                    #? MPI_PROCS <= 1
+timeprop/H2_triplet                    #? MPI_PROCS <= 1
