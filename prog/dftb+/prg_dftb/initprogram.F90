@@ -1133,10 +1133,8 @@ contains
           call error("H5 correction is not compatible with X-H damping")
         end if
         allocate(pH5Correction)
-        call H5Corr_init(pH5Correction, nType, speciesName, input%ctrl%h5RScale,&
-            &input%ctrl%h5WScale, input%ctrl%h5ElementPara)
-        ! Writing debug info
-        ! call pH5Correction%writeH5Setup()
+        call H5Corr_init(pH5Correction, speciesName, input%ctrl%h5RScale,&
+            & input%ctrl%h5WScale, input%ctrl%h5ElementPara)
         sccInp%h5Correction = pH5Correction
       end if
 
