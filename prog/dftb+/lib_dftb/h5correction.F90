@@ -142,7 +142,7 @@ contains
 
   !> Apply the correction to the derivative of the short-range part of gamma function
   subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
-  
+
     !> instance of the correction
     class(H5Corr), intent(in) :: this
 
@@ -204,7 +204,7 @@ contains
     integer :: iSp1, iSp2
 
     call getVdwData("H", vdwH)
-    
+
     h5scaling(:,:) = -1.0_dp
     sumVdw(:,:) = -1.0_dp
     do iSp1 = 1, size(speciesNames)
@@ -224,11 +224,12 @@ contains
         end if
 
         h5Scaling(iSp2, iSp1) = elementParams(iSpHeavy)
-        
+
         call getVdwData(speciesNames(iSpHeavy), vdwHeavy, found=tFoundRadius)
         if (.not. tFoundRadius .and. h5Scaling(iSp2, iSp1) > 0.0_dp) then
           call warning("The van de  Waals radius for " // trim(speciesNames(iSpHeavy)) //&
-              & " is not available, but is needed for the H5 correction, so is neglected")
+              & " is required for the H5 correction but is not available. H-" //&
+              & trim(speciesNames(iSpHeavy)) // " contributions therefore neglected.")
           h5Scaling(iSp2, iSp1) = -1.0_dp
         end if
 
