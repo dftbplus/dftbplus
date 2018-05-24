@@ -278,8 +278,12 @@ contains
     real(dp) :: cutoff
 
     ! Since dftd3-routine uses its own real space summation routines, we do not need any real space
-    ! neighbors from neighbour list -> return 0 cutoff
-    cutoff = 0.0_dp
+    ! neighbors from neighbour list, unless H-H repulsion is active.
+    if (this%tHHRepulsion) then
+      cutoff = hhRepCutOff
+    else
+      cutoff = 0.0_dp
+    end if
 
   end function getRCutoff
 

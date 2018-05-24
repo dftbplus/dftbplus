@@ -850,7 +850,7 @@ contains
 
     ! H5 correction
     type(H5Corr), allocatable :: pH5Correction
-    logical :: tHHRepulsion = .false.
+    logical :: tHHRepulsion
 
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
@@ -1133,8 +1133,8 @@ contains
           call error("H5 correction is not compatible with X-H damping")
         end if
         allocate(pH5Correction)
-        call H5Corr_init(pH5Correction, speciesName, input%ctrl%h5RScale,&
-            & input%ctrl%h5WScale, input%ctrl%h5ElementPara)
+        call H5Corr_init(pH5Correction, speciesName, input%ctrl%h5RScale, input%ctrl%h5WScale,&
+            & input%ctrl%h5ElementPara)
         sccInp%h5Correction = pH5Correction
       end if
 
@@ -1553,6 +1553,7 @@ contains
     end if
 
     ! Dispersion
+    tHHRepulsion = .false.
     tDispersion = allocated(input%ctrl%dispInp)
     if (tDispersion) then
       if (allocated(input%ctrl%dispInp%slakirk)) then
@@ -1588,14 +1589,11 @@ contains
       elseif (allocated(input%ctrl%dispInp%dftd3)) then
         allocate(dftd3)
         if (tPeriodic) then
-          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName, latVec)
-          if (input%ctrl%dispInp%dftd3%hhrepulsion) then
-            mCutoff = max(mCutoff, HHRepCutoff)
-            tHHRepulsion = .true.
-            if (.not. any(speciesMass < 3.5_dp * amu__au)) then
-              call error("H-H repulsion correction used without H atoms present")
-            end if
+          tHHRepulsion = input%ctrl%dispInp%dftd3%hhrepulsion
+          if (tHHRepulsion .and. .not. any(speciesMass < 3.5_dp * amu__au)) then
+            call error("H-H repulsion correction used without H atoms present")
           end if
+          call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName, latVec)
         else
           call DispDftD3_init(dftd3, input%ctrl%dispInp%dftd3, nAtom, species0, speciesName)
         end if
