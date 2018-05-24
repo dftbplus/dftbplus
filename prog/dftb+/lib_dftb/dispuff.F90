@@ -20,7 +20,7 @@ module dispuff_module
   use accuracy
   use simplealgebra, only : determinant33
   use lapackroutines, only : matinv
-  use periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
+  use periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use constants, only: pi
   use dispiface
   use dispcommon
@@ -168,8 +168,7 @@ contains
     if (this%tPeriodic) then
       ! Cutoff for the direct summation of r^(-12) terms. To be sure, it is delivering the required
       ! accuracy, dispTol is strengthened by two orders of magnitude more.
-      this%rCutoff = (maxval(this%c12) &
-          & / (tolDispersion * 1.0e-2_dp))**(1.0_dp / 12.0_dp)
+      this%rCutoff = (maxval(this%c12) / (tolDispersion * 1.0e-2_dp))**(1.0_dp / 12.0_dp)
       ! Summing with loop to avoid creation of (nAtom, nAtom) tmp array.
       c6sum = 0.0_dp
       do iAt1 = 1, nAtom
@@ -194,8 +193,8 @@ contains
     !> Instance of dispersion to update
     class(DispUff), intent(inout) :: this
 
-    !> Updated neighbor list.
-    type(TNeighborList), intent(in) :: neigh
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
 
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -209,21 +208,19 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighborsForAll(nNeigh, neigh, this%rCutoff)
+    call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)
     if (this%tPeriodic) then
-      call getDispEnergyAndGrad_cluster(this%nAtom, coords, species0, nNeigh, &
-          & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
-          & this%c12, this%cPoly, this%r0, this%energies, this%gradients, &
-          & removeR6=.true., stress=this%stress, vol=this%vol)
-      call getNrOfNeighborsForAll(nNeigh, neigh, this%ewaldRCut)
-      call addDispEGr_per_species(this%nAtom, coords, species0, nNeigh, &
-          &neigh%iNeighbor, neigh%neighDist2, img2CentCell, &
-          &this%c6, this%eta, this%vol, this%gLatPoints, this%energies, &
-          & this%gradients, this%stress)
+      call getDispEnergyAndGrad_cluster(this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
+          & neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly, this%r0, this%energies,&
+          & this%gradients, removeR6=.true., stress=this%stress, vol=this%vol)
+      call getNrOfNeighboursForAll(nNeigh, neigh, this%ewaldRCut)
+      call addDispEGr_per_species(this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
+          & neigh%neighDist2, img2CentCell, this%c6, this%eta, this%vol, this%gLatPoints,&
+          & this%energies, this%gradients, this%stress)
     else
-      call getDispEnergyAndGrad_cluster(this%nAtom, coords, species0, nNeigh, &
-          & neigh%iNeighbor, neigh%neighDist2, img2CentCell, this%c6, &
-          & this%c12, this%cPoly, this%r0, this%energies, this%gradients)
+      call getDispEnergyAndGrad_cluster(this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
+          & neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly, this%r0, this%energies,&
+          & this%gradients)
     end if
 
     this%coordsUpdated = .true.
@@ -249,12 +246,10 @@ contains
     recVecs(:,:) = transpose(invRecVecs)
     call matinv(invRecVecs)
     this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
-    this%ewaldRCut = getMaxRDispersion(this%eta, this%c6sum, this%vol, &
-        & tolDispersion)
+    this%ewaldRCut = getMaxRDispersion(this%eta, this%c6sum, this%vol, tolDispersion)
     this%ewaldGCut = getMaxGDispersion(this%eta, this%c6sum, tolDispersion)
-    call getLatticePoints(this%gLatPoints, recVecs, invRecVecs, &
-        &this%ewaldGCut, onlyInside=.true., reduceByInversion=.true., &
-        &withoutOrigin=.true.)
+    call getLatticePoints(this%gLatPoints, recVecs, invRecVecs, this%ewaldGCut, onlyInside=.true.,&
+        & reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoints = matmul(recVecs, this%gLatPoints)
     this%coordsUpdated = .false.
 
@@ -322,7 +317,7 @@ contains
   end function getRCutoff
 
   !> Returns the energy per atom and the gradients for the cluster case
-  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbors, iNeighbor, &
+  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbourSK, iNeighbour,&
       & neighDist2, img2CentCell, c6, c12, cPoly, r0, energies, gradients, removeR6, stress, vol)
 
     !> Nr. of atoms (without periodic images)
@@ -334,11 +329,11 @@ contains
     !> Species of every atom.
     integer, intent(in) :: species(:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbors(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
-    !> Neighborlist.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
@@ -398,8 +393,8 @@ contains
     end if
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
-      do iNeigh = 1, nNeighbors(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
+      do iNeigh = 1, nNeighbourSK(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         vec = coords(:,iAt1)-coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
@@ -421,8 +416,7 @@ contains
           u1 = cPoly(2, iSp2, iSp1)
           u2 = cPoly(3, iSp2, iSp1)
           dE = 0.5_dp * ((u0 - u1 * r5 - u2 * r10) + (1.0_dp - f6) * k1 / r6)
-          dGr = (-5.0_dp * u1 * r5 - 10.0_dp * u2 * r10 &
-              &- 6.0_dp * k1 * (1.0_dp - f6) / r6) / rr
+          dGr = (-5.0_dp * u1 * r5 - 10.0_dp * u2 * r10 - 6.0_dp * k1 * (1.0_dp - f6) / r6) / rr
         else
           ! Two atoms at the same position -> forget it
           dE = 0.0_dp

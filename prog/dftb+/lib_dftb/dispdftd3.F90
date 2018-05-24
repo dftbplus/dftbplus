@@ -124,11 +124,9 @@ contains
     allocate(this%calculator)
     call dftd3_init(this%calculator, d3inp)
     if (inp%tBeckeJohnson) then
-      call dftd3_set_params(this%calculator, [inp%s6, inp%a1, inp%s8, &
-          & inp%a2, 0.0_dp], 4)
+      call dftd3_set_params(this%calculator, [inp%s6, inp%a1, inp%s8, inp%a2, 0.0_dp], 4)
     else
-      call dftd3_set_params(this%calculator, [inp%s6, inp%sr6, inp%s8, &
-          & inp%sr8, inp%alpha6], 3)
+      call dftd3_set_params(this%calculator, [inp%s6, inp%sr6, inp%s8, inp%sr8, inp%alpha6], 3)
     end if
 
     allocate(this%izp(nAtom))
@@ -146,8 +144,8 @@ contains
     !> Instance of stress data
     class(DispDftD3), intent(inout) :: this
 
-    !> Updated neighbor list.
-    type(TNeighborList), intent(in) :: neigh
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
 
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -163,11 +161,10 @@ contains
     if (this%tPeriodic) then
       ! dftd3 calculates the periodic images by itself -> only coords in central cell must be
       ! passed.
-      call dftd3_pbc_dispersion(this%calculator, coords(:, 1:this%nAtom), &
-          & this%izp, this%latVecs, this%dispE, this%gradients, this%stress)
+      call dftd3_pbc_dispersion(this%calculator, coords(:, 1:this%nAtom), this%izp, this%latVecs,&
+          & this%dispE, this%gradients, this%stress)
     else
-      call dftd3_dispersion(this%calculator, coords, this%izp, this%dispE, &
-          & this%gradients)
+      call dftd3_dispersion(this%calculator, coords, this%izp, this%dispE, this%gradients)
     end if
     this%tCoordsUpdated = .true.
 
@@ -256,7 +253,7 @@ contains
     real(dp) :: cutoff
 
     ! Since dftd3-routine uses its own real space summation routines, we do not need any real space
-    ! neighbors from neighbour list -> return 0 cutoff
+    ! neighbours from neighbour list -> return 0 cutoff
     cutoff = 0.0_dp
 
   end function getRCutoff

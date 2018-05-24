@@ -113,8 +113,8 @@ module scc
     !> Short range interaction
     real(dp), allocatable :: shortGamma(:,:,:,:)
 
-    !> Cutoff for short range int.
-    real(dp), allocatable :: shortCutoff(:,:,:,:)
+    !> CutOff for short range int.
+    real(dp), allocatable :: shortCutOff(:,:,:,:)
 
     !> Maximal cutoff
     real(dp) :: cutoff
@@ -125,10 +125,10 @@ module scc
     !> Real lattice points for asymmetric Ewald sum
     real(dp), allocatable :: rCellVec(:,:)
 
-    !> Nr. of neighbors for short range interaction
+    !> Nr. of neighbours for short range part of gamma
     integer, allocatable :: nNeighShort(:,:,:,:)
 
-    !> Dynamic neighbor list for the real space Ewald summation
+    !> Dynamic neighbour list for the real space Ewald summation
     type(TDynNeighList), allocatable :: ewaldNeighList
 
     !> Atomic coordinates
@@ -215,7 +215,7 @@ module scc
 #:endif
 
   contains
-    procedure :: getCutoff
+    procedure :: getCutOff
     procedure :: getEwaldPar
     procedure :: updateCoords
     procedure :: updateLatVecs
@@ -327,20 +327,20 @@ contains
     this%mHubbU = maxval(this%nHubbU)
 
     ! Get cutoff for short range coulomb
-    allocate(this%shortCutoff(this%mHubbU, this%mHubbU, this%nSpecies, this%nSpecies))
-    this%shortCutoff(:,:,:,:) = 0.0_dp
+    allocate(this%shortCutOff(this%mHubbU, this%mHubbU, this%nSpecies, this%nSpecies))
+    this%shortCutOff(:,:,:,:) = 0.0_dp
     do iSp1 = 1, this%nSpecies
       do iSp2 = iSp1, this%nSpecies
         do iU1 = 1, this%nHubbU(iSp1)
           do iU2 = 1, this%nHubbU(iSp2)
-            this%shortCutoff(iU2, iU1, iSp2, iSp1) = &
-                & expGammaCutoff(this%uniqHubbU(iU2, iSp2), this%uniqHubbU(iU1, iSp1))
-            this%shortCutoff(iU1, iU2, iSp1, iSp2) = this%shortCutoff(iU2, iU1, iSp2, iSp1)
+            this%shortCutOff(iU2, iU1, iSp2, iSp1) =&
+                & expGammaCutOff(this%uniqHubbU(iU2, iSp2), this%uniqHubbU(iU1, iSp1))
+            this%shortCutOff(iU1, iU2, iSp1, iSp2) = this%shortCutOff(iU2, iU1, iSp2, iSp1)
           end do
         end do
       end do
     end do
-    this%cutoff = maxval(this%shortCutoff)
+    this%cutoff = maxval(this%shortCutOff)
 
     ! Initialize Ewald summation for the periodic case
     if (this%tPeriodic) then
@@ -356,12 +356,12 @@ contains
       end if
       maxREwald = getMaxREwald(this%alpha, this%tolEwald)
       maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
-      call getLatticePoints(this%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald, &
+      call getLatticePoints(this%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald,&
           & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
       this%gLatPoint(:,:) = matmul(inp%recVecs, this%gLatPoint)
     end if
 
-    ! Number of neighbors for short range cutoff and real part of Ewald
+    ! Number of neighbours for short range cutoff and real part of Ewald
     allocate(this%nNeighShort(this%mHubbU, this%mHubbU, this%nSpecies, this%nAtom))
     if (this%tPeriodic) then
       allocate(this%ewaldNeighList)
@@ -423,21 +423,21 @@ contains
   end subroutine Scc_initialize
 
 
-  !> Returns a minimal cutoff for the neighborlist, which must be passed to various functions in
+  !> Returns a minimal cutoff for the neighbourlist, which must be passed to various functions in
   !> this module.
-  function getCutoff(this) result(cutoff)
+  function getCutOff(this) result(cutoff)
 
     !> Instance
     class(TScc), intent(in) :: this
 
-    !> The neighborlists, passed to scc routines, should contain neighbour information at
+    !> The neighbourlists, passed to scc routines, should contain neighbour information at
     !> least up to that cutoff.
     real(dp) :: cutoff
 
     @:ASSERT(this%tInitialised)
     cutoff = this%cutoff
 
-  end function getCutoff
+  end function getCutOff
 
 
   !> Returns the currenty used alpha parameter of the Ewald-summation
@@ -470,8 +470,8 @@ contains
     !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
 
-    !> Neighbor list for the atoms.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list for the atoms.
+    type(TNeighbourList), intent(in) :: neighList
 
     @:ASSERT(this%tInitialised)
 
@@ -492,7 +492,7 @@ contains
       end if
     end if
 
-    call initGamma_(this, species, neighList%iNeighbor)
+    call initGamma_(this, species, neighList%iNeighbour)
 
     if (this%tExtChrg) then
       if (this%tPeriodic) then
@@ -533,7 +533,7 @@ contains
       maxREwald = getMaxREwald(this%alpha, this%tolEwald)
     end if
     maxGEwald = getMaxGEwald(this%alpha, this%volume, this%tolEwald)
-    call getLatticePoints(this%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald, &
+    call getLatticePoints(this%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald,&
         &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%gLatPoint = matmul(recVec, this%gLatPoint)
 
@@ -552,7 +552,7 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species, iNeighbor, img2CentCell)
+  subroutine updateCharges(this, env, qOrbital, q0, orb, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -572,8 +572,8 @@ contains
     !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
 
-    !> Neighbor indexes
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbour indexes
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Mapping on atoms in the central cell
     integer, intent(in) :: img2CentCell(:)
@@ -582,7 +582,7 @@ contains
 
     call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
         & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
-    call buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
+    call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
     if (this%tChrgConstr) then
       call buildShift(this%chrgConstr, this%deltaQAtom)
     end if
@@ -594,7 +594,7 @@ contains
 
 
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
-  subroutine getAtomicGammaMatrix(this, gammamat, iNeighbor, img2CentCell)
+  subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -603,7 +603,7 @@ contains
     real(dp), intent(out) :: gammamat(:,:)
 
     !> neighbours of atoms
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
@@ -620,7 +620,7 @@ contains
     gammamat(:,:) = this%invRMat
     do iAt1 = 1, this%nAtom
       do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - this%shortGamma(1, 1, iNeigh, iAt1)
       end do
@@ -642,7 +642,7 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(eScc) == this%nAtom)
 
-    eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom &
+    eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
     if (this%tExtChrg) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
@@ -691,11 +691,11 @@ contains
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutShell(this%mShell, this%nAtom))
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom, &
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom,&
         & dQOutShell)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
-    eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom) &
+    eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
         & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQPerLShell), dim=1))
 
     if (this%tExtChrg) then
@@ -716,7 +716,7 @@ contains
 
   !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
   !> which is not covered in the term with the shift vectors.
-  subroutine addForceDc(this, env, force, species, iNeighbor, img2CentCell, chrgForce)
+  subroutine addForceDc(this, env, force, species, iNeighbour, img2CentCell, chrgForce)
 
     !> Resulting module variables
     class(TScc), intent(in) :: this
@@ -730,8 +730,8 @@ contains
     !> Species for each atom.
     integer, intent(in) :: species(:)
 
-    !> List of neighbors for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Indexing of images of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -746,7 +746,7 @@ contains
     @:ASSERT(present(chrgForce) .eqv. this%tExtChrg)
 
     ! Short-range part of gamma contribution
-    call addGammaPrime_(this, force, species, iNeighbor, img2CentCell)
+    call addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
 
     ! 1/R contribution
     if (this%tPeriodic) then
@@ -770,7 +770,7 @@ contains
 
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
   !> shift vectors.
-  subroutine addStressDc(this, st, env, species, iNeighbor, img2CentCell)
+  subroutine addStressDc(this, st, env, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
     class(TScc), intent(in) :: this
@@ -784,8 +784,8 @@ contains
     !> Species for each atom.
     integer, intent(in) :: species(:)
 
-    !> List of neighbors for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Indexing of images of the atoms in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -799,7 +799,7 @@ contains
     stTmp = 0.0_dp
 
     ! Short-range part of gamma contribution
-    call addSTGammaPrime_(stTmp,this,species,iNeighbor,img2CentCell)
+    call addSTGammaPrime_(stTmp,this,species,iNeighbour,img2CentCell)
 
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
@@ -911,7 +911,7 @@ contains
   !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
   !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
   !> therefore these are passed in as an extra variable.
-  subroutine addForceDcXlbomd(this, env, species, orb, iNeighbor, img2CentCell, qOrbitalOut,&
+  subroutine addForceDcXlbomd(this, env, species, orb, iNeighbour, img2CentCell, qOrbitalOut,&
       & q0, force)
 
     !> Resulting module variables
@@ -927,7 +927,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> neighbours surrounding each atom
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> index from image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
@@ -949,11 +949,11 @@ contains
     allocate(dQOutLShell(this%mShell, this%nAtom))
     allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, q0, dQOut, &
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, q0, dQOut,&
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
-    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbor, img2CentCell,&
+    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour, img2CentCell,&
         & force)
 
     ! 1/R contribution
@@ -1043,7 +1043,7 @@ contains
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> Updates the number of neighbors for the SCC module (local).
+  !> Updates the number of neighbours for the SCC module (local).
   subroutine updateNNeigh_(this, species, neighList)
 
     !> Instance
@@ -1052,8 +1052,8 @@ contains
     !> Species for each atom
     integer, intent(in) :: species(:)
 
-    !> Neighbor list for the atoms in the system.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list for the atoms in the system.
+    type(TNeighbourList), intent(in) :: neighList
 
 
     integer :: iAt1, iSp2, iU1, iU2
@@ -1063,8 +1063,8 @@ contains
       do iSp2 = 1, this%nSpecies
         do iU1 = 1, this%nHubbU(species(iAt1))
           do iU2 = 1, this%nHubbU(iSp2)
-            this%nNeighShort(iU2, iU1, iSp2, iAt1) = &
-                &getNrOfNeighbors(neighList, this%shortCutoff(iU2, iU1, iSp2, species(iAt1)), iAt1)
+            this%nNeighShort(iU2, iU1, iSp2, iAt1) =&
+                & getNrOfNeighbours(neighList, this%shortCutOff(iU2, iU1, iSp2, species(iAt1)), iAt1)
           end do
         end do
       end do
@@ -1075,7 +1075,7 @@ contains
 
   !> Constructs the shift vectors for the SCC contributions.
   !> The full shift vector must be constructed by adding shiftAtom and shiftShell accordingly.
-  subroutine buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
+  subroutine buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
     type(TScc), intent(inout) :: this
@@ -1090,7 +1090,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> List of surrounding neighbours for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Image of each atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1098,7 +1098,7 @@ contains
     @:ASSERT(this%tInitialised)
 
     call buildShiftPerAtom_(this, env)
-    call buildShiftPerShell_(this, env, orb, species, iNeighbor, img2CentCell)
+    call buildShiftPerShell_(this, env, orb, species, iNeighbour, img2CentCell)
 
   end subroutine buildShifts_
 
@@ -1137,7 +1137,7 @@ contains
 
 
   !> Builds the short range shell resolved part of the shift vector
-  subroutine buildShiftPerShell_(this, env, orb, species, iNeighbor, img2CentCell)
+  subroutine buildShiftPerShell_(this, env, orb, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
     type(TScc), intent(inout), target :: this
@@ -1152,7 +1152,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> List of surrounding neighbours for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Image of each atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1180,7 +1180,7 @@ contains
       do iSh1 = 1, orb%nShell(iSp1)
         iU1 = this%iHubbU(iSh1, iSp1)
         do iNeigh = 0, maxval(this%nNeighShort(:,:,:,iAt1))
-          iAt2f = img2CentCell(iNeighbor(iNeigh, iAt1))
+          iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
           iSp2 = species(iAt2f)
           do iSh2 = 1, orb%nShell(iSp2)
             iU2 = this%iHubbU(iSh2, iSp2)
@@ -1204,7 +1204,7 @@ contains
 
   !> Calculate the derivative of the short range contributions using the linearized XLBOMD
   !> formulation with auxiliary charges.
-  subroutine addGammaPrimeXlbomd_(this, dQInUniqU, dQOutUniqU, species, iNeighbor, &
+  subroutine addGammaPrimeXlbomd_(this, dQInUniqU, dQOutUniqU, species, iNeighbour,&
       & img2CentCell, force)
 
     !> Resulting module variables
@@ -1220,7 +1220,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> neighbours around atoms
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> image to real atom indexing
     integer, intent(in) :: img2CentCell(:)
@@ -1239,7 +1239,7 @@ contains
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
@@ -1253,8 +1253,8 @@ contains
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
-              prefac = dQOutUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f) &
-                  & + dQInUniqU(iU1, iAt1) * dQOutUniqU(iU2, iAt2f) &
+              prefac = dQOutUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f)&
+                  & + dQInUniqU(iU1, iAt1) * dQOutUniqU(iU2, iAt2f)&
                   & - dQInUniqU(iU1, iAt1) * dQInUniqU(iU2, iAt2f)
               contrib(:) = prefac * tmpGammaPrime / rab  * (this%coord(:,iAt2) - this%coord(:,iAt1))
               force(:,iAt1) = force(:,iAt1) + contrib
@@ -1269,7 +1269,7 @@ contains
 
 
   !> Set up the storage and internal values for the short range part of Gamma.
-  subroutine initGamma_(this, species, iNeighbor)
+  subroutine initGamma_(this, species, iNeighbour)
 
     !> Resulting module variables
     type(TScc), intent(inout) :: this
@@ -1277,18 +1277,18 @@ contains
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
 
-    !> Index of neighboring atoms for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Index of neighbouring atoms for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, u1, u2
 
     @:ASSERT(this%tInitialised)
 
-    ! Reallocate shortGamma, if it does not contain enough neighbors
+    ! Reallocate shortGamma, if it does not contain enough neighbours
     if (size(this%shortGamma, dim=3) < maxval(this%nNeighShort)+1) then
       deallocate(this%shortGamma)
-      allocate(this%shortGamma(this%mHubbU, this%mHubbU, 0:maxval(this%nNeighShort), &
+      allocate(this%shortGamma(this%mHubbU, this%mHubbU, 0:maxval(this%nNeighShort),&
           & this%nAtom))
     end if
     this%shortGamma(:,:,:,:) = 0.0_dp
@@ -1298,7 +1298,7 @@ contains
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         iSp2 = species(iAt2)
         rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
         do iU1 = 1, this%nHubbU(species(iAt1))
@@ -1307,7 +1307,7 @@ contains
             u2 = this%uniqHubbU(iU2, iSp2)
             if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, &
+                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1,&
                     & this%dampExp)
               else
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
@@ -1322,7 +1322,7 @@ contains
 
 
   !> Calculate  the derivative of the short range part of Gamma.
-  subroutine addGammaPrime_(this, force, species, iNeighbor, img2CentCell)
+  subroutine addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
     type(TScc), intent(in) :: this
@@ -1333,8 +1333,8 @@ contains
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
 
-    !> Index of neighboring atoms for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Index of neighbouring atoms for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Image of each atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1350,7 +1350,7 @@ contains
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
@@ -1365,11 +1365,11 @@ contains
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
               do ii = 1,3
-                force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU(iU1,iAt1) * &
-                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1) &
+                force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU(iU1,iAt1) *&
+                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1)&
                     & - this%coord(ii,iAt2))/rab
-                force(ii,iAt2f) = force(ii,iAt2f) + this%deltaQUniqU(iU1,iAt1) * &
-                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1) &
+                force(ii,iAt2f) = force(ii,iAt2f) + this%deltaQUniqU(iU1,iAt1) *&
+                    & this%deltaQUniqU(iU2,iAt2f)*tmpGammaPrime*(this%coord(ii,iAt1)&
                     & - this%coord(ii,iAt2))/rab
               end do
             end if
@@ -1382,7 +1382,7 @@ contains
 
 
   !> Calculate  the derivative of the short range part of Gamma.
-  subroutine addSTGammaPrime_(st, this, species, iNeighbor, img2CentCell)
+  subroutine addSTGammaPrime_(st, this, species, iNeighbour, img2CentCell)
 
     !> Stress tensor component to add the short-range part of the gamma contribution
     real(dp), intent(out) :: st(:,:)
@@ -1393,8 +1393,8 @@ contains
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
 
-    !> Index of neighboring atoms for each atom.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Index of neighbouring atoms for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Image of each atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1411,7 +1411,7 @@ contains
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         vect(:) = this%coord(:,iAt1) - this%coord(:,iAt2)
@@ -1428,8 +1428,8 @@ contains
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
               do ii = 1,3
-                intermed(ii) = intermed(ii) &
-                    & - this%deltaQUniqU(iU1,iAt1) * this%deltaQUniqU(iU2,iAt2f) &
+                intermed(ii) = intermed(ii)&
+                    & - this%deltaQUniqU(iU1,iAt1) * this%deltaQUniqU(iU2,iAt2f)&
                     & *tmpGammaPrime*vect(ii)/rab
               end do
             end if
@@ -1591,7 +1591,7 @@ contains
     do iAt = 1, nAtom
       iSp = species(iAt)
       do iSh = 1, orb%nShell(iSp)
-        deltaQUniqU(iHubbU(iSh, iSp), iAt) =  deltaQUniqU(iHubbU(iSh, iSp), iAt) &
+        deltaQUniqU(iHubbU(iSh, iSp), iAt) =  deltaQUniqU(iHubbU(iSh, iSp), iAt)&
             & + deltaQPerLShell(iSh, iAt)
       end do
     end do
