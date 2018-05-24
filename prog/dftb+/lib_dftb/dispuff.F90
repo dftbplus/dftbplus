@@ -322,7 +322,7 @@ contains
   end function getRCutoff
 
   !> Returns the energy per atom and the gradients for the cluster case
-  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighbors, iNeighbor, &
+  subroutine getDispEnergyAndGrad_cluster(nAtom, coords, species, nNeighborSK, iNeighbor, &
       & neighDist2, img2CentCell, c6, c12, cPoly, r0, energies, gradients, removeR6, stress, vol)
 
     !> Nr. of atoms (without periodic images)
@@ -335,7 +335,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbors(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Neighborlist.
     integer, intent(in) :: iNeighbor(0:,:)
@@ -398,7 +398,7 @@ contains
     end if
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
-      do iNeigh = 1, nNeighbors(iAt1)
+      do iNeigh = 1, nNeighborSK(iAt1)
         iAt2 = iNeighbor(iNeigh, iAt1)
         vec = coords(:,iAt1)-coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)

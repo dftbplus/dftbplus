@@ -28,8 +28,7 @@ contains
 
 
   !> Subroutine for calculating total energy contribution of the repulsives.
-  subroutine getERep_total(reslt, coords, nNeighbors, iNeighbors, species, &
-      &img2CentCell, repCont)
+  subroutine getERep_total(reslt, coords, nNeighborSK, iNeighbors, species, img2CentCell, repCont)
 
     !> Total energy contribution.
     real(dp), intent(out) :: reslt
@@ -38,7 +37,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbors for atoms in the central cell
-    integer, intent(in) :: nNeighbors(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
@@ -56,8 +55,8 @@ contains
     real(dp) :: vect(3), dist, intermed
 
     reslt = 0.0_dp
-    do iAt1 = 1, size(nNeighbors)
-      do iNeigh = 1, nNeighbors(iAt1)
+    do iAt1 = 1, size(nNeighborSK)
+      do iNeigh = 1, nNeighborSK(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
@@ -75,8 +74,7 @@ contains
 
 
   !> Subroutine for repulsive energy contributions for each atom
-  subroutine getERep_atoms(reslt, coords, nNeighbors, iNeighbors, species,&
-      &repCont, img2CentCell)
+  subroutine getERep_atoms(reslt, coords, nNeighborSK, iNeighbors, species, repCont, img2CentCell)
 
     !> Energy for each atom.
     real(dp), intent(out) :: reslt(:)
@@ -85,7 +83,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbors for atoms in the central cell
-    integer, intent(in) :: nNeighbors(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
@@ -102,11 +100,11 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), dist, intermed
 
-    @:ASSERT(size(reslt) == size(nNeighbors))
+    @:ASSERT(size(reslt) == size(nNeighborSK))
 
     reslt(:) = 0.0_dp
-    do iAt1 = 1, size(nNeighbors)
-      do iNeigh = 1, nNeighbors(iAt1)
+    do iAt1 = 1, size(nNeighborSK)
+      do iNeigh = 1, nNeighborSK(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
@@ -123,8 +121,7 @@ contains
 
 
   !> Subroutine for force contributions of the repulsives.
-  subroutine getERepDeriv(reslt, coords, nNeighbors, iNeighbors, species, &
-      &repCont, img2CentCell)
+  subroutine getERepDeriv(reslt, coords, nNeighborSK, iNeighbors, species, repCont, img2CentCell)
 
     !> Energy for each atom.
     real(dp), intent(out) :: reslt(:,:)
@@ -133,7 +130,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbors for atoms in the central cell
-    integer, intent(in) :: nNeighbors(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
@@ -153,16 +150,15 @@ contains
     @:ASSERT(size(reslt,dim=1) == 3)
 
     reslt(:,:) = 0.0_dp
-    do iAt1 = 1, size(nNeighbors)
-      lpNeigh: do iNeigh = 1, nNeighbors(iAt1)
+    do iAt1 = 1, size(nNeighborSK)
+      lpNeigh: do iNeigh = 1, nNeighborSK(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         if (iAt2f == iAt1) then
           cycle lpNeigh
         end if
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        call getEnergyDeriv(repCont, intermed, vect, species(iAt1), &
-            &species(iAt2))
+        call getEnergyDeriv(repCont, intermed, vect, species(iAt1), species(iAt2))
         reslt(:,iAt1) = reslt(:,iAt1) + intermed(:)
         reslt(:,iAt2f) = reslt(:,iAt2f) - intermed(:)
       end do lpNeigh

@@ -210,37 +210,37 @@ contains
 
 
   !> Returns the next group of neighbors.
-  subroutine TNeighIterator_getNextNeighbors(this, nNeighbors, coords, dists, img2CentCell)
+  subroutine TNeighIterator_getNextNeighbors(this, nNeighborSK, coords, dists, img2CentCell)
 
     !> Instance.
     class(TNeighIterator), intent(inout) :: this
 
     !> Nr. of neighbors to return on entry, nr. of neighbors found on exit. When entry and exit
     !> values differ, the iterator has finished and can not return any more neighbors.
-    integer, intent(inout) :: nNeighbors
+    integer, intent(inout) :: nNeighborSK
 
-    !> Coordinates of the neighbors. Shape: (3, nNeighbors)
+    !> Coordinates of the neighbors. Shape: (3, nNeighborSK)
     real(dp), intent(out), optional :: coords(:,:)
 
-    !> Distances of the neighbors. Shape: (nNeighbors)
+    !> Distances of the neighbors. Shape: (nNeighborSK)
     real(dp), intent(out), optional :: dists(:)
 
-    !> Correspoinding images of the neighbors in the central cell. Shape: (nNeighbors)
+    !> Correspoinding images of the neighbors in the central cell. Shape: (nNeighborSK)
     integer, intent(out), optional :: img2CentCell(:)
 
     real(dp) :: neighCoords(3)
-    real(dp) :: coordsTmp(3, nNeighbors), distsTmp(nNeighbors)
-    integer :: img2CentCellTmp(nNeighbors)
+    real(dp) :: coordsTmp(3, nNeighborSK), distsTmp(nNeighborSK)
+    integer :: img2CentCellTmp(nNeighborSK)
     real(dp) :: dist2
     integer :: maxNeighs
 
-    maxNeighs = nNeighbors
-    nNeighbors = 0
+    maxNeighs = nNeighborSK
+    nNeighborSK = 0
     if (this%tFinished) then
       return
     end if
 
-    do while (nNeighbors < maxNeighs)
+    do while (nNeighborSK < maxNeighs)
       if (this%iAtom2 > this%nAtom) then
         if (this%tPeriodic) then
           call this%latPointGen%getNextPoint(this%cellVec, this%tFinished)
@@ -257,22 +257,22 @@ contains
       neighCoords(:) = this%neighList%coords0(:, this%iAtom2) + this%cellVec
       dist2 = sum((this%coordsAtom1 - neighCoords)**2)
       if (dist2 <= this%cutoff2) then
-        nNeighbors = nNeighbors + 1
-        coordsTmp(:,nNeighbors) = neighCoords
-        distsTmp(nNeighbors) = dist2
-        img2CentCellTmp(nNeighbors) = this%iAtom2
+        nNeighborSK = nNeighborSK + 1
+        coordsTmp(:,nNeighborSK) = neighCoords
+        distsTmp(nNeighborSK) = dist2
+        img2CentCellTmp(nNeighborSK) = this%iAtom2
       end if
       this%iAtom2 = this%iAtom2 + 1
     end do
 
     if (present(coords)) then
-      coords(:,1:nNeighbors) = coordsTmp(:,1:nNeighbors)
+      coords(:,1:nNeighborSK) = coordsTmp(:,1:nNeighborSK)
     end if
     if (present(dists)) then
-      dists(1:nNeighbors) = sqrt(distsTmp(1:nNeighbors))
+      dists(1:nNeighborSK) = sqrt(distsTmp(1:nNeighborSK))
     end if
     if (present(img2CentCell)) then
-      img2CentCell(1:nNeighbors) = img2CentCellTmp(1:nNeighbors)
+      img2CentCell(1:nNeighborSK) = img2CentCellTmp(1:nNeighborSK)
     end if
 
   end subroutine TNeighIterator_getNextNeighbors

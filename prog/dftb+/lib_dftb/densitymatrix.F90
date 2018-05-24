@@ -221,10 +221,10 @@ contains
       end if
     end do
     fillProduct(1:nLevels) = filling(1:nLevels) * eigen(1:nLevels)
-    if ((minval(fillProduct(1:nLevels)) < 0.0_dp &
-        &.eqv. maxval(fillProduct(1:nLevels)) < 0.0_dp) &
-        &.and. abs(minval(fillProduct(1:nLevels))) > epsilon(1.0_dp) &
-        &.and. abs(maxval(fillProduct(1:nLevels))) > epsilon(1.0_dp)) then
+    if ((minval(fillProduct(1:nLevels)) < 0.0_dp&
+        & .eqv. maxval(fillProduct(1:nLevels)) < 0.0_dp)&
+        & .and. abs(minval(fillProduct(1:nLevels))) > epsilon(1.0_dp)&
+        & .and. abs(maxval(fillProduct(1:nLevels))) > epsilon(1.0_dp)) then
       ! all fillings the same sign, and fairly large
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
@@ -233,8 +233,7 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
-      call herk(dm, eigenvecs(:,1:nLevels), &
-          &alpha=sign(1.0_dp, maxval(fillProduct(1:nLevels))))
+      call herk(dm, eigenvecs(:,1:nLevels), alpha=sign(1.0_dp, maxval(fillProduct(1:nLevels))))
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(abs(fillProduct(ii)))
@@ -300,9 +299,9 @@ contains
 
     fillProduct(1:nLevels) = filling(1:nLevels) * eigen(1:nLevels)
     if ((minval(fillProduct(1:nLevels)) < 0.0_dp&
-        &.eqv. maxval(fillProduct(1:nLevels)) < 0.0_dp)&
-        &.and. abs(minval(fillProduct(1:nLevels))) > epsilon(1.0_dp) &
-        &.and. abs(maxval(fillProduct(1:nLevels))) > epsilon(1.0_dp)) then
+        & .eqv. maxval(fillProduct(1:nLevels)) < 0.0_dp)&
+        & .and. abs(minval(fillProduct(1:nLevels))) > epsilon(1.0_dp)&
+        & .and. abs(maxval(fillProduct(1:nLevels))) > epsilon(1.0_dp)) then
       ! all fillings the same sign, and fairly large
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
@@ -310,8 +309,7 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
-      call herk(dm, eigenvecs(:,1:nLevels), &
-          & alpha=sign(1.0_dp, maxval(fillProduct(1:nLevels))))
+      call herk(dm, eigenvecs(:,1:nLevels), alpha=sign(1.0_dp, maxval(fillProduct(1:nLevels))))
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(abs(fillProduct(ii)))
@@ -341,8 +339,8 @@ contains
 
 
   !> Make a regular density matrix for the real wave-function case
-  subroutine sp_density_matrix_real(dm, eigenvecs, filling, iNeighbor, nNeighbor, orb, iAtomStart, &
-      & img2CentCell)
+  subroutine sp_density_matrix_real(dm, eigenvecs, filling, iNeighbor, nNeighborSK, orb,&
+      & iAtomStart, img2CentCell)
 
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
     !> calculated, instead of the whole dm
@@ -358,7 +356,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Information about the orbitals of the atoms
     type(TOrbitals), intent(in) :: orb
@@ -398,32 +396,27 @@ contains
     allocate(tmpEigen(nLevels,orb%mOrb))
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
-          &img2CentCell(iNeighbor(0:nNeighbor(iAt1),iAt1))
-      call heap_sort(inCellNeighbor(:nNeighbor(iAt1),iAt1))
-      nInCellNeighbor(iAt1) = &
-          &unique(inCellNeighbor(:,iAt1), nNeighbor(iAt1)+1) - 1
+      inCellNeighbor(0:nNeighborSK(iAt1),iAt1) = img2CentCell(iNeighbor(0:nNeighborSK(iAt1),iAt1))
+      call heap_sort(inCellNeighbor(:nNeighborSK(iAt1),iAt1))
+      nInCellNeighbor(iAt1) = unique(inCellNeighbor(:,iAt1), nNeighborSK(iAt1)+1) - 1
     end do
     !$OMP  END PARALLEL DO
 
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
       start1 = iAtomStart(iAt1)
-      tmpEigen(1:nLevels,1:nOrb1) = &
-          & transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
+      tmpEigen(1:nLevels,1:nOrb1) = transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
         tmpEigen(jj,1:nOrb1) = filling(jj) * tmpEigen(jj,1:nOrb1)
       end do
       !$OMP  END PARALLEL DO
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) &
-      !$OMP& SCHEDULE(RUNTIME)
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) SCHEDULE(RUNTIME)
       do iNeigh1 = 0, nInCellNeighbor(iAt1)
         start2 = iAtomStart(inCellNeighbor(iNeigh1,iAt1))
         nOrb2 = orb%nOrbAtom(inCellNeighbor(iNeigh1,iAt1))
-        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) = &
-            &matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), &
-            &tmpEigen(1:nLevels,1:nOrb1))
+        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) =&
+            & matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), tmpEigen(1:nLevels,1:nOrb1))
       end do
       !$OMP  END PARALLEL DO
     end do
@@ -432,8 +425,8 @@ contains
 
 
   !> Make a regular density matrix for the complex wave-function case
-  subroutine sp_density_matrix_cmplx(dm, eigenvecs, filling, iNeighbor, nNeighbor, orb, iAtomStart,&
-      & img2CentCell)
+  subroutine sp_density_matrix_cmplx(dm, eigenvecs, filling, iNeighbor, nNeighborSK, orb,&
+      & iAtomStart, img2CentCell)
 
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
     !> calculated, instead of the whole dm
@@ -449,7 +442,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Informatio about the orbitals.
     type(TOrbitals), intent(in) :: orb
@@ -489,19 +482,16 @@ contains
     allocate(tmpEigen(nLevels, orb%mOrb))
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
-          &img2CentCell(iNeighbor(0:nNeighbor(iAt1),iAt1))
-      call heap_sort(inCellNeighbor(:nNeighbor(iAt1),iAt1))
-      nInCellNeighbor(iAt1) = &
-          &unique(inCellNeighbor(:,iAt1), nNeighbor(iAt1)+1) - 1
+      inCellNeighbor(0:nNeighborSK(iAt1),iAt1) = img2CentCell(iNeighbor(0:nNeighborSK(iAt1),iAt1))
+      call heap_sort(inCellNeighbor(:nNeighborSK(iAt1),iAt1))
+      nInCellNeighbor(iAt1) = unique(inCellNeighbor(:,iAt1), nNeighborSK(iAt1)+1) - 1
     end do
     !$OMP  END PARALLEL DO
 
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
       start1 = iAtomStart(iAt1)
-      tmpEigen(1:nLevels,1:nOrb1) = &
-          &transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
+      tmpEigen(1:nLevels,1:nOrb1) = transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
@@ -509,14 +499,13 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) &
-      !$OMP& SCHEDULE(RUNTIME)
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) SCHEDULE(RUNTIME)
       do iNeigh1 = 0, nInCellNeighbor(iAt1)
         start2 = iAtomStart(inCellNeighbor(iNeigh1,iAt1))
         nOrb2 = orb%nOrbAtom(inCellNeighbor(iNeigh1,iAt1))
-        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) = &
-            &matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), &
-            &tmpEigen(1:nLevels,1:nOrb1))
+        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) =&
+            & matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels),&
+            & tmpEigen(1:nLevels,1:nOrb1))
       end do
       !$OMP  END PARALLEL DO
     end do
@@ -525,7 +514,7 @@ contains
 
 
   !> Make an energy weighted density matrix for the real wave-function case
-  subroutine sp_energy_density_matrix_real(dm, eigenvecs, filling, eigen, iNeighbor, nNeighbor, &
+  subroutine sp_energy_density_matrix_real(dm, eigenvecs, filling, eigen, iNeighbor, nNeighborSK,&
       & orb, iAtomStart, img2CentCell)
 
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
@@ -545,7 +534,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Information about the orbitals.
     type(TOrbitals), intent(in) :: orb
@@ -586,33 +575,28 @@ contains
     allocate(tmpEigen(nLevels,orb%mOrb))
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
-          & img2CentCell(iNeighbor(0:nNeighbor(iAt1),iAt1))
-      call heap_sort(inCellNeighbor(:nNeighbor(iAt1),iAt1))
-      nInCellNeighbor(iAt1) = &
-          &unique(inCellNeighbor(:,iAt1), nNeighbor(iAt1)+1) - 1
+      inCellNeighbor(0:nNeighborSK(iAt1),iAt1) = img2CentCell(iNeighbor(0:nNeighborSK(iAt1),iAt1))
+      call heap_sort(inCellNeighbor(:nNeighborSK(iAt1),iAt1))
+      nInCellNeighbor(iAt1) = unique(inCellNeighbor(:,iAt1), nNeighborSK(iAt1)+1) - 1
     end do
     !$OMP  END PARALLEL DO
 
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
       start1 = iAtomStart(iAt1)
-      tmpEigen(1:nLevels,1:nOrb1) = &
-          & transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
+      tmpEigen(1:nLevels,1:nOrb1) = transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
         tmpEigen(jj,1:nOrb1) = filling(jj)*eigen(jj)*tmpEigen(jj,1:nOrb1)
       end do
       !$OMP  END PARALLEL DO
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) &
-      !$OMP& SCHEDULE(RUNTIME)
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) SCHEDULE(RUNTIME)
       do iNeigh1 = 0, nInCellNeighbor(iAt1)
         start2 = iAtomStart(inCellNeighbor(iNeigh1,iAt1))
         nOrb2 = orb%nOrbAtom(inCellNeighbor(iNeigh1,iAt1))
-        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) = &
-            &matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), &
-            &tmpEigen(1:nLevels,1:nOrb1))
+        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) =&
+            & matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), tmpEigen(1:nLevels,1:nOrb1))
       end do
       !$OMP  END PARALLEL DO
     end do
@@ -621,7 +605,7 @@ contains
 
 
   !> Make an energy weighted density matrix for the complex wave-function case
-  subroutine sp_energy_density_matrix_cmplx(dm, eigenvecs, filling, eigen, iNeighbor, nNeighbor, &
+  subroutine sp_energy_density_matrix_cmplx(dm, eigenvecs, filling, eigen, iNeighbor, nNeighborSK,&
       & orb, iAtomStart, img2CentCell)
 
     !> the resulting nOrb*nOrb density matrix with only the elements of interest
@@ -641,7 +625,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Information about the orbitals.
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Atom offset for the squared Hamiltonian
     type(TOrbitals), intent(in) :: orb
@@ -681,33 +665,28 @@ contains
     allocate(tmpEigen(nLevels, orb%mOrb))
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt1) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      inCellNeighbor(0:nNeighbor(iAt1),iAt1) = &
-          &img2CentCell(iNeighbor(0:nNeighbor(iAt1),iAt1))
-      call heap_sort(inCellNeighbor(:nNeighbor(iAt1),iAt1))
-      nInCellNeighbor(iAt1) = &
-          &unique(inCellNeighbor(:,iAt1), nNeighbor(iAt1)+1) - 1
+      inCellNeighbor(0:nNeighborSK(iAt1),iAt1) = img2CentCell(iNeighbor(0:nNeighborSK(iAt1),iAt1))
+      call heap_sort(inCellNeighbor(:nNeighborSK(iAt1),iAt1))
+      nInCellNeighbor(iAt1) = unique(inCellNeighbor(:,iAt1), nNeighborSK(iAt1)+1) - 1
     end do
     !$OMP  END PARALLEL DO
 
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
       start1 = iAtomStart(iAt1)
-      tmpEigen(1:nLevels,1:nOrb1) = &
-          & transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
+      tmpEigen(1:nLevels,1:nOrb1) = transpose(eigenvecs(start1:start1+nOrb1-1,1:nLevels))
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(jj) SCHEDULE(RUNTIME)
       do jj = 1, nLevels
         tmpEigen(jj,1:nOrb1) = filling(jj)*eigen(jj)*conjg(tmpEigen(jj,1:nOrb1))
       end do
       !$OMP  END PARALLEL DO
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) &
-      !$OMP& SCHEDULE(RUNTIME)
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iNeigh1,start2,nOrb2) SCHEDULE(RUNTIME)
       do iNeigh1 = 0, nInCellNeighbor(iAt1)
         start2 = iAtomStart(inCellNeighbor(iNeigh1,iAt1))
         nOrb2 = orb%nOrbAtom(inCellNeighbor(iNeigh1,iAt1))
-        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) = &
-            &matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), &
-            &tmpEigen(1:nLevels,1:nOrb1))
+        dm(start2:start2+nOrb2-1, start1:start1+nOrb1-1) =&
+            &matmul(eigenvecs(start2:start2+nOrb2-1,1:nLevels), tmpEigen(1:nLevels,1:nOrb1))
       end do
       !$OMP  END PARALLEL DO
     end do
@@ -846,8 +825,7 @@ contains
     do ii = 1, size(blocks)
       call blocks%getblock(ii, iGlob, iLoc, blockSize)
       do jj = 0, min(blockSize - 1, nLevel - iGlob)
-        eigenVecs(:,iLoc + jj) = &
-            &eigenVecs(:,iLoc + jj) / sqrt(abs(myFilling(iGlob + jj) - beta))
+        eigenVecs(:,iLoc + jj) = eigenVecs(:,iLoc + jj) / sqrt(abs(myFilling(iGlob + jj) - beta))
       end do
     end do
 

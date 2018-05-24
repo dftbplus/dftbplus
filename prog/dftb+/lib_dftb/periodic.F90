@@ -67,7 +67,7 @@ module periodic
     integer, allocatable :: iNeighbor(:,:)
 
     !> nr. of neighbors
-    integer, allocatable :: nNeighbor(:)
+    integer, allocatable :: nNeighborSK(:)
 
     !> temporary array for neighbor distances
     real(dp), allocatable :: neighDist2(:,:)
@@ -98,7 +98,7 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(nInitNeighbor > 0)
 
-    allocate(neighborList%nNeighbor(nAtom))
+    allocate(neighborList%nNeighborSK(nAtom))
     allocate(neighborList%iNeighbor(0:nInitNeighbor, nAtom))
     allocate(neighborList%neighDist2(0:nInitNeighbor, nAtom))
 
@@ -136,8 +136,7 @@ contains
     @:ASSERT(all(shape(recVec2p) == [3, 3]))
     @:ASSERT(cutoff >= 0.0_dp)
 
-    call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, &
-        &negExtension=1)
+    call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, negExtension=1)
     allocate(rCellVec(3, size(cellVec, dim=2)))
     do ii = 1, size(rCellVec, dim=2)
       rCellVec(:,ii) = matmul(latVec, cellVec(:,ii))
@@ -152,8 +151,8 @@ contains
   !> parallelepipedon. With the onlyInside parameter its not necessarily the case.
   !> Refine the algorithm with the help of a new routine which can calculate the minimal distance
   !> between two arbitary cells.
-  subroutine getLatticePoints(latPoint, latVec, recVec2p, dist, posExtension, &
-      &negExtension, onlyInside, reduceByInversion, withoutOrigin)
+  subroutine getLatticePoints(latPoint, latVec, recVec2p, dist, posExtension, negExtension,&
+      & onlyInside, reduceByInversion, withoutOrigin)
 
     !> Returns grid points in relative coords.
     real(dp), allocatable, intent(out) :: latPoint(:,:)
@@ -265,8 +264,8 @@ contains
 
 
   !> Updates the neighbor list and the species arrays.
-  subroutine updateNeighborListAndSpecies(coord, species, img2CentCell, &
-      &iCellVec, neigh, nAllAtom, coord0, species0, cutoff, rCellVec)
+  subroutine updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, neigh, nAllAtom,&
+      & coord0, species0, cutoff, rCellVec)
 
     !> Coordinates of all interacting atoms on exit
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -298,8 +297,8 @@ contains
     !> Cell vector for the translated cells to consider.
     real(dp), intent(in) :: rCellVec(:,:)
 
-    call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
-        &coord0, cutoff, rCellVec)
+    call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
+        & rCellVec)
     if (size(species) < nAllAtom) then
       deallocate(species)
       allocate(species(nAllAtom))
@@ -313,8 +312,8 @@ contains
   !> The neighborlist for the given cutoff is calculated. Arrays are resized if necessary. The
   !> neighbor list determination is a simple N^2 algorithm, calculating the distance between the
   !> possible atom pairs.
-  subroutine updateNeighborList(coord, img2CentCell, iCellVec, neigh,&
-      & nAllAtom, coord0, cutoff, rCellVec)
+  subroutine updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
+      & rCellVec)
 
     !> Coordinates of the objects interacting with the objects in the central cell (on exit).
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -366,7 +365,7 @@ contains
     integer, allocatable :: indx(:)
     character(len=100) :: strError
 
-    nAtom = size(neigh%nNeighbor, dim=1)
+    nAtom = size(neigh%nNeighborSK, dim=1)
     mAtom = size(coord, dim=2)
     maxNeighbor = ubound(neigh%iNeighbor, dim=1)
     nCellVec = size(rCellVec, dim=2)
@@ -389,7 +388,7 @@ contains
 
     ! Clean arrays.
     !  (Every atom is the 0th neighbor of itself with zero distance square.)
-    neigh%nNeighbor(:) = 0
+    neigh%nNeighborSK(:) = 0
     neigh%iNeighbor(:,:) = 0
     do ii = 1, nAtom
       neigh%iNeighbor(0, ii) = ii
@@ -436,22 +435,20 @@ contains
               ! We calculated the distance between the same atom in the unit cell
               cycle
             else
-99000         format ('Atoms ',I5,' and ',I5,' too close to each other!', &
-                  & ' (dist=',E13.6,')')
+99000         format ('Atoms ',I5,' and ',I5,' too close to each other!', ' (dist=',E13.6,')')
               write (strError, 99000) iAtom2, nAllAtom, sqrt(dist2)
               call warning(strError)
             end if
           end if
 
-          neigh%nNeighbor(iAtom2) = neigh%nNeighbor(iAtom2) + 1
-          if (neigh%nNeighbor(iAtom2) > maxNeighbor) then
+          neigh%nNeighborSK(iAtom2) = neigh%nNeighborSK(iAtom2) + 1
+          if (neigh%nNeighborSK(iAtom2) > maxNeighbor) then
             maxNeighbor = incrmntOfArray(maxNeighbor)
-            call reallocateArrays3(neigh%iNeighbor, neigh%neighDist2, &
-                & maxNeighbor)
+            call reallocateArrays3(neigh%iNeighbor, neigh%neighDist2, maxNeighbor)
 
           end if
-          neigh%iNeighbor(neigh%nNeighbor(iAtom2), iAtom2) = nAllAtom
-          neigh%neighDist2(neigh%nNeighbor(iAtom2), iAtom2) = dist2
+          neigh%iNeighbor(neigh%nNeighborSK(iAtom2), iAtom2) = nAllAtom
+          neigh%neighDist2(neigh%nNeighborSK(iAtom2), iAtom2) = dist2
 
         end do lpIAtom2
       end do lpIAtom1
@@ -460,9 +457,8 @@ contains
     ! Sort neighbors for all atom by distance
     allocate(indx(maxNeighbor))
     do iAtom1 = 1, nAtom
-      nn1 = neigh%nNeighbor(iAtom1)
-      call index_heap_sort(indx(1:nn1), neigh%neighDist2(1:nn1, iAtom1),&
-          &tolSameDist2)
+      nn1 = neigh%nNeighborSK(iAtom1)
+      call index_heap_sort(indx(1:nn1), neigh%neighDist2(1:nn1, iAtom1), tolSameDist2)
       neigh%iNeighbor(1:nn1, iAtom1) = neigh%iNeighbor(indx(:nn1), iAtom1)
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
@@ -472,10 +468,10 @@ contains
 
 
   !> Returns the nr. of neighbors for a given cutoff for all atoms.
-  subroutine getNrOfNeighborsForAll(nNeighbor, neigh, cutoff)
+  subroutine getNrOfNeighborsForAll(nNeighborSK, neigh, cutoff)
 
     !> Contains the nr. of neighbors for each atom on exit.
-    integer, intent(out) :: nNeighbor(:)
+    integer, intent(out) :: nNeighborSK(:)
 
     !> Initialized neighborlist
     type(TNeighborList), intent(in) :: neigh
@@ -485,24 +481,24 @@ contains
 
     integer :: nAtom, iAtom
 
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighborSK)
 
     @:ASSERT(size(neigh%iNeighbor, dim=2) == nAtom)
-    @:ASSERT(size(neigh%nNeighbor) == nAtom)
-    @:ASSERT(maxval(neigh%nNeighbor) <= size(neigh%iNeighbor, dim=1))
+    @:ASSERT(size(neigh%nNeighborSK) == nAtom)
+    @:ASSERT(maxval(neigh%nNeighborSK) <= size(neigh%iNeighbor, dim=1))
     @:ASSERT(all(shape(neigh%neighDist2) == shape(neigh%iNeighbor)))
     @:ASSERT(cutoff >= 0.0_dp)
 
     ! Get last interacting neighbor for given cutoff
     do iAtom = 1, nAtom
-      nNeighbor(iAtom) = getNrOfNeighbors(neigh, cutoff, iAtom)
+      nNeighborSK(iAtom) = getNrOfNeighbors(neigh, cutoff, iAtom)
     end do
 
   end subroutine getNrOfNeighborsForAll
 
 
   !> Returns the nr. of neighbors for a given atom.
-  function getNrOfNeighbors(neigh, cutoff, iAtom) result(nNeighbor)
+  function getNrOfNeighbors(neigh, cutoff, iAtom) result(nNeighborSK)
 
     !> Intialised neihgborlist.
     type(TNeighborList), intent(in) :: neigh
@@ -514,25 +510,24 @@ contains
     integer, intent(in) :: iAtom
 
     !> Nr. of neighbors for the specified atom.
-    integer :: nNeighbor
+    integer :: nNeighborSK
 
     character(len=100) :: strError
 
     @:ASSERT(cutoff >= 0.0_dp)
-    @:ASSERT(iAtom <= size(neigh%nNeighbor))
+    @:ASSERT(iAtom <= size(neigh%nNeighborSK))
 
     ! Issue warning, if cutoff is bigger as used for the neighborlist.
     if (cutoff > neigh%cutoff) then
-99010 format ('Cutoff (', E16.6, ') greater then last cutoff ', &
-          & '(', E13.6, ') passed to updateNeighborList!')
+99010 format ('Cutoff (', E16.6, ') greater then last cutoff ', '(', E13.6,&
+          & ') passed to updateNeighborList!')
       write (strError, 99010) cutoff, neigh%cutoff
       call warning(strError)
     end if
 
     ! Get last interacting neighbor for given cutoff
-    call bisection(nNeighbor, &
-        &neigh%neighDist2(1:neigh%nNeighbor(iAtom), iAtom), cutoff**2, &
-        &tolSameDist2)
+    call bisection(nNeighborSK, neigh%neighDist2(1:neigh%nNeighborSK(iAtom), iAtom), cutoff**2,&
+        & tolSameDist2)
 
   end function getNrOfNeighbors
 
@@ -614,13 +609,13 @@ contains
   end subroutine reallocateArrays3
 
   !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
-  subroutine getSparseDescriptor(iNeighbor, nNeighbor, img2CentCell, orb, iPair, sparseSize)
+  subroutine getSparseDescriptor(iNeighbor, nNeighborSK, img2CentCell, orb, iPair, sparseSize)
 
     !> Neighbours of each atom
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Number of neighbours of each atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Indexing for mapping image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
@@ -651,7 +646,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbor(iAt1)
+      do iNeigh1 = 0, nNeighborSK(iAt1)
         iPair(iNeigh1, iAt1) = ind
         nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbor(iNeigh1, iAt1)))
         ind = ind + nOrb1 * nOrb2
@@ -663,8 +658,7 @@ contains
 
 
   !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
-  subroutine reallocateHS_1(ham, over, iPair, iNeighbor, nNeighbor, orb, &
-      &img2Centcell)
+  subroutine reallocateHS_1(ham, over, iPair, iNeighbor, nNeighborSK, orb, img2Centcell)
 
     !> Hamiltonian
     real(dp), allocatable, intent(inout):: ham(:)
@@ -680,7 +674,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom in the central cell.
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -719,7 +713,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbor(iAt1)
+      do iNeigh1 = 0, nNeighborSK(iAt1)
         iPair(iNeigh1, iAt1) = ind
         ind = ind + nOrb1 * orb%nOrbAtom(img2CentCell(iNeighbor(iNeigh1, iAt1)))
       end do
@@ -738,8 +732,7 @@ contains
 
 
   !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
-  subroutine reallocateHS_2(ham, over, iPair, iNeighbor, nNeighbor, orb, &
-      &img2CentCell)
+  subroutine reallocateHS_2(ham, over, iPair, iNeighbor, nNeighborSK, orb, img2CentCell)
 
     !> Hamiltonian.
     real(dp), allocatable, intent(inout) :: ham(:,:)
@@ -755,7 +748,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom in the central cell.
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -799,7 +792,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbor(iAt1)
+      do iNeigh1 = 0, nNeighborSK(iAt1)
         iPair(iNeigh1, iAt1) = ind
         ind = ind +  nOrb1 * orb%nOrbAtom(img2CentCell(iNeighbor(iNeigh1,iAt1)))
       end do
@@ -818,8 +811,7 @@ contains
 
 
   !> Allocate (reallocate) space for the sparse hamiltonian and overlap matrix.
-  subroutine reallocateHS_Single(ham, iPair, iNeighbor, nNeighbor, orb, &
-      &img2CentCell)
+  subroutine reallocateHS_Single(ham, iPair, iNeighbor, nNeighborSK, orb, img2CentCell)
 
     !> Hamiltonian.
     real(dp), allocatable, intent(inout) :: ham(:)
@@ -832,7 +824,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> Nr. of neighbors for each atom in the central cell.
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -870,7 +862,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbor(iAt1)
+      do iNeigh1 = 0, nNeighborSK(iAt1)
         iPair(iNeigh1, iAt1) = ind
         ind = ind +  nOrb1 * orb%nOrbAtom(img2CentCell(iNeighbor(iNeigh1,iAt1)))
       end do
@@ -964,8 +956,7 @@ contains
     do i1 = 0, 1
       do i2 = 0, 1
         do i3 = 0, 1
-          itmp3 = i1*nint(coeffs(1,:)) + i2*nint(coeffs(2,:)) &
-              & + i3*nint(coeffs(3,:))
+          itmp3 = i1*nint(coeffs(1,:)) + i2*nint(coeffs(2,:)) + i3*nint(coeffs(3,:))
           imgRange(1,:) = min(itmp3, imgRange(1,:))
           imgRange(2,:) = max(itmp3, imgRange(2,:))
         end do

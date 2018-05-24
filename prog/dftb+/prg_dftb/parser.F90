@@ -2803,7 +2803,7 @@ contains
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
-        do iNeigh = 1, neighs%nNeighbor(iAt1)
+        do iNeigh = 1, neighs%nNeighborSK(iAt1)
           iAt2f = img2CentCell(neighs%iNeighbor(iNeigh, iAt1))
           iSp2 = geo%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)

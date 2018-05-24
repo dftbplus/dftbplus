@@ -27,7 +27,7 @@ contains
 
 
   !> The stress tensor contribution from the repulsive energy term
-  subroutine getRepulsiveStress(st, coords, nNeighbors, iNeighbors, species, img2CentCell,&
+  subroutine getRepulsiveStress(st, coords, nNeighborSK, iNeighbors, species, img2CentCell,&
       & repCont, cellVol)
 
     !> stress tensor
@@ -37,7 +37,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbors for atoms in the central cell
-    integer, intent(in) :: nNeighbors(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> Index of neighbors for a given atom.
     integer, intent(in) :: iNeighbors(0:,:)
@@ -59,11 +59,11 @@ contains
 
     @:ASSERT(all(shape(st) == [3, 3]))
 
-    nAtom = size(nNeighbors)
+    nAtom = size(nNeighborSK)
     st(:,:) = 0.0_dp
 
     do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighbors(iAt1)
+      do iNeigh = 1, nNeighborSK(iAt1)
         iAt2 = iNeighbors(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
@@ -125,7 +125,7 @@ contains
 
   !> The stress tensor contributions from the non-SCC energy
   subroutine getNonSCCStress(env, st, derivator, DM, EDM, skHamCont, skOverCont, coords, species,&
-      & iNeighbor, nNeighbor, img2CentCell, iPair, orb, cellVol)
+      & iNeighbor, nNeighborSK, img2CentCell, iPair, orb, cellVol)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -158,7 +158,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -191,7 +191,7 @@ contains
     do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
       ! loop from 1 as no contribution from the atom itself
-      do iNeigh = 1, nNeighbor(iAtom1)
+      do iNeigh = 1, nNeighborSK(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         nOrb2 = orb%nOrbAtom(iAtom2f)
@@ -235,7 +235,7 @@ contains
 
   !> The stress tensor contributions from a potential
   subroutine getBlockStress(env, st, derivator, DM, EDM, skHamCont, skOverCont, coords, species,&
-      & iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift, cellVol)
+      & iNeighbor, nNeighborSK, img2CentCell, iPair, orb, shift, cellVol)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -268,7 +268,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of real atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -312,7 +312,7 @@ contains
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
+      do iNeigh = 1, nNeighborSK(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = species(iAtom2f)
@@ -337,8 +337,8 @@ contains
                   & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               ! again factor of 2 from lower triangle sum of DM
-              intermed(ii) = intermed(ii) + 2.0_dp * (sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
+              intermed(ii) = intermed(ii) + 2.0_dp * (sum(shiftSprime(1:nOrb2,1:nOrb1) *&
+                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
             end do
           end do
 
@@ -370,7 +370,7 @@ contains
 
   !> The stress tensor contributions from a complex potential
   subroutine getBlockiStress(env, st, derivator, DM, iDM, EDM, skHamCont, skOverCont, coords,&
-      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift, iShift, cellVol)
+      & species, iNeighbor, nNeighborSK, img2CentCell, iPair, orb, shift, iShift, cellVol)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -406,7 +406,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of real atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -453,7 +453,7 @@ contains
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
+      do iNeigh = 1, nNeighborSK(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = species(iAtom2f)
@@ -474,22 +474,22 @@ contains
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii),&
+                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               ! again factor of 2 from lower triangle sum of DM
-              intermed(ii) = intermed(ii) + 2.0_dp * (sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
+              intermed(ii) = intermed(ii) + 2.0_dp * (sum(shiftSprime(1:nOrb2,1:nOrb1) *&
+                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
             end do
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii),&
+                  & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
                   & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-              intermed(ii) = intermed(ii) + sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
+              intermed(ii) = intermed(ii) + sum(shiftSprime(1:nOrb2,1:nOrb1) *&
+                  & reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
             end do
           end do
 

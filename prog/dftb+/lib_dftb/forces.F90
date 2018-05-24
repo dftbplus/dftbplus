@@ -44,7 +44,7 @@ contains
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
   !> density and energy-density matrices
   subroutine derivative_nonSCC(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
-      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb)
+      & species, iNeighbor, nNeighborSK, img2CentCell, iPair, orb)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -77,7 +77,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -107,7 +107,7 @@ contains
     do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
-      do iNeigh = 1, nNeighbor(iAtom1)
+      do iNeigh = 1, nNeighborSK(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         if (iAtom1 /= iAtom2f) then
@@ -151,7 +151,7 @@ contains
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
   !> consistent potential and the density and energy-density matrices
   subroutine derivative_block(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
-      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
+      & species, iNeighbor, nNeighborSK, img2CentCell, iPair, orb, shift)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -184,7 +184,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -229,7 +229,7 @@ contains
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
+      do iNeigh = 1, nNeighborSK(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = species(iAtom2f)
@@ -285,7 +285,7 @@ contains
   !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
   !> for example from spin-orbit
   subroutine derivative_iBlock(env, deriv, derivator, DM, iDM, EDM, skHamCont, skOverCont, coords,&
-      & species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift, iShift)
+      & species, iNeighbor, nNeighborSK, img2CentCell, iPair, orb, shift, iShift)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -321,7 +321,7 @@ contains
     integer, intent(in) :: iNeighbor(0:,:)
 
     !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighborSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -373,7 +373,7 @@ contains
     do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
+      do iNeigh = 1, nNeighborSK(iAtom1)
         iAtom2 = iNeighbor(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = species(iAtom2f)
