@@ -48,9 +48,9 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 0.0
   }
   HBondCorrection = H5 {
-    RCut = 0.714
-    W = 0.25
-    H5CorrectionSpecies {
+    RScaling = 0.714
+    WScaling = 0.25
+    H5Scaling {
       O = 0.06
       N = 0.18
       S = 0.21

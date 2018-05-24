@@ -2491,18 +2491,62 @@ prevent hydrogen--hydrogen close approach.
 
 \begin{description}
 \item[\is{HBondCorrection}] Setting this keyword to \iscb{H5} activates the
-  correction for hydrogen bonds \cite{rezac-jctc-13-2017}. If no additional
-  parameters are provided in the input, suitable values for H-\{O,N,S\} systems
-  are used (it was developed for the DFTB3/3OB model and parameters). If you
-  want to specify the parameters manually, an example input (using values which
-  match the default choices for the parameters) is:
+  correction for hydrogen bonds \cite{rezac-jctc-13-2017}. Currently, \is{H5} is
+  the only value accepted for \is{HBondCorrection}.
+\end{description}
+
+If no additional parameters are provided in the input, suitable values for
+H-\{O,N,S\} systems are used (it was developed for the DFTB3/3OB model and
+parameters).
+\begin{verbatim}
+HBondCorrection = H5 {}
+\end{verbatim}
+
+If you want to specify the parameters manually, \is{H5} accepts following
+options:
+\begin{ptable}
+  \kw{RScaling} & r & & 0.714 & \\
+  \kw{WScaling} & r & & 0.25 & \\
+  \kw{H5Scaling} & m & &  & \\
+\end{ptable}
+\begin{description}
+\item[\is{RScaling}] Global scaling factor $s_r$ when calculating the position
+  of the Gaussians as
+  \begin{equation*}
+    r_0 = s_r (r_\text{vdW}(X) + r_\text{vdW}(H))
+    \text.
+  \end{equation*}
+
+\item[\is{WScaling}] Global scaling factor $s_W$ when calculating the witdth of
+  the Gaussians as
+  \begin{equation*}
+    w = s_w (r_\text{vdW}(X) + r_\text{vdW}(H))
+    \text.
+  \end{equation*}
+
+\item[\is{H5Scaling}] Atom type specific scaling pre-factor $k_{X\text{H}}$ of
+  the Gaussians when calculating the SCC-interaction as
+  \begin{equation*}
+    \gamma_{X\text{H}}^{\text{H5}} = \gamma_{X\text{H}}
+    \left(
+      1 + k_{X\text{H}} \exp\left(-\frac{\left(r_{X\text{H}} -
+            r_0\right)^2}{2w^2}\right)\right)
+    \text.
+  \end{equation*}
+  You have to specify one value for each species you would like to correct for
+  (see example below). Setting a negative value (e.g. \is{-1.0}) for a given
+  atom type switches off the correction for that atom type. If you ommit H, C or
+  S, the default value from the reference paper will be used. For any other
+  ommitted atom type \is{-1.0} will be set (no correction).
+\end{description}
+
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
   HBondCorrection = H5 {
-    RCut = 0.714
-    W = 0.25
-    H5CorrectionSpecies {
+    RScaling = 0.714
+    WScaling = 0.25
+    H5Scaling {
       O = 0.06
       N = 0.18
       S = 0.21
@@ -2511,8 +2555,6 @@ Hamiltonian = DFTB {
   :
 }
 \end{verbatim}
-
-\end{description}
 
 \textbf{Note:} The van der Waals radii of atoms are also required. \dftbp{}
 stores these for most of the periodic table, but for cases that are not
