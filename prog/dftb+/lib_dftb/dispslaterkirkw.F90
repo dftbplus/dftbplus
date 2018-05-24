@@ -26,7 +26,7 @@ module dispslaterkirkw
   use accuracy
   use simplealgebra, only : determinant33
   use lapackroutines, only : matinv
-  use periodic, only: TNeighborList, getNrOfNeighborsForAll, getLatticePoints
+  use periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use constants, only : pi
   use dispiface
   use dispcommon
@@ -173,10 +173,10 @@ subroutine DispSlaKirk_init(this, inp, latVecs)
       cycle
     end if
     do iAt2 = 1, iAt1
-      this%c6(iAt2, iAt1) = 1.5_dp * inp%polar(iAt1) * inp%polar(iAt2)&
-          & / (sqrt(inp%polar(iAt1)/ inp%charges(iAt1)) + sqrt(inp%polar(iAt2)/ inp%charges(iAt2)))
-      rTmp = (inp%rWaals(iAt1)**3 + inp%rWaals(iAt2)**3)&
-          & / (inp%rWaals(iAt1)**2 + inp%rWaals(iAt2)**2)
+      this%c6(iAt2, iAt1) = 1.5_dp * inp%polar(iAt1) * inp%polar(iAt2) / (sqrt(inp%polar(iAt1)&
+          & / inp%charges(iAt1)) + sqrt(inp%polar(iAt2)/ inp%charges(iAt2)))
+      rTmp = (inp%rWaals(iAt1)**3 + inp%rWaals(iAt2)**3) / (inp%rWaals(iAt1)**2&
+          & + inp%rWaals(iAt2)**2)
       this%rVdW2(iAt2, iAt1) = dd_ / rTmp**nn_
       this%maxR = max(this%maxR, rTmp)
       if (iAt1 /= iAt2) then
@@ -222,8 +222,8 @@ subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
   !> The data object for dispersion
   class(DispSlaKirk), intent(inout) :: this
 
-  !> Updated neighbor list.
-  type(TNeighborList), intent(in) :: neigh
+  !> Updated neighbour list.
+  type(TNeighbourList), intent(in) :: neigh
 
   !> Updated mapping to central cell.
   integer, intent(in) :: img2CentCell(:)
@@ -235,30 +235,30 @@ subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
   integer, intent(in) :: species0(:)
 
 
-  !> Neighbors for real space summation
+  !> Neighbours for real space summation
   integer, allocatable :: nNeighReal(:)
 
-  !> Nr. of neighbors with damping
+  !> Nr. of neighbours with damping
   integer, allocatable :: nNeighDamp(:)
 
   allocate(nNeighReal(this%nAtom))
-  call getNrOfNeighborsForAll(nNeighReal, neigh, this%rCutoff)
+  call getNrOfNeighboursForAll(nNeighReal, neigh, this%rCutoff)
   this%energies(:) = 0.0_dp
   this%gradients(:,:) = 0.0_dp
   this%stress(:,:) = 0.0_dp
   if (this%tPeriodic) then
     ! Make Ewald summation for a pure 1/r^6 interaction
-    call addDispEGr_per_atom(this%nAtom, coords, nNeighReal, neigh%iNeighbor, neigh%neighDist2,&
+    call addDispEGr_per_atom(this%nAtom, coords, nNeighReal, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, this%c6, this%eta, this%vol, this%gLatPoint, this%energies, this%gradients,&
         & this%stress)
     ! Correct those terms, where damping is important
     allocate(nNeighDamp(this%nAtom))
-    call getNrOfNeighborsForAll(nNeighDamp, neigh, this%dampCutoff)
-    call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighDamp, neigh%iNeighbor,&
+    call getNrOfNeighboursForAll(nNeighDamp, neigh, this%dampCutoff)
+    call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighDamp, neigh%iNeighbour,&
         & neigh%neighDist2, img2CentCell, this%c6, this%rVdW2, this%energies, this%gradients,&
         & dampCorrection=-1.0_dp)
   else
-    call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighReal, neigh%iNeighbor,&
+    call addDispEnergyAndGrad_cluster(this%nAtom, coords, nNeighReal, neigh%iNeighbour,&
         & neigh%neighDist2, img2CentCell, this%c6, this%rVdW2, this%energies, this%gradients)
   end if
   this%coordsUpdated = .true.
@@ -363,7 +363,7 @@ end function getRCutoff
 
 
 !> Adds the energy per atom and the gradients for the cluster case
-subroutine addDispEnergyAndGrad_cluster(nAtom, coords, nNeighborSK, iNeighbor, neighDist2,&
+subroutine addDispEnergyAndGrad_cluster(nAtom, coords, nNeighbourSK, iNeighbour, neighDist2,&
     & img2CentCell, c6, rVdW2, energies, gradients, dampCorrection)
 
   !> Nr. of atoms (without periodic images)
@@ -372,11 +372,11 @@ subroutine addDispEnergyAndGrad_cluster(nAtom, coords, nNeighborSK, iNeighbor, n
   !> Coordinates of the atoms (including images)
   real(dp), intent(in) :: coords(:,:)
 
-  !> Nr. of neighbors for each atom
-  integer, intent(in) :: nNeighborSK(:)
+  !> Nr. of neighbours for each atom
+  integer, intent(in) :: nNeighbourSK(:)
 
-  !> Neighborlist.
-  integer, intent(in) :: iNeighbor(0:,:)
+  !> Neighbourlist.
+  integer, intent(in) :: iNeighbour(0:,:)
 
   !> Square distances of the neighbours.
   real(dp), intent(in) :: neighDist2(0:,:)
@@ -414,11 +414,11 @@ subroutine addDispEnergyAndGrad_cluster(nAtom, coords, nNeighborSK, iNeighbor, n
   end if
 
   ! Cluster case => explicit sum of the contributions NOTE: the cluster summation also (ab)used in
-  ! the periodic case, neighbors may go over the cell boundary -> img2CentCell needed for folding
+  ! the periodic case, neighbours may go over the cell boundary -> img2CentCell needed for folding
   ! back.
   do iAt1 = 1, nAtom
-    do iNeigh = 1, nNeighborSK(iAt1)
-      iAt2 = iNeighbor(iNeigh, iAt1)
+    do iNeigh = 1, nNeighbourSK(iAt1)
+      iAt2 = iNeighbour(iNeigh, iAt1)
       iAt2f = img2CentCell(iAt2)
       if (c6(iAt2f, iAt1) == 0.0_dp) then
         cycle

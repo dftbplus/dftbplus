@@ -32,7 +32,7 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  For details see the
   !> references in the module description.
   !> Note: the interaction parameter C6 is specified atomwise.
-  subroutine addDispEGr_per_atom(nAtom, coords, nNeighborSK, iNeighbor, neighDist2, img2CentCell,&
+  subroutine addDispEGr_per_atom(nAtom, coords, nNeighbourSK, iNeighbour, neighDist2, img2CentCell,&
       & c6, eta, vol, gLatVecs, energies, gradients, stress)
 
     !> Nr. of atoms (without periodic images)
@@ -41,11 +41,11 @@ contains
     !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
-    !> Neighborlist.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
@@ -89,8 +89,8 @@ contains
     gc = pi**1.5_dp / (12.0_dp * vol)
     g3c = pi**1.5_dp / (6.0_dp * vol)
     do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighborSK(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
+      do iNeigh = 1, nNeighbourSK(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         vec = coords(:,iAt1) - coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
@@ -142,7 +142,7 @@ contains
           & - pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
         stress(ii,ii) = stress(ii,ii) - gSum/vol&
-            & -(pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol*vol)) * etam3
+            & - (pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol*vol)) * etam3
       end do
       stress = stress - gSum33 / vol
       gradients(:,iAt1) =  gradients(:,iAt1) +  gSum3
@@ -155,7 +155,7 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  The 1/r^12 term is
   !> summed in direct space.
   !> Note: the interaction coefficients (c6) are specified specieswise.
-  subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighborSK, iNeighbor, neighDist2,&
+  subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighbourSK, iNeighbour, neighDist2,&
       & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
 
     !> Nr. of atoms (without periodic images)
@@ -167,11 +167,11 @@ contains
     !> chemical species of atoms
     integer, intent(in) :: species0(:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
-    !> Neighborlist.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
@@ -216,8 +216,8 @@ contains
     g3c = pi**1.5_dp / (6.0_dp * vol)
     do iAt1 = 1, nAtom
       iSp1 = species0(iAt1)
-      do iNeigh = 1, nNeighborSK(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
+      do iNeigh = 1, nNeighbourSK(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         vec = coords(:,iAt1) - coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species0(iAt2f)
@@ -271,7 +271,7 @@ contains
           & - pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
         stress(ii,ii) = stress(ii,ii) - gSum/vol&
-            & -(pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol*vol)) * etam3
+            & - (pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol*vol)) * etam3
       end do
       stress = stress - gSum33 / vol
       gradients(:,iAt1) =  gradients(:,iAt1) +  gSum3
@@ -480,7 +480,7 @@ contains
     real(dp) :: err
 
     err = c6sum/(6.0_dp * sqrt(pi)) * (1.0_dp / eta**6)&
-        &*(gg * eta * exp(-1.0_dp * (0.5_dp*gg*eta)**2) + sqrt(pi) * erfcwrap(0.5_dp * gg * eta))
+        & * (gg * eta * exp(-1.0_dp * (0.5_dp*gg*eta)**2) + sqrt(pi) * erfcwrap(0.5_dp * gg * eta))
 
   end function getDispReciprocalError
 

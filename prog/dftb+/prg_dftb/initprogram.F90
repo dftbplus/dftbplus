@@ -207,14 +207,14 @@ module initprogram
   integer, allocatable :: iCellVec(:)
 
 
-  !> ADT for neighbor parameters
-  type(TNeighborList), allocatable, save :: neighborList
+  !> ADT for neighbour parameters
+  type(TNeighbourList), allocatable, save :: neighbourList
 
-  !> nr. of neighbors for atoms out to max interaction distance (excluding Ewald terms)
-  integer, allocatable :: nNeighborSK(:)
+  !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+  integer, allocatable :: nNeighbourSK(:)
 
-  !> nr. of neighbors for atoms within Erep interaction distance (usually short)
-  integer, allocatable :: nNeighborRep(:)
+  !> nr. of neighbours for atoms within Erep interaction distance (usually short)
+  integer, allocatable :: nNeighbourRep(:)
 
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iSparseStart(:,:)
@@ -889,8 +889,8 @@ contains
     !> Whether seed was randomly created
     logical :: tRandomSeed
 
-    !> First guess for nr. of neighbors.
-    integer, parameter :: nInitNeighbor = 40
+    !> First guess for nr. of neighbours.
+    integer, parameter :: nInitNeighbour = 40
 
 
     @:ASSERT(input%tInitialized)
@@ -2008,11 +2008,11 @@ contains
       rCellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
     end if
 
-    ! Initialize neighborlist.
-    allocate(neighborList)
-    call init(neighborList, nAtom, nInitNeighbor)
-    allocate(nNeighborSK(nAtom))
-    allocate(nNeighborRep(nAtom))
+    ! Initialize neighbourlist.
+    allocate(neighbourList)
+    call init(neighbourList, nAtom, nInitNeighbour)
+    allocate(nNeighbourSK(nAtom))
+    allocate(nNeighbourRep(nAtom))
 
     ! Set various options
     tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
@@ -2495,7 +2495,7 @@ contains
             write(strTmp, "(A)") ""
           end if
           write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), speciesName(iSp),&
-                &jj, orbitalNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
+                & jj, orbitalNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
           if (xi(jj, iSp) /= 0.0_dp .and. orb%angShell(jj, iSp) == 0) then
             call error("Program halt due to non-zero s-orbital spin-orbit coupling constant!")
           end if

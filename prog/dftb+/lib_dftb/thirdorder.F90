@@ -13,7 +13,7 @@ module thirdorder_module
   use accuracy
   use commontypes, only : TOrbitals
   use shortgamma, only : expGammaCutoff
-  use periodic, only : TNeighborList, getNrOfNeighbors
+  use periodic, only : TNeighbourList, getNrOfNeighbours
   use charges
   implicit none
   private
@@ -143,8 +143,8 @@ contains
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
 
     !> Species for all atoms, shape: [nAllAtom].
     integer, intent(in) :: species(:)
@@ -157,7 +157,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iSp2 = 1, this%nSpecies
-        this%nNeigh(iSp2, iAt1) = getNrOfNeighbors(neighList, this%cutoffs(iSp2, iSp1), iAt1)
+        this%nNeigh(iSp2, iAt1) = getNrOfNeighbours(neighList, this%cutoffs(iSp2, iSp1), iAt1)
       end do
     end do
     this%nNeighMax = maxval(this%nNeigh, dim=1)
@@ -173,7 +173,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iNeigh = 0, this%nNeighMax(iAt1)
-        iAt2 = neighList%iNeighbor(iNeigh, iAt1)
+        iAt2 = neighList%iNeighbour(iNeigh, iAt1)
         iSp2 = species(iAt2)
         if (iNeigh <= this%nNeigh(iSp2, iAt1)) then
           rr = sqrt(neighList%neighDist2(iNeigh, iAt1))
@@ -202,8 +202,8 @@ contains
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
 
     !> Orbital charges.
     real(dp), intent(in) :: qq(:,:,:)
@@ -242,7 +242,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iNeigh = 0, this%nNeighMax(iAt1)
-        iAt2f = img2CentCell(neighList%iNeighbor(iNeigh, iAt1))
+        iAt2f = img2CentCell(neighList%iNeighbour(iNeigh, iAt1))
         iSp2 = species(iAt2f)
         do iSh1 = 1, this%nShells(iSp1)
           do iSh2 = 1, this%nShells(iSp2)
@@ -367,8 +367,8 @@ contains
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
 
     !> Specie for each atom.
     integer, intent(in) :: species(:)
@@ -389,7 +389,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iNeigh = 1, this%nNeighMax(iAt1)
-        iAt2 = neighList%iNeighbor(iNeigh, iAt1)
+        iAt2 = neighList%iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         if (iAt1 == iAt2f .or. iNeigh > this%nNeigh(iSp2, iAt1)) then
@@ -426,8 +426,8 @@ contains
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
 
     !> Specie for each atom.
     integer, intent(in) :: species(:)
@@ -475,7 +475,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iNeigh = 1, this%nNeighMax(iAt1)
-        iAt2 = neighList%iNeighbor(iNeigh, iAt1)
+        iAt2 = neighList%iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         if (iAt1 == iAt2f .or. iNeigh > this%nNeigh(iSp2, iAt1)) then
@@ -523,8 +523,8 @@ contains
     !> Instance.
     class(ThirdOrder), intent(inout) :: this
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighList
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
 
     !> Specie for each atom.
     integer, intent(in) :: species(:)
@@ -549,7 +549,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iNeigh = 1, this%nNeighMax(iAt1)
-        iAt2 = neighList%iNeighbor(iNeigh, iAt1)
+        iAt2 = neighList%iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         if (iNeigh > this%nNeigh(iSp2, iAt1)) then

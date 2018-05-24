@@ -16,7 +16,7 @@ module sparse2dense
   use constants, only : pi, imag
   use commontypes
   use memman
-  use periodic, only : TNeighborList
+  use periodic, only : TNeighbourList
   use densedescr
 #:if WITH_SCALAPACK
   use scalapackfx
@@ -89,7 +89,7 @@ contains
   !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
-  subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbor, nNeighborSK, iCellVec, cellVec,&
+  subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iPair, img2CentCell)
 
     !> Square form matrix on exit.
@@ -101,11 +101,11 @@ contains
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -131,13 +131,13 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     square(:, :) = cmplx(0, 0, dp)
@@ -147,9 +147,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -171,7 +171,7 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHS_real(square, orig, iNeighbor, nNeighborSK, iAtomStart, iPair, img2CentCell)
+  subroutine unpackHS_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
 
     !> Square form matrix on exit.
     real(dp), intent(out) :: square(:, :)
@@ -179,11 +179,11 @@ contains
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
 
-    !> Neighbor list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -200,12 +200,12 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     square(:, :) = 0.0_dp
@@ -213,9 +213,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -232,7 +232,7 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHPauli(ham, kPoint, iNeighbor, nNeighborSK, iPair, iAtomStart, img2CentCell,&
+  subroutine unpackHPauli(ham, kPoint, iNeighbour, nNeighbourSK, iPair, iAtomStart, img2CentCell,&
       & iCellVec, cellVec, HSqrCplx, iHam)
 
     !> sparse hamiltonian
@@ -241,11 +241,11 @@ contains
     !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(:, :)
@@ -280,12 +280,12 @@ contains
 
     ! 1 0 charge part
     ! 0 1
-    call unpackHS(work, ham(:, 1), kPoint, iNeighbor, nNeighborSK, iCellVec,&
+    call unpackHS(work, ham(:, 1), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
         & cellVec, iAtomStart, iPair, img2CentCell)
     HSqrCplx(1:nOrb, 1:nOrb) = 0.5_dp*work(1:nOrb, 1:nOrb)
     HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = 0.5_dp*work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
-      call unpackHS(work, iHam(:, 1), kPoint, iNeighbor, nNeighborSK, iCellVec,&
+      call unpackHS(work, iHam(:, 1), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iAtomStart, iPair, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
           & + 0.5_dp*cmplx(0, 1, dp)*work(1:nOrb, 1:nOrb)
@@ -296,8 +296,8 @@ contains
 
     ! 0 1 x part
     ! 1 0
-    call unpackHS(work, ham(:, 2), kPoint, iNeighbor, nNeighborSK, iCellVec,&
-        & cellVec, iAtomStart, iPair, img2CentCell)
+    call unpackHS(work, ham(:, 2), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart,&
+        & iPair, img2CentCell)
     do ii = 1, nOrb
       work(ii, ii+1:) = conjg(work(ii+1:, ii))
     end do
@@ -305,28 +305,28 @@ contains
     HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb)&
         & + 0.5_dp * work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
-      call unpackHS(work, iHam(:, 2), kPoint, iNeighbor, nNeighborSK, iCellVec,&
-          & cellVec, iAtomStart, iPair, img2CentCell)
+      call unpackHS(work, iHam(:, 2), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+          & iAtomStart, iPair, img2CentCell)
       do ii = 1, nOrb
         work(ii, ii+1:) = -conjg(work(ii+1:, ii))
       end do
-      HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) + 0.5_dp * cmplx(0, 1, dp)&
-          & * work(1:nOrb, 1:nOrb)
+      HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb)&
+          & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
     end if
 
     ! 0 -i y part
     ! i  0
-    call unpackHS(work, ham(:, 3), kPoint, iNeighbor, nNeighborSK, iCellVec,&
+    call unpackHS(work, ham(:, 3), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
         & cellVec, iAtomStart, iPair, img2CentCell)
     do ii = 1, nOrb
       work(ii, ii+1:) = conjg(work(ii+1:, ii))
     end do
 
-    HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) + cmplx(0.0, 0.5, dp)&
-        & * work(1:nOrb, 1:nOrb)
+    HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb)&
+        & + cmplx(0.0, 0.5, dp) * work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
-      call unpackHS(work, iHam(:, 3), kPoint, iNeighbor, nNeighborSK, iCellVec,&
-          & cellVec, iAtomStart, iPair, img2CentCell)
+      call unpackHS(work, iHam(:, 3), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+          & iAtomStart, iPair, img2CentCell)
       do ii = 1, nOrb
         work(ii, ii+1:) = -conjg(work(ii+1:, ii))
       end do
@@ -340,20 +340,18 @@ contains
 
     ! 1  0 z part
     ! 0 -1
-    call unpackHS(work, ham(:, 4), kPoint, iNeighbor, nNeighborSK, iCellVec,&
+    call unpackHS(work, ham(:, 4), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
         & cellVec, iAtomStart, iPair, img2CentCell)
     HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
         & + 0.5_dp * work(1:nOrb, 1:nOrb)
-    HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) =&
-        & HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
+    HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
         & - 0.5_dp * work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
-      call unpackHS(work, iHam(:, 4), kPoint, iNeighbor, nNeighborSK, iCellVec,&
+      call unpackHS(work, iHam(:, 4), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iAtomStart, iPair, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
           & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
-      HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) =&
-          & HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
+      HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
           & - 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
     end if
 
@@ -364,7 +362,7 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackSPauli(over, kPoint, iNeighbor, nNeighborSK, iAtomStart, iPair, img2CentCell,&
+  subroutine unpackSPauli(over, kPoint, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell,&
       & iCellVec, cellVec, SSqrCplx)
 
     !> sparse overlap matrix
@@ -373,11 +371,11 @@ contains
     !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -403,7 +401,7 @@ contains
     nOrb = size(SSqrCplx, dim=1) / 2
     allocate(work(nOrb, nOrb))
     SSqrCplx(:, :) = 0.0_dp
-    call unpackHS(work, over, kPoint, iNeighbor, nNeighborSK, iCellVec, cellVec, iAtomStart,&
+    call unpackHS(work, over, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart,&
         & iPair, img2CentCell)
     SSqrCplx(1:nOrb, 1:nOrb) = work(1:nOrb, 1:nOrb)
     SSqrCplx(nOrb + 1 : 2 * nOrb, nOrb + 1 : 2 * nOrb) = work(1:nOrb, 1:nOrb)
@@ -412,7 +410,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (complex version).
-  subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbor, nNeighborSK, mOrb,&
+  subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -427,11 +425,11 @@ contains
     !> Weight of the K-point
     real(dp), intent(in) :: kweight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -464,7 +462,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
   #:call ASSERT_CODE
     sizePrim = size(primitive)
   #:endcall ASSERT_CODE
@@ -473,7 +471,7 @@ contains
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
@@ -483,9 +481,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -514,7 +512,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real version).
-  subroutine packHS_real(primitive, square, iNeighbor, nNeighborSK, mOrb, iAtomStart, iPair,&
+  subroutine packHS_real(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -523,11 +521,11 @@ contains
     !> Squared form matrix
     real(dp), intent(in) :: square(:, :)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -551,7 +549,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
   #:call ASSERT_CODE
     sizePrim = size(primitive)
   #:endcall ASSERT_CODE
@@ -559,14 +557,14 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
 
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -590,7 +588,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real Pauli version).
-  subroutine packHSPauli(primitive, square, iNeighbor, nNeighborSK, mOrb, iAtomStart, iPair,&
+  subroutine packHSPauli(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -599,11 +597,11 @@ contains
     !> Squared form matrix
     complex(dp), intent(in) :: square(:, :)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -627,7 +625,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
@@ -638,7 +636,7 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(size(primitive, dim=2)==4)
 
@@ -646,16 +644,15 @@ contains
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           tmpSqr(1:nOrb2, 1:nOrb1) =&
-              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
-              & ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
+              & square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb, ii+iBlock*nOrb:ii+nOrb1-1+iBlock*nOrb)
           ! Hermitian the on-site block before packing, as only one triangle usually supplied
           if (iAtom1 == iAtom2f) then
             do kk = 1, nOrb2
@@ -677,9 +674,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -701,7 +698,7 @@ contains
 
 
   !> Pack squared matrix into the sparse form (complex Pauli version).
-  subroutine packHSPauli_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighborSK, mOrb,&
+  subroutine packHSPauli_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -716,11 +713,11 @@ contains
     !> Weight of the k-point
     real(dp), intent(in) :: kweight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -753,7 +750,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
@@ -765,7 +762,7 @@ contains
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(primitive, dim=2)==4)
@@ -779,9 +776,9 @@ contains
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
@@ -802,13 +799,11 @@ contains
           @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 1) =&
               & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 1)&
-              & + kWeight * 0.5_dp*reshape(real(phase*&
-              & tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
+              & + kWeight * 0.5_dp*reshape(real(phase* tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
           primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 4) =&
               & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 4)&
               & + real(1-2*iBlock, dp) *&
-              & kWeight * 0.5_dp*reshape(&
-              & real(phase*tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
+              & kWeight * 0.5_dp*reshape(real(phase*tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1*nOrb2])
         end do
       end do
     end do
@@ -819,9 +814,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -863,7 +858,7 @@ contains
 
 
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form.
-  subroutine packHSPauliImag(primitive, square, iNeighbor, nNeighborSK, mOrb, iAtomStart, iPair,&
+  subroutine packHSPauliImag(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -872,11 +867,11 @@ contains
     !> Squared form matrix
     complex(dp), intent(in) :: square(:, :)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -900,7 +895,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
@@ -912,7 +907,7 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(size(primitive, dim=2)==4)
 
@@ -920,9 +915,9 @@ contains
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
@@ -950,9 +945,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -968,7 +963,7 @@ contains
         ! sigma_y : i * i = -1 use - real part of block
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 3) =&
             & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1, 3)&
-            & -reshape(real(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
+            & - reshape(real(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
       end do
     end do
 
@@ -976,7 +971,7 @@ contains
 
 
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form (complex version).
-  subroutine packHSPauliImag_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighborSK,&
+  subroutine packHSPauliImag_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -991,11 +986,11 @@ contains
     !> Weight of the K-point
     real(dp), intent(in) :: kweight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -1028,7 +1023,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
@@ -1040,7 +1035,7 @@ contains
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(primitive, dim=2)==4)
@@ -1054,9 +1049,9 @@ contains
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
@@ -1093,9 +1088,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         @:ASSERT(jj >= ii)
@@ -1131,7 +1126,7 @@ contains
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
-  subroutine packHSPauliERho(primitive, square, iNeighbor, nNeighborSK, mOrb, iAtomStart, iPair,&
+  subroutine packHSPauliERho(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
       & img2CentCell)
 
     !> Sparse matrix
@@ -1140,11 +1135,11 @@ contains
     !> Squared form matrix
     complex(dp), intent(in) :: square(:, :)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -1168,7 +1163,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
@@ -1179,16 +1174,16 @@ contains
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     do iBlock = 0, 1
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
@@ -1212,7 +1207,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real version).
-  subroutine packHSPauliERho_kpts(primitive, square, kPoint, kWeight, iNeighbor, nNeighborSK,&
+  subroutine packHSPauliERho_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -1227,11 +1222,11 @@ contains
     !> weight for the k-point
     real(dp), intent(in) :: kweight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -1264,7 +1259,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
@@ -1276,7 +1271,7 @@ contains
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
     @:ASSERT(size(square, dim=1) == 2 * nOrb )
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
 
@@ -1288,9 +1283,9 @@ contains
       do iAtom1 = 1, nAtom
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)
@@ -1439,7 +1434,7 @@ contains
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
-  subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbor, nNeighborSK, iPair, img2CentCell, desc,&
+  subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iPair, img2CentCell, desc,&
       & square)
 
     !> BLACS matrix descriptor
@@ -1448,11 +1443,11 @@ contains
     !> sparse matrix
     real(dp), intent(in) :: orig(:)
 
-    !> Neighbor list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:, :)
@@ -1471,10 +1466,10 @@ contains
     integer :: iNeigh
     integer :: iAtom1, iAtom2, iAtom2f
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
 
     @:ASSERT(nAtom > 0)
-    @:ASSERT(size(nNeighborSK) == nAtom)
+    @:ASSERT(size(nNeighbourSK) == nAtom)
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     square(:, :) = 0.0_dp
@@ -1482,9 +1477,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -1506,7 +1501,7 @@ contains
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
-  subroutine unpackHSCplxBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighborSK, iCellVec, cellVec,&
+  subroutine unpackHSCplxBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iPair, img2CentCell, desc, square)
 
     !> BLACS matrix descriptor
@@ -1518,11 +1513,11 @@ contains
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for each atom (incl. itself).
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -1550,11 +1545,11 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     real(dp) :: kPoint2p(3)
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(kPoint) == 3)
-    @:ASSERT(size(nNeighborSK) == nAtom)
+    @:ASSERT(size(nNeighbourSK) == nAtom)
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     square(:, :) = cmplx(0, 0, dp)
@@ -1564,9 +1559,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -1593,7 +1588,7 @@ contains
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
-  subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighborSK, iCellVec, cellVec,&
+  subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iPair, img2CentCell, mOrb, desc, square, iorig)
 
     !> BLACS matrix descriptor
@@ -1605,11 +1600,11 @@ contains
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -1636,10 +1631,10 @@ contains
     real(dp), intent(in), optional :: iorig(:, :)
 
     square(:, :) = cmplx(0, 0, dp)
-    call unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbor, nNeighborSK, iCellVec, cellVec,&
-        & iPair, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
+    call unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
+        & cellVec, iPair, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
     if (present(iorig)) then
-      call unpackHPauliBlacsHelper(myBlacs, iorig, kPoint, iNeighbor, nNeighborSK, iCellVec,&
+      call unpackHPauliBlacsHelper(myBlacs, iorig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iPair, img2CentCell, mOrb, cmplx(0, 1, dp), cmplx(-1, 0, dp), desc, square)
     end if
 
@@ -1651,7 +1646,7 @@ contains
   !! The routine creates the lower triangle of the 2x2 Pauli Hamiltonian
   !! 1*orig(:, 1) + sigma1*orig(:, 2) + sigma2*orig(:, 3) + sigma3*orig(:, 4).
   !!
-  subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbor, nNeighborSK, iCellVec,&
+  subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
       & cellVec, iPair, img2CentCell, mOrb, imagPrefac, hermPrefac, desc, square)
 
     !> BLACS matrix descriptor
@@ -1663,11 +1658,11 @@ contains
     !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -1703,7 +1698,7 @@ contains
     real(dp) :: kPoint2p(3)
     complex(dp) :: phase
 
-    nAtom = size(nNeighborSK)
+    nAtom = size(nNeighbourSK)
     nOrb = desc%iAtomStart(nAtom + 1) - 1
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
@@ -1711,9 +1706,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -1775,7 +1770,7 @@ contains
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
-  subroutine unpackSPauliBlacs(myBlacs, orig, kPoint, iNeighbor, nNeighborSK, iCellVec, cellVec,&
+  subroutine unpackSPauliBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iPair, img2CentCell, mOrb, desc, square)
 
     !> BLACS matrix descriptor
@@ -1787,11 +1782,11 @@ contains
     !> k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index of the cell translation vector for each atom.
     integer, intent(in) :: iCellVec(:)
@@ -1822,7 +1817,7 @@ contains
     complex(dp) :: phase
 
     square(:, :) = (0.0_dp, 0.0_dp)
-    nAtom = size(nNeighborSK)
+    nAtom = size(nNeighbourSK)
     nOrb = desc%iAtomStart(nAtom + 1) - 1
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
@@ -1830,9 +1825,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -1861,7 +1856,7 @@ contains
 
 
   !> Packs distributed dense real matrix into sparse form (real).
-  subroutine packRhoRealBlacs(myBlacs, desc, square, iNeighbor, nNeighborSK, mOrb, iPair,&
+  subroutine packRhoRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, mOrb, iPair,&
       & img2CentCell, primitive)
 
     !> BLACS matrix descriptor
@@ -1873,11 +1868,11 @@ contains
     !> distributed dense matrix to pack
     real(dp), intent(in) :: square(:, :)
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -1901,19 +1896,19 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
   #:call ASSERT_CODE
     sizePrim = size(primitive)
   #:endcall ASSERT_CODE
     @:ASSERT(nAtom > 0)
-    @:ASSERT(size(nNeighborSK) == nAtom)
+    @:ASSERT(size(nNeighbourSK) == nAtom)
 
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -1937,8 +1932,8 @@ contains
 
 
   !> Packs distributed dense real matrix into sparse form (real).
-  subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbor, nNeighborSK, mOrb,&
-      & iCellVec, cellVec, iPair, img2CentCell, primitive)
+  subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
+      & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1955,11 +1950,11 @@ contains
     !> weight for this k-point
     real(dp), intent(in) :: kWeight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -1992,14 +1987,14 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
   #:call ASSERT_CODE
     sizePrim = size(primitive)
   #:endcall ASSERT_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(kPoint) == 3)
-    @:ASSERT(size(nNeighborSK) == nAtom)
+    @:ASSERT(size(nNeighbourSK) == nAtom)
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
@@ -2009,9 +2004,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -2040,7 +2035,7 @@ contains
 
 
   !> Pack squared matrix into the sparse form (complex Pauli version).
-  subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighborSK,&
+  subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive, iprimitive)
 
     !> BLACS matrix descriptor
@@ -2058,11 +2053,11 @@ contains
     !> weight for this k-point
     real(dp), intent(in) :: kWeight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -2085,19 +2080,20 @@ contains
     !> Imaginary part of sparse matrix
     real(dp), intent(inout), optional :: iprimitive(:, :)
 
-    call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighborSK,&
+    call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
         & mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(1, 0, dp), .true., primitive)
     if (present(iprimitive)) then
-      call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighborSK,&
-          & mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(0, -1, dp), .false., iprimitive)
+      call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
+          & nNeighbourSK, mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(0, -1, dp), .false.,&
+          & iprimitive)
     end if
 
   end subroutine packRhoPauliBlacs
 
 
   !> Helper routine for the Pauli packing.
-  subroutine packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbor,&
-      & nNeighborSK, mOrb, iCellVec, cellVec, iPair, img2CentCell, imagprefac, symmetrize,&
+  subroutine packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
+      & nNeighbourSK, mOrb, iCellVec, cellVec, iPair, img2CentCell, imagprefac, symmetrize,&
       & primitive)
 
     !> BLACS matrix descriptor
@@ -2115,11 +2111,11 @@ contains
     !> weight for this k-point
     real(dp), intent(in) :: kWeight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -2161,7 +2157,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = desc%iAtomStart(nAtom + 1) - 1
 
@@ -2171,7 +2167,7 @@ contains
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(primitive, dim=2) == 4)
@@ -2186,9 +2182,9 @@ contains
       do iAtom1 = 1, nAtom
         ii = desc%iAtomStart(iAtom1)
         nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = desc%iAtomStart(iAtom2f)
           nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -2224,9 +2220,9 @@ contains
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-      do iNeigh = 0, nNeighborSK(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
@@ -2268,7 +2264,7 @@ contains
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix.
-  subroutine packERhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbor, nNeighborSK,&
+  subroutine packERhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive)
 
     !> BLACS matrix descriptor
@@ -2286,11 +2282,11 @@ contains
     !> weight at this k-point
     real(dp), intent(in) :: kWeight
 
-    !> Neighbor list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbor(0:, :)
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
 
-    !> Nr. of neighbors for the atoms.
-    integer, intent(in) :: nNeighborSK(:)
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Maximal number of orbitals on an atom.
     integer, intent(in) :: mOrb
@@ -2321,7 +2317,7 @@ contains
     integer :: sizePrim
   #:endcall ASSERT_CODE
 
-    nAtom = size(iNeighbor, dim=2)
+    nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = desc%iAtomStart(nAtom + 1) - 1
 
@@ -2331,7 +2327,7 @@ contains
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighborSK) == [nAtom]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
 
@@ -2343,9 +2339,9 @@ contains
       do iAtom1 = 1, nAtom
         ii = desc%iAtomStart(iAtom1)
         nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
-        do iNeigh = 0, nNeighborSK(iAtom1)
+        do iNeigh = 0, nNeighbourSK(iAtom1)
           iOrig = iPair(iNeigh, iAtom1) + 1
-          iAtom2 = iNeighbor(iNeigh, iAtom1)
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = desc%iAtomStart(iAtom2f)
           @:ASSERT(jj >= ii)

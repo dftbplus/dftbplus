@@ -8,7 +8,7 @@
 !> Common interface for all dispersion modules.
 module dispiface
   use accuracy, only : dp
-  use periodic, only : TNeighborList
+  use periodic, only : TNeighbourList
   implicit none
 
 
@@ -40,13 +40,13 @@ module dispiface
 
     !> Update internal stored coordinate
     subroutine updateCoordsIface(this, neigh, img2CentCell, coords, species0)
-      import :: DispersionIface, TNeighborList, dp
+      import :: DispersionIface, TNeighbourList, dp
 
       !> data structure
       class(DispersionIface), intent(inout) :: this
 
       !> list of neighbours to atoms
-      type(TNeighborList), intent(in) :: neigh
+      type(TNeighbourList), intent(in) :: neigh
 
       !> image to central cell atom index
       integer, intent(in) :: img2CentCell(:)
