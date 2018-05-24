@@ -62,47 +62,18 @@ contains
     !> w scaling factor, if set to -1 is replaced with value from the paper
     real(dp), intent(in) :: ww
 
-    !> elementwise scaling factors, if set to -1 are replaced with values from the paper in case of
-    !> (O,N,S), but zeroed otherwise
+    !> Elementwise scaling factors, if set to -1 (or any negative value) species is not corrected
     real(dp), allocatable, intent(in) :: elementParams(:)
 
-    real(dp), allocatable :: elementParamsLocal(:)
     integer :: nSpecies, iSp
 
     this%rScale = rr
     this%wScale = ww
 
-    ! If value of the parameter is -1.0, it was not read from the input and a default value will be
-    ! used
-    if (this%rScale < 0.0_dp) then
-      this%rScale = 0.714_dp
-    end if
-
-    ! If value of the parameter is -1.0, it was not read from the input and a default value will be
-    ! used
-    if (this%wScale < 0.0_dp) then
-      this%wScale = 0.25_dp
-    end if
-
     nSpecies = size(speciesNames)
-    elementParamsLocal = elementParams
-    do iSp = 1, nSpecies
-      if (elementParamsLocal(iSp) < 0.0_dp) then
-        ! Default values taken from the paper for O,N and S
-        select case (speciesNames(iSp))
-        case ("O")
-          elementParamsLocal(iSp) =  0.06_dp
-        case ("N")
-          elementParamsLocal(iSp) = 0.18_dp
-        case ("S")
-          elementParamsLocal(iSp) =  0.21_dp
-        end select
-      end if
-    end do
-
     allocate(this%sumVdw(nSpecies, nSpecies))
     allocate(this%h5scaling(nSpecies, nSpecies))
-    call getParams(speciesNames, elementParamsLocal, this%h5Scaling, this%sumVdw)
+    call getParams(speciesNames, elementParams, this%h5Scaling, this%sumVdw)
 
   end subroutine H5Corr_init
 

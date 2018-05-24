@@ -1421,41 +1421,7 @@ contains
         call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
       end if
 
-      ! H5 correction
-      call getChildValue(node, "HBondCorrection", value, "None", child=child)
-      call getNodeName(value, buffer)
-      select case(char(buffer))
-      case ("none")
-        ctrl%h5SwitchedOn = .false.
-      case ("h5")
-        ! Switch the correction on
-        ctrl%h5SwitchedOn = .true.
-
-        ! H5 should not be used with X-H damping
-        if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
-          call error("H5 correction is not compatible with X-H damping")
-        end if
-
-        ! Read global parameters Defaults are -1.0 to identify that the parameters were not read, so
-        ! default values to be used
-        call getChildValue(value, "RCut", ctrl%h5RScale, -1.0_dp)
-        call getChildValue(value, "W", ctrl%h5WScale, -1.0_dp)
-
-        ! Get parameters for elements
-        allocate(ctrl%h5ElementPara(geo%nSpecies))
-        ! Default value is -1, this indicates that the parameter was not set up and should be
-        ! handled as such later
-        ctrl%h5ElementPara(:) = -1.0_dp
-        call getChild(Value, "H5CorrectionSpecies", child2, requested=.false.)
-        if (associated(child2)) then
-          do iSp1 = 1, geo%nSpecies
-            call getChildValue(child2, geo%speciesNames(iSp1), ctrl%h5ElementPara(iSp1), -1.0_dp)
-          end do
-        end if
-      case default
-        call getNodeHSDName(value, buffer)
-        call detailedError(child, "Invalid value of HBondCorrection '" // char(buffer) // "'")
-      end select
+      call readHBondCorrection(node, geo, ctrl)
 
       ! spin
       call getChildValue(node, "SpinPolarisation", value, "", child=child, &
@@ -2190,6 +2156,67 @@ contains
 
   end subroutine readDifferentiation
 
+
+  !> Reads the H-bond (H5) correction.
+  subroutine readHBondCorrection(node, geo, ctrl)
+
+    !> Node containing the h-bond correction sub-block.
+    type(fnode), pointer, intent(in) :: node
+
+    !> Geometry.
+    type(TGeometry), intent(in) :: geo
+
+    !> Control structure
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: value, child, child2
+    type(string) :: buffer
+    real(dp) :: h5ScalingDef
+    integer :: iSp
+
+    ! H5 correction
+    call getChildValue(node, "HBondCorrection", value, "None", child=child)
+    call getNodeName(value, buffer)
+    select case (char(buffer))
+    case ("none")
+      ctrl%h5SwitchedOn = .false.
+    case ("h5")
+      ! Switch the correction on
+      ctrl%h5SwitchedOn = .true.
+
+      ! H5 should not be used with X-H damping
+      if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
+        call error("H5 correction is not compatible with X-H damping")
+      end if
+
+      call getChildValue(value, "RScaling", ctrl%h5RScale, 0.714_dp)
+      call getChildValue(value, "WScaling", ctrl%h5WScale, 0.25_dp)
+
+      allocate(ctrl%h5ElementPara(geo%nSpecies))
+      call getChild(value, "H5Scaling", child2, requested=.false.)
+      if (.not. associated(child2)) then
+        call setChild(value, "H5scaling", child2)
+      end if
+      do iSp = 1, geo%nSpecies
+        select case (geo%speciesNames(iSp))
+        case ("O")
+          h5ScalingDef = 0.06_dp
+        case ("N")
+          h5ScalingDef = 0.18_dp
+        case ("S")
+          h5ScalingDef = 0.21_dp
+        case default
+          ! Default value is -1, this indicates that the element should be ignored
+          h5ScalingDef = -1.0_dp
+        end select
+        call getChildValue(child2, geo%speciesNames(iSp), ctrl%h5ElementPara(iSp), h5ScalingDef)
+      end do
+    case default
+      call getNodeHSDName(value, buffer)
+      call detailedError(child, "Invalid value of HBondCorrection '" // char(buffer) // "'")
+    end select
+
+  end subroutine readHBondCorrection
 
 
   !> Reads Slater-Koster files
