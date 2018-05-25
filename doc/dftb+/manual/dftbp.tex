@@ -1267,9 +1267,9 @@ following properties:
 \subsection{Mixer}
 \label{sec:dftbp.Mixer}
 
-{\dftbp} currently offers the charge mixing methods \iscb{Broyden}
-(Broyden-mixer), \iscb{Anderson} (Anderson-mixer), \iscb{DIIS}
-(DIIS-accelerated simple mixer) and \iscb{Simple} (simple mixer).
+{\dftbp} currently offers the charge mixing methods \iscb{Broyden},
+\iscb{Anderson}, \iscb{DIIS} (DIIS accel\-er\-ated simple mixer) and
+\iscb{Simple} (simple mixer).
 
 \subsubsection{Broyden\{\}}
 \label{sec:dftbp.Broyden}
@@ -2141,7 +2141,7 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.  A modification of
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. A modification of
   the D3 dispersion to be used as a part of the D3H5
   correction~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}) is
   also available.
@@ -2396,6 +2396,7 @@ Example using zero-damping:
   }
 \end{verbatim}
 
+\subsubsection{DftD3 optional settings}
 Apart from the functional dependent dispersion parameters, you can also adjust
 the additional parameters as shown below. The default values for these
 parameters are taken to be the same as in the dftd3 code.
@@ -2416,14 +2417,17 @@ parameters are taken to be the same as in the dftd3 code.
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
 
-\item[\is{HHRepulsion}] To calculate the D3 dispersion, as used in the
-  DFTB3-D3H5 method~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}
-  for details and parameter values), an additional repulsion term is applied to
-  all hydrogen--hydrogen pairs~\cite{rezac-jctc-8-2012}.
+\item[\is{HHRepulsion}] Required when calculating the
+  DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
+  section~\ref{sec:dftbp.D3H5} for details and parameter values). This keyword
+  enables an additional short range repulsion term in all hydrogen--hydrogen
+  pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
+  closely together.
 \end{description}
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}
+\index{DFTB3}
 
 If you would like to use what is called ``DFTB3'' in some publication(s)
 \cite{gauss-jctc-7-931}, this group of options include the relevant
@@ -2481,63 +2485,64 @@ Hamiltonian = DFTB {
 
 \subsection{DFTB3-D3H5}
 \label{sec:dftbp.D3H5}
+\index{DFTB3-D3H5}
 
-DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with corrections for
-non-covalent interactions (dispersion and hydrogen bonds).  It consists of a
-third-order DFTB calculation used with the 3OB parameter set, but where the
-gamma-function damping (\is{DampXH}) is replaced by the H5 correction, and an
-additional D3 dispersion correction to which a repulsive term was added to
-prevent hydrogen--hydrogen close approach.
+DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with additional
+corrections for non-covalent interactions (dispersion and hydrogen bonds).  It
+consists of a third-order DFTB calculation using the 3OB parameter set, but
+where the gamma-function damping (\is{DampXH}) is replaced by the H5 correction
+and an additional D3 dispersion correction in included. This method also
+includes a repulsive term which is added to prevent unphysically close approach
+of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
 
 \begin{description}
 \item[\is{HBondCorrection}] Setting this keyword to \iscb{H5} activates the
-  correction for hydrogen bonds \cite{rezac-jctc-13-2017}. Currently, \is{H5} is
-  the only value accepted for \is{HBondCorrection}.
+  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. As of the version 5
+  input parser, \is{H5} is the only value accepted for \is{HBondCorrection}.
 \end{description}
 
 If no additional parameters are provided in the input, suitable values for
-H-\{O,N,S\} systems are used (it was developed for the DFTB3/3OB model and
-parameters).
+H-\{O,N,S\} systems are used (the correction was developed for the DFTB3/3OB
+model and parameters).
 \begin{verbatim}
 HBondCorrection = H5 {}
 \end{verbatim}
 
 If you want to specify the parameters manually, \is{H5} accepts following
-options:
+options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
 \begin{ptable}
   \kw{RScaling} & r & & 0.714 & \\
   \kw{WScaling} & r & & 0.25 & \\
   \kw{H5Scaling} & m & &  & \\
 \end{ptable}
 \begin{description}
-\item[\is{RScaling}] Global scaling factor $s_r$ when calculating the position
-  of the Gaussians as
+\item[\is{RScaling}] Global scaling factor, $s_r$, when calculating the position
+  of the correcting gaussian functions:
   \begin{equation*}
-    r_0 = s_r (r_\text{vdW}(X) + r_\text{vdW}(H))
-    \text.
+    r_0 = s_r \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right) \text.
   \end{equation*}
 
-\item[\is{WScaling}] Global scaling factor $s_W$ when calculating the witdth of
-  the Gaussians as
+\item[\is{WScaling}] Global scaling factor, $s_W$, when calculating the width of
+  the correcting gaussian functions:
   \begin{equation*}
-    w = s_w (r_\text{vdW}(X) + r_\text{vdW}(H))
-    \text.
+    w = s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right) \text.
   \end{equation*}
 
-\item[\is{H5Scaling}] Atom type specific scaling pre-factor $k_{X\text{H}}$ of
-  the Gaussians when calculating the SCC-interaction as
+\item[\is{H5Scaling}] Atom type specific scaling pre-factor, $k_{X\text{H}}$, of
+  the correcting gaussian functions when calculating the SCC-interaction:
   \begin{equation*}
-    \gamma_{X\text{H}}^{\text{H5}} = \gamma_{X\text{H}}
-    \left(
-      1 + k_{X\text{H}} \exp\left(-\frac{\left(r_{X\text{H}} -
-            r_0\right)^2}{2w^2}\right)\right)
+    \gamma_{X\text{H}}^{\text{H5}} = \gamma_{X\text{H}} \left( 1 + k_{X\text{H}}
+    \exp\left(-\frac{\left(r_{X\text{H}} - r_0\right)^2}{2w^2}\right)\right)
     \text.
   \end{equation*}
-  You have to specify one value for each species you would like to correct for
-  (see example below). Setting a negative value (e.g. \is{-1.0}) for a given
-  atom type switches off the correction for that atom type. If you ommit H, C or
-  S, the default value from the reference paper will be used. For any other
-  ommitted atom type \is{-1.0} will be set (no correction).
+  You have to specify one value for each of the chemical species you would like
+  to correct (see the example below). Explicitly setting a negative value
+  (e.g. \is{-1.0}) for a given atom type switches off the correction for
+  hydrogen bonds involving that type of atom. In the special cases of N, O or S,
+  if do not specify a value (and do not disable the contribution by using
+  \is{-1.0}), the default value from the reference paper will be
+  used~\cite{rezac-jctc-13-2017}. For any other ommitted atom types, the code
+  defaults to a choice of \is{-1.0} (no correction).
 \end{description}
 
 \begin{verbatim}
@@ -2556,14 +2561,15 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\textbf{Note:} The van der Waals radii of atoms are also required. \dftbp{}
-stores these for most of the periodic table, but for cases that are not
-available their contribution to this correction are neglected.
+\textbf{Note:} The van der Waals radii ($r_\text{vdW}$) of atoms are also
+required. \dftbp{} stores these for most of the periodic table, but for cases
+that are not available their contribution to this correction are neglected.
 
 For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
-parameters~\cite{rezac-jctc-13-2017}, the hydrogen--hydrogen repulsion of
-Ref.~\cite{rezac-jctc-8-2012} has to also be activated. The complete input is:
+parameters, as discussed in Ref.~\cite{rezac-jctc-13-2017}, the
+hydrogen--hydrogen repulsion of Ref.~\cite{rezac-jctc-8-2012} has to also be
+activated. The complete input is:
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
@@ -3180,7 +3186,7 @@ label               :type:shape:
 The variable type is real, complex, integer or logical. The shape information is
 \newline :ndim: size$_1$,size$_2$,$\ldots$,size$_{ndim}$:\newline where ndim is
 the number of dimensions, organised with the Fortran convention and of size
-size$_1 \times$size$_2 \times$size$_2 \times \ldots$.
+size$_1$ $\times$size$_2$ $\times$size$_2$ $\times \ldots$.
 
 In the special case of scalar variables the shape is :0:.
 
@@ -3426,7 +3432,7 @@ with its fractional contribution to the full excited state are given.
 
 General format:
 
-\begin{tabular}{|l|l|}
+\begin{tabular}{|l|p{5.5cm}|}
 \hline
 {\small T F                                }&Legacy flags\\
 {\small   1  1.9999926523  2.0000000000    }&level 1, fraction of total WF, 2.0\\
