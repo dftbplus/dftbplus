@@ -28,7 +28,7 @@ module pmlocalisation
   !> Input data for Pipek-Mezey calculator
   type :: TPipekMezeyInp
 
-    !> halting tollerance for localisation
+    !> halting tolerance for localisation
     real(dp) :: tolerance
 
     !> number of localisation iterations
@@ -48,7 +48,7 @@ module pmlocalisation
     !> tolerances for element neglect if instead using a sparse version of Pipek-Mezey localisation
     real(dp), allocatable :: sparseTols(:)
 
-    !> halting tollerance for localisation
+    !> halting tolerance for localisation
     real(dp) :: tolerance
 
     !> number of localisation iterations
@@ -268,7 +268,7 @@ contains
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
 
-    !> tollerance for halting localisation iterations
+    !> tolerance for halting localisation iterations
     real(dp), intent(in) :: pipekTol
 
     !> maximum number of iterations to use
@@ -394,7 +394,7 @@ contains
     !> Atom offset for the squared Hamiltonian
     real(dp), intent(in) :: convergence
 
-    !> tollerance for halting localisation iterations
+    !> tolerance for halting localisation iterations
     integer, intent(in), optional :: mIter
 
     !> maximum number of iterations to use
@@ -851,7 +851,7 @@ contains
     !> index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> tollerance for halting localisation iterations
+    !> tolerance for halting localisation iterations
     real(dp), intent(in) :: convergence
 
     !> maximum number of iterations to use

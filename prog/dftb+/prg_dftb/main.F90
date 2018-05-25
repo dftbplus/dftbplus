@@ -1228,7 +1228,7 @@ contains
     !> Maximum number of SCC cycles
     integer, intent(inout) :: maxSccIter
 
-    !> Tollerance for SCC convergence
+    !> Tolerance for SCC convergence
     real(dp), intent(inout) :: sccTol
 
     !> Has SCC convergence been achieved?

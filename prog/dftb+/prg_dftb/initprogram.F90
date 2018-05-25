@@ -170,7 +170,7 @@ module initprogram
   !> are atomic coordinates fractional?
   logical :: tFracCoord
 
-  !> Tollerance for SCC cycle
+  !> Tolerance for SCC cycle
   real(dp) :: sccTol
 
 

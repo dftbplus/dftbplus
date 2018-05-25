@@ -3226,7 +3226,7 @@ contains
               if (associated(child3)) then
                 call getChildValue(child3, "", 1, lr1)
                 if (len(lr1) < 1) then
-                  call detailedError(child2, "Missing values of tollerances.")
+                  call detailedError(child2, "Missing values of tolerances.")
                 end if
                 allocate(inp%sparseTols(len(lr1)))
                 call asVector(lr1, inp%sparseTols)

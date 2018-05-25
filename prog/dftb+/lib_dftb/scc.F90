@@ -73,7 +73,7 @@ module scc
     !> if > 0 -> manual setting for alpha
     real(dp) :: ewaldAlpha = 0.0_dp
 
-    !> Ewald tollerance
+    !> Ewald tolerance
     real(dp) :: tolEwald = 0.0_dp
 
   end type TSccInp
@@ -143,7 +143,7 @@ module scc
     !> Parameter for Ewald
     real(dp) :: alpha
 
-    !> Ewald tollerance
+    !> Ewald tolerance
     real(dp) :: tolEwald
 
     !> Cell volume
