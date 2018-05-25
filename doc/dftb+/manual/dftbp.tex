@@ -2497,8 +2497,8 @@ of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
 
 \begin{description}
 \item[\is{HBondCorrection}] Setting this keyword to \iscb{H5} activates the
-  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. As of the version 5
-  input parser, \is{H5} is the only value accepted for \is{HBondCorrection}.
+  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. \is{H5} is currently
+  the only option accepted for \is{HBondCorrection}.
 \end{description}
 
 If no additional parameters are provided in the input, suitable values for
@@ -2509,11 +2509,12 @@ HBondCorrection = H5 {}
 \end{verbatim}
 
 \textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
-involving the terminal nitrogen of azide group, and the published results
-were obtained with the H5 correction switched off for these atoms. To reproduce
-this behavior in a system containing nitrogen of different types,
-new atom type with a different name but the same DFTB parameters can be used
-for atoms to which the correction is not be applied.
+involving the terminal nitrogen of an azide group, and the published results in
+Ref.~\cite{rezac-jctc-13-2017} were obtained with the H5 correction switched off
+for these specific atoms. To reproduce this behavior in a system containing
+nitrogen in several environments, a new atom type with a different name but the
+same DFTB parameters can be used for for the specific N atoms to which the
+correction should not be applied.
 
 If you want to specify the parameters manually, \is{H5} accepts following
 options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
@@ -2530,10 +2531,11 @@ options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
   \end{equation*}
 
 \item[\is{WScaling}] Global scaling factor, $s_W$, when calculating the width of
-  the correcting gaussian functions (the denominator scales the value of $w$ so that it
-  has the meaning of full-width at half-maximum of the gaussian):
+  the correcting gaussian functions. The full-width at at half-maximum of the
+  gaussian, $w$, is normalised to be 1 for a unit value of \is{WScaling}:
   \begin{equation*}
-   w = \frac{s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right)}{2\sqrt{2 ln 2}} \text.
+   w = \frac{s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right)}{2\sqrt{2 \ln
+       2}} \text.
   \end{equation*}
 
 \item[\is{H5Scaling}] Atom type specific scaling pre-factor, $k_{X\text{H}}$, of
@@ -3053,10 +3055,11 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
     contains the natural orbitals for the specified excited state.
 
-  \item[\is{TotalStateCoeffs}] Option to control the data written for either \is{WriteCoefficients}
-    or \is{WriteEigenvectors}. If set to \is{No} the total charge density of the output orbitals
-    corresponds to the change in charge from the ground to excited state. If set to \is{Yes} instead
-    it corresponds to the total charge density in the excited state.
+  \item[\is{TotalStateCoeffs}] Option to control data from
+    \is{WriteCoefficients} or \is{WriteEigenvectors}. If set to \is{No} the
+    total charge density of the output orbitals corresponds to the change in
+    charge from the ground to excited state. If set to \is{Yes} instead it
+    corresponds to the total charge density in the excited state.
 
   \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is created. This file contains the
     RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all excited states (c.f., Eqn.~(18) in
