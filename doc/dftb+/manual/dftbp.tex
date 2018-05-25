@@ -2530,9 +2530,10 @@ options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
   \end{equation*}
 
 \item[\is{WScaling}] Global scaling factor, $s_W$, when calculating the width of
-  the correcting gaussian functions:
+  the correcting gaussian functions (the denominator scales the value of $w$ so that it
+  has the meaning of full-width at half-maximum of the gaussian):
   \begin{equation*}
-    w = s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right) \text.
+   w = \frac{s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right)}{2\sqrt{2 ln 2}} \text.
   \end{equation*}
 
 \item[\is{H5Scaling}] Atom type specific scaling pre-factor, $k_{X\text{H}}$, of
