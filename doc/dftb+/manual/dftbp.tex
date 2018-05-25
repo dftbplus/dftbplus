@@ -2508,6 +2508,13 @@ model and parameters).
 HBondCorrection = H5 {}
 \end{verbatim}
 
+\textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
+involving the terminal nitrogen of azide group, and the published results
+were obtained with the H5 correction switched off for these atoms. To reproduce
+this behavior in a system containing nitrogen of different types,
+new atom type with a different name but the same DFTB parameters can be used
+for atoms to which the correction is not be applied.
+
 If you want to specify the parameters manually, \is{H5} accepts following
 options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
 \begin{ptable}
