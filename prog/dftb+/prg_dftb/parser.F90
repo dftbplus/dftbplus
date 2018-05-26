@@ -2792,7 +2792,7 @@ contains
     real(dp), allocatable :: coords(:,:)
     integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
-    type(TNeighborList) :: neighs
+    type(TNeighbourList) :: neighs
 
     allocate(tmpR2(3, geo%nAtom))
     allocate(input%polar(geo%nAtom))
@@ -2860,14 +2860,14 @@ contains
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighborList(coords, img2CentCell, iCellVec, neighs, &
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, &
           &nAllAtom, geo%coords, mCutoff, rCellVec)
       allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
-        do iNeigh = 1, neighs%nNeighbor(iAt1)
-          iAt2f = img2CentCell(neighs%iNeighbor(iNeigh, iAt1))
+        do iNeigh = 1, neighs%nNeighbourSK(iAt1)
+          iAt2f = img2CentCell(neighs%iNeighbour(iNeigh, iAt1))
           iSp2 = geo%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)
           if (neighs%neighDist2(iNeigh, iAt1) <= rTmp**2) then
@@ -3291,7 +3291,7 @@ contains
               if (associated(child3)) then
                 call getChildValue(child3, "", 1, lr1)
                 if (len(lr1) < 1) then
-                  call detailedError(child2, "Missing values of tollerances.")
+                  call detailedError(child2, "Missing values of tolerances.")
                 end if
                 allocate(inp%sparseTols(len(lr1)))
                 call asVector(lr1, inp%sparseTols)

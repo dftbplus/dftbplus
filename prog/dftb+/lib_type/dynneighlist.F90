@@ -7,10 +7,10 @@
 
 #:include 'common.fypp'
 
-!> Implements dynamic neighbor list with iterator.
+!> Implements dynamic neighbour list with iterator.
 !>
-!> The dynamic neighbor list does not store the entire neighbor list, but creates it on the fly,
-!> allowing for a low memory footprint for large neighbor lists (at the cost of speed).
+!> The dynamic neighbour list does not store the entire neighbour list, but creates it on the fly,
+!> allowing for a low memory footprint for large neighbour lists (at the cost of speed).
 !>
 module dynneighlist
   use accuracy
@@ -24,11 +24,11 @@ module dynneighlist
   public :: TNeighIterator, TNeighIterator_init
 
 
-  !> Dynamic neighbor list
+  !> Dynamic neighbour list
   type :: TDynNeighList
     private
 
-    !> Cutoff for neighbor generation
+    !> Cutoff for neighbour generation
     real(dp) :: cutoff
 
     !> Nr. of atoms 
@@ -52,11 +52,11 @@ module dynneighlist
   end type TDynNeighList
 
 
-  !> Iterator over a dynamic neighbor list
+  !> Iterator over a dynamic neighbour list
   type :: TNeighIterator
     private
 
-    !> Pointer to the original neighbor list
+    !> Pointer to the original neighbour list
     type(TDynNeighList), pointer :: neighList
 
     !> Lattice point generator (if system is periodic)
@@ -71,13 +71,13 @@ module dynneighlist
     !> Number of atoms
     integer :: nAtom
 
-    !> Atom for which neighbors are returned by the iterator
+    !> Atom for which neighbours are returned by the iterator
     integer :: iAtom1
 
     !> Coordinates of the atom
     real(dp) :: coordsAtom1(3)
 
-    !> Neighbor atom to be returned as next
+    !> Neighbour atom to be returned as next
     integer :: iAtom2
 
     !> Current cell shift vector (if system is periodic)
@@ -90,19 +90,19 @@ module dynneighlist
     logical :: tFinished
     
   contains
-    procedure :: getNextNeighbors => TNeighIterator_getNextNeighbors
+    procedure :: getNextNeighbours => TNeighIterator_getNextNeighbours
   end type TNeighIterator
 
 
 contains
 
-  !> Initializes a dynamic neighbor list.
+  !> Initializes a dynamic neighbour list.
   subroutine TDynNeighList_init(this, cutoff, nAtom, tPeriodic)
 
     !> Initialized instance on exit.
     type(TDynNeighList), intent(out) :: this
 
-    !> Cutoff up to which the neighbors should be generated
+    !> Cutoff up to which the neighbours should be generated
     real(dp), intent(in) :: cutoff
 
     !> Nr. of atoms in the system.
@@ -125,7 +125,8 @@ contains
 
   !> Updates the lattice vectors.
   !>
-  !> This routine should be only called, if the neighbor list was initialized for a periodic system.
+  !> This routine should be only called, if the neighbour list was initialized for a periodic
+  !> system.
   !>
   subroutine TDynNeighList_updateLatVecs(this, latVecs, invLatVecs)
 
@@ -160,19 +161,19 @@ contains
   end subroutine TDynNeighList_updateCoords
 
 
-  !> Initializes an iterator for the dynamic neighbors of a given atom.
+  !> Initializes an iterator for the dynamic neighbours of a given atom.
   subroutine TNeighIterator_init(this, neighList, iAtom, includeSelf)
 
     !> Initialized instance on exit.
     type(TNeighIterator), intent(out) :: this
 
-    !> Dynamic neighbor list containing the basic data
+    !> Dynamic neighbour list containing the basic data
     type(TDynNeighList), pointer, intent(in) :: neighList
 
-    !> Index of the atom for which the neighbors should be generated.
+    !> Index of the atom for which the neighbours should be generated.
     integer, intent(in) :: iAtom
 
-    !> Whether the atom itself should be also returned as first neighbor (default: false)
+    !> Whether the atom itself should be also returned as first neighbour (default: false)
     logical, intent(in), optional :: includeSelf
 
     logical :: includeSelf0
@@ -209,38 +210,38 @@ contains
   end subroutine TNeighIterator_init
 
 
-  !> Returns the next group of neighbors.
-  subroutine TNeighIterator_getNextNeighbors(this, nNeighbors, coords, dists, img2CentCell)
+  !> Returns the next group of neighbours.
+  subroutine TNeighIterator_getNextNeighbours(this, nNeighbourSK, coords, dists, img2CentCell)
 
     !> Instance.
     class(TNeighIterator), intent(inout) :: this
 
-    !> Nr. of neighbors to return on entry, nr. of neighbors found on exit. When entry and exit
-    !> values differ, the iterator has finished and can not return any more neighbors.
-    integer, intent(inout) :: nNeighbors
+    !> Nr. of neighbours to return on entry, nr. of neighbours found on exit. When entry and exit
+    !> values differ, the iterator has finished and can not return any more neighbours.
+    integer, intent(inout) :: nNeighbourSK
 
-    !> Coordinates of the neighbors. Shape: (3, nNeighbors)
+    !> Coordinates of the neighbours. Shape: (3, nNeighbourSK)
     real(dp), intent(out), optional :: coords(:,:)
 
-    !> Distances of the neighbors. Shape: (nNeighbors)
+    !> Distances of the neighbours. Shape: (nNeighbourSK)
     real(dp), intent(out), optional :: dists(:)
 
-    !> Correspoinding images of the neighbors in the central cell. Shape: (nNeighbors)
+    !> Correspoinding images of the neighbours in the central cell. Shape: (nNeighbourSK)
     integer, intent(out), optional :: img2CentCell(:)
 
     real(dp) :: neighCoords(3)
-    real(dp) :: coordsTmp(3, nNeighbors), distsTmp(nNeighbors)
-    integer :: img2CentCellTmp(nNeighbors)
+    real(dp) :: coordsTmp(3, nNeighbourSK), distsTmp(nNeighbourSK)
+    integer :: img2CentCellTmp(nNeighbourSK)
     real(dp) :: dist2
     integer :: maxNeighs
 
-    maxNeighs = nNeighbors
-    nNeighbors = 0
+    maxNeighs = nNeighbourSK
+    nNeighbourSK = 0
     if (this%tFinished) then
       return
     end if
 
-    do while (nNeighbors < maxNeighs)
+    do while (nNeighbourSK < maxNeighs)
       if (this%iAtom2 > this%nAtom) then
         if (this%tPeriodic) then
           call this%latPointGen%getNextPoint(this%cellVec, this%tFinished)
@@ -257,25 +258,25 @@ contains
       neighCoords(:) = this%neighList%coords0(:, this%iAtom2) + this%cellVec
       dist2 = sum((this%coordsAtom1 - neighCoords)**2)
       if (dist2 <= this%cutoff2) then
-        nNeighbors = nNeighbors + 1
-        coordsTmp(:,nNeighbors) = neighCoords
-        distsTmp(nNeighbors) = dist2
-        img2CentCellTmp(nNeighbors) = this%iAtom2
+        nNeighbourSK = nNeighbourSK + 1
+        coordsTmp(:,nNeighbourSK) = neighCoords
+        distsTmp(nNeighbourSK) = dist2
+        img2CentCellTmp(nNeighbourSK) = this%iAtom2
       end if
       this%iAtom2 = this%iAtom2 + 1
     end do
 
     if (present(coords)) then
-      coords(:,1:nNeighbors) = coordsTmp(:,1:nNeighbors)
+      coords(:,1:nNeighbourSK) = coordsTmp(:,1:nNeighbourSK)
     end if
     if (present(dists)) then
-      dists(1:nNeighbors) = sqrt(distsTmp(1:nNeighbors))
+      dists(1:nNeighbourSK) = sqrt(distsTmp(1:nNeighbourSK))
     end if
     if (present(img2CentCell)) then
-      img2CentCell(1:nNeighbors) = img2CentCellTmp(1:nNeighbors)
+      img2CentCell(1:nNeighbourSK) = img2CentCellTmp(1:nNeighbourSK)
     end if
 
-  end subroutine TNeighIterator_getNextNeighbors
+  end subroutine TNeighIterator_getNextNeighbours
 
 
 end module dynneighlist

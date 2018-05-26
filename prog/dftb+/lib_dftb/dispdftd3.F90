@@ -13,7 +13,7 @@ module dispdftd3_module
   use accuracy
   use dispiface
   use dftd3_module
-  use periodic, only : TNeighborList, getNrOfNeighborsForAll
+  use periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use simplealgebra, only : determinant33
   use constants
   implicit none
@@ -163,8 +163,8 @@ contains
     !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
 
-    !> Updated neighbor list.
-    type(TNeighborList), intent(in) :: neigh
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
 
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -278,7 +278,7 @@ contains
     real(dp) :: cutoff
 
     ! Since dftd3-routine uses its own real space summation routines, we do not need any real space
-    ! neighbors from neighbour list, unless H-H repulsion is active.
+    ! neighbours from neighbour list, unless H-H repulsion is active.
     if (this%tHHRepulsion) then
       cutoff = hhRepCutOff
     else
@@ -297,8 +297,8 @@ contains
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neigh
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
 
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -317,7 +317,7 @@ contains
     end if
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighborsForAll(nNeigh, neigh, HHRepCutOff)
+    call getNrOfNeighboursForAll(nNeigh, neigh, HHRepCutOff)
 
     repE = 0.0_dp
     do iAt1 = 1, this%nAtom
@@ -325,7 +325,7 @@ contains
         cycle
       end if
       do iNeigh = 1, nNeigh(iAt1)
-        iAt2 = neigh%iNeighbor(iNeigh, iAt1)
+        iAt2 = neigh%iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         if (this%izp(iAt2f) /= 1) then
           cycle
