@@ -2857,11 +2857,11 @@ maximised. The resulting localised states are output as
 appendix~\ref{sec:dftbp.eigenvec} for \verb|eigenvec.out| and \verb|eigenvec.bin|.
 
 \begin{ptable}
-  \kw{Tollerance} & r &  & 1E-4 & \\
+  \kw{Tolerance} & r &  & 1E-4 & \\
   \kw{MaxIterations} & i &  & 100 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Tollerance}] Cut off for rotations in the localisation process.
+\item[\is{Tolerance}] Cut off for rotations in the localisation process.
 \item[\is{MaxIterations}] Maximum number of total sweeps to perform.
 \end{description}
 
@@ -2871,7 +2871,7 @@ Analysis = {
   Localise = {
     PipekMezey = {
        # These are the default options, which are also set if the bracket is left empty.
-       Tollerance = 1.0E-4
+       Tolerance = 1.0E-4
        MaxIterations = 100
     }  
   }
@@ -2885,12 +2885,12 @@ method which {\em may} have better scaling properties.
 
 \begin{ptable}
   \kw{Dense} & l & & \is{No} & \\
-  \kw{SparseTollerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
+  \kw{SparseTolerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
 \end{ptable}
 \begin{description}
 \item[\is{Dense}] Selects the conventional method (\is{Yes}) using Jacobi sweeps
   over all orbital pairs or (\is{No}) uses the default sparse method.
-\item[\is{SparseTollerances}] The sparse method introduces support regions during
+\item[\is{SparseTolerances}] The sparse method introduces support regions during
   evaluation to increase performance, and these requires a set of tolerances to
   determine the regions to be used (these are listed in decreasing order, i.e.,
   with tighter tolerances as the localisation proceeds).

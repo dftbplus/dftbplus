@@ -65,7 +65,7 @@ module parser
 
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 5
+  integer, parameter :: parserVersion = 6
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -3281,13 +3281,13 @@ contains
       if (associated(child2)) then
         allocate(ctrl%pipekMezeyInp)
         associate(inp => ctrl%pipekMezeyInp)
-          call getChildValue(child2, "Tollerance", inp%tolerance, 1.0E-4_dp)
           call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
+          tPipekDense = .true.
           if (.not. geo%tPeriodic) then
             call getChildValue(child2, "Dense", tPipekDense, .false.)
             if (.not. tPipekDense) then
               call init(lr1)
-              call getChild(child2, "SparseTollerances", child=child3, requested=.false.)
+              call getChild(child2, "SparseTolerances", child=child3, requested=.false.)
               if (associated(child3)) then
                 call getChildValue(child3, "", 1, lr1)
                 if (len(lr1) < 1) then
@@ -3298,10 +3298,13 @@ contains
               else
                 allocate(inp%sparseTols(4))
                 inp%sparseTols = [0.1_dp, 0.01_dp, 1.0E-6_dp, 1.0E-12_dp]
-                call setChildValue(child2, "Tollerances", inp%sparseTols)
+                call setChildValue(child2, "SparseTolerances", inp%sparseTols)
               end if
               call destruct(lr1)
             end if
+          end if
+          if (tPipekDense) then
+            call getChildValue(child2, "Tolerance", inp%tolerance, 1.0E-4_dp)
           end if
         end associate
       else

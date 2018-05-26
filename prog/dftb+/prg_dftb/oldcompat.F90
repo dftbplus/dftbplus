@@ -53,6 +53,9 @@ contains
       case (4)
         call convert_4_5(root)
         version = 5
+      case (5)
+        call convert_5_6(root)
+        version = 6
       end select
     end do
 
@@ -331,5 +334,27 @@ contains
     end if
 
   end subroutine convert_4_5
+
+  !> Converts input from version 5 to 6. (Version 6 introduced in May. 2018)
+  subroutine convert_5_6(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1
+
+    call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword converted to 'Tolerance'.")
+      call setNodeName(ch1, "Tolerance")
+    end if
+
+    call getDescendant(root, "Analysis/Localise/PipekMezey/SparseTollerances", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword converted to 'SparseTollerances'.")
+      call setNodeName(ch1, "SparseTolerances")
+    end if
+
+  end subroutine convert_5_6
 
 end module oldcompat
