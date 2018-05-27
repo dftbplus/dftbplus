@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2017  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -87,8 +87,7 @@ contains
 
 
   !> Creates a VelocityVerlet object from the thermostat settings
-  subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat, &
-       &halfVelocities, velocities)
+  subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat)
 
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
@@ -102,13 +101,6 @@ contains
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
-    !> These indicates if the t-.5 velocities will be supplied
-    logical, intent(in), optional :: halfVelocities
-    
-    !> On output these are the t-.5 velocities
-    real(dp), intent(inout), optional :: velocities(:,:)
-    
-
     @:ASSERT(size(positions, dim=1) == 3)
 
     self%nAtom = size(positions, dim=2)
@@ -121,15 +113,7 @@ contains
 
     call getInitVelocities(self%pThermostat, self%velocities)
 
-    if (present(velocities)) then
-       velocities = self%velocities
-    end if
-
-    if (present(halfVelocities)) then
-       self%vHalfPresent = halfVelocities
-    else
-       self%vHalfPresent = .false. ! no we dont have the t-.5 velocities
-    end if
+    self%vHalfPresent = .false. ! no we don't have the t-.5 velocities
 
     self%tBarostat = .false.
 
@@ -139,7 +123,7 @@ contains
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities
   subroutine VelocityVerlet_velocities(self, deltaT, positions, pThermostat, &
-      & velocities, halfVelocities)
+      & velocities)
 
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
@@ -156,10 +140,6 @@ contains
     !> List of initial velocities
     real(dp), intent(in) :: velocities(:,:)
 
-    !> These indicates if the t-.5 velocities will be supplied
-    logical, intent(in), optional :: halfVelocities
-    
-
     @:ASSERT(size(positions, dim=1) == 3)
 
     self%nAtom = size(positions, dim=2)
@@ -172,14 +152,9 @@ contains
 
     self%velocities(:,:) = velocities(:,:)
 
-    !self%vHalfPresent = .false.
-    if (present(halfVelocities)) then
-       self%vHalfPresent = halfVelocities
-    else
-       ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
-       ! t+.5 velocities when possible once forces are available for the coordinates       
-       self%vHalfPresent = .false. 
-    end if
+    ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
+    ! t+.5 velocities when possible once forces are available for the coordinates
+    self%vHalfPresent = .false.
 
     self%tBarostat = .false.
 
