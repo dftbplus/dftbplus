@@ -59,7 +59,7 @@ contains
 
 
   !> find (possibly degenerate) transitions with stronger dipole
-  !> transition strengths than a tollerance, count them and place at
+  !> transition strengths than a tolerance, count them and place at
   !> the start of the appropriate arrays
   subroutine dipSelect(wij,sposz,win,transd,nxov_r,threshold,grndEigVal, getij)
 
