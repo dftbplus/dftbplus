@@ -39,7 +39,7 @@ module f90sockets
   implicit none
   private
 
-  public :: connect_inet_socket, connect_unix_socket, readbuffer, writebuffer, shutdown_socket
+  public :: connect_inet_socket, connect_unix_socket, readbuffer, writebuffer, close_socket
 
 
   interface writebuffer
@@ -84,10 +84,10 @@ module f90sockets
       integer(c_int), value, intent(in) :: len
     end subroutine readbuffer_socket_c
 
-    subroutine shutdown_socket_c(sockfd) bind(C, name='shutdown_socket')
+    subroutine close_socket_c(sockfd) bind(C, name='close_socket')
       import :: c_int
       integer(c_int), value, intent(in) :: sockfd
-    end subroutine shutdown_socket_c
+    end subroutine close_socket_c
 
   end interface
 
@@ -115,12 +115,12 @@ contains
 
 
   ! Close the socket
-  subroutine shutdown_socket(sockfd)
+  subroutine close_socket(sockfd)
     integer(c_int), intent(in) :: sockfd
 
-    call shutdown_socket_c(sockfd)
+    call close_socket_c(sockfd)
 
-  end subroutine shutdown_socket
+  end subroutine close_socket
 
 
   ! write a float (real)

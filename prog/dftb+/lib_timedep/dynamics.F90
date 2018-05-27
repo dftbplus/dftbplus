@@ -72,8 +72,7 @@ module timeprop_module
 contains
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, fdAutotest, &
-      &autotestTag)
+  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -89,9 +88,6 @@ contains
 
     !> produce tagged output?
     logical, intent(in) :: tWriteAutotest
-
-    !> File unit for autotest data
-    integer, intent(in) :: fdAutotest
 
     !> Tagged output files (machine readable)
     character(*), intent(in) :: autotestTag
@@ -145,15 +141,14 @@ contains
 
     this%tWriteAutotest = tWriteAutotest
     if (tWriteAutotest) then
-      this%fdAutotest = fdAutotest
-      open(fdAutotest, file=autotestTag, position="append")
+      open(newunit=this%fdAutotest, file=autotestTag, position="append")
     end if
 
   end subroutine TElecDynamics_init
 
 
   !> Driver of time dependent propagation to calculate wither spectrum or laser
-  subroutine runDynamics(this, Hsq, ham, H0, q0, over, filling, neighborList, nNeighbor,&
+  subroutine runDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour,&
       &iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, sccCalc, env)
 
     !> ElecDynamics instance
@@ -184,7 +179,7 @@ contains
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Number of neighbours for each of the atoms
-    integer, intent(inout) :: nNeighbor(:)
+    integer, intent(inout) :: nNeighbour(:)
 
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iPair(:,:)
@@ -196,7 +191,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> list of neighbours for each atom
-    type(TNeighborList), intent(inout) :: neighborList
+    type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
@@ -211,6 +206,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     integer :: iPol
+    logical :: tWriteAutotest
 
     this%sccCalc = sccCalc
 
@@ -228,20 +224,20 @@ contains
       do iPol = 1, size(this%PolDirs)
         this%currPolDir = this%PolDirs(iPol)
         ! Make sure only last component enters autotest
-        tWriteAutotest = tWriteAutotest .and. (iPol == size%polDirs)
-        call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighborList, nNeighbor,&
-            & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env,  tWriteAutotest)
+        tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
+        call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour,&
+            & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
       end do
     else
-      call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighborList, nNeighbor,&
-          & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env,  tWriteAutotest)
+      call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour,&
+          & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
     end if
 
   end subroutine runDynamics
 
 
   !> Runs the electronic dynamics of the system
-  subroutine doDynamics(this, Hsq, ham, H0, q0, over, filling, neighborList, nNeighbor, &
+  subroutine doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour, &
       & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
 
     !> ElecDynamics instance
@@ -272,7 +268,7 @@ contains
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Number of neighbours for each of the atoms
-    integer, intent(inout) :: nNeighbor(:)
+    integer, intent(inout) :: nNeighbour(:)
 
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iPair(:,:)
@@ -284,7 +280,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> list of neighbours for each atom
-    type(TNeighborList), intent(inout) :: neighborList
+    type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
@@ -294,7 +290,6 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-
 
     complex(cp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(cp) :: Rho(this%nOrbs,this%nOrbs,this%nSpin), Rhoold(this%nOrbs,this%nOrbs,this%nSpin)
@@ -318,14 +313,14 @@ contains
     end if
 
     call createMatrices(this, Rho, H1, Ssqr, Sinv, H0, ham0, over, ham, Hsq, filling, orb,&
-        & rhoPrim, potential, neighborList%iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, &
+        & rhoPrim, potential, neighbourList%iNeighbour, nNeighbour, iSquare, iPair, img2CentCell, &
         & Eiginv, EiginvAdj, energy)
 
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, Rho, Ssqr, coord, iSquare)
-    call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, neighborList%iNeighbor,&
-        & nNeighbor, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
+    call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, neighbourList%iNeighbour,&
+        & nNeighbour, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
 
     ! Apply kick to Rho if necessary
     if (this%tKick) then
@@ -336,8 +331,8 @@ contains
     Rhoold(:,:,:) = Rho
     call initializePropagator(this, this%Dt, Rho, Rhoold, H1, Sinv)
 
-    call getTDEnergy(this, energy, rhoPrim, Rhoold, neighborList%iNeighbor, &
-        & nNeighbor, orb, iSquare, iPair, img2CentCell, ham0, qq, q0, &
+    call getTDEnergy(this, energy, rhoPrim, Rhoold, neighbourList%iNeighbour, &
+        & nNeighbour, orb, iSquare, iPair, img2CentCell, ham0, qq, q0, &
         & potential, chargePerShell, coord, pRepCont)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
@@ -357,14 +352,14 @@ contains
 
       call getChargeDipole(this, deltaQ, qq, dipole, q0, Rho, Ssqr, coord, iSquare)
       call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential,&
-          & neighborList%iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, iStep,&
+          & neighbourList%iNeighbour, nNeighbour, iSquare, iPair, img2CentCell, iStep,&
           & chargePerShell, W, env)
 
       if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
         call writeRestart(Rho, Ssqr, coord, time)
       end if
 
-      call getTDEnergy(this, energy, rhoPrim, Rho, neighborList%iNeighbor, nNeighbor, orb,&
+      call getTDEnergy(this, energy, rhoPrim, Rho, neighbourList%iNeighbour, nNeighbour, orb,&
           & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
 
       do iSpin = 1, this%nSpin
@@ -398,7 +393,7 @@ contains
 
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
   subroutine updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, &
-      &iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
+      &iNeighbour, nNeighbour, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -431,10 +426,10 @@ contains
     type(TPotentials), intent(inout) :: potential
 
     !> Atomic neighbour data
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbour(:)
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
@@ -472,7 +467,7 @@ contains
 
     call clearPotential(potential)
 
-    call this%sccCalc%updateCharges(env, qq, q0, orb, this%species, iNeighbor, img2CentCell)
+    call this%sccCalc%updateCharges(env, qq, q0, orb, this%species, iNeighbour, img2CentCell)
     call this%sccCalc%getShiftPerAtom(atomPot(:,1))
     call this%sccCalc%getShiftPerL(shellPot(:,:,1))
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
@@ -499,7 +494,7 @@ contains
       potential%intBlock = potential%intBlock + potential%extBlock ! for forces
     end if
 
-    call add_shift(ham, over, nNeighbor, iNeighbor, this%species, orb, iPair, this%nAtom,&
+    call add_shift(ham, over, nNeighbour, iNeighbour, this%species, orb, iPair, this%nAtom,&
         & img2CentCell, potential%intShell)
 
     if (this%nSpin == 2) then
@@ -509,7 +504,7 @@ contains
     end if
 
     do iSpin=1,this%nSpin
-      call unpackHS(T2,ham(:,iSpin),iNeighbor,nNeighbor,iSquare,iPair,img2CentCell)
+      call unpackHS(T2,ham(:,iSpin),iNeighbour,nNeighbour,iSquare,iPair,img2CentCell)
       call blockSymmetrizeHS(T2,iSquare)
       H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
     end do
@@ -706,7 +701,7 @@ contains
 
 
   !> Calculate energy
-  subroutine getTDEnergy(this, energy, rhoPrim, Rho, iNeighbor, nNeighbor, orb, iSquare, iPair,&
+  subroutine getTDEnergy(this, energy, rhoPrim, Rho, iNeighbour, nNeighbour, orb, iSquare, iPair,&
       & img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
 
     !> ElecDynamics instance
@@ -734,10 +729,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Atomic neighbour data
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbour(:)
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
@@ -765,13 +760,13 @@ contains
     iSpin = 1
 
     rhoPrim(:,iSpin) = 0.0_dp
-    call packHS(rhoPrim(:,iSpin), real(Rho(:,:,iSpin), dp), iNeighbor, & ! should be complex
-        &nNeighbor, orb%mOrb, iSquare, iPair, img2CentCell)
+    call packHS(rhoPrim(:,iSpin), real(Rho(:,:,iSpin), dp), iNeighbour, & ! should be complex
+        &nNeighbour, orb%mOrb, iSquare, iPair, img2CentCell)
 
     energy%ETotal = 0.0_dp
     energy%EnonSCC = 0.0_dp
     energy%atomNonSCC(:) = 0.0_dp
-    call mulliken(energy%atomNonSCC(:), rhoPrim(:,1), ham0, orb, iNeighbor, nNeighbor,&
+    call mulliken(energy%atomNonSCC(:), rhoPrim(:,1), ham0, orb, iNeighbour, nNeighbour,&
         & img2CentCell, iPair)
     energy%EnonSCC =  sum(energy%atomNonSCC)
 
@@ -796,7 +791,7 @@ contains
     end if
 
     !! Calculate repulsive energy
-    call getERep(energy%atomRep, coord, nNeighbor, iNeighbor, this%species, pRepCont, img2CentCell)
+    call getERep(energy%atomRep, coord, nNeighbour, iNeighbour, this%species, pRepCont, img2CentCell)
     energy%Erep = sum(energy%atomRep)
 
     energy%Eelec = energy%EnonSCC + energy%eSCC + energy%Espin + energy%Eext
@@ -808,7 +803,7 @@ contains
   !> Create all necessary matrices and instances for dynamics
   subroutine createMatrices(this, Rho, H1, Ssqr, Sinv, H0, ham0, &
       & over, ham, Hsq, filling, orb, rhoPrim, potential, &
-      & iNeighbor, nNeighbor, iSquare, iPair, img2CentCell, Eiginv, &
+      & iNeighbour, nNeighbour, iSquare, iPair, img2CentCell, Eiginv, &
       & EiginvAdj, energy)
 
     !> ElecDynamics instance
@@ -830,10 +825,10 @@ contains
     real(dp), intent(in) :: H0(:)
 
     !> Atomic neighbour data
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbour(:)
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
@@ -886,12 +881,12 @@ contains
 
     T2 = 0.0_dp
     T3 = 0.0_dp
-    call unpackHS(T2,over,iNeighbor,nNeighbor,iSquare,iPair,img2CentCell)
+    call unpackHS(T2,over,iNeighbour,nNeighbour,iSquare,iPair,img2CentCell)
     call blockSymmetrizeHS(T2,iSquare)
     Ssqr(:,:) = cmplx(T2, 0, cp)
 
     do iSpin=1,this%nSpin
-      call unpackHS(T3,ham(:,iSpin),iNeighbor,nNeighbor,iSquare,iPair,img2CentCell)
+      call unpackHS(T3,ham(:,iSpin),iNeighbour,nNeighbour,iSquare,iPair,img2CentCell)
       call blockSymmetrizeHS(T3,iSquare)
       H1(:,:,iSpin) = cmplx(T3, 0, cp)
       T3 = 0.0_dp

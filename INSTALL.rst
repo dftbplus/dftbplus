@@ -6,7 +6,7 @@ Compiling and installing DFTB+
 Requirements
 ============
 
-In order to install DFTB+, you need the following software components:
+In order to compile DFTB+, you need the following software components:
 
 * A Fortran 2003 compliant compiler
 
@@ -16,53 +16,73 @@ In order to install DFTB+, you need the following software components:
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
-* Optionally: ScaLAPACK (version 2.0 or later), if you build the
-  MPI-parallelised version of the code
+Additionally there are optional requirements for some DFTB+ features:
 
-* Optionally: the ARPACK or ARPACK-ng library for excited state DFTB
-  functionality; the DftD3 dispersion library (if you need this dispersion
-  model).
+* ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
+  want to build the MPI-parallelised version of the code
 
-In order to execute the tests and compare them against precalculated results,
-you will additionally need:
+* The M4 preprocessor, if you want to build the MPI-parallelised version of the
+  code
+
+* The ARPACK or the ARPACK-ng library for excited state DFTB functionality
+
+* The DftD3 dispersion library (if you need this dispersion model).
+
+In order to execute the code tests and validate them against precalculated
+results, you will additionally need:
 
 * Python (version >= 2.6) with NumPy
 
+* The Slater-Koster data used in the tests (see below)
 
 Obtaining the source
 ====================
 
-The source code can be downloaded from the `DFTB+ homepage
-<http://www.dftbplus.org>`_.
+The source code of the last stable release can be downloaded from the `DFTB+
+homepage <http://www.dftbplus.org>`_.
 
 Alternatively you can clone the `public git repository
-<https://github.com/dftbplus/dftbplus>`_. (The tagged revisions correspond to
+<https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
 stable releases, while the master branch contains the latest development
-version.) Note: the project uses git-submodules, which must be additionally
-downloaded using the ::
+version. As the project uses git-submodules, those must be additionally
+downloaded ::
 
-  git submodule update --remote --recursive
+  git clone https://github.com/dftbplus/dftbplus.git
+  cd dftbplus
+  git submodule update --init --recursive
 
-command after the repository was cloned.
+Optional extra components
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Some optional software components (e.g. the `DftD3 library
-<https://github.com/aradi/dftd3-lib>`_) are not distributed with the DFTB+
-source code, but can be included during the DFTB+ compilation if they are not
-installed on your system. You can download those optional software components by
-using the `get_opt_externals` utility, e.g.::
+Some optional software components are not distributed with the DFTB+ source
+code. If these are required, but are not already installed on your system, then
+we recommend you download these components by using the `get_opt_externals`
+utility, e.g.::
 
-  ./utils/get_opt_externals dftd3
+  ./utils/get_opt_externals
 
-The Slater-Koster data needed for testing can also be downloaded by using
-this tool::
+This will download all license compatible optional external components. These
+include the Slater-Koster (slako) data for testing the compiled code.
 
-  ./utils/get_opt_externals slakos
+If you also wish to download and use any of the optional components which have
+*conflicting licenses* (e.g. the `DftD3 library
+<https://github.com/aradi/dftd3-lib>`_), you must explicitly request it::
 
-See detailed help for this tool by issuing ``./utils/get_opt_externals -h``.
+  ./utils/get_opt_externals ALL
+
+This will then prompt for confirmation when downloading components with other
+licenses.
+
+*Note*: if you include components with conflicting licenses into your
+compilation of DFTB+, you are only allowed to use the resulting binary for your
+personal research and are not permitted to distribute it.
+
+For more information see the detailed help for this tool by issuing
+``./utils/get_opt_externals -h``.
 
 
-Compile
-=======
+Compiling
+=========
 
 * Look at the makefiles in the `sys/` folder and find the one closest to your
   system. The suffix of the makefiles indicate the architecture, operating
@@ -71,7 +91,9 @@ Compile
 
       cp sys/make.x86_64-linux-gnu make.arch
 
-* Adjust the settings in `make.arch` according to your system.
+* Adjust the settings in `make.arch` according to your system. Note that there
+  are often separate settings in `make.arch` for compiling with and without
+  MPI. The code is also usually compiled with openMP enabled.
 
 * Open the file `make.config` and check the configuration options set there. In
   this file binary choices are defined as either 0 (false) or 1 (true).
@@ -90,21 +112,40 @@ Compile
   build directory location within the `make.config` file (variable
   ``BUILDDIR``), but the default location is inside the root of the source tree.
 
-* After successful compilation, execute the tests with ::
+* The code can be compiled with distributed memory parallelism (MPI), but for
+  smaller shared memory machines, you may find that the performance is better
+  when using OpenMP parallelism only and an optimised thread aware BLAS library.
+
+
+Testing DFTB+
+=============
+
+* After successful compilation, execute the code tests with ::
 
     make test
 
-  You may also run the tests in parallel (option ``-j``) in order to speed this
+  You can also run the tests in parallel (option ``-j``) in order to speed this
   up.  If you use parallel testing, ensure that the number of OpenMP threads is
-  set to be 1 via the ``OMP_NUM_THREADS`` environment variable before starting
-  the tests, e.g.::
+  reduced accordingly. As an example, assuming your workstation has 4 cores, you
+  could use::
 
-    export OMP_NUM_THREADS=1
+    make -j2 test TEST_OMP_THREADS=2
 
-  if using the bash shell. If you want to test the MPI-binary with more than one
-  processes, you can set the TESTPROC variable accordingly e.g::
+  for an OpenMP compiled binary running two tests simultaneously, each using 2
+  cores.
 
-    make test TESTPROC=2
+  If you want to test the MPI enabled binary with more than one MPI-process, you
+  can set the TEST_MPI_PROCS variable accordingly e.g::
+
+    make test TEST_MPI_PROCS=2
+
+  Testing with hybrid (MPI/OpenMP) parallelism can be specified by setting both,
+  the ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` variables, e.g::
+
+    make test TEST_MPI_PROCS=2 TEST_OMP_THREADS=2
+
+  Note that efficient production use of the code in this mode may require
+  process affinity (settings will depend on your specific MPI implementation).
 
 * The compiled executables can be copied into an installation directory by ::
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -645,7 +645,7 @@ contains
     !> vector to sort
     real(dp), intent(in) :: array(:)
 
-    !> tollerance for comparisions
+    !> tolerance for comparisions
     real(dp), intent(in) :: tol
 
     real(dp), allocatable :: work(:,:), tmp(:,:)

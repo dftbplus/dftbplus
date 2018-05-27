@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -365,7 +365,7 @@ contains
     !> Instance
     class(IpiSocketComm), intent(inout) :: this
 
-    call shutdown_socket(this%socket)
+    call close_socket(this%socket)
     this%tInit = .false.
 
   end subroutine shutdown
