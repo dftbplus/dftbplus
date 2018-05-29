@@ -381,8 +381,9 @@ contains
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, Rho, Ssqr, coord, iSquare)
-    call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, neighbourList%iNeighbour,&
-        & nNeighbour, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
+    call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential,&
+        & neighbourList%iNeighbour, nNeighbour, iSquare, iPair, img2CentCell, iStep,&
+        & chargePerShell, W, env)
 
     ! Apply kick to Rho if necessary
     if (this%tKick) then
@@ -853,7 +854,8 @@ contains
     end if
 
     !! Calculate repulsive energy
-    call getERep(energy%atomRep, coord, nNeighbour, iNeighbour, this%species, pRepCont, img2CentCell)
+    call getERep(energy%atomRep, coord, nNeighbour, iNeighbour, this%species, pRepCont,&
+        & img2CentCell)
     energy%Erep = sum(energy%atomRep)
 
     energy%Eelec = energy%EnonSCC + energy%eSCC + energy%Espin + energy%Eext
