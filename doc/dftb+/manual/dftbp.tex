@@ -2798,7 +2798,7 @@ Calculate the real-time propagation of the electronic state of the system in the
 \begin{ptable}
   \kw{Steps} &i &  & - & \\
   \kw{TimeStep} & r & & - & \\
-  \kw{FieldIntensity} & r & & - & \\
+  \kw{FieldStrength} & r & & - & \\
   \kw{Perturbation} & m & & None & \pref{sec:dftbp.tdpert} \\
   \kw{EnvelopeShape} & m & Perturbation = Laser\{\} & Constant & \pref{sec:dftbp.envelope} \\
   \kw{Populations} & l & & No & \\
@@ -2814,7 +2814,7 @@ Calculate the real-time propagation of the electronic state of the system in the
 \item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
   electronic propagation steps.
 
-\item[\is{FieldIntensity}]\modif{\modtype{Electric field strength}} Peak intensity of the applied time-dependent electric field.
+\item[\is{FieldStrength}]\modif{\modtype{Electric field strength}} Peak intensity of the applied time-dependent electric field.
 
 \item[\is{Populations}] If time-dependent (ground state) molecular orbital populations should be calculated. This is done by projecting the electronic state onto the ground state molecular orbitals. If Yes, they are saved every \is{WriteFrequency} steps to \verb|molPopul1.dat| (and \verb|molPopul2.dat| is the calculation is collinearly spin polarised).
 
@@ -2833,7 +2833,7 @@ Calculate the real-time propagation of the electronic state of the system in the
 Determines the type of perturbation that is applied.
 
 \paragraph{\iscb{None}}
-No time-dependent perturbation is included, free dynamics are calculated.
+No time-dependent pertuzzrbation is included, free dynamics are calculated.
 
 \paragraph{Kick\{\}}
 Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
@@ -2913,7 +2913,7 @@ The properties of this method are the same as for the Gaussian (\kw{Time0}, \kw{
     Steps = 40000
     TimeStep = 0.1
     # Total time will be then 4000 a.u. = 96.8 fs
-    FieldIntensity [v/a] = 0.01
+    FieldStrength [v/a] = 0.01
     Perturbation = Laser {
       PolarizationDirection = 0.5 0.5 0
       LaserEnergy [ev] = 2.55
@@ -3588,6 +3588,52 @@ energy (in Hartree)\\
 \index{XREST.DAT}
 
 Net dipole moment of the specified excited state in units of Debye.
+
+\section{Electron dynamics results files}
+\label{sec:tddftb_rt}
+
+Real-time dynamics simulations produce the following output files:
+
+\subsection{energyvst.dat}
+\index{energyvst.dat}
+
+Time-dependent energy components in Hartree. The column order is the following:
+
+time (in fs), total energy, non-SCC energy, SCC energy, spin energy, external field energy, repulsive energy
+
+\subsection{qsvst.dat}
+\index{qsvst.dat}
+
+Net atomic charges in electrons (negative atomic populations) as a function of time, written every \kw{WriteFrequency} steps, with the following column order:
+
+time (in fs), net total charge, charge (atom 1), charge (atom 2), ..., charge (atom N)
+
+where N is the number of atoms, and the net total charge should always be zero (up to numerical presicion) for a neutral system.
+
+\subsection{mu.dat/mux.dat/muy.dat/muz.dat}
+\index{mu.dat}
+
+Dipole moment cartesian components $\mu_i$ as a function of time. The name depends on the type or perturbation: for kicks the polarization direction of the Dirac-delta field is indicated in the name of the file; for lasers and pulses, the name is always mu.dat. The column order for a spin unpolarised calculation is the following:
+
+time (in fs), $\mu_x$, $\mu_y$, $\mu_z$
+
+For (collinear) spin polarised calculations, the dipole components are also spin-dependent:
+
+Time (in fs), $\mu_x$ (up), $\mu_y$ (up), $\mu_z$ (up), $\mu_x$ (down), $\mu_y$ (down), $\mu_z$ (down).
+
+\subsection{laser.dat}
+\index{laser.dat}
+
+Created if \kw{Perturbation} = Laser\{\} (see \label{sec:dftbp.tdpert}). Laser field components $E_i$ (in V/\AA) as a function of time, in the following order:
+
+time (in fs), $E_x$, $E_y$, $E_z$
+
+\subsection{molPopul1.dat/molPopul2.dat}
+
+Created if \kw{Populations} = Yes. The number $i$ in molPopul$i$.dat indicates the spin channel for spin polarised calculations (if spin unpolarised, only molPopul1.dat is written). It contains the populations projected onto the ground state molecular orbitals (GSMO), written every \kw{WriteFrequency} steps. The projection is done by calculating first the change of basis matrix $\Lambda$ from the coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then projecting the time-dependent density matrix of the system in the atomic orbital basis: 
+$$\rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger} $$
+The diagonal elements of $\rho^{GSMO}$ are the seeked populations. The first column is the time (in fs), and from the second one the populations starting from the lowest lying orbital.
+
 
 %%% Local Variables:
 %%% mode: latex
