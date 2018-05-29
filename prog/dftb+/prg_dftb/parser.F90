@@ -1422,6 +1422,8 @@ contains
         call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
       end if
 
+      call readHBondCorrection(node, geo, ctrl)
+
       ! spin
       call getChildValue(node, "SpinPolarisation", value, "", child=child, &
           &allowEmptyValue=.true.)
@@ -2156,6 +2158,67 @@ contains
   end subroutine readDifferentiation
 
 
+  !> Reads the H-bond (H5) correction.
+  subroutine readHBondCorrection(node, geo, ctrl)
+
+    !> Node containing the h-bond correction sub-block.
+    type(fnode), pointer, intent(in) :: node
+
+    !> Geometry.
+    type(TGeometry), intent(in) :: geo
+
+    !> Control structure
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: value, child, child2
+    type(string) :: buffer
+    real(dp) :: h5ScalingDef
+    integer :: iSp
+
+    ! H5 correction
+    call getChildValue(node, "HBondCorrection", value, "None", child=child)
+    call getNodeName(value, buffer)
+    select case (char(buffer))
+    case ("none")
+      ctrl%h5SwitchedOn = .false.
+    case ("h5")
+      ! Switch the correction on
+      ctrl%h5SwitchedOn = .true.
+
+      ! H5 should not be used with X-H damping
+      if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
+        call error("H5 correction is not compatible with X-H damping")
+      end if
+
+      call getChildValue(value, "RScaling", ctrl%h5RScale, 0.714_dp)
+      call getChildValue(value, "WScaling", ctrl%h5WScale, 0.25_dp)
+
+      allocate(ctrl%h5ElementPara(geo%nSpecies))
+      call getChild(value, "H5Scaling", child2, requested=.false.)
+      if (.not. associated(child2)) then
+        call setChild(value, "H5scaling", child2)
+      end if
+      do iSp = 1, geo%nSpecies
+        select case (geo%speciesNames(iSp))
+        case ("O")
+          h5ScalingDef = 0.06_dp
+        case ("N")
+          h5ScalingDef = 0.18_dp
+        case ("S")
+          h5ScalingDef = 0.21_dp
+        case default
+          ! Default value is -1, this indicates that the element should be ignored
+          h5ScalingDef = -1.0_dp
+        end select
+        call getChildValue(child2, geo%speciesNames(iSp), ctrl%h5ElementPara(iSp), h5ScalingDef)
+      end do
+    case default
+      call getNodeHSDName(value, buffer)
+      call detailedError(child, "Invalid value of HBondCorrection '" // char(buffer) // "'")
+    end select
+
+  end subroutine readHBondCorrection
+
 
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
@@ -2730,7 +2793,7 @@ contains
     real(dp), allocatable :: coords(:,:)
     integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
-    type(TNeighborList) :: neighs
+    type(TNeighbourList) :: neighs
 
     allocate(tmpR2(3, geo%nAtom))
     allocate(input%polar(geo%nAtom))
@@ -2798,14 +2861,14 @@ contains
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighborList(coords, img2CentCell, iCellVec, neighs, &
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, &
           &nAllAtom, geo%coords, mCutoff, rCellVec)
       allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
-        do iNeigh = 1, neighs%nNeighbor(iAt1)
-          iAt2f = img2CentCell(neighs%iNeighbor(iNeigh, iAt1))
+        do iNeigh = 1, neighs%nNeighbourSK(iAt1)
+          iAt2f = img2CentCell(neighs%iNeighbour(iNeigh, iAt1))
           iSp2 = geo%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)
           if (neighs%neighDist2(iNeigh, iAt1) <= rTmp**2) then
@@ -2922,8 +2985,7 @@ contains
       call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
     case default
       call getNodeHSDName(childval, buffer)
-      call detailedError(child, "Invalid damping method '" // char(buffer) &
-          & // "'")
+      call detailedError(child, "Invalid damping method '" // char(buffer) // "'")
     end select
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8, default=0.5883_dp)
@@ -2934,6 +2996,9 @@ contains
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCN)
     call getChildValue(node, "threebody", input%threebody, default=.false.)
+    ! D3H5 - additional H-H repulsion
+    call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
+
     input%numgrad = .false.
 
   end subroutine readDispDFTD3
@@ -3227,7 +3292,7 @@ contains
               if (associated(child3)) then
                 call getChildValue(child3, "", 1, lr1)
                 if (len(lr1) < 1) then
-                  call detailedError(child2, "Missing values of tollerances.")
+                  call detailedError(child2, "Missing values of tolerances.")
                 end if
                 allocate(inp%sparseTols(len(lr1)))
                 call asVector(lr1, inp%sparseTols)
@@ -3393,7 +3458,7 @@ contains
        call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
             & electron dynamics are currently not supported.')
     end if
-#:end if
+#:endif
 
 
     call getChildValue(node, "Steps", input%steps)

@@ -168,10 +168,13 @@ contains
 
     !> nr. of orbitals / atoms / spin channels
     integer :: nOrb, nAtom, nSpin
+
     !> error returned by the io commands
     integer :: iErr
+
     !> file unit number
     integer :: file
+
     !> total charge is present at the top of the file
     real(dp) :: CheckSum(size(qq, dim=3))
 
@@ -185,7 +188,8 @@ contains
 
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-#:call ASSERT_CODE
+    
+  #:call ASSERT_CODE
     if (present(magnetisation)) then
       @:ASSERT(nSpin==2)
     end if
@@ -198,7 +202,7 @@ contains
       @:ASSERT(present(qBlock))
       @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     if (tReadAscii) then
       open(newunit=file, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)

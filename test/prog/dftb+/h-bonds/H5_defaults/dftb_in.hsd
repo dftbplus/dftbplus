@@ -1,0 +1,74 @@
+Geometry = GenFormat {
+21  C
+H C S N O 
+1 1 0.886590 -0.244996 1.576381
+2 1 1.958318 -0.539086 -1.310864
+3 1 0.497434 -1.393673 -0.784671
+4 1 3.549034 -1.565105 0.609269
+5 1 2.078625 0.771617 0.775461
+6 1 -0.320297 0.612829 -1.816831
+7 1 0.250712 2.154386 0.653807
+8 1 0.880622 1.715533 -1.656129
+9 1 -1.447474 0.909164 1.735335
+10 1 -2.118228 1.416018 0.182905
+11 1 -2.774293 -0.941111 0.729034
+12 1 -1.044971 -1.450633 0.763525
+13 1 -2.316768 -0.399397 -1.547890
+14 2 1.436976 -0.918718 -0.414563
+15 3 2.413643 -2.246821 0.357071
+16 2 1.155557 0.186959 0.589472
+17 2 0.028646 1.166299 0.159401
+18 4 -0.031955 1.444981 -1.302159
+19 2 -1.372287 0.731739 0.644038
+20 2 -1.760997 -0.714964 0.348091
+21 5 -1.727290 -1.008311 -1.059099
+}
+Hamiltonian = DFTB {
+  SCC = Yes
+  MaxSCCIterations = 199
+  SCCTolerance = 1.0e-05
+  SpinPolarisation = {}
+  Mixer = Broyden {
+    MixingParameter = 0.2
+  }
+  Charge = 0
+  SlaterKosterFiles = Type2FileNames {
+    Separator = -
+    Suffix = .skf
+    LowerCaseTypeName = No
+  }
+  MaxAngularMomentum =  {
+    H = s
+    C = p
+    S = d
+    N = p
+    O = p
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 0.0
+  }
+  HBondCorrection = H5 {}
+  ThirdOrderFull = Yes
+  HubbardDerivs {
+    H = -0.1857
+    C = -0.1492
+    S = -0.11
+    N = -0.1535
+    O = -0.1575
+  }
+}
+Options =  {
+  WriteAutotestTag = Yes
+}
+Analysis {
+  CalculateForces = Yes
+}
+ParserOptions =  {
+  ParserVersion = 5
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

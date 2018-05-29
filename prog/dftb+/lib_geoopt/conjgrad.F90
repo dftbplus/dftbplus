@@ -205,7 +205,7 @@ contains
     !> Did convergence occur?
     logical,  intent(inout) :: tConverged
 
-    !> cut out tollerance for optimisation
+    !> cut out tolerance for optimisation
     real(dp), intent(in) :: tolerance
 
     !> Line minimizer

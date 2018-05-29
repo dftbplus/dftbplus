@@ -645,7 +645,7 @@ contains
     !> vector to sort
     real(dp), intent(in) :: array(:)
 
-    !> tollerance for comparisions
+    !> tolerance for comparisions
     real(dp), intent(in) :: tol
 
     real(dp), allocatable :: work(:,:), tmp(:,:)

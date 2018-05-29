@@ -349,6 +349,16 @@ module inputdata_module
     real(dp) :: dampExp = 0.0_dp
 
 
+    ! H5 correction
+    !> H5 correction On/Off(default) flag
+    logical ::h5SwitchedOn = .false.
+    !> Global parameters - set to -1 to identify they were not initialized
+    real(dp) :: h5RScale = -1.0_dp
+    real(dp) :: h5WScale = -1.0_dp
+    real(dp), allocatable :: h5ElementPara(:)
+    ! H5 correction end
+
+
     !> Old repulsive
     logical :: useBuggyRepSum
 
@@ -397,11 +407,11 @@ module inputdata_module
 
     type(linrespini) :: lrespini
 
-    !> LBFGS input
-    type(TLbfgsInput), allocatable :: lbfgsInp
-
     !> ElectronDynamics
     type(TElecDynamicsInp), allocatable :: elecDynInp
+
+    !> LBFGS input
+    type(TLbfgsInput), allocatable :: lbfgsInp
 
   #:if WITH_SOCKETS
     !> socket communication
