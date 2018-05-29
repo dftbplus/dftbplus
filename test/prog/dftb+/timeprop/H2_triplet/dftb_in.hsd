@@ -47,6 +47,6 @@ ParserOptions = {
         PolarizationDirection = 3
         SpinType = triplet
       }
-      FieldIntensity [v/a] = 0.001
+      FieldStrength [v/a] = 0.001
     }
  }

@@ -44,6 +44,6 @@ Options = {
         PolarizationDirection = 3
         SpinType = singlet
       }
-      FieldIntensity [v/a] = 0.001
+      FieldStrength [v/a] = 0.001
     }
  }

@@ -44,7 +44,7 @@ Options = {
         PolarizationDirection = 0.0 1.0 1.0
         LaserEnergy [eV] = 6.795
       }
-      FieldIntensity [v/a] = 0.01
+      FieldStrength [v/a] = 0.01
     }
  }
 

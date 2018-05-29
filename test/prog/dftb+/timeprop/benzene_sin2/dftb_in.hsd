@@ -48,7 +48,7 @@ Options = {
         Time0 [fs] = 10.0
         Time1 [fs] = 50.0
       }
-      FieldIntensity [v/a] = 0.01
+      FieldStrength [v/a] = 0.01
     }
  }
 

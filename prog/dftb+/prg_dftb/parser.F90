@@ -3388,12 +3388,20 @@ contains
     type(fnode), pointer :: value, value2, child, child2
     type(string) :: buffer, buffer2, modifier
 
+#:if WITH_MPI
+    if (associated(node)) then
+       call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
+            & electron dynamics are currently not supported.')
+    end if
+#:end if
+
+
     call getChildValue(node, "Steps", input%steps)
     call getChildValue(node, "TimeStep", input%dt, modifier=modifier, &
          & child=child)
     call convertByMul(char(modifier), timeUnits, child, input%Dt)
 
-    call getChildValue(node, "FieldIntensity", input%tdField, modifier=modifier, child=child)
+    call getChildValue(node, "FieldStrength", input%tdField, modifier=modifier, child=child)
     call convertByMul(char(modifier), EFieldUnits, child, input%tdField)
 
     call getChildValue(node, "Populations", input%tPopulations, .false.)

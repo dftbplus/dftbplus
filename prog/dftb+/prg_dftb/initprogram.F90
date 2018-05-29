@@ -2202,7 +2202,7 @@ contains
       write(stdOut, *)
     end if
   #:endif
-    
+
   #:if WITH_SCALAPACK
     write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
@@ -2694,8 +2694,24 @@ contains
    ! Electron dynamics stuff
    tElectronDynamics = allocated(input%ctrl%elecDynInp)
    if (tElectronDynamics) then
-      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
-           &tWriteAutotest, autotestTag)
+     if (tDFTBU) then
+       call error("Electron dynamics is not compatible with Orbitally dependant functionals yet")
+     end if
+
+     if (t2Component) then
+       call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
+     end if
+
+     if (.not.tRealHS) then
+       call error("Electron dynamics does not support k-points")
+    end if
+
+     if (withMpi) then
+       call error("Electron dynamics does not work with MPI yet")
+     end if
+
+     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
+          &tWriteAutotest, autotestTag)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)

@@ -43,7 +43,7 @@ Options = {
       Perturbation = Kick {
         PolarizationDirection = 2
       }
-      FieldIntensity [v/a] = 0.001
+      FieldStrength [v/a] = 0.001
     }
  }
 
