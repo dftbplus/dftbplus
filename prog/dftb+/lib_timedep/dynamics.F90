@@ -620,11 +620,13 @@ contains
 
     pkick(1) = this%field
 
-    if (this%nSpin == 2 .and. this%spType == iTDSinglet) then
-      pkick(2) = pkick(1)
-    end if
-    if (this%nSpin == 2 .and. this%spType == iTDTriplet) then
-      pkick(2) = - pkick(1)
+    if (this%nSpin == 2) then
+      select case(this%spType)
+      case (iTDSinglet)
+        pkick(2) = pkick(1)
+      case(iTDTriplet)
+        pkick(2) = - pkick(1)
+      end select
     end if
 
     T1(:,:,:) = 0.0_dp
