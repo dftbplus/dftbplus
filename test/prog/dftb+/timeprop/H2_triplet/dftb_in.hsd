@@ -37,8 +37,9 @@ Options = {
 }
 
 ParserOptions = {
-  ParserVersion = 4
+  ParserVersion = 5
 }
+
  Analysis = {
     ElectronDynamics = {
       Steps = 20000
