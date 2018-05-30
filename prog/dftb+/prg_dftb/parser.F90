@@ -3487,12 +3487,12 @@ contains
           call detailedError(child, "Wrong specified polarization direction")
        end if
 
-       call getChildValue(value, "SpinType", buffer2, "singlet")
+       call getChildValue(value, "SpinType", buffer2, "Singlet")
 
-       select case(char(buffer2))
-       case ("singlet")
+       select case(unquote(char(buffer2)))
+       case ("singlet", "Singlet")
           input%spType = iTDSinglet
-       case ("triplet")
+       case ("triplet", "Triplet")
           input%spType = iTDTriplet
        case default
           call detailedError(value, "Unknown spectrum spin type " // char(buffer2))
