@@ -234,7 +234,7 @@ contains
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> spin constants
-    real(dp), intent(in) :: W(:,:,:)
+    real(dp), allocatable, intent(in) :: W(:,:,:)
 
     !> occupations
     real(dp), intent(in) :: filling(:,:,:)
@@ -323,7 +323,7 @@ contains
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> spin constants
-    real(dp), intent(in) :: W(:,:,:)
+    real(dp), allocatable, intent(in) :: W(:,:,:)
 
     !> occupations
     real(dp), intent(in) :: filling(:,:,:)
@@ -513,7 +513,7 @@ contains
     real(dp), intent(inout) :: chargePerShell(:,:,:)
 
     !> spin constants
-    real(dp), intent(in) :: W(:,:,:)
+    real(dp), allocatable, intent(in) :: W(:,:,:)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -677,15 +677,13 @@ contains
     do iStep = 0,this%nSteps
       time = iStep * this%dt
 
-      if (this%envType /= iTDConstant) then
-        if (this%envType == iTDGaussian) then
-          envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
-        else if (this%envType == iTDSin2 .and. (time >= this%time0) .and. &
-            & (time <= this%time1)) then
-          envelope = sin(pi*(time-this%time0)/deltaT)**2
-        end if
-      else if (this%envType == iTDConstant) then
+      if (this%envType == iTDConstant) then
         envelope = 1.0_dp
+      else if (this%envType == iTDGaussian) then
+        envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
+      else if (this%envType == iTDSin2 .and. (time >= this%time0) .and. &
+            & (time <= this%time1)) then
+        envelope = sin(pi*(time-this%time0)/deltaT)**2
       else
         envelope = 0.0_dp
       end if
@@ -693,7 +691,7 @@ contains
       if (this%tEnvFromFile) then
         read(laserDat, *)time, tdfun(1), tdfun(2), tdfun(3)
         this%tdFunction(iStep, :) = tdfun * (Bohr__AA / Hartree__eV)
-     else
+      else
         this%tdFunction(iStep, :) = E0 * envelope * aimag(Exp(imag*(time*angFreq + this%phase)) &
              & * this%fieldDir)
         write(laserDat, "(5F15.8)") time * au__fs, &
@@ -939,7 +937,7 @@ contains
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
     integer :: iSpin, iOrb, iOrb2
 
-    allocate(rhoPrim(size(ham), this%nSpin))
+    allocate(rhoPrim(size(ham, dim=1), this%nSpin))
     allocate(ham0(size(H0)))
     ham0(:) = H0
 

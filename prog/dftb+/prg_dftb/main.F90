@@ -603,7 +603,7 @@ contains
     else
       nullify(pDynMatrix)
     end if
-       
+
     !! Here time propagation is called
     if (tElectronDynamics) then
        call runDynamics(elecDyn, eigvecsReal, ham, H0, q0, over, filling, neighbourList, &
