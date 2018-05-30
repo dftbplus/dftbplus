@@ -616,6 +616,8 @@ contains
     integer :: iAt, iStart, iEnd, iSpin, iOrb
     real(dp) :: pkick(this%nSpin)
 
+    character(1), parameter :: localDir(3) = ['x', 'y', 'z']
+
     pkick(1) = this%field
 
     if (this%nSpin == 2 .and. this%spType == iTDSinglet) then
@@ -649,7 +651,7 @@ contains
       call gemm(rho(:,:,iSpin), Sinv, T2, cmplx(0.5, 0, dp), cmplx(1, 0, dp), 'N', 'C')
     end do
 
-    write(stdout,"(A)")'Density kicked!'
+    write(stdout,"(A)")'Density kicked along ' // localDir(this%currPolDir) //'!'
 
   end subroutine kickDM
 
