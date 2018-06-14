@@ -54,7 +54,7 @@ Rules to build a valid input structure:
   practice only rectangular cells are currently allowed in transport
   calculations.
 \end{enumerate}
- 
+
 Note: Currently the code makes only a consistency check on the definition of the
 two PLs (rule~\ref{rule4}), namely it checks whether the two contact PLs are
 really shifted copies of each other.  The code does not check if the device
@@ -63,8 +63,8 @@ defined are really PLs (rule~\ref{rule3}) and does not check if the first PL
 defined is really the one closest to the device (rule~\ref{rule5}).  The code
 checks rules \ref{rule8}, \ref{rule9} and \ref{rule10}. The check is performed
     on the atomic coordinates, such that
-\begin{equation} 
- \mathbf{R}^2_{i+N} = \mathbf{R}^1_i + \mathbf{v}\qquad\forall i \in PL 
+\begin{equation}
+ \mathbf{R}^2_{i+N} = \mathbf{R}^1_i + \mathbf{v}\qquad\forall i \in PL
 \end{equation}
 where $\mathbf{R}^2_i$ are atomic coordinates of atoms in the second PL,
 $\mathbf{R}^1_i$ are atomic coordinates of atoms in the first PL and
@@ -75,8 +75,8 @@ Please take your time to build up structures and cross-check them. Also consider
 to look at the examples distributed with the code. The input structure is often
 the first suspect when there's some problem in the calculation.
 
-    
-\htsection{Transport} 
+
+\htsection{Transport}
 
 \dftbp{} allows for NEGF calculations on different levels. It is possible to
 calculate linear response transmission within Landauer formalism, charge density
@@ -86,7 +86,6 @@ conditions are used. It contains the description of the partitioning of the
 system into {\em device} and {\em contact} regions and additional contact
 information needed to calculate the associated Self Energies. The transport
 block contains the following properties:
-
 \begin{ptable}
   \kw{Device} &p& & - & \pref{Device} \\
   \kw{Contact} &p& & - & \pref{Contact} \\
@@ -95,16 +94,16 @@ block contains the following properties:
 \end{ptable}
 
 
-Example: 
+Example:
 
 \begin{verbatim}
 Transport {
     Device {
-      AtomRange = 1 8 
+      AtomRange = 1 8
     }
     Contact {
       Id = "source"
-      AtomRange = 9 24 
+      AtomRange = 9 24
     }
     Contact {
       Id = "drain"
@@ -115,7 +114,8 @@ Transport {
 \end{verbatim}
 
 
-\htcbsubsection{Device} The Device blocks contains the following properties:
+\htcbsubsection{Device}
+The Device blocks contains the following properties:
 
 \begin{ptable}
   \kw{AtomRange} &2i& & - & \pref{AtomRange} \\
@@ -131,7 +131,7 @@ Transport {
   region. By default there is only one layer (the entire device
   region). Alternatively the user can manually reorder and partition the
   structure into layers for efficient GF calculations.
-  
+
   Differently from the contact PLs, the device layers do not need to represent
   unit cell repetitions. The device geometry must be manually ordered in such a
   way that all the atoms within each layer are contiguous and adjacent layers
@@ -140,7 +140,7 @@ Transport {
   description of the iterative algorithm.
 
 \end{description}
- 
+
 \htcbsubsection{Contact} The contact block contains the following properties:
 
 \begin{ptable}
@@ -199,7 +199,7 @@ specifying setting \kw{Task}=\is{ContactHamiltonian} as in the following example
 \begin{verbatim}
 Task = ContactHamiltonian {
   ContactId = source
-  ContactSeparation [Angstrom] = 50.0 
+  ContactSeparation [Angstrom] = 50.0
 }
 \end{verbatim}
 
@@ -296,8 +296,8 @@ further clarification.
 \htcbsubsection{Task = UploadContacts} After the contact calculations, it is
 possible to perform actual transport calculations. This is activated simply
 specifying \kw{Task = UploadContacts}, without additional options. In order to
-set a proper transport calculation the user should also define the FermiLevel
-and Potential to each contact.
+set up a proper transport calculation the user should also define the Fermi level
+and potential for each contact.
 \begin{verbatim}
 Transport {
   Device {
@@ -307,13 +307,13 @@ Transport {
     Id = "source"
     AtomRange = 9 24
     FermiLevel [eV] = -8.4123
-    Potential = 0.0 
+    Potential = 0.0
   }
   Contact {
     Id = "drain"
     AtomRange = 25 40
     FermiLevel [eV] = -8.4123
-    Potential = 1.0 
+    Potential = 1.0
   }
   Task = UploadContacts
 }
@@ -323,7 +323,7 @@ Note: During the transport calculation you will not need to set up the k-point
 integration when the structure is defined as a cluster, just as in a regular
 \dftbp{} calculation.
 
- 
+
 \htsection{GreensFunction}
 
 In order to activate Green's functions calculations the user must define the
@@ -365,8 +365,8 @@ only.
 \item[\is{Delta}]\modif{\modtype{energy}}\modif{\modtype{energy}} A small
   positive imaginary delta used in the GF definition.
   \item[\is{ContourPoints}] The number of points along the complex contour
-    integration of the GF along the contour segments $\mathcal{C}$ and
-    $\mathcal{L}$ (see contour integration).
+    integration of the GF along the segments $\mathcal{C}$ and $\mathcal{L}$
+    (see contour integration).
 \item[\is{LowestEnergy}]\modif{\modtype{energy}}\modif{\modtype{energy}} The
   initial energy from which the integration starts. It should be low enough to
   ensure that all the electronic states are correctly included in the
@@ -379,12 +379,12 @@ only.
 \item[\is{RealAxisStep}]\modif{\modtype{energy}} The energy step along the real
   axis integration for non-equilibrium calculations. Note: \kw{RealAxisStep} and
   \kw{RealAxisPoints} can not be both defined at the same time.
- 
+
 \item[\is{RealAxisPoints}] The number of points along the real axis integration
   needed in non-equilibrium calculations. The default depends on the electronic
   temperature and bias. Note: \kw{RealAxisStep} and \kw{RealAxisPoints} can not
   be both defined at the same time.
- 
+
 \item[\is{SaveSurfaceGFs}] As the SCC cycle usually needs to repeat the
   calculation of the Green's function at given energy points and as the surface
   Green functions do not change during the SCC cycle, this flag allows for
@@ -404,7 +404,7 @@ iterative scheme in quasi-1d systems. In this case, a \kw{Transport} block is
 not defined and therefore \iscb{FirstlayerAtoms} should be defined here. Also, a
 Fermi level of the system must be known and provided to fill up the electronic
 states.
-      
+
 \item[\is{FirstLayerAtoms}] As described in Device block. Can be specified only
   if no \kw{Transport} block exists.
 
@@ -419,7 +419,7 @@ states.
 
 \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
   \hline
-  Atom(i) & x & y & z &  nNeighbors &  j1 & I$_{i,j1}$ & j2 & I$_{i,j2}$ &  j3 & I$_{i,j3}$ & ...\\ 
+  Atom(i) & x & y & z &  nNeighbors &  j1 & I$_{i,j1}$ & j2 & I$_{i,j2}$ &  j3 & I$_{i,j3}$ & ...\\
   \hline
 \end{tabular}
 
@@ -429,7 +429,7 @@ states.
 
 GreensFunction section example:
 
-\begin{verbatim}  
+\begin{verbatim}
 Eigensolver = GreensFunction {
   FirstLayerAtoms = 1 61 92 145
   Delta [eV] = 1e-4
@@ -442,14 +442,14 @@ Eigensolver = GreensFunction {
 \end{verbatim}
 
 
-  Note: in order to solve the self-consistent NEGF transport problem, the
-  GreensFunction Eigensolver must be used. However, the \iscb{TunelingAndDos}
-  section can be used to calculate the transmission coefficients according to
-  Landauer formula in a non self-consistent manner. In this case an Eigensolver
-  is not needed as the charge density doesn't need to be calculated.  To run
-  such a calculation, \is{Eigensolver = TransportOnly} must be set and no
-  electrostatics must be calculated (i.e. the \is{Electrostatics = Poisson}
-  should not be declared).
+\textbf{Note:} in order to solve the self-consistent NEGF transport problem, the
+Green's function solver must be used. However, the \iscb{TunelingAndDos} section
+can be used to calculate the transmission coefficients according to Landauer
+formula in a non self-consistent manner. In this case an eigensolver is not
+needed as the charge density doesn't need to be calculated.  To run such a
+calculation, \is{Eigensolver = TransportOnly} must be set and no electrostatics
+must be calculated (i.e.\ the \is{Electrostatics = Poisson} should not be
+declared).
 
 
 \section{Contour integration}
@@ -510,7 +510,7 @@ elongated 1D shape.
 
 \section{Spin-polarized transport}
 
-Spin-polarized transport is not available yet. In fact collinear spin transport will be available 
+Spin-polarized transport is not available yet. In fact collinear spin transport will be available
 soon, as all the needed machinery has been implemented and is under debugging and testing.
 
 
@@ -543,10 +543,10 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
   \kw{BuildBulkPotential} & l & & Yes & \pref{Boundary Conditions}\\
   \kw{ReadOldBulkPotential} & l & & Yes & \pref{Boundary Conditions} \\
   \kw{OverrideDefaultBC} & m & & none\{\} & \pref{Boundary Conditions}\\
-  \kw{OverrideBulkBC} & m & & none\{\} & \pref{Boundary Conditions}\\ 
+  \kw{OverrideBulkBC} & m & & none\{\} & \pref{Boundary Conditions}\\
   \kw{BoundaryRegion} & m & & global\{\} &  \pref{Boundary Conditions} \\
-  \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\ 
-  \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelizations} \\ 
+  \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\
+  \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelizations} \\
 \end{ptableh}
 
 
@@ -573,7 +573,7 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
     know exactly what you're doing.
   \item[\is{Verbosity}] This parameter controls the amount of output messages
     and takes values ranging from 1 to 100.
-  \item[\is{SavePotential}] Save the potential to file. 
+  \item[\is{SavePotential}] Save the potential to file.
 \item[\is{PoissonAccuracy}] Defines the accuracy for the approximate solution of
   the Poisson equation (default value 10$^{-6}$).
 \item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
@@ -596,7 +596,7 @@ keywords are described in the next subsections.
 
 
 Example:
- 
+
 \begin{verbatim}
  Electrostatics = Poisson {
   PoissonBox [Angstrom] = 20.0 20.0 20.0
@@ -676,10 +676,10 @@ particular:
 \end{description}
 
 Example:
-\begin{verbatim} 
+\begin{verbatim}
 BoundaryRegion = Circle {
-    BufferLength [Angstrom] = 3.0 
-}  
+    BufferLength [Angstrom] = 3.0
+}
 \end{verbatim}
 
 In some special case it might be necessary to override the default BCs applied
@@ -697,7 +697,7 @@ keywords: \verb|OverrideDefaultBC| and \verb|OverrideBulkBC|.
 
 \begin{verbatim}
 OverrideDefaultBC = Dirichlet {
-      Boundaries = xmin   
+      Boundaries = xmin
 }
 \end{verbatim}
 
@@ -714,7 +714,7 @@ contacts. For instance, a Neumann BC can be set on one contact face using
 
 \begin{verbatim}
 OverrideDefaultBC = Neumann {
-      Boundaries = zmin   
+      Boundaries = zmin
 }
 \end{verbatim}
 
@@ -735,7 +735,7 @@ It is also possible to override default BCs when computing the bulk potential.
 
 \begin{verbatim}
 OverrideBulkBC = Neumann {
-      Boundaries = x, y   
+      Boundaries = x, y
 }
 \end{verbatim}
 
@@ -751,7 +751,7 @@ be placed along the z-axis. The latter is not really a restriction but it gives
 meaning to 'longitudinal' and 'transverse' in the geometrical definitions of the
 gate lengths.  Example:
 
-\begin{verbatim} 
+\begin{verbatim}
 Gate = Planar {
     GateLength_l [Angstrom] = 20.0
     GateLength_t [Angstrom] = 20.0
@@ -832,7 +832,7 @@ the parameter \kw{MaxParallelNodes} to control distributions of these
 calculations. The default is \kw{MaxParallelNodes}=1, that can be increased
 until speedups are observed.
 \begin{ptable}
- \kw{MaxParallelNodes} & i & & 1 &  \\ 
+ \kw{MaxParallelNodes} & i & & 1 &  \\
 \end{ptable}
 
 
@@ -842,11 +842,11 @@ until speedups are observed.
 The \kw{Analyis} block is used to specify post-scf calculations such as
 tunneling or projected DOS.
 
-\begin{verbatim} 
+\begin{verbatim}
 Analysis{
   TunnelingAndDOS{
     EnergyRange [eV] = {-5.0 -3.0}
-    EnergyStep [eV] = 0.02    
+    EnergyStep [eV] = 0.02
   }
 }
 \end{verbatim}
@@ -859,7 +859,7 @@ and it is used to calculate the transmission by means of Caroli formula, the
 current by means of Landauer formula and the Density of States from the spectral
 function. This block can only be specified if an open boundary system has been
 defined in \is{Transport} (see p.\pref{Transport}).
- 
+
 \begin{ptable}
   \kw{EnergyRange} & 2r &  & &  \\
   \kw{EnergyStep} & r & &  &  \\
@@ -880,14 +880,14 @@ defined in \is{Transport} (see p.\pref{Transport}).
 \item[\iscb{TerminalCurrents}] in multiterminal configurations is used to define
   the terminal across which current must be computed. The terminal pairs are
   defined by using the keyword \is{EmitterCollector}. example:
-  
+
    \begin{verbatim}
     TerminalCurrents{
        EmitterCollector = {"source" "drain"}
        EmitterCollector = {"source" "gate"}
     }
-  \end{verbatim}   
-  
+  \end{verbatim}
+
   The block \is{TerminalCurrents} may be omitted since the code automatically
   sets all possible independent combinations for the terminal currents. For
   example in a 4-contact calculations the currents are 1-2, 1-3, 1-4, 2-3, 2-4,
@@ -905,10 +905,10 @@ defined in \is{Transport} (see p.\pref{Transport}).
 
 \section{Scattering and Dephasing}
 
-An elastic dephasing model has been implemented in the current 
-version of dftb+/libNEGF. B\:uttiker probes are also under development. 
-A \kw{Dephasing} block must be specified (outside the Hamiltonian block). 
-The dephasing block is common to the Green's functions for the computation 
+An elastic dephasing model has been implemented in the current
+version of dftb+/libNEGF. B\:uttiker probes are also under development.
+A \kw{Dephasing} block must be specified (outside the Hamiltonian block).
+The dephasing block is common to the Green's functions for the computation
 of the Density Matrix and Tunneling calculations.
 Example:
 
@@ -916,7 +916,7 @@ Example:
    Dephasing {
      Orthonormal = Yes|No
      OrthonormalDevice = Yes|No
-     VibronicElastic{ 
+     VibronicElastic{
        AtomBlock = Yes|No
        Coupling [eV] = Constant { 0.1 }
        MaxSCBAIterations = 100
@@ -937,38 +937,38 @@ Example:
 \item[\is{Orthonormal}] L\"owdin transformation applied to the whole system.
 \item[\is{OrthonormalDevice}] L\"owdin transformation applied to the device region.
 \item[\iscb{VibronicElastic}] \label{elastic} Block used to specify the type of
-            model based on NEGF elastic scattering (energy conserving). 
+            model based on NEGF elastic scattering (energy conserving).
 %\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing
 %  model based on B\"uttiker probes.
 
 \end{description}
 
-The \iscb{VibronicElastic} model computes the NEGF self-energies. Currently only the \is{Local} 
-implementation is available. This means that the self-energies are non-zero on the diagonal 
-matrix-elements or atomic blocks of the Density Matrix. 
-More precisely, if \is{AtomBlock=No} the self-energies are 
-strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagonal; 
-%if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.  
+The \iscb{VibronicElastic} model computes the NEGF self-energies. Currently only the \is{Local}
+implementation is available. This means that the self-energies are non-zero on the diagonal
+matrix-elements or atomic blocks of the Density Matrix.
+More precisely, if \is{AtomBlock=No} the self-energies are
+strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagonal.
+%if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.
 
 \begin{description}
-\item[\is{AtomBlock}] if Yes then self-energies are computed on the atomic blocks
+\item[\is{AtomBlock}] if \is{Yes} then self-energies are computed on the atomic blocks.
 %\item[\is{SemiLocal}] if Yes then self-energies are computed on atomic and non-zero overlap blocks	
-\item[\is{Coupling}] sets the electron-phonon coupling energy: 
-\item[\iscb{Constant}] sets the same coupling constant for all atoms. 
-\item[\iscb{AtomCoupling}] can be used to define electron-phonon coupling on each atom. 
-\item[\iscb{AllOrbitals}] accepts a list of numbers to sets couplings for each orbital. 
+\item[\is{Coupling}] sets the electron-phonon coupling energy.
+\item[\iscb{Constant}] sets the same coupling constant for all atoms.
+\item[\iscb{AtomCoupling}] can be used to define electron-phonon coupling on each atom.
+\item[\iscb{AllOrbitals}] accepts a list of numbers to sets couplings for each orbital.
 \item[\is{MaxSCBAIterations}] sets the maximum number of self-consitent Born iterations to be performed.	
 \end{description}
 
   \begin{verbatim}
-  VibronicElastic = local { 
-    Coupling [eV] = AtomCoupling { 
+  VibronicElastic = local {
+    Coupling [eV] = AtomCoupling {
       AtomList { Atoms = 1
                  Value = 0.1
-      } 
+      }
       AtomList { Atoms = 2 3
                  Value = 0.01
-      }           
+      }
       AtomList { Atoms = 4 5
                  Value = 0.03
       }
@@ -978,15 +978,15 @@ strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagon
 
 
 %The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\"uttiker Probes theory.
-%B\"uttiker probes are local by construction, however probes can be defined on atomic blocks using 
+%B\"uttiker probes are local by construction, however probes can be defined on atomic blocks using
 %the \is{AtomBlock} logical flag.
 
 %\begin{description}
-%  \item[\iscb{ZeroPotential}] sets the zero-potential condition on the probes 
-%  \item[\iscb{ZeroCurrent}] sets the zero-current condition on the probes 
+%  \item[\iscb{ZeroPotential}] sets the zero-potential condition on the probes
+%  \item[\iscb{ZeroCurrent}] sets the zero-current condition on the probes
 %  \item[\is{Coupling}] is the system/probe coupling energy. Block-options are the same as
 %	  in \is{VibronicElastic}.
-%  \item[\is{MaxSCBAIterations}] Maximum number of iterations to solve the probe constrain.	  
+%  \item[\is{MaxSCBAIterations}] Maximum number of iterations to solve the probe constrain.	
 %\end{description}
 
 %Example:
