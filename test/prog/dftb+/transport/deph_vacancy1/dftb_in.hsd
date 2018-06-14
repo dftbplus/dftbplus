@@ -41,7 +41,7 @@ Hamiltonian = DFTB {
 
 Dephasing {
   OrthonormalDevice = Yes
-  VibronicElastic = local { 
+  VibronicElastic { 
     AtomBlock = Yes
     Coupling [eV] = Constant { 0.1 }
     MaxSCBAIterations = 100

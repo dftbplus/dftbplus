@@ -829,7 +829,7 @@ c     coarsening in x,y,z
 c----+|----------------------------------------------------------------|
       if (ncz.lt.nz .and. ncy.lt.ny .and. ncx.lt.nx) then
 !$OMP PARALLEL DO PRIVATE(i,j,k,ic,jc,kc,rm,rk,rp)
-        !$OMP+SHARED(resf,rhsc,ncx,ncy,ncz)
+!$OMP& SHARED(resf,rhsc,ncx,ncy,ncz)
         do kc=2,ncz-1
           k = kc+kc-1
           do jc=2,ncy-1
@@ -864,7 +864,7 @@ c----+|----------------------------------------------------------------|
 c       allow for noncoarsening in any of x,y,z
 c----+|----------------------------------------------------------------|
 !$OMP PARALLEL DO PRIVATE(i,j,k,ic,jc,kc,rm,rk,rp)
-!$OMP+SHARED(ix,jy,kz,resf,rhsc,ncx,ncy,ncz)
+!$OMP& SHARED(ix,jy,kz,resf,rhsc,ncx,ncy,ncz)
         do kc=2,ncz-1
           k = kc+kz*(kc-1)
           do jc=2,ncy-1
@@ -911,7 +911,7 @@ c----+|----------------------------------------------------------------|
 c       (y,z) interior
 c----+|----------------------------------------------------------------|
 !$OMP PARALLEL DO PRIVATE(j,k,jc,kc,rm,rk,rp)
-!$OMP+SHARED(kz,jy,ic,im1,i,ip1,resf,rhsc,ncy,ncz)
+!$OMP& SHARED(kz,jy,ic,im1,i,ip1,resf,rhsc,ncy,ncz)
         do kc=2,ncz-1
           k = kc+kz*(kc-1)
           do jc=2,ncy-1
@@ -1018,7 +1018,7 @@ c----+|----------------------------------------------------------------|
 c       (x,z) interior
 c----+|----------------------------------------------------------------|
 !$OMP PARALLEL DO PRIVATE(i,k,ic,kc,rm,rk,rp)
-!$OMP+SHARED(ix,kz,jc,jm1,j,jp1,resf,rhsc,ncx,ncz)
+!$OMP& SHARED(ix,kz,jc,jm1,j,jp1,resf,rhsc,ncx,ncz)
         do kc=2,ncz-1
           k = kc+kz*(kc-1)
           do ic=2,ncx-1
@@ -1080,7 +1080,7 @@ c----+|----------------------------------------------------------------|
 c         (x,y) interior
 c----+|----------------------------------------------------------------|
 !$OMP PARALLEL DO PRIVATE(i,j,ic,jc,rm,rk,rp)
-!$OMP+SHARED(ix,jy,kc,km1,k,kp1,resf,rhsc,ncx,ncz)
+!$OMP& SHARED(ix,jy,kc,km1,k,kp1,resf,rhsc,ncx,ncz)
         do jc=2,ncy-1
           j = jc+jy*(jc-1)
           do ic=2,ncx-1

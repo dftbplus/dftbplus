@@ -466,7 +466,8 @@ contains
       neigh%iNeighbor(1:nn1, iAtom1) = neigh%iNeighbor(indx(:nn1), iAtom1)
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
-    coord(:,nAllAtom+1:size(coord, dim=2)) = 0.0_dp
+              
+    call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
   end subroutine updateNeighborList
 
@@ -560,7 +561,9 @@ contains
 
     @:ASSERT(size(iCellVec) == mAtom)
     @:ASSERT(all(shape(coord) == (/ 3, mAtom /)))
-    @:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
+    !@:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
+    @:ASSERT((mNewAtom > 0))
+    mAtom = min(mAtom,mNewAtom)
 
     call move_alloc(img2CentCell, tmpIntR1)
     allocate(img2CentCell(mNewAtom))

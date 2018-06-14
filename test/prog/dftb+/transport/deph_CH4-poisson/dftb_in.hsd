@@ -48,10 +48,10 @@ Hamiltonian = DFTB {
 } 
   
 Dephasing {
-  BuettikerProbes = ZeroPotential {
+  BuettikerProbes{
     Coupling [eV] = constant { 0.5 }
   }
-  VibronicElastic = local { 
+  VibronicElastic{ 
     Coupling [eV] = constant { 0.01 }
     MaxSCBAIterations = 100
   }

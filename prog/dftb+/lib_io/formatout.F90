@@ -225,7 +225,7 @@ contains
     else
       append0 = .false.
     end if
-    if (append) then
+    if (append0) then
       open(fd, file=fileName, action="write", form="formatted", status="old", position="append")
     else
       open(fd, file=fileName, action="write", form="formatted", status="replace")
@@ -271,7 +271,7 @@ contains
 
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
-
+print*,size(species),nAtom
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesNames) == nSpecies)

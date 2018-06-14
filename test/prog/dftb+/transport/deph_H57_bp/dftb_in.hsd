@@ -42,7 +42,7 @@ Hamiltonian = DFTB {
 }
   
 Dephasing {
-  BuettikerProbes = ZeroPotential {
+  BuettikerProbes{
     Coupling [eV] = constant{ 0.5 }
   }
 }  

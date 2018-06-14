@@ -206,8 +206,9 @@ contains
   #:endif
 
     write(stdOut,*)
-    write(stdOut,*) 'Poisson Initialisation'
-    write(stdOut,'(a,i0,a)') 'Poisson parallelized on ',numprocs,' node(s)'
+    write(stdOut,*) 'Poisson Initialisation:'
+    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ',numprocs,' node(s)'
+    write(stdOut,*)
 
     ! notify solver of standard out unit
     call set_stdout(stdOut)

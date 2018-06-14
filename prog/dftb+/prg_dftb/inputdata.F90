@@ -386,7 +386,10 @@ module inputdata_module
     logical :: tMinMemory = .false.
 
     !> potential shifts are read from file
-    logical :: tReadShift = .false.
+    logical :: tReadShifts = .false.
+    !> potential shifts are written on file
+    logical :: tWriteShifts = .false.
+
     !> use Poisson solver for electrostatics
     logical :: tPoisson = .false.
 

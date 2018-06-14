@@ -3470,7 +3470,7 @@ contains
     real(dp), intent(in) :: shiftPerL(:,:,:)
 
     ! locals
-    integer :: fdHS, nSpin, nAtom
+    integer :: fdHS, nSpin, nAtom, ii, jj
 
     nSpin = size(shiftPerL,3)
     nAtom = size(shiftPerL,2)
@@ -3487,16 +3487,19 @@ contains
 
     open(fdHS, file=trim(fShifts), form="formatted")
     write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
-    write(fdHS, *) orb%nOrbAtom
-    write(fdHS, *) shiftPerL
-   
+    do ii = 1, nAtom
+      write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+    end do
+
     close(fdHS)
+    
+    write(stdOut,*) ">> Shifts saved for restart in shifts.dat"
 
   end subroutine writeShifts
 
 
   !> Writes the contact potential shifts per shell (for transport)
-  subroutine writeContShifts(filename, orb, shiftPerL, charges)
+  subroutine writeContShifts(filename, orb, shiftPerL, charges, Ef)
     !> filename where shifts are written
     character(*), intent(in) :: filename
     !> orbital structure
@@ -3505,8 +3508,10 @@ contains
     real(dp), intent(in) :: shiftPerL(:,:,:)
     !> array of charges per shell and spin
     real(dp), intent(in) :: charges(:,:,:)
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
    
-    integer :: fdHS, cont, nAtom, nSpin
+    integer :: fdHS, cont, nAtom, nSpin, iSpin
 
     nSpin = size(shiftPerL,3)
     nAtom = size(shiftPerL,2)
@@ -3520,7 +3525,7 @@ contains
     endif
     
     if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
-      call error("Internal error in writeiContShift: shape(charges)")
+      call error("Internal error in writeContShift: shape(charges)")
     endif
  
     fdHS = getFileId()
@@ -3530,7 +3535,13 @@ contains
     write(fdHS, *) orb%nOrbAtom
     write(fdHS, *) shiftPerL
     write(fdHS, *) charges
-   
+    if (nSpin .gt. 1) then
+      write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+      write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
+    else 
+      write(fdHS, *) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+    end if
+
     close(fdHS)
  
   end subroutine writeContShifts
@@ -3551,7 +3562,7 @@ contains
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
     !Locals
-    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii
     integer, allocatable :: nOrbAtom(:)
 
     shiftPerL = 0.0_dp
@@ -3564,12 +3575,14 @@ contains
       call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
     end if
     if (nSpin /= nSpinSt) then
-      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+      call error("Shift upload error: Mismatch in number of spin channels.")
     end if
 
     allocate(nOrbAtom(nAtomSt))
     read(fdH, *) nOrbAtom
-    read(fdH, *) shiftPerL(:,:,:)
+    !do ii = 1, nAtomSt
+      read(fdH, *) shiftPerL !(:,:,:)
+    !end do
     close(fdH)
 
     if (any(nOrbAtom /= orb%nOrbAtom(:))) then

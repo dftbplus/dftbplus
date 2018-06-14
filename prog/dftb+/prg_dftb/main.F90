@@ -257,7 +257,7 @@ contains
 
       call resetExternalPotentials(potential)
 
-      if (tReadShift) then
+      if (tReadShifts) then
         call uploadShiftPerL(fShifts, orb, nAtom, nSpin, potential%extShell)
       end if
 
@@ -349,7 +349,7 @@ contains
           call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
               & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
         end if
-
+    
         ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
         if (tDualSpinOrbit) then
           call getLDual(orbitalL, qiBlockOut, orb, species)
@@ -467,9 +467,8 @@ contains
 
     #:if WITH_TRANSPORT
       if (tLocalCurrents) then
-        if (tPeriodic) then
-          call warning("Local currents for periodic systems not correct")
-        endif
+        call writeXYZFormat("supercell.xyz", coord, species, speciesName)
+        write(stdOut,*) " <<< supercell.xyz written on file"    
         call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
             & neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
             & iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
@@ -714,11 +713,16 @@ contains
       nullify(pDynMatrix)
     end if
 
+    !if (tWriteShifts) then
+      call writeShifts(fShifts, orb, potential%intShell)
+    !endif
+
   #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
       associate(tp => transpar)
-      call writeContShifts(tp%contacts(tp%taskContInd)%output, orb, potential%intShell, qOutput)
+      call writeContShifts(tp%contacts(tp%taskContInd)%output, orb, potential%intShell,&
+          & qOutput, Ef)
       end associate
     end if
 
@@ -1026,7 +1030,8 @@ contains
     end if
 
     call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, neighborList,&
-        & nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
+        & nAllAtom, coord0Fold, species0, mCutoff, rCellVec)  
+ 
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
     call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
     call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iSparseStart,&
@@ -1537,7 +1542,7 @@ contains
     real(dp), allocatable :: shellPot(:,:,:)
     real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin
+    integer :: nAtom, nSpin, iAt
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -1910,6 +1915,7 @@ contains
           & neighborlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
           & iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
 
+      call ud2qm(rhoPrim)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
       return
     end if

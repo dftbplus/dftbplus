@@ -1020,7 +1020,7 @@ module negf_int
     real(dp), pointer    :: tunnMat(:,:)=>null()
     real(dp), pointer    :: ldosMat(:,:)=>null()
     real(dp), pointer    :: currVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, nKPoint, nSpin, ii, jj, err, ncont
+    integer :: iKS, iK, iS, nKS, ii, err, ncont
     type(unit) :: unitOfEnergy        ! Set the units of H
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
@@ -1036,8 +1036,6 @@ module negf_int
     unitOfCurrent%name = "A"
 
     nKS = size(groupKS, dim=2)
-    nKPoint = size(kPoints, dim=2)
-    nSpin = size(ham, dim=2)
     ncont = size(mu,1)
 
     if (params%verbose.gt.30) then
@@ -1052,7 +1050,7 @@ module negf_int
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
 
       params%mu(1:ncont) = mu(1:ncont,iS)
 
@@ -1063,42 +1061,26 @@ module negf_int
       end if
 
       !*** ORTHOGONALIZATIONS ***
-      ! THIS MAKES SENSE ONLY FOR A REAL MATRIX: k=0 && collinear spin TEMPORARY HACKING: we save H,
-      ! S on files as square-matrices then reload them and perfom Lowdin tranf.
-      if (all(kPoints(:,iK) .eq. 0.0_dp) .and. (negf%tOrthonormal .or. negf%tOrthonormalDevice))&
-          & then
+      ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin 
+      if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
+         (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
-          NumStates = negf%NumStates
+        NumStates = negf%NumStates
 
-          if (.not.allocated(H_all)) then
-            allocate(H_all(NumStates,NumStates))
-          end if
-          if (.not.allocated(S_all)) then
-            allocate(S_all(NumStates,NumStates))
-          end if
+        if (.not.allocated(H_all)) then
+          allocate(H_all(NumStates,NumStates))
+        end if
+        if (.not.allocated(S_all)) then
+          allocate(S_all(NumStates,NumStates))
+        end if
 
-          !open(11,file='H_dftb.mtr')
-          !read(11,*);read(11,*);read(11,*);read(11,*);read(11,*);
-          !do i = 1, NumStates
-          !  read(11,*) H_all(i,1:NumStates)
-          !end do
-          !close(11)
-          !open(11,file='S_dftb.mtr')
-          !read(11,*);read(11,*);read(11,*);read(11,*);read(11,*);
-          !do i = 1, NumStates
-          !  read(11,*) S_all(i,1:NumStates)
-          !end do
-          !close(11)
-          call unpackHS(H_all, ham(:,iS), iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
-          call blockSymmetrizeHS(H_all, iAtomStart)
+        call unpackHS(H_all, ham(:,iS), iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
+        call blockSymmetrizeHS(H_all, iAtomStart)
 
-          call unpackHS(S_all, over, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
-          call blockSymmetrizeHS(S_all, iAtomStart)
+        call unpackHS(S_all, over, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
+        call blockSymmetrizeHS(S_all, iAtomStart)
 
-          !print*,'H: ',maxval(abs(H_all))
-          !print*,'S: ',maxval(abs(S_all))
-
-          call prepare_HS(H_all,S_all,csrHam,csrOver)
+        call prepare_HS(H_all,S_all,csrHam,csrOver)
 
       else
 
@@ -1109,7 +1091,7 @@ module negf_int
             & img2CentCell, iCellVec, cellVec, orb)
 
       end if
-
+      
       call negf_current(csrHam, csrOver, iS, iK, kWeights(iK), tunnMat, ldosMat, currVec)
 
       if(.not.allocated(currTot)) then
@@ -1253,8 +1235,7 @@ module negf_int
     do ii=1,size(pTot,1)
       write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
       do jj=1,size(pTot,2)
-        !write(fdUnit,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
-        write(fdUnit,'(f20.8)',ADVANCE='NO') pTot(ii,jj)                     !DAR
+        write(fdUnit,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
       enddo
       write(fdUnit,*)
     enddo
@@ -1362,17 +1343,10 @@ module negf_int
       call mpifx_allreduceip(mpicomm, csrDens%nzval, MPI_SUM)
 
       call mpifx_allreduceip(mpicomm, csrEDens%nzval, MPI_SUM)
-      ! Gather is done here
 
-      !if (dumpDens) then
-      !  open(65000, file='dens.csr',form='formatted')
-      !  call print_mat(65000, csrDens, .true.)
-      !  close(65000)
-      !end if
-
-      allocate(nneig(nAtom, NMAX))
-      allocate(nn(nAtom))
-      call symmetrize_neiglist(nAtom, img2CentCell, iNeighbor, nNeighbor, coord, nneig, nn)
+      allocate(nneig(size(iNeighbor,2), NMAX))
+      allocate(nn(size(iNeighbor,2)))
+      call symmetrize_neiglist(nAtom, iNeighbor, nNeighbor, img2CentCell, coord, nneig, nn)
 
 
       if (iS .eq. 1) then
@@ -1385,7 +1359,6 @@ module negf_int
       open(newUnit = fdUnit, file = 'lcurrents_'//sp//'.dat')
 
       do m = 1, nAtom
-
         allocate(Im(nn(m)))
         Im(:) = 0.0_dp
 
@@ -1396,9 +1369,8 @@ module negf_int
 
         do inn = 1, nn(m)
           n = nneig(m,inn)
-          startn = iAtomStart(n)
+          startn = iAtomStart(img2CentCell(n))
           endn = startn + orb%nOrbAtom(n) - 1
-
           ! tracing orbitals of atoms  n  m
           ! More efficient without getel ?
           do mu = iRow, iRow+mOrb-1
@@ -1432,15 +1404,14 @@ module negf_int
   ! Neighbor is non-symmetric: i->j  j>i
   ! The following routine symmetrizes the neighbor list
   !
-  subroutine symmetrize_neiglist(nAtom,img2CentCell,iNeighbor,nNeighbor,coord&
-      &,nneig,nn)
+  subroutine symmetrize_neiglist(nAtom,iNeighbor,nNeighbor,img2CentCell,coord,nneig,nn)
     integer, intent(in) :: nAtom
-    integer, intent(in) :: img2CentCell(:)
     integer, intent(in) :: iNeighbor(0:,:)
     integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: img2CentCell(:)
     real(dp), intent(in) :: coord(:,:)
-    integer, dimension(:,:) :: nneig
-    integer, dimension(:) :: nn
+    integer, dimension(:,:), intent(out) :: nneig
+    integer, dimension(:), intent(out) :: nn
 
     real(dp) :: dist, dr(3)
     integer :: m, n, inn, ii, jj, morb
@@ -1455,7 +1426,8 @@ module negf_int
           exit
         end if
         n = img2CentCell(iNeighbor(inn,m))
-        if(nn(m).le.NMAX-1) then
+        !n = iNeighbor(inn,m)
+        if(nn(m).lt.NMAX) then
           nn(m)=nn(m)+1
           nneig(m,nn(m))=n
           ! sort by distances
@@ -1473,7 +1445,7 @@ module negf_int
           enddo
           ! -----------------
         endif
-        if(nn(n).le.NMAX-1) then
+        if(nn(n).lt.NMAX) then
           nn(n)=nn(n)+1
           nneig(n,nn(n))=m
           ! sort by distances
@@ -1950,208 +1922,5 @@ module negf_int
     !close(12)
 
   end subroutine orthogonalization_dev
-
-  !-----------------------------------------------------------------------------
-  ! ALEX: this routine has been commented out for the moment.
-  !       Reading of DFTB Hamiltonian should be moved inside DFTB
-  !       Reading of model Hamiltonian should be a separate libNEGF driver
-  !
-  !DAR begin - negf_current_nogeom
-  !-----------------------------------------------------------------------------
-  !subroutine negf_current_nogeom(mpicomm, tundos)
-  !
-  !  type(z_CSR) :: HH, SS
-  !  type(mpifx_comm), intent(in) :: mpicomm
-  !  real(dp), dimension(:,:), pointer :: tunn
-  !  real(dp), dimension(:,:), pointer :: ledos
-  !  real(dp), dimension(:), pointer :: currents
-  !  type(unit) :: unitOfEnergy        ! Set the units of H
-  !  type(unit) :: unitOfCurrent       ! Set desired units for Jel
-  !
-  !  integer :: i,j,k,l,m,n,NumStates,icont
-  !  real(8), dimension(:), allocatable :: coupling
-  !  real(dp), allocatable :: H(:,:),S(:,:)
-  !
-  !  unitOfEnergy%name = "H"
-  !  unitOfCurrent%name = "A"
-  !
-  !  if (tIoProc) then
-  !  write(*,*)
-  !  write(*,'(80("="))')
-  !  write(*,*) '                            COMPUTATION OF TRANSPORT         '
-  !  write(*,'(80("="))')
-  !  write(*,*)
-  !  write(*,*)'Transport is started'
-  !  write(*,"(' Number of States = ',I0)")negf%NumStates
-  !  endif
-  !
-  !  negf%kbT=0.00001_dp
-  !  negf%g_spin=2
-  !
-  !  if(negf%tReadDFTB) call ReadDFTB
-  !
-  !  if(negf%tModel) call ReadModel
-  !
-  !  if(negf%tOrthonormal) call Orthogonalization
-  !
-  !  if(negf%tOrthonormalDevice) call Orthogonalization_dev
-  !
-  !  if(negf%tElastic.and.(negf%tReadDFTB.or.negf%tModel.or.negf%tOrthonormal.or.&
-  !       &negf%tOrthonormalDevice)) &
-  !       call MakeHHSS(HH,SS)
-  !
-  !  if(negf%tManyBody) call MakeHS_dev
-  !
-  !  if(negf%tRead_negf_in) call ReadLibNEGF
-  !
-  !  call pass_HS(negf,HH,SS)
-  !
-  !
-  !  if(negf%tWrite_ldos) call WriteLDOS
-  !
-  !  if (tIoProc.and.negf%verbose.gt.30) then
-  !    write(*,*)
-  !    write(*,'(80("="))')
-  !    write(*,*) '                          LibNEGF: Current calculation'
-  !    write(*,'(80("="))')
-  !    write(*,*)
-  !  endif
-  !
-  !  call compute_current(negf)
-  !
-  !  call associate_current(negf, currents)
-  !  call associate_ldos(negf, ledos)
-  !  call associate_transmission(negf, tunn)
-  !
-  !  if (tIoProc.and.negf%verbose.gt.30) then
-  !    write(*,*)
-  !    write(*,'(80("="))')
-  !    write(*,*) '                           LibNEGF: Current finished'
-  !    write(*,'(80("="))')
-  !    write(*,*)
-  !  endif
-  !
-  !  !-------------------------------------------------------------------------
-  !  !WriteSelfEnergy / WriteSurfaceGF
-  !  !-------------------------------------------------------------------------
-  !
-  !  do icont=1,negf%str%num_conts
-  !    if(negf%cont(icont)%tWriteSelfEnergy) &
-  !       call mpifx_allreduceip(mpicomm, negf%cont(icont)%SelfEnergy, MPI_SUM)
-  !  end do
-  !
-  !  if (tIoProc) then
-  !    do icont=1,negf%str%num_conts
-  !      if(negf%cont(icont)%tWriteSelfEnergy) then
-  !        open(14,form="unformatted",file=trim(negf%cont(icont)%name)//'-SelfEnergy.mgf' &
-  !             ,action="write")
-  !        do i = 1, size(negf%en_grid)
-  !           write(14)real(negf%en_grid(i)%Ec),negf%cont(icont)%SelfEnergy(:,:,i)
-  !        end do
-  !        close(14)
-  !        write(*,"('    The retarded contact self-energy is written into the file ',A)") &
-  !              trim(negf%cont(icont)%name)//'-SelfEnergy.mgf'
-  !      end if
-  !    end do
-  !  end if
-  !
-  !  do icont=1,negf%str%num_conts
-  !     if(negf%cont(icont)%tWriteSurfaceGF) &
-  !          call mpifx_allreduceip(mpicomm, negf%cont(icont)%SurfaceGF, MPI_SUM)
-  !  end do
-  !
-  !  if (tIoProc) then
-  !    do icont=1,negf%str%num_conts
-  !      if (negf%cont(icont)%tWriteSurfaceGF) then
-  !        open(14,form="unformatted",file=trim(negf%cont(icont)%name)//'-SurfaceGF.mgf' &
-  !               ,action="write")
-  !        do i = 1, size(negf%en_grid)
-  !          write(14)real(negf%en_grid(i)%Ec),negf%cont(icont)%SurfaceGF(:,:,i)
-  !        end do
-  !        close(14)
-  !        write(*,"('    The retarded contact self-energy is written into the file ',A)") &
-  !                trim(negf%cont(icont)%name)//'-SurfaceGF.mgf'
-  !      end if
-  !    end do
-  !  end if
-  !
-  !  !-------------------------------------------------------------------------
-  !
-  !  call mpifx_allreduceip(mpicomm, currents, MPI_SUM)
-  !
-  !  currents = currents * convertCurrent(unitOfEnergy, unitOfCurrent)
-  !
-  !  if (tIoProc) then
-  !    do i=1, size(currents)
-  !      write(*,'(1x,a,i3,i3,a,ES14.5,a,a)') &
-  !           & ' contacts: ',negf%ni(i),negf%nf(i), &
-  !           & ' current: ', currents(i),' ',unitOfCurrent%name
-  !    enddo
-  !  endif
-  !
-  !  call mpifx_allreduceip(mpicomm, tunn, MPI_SUM)
-  !  if (tIoProc .and. tundos%writeTunn) then
-  !     open(65000,file='tunneling.dat')
-  !     do i=1,size(tunn,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
-  !        do j=1,size(tunn,2)
-  !           write(65000,'(f20.8)',ADVANCE='NO') tunn(i,j)
-  !        enddo
-  !        write(65000,*)
-  !     enddo
-  !     close(65000)
-  !  endif
-  !
-  !  if(negf%tZeroCurrent) then
-  !     call mpifx_allreduceip(mpicomm, negf%tunn_mat_bp, MPI_SUM)
-  !  if (tIoProc .and. tundos%writeTunn) then
-  !     open(65000,file='tunneling_bp.dat')
-  !     do i=1,size(negf%tunn_mat_bp,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
-  !        do j=1,size(negf%tunn_mat_bp,2)
-  !           write(65000,'(f20.8)',ADVANCE='NO') negf%tunn_mat_bp(i,j)
-  !        enddo
-  !        write(65000,*)
-  !     enddo
-  !     close(65000)
-  !  endif
-  !  endif
-  !
-  !  if ((.not.allocated(negf%inter)).and.(.not.negf%tDephasingBP)) then
-  !  call mpifx_allreduceip(mpicomm, ledos, MPI_SUM)
-  !  if (tIoProc .and. tundos%writeLDOS) then
-  !     open(65000,file='localDOS.dat')
-  !     do i=1,size(ledos,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
-  !        do j=1,size(ledos,2)
-  !           write(65000,'(f20.8)',ADVANCE='NO') ledos(i,j)
-  !        enddo
-  !        write(65000,*)
-  !     enddo
-  !     close(65000)
-  !  end if
-  !  end if
-  !
-  !  if (negf%tWrite_ldos) call mpifx_allreduceip(mpicomm, ledos, MPI_SUM)
-  !  if (tIoProc .and. negf%tWrite_ldos) then
-  !     open(65000,file='localDOS.dat')
-  !     do i=1,size(ledos,1)
-  !        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+i*negf%Estep)*Hartree__eV
-  !        do j=1,size(ledos,2)
-  !           write(65000,'(f20.8)',ADVANCE='NO') ledos(i,j)
-  !        enddo
-  !        write(65000,*)
-  !     enddo
-  !     close(65000)
-  !  end if
-  !
-  !  if (tIoProc) print*,'calculation of current done'
-  !
-  !end subroutine negf_current_nogeom
-  !-----------------------------------------------------------------------------
-  !DAR end
-  !-----------------------------------------------------------------------------
-  !DAR end
-  !-----------------------------------------------------------------------------
 
 end module negf_int

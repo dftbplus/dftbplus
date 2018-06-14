@@ -61,11 +61,11 @@ Hamiltonian = DFTB {
   #}
 }
   
-Dephasing {
-  VibronicElastic = local { 
-    Coupling [eV] = Constant { 0.5 }
-    MaxSCBAIterations = 100
-  }
+Dephasing{ 
+ VibronicElastic {
+   Coupling [eV] = Constant { 0.5 }
+   MaxSCBAIterations = 100
+ }
 }
 
 Analysis = {

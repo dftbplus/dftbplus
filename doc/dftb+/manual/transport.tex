@@ -413,7 +413,7 @@ states.
 
 \item[\is{LocalCurrents}] if set to Yes, local bond-currents are computed using
   the non-equilibrium density matrix.  This task is currently limited to
-  non-periodic systems. The output is placed in a file \verb|lcurrent_u.dat| (or
+  \bf{non-periodic} systems. The output is placed in a file \verb|lcurrent_u.dat| (or
   \verb|lcurrent_d.dat| dending on spin).  The files are arranged in a table in
   order of increasing neighbour distance,
 
@@ -507,6 +507,13 @@ the density matrix solver based on the GF can be used to compute the electronic
 properties of clusters and supercells. The recursive algorithm may be an
 efficient solution to large problem and could be efficient for systems having an
 elongated 1D shape.
+
+\section{Spin-polarized transport}
+
+Spin-polarized transport is not available yet. In fact collinear spin transport will be available 
+soon, as all the needed machinery has been implemented and is under debugging and testing.
+
+
 
 \section{Poisson solver}
 
@@ -898,20 +905,19 @@ defined in \is{Transport} (see p.\pref{Transport}).
 
 \section{Scattering and Dephasing}
 
-An elastic dephasing model and Buttiker probes have been implemented in the current 
-version of dftb+/libNEGF.
+An elastic dephasing model has been implemented in the current 
+version of dftb+/libNEGF. B\:uttiker probes are also under development. 
 A \kw{Dephasing} block must be specified (outside the Hamiltonian block). 
 The dephasing block is common to the Green's functions for the computation 
-of the Density Matrix and Tunneling.
+of the Density Matrix and Tunneling calculations.
 Example:
 
    \begin{verbatim}
    Dephasing {
      Orthonormal = Yes|No
      OrthonormalDevice = Yes|No
-     VibronicElastic = local { 
+     VibronicElastic{ 
        AtomBlock = Yes|No
-       SemiLocal = Yes|No
        Coupling [eV] = Constant { 0.1 }
        MaxSCBAIterations = 100
      }
@@ -921,8 +927,8 @@ Example:
 \begin{ptable}
   \kw{Orthonormal} & l &  & No &  \\
   \kw{OrthonormalDevice} & l &  & No &  \\
-  \kw{ButtikerProbes} & p & &  &  \\
   \kw{VibronicElastic} & p & &  &  \\
+  %\kw{ButtikerProbes} & p & &  &  \\
   \hline
 \end{ptable}
 
@@ -932,21 +938,21 @@ Example:
 \item[\is{OrthonormalDevice}] L\"owdin transformation applied to the device region.
 \item[\iscb{VibronicElastic}] \label{elastic} Block used to specify the type of
             model based on NEGF elastic scattering (energy conserving). 
-\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing
-  model based on B\"uttiker probes.
+%\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing
+%  model based on B\"uttiker probes.
 
 \end{description}
 
 The \iscb{VibronicElastic} model computes the NEGF self-energies. Currently only the \is{Local} 
 implementation is available. This means that the self-energies are non-zero on the diagonal 
 matrix-elements or atomic blocks of the Density Matrix. 
-More precisely, if both \is{AtomBlock=No} and \is{SemiLocal=No}, then the self-energies are 
+More precisely, if \is{AtomBlock=No} the self-energies are 
 strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagonal; 
-if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.  
+%if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.  
 
 \begin{description}
 \item[\is{AtomBlock}] if Yes then self-energies are computed on the atomic blocks
-\item[\is{SemiLocal}] if Yes then self-energies are computed on atomic and non-zero overlap blocks	
+%\item[\is{SemiLocal}] if Yes then self-energies are computed on atomic and non-zero overlap blocks	
 \item[\is{Coupling}] sets the electron-phonon coupling energy: 
 \item[\iscb{Constant}] sets the same coupling constant for all atoms. 
 \item[\iscb{AtomCoupling}] can be used to define electron-phonon coupling on each atom. 
@@ -971,26 +977,26 @@ if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Ham
   \end{verbatim}
 
 
-The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\"uttiker Probes theory.
-B\"uttiker probes are local by construction, however probes can be defined on atomic blocks using 
-the \is{AtomBlock} logical flag.
+%The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\"uttiker Probes theory.
+%B\"uttiker probes are local by construction, however probes can be defined on atomic blocks using 
+%the \is{AtomBlock} logical flag.
 
-\begin{description}
-  \item[\iscb{ZeroPotential}] sets the zero-potential condition on the probes 
-  \item[\iscb{ZeroCurrent}] sets the zero-current condition on the probes 
-  \item[\is{Coupling}] is the system/probe coupling energy. Block-options are the same as
-	  in \is{VibronicElastic}.
-  \item[\is{MaxSCBAIterations}] Maximum number of iterations to solve the probe constrain.	  
-\end{description}
+%\begin{description}
+%  \item[\iscb{ZeroPotential}] sets the zero-potential condition on the probes 
+%  \item[\iscb{ZeroCurrent}] sets the zero-current condition on the probes 
+%  \item[\is{Coupling}] is the system/probe coupling energy. Block-options are the same as
+%	  in \is{VibronicElastic}.
+%  \item[\is{MaxSCBAIterations}] Maximum number of iterations to solve the probe constrain.	  
+%\end{description}
 
-Example:
-   \begin{verbatim}
-   BuettikerProbes = ZeroPotential|ZeroCurrent {
-     AtomBlock = Yes|No
-     SemiLocal = Yes|No
-     Coupling [eV] = constant{ 0.5 }
-   }
-   \end{verbatim}
+%Example:
+%   \begin{verbatim}
+%   BuettikerProbes = ZeroPotential|ZeroCurrent {
+%     AtomBlock = Yes|No
+%     SemiLocal = Yes|No
+%     Coupling [eV] = constant{ 0.5 }
+%   }
+%   \end{verbatim}
 
 \section{Troubleshooting}
 
@@ -1002,8 +1008,11 @@ partitioning will lead to wrong results. If you're not completely confident, you
 can run a calculation on a test system with and without partitioning. The
 results should be the same.
 
+
 On some systems, a \verb|Segmentation Fault| error could occur while running
 relatively large structures. This could happen because the stack memory limit
 has been exceeded. You can troubleshoot this setting a higher limit for the
 stack memory. In bash you can remove stack memory limitation with the command
 line \verb|ulimit -s unlimited|.
+
+

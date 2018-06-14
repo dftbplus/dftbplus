@@ -887,13 +887,13 @@ contains
 
   end subroutine getShiftPerL
 
-  !> set the shifts from outside (e.g. Poisson solver)
+  !> set electrostatic shifts (e.g. Poisson solver)
   subroutine setShiftPerAtom(this, shift)
 
     !> Instance
     class(TScc), intent(inout) :: this
 
-    !> Contains the input shifts: shift(atom, spin).
+    !> Contains the input shifts: shift(atom).
     real(dp), intent(in) :: shift(:)
 
     @:ASSERT(this%tInitialised)

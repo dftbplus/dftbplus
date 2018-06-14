@@ -620,7 +620,10 @@ module initprogram
   logical :: tReadChrg
 
   !> Whether potential shifts are read from file
-  logical :: tReadShift
+  logical :: tReadShifts
+
+  !> Whether potential shifts are read from file
+  logical :: tWriteShifts
 
   !> should charges written to disc be in ascii or binary format?
   logical :: tWriteChrgAscii
@@ -1953,7 +1956,9 @@ contains
 
     tReadChrg = input%ctrl%tReadChrg
 
-    tReadShift = input%ctrl%tReadShift
+    tReadShifts = input%ctrl%tReadShifts
+
+    tWriteShifts = input%ctrl%tWriteShifts
 
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
 
@@ -2925,7 +2930,6 @@ contains
     end associate
 
     if (tPoisson) then
-      write(stdOut,*)'init poisson'
       poissStr%nAtom = nAtom
       poissStr%nSpecies = nType
       poissStr%specie0 => species0
@@ -3386,13 +3390,13 @@ contains
       nContAtom = iEnd - iStart + 1
 
       if (nAtomSt /= nContAtom) then
-        call error("Mismatch in number of atoms.")
+        call error("Upload Contacts: Mismatch in number of atoms.")
       end if
       if (mShellSt /= orb%mShell) then
-        call error("Mismatch in max shell per atom.")
+        call error("Upload Contacts: Mismatch in max shell per atom.")
       end if
       if (mOrbSt /= orb%mOrb) then
-        call error("Mismatch in orbitals per atom.")
+        call error("Upload Contacts: Mismatch in orbitals per atom.")
       end if
       if (nSpin /= nSpinSt) then
         write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin

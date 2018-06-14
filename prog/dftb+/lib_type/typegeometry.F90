@@ -130,7 +130,6 @@ contains
     integer, allocatable :: tmpSpecies(:)
     real(dp), allocatable :: tmpCoords(:,:)
 
-  @:ASSERT(present(newLatVecs) .eqv. present(newOrigin))
 
     self%nAtom = iEnd - iStart + 1
     allocate(tmpSpecies(self%nAtom))
@@ -146,7 +145,7 @@ contains
     allocate(self%coords(3, self%nAtom))
     self%coords = tmpCoords
     deallocate(tmpCoords)
-    if (present(newLatVecs)) then
+    if (present(newLatVecs).and.present(newOrigin)) then
       call setLattice(self, newOrigin, newLatVecs)
     end if
 
