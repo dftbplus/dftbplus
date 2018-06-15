@@ -184,10 +184,10 @@ case "${STAGE_SEP}$stages" in *${STAGE_SEP}P*) STAGE_PREPARE=1;; esac
 case "${STAGE_SEP}$stages" in *${STAGE_SEP}R*) STAGE_RUN=1    ;; esac
 case "${STAGE_SEP}$stages" in *${STAGE_SEP}C*) STAGE_COMPARE=1;; esac
 case "${STAGE_SEP}$stages" in *${STAGE_SEP}S*) STAGE_SUMMARY=1;; esac
-case "${STAGE_SEP}$stages" in 
+case "${STAGE_SEP}$stages" in
   *${STAGE_SEP}A*)
     STAGE_PREPARE=1
-    STAGE_RUN=1 
+    STAGE_RUN=1
     STAGE_COMPARE=1
     STAGE_SUMMARY=1
     ;;
@@ -329,12 +329,12 @@ do
         rm -f $APP_STDOUT $APP_STDERR
         touch $APP_STDOUT $APP_STDERR
 	if [ -e ./prerun.sh ]; then
-	    ./prerun.sh >> $APP_STDOUT 2>> $APP_STDERR
+	    ./prerun.sh "$app_prerun $app_cmd $app_postrun" >> $APP_STDOUT 2>> $APP_STDERR
 	fi
 	test -n "$verbose" && echo_n " running .."
 	$TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
 	if [ -e ./postrun.sh ]; then
-	    ./postrun.sh >> $APP_STDOUT 2>> $APP_STDERR
+	    ./postrun.sh "$app_prerun $app_cmd $app_postrun" >> $APP_STDOUT 2>> $APP_STDERR
 	fi
 	if [ -z "$STAGE_COMPARE" ]; then
 	    test -n "$verbose" && echo_n " done."
