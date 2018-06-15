@@ -312,28 +312,30 @@ contains
     !> release year
     integer, intent(in) :: year
 
-    character, parameter :: vbar = '|'
-    character, parameter :: hbar = '='
+    character, parameter :: verticalBar = '|'
+    character, parameter :: horizontalBar = '='
     integer, parameter :: headerWidth = 80
 
-    write(stdOut, '(2A,/,A)') vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdOut, '(3A)') vbar, '  DFTB+ ', trim(release)
-    write(stdOut, '(A)') vbar
-    write(stdOut, '(2A,I0,A)') vbar, '  Copyright (C) ', year, '  DFTB+ developers group'
-    write(stdOut, '(A,/,2A,/,A)') vbar, vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdOut, '(2A)') vbar,&
-        & '  When publishing results obtained with DFTB+, please cite the following', vbar,&
+    write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
+    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
+    write(stdOut, '(A)') verticalBar
+    write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) ', year, '  DFTB+ developers group'
+    write(stdOut, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
+        & verticalBar
+    write(stdOut, '(2A)') verticalBar,&
+        & '  When publishing results obtained with DFTB+, please cite the following', verticalBar,&
         & '  reference:'
-    write(stdOut, '(A)') vbar
-    write(stdOut, '(2A)') vbar,'  * B. Aradi, B. Hourahine and T. Frauenheim,', vbar,&
-        & '    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,', vbar,&
+    write(stdOut, '(A)') verticalBar
+    write(stdOut, '(2A)') verticalBar,'  * B. Aradi, B. Hourahine and T. Frauenheim,', verticalBar,&
+        & '    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,', verticalBar,&
         & '    J. Phys. Chem. A, 111 5678 (2007).  [doi: 10.1021/jp070186p]'
-    write(stdOut, '(A)') vbar
-    write(stdOut, '(2A,2(/,2A))') vbar,&
-        & '  You should also cite additional publications crediting the parametrization', vbar,&
-        & '  data you use. Please consult the documentation of the SK-files for the', vbar,&
+    write(stdOut, '(A)') verticalBar
+    write(stdOut, '(2A,2(/,2A))') verticalBar,&
+        & '  You should also cite additional publications crediting the parametrization',&
+        & verticalBar,&
+        & '  data you use. Please consult the documentation of the SK-files for the', verticalBar,&
         & '  references.'
-    write(stdOut, '(A,/,2A,/)') vbar, vbar, repeat(hbar, headerWidth - 1)
+    write(stdOut, '(A,/,2A,/)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1)
 
   end subroutine printDFTBHeader
 
