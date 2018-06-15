@@ -1680,13 +1680,13 @@ detailed output.
 \label{sec:dftbp.Eigensolver}
 
 Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods
-are available:
+are always available:
 \begin{itemize}
 \item \iscb{QR}\\ (QR decomposition based solver)
-\item \iscb{DivideAndConquer}\\ (this requires about twice the memory
-  of the other solvers)
-\item \iscb{RelativelyRobust}\\ (using the subspace form but
-  calculating all states)
+\item \iscb{DivideAndConquer}\\ (this requires about twice the memory of the
+  other solvers)
+\item \iscb{RelativelyRobust}\\ (using the subspace form but calculating all
+  states)
 \end{itemize}
 None of them needs any parameters or properties specified.
 
@@ -1697,8 +1697,8 @@ Example:\invparskip
 
 For ScaLAPACK enabled compilation, all three solvers are also available.
 
-If the ELSI library is also included~\cite{YU2018267}, the additional \kw{ELPA}
-and \kw{OMM} solvers become available.
+If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
+the additional \kw{ELPA}, \kw{OMM} and \kw{PEXSI} solvers also become available.
 
 \subsubsection{ELPA}
 
@@ -1739,6 +1739,29 @@ The orbital minimisation method has three options:
   applying OMM. This may increase stability of this method.
 \end{description}
 
+\subsubsection{PEXSI}
+
+The PEXSI solver directly calculates the density matrix, so does not make band
+structure information or Mermi free energy available. The scaling with system
+size is better than the other solvers available in \dftbp{}, increasing as
+$O(N_\mathrm{atom}^{d/2 + 1/2})$ where $d$ is the effective dimensionality of
+the system. Hence for three dimensional structures it will scale as $O(N^2)$ for
+general systems.
+\begin{ptable}
+  \kw{Poles}        & i & & 20 & \\
+  \kw{ProcsPerPole} & i & & 1  & \\
+  \kw{muPoints}     & i & & 2  & \\
+  \kw{SymbolicFactorProcs} & i & & 1  & \\
+  \kw{SpectralRadius} & r & & 10 & \\
+\end{ptable}
+\begin{description}
+\item[\is{Poles}] number of poles for the complex plane calculation.
+\item[\is{ProcsPerPole}] processors used to calculate the inversion at each pole.
+\item[\is{muPoints}] number of processors used to search for the Fermi level.
+\item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the
+  factorisation pattern of matrices.
+\item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex contour.
+\end{description}
 
 \subsection{Filling}
 \label{sec:dftbp.Filling}
