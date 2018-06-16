@@ -300,7 +300,8 @@ contains
 
     call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
-    if (size(species) < nAllAtom) then
+
+    if (size(species) /= nAllAtom) then
       deallocate(species)
       allocate(species(nAllAtom))
     end if
@@ -466,7 +467,7 @@ contains
       neigh%iNeighbor(1:nn1, iAtom1) = neigh%iNeighbor(indx(:nn1), iAtom1)
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
-              
+
     call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
   end subroutine updateNeighborList
@@ -577,7 +578,7 @@ contains
 
     call move_alloc(coord, tmpRealR2)
     allocate(coord(3, mNewAtom))
-    coord(:, :mAtom) = tmpRealR2
+    coord(:, :mAtom) = tmpRealR2(:, :mAtom)
 
   end subroutine reallocateArrays1
 
