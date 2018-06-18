@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -88,7 +88,7 @@ contains
 
   !> Creates a VelocityVerlet object from the thermostat settings
   subroutine VelocityVerlet_themostats(self, deltaT, positions, pThermostat, &
-       &halfVelocities, velocities)
+       & halfVelocities, velocities)
 
     !> Initialised object on exit.
     type(OVelocityVerlet), intent(out) :: self
@@ -102,12 +102,11 @@ contains
     !> Thermostat if needed.
     type(OThermostat), allocatable, intent(inout) :: pThermostat
 
-    !> These indicates if the t-.5 velocities will be supplied
+    !> This indicates if the t-.5 velocities will be supplied
     logical, intent(in), optional :: halfVelocities
-    
+
     !> On output these are the t-.5 velocities
     real(dp), intent(inout), optional :: velocities(:,:)
-    
 
     @:ASSERT(size(positions, dim=1) == 3)
 
@@ -120,7 +119,6 @@ contains
     call move_alloc(pThermostat, self%pThermostat)
 
     call getInitVelocities(self%pThermostat, self%velocities)
-
     if (present(velocities)) then
        velocities = self%velocities
     end if
@@ -156,9 +154,8 @@ contains
     !> List of initial velocities
     real(dp), intent(in) :: velocities(:,:)
 
-    !> These indicates if the t-.5 velocities will be supplied
+    !> This indicates if the t-.5 velocities will be supplied
     logical, intent(in), optional :: halfVelocities
-    
 
     @:ASSERT(size(positions, dim=1) == 3)
 
@@ -172,13 +169,12 @@ contains
 
     self%velocities(:,:) = velocities(:,:)
 
-    !self%vHalfPresent = .false.
     if (present(halfVelocities)) then
        self%vHalfPresent = halfVelocities
     else
-       ! assumes the V read in corresponds to the current coordinates, so we should reconstruct the
-       ! t+.5 velocities when possible once forces are available for the coordinates       
-       self%vHalfPresent = .false. 
+       self%vHalfPresent = .false. ! assumes the V read in corresponds to the
+       ! current coordinates, so we should reconstruct the t+.5 velocities when
+       ! possible once forces are available for the coordinates
     end if
 
     self%tBarostat = .false.

@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -33,17 +33,26 @@ endif
 # Build targets
 ################################################################################
 
+# You can disable automatic release determination by setting the release
+# explicitely in the RELEASE file in the source root directory.
+.PHONY: update_release
+update_release:
+	mkdir -p $(BUILDDIR)
+	[ -r $(ROOT)/RELEASE ] && cp -a $(ROOT)/RELEASE $(BUILDDIR)/RELEASE \
+        || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE \
+        || echo "(UNKNOWN RELEASE)" > $(BUILDDIR)/RELEASE
+
 .PHONY: dftb+ modes waveplot
 dftb+ modes waveplot:
 	mkdir -p $(BUILDDIR)/prog/$@
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-dftb+: external_xmlf90
+dftb+: update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
 dftb+: external_fsockets
 endif
-ifeq ($(strip $(COMPILE_DFTD3)),1)
+ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
 dftb+: external_dftd3
 endif
 ifeq ($(strip $(WITH_MPI)),1)
@@ -142,3 +151,13 @@ check_dptools_py3:
 .PHONY: distclean
 distclean:
 	rm -rf $(BUILDDIR)
+
+# Create a source distribution from current git check-out
+# Note: check-out must contain all submodules
+ARCHIVE_NAME := dftbplus
+.PHONY: sourcedist
+sourcedist:
+	rm -rf $(BUILDDIR)/_sourcedist
+	mkdir -p $(BUILDDIR)/_sourcedist
+	$(ROOT)/utils/build/make_archive.sh $(ARCHIVE_NAME) \
+            $(BUILDDIR)/_sourcedist

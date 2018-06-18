@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,6 +15,8 @@ module forces
   use scc
   use commontypes
   use slakocont
+  use schedule
+  use environment
   implicit none
 
   private
@@ -34,16 +36,18 @@ module forces
     !> derivatives with complex shift
     module procedure derivative_iBlock
 
-  end interface
+  end interface derivative_shift
 
 contains
 
 
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
   !> density and energy-density matrices
-  subroutine derivative_nonSCC(deriv, derivator, DM, EDM, skHamCont,&
-      & skOverCont, coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
-      & orb)
+  subroutine derivative_nonSCC(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
@@ -69,11 +73,11 @@ contains
     !> list of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbor list for atoms
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> number of neighbours of each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -89,19 +93,22 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    integer :: iAtFirst, iAtLast
 
     @:ASSERT(size(deriv,dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
     !$OMP& hPrimeTmp,sPrimeTmp,ii) DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    do iAtom1 = iAtFirst, iAtLast
       nOrb1 = orb%nOrbAtom(iAtom1)
       !! loop from 1 as no contribution from the atom itself
-      do iNeigh = 1, nNeighbor(iAtom1)
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+      do iNeigh = 1, nNeighbourSK(iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         if (iAtom1 /= iAtom2f) then
           nOrb2 = orb%nOrbAtom(iAtom2f)
@@ -110,25 +117,21 @@ contains
           sqrEDMTmp(:,:) = 0.0_dp
           hPrimeTmp(:,:,:) = 0.0_dp
           sPrimeTmp(:,:,:) = 0.0_dp
-          sqrDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-              & iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             deriv(ii,iAtom1) = deriv(ii,iAtom1)&
-                & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
+                & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
                 & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
           end do
           ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the blocks,
           ! and note that the skew symmetry in the derivatives is being used
           do ii = 1, 3
-            deriv(ii,iAtom2f) = deriv(ii,iAtom2f) &
-                & - sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
+            deriv(ii,iAtom2f) = deriv(ii,iAtom2f)&
+                & - sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
                 & + sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
           end do
         end if
@@ -136,13 +139,18 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    call assembleChunks(env, deriv)
+
   end subroutine derivative_nonSCC
 
 
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
   !> consistent potential and the density and energy-density matrices
-  subroutine derivative_block(deriv, derivator, DM, EDM, skHamCont, skOverCont,&
-      & coords, species, iNeighbor, nNeighbor, img2CentCell, iPair, orb, shift)
+  subroutine derivative_block(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, shift)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
@@ -168,11 +176,11 @@ contains
     !> list of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbor list for atoms
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> number of neighbours of each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -194,6 +202,7 @@ contains
     real(dp) :: shiftSprime(orb%mOrb,orb%mOrb)
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
+    integer :: iAtFirst, iAtLast
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -208,48 +217,42 @@ contains
 
     deriv(:,:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+      do iNeigh = 1, nNeighbourSK(iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = species(iAtom2f)
         if (iAtom1 /= iAtom2f) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-              & iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             derivTmp(ii) = 2.0_dp * (&
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
+                & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * (&
+                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
+                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               ! again factor of 2 from lower triangle, cf published force expressions for SCC:
-              derivTmp(ii) = derivTmp(ii) + 2.0_dp * ( &
-                  &sum(shiftSprime(1:nOrb2,1:nOrb1) * &
-                  &reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/))&
-                  & ) )
+              derivTmp(ii) = derivTmp(ii) + 2.0_dp * ( sum(shiftSprime(1:nOrb2,1:nOrb1) *&
+                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
             end do
           end do
 
@@ -262,14 +265,18 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
+    call assembleChunks(env, deriv)
+
   end subroutine derivative_block
 
 
   !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
   !> for example from spin-orbit
-  subroutine derivative_iBlock(deriv, derivator, DM, iDM, EDM, skHamCont,&
-      & skOverCont,coords, species, iNeighbor, nNeighbor, img2CentCell, iPair,&
-      & orb, shift, iShift)
+  subroutine derivative_iBlock(env, deriv, derivator, DM, iDM, EDM, skHamCont, skOverCont, coords,&
+      & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, shift, iShift)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> x,y,z derivatives for each real atom in the system
     real(dp), intent(out) :: deriv(:,:)
@@ -298,11 +305,11 @@ contains
     !> list of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbor list for atoms
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbors of each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> number of neighbours of each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
@@ -329,6 +336,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3),sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
+    integer :: iAtFirst, iAtLast
 
     nAtom = size(orb%nOrbAtom)
     nSpin = size(shift,dim=4)
@@ -345,62 +353,54 @@ contains
 
     deriv(:,:) = 0.0_dp
 
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
     !$OMP PARALLEL DO PRIVATE(iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
     !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
-    do iAtom1 = 1, nAtom
+    do iAtom1 = iAtFirst, iAtLast
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbSpecies(iSp1)
-      do iNeigh = 1, nNeighbor(iAtom1)
-        iAtom2 = iNeighbor(iNeigh, iAtom1)
+      do iNeigh = 1, nNeighbourSK(iAtom1)
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = species(iAtom2f)
         if (iAtom1 /= iAtom2f) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-              & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species,&
-              & iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species,&
-              & iAtom1, iAtom2, orb)
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             derivTmp(ii) = 2.0_dp * (&
                 & sum(sqrDMTmp(1:nOrb2,1:nOrb1)*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                &-sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
+                & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * (&
+                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), shift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
+                  & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               ! again factor of 2 from lower triangle sum of DM
-              derivTmp(ii) = derivTmp(ii) &
+              derivTmp(ii) = derivTmp(ii)&
                   & + 2.0_dp* ( real(sum(shiftSprime(1:nOrb2,1:nOrb1)&
-                  & * reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),&
-                  & (/nOrb2,nOrb1/)))) )
+                  & * reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), (/nOrb2,nOrb1/)))) )
             end do
           end do
 
           do iSpin = 1, nSpin
             do ii = 1, 3
-              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  ( &
-                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), &
-                  & ishift(1:nOrb1,1:nOrb1,iAtom1,iSpin) ) &
-                  & + matmul(ishift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), &
-                  & sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
+              shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (&
+                  & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), ishift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
+                  & + matmul(ishift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
               derivTmp(ii) = derivTmp(ii)&
                   & + real(sum(shiftSprime(1:nOrb2,1:nOrb1) *&
-                  & reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),&
-                  & (/nOrb2,nOrb1/))))
+                  & reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), (/nOrb2,nOrb1/))))
             end do
           end do
 
@@ -411,6 +411,8 @@ contains
       enddo
     enddo
     !$OMP END PARALLEL DO
+
+    call assembleChunks(env, deriv)
 
   end subroutine derivative_iBlock
 

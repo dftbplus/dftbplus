@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,6 +25,7 @@ module inputdata_module
   use ipisocket, only : IpiSocketCommInp
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
+  use elstatpot, only : TElStatPotentialsInp
   implicit none
   private
   save
@@ -52,7 +53,16 @@ module inputdata_module
     !> Blacs options
     type(TBlacsOpts) :: blacsOpts
 
+    !> Whether hybrid parallelisation is enable
+    logical :: tOmpThreads
+
   end type TParallelOpts
+
+
+  !> LBFGS input settings
+  type TLbfgsInput
+    integer :: memory
+  end type TLbfgsInput
 
 
   !> Main control data for program as extracted by the parser
@@ -74,7 +84,13 @@ module inputdata_module
     real(dp) :: sccTol      = 0.0_dp
 
     !> Read starting charges from disc
-    logical :: tReadChrg   = .false.
+    logical :: tReadChrg = .false.
+
+    !> Disc charges are stored as ascii or binary files
+    logical :: tReadChrgAscii = .true.
+
+    !> Disc charges should be written as ascii or binary files
+    logical :: tWriteChrgAscii = .true.
 
     !> should probably be packaged
     logical :: tGeoOpt     = .false.
@@ -120,6 +136,9 @@ module inputdata_module
 
     !> printout of Mulliken
     logical :: tPrintMulliken   = .false.
+
+    !> electrostatic potential evaluation and printing
+    type(TElStatPotentialsInp), allocatable :: elStatPotentialsInp
 
     !> Localise electronic states
     logical :: tLocalise   = .false.
@@ -330,6 +349,16 @@ module inputdata_module
     real(dp) :: dampExp = 0.0_dp
 
 
+    ! H5 correction
+    !> H5 correction On/Off(default) flag
+    logical ::h5SwitchedOn = .false.
+    !> Global parameters - set to -1 to identify they were not initialized
+    real(dp) :: h5RScale = -1.0_dp
+    real(dp) :: h5WScale = -1.0_dp
+    real(dp), allocatable :: h5ElementPara(:)
+    ! H5 correction end
+
+
     !> Old repulsive
     logical :: useBuggyRepSum
 
@@ -341,6 +370,8 @@ module inputdata_module
     !> Ewald alpha
     real(dp) :: ewaldAlpha = 0.0_dp
 
+    !> Ewald tolerance
+    real(dp) :: tolEwald = 1.0E-9_dp
 
     !> Various options
     logical :: tWriteTagged = .false.
@@ -377,7 +408,10 @@ module inputdata_module
     type(linrespini) :: lrespini
 
     !> ElectronDynamics
-    type(ElecDynamicsInp), allocatable :: elecDynInp
+    type(TElecDynamicsInp), allocatable :: elecDynInp
+
+    !> LBFGS input
+    type(TLbfgsInput), allocatable :: lbfgsInp
 
   #:if WITH_SOCKETS
     !> socket communication
@@ -390,20 +424,6 @@ module inputdata_module
     integer :: timingLevel
 
   end type control
-
-
-  !> Atomistic geometry and boundary conditions of the system
-  type geometry
-    integer :: nrAtoms         = 0
-    logical :: tPeriodic       = .false.
-    logical :: tFracCoord      = .false.
-    integer, allocatable :: types(:)
-    real(dp), allocatable :: coords(:, :)
-    integer :: nrTypes         = 0
-    real(dp), allocatable :: origo(:)
-    real(dp), allocatable :: latVecs(:, :)
-    character(mc), allocatable :: speciesName(:)
-  end type geometry
 
 
   !> Slater-Koster data

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -205,7 +205,7 @@ contains
     !> Did convergence occur?
     logical,  intent(inout) :: tConverged
 
-    !> cut out tollerance for optimisation
+    !> cut out tolerance for optimisation
     real(dp), intent(in) :: tolerance
 
     !> Line minimizer

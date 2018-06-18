@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2017  DFTB+ developers group                                                     !
+#!  Copyright (C) 2018  DFTB+ developers group                                                     !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -68,6 +68,10 @@
 #{if expr}#.true.#{else}#.false.#{endif}#
 #:enddef FORTRAN_LOGICAL
 
+#! Returns the suffix for a dummy argument for a given rank
+#:def FORTRAN_ARG_DIM_SUFFIX(rank)
+#{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
+#:enddef
 
 #:endmute
         
