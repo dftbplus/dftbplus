@@ -452,13 +452,12 @@ module negf_int
     Integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
     Integer, allocatable :: atomst(:), plcont(:)
     integer, allocatable :: minv(:,:)
-    Integer :: natoms, ncont, nbl, iatm1, iatm2, iatc1, iatc2
-    integer :: i, m, i1, j1
+    Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
+    integer :: i, m, i1, j1, info
 
-    iatm1 = transpar%idxdevice(1)
     iatm2 = transpar%idxdevice(2)
-
     ncont = transpar%ncont
+    nbl = 0
 
     if (transpar%defined) then
        nbl = transpar%nPLs
@@ -471,6 +470,8 @@ module negf_int
     end if
 
     natoms = size(denseDescr%iatomstart) - 1
+
+    call check_pls(transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
 
     allocate(PL_end(nbl))
     allocate(atomst(nbl+1))
@@ -504,14 +505,17 @@ module negf_int
       atomst(nbl+1) = natoms + 1
     endif
 
-    ! For each contact finds the min-max atom indices among the atoms in the central region that are
-    ! interacting with that contact
     if (transpar%defined .and. ncont.gt.0) then
 
       if(.not.transpar%tNoGeometry) then         !DAR
 
        minv = 0
 
+       ! For each PL finds the min atom index among the atoms in each contact
+       ! At the end the array minv(iPL,iCont) can have only one value != 0 
+       ! for each contact and this is the interacting PL
+       ! NOTE: the algorithm works with the asymmetric neighbor-map of dftb+
+       !       because contacts have larger indeces than device
        do m = 1, transpar%nPLs
           ! Loop over all PL atoms
           do i = atomst(m), atomst(m+1)-1
@@ -537,11 +541,11 @@ module negf_int
        do j1 = 1, ncont
 
          if (count(minv(:,j1).eq.j1).gt.1) then
-           ! should this be only the master note?
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'WARNING: contact',j1,'interacts with more than one PL'
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) minv(:,j1)
+           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(stdOut,*) 'ERROR: contact',j1,' interacts with more than one PL'
+           write(stdOut,*) '       check structure and increase PL size         '
+           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           stop
          end if
 
          do m = 1, transpar%nPLs
@@ -558,12 +562,10 @@ module negf_int
 
       end if
 
-
       write(stdOut,*) ' Structure info:'
       write(stdOut,*) ' Number of PLs:',nbl
       write(stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
       write(stdOut,*)
-
 
     end if
 
@@ -579,6 +581,75 @@ module negf_int
     deallocate(minv)
 
   end subroutine negf_init_str
+
+  !------------------------------------------------------------------------------
+  ! Subroutine to check the PLs definition
+  !------------------------------------------------------------------------------
+  subroutine check_pls(transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
+    Type(TTranspar), intent(in) :: transpar
+    Type(TNEGFGreenDensInfo) :: greendens
+    integer, intent(in) :: natoms
+    Integer, intent(in) :: iNeigh(0:,:)
+    Integer, intent(in) :: nNeigh(:)
+    Integer, intent(in) :: img2CentCell(:)
+    !> error message
+    integer, intent(out) :: info
+
+    integer :: nbl, iatm1, iatm2, iats, iate
+    integer :: mm, nn, ii, kk
+    integer, allocatable :: atomst(:)
+
+    ! The contacts have been already checked 
+    ! Here checks the PL definition and contact/device interactions
+
+    iatm1 = transpar%idxdevice(1)
+    iatm2 = transpar%idxdevice(2)
+
+    nbl = 0
+
+    if (transpar%defined) then
+       nbl = transpar%nPLs
+    else if (greendens%defined) then
+       nbl = greendens%nPLs
+    endif
+
+    if (nbl.eq.0) then
+      call error('Internal ERROR: nbl = 0 ?!')
+    end if
+   
+    allocate(atomst(nbl+1))
+
+    if (transpar%defined) then
+      atomst(1:nbl) = transpar%PL(1:nbl)
+      atomst(nbl+1) = iatm2 + 1
+    else if (greendens%defined) then
+      atomst(1:nbl) = greendens%PL(1:nbl)
+      atomst(nbl+1) = natoms + 1
+    endif
+
+    info = 0
+    do mm = 1, nbl-1
+       do nn = mm+1, nbl
+         iats = atomst(nn) 
+         iate = atomst(nn+1)-1
+         do ii = atomst(mm), atomst(mm+1)-1
+            kk = maxval( img2CentCell(iNeigh(1:nNeigh(ii),ii)), &
+               mask = (img2CentCell(iNeigh(1:nNeigh(ii),ii)).ge.iats .and. &
+               img2CentCell(iNeigh(1:nNeigh(ii),ii)).le.iate) )
+         end do
+         if (nn .gt. mm+1 .and. kk .ge. iats .and. kk .le. iate) then
+           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(stdOut,*) 'WARNING: PL ',mm,' interacts with PL',nn
+           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           info = mm
+         end if
+       end do      
+    end do 
+
+    deallocate(atomst)
+
+  end subroutine check_pls
+
 
   !------------------------------------------------------------------------------
   ! INTERFACE subroutine to call Density matrix computation

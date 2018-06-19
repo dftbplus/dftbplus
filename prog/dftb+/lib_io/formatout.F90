@@ -271,7 +271,6 @@ contains
 
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
-print*,size(species),nAtom
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesNames) == nSpecies)

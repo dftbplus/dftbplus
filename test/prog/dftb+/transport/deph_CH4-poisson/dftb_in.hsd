@@ -48,8 +48,8 @@ Hamiltonian = DFTB {
 } 
   
 Dephasing {
-  BuettikerProbes{
-    Coupling [eV] = constant { 0.5 }
+  BuettikerProbes = DephasingProbes{
+    Coupling [eV] = constant{ 0.5 }
   }
   VibronicElastic{ 
     Coupling [eV] = constant { 0.01 }

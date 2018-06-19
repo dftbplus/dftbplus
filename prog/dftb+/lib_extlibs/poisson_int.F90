@@ -151,7 +151,7 @@ module poisson_init
     real(dp) :: bufferBox
 
     !> Use new numerical renormalization volume (preserves total charge)
-    logical :: exactRenorm
+    logical :: numericNorm
 
     !> Check whether density cut off fits into the PLs
     logical :: cutoffcheck
@@ -342,8 +342,8 @@ contains
       eps_r = poissoninfo%eps_r
       dr_eps = poissoninfo%dr_eps
 
-      ! Use fixed analytical renormalization (approximate) or new numerical one??
-      fixed_renorm = .not.(poissoninfo%exactRenorm)
+      ! Use fixed analytical renormalization (approximate) or numerical 
+      fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
       call check_biasdir()

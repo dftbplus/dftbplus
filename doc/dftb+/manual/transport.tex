@@ -531,12 +531,15 @@ structures to orthorhombic super-lattices.  An additional restriction is that
 the box sides must be aligned with the Cartesian axes, x, y, z.
 
 \begin{ptableh}
+  \kw{Verbosity} & i & & 51 & \\
   \kw{PoissonBox} & 3r & &  &  \\
+  \kw{BoxExtension} & r &  & 0.0 &  \\
   \kw{MinimalGrid} & 3r  &  & 0.5 0.5 0.5 & \\
   \kw{PoissonAccuracy} & r &  & 1e-7 &  \\
   \kw{AtomDensityTolerance}  & r  &  & 1e-6 & \\
+  \kw{AtomDensityCutoff}  & r  &  & 14.0 & \\
   \kw{CutoffCheck} & l & & Yes & \\
-  \kw{Verbosity} & i & & 51 & \\
+  \kw{NumericalNorm}  & l  &  & No & \\
   \kw{SavePotential} & l & & No & \\
   \kw{PoissonAccuracy} & r & & 1e-6 & \\
   \kw{MaxPoissonIterations} & i & & 60 & \\
@@ -547,35 +550,46 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
   \kw{BoundaryRegion} & m & & global\{\} &  \pref{Boundary Conditions} \\
   \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\
   \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelizations} \\
+  \kw{RecomputeAfterDensity} & l & & No & \\
 \end{ptableh}
 
 
-
 \begin{description}
+\item[\is{Verbosity}] This parameter controls the amount of output messages
+  and takes values ranging from 1 to 100.
 \item[\is{PoissonBox}]\modif{\modtype{length}} Dimension of the Poisson box
   along directions x, y and z.
+\item[\is{BoxExtension}]\modif{\modtype{length}} With this value it is possible 
+  to tune the position of the box interface between the device and contacts.
+  By default (\is{BoxExtension}=0.0) the boundary is placed on the midpoint
+  between the last device atom and the first contact atom.
 \item[\is{MinimalGrid}]\modif{\modtype{length}} The minimal requested grid
   spacing along x, y and z. The actual grid spacing chosen by the multigrid will
   be lower than this.  charge densities.
-  \item[\is{AtomDensityTolerance}] In order to calculate the potential, the
-    Mulliken charges are projected on the real space grid. This parameter
-    defines the cutoff after which the charge is considered vanish (i.e., the
-    space extension of the projected charge). The default is 1e-6. Note that the
-    contacts must be at least twice the length of the extent of a projected
-    Mulliken charge. If this conditions is not fullfilled and is set to Yes, the
-    code will exit with an error message. Setting this parameter to a lower
-    value could allow to define shorter contacts in some cases. However this
-    could lead to relevant error in the potential hence to spurious reflections,
-    therefore it should be left to default value or changed very carefully.
-  \item[\is{CutoffCheck}] If set to No, consistency between contact length and
-    charge extension is not verified (see above section). The default is No. As
-    for AtomDensityTolerance, this parameter shouldn't be touched unless you
-    know exactly what you're doing.
-  \item[\is{Verbosity}] This parameter controls the amount of output messages
-    and takes values ranging from 1 to 100.
-  \item[\is{SavePotential}] Save the potential to file.
+\item[\is{AtomDensityTolerance}] In order to calculate the potential, the
+  Mulliken charges are projected on the real space grid. This parameter
+  defines the cutoff after which the charge is considered vanish (i.e., the
+  space extension of the projected charge). The default is 1e-6. Note that the
+  contacts must be at least twice the length of the extent of a projected
+  Mulliken charge. If this conditions is not fullfilled and is set to Yes, the
+  code will exit with an error message. Setting this parameter to a lower
+  value could allow to define shorter contacts in some cases. However this
+  could lead to relevant error in the potential hence to spurious reflections,
+  therefore it should be left to default value or changed very carefully.
+\item[\is{AtomDensityCutoff}]\modif{\modtype{length}}  Defines the atomic radius
+  cutoff. This is alternative to \is{AtomDensityTolerance}.
+\item[\is{CutoffCheck}] If set to No, consistency between contact length and
+  charge extension is not verified (see above section). The default is No. As
+  for AtomDensityTolerance, this parameter shouldn't be touched unless you
+  know exactly what you're doing.
+\item[\is{SavePotential}] Save the potential to the file \verb|potential.dat|.
+  Additional files \verb|Xvector.dat|, \verb|Yvector.dat|, \verb|Zvector.dat| and
+  \verb|box.dat| are created. These files can be converted to a cube file that
+  can be visualized in jmol. See section on transport tools.
 \item[\is{PoissonAccuracy}] Defines the accuracy for the approximate solution of
   the Poisson equation (default value 10$^{-6}$).
+\item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
+  the solver.
 \item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
   the solver.
 \end{description}
@@ -593,7 +607,6 @@ cases.
 
 This is a tipical example of the whole Poisson block specification. Some of the
 keywords are described in the next subsections.
-
 
 Example:
 
@@ -674,6 +687,10 @@ particular:
   the boundary region beyond the atomistic size which is determined as the
   minimal circle or qquare containg all atoms of the contact cross-section.
 \end{description}
+
+\begin{ptableh}
+  \kw{BufferLength} & r &  & 9.0 &  \\
+\end{ptableh}
 
 Example:
 \begin{verbatim}
@@ -780,15 +797,15 @@ The various options for the gates have the following meanings:
   the gate.
 \item[\is{GateRadius}]\modif{\modtype{length}} For cylindrical gate, sets the
   distance of the gate from the center axis or gate radius.
-%\item[\is{InsulatorLength}]\modif{\modtype{length}} For cylindrical gate, sets
-%  the insulator length.
-%\item[\is{InsulatorRadius}]\modif{\modtype{length}} For cylindrical gate, sets
-%  the insulator radius (smaller than the GateRadius).
-%\item[\is{TransitionLength}]\modif{\modtype{length}} Sets the length of a
-%  transition (buffer) region between the dielectric insulator and vacuum
-%  ($\kappa=1$).
-%\item[\is{Kappa}] Sets the insulators relative dielectric constant ($\kappa$).
 \end{description}
+
+\begin{ptableh}
+  \kw{GateLenth\_l} & r &  & 0.0 &  \\
+  \kw{GateLenth\_t} & r &  & 0.0 &  \\
+  \kw{GateDistance} & r &  & 0.0 &  \\
+  \kw{GatePotential} & r &  & 0.0 &  \\
+  \kw{GateRadius} & r &  & 0.0 &  \\
+\end{ptableh}
 
 Note that the gate option has not be tested tharoughly and may still contain
 bugs.  Please report to the developers any problem encountered.

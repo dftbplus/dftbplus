@@ -42,7 +42,7 @@ Hamiltonian = DFTB {
     ReadOldBulkPotential = No
     BoundaryRegion = Global {}
     PoissonAccuracy = 1e-7
-    BoxBufferLength [Angstrom] = 2.175
+    BoxExtension [Angstrom] = 2.175
   }
   Eigensolver = GreensFunction {
     Delta [eV] = 1e-4

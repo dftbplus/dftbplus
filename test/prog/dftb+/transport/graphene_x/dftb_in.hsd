@@ -57,7 +57,7 @@ Hamiltonian = DFTB {
     SavePotential = Yes 
     PoissonAccuracy = 1e-5
     Verbosity=110
-    BoxBufferLength [Angstrom]= 1.71
+    BoxExtension [Angstrom]= 1.71
     BoundaryRegion = Square{
       BufferLength [Angstrom] = 3.0
     }

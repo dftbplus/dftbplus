@@ -1759,6 +1759,10 @@ contains
   #:if WITH_TRANSPORT
     case ("greensfunction")
       ctrl%iSolver = solverGF
+      if (tp%defined .and. .not.tp%taskUpload) then
+        call detailederror(node, "greensfunction solver cannot be used "// &
+            &  "when task = contactHamiltonian")
+      end if
       call readGreensFunction(value, greendens, tp, ctrl%tempElec)
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
@@ -1767,6 +1771,10 @@ contains
               " debugging and will be available soon")
       end if    
     case ("transportonly")
+      if (tp%defined .and. .not.tp%taskUpload) then
+        call detailederror(node, "transportonly cannot be used when "// &
+            &  "task = contactHamiltonian")
+      end if
       ctrl%iSolver = solverOnlyTransport
       ctrl%tFixEf = .true.
   #:endif
@@ -3420,6 +3428,9 @@ contains
       if (.not.transpar%defined) then
         call error("Block TunnelingAndDos requires Transport block.")
       end if
+      if (.not.transpar%taskUpload) then
+        call error("Block TunnelingAndDos not compatible with task=contactHamiltonian")
+      end if      
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
     endif
   #:endif
@@ -3576,8 +3587,8 @@ contains
     !! contacthamiltonian
     call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
     call getNodeName(pTaskType, buffer)
-    call getChildren(root, "Contact", pNodeList)
 
+    call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     if (transpar%ncont < 2) then
       call detailedError(root, "At least two contacts must be defined")
@@ -3607,6 +3618,8 @@ contains
 
       call reduceGeometry(transpar%contacts(contact)%lattice, transpar%contacts(contact)%idxrange,&
           & lateralContactSeparation, geom)
+
+      transpar%ncont = 0
 
     case ("uploadcontacts")
 
@@ -3894,7 +3907,7 @@ contains
         & [ 0.5_dp, 0.5_dp, 0.5_dp ], modifier=modif, child=field)
     call convertByMul(char(modif), lengthUnits, field, &
         & poisson%poissGrid)
-    call getChildValue(pNode, "ExactRenorm", poisson%exactRenorm, .false.)
+    call getChildValue(pNode, "NumericalNorm", poisson%numericNorm, .false.)
     call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., &
         & modifier=modif)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
@@ -3902,7 +3915,8 @@ contains
       call detailedError(pNode, "Either one of the tags AtomDensityCutoff or&
           & AtomDensityTolerance can be specified.")
     else if (associated(pTmp)) then
-      call getChildValue(pTmp, "", poisson%maxRadAtomDens, modifier=modif)
+      call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, &
+          &  modifier=modif)
       call convertByMul(char(modif), lengthUnits, pTmp, poisson%maxRadAtomDens)
       if (poisson%maxRadAtomDens <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density cutoff must be > 0")
@@ -3969,11 +3983,11 @@ contains
           &// char(buffer) // "'")
     end select
 
-    call getChildValue(pNode, "BoxBufferLength", poisson%bufferBox, &
+    call getChildValue(pNode, "BoxExtension", poisson%bufferBox, &
          &0.0_dp, modifier=modif, child=field)
     call convertByMul(char(modif), lengthUnits, field, poisson%bufferBox)
     if (poisson%bufferBox.lt.0.0_dp) then
-      call detailedError(pNode, "BoxBufferLength must be a positive number")
+      call detailedError(pNode, "BoxExtension must be a positive number")
     endif
 
     ! PARSE GATE OPTIONS
@@ -4011,7 +4025,8 @@ contains
       call convertByMul(char(modif), energyUnits, field, &
           &poisson%gatepot)
 
-      call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
+      !call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
+      poisson%gatedir = 2
 
     case ("cylindrical")
       poisson%gateType = "C"
@@ -4029,23 +4044,6 @@ contains
           &0.0_dp, modifier=modif, child=field)
       call convertByMul(char(modif), lengthUnits, field, &
           &poisson%gatepot)
-
-      call getChildValue(pTmp2, "InsulatorLength", poisson%insLength, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%insLength)
-
-      call getChildValue(pTmp2, "InsulatorRadius", poisson%insRad, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%insRad)
-
-      call getChildValue(pTmp2, "Kappa", poisson%eps_r, 1.0_dp)
-
-      call getChildValue(pTmp2, "TransitionLength", poisson%dr_eps, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%dr_eps)
 
     case default
       call getNodeHSDName(pTmp2, buffer)
@@ -4248,7 +4246,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value)) then
       tp%tDephasingBP = .true.
-      call readDephasingBP(value, tundos%bp, geom, orb, tp)
+      call readDephasingBP(child, tundos%bp, geom, orb, tp)
     end if
 
     call getChildValue(node, "Orthonormal", tp%tOrthonormal, .false.)
@@ -4311,12 +4309,13 @@ contains
 
     logical :: block_model, semilocal_model
     type(string) :: model
+    type(fnode), pointer :: dephModel 
 
     call detailedError(node,"Buettiker probes are still under development")     
     
     elph%defined = .true.
-  
-    call getNodeName2(node, model)
+    call getChildValue(node, "", dephModel)
+    call getNodeName2(dephModel, model)
     
     select case(char(model))
     case("dephasingprobes")
@@ -4325,30 +4324,30 @@ contains
       tp%tZeroCurrent=.true.
       !! Only local bp model is defined (elastic for now)
     case("voltageprobes")
-      call detailedError(node,"voltageProbes have been not implemented yet")     
+      call detailedError(dephModel,"voltageProbes have been not implemented yet")     
       tp%tZeroCurrent=.false.    
     case default
-      call detailedError(node,"unkown model")
+      call detailedError(dephModel,"unkown model")
     end select
 
     elph%model = 1
 
-    call getChildValue(node, "MaxSCBAIterations", elph%scba_niter, default=100)
+    call getChildValue(dephModel, "MaxSCBAIterations", elph%scba_niter, default=100)
 
-    call getChildValue(node, "atomBlock", block_model, default=.false.)
+    call getChildValue(dephModel, "atomBlock", block_model, default=.false.)
     if (block_model) then
       elph%model = 2
     endif
 
     !BUG: semilocal model crashes because of access of S before its allocation
     !     this because initDephasing occurs in initprogram
-    call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
+    call getChildValue(dephModel, "semiLocal", semilocal_model, default=.false.)
     if (semilocal_model) then
-      call detailedError(node, "semilocal dephasing is not working yet")
+      call detailedError(dephModel, "semilocal dephasing is not working yet")
       elph%model = 3
     endif
 
-    call readCoupling(node, elph, geom, orb, tp)
+    call readCoupling(dephModel, elph, geom, orb, tp)
     
   end subroutine readDephasingBP
 
@@ -4372,7 +4371,7 @@ contains
     type(fnodeList), pointer :: children
     integer :: norbs, ii, jj, iAt
     integer :: atm_range(2)
-    real(dp) :: tmp, rTmp
+    real(dp) :: rTmp
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: atmCoupling(:)
 
@@ -4397,14 +4396,22 @@ contains
         & allowEmptyValue=.true., modifier=modif, dummyValue=.true., list=.false.)
 
     call getNodeName(val, method)
+     
+    ! This reads also things like:  "Coupling [eV] = 0.34"
+    !if (is_numeric(char(method))) then
+    !  call getChildValue(node, "Coupling", rTmp, child=field)
+    !  call convertByMul(char(modif), energyUnits, field, rTmp)
+    !  elph%coupling = rTmp
+    !  return
+    !end if      
 
     select case (char(method))
-    case ("allorbitals", "AllOrbitals")
+    case ("allorbitals")
       call getChild(child, "AllOrbitals", child2, requested=.false.)
       call getChildValue(child2, "", elph%coupling, child=field)
       call convertByMul(char(modif), energyUnits, field, elph%coupling)
 
-    case ("atomcoupling", "AtomCoupling")
+    case ("atomcoupling")
       call getChild(child, "AtomCoupling", child2, requested=.false.)
       allocate(atmCoupling(atm_range(2)-atm_range(1)+1))
       atmCoupling = 0.d0
@@ -4439,10 +4446,10 @@ contains
       enddo
       deallocate(atmCoupling)
 
-    case ("constant", "Constant")
-      call getChildValue(child, "Constant", tmp, child=field)
-      call convertByMul(char(modif), energyUnits, field, tmp)
-      elph%coupling = tmp
+    case ("constant")
+      call getChildValue(child, "Constant", rtmp, child=field)
+      call convertByMul(char(modif), energyUnits, field, rTmp)
+      elph%coupling = rTmp
 
     case default
       call detailedError(node, "Coupling definition unknown")
@@ -4589,7 +4596,6 @@ contains
           & tundos%dosLabels)
 
   end subroutine readTunAndDos
-
 
   !> Read bias information, used in Analysis and Green's function eigensolver
   subroutine readContacts(pNodeList, contacts, geom, upload)
@@ -5104,4 +5110,19 @@ contains
 
   end subroutine readGrid
 
+  function is_numeric(string) result(is)
+    character(len=*), intent(in) :: string    
+    logical :: is
+    
+    real :: x
+    integer :: err
+
+    print*,string
+
+    read(string,*,iostat=err) x
+    is = (err == 0)
+    print*, x, err, is 
+
+  end function is_numeric
+ 
 end module parser

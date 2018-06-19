@@ -2406,6 +2406,11 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      if (input%ctrl%tOrbResolved) then
+         write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
+      else      
+         write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
+      end if      
       !write(stdOut, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
