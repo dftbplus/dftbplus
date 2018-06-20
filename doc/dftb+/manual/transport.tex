@@ -582,7 +582,8 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
   charge extension is not verified (see above section). The default is No. As
   for AtomDensityTolerance, this parameter shouldn't be touched unless you
   know exactly what you're doing.
-\item[\is{SavePotential}] Save the potential to the file \verb|potential.dat|.
+\item[\is{SavePotential}] Save the potential to the file \verb|potential.dat| and 
+	the charge density to \verb|charge_density.dat|.
   Additional files \verb|Xvector.dat|, \verb|Yvector.dat|, \verb|Zvector.dat| and
   \verb|box.dat| are created. These files can be converted to a cube file that
   can be visualized in jmol. See section on transport tools.
@@ -1031,5 +1032,55 @@ relatively large structures. This could happen because the stack memory limit
 has been exceeded. You can troubleshoot this setting a higher limit for the
 stack memory. In bash you can remove stack memory limitation with the command
 line \verb|ulimit -s unlimited|.
+
+\section{Transport Tools}
+
+Some tools useful for transport calculations can be found in tools/misc/transport.
+
+\verb|buildwire|
+
+This tool can be used to create a one-dimensional nanowire, ready for transport 
+calculations. A Principal Layer must be defined in a gen file complete with 
+supercell information. 
+The code needs as input the number of PLs in the device region. Additionally,
+2 PLs for each contact are added.
+
+
+\verb|flux|
+
+Can be used to visualize local bond currents in a junctions. The code reads the
+output files lcurrents.dat and writes out a script for jmol with arrows of
+different length/thickness. 
+
+
+\verb|makecube|
+
+This program can be used to convert the real-space  'potential.dat' or 
+'charge_density.dat' files computed on the poisson box to a cube file that can 
+be plotted using jmol. 
+
+\begin{verbatim}
+ makecube potential.dat [-r refpot] [-b boxfile xfile yfile zfile] '
+\end{verbatim}
+
+Optionals:
+
+ -r  refpot provides a reference potential that is subtracted from potential.dat
+     For instance it is possible to subtract the equilibrium potential from the
+     bias cases.
+ 
+ -b  The code reads by default the files box.dat, X,Y,Zvector.dat, but 
+     different filenames can be given with this flag
+
+Once the cube file has been created it can be read into jmol and visualized
+using the following script,
+\begin{verbatim}
+script colormap128.jmol
+load "structure.xyz"
+isosurface pl1 fullplane plane {-1.2 0.8 0 0} color range all colorscheme 'user' 'potential.cube'
+\end{verbatim}
+
+Notice that the 128 palette colormap is provided in the tool folder.
+Also note that the structure should be converted to xyz to be read into jmol.
 
 
