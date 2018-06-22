@@ -1910,7 +1910,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp, tTunn, tunneling, ldos)
+      & gibbsFree, endCoords, tLocalise, localisation, esp, tunneling, ldos)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -1965,15 +1965,12 @@ contains
 
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
-   
-    !> whether tunneling is computed
-    logical, intent(in) :: tTunn
 
     !> tunneling array
-    real(dp), intent(in) :: tunneling(:,:)
+    real(dp), allocatable, intent(in) :: tunneling(:,:)
 
     !> local projected DOS array
-    real(dp), intent(in) :: ldos(:,:)
+    real(dp), allocatable, intent(in) :: ldos(:,:)
 
 
     !> Object holding the potentials and their locations
@@ -2025,16 +2022,18 @@ contains
       end if
     end if
 
-    
-    if (tTunn) then
-      if (size(tunneling,1).gt.0) then
+
+    if (allocated(tunneling)) then
+      if (size(tunneling, dim=1) > 0) then
         call writeTagged(fd, tag_tunn, tunneling)
-      endif
-      if (size(ldos,1).gt.0) then 
+      end if
+    end if
+
+    if (allocated(ldos)) then
+      if (size(ldos,1) > 0) then
         call writeTagged(fd, tag_ldos, ldos)
-      endif
-    endif
-      
+      end if
+    end if
 
     close(fd)
 
@@ -2257,7 +2256,7 @@ contains
 
   end subroutine writeHessianOut
 
-  !> Open file detailed.out 
+  !> Open file detailed.out
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
     !> File  ID
     integer, intent(in) :: fd
@@ -3459,14 +3458,14 @@ contains
 
 
   !> Write the Hamiltonian self consistent shifts to file
-  subroutine writeShifts(fShifts, orb, shiftPerL)    
-    !> filename where shifts are stored    
+  subroutine writeShifts(fShifts, orb, shiftPerL)
+    !> filename where shifts are stored
     character(*), intent(in) :: fShifts
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    
-    !> shifts organized per (shell , atom,  spin) 
+
+    !> shifts organized per (shell , atom,  spin)
     real(dp), intent(in) :: shiftPerL(:,:,:)
 
     ! locals
@@ -3478,11 +3477,11 @@ contains
     if (size(shiftPerL,1) /= orb%mShell ) then
       call error("Internal error in writeshift: size(shiftPerL,1)")
     endif
-    
+
     if (size(shiftPerL,2) /= size(orb%nOrbAtom) ) then
       call error("Internal error in writeshift size(shiftPerL,2)")
     endif
- 
+
     fdHS = getFileId()
 
     open(fdHS, file=trim(fShifts), form="formatted")
@@ -3492,7 +3491,7 @@ contains
     end do
 
     close(fdHS)
-    
+
     write(stdOut,*) ">> Shifts saved for restart in shifts.dat"
 
   end subroutine writeShifts
@@ -3510,24 +3509,24 @@ contains
     real(dp), intent(in) :: charges(:,:,:)
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
-   
+
     integer :: fdHS, cont, nAtom, nSpin, iSpin
 
     nSpin = size(shiftPerL,3)
     nAtom = size(shiftPerL,2)
-   
+
     if (size(shiftPerL,1) /= orb%mShell) then
       call error("Internal error in writeContShifts: size(shiftPerL,1)")
     endif
-    
+
     if (size(orb%nOrbAtom) /= nAtom) then
       call error("Internal error in writeContShifts: size(shiftPerL,2)")
     endif
-    
+
     if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
       call error("Internal error in writeContShift: shape(charges)")
     endif
- 
+
     fdHS = getFileId()
 
     open(fdHS, file=trim(filename), form="formatted")
@@ -3538,26 +3537,26 @@ contains
     if (nSpin .gt. 1) then
       write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
       write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
-    else 
+    else
       write(fdHS, *) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
     end if
 
     close(fdHS)
- 
+
   end subroutine writeContShifts
 
 
   !> Read the potential shifts from file
   subroutine uploadShiftPerL(fShifts, orb, nAtom, nSpin, shiftPerL)
-    !> filename where shifts are stored    
+    !> filename where shifts are stored
     character(*), intent(in) :: fShifts
 
-    !> orbital information    
+    !> orbital information
     type(TOrbitals), intent(in) :: orb
-    
-    !> number of atoms and spin blocks  
+
+    !> number of atoms and spin blocks
     integer, intent(in) :: nAtom, nSpin
-    
+
     !> potential shifts (shell,atom,spin) charge/mag is used
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
@@ -3780,7 +3779,7 @@ contains
 
   subroutine printBlankLine()
     write(stdOut,*)
-  end subroutine printBlankLine    
+  end subroutine printBlankLine
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)

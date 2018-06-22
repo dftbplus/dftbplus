@@ -64,10 +64,12 @@ module negf_int
   public :: negf_init_csr
 
   !> compressed sparse row hamiltonian
-  type(z_CSR) :: csrHam
+  type(z_CSR), target :: csrHam
+  type(Z_CSR), pointer :: pCsrHam => null()
 
   !> compressed sparse row overlap
-  type(z_CSR) :: csrOver
+  type(z_CSR), target :: csrOver
+  type(Z_CSR), pointer :: pCsrOver => null()
 
   !> non wrapped direct calls
   private :: negf_density, negf_current, negf_ldos
@@ -411,6 +413,8 @@ module negf_int
     integer, intent(in) :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
 
+    pCsrHam => csrHam
+    pCsrOver => csrOver
     if (allocated(csrHam%nzval)) then
       call destroy(csrHam)
     end if
@@ -512,7 +516,7 @@ module negf_int
        minv = 0
 
        ! For each PL finds the min atom index among the atoms in each contact
-       ! At the end the array minv(iPL,iCont) can have only one value != 0 
+       ! At the end the array minv(iPL,iCont) can have only one value != 0
        ! for each contact and this is the interacting PL
        ! NOTE: the algorithm works with the asymmetric neighbor-map of dftb+
        !       because contacts have larger indeces than device
@@ -599,7 +603,7 @@ module negf_int
     integer :: mm, nn, ii, kk
     integer, allocatable :: atomst(:)
 
-    ! The contacts have been already checked 
+    ! The contacts have been already checked
     ! Here checks the PL definition and contact/device interactions
 
     iatm1 = transpar%idxdevice(1)
@@ -616,7 +620,7 @@ module negf_int
     if (nbl.eq.0) then
       call error('Internal ERROR: nbl = 0 ?!')
     end if
-   
+
     allocate(atomst(nbl+1))
 
     if (transpar%defined) then
@@ -630,7 +634,7 @@ module negf_int
     info = 0
     do mm = 1, nbl-1
        do nn = mm+1, nbl
-         iats = atomst(nn) 
+         iats = atomst(nn)
          iate = atomst(nn+1)-1
          do ii = atomst(mm), atomst(mm+1)-1
             kk = maxval( img2CentCell(iNeigh(1:nNeigh(ii),ii)), &
@@ -643,8 +647,8 @@ module negf_int
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            info = mm
          end if
-       end do      
-    end do 
+       end do
+    end do
 
     deallocate(atomst)
 
@@ -659,11 +663,11 @@ module negf_int
     integer, intent (in) :: miter          ! SCC step (used in SGF)
     integer, intent (in) :: spin           ! spin component (SGF)
     integer, intent (in) :: nkpoint        ! nk point (used in SGF)
-    type(z_CSR), intent(in) :: HH          ! Hamiltonian
-    type(z_CSR), intent(in) :: SS          ! Overlap
+    type(z_CSR), pointer, intent(in) :: HH          ! Hamiltonian
+    type(z_CSR), pointer, intent(in) :: SS          ! Overlap
     real(dp), intent(in) :: mu(:)
-    type(z_CSR), optional :: DensMat   ! Density matrix (See NOTE)
-    type(z_CSR), optional :: EnMat     ! Energy weighted DM (See NOTE)
+    type(z_CSR), pointer, intent(in), optional :: DensMat   ! Density matrix (See NOTE)
+    type(z_CSR), pointer, intent(in), optional :: EnMat     ! Energy weighted DM (See NOTE)
 
     type(lnParams) :: params
     integer :: nn
@@ -709,7 +713,7 @@ module negf_int
   ! INTERFACE subroutine to call ldos computation
   !------------------------------------------------------------------------------
   subroutine negf_ldos(HH,SS,spin,kpoint,wght,ledos)
-    type(z_CSR), intent(in) :: HH, SS
+    type(z_CSR), pointer, intent(in) :: HH, SS
     integer, intent(in) :: spin      ! spin index
     integer, intent(in) :: kpoint        ! kp index
     real(dp), intent(in) :: wght      ! kp weight
@@ -803,7 +807,7 @@ module negf_int
   !------------------------------------------------------------------------------
   subroutine negf_current(HH,SS,spin,kpoint,wght,tunn,ledos,currents)
 
-    type(z_CSR), intent(in) :: HH, SS
+    type(z_CSR), pointer, intent(in) :: HH, SS
     integer, intent(in) :: spin      ! spin index
     integer, intent(in) :: kpoint        ! kp index
     real(dp), intent(in) :: wght      ! kp weight
@@ -861,7 +865,10 @@ module negf_int
     real(dp), intent(out) :: Eband(:), Ef(:), E0(:), TS(:)
 
     integer :: nSpin, nKS, iK, iS, iKS
-    type(z_CSR) :: csrDens
+    type(z_CSR), target :: csrDens
+    type(z_CSR), pointer :: pCsrDens
+
+    pCsrDens => csrDens
 
     call negf_mpi_init(mpicomm)
 
@@ -889,7 +896,7 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, csrHam, csrOver, mu(:,iS), DensMat=csrDens)
+      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
 
       ! NOTE:
       ! unfold adds up to rho the csrDens(k) contribution
@@ -935,7 +942,10 @@ module negf_int
     real(dp), intent(out) :: rhoE(:)
 
     integer :: nSpin, nKS, iK, iS, iKS
-    type(z_CSR) :: csrEDens
+    type(z_CSR), target :: csrEDens
+    type(z_CSR), pointer :: pCsrEDens
+
+    pCsrEDens => csrEDens
 
     call negf_mpi_init(mpicomm)
     ! We need this now for different fermi levels in colinear spin
@@ -964,7 +974,7 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, csrHam, csrOver, mu(:,iS), EnMat=csrEDens)
+      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
 
       ! NOTE:
       ! unfold adds up to rhoEPrim the csrEDens(k) contribution
@@ -1033,7 +1043,7 @@ module negf_int
           &iPair, iNeighbor, nNeighbor, img2CentCell, &
           &iCellVec, cellVec, orb)
 
-      call negf_ldos(csrHam, csrOver, iS, iK, kWeights(iK), ldosMat)
+      call negf_ldos(pCsrHam, PCsrOver, iS, iK, kWeights(iK), ldosMat)
 
       call add_partial_results(mpicomm, ldosMat, ldosTot, ldosSKRes, iKS, nKS)
 
@@ -1132,7 +1142,7 @@ module negf_int
       end if
 
       !*** ORTHOGONALIZATIONS ***
-      ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin 
+      ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin
       if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
          (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
@@ -1162,8 +1172,8 @@ module negf_int
             & img2CentCell, iCellVec, cellVec, orb)
 
       end if
-      
-      call negf_current(csrHam, csrOver, iS, iK, kWeights(iK), tunnMat, ldosMat, currVec)
+
+      call negf_current(pCsrHam, pCsrOver, iS, iK, kWeights(iK), tunnMat, ldosMat, currVec)
 
       if(.not.allocated(currTot)) then
         allocate(currTot(size(currVec)), stat=err)
@@ -1376,9 +1386,13 @@ module negf_int
     complex(dp) :: c1,c2
     character(1) :: sp
     integer :: iSCCiter=2
-    type(z_CSR) :: csrDens, csrEDens
+    type(z_CSR), target :: csrDens, csrEDens
+    type(z_CSR), pointer :: pCsrDens, pCsrEDens
     type(lnParams) :: params
     integer :: fdUnit
+
+    pCsrDens => csrDens
+    pCsrEDens => csrEDens
 
     call negf_mpi_init(mpicomm)
 
@@ -1407,9 +1421,9 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,1), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, csrHam, csrOver, chempot(:,iS), DensMat=csrDens)
+      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
 
-      call negf_density(iSCCIter, iS, iKS, csrHam, csrOver, chempot(:,iS), EnMat=csrEDens)
+      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
       call mpifx_allreduceip(mpicomm, csrDens%nzval, MPI_SUM)
 

@@ -349,7 +349,7 @@ contains
           call getMullikenPopulation(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
               & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
         end if
-    
+
         ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
         if (tDualSpinOrbit) then
           call getLDual(orbitalL, qiBlockOut, orb, species)
@@ -468,7 +468,7 @@ contains
     #:if WITH_TRANSPORT
       if (tLocalCurrents) then
         call writeXYZFormat("supercell.xyz", coord, species, speciesName)
-        write(stdOut,*) " <<< supercell.xyz written on file"    
+        write(stdOut,*) " <<< supercell.xyz written on file"
         call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
             & neighborList%iNeighbor, nNeighbor, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
             & iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
@@ -755,8 +755,7 @@ contains
       end if
       call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
           & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy%EMermin,&
-          & extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp, tTunn, tunneling,&
-          & ldos)
+          & extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp, tunneling, ldos)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(fdResultsTag, resultsTag, derivs, chrgForces, tStress, totalStress,&
@@ -1030,8 +1029,8 @@ contains
     end if
 
     call updateNeighborListAndSpecies(coord, species, img2CentCell, iCellVec, neighborList,&
-        & nAllAtom, coord0Fold, species0, mCutoff, rCellVec)  
- 
+        & nAllAtom, coord0Fold, species0, mCutoff, rCellVec)
+
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
     call getNrOfNeighborsForAll(nNeighbor, neighborList, skRepCutoff)
     call getSparseDescriptor(neighborList%iNeighbor, nNeighbor, img2CentCell, orb, iSparseStart,&
@@ -1535,7 +1534,7 @@ contains
     logical, intent(in) :: tUpload
 
     !> uploded potential per shell per atom
-    real(dp), intent(in) :: shiftPerLUp(:,:)
+    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)

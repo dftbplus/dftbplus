@@ -26,11 +26,13 @@ endif
 all: libnegf
 	touch -r $(OBJDIR)/libnegf.a $(STAMPFILE)
 
+# libNEGF includes the content of $(ARCH) in the library name, therefore
+# we make sure it is empty.
 libnegf:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile.lib \
 	    MPI="$(MPI)" FPP="$(FYPP)" FPPOPT="$(FYPPOPT)" \
 	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR)" \
-	    OBJDIR="$(OBJDIR)" INCLUDES="$(INCLUDES)"
+	    OBJDIR="$(OBJDIR)" INCLUDES="$(INCLUDES)" ARCH=""
 
 clean:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile.lib \

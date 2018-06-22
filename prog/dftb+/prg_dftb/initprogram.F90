@@ -2408,9 +2408,9 @@ contains
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
       if (input%ctrl%tOrbResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
-      else      
+      else
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
-      end if      
+      end if
       !write(stdOut, "(A,':',T30,E14.6)") "Ewald alpha parameter", getSCCEwaldPar()
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)") "Orbitally dependant functional", "Yes"
@@ -3336,7 +3336,9 @@ contains
 
   end subroutine initArrays
 
+
 #:if WITH_TRANSPORT
+
   !> initialize arrays for tranpsport
   subroutine initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, transpar, species0, orb,&
       & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
@@ -3347,9 +3349,9 @@ contains
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: nAtom
     integer, intent(in) :: nSpin
-    real(dp), allocatable :: shiftPerLUp(:,:)
-    real(dp), allocatable :: chargeUp(:,:,:)
-    real(dp), allocatable :: poissonDerivs(:,:)
+    real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
+    real(dp), allocatable, intent(out) :: chargeUp(:,:,:)
+    real(dp), allocatable, intent(out) :: poissonDerivs(:,:)
 
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
@@ -3433,7 +3435,9 @@ contains
     end do
 
   end subroutine uploadContShiftPerL
+
 #:endif
+
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
   subroutine allocateDenseMatrices(env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
