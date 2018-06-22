@@ -1129,7 +1129,7 @@ contains
     !> What is the phase of the field
     integer, intent(in) :: EFieldPhase
 
-    !> Atomi neighbours
+    !> Atomic neighbours
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each atom
@@ -1140,8 +1140,6 @@ contains
 
     !> Image atom to central cell atom number
     integer, intent(in) :: img2CentCell(:)
-
-    !> Vectors to image unit cells
 
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
