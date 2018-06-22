@@ -992,9 +992,7 @@ following properties:
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
-  \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{DampXHExponent} & r & DampXH = Yes & - & \\
-  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.D3H5}\\
+  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hbond}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -2141,10 +2139,8 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. A modification of
-  the D3 dispersion to be used as a part of the D3H5
-  correction~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}) is
-  also available.
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
+  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hbond}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2419,7 +2415,7 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
-  section~\ref{sec:dftbp.D3H5} for details and parameter values). This keyword
+  section~\ref{sec:dftbp.hbond} for details and parameter values). This keyword
   enables an additional short range repulsion term in all hydrogen--hydrogen
   pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
   closely together.
@@ -2431,26 +2427,11 @@ parameters are taken to be the same as in the dftd3 code.
 
 If you would like to use what is called ``DFTB3'' in some publication(s)
 \cite{gauss-jctc-7-931}, this group of options include the relevant
-modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
-  you will need to set \is{{ThirdOrderFull} = Yes}, \is{DampXH = Yes} and set
-  the exponents in \is{DampXHExponent} }.
+modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3
+  model} you will need to set \is{{ThirdOrderFull} = Yes} and damp H--X the
+interactions (see Section \ref{sec:dftbp.hbond}).
 
 \begin{description}
-
-\item[\is{DampXH}] If set to \is{Yes} the short range contribution to the SCC
-  interaction between atoms $A$ and $B$ is damped by the factor
-  \begin{equation*}
-    e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
-  \end{equation*}
-  provided that at least one of the two atoms is hydrogen
-  \cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are the
-  Hubbard Us of the two atoms for the $l$-shell, $r_{AB}$ is the distance
-  between the atoms.) An atom is considered to be a hydrogen-like atom, if its
-  mass (stored in the appropriate homonuclear SK-file) is less than 3.5 amu. The
-  parameter $\zeta$ can be set with the keyword \is{DampXHExponent}.
-
-\item[\is{DampXHExponent}] Sets the parameter $\zeta$ for the short range
-  damping. (See keyword \is{DampXH} above.)
 
 \item[\is{ThirdOrder}] If set to \is{Yes} the \textit{on-site} 3rd order
   correction \cite{yang-JPCA-111-10861} is switched on. This corrects the
@@ -2483,27 +2464,51 @@ Hamiltonian = DFTB {
 \end{verbatim}
 \end{description}
 
-\subsection{DFTB3-D3H5}
-\label{sec:dftbp.D3H5}
-\index{DFTB3-D3H5}
+\subsection{Hydrogen bond corrections}
+\label{sec:dftbp.hbond}
+
+There are currently two available methods to correct hydrogen bond interactions
+in the \is{HBondCorrection} environment:
+
+\subsubsection{Damping}
+\index{sec:Damp X-H}
+
+The \is{Damping} method modifies the short range contribution to the SCC
+interaction between atoms $A$ and $B$ with the damping factor
+\begin{equation*}
+  e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
+\end{equation*}
+provided that at least one of the two atoms is
+hydrogen~\cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are
+the Hubbard U values of the two atoms for the $l$-shell, $r_{AB}$ is the
+distance between the atoms.) An atom is considered to be a hydrogen-like atom,
+if its mass (stored in the appropriate homonuclear SK-file) is less than 3.5
+amu.  The \is{Exponent} keyword in this environment sets the parameter $\zeta$
+for the short range damping:
+\begin{verbatim}
+HBondCorrection = Damping {
+  Exponent = 4.05
+}
+\end{verbatim}
+Table 2 of reference~\cite{gauss-jctc-7-931} gives suggested values of the
+exponent for different DFTB2 and DFTB3 models applied to light atoms bonded to
+hydrogen.
+
+\subsubsection{DFTB3-D3H5}
+\index{sec:DFTB3-D3H5}
 
 DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with additional
 corrections for non-covalent interactions (dispersion and hydrogen bonds).  It
 consists of a third-order DFTB calculation using the 3OB parameter set, but
-where the gamma-function damping (\is{DampXH}) is replaced by the H5 correction
-and an additional D3 dispersion correction in included. This method also
-includes a repulsive term which is added to prevent unphysically close approach
-of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
+where the gamma-function damping (\is{Damping} method above) is replaced by the
+H5 correction and an additional D3 dispersion correction in included. This
+method also includes a repulsive term which is added to prevent unphysically
+close approach of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
 
-\begin{description}
-\item[\is{HBondCorrection}] Setting this keyword to \iscb{H5} activates the
-  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. \is{H5} is currently
-  the only option accepted for \is{HBondCorrection}.
-\end{description}
-
-If no additional parameters are provided in the input, suitable values for
-H-\{O,N,S\} systems are used (the correction was developed for the DFTB3/3OB
-model and parameters).
+Setting the \is{HBondCorrection} environment to \iscb{H5} activates this
+correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
+parameters are provided in the input, suitable values for H-\{O,N,S\} systems
+are used (the correction was developed for the DFTB3/3OB model and parameters).
 \begin{verbatim}
 HBondCorrection = H5 {}
 \end{verbatim}
@@ -2513,8 +2518,8 @@ involving the terminal nitrogen of an azide group, and the published results in
 Ref.~\cite{rezac-jctc-13-2017} were obtained with the H5 correction switched off
 for these specific atoms. To reproduce this behavior in a system containing
 nitrogen in several environments, a new atom type with a different name but the
-same DFTB parameters can be used for for the specific N atoms to which the
-correction should not be applied.
+same DFTB parameters can be used for specific N atoms to which the correction
+should not be applied.
 
 If you want to specify the parameters manually, \is{H5} accepts following
 options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
@@ -2545,13 +2550,13 @@ options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
     \exp\left(-\frac{\left(r_{X\text{H}} - r_0\right)^2}{2w^2}\right)\right)
     \text.
   \end{equation*}
-  You have to specify one value for each of the chemical species you would like
-  to correct (see the example below). Explicitly setting a negative value
+  You will have to specify one value for each of the chemical species you would
+  like to correct (see the example below). Explicitly setting a negative value
   (e.g. \is{-1.0}) for a given atom type switches off the correction for
   hydrogen bonds involving that type of atom. In the special cases of N, O or S,
-  if do not specify a value (and do not disable the contribution by using
+  if you do not specify a value (and do not disable the contribution by using
   \is{-1.0}), the default value from the reference paper will be
-  used~\cite{rezac-jctc-13-2017}. For any other ommitted atom types, the code
+  used~\cite{rezac-jctc-13-2017}. For any other omitted atom types, the code
   defaults to a choice of \is{-1.0} (no correction).
 \end{description}
 
