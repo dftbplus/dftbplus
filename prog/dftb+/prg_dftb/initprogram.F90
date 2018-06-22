@@ -468,14 +468,11 @@ module initprogram
   !> File containing output geometry
   character(lc) :: geoOutFile
 
-
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-
   !> Only use converged forces if SCC
   logical :: tUseConvergedForces
-
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -486,10 +483,8 @@ module initprogram
   !> Geometry optimizer for lattice consts
   type(OGeoOpt), allocatable :: pGeoLatOpt
 
-
   !> Charge mixer
   type(OMixer), allocatable :: pChrgMixer
-
 
   !> MD Framework
   type(OMDCommon), allocatable :: pMDFrame
@@ -2688,8 +2683,8 @@ contains
        call error("Electron dynamics does not work with MPI yet")
      end if
 
-     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
-          &tWriteAutotest, autotestTag)
+     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, tWriteAutotest, autotestTag)
+
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
