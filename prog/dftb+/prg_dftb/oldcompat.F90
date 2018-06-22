@@ -327,12 +327,6 @@ contains
           & differentiation")
     end if
 
-    call getDescendant(root, "Hamiltonian/DFTB/SpinConstants", ch1, &
-        & parent=par)
-    if (associated(ch1)) then
-      call setChildValue(ch1, "ShellResolvedSpin", .true.)
-    end if
-
   end subroutine convert_4_5
 
   !> Converts input from version 5 to 6. (Version 6 introduced in May. 2018)
@@ -341,8 +335,10 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1
-
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, par2, dummy
+    logical :: tVal, tVal2
+    real(dp) :: rTmp
+    
     call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword converted to 'Tolerance'.")
@@ -355,6 +351,44 @@ contains
       call setNodeName(ch1, "SparseTolerances")
     end if
 
+    call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword converted to 'Tolerance'.")
+      call setNodeName(ch1, "Tolerance")
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/DampXH", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "DampXH", tVal)
+      call getDescendant(root, "Hamiltonian/DFTB/DampXHExponent", ch2)
+      if (tVal .neqv. associated(ch2)) then
+        call error("Incompatible combinaton of ")
+      end if
+      if (associated(ch2)) then
+        call getChildValue(par, "DampXHExponent", rTmp)
+      end if      
+      call detailedWarning(ch1, "Keyword DampXH moved to HBondCorrection block")
+      dummy => removeChild(par,ch1)
+      call destroyNode(ch1)
+      dummy => removeChild(par,ch2)
+      call destroyNode(ch2)
+
+      ! clean out any HBondCorrection entry
+      call getDescendant(root, "Hamiltonian/DFTB/HBondCorrection", ch2, parent=par)
+      if (associated(ch2)) then
+         dummy => removeChild(par,ch2)
+        call destroyNode(ch2)
+      end if
+      
+      call getDescendant(root, "Hamiltonian/DFTB", ch2, parent=par)
+      if (associated(ch2)) then
+        call setChild(ch2, "HBondCorrection", ch3)
+        call setChild(ch3, "Damping", ch4)
+        call setChildValue(ch4, "Exponent", rTmp)
+        call detailedWarning(ch3, "Adding Damping to HBondCorrection")
+      end if
+    end if
+    
   end subroutine convert_5_6
 
 end module oldcompat

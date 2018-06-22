@@ -1410,12 +1410,6 @@ contains
         call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
       end select
 
-      ! Elstner gamma damping for X-H interactions
-      call getChildValue(node, "DampXH", ctrl%tDampH, .false.)
-      if (ctrl%tDampH) then
-        call getChildValue(node, "DampXHExponent", ctrl%dampExp)
-      end if
-
       if (geo%tPeriodic) then
         call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
         call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
@@ -2174,20 +2168,21 @@ contains
     real(dp) :: h5ScalingDef
     integer :: iSp
 
-    ! H5 correction
+    ! X-H interaction corrections including H5 and damping
+    ctrl%tDampH = .false.
+    ctrl%h5SwitchedOn = .false.
     call getChildValue(node, "HBondCorrection", value, "None", child=child)
     call getNodeName(value, buffer)
     select case (char(buffer))
     case ("none")
-      ctrl%h5SwitchedOn = .false.
+      ! nothing to do
+    case ("damping")
+      ! Switch the correction on
+      ctrl%tDampH = .true.
+      call getChildValue(value, "Exponent", ctrl%dampExp)
     case ("h5")
       ! Switch the correction on
       ctrl%h5SwitchedOn = .true.
-
-      ! H5 should not be used with X-H damping
-      if (ctrl%tDampH .and. ctrl%h5SwitchedOn) then
-        call error("H5 correction is not compatible with X-H damping")
-      end if
 
       call getChildValue(value, "RScaling", ctrl%h5RScale, 0.714_dp)
       call getChildValue(value, "WScaling", ctrl%h5WScale, 0.25_dp)
@@ -2213,7 +2208,7 @@ contains
       end do
     case default
       call getNodeHSDName(value, buffer)
-      call detailedError(child, "Invalid value of HBondCorrection '" // char(buffer) // "'")
+      call detailedError(child, "Invalid HBondCorrection '" // char(buffer) // "'")
     end select
 
   end subroutine readHBondCorrection
