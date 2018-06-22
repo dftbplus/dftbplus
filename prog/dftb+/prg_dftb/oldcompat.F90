@@ -356,12 +356,6 @@ contains
       call setNodeName(ch1, "SparseTolerances")
     end if
 
-    call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword converted to 'Tolerance'.")
-      call setNodeName(ch1, "Tolerance")
-    end if
-
     call getDescendant(root, "Hamiltonian/DFTB/DampXH", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "DampXH", tVal)
@@ -385,12 +379,10 @@ contains
       end if
 
       call getDescendant(root, "Hamiltonian/DFTB", ch2, parent=par)
-      if (associated(ch2)) then
-        call setChild(ch2, "HBondCorrection", ch3)
-        call setChild(ch3, "Damping", ch4)
-        call setChildValue(ch4, "Exponent", rTmp)
-        call detailedWarning(ch3, "Adding Damping to HBondCorrection")
-      end if
+      call setChild(ch2, "HBondCorrection", ch3)
+      call setChild(ch3, "Damping", ch4)
+      call setChildValue(ch4, "Exponent", rTmp)
+      call detailedWarning(ch3, "Adding Damping to HBondCorrection")
     end if
 
   end subroutine convert_5_6
