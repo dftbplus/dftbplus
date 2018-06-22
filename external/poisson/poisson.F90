@@ -1,14 +1,10 @@
-!*************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.  *  
-!  Authors: A. Pecchia, L. Latessa, A. Di Carlo                          *
-!                                                                        *
-!  Permission is hereby granted to use or copy this program for any      *
-!  purpose, provided the above notices are retained on all copies, and   *
-!  a notice that the code was modifided is included with the above       *
-!  copyright.                                                            *
-!  Permission to redistribute the code to third parties is restricted    *
-!  by the licence agreement.                                             *
-!*************************************************************************
+!**************************************************************************
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
+!                                                                         *
+!  Permission is hereby granted to use, copy or redistribute this program * 
+!  under the LGPL licence.                                                *
+!**************************************************************************
 #:include "common.fypp"
 
 module poisson
@@ -340,8 +336,6 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 !**********************************************************************
 ! This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
 !                                                                     *
-! Users of mudpack should obtain their personal licence from UCAR     *
-! As permission to distribute the packedge is not given.              *
 !**********************************************************************
 
  integer :: SCC_in                         !Control flag:
