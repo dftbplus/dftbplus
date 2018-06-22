@@ -367,7 +367,7 @@ contains
       call getChildValue(par, "DampXH", tVal)
       call getDescendant(root, "Hamiltonian/DFTB/DampXHExponent", ch2)
       if (tVal .neqv. associated(ch2)) then
-        call error("Incompatible combinaton of ")
+        call error("Incompatible combinaton of DampXH and DampXHExponent")
       end if
       if (associated(ch2)) then
         call getChildValue(par, "DampXHExponent", rTmp)
@@ -381,8 +381,7 @@ contains
       ! clean out any HBondCorrection entry
       call getDescendant(root, "Hamiltonian/DFTB/HBondCorrection", ch2, parent=par)
       if (associated(ch2)) then
-         dummy => removeChild(par,ch2)
-        call destroyNode(ch2)
+        call detailedError(ch2, "HBondCorrection already present.")
       end if
 
       call getDescendant(root, "Hamiltonian/DFTB", ch2, parent=par)
