@@ -1,3 +1,10 @@
+!**************************************************************************
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
+!                                                                         *
+!  Permission is hereby granted to use, copy or redistribute this program * 
+!  under the LGPL licence.                                                *
+!**************************************************************************
 module gconstants
   
   use gprecision
