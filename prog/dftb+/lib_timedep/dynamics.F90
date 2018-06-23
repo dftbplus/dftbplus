@@ -187,7 +187,7 @@ contains
       norm = sqrt(sum(this%fieldDir * conjg(this%fieldDir)))
       ! normalize polarization vector
       this%fieldDir = this%fieldDir / norm
-      allocate(this%tdFunction(0:this%nSteps, 3))
+      allocate(this%tdFunction(3, 0:this%nSteps))
       this%tEnvFromFile = (this%envType == iTDFromFile)
       call getTDFunction(this)
     end if
@@ -587,7 +587,7 @@ contains
     ! Add time dependent field if necessary
     if (this%tLaser) then
       do iAtom = 1, this%nAtom
-        potential%extAtom(iAtom, 1) = dot_product(coord(:,iAtom), this%tdFunction(iStep, :))
+        potential%extAtom(iAtom, 1) = dot_product(coord(:,iAtom), this%tdFunction(:, iStep))
       end do
       call total_shift(potential%extShell, potential%extAtom, orb, species)
       call total_shift(potential%extBlock, potential%extShell, orb, species)
@@ -715,12 +715,12 @@ contains
 
       if (this%tEnvFromFile) then
         read(laserDat, *)time, tdfun(1), tdfun(2), tdfun(3)
-        this%tdFunction(iStep, :) = tdfun * (Bohr__AA / Hartree__eV)
+        this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
       else
-        this%tdFunction(iStep, :) = E0 * envelope * aimag(Exp(imag*(time*angFreq + this%phase))&
+        this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
              & * this%fieldDir)
         write(laserDat, "(5F15.8)") time * au__fs,&
-            & this%tdFunction(iStep, :) * (Hartree__eV / Bohr__AA)
+            & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
       end if
 
     end do
