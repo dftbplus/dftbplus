@@ -13,8 +13,8 @@ _mod_eigenvects: eigenvects.o
 _mod_eigenvects = $(eigenvects.o)
 #:endif
 
-hamitonian.o: _mod_commontypes common.fypp _mod_message _mod_shift _mod_spinorbit _mod_environment _mod_potentials _mod_scc _mod_spin _mod_periodic _mod_dftbplusu _mod_accuracy _mod_thirdorder_module
-hamitonian.o = hamitonian.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_shift) $(_mod_spinorbit) $(_mod_environment) $(_mod_potentials) $(_mod_scc) $(_mod_spin) $(_mod_periodic) $(_mod_dftbplusu) $(_mod_accuracy) $(_mod_thirdorder_module)
+hamitonian.o: _mod_commontypes common.fypp _mod_message _mod_environment _mod_shift _mod_spinorbit _mod_assert _mod_potentials _mod_scc _mod_spin _mod_periodic _mod_dftbplusu _mod_accuracy _mod_thirdorder_module
+hamitonian.o = hamitonian.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_environment) $(_mod_shift) $(_mod_spinorbit) $(_mod_assert) $(_mod_potentials) $(_mod_scc) $(_mod_spin) $(_mod_periodic) $(_mod_dftbplusu) $(_mod_accuracy) $(_mod_thirdorder_module)
 _mod_hamiltonian: hamitonian.o
 _mod_hamiltonian = $(hamitonian.o)
 

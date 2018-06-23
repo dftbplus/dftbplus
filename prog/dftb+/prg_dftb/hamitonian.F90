@@ -10,6 +10,7 @@
 !> update the SCC hamiltonian
 module hamiltonian
   use accuracy, only : dp, lc
+  use assert
   use commontypes, only : TOrbitals
   use periodic, only : TNeighbourList
   use potentials, only : TPotentials
