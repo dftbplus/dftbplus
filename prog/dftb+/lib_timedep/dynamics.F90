@@ -753,17 +753,16 @@ contains
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
-    integer :: iAt, iOrb, iSpin, iOrb2
+    integer :: iAt, iSpin, iOrb1, iOrb2
 
     qq = 0.0_dp
     do iSpin=1, this%nSpin
       do iAt = 1, this%nAtom
-        iOrb = 0
-        do iOrb2 = iSquare(iAt), iSquare(iAt+1)-1
-          iOrb = iOrb + 1
-          ! hermitian transpose used as real part only is needed
-          qq(iOrb,iAt,iSpin) = real(sum(rho(:, iOrb2, iSpin) * Ssqr(:, iOrb2)), dp)
-        end do
+        iOrb1 = iSquare(iAt)
+        iOrb2 = iSquare(iAt+1)-1
+        ! hermitian transpose used as real part only is needed
+        qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:, iOrb1:iOrb2, iSpin) * Ssqr(:, iOrb1:iOrb2),&
+            & dim=1), dp)
       end do
     end do
 
