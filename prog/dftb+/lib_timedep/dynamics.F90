@@ -425,7 +425,7 @@ contains
     call initializePropagator(this, this%dt, rho, rhoOld, H1, Sinv)
 
     call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList%iNeighbour, nNeighbourSK, orb,&
-        & iSquare, iSparseStart, img2CentCell, H0, species, qq, q0, potential, chargePerShell,&
+        & iSquare, iSparseStart, img2CentCell, H0, species, deltaQ, potential, chargePerShell,&
         & coord, pRepCont)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
@@ -454,8 +454,8 @@ contains
       end if
 
       call getTDEnergy(this, energy, rhoPrim, rho, neighbourList%iNeighbour, nNeighbourSK, orb,&
-          & iSquare, iSparseStart, img2CentCell, H0, species, qq, q0, potential, chargePerShell,&
-          & coord, pRepCont)
+          & iSquare, iSparseStart, img2CentCell, H0, species, deltaQ, potential,&
+          & chargePerShell, coord, pRepCont)
 
       do iSpin = 1, this%nSpin
         call scal(H1(:,:,iSpin), imag)
@@ -781,7 +781,7 @@ contains
 
   !> Calculate energy
   subroutine getTDEnergy(this, energy, rhoPrim, rho, iNeighbour, nNeighbourSK, orb, iSquare,&
-      & iSparseStart, img2CentCell, H0, species, qq, q0, potential, chargePerShell, coord,&
+      & iSparseStart, img2CentCell, H0, species, deltaQ, potential, chargePerShell, coord,&
       & pRepCont)
 
     !> ElecDynamics instance
@@ -802,11 +802,8 @@ contains
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
 
-    !> atomic ocupations
-    real(dp), intent(inout) :: qq(:,:,:)
-
-    !> reference atomic occupations
-    real(dp), intent(in) :: q0(:,:,:)
+    !> Negative gross charge
+    real(dp), intent(out) :: deltaQ(:,:)
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -856,7 +853,7 @@ contains
     energy%EnonSCC =  sum(energy%atomNonSCC)
 
     if (this%tLaser) then
-      energy%atomExt = -sum(q0(:, :, 1) - qq(:, :, 1),dim=1) * potential%extAtom(:,1)
+      energy%atomExt(:) = -deltaQ(:,1) * potential%extAtom(:,1)
       energy%Eext =  sum(energy%atomExt)
     else
       energy%Eext = 0.0_dp
