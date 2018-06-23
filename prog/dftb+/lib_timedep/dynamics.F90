@@ -598,7 +598,9 @@ contains
     call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
         & img2CentCell, potential, ham, iHam)
 
+    ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
+      ham = 2.0_dp * ham
       call qm2ud(ham)
       call qm2ud(q0)
     end if
