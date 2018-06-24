@@ -610,7 +610,8 @@ contains
     if (tElectronDynamics) then
        call runDynamics(elecDyn, eigvecsReal, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW,&
-            & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, iHam)
+            & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, qBlockOut, qiBlockOut,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam)
     end if
 
     if (allocated(pipekMezey)) then
