@@ -19,7 +19,6 @@
 module hsdparser
   use assert
   use message
-  use fileid
   use charmanip
   use xmlutils
   use xmlf90
@@ -172,16 +171,12 @@ contains
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
-    integer, save :: fd = -1
+    integer :: fd
     integer :: iostat
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-    open(fd, file=file, iostat=iostat, status='old', action='read', recl=lc)
+    open(newunit=fd, file=file, iostat=iostat, status='old', action='read', recl=lc)
     if (iostat /= 0) then
-      call parsingError("Error in opening file '" // trim(file) //"'.", &
-          &file, -1)
+      call parsingError("Error in opening file '" // trim(file) //"'.", file, -1)
     end if
     call parseHSD_opened(initRootName, fd, file, xmlDoc)
     close(fd, iostat=iostat)
@@ -286,7 +281,6 @@ contains
     tTagClosed = .false.
     tFinished = .false.
     tNewNodeCreated = .false.
-    newFile = -1
     nTextLine = 0
     nodetype = 0
 
@@ -429,10 +423,7 @@ contains
                 &operator.", curFile, curLine)
           end if
 
-          if (newFile == -1) then
-            newFile = getFileID()
-          end if
-          open(newFile, file=trim(word), status='old', action='read', &
+          open(newunit=newFile, file=trim(word), status='old', action='read', &
               &iostat=iostat, recl=lc)
           if (iostat /= 0) then
             call parsingError("Error in opening file '" // trim(word) // &
@@ -788,8 +779,8 @@ contains
     call normalize(newDoc)
     rootNode => getLastChildByName(newDoc, trim(rootName))
     if (.not. associated(rootNode)) then
-      call parsingError("File '" // file // "' does not contain '" // &
-          & trim(rootName) // "' node.", file, -1)
+      call parsingError("File '" // file // "' does not contain '" // trim(rootName) // "' node.",&
+          & file, -1)
     else
       call destroyNode(myDoc)
       myDoc => newDoc
@@ -808,19 +799,14 @@ contains
     !> Name of the file
     character(len=*), intent(in) :: file
 
-    integer, save :: fd = -1
+    integer :: fd
     integer :: iostat
     character(len=lc) :: fileName
 
-    if (fd == -1) then
-      fd = getFileId()
-    end if
-    open(fd, file=file, iostat=iostat, status='replace', action='write',&
-        &recl=MAXRECL)
+    open(newunit=fd, file=file, iostat=iostat, status='replace', action='write', recl=MAXRECL)
     if (iostat /= 0) then
       fileName = file
-      call parsingError("Error in opening file for the HSD output.", fileName, &
-          &-1)
+      call parsingError("Error in opening file for the HSD output.", fileName, -1)
     end if
     call dumpHSD_opened(myDoc, fd)
     close(fd)

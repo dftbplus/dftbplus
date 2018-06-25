@@ -13,14 +13,25 @@ Added
 
 - Use of the ELSI library.
 
+- Option for removing translational and rotational degrees of freedom in modes.
+
+- H5 correction for hydrogen bonds.
+  
 Changed
 -------
 
+- Updated parser version to 6.
+
+- Syntax for H5 and DampedHX corrections for hydrogen bonds unified.
 
 Fixed
 -----
 
-Compilation when socket interface disabled.
+- Compilation when socket interface disabled.
+
+- Stress tensor evaluation for 3rd order DFTB.
+
+- Tollerance keyword typo.
 
 18.1 (2018-03-02)
 =================
