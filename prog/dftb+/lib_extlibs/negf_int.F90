@@ -207,6 +207,7 @@ module negf_int
           write(stdOut,*) 'FICTITIOUS CONTACT '
           write(stdOut,*) 'DOS: ', params%contact_DOS(i)
         end if
+        write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
         write(stdOut,*) 'Potential (with built-in): ', pot(i)
         write(stdOut,*) 'eFermi: ', eFermi(i)
@@ -264,8 +265,8 @@ module negf_int
       end if
       
       write(stdOut,*) 'Density Matrix Parameters'
-      write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
       if (.not.transpar%defined) then
+        write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
         write(stdOut,*) 'eFermi: ', params%mu(1)
       end if
       write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
