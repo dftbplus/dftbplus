@@ -207,7 +207,6 @@ module negf_int
           write(stdOut,*) 'FICTITIOUS CONTACT '
           write(stdOut,*) 'DOS: ', params%contact_DOS(i)
         end if
-        write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
         write(stdOut,*) 'Potential (with built-in): ', pot(i)
         write(stdOut,*) 'eFermi: ', eFermi(i)
@@ -220,11 +219,10 @@ module negf_int
       write(stdOut,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
       write(stdOut,*)
       deallocate(pot)
-
-    else !transpar not defined
+      
+    else  
       params%mu(1) = greendens%oneFermi(1)
     end if
-
 
     ! ------------------------------------------------------------------------------
     !                  SETTING COUNTOUR INTEGRATION PARAMETERS
@@ -232,8 +230,16 @@ module negf_int
     if (greendens%defined) then
       params%Ec = greendens%enLow           ! lowest energy
       params%Np_n(1:2) = greendens%nP(1:2)  ! contour npoints
-      params%Np_real = greendens%nP(3)      ! real axis points
       params%n_kt = greendens%nkt           ! n*kT for Fermi
+
+      ! Real-axis points. 
+      ! Override to 0 if bias is 0.0
+      params%Np_real = 0
+      if (ncont > 0) then
+        if (any(abs(params%mu(2:ncont)-params%mu(1)) > 1.0d-10)) then
+           params%Np_real = greendens%nP(3)  ! real axis points
+        end if   
+      end if
 
       !Read G.F. from very first iter
       if (greendens%readSGF .and. .not.greendens%saveSGF) then
@@ -256,6 +262,16 @@ module negf_int
       if(all(params%kbT_dm.eq.0)) then
         params%n_poles = 0
       end if
+      
+      write(stdOut,*) 'Density Matrix Parameters'
+      write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
+      if (.not.transpar%defined) then
+        write(stdOut,*) 'eFermi: ', params%mu(1)
+      end if
+      write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
+      write(stdOut,*) 'Number of poles: ', params%N_poles
+      write(stdOut,*) 'Real-axis points: ', params%Np_real(1)
+      write(stdOut,*)
 
     end if
 
