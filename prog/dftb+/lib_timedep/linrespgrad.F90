@@ -76,8 +76,8 @@ contains
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbour,&
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
-      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, shift, skHamCont,&
-      & skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, allOmega, shift,&
+      & skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -193,6 +193,9 @@ contains
 
     !> excitation energy of state nstat0
     real(dp), intent(out) :: omega
+
+    !> excitation energy of all states that have been solved
+    real(dp), allocatable, intent(inout) :: allOmega(:)
 
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
@@ -538,6 +541,16 @@ contains
     deallocate(snglPartTransDip)
     deallocate(transitionDipoles)
     deallocate(sposz)
+
+    if (allocated(allOmega)) then
+      if (size(allOmega) /= nExc) then
+        deallocate(allOmega)
+      end if
+    end if
+    if (.not. allocated(allOmega)) then
+      allocate(allOmega(nexc))
+    end if
+    allOmega = sqrt(eval)
 
     if (.not. tZVector) then
       if (nstat == 0) then

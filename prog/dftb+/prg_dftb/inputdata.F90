@@ -157,7 +157,10 @@ module inputdata_module
     logical :: tProjEigenvecs = .false.
 
     !> Evaluate forces
-    logical :: tForces     = .false.
+    logical :: tForces = .false.
+
+    !> Evaluate force contributions from the excited state if required and (tForces)
+    logical :: tCasidaForces = .false.
 
     !> force evaluation method
     integer :: forceType

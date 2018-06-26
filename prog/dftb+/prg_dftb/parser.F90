@@ -143,15 +143,15 @@ contains
     call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
     call readDriver(tmp, child, input%geom, input%ctrl)
 
-    ! excited state options
-    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
-        & allowEmptyValue=.true., dummyValue=.true.)
-    call readExcited(child, input%ctrl)
-
     ! Analysis of properties
     call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readAnalysis(child, input%ctrl, input%geom)
+
+    ! excited state options
+    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
+        & allowEmptyValue=.true., dummyValue=.true.)
+    call readExcited(child, input%ctrl)
 
     ! Options for calculation
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -3199,6 +3199,10 @@ contains
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
       call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
       call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
+
+      if (ctrl%tForces .or. ctrl%tPrintForces) then
+        call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
+      end if
 
     end if
 
