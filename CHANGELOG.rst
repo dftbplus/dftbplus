@@ -32,6 +32,8 @@ Fixed
 
 - Tollerance keyword typo.
 
+- Ability to perform ground state MD with excitation energies
+
 18.1 (2018-03-02)
 =================
 
