@@ -526,6 +526,16 @@ contains
             & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc)
       end if
 
+      if (allocated(allOmega)) then
+        if (size(allOmega) /= size(symmetries) * nExc) then
+          deallocate(allOmega)
+        end if
+      end if
+      if (.not. allocated(allOmega)) then
+        allocate(allOmega(size(symmetries) * nExc))
+      end if
+      allOmega(1+(iSym-1)*nExc:iSym*nExc) = sqrt(eval)
+
     end do
 
     if (tArnoldi) then
@@ -541,16 +551,6 @@ contains
     deallocate(snglPartTransDip)
     deallocate(transitionDipoles)
     deallocate(sposz)
-
-    if (allocated(allOmega)) then
-      if (size(allOmega) /= nExc) then
-        deallocate(allOmega)
-      end if
-    end if
-    if (.not. allocated(allOmega)) then
-      allocate(allOmega(nexc))
-    end if
-    allOmega = sqrt(eval)
 
     if (.not. tZVector) then
       if (nstat == 0) then
