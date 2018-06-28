@@ -11,6 +11,7 @@ non-scc/Si_2                           #? MPI_PROCS <= 1
 non-scc/Si_2_independentk              #? MPI_PROCS <= 1
 scc/H2O2_3rdfull-damp                  #? MPI_PROCS <= 1
 scc/H3                                 #? MPI_PROCS <= 1
+scc/H3_skipcheck                       #? MPI_PROCS <= 1
 spin/H2                                #? MPI_PROCS <= 1
 
 #! MPI implementation not available

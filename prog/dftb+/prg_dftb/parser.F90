@@ -2817,6 +2817,11 @@ contains
     end if
     call getChildValue(node, "WriteChargesAsText", ctrl%tWriteChrgAscii, .false.)
 
+    ctrl%tSkipChrgChecksum = .false.
+    if (.not. ctrl%tFixEf .and. ctrl%tReadChrg) then
+      call getChildValue(node, "SkipChargeTest", ctrl%tSkipChrgChecksum, .false.)
+    end if
+
   end subroutine readOptions
 
 

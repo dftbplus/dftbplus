@@ -2553,6 +2553,7 @@ This block collects some global options for the run.
   \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
   ReadInitialCharges = Yes & No & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
+  \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
 \end{ptable}
 \begin{description}
 
@@ -2637,6 +2638,9 @@ This block collects some global options for the run.
 \item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
   binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
   contains text of this data. See section \ref{sec:charges.bin}.
+
+\item[\is{SkipChargeTest}] If \is{Yes}, testing of whether the charges read from
+  file match the total charge (and magnetization) if relevant.
 
 \end{description}
 

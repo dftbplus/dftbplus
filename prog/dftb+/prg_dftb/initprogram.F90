@@ -1972,7 +1972,8 @@ contains
       if (tReadChrg) then
         if (tDFTBU) then
           if (nSpin == 2) then
-            if (tFixEf) then ! do not check charge or magnetisation from file
+            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
@@ -1980,7 +1981,8 @@ contains
             end if
           else
             if (tImHam) then
-              if (tFixEf) then
+              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+                ! do not check charge or magnetisation from file
                 call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
@@ -1988,7 +1990,8 @@ contains
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
-              if (tFixEf) then
+              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+                ! do not check charge or magnetisation from file
                 call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn)
               else
@@ -2000,14 +2003,16 @@ contains
         else
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
-            if (tFixEf) then
+            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
-            if (tFixEf) then
+            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
@@ -2028,8 +2033,10 @@ contains
         else
           qInput(:,:,:) = q0
         end if
-        ! Rescaling to ensure correct number of electrons in the system
-        qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
+        if (.not. input%ctrl%tSkipChrgChecksum) then
+          ! Rescaling to ensure correct number of electrons in the system
+          qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
+        end if
 
         select case (nSpin)
         case (1)
@@ -2044,10 +2051,12 @@ contains
                   & * input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
             end do
           else
-            do ii = 1, nAtom
-              qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                  & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
-            end do
+            if (.not. input%ctrl%tSkipChrgChecksum) then
+              do ii = 1, nAtom
+                qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                    & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
+              end do
+            end if
           end if
         case (4)
           if (tSpin) then
@@ -2057,12 +2066,14 @@ contains
             if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then
               call error("Incorrect shape initialSpins array!")
             end if
-            do ii = 1, nAtom
-              do jj = 1, 3
-                qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                    & * input%ctrl%initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+            if (.not. input%ctrl%tSkipChrgChecksum) then
+              do ii = 1, nAtom
+                do jj = 1, 3
+                  qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                      & * input%ctrl%initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+                end do
               end do
-            end do
+            end if
           end if
         end select
         if (tDFTBU) then
