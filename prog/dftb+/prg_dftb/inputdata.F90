@@ -85,6 +85,8 @@ module inputdata_module
     !> Read starting charges from disc
     logical :: tReadChrg = .false.
 
+    logical :: tSkipChrgChecksum = .false.
+
     !> Disc charges are stored as ascii or binary files
     logical :: tReadChrgAscii = .true.
 
