@@ -49,6 +49,7 @@ module main
   use orbitalequiv
   use parser
   use sparse2dense
+  use sparse2sparse
   use blasroutines, only : symm, hemm
   use hsdutils
   use charmanip
