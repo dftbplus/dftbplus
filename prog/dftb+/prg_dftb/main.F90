@@ -713,9 +713,9 @@ contains
       nullify(pDynMatrix)
     end if
 
-    !if (tWriteShifts) then
+    if (tWriteShifts) then
       call writeShifts(fShifts, orb, potential%intShell)
-    !endif
+    endif
 
   #:if WITH_TRANSPORT
     if (tContCalc) then
