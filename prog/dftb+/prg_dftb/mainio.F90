@@ -3482,9 +3482,7 @@ contains
       call error("Internal error in writeshift size(shiftPerL,2)")
     endif
 
-    fdHS = getFileId()
-
-    open(fdHS, file=trim(fShifts), form="formatted")
+    open(newunit=fdHS, file=trim(fShifts), form="formatted")
     write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
     do ii = 1, nAtom
       write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
@@ -3527,9 +3525,7 @@ contains
       call error("Internal error in writeContShift: shape(charges)")
     endif
 
-    fdHS = getFileId()
-
-    open(fdHS, file=trim(filename), form="formatted")
+    open(newunit=fdHS, file=trim(filename), form="formatted")
     write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
     write(fdHS, *) orb%nOrbAtom
     write(fdHS, *) shiftPerL
