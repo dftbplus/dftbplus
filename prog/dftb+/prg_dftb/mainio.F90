@@ -3530,7 +3530,7 @@ contains
     write(fdHS, *) orb%nOrbAtom
     write(fdHS, *) shiftPerL
     write(fdHS, *) charges
-    if (nSpin .gt. 1) then
+    if (nSpin == 2) then
       write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
       write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
     else
@@ -3565,8 +3565,7 @@ contains
     open(newunit=fdH, file=fShifts, form="formatted")
     read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
 
-    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell &
-        &.or. mOrbSt /= orb%mOrb) then
+    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell .or. mOrbSt /= orb%mOrb) then
       call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
     end if
     if (nSpin /= nSpinSt) then
