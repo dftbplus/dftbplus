@@ -1626,6 +1626,7 @@ contains
       call getChildValue(value, "nIterationsELPA", ctrl%solver%OMM_IterationsELPA, 5)
       call getChildValue(value, "Tolerance", ctrl%solver%OMM_Tolerance, 1.0E-10_dp)
       call getChildValue(value, "Choleskii", ctrl%solver%OMM_Choleskii, .true.)
+      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
     #:endif
     case ("pexsi")
       if (.not.withPEXSI) then
@@ -1643,6 +1644,7 @@ contains
       call getChildValue(value, "SpectralRadius", ctrl%solver%PEXSI_delta_e, 10.0_dp,&
           & modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, ctrl%solver%PEXSI_delta_e)
+      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
     #:endif
     end select
 

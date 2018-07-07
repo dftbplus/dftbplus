@@ -332,11 +332,11 @@ contains
         end if
 
         call getDensity(env, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, electronicSolver, tRealHS,&
-            & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
-            & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-            & eigvecsCplx, rhoSqrReal)
+            & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, electronicSolver,&
+            & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
+            & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband,&
+            & TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
+            & SSqrCplx, eigvecsCplx, rhoSqrReal)
 
         if (tWriteBandDat) then
           call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -1777,9 +1777,15 @@ contains
                 & electronicSolver%ELSI_PEXSI_mu_max + electronicSolver%ELSI_PEXSI_DeltaVmax)
           end if
 
-          allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
-          call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
-              & Eband(iSp))
+          if (electronicSolver%ELSI_CSR) then
+            call calcdensity_parallel_elsi(env, parallelKS, electronicSolver, ham, over,&
+                & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+                & img2CentCell, orb, rhoPrim, Eband)
+          else
+            allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
+            call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
+                & Eband(iSp))
+          end if
 
           Ef = 0.0_dp
           TS = 0.0_dp
@@ -1797,12 +1803,15 @@ contains
                 & electronicSolver%ELSI_PEXSI_mu_max)
           end if
 
-          rhoPrim = 0.0_dp
+          if (.not. electronicSolver%ELSI_CSR) then
+            rhoPrim = 0.0_dp
 
-          call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1), neighbourList%iNeighbour,&
-              & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iSp))
+            call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1),&
+                & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
+                & rhoPrim(:,iSp))
 
-          deallocate(rhoSqrReal)
+            deallocate(rhoSqrReal)
+          end if
 
           ! Add up and distribute density matrix contribution from each group
           call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)

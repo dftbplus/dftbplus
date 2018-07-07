@@ -34,9 +34,9 @@ contains
 
 
 #:if WITH_ELSI
-  !> Calculates density matrix using the pexsi routine.
+  !> Calculates density matrix using the elsi routine.
   subroutine calcdensity_parallel_elsi(env, parallelKS, electronicSolver, ham, over, iNeighbour,&
-      & nNeighbourSK, iAtomStart, iPair, img2CentCell, orb, mOrb, rho, Eband, Ef)
+      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, rho, Eband)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -63,7 +63,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -71,17 +71,11 @@ contains
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Largest atomic block dimension
-    integer, intent(in) :: mOrb
-
     !> Density matrix in DFTB+ sparse format
     real(dp), intent(out) :: rho(:,:)
 
     !> Band energy
     real(dp), intent(out) :: Eband(:)
-
-    !> Fermi energy
-    real(dp), intent(out) :: Ef(:)
 
     integer :: nn
     integer :: nKS, iKS, iS
@@ -89,14 +83,13 @@ contains
     integer, allocatable :: colptrLocal(:), rowindLocal(:)
     real(dp), allocatable :: HnzvalLocal(:), SnzvalLocal(:)
     real(dp), allocatable :: DMnzvalLocal(:)
-    real(dp), allocatable :: tmp(:)
     integer :: colStartLocal, colEndLocal, numCol, numRow, numColDefault
     integer, allocatable :: blockrow(:)
 
     nKS = size(parallelKS%localKS, dim=2)
 
-    numRow = orb%nOrb
-    numCol = orb%nOrb
+    numRow = electronicSolver%ELSI_n_basis
+    numCol = electronicSolver%ELSI_n_basis
     numColDefault = int(numCol / env%mpi%groupComm%size)
 
     colStartLocal = env%mpi%groupComm%rank * numColDefault + 1
@@ -110,7 +103,7 @@ contains
     ! Could be stored in a derived type and reused between SCC iterations
     ALLOCATE(colptrLocal(numColLocal + 1))
 
-    call pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iPair, &
+    call pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, &
         & img2CentCell, colStartLocal, colEndLocal, nnzLocal, colptrLocal)
 
     nnz_global = 0
@@ -122,20 +115,18 @@ contains
     ALLOCATE(DMnzvalLocal(nnzLocal))
 
     nn = size(ham, 1)
-    ALLOCATE(tmp(nn))
-    tmp(:) = 0.0_dp
     ALLOCATE(blockRow(nn))
 
     ! Could be stored in a derived type end reused between SCC iterations
-    call pack2pexsi_parallel(over, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell,&
-        & colStartLocal, colEndLocal, colptrLocal, rowindLocal, blockRow, SnzvalLocal)
+    call pack2elsi_parallel(over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+        & img2CentCell, colStartLocal, colEndLocal, colptrLocal, rowindLocal, blockRow, SnzvalLocal)
 
     call elsi_set_csc(electronicSolver%elsiHandle, nnz_global, nnzLocal,&
         & colEndLocal-colStartLocal+1, rowindLocal, colptrLocal)
 
     do iKS = 1, nKS
       iS = parallelKS%localKS(2, iKS)
-      call pack2pexsi_parallel(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iPair,&
+      call pack2elsi_parallel(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, colStartLocal, colEndLocal, colptrLocal, rowindLocal, blockRow,&
           & HnzvalLocal)
 
@@ -144,28 +135,18 @@ contains
           & Eband(iS))
 
       ! get results back
-
-      tmp(:) = 0.0_dp
-      call pexsi2pack_parallel(colStartLocal, colEndLocal, iNeighbour, nNeighbourSK, mOrb,&
-          & iAtomStart, iPair, img2CentCell, colptrLocal, DMnzvalLocal, blockRow, tmp)
-
-      rho(:,iS) = 0.0_dp
-      call mpifx_allreduce(env%mpi%groupComm, tmp, rho(:,iS), MPI_SUM)
-
-      ! rho(:,iS) = rho(:,iS) / size(nEl)
-
-      ! EBand(iS) = Eband(iS) / size(nEl)
+      call elsi2pack_parallel(colStartLocal, colEndLocal, iNeighbour, nNeighbourSK, orb%mOrb,&
+          & iAtomStart, iSparseStart, img2CentCell, colptrLocal, DMnzvalLocal, blockRow, rho(:,iS))
 
     end do
 
-    write(*,*)EBand
-    call error("Stopping here")
+    write(*,*)'Eband',EBand
 
   end subroutine calcdensity_parallel_elsi
 
 
   !> Creating colptr and nnz for CSC matrix format from packed format
-  subroutine pack2colptr_parallel(iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell,&
+  subroutine pack2colptr_parallel(iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
       & colStartLocal, colEndLocal, nnzLocal, colptrLocal)
 
     !> Neighbour list for each atom (first index from 0!).
@@ -178,7 +159,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> Indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Atomic mapping indexes
     integer, intent(in) :: img2CentCell(:)
@@ -215,7 +196,7 @@ contains
       nOrb1 = iSquare(iAtom1+1) - ii
       blockList(:) = .false.
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh,iAtom1) + 1
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iSquare(iAtom2f)
@@ -260,8 +241,8 @@ contains
   !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations
   !>
   !> NOTE: ELSI needs the full matrix (both triangles)
-  subroutine pack2pexsi_parallel(orig, iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell,&
-      & colStartLocal, colEndLocal, colptrLocal, rowindLocal, blockRow, nzvalLocal)
+  subroutine pack2elsi_parallel(orig, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+      & img2CentCell, colStartLocal, colEndLocal, colptrLocal, rowindLocal, blockRow, nzvalLocal)
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: orig(:)
@@ -276,7 +257,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> Indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
@@ -334,7 +315,7 @@ contains
       ! processing previous columns.
       iNext = blockList(iAtom1, 2)
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh,iAtom1) + 1
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
 
@@ -353,7 +334,7 @@ contains
             & ii+nOrb1-1, colStartLocal, colEndLocal)) then
           cycle
         end if
-        call addBlock2Pexsi(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ]),&
+        call addBlock2Elsi(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ]),&
             & colStartLocal, colEndLocal, jj, ii, colptrLocal, blockList(iAtom2f,1)-1, rowindLocal,&
             & nzvalLocal)
 
@@ -368,16 +349,16 @@ contains
           tRowTrans(iAtom2f) = .true.
         end if
 
-        call addBlock2Pexsi(transpose(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ])),&
+        call addBlock2Elsi(transpose(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ])),&
             & colStartLocal, colEndLocal, ii, jj, colptrLocal, blockList(iAtom2f,2)-nOrb1-1,&
             & rowindLocal, nzvalLocal)
       end do
     end do
 
-  end subroutine pack2pexsi_parallel
+  end subroutine pack2elsi_parallel
 
 
-  !> Checks if atom block is part of local matrix (Pexsi)
+  !> Checks if atom block is part of local matrix (Elsi)
   pure logical function isBlockInLocal(rowStartBlock, rowEndBlock, colStartBlock, colEndBlock,&
       & colStartLocal, colEndLocal)
 
@@ -443,7 +424,7 @@ contains
 
 
   !> Add the content of a local matrix block to ELSI CSC format
-  subroutine addBlock2Pexsi(loc, colStart, colEnd, ii, jj, colptr, rowOffset, rowind, val)
+  subroutine addBlock2Elsi(loc, colStart, colEnd, ii, jj, colptr, rowOffset, rowind, val)
 
     !> Local matrix.
     real(dp), intent(in) :: loc(:,:)
@@ -487,15 +468,15 @@ contains
       jloc = jloc + 1
     end do
 
-  end subroutine addBlock2Pexsi
+  end subroutine addBlock2Elsi
 
 
   !> Creating colptr and nnz for CSC matrix format from packed format
   !>
   !> Note: primitive will not be set to zero on startup, and values are added to enable addition of
   !> spin components. Make sure, you set it to zero before invoking this routine the first time.
-  subroutine pexsi2pack_parallel(colStart, colEnd, iNeighbour, nNeighbourSK, mOrb, iSquare, iPair,&
-      & img2CentCell, colptr, nzval, blockRow, primitive)
+  subroutine elsi2pack_parallel(colStart, colEnd, iNeighbour, nNeighbourSK, mOrb, iSquare,&
+      & iSparseStart, img2CentCell, colptr, nzval, blockRow, primitive)
 
     !> Column of global matrix where local matrix starts
     integer, intent(in) :: colStart
@@ -516,7 +497,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> Indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Atomic mapping indexes.
     integer, intent(in) :: img2CentCell(:)
@@ -548,7 +529,7 @@ contains
       ii = iSquare(iAtom1)
       nOrb1 = iSquare(iAtom1+1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh,iAtom1) + 1
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iSquare(iAtom2f)
@@ -558,7 +539,7 @@ contains
           cycle
         end if
 
-        call cpPexsi2Block(colStart, colEnd, colptr, nzval, ii, blockRow(iOrig),&
+        call cpElsi2Block(colStart, colEnd, colptr, nzval, ii, blockRow(iOrig),&
             & tmpSqr(1:nOrb2,1:nOrb1))
 
         ! Symmetrize the on-site block before packing, just in case
@@ -574,11 +555,11 @@ contains
       end do
     end do
 
-  end subroutine pexsi2pack_parallel
+  end subroutine elsi2pack_parallel
 
 
   !> Copies the content from the ELSI structure to block
-  subroutine cpPexsi2Block(colStart, colEnd, colptr, nzval, jj, blockRow, loc)
+  subroutine cpElsi2Block(colStart, colEnd, colptr, nzval, jj, blockRow, loc)
 
     !> Column of global matrix where local matrix starts
     integer, intent(in) :: colStart
@@ -612,7 +593,7 @@ contains
       end if
     end do
 
-  end subroutine cpPexsi2Block
+  end subroutine cpElsi2Block
 #:endif
 
 

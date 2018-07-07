@@ -2382,11 +2382,24 @@ contains
     #:if WITH_ELSI
       write (strTmp, "(A,I0,A,E8.2)") "ELSI solver libOMM with ",&
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
+      if (electronicSolver%ELSI_CSR) then
+        write (strTmp, "(A)") "ELSI solver libOMM Sparse"
+      else
+        write (strTmp, "(A)") "ELSI solver libOMM Dense"
+      end if
     #:else
       call error("Should not be here")
     #:endif
     case(6)
-      write (strTmp, "(A)") "ELSI solver PEXSI"
+    #:if WITH_ELSI
+      if (electronicSolver%ELSI_CSR) then
+        write (strTmp, "(A)") "ELSI solver PEXSI Sparse"
+      else
+        write (strTmp, "(A)") "ELSI solver PEXSI Dense"
+      end if
+    #:else
+      call error("Should not be here")
+    #:endif
     case default
       call error("Unknown eigensolver!")
     end select
