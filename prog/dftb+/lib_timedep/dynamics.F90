@@ -193,7 +193,6 @@ contains
       this%fieldDir = this%fieldDir / norm
       allocate(this%tdFunction(0:this%nSteps, 3))
       this%tEnvFromFile = (this%envType == iTDFromFile)
-      call getTDFunction(this)
     end if
 
     if (this%tKick) then
@@ -373,6 +372,10 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
     if (this%tRestart) then
       call readRestart(rho, rhoOld, Ssqr, coord, startTime)
+    end if
+
+    if (this%tLaser) then
+      call getTDFunction(this, startTime)
     end if
 
     call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, Hsq, filling, orb,&
@@ -665,10 +668,13 @@ contains
 
 
   !> Creates array for external TD field
-  subroutine getTDFunction(this)
+  subroutine getTDFunction(this, startTime)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> starting time of the simulation, if relevant
+    real(dp), intent(in) :: startTime
 
     real(dp) :: midPulse, deltaT, angFreq, E0, time, envelope
     real(dp) :: tdfun(3)
@@ -683,7 +689,7 @@ contains
     open(newunit=laserDat, file='laser.dat')
 
     do iStep = 0,this%nSteps
-      time = iStep * this%dt
+      time = iStep * this%dt + startTime
 
       if (this%envType == iTDConstant) then
         envelope = 1.0_dp
