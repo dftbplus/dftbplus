@@ -372,13 +372,15 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
     if (this%tRestart) then
-      call readRestart(rho, Ssqr, coord, startTime)
+      call readRestart(rho, rhoOld, Ssqr, coord, startTime)
     end if
 
     call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, Hsq, filling, orb,&
         & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell,&
-        & Eiginv, EiginvAdj, energy)
+        & Eiginv, EiginvAdj, energy, this%tRestart)
 
+    ! not sure if the appending behaviour in this routine is a good idea, a flag to control it might
+    ! be safer for general users
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
@@ -391,9 +393,11 @@ contains
       call kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
     end if
 
-    ! Initialize electron dinamics
-    rhoOld(:,:,:) = rho
-    call initializePropagator(this, this%dt, rho, rhoOld, H1, Sinv)
+    if (.not.this%tRestart) then
+      ! Initialize electron dynamics
+      rhoOld(:,:,:) = rho
+      call initializePropagator(this, this%dt, rho, rhoOld, H1, Sinv)
+    end if
 
     call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList%iNeighbour, nNeighbourSK, orb,&
         & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
@@ -409,7 +413,9 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      if (.not. this%tRestart .or. iStep > 0) then
+      ! would lead to no output if restarting:
+      !if (.not. this%tRestart .or. iStep > 0) then
+      if (iStep > 0) then
         call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
       end if
 
@@ -419,7 +425,7 @@ contains
           & chargePerShell, W, env)
 
       if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
-        call writeRestart(rho, Ssqr, coord, time)
+        call writeRestart(rho, rhoOld, Ssqr, coord, time)
       end if
 
       call getTDEnergy(this, energy, rhoPrim, rho, neighbourList%iNeighbour, nNeighbourSK, orb,&
@@ -865,7 +871,7 @@ contains
   !> Create all necessary matrices and instances for dynamics
   subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, Hsq, filling,&
       & orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell, Eiginv,&
-      & EiginvAdj, energy)
+      & EiginvAdj, energy, tRestart)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -925,13 +931,16 @@ contains
     complex(dp), intent(out) :: H1(:,:,:)
 
     !> Density matrix
-    complex(dp), intent(out) :: rho(:,:,:)
+    complex(dp), intent(inout) :: rho(:,:,:)
 
     !> Inverse of eigenvectors matrix (for populations)
     complex(dp), allocatable, intent(out), optional :: Eiginv(:,:,:)
 
     !> Adjoint of the inverse of eigenvectors matrix (for populations)
     complex(dp), allocatable, intent(out), optional :: EiginvAdj(:,:,:)
+
+    !> Is this a restarted calculation with rho available?
+    logical, intent(in) :: tRestart
 
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
     integer :: iSpin, iOrb, iOrb2
@@ -968,16 +977,18 @@ contains
     Sinv(:,:) = cmplx(T3, 0, dp)
     write(stdOut,"(A)")'S inverted'
 
-    do iSpin=1,this%nSpin
-      T2 = 0.0_dp
-      call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
-      rho(:,:,iSpin) = cmplx(T2, 0, dp)
-      do iOrb = 1, this%nOrbs-1
-        do iOrb2 = iOrb+1, this%nOrbs
-          rho(iOrb, iOrb2, iSpin) = rho(iOrb2, iOrb, iSpin)
+    if (.not.tRestart) then
+      do iSpin=1,this%nSpin
+        T2 = 0.0_dp
+        call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
+        rho(:,:,iSpin) = cmplx(T2, 0, dp)
+        do iOrb = 1, this%nOrbs-1
+          do iOrb2 = iOrb+1, this%nOrbs
+            rho(iOrb, iOrb2, iSpin) = rho(iOrb2, iOrb, iSpin)
+          end do
         end do
       end do
-    end do
+    end if
 
     call init(potential, orb, this%nAtom, this%nSpin)
     call init(energy, this%nAtom)
@@ -1085,6 +1096,7 @@ contains
       dipoleFileName = 'mu.dat'
     end if
 
+    ! note, appends if the file already exists - potential to confuse users?
     call openFile(this, dipoleDat, dipoleFileName)
     call openFile(this, qDat, 'qsvst.dat')
     call openFile(this, energyDat, 'energyvst.dat')
@@ -1155,13 +1167,14 @@ contains
     else
       open(newunit=unitName, file=fileName, action="write")
     end if
+
   end subroutine openFile
 
 
   !> Write to and read from restart files
-  subroutine writeRestart(rho, Ssqr, coord, time, dumpName)
+  subroutine writeRestart(rho, rhoOld, Ssqr, coord, time, dumpName)
 
-    complex(dp), intent(in) :: rho(:,:,:), Ssqr(:,:)
+    complex(dp), intent(in) :: rho(:,:,:), rhoOld(:,:,:), Ssqr(:,:)
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
@@ -1178,16 +1191,19 @@ contains
     else
       open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', action='write')
     end if
-    write(dumpBin) rho, Ssqr, coord, time
+    write(dumpBin) rho, rhoOld, Ssqr, coord, time
     close(dumpBin)
   end subroutine writeRestart
 
 
   !> read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestart(rho, Ssqr, coord, time)
+  subroutine readRestart(rho, rhoOld, Ssqr, coord, time)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
+
+    !> Previous density Matrix
+    complex(dp), intent(out) :: rhoOld(:,:,:)
 
     !> Square overlap matrix
     complex(dp), intent(out) :: Ssqr(:,:)
@@ -1201,7 +1217,7 @@ contains
     integer :: dumpBin
 
     open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', action='read')
-    read(dumpBin) rho, Ssqr, coord, time
+    read(dumpBin) rho, rhoOld, Ssqr, coord, time
     close(dumpBin)
 
   end subroutine readRestart
@@ -1246,8 +1262,11 @@ contains
         & iSpin=1, this%nSpin)
 
     if (mod(iStep, this%writeFreq) == 0) then
-      write(qDat, '(*(2x,F25.15))') time * au__fs, -sum(deltaQ),&
-          & (-sum(deltaQ(iAtom,:)), iAtom=1, this%nAtom)
+      write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
+      do iAtom = 1, this%nAtom
+        write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
+      end do
+      write(qDat,*)
     end if
 
   end subroutine writeTDOutputs
@@ -1331,8 +1350,11 @@ contains
     call gemm(T1, Eiginv(:,:,iSpin), rho(:,:,iSpin))
     call gemm(T2, T1, EiginvAdj(:,:,iSpin))
 
-    write(populDat(iSpin),'(*(2x,F25.15))') time * au__fs,&
-        & (real(T2(iOrb, iOrb), dp), iOrb=1, this%nOrbs)
+    write(populDat(iSpin),'(*(2x,F25.15))', advance='no') time * au__fs
+    do iOrb = 1, this%nOrbs
+      write(populDat(iSpin),'(*(F25.15))', advance='no')real(T2(iOrb, iOrb), dp)
+    end do
+    write(populDat(iSpin),*)
 
   end subroutine getTDPopulations
 
