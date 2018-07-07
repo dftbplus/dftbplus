@@ -776,7 +776,11 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  !> Electronic structure solver
   type(TElectronicSolver) :: electronicSolver
+
+  !> Are large dense matrices required?
+  logical :: tLargeDenseMatrices
 
   private :: createRandomGenerators
 
@@ -3167,7 +3171,13 @@ contains
     end if
 
     ! If only H/S should be printed, no allocation for square HS is needed
-    if (.not. (tWriteRealHS .or. tWriteHS)) then
+    tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
+  #:if WITH_ELSI
+    if (electronicSolver%ELSI_CSR) then
+      tLargeDenseMatrices = .false.
+    end if
+  #:endif
+    if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if

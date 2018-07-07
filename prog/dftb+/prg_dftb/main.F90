@@ -336,7 +336,7 @@ contains
             & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
             & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband,&
             & TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
-            & SSqrCplx, eigvecsCplx, rhoSqrReal)
+            & SSqrCplx, eigvecsCplx, rhoSqrReal, tLargeDenseMatrices)
 
         if (tWriteBandDat) then
           call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -1539,7 +1539,7 @@ contains
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal)
+      & rhoSqrReal, tLargeDenseMatrices)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1676,6 +1676,8 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
+    logical, intent(in) :: tLargeDenseMatrices
+
     integer :: nSpin, iKS, iSp, iK
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     logical :: tImHam
@@ -1760,13 +1762,15 @@ contains
 
           iSp = parallelKS%localKS(2, iKS)
 
-          call unpackHSRealBlacs(env%blacs, ham(:,iSp), neighbourList%iNeighbour, nNeighbourSK,&
-              & iSparseStart, img2CentCell, denseDesc, HSqrReal)
-          if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
-            call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
-                & iSparseStart, img2CentCell, denseDesc, SSqrReal)
-            if (electronicSolver%ELSI_OMM_Choleskii) then
-              electronicSolver%tCholeskiiDecomposed(1) = .true.
+          if (tLargeDenseMatrices) then
+            call unpackHSRealBlacs(env%blacs, ham(:,iSp), neighbourList%iNeighbour, nNeighbourSK,&
+                & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+            if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
+              call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
+                  & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+              if (electronicSolver%ELSI_OMM_Choleskii) then
+                electronicSolver%tCholeskiiDecomposed(1) = .true.
+              end if
             end if
           end if
 
@@ -1825,14 +1829,17 @@ contains
           iSp = parallelKS%localKS(2, iKS)
           iK = parallelKS%localKS(1, iKS)
 
-          HSqrCplx = 0.0_dp
-          call unpackHSCplxBlacs(env%blacs, ham(:,iSp), kPoint(:,iK), neighbourList%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
-          if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
-            SSqrCplx = 0.0_dp
-            call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
-                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
-            electronicSolver%tCholeskiiDecomposed(iKS) = .true.
+          if (tLargeDenseMatrices) then
+            HSqrCplx = 0.0_dp
+            call unpackHSCplxBlacs(env%blacs, ham(:,iSp), kPoint(:,iK), neighbourList%iNeighbour,&
+                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
+            if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+              SSqrCplx = 0.0_dp
+              call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
+                  & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
+                  & SSqrCplx)
+              electronicSolver%tCholeskiiDecomposed(iKS) = .true.
+            end if
           end if
 
           if (electronicSolver%iSolver == 6) then
@@ -1842,8 +1849,10 @@ contains
                 & electronicSolver%ELSI_PEXSI_mu_max + electronicSolver%ELSI_PEXSI_DeltaVmax)
           end if
 
-          allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
-          rhoSqrCplx = 0.0_dp
+          if (tLargeDenseMatrices) then
+            allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
+            rhoSqrCplx = 0.0_dp
+          end if
           Eband = 0.0_dp
 
           call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
@@ -1891,20 +1900,22 @@ contains
         iK = parallelKS%localKS(1, iKS)
         iSp = 1
 
-        if (allocated(iHam)) then
-          call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-              & HSqrCplx, iorig=iHam)
-        else
-          call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-              & HSqrCplx)
+        if (tLargeDenseMatrices) then
+          if (allocated(iHam)) then
+            call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
+                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+                & HSqrCplx, iorig=iHam)
+          else
+            call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
+                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+                & HSqrCplx)
+          end if
+          if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+            call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
+                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+                & SSqrCplx)
+          endif
         end if
-        if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
-          call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
-              & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
-              & SSqrCplx)
-        endif
 
         if (electronicSolver%iSolver == 6) then
           call elsi_set_pexsi_mu_min(electronicSolver%elsiHandle,&
@@ -3767,12 +3778,18 @@ contains
       end if
     else if (tRealHS) then
       if (electronicSolver%iSolver >= 5) then
-      #:if WITH_ELSI
-        call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
-        ERhoPrim(:) = 0.0_dp
-        call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
-        call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+    #:if WITH_ELSI
+        if (electronicSolver%ELSI_CSR) then
+          call get_edensity_parallel_elsi(env, parallelKS, electronicSolver,&
+              & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+              & img2CentCell, orb, erhoPrim)
+        else
+          call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
+          ERhoPrim(:) = 0.0_dp
+          call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+          call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+        end if
       #:else
         call error("Should not be here without ELSI support included in compilation")
       #:endif

@@ -27,13 +27,14 @@ module sparse2sparse
 
   private
 #:if WITH_ELSI
-  public :: calcdensity_parallel_elsi
+  public :: calcdensity_parallel_elsi, get_edensity_parallel_elsi
 #:endif
 
 contains
 
 
 #:if WITH_ELSI
+
   !> Calculates density matrix using the elsi routine.
   subroutine calcdensity_parallel_elsi(env, parallelKS, electronicSolver, ham, over, iNeighbour,&
       & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, rho, Eband)
@@ -140,9 +141,104 @@ contains
 
     end do
 
-    write(*,*)'Eband',EBand
-
   end subroutine calcdensity_parallel_elsi
+
+
+  !> Gets energy density matrix using the elsi routine.
+  subroutine get_edensity_parallel_elsi(env, parallelKS, electronicSolver, iNeighbour,&
+      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, erho)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Density matrix in DFTB+ sparse format
+    real(dp), intent(out) :: erho(:)
+
+    integer :: nn
+    integer :: nKS, iKS, iS
+    integer :: nnz_global, nnzLocal, numColLocal
+    integer, allocatable :: colptrLocal(:), rowindLocal(:)
+    real(dp), allocatable :: EDMnzvalLocal(:)
+    integer :: colStartLocal, colEndLocal, numCol, numRow, numColDefault
+    integer, allocatable :: blockrow(:)
+
+    nKS = size(parallelKS%localKS, dim=2)
+
+    numRow = electronicSolver%ELSI_n_basis
+    numCol = electronicSolver%ELSI_n_basis
+    numColDefault = int(numCol / env%mpi%groupComm%size)
+
+    colStartLocal = env%mpi%groupComm%rank * numColDefault + 1
+    if (env%mpi%groupComm%rank /= env%mpi%groupComm%size - 1) then
+      numColLocal = numColDefault
+    else
+      numColLocal = numColDefault + modulo(numCol, env%mpi%groupComm%size)
+    end if
+    colEndLocal = colStartLocal + numColLocal - 1
+
+    ! Could be stored in a derived type and reused between SCC iterations
+    ALLOCATE(colptrLocal(numColLocal + 1))
+
+    call pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, &
+        & img2CentCell, colStartLocal, colEndLocal, nnzLocal, colptrLocal)
+
+    nnz_global = 0
+    call mpifx_allreduce(env%mpi%groupComm, nnzLocal, nnz_global, MPI_SUM)
+
+    ALLOCATE(rowindLocal(nnzLocal))
+    ALLOCATE(EDMnzvalLocal(nnzLocal))
+
+    nn = size(erho, 1)
+    ALLOCATE(blockRow(nn))
+
+    ! temporary hack for indexing requirement
+    erho(:) = 0
+    ! Could be stored in a derived type end reused between SCC iterations
+    call pack2elsi_parallel(erho, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+        & img2CentCell, colStartLocal, colEndLocal, colptrLocal, rowindLocal, blockRow,&
+        & EDMnzvalLocal)
+
+
+    call elsi_set_csc(electronicSolver%elsiHandle, nnz_global, nnzLocal,&
+        & colEndLocal-colStartLocal+1, rowindLocal, colptrLocal)
+
+    do iKS = 1, nKS
+      iS = parallelKS%localKS(2, iKS)
+
+      ! Load the matrix into the internal data structure
+      call elsi_get_edm_real_sparse(electronicSolver%elsiHandle, EDMnzvalLocal)
+
+      ! get results back
+      call elsi2pack_parallel(colStartLocal, colEndLocal, iNeighbour, nNeighbourSK, orb%mOrb,&
+          & iAtomStart, iSparseStart, img2CentCell, colptrLocal, EDMnzvalLocal, blockRow, erho)
+
+    end do
+
+  end subroutine get_edensity_parallel_elsi
 
 
   !> Creating colptr and nnz for CSC matrix format from packed format
