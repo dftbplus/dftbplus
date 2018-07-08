@@ -2388,6 +2388,9 @@ contains
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver libOMM Sparse"
+        if (.not.(tRealHS .or. t2Component)) then
+          call error("Not currently avaible for complex hamiltonians")
+        end if
       else
         write (strTmp, "(A)") "ELSI solver libOMM Dense"
       end if
@@ -2398,6 +2401,9 @@ contains
     #:if WITH_ELSI
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver PEXSI Sparse"
+        if (.not.(tRealHS .or. t2Component)) then
+          call error("Not currently avaible for complex hamiltonians")
+        end if
       else
         write (strTmp, "(A)") "ELSI solver PEXSI Dense"
       end if
@@ -2405,9 +2411,9 @@ contains
       call error("Should not be here")
     #:endif
     case default
-      call error("Unknown eigensolver!")
+      call error("Unknown electronic solver!")
     end select
-    write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+    write(stdOut, "(A,':',T30,A)") "Electronic solver", trim(strTmp)
 
   #:if WITH_ELSI
     if (electronicSolver%iSolver == 6) then
