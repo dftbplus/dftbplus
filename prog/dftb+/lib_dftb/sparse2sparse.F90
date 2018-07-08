@@ -125,6 +125,8 @@ contains
     call elsi_set_csc(electronicSolver%elsiHandle, nnz_global, nnzLocal,&
         & colEndLocal-colStartLocal+1, rowindLocal, colptrLocal)
 
+    rho(:,:) = 0.0_dp
+
     do iKS = 1, nKS
       iS = parallelKS%localKS(2, iKS)
       call pack2elsi_parallel(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
@@ -225,6 +227,8 @@ contains
 
     call elsi_set_csc(electronicSolver%elsiHandle, nnz_global, nnzLocal,&
         & colEndLocal-colStartLocal+1, rowindLocal, colptrLocal)
+
+    erho(:) = 0.0_dp
 
     do iKS = 1, nKS
       iS = parallelKS%localKS(2, iKS)

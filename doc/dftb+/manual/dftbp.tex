@@ -1728,6 +1728,7 @@ The orbital minimisation method has three options:
   \kw{nInterationsELPA} & i& & 5 & \\
   \kw{Tolerance} & r& & 1E-10 & \\
   \kw{Choleskii} & l& & Yes & \\
+  \kw{Sparse} & l& & Yes & \\
 \end{ptable}
 \begin{description}
 \item[\is{nInterationsELPA}] Number of initial iterations to be performed with
@@ -1736,6 +1737,9 @@ The orbital minimisation method has three options:
   faster by may be less stable.
 \item[\is{Choleskii}] Whether the overlap is Choleskii factorised before
   applying OMM. This may increase stability of this method.
+\item[\is{Sparse}] Whether the code should use the sparse matrix interface. This
+  does not substantially improve memory usage in this case as internally the
+  dense problem is solved.
 \end{description}
 
 \subsubsection{PEXSI}
@@ -1752,6 +1756,7 @@ general systems.
   \kw{muPoints}     & i & & 2  & \\
   \kw{SymbolicFactorProcs} & i & & 1  & \\
   \kw{SpectralRadius} & r & & 10 & \\
+  \kw{Sparse} & l& & Yes & \\
 \end{ptable}
 \begin{description}
 \item[\is{Poles}] number of poles for the complex plane calculation.
@@ -1759,7 +1764,9 @@ general systems.
 \item[\is{muPoints}] number of processors used to search for the Fermi level.
 \item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the
   factorisation pattern of matrices.
-\item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex contour.
+\item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex
+  contour.
+\item[\is{Sparse}] Whether the code should use the sparse matrix interface.
 \end{description}
 
 \subsection{Filling}
