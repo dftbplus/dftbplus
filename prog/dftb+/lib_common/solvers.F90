@@ -64,6 +64,9 @@ module solvers
     !> spectral radius (range of eigenvalues) if available
     real(dp) :: PEXSI_delta_e = 10.0_dp
 
+    !> Use sparse CSR format
+    logical :: ELSI_CSR = .false.
+
   #:endif
 
   end type TElectronicSolverInp
@@ -131,6 +134,9 @@ module solvers
     integer, public :: ELSI_PEXSI_n_mu
     integer, public :: ELSI_PEXSI_np_symbo
     real(dp) :: ELSI_PEXSI_delta_e
+
+    !> Use sparse CSR format
+    logical :: ELSI_CSR
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_resets = 0
@@ -223,9 +229,6 @@ contains
       tWriteDetailedOutBands = .false.
     end if
 
-    ! data as dense BLACS blocks
-    this%ELSI_BLACS_DENSE = 0
-
     ! parallelism with multiple processes
     this%ELSI_parallel = 1
 
@@ -274,6 +277,16 @@ contains
     this%ELSI_PEXSI_np_symbo = inp%PEXSI_np_symbo
     this%ELSI_PEXSI_delta_e = inp%PEXSI_delta_e
 
+    this%ELSI_CSR = inp%ELSI_CSR
+
+    ! data as dense BLACS blocks
+    if (this%ELSI_CSR) then
+      ! CSR format
+      this%ELSI_BLACS_DENSE = 1
+    else
+      this%ELSI_BLACS_DENSE = 0
+    end if
+
     ! customize output level, note there are levels 0..3 not DFTB+ 0..2
     this%ELSI_OutputLevel = 0
   #:call DEBUG_CODE
@@ -309,9 +322,14 @@ contains
 
     call elsi_init(this%elsiHandle, this%ELSI_SOLVER, this%ELSI_parallel, this%ELSI_BLACS_DENSE,&
         & this%ELSI_n_basis, this%ELSI_n_electron, this%ELSI_n_state)
+
     call elsi_set_mpi_global(this%elsiHandle, this%ELSI_MPI_COMM_WORLD)
     call elsi_set_sing_check(this%elsiHandle, 0) ! disable singularity check
     call elsi_set_mpi(this%elsiHandle, this%ELSI_my_COMM_WORLD)
+
+    if (this%ELSI_CSR) then
+      call elsi_set_csc_blk(this%elsiHandle, this%ELSI_blockSize)
+    end if
     call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_blockSize)
 
     call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)

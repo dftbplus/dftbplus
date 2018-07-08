@@ -776,7 +776,11 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  !> Electronic structure solver
   type(TElectronicSolver) :: electronicSolver
+
+  !> Are large dense matrices required?
+  logical :: tLargeDenseMatrices
 
   private :: createRandomGenerators
 
@@ -2382,11 +2386,24 @@ contains
     #:if WITH_ELSI
       write (strTmp, "(A,I0,A,E8.2)") "ELSI solver libOMM with ",&
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
+      if (electronicSolver%ELSI_CSR) then
+        write (strTmp, "(A)") "ELSI solver libOMM Sparse"
+      else
+        write (strTmp, "(A)") "ELSI solver libOMM Dense"
+      end if
     #:else
       call error("Should not be here")
     #:endif
     case(6)
-      write (strTmp, "(A)") "ELSI solver PEXSI"
+    #:if WITH_ELSI
+      if (electronicSolver%ELSI_CSR) then
+        write (strTmp, "(A)") "ELSI solver PEXSI Sparse"
+      else
+        write (strTmp, "(A)") "ELSI solver PEXSI Dense"
+      end if
+    #:else
+      call error("Should not be here")
+    #:endif
     case default
       call error("Unknown eigensolver!")
     end select
@@ -3154,7 +3171,13 @@ contains
     end if
 
     ! If only H/S should be printed, no allocation for square HS is needed
-    if (.not. (tWriteRealHS .or. tWriteHS)) then
+    tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
+  #:if WITH_ELSI
+    if (electronicSolver%ELSI_CSR) then
+      tLargeDenseMatrices = .false.
+    end if
+  #:endif
+    if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
