@@ -84,20 +84,19 @@ contains
     integer, allocatable :: colptrLocal(:), rowindLocal(:)
     real(dp), allocatable :: HnzvalLocal(:), SnzvalLocal(:)
     real(dp), allocatable :: DMnzvalLocal(:)
-    integer :: colStartLocal, colEndLocal, numCol, numRow, numColDefault
+    integer :: colStartLocal, colEndLocal, numCol, numRow
     integer, allocatable :: blockrow(:)
 
     nKS = size(parallelKS%localKS, dim=2)
 
     numRow = electronicSolver%ELSI_n_basis
     numCol = electronicSolver%ELSI_n_basis
-    numColDefault = int(numCol / env%mpi%groupComm%size)
 
-    colStartLocal = env%mpi%groupComm%rank * numColDefault + 1
+    colStartLocal = env%mpi%groupComm%rank * electronicSolver%ELSI_CSR_blockSize + 1
     if (env%mpi%groupComm%rank /= env%mpi%groupComm%size - 1) then
-      numColLocal = numColDefault
+      numColLocal = electronicSolver%ELSI_CSR_blockSize
     else
-      numColLocal = numColDefault + modulo(numCol, env%mpi%groupComm%size)
+      numColLocal = numCol - (env%mpi%groupComm%size - 1) * electronicSolver%ELSI_CSR_blockSize
     end if
     colEndLocal = colStartLocal + numColLocal - 1
 
