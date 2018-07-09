@@ -107,7 +107,8 @@ module solvers
     integer :: ELSI_MPI_COMM_WORLD
     integer :: ELSI_my_COMM_WORLD
     integer :: ELSI_my_BLACS_Ctxt
-    integer :: ELSI_blockSize
+    integer :: ELSI_BLACS_blockSize
+    integer :: ELSI_CSR_blockSize
 
     integer :: ELSI_n_spin
     integer :: ELSI_n_kpoint
@@ -252,7 +253,13 @@ contains
     this%ELSI_my_BLACS_Ctxt = env%blacs%orbitalGrid%ctxt
 
     ! assumes row and column sizes the same
-    this%ELSI_blockSize = env%blacs%rowBlockSize
+    this%ELSI_BLACS_blockSize = env%blacs%rowBlockSize
+
+    this%ELSI_CSR_blockSize = this%ELSI_n_basis / env%mpi%groupComm%size
+
+    if (this%ELSI_CSR_blockSize * env%mpi%groupComm%size < this%ELSI_n_basis) then
+      this%ELSI_CSR_blockSize = this%ELSI_CSR_blockSize + 1
+    end if
 
     this%ELSI_mu_broaden_scheme = min(iDistribFn,2)
     if (iDistribFn > 1) then
@@ -282,7 +289,7 @@ contains
     ! data as dense BLACS blocks
     if (this%ELSI_CSR) then
       ! CSR format
-      this%ELSI_BLACS_DENSE = 1
+      this%ELSI_BLACS_DENSE = 2
     else
       this%ELSI_BLACS_DENSE = 0
     end if
@@ -328,9 +335,9 @@ contains
     call elsi_set_mpi(this%elsiHandle, this%ELSI_my_COMM_WORLD)
 
     if (this%ELSI_CSR) then
-      call elsi_set_csc_blk(this%elsiHandle, this%ELSI_blockSize)
+      call elsi_set_csc_blk(this%elsiHandle, this%ELSI_CSR_blockSize)
     end if
-    call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_blockSize)
+    call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_BLACS_blockSize)
 
     call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)
     if (this%ELSI_mu_broaden_scheme == 2) then
