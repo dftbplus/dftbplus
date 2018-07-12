@@ -180,6 +180,9 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
+    !> Structure for sparse data representions, if using ELSI
+    type(TSparse2Sparse) :: sparseIndexing
+
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -219,7 +222,7 @@ contains
         ! as each spin and k-point combination forms a separate group for this solver, iKS = 1
         iKS = 1
         call electronicSolver%resetELSI( tempElec, parallelKS%localKS(2, iKS),&
-            & parallelKS%localKS(1, iKS), kWeight(parallelKS%localKS(1, iKS)) )
+            & parallelKS%localKS(1, iKS), kWeight(parallelKS%localKS(1, iKS)))
       end if
     #:endif
 
@@ -247,6 +250,16 @@ contains
         call reset(pChrgMixer, nMixElements)
       end if
 
+    #:if WITH_ELSI
+      if (electronicSolver%tUsingELSI) then
+        if (.not.tLargeDenseMatrices) then
+          call initSparse2Sparse(sparseIndexing, env, parallelKS, electronicSolver,&
+              & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+              & img2CentCell, orb)
+        end if
+      end if
+    #:endif
+
       call env%globalTimer%startTimer(globalTimers%sparseH0S)
       call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbourSK, neighbourList%iNeighbour,&
           & species, iSparseStart, orb)
@@ -272,7 +285,7 @@ contains
           & potential%extAtom(:,1), absEField)
       call mergeExternalPotentials(orb, species, potential)
 
-     #:if  WITH_ELSI
+    #:if  WITH_ELSI
       if (electronicSolver%iSolver == 6) then
         ! update Delta V ranges here for PEXSI
         if (tSccCalc) then
@@ -336,7 +349,7 @@ contains
             & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
             & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband,&
             & TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
-            & SSqrCplx, eigvecsCplx, rhoSqrReal, tLargeDenseMatrices)
+            & SSqrCplx, eigvecsCplx, rhoSqrReal, tLargeDenseMatrices, sparseIndexing)
 
         if (tWriteBandDat) then
           call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -458,7 +471,7 @@ contains
         call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&
             & kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
             & iCellVec, cellVec, tRealHS, ham, over, parallelKS, ERhoPrim, eigvecsReal, SSqrReal,&
-            & eigvecsCplx, SSqrCplx)
+            & eigvecsCplx, SSqrCplx, sparseIndexing)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
@@ -1539,7 +1552,7 @@ contains
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi,&
       & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal, tLargeDenseMatrices)
+      & rhoSqrReal, tLargeDenseMatrices, sparseIndexing)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1676,7 +1689,12 @@ contains
     !> Dense density matrix
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
+    !> Are dense matrices for H, S, etc. being used
     logical, intent(in) :: tLargeDenseMatrices
+
+    !> sparse matrices indexing data structure
+    type(TSparse2Sparse), intent(inout) :: sparseIndexing
+
 
     integer :: nSpin, iKS, iSp, iK
     complex(dp), allocatable :: rhoSqrCplx(:,:)
@@ -1782,8 +1800,8 @@ contains
           end if
 
           if (electronicSolver%ELSI_CSR) then
-            call calcdensity_parallel_elsi(env, parallelKS, electronicSolver, ham, over,&
-                & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            call calcdensity_parallel_elsi(sparseIndexing, env, parallelKS, electronicSolver, ham,&
+                & over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
                 & img2CentCell, orb, rhoPrim, Eband)
           else
             allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
@@ -1809,11 +1827,9 @@ contains
 
           if (.not. electronicSolver%ELSI_CSR) then
             rhoPrim = 0.0_dp
-
             call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1),&
                 & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
                 & rhoPrim(:,iSp))
-
             deallocate(rhoSqrReal)
           end if
 
@@ -3678,7 +3694,7 @@ contains
   subroutine getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling,&
       & eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
       & iCellVEc, cellVec, tRealHS, ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx,&
-      & SSqrCplx)
+      & SSqrCplx, sparseIndexing)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3752,6 +3768,10 @@ contains
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
+    !> sparse matrices indexing data structure
+    type(TSparse2Sparse), intent(inout) :: sparseIndexing
+
+
     integer :: nSpin, iK
 
     nSpin = size(ham, dim=2)
@@ -3780,7 +3800,7 @@ contains
       if (electronicSolver%iSolver >= 5) then
     #:if WITH_ELSI
         if (electronicSolver%ELSI_CSR) then
-          call get_edensity_parallel_elsi(env, parallelKS, electronicSolver,&
+          call get_edensity_parallel_elsi(sparseIndexing, env, parallelKS, electronicSolver,&
               & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
               & img2CentCell, orb, erhoPrim)
         else
