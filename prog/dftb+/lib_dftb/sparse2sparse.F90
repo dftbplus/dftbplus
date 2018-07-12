@@ -57,7 +57,7 @@ module sparse2sparse
     integer, allocatable :: colptrLocal(:)
 
     !> Index for starting row of blocks in nzvalLocal
-    integer, allocatable :: blockRow(:)
+    integer, allocatable :: blockRow(:,:)
 
     !> Local row index for non-zero elements
     integer, allocatable :: rowindLocal(:)
@@ -137,11 +137,8 @@ contains
 
     nAtom = size(nNeighbourSK)
 
-    iAtom2 = iNeighbour(nNeighbourSK(nAtom), nAtom)
-    iAtom2f = img2CentCell(iAtom2)
-    nn = iSparseStart(nNeighbourSK(nAtom),nAtom) + orb%nOrbAtom(nAtom)*orb%nOrbAtom(iAtom2f)-1
-    allocate(self%blockRow(nn))
-    self%blockRow(:) = 0
+    allocate(self%blockRow(0:size(iNeighbour,dim=1)-1,nAtom))
+    self%blockRow(:,:) = 0
 
     allocate(blockList(nAtom,2))
     allocate(tRowTrans(nAtom))
@@ -172,7 +169,7 @@ contains
           iNext = iNext + nOrb2
         end if
 
-        self%blockRow(iOrig) = blockList(iAtom2f,1)
+        self%blockRow(iNeigh, iAtom1) = blockList(iAtom2f,1)
 
         if ( .not. isBlockInLocal(jj,jj+nOrb2-1, ii, ii+nOrb1-1, self%colStartLocal,&
             & self%colEndLocal)) then
@@ -721,7 +718,7 @@ contains
     real(dp), intent(in) :: nzval(:)
 
     !> Saves starting row of blocks in nzvalLocal
-    integer, intent(in) :: blockRow(:)
+    integer, intent(in) :: blockRow(0:,:)
 
     !> Sparse Hamiltonian
     real(dp), intent(inout) :: primitive(:)
@@ -751,7 +748,7 @@ contains
           cycle
         end if
 
-        call cpElsi2Block(colStart, colEnd, colptr, nzval, ii, blockRow(iOrig),&
+        call cpElsi2Block(colStart, colEnd, colptr, nzval, ii, blockRow(iNeigh, iAtom1),&
             & tmpSqr(1:nOrb2,1:nOrb1))
 
         ! Symmetrize the on-site block before packing, just in case
