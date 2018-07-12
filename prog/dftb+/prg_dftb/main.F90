@@ -289,7 +289,9 @@ contains
       if (electronicSolver%iSolver == 6) then
         ! update Delta V ranges here for PEXSI
         if (tSccCalc) then
-          allocate(electronicSolver%ELSI_PEXSI_VOld(size(potential%intBlock(:,:,:,1))))
+          if (.not.allocated(electronicSolver%ELSI_PEXSI_VOld)) then
+            allocate(electronicSolver%ELSI_PEXSI_VOld(size(potential%intBlock(:,:,:,1))))
+          end if
           electronicSolver%ELSI_PEXSI_VOld = reshape( &
               & potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
               & [size(potential%extBlock(:,:,:,1))] )
