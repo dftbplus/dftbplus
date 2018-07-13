@@ -3809,8 +3809,9 @@ contains
           ERhoPrim(:) = 0.0_dp
           call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
               & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
-          call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
         end if
+        ! add contributions from different spin channels together if necessary
+        call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
       #:else
         call error("Should not be here without ELSI support included in compilation")
       #:endif
