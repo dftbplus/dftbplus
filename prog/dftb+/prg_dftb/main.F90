@@ -3801,7 +3801,7 @@ contains
       if (electronicSolver%iSolver >= 5) then
     #:if WITH_ELSI
         if (electronicSolver%ELSI_CSR) then
-          call get_edensity_parallel_elsi(sparseIndexing, parallelKS, electronicSolver,&
+          call get_edensity_parallel_elsi(sparseIndexing, electronicSolver,&
               & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
               & img2CentCell, orb, erhoPrim)
         else

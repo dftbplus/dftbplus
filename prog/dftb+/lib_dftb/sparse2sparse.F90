@@ -270,15 +270,12 @@ contains
       call pack2elsi_parallel(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal,&
           & self%rowindLocal)
+      call elsi_set_csc(electronicSolver%elsiHandle, self%nnz_global, self%nnzLocal,&
+          & self%colEndLocal-self%colStartLocal+1, self%rowindLocal, self%colptrLocal)
     else
       call pack2elsi_parallel(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal)
     end if
-
-    call elsi_set_csc(electronicSolver%elsiHandle, self%nnz_global, self%nnzLocal,&
-        & self%colEndLocal-self%colStartLocal+1, self%rowindLocal, self%colptrLocal)
-
-    rho(:,:) = 0.0_dp
 
     iS = parallelKS%localKS(2, 1)
     call pack2elsi_parallel(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
@@ -288,7 +285,8 @@ contains
     call elsi_dm_real_sparse(electronicSolver%elsiHandle, HnzvalLocal, SnzvalLocal, DMnzvalLocal,&
         & Eband(iS))
 
-    ! get results back
+    ! get DM back into DFTB+ format
+    rho(:,:) = 0.0_dp
     call elsi2pack_parallel(self, self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
         & orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal, DMnzvalLocal,&
         & self%blockRow, rho(:,iS))
@@ -297,14 +295,11 @@ contains
 
 
   !> Gets energy density matrix using the elsi routine.
-  subroutine get_edensity_parallel_elsi(self, parallelKS, electronicSolver, iNeighbour,&
+  subroutine get_edensity_parallel_elsi(self, electronicSolver, iNeighbour,&
       & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, erho)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(inout) :: self
-
-    !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
-    type(TParallelKS), intent(in) :: parallelKS
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -335,18 +330,10 @@ contains
 
     allocate(EDMnzvalLocal(self%nnzLocal))
 
-    ! temporary hack for indexing requirement
-    erho(:) = 0
-    ! Could be stored in a derived type end reused between SCC iterations
-    call pack2elsi_parallel(self, erho, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
-        & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, EDMnzvalLocal)
-
-    iS = parallelKS%localKS(2, 1)
-
     ! get the energy weighted density matrix from ELSI
     call elsi_get_edm_real_sparse(electronicSolver%elsiHandle, EDMnzvalLocal)
 
-    ! get results back into DFTB+ format
+    ! get EDM back into DFTB+ format
     erho(:) = 0.0_dp
     call elsi2pack_parallel(self, self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
         & orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal, EDMnzvalLocal,&
