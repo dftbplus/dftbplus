@@ -2388,8 +2388,8 @@ contains
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver libOMM Sparse"
-        if (.not.(tRealHS .or. t2Component)) then
-          call error("Not currently avaible for complex hamiltonians")
+        if (t2Component) then
+          call error("Not currently avaible for two component complex hamiltonians")
         end if
       else
         write (strTmp, "(A)") "ELSI solver libOMM Dense"
@@ -2401,8 +2401,8 @@ contains
     #:if WITH_ELSI
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver PEXSI Sparse"
-        if (.not.(tRealHS .or. t2Component)) then
-          call error("Not currently avaible for complex hamiltonians")
+        if (t2Component) then
+          call error("Not currently avaible for two component complex hamiltonians")
         end if
       else
         write (strTmp, "(A)") "ELSI solver PEXSI Dense"

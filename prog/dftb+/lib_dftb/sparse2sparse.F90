@@ -12,6 +12,7 @@
 module sparse2sparse
   use assert
   use accuracy
+  use constants, only : pi
   use commontypes
   use environment
   use commontypes
@@ -28,7 +29,9 @@ module sparse2sparse
   private
   public :: TSparse2Sparse
 #:if WITH_ELSI
-  public :: calcdensity_parallel_elsi, get_edensity_parallel_elsi, initSparse2Sparse
+  public :: initSparse2Sparse
+  public :: calcDensityRealElsi, getEDensityRealElsi
+  public :: calcDensityComplexElsi, getEDensityComplexElsi
 #:endif
 
   !> data type for indexing transformation from DFTB+ compressed block to CSR
@@ -72,11 +75,28 @@ module sparse2sparse
 
   end type TSparse2Sparse
 
+#:if WITH_ELSI
 
+#:set FLAVOURS = [('real'), ('complex')]
+
+  interface addBlock2Elsi
+  #:for SUFFIX in FLAVOURS
+    module procedure addBlock2Elsi${SUFFIX}$
+  #:endfor
+  end interface addBlock2Elsi
+
+  interface cpElsi2Block
+  #:for SUFFIX in FLAVOURS
+    module procedure cpElsi2Block${SUFFIX}$
+  #:endfor
+  end interface cpElsi2Block
+
+#:endif
 
 contains
 
 #:if WITH_ELSI
+
 
   subroutine initSparse2Sparse(self, env, electronicSolver, iNeighbour, nNeighbourSK, iAtomStart,&
       & iSparseStart, img2CentCell)
@@ -188,7 +208,7 @@ contains
         end if
 
         if (ii == jj) then
-          ! diagonal
+          ! on the diagonal, can not be in other triangle
           cycle
         end if
 
@@ -206,8 +226,9 @@ contains
 
   end subroutine initSparse2Sparse
 
+
   !> Calculates density matrix using the elsi routine.
-  subroutine calcdensity_parallel_elsi(self, parallelKS, electronicSolver, ham, over,&
+  subroutine calcDensityRealElsi(self, parallelKS, electronicSolver, ham, over,&
       & iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, rho, Eband)
 
     !> Sparse conversion instance
@@ -267,19 +288,20 @@ contains
 
     if (tFirstCall) then
       ! also generate rowindLocal for the new structure
-      call pack2elsi_parallel(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      call pack2elsi_real(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal,&
           & self%rowindLocal)
       call elsi_set_csc(electronicSolver%elsiHandle, self%nnz_global, self%nnzLocal,&
           & self%colEndLocal-self%colStartLocal+1, self%rowindLocal, self%colptrLocal)
     else
-      call pack2elsi_parallel(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      call pack2elsi_real(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal)
     end if
 
     iS = parallelKS%localKS(2, 1)
-    call pack2elsi_parallel(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
-        & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, HnzvalLocal)
+    call pack2elsi_real(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
+        & iSparseStart, img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal,&
+        & HnzvalLocal)
 
     ! Load the matrix into ELSI and solve DM
     call elsi_dm_real_sparse(electronicSolver%elsiHandle, HnzvalLocal, SnzvalLocal, DMnzvalLocal,&
@@ -287,15 +309,15 @@ contains
 
     ! get DM back into DFTB+ format
     rho(:,:) = 0.0_dp
-    call elsi2pack_parallel(self, self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
-        & orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal, DMnzvalLocal,&
-        & self%blockRow, rho(:,iS))
+    call elsi2pack_real(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal,&
+        & DMnzvalLocal, self%blockRow, rho(:,iS))
 
-  end subroutine calcdensity_parallel_elsi
+  end subroutine calcDensityRealElsi
 
 
   !> Gets energy density matrix using the elsi routine.
-  subroutine get_edensity_parallel_elsi(self, electronicSolver, iNeighbour,&
+  subroutine getEDensityRealElsi(self, electronicSolver, iNeighbour,&
       & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, erho)
 
     !> Sparse conversion instance
@@ -335,12 +357,174 @@ contains
 
     ! get EDM back into DFTB+ format
     erho(:) = 0.0_dp
-    call elsi2pack_parallel(self, self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
-        & orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal, EDMnzvalLocal,&
-        & self%blockRow, erho)
+    call elsi2pack_real(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal,&
+        & EDMnzvalLocal, self%blockRow, erho)
 
-  end subroutine get_edensity_parallel_elsi
+  end subroutine getEDensityRealElsi
 
+
+  !> Calculates density matrix using the elsi routine.
+  subroutine calcDensityComplexElsi(self, parallelKS, electronicSolver, kPoint, kWeight, iCellVec,&
+      & cellVec, ham, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb,&
+      & rho, Eband)
+
+    !> Sparse conversion instance
+    type(TSparse2Sparse), intent(inout) :: self
+
+    !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Current k-point
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Weight for current k-points
+    real(dp), intent(in) :: kWeight
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> hamiltonian in sparse storage
+    real(dp), intent(in) :: ham(:,:)
+
+    !> overlap matrix in sparse storage
+    real(dp), intent(in) :: over(:)
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Density matrix in DFTB+ sparse format
+    real(dp), intent(out) :: rho(:,:)
+
+    !> Band energy
+    real(dp), intent(out) :: Eband(:)
+
+    integer :: iS
+
+    complex(dp), allocatable :: HnzvalLocal(:), SnzvalLocal(:)
+    complex(dp), allocatable :: DMnzvalLocal(:)
+    logical :: tFirstCall
+
+    tFirstCall = .false.
+    if (.not. allocated(self%rowindLocal)) then
+      allocate(self%rowindLocal(self%nnzLocal))
+      tFirstCall = .true.
+    end if
+
+    allocate(HnzvalLocal(self%nnzLocal))
+    allocate(SnzvalLocal(self%nnzLocal))
+    allocate(DMnzvalLocal(self%nnzLocal))
+
+    if (tFirstCall) then
+      ! also generate rowindLocal for the new structure
+      call pack2elsi_cmplx(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+          & img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal, self%colEndLocal,&
+          & self%colptrLocal, SnzvalLocal, self%rowindLocal)
+      call elsi_set_csc(electronicSolver%elsiHandle, self%nnz_global, self%nnzLocal,&
+          & self%colEndLocal-self%colStartLocal+1, self%rowindLocal, self%colptrLocal)
+    else
+      call pack2elsi_cmplx(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+          & img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal, self%colEndLocal,&
+          & self%colptrLocal, SnzvalLocal)
+    end if
+
+    iS = parallelKS%localKS(2, 1)
+    call pack2elsi_cmplx(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
+        & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal,&
+        & self%colEndLocal, self%colptrLocal, HnzvalLocal)
+
+    ! Load the matrix into ELSI and solve DM
+    call elsi_dm_complex_sparse(electronicSolver%elsiHandle, HnzvalLocal, SnzvalLocal,&
+        & DMnzvalLocal, Eband(iS))
+
+    ! get DM back into DFTB+ format
+    rho(:,:) = 0.0_dp
+    call elsi2pack_cmplx(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight,&
+        & iCellVec, cellVec, self%colptrLocal, DMnzvalLocal, self%blockRow, rho(:,iS))
+
+  end subroutine calcDensityComplexElsi
+
+
+  !> Gets energy density matrix using the elsi routine.
+  subroutine getEDensityComplexElsi(self, electronicSolver, kPoint, kWeight, iCellVec, cellVec,&
+      & iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, erho)
+
+    !> Sparse conversion instance
+    type(TSparse2Sparse), intent(inout) :: self
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Current k-point
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Weight for current k-points
+    real(dp), intent(in) :: kWeight
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Density matrix in DFTB+ sparse format
+    real(dp), intent(out) :: erho(:)
+
+    integer :: iS
+    complex(dp), allocatable :: EDMnzvalLocal(:)
+
+    allocate(EDMnzvalLocal(self%nnzLocal))
+
+    ! get the energy weighted density matrix from ELSI
+    call elsi_get_edm_complex_sparse(electronicSolver%elsiHandle, EDMnzvalLocal)
+
+    ! get EDM back into DFTB+ format
+    erho(:) = 0.0_dp
+    call elsi2pack_cmplx(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
+        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight,&
+        & iCellVec, cellVec, self%colptrLocal, EDMnzvalLocal, self%blockRow, erho)
+
+  end subroutine getEDensityComplexElsi
 
   !> Creating colptr and nnz for CSC matrix format from packed format
   subroutine pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
@@ -415,7 +599,7 @@ contains
         end if
 
         if (ii == jj) then
-          ! diagonal
+          ! on the diagonal, can not be in other triangle
           cycle
         end if
 
@@ -436,11 +620,13 @@ contains
   end subroutine pack2colptr_parallel
 
 
-  !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations
+  !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations for real
+  !> matrices
   !>
   !> NOTE: ELSI needs the full matrix (both triangles)
-  subroutine pack2elsi_parallel(self, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
-      & img2CentCell, colStartLocal, colEndLocal, colptrLocal, nzvalLocal, rowindLocal)
+  subroutine pack2elsi_real(self, orig, iNeighbour, nNeighbourSK, iAtomStart,&
+      & iSparseStart, img2CentCell, colStartLocal, colEndLocal, colptrLocal, nzvalLocal,&
+      & rowindLocal)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(in) :: self
@@ -552,7 +738,151 @@ contains
       end do
     end do
 
-  end subroutine pack2elsi_parallel
+  end subroutine pack2elsi_real
+
+
+  !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations for complex
+  !> matrices
+  !>
+  !> NOTE: ELSI needs the full matrix (both triangles)
+  subroutine pack2elsi_cmplx(self, orig, iNeighbour, nNeighbourSK, iAtomStart,&
+      & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, colStartLocal, colEndLocal,&
+      & colptrLocal, nzvalLocal, rowindLocal)
+
+    !> Sparse conversion instance
+    type(TSparse2Sparse), intent(in) :: self
+
+    !> Sparse Hamiltonian
+    real(dp), intent(in) :: orig(:)
+
+    !> Neighbour list for each atom (first index from 0!).
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> Atomic mapping indexes.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Current k-point
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Weight for current k-points
+    real(dp), intent(in) :: kWeight
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Column of global matrix where local matrix starts
+    integer, intent(in) :: colStartLocal
+
+    !> Column of global matrix where local matrix ends
+    integer, intent(in) :: colEndLocal
+
+    !> Local column pointer
+    integer, intent(in) :: colptrLocal(:)
+
+    !> Local non-zero elements
+    complex(dp), intent(out) :: nzvalLocal(:)
+
+    !> Local row index pointer
+    integer, intent(out), optional :: rowindLocal(:)
+
+    integer :: nAtom
+    integer :: iOrig, ii, jj, nOrb1, nOrb2
+    integer :: iNeigh
+    integer :: iAt, iAtom1, iAtom2, iAtom2f
+
+    integer :: iNext, iVec
+    integer, allocatable :: blockList(:,:)
+    logical, allocatable :: tRowTrans(:)
+    real(dp) :: kPoint2p(3)
+    complex(dp) :: phase
+
+    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    nAtom = size(iNeighbour, dim=2)
+
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(nNeighbourSK) == nAtom)
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+
+    allocate(blockList(nAtom,2))
+    allocate(tRowTrans(nAtom))
+    if (present(rowindLocal)) then
+      rowindLocal(:) = 0
+    end if
+    nzvalLocal(:) = cmplx(0,0,dp)
+
+    ! Offset in column belonging to transposed triangle
+    blockList(:,2) = 1
+
+    ! loop over atoms relevant to this processor
+    do iAt = 1, self%nAtomsInColumns
+      iAtom1 = self%atomsInColumns(iAt)
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1+1) - ii
+      ! Offset in current column
+      blockList(:,1) = 0
+      tRowTrans = .false.
+      ! Starting index for column in DFTB+ sparse structure, because column probaly already contains
+      ! blocks coming from transposing previously processed elements.
+      iNext = blockList(iAtom1, 2)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+
+        jj = iAtomStart(iAtom2f)
+        @:ASSERT(jj >= ii)
+        nOrb2 = iAtomStart(iAtom2f+1) - jj
+
+        if (blockList(iAtom2f,1) == 0) then
+          blockList(iAtom2f,1) = iNext
+          iNext = iNext + nOrb2
+        end if
+
+        if ( .not. isBlockInLocal(jj,jj+nOrb2-1, ii, ii+nOrb1-1, colStartLocal, colEndLocal)) then
+          cycle
+        end if
+
+        iVec = iCellVec(iAtom2)
+        phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+
+        call addBlock2Elsi(phase*reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ]),&
+            & colStartLocal, colEndLocal, jj, ii, colptrLocal, blockList(iAtom2f,1)-1, nzvalLocal,&
+            & rowindLocal)
+
+        if (ii == jj) then
+          cycle
+        end if
+
+        ! other triangle, so Hermitian symmetry
+        phase = conjg(phase)
+
+        ! Because of folding of periodic images, it can happen that the transposed block has already
+        ! been registered.
+        if (.not. tRowTrans(iAtom2f)) then
+          blockList(iAtom2f,2) = blockList(iAtom2f,2) + nOrb1
+          tRowTrans(iAtom2f) = .true.
+        end if
+
+        call addBlock2Elsi(&
+            & phase * transpose(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ])),&
+            & colStartLocal, colEndLocal, ii, jj, colptrLocal, blockList(iAtom2f,2)-nOrb1-1,&
+            & nzvalLocal, rowindLocal)
+      end do
+    end do
+
+  end subroutine pack2elsi_cmplx
 
 
   !> Checks if atom block is part of local matrix (Elsi)
@@ -619,12 +949,13 @@ contains
 
   end function isColumnInLocal
 
-
+#:for SUFFIX in FLAVOURS
   !> Add the content of a local matrix block to ELSI CSC format
-  subroutine addBlock2Elsi(loc, colStart, colEnd, ii, jj, colptr, rowOffset, val, rowindLocal)
+  subroutine addBlock2Elsi${SUFFIX}$(loc, colStart, colEnd, ii, jj, colptr, rowOffset, val,&
+      & rowindLocal)
 
     !> Local matrix.
-    real(dp), intent(in) :: loc(:,:)
+    ${SUFFIX}$(dp), intent(in) :: loc(:,:)
 
     !> Column of global matrix where local matrix starts
     integer, intent(in) :: colStart
@@ -645,7 +976,7 @@ contains
     integer, intent(in) :: rowOffset
 
     !> values in CSC format
-    real(dp), intent(inout) :: val(:)
+    ${SUFFIX}$(dp), intent(inout) :: val(:)
 
     !> row index pointer
     integer, intent(inout), optional :: rowindLocal(:)
@@ -674,15 +1005,15 @@ contains
       end do
     end if
 
-  end subroutine addBlock2Elsi
+  end subroutine addBlock2Elsi${SUFFIX}$
+#:endfor
 
-
-  !> Creating colptr and nnz for CSC matrix format from packed format
+  !> Convert CSC matrix format into DFTB+ sparse format
   !>
   !> Note: primitive will not be set to zero on startup, and values are added to enable addition of
   !> spin components. Make sure, you set it to zero before invoking this routine the first time.
-  subroutine elsi2pack_parallel(self, colStart, colEnd, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
-      & iSparseStart, img2CentCell, colptr, nzval, blockRow, primitive)
+  subroutine elsi2pack_real(self, colStart, colEnd, iNeighbour, nNeighbourSK, mOrb,&
+      & iAtomStart, iSparseStart, img2CentCell, colptr, nzval, blockRow, primitive)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(in) :: self
@@ -714,7 +1045,7 @@ contains
     !> Local column pointer
     integer, intent(in) :: colptr(:)
 
-    !> Local number of  non-zero elements
+    !> Local non-zero elements
     real(dp), intent(in) :: nzval(:)
 
     !> Saves starting row of blocks in nzvalLocal
@@ -766,11 +1097,125 @@ contains
       end do
     end do
 
-  end subroutine elsi2pack_parallel
+  end subroutine elsi2pack_real
 
 
+  !> Convert CSC matrix format into DFTB+ sparse format
+  !>
+  !> Note: primitive will not be set to zero on startup, and values are added to enable addition of
+  !> spin components. Make sure, you set it to zero before invoking this routine the first time.
+  subroutine elsi2pack_cmplx(self, colStart, colEnd, iNeighbour, nNeighbourSK, mOrb,&
+      & iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, colptr, nzval,&
+      & blockRow, primitive)
+
+    !> Sparse conversion instance
+    type(TSparse2Sparse), intent(in) :: self
+
+    !> Column of global matrix where local matrix starts
+    integer, intent(in) :: colStart
+
+    !> Column of global matrix where local matrix ends
+    integer, intent(in) :: colEnd
+
+    !> Neighbour list for each atom (first index from 0!).
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Maximal number of orbitals on an atom.
+    integer, intent(in) :: mOrb
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> Atomic mapping indexes.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Current k-point
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Weight for current k-points
+    real(dp), intent(in) :: kWeight
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Local column pointer
+    integer, intent(in) :: colptr(:)
+
+    !> Local non-zero elements
+    complex(dp), intent(in) :: nzval(:)
+
+    !> Saves starting row of blocks in nzvalLocal
+    integer, intent(in) :: blockRow(0:,:)
+
+    !> Sparse Hamiltonian
+    real(dp), intent(inout) :: primitive(:)
+
+    integer :: nAtom, iVec
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh
+    integer :: iAt, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    complex(dp) :: tmpSqr(mOrb,mOrb)
+    real(dp) :: kPoint2p(3)
+    complex(dp) :: phase
+
+    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    nAtom = size(iNeighbour, dim=2)
+
+    tmpSqr(:,:) = cmplx(0,0,dp)
+
+    ! loop over relevant atoms to pack back
+    do iAt = 1, self%nAtomsInColumns
+      iAtom1 = self%atomsInColumns(iAt)
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1+1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f+1) - jj
+
+        if ( .not. isBlockInLocal(jj,jj+nOrb2-1, ii, ii+nOrb1-1, colStart, colEnd)) then
+          cycle
+        end if
+
+        call cpElsi2Block(colStart, colEnd, colptr, nzval, ii, blockRow(iNeigh, iAtom1),&
+            & tmpSqr(1:nOrb2,1:nOrb1))
+
+        iVec = iCellVec(iAtom2)
+        phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+
+        tmpSqr(1:nOrb2,1:nOrb1) = phase * tmpSqr(1:nOrb2,1:nOrb1)
+
+        ! Hermitian conjugate the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
+          end do
+        end if
+
+        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + kWeight * real(reshape(tmpSqr(1:nOrb2,1:nOrb1), [ nOrb1*nOrb2 ]))
+
+      end do
+    end do
+
+  end subroutine elsi2pack_cmplx
+
+
+#:for SUFFIX in FLAVOURS
   !> Copies the content from the ELSI structure to block
-  subroutine cpElsi2Block(colStart, colEnd, colptr, nzval, jj, blockRow, loc)
+  subroutine cpElsi2Block${SUFFIX}$(colStart, colEnd, colptr, nzval, jj, blockRow, loc)
 
     !> Column of global matrix where local matrix starts
     integer, intent(in) :: colStart
@@ -782,7 +1227,7 @@ contains
     integer, intent(in) :: colptr(:)
 
     !> non-zero values
-    real(dp), intent(in) :: nzval(:)
+    ${SUFFIX}$(dp), intent(in) :: nzval(:)
 
     !> Starting column in the global matrix
     integer, intent(in) :: jj
@@ -790,8 +1235,8 @@ contains
     !> Saves starting row of blocks in nzvalLocal
     integer, intent(in) :: blockRow
 
-    !> Local matrix.
-    real(dp), intent(out) :: loc(:,:)
+    !> Local block of matrix.
+    ${SUFFIX}$(dp), intent(out) :: loc(:,:)
 
     integer :: j2, iloc
 
@@ -804,7 +1249,9 @@ contains
       end if
     end do
 
-  end subroutine cpElsi2Block
+  end subroutine cpElsi2Block${SUFFIX}$
+#:endfor
+
 #:endif
 
 
