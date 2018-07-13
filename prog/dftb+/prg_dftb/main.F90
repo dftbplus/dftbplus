@@ -253,9 +253,8 @@ contains
     #:if WITH_ELSI
       if (electronicSolver%tUsingELSI) then
         if (.not.tLargeDenseMatrices) then
-          call initSparse2Sparse(sparseIndexing, env, parallelKS, electronicSolver,&
-              & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-              & img2CentCell, orb)
+          call initSparse2Sparse(sparseIndexing, env, electronicSolver, neighbourList%iNeighbour,&
+              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
       end if
     #:endif
@@ -1802,8 +1801,8 @@ contains
           end if
 
           if (electronicSolver%ELSI_CSR) then
-            call calcdensity_parallel_elsi(sparseIndexing, env, parallelKS, electronicSolver, ham,&
-                & over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            call calcdensity_parallel_elsi(sparseIndexing, parallelKS, electronicSolver, ham, over,&
+                & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
                 & img2CentCell, orb, rhoPrim, Eband)
           else
             allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
@@ -3802,7 +3801,7 @@ contains
       if (electronicSolver%iSolver >= 5) then
     #:if WITH_ELSI
         if (electronicSolver%ELSI_CSR) then
-          call get_edensity_parallel_elsi(sparseIndexing, env, parallelKS, electronicSolver,&
+          call get_edensity_parallel_elsi(sparseIndexing, parallelKS, electronicSolver,&
               & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
               & img2CentCell, orb, erhoPrim)
         else

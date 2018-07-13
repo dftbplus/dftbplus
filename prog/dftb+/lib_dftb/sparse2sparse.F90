@@ -62,6 +62,12 @@ module sparse2sparse
     !> Local row index for non-zero elements
     integer, allocatable :: rowindLocal(:)
 
+    !> List of atoms with elements in the columns held locally
+    integer, allocatable :: atomsInColumns(:)
+
+    !> Count of the atoms with elements in the columns held locally
+    integer :: nAtomsInColumns
+
   #:endif
 
   end type TSparse2Sparse
@@ -72,17 +78,14 @@ contains
 
 #:if WITH_ELSI
 
-  subroutine initSparse2Sparse(self, env, parallelKS, electronicSolver, iNeighbour, nNeighbourSK,&
-      & iAtomStart, iSparseStart, img2CentCell, orb)
+  subroutine initSparse2Sparse(self, env, electronicSolver, iNeighbour, nNeighbourSK, iAtomStart,&
+      & iSparseStart, img2CentCell)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(inout) :: self
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-
-    !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
-    type(TParallelKS), intent(in) :: parallelKS
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -102,10 +105,7 @@ contains
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    !> data structure with atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    integer :: nn, numCol, iAtom1, iAtom2, iAtom2f, nAtom, ii, jj, iNeigh, iNext, nOrb1, nOrb2
+    integer :: numCol, iAtom1, iAtom2, iAtom2f, nAtom, ii, jj, iNeigh, iNext, nOrb1, nOrb2
     integer :: iOrig
     integer, allocatable :: blockList(:,:)
     logical, allocatable :: tRowTrans(:)
@@ -115,6 +115,7 @@ contains
       deallocate(self%colptrLocal)
       deallocate(self%rowindLocal)
       deallocate(self%blockRow)
+      deallocate(self%atomsInColumns)
     end if
 
     numCol = electronicSolver%ELSI_n_basis
@@ -139,6 +140,10 @@ contains
 
     allocate(self%blockRow(0:size(iNeighbour,dim=1)-1,nAtom))
     self%blockRow(:,:) = 0
+
+    allocate(self%atomsInColumns(nAtom))
+    self%atomsInColumns(nAtom) = 0
+    self%nAtomsInColumns = 0
 
     allocate(blockList(nAtom,2))
     allocate(tRowTrans(nAtom))
@@ -176,6 +181,12 @@ contains
           cycle
         end if
 
+        if (iAtom1 /= self%atomsInColumns(max(self%nAtomsInColumns,1))) then
+          ! this atom is required for the local columns
+          self%nAtomsInColumns = self%nAtomsInColumns + 1
+          self%atomsInColumns(self%nAtomsInColumns) = iAtom1
+        end if
+
         if (ii == jj) then
           ! diagonal
           cycle
@@ -196,14 +207,11 @@ contains
   end subroutine initSparse2Sparse
 
   !> Calculates density matrix using the elsi routine.
-  subroutine calcdensity_parallel_elsi(self, env, parallelKS, electronicSolver, ham, over,&
+  subroutine calcdensity_parallel_elsi(self, parallelKS, electronicSolver, ham, over,&
       & iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, rho, Eband)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(inout) :: self
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -259,11 +267,11 @@ contains
 
     if (tFirstCall) then
       ! also generate rowindLocal for the new structure
-      call pack2elsi_parallel(over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      call pack2elsi_parallel(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal,&
           & self%rowindLocal)
     else
-      call pack2elsi_parallel(over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      call pack2elsi_parallel(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal)
     end if
 
@@ -273,7 +281,7 @@ contains
     rho(:,:) = 0.0_dp
 
     iS = parallelKS%localKS(2, 1)
-    call pack2elsi_parallel(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+    call pack2elsi_parallel(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
         & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, HnzvalLocal)
 
     ! Load the matrix into ELSI and solve DM
@@ -281,7 +289,7 @@ contains
         & Eband(iS))
 
     ! get results back
-    call elsi2pack_parallel(self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
+    call elsi2pack_parallel(self, self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
         & orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal, DMnzvalLocal,&
         & self%blockRow, rho(:,iS))
 
@@ -289,14 +297,11 @@ contains
 
 
   !> Gets energy density matrix using the elsi routine.
-  subroutine get_edensity_parallel_elsi(self, env, parallelKS, electronicSolver, iNeighbour,&
+  subroutine get_edensity_parallel_elsi(self, parallelKS, electronicSolver, iNeighbour,&
       & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, erho)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(inout) :: self
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -325,7 +330,6 @@ contains
     !> Density matrix in DFTB+ sparse format
     real(dp), intent(out) :: erho(:)
 
-    integer :: nn
     integer :: iS
     real(dp), allocatable :: EDMnzvalLocal(:)
 
@@ -334,8 +338,8 @@ contains
     ! temporary hack for indexing requirement
     erho(:) = 0
     ! Could be stored in a derived type end reused between SCC iterations
-    call pack2elsi_parallel(erho, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell,&
-        & self%colStartLocal, self%colEndLocal, self%colptrLocal, EDMnzvalLocal)
+    call pack2elsi_parallel(self, erho, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+        & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, EDMnzvalLocal)
 
     iS = parallelKS%localKS(2, 1)
 
@@ -344,7 +348,7 @@ contains
 
     ! get results back into DFTB+ format
     erho(:) = 0.0_dp
-    call elsi2pack_parallel(self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
+    call elsi2pack_parallel(self, self%colStartLocal, self%colEndLocal, iNeighbour, nNeighbourSK,&
         & orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal, EDMnzvalLocal,&
         & self%blockRow, erho)
 
@@ -352,8 +356,8 @@ contains
 
 
   !> Creating colptr and nnz for CSC matrix format from packed format
-  subroutine pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell,&
-      & colStartLocal, colEndLocal, nnzLocal, colptrLocal)
+  subroutine pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      & img2CentCell, colStartLocal, colEndLocal, nnzLocal, colptrLocal)
 
     !> Neighbour list for each atom (first index from 0!).
     integer, intent(in) :: iNeighbour(0:,:)
@@ -448,8 +452,11 @@ contains
   !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations
   !>
   !> NOTE: ELSI needs the full matrix (both triangles)
-  subroutine pack2elsi_parallel(orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+  subroutine pack2elsi_parallel(self, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell, colStartLocal, colEndLocal, colptrLocal, nzvalLocal, rowindLocal)
+
+    !> Sparse conversion instance
+    type(TSparse2Sparse), intent(in) :: self
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: orig(:)
@@ -487,7 +494,7 @@ contains
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
     integer :: iNeigh
-    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: iAt, iAtom1, iAtom2, iAtom2f
 
     integer :: iNext
     integer, allocatable :: blockList(:,:)
@@ -508,7 +515,10 @@ contains
 
     ! Offset in column belonging to transposed triangle
     blockList(:,2) = 1
-    do iAtom1 = 1, nAtom
+
+    ! loop over atoms relevant to this processor
+    do iAt = 1, self%nAtomsInColumns
+      iAtom1 = self%atomsInColumns(iAt)
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1+1) - ii
       ! Offset in current column
@@ -684,8 +694,11 @@ contains
   !>
   !> Note: primitive will not be set to zero on startup, and values are added to enable addition of
   !> spin components. Make sure, you set it to zero before invoking this routine the first time.
-  subroutine elsi2pack_parallel(colStart, colEnd, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+  subroutine elsi2pack_parallel(self, colStart, colEnd, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
       & iSparseStart, img2CentCell, colptr, nzval, blockRow, primitive)
+
+    !> Sparse conversion instance
+    type(TSparse2Sparse), intent(in) :: self
 
     !> Column of global matrix where local matrix starts
     integer, intent(in) :: colStart
@@ -726,7 +739,7 @@ contains
     integer :: nAtom
     integer :: iOrig, ii, jj, kk
     integer :: iNeigh
-    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: iAt, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: tmpSqr(mOrb,mOrb)
 
@@ -734,7 +747,9 @@ contains
 
     tmpSqr(:,:) = 0.0_dp
 
-    do iAtom1 = 1, nAtom
+    ! loop over relevant atoms to pack back
+    do iAt = 1, self%nAtomsInColumns
+      iAtom1 = self%atomsInColumns(iAt)
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1+1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
