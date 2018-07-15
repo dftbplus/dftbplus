@@ -3755,7 +3755,6 @@ contains
               & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
               & img2CentCell, ERhoPrim)
           call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
-          !ERhoPrim(:) = 2.0_dp * ERhoPrim(:)
         end if
 
       #:else
