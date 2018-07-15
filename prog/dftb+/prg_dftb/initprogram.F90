@@ -1317,7 +1317,7 @@ contains
       end if
 
       call init(input%ctrl%solver, electronicSolver, env, nAllOrb, nEl, iDistribFn,&
-          & tWriteDetailedOutBands, nIndepHam, nSpin, nKpoint)
+          & tWriteDetailedOutBands, nSpin, nKpoint)
 
     #:endif
 

@@ -170,7 +170,7 @@ contains
 
   !> Initialise extra settings relevant to ELSI in the solver data structure
   subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands,&
-      & nIndepHam, nSpin, nKPoint)
+      & nSpin, nKPoint)
 
     !> input structure for ELSI
     type(TElectronicSolverInp), intent(in) :: inp
@@ -192,9 +192,6 @@ contains
 
     !> Should bands be produced?
     logical, intent(inout) :: tWriteDetailedOutBands
-
-    !> total number of independent spin channels. In the case of non-collinear, should pass 1
-    integer, intent(in) :: nIndepHam
 
     !> total number of spin channels.
     integer, intent(in) :: nSpin
@@ -245,7 +242,7 @@ contains
       this%ELSI_spin_degeneracy = 0.0_dp
     end if
 
-    this%ELSI_n_spin = nIndepHam
+    this%ELSI_n_spin = nSpin
     this%ELSI_n_kpoint = nKPoint
 
     this%ELSI_MPI_COMM_WORLD = env%mpi%globalComm%id
@@ -312,7 +309,7 @@ contains
     !> electron temperature
     real(dp), intent(in) :: tempElec
 
-    !> current spin value, se to be 1 if non-collinear
+    !> current spin value, set to be 1 if non-collinear
     integer, intent(in) :: iSpin
 
     !> current k-point value
@@ -399,10 +396,14 @@ contains
     end select
 
     if (this%ELSI_SOLVER > 1) then
-      if (this%ELSI_n_spin > 1) then
-        call elsi_set_spin(this%elsiHandle, this%ELSI_n_spin, iSpin)
-        !call elsi_set_mu_spin_degen(this%elsiHandle, this%ELSI_spin_degeneracy)
-      end if
+      select case(this%ELSI_n_spin)
+      case(1)
+        call elsi_set_spin(this%elsiHandle, 1, iSpin)
+      case(2)
+        call elsi_set_spin(this%elsiHandle, 2, iSpin)
+      case(4)
+        call elsi_set_spin(this%elsiHandle, 2, iSpin)
+      end select
       if (this%ELSI_n_kpoint > 1) then
         call elsi_set_kpoint(this%elsiHandle, this%ELSI_n_kpoint, iKPoint, kWeight)
       end if
