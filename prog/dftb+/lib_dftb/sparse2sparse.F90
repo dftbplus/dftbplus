@@ -45,7 +45,7 @@ module sparse2sparse
     integer :: nnzLocal
 
     !>  numberof non-zero matrix elements in the whole sparse matrix
-    integer :: nnz_Global
+    integer :: nnzGlobal
 
     !> On which column does this processor start its matrix
     integer :: colStartLocal
@@ -57,13 +57,13 @@ module sparse2sparse
     integer :: numColLocal
 
     !> Local column pointer in the CSC format on this processor
-    integer, allocatable :: colptrLocal(:)
+    integer, allocatable :: colPtrLocal(:)
 
-    !> Index for starting row of blocks in nzvalLocal
+    !> Index for starting row of blocks in nzValLocal
     integer, allocatable :: blockRow(:,:)
 
     !> Local row index for non-zero elements
-    integer, allocatable :: rowindLocal(:)
+    integer, allocatable :: rowIndLocal(:)
 
     !> List of atoms with elements in the columns held locally
     integer, allocatable :: atomsInColumns(:)
@@ -132,8 +132,8 @@ contains
 
     if (self%tInit) then
       ! this has been called before, clean out the storage
-      deallocate(self%colptrLocal)
-      deallocate(self%rowindLocal)
+      deallocate(self%colPtrLocal)
+      deallocate(self%rowIndLocal)
       deallocate(self%blockRow)
       deallocate(self%atomsInColumns)
     end if
@@ -148,13 +148,13 @@ contains
     end if
     self%colEndLocal = self%colStartLocal + self%numColLocal - 1
 
-    allocate(self%colptrLocal(self%numColLocal + 1))
+    allocate(self%colPtrLocal(self%numColLocal + 1))
 
     call pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell,&
-        & self%colStartLocal, self%colEndLocal, self%nnzLocal, self%colptrLocal)
+        & self%colStartLocal, self%colEndLocal, self%nnzLocal, self%colPtrLocal)
 
-    self%nnz_global = 0
-    call mpifx_allreduce(env%mpi%groupComm, self%nnzLocal, self%nnz_global, MPI_SUM)
+    self%nnzGlobal = 0
+    call mpifx_allreduce(env%mpi%groupComm, self%nnzLocal, self%nnzGlobal, MPI_SUM)
 
     nAtom = size(nNeighbourSK)
 
@@ -272,46 +272,46 @@ contains
 
     integer :: iS
 
-    real(dp), allocatable :: HnzvalLocal(:), SnzvalLocal(:)
-    real(dp), allocatable :: DMnzvalLocal(:)
+    real(dp), allocatable :: HnzValLocal(:), SnzValLocal(:)
+    real(dp), allocatable :: DMnzValLocal(:)
     logical :: tFirstCall
 
     tFirstCall = .false.
-    if (.not. allocated(self%rowindLocal)) then
-      allocate(self%rowindLocal(self%nnzLocal))
+    if (.not. allocated(self%rowIndLocal)) then
+      allocate(self%rowIndLocal(self%nnzLocal))
       tFirstCall = .true.
     end if
 
-    allocate(HnzvalLocal(self%nnzLocal))
-    allocate(SnzvalLocal(self%nnzLocal))
-    allocate(DMnzvalLocal(self%nnzLocal))
+    allocate(HnzValLocal(self%nnzLocal))
+    allocate(SnzValLocal(self%nnzLocal))
+    allocate(DMnzValLocal(self%nnzLocal))
 
     if (tFirstCall) then
-      ! also generate rowindLocal for the new structure
+      ! also generate rowIndLocal for the new structure
       call pack2elsi_real(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
-          & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal,&
-          & self%rowindLocal)
-      call elsi_set_csc(electronicSolver%elsiHandle, self%nnz_global, self%nnzLocal,&
-          & self%colEndLocal-self%colStartLocal+1, self%rowindLocal, self%colptrLocal)
+          & img2CentCell, self%colStartLocal, self%colEndLocal, self%colPtrLocal, SnzValLocal,&
+          & self%rowIndLocal)
+      call elsi_set_csc(electronicSolver%elsiHandle, self%nnzGlobal, self%nnzLocal,&
+          & self%numColLocal, self%rowIndLocal, self%colPtrLocal)
     else
       call pack2elsi_real(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
-          & img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal, SnzvalLocal)
+          & img2CentCell, self%colStartLocal, self%colEndLocal, self%colPtrLocal, SnzValLocal)
     end if
 
     iS = parallelKS%localKS(2, 1)
     call pack2elsi_real(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
-        & iSparseStart, img2CentCell, self%colStartLocal, self%colEndLocal, self%colptrLocal,&
-        & HnzvalLocal)
+        & iSparseStart, img2CentCell, self%colStartLocal, self%colEndLocal, self%colPtrLocal,&
+        & HnzValLocal)
 
     ! Load the matrix into ELSI and solve DM
-    call elsi_dm_real_sparse(electronicSolver%elsiHandle, HnzvalLocal, SnzvalLocal, DMnzvalLocal,&
+    call elsi_dm_real_sparse(electronicSolver%elsiHandle, HnzValLocal, SnzValLocal, DMnzValLocal,&
         & Eband(iS))
 
     ! get DM back into DFTB+ format
     rho(:,:) = 0.0_dp
     call elsi2pack_real(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal,&
-        & DMnzvalLocal, self%blockRow, rho(:,iS))
+        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colPtrLocal,&
+        & DMnzValLocal, self%blockRow, rho(:,iS))
 
   end subroutine calcDensityRealElsi
 
@@ -348,18 +348,18 @@ contains
     real(dp), intent(out) :: erho(:)
 
     integer :: iS
-    real(dp), allocatable :: EDMnzvalLocal(:)
+    real(dp), allocatable :: EDMnzValLocal(:)
 
-    allocate(EDMnzvalLocal(self%nnzLocal))
+    allocate(EDMnzValLocal(self%nnzLocal))
 
     ! get the energy weighted density matrix from ELSI
-    call elsi_get_edm_real_sparse(electronicSolver%elsiHandle, EDMnzvalLocal)
+    call elsi_get_edm_real_sparse(electronicSolver%elsiHandle, EDMnzValLocal)
 
     ! get EDM back into DFTB+ format
     erho(:) = 0.0_dp
     call elsi2pack_real(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colptrLocal,&
-        & EDMnzvalLocal, self%blockRow, erho)
+        & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, self%colPtrLocal,&
+        & EDMnzValLocal, self%blockRow, erho)
 
   end subroutine getEDensityRealElsi
 
@@ -422,47 +422,47 @@ contains
 
     integer :: iS
 
-    complex(dp), allocatable :: HnzvalLocal(:), SnzvalLocal(:)
-    complex(dp), allocatable :: DMnzvalLocal(:)
+    complex(dp), allocatable :: HnzValLocal(:), SnzValLocal(:)
+    complex(dp), allocatable :: DMnzValLocal(:)
     logical :: tFirstCall
 
     tFirstCall = .false.
-    if (.not. allocated(self%rowindLocal)) then
-      allocate(self%rowindLocal(self%nnzLocal))
+    if (.not. allocated(self%rowIndLocal)) then
+      allocate(self%rowIndLocal(self%nnzLocal))
       tFirstCall = .true.
     end if
 
-    allocate(HnzvalLocal(self%nnzLocal))
-    allocate(SnzvalLocal(self%nnzLocal))
-    allocate(DMnzvalLocal(self%nnzLocal))
+    allocate(HnzValLocal(self%nnzLocal))
+    allocate(SnzValLocal(self%nnzLocal))
+    allocate(DMnzValLocal(self%nnzLocal))
 
     if (tFirstCall) then
-      ! also generate rowindLocal for the new structure
+      ! also generate rowIndLocal for the new structure
       call pack2elsi_cmplx(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal, self%colEndLocal,&
-          & self%colptrLocal, SnzvalLocal, self%rowindLocal)
-      call elsi_set_csc(electronicSolver%elsiHandle, self%nnz_global, self%nnzLocal,&
-          & self%colEndLocal-self%colStartLocal+1, self%rowindLocal, self%colptrLocal)
+          & self%colPtrLocal, SnzValLocal, self%rowIndLocal)
+      call elsi_set_csc(electronicSolver%elsiHandle, self%nnzGlobal, self%nnzLocal,&
+          & self%numColLocal, self%rowIndLocal, self%colPtrLocal)
     else
       call pack2elsi_cmplx(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal, self%colEndLocal,&
-          & self%colptrLocal, SnzvalLocal)
+          & self%colPtrLocal, SnzValLocal)
     end if
 
     iS = parallelKS%localKS(2, 1)
     call pack2elsi_cmplx(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
         & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal,&
-        & self%colEndLocal, self%colptrLocal, HnzvalLocal)
+        & self%colEndLocal, self%colPtrLocal, HnzValLocal)
 
     ! Load the matrix into ELSI and solve DM
-    call elsi_dm_complex_sparse(electronicSolver%elsiHandle, HnzvalLocal, SnzvalLocal,&
-        & DMnzvalLocal, Eband(iS))
+    call elsi_dm_complex_sparse(electronicSolver%elsiHandle, HnzValLocal, SnzValLocal,&
+        & DMnzValLocal, Eband(iS))
 
     ! get DM back into DFTB+ format
     rho(:,:) = 0.0_dp
     call elsi2pack_cmplx(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
         & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight,&
-        & iCellVec, cellVec, self%colptrLocal, DMnzvalLocal, self%blockRow, rho(:,iS))
+        & iCellVec, cellVec, self%colPtrLocal, DMnzValLocal, self%blockRow, rho(:,iS))
 
   end subroutine calcDensityComplexElsi
 
@@ -511,24 +511,25 @@ contains
     real(dp), intent(out) :: erho(:)
 
     integer :: iS
-    complex(dp), allocatable :: EDMnzvalLocal(:)
+    complex(dp), allocatable :: EDMnzValLocal(:)
 
-    allocate(EDMnzvalLocal(self%nnzLocal))
+    allocate(EDMnzValLocal(self%nnzLocal))
 
     ! get the energy weighted density matrix from ELSI
-    call elsi_get_edm_complex_sparse(electronicSolver%elsiHandle, EDMnzvalLocal)
+    call elsi_get_edm_complex_sparse(electronicSolver%elsiHandle, EDMnzValLocal)
 
     ! get EDM back into DFTB+ format
     erho(:) = 0.0_dp
     call elsi2pack_cmplx(self, self%colStartLocal, self%colEndLocal, iNeighbour,&
         & nNeighbourSK, orb%mOrb, iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight,&
-        & iCellVec, cellVec, self%colptrLocal, EDMnzvalLocal, self%blockRow, erho)
+        & iCellVec, cellVec, self%colPtrLocal, EDMnzValLocal, self%blockRow, erho)
 
   end subroutine getEDensityComplexElsi
 
+
   !> Creating colptr and nnz for CSC matrix format from packed format
   subroutine pack2colptr_parallel(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
-      & img2CentCell, colStartLocal, colEndLocal, nnzLocal, colptrLocal)
+      & img2CentCell, colStartLocal, colEndLocal, nnzLocal, colPtrLocal)
 
     !> Neighbour list for each atom (first index from 0!).
     integer, intent(in) :: iNeighbour(0:,:)
@@ -555,7 +556,7 @@ contains
     integer, intent(out) :: nnzLocal
 
     !> Local column pointer
-    integer, intent(out) :: colptrLocal(:)
+    integer, intent(out) :: colPtrLocal(:)
 
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
@@ -566,7 +567,7 @@ contains
 
     nAtom = size(iNeighbour, dim=2)
 
-    colptrLocal(:) = 0
+    colPtrLocal(:) = 0
     nnzLocal = 0
 
     allocate(blockList(nAtom))
@@ -593,7 +594,7 @@ contains
           do kk = ii, ii + nOrb1 - 1
             if (isColumnInLocal(kk, colStartLocal, colEndLocal)) then
               nnzLocal = nnzLocal + nOrb2
-              colptrLocal(kk - colStartLocal + 2) = colptrLocal(kk - colStartLocal + 2) + nOrb2
+              colPtrLocal(kk - colStartLocal + 2) = colPtrLocal(kk - colStartLocal + 2) + nOrb2
             end if
           end do
         end if
@@ -606,16 +607,16 @@ contains
         do kk = jj, jj + nOrb2 - 1
           if (isColumnInLocal(kk, colStartLocal, colEndLocal)) then
             nnzLocal = nnzLocal + nOrb1
-            colptrLocal(kk -colStartLocal + 2) = colptrLocal(kk - colStartLocal + 2) + nOrb1
+            colPtrLocal(kk -colStartLocal + 2) = colPtrLocal(kk - colStartLocal + 2) + nOrb1
           end if
         end do
       end do
     end do
-    colptrLocal(1) = 1
-    do ii = 2, size(colptrLocal)
-      colptrLocal(ii) = colptrLocal(ii-1) + colptrLocal(ii)
+    colPtrLocal(1) = 1
+    do ii = 2, size(colPtrLocal)
+      colPtrLocal(ii) = colPtrLocal(ii-1) + colPtrLocal(ii)
     end do
-    colptrLocal(size(colptrLocal)) = nnzLocal + 1
+    colPtrLocal(size(colPtrLocal)) = nnzLocal + 1
 
   end subroutine pack2colptr_parallel
 
@@ -624,9 +625,8 @@ contains
   !> matrices
   !>
   !> NOTE: ELSI needs the full matrix (both triangles)
-  subroutine pack2elsi_real(self, orig, iNeighbour, nNeighbourSK, iAtomStart,&
-      & iSparseStart, img2CentCell, colStartLocal, colEndLocal, colptrLocal, nzvalLocal,&
-      & rowindLocal)
+  subroutine pack2elsi_real(self, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      & img2CentCell, colStartLocal, colEndLocal, colPtrLocal, nzValLocal, rowIndLocal)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(in) :: self
@@ -656,13 +656,13 @@ contains
     integer, intent(in) :: colEndLocal
 
     !> Local column pointer
-    integer, intent(in) :: colptrLocal(:)
+    integer, intent(in) :: colPtrLocal(:)
 
     !> Local non-zero elements
-    real(dp), intent(out) :: nzvalLocal(:)
+    real(dp), intent(out) :: nzValLocal(:)
 
     !> Local row index pointer
-    integer, intent(out), optional :: rowindLocal(:)
+    integer, intent(out), optional :: rowIndLocal(:)
 
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
@@ -681,10 +681,10 @@ contains
 
     allocate(blockList(nAtom,2))
     allocate(tRowTrans(nAtom))
-    if (present(rowindLocal)) then
-      rowindLocal(:) = 0
+    if (present(rowIndLocal)) then
+      rowIndLocal(:) = 0
     end if
-    nzvalLocal(:) = 0.0_dp
+    nzValLocal(:) = 0.0_dp
 
     ! Offset in column belonging to transposed triangle
     blockList(:,2) = 1
@@ -718,8 +718,8 @@ contains
           cycle
         end if
         call addBlock2Elsi(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ]),&
-            & colStartLocal, colEndLocal, jj, ii, colptrLocal, blockList(iAtom2f,1)-1, nzvalLocal,&
-            & rowindLocal)
+            & colStartLocal, colEndLocal, jj, ii, colPtrLocal, blockList(iAtom2f,1)-1, nzValLocal,&
+            & rowIndLocal)
 
         if (ii == jj) then
           cycle
@@ -733,8 +733,8 @@ contains
         end if
 
         call addBlock2Elsi(transpose(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ])),&
-            & colStartLocal, colEndLocal, ii, jj, colptrLocal, blockList(iAtom2f,2)-nOrb1-1,&
-            & nzvalLocal, rowindLocal)
+            & colStartLocal, colEndLocal, ii, jj, colPtrLocal, blockList(iAtom2f,2)-nOrb1-1,&
+            & nzValLocal, rowIndLocal)
       end do
     end do
 
@@ -747,7 +747,7 @@ contains
   !> NOTE: ELSI needs the full matrix (both triangles)
   subroutine pack2elsi_cmplx(self, orig, iNeighbour, nNeighbourSK, iAtomStart,&
       & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, colStartLocal, colEndLocal,&
-      & colptrLocal, nzvalLocal, rowindLocal)
+      & colPtrLocal, nzValLocal, rowIndLocal)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(in) :: self
@@ -789,13 +789,13 @@ contains
     integer, intent(in) :: colEndLocal
 
     !> Local column pointer
-    integer, intent(in) :: colptrLocal(:)
+    integer, intent(in) :: colPtrLocal(:)
 
     !> Local non-zero elements
-    complex(dp), intent(out) :: nzvalLocal(:)
+    complex(dp), intent(out) :: nzValLocal(:)
 
     !> Local row index pointer
-    integer, intent(out), optional :: rowindLocal(:)
+    integer, intent(out), optional :: rowIndLocal(:)
 
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
@@ -817,10 +817,10 @@ contains
 
     allocate(blockList(nAtom,2))
     allocate(tRowTrans(nAtom))
-    if (present(rowindLocal)) then
-      rowindLocal(:) = 0
+    if (present(rowIndLocal)) then
+      rowIndLocal(:) = 0
     end if
-    nzvalLocal(:) = cmplx(0,0,dp)
+    nzValLocal(:) = cmplx(0,0,dp)
 
     ! Offset in column belonging to transposed triangle
     blockList(:,2) = 1
@@ -858,8 +858,8 @@ contains
         phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
 
         call addBlock2Elsi(phase*reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ]),&
-            & colStartLocal, colEndLocal, jj, ii, colptrLocal, blockList(iAtom2f,1)-1, nzvalLocal,&
-            & rowindLocal)
+            & colStartLocal, colEndLocal, jj, ii, colPtrLocal, blockList(iAtom2f,1)-1, nzValLocal,&
+            & rowIndLocal)
 
         if (ii == jj) then
           cycle
@@ -877,8 +877,8 @@ contains
 
         call addBlock2Elsi(&
             & phase * transpose(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [ nOrb2, nOrb1 ])),&
-            & colStartLocal, colEndLocal, ii, jj, colptrLocal, blockList(iAtom2f,2)-nOrb1-1,&
-            & nzvalLocal, rowindLocal)
+            & colStartLocal, colEndLocal, ii, jj, colPtrLocal, blockList(iAtom2f,2)-nOrb1-1,&
+            & nzValLocal, rowIndLocal)
       end do
     end do
 
@@ -952,7 +952,7 @@ contains
 #:for SUFFIX in FLAVOURS
   !> Add the content of a local matrix block to ELSI CSC format
   subroutine addBlock2Elsi${SUFFIX}$(loc, colStart, colEnd, ii, jj, colptr, rowOffset, val,&
-      & rowindLocal)
+      & rowIndLocal)
 
     !> Local matrix.
     ${SUFFIX}$(dp), intent(in) :: loc(:,:)
@@ -979,7 +979,7 @@ contains
     ${SUFFIX}$(dp), intent(inout) :: val(:)
 
     !> row index pointer
-    integer, intent(inout), optional :: rowindLocal(:)
+    integer, intent(inout), optional :: rowIndLocal(:)
 
     integer :: j2, iloc, jloc
     integer :: jStart, jEnd
@@ -988,11 +988,11 @@ contains
     jEnd = min(jj+size(loc,dim=2)-1, colEnd) - colStart + 1
     jloc = max(jj, colStart) - jj + 1
 
-    if (present(rowindLocal)) then
+    if (present(rowIndLocal)) then
       do j2 = jStart, jEnd
         do iloc = 1, size(loc,1)
           val(colptr(j2)+rowOffset+iloc-1) = val(colptr(j2) + rowOffset+iloc-1) + loc(iloc,jloc)
-          rowindLocal(colptr(j2) + rowOffset + iloc-1) = iloc + ii - 1
+          rowIndLocal(colptr(j2) + rowOffset + iloc-1) = iloc + ii - 1
         end do
         jloc = jloc + 1
       end do
@@ -1048,7 +1048,7 @@ contains
     !> Local non-zero elements
     real(dp), intent(in) :: nzval(:)
 
-    !> Saves starting row of blocks in nzvalLocal
+    !> Saves starting row of blocks in nzValLocal
     integer, intent(in) :: blockRow(0:,:)
 
     !> Sparse Hamiltonian
@@ -1153,7 +1153,7 @@ contains
     !> Local non-zero elements
     complex(dp), intent(in) :: nzval(:)
 
-    !> Saves starting row of blocks in nzvalLocal
+    !> Saves starting row of blocks in nzValLocal
     integer, intent(in) :: blockRow(0:,:)
 
     !> Sparse Hamiltonian
@@ -1232,7 +1232,7 @@ contains
     !> Starting column in the global matrix
     integer, intent(in) :: jj
 
-    !> Saves starting row of blocks in nzvalLocal
+    !> Saves starting row of blocks in nzValLocal
     integer, intent(in) :: blockRow
 
     !> Local block of matrix.
