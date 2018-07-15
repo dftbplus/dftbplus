@@ -47,7 +47,9 @@ Geometry = GenFormat {
    0.00000000000E+00   0.00000000000E+00   0.24560400000E+01
 }
 
-Driver = LBFGS {} 
+Driver = LBFGS {
+  MaxSteps = 2
+}
 
 Hamiltonian = DFTB {
   SCC = No

@@ -75,9 +75,10 @@ Driver = {}
 
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 5.0E-9 # small, but still stable for libOMM 
+  SCCTolerance = 1.0E-8 # small, but still stable for libOMM
   Eigensolver = OMM {
-    Choleskii = No # seems to be more stable in this case
+    Choleskii = Yes
+    nIterationsELPA = 20 # Use ELPA for all steps
   }
   MaxAngularMomentum = {
     Si = "p"
