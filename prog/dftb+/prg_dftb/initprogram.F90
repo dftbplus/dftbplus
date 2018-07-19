@@ -1326,6 +1326,11 @@ contains
 
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
+
+    if (electronicSolver%iSolver == 6 .and. tempElec < epsilon(0.0)) then
+      call error("This solver requires a finite electron broadening")
+    end if
+
     tFixEf = input%ctrl%tFixEf
     if (tFixEf) then
       Ef = input%ctrl%Ef
