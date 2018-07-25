@@ -2667,9 +2667,6 @@ contains
    ! Electron dynamics stuff
    tElectronDynamics = allocated(input%ctrl%elecDynInp)
    if (tElectronDynamics) then
-     if (tDFTBU) then
-       call error("Electron dynamics is not compatible with Orbitally dependant functionals yet")
-     end if
 
      if (t2Component) then
        call error("Electron dynamics is not compatibile with this spinor Hamiltonian")

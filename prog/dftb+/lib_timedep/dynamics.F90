@@ -448,15 +448,13 @@ contains
 
     call initializeTDVariables(this, rho, H1, Ssqr, Sinv, over, ham, Hsq, filling, orb,&
         & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-        & img2CentCell, Eiginv, EiginvAdj, energy, this%tRestart)
+        & img2CentCell, Eiginv, EiginvAdj, energy)
 
     ! Calculate repulsive energy
     call getERep(energy%atomRep, coord, nNeighbourSK, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell)
     energy%Erep = sum(energy%atomRep)
 
-    ! not sure if the appending behaviour in this routine is a good idea, a flag to control it might
-    ! be safer for general users
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
@@ -471,7 +469,9 @@ contains
       call kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
     end if
 
-    if (.not.this%tRestart) then
+    ! had to add the "or tKick" option to override rhoOld if tRestart = yes, otherwise it will be
+    ! badly initialised
+    if (.not.this%tRestart .or. this%tKick) then
       ! Initialize electron dynamics
       rhoOld(:,:,:) = rho
       call initializePropagator(this, this%dt, rho, rhoOld, H1, Sinv)
@@ -500,8 +500,6 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      ! would lead to no output if restarting:
-      !if (.not. this%tRestart .or. iStep > 0) then
       if (iStep > 0) then
         call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
       end if
@@ -889,7 +887,7 @@ contains
   !> Create all necessary matrices and instances for dynamics
   subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, over, ham, Hsq, filling,&
       & orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
-      & Eiginv, EiginvAdj, energy, tRestart)
+      & Eiginv, EiginvAdj, energy)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -951,9 +949,6 @@ contains
     !> Adjoint of the inverse of eigenvectors matrix (for populations)
     complex(dp), allocatable, intent(out), optional :: EiginvAdj(:,:,:)
 
-    !> Is this a restarted calculation with rho available?
-    logical, intent(in) :: tRestart
-
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
     integer :: iSpin, iOrb, iOrb2
 
@@ -987,7 +982,7 @@ contains
     Sinv(:,:) = cmplx(T3, 0, dp)
     write(stdOut,"(A)")'S inverted'
 
-    if (.not.tRestart) then
+    if (.not.this%tRestart) then
       do iSpin=1,this%nSpin
         T2 = 0.0_dp
         call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
@@ -1103,7 +1098,6 @@ contains
       dipoleFileName = 'mu.dat'
     end if
 
-    ! note, appends if the file already exists - potential to confuse users?
     call openFile(this, dipoleDat, dipoleFileName)
     call openFile(this, qDat, 'qsvst.dat')
     call openFile(this, energyDat, 'energyvst.dat')
@@ -1163,17 +1157,29 @@ contains
     !> Name of the file to open
     character(*) :: fileName
 
+    character(30) :: newName
+
+    character(1) :: strCount
+
     logical :: exist=.false.
 
+    integer :: count
+
+    ! changed the append by this block to rename the restarted output
     if (this%tRestart) then
       inquire(file=fileName, exist=exist)
+      count = 1
+      do while (exist)
+        write(strCount,'(i1)') count
+        newName = "rest" // trim(strCount) // "_" // fileName
+        inquire(file=newName, exist=exist)
+        count = count + 1
+     end do
+    else
+      newName = fileName
     end if
 
-    if (exist) then
-      open(newunit=unitName, file=fileName, status="old", position="append", action="write")
-    else
-      open(newunit=unitName, file=fileName, action="write")
-    end if
+    open(newunit=unitName, file=newName, action="write")
 
   end subroutine openFile
 
