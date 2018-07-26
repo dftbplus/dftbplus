@@ -333,7 +333,7 @@ do
 	test -n "$verbose" && echo_n " running .."
 
 	if [ -e "$TEST_SCRIPT" ]; then
-	    "./$TEST_SCRIPT" "$app_prerun $app_cmd $app_postrun" "$TIME_CMD" >> $APP_STDOUT 2>> $APP_STDERR
+	    $TIME_CMD ./$TEST_SCRIPT $app_prerun $app_cmd $app_postrun >> $APP_STDOUT 2>> $APP_STDERR
 	else
 	    $TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
 	fi

@@ -1,9 +1,11 @@
 #!/bin/bash
 
+DFTBPLUS_CMD=$*
+
 rm -f dftb_in.hsd
 cp dftb_in1.hsd dftb_in.hsd
-$1 > log.txt
+$DFTBPLUS_CMD
 
 rm -f dftb_in.hsd
 cp dftb_in2.hsd dftb_in.hsd
-$2 $1
+$DFTBPLUS_CMD

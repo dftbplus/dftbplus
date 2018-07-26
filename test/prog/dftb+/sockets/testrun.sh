@@ -12,6 +12,8 @@
 #
 ############################################################################
 
+DFTBPLUS_CMD=$*
+
 # Start a python server to drive the DFTB+ instance
 sleep 2
 ./prerun.py &
@@ -19,7 +21,7 @@ echo "$!" > subprocess.pid
 sleep 2
 
 # run the actual calculation
-$2 $1
+$DFTBPLUS_CMD
 
 # clean up afterwards
 ./postrun.sh
