@@ -3696,12 +3696,12 @@ contains
     type(TEnergies), intent(in) :: energy
 
     if (tSetFillingTemp) then
-      write(stdOut, format2U) 'Electronic Temperature:', tempElec, 'H', tempElec / Boltzmann, 'K'
+      write(stdOut, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
     end if
     if (tEfield) then
       write(stdOut, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
-    write(stdOut, format2U) "MD Temperature:", tempIon, "H", tempIon / Boltzmann, "K"
+    write(stdOut, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
     write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
     write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
         & Hartree__eV * energy%EMerminKin, "eV"
