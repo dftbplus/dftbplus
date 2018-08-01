@@ -107,8 +107,8 @@ contains
       nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
-      call getLOperators(ll, speciesPlus(1:nOrbShell, 1:nOrbShell),&
-          & speciesZ(1:nOrbShell, 1:nOrbShell))
+      call getLOperators(ll, speciesPlus(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd),&
+          & speciesZ(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd))
     end do
 
   end subroutine getLOperatorsForSpecies

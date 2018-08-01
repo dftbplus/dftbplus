@@ -332,6 +332,9 @@ contains
     speciesPlus(:,:) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
+      if (ll == 0) then
+        cycle
+      end if
       nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
