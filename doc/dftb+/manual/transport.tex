@@ -28,7 +28,7 @@ Rules to build a valid input structure:
 \item \label{rule1} All device atoms must come first.
 \item \label{rule2} Each contact must comprise two subsequent unit cells called
   principal layers (PLs). The two PLs together give all information about the
-  contact structure and in the following are referred generally as 'contact'.
+  contact structure and in the following are referred generally as ``contact''.
 \item \label{rule3} A PL is a unit cell of the contacting lead that has
   interactions only with nearest neighbour PLs in tight-binding terms.
 \item \label{rule4} The ordering of the atoms within the two PLs must be
@@ -335,7 +335,7 @@ region. Strictly speaking the GF does not solve for the eigenstates of the open
 system, however it logically substitutes the traditional construction of the
 density matrix from the eigenstates of the system, obtained after the
 diagonalization step. The density matrix can be used to compute any physical
-observable by 'tracing' with the appropriate operator. In particular it is
+observable by ``tracing'' with the appropriate operator. In particular it is
 possible to calculate the Mulliken charges necessary for the DFTB
 self-consistent loop. Therefore the usual \dftbp ~self-consistent calculations
 can be driven using the GF solver. The Green's function section contains
@@ -655,7 +655,7 @@ the contact potential is not uniform due to charge rearrangments. The external
 applied contact potential is added to the bulk potential.  The user can
 deactivate this calculation with the keyword \kw{BuildBulkPotential}.
 
-{\bf Note}: The bulk potential is computed on a special box that has 'lateral'
+{\bf Note}: The bulk potential is computed on a special box that has ``lateral''
 sizes copied from the device box, and has the size of one PL along the contact
 direction. The BCs are --so to speak-- inherited from the device region. In
 particular:
@@ -766,8 +766,8 @@ gate type \kw{Planar} and \kw{Cylindrical} are allowed.  Restrictions. The
 planar gate must be placed with its face parallel to the x-z plane, i.e., the
 gate direction must be along y. At the same time the transport direction should
 be placed along the z-axis. The latter is not really a restriction but it gives
-meaning to 'longitudinal' and 'transverse' in the geometrical definitions of the
-gate lengths.  Example:
+meaning to ``longitudinal'' and ``transverse'' in the geometrical definitions of
+the gate lengths.  Example:
 
 \begin{verbatim}
 Gate = Planar {
@@ -1055,12 +1055,12 @@ different length/thickness.
 
 \verb|makecube|
 
-This program can be used to convert the real-space  'potential.dat' or 
-'charge_density.dat' files computed on the poisson box to a cube file that can 
-be plotted using jmol. 
+This program can be used to convert the real-space \verb|potential.dat| or
+\verb|charge_density.dat| files computed on the poisson box to a cube file that
+can be plotted using jmol.
 
 \begin{verbatim}
- makecube potential.dat [-r refpot] [-b boxfile xfile yfile zfile] '
+ makecube potential.dat [-r refpot] [-b boxfile xfile yfile zfile]
 \end{verbatim}
 
 Optionals:
