@@ -1,14 +1,14 @@
 program buildwire
   implicit none
   integer :: i,d(3),pl_atm,tot_atm,atm_cont,num_pl,err,k
-  character(30) :: gen_file
+  character(100) :: gen_file
   character(2) :: period
   character(70) :: atm_spec
-  character(100) :: cell_centre
+  character(100) :: cell_centre, tmpStr
   real(8) :: cell(3,3)
   integer, ALLOCATABLE, DIMENSION (:) :: n_atm,typ_atm
   real(8), ALLOCATABLE, DIMENSION (:) :: X,Y,Z      
-  character(10) :: arg
+  character(100) :: arg
 
   if (iargc() < 3) then
     write(*,*) 'buildwire pl.gen dir npls'
@@ -27,7 +27,7 @@ program buildwire
   call getarg(3, arg)
   read(arg,*) num_pl
 
-  open(30,file=gen_file)
+  open(30,file=trim(gen_file))
   
   read(30,*) pl_atm, period
   read(30,'(A)') atm_spec
@@ -63,10 +63,10 @@ program buildwire
   tot_atm=pl_atm * (num_pl + 4)     
 
 
-  open(30,file='Ordered_'//gen_file)
+  open(30,file='Ordered_'//trim(gen_file))
 
   write(30,'(I5,A4)') tot_atm,period
-  write(30,'(A4)') atm_spec
+  write(30,'(A)') trim(atm_spec)
   do k = 1,num_pl
      do i = 1,pl_atm
         write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
@@ -108,35 +108,37 @@ program buildwire
 
   write(*,*) 'structure built'
   write(*,*) 'Input for dftb+:'
+  write(*,*)
   write(*,*) 'Transport{'
   write(*,*) '  Device{'
-  write(*,*) '    AtomRange=',1, pl_atm*num_pl
-  write(*,FMT='(a)', advance='NO') '    FirstLayerAtoms = '
-  do i=1,num_pl-1
-     write(*,FMT='(i6)',ADVANCE='NO') (i-1)*pl_atm+1
+  write(*,"(1x,A,I0,' ',I0)") '    AtomRange = ',1, pl_atm*num_pl
+  write(*,FMT='(1x,a)', advance='NO') '    FirstLayerAtoms ='
+  do i=1,num_pl
+    write(tmpStr,"(I0)") (i-1)*pl_atm+1
+    write(*,'(1X,A)', advance='NO')trim(tmpStr)
   end do
-  write(*,FMT='(i6)') (num_pl-1)*pl_atm+1 
-  write(*,*) '    }'
+  write(*,*)
   write(*,*) '  }'
 
   write(*,*) '  Contact{'
   write(*,*) '    Id = "source"'
-  write(*,*) '    AtomRange=', pl_atm*num_pl+1, pl_atm*(num_pl+2)
+  write(*,"(1x,A,I0,' ',I0)") '    AtomRange = ', pl_atm*num_pl+1, pl_atm*(num_pl+2)
   write(*,*) '    Potential [eV] = 0.0'
   write(*,*) '    FermiLevel [eV] = 0.0'
   write(*,*) '  }'
 
   write(*,*) '  Contact{'
   write(*,*) '    Id = "drain"'
-  write(*,*) '    AtomRange=', pl_atm*(num_pl+2)+1, pl_atm*(num_pl+4)
+  write(*,"(1x,A,I0,' ',I0)") '    AtomRange = ', pl_atm*(num_pl+2)+1, pl_atm*(num_pl+4)
   write(*,*) '    Potential [eV] = 0.0'
   write(*,*) '    FermiLevel [eV] = 0.0'
-  write(*,*) '  }'  
-  write(*,*) '  Task= contactHamiltonian{"'
-  write(*,*) '     contactId = "source"'
+  write(*,*) '  }'
+
+  write(*,*) '  Task= contactHamiltonian{'
+  write(*,*) '    contactId = "source"'
   write(*,*) '  }' 
   write(*,*) '}'
-
+  write(*,*)
 
 end program
       
