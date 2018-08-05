@@ -2601,14 +2601,6 @@ contains
 
     end if
 
-    if (tSpinOrbit) then
-      if (tDualSpinOrbit) then
-        if ( (tEField .or. tExtChrg) .and. tForces) then
-          call error("Currently there is a force bug for dual spin orbit coupling")
-        end if
-      end if
-    end if
-
     select case (forceType)
     case(0)
       write(stdOut, "(A,T30,A)") "Force type", "original"

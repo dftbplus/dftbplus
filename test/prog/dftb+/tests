@@ -63,6 +63,7 @@ non-scc/GaAs_2                         #? MPI_PROCS <= 1
 scc/GaAs_2                             #? MPI_PROCS <= 1
 scc/GaAs_2_customU                     #? MPI_PROCS <= 1
 spinorbit/Fe2_dual                     #? MPI_PROCS <= 2
+spinorbit/Fe2_dual_field               #? MPI_PROCS <= 2
 spinorbit/Si_2                         #? MPI_PROCS <= 1
 
 timedep/C4H6-S1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
