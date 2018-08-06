@@ -32,6 +32,8 @@ Fixed
 
 - Tollerance keyword typo.
 
+- Forces/stresses for dual spin orbit.
+
 18.1 (2018-03-02)
 =================
 
