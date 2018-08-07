@@ -163,7 +163,7 @@ contains
 
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
-      call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos) 
+      call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
   #:else
@@ -1504,7 +1504,7 @@ contains
       end if
 
       ctrl%tMulliken = .true.
-    
+
     end if ifSCC
 
     ! Spin calculation
@@ -1538,7 +1538,7 @@ contains
       call detailedError(child, "Invalid spin polarisation type '" //&
           & char(buffer) // "'")
     end select
-  
+
 #:if WITH_TRANSPORT
     if (ctrl%tSpin .and. tp%ncont > 0) then
        call detailedError(child, "Spin-polarized transport is under development" //&
@@ -1769,7 +1769,7 @@ contains
       if (geo%tPeriodic .and. greendens%doLocalCurr) then
          call detailedError(value, "Local Currents in periodic systems still needs" //&
               " debugging and will be available soon")
-      end if    
+      end if
     case ("transportonly")
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "transportonly cannot be used when "// &
@@ -1779,6 +1779,13 @@ contains
       ctrl%tFixEf = .true.
   #:endif
     end select
+
+  #:if WITH_TRANSPORT
+    if (all(ctrl%iSolver /= [solverGF,solverOnlyTransport]) .and. tp%taskUpload) then
+      call detailedError(value, "Eigensolver incompatible with transport calculation&
+          & (GreensFunction or TransportOnly required)")
+    end if
+  #:endif
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
@@ -3430,7 +3437,7 @@ contains
       end if
       if (.not.transpar%taskUpload) then
         call error("Block TunnelingAndDos not compatible with task=contactHamiltonian")
-      end if      
+      end if
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
     endif
   #:endif
@@ -3764,7 +3771,7 @@ contains
       if ( len(fermiBuffer) .eq. 1) then
         call asArray(fermiBuffer, greendens%oneFermi)
         greendens%oneFermi(2) = greendens%oneFermi(1)
-      else if ( len(fermiBuffer) .eq. 2) then  
+      else if ( len(fermiBuffer) .eq. 2) then
         call asArray(fermiBuffer, greendens%oneFermi)
       else
         call detailedError(pNode, &
@@ -4222,7 +4229,7 @@ contains
   end subroutine getContactVector
 
   !> Read dephasing block
-  subroutine readDephasing(node, orb, geom, tp, tundos) 
+  subroutine readDephasing(node, orb, geom, tp, tundos)
     type(fnode), pointer :: node
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -4234,10 +4241,10 @@ contains
     type(TNEGFTunDos), intent(inout) :: tundos
 
     type(string) :: model
-    type(fnode), pointer :: value, child 
+    type(fnode), pointer :: value, child
 
     call getChild(node, "VibronicElastic", child, requested=.false.)
-    if (associated(child)) then 
+    if (associated(child)) then
       tp%tDephasingVE = .true.
       call readElPh(child, tundos%elph, geom, orb, tp)
     end if
@@ -4280,7 +4287,7 @@ contains
     if (block_model) then
       elph%model = 2
     endif
-    
+
     !BUG: semilocal model crashes because of access of S before its allocation
     !     this because initDephasing occurs in initprogram
     call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
@@ -4289,7 +4296,7 @@ contains
            & "temporarily disabled")
       elph%model = 3
     endif
-  
+
     call readCoupling(node, elph, geom, orb, tp)
 
   end subroutine readElPh
@@ -4309,14 +4316,14 @@ contains
 
     logical :: block_model, semilocal_model
     type(string) :: model
-    type(fnode), pointer :: dephModel 
+    type(fnode), pointer :: dephModel
 
-    call detailedError(node,"Buettiker probes are still under development")     
-    
+    call detailedError(node,"Buettiker probes are still under development")
+
     elph%defined = .true.
     call getChildValue(node, "", dephModel)
     call getNodeName2(dephModel, model)
-    
+
     select case(char(model))
     case("dephasingprobes")
       !! Currently only zeroCurrent condition is implemented
@@ -4324,8 +4331,8 @@ contains
       tp%tZeroCurrent=.true.
       !! Only local bp model is defined (elastic for now)
     case("voltageprobes")
-      call detailedError(dephModel,"voltageProbes have been not implemented yet")     
-      tp%tZeroCurrent=.false.    
+      call detailedError(dephModel,"voltageProbes have been not implemented yet")
+      tp%tZeroCurrent=.false.
     case default
       call detailedError(dephModel,"unkown model")
     end select
@@ -4348,7 +4355,7 @@ contains
     endif
 
     call readCoupling(dephModel, elph, geom, orb, tp)
-    
+
   end subroutine readDephasingBP
 
   !!-----------------------------------------------------------------------------
@@ -4389,21 +4396,21 @@ contains
     enddo
     allocate(elph%coupling(norbs))
     elph%coupling(:) = 0.d0
-    
+
     elph%orbsperatm = orb%nOrbAtom(atm_range(1):atm_range(2))
 
     call getChildValue(node, "Coupling", val, "", child=child, &
         & allowEmptyValue=.true., modifier=modif, dummyValue=.true., list=.false.)
 
     call getNodeName(val, method)
-     
+
     ! This reads also things like:  "Coupling [eV] = 0.34"
     !if (is_numeric(char(method))) then
     !  call getChildValue(node, "Coupling", rTmp, child=field)
     !  call convertByMul(char(modif), energyUnits, field, rTmp)
     !  elph%coupling = rTmp
     !  return
-    !end if      
+    !end if
 
     select case (char(method))
     case ("allorbitals")
@@ -4424,7 +4431,7 @@ contains
             &geom%species, child4, tmpI1)
         call getChildValue(child3, "Value", rTmp, child=field, modifier=modif2)
         ! If not defined, use common unit modifier defined after Coupling
-        if (len(modif2)==0) then 
+        if (len(modif2)==0) then
           call convertByMul(char(modif), energyUnits, field, rTmp)
         else
           call convertByMul(char(modif2), energyUnits, field, rTmp)
@@ -4672,7 +4679,7 @@ contains
         if ( len(fermiBuffer) .eq. 1) then
           call asArray(fermiBuffer, contacts(ii)%eFermi)
           contacts(ii)%eFermi(2) = contacts(ii)%eFermi(1)
-        else if ( len(fermiBuffer) .eq. 2) then  
+        else if ( len(fermiBuffer) .eq. 2) then
           call asArray(fermiBuffer, contacts(ii)%eFermi)
         else
           call detailedError(pNode, &
@@ -5111,9 +5118,9 @@ contains
   end subroutine readGrid
 
   function is_numeric(string) result(is)
-    character(len=*), intent(in) :: string    
+    character(len=*), intent(in) :: string
     logical :: is
-    
+
     real :: x
     integer :: err
 
@@ -5121,8 +5128,8 @@ contains
 
     read(string,*,iostat=err) x
     is = (err == 0)
-    print*, x, err, is 
+    print*, x, err, is
 
   end function is_numeric
- 
+
 end module parser
