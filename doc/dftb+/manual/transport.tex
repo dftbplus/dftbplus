@@ -8,7 +8,7 @@ systems with open boundary conditions and therefore quantum transport.  A
 specific new \kwcb{Transport} block has been added to control the transport
 problem.  The NEGF solver parameters can be controlled within the
 \kw{Eigensolver} section, using the keyword \kwcb{GreensFunction}. Finally the
-real-space Poisson solver parameters have been organized within a new section,
+real-space Poisson solver parameters have been organised within a new section,
 \kw{Electrostatics}, using the keyword \kwcb{Poisson}. The default value for the
 electrostatic calculations is the usual $\gamma$-functional which contains the
 Hartree and local XC potential.
@@ -28,11 +28,11 @@ Rules to build a valid input structure:
 \item \label{rule1} All device atoms must come first.
 \item \label{rule2} Each contact must comprise two subsequent unit cells called
   principal layers (PLs). The two PLs together give all information about the
-  contact structure and in the following are referred generally as 'contact'.
+  contact structure and in the following are referred generally as ``contact''.
 \item \label{rule3} A PL is a unit cell of the contacting lead that has
   interactions only with nearest neighbour PLs in tight-binding terms.
 \item \label{rule4} The ordering of the atoms within the two PLs must be
-  consitent in the sense that the two PLs must be exact periodic replica of each
+  consistent in the sense that the two PLs must be exact periodic replica of each
   other: If each PL comprise N atoms, atom M in the first PL must have a
   corresponding identical atom in the second PL at position M+N.
 \item \label{rule5} The first PL should be always the one closer to the device
@@ -50,7 +50,7 @@ Rules to build a valid input structure:
   coordinate difference $\mathbf{r}(M+N)-\mathbf{r}(M)$). We refer to this as
   {\em contact direction}.
 \item \label{rule10} All lattice vectors (including the periodicity vector of
-  the contacts) must be aligned to one of the cartesian axes x, y or z. In
+  the contacts) must be aligned to one of the Cartesian axes x, y or z. In
   practice only rectangular cells are currently allowed in transport
   calculations.
 \end{enumerate}
@@ -79,8 +79,8 @@ the first suspect when there's some problem in the calculation.
 \htsection{Transport}
 
 \dftbp{} allows for NEGF calculations on different levels. It is possible to
-calculate linear response transmission within Landauer formalism, charge density
-out of equilibrium with self-consistent schemes, local currents etc. The
+calculate linear response transmission within the Landauer formalism, charge
+density out of equilibrium with self-consistent schemes, local currents etc. The
 Transport section groups the information needed whenever open boundary
 conditions are used. It contains the description of the partitioning of the
 system into {\em device} and {\em contact} regions and additional contact
@@ -136,7 +136,7 @@ The Device blocks contains the following properties:
   unit cell repetitions. The device geometry must be manually ordered in such a
   way that all the atoms within each layer are contiguous and adjacent layers
   are placed next to each other. This ensures that the constructed Hamiltonian
-  and Overlap are block tri-diagonal. Refer to \cite{Pecchia_NJP} for a
+  and Overlap are block tri-diagonal. Refer to~\cite{Pecchia_NJP} for a
   description of the iterative algorithm.
 
 \end{description}
@@ -193,7 +193,7 @@ PLs.
 used to define which type of calculation should be performed. Before an SCC
 transport calculation it is necessary to compute some equilibrium properties of
 the contacts, by running a periodic boundary conditions DFTB calculation.This
-necessary step must be carried separatley for each contact and can be done by
+necessary step must be carried separately for each contact and can be done by
 specifying setting \kw{Task}=\is{ContactHamiltonian} as in the following example
 
 \begin{verbatim}
@@ -238,7 +238,7 @@ must be present in the working folder in all subsequent transport calculations.
 
 {\bf Note} that during the contact calculation you will need to perform a
 k-point integration.  Whenever the system is defined as a cluster, \dftbp{} will
-authomatically extract the periodicity vectors from the geometry such that the
+automatically extract the periodicity vectors from the geometry such that the
 first reciprocal vector will correspond to the contact direction.  Therefore you
 must specify the k-point sampling for the periodic calculation by sampling along
 the first reciprocal lattice vector.  As an example, if the structure is defined
@@ -334,8 +334,8 @@ or under non-equilibrium conditions, builds up the density-matrix of the device
 region. Strictly speaking the GF does not solve for the eigenstates of the open
 system, however it logically substitutes the traditional construction of the
 density matrix from the eigenstates of the system, obtained after the
-diagonalization step. The density matrix can be used to compute any physical
-observable by 'tracing' with the appropriate operator. In particular it is
+diagonalisation step. The density matrix can be used to compute any physical
+observable by ``tracing'' with the appropriate operator. In particular it is
 possible to calculate the Mulliken charges necessary for the DFTB
 self-consistent loop. Therefore the usual \dftbp ~self-consistent calculations
 can be driven using the GF solver. The Green's function section contains
@@ -399,7 +399,7 @@ only.
   \kw{ReadSurfaceGS} and \kw{SaveSurfaceGS}.
 
 Note: the Green solver can be used also to calculate the density matrix when
-there is no open buondary conditions, for example to take advantage of the
+there is no open boundary conditions, for example to take advantage of the
 iterative scheme in quasi-1d systems. In this case, a \kw{Transport} block is
 not defined and therefore \iscb{FirstlayerAtoms} should be defined here. Also, a
 Fermi level of the system must be known and provided to fill up the electronic
@@ -413,13 +413,13 @@ states.
 
 \item[\is{LocalCurrents}] if set to Yes, local bond-currents are computed using
   the non-equilibrium density matrix.  This task is currently limited to
-  \bf{non-periodic} systems. The output is placed in a file \verb|lcurrent_u.dat| (or
-  \verb|lcurrent_d.dat| dending on spin).  The files are arranged in a table in
-  order of increasing neighbour distance,
+  \bf{non-periodic} systems. The output is placed in a file
+  \verb|lcurrent_u.dat| (or \verb|lcurrent_d.dat| depending on spin).  The files
+  are arranged in a table in order of increasing neighbour distance,
 
 \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
   \hline
-  Atom(i) & x & y & z &  nNeighbors &  j1 & I$_{i,j1}$ & j2 & I$_{i,j2}$ &  j3 & I$_{i,j3}$ & ...\\
+  Atom(i) & x & y & z &  nNeighbours &  j1 & I$_{i,j1}$ & j2 & I$_{i,j2}$ &  j3 & I$_{i,j3}$ & ...\\
   \hline
 \end{tabular}
 
@@ -457,13 +457,13 @@ declared).
 Much of the computational work is in the integration of the energy resolved
 density matrix, represented via the NEGF matrix. The integration is efficiently
 performed with a complex contour integration and a real axis integration, as
-shown in Figure~\ref{fig:contour} and discussed in references \cite{Pecchia_RPP,
-  Pecchia_spring, Pecchia_NJP}.
+shown in Figure~\ref{fig:contour} and discussed in
+references~\cite{Pecchia_spring, Pecchia_RPP, Pecchia_NJP}.
 \begin{figure}[!h]
 \begin{center}
 \includegraphics[width=8.0cm]{Fig_integration.png}
 \caption{ \label{fig:contour} Contour integration in the complex plane for the
-  Green's fuctions. The crosses represent poles of either $G^r$ or the Fermi
+  Green's functions. The crosses represent poles of either $G^r$ or the Fermi
   function.}
 \end{center}
 \end{figure}
@@ -508,9 +508,9 @@ properties of clusters and supercells. The recursive algorithm may be an
 efficient solution to large problem and could be efficient for systems having an
 elongated 1D shape.
 
-\section{Spin-polarized transport}
+\section{Spin-polarised transport}
 
-Spin-polarized transport is not available yet. In fact collinear spin transport will be available
+Spin-polarised transport is not available yet. In fact collinear spin transport will be available
 soon, as all the needed machinery has been implemented and is under debugging and testing.
 
 
@@ -520,8 +520,8 @@ soon, as all the needed machinery has been implemented and is under debugging an
 The Poisson solver is a fundamental part of the non-equilibrium transport
 calculations and must be declared whenever a NEGF calculation is performed using
 \is{Electrostatics = Poisson}. Under non-equilibrium conditions the
-self-consitent potential of the KS equations cannot be solved using the
-efficient $\gamma$-functional, but requires the definition of appropiate
+self-consistent potential of the KS equations cannot be solved using the
+efficient $\gamma$-functional, but requires the definition of appropriate
 boundary conditions for the potentials imposed on the contacts. However, since
 the $\gamma$-functional is formally identical to a pure Hartree potential, it
 can be obtained in real space by solving a Poisson solver.  The Poisson equation
@@ -565,13 +565,13 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
   between the last device atom and the first contact atom.
 \item[\is{MinimalGrid}]\modif{\modtype{length}} The minimal requested grid
   spacing along x, y and z. The actual grid spacing chosen by the multigrid will
-  be lower than this.  charge densities.
+  be lower than this.
 \item[\is{AtomDensityTolerance}] In order to calculate the potential, the
   Mulliken charges are projected on the real space grid. This parameter
   defines the cutoff after which the charge is considered vanish (i.e., the
   space extension of the projected charge). The default is 1e-6. Note that the
   contacts must be at least twice the length of the extent of a projected
-  Mulliken charge. If this conditions is not fullfilled and is set to Yes, the
+  Mulliken charge. If this conditions is not fulfilled and is set to Yes, the
   code will exit with an error message. Setting this parameter to a lower
   value could allow to define shorter contacts in some cases. However this
   could lead to relevant error in the potential hence to spurious reflections,
@@ -586,7 +586,7 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
 	the charge density to \verb|charge_density.dat|.
   Additional files \verb|Xvector.dat|, \verb|Yvector.dat|, \verb|Zvector.dat| and
   \verb|box.dat| are created. These files can be converted to a cube file that
-  can be visualized in jmol. See section on transport tools.
+  can be visualised in jmol. See section on transport tools.
 \item[\is{PoissonAccuracy}] Defines the accuracy for the approximate solution of
   the Poisson equation (default value 10$^{-6}$).
 \item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
@@ -606,7 +606,7 @@ Numerical error in the potential will results in spurious discontinuities at the
 contact-device interfaces. The default tolerances should do the job in most
 cases.
 
-This is a tipical example of the whole Poisson block specification. Some of the
+This is a typical example of the whole Poisson block specification. Some of the
 keywords are described in the next subsections.
 
 Example:
@@ -633,7 +633,7 @@ Example:
 
 The Poisson equation is solved imposing special boundary conditions (BC) on the
 six faces of the Poisson Box. In basic transport calculations, comprising two
-contacts placed along the same axis, the BCs are choosen as follows:
+contacts placed along the same axis, the BCs are chosen as follows:
 
 \begin{description}
 \item[Dirichlet] Fixed potentials on the two contact faces with values defined
@@ -648,14 +648,14 @@ two contact faces with values defined by the applied potentials (see
 In some specific cases Neumann BCs can be set on one contact. In order to do so
 it is necessary to use \verb|OverrideDefaultBC| (see below).
 
-Device and contact potentials should smoothy join at the interface. In order to
+Device and contact potentials should smoothly join at the interface. In order to
 reach this goal the code computes the Bulk potential of each contact and uses
 the result as a BC on the contact face of the Poisson box. This is useful when
-the contact potential is not uniform due to charge rearrangments. The external
+the contact potential is not uniform due to charge rearrangements. The external
 applied contact potential is added to the bulk potential.  The user can
 deactivate this calculation with the keyword \kw{BuildBulkPotential}.
 
-{\bf Note}: The bulk potential is computed on a special box that has 'lateral'
+{\bf Note}: The bulk potential is computed on a special box that has ``lateral''
 sizes copied from the device box, and has the size of one PL along the contact
 direction. The BCs are --so to speak-- inherited from the device region. In
 particular:
@@ -686,7 +686,7 @@ particular:
   Poisson box.
 \item[\is{BufferLength}]\modif{\modtype{length}} can be used to set the size of
   the boundary region beyond the atomistic size which is determined as the
-  minimal circle or qquare containg all atoms of the contact cross-section.
+  minimal circle or square containing all atoms of the contact cross-section.
 \end{description}
 
 \begin{ptableh}
@@ -766,8 +766,8 @@ gate type \kw{Planar} and \kw{Cylindrical} are allowed.  Restrictions. The
 planar gate must be placed with its face parallel to the x-z plane, i.e., the
 gate direction must be along y. At the same time the transport direction should
 be placed along the z-axis. The latter is not really a restriction but it gives
-meaning to 'longitudinal' and 'transverse' in the geometrical definitions of the
-gate lengths.  Example:
+meaning to ``longitudinal'' and ``transverse'' in the geometrical definitions of
+the gate lengths.  Example:
 
 \begin{verbatim}
 Gate = Planar {
@@ -787,17 +787,17 @@ Gate = Cylindrical {
 The various options for the gates have the following meanings:
 \begin{description}
 \item[\is{GateLength\_l}]\modif{\modtype{length}} Sets the gate length along the
-  transport direction (assumed to be z). The gate is centered in the device
+  transport direction (assumed to be z). The gate is centred in the device
   region.
 \item[\is{GateLength\_t}]\modif{\modtype{length}} Sets the gate transverse to
-  the transport direction (assumed to be x). The gate is centered in the device
+  the transport direction (assumed to be x). The gate is centred in the device
   region.
 \item[\is{GateDistance}]\modif{\modtype{length}} Sets the distance of the gate
-  from the center axis of the device region.
+  from the centre axis of the device region.
 \item[\is{GatePotential}]\modif{\modtype{energy}} Sets the potential applied to
   the gate.
 \item[\is{GateRadius}]\modif{\modtype{length}} For cylindrical gate, sets the
-  distance of the gate from the center axis or gate radius.
+  distance of the gate from the centre axis or gate radius.
 \end{description}
 
 \begin{ptableh}
@@ -808,7 +808,7 @@ The various options for the gates have the following meanings:
   \kw{GateRadius} & r &  & 0.0 &  \\
 \end{ptableh}
 
-Note that the gate option has not be tested tharoughly and may still contain
+Note that the gate option has not be tested thoroughly and may still contain
 bugs.  Please report to the developers any problem encountered.
 
 Developments. In forthcoming releases also double gates will be possible.
@@ -820,13 +820,13 @@ the output data in the files themselves. After a transport calculation, the
 files will contain the transmission coefficient for every energy point and for
 every k point and the local density of states for every energy point and
 projection ranges specified in input. They will also contain the total current
-and the partial current for every k point. In multiterminal calculation, this
+and the partial current for every k point. In a multi-terminal calculation, this
 data will be written for every terminal couple.
 
 \htsection{Parallelizations}
 
 The code has been parallelised in two main parts. The Non-equilibrium Green's
-functions are computed by distributing the energy points along the countour and
+functions are computed by distributing the energy points along the contour and
 real axis calculations. Contour and real axis integrations are independent and
 separately distributed. Load balancing has to be taken care by the user. For
 instance if ContourPoints = \{20 20\} and RealAxisPoints = 60, by setting 10 MPI
@@ -844,7 +844,7 @@ OMP\_NUM\_THREADS.
 The Poisson solver has not been parallelized yet. However the efficient
 multigrid solver does not typically represent a bottleneck. Currently the
 assembly of the charge density on the real-space grid and the projection of the
-potential on the atoms have been parallelized. Since gather of the charge
+potential onto the atoms have been parallelized. Since gather of the charge
 density on each node can easily hit communication bottlenecks the user can use
 the parameter \kw{MaxParallelNodes} to control distributions of these
 calculations. The default is \kw{MaxParallelNodes}=1, that can be increased
@@ -1055,12 +1055,12 @@ different length/thickness.
 
 \verb|makecube|
 
-This program can be used to convert the real-space  'potential.dat' or 
-'charge_density.dat' files computed on the poisson box to a cube file that can 
-be plotted using jmol. 
+This program can be used to convert the real-space \verb|potential.dat| or
+\verb|charge_density.dat| files computed on the poisson box to a cube file that
+can be plotted using jmol.
 
 \begin{verbatim}
- makecube potential.dat [-r refpot] [-b boxfile xfile yfile zfile] '
+ makecube potential.dat [-r refpot] [-b boxfile xfile yfile zfile]
 \end{verbatim}
 
 Optionals:
