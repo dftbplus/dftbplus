@@ -2150,9 +2150,13 @@ contains
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
   #:if WITH_TRANSPORT
+    if (tLatOpt .and. ( solver == solverGF .or. solver == solverOnlyTransport)) then
+      call error("Lattice optimisation currently incompatible with transport calculations")
+    end if
     call initTransport(env, input)
   #:else
     tPoisson = .false.
+    tNegf = .false.
   #:endif
 
     tWriteBandDat = tWriteBandDat .and. .not. tNegf
@@ -2965,6 +2969,13 @@ contains
           & tempElec, solver)
 
       ginfo = input%ginfo
+
+      if ((input%ctrl%tGeoOpt .or. input%ctrl%tMD .or. input%ctrl%tDerivs .or.&
+          & allocated(input%ctrl%socketInput)) .and. ( any&
+          & (input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
+          & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
+        call error("There are moving atoms specified outside of the device region")
+      end if
 
     end if
 
