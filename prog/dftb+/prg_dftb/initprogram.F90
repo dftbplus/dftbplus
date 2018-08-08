@@ -2976,6 +2976,10 @@ contains
           & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
         call error("There are moving atoms specified outside of the device region")
       end if
+    
+      if (input%ctrl%tLatOpt) then
+        call error("Lattice optimization is not currently possible with transport")
+      end if
 
     end if
 
