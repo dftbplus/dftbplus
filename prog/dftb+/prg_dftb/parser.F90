@@ -1336,9 +1336,19 @@ contains
     call getChildValue(node, "SKTableLength", truncationCutOff, -1.0_dp, modifier=modifier,&
         & child=field)
     call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+    ! Adjust by the length of the tail appended to the cutoff
+    select case(skInterMeth)
+    case(skEqGridOld)
+      truncationCutOff = truncationCutOff - distFudgeOld
+    case(skEqGridNew)
+      truncationCutOff = truncationCutOff - distFudge
+    end select
     if (truncationCutOff > 0.0_dp) then
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
           & skInterMeth, repPoly, truncationCutOff)
+    else if (truncationCutOff /= -1.0_dp) then
+      call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
+          & goes to 0")
     else
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
           & skInterMeth, repPoly)
