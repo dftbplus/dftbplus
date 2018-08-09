@@ -5,6 +5,16 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+Unreleased
+==========
+
+Fixed
+-----
+
+- Corrected erroneous Lennard-John-dispersion for periodic cases (broken since
+  release 1.3)
+
+
 18.1 (2018-03-02)
 =================
 
