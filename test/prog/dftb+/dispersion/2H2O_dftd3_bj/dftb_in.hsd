@@ -41,7 +41,7 @@ Hamiltonian = DFTB {
     s6 = 1.0
     s8 = 0.61
     Cutoff = 60
-    CutoffCN = 34 
+    CutoffCN = 34
     Threebody = Yes
   }
 }
@@ -52,7 +52,7 @@ Options {
 
 Analysis {
   CalculateForces = Yes
-}  
+}
 
 ParserOptions {
   ParserVersion = 6

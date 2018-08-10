@@ -27,7 +27,7 @@ Changed
 Fixed
 -----
 
-- Corrected erroneous Lennard-John-dispersion for periodic cases (broken since
+- Corrected erroneous Lennard-Jones-dispersion for periodic cases (broken since
   release 1.3)
 
 - Compilation when socket interface disabled.
