@@ -13,7 +13,6 @@ module sccinit
   use accuracy
   use io
   use message
-  use fileid
   use commontypes
   use charmanip
   implicit none
@@ -83,7 +82,7 @@ contains
         end if
       end do lpShell
       if (fAtomRes > 1e-4_dp) then
-        call error("Not enough orbitals on species '" // trim(speciesNames(iSp)) &
+        call error("Not enough orbitals on species '" // trim(speciesNames(iSp))&
             &// "' to hold specified atomic charges")
       end if
     end do
@@ -167,13 +166,20 @@ contains
     !> block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(out), optional :: qiBlock(:,:,:,:)
 
-    integer :: nOrb, nAtom, nSpin ! nr. of orbitals / atoms / spin channels
-    integer :: iErr               ! error returned by the io commands
-    integer, save :: file = -1     ! file unit number
+    !> nr. of orbitals / atoms / spin channels
+    integer :: nOrb, nAtom, nSpin
+
+    !> error returned by the io commands
+    integer :: iErr
+
+    !> file unit number
+    integer :: file
+
+    !> total charge is present at the top of the file
+    real(dp) :: CheckSum(size(qq, dim=3))
+
     integer :: iOrb, iAtom, iSpin, ii
     integer :: fileFormat
-    real(dp) :: CheckSum(size(qq, dim=3)) ! total charge is present at the top
-    ! of the file
     real(dp) :: sumQ
     logical :: tBlockPresent, tiBlockPresent
 
@@ -182,7 +188,8 @@ contains
 
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
-#:call ASSERT_CODE
+    
+  #:call ASSERT_CODE
     if (present(magnetisation)) then
       @:ASSERT(nSpin==2)
     end if
@@ -195,17 +202,12 @@ contains
       @:ASSERT(present(qBlock))
       @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
     end if
-#:endcall ASSERT_CODE
-
-    if (file == -1) then
-      file = getFileId()
-    end if
+  #:endcall ASSERT_CODE
 
     if (tReadAscii) then
-      open(file, file=trim(fileName)//'.dat', status='old', action='READ', &
-          & iostat=iErr)
+      open(newunit=file, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
     else
-      open(file, file=trim(fileName)//'.bin', status='old', action='READ', &
+      open(newunit=file, file=trim(fileName)//'.bin', status='old', action='READ',&
           & form='unformatted',iostat=iErr)
     end if
     if (iErr /= 0) then
@@ -215,11 +217,9 @@ contains
     rewind(file)
 
     if (tReadAscii) then
-      read(file, *, iostat=iErr)fileFormat,tBlockPresent,tiBlockPresent, &
-          & iSpin,CheckSum
+      read(file, *, iostat=iErr)fileFormat, tBlockPresent, tiBlockPresent, iSpin, CheckSum
     else
-      read(file, iostat=iErr)fileFormat,tBlockPresent,tiBlockPresent, &
-          & iSpin,CheckSum
+      read(file, iostat=iErr)fileFormat, tBlockPresent, tiBlockPresent, iSpin, CheckSum
     end if
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
@@ -251,15 +251,14 @@ contains
     end do
 
     if (any(abs(CheckSum(:) - sum(sum(qq(:,:,:),dim=1),dim=1))>elecTolMax))then
-      call error("Error during reading external file of charge data - " &
-          & // "checksum failure, probably damaged file")
+      call error("Error during reading external file of charge data - checksum failure, probably&
+          & damaged file")
     end if
     sumQ = sum(qq(:,:,1))
     if (present(nEl)) then
       if (abs(nEl - sumQ) >= 1e-3_dp) then
         write(error_string, 99000) sumQ, nEl
-99000   format ('External file of charges has a total charge:', &
-            &F18.6,', instead of ',F18.6)
+99000   format ('External file of charges has a total charge:', F18.6,', instead of ',F18.6)
         call error(error_string)
       end if
     end if
@@ -267,8 +266,7 @@ contains
       sumQ = sum(qq(:,:,2))
       if (abs(sumQ - magnetisation) >= 1e-3_dp) then
         write(error_string, 99010) sumQ, magnetisation
-99010   format ('External file of charges has a total magnetisation:', &
-            &F18.6,', instead of ',F18.6)
+99010   format ('External file of charges has a total magnetisation:', F18.6,', instead of ',F18.6)
         call error(error_string)
       end if
     end if
@@ -286,8 +284,7 @@ contains
                 read (file, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
               end if
               if (iErr /= 0) then
-                write (error_string, *) "Failure to read file for external &
-                    &block charges"
+                write (error_string, *) "Failure to read file for external block charges"
                 call error(error_string)
               end if
             end do
@@ -316,8 +313,7 @@ contains
                 read (file, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
               end if
               if (iErr /= 0) then
-                write (error_string, *) "Failure to read file for external &
-                    & imagninary block charges"
+                write (error_string, *) "Failure to read file for external imagninary block charges"
                 call error(error_string)
               end if
             end do
@@ -414,8 +410,7 @@ contains
               write(fd, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
-              write(error_string, *) "Failure to write file for external block&
-                  & charges"
+              write(error_string, *) "Failure to write file for external block charges"
               call error(error_string)
             end if
           end do

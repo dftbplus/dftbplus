@@ -15,7 +15,6 @@ module oldskdata
   use constants
   use repspline, only : TRepSplineIn
   use reppoly, only : TRepPolyIn
-  use fileid
   use message
   implicit none
   private
@@ -103,7 +102,7 @@ contains
     !> Repulsive polynomial part of the SK-file.
     type(TRepPolyIn), intent(out), optional :: repPolyIn
 
-    integer, save :: file = -1
+    integer :: file
     character(lc) :: chDummy
     logical :: tExtended
     integer :: nShell
@@ -115,10 +114,7 @@ contains
     @:ASSERT(present(repSplineIn) .eqv. present(iSp1))
     @:ASSERT(present(iSp1) .eqv. present(iSp2))
 
-    if (file == -1) then
-      file = getFileId()
-    end if
-    open(file, file=fileName, status="old", action="read", iostat=iostat)
+    open(newunit=file, file=fileName, status="old", action="read", iostat=iostat)
     call checkIoError(iostat, fileName, "Unable to open file")
     rewind(file)
 

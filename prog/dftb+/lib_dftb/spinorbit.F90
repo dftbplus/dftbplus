@@ -38,7 +38,7 @@ contains
     !> returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
 
-    !> Density matrix in Packed format
+    !> Density matrix in dense format
     complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix.

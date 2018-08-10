@@ -56,8 +56,8 @@ dispcommon.o = dispcommon.o $(common.fypp) $(_mod_constants) $(_mod_sorting) $(_
 _mod_dispcommon: dispcommon.o
 _mod_dispcommon = $(dispcommon.o)
 
-dispdftd3.o: _mod_dispiface _mod_accuracy common.fypp _mod_assert _mod_dftd3_module
-dispdftd3.o = dispdftd3.o $(_mod_dispiface) $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_dftd3_module)
+dispdftd3.o: common.fypp _mod_constants _mod_dftd3_module _mod_dispiface _mod_simplealgebra _mod_assert _mod_periodic _mod_accuracy
+dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_constants) $(_mod_dftd3_module) $(_mod_dispiface) $(_mod_simplealgebra) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
 _mod_dispdftd3_module: dispdftd3.o
 _mod_dispdftd3_module = $(dispdftd3.o)
 
@@ -128,6 +128,11 @@ forces.o = forces.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_e
 _mod_forces: forces.o
 _mod_forces = $(forces.o)
 
+h5correction.o: _mod_vdwdata common.fypp _mod_accuracy _mod_message
+h5correction.o = h5correction.o $(_mod_vdwdata) $(common.fypp) $(_mod_accuracy) $(_mod_message)
+_mod_h5correction: h5correction.o
+_mod_h5correction = $(h5correction.o)
+
 nonscc.o: _mod_commontypes common.fypp _mod_schedule _mod_message _mod_environment _mod_assert _mod_sk _mod_accuracy _mod_slakocont
 nonscc.o = nonscc.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_message) $(_mod_environment) $(_mod_assert) $(_mod_sk) $(_mod_accuracy) $(_mod_slakocont)
 _mod_nonscc: nonscc.o
@@ -179,19 +184,19 @@ _mod_repulsive: repulsive.o
 _mod_repulsive = $(repulsive.o)
 
 #:if WITH_SCALAPACK
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_mpifx _mod_scalapackfx
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_mpifx) $(_mod_scalapackfx)
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_h5correction _mod_mpifx _mod_scalapackfx
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_h5correction) $(_mod_mpifx) $(_mod_scalapackfx)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 #:else
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy)
+scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_h5correction
+scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_h5correction)
 _mod_scc: scc.o
 _mod_scc = $(scc.o)
 #:endif
 
-sccinit.o: _mod_commontypes common.fypp _mod_charmanip _mod_fileid _mod_assert _mod_message _mod_accuracy _mod_io
-sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_charmanip) $(_mod_fileid) $(_mod_assert) $(_mod_message) $(_mod_accuracy) $(_mod_io)
+sccinit.o: _mod_commontypes common.fypp _mod_message _mod_assert _mod_charmanip _mod_accuracy _mod_io
+sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_accuracy) $(_mod_io)
 _mod_sccinit: sccinit.o
 _mod_sccinit = $(sccinit.o)
 
@@ -258,4 +263,9 @@ thirdorder.o: _mod_commontypes common.fypp _mod_charges _mod_periodic _mod_asser
 thirdorder.o = thirdorder.o $(_mod_commontypes) $(common.fypp) $(_mod_charges) $(_mod_periodic) $(_mod_assert) $(_mod_shortgamma) $(_mod_accuracy)
 _mod_thirdorder_module: thirdorder.o
 _mod_thirdorder_module = $(thirdorder.o)
+
+vdwdata.o: _mod_message _mod_accuracy _mod_constants _mod_charmanip
+vdwdata.o = vdwdata.o $(_mod_message) $(_mod_accuracy) $(_mod_constants) $(_mod_charmanip)
+_mod_vdwdata: vdwdata.o
+_mod_vdwdata = $(vdwdata.o)
 

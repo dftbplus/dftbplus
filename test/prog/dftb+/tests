@@ -21,6 +21,7 @@ dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
+h-bonds/D3H5_water_dimer               #? WITH_DFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1
 non-scc/decapentaene                   #? MPI_PROCS <= 2
 scc/2H2O-3rdorder                      #? MPI_PROCS <= 1
@@ -39,8 +40,12 @@ spin/OH_commonFermi                    #? MPI_PROCS <= 1
 derivatives/Si_2_Richardson            #? MPI_PROCS <= 1
 geoopt/H2O-constr                      #? MPI_PROCS <= 1
 legacy/SiC_polyRep                     #? MPI_PROCS <= 1
+md/SiH-surface_restart                 #? MPI_PROCS <= 4
 scc/C4H8_3rdfull                       #? MPI_PROCS <= 1
 scc/C4H8_3rdfull-damp                  #? MPI_PROCS <= 1
+scc/CH2_n_3rdfull                      #? MPI_PROCS <= 1
+scc/CH2_n_3rdfull_damp                 #? MPI_PROCS <= 1
+scc/GaAs_2_restart                     #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
@@ -71,7 +76,8 @@ dftb+u/Fe4_read                        #? MPI_PROCS <= 2
 geoopt/Cchain_lattice_lbfgs            #? MPI_PROCS <= 1
 geoopt/Cchain_lattice                  #? MPI_PROCS <= 1
 scc/H2O+CH3COOH-3rdorder               #? MPI_PROCS <= 1
-spinorbit/Fe2                          #? MPI_PROCS <= 4
+spinorbit/Fe2                          #? MPI_PROCS <= 2
+analysis/Fe2_antiferromagnetic         #? MPI_PROCS <= 2
 non-scc/10-0Ctube_Efield               #? MPI_PROCS <= 4
 non-scc/10-10Ctube                     #? MPI_PROCS <= 4
 analysis/10-0Ctube_ESP                 #? MPI_PROCS <= 4
@@ -88,6 +94,11 @@ timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/OCH2-S1-Opt                    #? WITH_ARPACK and MPI_PROCS <= 1
+
+h-bonds/H5_defaults                    #? MPI_PROCS <= 2
+h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2
+h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 2
+h-bonds/D3H5_ice                       #? WITH_DFTD3 and MPI_PROCS <= 4
 
 md/Si_8_restart                        #? MPI_PROCS <= 1
 spin/GaAs_2                            #? MPI_PROCS <= 1
@@ -158,5 +169,5 @@ non-scc/Si_216                         #? MPI_PROCS <= 4
 md/ptcda-xlbomd-ldep                   #? MPI_PROCS <= 4
 geoopt/Vsi+O_lbfgs                     #? MPI_PROCS <= 4
 geoopt/Vsi+O                           #? MPI_PROCS <= 4
-scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 
+scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0
 scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0

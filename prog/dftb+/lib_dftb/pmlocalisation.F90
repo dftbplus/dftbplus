@@ -18,7 +18,7 @@ module pmlocalisation
   use sparse2dense, only :unpackHS
   use sorting
   use message
-  use periodic, only : TNeighborList
+  use periodic, only : TNeighbourList
   implicit none
   private
 
@@ -28,7 +28,7 @@ module pmlocalisation
   !> Input data for Pipek-Mezey calculator
   type :: TPipekMezeyInp
 
-    !> halting tollerance for localisation
+    !> halting tolerance for localisation
     real(dp) :: tolerance
 
     !> number of localisation iterations
@@ -48,7 +48,7 @@ module pmlocalisation
     !> tolerances for element neglect if instead using a sparse version of Pipek-Mezey localisation
     real(dp), allocatable :: sparseTols(:)
 
-    !> halting tollerance for localisation
+    !> halting tolerance for localisation
     real(dp) :: tolerance
 
     !> number of localisation iterations
@@ -137,7 +137,7 @@ contains
 
 
   !> Performs Pipek-Mezey localisation for a periodic system at a specified k-point.
-  subroutine calcCoeffsKPoint(this, ci, SSqrCplx, over, kPoint, neighborList, nNeighbor,&
+  subroutine calcCoeffsKPoint(this, ci, SSqrCplx, over, kPoint, neighbourList, nNeighbourSK,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Instance.
@@ -156,10 +156,10 @@ contains
     real(dp), intent(in) :: kPoint(:)
 
     !> neighbour list
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> number of neighbours
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> list of which image cells atoms outside the central cell fall into
     integer, intent(in) :: iCellVec(:)
@@ -176,7 +176,7 @@ contains
     !> index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    call PipekMezeyOld_kpoint(ci, SSqrCplx, over, kPoint, neighborList%iNeighbor, nNeighbor,&
+    call PipekMezeyOld_kpoint(ci, SSqrCplx, over, kPoint, neighbourList%iNeighbour, nNeighbourSK,&
         & iCellVec, cellVec, iAtomStart, iPair, img2CentCell, this%tolerance, this%maxIter)
 
   end subroutine calcCoeffsKPoint
@@ -204,7 +204,7 @@ contains
 
 
   !> Localisation value of square of Mulliken charges summed over all levels for each k-point.
-  function getLocalisationKPoint(ci, SSqrCplx, over, kpoint, neighborList, nNeighbor, &
+  function getLocalisationKPoint(ci, SSqrCplx, over, kpoint, neighbourList, nNeighbourSK,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)  result (locality)
 
     !> wavefunction coefficients
@@ -220,10 +220,10 @@ contains
     real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> number of neighbours
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> list of which image cells atoms outside the central cell fall into
     integer, intent(in) :: iCellVec(:)
@@ -243,8 +243,8 @@ contains
     !> Locality for current k-point
     real(dp) :: locality
 
-    locality = PipekMezyLocality_kpoint(ci, SSqrCplx, over, kpoint, neighborList%iNeighbor,&
-        & nNeighbor, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+    locality = PipekMezyLocality_kpoint(ci, SSqrCplx, over, kpoint, neighbourList%iNeighbour,&
+        & nNeighbourSK, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
   end function getLocalisationKPoint
 
@@ -268,7 +268,7 @@ contains
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
 
-    !> tollerance for halting localisation iterations
+    !> tolerance for halting localisation iterations
     real(dp), intent(in) :: pipekTol
 
     !> maximum number of iterations to use
@@ -394,7 +394,7 @@ contains
     !> Atom offset for the squared Hamiltonian
     real(dp), intent(in) :: convergence
 
-    !> tollerance for halting localisation iterations
+    !> tolerance for halting localisation iterations
     integer, intent(in), optional :: mIter
 
     !> maximum number of iterations to use
@@ -540,7 +540,7 @@ contains
           ! Find atomic sites that appear in both localised orbitals
           union = 0
           union(:nSitesLev(iLev1)) = SitesLev(:nSitesLev(iLev1),iLev1)
-          union(nSitesLev(iLev1)+1:nSitesLev(iLev1)+nSitesLev(iLev2)) = &
+          union(nSitesLev(iLev1)+1:nSitesLev(iLev1)+nSitesLev(iLev2)) =&
               & SitesLev(:nSitesLev(iLev2),iLev2)
           call heap_sort(union(:nSitesLev(iLev1)+nSitesLev(iLev2)))
           kk = unique(union,nSitesLev(iLev1)+nSitesLev(iLev2))
@@ -630,7 +630,7 @@ contains
                   end if
                 end do
                 if (.not.tPresent) then
-                  LevAtAtom(kk:nLevAtAtom(iAtom1)-1,iAtom1) = &
+                  LevAtAtom(kk:nLevAtAtom(iAtom1)-1,iAtom1) =&
                       & LevAtAtom(kk+1:nLevAtAtom(iAtom1),iAtom1)
                   nLevAtAtom(iAtom1) = nLevAtAtom(iAtom1) -1
                 end if
@@ -651,7 +651,7 @@ contains
                   end if
                 end do
                 if (.not.tPresent) then
-                  LevAtAtom(kk:nLevAtAtom(iAtom1)-1,iAtom1) = &
+                  LevAtAtom(kk:nLevAtAtom(iAtom1)-1,iAtom1) =&
                       & LevAtAtom(kk+1:nLevAtAtom(iAtom1),iAtom1)
                   nLevAtAtom(iAtom1) = nLevAtAtom(iAtom1) -1
                 end if
@@ -729,16 +729,15 @@ contains
     do iAtom = 1, nAtom
       iOrbStart = iAtomStart(iAtom)
       iOrbEnd = iAtomStart(iAtom+1) - 1
-      PipekMezyLocality = PipekMezyLocality &
-          & + sum(sum(Sci(iOrbStart:iOrbEnd,1:nLev),dim=1)**2)
+      PipekMezyLocality = PipekMezyLocality + sum(sum(Sci(iOrbStart:iOrbEnd,1:nLev),dim=1)**2)
     end do
 
   end function PipekMezyLocality_real
 
 
   !> Localisation value of square of Mulliken charges at a k-point
-  function PipekMezyLocality_kpoint(ci, S, over, kpoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
-      & iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
+  function PipekMezyLocality_kpoint(ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec,&
+      & cellVec, iAtomStart, iPair, img2CentCell)  result (PipekMezyLocality)
 
     !> wavefunction coefficients
     complex(dp), intent(in) :: ci(:,:)
@@ -753,10 +752,10 @@ contains
     real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> number of neighbours
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> list of which image cells atoms outside the central cell fall into
     integer, intent(in) :: iCellVec(:)
@@ -796,7 +795,7 @@ contains
 
     tmp = 0.0_dp
 
-    call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart,&
+    call unpackHS(S, over, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart,&
         & iPair, img2CentCell)
 
     call hemm(Sci,'L',S,ci,'L')
@@ -816,7 +815,7 @@ contains
 
   !> Performs conventional Pipek-Mezey localisation for a supercell using iterative sweeps over each
   !> pair of orbitals for a particular k and spin sub-matrix
-  subroutine PipekMezeyOld_kpoint(ci, S, over, kpoint, iNeighbor, nNeighbor, iCellVec, cellVec,&
+  subroutine PipekMezeyOld_kpoint(ci, S, over, kpoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iPair, img2CentCell, convergence, mIter)
 
     !> wavefunction coefficients
@@ -832,10 +831,10 @@ contains
     real(dp), intent(in) :: kpoint(:)
 
     !> neighbour list
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> number of neighbours
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> list of which image cells atoms outside the central cell fall into
     integer, intent(in) :: iCellVec(:)
@@ -852,7 +851,7 @@ contains
     !> index array back to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> tollerance for halting localisation iterations
+    !> tolerance for halting localisation iterations
     real(dp), intent(in) :: convergence
 
     !> maximum number of iterations to use
@@ -899,7 +898,7 @@ contains
     allocate(ciTmp2(nOrb))
 
     S = cmplx(0,0,dp)
-    call unpackHS(S, over, kPoint, iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair,&
+    call unpackHS(S, over, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart, iPair,&
         & img2CentCell)
 
     lpLocalise: do iIter = 1, nIter
@@ -972,11 +971,11 @@ contains
     !write(stdout, *)'Localisations at each k-point'
     !write(stdout, "(6E12.4)") &
     !    & PipekMezyLocality_kpoint(ci, S, over, kpoint, kweights, &
-    !    & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
+    !    & iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart, iPair, &
     !    & img2CentCell)
     !write(stdout, "(1X,A,E12.4)")'Total', &
     !    & sum(PipekMezyLocality_kpoint(ci, S, over, kpoint, kweights, &
-    !    & iNeighbor, nNeighbor, iCellVec, cellVec, iAtomStart, iPair, &
+    !    & iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart, iPair, &
     !    & img2CentCell))
 
     if (.not.tConverged) then

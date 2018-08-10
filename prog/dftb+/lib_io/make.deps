@@ -8,13 +8,13 @@ fileid.o = fileid.o $(_mod_message)
 _mod_fileid: fileid.o
 _mod_fileid = $(fileid.o)
 
-formatout.o: _mod_sparse2dense _mod_lapackroutines common.fypp _mod_globalenv _mod_constants _mod_message _mod_assert _mod_fileid _mod_environment _mod_accuracy
-formatout.o = formatout.o $(_mod_sparse2dense) $(_mod_lapackroutines) $(common.fypp) $(_mod_globalenv) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_fileid) $(_mod_environment) $(_mod_accuracy)
+formatout.o: _mod_sparse2dense _mod_lapackroutines common.fypp _mod_globalenv _mod_constants _mod_message _mod_assert _mod_environment _mod_accuracy
+formatout.o = formatout.o $(_mod_sparse2dense) $(_mod_lapackroutines) $(common.fypp) $(_mod_globalenv) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_accuracy)
 _mod_formatout: formatout.o
 _mod_formatout = $(formatout.o)
 
-hsdparser.o: common.fypp _mod_xmlutils _mod_message _mod_assert _mod_charmanip _mod_xmlf90 _mod_fileid
-hsdparser.o = hsdparser.o $(common.fypp) $(_mod_xmlutils) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_xmlf90) $(_mod_fileid)
+hsdparser.o: common.fypp _mod_xmlutils _mod_message _mod_assert _mod_charmanip _mod_xmlf90
+hsdparser.o = hsdparser.o $(common.fypp) $(_mod_xmlutils) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_xmlf90)
 _mod_hsdparser: hsdparser.o
 _mod_hsdparser = $(hsdparser.o)
 

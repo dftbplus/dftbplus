@@ -992,8 +992,7 @@ following properties:
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
-  \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{DampXHExponent} & r & DampXH = Yes & - & \\
+  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hbond}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -1266,9 +1265,9 @@ following properties:
 \subsection{Mixer}
 \label{sec:dftbp.Mixer}
 
-{\dftbp} currently offers the charge mixing methods \iscb{Broyden}
-(Broyden-mixer), \iscb{Anderson} (Anderson-mixer), \iscb{DIIS}
-(DIIS-accelerated simple mixer) and \iscb{Simple} (simple mixer).
+{\dftbp} currently offers the charge mixing methods \iscb{Broyden},
+\iscb{Anderson}, \iscb{DIIS} (DIIS accel\-er\-ated simple mixer) and
+\iscb{Simple} (simple mixer).
 
 \subsubsection{Broyden\{\}}
 \label{sec:dftbp.Broyden}
@@ -2140,7 +2139,8 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
+  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hbond}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2204,7 +2204,7 @@ A Slater-Kirkwood type dispersion model is also implemented in
 \dftbp{} as described in
 Ref.~\cite{elstner-jcp-114-5149}.\footnote{Please note, that
   Ref.~\cite{elstner-jcp-114-5149} contains two typos: equation (7)
-  should be read $C_6^{\alpha\beta} = \frac{2 C_6^\alpha C_6^\beta
+  should read $C_6^{\alpha\beta} = \frac{2 C_6^\alpha C_6^\beta
     p_\alpha p_\beta}{p_\alpha^2 C_6^\beta + p_\beta^2 C_6^\alpha}$,
   in equation (9) the contribution from the dispersion should be
   $E_{\text{dis}} = -\frac{1}{2} \sum_{\alpha\beta}
@@ -2392,6 +2392,7 @@ Example using zero-damping:
   }
 \end{verbatim}
 
+\subsubsection{DftD3 optional settings}
 Apart from the functional dependent dispersion parameters, you can also adjust
 the additional parameters as shown below. The default values for these
 parameters are taken to be the same as in the dftd3 code.
@@ -2400,6 +2401,7 @@ parameters are taken to be the same as in the dftd3 code.
   \kw{Cutoff} & r & & $\sqrt{9000}$ & \\
   \kw{CutoffCN} & r & & $40$ & \\
   \kw{Threebody} & l & & No & \\
+  \kw{HHRepulsion} & l & & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when calculating
@@ -2411,34 +2413,25 @@ parameters are taken to be the same as in the dftd3 code.
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
 
+\item[\is{HHRepulsion}] Required when calculating the
+  DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
+  section~\ref{sec:dftbp.hbond} for details and parameter values). This keyword
+  enables an additional short range repulsion term in all hydrogen--hydrogen
+  pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
+  closely together.
 \end{description}
-
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}
+\index{DFTB3}
 
 If you would like to use what is called ``DFTB3'' in some publication(s)
 \cite{gauss-jctc-7-931}, this group of options include the relevant
-modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
-  you will need to set \is{{ThirdOrderFull} = Yes}, \is{DampXH = Yes} and set
-  the exponents in \is{DampXHExponent} }.
+modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3
+  model} you will need to set \is{{ThirdOrderFull} = Yes} and damp H--X the
+interactions (see Section \ref{sec:dftbp.hbond}).
 
 \begin{description}
-
-\item[\is{DampXH}] If set to \is{Yes} the short range contribution to the SCC
-  interaction between atoms $A$ and $B$ is damped by the factor
-  \begin{equation*}
-    e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
-  \end{equation*}
-  provided that at least one of the two atoms is hydrogen
-  \cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are the
-  Hubbard Us of the two atoms for the $l$-shell, $r_{AB}$ is the distance
-  between the atoms.) An atom is considered to be a hydrogen-like atom, if its
-  mass (stored in the appropriate homonuclear SK-file) is less than 3.5 amu. The
-  parameter $\zeta$ can be set with the keyword \is{DampXHExponent}.
-
-\item[\is{DampXHExponent}] Sets the parameter $\zeta$ for the short range
-  damping. (See keyword \is{DampXH} above.)
 
 \item[\is{ThirdOrder}] If set to \is{Yes} the \textit{on-site} 3rd order
   correction \cite{yang-JPCA-111-10861} is switched on. This corrects the
@@ -2468,7 +2461,144 @@ Hamiltonian = DFTB {
   }
   :
 }
+\end{verbatim}
+\end{description}
 
+\subsection{Hydrogen bond corrections}
+\label{sec:dftbp.hbond}
+
+There are currently two available methods to correct hydrogen bond interactions
+in the \is{HBondCorrection} environment:
+
+\subsubsection{Damping}
+\index{sec:Damp X-H}
+
+The \is{Damping} method modifies the short range contribution to the SCC
+interaction between atoms $A$ and $B$ with the damping factor
+\begin{equation*}
+  e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
+\end{equation*}
+provided that at least one of the two atoms is
+hydrogen~\cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are
+the Hubbard U values of the two atoms for the $l$-shell, $r_{AB}$ is the
+distance between the atoms.) An atom is considered to be a hydrogen-like atom,
+if its mass (stored in the appropriate homonuclear SK-file) is less than 3.5
+amu.  The \is{Exponent} keyword in this environment sets the parameter $\zeta$
+for the short range damping:
+\begin{verbatim}
+HBondCorrection = Damping {
+  Exponent = 4.05
+}
+\end{verbatim}
+Table 2 of reference~\cite{gauss-jctc-7-931} gives suggested values of the
+exponent for different DFTB2 and DFTB3 models applied to light atoms bonded to
+hydrogen.
+
+\subsubsection{DFTB3-D3H5}
+\index{sec:DFTB3-D3H5}
+
+DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with additional
+corrections for non-covalent interactions (dispersion and hydrogen bonds).  It
+consists of a third-order DFTB calculation using the 3OB parameter set, but
+where the gamma-function damping (\is{Damping} method above) is replaced by the
+H5 correction and an additional D3 dispersion correction in included. This
+method also includes a repulsive term which is added to prevent unphysically
+close approach of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
+
+Setting the \is{HBondCorrection} environment to \iscb{H5} activates this
+correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
+parameters are provided in the input, suitable values for H-\{O,N,S\} systems
+are used (the correction was developed for the DFTB3/3OB model and parameters).
+\begin{verbatim}
+HBondCorrection = H5 {}
+\end{verbatim}
+
+\textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
+involving the terminal nitrogen of an azide group, and the published results in
+Ref.~\cite{rezac-jctc-13-2017} were obtained with the H5 correction switched off
+for these specific atoms. To reproduce this behavior in a system containing
+nitrogen in several environments, a new atom type with a different name but the
+same DFTB parameters can be used for specific N atoms to which the correction
+should not be applied.
+
+If you want to specify the parameters manually, \is{H5} accepts following
+options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
+\begin{ptable}
+  \kw{RScaling} & r & & 0.714 & \\
+  \kw{WScaling} & r & & 0.25 & \\
+  \kw{H5Scaling} & m & &  & \\
+\end{ptable}
+\begin{description}
+\item[\is{RScaling}] Global scaling factor, $s_r$, when calculating the position
+  of the correcting gaussian functions:
+  \begin{equation*}
+    r_0 = s_r \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right) \text.
+  \end{equation*}
+
+\item[\is{WScaling}] Global scaling factor, $s_W$, when calculating the width of
+  the correcting gaussian functions. The full-width at at half-maximum of the
+  gaussian, $w$, is normalised to be 1 for a unit value of \is{WScaling}:
+  \begin{equation*}
+   w = \frac{s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right)}{2\sqrt{2 \ln
+       2}} \text.
+  \end{equation*}
+
+\item[\is{H5Scaling}] Atom type specific scaling pre-factor, $k_{X\text{H}}$, of
+  the correcting gaussian functions when calculating the SCC-interaction:
+  \begin{equation*}
+    \gamma_{X\text{H}}^{\text{H5}} = \gamma_{X\text{H}} \left( 1 + k_{X\text{H}}
+    \exp\left(-\frac{\left(r_{X\text{H}} - r_0\right)^2}{2w^2}\right)\right)
+    \text.
+  \end{equation*}
+  You will have to specify one value for each of the chemical species you would
+  like to correct (see the example below). Explicitly setting a negative value
+  (e.g. \is{-1.0}) for a given atom type switches off the correction for
+  hydrogen bonds involving that type of atom. In the special cases of N, O or S,
+  if you do not specify a value (and do not disable the contribution by using
+  \is{-1.0}), the default value from the reference paper will be
+  used~\cite{rezac-jctc-13-2017}. For any other omitted atom types, the code
+  defaults to a choice of \is{-1.0} (no correction).
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  HBondCorrection = H5 {
+    RScaling = 0.714
+    WScaling = 0.25
+    H5Scaling {
+      O = 0.06
+      N = 0.18
+      S = 0.21
+    }
+  }
+  :
+}
+\end{verbatim}
+
+\textbf{Note:} The van der Waals radii ($r_\text{vdW}$) of atoms are also
+required. \dftbp{} stores these for most of the periodic table, but for cases
+that are not available their contribution to this correction are neglected.
+
+For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
+has to be used. In addition to setting up appropriate values of the D3
+parameters, as discussed in Ref.~\cite{rezac-jctc-13-2017}, the
+hydrogen--hydrogen repulsion of Ref.~\cite{rezac-jctc-8-2012} has to also be
+activated. The complete input is:
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  Dispersion = DftD3 {
+    Damping = ZeroDamping {
+      sr6 = 1.25
+      alpha6 = 29.61
+    }
+    s6 = 1.0
+    s8 = 0.49
+    HHRepulsion = Yes
+  }
+  :
+}
 \end{verbatim}
 
 \subsection{Differentiation}
@@ -2527,8 +2657,6 @@ Example:
 \begin{verbatim}
 ForceEvaluation = 'dynamics'
 \end{verbatim}
-
-\end{description}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2734,11 +2862,11 @@ maximised. The resulting localised states are output as
 appendix~\ref{sec:dftbp.eigenvec} for \verb|eigenvec.out| and \verb|eigenvec.bin|.
 
 \begin{ptable}
-  \kw{Tollerance} & r &  & 1E-4 & \\
+  \kw{Tolerance} & r &  & 1E-4 & \\
   \kw{MaxIterations} & i &  & 100 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Tollerance}] Cut off for rotations in the localisation process.
+\item[\is{Tolerance}] Cut off for rotations in the localisation process.
 \item[\is{MaxIterations}] Maximum number of total sweeps to perform.
 \end{description}
 
@@ -2748,7 +2876,7 @@ Analysis = {
   Localise = {
     PipekMezey = {
        # These are the default options, which are also set if the bracket is left empty.
-       Tollerance = 1.0E-4
+       Tolerance = 1.0E-4
        MaxIterations = 100
     }  
   }
@@ -2762,12 +2890,12 @@ method which {\em may} have better scaling properties.
 
 \begin{ptable}
   \kw{Dense} & l & & \is{No} & \\
-  \kw{SparseTollerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
+  \kw{SparseTolerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
 \end{ptable}
 \begin{description}
 \item[\is{Dense}] Selects the conventional method (\is{Yes}) using Jacobi sweeps
   over all orbital pairs or (\is{No}) uses the default sparse method.
-\item[\is{SparseTollerances}] The sparse method introduces support regions during
+\item[\is{SparseTolerances}] The sparse method introduces support regions during
   evaluation to increase performance, and these requires a set of tolerances to
   determine the regions to be used (these are listed in decreasing order, i.e.,
   with tighter tolerances as the localisation proceeds).
@@ -2932,10 +3060,11 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
     contains the natural orbitals for the specified excited state.
 
-  \item[\is{TotalStateCoeffs}] Option to control the data written for either \is{WriteCoefficients}
-    or \is{WriteEigenvectors}. If set to \is{No} the total charge density of the output orbitals
-    corresponds to the change in charge from the ground to excited state. If set to \is{Yes} instead
-    it corresponds to the total charge density in the excited state.
+  \item[\is{TotalStateCoeffs}] Option to control data from
+    \is{WriteCoefficients} or \is{WriteEigenvectors}. If set to \is{No} the
+    total charge density of the output orbitals corresponds to the change in
+    charge from the ground to excited state. If set to \is{Yes} instead it
+    corresponds to the total charge density in the excited state.
 
   \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is created. This file contains the
     RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all excited states (c.f., Eqn.~(18) in
@@ -3073,7 +3202,7 @@ label               :type:shape:
 The variable type is real, complex, integer or logical. The shape information is
 \newline :ndim: size$_1$,size$_2$,$\ldots$,size$_{ndim}$:\newline where ndim is
 the number of dimensions, organised with the Fortran convention and of size
-size$_1 \times$size$_2 \times$size$_2 \times \ldots$.
+size$_1$ $\times$size$_2$ $\times$size$_2$ $\times \ldots$.
 
 In the special case of scalar variables the shape is :0:.
 
@@ -3319,7 +3448,7 @@ with its fractional contribution to the full excited state are given.
 
 General format:
 
-\begin{tabular}{|l|l|}
+\begin{tabular}{|l|p{5.5cm}|}
 \hline
 {\small T F                                }&Legacy flags\\
 {\small   1  1.9999926523  2.0000000000    }&level 1, fraction of total WF, 2.0\\

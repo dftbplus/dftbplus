@@ -247,7 +247,7 @@ contains
 
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine LinResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
-      & coords0, sccCalc, dqAt, species0, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged,&
+      & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
       & excEnergy)
 
     !> data structure with additional linear response values
@@ -287,7 +287,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> folding back to the central cell
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> data type with atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -306,24 +306,23 @@ contains
     @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
     call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
         & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0,&
-        & this%HubbardU, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged,&
+        & this%HubbardU, this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged,&
         & fdTagged, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
         & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,  this%fdArnoldiDiagnosis,&
         & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
         & this%oscillatorWindow, excEnergy)
 
 #:else
-    call error('Internal error: Illegal routine call to &
-        &LinResp_calcExcitations')
+    call error('Internal error: Illegal routine call to LinResp_calcExcitations')
 #:endif
 
   end subroutine LinResp_calcExcitations
 
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
-  subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling, &
-      & coords0, sccCalc, dqAt, species0, iNeighbor, img2CentCell, orb, skHamCont, skOverCont, &
-      & tWriteTagged, fdTagged, excEnergy, excgradient, derivator, rhoSqr, occNatural, &
+  subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
+      & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
+      & tWriteTagged, fdTagged, excEnergy, excgradient, derivator, rhoSqr, occNatural,&
       & naturalOrbs)
 
     !> is this a spin-polarized calculation
@@ -360,7 +359,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> index array for atoms within cutoff distances
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> folding to central cell (not really needed for non-periodic systems)
     integer, intent(in) :: img2CentCell(:)
@@ -414,22 +413,22 @@ contains
     shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
     if (allocated(occNatural)) then
-      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
-          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU, &
-          & this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
-          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans, &
-          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis, &
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow, &
-          & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, &
+      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
+          & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
+          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient,&
           & derivator, rhoSqr, occNatural, naturalOrbs)
     else
-      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, &
-          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU, &
-          & this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged, &
-          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans, &
-          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis, &
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow, &
-          & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient, &
+      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
+          & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
+          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, excEnergy, shiftPerAtom, skHamCont, skOverCont, excgradient,&
           & derivator, rhoSqr)
     end if
 
