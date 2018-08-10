@@ -999,6 +999,7 @@ following properties:
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & & & \\
+  \kw{TruncateSKRange} & p & & & \\
   \hline
 \end{ptable}
 
@@ -1256,6 +1257,39 @@ following properties:
   \begin{verbatim}
   CustomisedHubbards {
     Si = 0.32 0.24
+  }
+  \end{verbatim}
+
+\item[\is{TruncateSKRange}] Enables overriding of the number of elements to be
+  read from the Slater-Koster parameters, shortening the interaction range of
+  atoms. 
+
+  \textbf{Warning:} This option is for experts only! Overriding values stored in
+  the SK-files may result in \textbf{inconsistent results}. Make sure you
+  understand the consequences when using this option.
+  
+  \begin{ptable}
+    \kw{SKMaxDistance} & r &  & -- & \\
+    \kw{HardCutOff} & l &  & No & \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{SKMaxDistance}]\modif{\modtype{length}} Length at which to cut the
+      overlap and non-SCC interactions for all atoms in the system. If this
+      length is longer than the distances in the Slater-Koster files it will
+      have no effect.
+    \item[\is{HardCutOff}] The Slater-Koster interpolation \dftbp{} produces
+      will smoothly tail off to zero at a short distance beyond the table, which
+      is controlled by \kw{OldSKInterpolation}. If \kw{HardCutOff} is set to
+      \kw{Yes}, then the distance set by \kw{SKMaxDistance} includes this tail,
+      i.e., no interactions occur beyond that distance. In the case of \kw{No}
+      this zeroing tail extends slightly beyond the \kw{HardCutOff} distance.
+  \end{description}
+  
+  Example:
+  \begin{verbatim}
+  TruncateSKRange = {
+    SKMaxDistance [AA] = 4.0
+    HardCutOff = Yes
   }
   \end{verbatim}
 

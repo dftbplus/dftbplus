@@ -1333,16 +1333,26 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
-    call getChildValue(node, "SKTableLength", truncationCutOff, -1.0_dp, modifier=modifier,&
-        & child=field)
-    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
-    ! Adjust by the length of the tail appended to the cutoff
-    select case(skInterMeth)
-    case(skEqGridOld)
-      truncationCutOff = truncationCutOff - distFudgeOld
-    case(skEqGridNew)
-      truncationCutOff = truncationCutOff - distFudge
-    end select
+    call getChild(node, "TruncateSKRange", child, requested=.false.)
+    if (associated(child)) then
+      call warning("Artificially truncating the SK table, this is normally a bad idea!")
+      ! Artificially truncate the SK table
+      call getChildValue(child, "SKMaxDistance", truncationCutOff, -1.0_dp, modifier=modifier,&
+          & child=field)
+      call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+      call getChildValue(child, "HardCutOff", tFound, .true.)
+      if (tFound) then
+        ! Adjust by the length of the tail appended to the cutoff
+        select case(skInterMeth)
+        case(skEqGridOld)
+          truncationCutOff = truncationCutOff - distFudgeOld
+        case(skEqGridNew)
+          truncationCutOff = truncationCutOff - distFudge
+        end select
+      end if
+    else
+      truncationCutOff = -1.0_dp
+    end if
     if (truncationCutOff > 0.0_dp) then
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
           & skInterMeth, repPoly, truncationCutOff)
@@ -2389,7 +2399,7 @@ contains
         ! Add H/S tables to the containers for iSp1-iSp2
         dist = skData12(1,1)%dist
         if (present(truncationCutOff)) then
-          nEntries = nint(truncationCutOff / dist)
+          nEntries = floor(truncationCutOff / dist)
           nEntries = min(nEntries, size(skData12(1,1)%skHam, dim=1))
         else
           nEntries = size(skData12(1,1)%skHam, dim=1)
