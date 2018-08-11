@@ -386,7 +386,7 @@ contains
             & nSpin, qOutput, velocities)
       end if
 
-      call printEnergies(energy)
+      call printEnergies(energy, TS)
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
@@ -628,7 +628,7 @@ contains
           & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(resultsTag, energy, E0, Eband, derivs, chrgForces, tStress, totalStress,&
+      call writeResultsTag(resultsTag, energy, TS, derivs, chrgForces, tStress, totalStress,&
           & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
     end if
     if (tWriteDetailedXML) then

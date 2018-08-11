@@ -1980,8 +1980,8 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, E0, Eband, derivs, chrgForces, tStress, totalStress,&
-      & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
+  subroutine writeResultsTag(fileName, energy, TS, derivs, chrgForces, tStress,&
+      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1989,11 +1989,8 @@ contains
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
 
-    !> Energy extrapolated to zero temperature
-    real(dp), intent(in) :: E0(:)
-
-    !> Band structure energy
-    real(dp), intent(in) :: Eband(:)
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2034,7 +2031,9 @@ contains
 
     call writeTagged(fd, tag_freeEgy, energy%EMermin)
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
-    call writeTagged(fd, tag_egy0Total, energy%EMermin -sum(Eband) + sum(E0) )
+
+    ! extrapolated zero temperature energy
+    call writeTagged(fd, tag_egy0Total, energy%EMermin + 0.5_dp * sum(TS))
 
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
@@ -2666,6 +2665,8 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
+    write(fd, format2U) 'Extrapolated to 0', energy%Etotal - 0.5_dp*sum(TS), 'H',&
+        & (energy%Etotal - 0.5_dp*sum(TS)) * Hartree__eV, 'eV'
     write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
         & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
     if (tPeriodic .and. pressure /= 0.0_dp) then
@@ -3605,13 +3606,18 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy)
+  subroutine printEnergies(energy, TS)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
 
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+    write(stdOut, format2U) "Extrapolated to 0", energy%Etotal - 0.5_dp*sum(TS), "H",&
+        & (energy%Etotal - 0.5_dp*sum(TS)) * Hartree__eV, "eV"
     write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
         & Hartree__eV * energy%EMermin," eV"
 
