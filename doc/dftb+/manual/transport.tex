@@ -151,6 +151,10 @@ The Device blocks contains the following properties:
   \kw{Potential} & r &  & 0.0 & \\
   \kw{WideBand} & l & & No & \\
   \kw{LevelSpacing} & r & WideBand = Yes & 0.735 & \\
+  \kw{WriteSelfEnergy} & l & & No & \\
+  \kw{ReadSelfEnergy} & l & & No & \\
+  \kw{ReadSurfaceGF} & l & & No & \\
+  \kw{WriteSurfaceGF} & l & & No & \\
   \hline
 \end{ptable}
 
@@ -187,6 +191,16 @@ PLs.
   example, the DOS of gold at the Fermi level is 0.05~ev$^{-1}$atom$^{-1}$,
   which corresponds to an energy spacing of 20~eV $\approx$0.735~Hartree (the
   default value).
+\item[\is{WriteSelfEnergy}] Write the contact's self energy to a binary file
+  matching its \is{contactId} and called \verb|contactId-SelfEnergy.mgf|.
+\item[\is{ReadSelfEnergy}] Read the contact's self energy from a binary file
+  matching its \is{contactId} and called \verb|contactId-SelfEnergy.mgf|.
+\item[\is{ReadSurfaceGF}] Read the contact's retarded Green's function from a
+  binary file matching its \is{contactId} and called
+  \verb|contactId-SurfaceGF.mgf|.
+\item[\is{WriteSurfaceGF}] Write the contact's retarded Green's function to a
+  binary file matching its \is{contactId} and called
+  \verb|contactId-SurfaceGF.mgf|.
 \end{description}
 
 \htcbsubsection{Task = ContactHamiltonian} \label{Task} The \is{Task} option is
@@ -394,9 +408,9 @@ only.
 \item[\is{ReadSurfaceGFs}] Allow to load surface Green's function from file also
   at the first SCC cycle. Note that this operation only makes sense if the
   energy integration points are identical to the calculation used to generate
-  the surface Green's function files. The code do not verify whether this
-  condition s fulfilled. In general there is no need to modify this default for
-  \kw{ReadSurfaceGS} and \kw{SaveSurfaceGS}.
+  the surface Green's function files. The code does not verify whether this
+  condition is fulfilled. In general there is no need to modify this default for
+  \kw{ReadSurfaceGFs} and \kw{SaveSurfaceGFs}.
 
 Note: the Green solver can be used also to calculate the density matrix when
 there is no open boundary conditions, for example to take advantage of the

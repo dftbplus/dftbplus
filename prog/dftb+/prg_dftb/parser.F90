@@ -3816,20 +3816,14 @@ contains
 
     call getChildValue(pNode, "LocalCurrents", greendens%doLocalCurr, .false.)
     call getChildValue(pNode, "Verbosity", greendens%verbose, 51)
-    call getChildValue(pNode, "Delta", greendens%delta, &
-        & 1.0e-5_dp, modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, &
-        &greendens%delta)
+    call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modif, child=field)
+    call convertByMul(char(modif), energyUnits, field, greendens%delta)
     call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .true.)
-    call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, &
-        & .false.)
-    call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), &
-        & [ 20, 20 ])
+    call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, .false.)
+    call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), [ 20, 20 ])
     call getChildValue(pNode, "EnclosedPoles",  greendens%nPoles, 3)
-    call getChildValue(pNode, "LowestEnergy", greendens%enLow, &
-        & -2.0_dp, modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, &
-        & greendens%enLow)
+    call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modif, child=field)
+    call convertByMul(char(modif), energyUnits, field, greendens%enLow)
     call getChildValue(pNode, "FermiCutoff", greendens%nkT, 10)
       ! Fermi energy had not been set by other means yet
 
@@ -4692,23 +4686,10 @@ contains
         end if
         call destruct(fermiBuffer)
         call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
-        !DAR begin - readContacts
-        call getChildValue(pNode, "WriteSelfenergy", contacts(ii)%tWriteSelfEnergy, .false.)
-        call getChildValue(pNode, "ReadSelfenergy", contacts(ii)%tReadSelfEnergy, .false.)
+        call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
+        call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
         call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
         call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
-        !write(stdout,"('Name of contact ',I0,' : ',A)")ii,contacts(ii)%name
-        !write(stdout,"('   AtomRange           = ',I6,I6)")contacts(ii)%idxrange
-        !write(stdout,"('   Temperature         = ',F12.6)")contacts(ii)%kbT
-        !write(stdout,"('   Potential           = ',F12.6)")contacts(ii)%potential
-        !write(stdout,"('   tWideBand           = ',L12)")contacts(ii)%wideBand
-        !write(stdout,"('   LevelSpacing        = ',F12.6)")contacts(ii)%wideBandDos
-        !write(stdout,"('   FermiLevel          = ',F12.6)")contacts(ii)%eFermi
-        !write(stdout,"('   tWriteSelfEnergy    = ',L12)")contacts(ii)%tWriteSelfEnergy
-        !write(stdout,"('   tReadSelfEnergy     = ',L12)")contacts(ii)%tReadSelfEnergy
-        !write(stdout,"('   tWriteSurfaceGF     = ',L12)")contacts(ii)%tWriteSurfaceGF
-        !write(stdout,"('   tReadSurfaceGF      = ',L12)")contacts(ii)%tReadSurfaceGF
-        !DAR end
       end if
 
     end do
@@ -4873,14 +4854,14 @@ contains
       end do
     end if
 
-    !! Temporarily I do not support surface green function read/load
-    !! for spin polarized, because I manage spin out of libnegf
+    !! Temporarily not supporting surface green function read/load
+    !! for spin polarized, because spin is handled outside of libnegf
     if (input%ginfo%greendens%defined) then
       if (input%ctrl%tSpin .and. input%ginfo%greendens%saveSGF) then
-        call error("SaveSurfaceGS must be disabled in collinear spin calculations")
+        call error("SaveSurfaceGFs must be disabled in collinear spin calculations")
       end if
       if  (input%ctrl%tSpin .and. input%ginfo%greendens%readSGF) then
-        call error("ReadSurfaceGS must be disabled in collinear spin calculations")
+        call error("ReadSurfaceGFs must be disabled in collinear spin calculations")
       end if
     end if
 

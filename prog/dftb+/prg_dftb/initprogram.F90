@@ -989,6 +989,9 @@ contains
     integer, external :: omp_get_thread_num, omp_get_num_threads
     integer, external :: omp_get_thread_limit, omp_get_max_threads
 
+    !> Is the check-sum for charges read externally be used?
+    logical :: tSkipChrgChecksum
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1962,6 +1965,25 @@ contains
 
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
 
+  #:if WITH_TRANSPORT
+    ! whether tunneling is computed
+    tTunn = input%ginfo%tundos%defined
+
+    ! Do we use any part of negf (solver, tunn etc.)?
+    tNegf = (solver .eq. solverGF) .or. tTunn
+  #:else
+
+    tTunn = .false.
+    tNegf = .false.
+
+  #:endif
+
+    if (tReadChrg) then
+      tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
+    else
+      tSkipChrgChecksum = .false.
+    end if
+
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -1972,7 +1994,7 @@ contains
       if (tReadChrg) then
         if (tDFTBU) then
           if (nSpin == 2) then
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+            if (tFixEf .or. tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
@@ -1981,7 +2003,7 @@ contains
             end if
           else
             if (tImHam) then
-              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              if (tFixEf .or. tSkipChrgChecksum) then
                 ! do not check charge or magnetisation from file
                 call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
@@ -1990,7 +2012,7 @@ contains
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
-              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              if (tFixEf .or. tSkipChrgChecksum) then
                 ! do not check charge or magnetisation from file
                 call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn)
@@ -2003,7 +2025,7 @@ contains
         else
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+            if (tFixEf .or. tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
@@ -2011,7 +2033,7 @@ contains
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+            if (tFixEf .or. tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
@@ -2033,7 +2055,7 @@ contains
         else
           qInput(:,:,:) = q0
         end if
-        if (.not. input%ctrl%tSkipChrgChecksum) then
+        if (.not. tSkipChrgChecksum) then
           ! Rescaling to ensure correct number of electrons in the system
           qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
         end if
@@ -2051,7 +2073,8 @@ contains
                   & * input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
             end do
           else
-            if (.not. input%ctrl%tSkipChrgChecksum) then
+            if (.not. tSkipChrgChecksum) then
+              ! Rescaling to ensure correct number of electrons in the system
               do ii = 1, nAtom
                 qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
                     & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
@@ -2066,7 +2089,8 @@ contains
             if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then
               call error("Incorrect shape initialSpins array!")
             end if
-            if (.not. input%ctrl%tSkipChrgChecksum) then
+            if (.not. tSkipChrgChecksum) then
+              ! Rescaling to ensure correct number of electrons in the system
               do ii = 1, nAtom
                 do jj = 1, 3
                   qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
@@ -2914,14 +2938,11 @@ contains
     if (solver == solverOnlyTransport .and. .not.tSccCalc) then
       tUpload = .false.
     end if
-    ! whether tunneling is computed
-    tTunn = input%ginfo%tundos%defined
+
     ! contact calculation (complementary to Upload)
     tContcalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
     ! whether local currents are computed
     tLocalCurrents = input%ginfo%greendens%doLocalCurr
-    ! Do we use any part of negf (solver, tunn etc.)?
-    tNegf = (solver .eq. solverGF) .or. tTunn
 
     if (nSpin <=2) then
       nSpinChannels = nSpin
