@@ -2981,13 +2981,15 @@ contains
 
       ginfo = input%ginfo
 
-      if ((input%ctrl%tGeoOpt .or. input%ctrl%tMD .or. input%ctrl%tDerivs .or.&
-          & allocated(input%ctrl%socketInput)) .and. ( any&
-          & (input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
-          & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
-        call error("There are moving atoms specified outside of the device region")
+      if (allocated(input%ctrl%indMovedAtom)) then
+        if ((input%ctrl%tGeoOpt .or. input%ctrl%tMD .or. input%ctrl%tDerivs .or.&
+            & allocated(input%ctrl%socketInput)) .and. ( any&
+            & (input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
+            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
+          call error("There are moving atoms specified outside of the device region")
+        end if
       end if
-    
+
       if (input%ctrl%tLatOpt) then
         call error("Lattice optimization is not currently possible with transport")
       end if
