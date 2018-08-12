@@ -178,7 +178,11 @@ contains
 
     ! Geometry driver
     call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
+  #:if WITH_TRANSPORT
+    call readDriver(tmp, child, input%geom, input%ctrl, input%transpar)
+  #:else
     call readDriver(tmp, child, input%geom, input%ctrl)
+  #:endif
 
     ! excited state options
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
@@ -313,7 +317,11 @@ contains
 
 
   !> Read in driver properties
+#:if WITH_TRANSPORT
+  subroutine readDriver(node, parent, geom, ctrl, transpar)
+#:else
   subroutine readDriver(node, parent, geom, ctrl)
+#:endif
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -327,11 +335,27 @@ contains
     !> Nr. of atoms in the system
     type(control), intent(inout) :: ctrl
 
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+  #:endif
+
     type(fnode), pointer :: child, child2, child3, value, value2, field
 
     type(string) :: buffer, buffer2, modifier
   #:if WITH_SOCKETS
     character(lc) :: sTmp
+  #:endif
+
+    ! range of default atoms to move
+    character(mc) :: atomsRange
+
+    atomsRange = "1:-1"
+  #:if WITH_TRANSPORT
+    if (transpar%defined) then
+      ! only those atoms in the device region
+      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
+    end if
   #:endif
 
     ctrl%tGeoOpt = .false.
@@ -372,7 +396,7 @@ contains
         end if
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
-      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
           &child, ctrl%indMovedAtom)
@@ -428,7 +452,7 @@ contains
         end if
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
-      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
           &child, ctrl%indMovedAtom)
@@ -483,7 +507,7 @@ contains
         end if
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
-      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
           &child, ctrl%indMovedAtom)
@@ -533,7 +557,7 @@ contains
         end if
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
-      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
           &child, ctrl%indMovedAtom)
@@ -573,7 +597,7 @@ contains
 
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
-      call getChildValue(node, "Atoms", buffer2, "1:-1", child=child, &
+      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species, &
           &child, ctrl%indMovedAtom)
@@ -593,7 +617,7 @@ contains
       ctrl%tMD = .true.
 
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
-      call getChildValue(node, "MovedAtoms", buffer2, "1:-1", child=child, &
+      call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
       call convAtomRangeToInt(char(buffer2), geom%speciesNames, geom%species,&
           &child, ctrl%indMovedAtom)
