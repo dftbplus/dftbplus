@@ -280,7 +280,8 @@ contains
         exit lpGeomOpt
       end if
 
-      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
+      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+          & tNegf)
 
       call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -1396,7 +1397,8 @@ contains
 
 
   !> Initialise basic variables before the scc loop.
-  subroutine initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged)
+  subroutine initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+      & tNegf)
 
     !> Is this an SCC calculation?
     logical, intent(in) :: tSccCalc
@@ -1416,13 +1418,16 @@ contains
     !> Has SCC convergence been achieved?
     logical, intent(out) :: tConverged
 
+    !> Is this a transport calculation?
+    logical, intent(in) :: tNegf
+
     if (allocated(xlbomdIntegrator)) then
       call xlbomdIntegrator%getSCCParameters(minSCCIter, maxSccIter, sccTol)
     end if
 
     tConverged = (.not. tSccCalc)
 
-    if (tSccCalc) then
+    if (tSccCalc .and. .not. tNegf) then
       call printSccHeader()
     end if
 
