@@ -96,7 +96,7 @@ contains
     !> Species specific L+ operator
     complex(dp), intent(out) :: speciesPlus(:,:)
 
-    integer :: iShell, ll, nOrbShell, iOrbStart, iOrbEnd
+    integer :: iShell, ll, iOrbStart, iOrbEnd
 
     @:ASSERT(all(shape(speciesZ) == shape(speciesPlus)))
 
@@ -104,7 +104,6 @@ contains
     speciesPlus(:,:) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
-      nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
       call getLOperators(ll, speciesPlus(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd),&
@@ -318,6 +317,7 @@ contains
 
   end subroutine localLOperators
 
+
   !> Returns L_{x,y,z} in the tesseral spherical Harmonics basis for a give species.
   subroutine localGetLOperatorsForSpecies(orb, iSpecies, speciesL)
 
@@ -330,12 +330,11 @@ contains
     !> Species specific L operator
     complex(dp), intent(out) :: speciesL(:,:,:)
 
-    integer :: iShell, ll, nOrbShell, iOrbStart, iOrbEnd
+    integer :: iShell, ll, iOrbStart, iOrbEnd
 
     speciesL(:,:, :) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
-      nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
       call localLOperators(ll, speciesL(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd, :))
