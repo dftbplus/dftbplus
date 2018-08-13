@@ -3199,7 +3199,7 @@ contains
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
 
-    !> Charges should be output in binary (T) or ascii (F)
+    !> Charges should be output in ascii (T) or binary (F)
     logical, intent(in) :: tWriteAscii
 
     !> Atomic orbital information
