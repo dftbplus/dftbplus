@@ -52,7 +52,7 @@ Analysis {
 }
 
 ParserOptions {
-  ParserVersion = 6
+  ParserVersion = 5
 }
 
 Parallel {
