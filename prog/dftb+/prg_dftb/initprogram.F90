@@ -2601,14 +2601,6 @@ contains
 
     end if
 
-    if (tSpinOrbit) then
-      if (tDualSpinOrbit) then
-        if ( (tEField .or. tExtChrg) .and. tForces) then
-          call error("Currently there is a force bug for dual spin orbit coupling")
-        end if
-      end if
-    end if
-
     select case (forceType)
     case(0)
       write(stdOut, "(A,T30,A)") "Force type", "original"
@@ -2620,8 +2612,8 @@ contains
       write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
 
-    if ((tSpinOrbit .and. tDFTBU) .and. tForces)  then
-      call error("Currently there is a force bug for dual DFTB+U with spin orbit coupling")
+    if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
+      call error("Only dual spin orbit currently supported for orbital potentials")
     end if
 
     if (.not.tStress) then

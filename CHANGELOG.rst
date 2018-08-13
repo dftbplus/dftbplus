@@ -36,6 +36,8 @@ Fixed
 - Corrected erroneous Lennard-Jones-dispersion for periodic cases (broken since
   release 1.3)
 
+- Forces/stresses for dual spin orbit.
+
 
 18.1 (2018-03-02)
 =================
