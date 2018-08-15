@@ -2363,8 +2363,9 @@ and adjust them if needed.
 Example using default parameters:
 \begin{verbatim}
   ThirdOrderFull = Yes
-  DampXH = Yes
-
+  HCorrection = Damping {
+    Exponent = 4.0
+  }
   Dispersion = DftD3 {}
 \end{verbatim}
 
