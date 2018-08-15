@@ -366,23 +366,23 @@ contains
       if (associated(ch2)) then
         call getChildValue(par, "DampXHExponent", rTmp)
       end if
-      call detailedWarning(ch1, "Keyword DampXH moved to HBondCorrection block")
+      call detailedWarning(ch1, "Keyword DampXH moved to HCorrection block")
       dummy => removeChild(par,ch1)
       call destroyNode(ch1)
       dummy => removeChild(par,ch2)
       call destroyNode(ch2)
 
-      ! clean out any HBondCorrection entry
-      call getDescendant(root, "Hamiltonian/DFTB/HBondCorrection", ch2, parent=par)
+      ! clean out any HCorrection entry
+      call getDescendant(root, "Hamiltonian/DFTB/HCorrection", ch2, parent=par)
       if (associated(ch2)) then
-        call detailedError(ch2, "HBondCorrection already present.")
+        call detailedError(ch2, "HCorrection already present.")
       end if
 
       call getDescendant(root, "Hamiltonian/DFTB", ch2, parent=par)
-      call setChild(ch2, "HBondCorrection", ch3)
+      call setChild(ch2, "HCorrection", ch3)
       call setChild(ch3, "Damping", ch4)
       call setChildValue(ch4, "Exponent", rTmp)
-      call detailedWarning(ch3, "Adding Damping to HBondCorrection")
+      call detailedWarning(ch3, "Adding Damping to HCorrection")
     end if
 
   end subroutine convert_5_6
