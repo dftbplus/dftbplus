@@ -33,7 +33,6 @@ module dispuffdata
 
   !> Values are in AA and kcal/mol
   !>
-
   !> (Data is awfully compressed, as F95 only allows 32 continuation lines and 132 characters per
   !> one line!)
   type(TUFF) :: database(103) = (/&
@@ -80,7 +79,7 @@ contains
     real(dp), intent(out) :: energy
 
     !> Flags if the element has been found. If this parameter is not specified and the element is
-  !> not found, the program stops.
+    !> not found, the program stops.
     logical, intent(out), optional :: found
 
     character(2) :: symbol
@@ -100,8 +99,7 @@ contains
     if (present(found)) then
       found = .false.
     else
-      call error("UFF database search for element '" // trim(name) &
-          &// "' failed")
+      call error("UFF database search for element '" // trim(name) // "' failed")
     end if
 
   end subroutine getUffValues
