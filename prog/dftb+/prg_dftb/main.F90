@@ -402,9 +402,9 @@ contains
           call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
               & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
-              & tWriteDetailedOutBands, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
-              & qBlockOut, Ef, Eband, TS, E0, extPressure, cellVol, tAtomicEnergy, tDispersion,&
-              & tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint,&
+              & tWriteDetailedOutBands, orb, species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken,&
+              & orbitalL, qBlockOut, Ef, Eband, TS, E0, extPressure, cellVol, tAtomicEnergy,&
+              & tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint,&
               & electronicSolver)
         end if
 

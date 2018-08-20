@@ -1416,7 +1416,7 @@ contains
         call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
       end if
 
-      call readHBondCorrection(node, geo, ctrl)
+      call readHCorrection(node, geo, ctrl)
 
       ! spin
       call getChildValue(node, "SpinPolarisation", value, "", child=child, &
@@ -2192,8 +2192,8 @@ contains
   end subroutine readDifferentiation
 
 
-  !> Reads the H-bond (H5) correction.
-  subroutine readHBondCorrection(node, geo, ctrl)
+  !> Reads the H corrections (H5, Damp)
+  subroutine readHCorrection(node, geo, ctrl)
 
     !> Node containing the h-bond correction sub-block.
     type(fnode), pointer, intent(in) :: node
@@ -2212,7 +2212,7 @@ contains
     ! X-H interaction corrections including H5 and damping
     ctrl%tDampH = .false.
     ctrl%h5SwitchedOn = .false.
-    call getChildValue(node, "HBondCorrection", value, "None", child=child)
+    call getChildValue(node, "HCorrection", value, "None", child=child)
     call getNodeName(value, buffer)
     select case (char(buffer))
     case ("none")
@@ -2249,10 +2249,10 @@ contains
       end do
     case default
       call getNodeHSDName(value, buffer)
-      call detailedError(child, "Invalid HBondCorrection '" // char(buffer) // "'")
+      call detailedError(child, "Invalid HCorrection '" // char(buffer) // "'")
     end select
 
-  end subroutine readHBondCorrection
+  end subroutine readHCorrection
 
 
   !> Reads Slater-Koster files

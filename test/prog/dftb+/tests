@@ -44,6 +44,8 @@ analysis/graphene_localise             #? not WITH_MPI
 dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
+dispersion/2H2O_dftd3_zero             #? WITH_DFTD3 and MPI_PROCS <= 1
+dispersion/2H2O_dftd3_bj               #? WITH_DFTD3 and MPI_PROCS <= 1
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
 h-bonds/D3H5_water_dimer               #? WITH_DFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1
@@ -64,10 +66,12 @@ spin/OH_commonFermi                    #? MPI_PROCS <= 1
 derivatives/Si_2_Richardson            #? MPI_PROCS <= 1
 geoopt/H2O-constr                      #? MPI_PROCS <= 1
 legacy/SiC_polyRep                     #? MPI_PROCS <= 1
+md/SiH-surface_restart                 #? MPI_PROCS <= 4
 scc/C4H8_3rdfull                       #? MPI_PROCS <= 1
 scc/C4H8_3rdfull-damp                  #? MPI_PROCS <= 1
 scc/CH2_n_3rdfull                      #? MPI_PROCS <= 1
 scc/CH2_n_3rdfull_damp                 #? MPI_PROCS <= 1
+scc/GaAs_2_restart                     #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
@@ -85,7 +89,10 @@ non-scc/GaAs_2                         #? MPI_PROCS <= 1
 scc/GaAs_2                             #? MPI_PROCS <= 1
 scc/GaAs_2_customU                     #? MPI_PROCS <= 1
 spinorbit/Fe2_dual                     #? MPI_PROCS <= 2
+spinorbit/Fe2_dual_field               #? MPI_PROCS <= 2
 spinorbit/Si_2                         #? MPI_PROCS <= 1
+dispersion/DNA_uff                     #? MPI_PROCS <= 4
+
 
 timedep/C4H6-S1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-Singlet                   #? WITH_ARPACK and MPI_PROCS <= 1
