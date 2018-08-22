@@ -38,7 +38,7 @@ ELSIINCDIR :=
 
 # Library path and files for libOMM and ELPA parts of ELSI
 ELSIDIR :=  
-LIB_ELSI := -L$(ELSIDIR) -lelsi -lOMM -lMatrixSwitch -lelpa -lfortjson
+LIB_ELSI := -L$(ELSIDIR) -lelsi -lOMM -lMatrixSwitch -lelpa -lNTPoly -lfortjson
 
 ifeq ($(strip $(WITH_PEXSI)),1)
 

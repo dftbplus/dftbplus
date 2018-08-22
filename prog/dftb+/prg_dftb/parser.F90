@@ -1646,6 +1646,19 @@ contains
       call convertByMul(char(modifier), energyUnits, child, ctrl%solver%PEXSI_delta_e)
       call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
     #:endif
+    case ("ntpoly")
+      if (.not.withELSI) then
+        call error("Not compiled with NTPoly support via ELSI")
+      end if
+      ctrl%solver%isolver = 9
+    #:if WITH_ELSI
+      if (.not.ctrl%tSpinSharedEf .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
+        call detailedError(value, "This solver currently requires spin values to be relaxed")
+      end if
+      call getChildValue(value, "PurificationMethod", ctrl%solver%NTPoly_method, 2)
+      call getChildValue(value, "Tolerance", ctrl%solver%NTPoly_tolerance, 1.0E-5_dp)
+      call getChildValue(value, "Truncation", ctrl%solver%NTPoly_truncation, 1.0E-10_dp)
+    #:endif
     end select
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD

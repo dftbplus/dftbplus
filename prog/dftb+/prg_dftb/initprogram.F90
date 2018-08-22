@@ -1001,14 +1001,14 @@ contains
     electronicSolver%iSolver = input%ctrl%solver%iSolver
 
     select case (electronicSolver%iSolver)
-    case(4,5,6)
+    case(4,5,6,9)
       if (.not.withELSI) then
         call error("This binary was not compiled with ELSI support enabled")
       end if
     end select
 
     select case (electronicSolver%iSolver)
-    case(5,6)
+    case(5,6,9)
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
         call error("This solver requires as many parallel processor groups as there are independent&
             & spin and k-point combinations")
@@ -2415,6 +2415,19 @@ contains
     #:else
       call error("Should not be here")
     #:endif
+    case(9)
+    #:if WITH_ELSI
+      if (electronicSolver%ELSI_CSR) then
+        write (strTmp, "(A)") "ELSI solver NTPoly Sparse"
+        if (t2Component) then
+          call error("Not currently avaible for two component complex hamiltonians")
+        end if
+      else
+        write (strTmp, "(A)") "ELSI solver NTPoly Dense"
+      end if
+    #:else
+      call error("Should not be here")
+    #:endif
     case default
       call error("Unknown electronic solver!")
     end select
@@ -2437,7 +2450,7 @@ contains
 
     if (omp_get_max_threads() > 1) then
       select case(electronicSolver%iSolver)
-      case (4,5)
+      case (4,5,9)
         call warning("ELSI solvers not tested with multiple openMP threads")
       case(6)
         call error("PEXSI solver not available with multiple openMP threads")

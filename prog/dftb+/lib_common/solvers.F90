@@ -64,6 +64,15 @@ module solvers
     !> spectral radius (range of eigenvalues) if available
     real(dp) :: PEXSI_delta_e = 10.0_dp
 
+    !> density matrix purification algorithm
+    integer :: NTPoly_method = 2
+
+    !> truncation threshold for sparse matrix multiplication
+    real(dp) :: NTPoly_truncation = 1.0E-10_dp
+
+    !> convergence tolerance for density matrix purification
+    real(dp) :: NTPoly_tolerance = 1.0E-5_dp
+
     !> Use sparse CSR format
     logical :: ELSI_CSR = .false.
 
@@ -135,6 +144,11 @@ module solvers
     integer, public :: ELSI_PEXSI_n_mu
     integer, public :: ELSI_PEXSI_np_symbo
     real(dp) :: ELSI_PEXSI_delta_e
+
+    ! NTPoly settings
+    integer, public :: ELSI_NTPoly_method
+    real(dp), public :: ELSI_NTPoly_truncation
+    real(dp), public :: ELSI_NTPoly_tolerance
 
     !> Use sparse CSR format
     logical :: ELSI_CSR
@@ -217,8 +231,8 @@ contains
       else
         this%ELSI_n_state = nint(sum(nEl))
       end if
-    case (3)
-      ! PEXSI ignores this
+    case (3, 6)
+      ! ignored in PEXSI and NTPoly
       this%ELSI_n_state = nBasisFn
     end select
 
@@ -280,6 +294,11 @@ contains
     this%ELSI_PEXSI_n_mu = inp%PEXSI_n_mu
     this%ELSI_PEXSI_np_symbo = inp%PEXSI_np_symbo
     this%ELSI_PEXSI_delta_e = inp%PEXSI_delta_e
+
+    ! NTPoly settings
+    this%ELSI_NTPoly_method = inp%NTPoly_method
+    this%ELSI_NTPoly_truncation = inp%NTPoly_truncation
+    this%ELSI_NTPoly_tolerance = inp%NTPoly_tolerance
 
     this%ELSI_CSR = inp%ELSI_CSR
 
@@ -355,6 +374,7 @@ contains
       case default
         call error("Unknown ELPA solver modes")
       end select
+
     case(2)
       ! libOMM
       if (this%ELSI_OMM_Choleskii) then
@@ -392,6 +412,17 @@ contains
 
       ! spectral radius (range of eigenspectrum, if known, otherwise defaul usually fine)
       call elsi_set_pexsi_delta_e(this%elsiHandle, this%ELSI_PEXSI_delta_e)
+
+    case(6)
+      ! NTPoly
+      ! set purification method
+      call elsi_set_ntpoly_method(this%elsiHandle, this%ELSI_NTPoly_method)
+
+      ! set truncation tolerance for sparse matrix multiplications
+      call elsi_set_ntpoly_filter(this%elsiHandle, this%ELSI_NTPoly_truncation)
+
+      ! set purification convergence threshold
+      call elsi_set_ntpoly_tol(this%elsiHandle, this%ELSI_NTPoly_tolerance)
 
     end select
 

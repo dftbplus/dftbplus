@@ -1759,8 +1759,8 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
-    case(5, 6)
-      ! libOMM, PEXSI
+    case(5, 6, 9)
+      ! libOMM, PEXSI, NTPoly
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
