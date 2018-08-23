@@ -6,4 +6,4 @@
 	url = https://github.com/dftbplus/scalapackfx.git
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
-	url = https://github.com/azag0/pymbd.git
+	url = https://github.com/azag0/libmbd.git

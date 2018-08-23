@@ -14,7 +14,7 @@ module manybodydisp
   use mpifx, only : mpifx_comm
   use accuracy
   use constants, only: pi, Bohr__AA, AA__Bohr, eV__Hartree, Hartree__eV
-  use mbd_module, TMbdInit => mbd_input, TMbd => mbd_calc
+  use mbd_module, TMbdInit => mbd_input, TMbd => mbd_calculation
   use commontypes, only : TOrbitals
   use message, only: error
   implicit none
@@ -64,9 +64,11 @@ contains
     integer :: i_flag, i_atom, i_spec, nprow, npcol, npmax, i
 
     ! start filling up MBD object
-    if (present(latVecs)) then
-      inp%lattice_vectors = latVecs
-    end if
+    ! TODO why should the input hold the lattice vectors? These should come into
+    ! TMbd via MBDupdateLatVecs
+    ! if (present(latVecs)) then
+    !   inp%lattice_vectors = latVecs
+    ! end if
     inp%free_values = mbd_get_free_vdw_params(species_name, 'ts')
 
     ! set free atom charges
