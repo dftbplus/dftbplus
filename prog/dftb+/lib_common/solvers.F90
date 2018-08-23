@@ -18,7 +18,7 @@ module solvers
   implicit none
 
   private
-  public :: TElectronicSolverInp, TElectronicSolver
+  public :: TElectronicSolverInp, TElectronicSolver, electronicSolverTypes
 #:if WITH_ELSI
   public :: init
 #:endif
@@ -172,11 +172,14 @@ module solvers
     integer :: elpa
     integer :: omm
     integer :: pexsi
+    integer :: dummy1
+    integer :: dummy2
+    integer :: ntpoly
   end type electronicSolverTypesEnum
 
   !> Actual values for electronicSolverTypes.
   type(electronicSolverTypesEnum), parameter :: electronicSolverTypes =&
-      & electronicSolverTypesEnum(1, 2, 3, 4, 5, 6)
+      & electronicSolverTypesEnum(1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 contains
 
@@ -217,13 +220,13 @@ contains
     this%tUsingELSI = .true.
 
     ! DFTB+ to ELSI solver index
-    this%ELSI_SOLVER = this%iSolver -3
-
-    select case(this%ELSI_SOLVER)
-    case (1)
+    select case(this%iSolver)
+    case (electronicSolverTypes%elpa)
+      this%ELSI_SOLVER = 1
       ! ELPA is asked for all states
       this%ELSI_n_state = nBasisFn
-    case (2)
+    case (electronicSolverTypes%omm)
+      this%ELSI_SOLVER = 2
       ! OMM solves only over occupied space
       ! spin degeneracies for closed shell
       if (nSpin == 1) then
@@ -231,13 +234,18 @@ contains
       else
         this%ELSI_n_state = nint(sum(nEl))
       end if
-    case (3, 6)
-      ! ignored in PEXSI and NTPoly
+    case (electronicSolverTypes%pexsi)
+      this%ELSI_SOLVER = 3
+      ! ignored by PEXSI:
+      this%ELSI_n_state = nBasisFn
+    case (electronicSolverTypes%ntpoly)
+      this%ELSI_SOLVER = 6
+      ! ignored by NTPoly:
       this%ELSI_n_state = nBasisFn
     end select
 
     ! bands only available for ELPA
-    if (this%ELSI_SOLVER > 1) then
+    if (this%iSolver > electronicSolverTypes%elpa) then
       tWriteDetailedOutBands = .false.
     end if
 
@@ -363,9 +371,9 @@ contains
     ! set filling temperature/width
     call elsi_set_mu_broaden_width(this%elsiHandle, tempElec)
 
-    select case(this%ELSI_SOLVER)
-    case(1)
-      ! ELPA
+    select case(this%iSolver)
+    case(electronicSolverTypes%elpa)
+
       select case(this%ELSI_ELPA_SOLVER_Option)
       case(1)
         call elsi_set_elpa_solver(this%elsiHandle, 1)
@@ -375,7 +383,7 @@ contains
         call error("Unknown ELPA solver modes")
       end select
 
-    case(2)
+    case(electronicSolverTypes%omm)
       ! libOMM
       if (this%ELSI_OMM_Choleskii) then
         call elsi_set_omm_flavor(this%elsiHandle, 2)
@@ -385,8 +393,8 @@ contains
       call elsi_set_omm_n_elpa(this%elsiHandle, this%ELSI_OMM_iter)
       call elsi_set_omm_tol(this%elsiHandle, this%ELSI_OMM_Tolerance)
 
-    case(3)
-      ! PEXSI
+    case(electronicSolverTypes%pexsi)
+
       this%ELSI_PEXSI_mu_min = -10.0_dp
       this%ELSI_PEXSI_mu_max = 10.0_dp
       this%ELSI_PEXSI_DeltaVmin = 0.0_dp
@@ -413,7 +421,8 @@ contains
       ! spectral radius (range of eigenspectrum, if known, otherwise defaul usually fine)
       call elsi_set_pexsi_delta_e(this%elsiHandle, this%ELSI_PEXSI_delta_e)
 
-    case(6)
+    case(electronicSolverTypes%ntpoly)
+
       ! NTPoly
       ! set purification method
       call elsi_set_ntpoly_method(this%elsiHandle, this%ELSI_NTPoly_method)
@@ -426,7 +435,7 @@ contains
 
     end select
 
-    if (this%ELSI_SOLVER > 1) then
+    if (this%iSolver > electronicSolverTypes%elpa) then
       select case(this%ELSI_n_spin)
       case(1)
         call elsi_set_spin(this%elsiHandle, 1, iSpin)

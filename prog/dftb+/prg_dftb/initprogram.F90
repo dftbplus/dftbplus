@@ -1000,20 +1000,29 @@ contains
 
     electronicSolver%iSolver = input%ctrl%solver%iSolver
 
-    select case (electronicSolver%iSolver)
-    case(4,5,6,9)
+    if (electronicSolver%iSolver >= electronicSolverTypes%elpa .and.&
+        & electronicSolver%iSolver <= electronicSolverTypes%ntpoly) then
       if (.not.withELSI) then
         call error("This binary was not compiled with ELSI support enabled")
       end if
-    end select
+    end if
 
-    select case (electronicSolver%iSolver)
-    case(5,6,9)
+    if (electronicSolver%iSolver == electronicSolverTypes%ntpoly) then
+      if (tSpin) then
+        call error("The NTPoly solver currently does not support spin polarisation")
+      end if
+      if (any(kPoint /= 0.0_dp)) then
+        call error("The NTPoly solver currently does not support k-points")
+      end if
+    end if
+
+    if (electronicSolver%iSolver > electronicSolverTypes%elpa .and.&
+        & electronicSolver%iSolver <= electronicSolverTypes%pexsi) then
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
         call error("This solver requires as many parallel processor groups as there are independent&
             & spin and k-point combinations")
       end if
-    end select
+    end if
 
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
@@ -1307,7 +1316,8 @@ contains
       call error("Less than 0 electrons!")
     end if
 
-    if (electronicSolver%iSolver > 3) then
+    if (electronicSolver%iSolver >= electronicSolverTypes%elpa .and.&
+        & electronicSolver%iSolver <= electronicSolverTypes%ntpoly) then
 
     #:if WITH_ELSI
 
@@ -1327,7 +1337,7 @@ contains
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
 
-    if (electronicSolver%iSolver == 6 .and. tempElec < epsilon(0.0)) then
+    if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
       call error("This solver requires a finite electron broadening")
     end if
 
@@ -2103,7 +2113,7 @@ contains
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
     tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat&
-        & .and. (electronicSolver%iSolver < 5)
+        & .and. (electronicSolver%iSolver <= electronicSolverTypes%elpa)
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
 
@@ -2371,13 +2381,13 @@ contains
     end if
 
     select case (electronicSolver%iSolver)
-    case(1)
+    case(electronicSolverTypes%qr)
       write (strTmp, "(A)") "Standard"
-    case(2)
+    case(electronicSolverTypes%divideandconquer)
       write (strTmp, "(A)") "Divide and Conquer"
-    case(3)
+    case(electronicSolverTypes%relativelyrobust)
       write (strTmp, "(A)") "Relatively robust"
-    case(4)
+    case(electronicSolverTypes%elpa)
     #:if WITH_ELSI
       if (electronicSolver%ELSI_ELPA_SOLVER_Option == 1) then
         write (strTmp, "(A)") "ELSI interface to the 1 stage ELPA solver"
@@ -2387,7 +2397,7 @@ contains
     #:else
       call error("Should not be here")
     #:endif
-    case(5)
+    case(electronicSolverTypes%omm)
     #:if WITH_ELSI
       write (strTmp, "(A,I0,A,E8.2)") "ELSI solver libOMM with ",&
           & electronicSolver%ELSI_OMM_iter, " ELPA iterations",electronicSolver%ELSI_OMM_Tolerance
@@ -2402,7 +2412,7 @@ contains
     #:else
       call error("Should not be here")
     #:endif
-    case(6)
+    case(electronicSolverTypes%pexsi)
     #:if WITH_ELSI
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver PEXSI Sparse"
@@ -2415,7 +2425,7 @@ contains
     #:else
       call error("Should not be here")
     #:endif
-    case(9)
+    case(electronicSolverTypes%ntpoly)
     #:if WITH_ELSI
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver NTPoly Sparse"
@@ -2434,7 +2444,7 @@ contains
     write(stdOut, "(A,':',T30,A)") "Electronic solver", trim(strTmp)
 
   #:if WITH_ELSI
-    if (electronicSolver%iSolver == 6) then
+    if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
       if ( mod( env%mpi%globalComm%size,&
           & electronicSolver%ELSI_PEXSI_np_per_pole*electronicSolver%ELSI_PEXSI_n_mu) /= 0 ) then
         call error("MPI processors must be an integer multiple of processors per pole times mu&
@@ -2449,12 +2459,13 @@ contains
   #:endif
 
     if (omp_get_max_threads() > 1) then
-      select case(electronicSolver%iSolver)
-      case (4,5,9)
-        call warning("ELSI solvers not tested with multiple openMP threads")
-      case(6)
+      if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
         call error("PEXSI solver not available with multiple openMP threads")
-      end select
+      end if
+      if (electronicSolver%iSolver >= electronicSolverTypes%elpa .and.&
+          & electronicSolver%iSolver <= electronicSolverTypes%ntpoly) then
+        call warning("ELSI solvers not tested with multiple openMP threads")
+      end if
     end if
 
     if (tSccCalc) then
@@ -3167,7 +3178,7 @@ contains
     allocate(E0(nSpinHams))
     allocate(Eband(nSpinHams))
 
-    if (electronicSolver%iSolver < 5) then
+    if (electronicSolver%iSolver <= electronicSolverTypes%elpa) then
       allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
       allocate(filling(sqrHamSize, nKpoint, nSpinHams))
     else

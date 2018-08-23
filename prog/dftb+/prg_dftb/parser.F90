@@ -40,6 +40,7 @@ module parser
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
   use elsiInterface
+  use solvers, only : electronicSolverTypes
   implicit none
 
   private
@@ -1596,47 +1597,37 @@ contains
       end do
     end if
 
-    ! Solver
+    ! Electronic solver
     call getChildValue(node, "Eigensolver", value, "RelativelyRobust")
     call getNodeName(value, buffer)
     select case(char(buffer))
     case ("qr")
-      ctrl%solver%isolver = 1
+      ctrl%solver%isolver = electronicSolverTypes%qr
     case ("divideandconquer")
-      ctrl%solver%isolver = 2
+      ctrl%solver%isolver = electronicSolverTypes%divideandconquer
     case ("relativelyrobust")
-      ctrl%solver%isolver = 3
+      ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
+
     case ("elpa")
-      if (.not.withELSI) then
-        call error("Not compiled with ELPA support via ELSI")
-      end if
-      ctrl%solver%isolver = 4
+
+      ctrl%solver%isolver = electronicSolverTypes%elpa
     #:if WITH_ELSI
       call getChildValue(value, "Mode", ctrl%solver%ELPA_Solver, 2)
     #:endif
+
     case ("omm")
-      if (.not.withELSI) then
-        call error("Not compiled with libOMM support via ELSI")
-      end if
-      ctrl%solver%isolver = 5
+
+      ctrl%solver%isolver = electronicSolverTypes%omm
     #:if WITH_ELSI
-      if (.not.ctrl%tSpinSharedEf .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
-        call detailedError(value, "This solver currently requires spin values to be relaxed")
-      end if
       call getChildValue(value, "nIterationsELPA", ctrl%solver%OMM_IterationsELPA, 5)
       call getChildValue(value, "Tolerance", ctrl%solver%OMM_Tolerance, 1.0E-10_dp)
       call getChildValue(value, "Choleskii", ctrl%solver%OMM_Choleskii, .true.)
-      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
     #:endif
+
     case ("pexsi")
-      if (.not.withPEXSI) then
-        call error("Not compiled with PEXSI support via ELSI")
-      end if
-      ctrl%solver%isolver = 6
+
+      ctrl%solver%isolver = electronicSolverTypes%pexsi
     #:if WITH_ELSI
-      if (.not.ctrl%tSpinSharedEf .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
-        call detailedError(value, "This solver currently requires spin values to be relaxed")
-      end if
       call getChildValue(value, "Poles", ctrl%solver%PEXSI_n_pole, 20)
       call getChildValue(value, "ProcsPerPole", ctrl%solver%PEXSI_np_per_pole, 1)
       call getChildValue(value, "muPoints", ctrl%solver%PEXSI_n_mu, 2)
@@ -1644,22 +1635,45 @@ contains
       call getChildValue(value, "SpectralRadius", ctrl%solver%PEXSI_delta_e, 10.0_dp,&
           & modifier=modifier, child=child)
       call convertByMul(char(modifier), energyUnits, child, ctrl%solver%PEXSI_delta_e)
-      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
     #:endif
+
     case ("ntpoly")
-      if (.not.withELSI) then
-        call error("Not compiled with NTPoly support via ELSI")
-      end if
-      ctrl%solver%isolver = 9
+
+      ctrl%solver%isolver = electronicSolverTypes%ntpoly
     #:if WITH_ELSI
-      if (.not.ctrl%tSpinSharedEf .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
-        call detailedError(value, "This solver currently requires spin values to be relaxed")
+      if (ctrl%tSpin) then
+        call detailedError(value, "Solver does not currently support spin")
       end if
       call getChildValue(value, "PurificationMethod", ctrl%solver%NTPoly_method, 2)
       call getChildValue(value, "Tolerance", ctrl%solver%NTPoly_tolerance, 1.0E-5_dp)
       call getChildValue(value, "Truncation", ctrl%solver%NTPoly_truncation, 1.0E-10_dp)
     #:endif
+
+    case default
+      call detailedError(value, "Unknown electronic solver")
     end select
+
+    if ((ctrl%solver%isolver > electronicSolverTypes%elpa .and.&
+        & ctrl%solver%isolver <= electronicSolverTypes%ntpoly ) .and. .not.ctrl%tSpinSharedEf&
+        & .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
+      call detailedError(value, "This solver currently requires spin values to be relaxed")
+    end if
+    if (ctrl%solver%isolver == electronicSolverTypes%pexsi .and. .not.withPEXSI) then
+      call error("Not compiled with PEXSI support via ELSI")
+    end if
+    if (ctrl%solver%isolver >= electronicSolverTypes%elpa .and.&
+        & ctrl%solver%isolver <= electronicSolverTypes%ntpoly) then
+      if (.not.withELSI) then
+        call error("Not compiled with ELSI supported solvers")
+      end if
+    end if
+
+    if (ctrl%solver%isolver > electronicSolverTypes%elpa .and.&
+        & ctrl%solver%isolver <= electronicSolverTypes%ntpoly) then
+    #:if WITH_ELSI
+      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .true.)
+    #:endif
+    end if
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
     ! thermostat.)

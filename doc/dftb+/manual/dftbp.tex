@@ -1697,7 +1697,8 @@ Example:\invparskip
 For ScaLAPACK enabled compilation, all three solvers are also available.
 
 If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
-the additional \kw{ELPA}, \kw{OMM} and \kw{PEXSI} solvers also become available.
+the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
+become available.
 
 \subsubsection{ELPA}
 
@@ -1722,7 +1723,7 @@ This method minimises the single particle density matrix, so does not make band
 structure information available. It is only stable for insulating grounds
 states, i.e., systems with a HOMO-LUMO (band) gap.
 
-The orbital minimisation method has three options:
+The orbital minimisation method has four options:
 
 \begin{ptable}
   \kw{nInterationsELPA} & i& & 5 & \\
@@ -1739,7 +1740,7 @@ The orbital minimisation method has three options:
   applying OMM. This may increase stability of this method.
 \item[\is{Sparse}] Whether the code should use the sparse matrix interface. This
   does not substantially improve memory usage in this case as internally the
-  dense problem is solved.
+  dense problem is solved with libOMM.
 \end{description}
 
 \subsubsection{PEXSI}
@@ -1768,6 +1769,40 @@ general systems.
   contour.
 \item[\is{Sparse}] Whether the code should use the sparse matrix interface.
 \end{description}
+
+\subsubsection{NTPoly}
+
+This method constructs the single particle density matrix via a purification
+method based on matrix polynomials (hence requires insulating systems). The
+solver does not make band structure information available, but can be linear
+scaling in both time and memory depending on settings and system. Currently the
+solver does not support spin polarisation or k-points.
+
+This solver has four options:
+
+\begin{ptable}
+  \kw{PurificationMethod} & i& & 2 & \\
+  \kw{Tolerance} & r& & 1E-5 & \\
+  \kw{Truncation} & r& & 1E-10 & \\
+  \kw{Sparse} & l& & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{PurificationMethod}] Allowed choices are 0 for canonical purification,
+  1 for trace correcting purification, 2 for 4$^\mathrm{th}$ order trace
+  resetting purification, and 3 for generalised hole-particle canonical
+  purification.
+\item[\is{Tolerance}] Iterative convergence tolerance for this solver, larger
+  values are faster by may be less stable.
+\item[\is{Truncation}] Tolerance below which matrix elements in the density
+  matrix are dropped to enforce sparsity.
+\item[\is{Sparse}] Whether the code should use the sparse matrix interface.
+\end{description}
+
+The default choices of \is{Tolerance} and \is{Truncation} lead to an accurate,
+but slow, solutions. Alternatively linear scaling can be achieved at smaller
+system sizes with a larger choice of these values. Values in the range of 1E-3
+and 1E-6 for \is{Tolerance} and \is{Truncation} may be suitable (but test the
+quality of the solutions).
 
 \subsection{Filling}
 \label{sec:dftbp.Filling}
