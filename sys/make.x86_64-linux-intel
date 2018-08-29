@@ -8,8 +8,9 @@ ifeq ($(strip $(WITH_MPI)),1)
 # MPI settings
 ############################################################################
 
-# Compilers, note that mpif90 or mpiifort may be more suitable depending on
-# your system configuration
+# Compilers
+# Note that mpif90 or mpiifort may be more suitable depending on your
+# system configuration
 FXX = mpifort
 CC = icc
 
