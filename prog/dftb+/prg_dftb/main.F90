@@ -607,8 +607,8 @@ contains
     !! Here time propagation is called
     if (tElectronDynamics) then
        call runDynamics(elecDyn, eigvecsReal, ham, H0, q0, over, filling, neighbourList, &
-            &nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW, &
-            &pRepCont, sccCalc, env)
+            &nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord0, spinW, &
+            &pRepCont, sccCalc, env, species, species0, coord)
     end if
 
     if (allocated(pipekMezey)) then

@@ -2688,8 +2688,7 @@ contains
        call error("Electron dynamics does not work with MPI yet")
      end if
 
-     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
-          &tWriteAutotest, autotestTag)
+     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, speciesName, tWriteAutotest, autotestTag)
    end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
