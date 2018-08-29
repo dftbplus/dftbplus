@@ -2770,7 +2770,15 @@ This block collects some global options for the run.
   contains text of this data. See section \ref{sec:charges.bin}.
 
 \item[\is{SkipChargeTest}] If \is{Yes}, testing of whether the charges read from
-  file match the total charge (and magnetization) if relevant.
+  file match the total charge (and magnetisation) specified in the {\dftbp}
+  input (if relevant) is performed. Skipping this test (setting to \is{No}) may
+  be useful if restarting from a charges generated for a similar system with
+  slightly different total charge or magnetisation. Similarly, in the event of
+  serious instabilities in the SCC cycle, the generated charge restart file may
+  fall outside of the check-sum tolerances, hence this option allows a
+  re-start. Finally, in the case of user edited \verb|charges.dat| file (see
+  section~\ref{sec:charges.bin}), the check-sum this option removed the
+  requirement that the checksum values in the file match the charges.
 
 \end{description}
 
