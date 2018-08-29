@@ -2974,13 +2974,13 @@ contains
     ! TODO there should be a mechanism that allows either TS or MBD, not both,
     ! or we have to initialize two different mbd_calc instances
     input%dispersion_type = 'ts'
-    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, 1e-7_dp, modifier=buffer,&
+    call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, input%ts_ene_acc, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
-    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, 1e-6_dp, modifier=buffer, child=child)
+    call getChildValue(node, "ForceAccuracy", input%ts_f_acc, input%ts_f_acc, modifier=buffer, child=child)
     call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
-    call getChildValue(node, "Damping", input%ts_d, 20.0_dp)
-    call getChildValue(node, "RangeSeparation", input%ts_sr, 0.94_dp)
+    call getChildValue(node, "Damping", input%ts_d, input%ts_d)
+    call getChildValue(node, "RangeSeparation", input%ts_sr, input%ts_sr)
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
@@ -2996,11 +2996,11 @@ contains
     type(fnode), pointer :: child
 
     input%dispersion_type = 'mbd'
-    call getChildValue(node, "Beta", input%mbd_beta, 0.83_dp)
-    call getChildValue(node, "NOmegaGrid", input%n_omega_grid, 15)
+    call getChildValue(node, "Beta", input%mbd_beta, input%mbd_beta)
+    call getChildValue(node, "NOmegaGrid", input%n_omega_grid, input%n_omega_grid)
     call getChildValue(node, "KGrid", input%k_grid)
-    call getChildValue(node, "KGridShift", input%k_grid_shift, 0.5_dp)
-    call getChildValue(node, "VacuumAxis", input%vacuum_axis, [.false., .false., .false.])
+    call getChildValue(node, "KGridShift", input%k_grid_shift, input%k_grid_shift)
+    call getChildValue(node, "VacuumAxis", input%vacuum_axis, input%vacuum_axis)
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)
