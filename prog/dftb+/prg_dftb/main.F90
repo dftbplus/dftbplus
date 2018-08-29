@@ -325,9 +325,9 @@ contains
           call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
               & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
-              & orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
-              & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpinOrbit, tSccCalc, invLatVec, kPoint)
+              & orb, species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut,&
+              & Ef, Eband, TS, E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
+              & tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -1129,7 +1129,7 @@ contains
     !> What is the phase of the field
     integer, intent(in) :: EFieldPhase
 
-    !> Atomi neighbours
+    !> Atomic neighbours
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each atom
@@ -1140,8 +1140,6 @@ contains
 
     !> Image atom to central cell atom number
     integer, intent(in) :: img2CentCell(:)
-
-    !> Vectors to image unit cells
 
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)

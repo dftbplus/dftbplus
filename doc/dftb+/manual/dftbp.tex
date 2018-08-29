@@ -992,7 +992,7 @@ following properties:
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
-  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hbond}\\
+  \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -2140,7 +2140,7 @@ description of the methods see the following subsections):
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
-  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hbond}).
+  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hcorr}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2363,8 +2363,9 @@ and adjust them if needed.
 Example using default parameters:
 \begin{verbatim}
   ThirdOrderFull = Yes
-  DampXH = Yes
-
+  HCorrection = Damping {
+    Exponent = 4.0
+  }
   Dispersion = DftD3 {}
 \end{verbatim}
 
@@ -2415,7 +2416,7 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
-  section~\ref{sec:dftbp.hbond} for details and parameter values). This keyword
+  section~\ref{sec:dftbp.hcorr} for details and parameter values). This keyword
   enables an additional short range repulsion term in all hydrogen--hydrogen
   pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
   closely together.
@@ -2429,7 +2430,7 @@ If you would like to use what is called ``DFTB3'' in some publication(s)
 \cite{gauss-jctc-7-931}, this group of options include the relevant
 modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3
   model} you will need to set \is{{ThirdOrderFull} = Yes} and damp H--X the
-interactions (see Section \ref{sec:dftbp.hbond}).
+interactions (see Section \ref{sec:dftbp.hcorr}).
 
 \begin{description}
 
@@ -2464,11 +2465,11 @@ Hamiltonian = DFTB {
 \end{verbatim}
 \end{description}
 
-\subsection{Hydrogen bond corrections}
-\label{sec:dftbp.hbond}
+\subsection{Hydrogen corrections}
+\label{sec:dftbp.hcorr}
 
-There are currently two available methods to correct hydrogen bond interactions
-in the \is{HBondCorrection} environment:
+There are currently two available methods to correct hydrogen interactions
+(mainly hydrogen bonds) in the \is{HCorrection} environment:
 
 \subsubsection{Damping}
 \index{sec:Damp X-H}
@@ -2486,7 +2487,7 @@ if its mass (stored in the appropriate homonuclear SK-file) is less than 3.5
 amu.  The \is{Exponent} keyword in this environment sets the parameter $\zeta$
 for the short range damping:
 \begin{verbatim}
-HBondCorrection = Damping {
+HCorrection = Damping {
   Exponent = 4.05
 }
 \end{verbatim}
@@ -2505,12 +2506,12 @@ H5 correction and an additional D3 dispersion correction in included. This
 method also includes a repulsive term which is added to prevent unphysically
 close approach of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
 
-Setting the \is{HBondCorrection} environment to \iscb{H5} activates this
+Setting the \is{HCorrection} environment to \iscb{H5} activates this
 correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
 parameters are provided in the input, suitable values for H-\{O,N,S\} systems
 are used (the correction was developed for the DFTB3/3OB model and parameters).
 \begin{verbatim}
-HBondCorrection = H5 {}
+HCorrection = H5 {}
 \end{verbatim}
 
 \textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
@@ -2563,7 +2564,7 @@ options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
-  HBondCorrection = H5 {
+  HCorrection = H5 {
     RScaling = 0.714
     WScaling = 0.25
     H5Scaling {

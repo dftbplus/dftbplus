@@ -67,7 +67,7 @@ Hamiltonian = DFTB {
         Suffix = ".skf"
     }
     KPointsAndWeights = {0 0 0 1}
-    HBondCorrection = H5 {
+    HCorrection = H5 {
         RScaling = 0.714
         WScaling = 0.25
         H5Scaling = {

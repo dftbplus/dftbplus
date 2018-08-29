@@ -488,7 +488,8 @@ contains
               shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp *  (matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii),&
                   & iShift(1:nOrb1,1:nOrb1,iAtom1,iSpin) )&
                   & + matmul(iShift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)) )
-              intermed(ii) = intermed(ii) + sum(shiftSprime(1:nOrb2,1:nOrb1) *&
+              ! again factor of 2 from lower triangle sum of DM
+              intermed(ii) = intermed(ii) + 2.0_dp * sum(shiftSprime(1:nOrb2,1:nOrb1) *&
                   & reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) )
             end do
           end do
