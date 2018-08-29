@@ -13,8 +13,8 @@ module mbd_module
   end type mbd_input
 
   ! Dummy empty type
-  type :: mbd_calc
-  end type mbd_calc
+  type :: mbd_calculation
+  end type mbd_calculation
 #:endif
 
 end module mbd_module

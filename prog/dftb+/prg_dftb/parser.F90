@@ -39,7 +39,7 @@ module parser
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
-  use manybodydisp
+  use mbd_module, only: mbd_input
   implicit none
 
   private
@@ -2966,7 +2966,7 @@ contains
 
   subroutine readDispTs(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(TMbdInit), intent(out) :: input
+    type(mbd_input), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child
@@ -2981,17 +2981,16 @@ contains
     call convertByMul(char(buffer), forceUnits, child, input%ts_f_acc)
     call getChildValue(node, "Damping", input%ts_d, 20.0_dp)
     call getChildValue(node, "RangeSeparation", input%ts_sr, 0.94_dp)
-    ! TODO this is currently hardcoded within manybodydisp::MBDinit
-    ! call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
-    ! input%params = tolower(unquote(char(buffer)))
-    ! call checkManyBodyDispRefName(input%params, child)
+    call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
+    input%vdw_params_kind = tolower(unquote(char(buffer)))
+    call checkManyBodyDispRefName(input%vdw_params_kind, child)
 
   end subroutine readDispTs
 
 
   subroutine readDispMbd(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(TMbdInit), intent(out) :: input
+    type(mbd_input), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child
@@ -3002,10 +3001,9 @@ contains
     call getChildValue(node, "KGrid", input%k_grid)
     call getChildValue(node, "KGridShift", input%k_grid_shift, 0.5_dp)
     call getChildValue(node, "VacuumAxis", input%vacuum_axis, [.false., .false., .false.])
-    ! TODO this is currently hardcoded within manybodydisp::MBDinit
-    ! call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
-    ! input%params = tolower(unquote(char(buffer)))
-    ! call checkManyBodyDispRefName(input%params, child)
+    call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
+    input%vdw_params_kind = tolower(unquote(char(buffer)))
+    call checkManyBodyDispRefName(input%vdw_params_kind, child)
 
   end subroutine readDispMbd
 

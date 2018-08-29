@@ -59,7 +59,7 @@ module initprogram
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
   use dispersions
-  use manybodydisp
+  use mbd_module, only: mbd_input, mbd_calculation
   use thirdorder_module
   use linresp_module
   use stress
@@ -656,7 +656,7 @@ module initprogram
   logical :: tManyBodyDisp
 
   !> many-body dispersion data
-  type(TMbd), allocatable :: mbDispersion
+  type(mbd_calculation), allocatable :: mbDispersion
 
   !> Can stress be calculated? - start by assuming it can
   logical :: tStress = .true.
@@ -1620,15 +1620,14 @@ contains
     #:if WITH_MBD
       elseif (allocated(input%ctrl%dispInp%mbdInp)) then
         tManyBodyDisp = .true.
-        allocate(mbDispersion)
-        input%ctrl%dispInp%mbdInp%calculate_forces = tForces
-        if (tPeriodic) then
-          call mbdInit(mbDispersion, input%ctrl%dispInp%mbdInp, env%mpi%globalComm, nAtom,&
-              & species0, referenceN0, orb%nShell, speciesName, latVec)
-        else
-          call mbdInit(mbDispersion, input%ctrl%dispInp%mbdInp, env%mpi%globalComm, nAtom,&
-              & species0, referenceN0, orb%nShell, speciesName)
-        end if
+        allocate (mbDispersion)
+        associate (inp => input%ctrl%dispInp%mbdInp)
+            inp%calculate_forces = tForces
+            inp%atom_types = speciesName(species0)
+            inp%coords = coord0
+            if (tPeriodic) inp%lattice_vectors = latVec
+            call mbDispersion%init(inp)
+        end associate
      #:endif
       end if
     end if
@@ -3355,7 +3354,7 @@ contains
   subroutine writeMbdInfo(input)
 
     !> MBD input parameters
-    type(TMbdInit), intent(in) :: input
+    type(mbd_input), intent(in) :: input
 
     character(80) :: tmpStr
 
@@ -3363,38 +3362,38 @@ contains
     if (input%dispersion_type == 'ts') then
       write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
       write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      ! select case (trim(input%params))
-      ! case ('tssurf')
-      !   write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      ! case ('TSSURF')
-      !   write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      ! case ('ts')
-      !   write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      ! case ('TS')
-      !   write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      ! case default
+      select case (trim(input%vdw_params_kind))
+      case ('tssurf')
+        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('TSSURF')
+        write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('ts')
         write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      ! end select
+      case ('TS')
+        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      case default
+        write(tmpStr, "(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      end select
       write(stdOut, "(A)") "  Mode                      " // trim(adjustl(tmpStr))
       write(tmpStr,"(E18.6)") input%ts_f_acc
       write(stdOut, "(A)") '  TSForceAccuracy           ' // trim(adjustl(tmpStr))
       write(tmpStr, "(E18.6)") input%ts_ene_acc
       write(stdOut, "(A)") '  TSEnergyAccuracy          ' // trim(adjustl(tmpStr))
-    else
+  else if (input%dispersion_type == 'mbd') then
       write(stdOut,"(A)") "Using MBD model [Phys. Rev. Lett. 108, 236402 (2012)]"
       write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      ! select case (trim(input%params))
-      ! case ('tssurf')
-      !   write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      ! case ('TSSURF')
-      !   write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
-      ! case ('ts')
-      !   write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      ! case ('TS')
-      !   write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      ! case default
+      select case (trim(input%vdw_params_kind))
+      case ('tssurf')
+        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('TSSURF')
+        write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
+      case ('ts')
         write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
-      ! end select
+      case ('TS')
+        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      case default
+        write(tmpStr,"(A)") "vdw(TS) [Phys. Rev. Lett. 102, 073005 (2009)] "
+      end select
       write(stdOut,"(A)") "  Parameters                "//trim(adjustl(tmpStr))
       write(stdOut,"(A)") '  Module                    mbdvdw'
       write(stdOut,"(A)") '  MBD eigensolver           QR (LAPACK)'

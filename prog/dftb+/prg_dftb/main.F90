@@ -58,7 +58,7 @@ module main
   use mainio
   use commontypes
   use dispersions, only : DispersionIface
-  use manybodydisp
+  use mbd_module, only: mbd_calculation
   use xmlf90
   use thirdorder_module, only : ThirdOrder
   use simplealgebra
@@ -746,7 +746,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion object
-    type(TMbd), allocatable, intent(inout) :: mbDispersion
+    type(mbd_calculation), allocatable, intent(inout) :: mbDispersion
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -789,7 +789,7 @@ contains
     end if
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbdUpdateLatVecs(mbDispersion, latVecs, cellVol)
+      call mbDispersion%update_lattice_vectors(latVecs)
     end if
   #:endif
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
@@ -837,7 +837,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion
-    type(TMbd), allocatable, intent(inout) :: mbDispersion
+    type(mbd_calculation), allocatable, intent(inout) :: mbDispersion
 
     !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -922,7 +922,7 @@ contains
     end if
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbdUpdateCoords(mbDispersion, coord0)
+      call mbDispersion%update_coords(coord0)
     end if
   #:endif
     if (allocated(thirdOrd)) then
@@ -2652,7 +2652,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion
-    type(TMbd), allocatable, intent(inout) :: mbDispersion
+    type(mbd_calculation), allocatable, intent(inout) :: mbDispersion
 
     !> energy contributions
     type(TEnergies), intent(inout) :: energy
@@ -2686,6 +2686,9 @@ contains
 
   subroutine getManyBodyDispEnergy(rhoPrim, over, orb, neighborList, nNeighbor, img2CentCell,&
       & iSparseStart, mbDispersion, eMbd)
+    ! TODO these shouldn't be here
+    use initprogram, only: referenceN0, speciesName, species0
+    use mbd_vdw_param, only: species_index
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPRim(:,:)
@@ -2709,20 +2712,36 @@ contains
     integer, intent(in) :: iSparseStart(:,:)
 
     !> Many-body dispersion
-    type(TMbd), intent(inout) :: mbDispersion
+    type(mbd_calculation), intent(inout) :: mbDispersion
 
     !> Energy contribution
     real(dp), intent(out) :: eMbd
 
     real(dp), allocatable :: cpa(:)
-    integer :: nAtom
+    real(dp), allocatable :: free_charges(:)
+    integer :: nAtom, i_atom, i_spec
 
     nAtom = size(nNeighbor)
     allocate(cpa(nAtom))
     call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, cpa)
-    call MBDcalculateCPA(mbDispersion, cpa)
+
+    allocate(free_charges(nAtom))
+    do i_atom = 1, nAtom
+        i_spec = species0(i_atom)
+        free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
+        ! if (inp%mbd_debug.and. tIoProc) then
+        !   write(stdOut,*) i_atom, free_charges(i_atom)
+        ! end if
+    end do
+    cpa = 1d0 + (cpa-free_charges)/dble(species_index(speciesName(species0)))
     print *, "CPA:", cpa
-    call MBDgetEnergy(mbDispersion, eMbd)
+    call mbDispersion%update_vdw_params_from_ratios(cpa)
+
+    call mbDispersion%get_energy(eMbd)
+
+    if (tIoProc) then
+      write(stdOut,*) 'MBD energy ', eMbd, ' ', eMbd * Hartree__eV
+    end if
 
   end subroutine getManyBodyDispEnergy
 
@@ -4025,7 +4044,7 @@ contains
     class(DispersionIface), intent(inout), allocatable :: dispersion
 
     !> Many-body dispersion
-    type(TMbd), intent(inout), allocatable :: mbDispersion
+    type(mbd_calculation), intent(inout), allocatable :: mbDispersion
 
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
@@ -4101,7 +4120,12 @@ contains
     allocate(tmpDerivs(3, nAtom))
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call MBDgetGradients(mbDispersion, tmpDerivs)
+      call mbDispersion%get_gradients(tmpDerivs)
+      tmpDerivs = -tmpDerivs
+      if (tIoProc) then
+        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD GRADIENTS!!!!!!!!!!!!!!!!'
+        write(stdOut,*) tmpDerivs(:, :)
+      end if
       derivs(:,:) = derivs + tmpDerivs
     end if
   #:endif
@@ -4207,7 +4231,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion
-    type(TMbd), intent(inout), allocatable :: mbDispersion
+    type(mbd_calculation), intent(inout), allocatable :: mbDispersion
 
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
@@ -4244,7 +4268,11 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call MBDgetStress(mbDispersion, tmpStress)
+      call mbDispersion%get_lattice_derivs(tmpStress)
+      if (tIoProc) then
+        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
+        write(stdOut,*) tmpStress(:, :)
+      endif
       totalStress(:,:) = totalStress + tmpStress
     end if
   #:endif
