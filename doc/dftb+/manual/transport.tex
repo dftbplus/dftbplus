@@ -607,6 +607,12 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
   the solver.
 \item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
   the solver.
+\item[\is{RecomputeAfterDensity}] When set to Yes the poisson solver is solved
+  again after the Density Matrix in order to make the electrostatic energy 
+  consistent with the newly updated charges. 
+  In transport calculations it is set to No by default in order to avoid 
+  the extra time spent on the Poisson step. This does not affect the SCC loop
+  nor other calculations beside the electronic energy.
 \end{description}
 
 {\bf Note}: The Poisson Box can be specified using the keyword

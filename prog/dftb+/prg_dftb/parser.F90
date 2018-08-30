@@ -3787,7 +3787,7 @@ contains
     type(string) :: buffer, modif
     logical :: realAxisConv, equilibrium
 
-    type(listInt) :: li                                                     !DAR
+    type(listInt) :: li
     type(listReal) :: fermiBuffer
 
     greendens%defined = .true.
@@ -4279,8 +4279,12 @@ contains
       call readDephasingBP(child, tundos%bp, geom, orb, tp)
     end if
 
-    call getChildValue(node, "Orthonormal", tp%tOrthonormal, .false.)
-    call getChildValue(node, "OrthonormalDevice", tp%tOrthonormalDevice, .false.)
+    ! Lowdin transformations involve dense matrices and works only in small systems
+    ! For the dftb+ official release the options are disabled
+    tp%tOrthonormal = .false.
+    tp%tOrthonormalDevice = .false.
+    !call getChildValue(node, "Orthonormal", tp%tOrthonormal, .false.)
+    !call getChildValue(node, "OrthonormalDevice", tp%tOrthonormalDevice, .false.)
     tp%tNoGeometry = .false.
     tp%NumStates = 0
 
@@ -4312,7 +4316,7 @@ contains
     endif
 
     !BUG: semilocal model crashes because of access of S before its allocation
-    !     this because initDephasing occurs in initprogram
+    !     this because initDephasing was moved into initprogram
     call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
     if (semilocal_model) then
       call detailedError(node, "semilocal dephasing causes crash and has been "//&
@@ -4710,10 +4714,17 @@ contains
         end if
         call destruct(fermiBuffer)
         call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
-        call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
-        call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
-        call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
-        call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
+        ! These options where introduced by Dima. There is a problem in parallel execution  
+        ! since one single file is accessed by all processors causing rush conditions
+        ! The options are therefore disabled for the official dftb+ release
+        contacts(ii)%tWriteSelfEnergy = .false.
+        !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
+        contacts(ii)%tReadSelfEnergy = .false. 
+        !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
+        contacts(ii)%tWriteSurfaceGF = .false. 
+        !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
+        contacts(ii)%tReadSurfaceGF = .false.  
+        !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
       end if
 
     end do
