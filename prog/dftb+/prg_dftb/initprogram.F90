@@ -59,7 +59,7 @@ module initprogram
   use spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbplusu
   use dispersions
-  use mbd_module, only: mbd_input, mbd_calculation
+  use mbd_module, only: TMbdInit, TMbd
   use thirdorder_module
   use linresp_module
   use stress
@@ -656,7 +656,7 @@ module initprogram
   logical :: tManyBodyDisp
 
   !> many-body dispersion data
-  type(mbd_calculation), allocatable :: mbDispersion
+  type(TMbd), allocatable :: mbDispersion
 
   !> Can stress be calculated? - start by assuming it can
   logical :: tStress = .true.
@@ -3354,7 +3354,7 @@ contains
   subroutine writeMbdInfo(input)
 
     !> MBD input parameters
-    type(mbd_input), intent(in) :: input
+    type(TMbdInit), intent(in) :: input
 
     character(80) :: tmpStr
 

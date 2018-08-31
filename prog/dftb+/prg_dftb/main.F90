@@ -58,7 +58,7 @@ module main
   use mainio
   use commontypes
   use dispersions, only : DispersionIface
-  use mbd_module, only: mbd_calculation
+  use mbd_module, only: TMbd
   use xmlf90
   use thirdorder_module, only : ThirdOrder
   use simplealgebra
@@ -746,7 +746,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion object
-    type(mbd_calculation), allocatable, intent(inout) :: mbDispersion
+    type(TMbd), allocatable, intent(inout) :: mbDispersion
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -837,7 +837,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion
-    type(mbd_calculation), allocatable, intent(inout) :: mbDispersion
+    type(TMbd), allocatable, intent(inout) :: mbDispersion
 
     !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -2652,7 +2652,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion
-    type(mbd_calculation), allocatable, intent(inout) :: mbDispersion
+    type(TMbd), allocatable, intent(inout) :: mbDispersion
 
     !> energy contributions
     type(TEnergies), intent(inout) :: energy
@@ -2712,7 +2712,7 @@ contains
     integer, intent(in) :: iSparseStart(:,:)
 
     !> Many-body dispersion
-    type(mbd_calculation), intent(inout) :: mbDispersion
+    type(TMbd), intent(inout) :: mbDispersion
 
     !> Energy contribution
     real(dp), intent(out) :: eMbd
@@ -4044,7 +4044,7 @@ contains
     class(DispersionIface), intent(inout), allocatable :: dispersion
 
     !> Many-body dispersion
-    type(mbd_calculation), intent(inout), allocatable :: mbDispersion
+    type(TMbd), intent(inout), allocatable :: mbDispersion
 
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
@@ -4231,7 +4231,7 @@ contains
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Many-body dispersion
-    type(mbd_calculation), intent(inout), allocatable :: mbDispersion
+    type(TMbd), intent(inout), allocatable :: mbDispersion
 
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam

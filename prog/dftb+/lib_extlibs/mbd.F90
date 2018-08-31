@@ -3,18 +3,18 @@
 !> Imports the functionality of libMBD.
 module mbd_module
 #:if WITH_MBD
-  use mbd_api
+  use mbd_api, TMbdInit => mbd_input, TMbd => mbd_calculation
 #:endif
   implicit none
 
 #:if not WITH_MBD
   ! Dummy empty type
-  type :: mbd_input
-  end type mbd_input
+  type :: TMbdInit
+  end type TMbdInit
 
   ! Dummy empty type
-  type :: mbd_calculation
-  end type mbd_calculation
+  type :: TMbd
+  end type TMbd
 #:endif
 
 end module mbd_module

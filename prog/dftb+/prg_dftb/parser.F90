@@ -39,7 +39,7 @@ module parser
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
-  use mbd_module, only: mbd_input
+  use mbd_module, only: TMbdInit
   implicit none
 
   private
@@ -2966,7 +2966,7 @@ contains
 
   subroutine readDispTs(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(mbd_input), intent(out) :: input
+    type(TMbdInit), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child
@@ -2990,7 +2990,7 @@ contains
 
   subroutine readDispMbd(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(mbd_input), intent(out) :: input
+    type(TMbdInit), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child
