@@ -6,6 +6,9 @@ module mbd_module
   use mbd_api, TMbdInit => mbd_input, TMbd => mbd_calculation
 #:endif
   implicit none
+  private
+
+  public:: TMbdInit, TMbd
 
 #:if not WITH_MBD
   ! Dummy empty type
