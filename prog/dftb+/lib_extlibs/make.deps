@@ -13,11 +13,6 @@ dftd3.o = dftd3.o $(_mod_dftd3_api)
 _mod_dftd3_module: dftd3.o
 _mod_dftd3_module = $(dftd3.o)
 
-elsi.o: common.fypp
-elsi.o = elsi.o $(common.fypp)
-_mod_elsi: elsi.o
-_mod_elsi = $(elsi.o)
-
 fsockets.o: _mod_f90sockets
 fsockets.o = fsockets.o $(_mod_f90sockets)
 _mod_fsockets: fsockets.o
@@ -29,15 +24,15 @@ _mod_lapack: lapack.o
 _mod_lapack = $(lapack.o)
 
 #:if WITH_MBD
-mbd.o: common.fypp _mod_libmbd
-mbd.o = mbd.o $(common.fypp) $(_mod_libmbd)
-_mod_mbd: mbd.o
-_mod_mbd = $(mbd.o)
+mbd.o: common.fypp _mod_mbd_api
+mbd.o = mbd.o $(common.fypp) $(_mod_mbd_api)
+_mod_mbd_module: mbd.o
+_mod_mbd_module = $(mbd.o)
 #:else
 mbd.o: common.fypp
 mbd.o = mbd.o $(common.fypp)
-_mod_mbd: mbd.o
-_mod_mbd = $(mbd.o)
+_mod_mbd_module: mbd.o
+_mod_mbd_module = $(mbd.o)
 #:endif
 
 #:if WITH_MPI
