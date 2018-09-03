@@ -504,6 +504,8 @@ module negf_int
     allocate(minv(nbl,ncont))
 
     ind(:) = DenseDescr%iatomstart(:) - 1
+    minv = 0
+    cblk = 0
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
@@ -528,9 +530,7 @@ module negf_int
 
     if (transpar%defined .and. ncont.gt.0) then
 
-      if(.not.transpar%tNoGeometry) then         !DAR
-
-       minv = 0
+      if(.not.transpar%tNoGeometry) then 
 
        ! For each PL finds the min atom index among the atoms in each contact
        ! At the end the array minv(iPL,iCont) can have only one value != 0
@@ -548,8 +548,8 @@ module negf_int
                 iatc2 = transpar%contacts(j1)%idxrange(2)
 
                 i1 = minval(img2CentCell(iNeigh(1:nNeigh(i),i)), &
-                     mask = (img2CentCell(iNeigh(1:nNeigh(i),i)).ge.iatc1 .and. &
-                     img2CentCell(iNeigh(1:nNeigh(i),i)).le.iatc2) )
+                    & mask = (img2CentCell(iNeigh(1:nNeigh(i),i)).ge.iatc1 .and. &
+                    & img2CentCell(iNeigh(1:nNeigh(i),i)).le.iatc2) )
 
                 if (i1.ge.iatc1 .and. i1.le.iatc2) then
                     minv(m,j1) = j1
@@ -559,14 +559,22 @@ module negf_int
           end do
        end do
 
+
        do j1 = 1, ncont
+
+         if (all(minv(:,j1) == 0)) then
+           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(stdOut,*) 'WARNING: contact',j1,' does no interact with any PL '
+           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           minv(1,j1) = j1
+         end if     
 
          if (count(minv(:,j1).eq.j1).gt.1) then
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            write(stdOut,*) 'ERROR: contact',j1,' interacts with more than one PL'
            write(stdOut,*) '       check structure and increase PL size         '
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           stop
+           call error("")
          end if
 
          do m = 1, transpar%nPLs

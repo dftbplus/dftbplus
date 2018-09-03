@@ -3427,6 +3427,7 @@ contains
     integer :: iCont, iStart, iEnd, ii
     integer :: fdH
     character(lc) :: strTmp
+    logical :: iexist
 
     nSpin = size(charges, dim=3)
 
@@ -3438,8 +3439,14 @@ contains
     charges = 0.0_dp
 
     do iCont = 1, tp%ncont
+      inquire(file="shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat", exist = iexist)
+      if (.not.iexist) then
+        call error("Contact shift file shiftcont_"// trim(tp%contacts(iCont)%name) &
+            &  // ".dat is missing"//new_line('a')//"Run ContactHamiltonian calculations first.")
+      end if 
+
       open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
-          & form="formatted")
+          & form="formatted", status="OLD", action="READ")
       read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
       iStart = tp%contacts(iCont)%idxrange(1)
       iEnd = tp%contacts(iCont)%idxrange(2)
