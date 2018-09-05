@@ -156,6 +156,9 @@ contains
     else
       input%transpar%ncont=0
       allocate(input%transpar%contacts(0))
+      ! set range of atoms in the 'device', as there are no contacts
+      input%transpar%idxdevice(1) = 1
+      input%transpar%idxdevice(2) = input%geom%nAtom
     end if
 
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
@@ -4714,16 +4717,16 @@ contains
         end if
         call destruct(fermiBuffer)
         call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
-        ! These options where introduced by Dima. There is a problem in parallel execution  
+        ! These options where introduced by Dima. There is a problem in parallel execution
         ! since one single file is accessed by all processors causing rush conditions
         ! The options are therefore disabled for the official dftb+ release
         contacts(ii)%tWriteSelfEnergy = .false.
         !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
-        contacts(ii)%tReadSelfEnergy = .false. 
+        contacts(ii)%tReadSelfEnergy = .false.
         !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
-        contacts(ii)%tWriteSurfaceGF = .false. 
+        contacts(ii)%tWriteSurfaceGF = .false.
         !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
-        contacts(ii)%tReadSurfaceGF = .false.  
+        contacts(ii)%tReadSurfaceGF = .false.
         !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
       end if
 
