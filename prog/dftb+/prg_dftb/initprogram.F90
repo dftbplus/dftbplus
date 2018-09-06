@@ -867,6 +867,9 @@ module initprogram
   !> Electrostatics type (either gammafunctional or poisson)
   integer :: electrostatics
 
+  !> list of atoms in the central cell (or device region if transport)
+  integer, allocatable :: iAtInCentralRegion(:)
+
 contains
 
 
@@ -1534,7 +1537,6 @@ contains
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
     tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
-
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
@@ -2238,6 +2240,13 @@ contains
   #:if WITH_TRANSPORT
     call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, species0, orb,&
         & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
+    if (tNegf) then
+      ! can be generalised later for more exotic geometries:
+      allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+      do iAt = 1, transpar%idxdevice(2)
+        iAtInCentralRegion(iAt) = iAt
+      end do
+    end if
   #:endif
 
     if (tShowFoldedCoord) then
@@ -3444,7 +3453,7 @@ contains
       if (.not.iexist) then
         call error("Contact shift file shiftcont_"// trim(tp%contacts(iCont)%name) &
             &  // ".dat is missing"//new_line('a')//"Run ContactHamiltonian calculations first.")
-      end if 
+      end if
 
       open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
           & form="formatted", status="OLD", action="READ")

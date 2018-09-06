@@ -183,9 +183,6 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-    !> atoms in the central cell (or device region if transport)
-    integer :: nAtInCentralRegion
-
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -200,13 +197,6 @@ contains
 
     ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
-
-    nAtInCentralRegion = nAtom
-  #:if WITH_TRANSPORT
-    if (tNegf) then
-      nAtInCentralRegion = transpar%idxdevice(2)
-    end if
-  #:endif
 
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
 
@@ -258,11 +248,11 @@ contains
         call getTemperature(temperatureProfile, tempElec)
       end if
 
-      call calcRepulsiveEnergy(nAtInCentralRegion, coord, species, img2CentCell, nNeighbor,&
-          & neighborList, pRepCont, energy%atomRep, energy%ERep)
+      call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
+          & energy%atomRep, energy%ERep, iAtInCentralRegion)
 
       if (tDispersion) then
-        call calcDispersionEnergy(nAtInCentralRegion,dispersion, energy%atomDisp, energy%Edisp)
+        call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
       end if
 
       call resetExternalPotentials(potential)
@@ -390,10 +380,10 @@ contains
         end if
 
         ! Compute different energy contributions
-        call getEnergies(energy, nAtInCentralRegion, sccCalc, qOutput, q0, chargePerShell, species,&
-            & tEField, tXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor,&
-            & img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+        call getEnergies(energy, sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
+            & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
+            & iSparseStart, cellVol, extPressure, TS, potential, thirdOrd, qBlockOut, qiBlockOut,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -1214,11 +1204,8 @@ contains
 
 
   !> Calculates repulsive energy for current geometry
-  subroutine calcRepulsiveEnergy(nAtInCentralRegion, coord, species, img2CentCell, nNeighbor,&
-      & neighborList, pRepCont, Eatom, Etotal)
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: nAtInCentralRegion
+  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbor, neighborList, pRepCont,&
+      & Eatom, Etotal, iAtInCentralRegion)
 
     !> All atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -1244,17 +1231,21 @@ contains
     !> Total energy
     real(dp), intent(out) :: Etotal
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in), allocatable :: iAtInCentralRegion(:)
+
     call getERep(Eatom, coord, nNeighbor, neighborList%iNeighbor, species, pRepCont, img2CentCell)
-    Etotal = sum(Eatom(:nAtInCentralRegion))
+    if (allocated(iAtInCentralRegion)) then
+      Etotal = sum(Eatom(iAtInCentralRegion))
+    else
+      Etotal = sum(Eatom)
+    end if
 
   end subroutine calcRepulsiveEnergy
 
 
   !> Calculates dispersion energy for current geometry.
-  subroutine calcDispersionEnergy(nAtInCentralRegion, dispersion, Eatom, Etotal)
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: nAtInCentralRegion
+  subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
 
     !> dispersion interactions
     class(DispersionIface), intent(inout) :: dispersion
@@ -1265,8 +1256,15 @@ contains
     !> total energy
     real(dp), intent(out) :: Etotal
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in), allocatable :: iAtInCentralRegion(:)
+
     call dispersion%getEnergies(Eatom)
-    Etotal = sum(Eatom(:nAtInCentralRegion))
+    if (allocated(iAtInCentralRegion)) then
+      Etotal = sum(Eatom(iAtInCentralRegion))
+    else
+      Etotal = sum(Eatom)
+    end if
 
   end subroutine calcDispersionEnergy
 
@@ -2803,16 +2801,13 @@ contains
 
 
   !> Calculates various energy contributions
-  subroutine getEnergies(energy, nAtom, sccCalc, qOrb, q0, chargePerShell, species, tEField,&
-      & tXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
+  subroutine getEnergies(energy, sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
+      & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
       & iSparseStart, cellVol, extPressure, TS, potential, thirdOrd, qBlock, qiBlock, nDftbUFunc,&
-      & UJ, nUJ, iUJ, niUJ, xi)
+      & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion)
 
     !> energy contributions
     type(TEnergies), intent(inout) :: energy
-
-    !> Number of atoms over which to sum the total energies
-    integer, intent(in) :: nAtom
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2901,6 +2896,9 @@ contains
     !> Spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
+    !> Atoms over which to sum the total energies
+    integer, intent(in), allocatable :: iAtInCentralRegion(:)
+
     integer :: nSpin
 
     nSpin = size(rhoPrim, dim=2)
@@ -2909,11 +2907,19 @@ contains
     energy%atomNonSCC(:) = 0.0_dp
     call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighborList%iNeighbor, nNeighbor,&
         & img2CentCell, iSparseStart)
-    energy%EnonSCC =  sum(energy%atomNonSCC(:nAtom))
+    if (allocated(iAtInCentralRegion)) then
+      energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
+    else
+      energy%EnonSCC = sum(energy%atomNonSCC)
+    end if
 
     if (tEfield) then
       energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
-      energy%Eext = sum(energy%atomExt(:nAtom))
+      if (allocated(iAtInCentralRegion)) then
+        energy%Eext = sum(energy%atomExt(iAtInCentralRegion(:)))
+      else
+        energy%Eext = sum(energy%atomExt)
+      end if
     end if
 
     if (allocated(sccCalc)) then
@@ -2922,11 +2928,19 @@ contains
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
-      energy%Escc = sum(energy%atomSCC(:nAtom))
+      if (allocated(iAtInCentralRegion)) then
+        energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
+      else
+        energy%Escc = sum(energy%atomSCC)
+      end if
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
-        energy%Espin = sum(energy%atomSpin(:nAtom))
+        if (allocated(iAtInCentralRegion)) then
+          energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
+        else
+          energy%Espin = sum(energy%atomSpin)
+        end if
       end if
     end if
     if (allocated(thirdOrd)) then
@@ -2935,7 +2949,11 @@ contains
       else
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
       end if
-      energy%e3rd = sum(energy%atom3rd(:nAtom))
+      if (allocated(iAtInCentralRegion)) then
+        energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
+      else
+        energy%e3rd = sum(energy%atom3rd)
+      end if
     end if
 
     if (tDftbU) then
@@ -2945,13 +2963,21 @@ contains
       else
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
       end if
-      energy%Edftbu = sum(energy%atomDftbu(:nAtom))
+      if (allocated(iAtInCentralRegion)) then
+        energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
+      else
+        energy%Edftbu = sum(energy%atomDftbu)
+      end if
     end if
 
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
       call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
-      energy%ELS = sum(energy%atomLS(:nAtom))
+      if (allocated(iAtInCentralRegion)) then
+        energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
+      else
+        energy%ELS = sum(energy%atomLS)
+      end if
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
