@@ -3080,12 +3080,10 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is created, which gives data
     on the quality of the resulting eigenstates.
 
-  \item[\is{ExcitedStateForces}] If ground state forces are enabled, either due
-    to a geometry driver (p.~\pref{sec:dftbp.Driver}) or requested in
-    \is{Analysis} (p.~\pref{sec:dftbp.Analysis}), this option includes the
-    contributions from the excited state of interest (if set to \is{Yes}). This
-    option can be used, for example, to calculate excitation energies during a
-    ground state molecular dynamics simulation.
+  \item[\is{ExcitedStateForces}] If set to \is{Yes}, evaluated forces include
+    the contributions from an excited state of interest. This option can be
+    used, for example, to select between optimisation or MD
+    (p.~\pref{sec:dftbp.Driver}) in the ground or excited state.
 
   \end{description}
 

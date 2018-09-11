@@ -502,8 +502,13 @@ contains
         else if (tGeoOpt) then
           tCoordsChanged = .true.
           if (tCoordStep) then
-            call getNextCoordinateOptStep(pGeoCoordOpt, energy%EMermin, derivs, indMovedAtom,&
-                & coord0, diffGeo, tCoordEnd)
+            if (.not.tCasidaForces) then
+              call getNextCoordinateOptStep(pGeoCoordOpt, energy, derivs, indMovedAtom,&
+                  & coord0, diffGeo, tCoordEnd, .true.)
+            else
+              call getNextCoordinateOptStep(pGeoCoordOpt, energy, derivs, indMovedAtom,&
+                  & coord0, diffGeo, tCoordEnd, .false.)
+            end if
             if (.not. tLatOpt) then
               tGeomEnd = tCoordEnd
             end if
@@ -3037,7 +3042,7 @@ contains
   end subroutine ensureLinRespConditions
 
 
- !> Do the linear response excitation calculation.
+  !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
       & eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont,&
       & autotestTag, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell,&
@@ -4394,14 +4399,14 @@ contains
 
 
   !> Returns the coordinates for the next coordinate optimisation step.
-  subroutine getNextCoordinateOptStep(pGeoCoordOpt, EMermin, derivss, indMovedAtom, coords0,&
-      & diffGeo, tCoordEnd)
+  subroutine getNextCoordinateOptStep(pGeoCoordOpt, energy, derivss, indMovedAtom, coords0,&
+      & diffGeo, tCoordEnd, tRemoveExcitation)
 
     !> optimiser for atomic coordinates
     type(OGeoOpt), intent(inout) :: pGeoCoordOpt
 
-    !> electronic free energy U -TS
-    real(dp), intent(in) :: EMermin
+    !> energies
+    type(TEnergies), intent(in) :: energy
 
     !> Derivative of energy with respect to atomic coordinates
     real(dp), intent(in) :: derivss(:,:)
@@ -4418,12 +4423,20 @@ contains
     !> has the geometry optimisation finished
     logical, intent(out) :: tCoordEnd
 
+    !> remove excited state energy from the step, to be consistent with the forces
+    logical, intent(in) :: tRemoveExcitation
+
     real(dp) :: derivssMoved(3 * size(indMovedAtom))
     real(dp), target :: newCoordsMoved(3 * size(indMovedAtom))
     real(dp), pointer :: pNewCoordsMoved(:,:)
 
     derivssMoved(:) = reshape(derivss(:, indMovedAtom), [3 * size(indMovedAtom)])
-    call next(pGeoCoordOpt, EMermin, derivssMoved, newCoordsMoved, tCoordEnd)
+    if (tRemoveExcitation) then
+      call next(pGeoCoordOpt, energy%EMermin - energy%Eexcited, derivssMoved, newCoordsMoved,&
+          & tCoordEnd)
+    else
+      call next(pGeoCoordOpt, energy%EMermin, derivssMoved, newCoordsMoved, tCoordEnd)
+    end if
     pNewCoordsMoved(1:3, 1:size(indMovedAtom)) => newCoordsMoved(1 : 3 * size(indMovedAtom))
     diffGeo = maxval(abs(pNewCoordsMoved - coords0(:, indMovedAtom)))
     coords0(:, indMovedAtom) = pNewCoordsMoved
