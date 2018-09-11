@@ -90,12 +90,10 @@ scc/C60                                #? MPI_PROCS <= 4
 analysis/C60_ESP                       #? MPI_PROCS <= 4
 spin/H2O                               #? MPI_PROCS <= 1
 
-#! This block of tests are for code features capable of producing
-#! unphysical results
-dangerous/C_HardN_defaultSKinterp      #? MPI_PROCS <= 4
-dangerous/C_HardY_defaultSKinterp      #? MPI_PROCS <= 4
-dangerous/C_HardN_oldSKinterp          #? MPI_PROCS <= 4
-dangerous/C_HardY_oldSKinterp          #? MPI_PROCS <= 4
+dangerous/C_SkCutoff_soft_default      #? MPI_PROCS <= 4
+dangerous/C_SkCutoff_hard_default      #? MPI_PROCS <= 4
+dangerous/C_SkCutoff_soft_old          #? MPI_PROCS <= 4
+dangerous/C_SkCutoff_hard_old          #? MPI_PROCS <= 4
 
 timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 1
