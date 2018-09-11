@@ -89,6 +89,9 @@ module taggedoutput
   !> total internal energy
   character(*), parameter, public :: tag_egyTotal   = 'total_energy'
 
+  !> total internal energy extrapolated to 0 K
+  character(*), parameter, public :: tag_egy0Total   = 'extrapolated0_energy'
+
   !> Internal electric field
   character(*), parameter, public :: tag_internfield = 'internal_efield'
 
