@@ -1121,6 +1121,7 @@ contains
     integer :: fp, iErr
     logical :: tBadIntegratingKPoints
     integer :: nElem
+    real(dp) :: rSKCutOff
 
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
@@ -1190,7 +1191,7 @@ contains
       end select
     end do
 
-    ! Orbitals and angular momenta for the given shells (once the SK files will contain the full
+    ! Orbitals and angular momenta for the given shells (once the SK files contain the full
     ! information about the basis, this will be moved to the SK reading routine).
     allocate(slako%orb)
     allocate(slako%orb%nShell(geo%nSpecies))
@@ -1333,8 +1334,18 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
-    call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, &
-        &angShells, ctrl%tOrbResolved, skInterMeth, repPoly)
+
+    call getChild(node, "TruncateSKRange", child, requested=.false.)
+    if (associated(child)) then
+      call warning("Artificially truncating the SK table, this is normally a bad idea!")
+      call SKTruncations(child, rSKCutOff, skInterMeth)
+      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
+          & skInterMeth, repPoly, rSKCutOff)
+    else
+      rSKCutOff = 0.0_dp
+      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
+          & skInterMeth, repPoly)
+    end if
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -1994,6 +2005,44 @@ contains
   end subroutine readDFTBHam
 
 
+  !> Options for truncation of the SK data sets at a fixed distance
+  subroutine SKTruncations(node, truncationCutOff, skInterMeth)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> This is the resulting cutoff distance
+    real(dp), intent(out) :: truncationCutOff
+
+    !> Method of the sk interpolation
+    integer, intent(in) :: skInterMeth
+
+    logical :: tHardCutOff
+    type(fnode), pointer :: field
+    type(string) :: modifier
+
+    ! Artificially truncate the SK table
+    call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+
+    call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
+    if (tHardCutOff) then
+      ! Adjust by the length of the tail appended to the cutoff
+      select case(skInterMeth)
+      case(skEqGridOld)
+        truncationCutOff = truncationCutOff - distFudgeOld
+      case(skEqGridNew)
+        truncationCutOff = truncationCutOff - distFudge
+      end select
+    end if
+    if (truncationCutOff < epsilon(0.0_dp)) then
+      call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
+          & goes to 0")
+    end if
+
+  end subroutine SKTruncations
+
+
   !> Reads inital charges
   subroutine getInitialCharges(node, geo, initCharges)
 
@@ -2217,7 +2266,8 @@ contains
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
-  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly)
+  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
+      & truncationCutOff)
 
     !> List of SK file names to read in for every interaction
     type(ListCharLc), intent(inout) :: skFiles(:,:)
@@ -2244,7 +2294,10 @@ contains
     !> is this a polynomial or spline repulsive?
     logical, intent(in) :: repPoly(:,:)
 
-    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInt, iSh1
+    !> Distances to artificially truncate tables of SK integrals
+    real(dp), intent(in), optional :: truncationCutOff
+
+    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
     logical :: readRep, readAtomic
     character(lc) :: fileName
@@ -2256,6 +2309,9 @@ contains
     type(TRepPolyIn) :: repPolyIn1, repPolyIn2
     type(ORepSpline), allocatable :: pRepSpline
     type(ORepPoly), allocatable :: pRepPoly
+
+    ! if artificially cutting the SK tables
+    integer :: nEntries
 
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
@@ -2355,30 +2411,36 @@ contains
         end if
 
         ! Create full H/S table for all interactions of iSp1-iSp2
-        nInt = getNSKIntegrals(iSp1, iSp2, orb)
-        allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
-        allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
+        nInteract = getNSKIntegrals(iSp1, iSp2, orb)
+        allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
+        allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
         call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1), &
             &angShells(iSp2))
 
         ! Add H/S tables to the containers for iSp1-iSp2
         dist = skData12(1,1)%dist
+        if (present(truncationCutOff)) then
+          nEntries = floor(truncationCutOff / dist)
+          nEntries = min(nEntries, size(skData12(1,1)%skHam, dim=1))
+        else
+          nEntries = size(skData12(1,1)%skHam, dim=1)
+        end if
         allocate(pSlakoEqGrid1, pSlakoEqGrid2)
-        call init(pSlakoEqGrid1, dist, skHam, skInterMeth)
-        call init(pSlakoEqGrid2, dist, skOver, skInterMeth)
+        call init(pSlakoEqGrid1, dist, skHam(:nEntries,:), skInterMeth)
+        call init(pSlakoEqGrid2, dist, skOver(:nEntries,:), skInterMeth)
         call addTable(slako%skHamCont, pSlakoEqGrid1, iSp1, iSp2)
         call addTable(slako%skOverCont, pSlakoEqGrid2, iSp1, iSp2)
         deallocate(skHam)
         deallocate(skOver)
         if (iSp1 /= iSp2) then
           ! Heteronuclear interactions: the same for the reverse interaction
-          allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
-          allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
+          allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
+          allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
           call getFullTable(skHam, skOver, skData21, skData12, angShells(iSp2),&
               &angShells(iSp1))
           allocate(pSlakoEqGrid1, pSlakoEqGrid2)
-          call init(pSlakoEqGrid1, dist, skHam, skInterMeth)
-          call init(pSlakoEqGrid2, dist, skOver, skInterMeth)
+          call init(pSlakoEqGrid1, dist, skHam(:nEntries,:), skInterMeth)
+          call init(pSlakoEqGrid2, dist, skOver(:nEntries,:), skInterMeth)
           call addTable(slako%skHamCont, pSlakoEqGrid1, iSp2, iSp1)
           call addTable(slako%skOverCont, pSlakoEqGrid2, iSp2, iSp1)
           deallocate(skHam)
@@ -2567,7 +2629,7 @@ contains
 
   !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
   !> species
-  pure function getNSKIntegrals(sp1, sp2, orb) result(nInt)
+  pure function getNSKIntegrals(sp1, sp2, orb) result(nInteract)
 
     !> Index of the first species
     integer, intent(in) :: sp1
@@ -2579,14 +2641,14 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Nr. of Slater-Koster interactions
-    integer :: nInt
+    integer :: nInteract
 
     integer :: iSh1, iSh2
 
-    nInt = 0
+    nInteract = 0
     do iSh1 = 1, orb%nShell(sp1)
       do iSh2 = 1, orb%nShell(sp2)
-        nInt = nInt + min(orb%angShell(iSh2, sp2), orb%angShell(iSh1, sp1)) + 1
+        nInteract = nInteract + min(orb%angShell(iSh2, sp2), orb%angShell(iSh1, sp1)) + 1
       end do
     end do
 
