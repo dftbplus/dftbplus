@@ -1113,7 +1113,7 @@ contains
     real(dp), allocatable :: tmpR2(:,:)
     real(dp) :: rTmp, rTmp3(3)
     integer, allocatable :: iTmpN(:)
-    real(dp) :: coeffsAndShifts(3, 4), truncationCutOff
+    real(dp) :: coeffsAndShifts(3, 4)
     integer :: nShell, skInterMeth
     character(1) :: tmpCh
     logical :: tShellIncl(4), tFound
@@ -1121,6 +1121,7 @@ contains
     integer :: fp, iErr
     logical :: tBadIntegratingKPoints
     integer :: nElem
+    real(dp) :: rSKCutOff
 
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
@@ -1333,33 +1334,15 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
+
     call getChild(node, "TruncateSKRange", child, requested=.false.)
     if (associated(child)) then
       call warning("Artificially truncating the SK table, this is normally a bad idea!")
-      ! Artificially truncate the SK table
-      call getChildValue(child, "SKMaxDistance", truncationCutOff, -1.0_dp, modifier=modifier,&
-          & child=field)
-      call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
-      call getChildValue(child, "HardCutOff", tFound, .true.)
-      if (tFound) then
-        ! Adjust by the length of the tail appended to the cutoff
-        select case(skInterMeth)
-        case(skEqGridOld)
-          truncationCutOff = truncationCutOff - distFudgeOld
-        case(skEqGridNew)
-          truncationCutOff = truncationCutOff - distFudge
-        end select
-      end if
-    else
-      truncationCutOff = -1.0_dp
-    end if
-    if (truncationCutOff > 0.0_dp) then
+      call SKTruncations(child, rSKCutOff, skInterMeth)
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
-          & skInterMeth, repPoly, truncationCutOff)
-    else if (truncationCutOff /= -1.0_dp) then
-      call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
-          & goes to 0")
+          & skInterMeth, repPoly, rSKCutOff)
     else
+      rSKCutOff = 0.0_dp
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
           & skInterMeth, repPoly)
     end if
@@ -2020,6 +2003,44 @@ contains
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
 
   end subroutine readDFTBHam
+
+
+  !> Options for truncation of the SK data sets at a fixed distance
+  subroutine SKTruncations(node, truncationCutOff, skInterMeth)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> This is the resulting cutoff distance
+    real(dp), intent(out) :: truncationCutOff
+
+    !> Method of the sk interpolation
+    integer, intent(in) :: skInterMeth
+
+    logical :: tHardCutOff
+    type(fnode), pointer :: field
+    type(string) :: modifier
+
+    ! Artificially truncate the SK table
+    call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+
+    call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
+    if (tHardCutOff) then
+      ! Adjust by the length of the tail appended to the cutoff
+      select case(skInterMeth)
+      case(skEqGridOld)
+        truncationCutOff = truncationCutOff - distFudgeOld
+      case(skEqGridNew)
+        truncationCutOff = truncationCutOff - distFudge
+      end select
+    end if
+    if (truncationCutOff < epsilon(0.0_dp)) then
+      call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
+          & goes to 0")
+    end if
+
+  end subroutine SKTruncations
 
 
   !> Reads inital charges
