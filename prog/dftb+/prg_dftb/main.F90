@@ -347,14 +347,12 @@ contains
           call error("Linear response calc. does not work with MPI yet")
         end if
         call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tCasidaForces)
-        !if (.not.tMd .or. (.not.tCasidaForces .and. tWriteRestart)) then
-          call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-              & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
-              & skHamCont, skOverCont, autotestTag, runId, neighbourList, nNeighbourSK,&
-              & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces,&
-              & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
-              & energiesCasida, SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
-        !end if
+        call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
+            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, runId, neighbourList, nNeighbourSK,&
+            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces,&
+            & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
+            & energiesCasida, SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
       end if
 
       if (tXlbomd) then
@@ -502,7 +500,7 @@ contains
         else if (tGeoOpt) then
           tCoordsChanged = .true.
           if (tCoordStep) then
-            if (.not.tCasidaForces) then
+            if (.not. tCasidaForces) then
               call getNextCoordinateOptStep(pGeoCoordOpt, energy, derivs, indMovedAtom,&
                   & coord0, diffGeo, tCoordEnd, .true.)
             else

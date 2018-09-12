@@ -3081,9 +3081,11 @@ fractional occupations. The specifications for this block have the following pro
     on the quality of the resulting eigenstates.
 
   \item[\is{ExcitedStateForces}] If set to \is{Yes}, evaluated forces include
-    the contributions from an excited state of interest. This option can be
-    used, for example, to select between optimisation or MD
-    (p.~\pref{sec:dftbp.Driver}) in the ground or excited state.
+    the contributions from an excited state of interest. By default, it is set
+    to \is{Yes} if ground state forces are calculated and to \is{No}
+    otherwise. By setting it explicitely to \is{No}, you can calculate the
+    excitations during a moleculer dynamics simulation driven by the ground
+    state forces only.
 
   \end{description}
 
