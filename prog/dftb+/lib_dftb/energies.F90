@@ -60,6 +60,9 @@ module energies
     !> Total Mermin energy
     real(dp) :: EMermin = 0.0_dp
 
+    !> Zero temperature extrapolated energy
+    real(dp) :: Ezero = 0.0_dp
+
     !> Gibbs free energy
     real(dp) :: EGibbs = 0.0_dp
 

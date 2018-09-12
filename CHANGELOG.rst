@@ -13,6 +13,8 @@ Added
 
 - Use of the ELSI library.
 
+- Ability to perform ground state MD with excitation energies
+
 
 Changed
 -------

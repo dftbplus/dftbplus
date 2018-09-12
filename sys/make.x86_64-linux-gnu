@@ -9,7 +9,8 @@ ifeq ($(strip $(WITH_MPI)),1)
 ############################################################################
 
 # Compilers
-FXX = mpif90
+# Replace mpifort with mpif90 in case your MPI does not support it yet
+FXX = mpifort
 CC = gcc
 
 # Compiler options
