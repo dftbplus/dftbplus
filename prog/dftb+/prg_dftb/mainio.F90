@@ -3091,8 +3091,8 @@ contains
 
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, latVec, cellVol, cellPressure, pressure, tempIon, absEField, qOutput, q0,&
-      & dipoleMoment)
+      & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
+      & qOutput, q0, dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3117,6 +3117,9 @@ contains
 
     !> energy contributions
     type(TEnergies), intent(in) :: energy
+
+    !> excitation energies, if allocated
+    real(dp), allocatable, intent(inout) :: energiesCasida(:)
 
     !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
@@ -3146,6 +3149,7 @@ contains
     real(dp), intent(inout), allocatable :: dipoleMoment(:)
 
     integer :: ii
+    character(lc) :: strTmp
 
     if (tStress) then
       if (tBarostat) then
@@ -3163,9 +3167,18 @@ contains
             & Hartree__eV * energy%EGibbsKin, 'eV'
       end if
     end if
-    if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
-      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
-          & Hartree__eV * energy%Eexcited, "eV"
+    if (tLinResp) then
+      if (energy%Eexcited /= 0.0_dp) then
+        write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
+            & Hartree__eV * energy%Eexcited, "eV"
+      end if
+      if (allocated(energiesCasida)) then
+        do ii = 1, size(energiesCasida)
+          write(strTmp,"('Excitation ',I0)")ii
+          write(fd, format2U) trim(strTmp), energiesCasida(ii), "H",&
+              & Hartree__eV * energiesCasida(ii), "eV"
+        end do
+      end if
     end if
     write(fd, format2U) 'Potential Energy', energy%EMermin,'H', energy%EMermin * Hartree__eV, 'eV'
     write(fd, format2U) 'MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV, 'eV'

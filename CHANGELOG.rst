@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Ability to perform ground state MD with excitation energies
+
 
 Changed
 -------

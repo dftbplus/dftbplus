@@ -432,6 +432,9 @@ module initprogram
   !> Do we need forces?
   logical :: tForces
 
+  !> Is the contribution from an excited state needed for the forces
+  logical :: tCasidaForces
+
   !> are forces being returned
   logical :: tPrintForces
 
@@ -1417,6 +1420,11 @@ contains
 
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
+    if (tForces) then
+      tCasidaForces = input%ctrl%tCasidaForces
+    else
+      tCasidaForces = .false.
+    end if
     if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
@@ -1631,9 +1639,9 @@ contains
       end if
       if (nspin > 2) then
         call error("Linear reponse does not work with non-colinear spin polarization yet")
-      elseif (tSpin .and. tForces) then
+      elseif (tSpin .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
-      elseif (tPeriodic .and. tForces) then
+      elseif (tPeriodic .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet periodic systems")
       elseif (tPeriodic .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
@@ -1644,14 +1652,14 @@ contains
       elseif (input%ctrl%tOrbResolved) then
         call error("Linear response does not support orbital resolved scc yet")
       end if
-      if (tempElec > 0.0_dp .and. tForces) then
+      if (tempElec > 0.0_dp .and. tCasidaForces) then
         write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
             & occupations, kT=", tempElec/Boltzmann,"K"
         call warning(tmpStr)
       end if
 
       if (input%ctrl%lrespini%nstat == 0) then
-        if (tForces) then
+        if (tCasidaForces) then
           call error("Excited forces only available for StateOfInterest non zero.")
         end if
         if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
@@ -1693,10 +1701,10 @@ contains
       end select
 
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
-      tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tForces .or. input%ctrl%lrespini%tCoeffs&
-          & .or. tPrintExcitedEigVecs)
+      tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
+          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb)
+      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces)
 
     end if
 
