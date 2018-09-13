@@ -31,7 +31,7 @@ clean:
 	rm -f *.o _mod_* *.mod
 
 %.o: %.f90
-	$(FXX) $(FXXOPT) -o $@ -c $<
+	$(FXX) -c $(FXXOPT) -o $@ -c $<
 
 _mod_%:
 	@[ -f $< ] && touch $@
