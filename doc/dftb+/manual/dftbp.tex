@@ -1763,7 +1763,7 @@ The orbital minimisation method has four options:
   \kw{nInterationsELPA} & i& & 5 & \\
   \kw{Tolerance} & r& & 1E-10 & \\
   \kw{Choleskii} & l& & Yes & \\
-  \kw{Sparse} & l& & Yes & \\
+  \kw{Sparse}    & l& & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{nInterationsELPA}] Number of initial iterations to be performed with
@@ -1772,9 +1772,9 @@ The orbital minimisation method has four options:
   faster by may be less stable.
 \item[\is{Choleskii}] Whether the overlap is Choleskii factorised before
   applying OMM. This may increase stability of this method.
-\item[\is{Sparse}] Whether the code should use the sparse matrix interface. This
-  does not substantially improve memory usage in this case as internally the
-  dense problem is solved with libOMM.
+\item[\is{Sparse}] Whether the code should use the sparse matrix interface to
+  ELSI solvers. This does not substantially improve memory usage in this case as
+  internally the dense problem is solved with libOMM.
 \end{description}
 
 \subsubsection{PEXSI}
@@ -1791,7 +1791,7 @@ general systems.
   \kw{muPoints}     & i & & 2  & \\
   \kw{SymbolicFactorProcs} & i & & 1  & \\
   \kw{SpectralRadius} & r & & 10 & \\
-  \kw{Sparse} & l& & Yes & \\
+  \kw{Sparse} & l& & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{Poles}] number of poles for the complex plane calculation.
@@ -1801,7 +1801,7 @@ general systems.
   factorisation pattern of matrices.
 \item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex
   contour.
-\item[\is{Sparse}] Whether the code should use the sparse matrix interface.
+\item[\is{Sparse}] Whether the code should use the sparse ELSI matrix interface.
 \end{description}
 
 \subsubsection{NTPoly}
@@ -1818,7 +1818,7 @@ This solver has four options:
   \kw{PurificationMethod} & i& & 2 & \\
   \kw{Tolerance} & r& & 1E-5 & \\
   \kw{Truncation} & r& & 1E-10 & \\
-  \kw{Sparse} & l& & Yes & \\
+  \kw{Sparse} & l& & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{PurificationMethod}] Allowed choices are 0 for canonical purification,
@@ -1829,7 +1829,7 @@ This solver has four options:
   values are faster by may be less stable.
 \item[\is{Truncation}] Tolerance below which matrix elements in the density
   matrix are dropped to enforce sparsity.
-\item[\is{Sparse}] Whether the code should use the sparse matrix interface.
+\item[\is{Sparse}] Whether the code should use the sparse matrix ELSI interface.
 \end{description}
 
 The default choices of \is{Tolerance} and \is{Truncation} lead to an accurate,

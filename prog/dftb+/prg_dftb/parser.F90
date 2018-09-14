@@ -1653,7 +1653,7 @@ contains
       ctrl%solver%isolver = electronicSolverTypes%ntpoly
     #:if WITH_ELSI
       if (ctrl%tSpin) then
-        call detailedError(value, "Solver does not currently support spin")
+        call detailedError(value, "Solver does not currently support spin polarisation")
       end if
       call getChildValue(value, "PurificationMethod", ctrl%solver%NTPoly_method, 2)
       call getChildValue(value, "Tolerance", ctrl%solver%NTPoly_tolerance, 1.0E-5_dp)
@@ -1679,12 +1679,16 @@ contains
       end if
     end if
 
+  #:if WITH_ELSI
     if (ctrl%solver%isolver > electronicSolverTypes%elpa .and.&
         & ctrl%solver%isolver <= electronicSolverTypes%ntpoly) then
-    #:if WITH_ELSI
-      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .true.)
-    #:endif
+      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
+      if (ctrl%t2Component) then
+        call detailedError(value,"Two-component hamiltonians currently cannot be used with sparse&
+            & ELSI solvers")
+      end if
     end if
+  #:endif
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
     ! thermostat.)

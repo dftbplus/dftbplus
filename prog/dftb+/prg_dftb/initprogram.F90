@@ -2436,7 +2436,7 @@ contains
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver PEXSI Sparse"
         if (t2Component) then
-          call error("Not currently avaible for two component complex hamiltonians")
+          call error("Not currently available for two component complex hamiltonians")
         end if
       else
         write (strTmp, "(A)") "ELSI solver PEXSI Dense"
@@ -2449,7 +2449,7 @@ contains
       if (electronicSolver%ELSI_CSR) then
         write (strTmp, "(A)") "ELSI solver NTPoly Sparse"
         if (t2Component) then
-          call error("Not currently avaible for two component complex hamiltonians")
+          call error("Not currently available for two component complex hamiltonians")
         end if
       else
         write (strTmp, "(A)") "ELSI solver NTPoly Dense"

@@ -244,7 +244,7 @@ contains
       this%ELSI_n_state = nBasisFn
     end select
 
-    ! bands only available for ELPA
+    ! bands only available for solvers up to ELPA in the list
     if (this%iSolver > electronicSolverTypes%elpa) then
       tWriteDetailedOutBands = .false.
     end if
