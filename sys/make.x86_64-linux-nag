@@ -24,7 +24,7 @@ LNOPT = -openmp
 # How to link specific libraries
 
 # ScaLAPACK
-SCALAPACKDIR = /usr/lib
+SCALAPACKDIR = $(PREFIX)/lib
 LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
 
 # LAPACK/BLAS
