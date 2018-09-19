@@ -23,18 +23,18 @@ Downloads optional external components.
 Possible choices for OPTEXT:
 
   UNRESTRICTED (default) -- download only components which are less or equally
-      restrictive than the LGPL license of DFTB+ and do not restrict the
+      restrictive as the LGPLv3 license of DFTB+ and do not restrict the
       distribution of the compiled code beyond its LGPL-license.
 
-  RESTRICTED -- download optional components with stricter license as LGPL
-      (typically GPL). The distribution of the compiled code will be restricted
-      beyond the LGPL license and governed by the strictest license of the
-      included optional components (typically GPLv3).
+  RESTRICTED -- download optional components with stricter license as the LGPLv3
+      license of DFTB+ (typically GPL). The distribution of the compiled code
+      will be restricted beyond the LGPL license and governed by the strictest
+      license of the included optional components (typically GPLv3).
 
   ALL -- download all optional external components.
 
       NOTE: this will also download components which may restrict the license of
-      the compiled code beyond the LGPL license.
+      the combined code beyond the LGPLv3 license of DFTB+.
 
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 

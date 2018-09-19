@@ -4,7 +4,7 @@
 ############################################################################
 
 # Directory where standard packages are installed in the system
-PREFIX := /usr/local
+PREFIX := /usr
 
 # PGI library directory
 PGI_LIBDIR = /opt/pgi/linux86-64/17.10/lib
