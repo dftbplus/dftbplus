@@ -22,26 +22,28 @@ Downloads optional external components.
 
 Possible choices for OPTEXT:
 
-  DISTRIB (default) -- download only components which are LGPL-compatible,
-      can be distributed with the DFTB+ source code and do not restrict the
+  UNRESTRICTED (default) -- download only components which are less or equally
+      restrictive than the LGPLv3 license of DFTB+ and do not restrict the
       distribution of the compiled code beyond its LGPL-license.
+
+  RESTRICTED -- download optional components with stricter license than the
+      LGPLv3 license of DFTB+ (typically GPL). The distribution of the compiled
+      code will be restricted beyond the LGPL license and governed by the
+      strictest license of the included optional components (typically GPLv3).
 
   ALL -- download all optional external components.
 
-      NOTE: this will also download components with LGPL-incompatible
-      licenses. Those components can not be distributed with the DFTB+ source
-      code and the distribution of the resulting binary or library is not
-      permitted if those components were part of the build. Using them for
-      personal research is permitted, though.
+      NOTE: this will also download components which may restrict the license of
+      the combined code beyond the LGPLv3 license of DFTB+.
 
-  slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA]
+  slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 
-  dftd3 -- Library for calculating D3 dispersion [license: GPL]
+  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
 '''
 
-NON_DISTRIB_WARNING = """WARNING:
-    This optional external component is not compatible with the DFTB+ license.
-    Restrictions on distribution of the compiled code may apply.
+RESTRICTED_WARNING = """WARNING:
+    This optional external component has a more restrictive license than the
+    DFTB+ license. Restrictions on distribution of the compiled code may apply.
 """
 
 SCRIPT_DIR = os.path.dirname(sys.argv[0])
@@ -50,6 +52,9 @@ STATUS_FILE = 'status'
 
 STATUS_MISSING = 'missing'
 STATUS_OK = 'ok'
+
+UNRESTRICTED_EXTERNAL = 0
+RESTRICTED_EXTERNAL = 1
 
 
 class ScriptError(Exception):
@@ -65,8 +70,10 @@ def main():
 
     externals = []
     for external in args:
-        if external == 'DISTRIB':
-            externals += EXTERNALS_DISTRIB
+        if external == 'UNRESTRICTED':
+            externals += EXTERNALS_UNRESTRICTED
+        elif external == 'RESTRICTED':
+            externals += EXTERNALS_RESTRICTED
         elif external == 'ALL':
             externals += EXTERNALS
         else:
@@ -76,14 +83,14 @@ def main():
     for external in externals:
         if external in done or external in excluded:
             continue
-        getter, destdir, distrib = GETTERS[external]
+        getter, destdir, restriction = GETTERS[external]
         destdir = os.path.join(EXTERNAL_DIR, destdir)
         if not os.path.isdir(destdir):
             msg = "Directory '{}' does not exist".format(destdir)
             raise ScriptError(msg)
         print('\n*** Getting external:', external, '\n    into', destdir, '\n')
-        if not distrib:
-            print(NON_DISTRIB_WARNING)
+        if restriction == RESTRICTED_EXTERNAL:
+            print(RESTRICTED_WARNING)
         set_status(destdir, STATUS_MISSING)
         getter(destdir)
         set_status(destdir, STATUS_OK)
@@ -101,9 +108,9 @@ def parse_cmdline_args():
         choices=EXTERNALS, default=None, action='append', help=msg)
     opts, args = parser.parse_args()
 
-    argchoices = ['DISTRIB', 'ALL'] + EXTERNALS
+    argchoices = ['UNRESTRICTED', 'RESTRICTED', 'ALL'] + EXTERNALS
     if not args:
-        args = ['DISTRIB']
+        args = ['UNRESTRICTED']
     for arg in args:
         if arg not in argchoices:
             msg = "Invalid optional external '{}'".format(arg)
@@ -228,17 +235,22 @@ def read_input():
 
 
 # Methods to obtain externals.
-# Contains (function, targetfolder, is_distributable) tuples
+# Contains (function, targetfolder, restriction) tuples
 GETTERS = {
-    'slakos': (get_slakos, 'slakos', True),
-    'dftd3': (get_dftd3, 'dftd3', False)
+    'slakos': (get_slakos, 'slakos', UNRESTRICTED_EXTERNAL),
+    'dftd3': (get_dftd3, 'dftd3', RESTRICTED_EXTERNAL)
 }
 
 # All externals
 EXTERNALS = list(GETTERS.keys())
 
 # LGPL-compatible externals without restriction on distribution
-EXTERNALS_DISTRIB = [ext for ext in GETTERS.keys() if GETTERS[ext][2]]
+EXTERNALS_UNRESTRICTED = [ext for ext in GETTERS.keys()
+                          if GETTERS[ext][2] == UNRESTRICTED_EXTERNAL]
+
+# LGPL-compatible externals with restriction on distribution
+EXTERNALS_RESTRICTED = [ext for ext in GETTERS.keys()
+                        if GETTERS[ext][2] == RESTRICTED_EXTERNAL]
 
 
 if __name__ == '__main__':
