@@ -52,6 +52,7 @@ module initprogram
   use simplealgebra
   use nonscc
   use scc
+  use onsitecorrection
   use h5correction
   use sccinit
   use slakocont
@@ -551,8 +552,13 @@ module initprogram
   !> Orbital equivalency for orbital blocks
   integer, allocatable :: iEqBlockDFTBU(:,:,:,:)
 
+  !> Equivalences for onsite block corrections if needed
+  integer, allocatable :: iEqBlockOnSite(:,:,:,:)
+
   !> Orbital equivalency for orbital blocks with spin-orbit
   integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
+
+
 
   ! External charges
 
@@ -597,6 +603,14 @@ module initprogram
   !> data structure for 3rd order
   type(ThirdOrder), allocatable :: thirdOrd
 
+  !> Correction to energy from on-site matrix elements
+  real(dp), allocatable :: onSiteElements(:,:)
+
+  !> Correction to dipole momements on-site matrix elements
+  real(dp), allocatable :: onSiteDipole(:,:)
+
+  !> Should block charges be mixed as well as charges
+  logical :: tMixBlockCharges = .false.
 
   !> Calculate Casida linear response excitations
   logical :: tLinResp
@@ -1050,6 +1064,19 @@ contains
       end do
     end if
 
+    ! on-site corrections
+    if (allocated(input%ctrl%onSiteElements)) then
+      allocate(onSiteElements(nType, 10))
+      onSiteElements(:,:) = input%ctrl%onSiteElements(:,:)
+    end if
+
+    if (allocated(onSiteElements)) then
+      tMixBlockCharges = .true.
+    else
+      tMixBlockCharges = .false.
+    end if
+    tMixBlockCharges = tMixBlockCharges .or. tDFTBU
+
     ! DFTB+U parameters
     if (tDFTBU) then
       nDFTBUfunc = input%ctrl%DFTBUfunc
@@ -1325,6 +1352,20 @@ contains
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
         end if
       end if
+
+      if (allocated(onSiteElements)) then
+        if (nspin > 2) then
+          call error("onsite correction does not work with non-colinear spin polarization yet")
+        elseif (.not. tRealHS) then
+          call error("onsite correction only works with real Hamiltonian so far")
+        elseif (tDFTBU) then
+          call error("onsite correction does not work with LDA+U yet")
+        end if
+        allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        call Ons_blockIndx(iEqBlockOnSite, nMixElements, orb)
+        nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
+      end if
+
     else
       nIneqOrb = nOrb
       nMixElements = 0
@@ -1851,7 +1892,7 @@ contains
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
 
-    if (tDFTBU) then
+    if (tMixBlockCharges) then
       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
       qBlockIn(:,:,:,:) = 0.0_dp
@@ -1891,7 +1932,7 @@ contains
         end do
       end do
       if (tReadChrg) then
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           if (nSpin == 2) then
             if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
@@ -1996,7 +2037,7 @@ contains
             end if
           end if
         end select
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           qBlockIn = 0.0_dp
           do iS = 1, nSpin
             do iAt = 1, nAtom
@@ -2021,22 +2062,29 @@ contains
       qInpRed = 0.0_dp
       if (nSpin == 2) then
         call qm2ud(qInput)
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           call qm2ud(qBlockIn)
         end if
       end if
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-      if (tDFTBU) then
-        call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
-        if (tImHam) then
-          call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
+      if (tMixBlockCharges) then
+        if (tDFTBU) then
+          call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
+          if (tImHam) then
+            call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
+          end if
+        else
+          call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
+          if (tImHam) then
+            call AppendBlock_reduce(qiBlockIn, iEqBlockOnSite, orb, qInpRed, skew=.true. )
+          end if
         end if
       end if
 
       if (nSpin == 2) then
         call ud2qm(qInput)
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           call ud2qm(qBlockIn)
         end if
       end if
@@ -2301,6 +2349,9 @@ contains
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
         write(stdOut, "(A,':',T30,A)")"Orbital functional", trim(plusUFunctionals%names(nDFTBUfunc))
+      end if
+      if (allocated(onSiteElements)) then
+        write(stdOut, "(A,':',T35,A)")"On-site corrections", "Yes"
       end if
     else
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"

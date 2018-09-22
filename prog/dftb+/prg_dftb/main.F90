@@ -258,6 +258,12 @@ contains
               & neighbourList, img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+
+          if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
+            call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species)
+            call addRIshift(potential%intBlock, qOutput, q0, orb, onSiteElements, species)
+          end if
+
         end if
         potential%intBlock = potential%intBlock + potential%extBlock
 
@@ -306,7 +312,7 @@ contains
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, onSiteElements)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -314,7 +320,7 @@ contains
           call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
               & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
-              & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+              & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite)
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
           tWriteSccRestart = env%tGlobalMaster .and.&
@@ -331,7 +337,8 @@ contains
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut,&
               & Ef, Eband, TS, E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
-              & tPeriodic, nSpin, tSpinOrbit, tSccCalc, invLatVec, kPoint)
+              & tPeriodic, nSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), invLatVec,&
+              & kPoint)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -359,7 +366,7 @@ contains
       if (tXlbomd) then
         call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
             & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&
-            & qiBlockIn)
+            & qiBlockIn, iEqBlockOnSite)
       end if
 
       if (tDipole) then
@@ -404,7 +411,7 @@ contains
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-            & iRhoPrim, thirdOrd, chrgForces, dispersion)
+            & iRhoPrim, thirdOrd, chrgForces, dispersion, onSiteElements, qBlockOut)
         if (tCasidaForces) then
           derivs(:,:) = derivs + excitedDerivs
         end if
@@ -2499,7 +2506,7 @@ contains
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
       & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2591,6 +2598,9 @@ contains
     !> Spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:)
+
     integer :: nSpin
 
     nSpin = size(rhoPrim, dim=2)
@@ -2628,6 +2638,11 @@ contains
       energy%e3rd = sum(energy%atom3rd)
     end if
 
+    if (allocated(onSiteElements)) then
+      call getEons(energy%atomOnSite, qBlock, qOrb, q0, orb, onSiteElements, species)
+      energy%eOnSite = sum(energy%atomOnSite)
+    end if
+
     if (tDftbU) then
       if (allocated(qiBlock)) then
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ,&
@@ -2645,9 +2660,9 @@ contains
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd
+        & + energy%Eext + energy%e3rd + energy%eOnSite
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
     energy%EMermin = energy%Etotal - sum(TS)
@@ -2679,7 +2694,7 @@ contains
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg, qInput,&
       & qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
-      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn)
+      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2768,12 +2783,15 @@ contains
     !> Imaginary part of block atomic input populations
     real(dp), intent(inout), allocatable :: qiBlockIn(:,:,:,:)
 
+    !> Equivalences for onsite block corrections if needed
+    integer, intent(in), allocatable :: iEqBlockOnSite(:,:,:,:)
+
     real(dp), allocatable :: qDiffRed(:)
     integer :: nSpin
 
     nSpin = size(qOutput, dim=3)
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
-        & qiBlockOut, iEqBlockDftbuLS)
+        & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite)
     qDiffRed = qOutRed - qInpRed
     sccErrorQ = maxval(abs(qDiffRed))
     tConverged = (sccErrorQ < sccTol)&
@@ -2799,7 +2817,7 @@ contains
         qInpRed(:) = qInpRed / env%mpi%globalComm%size
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-            & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
+            & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite)
       end if
     end if
 
@@ -2808,7 +2826,7 @@ contains
 
   !> Reduce charges according to orbital equivalency rules.
   subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu, qiBlock,&
-      & iEqBlockDftbuLS)
+      & iEqBlockDftbuLS, iEqBlockOnSite)
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -2837,6 +2855,9 @@ contains
     !> Equivalences for spin orbit if needed
     integer, intent(in), allocatable :: iEqBlockDftbuLS(:,:,:,:)
 
+    !> Equivalences for onsite block corrections if needed
+    integer, intent(in), allocatable :: iEqBlockOnSite(:,:,:,:)
+
     real(dp), allocatable :: qOrbUpDown(:,:,:), qBlockUpDown(:,:,:,:)
 
     qRed(:) = 0.0_dp
@@ -2846,9 +2867,16 @@ contains
     if (allocated(qBlock)) then
       qBlockUpDown = qBlock
       call qm2ud(qBlockUpDown)
-      call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
-      if (allocated(qiBlock)) then
-        call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
+      if (allocated(iEqBlockOnSite)) then
+        call appendBlock_reduce(qBlockUpDown, iEqBlockOnSite, orb, qRed)
+        if (allocated(qiBlock)) then
+          call appendBlock_reduce(qiBlock, iEqBlockOnSite, orb, qRed, skew=.true.)
+        end if
+      else
+        call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
+        if (allocated(qiBlock)) then
+          call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
+        end if
       end if
     end if
 
@@ -2857,7 +2885,7 @@ contains
 
   !> Expand reduced charges according orbital equivalency rules.
   subroutine expandCharges(qRed, orb, nIneqOrb, iEqOrbitals, qOrb, qBlock, iEqBlockDftbu, species0,&
-      & nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS)
+      & nUJ, iUJ, niUJ, qiBlock, iEqBlockDftbuLS, iEqBlockOnSite)
 
     !> Reduction of atomic populations
     real(dp), intent(in) :: qRed(:)
@@ -2898,9 +2926,12 @@ contains
     !> Equivalences for spin orbit if needed
     integer, intent(in), allocatable :: iEqBlockDftbULS(:,:,:,:)
 
+    !> Equivalences for onsite block corrections if needed
+    integer, intent(in), allocatable :: iEqBlockOnSite(:,:,:,:)
+
     integer :: nSpin
 
-    @:ASSERT(allocated(qBlock) .eqv. allocated(iEqBlockDftbU))
+    @:ASSERT(allocated(qBlock) .eqv. (allocated(iEqBlockDftbU) .or. allocated(iEqBlockOnSite)))
     @:ASSERT(.not. allocated(qBlock) .or. allocated(species0))
     @:ASSERT(.not. allocated(qBlock) .or. allocated(nUJ))
     @:ASSERT(.not. allocated(qBlock) .or. allocated(iUJ))
@@ -2912,11 +2943,15 @@ contains
     call OrbitalEquiv_expand(qRed(1:nIneqOrb), iEqOrbitals, orb, qOrb)
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
-      call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
-          & orbEquiv=iEqOrbitals)
-      if (allocated(qiBlock)) then
-        call Block_expand(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, nUJ, niUJ, iUJ,&
-            & skew=.true.)
+      if (allocated(iEqBlockOnSite)) then
+        call Onsblock_expand(qRed, iEqBlockOnSite, orb, qBlock)
+      else
+        call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
+            & orbEquiv=iEqOrbitals)
+        if (allocated(qiBlock)) then
+          call Block_expand(qRed, iEqBlockDftbuLS, orb, qiBlock, species0, nUJ, niUJ, iUJ,&
+              & skew=.true.)
+        end if
       end if
     end if
     if (nSpin == 2) then
@@ -3210,7 +3245,7 @@ contains
   !> Get the XLBOMD charges for the current geometry.
   subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
       & qInput, qInpRed, iEqBlockDftbu, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLS,&
-      & qiBlockIn)
+      & qiBlockIn, iEqBlockOnSite)
 
     !> integrator for the extended Lagrangian
     type(Xlbomd), intent(inout) :: xlbomdIntegrator
@@ -3260,6 +3295,9 @@ contains
     !> imaginary part of dual charges
     real(dp), intent(inout), allocatable :: qiBlockIn(:,:,:,:)
 
+    !> Equivalences for onsite block corrections if needed
+    integer, intent(inout), allocatable :: iEqBlockOnSite(:,:,:,:)
+
     real(dp), allocatable :: invJacobian(:,:)
 
     if (xlbomdIntegrator%needsInverseJacobian()) then
@@ -3271,7 +3309,7 @@ contains
     end if
     call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), qInpRed(1:nIneqOrb))
     call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-        & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS)
+        & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite)
 
   end subroutine getXlbomdCharges
 
@@ -3888,7 +3926,7 @@ contains
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-      & chrgForces, dispersion)
+      & chrgForces, dispersion, onSiteElements, qBlockOut)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3971,6 +4009,12 @@ contains
     !> dispersion interactions
     class(DispersionIface), intent(inout), allocatable :: dispersion
 
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:)
+
+    !> Dual output charges
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
+
     real(dp), allocatable :: tmpDerivs(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom
@@ -4029,6 +4073,12 @@ contains
         else
           call thirdOrd%addGradientDc(neighbourList, species, coord, img2CentCell, derivs)
         end if
+      end if
+
+      if (allocated(onSiteElements)) then
+        call addonsForce(derivs, rhoPrim, species, neighbourList%iNeighbour, nNeighbourSK, coord,&
+            & iSparseStart, img2CentCell, qBlockOut, qOutput,q0, orb, onSiteElements, skOverCont,&
+            & skHamCont, nonSccDeriv)
       end if
 
       if (tEField) then

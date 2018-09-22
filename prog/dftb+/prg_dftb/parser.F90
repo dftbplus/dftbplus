@@ -1933,6 +1933,16 @@ contains
 
     end if
 
+    ! On-site
+    call getChildValue(node, "OnSiteCorrection", value, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value)) then
+      allocate(ctrl%onSiteElements(geo%nSpecies, 10))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, geo%speciesNames(iSp1), ctrl%onSiteElements(iSp1, :10))
+      end do
+    end if
+
     ! Dispersion
     call getChildValue(node, "Dispersion", value, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true.)
