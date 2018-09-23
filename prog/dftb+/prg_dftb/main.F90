@@ -179,7 +179,7 @@ contains
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
-    minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin)
+    minSccIter = getMinSccIters(tSccCalc, tMixBlockCharges, nSpin)
 
     if (tXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSCCiter, maxSccIter, sccTol)
@@ -307,8 +307,8 @@ contains
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-          if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
-            call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species)
+          if (allocated(onSiteElements)) then
+            call addOnsShift(potential%intBlock, qBlockOut, orb, onSiteElements, species)
             call addRIshift(potential%intBlock, qOutput, q0, orb, onSiteElements, species)
           end if
 
@@ -324,7 +324,8 @@ contains
 
         if (tSccCalc) then
           call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg,&
+              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+              & tReadChrg,&
               & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
               & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite)
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
@@ -706,13 +707,13 @@ contains
 
 
   !> Initialises SCC related parameters before geometry loop starts
-  function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)
+  function getMinSccIters(tSccCalc, tMixBlockCharges, nSpin) result(minSccIter)
 
     !> Is this a self consistent calculation
     logical, intent(in) :: tSccCalc
 
     !> Are there orbital potentials present
-    logical, intent(in) :: tDftbU
+    logical, intent(in) :: tMixBlockCharges
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
@@ -721,7 +722,7 @@ contains
     integer :: minSccIter
 
     if (tSccCalc) then
-      if (tDftbU) then
+      if (tMixBlockCharges) then
         minSccIter = 2
       else
         if (nSpin == 1) then
@@ -2698,7 +2699,8 @@ contains
 
   !> Returns input charges for next SCC iteration.
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-      & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tDftbU, tReadChrg, qInput,&
+      & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
+      & qInput,&
       & qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
       & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite)
 
@@ -2742,7 +2744,7 @@ contains
     logical, intent(in) :: tStopScc
 
     !> are orbital potentials being used
-    logical, intent(in) :: tDftbU
+    logical, intent(in) :: tMixBlockCharges
 
     !> Were intial charges read from disc?
     logical, intent(in) :: tReadChrg
@@ -2806,7 +2808,8 @@ contains
       ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
       ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
       ! point. (Unless charges had been initialized externally)
-      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tDFTBU) .and. .not. tReadChrg) then
+      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tMixBlockCharges) .and. .not. tReadChrg)&
+          & then
         qInpRed(:) = qOutRed
         qInput(:,:,:) = qOutput
         if (allocated(qBlockIn)) then

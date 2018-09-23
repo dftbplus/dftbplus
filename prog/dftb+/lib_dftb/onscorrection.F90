@@ -28,7 +28,7 @@ contains
 
     integer :: nOrb, nAtom, nSpin
     integer :: iAt, iSp, iSpin, sigma, ud
-    integer :: mu, nu
+    integer :: mu
     real(dp) :: ons_conv(orb%mOrb,orb%mOrb,2)
     real(dp) :: factor
 
@@ -36,25 +36,23 @@ contains
     nSpin = size(potential, dim=4)
 
     do iSpin = 1,nSpin
+      if (iSpin == 1) then
+        factor = 1.0_dp
+      else
+        factor = -1.0_dp
+      end if
       do iAt = 1, nAtom
         nOrb = orb%nOrbAtom(iAt)
         iSp  = species(iAt)
-        call getOnsME(orb,iSp,ons_en,ons_conv)
+        call getOnsME(orb, iSp, ons_en, ons_conv)
         do mu = 1, nOrb-1
-          do nu = mu +1, nOrb
-            if (iSpin == 1) then
-              factor = 1.0_dp
-            else
-              factor = -1.0_dp
-            end if
-            potential(mu,nu,iAt,iSpin) = potential(mu,nu,iAt,iSpin)&
-                & + qBlock(mu,nu,iAt,iSpin)&
-                &*( ons_conv(mu,nu,1) + factor*ons_conv(mu,nu,2) )
-
-            potential(nu,mu,iAt,iSpin) = potential(mu,nu,iAt,iSpin)
-          end do
+          potential(mu+1:nOrb,mu,iAt,iSpin) = potential(mu+1:nOrb,mu,iAt,iSpin)&
+              & + qBlock(mu+1:nOrb,mu,iAt,iSpin)&
+              & * ( ons_conv(mu+1:nOrb,mu,1) + factor*ons_conv(mu+1:nOrb,mu,2) )
         end do
-
+        do mu = 1, nOrb
+          potential(mu,mu+1:nOrb,iAt,iSpin) = potential(mu+1:nOrb,mu,iAt,iSpin)
+        end do
       end do
     end do
 
@@ -70,27 +68,18 @@ contains
 
     integer :: nOrb, nAtom, nSpin
     integer :: iAt, iSpin, iSp, iOrb
-    real(dp):: qDiff( orb%mOrb,&
-        &size(potential, dim=3),size(potential, dim=4))
-    real(dp):: factor, onethird
-    real(dp) :: sfact
+    real(dp) :: qDiff( orb%mOrb, size(potential, dim=3), size(potential, dim=4))
+    real(dp) :: factor
+    real(dp), parameter :: onethird = 1.0_dp/3.0_dp
 
     nAtom = size(potential, dim=3)
     nSpin = size(potential, dim=4)
 
-    onethird = 1.0_dp/3.0_dp
 
-    sfact = 0.4_dp
-
-    do iOrb =1,orb%mOrb
-      qDiff(iOrb,:,:) = q0(2,:,:) + q0(3,:,:) + q0(4,:,:) &
-           &        - q(2,:,:) -  q(3,:,:) -  q(4,:,:)
+    do iOrb = 1, orb%mOrb
+      qDiff(iOrb,:,:) = sum(q0(2:4,:,:),dim=1) - sum(q(2:4,:,:),dim=1)
     end do
-
-    do iOrb =2,4
-      qDiff(iOrb,:,:) = qDiff(iOrb,:,:) + &
-           & 3.0_dp*( q(iOrb,:,:) - q0(iOrb,:,:) )
-    end do
+    qDiff(2:4,:,:) = qDiff(2:4,:,:) + 3.0_dp * ( q(2:4,:,:) - q0(2:4,:,:) )
 
     do iSpin = 1,nSpin
       if (iSpin == 1) then
@@ -102,10 +91,9 @@ contains
         nOrb = orb%nOrbAtom(iAt)
         iSp  = species(iAt)
         if (nOrb > 1) then
-          do iOrb = 1,nOrb
-             potential(iOrb,iOrb,iAt,iSpin) = potential(iOrb,iOrb,iAt,iSpin)&
-                 & + onethird*qDiff(iOrb,iAt,iSpin)&
-                 & *( ons_en(iSp,3) + factor*ons_en(iSp,4) )
+          do iOrb = 2, 4
+            potential(iOrb,iOrb,iAt,iSpin) = potential(iOrb,iOrb,iAt,iSpin)&
+                & + onethird * qDiff(iOrb,iAt,iSpin) * ( ons_en(iSp,3) + factor*ons_en(iSp,4) )
           end do
         end if
       end do
@@ -129,35 +117,22 @@ contains
     real(dp) :: factor
     real(dp) :: Eri(size(Eons))
 
+    real(dp), allocatable :: shift(:,:,:,:)
+
     nAtom = size(qBlock, dim=3)
     nSpin = size(qBlock, dim=4)
 
-    Eons = 0.0_dp
+    Eons(:) = 0.0_dp
 
-    do iSpin = 1,nSpin
-      do iAt = 1, nAtom
-        nOrb = orb%nOrbAtom(iAt)
-        if (nOrb == 1) cycle
-        iSp  = species(iAt)
-        call getOnsME(orb,iSp,ons_en,ons_conv)
-        do mu = 1, nOrb-1
-          do nu = mu +1, nOrb
-            if (iSpin == 1) then
-              factor = 1.0_dp
-            else
-              factor = -1.0_dp
-            end if
-            Eons(iAt) = Eons(iAt) + qBlock(mu,nu,iAt,iSpin)**2&
-               &*( ons_conv(mu,nu,1) + factor*ons_conv(mu,nu,2) )
+    allocate(shift(orb%mOrb, orb%mOrb, nAtom, nSpin))
 
-          end do
-        end do
+    shift(:,:,:,:) = 0.0_dp
+    call addOnsShift(shift, qBlock, orb, ons_en, species)
 
-      end do
-    end do
+    Eons(:) = 0.5_dp*sum(sum(sum(shift(:,:,:,:)*qBlock(:,:,:,:),dim=1),dim=1),dim=2)
 
     call getEri(Eri,q,q0,orb,ons_en,species)
-    Eons = Eons + Eri
+    Eons(:) = Eons + Eri
 
   end subroutine getEons
 
@@ -185,6 +160,8 @@ contains
     qDiff = q - q0
 
     do iSpin = 1,nSpin
+      factor = -1.0_dp
+      if (iSpin == 1) factor = 1.0_dp
       do iAt = 1, nAtom
         nOrb = orb%nOrbAtom(iAt)
         iSp  = species(iAt)
@@ -192,14 +169,10 @@ contains
           do mu = 2, 4
             do nu = mu, 4
               fact = -1.0_dp
-              factor = -1.0_dp
-              if (iSpin == 1) factor = 1.0_dp
               if (mu == nu) fact = 1.0_dp
-
               Eri(iAt) = Eri(iAt) + fact*onethird &
-                 & *qDiff(mu,iAt,iSpin)*qDiff(nu,iAt,iSpin)&
-                 & *( ons_en(iSp,3) + factor*ons_en(iSp,4) )
-
+                  & *qDiff(mu,iAt,iSpin)*qDiff(nu,iAt,iSpin)&
+                  & *( ons_en(iSp,3) + factor*ons_en(iSp,4) )
             end do
           end do
         end if
@@ -208,14 +181,10 @@ contains
           do mu = 5, nOrb
             do nu = mu, nOrb
               fact = -1.0_dp
-              factor = -1.0_dp
-              if (iSpin == 1) factor = 1.0_dp
               if (mu == nu) fact = 2.0_dp
-
               Eri(iAt) = Eri(iAt) + fact*onefifth &
-                 & *qDiff(mu,iAt,iSpin)*qDiff(nu,iAt,iSpin)&
-                 & *( ons_en(iSp,9) + factor*ons_en(iSp,10) )
-
+                  & *qDiff(mu,iAt,iSpin)*qDiff(nu,iAt,iSpin)&
+                  & *( ons_en(iSp,9) + factor*ons_en(iSp,10) )
             end do
           end do
         end if
@@ -249,10 +218,10 @@ contains
             if (iOrb2 > iOrb1 + 3) then
               ons_conv(iOrb1,iOrb2,ud)= ons_en(iSp,4+ud)
             endif
-          !__________d orbital_______________
+            !__________d orbital_______________
           elseif (iOrb1 > 4) then
             ons_conv(iOrb1,iOrb2,ud) = ons_en(iSp,8+ud)
-          !__________________________________
+            !__________________________________
           else
             ons_conv(iOrb1,iOrb2,ud) = ons_en(iSp,2+ud)
             !for d orbitals:

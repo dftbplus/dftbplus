@@ -1,0 +1,35 @@
+Geometry = GenFormat {
+    <<< H2O.gen
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-10
+    MaxAngularMomentum = {
+        O = "p"
+        H = "s"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 1
+    }
+    OnSiteCorrection= {
+        O = {0.08672 0.14969 -0.00523 0.03834 0 0 0  0 0 0}
+        H = {0 0 0 0 0 0 0 0 0 0}
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}

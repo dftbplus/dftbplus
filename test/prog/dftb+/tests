@@ -18,6 +18,7 @@ spin/H2                                #? MPI_PROCS <= 1
 analysis/C2H4_localise                 #? not WITH_MPI
 analysis/graphene_localise             #? not WITH_MPI
 
+onsite/H2O                             #? MPI_PROCS <= 1
 dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
