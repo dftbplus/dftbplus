@@ -306,6 +306,12 @@ contains
               & neighbourList, img2CentCell, spinW, thirdOrd, potential)
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+
+          if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
+            call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species)
+            call addRIshift(potential%intBlock, qOutput, q0, orb, onSiteElements, species)
+          end if
+
           potential%intBlock = potential%intBlock + potential%extBlock
         end if
 
@@ -4075,11 +4081,11 @@ contains
         end if
       end if
 
-      if (allocated(onSiteElements)) then
-        call addonsForce(derivs, rhoPrim, species, neighbourList%iNeighbour, nNeighbourSK, coord,&
-            & iSparseStart, img2CentCell, qBlockOut, qOutput,q0, orb, onSiteElements, skOverCont,&
-            & skHamCont, nonSccDeriv)
-      end if
+      !if (allocated(onSiteElements)) then
+        !call addonsForce(derivs, rhoPrim, species, neighbourList%iNeighbour, nNeighbourSK, coord,&
+        !    & iSparseStart, img2CentCell, qBlockOut, qOutput,q0, orb, onSiteElements, skOverCont,&
+        !    & skHamCont, nonSccDeriv)
+      !end if
 
       if (tEField) then
         do ii = 1, 3
