@@ -58,7 +58,7 @@ contains
 
   end subroutine addOnsShift
 
-
+  ! Note, d orbitals were missing in original code, not added back yet:
   subroutine addRIshift(potential, q, q0, orb, ons_en, species)
     real(dp), intent(inout)        :: potential(:,:,:,:)
     real(dp), intent(in)           :: q(:,:,:), q0(:,:,:)
@@ -131,6 +131,8 @@ contains
 
     Eons(:) = 0.5_dp*sum(sum(sum(shift(:,:,:,:)*qBlock(:,:,:,:),dim=1),dim=1),dim=2)
 
+    ! can be replaced with above structure, once input charge bug fixed (or even better the RI is
+    ! included directly in the shift, making this redundant and further simplifying things):
     call getEri(Eri,q,q0,orb,ons_en,species)
     Eons(:) = Eons + Eri
 
@@ -181,7 +183,7 @@ contains
           do mu = 5, nOrb
             do nu = mu, nOrb
               fact = -1.0_dp
-              if (mu == nu) fact = 2.0_dp
+              if (mu == nu) fact = 2.0_dp ! ???
               Eri(iAt) = Eri(iAt) + fact*onefifth &
                   & *qDiff(mu,iAt,iSpin)*qDiff(nu,iAt,iSpin)&
                   & *( ons_en(iSp,9) + factor*ons_en(iSp,10) )
