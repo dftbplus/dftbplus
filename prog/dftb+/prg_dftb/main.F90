@@ -261,7 +261,12 @@ contains
 
           if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
             call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species)
+
+            ! Note, this is deliberately incorrect, should be input charges. But due to broken
+            ! equivalence reduction in this case output are used. This obviously becomes correct at
+            ! at self-consistency, but breaks restarting:
             call addRIshift(potential%intBlock, qOutput, q0, orb, onSiteElements, species)
+
           end if
 
         end if
