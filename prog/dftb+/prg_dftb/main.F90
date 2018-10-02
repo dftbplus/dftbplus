@@ -260,13 +260,7 @@ contains
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
           if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
-            call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species)
-
-            ! Note, this is deliberately incorrect, should be input charges. But due to broken
-            ! equivalence reduction in this case output are used. This obviously becomes correct at
-            ! at self-consistency, but breaks restarting:
-            call addRIshift(potential%intBlock, qOutput, q0, orb, onSiteElements, species)
-
+            call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species, q0)
           end if
 
         end if
@@ -313,8 +307,7 @@ contains
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
           if (allocated(onSiteElements)) then
-            call addOnsShift(potential%intBlock, qBlockOut, orb, onSiteElements, species)
-            call addRIshift(potential%intBlock, qOutput, q0, orb, onSiteElements, species)
+            call addOnsShift(potential%intBlock, qBlockOut, orb, onSiteElements, species, q0)
           end if
 
           potential%intBlock = potential%intBlock + potential%extBlock
@@ -330,9 +323,9 @@ contains
         if (tSccCalc) then
           call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-              & tReadChrg,&
-              & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn,&
-              & qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite)
+              & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+              & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+              & iEqBlockOnSite)
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
           call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
           tWriteSccRestart = env%tGlobalMaster .and.&
@@ -2705,8 +2698,7 @@ contains
   !> Returns input charges for next SCC iteration.
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
-      & qInput,&
-      & qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
+      & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
       & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite)
 
     !> Environment settings
@@ -2882,9 +2874,9 @@ contains
       qBlockUpDown = qBlock
       call qm2ud(qBlockUpDown)
       if (allocated(iEqBlockOnSite)) then
-        call appendBlock_reduce(qBlockUpDown, iEqBlockOnSite, orb, qRed)
+        call onsBlock_reduce(qBlockUpDown, iEqBlockOnSite, orb, qRed)
         if (allocated(qiBlock)) then
-          call appendBlock_reduce(qiBlock, iEqBlockOnSite, orb, qRed, skew=.true.)
+          call onsBlock_reduce(qiBlock, iEqBlockOnSite, orb, qRed, skew=.true.)
         end if
       else
         call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
@@ -2958,7 +2950,7 @@ contains
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       if (allocated(iEqBlockOnSite)) then
-        call Onsblock_expand(qRed, iEqBlockOnSite, orb, qBlock)
+        call Onsblock_expand(qRed, iEqBlockOnSite, orb, qBlock, orbEquiv=iEqOrbitals)
       else
         call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
             & orbEquiv=iEqOrbitals)

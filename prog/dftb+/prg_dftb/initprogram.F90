@@ -1361,8 +1361,19 @@ contains
         elseif (tDFTBU) then
           call error("onsite correction does not work with LDA+U yet")
         end if
+
+        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+        iEqOrbSpin(:,:,:) = 0.0_dp
+        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+        iEqOrbDFTBU(:,:,:) = 0.0_dp
+        call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
+        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+        nIneqOrb = maxval(iEqOrbitals)
+        deallocate(iEqOrbSpin)
+        deallocate(iEqOrbDFTBU)
         allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        call Ons_blockIndx(iEqBlockOnSite, nMixElements, orb)
+        call Ons_blockIndx(iEqBlockOnSite, nIneqOrb, orb)
         nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
       end if
 
