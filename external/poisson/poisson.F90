@@ -147,7 +147,7 @@ module poisson
 
   integer :: i,m,s,f
   real(kind=dp) :: bound(MAXNCONT) 
-  real(kind=dp) :: edge,tmp,Lx 
+  real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
 
   !*******************************************************************************
@@ -180,16 +180,26 @@ module poisson
   ! (can be used to reproduce old default settings)
 
   do m = 1, ncont
-     
      f=abs(contdir(m))
-     if (contdir(m).gt.0) then     
-       edge = 0.5_dp * (maxval(x(f,iatm(1):iatm(2))) + minval(x(f,iatc(3,m):iatc(2,m))))
-       bound(m) = edge + bufferBox
+     if (contdir(m).gt.0) then
+       xmax = maxval(x(f,iatm(1):iatm(2)))
+       xmin = minval(x(f,iatc(3,m):iatc(2,m)))
+       if (xmin > xmax) then
+         bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
+       else
+         write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
+         exit
+       end if  
      else                          
-       edge = 0.5_dp * (minval(x(f,iatm(1):iatm(2))) + maxval(x(f,iatc(3,m):iatc(2,m))))
-       bound(m) = edge - bufferBox
+       xmin = minval(x(f,iatm(1):iatm(2)))
+       xmax = maxval(x(f,iatc(3,m):iatc(2,m)))
+       if (xmin > xmax) then
+         bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
+       else
+         write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
+         exit
+       end if  
      end if
-     
   end do
 
   tmpdir(:) = 0
@@ -239,15 +249,6 @@ module poisson
      endif
   end do
 
-  !if (cluster.and.period) then
-     !do i = 1, 3
-     !   PoissBounds(i,2) = maxval(x(i,:))
-     !   PoissBounds(i,1) = minval(x(i,:))       
-     !end do
-  !   f = contdir(1)
-  !   PoissBox(f,f) = boxsiz(f,f)
-  !end if 
-
   ! set bounds (PoissBox)
   ! Set PoissonBox in the directions where there are no facing contacts
   do i = 1, 3
@@ -283,6 +284,8 @@ module poisson
         stop
      end if
   enddo
+
+
   !-------------------------------
   ! Checking for gate dimension
   !-------------------------------
