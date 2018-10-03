@@ -14,16 +14,31 @@ import numpy as np
 from dptools.gen import Gen
 from dptools.xyz import Xyz
 
-USAGE = """usage: %prog [options] INPUT
+USAGE = '''usage: %prog [options] INPUT
 
 Converts the given INPUT file in XYZ format to DFTB+ GEN format. Per default, if
 the filename INPUT is of the form PREFIX.xyz the result is stored in PREFIX.gen,
 otherwise in INPUT.gen. You can additionally specify a file with lattice
-vectors to create a periodic structure in the GEN file."""
+vectors to create a periodic structure in the GEN file.'''
+
 
 def main(cmdlineargs=None):
-    '''Main driver routine of xyz2gen.'''
+    '''Main driver routine of xyz2gen.
 
+    Args:
+        cmdlineargs: List of command line arguments. When None, arguments in
+            sys.argv are parsed (Default: None).
+    '''
+    infile, options = parse_cmdline_args(cmdlineargs)
+    xyz2gen(infile, options)
+
+def parse_cmdline_args(cmdlineargs=None):
+    '''Parses command line arguments.
+
+    Args:
+        cmdlineargs: List of command line arguments. When None, arguments in
+            sys.argv are parsed (Default: None).
+    '''
     parser = optparse.OptionParser(usage=USAGE)
     parser.add_option("-l", "--lattice-file", action="store", dest="lattfile",
                       help="read lattice vectors from an external file")
@@ -40,6 +55,15 @@ def main(cmdlineargs=None):
         parser.error("You must specify exactly one argument (input file).")
     infile = args[0]
 
+    return infile, options
+
+def xyz2gen(infile, options):
+    '''Converts the given INPUT file in XYZ format to DFTB+ GEN format.
+
+    Args:
+        infile: File containing the xyz-formatted geometry.
+        options: Options (e.g. as returned by the command line parser).
+    '''
     xyz = Xyz.fromfile(infile)
     geo = xyz.geometry
     if options.lattfile:
@@ -61,6 +85,3 @@ def main(cmdlineargs=None):
         else:
             outfile = infile + ".gen"
     gen.tofile(outfile)
-
-if __name__ == "__main__":
-    main()
