@@ -1,0 +1,89 @@
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+#
+
+'''Tests for gen2xyz.'''
+
+import sys
+import os.path
+import unittest
+import tempfile
+import common
+from dptools.scripts.common import ScriptError
+import dptools.scripts.gen2xyz as gen2xyz
+
+
+SCRIPTDIR = os.path.dirname(sys.argv[0])
+
+
+class Xyz2genTest(common.TestWithWorkDir):
+    '''General tests for gen2xyz'''
+
+    def setUp(self):
+        self.inputdir = os.path.join(SCRIPTDIR, 'gen2xyz')
+        self.workroot = './'
+        common.TestWithWorkDir.setUp(self)
+
+    def test_cluster(self):
+        '''Absolute coordinates without external lattice vectors'''
+        infile = self.get_input('h2o.234.gen')
+        reffile = self.get_input('h2o.234.xyz')
+        outfile = self.get_output('h2o.234.xyz')
+        cmdargs = ['-o', outfile, infile]
+        gen2xyz.main(cmdargs)
+        self.assertTrue(common.xyz_file_equals(outfile, reffile))
+
+    def test_periodicabs_lattice(self):
+        '''Absolute coordinates with external lattice vectors'''
+        infile = self.get_input('h2o.gen')
+        latticefile = self.get_input('h2o.latvecs')
+        reffile = self.get_input('h2o.xyz')
+        outfile = self.get_output('h2o.xyz')
+        cmdargs = ['-l', latticefile, '-o', outfile, infile]
+        gen2xyz.main(cmdargs)
+        #latvecs = self.geometry.latvecs
+        #print("lattice vectors:\n", latvecs)
+        self.assertTrue(common.xyz_file_equals(outfile, reffile))
+
+    def test_commandstr(self):
+        '''Absolute coordinates with a comment string'''
+        infile = self.get_input('h2o.gen')
+        reffile = self.get_input('h2o_comment.xyz')
+        outfile = self.get_output('h2o_comment.xyz')
+        cmdargs = ['-o', outfile, '-c', "something", infile]
+        gen2xyz.main(cmdargs)
+        self.assertTrue(common.xyz_file_equals(outfile, reffile))
+
+    def test_fail_superfluous_arguments(self):
+        '''Failing due to superfluous arguments.'''
+        infile = self.get_input('h2o.234.gen')
+        outfile = self.get_output('h2o.234.xyz')
+        cmdargs = ['-o', outfile, infile, 'something']
+        with self.assertRaises(ScriptError):
+            gen2xyz.main(cmdargs)
+
+    def test_fail_missing_arguments(self):
+        '''Failing due to missing arguments.'''
+        infile = self.get_input('h2o.234.gen')
+        cmdargs = ['-o', infile]
+        with self.assertRaises(ScriptError):
+            gen2xyz.main(cmdargs)
+
+    def test_fail_missing_infile(self):
+        '''Failing due to missing input file.'''
+        temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
+        tempname = temp_file.name
+        temp_file.close()
+        nonexisting_infile = os.path.join(self.workdir, tempname)
+        outfile = self.get_output('h2o.234.xyz')
+        cmdargs = ['-o', outfile, nonexisting_infile]
+        with self.assertRaises(ScriptError):
+            gen2xyz.main(cmdargs)
+
+
+if __name__ == '__main__':
+    unittest.main()

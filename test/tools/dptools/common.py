@@ -18,6 +18,7 @@ if sys.version_info[0] >= 3:
 else:
     from cStringIO import StringIO
 from dptools.gen import Gen
+from dptools.xyz import Xyz
 
 
 def gen_file_equals(current, reference):
@@ -29,6 +30,17 @@ def gen_file_equals(current, reference):
     '''
     curgen = Gen.fromfile(current)
     refgen = Gen.fromfile(reference)
+    return curgen.equals(refgen)
+
+def xyz_file_equals(current, reference):
+    '''Checks whether a xyz file equals to an other one.
+
+    Args:
+        current (str): Name of xyz file to check.
+        reference (str): Name of reference xyz file.
+    '''
+    curgen = Xyz.fromfile(current)
+    refgen = Xyz.fromfile(reference)
     return curgen.equals(refgen)
 
 

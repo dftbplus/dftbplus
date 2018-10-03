@@ -21,7 +21,7 @@ the filename INPUT is of the form PREFIX.xyz the result is stored in PREFIX.gen,
 otherwise in INPUT.gen. You can additionally specify a file with lattice
 vectors to create a periodic structure in the GEN file."""
 
-def main():
+def main(cmdlineargs=None):
     '''Main driver routine of xyz2gen.'''
 
     parser = optparse.OptionParser(usage=USAGE)
@@ -34,7 +34,7 @@ def main():
                       dest="fractional", default=False,
                       help="store coordinate in fractional format instead of "
                       "absolute coordinates")
-    (options, args) = parser.parse_args()
+    (options, args) = parser.parse_args(cmdlineargs)
 
     if len(args) != 1:
         parser.error("You must specify exactly one argument (input file).")

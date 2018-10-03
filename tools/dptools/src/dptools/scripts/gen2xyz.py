@@ -20,7 +20,7 @@ filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.xyz,
 otherwise in INPUT.xyz. You can additionally store lattice vectors of the GEN
 file in a separate file"""
 
-def main():
+def main(cmdlineargs=None):
     '''Main driver routine for gen2xyz.'''
 
     parser = optparse.OptionParser(usage=USAGE)
@@ -32,7 +32,7 @@ def main():
     parser.add_option("-c", "--comment", action="store", dest="comment",
                       default="", help="comment for the second line of the "
                       "xyz-file")
-    (options, args) = parser.parse_args()
+    (options, args) = parser.parse_args(cmdlineargs)
 
 
     if len(args) != 1:
