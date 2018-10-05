@@ -84,8 +84,8 @@ class Xyz:
             fp.write("{0:3s} {1:18.10E} {2:18.10E} {3:18.10E}\n".format(
                 geo.specienames[geo.indexes[ii]], *geo.coords[ii]))
         fp.close()
-        
-    def equals(self, other, tolerance=_TOLERANCE):
+
+    def equals(self, other, tolerance=_TOLERANCE, check_comment=False):
         '''Checks whether object equals to an other one.
 
         Args:
@@ -95,4 +95,7 @@ class Xyz:
         '''
         if not self.geometry.equals(other.geometry, tolerance):
             return False
+        if check_comment:
+            if self.comment != other.comment:
+                return False
         return True

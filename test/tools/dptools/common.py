@@ -32,21 +32,21 @@ def gen_file_equals(current, reference):
     refgen = Gen.fromfile(reference)
     return curgen.equals(refgen)
 
-def xyz_file_equals(current, reference):
+def xyz_file_equals(current, reference, check_comment=False):
     '''Checks whether a xyz file equals to an other one.
 
     Args:
         current (str): Name of xyz file to check.
         reference (str): Name of reference xyz file.
     '''
-    curgen = Xyz.fromfile(current)
-    refgen = Xyz.fromfile(reference)
-    return curgen.equals(refgen)
+    curxyz = Xyz.fromfile(current)
+    refxyz = Xyz.fromfile(reference)
+    return curxyz.equals(refxyz, check_comment=check_comment)
 
 
 class TestWithWorkDir(unittest.TestCase):
     '''Base class for tests which need work directory for file output.
-    
+
     You should create test cases which need a work directory (as they write
     during tests) by deriving this class. In the respective setUp() method you
     have to set self.workroot and self.inputdir to the appropriate values and

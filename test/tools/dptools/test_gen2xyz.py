@@ -48,13 +48,14 @@ class Xyz2genTest(common.TestWithWorkDir):
         self.assertTrue(common.xyz_file_equals(outfile, reffile))
 
     def test_commandstr(self):
-        '''Absolute coordinates with a comment string'''
+        '''Absolute coordinates with a comment string different to reffile'''
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o_comment.xyz')
         outfile = self.get_output('h2o_comment.xyz')
         cmdargs = ['-o', outfile, '-c', "something", infile]
         gen2xyz.main(cmdargs)
         self.assertTrue(common.xyz_file_equals(outfile, reffile))
+        self.assertFalse(common.xyz_file_equals(outfile, reffile, check_comment=True))
 
     def test_fail_superfluous_arguments(self):
         '''Failing due to superfluous arguments.'''
