@@ -11,6 +11,7 @@
 import sys
 import os.path
 import unittest
+import tempfile
 import common
 from dptools.scripts.common import ScriptError
 import dptools.scripts.repeatgen as repeatgen
@@ -82,7 +83,7 @@ class RepeatgenTest(common.TestWithWorkDir):
         cmdargs = ['-o', outfile, '-l', latticefile, infile, '0', '3', '4']
         with self.assertRaises(ScriptError):
             repeatgen.main(cmdargs)
-            
+
     def test_fail_invalid_repetition(self):
         '''Failing due to invalid type of repetition numbers'''
         infile = self.get_input('h2o.gen')
@@ -91,7 +92,7 @@ class RepeatgenTest(common.TestWithWorkDir):
         cmdargs = ['-o', outfile, '-l', latticefile, infile, 'a', '3', '4']
         with self.assertRaises(ScriptError):
             repeatgen.main(cmdargs)
-            
+
     def test_fail_missing_arguments(self):
         '''Failing due to missing arguments'''
         infile = self.get_input('h2o.gen')
@@ -101,7 +102,6 @@ class RepeatgenTest(common.TestWithWorkDir):
         with self.assertRaises(ScriptError):
             repeatgen.main(cmdargs)
 
-
     def test_fail_superfluous_arguments(self):
         '''Failing due to superfluous arguments.'''
         infile = self.get_input('h2o.gen')
@@ -109,6 +109,17 @@ class RepeatgenTest(common.TestWithWorkDir):
         outfile = self.get_output('h2o.234.gen')
         cmdargs = ['-o', outfile, '-l', latticefile, infile, '3', '4', '5',
                    'something']
+        with self.assertRaises(ScriptError):
+            repeatgen.main(cmdargs)
+
+    def test_fail_invalid_infile(self):
+        '''Failing due to invalid input file.'''
+        temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
+        tempname = temp_file.name
+        temp_file.close()
+        nonexisting_infile = os.path.join(self.workdir, tempname)
+        outfile = self.get_output('h2o.234.xyz')
+        cmdargs = ['-o', outfile, nonexisting_infile]
         with self.assertRaises(ScriptError):
             repeatgen.main(cmdargs)
 
