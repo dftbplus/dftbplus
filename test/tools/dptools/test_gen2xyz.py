@@ -45,8 +45,6 @@ class Xyz2genTest(common.TestWithWorkDir):
         outfile = self.get_output('h2o.xyz')
         cmdargs = ['-l', latticefile, '-o', outfile, infile]
         gen2xyz.main(cmdargs)
-        #latvecs = self.geometry.latvecs
-        #print("lattice vectors:\n", latvecs)
         self.assertTrue(common.xyz_file_equals(outfile, reffile))
 
     def test_commandstr(self):
@@ -73,8 +71,8 @@ class Xyz2genTest(common.TestWithWorkDir):
         with self.assertRaises(ScriptError):
             gen2xyz.main(cmdargs)
 
-    def test_fail_missing_infile(self):
-        '''Failing due to missing input file.'''
+    def test_fail_invalid_infile(self):
+        '''Failing due to invalid input file.'''
         temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
         tempname = temp_file.name
         temp_file.close()

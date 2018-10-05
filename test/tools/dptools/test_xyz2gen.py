@@ -72,9 +72,9 @@ class Xyz2genTest(common.TestWithWorkDir):
         with self.assertRaises(ScriptError):
             xyz2gen.main(cmdargs)
 
-    def test_fail_missing_infile(self):
-        '''Failing due to missing input file.'''
-        temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
+    def test_fail_invalid_infile(self):
+        '''Failing due to invalid input file.'''
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=self.workroot)
         tempname = temp_file.name
         temp_file.close()
         nonexisting_infile = os.path.join(self.workdir, tempname)

@@ -12,6 +12,7 @@ import sys
 import optparse
 from dptools.gen import Gen
 from dptools.xyz import Xyz
+from dptools.scripts.common import ScriptError
 
 USAGE = '''usage: %prog [options] INPUT
 
@@ -46,10 +47,10 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_option("-c", "--comment", action="store", dest="comment",
                       default="", help="comment for the second line of the "
                       "xyz-file")
-    (options, args) = parser.parse_args(cmdlineargs)
+    options, args = parser.parse_args(cmdlineargs)
 
     if len(args) != 1:
-        parser.error("You must specify exactly one argument (input file).")
+        raise ScriptError('You must specify exactly one argument (input file).')
     infile = args[0]
 
     return infile, options
@@ -61,7 +62,10 @@ def gen2xyz(infile, options):
         infile: File containing the gen-formatted geometry.
         options: Options (e.g. as returned by the command line parser).
     '''
-    gen = Gen.fromfile(infile)
+    try:
+        gen = Gen.fromfile(infile)
+    except OSError:
+        raise ScriptError('You must enter a valid path to the input file.')
     xyz = Xyz(gen.geometry, options.comment)
     if options.output:
         if options.output == "-":
