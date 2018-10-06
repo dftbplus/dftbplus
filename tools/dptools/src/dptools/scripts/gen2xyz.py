@@ -9,15 +9,13 @@
 '''Convert DFTB+ gen format to XYZ.'''
 
 import sys
-import optparse
+import argparse
 from dptools.gen import Gen
 from dptools.xyz import Xyz
 from dptools.scripts.common import ScriptError
 
-USAGE = '''usage: %prog [options] INPUT
-
-Converts the given INPUT file in DFTB+ GEN format to XYZ. Per default, if the
-filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.xyz,
+USAGE = '''Converts the given INPUT file in DFTB+ GEN format to XYZ. Per default,
+if the filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.xyz,
 otherwise in INPUT.xyz. You can additionally store lattice vectors of the GEN
 file in a separate file.'''
 
@@ -38,16 +36,16 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-l", "--lattice-file", action="store", dest="lattfile",
+    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT')
+    parser.add_argument("-l", "--lattice-file", action="store", dest="lattfile",
                       help="store lattice vectors in an external file")
-    parser.add_option("-o", "--output", action="store", dest="output",
+    parser.add_argument("-o", "--output", action="store", dest="output",
                       help="override the name of the output file (use '-' for "
                       "standard output)")
-    parser.add_option("-c", "--comment", action="store", dest="comment",
+    parser.add_argument("-c", "--comment", action="store", dest="comment",
                       default="", help="comment for the second line of the "
                       "xyz-file")
-    options, args = parser.parse_args(cmdlineargs)
+    options, args = parser.parse_known_args(cmdlineargs)
 
     if len(args) != 1:
         raise ScriptError('You must specify exactly one argument (input file).')

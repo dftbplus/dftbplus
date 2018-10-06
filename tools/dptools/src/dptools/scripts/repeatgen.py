@@ -9,17 +9,15 @@
 '''Repeats a geometry along supercell vectors'''
 
 import sys
-import optparse
+import argparse
 import numpy as np
 from dptools.gen import Gen
 from dptools.geometry import Geometry
 from dptools.scripts.common import ScriptError
 
-USAGE = '''usage: %prog [options] INPUT N1 N2 N3
-
-Repeats the geometry found in INPUT along each supercell vector N1, N2
-and N3 times, respectively and writes the resulting geometry to
-standard output'''
+USAGE = '''Repeats the geometry found in INPUT along each supercell vector N1,
+N2 and N3 times, respectively and writes the resulting geometry to standard
+output'''
 
 
 def main(cmdlineargs=None):
@@ -40,14 +38,14 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = optparse.OptionParser(usage=USAGE)
+    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT N1 N2 N3')
     msg = 'file containing lattice vectors (overrides lattice vectors'\
           ' in the geometry file)'
-    parser.add_option(
+    parser.add_argument(
         '-l', '--lattice-file', action='store', help=msg, dest='latticefile')
     msg = 'output file to store the resulting geometry'
-    parser.add_option('-o', '--output', action='store', default='-', help=msg)
-    options, args = parser.parse_args(cmdlineargs)
+    parser.add_argument('-o', '--output', action='store', default='-', help=msg)
+    options, args = parser.parse_known_args(cmdlineargs)
 
     if len(args) != 4:
         raise ScriptError('Incorrect number of arguments')

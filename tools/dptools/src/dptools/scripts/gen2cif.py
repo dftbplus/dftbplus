@@ -9,16 +9,14 @@
 '''Converts DFTB+ gen format to CIF.'''
 
 import sys
-import optparse
+import argparse
 import numpy as np
 from dptools.gen import Gen
 from dptools.cif import Cif
 from dptools.scripts.common import ScriptError
 
-USAGE = '''usage: %prog [options] INPUT
-
-Converts the given INPUT file in DFTB+ GEN format to CIF. Per default, if the
-filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.cif,
+USAGE = '''Converts the given INPUT file in DFTB+ GEN format to CIF. Per default,
+if the filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.cif,
 otherwise in INPUT.cif. Since the GEN format does not contain any symmetry
 information, the symmetry is set to P1 in the CIF file. If the GEN format
 contains a non-periodic geometry, the lattice in the CIF format is set to
@@ -42,16 +40,15 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-o", "--output", action="store", dest="output",
-                      help="override the name of the output file (use '-' for "
-                      "standard out")
-    parser.add_option("-c", "--cellsize", action="store", dest="cellsize",
-                      type=float, default=100.0, help="lattice constant "
-                      "for the simple cubic cell created for non-periodic "
-                      " geometries (default: 100)")
-
-    options, args = parser.parse_args(cmdlineargs)
+    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT')
+    parser.add_argument("-o", "--output", action="store", dest="output",
+                        help="override the name of the output file (use '-' for "
+                        "standard out")
+    parser.add_argument("-c", "--cellsize", action="store", dest="cellsize",
+                        type=float, default=100.0, help="lattice constant "
+                        "for the simple cubic cell created for non-periodic "
+                        " geometries (default: 100)")
+    options, args = parser.parse_known_args(cmdlineargs)
 
     if len(args) != 1:
         raise ScriptError('You must specify exactly one argument (input file).')

@@ -9,20 +9,15 @@
 '''Applies strain to a DFTB+ gen file.'''
 
 import sys
-import optparse
+import argparse
 import numpy as np
 from dptools.gen import Gen
 from dptools.scripts.common import ScriptError
 
-USAGE = """usage: %prog [options] INPUT STRAIN
-
-Strains the geometry found in INPUT, writing the resulting geometries
-to standard output. Possible values for the strain type to apply are
-xx, yy, zz, xz, xz, yz or I for isotropic. STRAIN is specified as
-positive or negative percentage for the geometries.
-
-Note: in case of negative strain you have to separately prefix the
-argument block by '--', e.g. '%prog -c I -- geo.gen -5'"""
+USAGE = """Strains the geometry found in INPUT, writing the resulting geometries
+to standard output. Possible values for the strain type to apply are xx, yy, zz,
+xz, xz, yz or I for isotropic. STRAIN is specified as positive or negative
+percentage for the geometries."""
 
 # Voight convention for 1 index to 2 index for strain tensors
 VOIGHT = [[0, 0], [1, 1], [2, 2], [1, 2], [0, 2], [0, 1]]
@@ -49,15 +44,15 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed. (Default: None)
     '''
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-o", "--output", action="store", dest="output",
-                      default='-', help="override the name of the output file "
-                      "(use '-' for standard out")
-    parser.add_option("-c", "--component", action="store", dest="component",
-                      type=str, default='I', help="strain type to apply "
-                      "posible values being xx, yy, zz, xz, xz, yz or I for "
-                      "isotropic (default value: I)")
-    options, args = parser.parse_args(cmdlineargs)
+    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT STRAIN')
+    parser.add_argument("-o", "--output", action="store", dest="output",
+                        default='-', help="override the name of the output file "
+                        "(use '-' for standard out")
+    parser.add_argument("-c", "--component", action="store", dest="component",
+                        type=str, default='I', help="strain type to apply "
+                        "posible values being xx, yy, zz, xz, xz, yz or I for "
+                        "isotropic (default value: I)")
+    options, args = parser.parse_known_args(cmdlineargs)
 
     if options.component.lower() not in LABELS:
         msg = "Invalid strain component '" + options.component + "'"
