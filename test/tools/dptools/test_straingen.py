@@ -11,6 +11,7 @@
 import sys
 import os.path
 import unittest
+import tempfile
 import common
 from dptools.scripts.common import ScriptError
 import dptools.scripts.straingen as straingen
@@ -140,6 +141,17 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.isostrain.gen')
         cmdargs = ['-o', outfile, infile, '10', 'something']
+        with self.assertRaises(ScriptError):
+            straingen.main(cmdargs)
+
+    def test_fail_invalid_infile(self):
+        '''Failing due to invalid input file.'''
+        temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
+        tempname = temp_file.name
+        temp_file.close()
+        nonexisting_infile = os.path.join(self.workdir, tempname)
+        outfile = self.get_output('h2o.noinfile.gen')
+        cmdargs = ['-o', outfile, nonexisting_infile]
         with self.assertRaises(ScriptError):
             straingen.main(cmdargs)
 

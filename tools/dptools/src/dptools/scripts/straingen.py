@@ -86,8 +86,10 @@ def straingen(infile, strain, options):
         strain: Strain to apply
         options: Options (e.g. as returned by the command line parser)
     '''
-
-    gen = Gen.fromfile(infile)
+    try:
+        gen = Gen.fromfile(infile)
+    except OSError:
+        raise ScriptError('You must enter a valid path to the input file.')
     geometry = gen.geometry
 
     strainmtx = np.zeros((3, 3), dtype=float)
