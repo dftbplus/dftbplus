@@ -42,7 +42,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.negisostrain.gen')
         outfile = self.get_output('h2o.negisostrain.gen')
-        cmdargs = ['-o', outfile, '--', infile, '-10']
+        cmdargs = ['-o', outfile, infile, '-10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -60,7 +60,7 @@ class StraingenTest(common.TestWithWorkDir):
         infile = self.get_input('h2o.gen')
         reffile = self.get_input('h2o.negisostrain.gen')
         outfile = self.get_output('h2o.negisostrain.gen')
-        cmdargs = ['-o', outfile, '-c', 'I', '--', infile, '-10']
+        cmdargs = ['-o', outfile, '-c', 'I', infile, '-10']
         straingen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
@@ -122,7 +122,6 @@ class StraingenTest(common.TestWithWorkDir):
 
     def test_fail_missing_two_arguments(self):
         '''Failing due to missing argument.'''
-        infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.isostrain.gen')
         cmdargs = ['-o', outfile]
         with self.assertRaises(ScriptError):

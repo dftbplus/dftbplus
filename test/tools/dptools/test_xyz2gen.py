@@ -74,7 +74,7 @@ class Xyz2genTest(common.TestWithWorkDir):
 
     def test_fail_invalid_infile(self):
         '''Failing due to invalid input file.'''
-        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=self.workroot)
+        temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
         tempname = temp_file.name
         temp_file.close()
         nonexisting_infile = os.path.join(self.workdir, tempname)

@@ -13,12 +13,13 @@ import unittest
 import tempfile
 import shutil
 import os.path
+from dptools.gen import Gen
+from dptools.xyz import Xyz
+from dptools.nxy import Nxy
 if sys.version_info[0] >= 3:
     from io import StringIO
 else:
     from cStringIO import StringIO
-from dptools.gen import Gen
-from dptools.xyz import Xyz
 
 
 def gen_file_equals(current, reference):
@@ -42,6 +43,18 @@ def xyz_file_equals(current, reference, check_comment=False):
     curxyz = Xyz.fromfile(current)
     refxyz = Xyz.fromfile(reference)
     return curxyz.equals(refxyz, check_comment=check_comment)
+
+
+def nxy_file_equals(current, reference):
+    '''Checks whether a nxy file equals to an other one.
+
+    Args:
+        current (str): Name of nxy file to check.
+        reference (str): Name of reference nxy file.
+    '''
+    curnxy = Nxy.fromfile(current)
+    refnxy = Nxy.fromfile(reference)
+    return curnxy.equals(refnxy)
 
 
 class TestWithWorkDir(unittest.TestCase):
