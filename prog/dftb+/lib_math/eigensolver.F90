@@ -2065,7 +2065,7 @@ contains
     integer, allocatable    :: iwork(:)
     character               :: jobz, uplo
 
-    ! for  optimal GPU layout do padding, optimal  size: multiple of 32
+    ! Padding for shared memory to avoid bank conflicts, 32-bit mode
     nbas  = size(H,1) 
     nwarp = 32      
     ldm   = nwarp* ((nbas+nwarp-1)/nwarp)
@@ -2131,7 +2131,7 @@ contains
       itype = 1                  
     end if
 
-    ! for  optimal GPU layout do padding, optimal  size: multiple of 32
+    ! Padding for shared memory to avoid bank conflicts, 32-bit mode
     nbas  =  size(H,1)
     nwarp =  32
     ldm   =  nwarp* ((nbas+nwarp-1)/nwarp) 
