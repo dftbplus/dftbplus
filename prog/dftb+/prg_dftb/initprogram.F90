@@ -78,7 +78,17 @@ module initprogram
   use potentials
   use taggedoutput
   use formatout
+#:if WITH_GPU
+  use iso_c_binding, only :  c_int
+  use device_info
+#:endif
+
   implicit none
+
+#:if WITH_GPU
+  integer (c_int) :: ngpus
+  integer (c_int) :: req_ngpus
+#:endif
 
   !> Tagged output files (machine readable)
   character(*), parameter :: autotestTag = "autotest.tag"
@@ -2337,12 +2347,29 @@ contains
       write (strTmp, "(A)") "Divide and Conquer"
     case(3)
       write (strTmp, "(A)") "Relatively robust (version 1)"
+    !case(4)
+    !  write (strTmp, "(A)") "Relativel robust (version 2)"
+#:if WITH_GPU
     case(4)
-      write (strTmp, "(A)") "Relativel robust (version 2)"
+      write (strTmp, "(A)") "Divide and Conquer (MAGMA GPU version)"
+#:endif    
     case default
       call error("Unknown eigensolver!")
     end select
     write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+
+#:if WITH_GPU
+    if (solver.eq.4) then
+      call  gpu_avail(ngpus)
+      call  gpu_req(req_ngpus)
+      write(*,*) "Number of GPUs requested:",req_ngpus
+      write(*,*) "Number of GPUs found    :",ngpus
+      if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
+        ngpus = req_ngpus
+      endif
+      call  magmaf_init()
+    endif
+#:endif
 
     if (tSccCalc) then
       select case (iMixer)

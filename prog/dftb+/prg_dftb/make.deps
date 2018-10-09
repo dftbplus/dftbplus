@@ -6,6 +6,11 @@ eigenvects.o: _mod_accuracy _mod_message common.fypp _mod_assert _mod_eigensolve
 eigenvects.o = eigenvects.o $(_mod_accuracy) $(_mod_message) $(common.fypp) $(_mod_assert) $(_mod_eigensolver) $(_mod_scalapackfx)
 _mod_eigenvects: eigenvects.o
 _mod_eigenvects = $(eigenvects.o)
+#:elif WITH_GPU
+eigenvects.o: _mod_initprogram _mod_accuracy _mod_message common.fypp _mod_assert _mod_eigensolver
+eigenvects.o = eigenvects.o $(_mod_accuracy) $(_mod_message) $(common.fypp) $(_mod_assert) $(_mod_eigensolver)
+_mod_eigenvects: eigenvects.o
+_mod_eigenvects = $(eigenvects.o)
 #:else
 eigenvects.o: _mod_accuracy _mod_message common.fypp _mod_assert _mod_eigensolver
 eigenvects.o = eigenvects.o $(_mod_accuracy) $(_mod_message) $(common.fypp) $(_mod_assert) $(_mod_eigensolver)

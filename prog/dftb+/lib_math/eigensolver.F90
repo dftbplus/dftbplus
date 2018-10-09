@@ -16,10 +16,14 @@ module eigensolver
   use accuracy, only : rsp, rdp
   use blas
   use lapack
-  implicit none
+#:if WITH_GPU
+  use magma
+#:endif
+
+  !implicit none
   private
 
-  public :: heev, hegv, hegvd, gvr, bgv
+  public :: heev, hegv, hegvd, gvr, bgv, gpu_gvd
 
 
   !> Used to return runtime diagnostics
@@ -80,8 +84,14 @@ module eigensolver
     module procedure dblecmplx_zhbgv
   end interface
 
-contains
+#:if WITH_GPU
+  interface gpu_gvd
+    module procedure dble_magma_dsygvd
+    module procedure dblecmplx_magma_zhegvd
+  end interface
+#:endif
 
+contains
 
   !> Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
@@ -2041,5 +2051,128 @@ contains
     endif
 
   end subroutine dblecmplx_zhbgv
+
+#:if WITH_GPU
+
+  subroutine  dble_magma_dsygvd( ngpus, H, S, eigs, uplo, jobz)
+    
+    integer                 :: itype = 1
+    integer                 :: seclwork = -1
+    integer                 :: ngpus, nbas, ldm, info, nwarp,i,i0
+    integer                 :: lwork, liwork
+    real (rdp)              :: H(:,:), S(:,:), eigs(:)
+    real (rdp), allocatable :: work(:), HH(:), SS(:)
+    integer, allocatable    :: iwork(:)
+    character               :: jobz, uplo
+
+    ! for  optimal GPU layout do padding, optimal  size: multiple of 32
+    nbas  = size(H,1) 
+    nwarp = 32      
+    ldm   = nwarp* ((nbas+nwarp-1)/nwarp)
+    allocate(HH(ldm*ldm), SS(ldm*ldm),stat=info) 
+    if (info.ne.0) call  error(' CPU alloc error in  dble_magma_dsygvd. Exiting')
+    
+    i0=1
+    do i=1,nbas 
+      call dcopy(nbas,H(1,i),1,HH(i0),1)
+      call dcopy(nbas,S(1,i),1,SS(i0),1)
+      i0 =  i0 +  ldm
+    enddo 
+    
+    ! set the work space  
+    lwork  =  1 + 6*nbas + 2*nbas*nbas
+    liwork =  6*nbas
+    allocate(work(lwork),iwork(liwork),stat=info)
+    if (info.ne.0)  call error(' CPU alloc error in  dble_magma_dsygvd. Exiting')
+
+    call  magmaf_dsygvd_m(ngpus,itype,jobz,uplo,nbas,HH,ldm,SS,ldm,eigs,work,seclwork,iwork,liwork,info)
+    call flush(6)
+    if (int(work(1)).gt.lwork) then
+      lwork = int(work(1))
+      deallocate(work) ;  allocate(work(lwork),stat=info)
+    endif
+    if (info.ne.0) then ; write(*,*)' CPU alloc error (work) in dble_magma_dsygvd. Exiting' ; stop;  endif 
+    if (int(iwork(1)).gt.liwork) then
+      liwork = int(iwork(1))
+      deallocate(iwork) ; allocate(iwork(liwork),stat=info)
+    endif
+    if (info.ne.0) then ; write(*,*)' CPU alloc error (iwork) in dble_magma_dsygvd. Exiting' ; stop;  endif 
+    
+    ! MAGMA Diagonalization
+    call magmaf_dsygvd_m(ngpus,itype,jobz,uplo,nbas,HH,ldm,SS,ldm,eigs,work,lwork,iwork,liwork,info)
+
+    i0=1
+    do i=1,nbas 
+      call dcopy(nbas,HH(i0),1,H(1,i),1) 
+      call dcopy(nbas,SS(i0),1,S(1,i),1) 
+      i0 =  i0 +  ldm
+    enddo 
+
+  end subroutine  dble_magma_dsygvd
+  
+  subroutine dblecmplx_magma_zhegvd(ngpus,H,S,eigs,uplo,jobz,iitype)
+  
+    integer ,optional, intent(in) :: iitype
+    integer                       :: itype
+    integer                       :: ngpus, nbas,  ldm,  info, nwarp,i,i0 
+    integer                       :: lwork, lrwork, ltmp ,liwork
+    complex(rdp), intent(inout)   :: H(:,:), S(:,:)
+    real(rdp), intent(out)        :: eigs (:)
+    complex(rdp), allocatable     :: work(:),  HH(:), SS(:)  
+    real(rdp),    allocatable     :: rwork(:)
+    integer,      allocatable     :: iwork(:)
+    character, intent(in)         :: jobz, uplo
+
+    ! check iitype defined (type of work to do)
+    if (present(iitype)) then
+      itype = iitype
+    else
+    ! solve:  H*C = e*S*C 
+      itype = 1                  
+    end if
+
+    ! for  optimal GPU layout do padding, optimal  size: multiple of 32
+    nbas  =  size(H,1)
+    nwarp =  32
+    ldm   =  nwarp* ((nbas+nwarp-1)/nwarp) 
+    allocate(HH(ldm*ldm), SS(ldm*ldm),stat=info)    
+    if (info.ne.0)   call error(' CPU alloc error in dblecmplx_magma_zhegvd. Exiting') 
+
+    i0=1
+    do i=1,nbas
+      call zcopy(nbas,H(1,i),1,HH(i0),1) 
+      call zcopy(nbas,S(1,i),1,SS(i0),1) 
+      i0 = i0 +ldm
+    enddo
+
+    ! set the work space
+    lwork  =  1 + 6*nbas + 2*nbas*nbas
+    liwork =  6*nbas
+    lrwork = -1 
+    ltmp   =  1
+    allocate(work(ltmp),rwork(ltmp),iwork(liwork),stat=info) 
+ 
+    call magmaf_zhegvd_m(ngpus,itype,jobz,uplo,nbas,HH,ldm,SS,ldm,eigs,work,lwork,rwork,lrwork,iwork,liwork,info)
+    lwork  = int(work(1))
+    lrwork = int(rwork(1)) 
+    liwork = int(iwork(1))
+    deallocate(work,rwork,iwork)
+    allocate(work(lwork),rwork(lrwork),iwork(liwork),stat=info)
+    if (info.ne.0) call error(' CPU alloc error(work) in dblecmplx_magma_zhegvd. Exiting')
+
+    ! MAGMA Diagonalization
+    call magmaf_zhegvd_m(ngpus,itype,jobz,uplo,nbas,HH,ldm,SS,ldm,eigs,work,lwork,rwork,lrwork,iwork,liwork,info)
+
+    i0=1
+    do i=1,nbas 
+      call zcopy(nbas,HH(i0),1,H(1,i),1) 
+      call zcopy(nbas,SS(i0),1,S(1,i),1) 
+      i0 =  i0 +  ldm
+    enddo 
+
+   end subroutine dblecmplx_magma_zhegvd
+
+#:endif
+
 
 end module eigensolver

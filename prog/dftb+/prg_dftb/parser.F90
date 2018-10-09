@@ -1616,7 +1616,12 @@ contains
       ctrl%iSolver = 2
     case ("relativelyrobust")
       ctrl%iSolver = 3
+#:if WITH_GPU
+    case ("gpu")
+      ctrl%iSolver = 4
+#:endif    
     end select
+    
 
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
     ! thermostat.)

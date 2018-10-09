@@ -18,6 +18,7 @@
 #:endif
 
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
+#:set WITH_GPU = defined('WITH_GPU')
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_DFTD3 = defined('WITH_DFTD3')
