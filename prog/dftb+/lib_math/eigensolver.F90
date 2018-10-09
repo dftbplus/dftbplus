@@ -2079,7 +2079,7 @@ contains
       i0 =  i0 +  ldm
     enddo 
     
-    ! set the work space  
+    ! Set the work space  
     lwork  =  1 + 6*nbas + 2*nbas*nbas
     liwork =  6*nbas
     allocate(work(lwork),iwork(liwork),stat=info)
@@ -2091,12 +2091,18 @@ contains
       lwork = int(work(1))
       deallocate(work) ;  allocate(work(lwork),stat=info)
     endif
-    if (info.ne.0) then ; write(*,*)' CPU alloc error (work) in dble_magma_dsygvd. Exiting' ; stop;  endif 
+    if (info.ne.0) then 
+      write(*,*)' CPU alloc error (work) in dble_magma_dsygvd. Exiting' 
+      stop  
+    endif 
     if (int(iwork(1)).gt.liwork) then
       liwork = int(iwork(1))
       deallocate(iwork) ; allocate(iwork(liwork),stat=info)
     endif
-    if (info.ne.0) then ; write(*,*)' CPU alloc error (iwork) in dble_magma_dsygvd. Exiting' ; stop;  endif 
+    if (info.ne.0) then 
+      write(*,*)' CPU alloc error (iwork) in dble_magma_dsygvd. Exiting' 
+      stop  
+    endif 
     
     ! MAGMA Diagonalization
     call magmaf_dsygvd_m(ngpus,itype,jobz,uplo,nbas,HH,ldm,SS,ldm,eigs,work,lwork,iwork,liwork,info)
@@ -2123,11 +2129,11 @@ contains
     integer,      allocatable     :: iwork(:)
     character, intent(in)         :: jobz, uplo
 
-    ! check iitype defined (type of work to do)
+    ! Check iitype defined (type of work to do)
     if (present(iitype)) then
       itype = iitype
     else
-    ! solve:  H*C = e*S*C 
+    ! Solve:  H*C = e*S*C 
       itype = 1                  
     end if
 
@@ -2136,7 +2142,7 @@ contains
     nwarp =  32
     ldm   =  nwarp* ((nbas+nwarp-1)/nwarp) 
     allocate(HH(ldm*ldm), SS(ldm*ldm),stat=info)    
-    if (info.ne.0)   call error(' CPU alloc error in dblecmplx_magma_zhegvd. Exiting') 
+    if (info.ne.0) call error(' CPU alloc error in dblecmplx_magma_zhegvd. Exiting') 
 
     i0=1
     do i=1,nbas
@@ -2145,7 +2151,7 @@ contains
       i0 = i0 +ldm
     enddo
 
-    ! set the work space
+    ! Set the work space
     lwork  =  1 + 6*nbas + 2*nbas*nbas
     liwork =  6*nbas
     lrwork = -1 
