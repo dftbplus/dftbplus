@@ -850,7 +850,8 @@ module initprogram
 
   !> Variables for Transport NEGF/Poisson solver
   !> Tunneling, local DOS and current
-  real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:)
+  real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
+  real(dp), allocatable :: leadCurrents(:)
 
   !> Poisson Derivatives (forces)
   real(dp), allocatable :: poissonDerivs(:,:)
@@ -2996,7 +2997,7 @@ contains
       call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
       if (.not. tInitialized) then
-        call error("gdftb not initialized")
+        call error("Poisson solver not initialized")
       end if
     end if
 

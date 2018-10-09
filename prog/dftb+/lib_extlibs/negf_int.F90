@@ -13,8 +13,9 @@ module negf_int
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
   use libnegf, only : z_CSR
-  use libnegf, only : associate_current, associate_ldos, associate_transmission, compute_current
-  use libnegf, only : compute_density_dft, compute_ldos, create, create_scratch, destroy
+  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission, associate_current 
+  use libnegf, only : compute_current, compute_density_dft, compute_ldos 
+  use libnegf, only : create, create_scratch, destroy
   use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
   use libnegf, only : init_negf, init_structure, log_deallocatep, pass_hs, set_bp_dephasing
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
@@ -751,12 +752,6 @@ module negf_int
     params%kpoint = kpoint
     params%wght = wght
 
-    if (associated(negf%ldos_mat)) then
-      call log_deallocatep(negf%ldos_mat)
-      negf%ldos_mat=> null()
-    endif
-    ledos=>null()
-
     call pass_HS(negf,HH,SS)
 
     call compute_ldos(negf)
@@ -830,13 +825,14 @@ module negf_int
   !------------------------------------------------------------------------------
   ! INTERFACE subroutine to call current computation
   !------------------------------------------------------------------------------
-  subroutine negf_current(HH,SS,spin,kpoint,wght,tunn,ledos,currents)
+  subroutine negf_current(HH,SS,spin,kpoint,wght,tunn,curr,ledos,currents)
 
     type(z_CSR), pointer, intent(in) :: HH, SS
     integer, intent(in) :: spin      ! spin index
     integer, intent(in) :: kpoint        ! kp index
     real(dp), intent(in) :: wght      ! kp weight
     real(dp), dimension(:,:), pointer :: tunn
+    real(dp), dimension(:,:), pointer :: curr 
     real(dp), dimension(:,:), pointer :: ledos
     real(dp), dimension(:), pointer :: currents
 
@@ -854,17 +850,15 @@ module negf_int
 
     call compute_current(negf)
 
-    !call write_tunneling_and_dos(negf)
+    ! Associate internal negf arrays to local pointers
+    call associate_ldos(negf, ledos)
+    call associate_transmission(negf, tunn)
+    call associate_current(negf, curr)
 
-    ! Associate internal negf pointers to local pointers
-    call associate_current(negf, currents)
-
+    call associate_lead_currents(negf, currents)
     if (.not.associated(currents)) then
       call error('Internal error: currVec not associated')
     end if
-
-    call associate_ldos(negf, ledos)
-    call associate_transmission(negf, tunn)
 
  end subroutine negf_current
 
@@ -1099,7 +1093,7 @@ module negf_int
 
   !> Calculate the current
   subroutine calc_current(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
-      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnTot, ldosTot, currTot,&
+      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat, currLead,&
       & writeTunn, writeLDOS, mu)
 
     integer, intent(in) :: groupKS(:,:)
@@ -1111,9 +1105,10 @@ module negf_int
     real(dp), intent(in) :: cellVec(:,:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
-    real(dp), allocatable, intent(inout) :: tunnTot(:,:), ldosTot(:,:)
-    real(dp), allocatable :: tunnSKRes(:,:,:), ldosSKRes(:,:,:)
-    real(dp), allocatable, intent(inout) :: currTot(:)
+    real(dp), allocatable, intent(inout) :: tunnMat(:,:)
+    real(dp), allocatable, intent(inout) :: currMat(:,:)
+    real(dp), allocatable, intent(inout) :: ldosMat(:,:)
+    real(dp), allocatable, intent(inout) :: currLead(:)
     logical, intent(in) :: writeLDOS
     logical, intent(in) :: writeTunn
     ! We need this now for different fermi levels in colinear spin
@@ -1123,9 +1118,11 @@ module negf_int
     ! not really needed
     real(dp), intent(in) :: mu(:,:)
 
-    real(dp), pointer    :: tunnMat(:,:)=>null()
-    real(dp), pointer    :: ldosMat(:,:)=>null()
-    real(dp), pointer    :: currVec(:)=>null()
+    real(dp), allocatable :: tunnSKRes(:,:,:), currSKRes(:,:,:), ldosSKRes(:,:,:)
+    real(dp), pointer    :: tunnPMat(:,:)=>null()
+    real(dp), pointer    :: currPMat(:,:)=>null()
+    real(dp), pointer    :: ldosPMat(:,:)=>null()
+    real(dp), pointer    :: currPVec(:)=>null()
     integer :: iKS, iK, iS, nKS, ii, err, ncont
     type(unit) :: unitOfEnergy        ! Set the units of H
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
@@ -1133,6 +1130,7 @@ module negf_int
 
     integer :: i, j, k, NumStates, icont
     real(dp), dimension(:,:), allocatable :: H_all, S_all
+    character(:), allocatable :: filename
 
     call negf_mpi_init(mpicomm)
 
@@ -1147,7 +1145,7 @@ module negf_int
     if (params%verbose.gt.30) then
       write(stdOut, *)
       write(stdOut, '(80("="))')
-      write(stdOut, *) '                            COMPUTATION OF TRANSPORT         '
+      write(stdOut, *) '                            COMPUTATION OF CURRENT         '
       write(stdOut, '(80("="))')
       write(stdOut, *)
     end if
@@ -1198,73 +1196,83 @@ module negf_int
 
       end if
 
-      call negf_current(pCsrHam, pCsrOver, iS, iK, kWeights(iK), tunnMat, ldosMat, currVec)
+      call negf_current(pCsrHam, pCsrOver, iS, iK, kWeights(iK), &
+                       & tunnPMat, currPMat, ldosPMat, currPVec)
 
-      if(.not.allocated(currTot)) then
-        allocate(currTot(size(currVec)), stat=err)
+      if(.not.allocated(currLead)) then
+        allocate(currLead(size(currPVec)), stat=err)
         if (err /= 0) then
           call error('Allocation error (currTot)')
         end if
-        currTot = 0.0_dp
+        currLead = 0.0_dp
       endif
-      currTot = currTot + currVec
+      currLead = currLead + currPVec
 
-      !GUIDE: tunnMat libNEGF output stores contact Tunneling T(iE, i->j)
-      !       tunnMat is MPI distributed on energy points (0.0 on other nodes)
-      !       tunnTot MPI gather partial results and accumulate k-summation
+      !GUIDE: tunnPMat libNEGF output stores Transmission, T(iE, i->j)
+      !       tunnPMat is MPI distributed on energy points (0.0 on other nodes)
+      !       tunnMat MPI gather partial results and accumulate k-summation
+      !       currPMat stores contact current I_i(iE) 
       !       tunnSKRes stores tunneling for all k-points and spin: T(iE, i->j, iSK)
-      call add_partial_results(mpicomm, tunnMat, tunnTot, tunnSKRes, iKS, nKS)
+      call add_partial_results(mpicomm, tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
+      
+      call add_partial_results(mpicomm, currPMat, currMat, currSKRes, iKS, nKS)
 
-      call add_partial_results(mpicomm, ldosMat, ldosTot, ldosSKRes, iKS, nKS)
+      call add_partial_results(mpicomm, ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
 
     end do
 
-    call mpifx_allreduceip(mpicomm, currTot, MPI_SUM)
+    call mpifx_allreduceip(mpicomm, currLead, MPI_SUM)
 
     call mpifx_barrier(mpicomm)
 
     ! converts from internal atomic units into A
-    currTot = currTot * convertCurrent(unitOfEnergy, unitOfCurrent)
+    currLead = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
 
-    do ii=1, size(currTot)
+    do ii = 1, size(currLead)
       write(stdOut, *)
       write(stdOut, '(1x,a,i3,i3,a,ES14.5,a,a)') ' contacts: ',params%ni(ii),params%nf(ii),&
-          & ' current: ', currTot(ii),' ',unitOfCurrent%name
+          & ' current: ', currLead(ii),' ',unitOfCurrent%name
     enddo
 
-    if (allocated(tunnTot)) then
-      ! Write Total tunneling on a separate file (optional)
-      if (tIoProc .and. writeTunn) then
-        call write_file(negf, tunnTot, tunnSKRes, 'tunneling', groupKS, kpoints, kWeights)
-      endif
+    ! Write Total transmission, T(E), on a separate file (optional)
+    if (allocated(tunnMat)) then
+      filename = 'transmission'
+      if (tIOProc .and. writeTunn) then 
+        call write_file(negf, tunnMat, tunnSKRes, filename, groupKS, kpoints, kWeights)
+      end if
       if (allocated(tunnSKRes)) then
         deallocate(tunnSKRes)
       end if
     else
       ! needed to avoid some segfault
-      allocate(tunnTot(0,0))
+      allocate(tunnMat(0,0))
+    end if
+    
+    ! Write Total lead current, I_i(E), on a separate file (optional)
+    if (allocated(currMat)) then
+      filename = 'current'
+      if (tIOProc .and. writeTunn) then 
+        call write_file(negf, currMat, currSKRes, filename, groupKS, kpoints, kWeights)
+      end if
+      if (allocated(currSKRes)) then
+        deallocate(currSKRes)
+      end if
+    else   
+      ! needed to avoid some segfault
+      allocate(currMat(0,0))
     endif
 
-    !!DAR begin - print tunn_mat_bp
-    !#if (negf%tZeroCurrent) then
-    !#  call mpifx_allreduceip(mpicomm, negf%tunn_mat, MPI_SUM)
-    !#  if (tIoProc) call write_file(negf, negf%tunn_mat, tunnSKRes, 'tunneling_bp', &
-    !#        & groupKS, kpoints, kWeights)
-    !#  if (allocated(tunnSKRes)) deallocate(tunnSKRes)
-    !#end if
-    !DAR end
-
-    if (allocated(ldosTot)) then
+    if (allocated(ldosMat)) then
       ! Write Total localDOS on a separate file (optional)
       if (tIoProc .and. writeLDOS) then
-        call write_file(negf, ldosTot, ldosSKRes, 'localDOS', groupKS, kpoints, kWeights)
+        call write_file(negf, ldosMat, ldosSKRes, 'localDOS', groupKS, kpoints, kWeights)
       end if
       if (allocated(ldosSKRes)) then
         deallocate(ldosSKRes)
       end if
     else
       ! needed to avoid some segfault
-      allocate(ldosTot(0,0))
+      allocate(ldosMat(0,0))
     end if
 
   end subroutine calc_current

@@ -2691,10 +2691,10 @@ contains
       write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       if (tPrintMulliken) then
         if (nSpin == 2) then
-          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
+          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
               & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
         else
-          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
+          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
               & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
         end if
       end if

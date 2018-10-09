@@ -730,8 +730,8 @@ contains
     if (tTunn) then
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
           & neighborList%iNeighbor, nNeighbor, densedesc%iAtomStart, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, orb, kPoint, kWeight, tunneling, ldos, current, writeTunn,&
-          & writeLDOS, mu)
+          & iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos, leadCurrents, &
+          & writeTunn, writeLDOS, mu)
     end if
   #:endif
 
