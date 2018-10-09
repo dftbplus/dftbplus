@@ -166,7 +166,8 @@ contains
 
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
-      call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
+      call detailedError(child, "Be patient... Dephasing feature will be available soon!")    
+      !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
   #:else
@@ -4717,17 +4718,17 @@ contains
         end if
         call destruct(fermiBuffer)
         call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
-        ! These options where introduced by Dima. There is a problem in parallel execution
+        ! NOTE: These options have been commented out: there is a problem in parallel execution
         ! since one single file is accessed by all processors causing rush conditions
         ! The options are therefore disabled for the official dftb+ release
-        contacts(ii)%tWriteSelfEnergy = .false.
         !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
-        contacts(ii)%tReadSelfEnergy = .false.
-        !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
-        contacts(ii)%tWriteSurfaceGF = .false.
         !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
-        contacts(ii)%tReadSurfaceGF = .false.
+        !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
         !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
+        contacts(ii)%tWriteSelfEnergy = .false.
+        contacts(ii)%tWriteSurfaceGF = .false.
+        contacts(ii)%tReadSelfEnergy = .false.
+        contacts(ii)%tReadSurfaceGF = .false.
       end if
 
     end do
