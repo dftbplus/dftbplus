@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTHON_TESTS="grids repeatgen straingen xyz2gen gen2xyz dp_bands"
+PYTHON_TESTS="grids repeatgen straingen xyz2gen gen2xyz gen2cif dp_bands"
 
 function abspath() {
   cd $1

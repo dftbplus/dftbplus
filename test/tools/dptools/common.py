@@ -15,6 +15,7 @@ import shutil
 import os.path
 from dptools.gen import Gen
 from dptools.xyz import Xyz
+from dptools.cif import Cif
 from dptools.nxy import Nxy
 if sys.version_info[0] >= 3:
     from io import StringIO
@@ -43,6 +44,17 @@ def xyz_file_equals(current, reference, check_comment=False):
     curxyz = Xyz.fromfile(current)
     refxyz = Xyz.fromfile(reference)
     return curxyz.equals(refxyz, check_comment=check_comment)
+
+def cif_file_equals(current, reference):
+    '''Checks whether a cif file equals to an other one.
+
+    Args:
+        current (str): Name of cif file to check.
+        reference (str): Name of reference cif file.
+    '''
+    curcif = Cif.fromfile(current)
+    refcif = Cif.fromfile(reference)
+    return curcif.equals(refcif)
 
 
 def nxy_file_equals(current, reference):
