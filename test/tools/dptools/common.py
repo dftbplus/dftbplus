@@ -68,6 +68,17 @@ def nxy_file_equals(current, reference):
     refnxy = Nxy.fromfile(reference)
     return curnxy.equals(refnxy)
 
+def get_temporary_filename(directory):
+    '''Creates a temporary file and reads its name
+
+    Args:
+        directory: Path where the temporary file is created
+    '''
+    temp_file = tempfile.NamedTemporaryFile(dir=directory)
+    tempname = temp_file.name
+    temp_file.close()
+    return tempname
+
 
 class TestWithWorkDir(unittest.TestCase):
     '''Base class for tests which need work directory for file output.

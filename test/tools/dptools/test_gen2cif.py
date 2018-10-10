@@ -11,7 +11,6 @@
 import sys
 import os.path
 import unittest
-import tempfile
 import common
 from dptools.scripts.common import ScriptError
 import dptools.scripts.gen2cif as gen2cif
@@ -81,9 +80,7 @@ class Gen2cifTest(common.TestWithWorkDir):
 
     def test_fail_invalid_infile(self):
         '''Failing due to invalid input file.'''
-        temp_file = tempfile.NamedTemporaryFile(dir=self.workroot)
-        tempname = temp_file.name
-        temp_file.close()
+        tempname = common.get_temporary_filename(self.workroot)
         nonexisting_infile = os.path.join(self.workdir, tempname)
         outfile = self.get_output('h2o.234.cif')
         cmdargs = ['-o', outfile, nonexisting_infile]
