@@ -19,7 +19,7 @@ import dptools.scripts.dp_bands as dp_bands
 SCRIPTDIR = os.path.dirname(sys.argv[0])
 
 
-class Xyz2genTest(common.TestWithWorkDir):
+class DpbandsTest(common.TestWithWorkDir):
     '''General tests for dp_bands'''
 
     def setUp(self):

@@ -19,7 +19,7 @@ import dptools.scripts.gen2xyz as gen2xyz
 SCRIPTDIR = os.path.dirname(sys.argv[0])
 
 
-class Xyz2genTest(common.TestWithWorkDir):
+class Gen2xyzTest(common.TestWithWorkDir):
     '''General tests for gen2xyz'''
 
     def setUp(self):
