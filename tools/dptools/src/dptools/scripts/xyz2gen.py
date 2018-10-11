@@ -15,10 +15,12 @@ from dptools.gen import Gen
 from dptools.xyz import Xyz
 from dptools.scripts.common import ScriptError
 
-USAGE = '''Converts the given INPUT file in XYZ format to DFTB+ GEN format. Per default, if
+USAGE = '''
+Converts the given INPUT file in XYZ format to DFTB+ GEN format. Per default, if
 the filename INPUT is of the form PREFIX.xyz the result is stored in PREFIX.gen,
 otherwise in INPUT.gen. You can additionally specify a file with lattice
-vectors to create a periodic structure in the GEN file.'''
+vectors to create a periodic structure in the GEN file.
+'''
 
 
 def main(cmdlineargs=None):
@@ -38,12 +40,12 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT')
+    parser = argparse.ArgumentParser(description=USAGE)
     parser.add_argument("-l", "--lattice-file", action="store", dest="lattfile",
                         help="read lattice vectors from an external file")
     parser.add_argument("-o", "--output", action="store", dest="output",
-                        help="override the name of the output file (use '-' for "
-                        "standard out")
+                        help="override the name of the output file (use '-' for"
+                        " standard out")
     parser.add_argument("-f", "--fractional", action="store_true",
                         dest="fractional", default=False,
                         help="store coordinate in fractional format instead of "

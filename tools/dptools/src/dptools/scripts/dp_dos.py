@@ -16,7 +16,7 @@ import numpy.polynomial.hermite as  H
 from dptools.bandout import BandOut
 from dptools.scripts.common import ScriptError
 
-USAGE = """
+USAGE = '''
 Reads the band structure information stored in a file INPUT created by
 DFTB+ (usually band.out for DOS and region*.out for PDOS) and
 convolves the eigenlevels with a broadening function to produce nice
@@ -30,7 +30,7 @@ DOS.
 For spin unpolarized calculations, the output contains one Y-column only. For
 spin polarized calculations the first column contains the total value, while
 the further Y-columns contain the values for each spin-channel separately.
-"""
+'''
 
 DEFAULT_GRID_SEPARATION = 0.01
 

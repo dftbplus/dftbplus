@@ -14,10 +14,12 @@ from dptools.gen import Gen
 from dptools.xyz import Xyz
 from dptools.scripts.common import ScriptError
 
-USAGE = '''Converts the given INPUT file in DFTB+ GEN format to XYZ. Per default,
+USAGE = '''
+Converts the given INPUT file in DFTB+ GEN format to XYZ. Per default,
 if the filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.xyz,
 otherwise in INPUT.xyz. You can additionally store lattice vectors of the GEN
-file in a separate file.'''
+file in a separate file.
+'''
 
 def main(cmdlineargs=None):
     '''Main driver routine for gen2xyz.
@@ -36,15 +38,15 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT')
+    parser = argparse.ArgumentParser(description=USAGE)
     parser.add_argument("-l", "--lattice-file", action="store", dest="lattfile",
-                      help="store lattice vectors in an external file")
+                        help="store lattice vectors in an external file")
     parser.add_argument("-o", "--output", action="store", dest="output",
-                      help="override the name of the output file (use '-' for "
-                      "standard output)")
+                        help="override the name of the output file (use '-' for"
+                        " standard output)")
     parser.add_argument("-c", "--comment", action="store", dest="comment",
-                      default="", help="comment for the second line of the "
-                      "xyz-file")
+                        default="", help="comment for the second line of the "
+                        "xyz-file")
     options, args = parser.parse_known_args(cmdlineargs)
 
     if len(args) != 1:

@@ -13,12 +13,14 @@ import numpy as np
 from dptools.bandout import BandOut
 from dptools.scripts.common import ScriptError
 
-USAGE = '''Reads the band structure information stored in the file INPUT created
+USAGE = '''
+Reads the band structure information stored in the file INPUT created
 by DFTB+ (usually band.out) and converts it to NXY-data (to be visualized by gnuplot,
 xmgrace, etc.). The outputfile will be called OUTPREFIX_tot.dat and contains the
 band structure for all spin channels. If spin channel separation is specified,
 the output files OUTPREFIX_s1.dat, OUTPREFIX_s2.dat, etc. will be created for
-each spin channel.'''
+each spin channel.
+'''
 
 def main(cmdlineargs=None):
     '''Main driver for dp_bands.
@@ -38,19 +40,20 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT OUTPREFIX')
+    parser = argparse.ArgumentParser(description=USAGE)
     parser.add_argument("-N", "--no-enumeration", action="store_false",
-                      default=True, dest="enum",
-                      help="do not use the first column of the output to "
-                      "enumerate the k-points")
+                        default=True, dest="enum",
+                        help="do not use the first column of the output to "
+                        "enumerate the k-points")
     parser.add_argument("-s", "--separate-spins", action="store_true",
-                      default=False, dest="spinsep",
-                      help="create separate band structure for each spin "
-                      "channel")
+                        default=False, dest="spinsep",
+                        help="create separate band structure for each spin "
+                        "channel")
     options, args = parser.parse_known_args(cmdlineargs)
 
     if len(args) != 2:
-        raise ScriptError('You must specify two arguments (input file and output prefix)')
+        msg = 'You must specify two arguments (input file and output prefix)'
+        raise ScriptError(msg)
     infile = args[0]
     outprefix = args[1]
 

@@ -15,9 +15,11 @@ from dptools.gen import Gen
 from dptools.geometry import Geometry
 from dptools.scripts.common import ScriptError
 
-USAGE = '''Repeats the geometry found in INPUT along each supercell vector N1,
+USAGE = '''
+Repeats the geometry found in INPUT along each supercell vector N1,
 N2 and N3 times, respectively and writes the resulting geometry to standard
-output'''
+output
+'''
 
 
 def main(cmdlineargs=None):
@@ -38,7 +40,7 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT N1 N2 N3')
+    parser = argparse.ArgumentParser(description=USAGE)
     msg = 'file containing lattice vectors (overrides lattice vectors'\
           ' in the geometry file)'
     parser.add_argument(

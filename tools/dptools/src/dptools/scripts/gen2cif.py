@@ -15,7 +15,8 @@ from dptools.gen import Gen
 from dptools.cif import Cif
 from dptools.scripts.common import ScriptError
 
-USAGE = '''Converts the given INPUT file in DFTB+ GEN format to CIF. Per default,
+USAGE = '''
+Converts the given INPUT file in DFTB+ GEN format to CIF. Per default,
 if the filename INPUT is of the form PREFIX.gen the result is stored in PREFIX.cif,
 otherwise in INPUT.cif. Since the GEN format does not contain any symmetry
 information, the symmetry is set to P1 in the CIF file. If the GEN format
@@ -40,10 +41,10 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT')
+    parser = argparse.ArgumentParser(description=USAGE)
     parser.add_argument("-o", "--output", action="store", dest="output",
-                        help="override the name of the output file (use '-' for "
-                        "standard out")
+                        help="override the name of the output file (use '-' "
+                        "for standard out")
     parser.add_argument("-c", "--cellsize", action="store", dest="cellsize",
                         type=float, default=100.0, help="lattice constant "
                         "for the simple cubic cell created for non-periodic "

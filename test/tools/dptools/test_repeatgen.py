@@ -66,7 +66,7 @@ class RepeatgenTest(common.TestWithWorkDir):
         outfile = output.get_as_stringio()
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
-    def test_fail_cluster_without_latvecs(self):
+    def test_fail_clusterwithoutlatvecs(self):
         '''Failing due to missing lattice vectors'''
         infile = self.get_input('h2o.gen')
         outfile = self.get_output('h2o.234.gen')

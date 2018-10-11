@@ -14,10 +14,12 @@ import numpy as np
 from dptools.gen import Gen
 from dptools.scripts.common import ScriptError
 
-USAGE = """Strains the geometry found in INPUT, writing the resulting geometries
+USAGE = '''
+Strains the geometry found in INPUT, writing the resulting geometries
 to standard output. Possible values for the strain type to apply are xx, yy, zz,
 xz, xz, yz or I for isotropic. STRAIN is specified as positive or negative
-percentage for the geometries."""
+percentage for the geometries.
+'''
 
 # Voight convention for 1 index to 2 index for strain tensors
 VOIGHT = [[0, 0], [1, 1], [2, 2], [1, 2], [0, 2], [0, 1]]
@@ -44,10 +46,10 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed. (Default: None)
     '''
-    parser = argparse.ArgumentParser(description=USAGE, usage='%(prog)s [options] INPUT STRAIN')
+    parser = argparse.ArgumentParser(description=USAGE)
     parser.add_argument("-o", "--output", action="store", dest="output",
-                        default='-', help="override the name of the output file "
-                        "(use '-' for standard out")
+                        default='-', help="override the name of the output file"
+                        " (use '-' for standard out")
     parser.add_argument("-c", "--component", action="store", dest="component",
                         type=str, default='I', help="strain type to apply "
                         "posible values being xx, yy, zz, xz, xz, yz or I for "
