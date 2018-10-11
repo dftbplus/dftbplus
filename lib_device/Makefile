@@ -1,16 +1,30 @@
-FC=gfortran -O3 -fopenmp
-OBJ =   functions.o magma_device_info.o
-OUT=   libCountDevice.a
-INCLUDES = -I/home/ccevallos/magma-2.3.0/include
+# Source, Includes, Library, Output Defines
+CXXFLAGS	= -I/path.to.magma/include -I/path.to.cuda/include
+SRC_F  		= magma_device_info.f90
+SRC_C  		= functions.cpp
+OBJ_F  		= $(SRC_F:.f90=.o)
+OBJ_C  		= $(SRC_C:.cpp=.o)
+LDFLAGS   	= -L/path.to.magma/lib -lmagma
+TARGET   	= libCountDevice.a
 
-$(OUT):  $(OBJ)
-	ar rcs $(OUT) $(OBJ)	
+# Compiler Defines
+CXX    = g++
+FC     = gfortran
+FFLAGS = -O3 -fopenmp
 
-%.o : %.f90  $(MODULES)
-	$(FC) -c  $< 
+# Compile F90 Source File into Object File
+%.o: %.f90
+		$(FC) -c $*.f90
 
-%.o : %.cpp
-	nvcc   $(INCLUDES) -c $@ $<
+# Compile CXX Source File into Object File
+%.o: %.cpp
+		$(CXX) -c $(CXXFLAGS) $(LDFLAGS) $*.cpp
 
+# Generate the staic library
+$(TARGET): $(OBJ_F) $(OBJ_C)
+		ar rcs $(TARGET) $(OBJ_F) $(OBJ_C)
+
+# Clean Up Objects, Module, and Library
 clean:
-	rm -f *.mod *.o  *.a 
+		$(RM) $(TARGET) $(OBJ_F) $(OBJ_C) *.mod
+
