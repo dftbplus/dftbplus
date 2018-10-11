@@ -20,7 +20,7 @@ FFLAGS = -O3 -fopenmp
 %.o: %.cpp
 		$(CXX) -c $(CXXFLAGS) $(LDFLAGS) $*.cpp
 
-# Generate the staic library
+# Generate the static library
 $(TARGET): $(OBJ_F) $(OBJ_C)
 		ar rcs $(TARGET) $(OBJ_F) $(OBJ_C)
 
