@@ -56,21 +56,6 @@ class Xyz2genTest(common.TestWithWorkDir):
         xyz2gen.main(cmdargs)
         self.assertTrue(common.gen_file_equals(outfile, reffile))
 
-    def test_fail_superfluous_arguments(self):
-        '''Failing due to superfluous arguments.'''
-        infile = self.get_input('h2o.xyz')
-        outfile = self.get_output('h2o.gen')
-        cmdargs = ['-o', outfile, infile, 'something']
-        with self.assertRaises(ScriptError):
-            xyz2gen.main(cmdargs)
-
-    def test_fail_missing_arguments(self):
-        '''Failing due to missing arguments.'''
-        infile = self.get_input('h2o.xyz')
-        cmdargs = ['-o', infile]
-        with self.assertRaises(ScriptError):
-            xyz2gen.main(cmdargs)
-
     def test_fail_invalid_infile(self):
         '''Failing due to invalid input file.'''
         tempname = common.get_temporary_filename(self.workroot)

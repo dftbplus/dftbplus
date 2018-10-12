@@ -30,8 +30,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, options = parse_cmdline_args(cmdlineargs)
-    xyz2gen(infile, options)
+    args = parse_cmdline_args(cmdlineargs)
+    xyz2gen(args)
 
 def parse_cmdline_args(cmdlineargs=None):
     '''Parses command line arguments.
@@ -45,44 +45,43 @@ def parse_cmdline_args(cmdlineargs=None):
                         help="read lattice vectors from an external file")
     parser.add_argument("-o", "--output", action="store", dest="output",
                         help="override the name of the output file (use '-' for"
-                        " standard out")
+                        " standard out)")
     parser.add_argument("-f", "--fractional", action="store_true",
                         dest="fractional", default=False,
                         help="store coordinate in fractional format instead of "
                         "absolute coordinates")
-    options, args = parser.parse_known_args(cmdlineargs)
+    msg = "input file name"
+    parser.add_argument("INPUT", help=msg)
 
-    if len(args) != 1:
-        raise ScriptError('You must specify exactly one argument (input file).')
-    infile = args[0]
+    args = parser.parse_args(cmdlineargs)
 
-    return infile, options
+    return args
 
-def xyz2gen(infile, options):
+def xyz2gen(args):
     '''Converts the given INPUT file in XYZ format to DFTB+ GEN format.
 
     Args:
-        infile: File containing the xyz-formatted geometry.
-        options: Options (e.g. as returned by the command line parser).
+        args: Namespace of command line arguments
     '''
+    infile = args.INPUT
     try:
         xyz = Xyz.fromfile(infile)
     except OSError:
         raise ScriptError('You must enter a valid path to the input file.')
     geo = xyz.geometry
-    if options.lattfile:
-        fp = open(options.lattfile, "r")
+    if args.lattfile:
+        fp = open(args.lattfile, "r")
         tmp = np.fromfile(fp, count=9, dtype=float, sep=" ")
         latvecs = tmp.reshape((3, 3))
         fp.close()
         geo.setlattice(latvecs)
-    gen = Gen(geo, fractional=options.fractional)
+    gen = Gen(geo, fractional=args.fractional)
 
-    if options.output:
-        if options.output == "-":
+    if args.output:
+        if args.output == "-":
             outfile = sys.stdout
         else:
-            outfile = options.output
+            outfile = args.output
     else:
         if infile.endswith(".xyz"):
             outfile = infile[:-4] + ".gen"

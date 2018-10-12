@@ -31,8 +31,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, options = parse_cmdline_args(cmdlineargs)
-    gen2cif(infile, options)
+    args = parse_cmdline_args(cmdlineargs)
+    gen2cif(args)
 
 def parse_cmdline_args(cmdlineargs=None):
     '''Parses command line arguments.
@@ -42,28 +42,27 @@ def parse_cmdline_args(cmdlineargs=None):
             sys.argv are parsed (Default: None).
     '''
     parser = argparse.ArgumentParser(description=USAGE)
+    msg = "override the name of the output file (use '-' for standard out)"
     parser.add_argument("-o", "--output", action="store", dest="output",
-                        help="override the name of the output file (use '-' "
-                        "for standard out")
+                        help=msg)
+    msg = "lattice constant for the simple cubic cell created for non-periodic"\
+          " geometries (default: 100)"
     parser.add_argument("-c", "--cellsize", action="store", dest="cellsize",
-                        type=float, default=100.0, help="lattice constant "
-                        "for the simple cubic cell created for non-periodic "
-                        " geometries (default: 100)")
-    options, args = parser.parse_known_args(cmdlineargs)
+                        type=float, default=100.0, help=msg)
+    msg = "input file name"
+    parser.add_argument("INPUT", help=msg)
 
-    if len(args) != 1:
-        raise ScriptError('You must specify exactly one argument (input file).')
-    infile = args[0]
+    args = parser.parse_args(cmdlineargs)
 
-    return infile, options
+    return args
 
-def gen2cif(infile, options):
+def gen2cif(args):
     '''Converts the given INPUT file in DFTB+ GEN format to CIF format.
 
     Args:
-        infile: File containing the gen-formatted geometry.
-        options: Options (e.g. as returned by the command line parser).
+        args: Namespace of command line arguments
     '''
+    infile = args.INPUT
     try:
         gen = Gen.fromfile(infile)
     except OSError:
@@ -71,14 +70,14 @@ def gen2cif(infile, options):
 
     geometry = gen.geometry
     if not geometry.periodic:
-        geometry.setlattice(options.cellsize * np.eye(3))
+        geometry.setlattice(args.cellsize * np.eye(3))
     cif = Cif(gen.geometry)
 
-    if options.output:
-        if options.output == "-":
+    if args.output:
+        if args.output == "-":
             outfile = sys.stdout
         else:
-            outfile = options.output
+            outfile = args.output
     else:
         if infile.endswith(".gen"):
             outfile = infile[:-4] + ".cif"

@@ -109,10 +109,10 @@ def parse_arguments(cmdlineargs=None):
                         default=False, help=msg)
 
     msg = "input file name"
-    parser.add_argument("inputfile", help=msg)
+    parser.add_argument("INPUT", help=msg)
 
     msg = "output file name"
-    parser.add_argument("outputfile", help=msg)
+    parser.add_argument("OUTPUT", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -123,8 +123,8 @@ def parse_arguments(cmdlineargs=None):
         if args.mporder < 1:
             raise ScriptError(msg)
 
-    infile = args.inputfile
-    outfile = args.outputfile
+    infile = args.INPUT
+    outfile = args.OUTPUT
     broadening = args.broadening
 
     if args.broadwidth < 0.0:

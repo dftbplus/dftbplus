@@ -35,8 +35,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed. (Default: None)
     '''
-    infile, strain, options = parse_cmdline_args(cmdlineargs)
-    straingen(infile, strain, options)
+    args, strain = parse_cmdline_args(cmdlineargs)
+    straingen(args, strain)
 
 
 def parse_cmdline_args(cmdlineargs=None):
@@ -47,42 +47,40 @@ def parse_cmdline_args(cmdlineargs=None):
             sys.argv are parsed. (Default: None)
     '''
     parser = argparse.ArgumentParser(description=USAGE)
+    msg = "override the name of the output file (use '-' for standard out)"
     parser.add_argument("-o", "--output", action="store", dest="output",
-                        default='-', help="override the name of the output file"
-                        " (use '-' for standard out")
+                        default='-', help=msg)
+    msg = "strain type to apply posible values being xx, yy, zz, xz, xz, yz or"\
+          " I for isotropic (default value: I)"
     parser.add_argument("-c", "--component", action="store", dest="component",
-                        type=str, default='I', help="strain type to apply "
-                        "posible values being xx, yy, zz, xz, xz, yz or I for "
-                        "isotropic (default value: I)")
-    options, args = parser.parse_known_args(cmdlineargs)
+                        type=str, default='I', help=msg)
+    msg = "input file name"
+    parser.add_argument("INPUT", help=msg)
+    msg = "strain to apply as positive or negative percentage"
+    parser.add_argument("STRAIN", type=float, help=msg)
 
-    if options.component.lower() not in LABELS:
-        msg = "Invalid strain component '" + options.component + "'"
+    args = parser.parse_args(cmdlineargs)
+
+    if args.component.lower() not in LABELS:
+        msg = "Invalid strain component '" + args.component + "'"
         raise ScriptError(msg)
 
-    if len(args) != 2:
-        raise ScriptError("You must specify exactly two arguments "
-                          "(input file, strain).")
-    infile = args[0]
-    try:
-        strain = float(args[1])
-    except ValueError:
-        raise ScriptError("Invalid strain value '" + args[1] + "'")
+    strain = args.STRAIN
 
-    if options.component.lower() in ('xx', 'yy', 'zz', 'i') and strain <= -100:
+    if args.component.lower() in ('xx', 'yy', 'zz', 'i') and strain <= -100:
         raise ScriptError("Compressive strain cannot exceed 100%")
 
-    return infile, strain, options
+    return args, strain
 
 
-def straingen(infile, strain, options):
+def straingen(args, strain):
     '''Strains a geometry from a gen file.
 
     Args:
-        infile: File containing the gen-formatted geometry
+        args: Namespace of command line arguments
         strain: Strain to apply
-        options: Options (e.g. as returned by the command line parser)
     '''
+    infile = args.INPUT
     try:
         gen = Gen.fromfile(infile)
     except OSError:
@@ -93,7 +91,7 @@ def straingen(infile, strain, options):
     for jj in range(3):
         strainmtx[jj][jj] = 1.0
 
-    components = LABELS[options.component.lower()]
+    components = LABELS[args.component.lower()]
 
     for ii in components:
         strainmtx[VOIGHT[ii][0]][VOIGHT[ii][1]] += 0.005 * strain
@@ -104,11 +102,11 @@ def straingen(infile, strain, options):
 
     geometry.coords = np.dot(geometry.coords, strainmtx)
 
-    if options.output:
-        if options.output == "-":
+    if args.output:
+        if args.output == "-":
             outfile = sys.stdout
         else:
-            outfile = options.output
+            outfile = args.output
     else:
         if infile.endswith(".gen"):
             outfile = infile

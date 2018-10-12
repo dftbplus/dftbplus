@@ -60,21 +60,6 @@ class DpbandsTest(common.TestWithWorkDir):
         self.assertTrue(common.nxy_file_equals(outfile_s1, reffile_s1))
         self.assertTrue(common.nxy_file_equals(outfile_s2, reffile_s2))
 
-    def test_fail_superfluous_arguments(self):
-        '''Failing due to superfluous arguments.'''
-        infile = self.get_input('band.out')
-        outprefix = self.get_output('band')
-        cmdargs = [infile, outprefix, 'something']
-        with self.assertRaises(ScriptError):
-            dp_bands.main(cmdargs)
-
-    def test_fail_missing_arguments(self):
-        '''Failing due to missing arguments.'''
-        infile = self.get_input('band.out')
-        cmdargs = [infile]
-        with self.assertRaises(ScriptError):
-            dp_bands.main(cmdargs)
-
     def test_fail_invalid_infile(self):
         '''Failing due to invalid input file.'''
         tempname = common.get_temporary_filename(self.workroot)

@@ -29,8 +29,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, options, outprefix = parse_cmdline_args(cmdlineargs)
-    dp_bands(infile, options, outprefix)
+    args = parse_cmdline_args(cmdlineargs)
+    dp_bands(args)
 
 
 def parse_cmdline_args(cmdlineargs=None):
@@ -41,39 +41,37 @@ def parse_cmdline_args(cmdlineargs=None):
             sys.argv are parsed (Default: None).
     '''
     parser = argparse.ArgumentParser(description=USAGE)
+    msg = "do not use the first column of the output to enumerate the k-points"
     parser.add_argument("-N", "--no-enumeration", action="store_false",
-                        default=True, dest="enum",
-                        help="do not use the first column of the output to "
-                        "enumerate the k-points")
+                        default=True, dest="enum", help=msg)
+    msg = "create separate band structure for each spin channel"
     parser.add_argument("-s", "--separate-spins", action="store_true",
-                        default=False, dest="spinsep",
-                        help="create separate band structure for each spin "
-                        "channel")
-    options, args = parser.parse_known_args(cmdlineargs)
+                        default=False, dest="spinsep", help=msg)
+    msg = "input file name"
+    parser.add_argument("INPUT", help=msg)
+    msg = "output prefix"
+    parser.add_argument("OUTPREFIX", help=msg)
 
-    if len(args) != 2:
-        msg = 'You must specify two arguments (input file and output prefix)'
-        raise ScriptError(msg)
-    infile = args[0]
-    outprefix = args[1]
+    args = parser.parse_args(cmdlineargs)
 
-    return infile, options, outprefix
+    return args
 
 
-def dp_bands(infile, options, outprefix):
+def dp_bands(args):
     '''Converts band structure information of DFTB+ output to NXY-format.
 
     Args:
-        infile: File containing the DFTB+ band structure information.
-        options: Options (e.g. as returned by the command line parser).
-        outprefix: Prefix of the output file(s)
+        args: Namespace of command line arguments
     '''
+    infile = args.INPUT
+    outprefix = args.OUTPREFIX
+
     try:
         bandout = BandOut.fromfile(infile)
     except OSError:
         raise ScriptError('You must enter a valid path to the input file.')
 
-    if options.spinsep:
+    if args.spinsep:
         # Create filename for each spin-channel
         fnames = ["{0}_s{1:d}.dat".format(outprefix, ispin)
                   for ispin in range(1, bandout.nspin + 1)]
@@ -89,7 +87,7 @@ def dp_bands(infile, options, outprefix):
             plotvals[0, :, istart:iend] = eigvals[ispin, :, :]
         fnames = [outprefix + "_tot.dat",]
 
-    if options.enum:
+    if args.enum:
         formstr0 = "{0:d} "
         tmp = ["{" + str(ii) + ":18.10E}"
                for ii in range(1, plotvals.shape[2] + 1)]
@@ -102,7 +100,7 @@ def dp_bands(infile, options, outprefix):
     for iout, data in enumerate(plotvals):
         fp = open(fnames[iout], "w")
         for ik, kdata in enumerate(data):
-            if options.enum:
+            if args.enum:
                 fp.write(formstr.format(ik + 1, *kdata))
             else:
                 fp.write(formstr.format(*kdata))

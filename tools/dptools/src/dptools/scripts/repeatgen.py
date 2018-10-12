@@ -29,8 +29,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, repeats, options = parse_cmdline_args(cmdlineargs)
-    repeatgen(infile, repeats, options)
+    args = parse_cmdline_args(cmdlineargs)
+    repeatgen(args)
 
 
 def parse_cmdline_args(cmdlineargs=None):
@@ -47,43 +47,44 @@ def parse_cmdline_args(cmdlineargs=None):
         '-l', '--lattice-file', action='store', help=msg, dest='latticefile')
     msg = 'output file to store the resulting geometry'
     parser.add_argument('-o', '--output', action='store', default='-', help=msg)
-    options, args = parser.parse_known_args(cmdlineargs)
+    msg = 'input file name'
+    parser.add_argument("INPUT", help=msg)
+    msg = 'repetition along the first lattice vector'
+    parser.add_argument('N1', type=int, help=msg)
+    msg = 'repetition along the second lattice vector'
+    parser.add_argument('N2', type=int, help=msg)
+    msg = 'repetition along the third lattice vector'
+    parser.add_argument('N3', type=int, help=msg)
 
-    if len(args) != 4:
-        raise ScriptError('Incorrect number of arguments')
-    infile = args[0]
-    reps = []
-    for repstr in args[1:4]:
-        try:
-            reps.append(int(repstr))
-        except ValueError:
-            msg = "Invalid repetition number '" + repstr + "'."
-            raise ScriptError(msg)
-    if not (reps[0] > 0 and reps[1] > 0 and reps[2] > 0):
+    args = parser.parse_args(cmdlineargs)
+
+    if not (args.N1 > 0 and args.N2 > 0 and args.N3 > 0):
         raise ScriptError('Repetition numbers must be greater than zero')
 
-    return infile, (reps[0], reps[1], reps[2]), options
+    return args
 
 
-def repeatgen(infile, repeats, options):
+def repeatgen(args):
     '''Repeats geometry from gen files.
 
     Args:
-        infile: File containing the gen-formatted geometry.
-        repeats: (n1, n2, n3) integer tuple containing the repetitions along
-            each lattice vector.
-        options: Options (e.g. as returned by the command line parser).
+        args: Namespace of command line arguments
     '''
+    infile = args.INPUT
+    repeats = [args.N1, args.N2, args.N3]
 
-    gen = Gen.fromfile(infile)
+    try:
+        gen = Gen.fromfile(infile)
+    except OSError:
+        raise ScriptError('You must enter a valid path to the input file.')
     geo = gen.geometry
 
     latvecs = geo.latvecs
-    if options.latticefile:
-        latvecs = np.fromfile(options.latticefile, sep=' ')
+    if args.latticefile:
+        latvecs = np.fromfile(args.latticefile, sep=' ')
         if len(latvecs) != 9:
             msg = ('Invalid number of lattice vector components in '
-                   + options.latticefile)
+                   + args.latticefile)
             raise ScriptError(msg)
         latvecs.shape = (3, 3)
 
@@ -93,7 +94,7 @@ def repeatgen(infile, repeats, options):
 
     newgeo = _repeatgeo(geo, latvecs, repeats)
     newgen = Gen(newgeo, gen.fractional)
-    outfile = options.output
+    outfile = args.output
     if outfile == '-':
         outfile = sys.stdout
     newgen.tofile(outfile)

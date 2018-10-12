@@ -28,8 +28,8 @@ def main(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    infile, options = parse_cmdline_args(cmdlineargs)
-    gen2xyz(infile, options)
+    args = parse_cmdline_args(cmdlineargs)
+    gen2xyz(args)
 
 def parse_cmdline_args(cmdlineargs=None):
     '''Parses command line arguments.
@@ -39,39 +39,39 @@ def parse_cmdline_args(cmdlineargs=None):
             sys.argv are parsed (Default: None).
     '''
     parser = argparse.ArgumentParser(description=USAGE)
+    msg = "store lattice vectors in an external file"
     parser.add_argument("-l", "--lattice-file", action="store", dest="lattfile",
-                        help="store lattice vectors in an external file")
+                        help=msg)
+    msg = "override the name of the output file (use '-' for standard output)"
     parser.add_argument("-o", "--output", action="store", dest="output",
-                        help="override the name of the output file (use '-' for"
-                        " standard output)")
+                        help=msg)
+    msg = "comment for the second line of the xyz-file"
     parser.add_argument("-c", "--comment", action="store", dest="comment",
-                        default="", help="comment for the second line of the "
-                        "xyz-file")
-    options, args = parser.parse_known_args(cmdlineargs)
+                        default="", help=msg)
+    msg = "input file name"
+    parser.add_argument("INPUT", help=msg)
 
-    if len(args) != 1:
-        raise ScriptError('You must specify exactly one argument (input file).')
-    infile = args[0]
+    args = parser.parse_args(cmdlineargs)
 
-    return infile, options
+    return args
 
-def gen2xyz(infile, options):
+def gen2xyz(args):
     '''Converts the given INPUT file in DFTB+ GEN format to XYZ format.
 
     Args:
-        infile: File containing the gen-formatted geometry.
-        options: Options (e.g. as returned by the command line parser).
+        args: Namespace of command line arguments
     '''
+    infile = args.INPUT
     try:
         gen = Gen.fromfile(infile)
     except OSError:
         raise ScriptError('You must enter a valid path to the input file.')
-    xyz = Xyz(gen.geometry, options.comment)
-    if options.output:
-        if options.output == "-":
+    xyz = Xyz(gen.geometry, args.comment)
+    if args.output:
+        if args.output == "-":
             outfile = sys.stdout
         else:
-            outfile = options.output
+            outfile = args.output
     else:
         if infile.endswith(".gen"):
             outfile = infile[:-4] + ".xyz"
@@ -79,8 +79,8 @@ def gen2xyz(infile, options):
             outfile = infile + ".xyz"
     xyz.tofile(outfile)
 
-    if gen.geometry.periodic and options.lattfile:
-        fp = open(options.lattfile, "w")
+    if gen.geometry.periodic and args.lattfile:
+        fp = open(args.lattfile, "w")
         for vec in gen.geometry.latvecs:
             fp.write("{0:18.10E} {1:18.10E} {2:18.10E}\n".format(*vec))
         fp.close()
