@@ -60,7 +60,7 @@ module constants
   real(dp), parameter :: J__Hartree = 1.0_dp / Hartree__J
 
   !> hbar in SI units
-  real(dp), parameter :: hbar = 1.054571726e10-34_dp
+  real(dp), parameter :: hbar = 1.054571726e-34_dp
 
   !> electron g factor
   real(dp), parameter :: gfac = 2.00231930436153_dp

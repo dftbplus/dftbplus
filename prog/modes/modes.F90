@@ -11,12 +11,14 @@
 program modes
   use assert
   use io
-  use InitModes
+  use initmodes
   use accuracy, only : dp, lc
   use constants, only : Hartree__cm, Bohr__AA, pi
-  use TypeGeometry
+  use typegeometry
   use eigensolver, only : heev
-  use TaggedOutput
+  use taggedoutput
+  use message
+  use modeprojection
   implicit none
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
@@ -47,6 +49,9 @@ program modes
       end do
     end do
   end do
+
+  ! remove translations or rotations if neccessary
+  call project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
 
   ! solve the eigenproblem
   if (tPlotModes) then

@@ -467,7 +467,8 @@ contains
             if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if
-            if (filling(j, i, iSpin) < (1.0_dp - elecTol) ) then
+            if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
+                & filling(j, i, iSpin) < (1.0_dp - epsilon(1.0_dp))) then
               ! Fermi-Dirac entropy :
               TS(iSpin) = TS(iSpin)&
                   & - kWeights(i) * (filling(j, i, iSpin)* log(filling(j, i, iSpin))&
