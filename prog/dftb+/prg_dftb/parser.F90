@@ -3729,6 +3729,9 @@ contains
     call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
     call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
     call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
+    if (.not.associated(pTmp)) then
+      call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
+    end if
 
     call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
     if (associated(pTmp)) then
@@ -3739,10 +3742,6 @@ contains
       call destruct(li)
     end if
 
-
-    if (.not.associated(pTmp)) then
-      call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
-    end if
     !! Note: we parse first the task because we need to know it to defined the
     !! mandatory contact entries. On the other hand we need to wait that
     !! contacts are parsed to resolve the name of the contact for task =
