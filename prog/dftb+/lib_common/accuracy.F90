@@ -70,7 +70,7 @@ module accuracy
   real(dp), parameter :: tolSameDist2 = tolSameDist**2
 
 
-  !> Minimal distance between neighbors. (Neighbour distances smaller than that
+  !> Minimal distance between neighbours. (Neighbour distances smaller than that
   !> are meaningless because the parametrisation usually do not cover this
 
   !> region.)
