@@ -4415,12 +4415,11 @@ contains
           end if
         end if
 
-        ! ? Where is this gone ?
-        !if (tEField) then
-        !  do ii = 1, 3
-        !    derivs(ii,:) = derivs(ii,:) - sum(q0(:,:,1) - qOutput(:,:,1), dim=1) * EField(ii)
-        !  end do
-        !end if
+        if (tEField) then
+          do ii = 1, 3
+            derivs(ii,:) = derivs(ii,:) - sum(q0(:,:,1) - qOutput(:,:,1), dim=1) * EField(ii)
+          end do
+        end if
 
       end if
     end if
