@@ -22,7 +22,6 @@ module parser
   use charmanip
   use message
   use linkedlist
-  use fileid
   use unitconversion
   use inputconversion
   use oldcompat
@@ -30,6 +29,7 @@ module parser
   use periodic
   use simplealgebra, only: cross3, determinant33
   use dispersions
+  use dftbplusu
   use slakocont
   use slakoeqgrid
   use repcont
@@ -72,7 +72,7 @@ module parser
 
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 5
+  integer, parameter :: parserVersion = 6
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -188,11 +188,6 @@ contains
     call readDriver(tmp, child, input%geom, input%ctrl)
   #:endif
 
-    ! excited state options
-    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
-        & allowEmptyValue=.true., dummyValue=.true.)
-    call readExcited(child, input%ctrl)
-
     ! Analysis of properties
     call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -205,6 +200,11 @@ contains
   #:else
     call readAnalysis(child, input%ctrl, input%geom, input%slako%orb)
   #:endif
+
+    ! excited state options
+    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
+        & allowEmptyValue=.true., dummyValue=.true.)
+    call readExcited(child, input%ctrl)
 
     ! Options for calculation
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
@@ -779,7 +779,7 @@ contains
         end if
       case default
         call getNodeHSDName(value, buffer2)
-        call detailedError(child, "Invalid thermostat '" // char(buffer) // "'")
+        call detailedError(child, "Invalid thermostat '" // char(buffer2) // "'")
       end select thermostat
 
       if (ctrl%maxRun < -1) then
@@ -1230,6 +1230,7 @@ contains
     integer :: fp, iErr
     logical :: tBadIntegratingKPoints
     integer :: nElem
+    real(dp) :: rSKCutOff
 
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
@@ -1299,7 +1300,7 @@ contains
       end select
     end do
 
-    ! Orbitals and angular momenta for the given shells (once the SK files will contain the full
+    ! Orbitals and angular momenta for the given shells (once the SK files contain the full
     ! information about the basis, this will be moved to the SK reading routine).
     allocate(slako%orb)
     allocate(slako%orb%nShell(geo%nSpecies))
@@ -1442,8 +1443,18 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
-    call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, &
-        &angShells, ctrl%tOrbResolved, skInterMeth, repPoly)
+
+    call getChild(node, "TruncateSKRange", child, requested=.false.)
+    if (associated(child)) then
+      call warning("Artificially truncating the SK table, this is normally a bad idea!")
+      call SKTruncations(child, rSKCutOff, skInterMeth)
+      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
+          & skInterMeth, repPoly, rSKCutOff)
+    else
+      rSKCutOff = 0.0_dp
+      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
+          & skInterMeth, repPoly)
+    end if
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -1520,18 +1531,13 @@ contains
         call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
       end select
 
-      ! Elstner gamma damping for X-H interactions
-      call getChildValue(node, "DampXH", ctrl%tDampH, .false.)
-      if (ctrl%tDampH) then
-        call getChildValue(node, "DampXHExponent", ctrl%dampExp)
-      end if
-
       if (geo%tPeriodic) then
         call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
         call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
       end if
 
       ctrl%tMulliken = .true.
+      call readHCorrection(node, geo, ctrl)
 
     end if ifSCC
 
@@ -1627,7 +1633,6 @@ contains
       end if
       call init(lCharges)
       call init(lBlurs)
-      fp = getFileId()
       ctrl%nExtChrg = 0
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
@@ -1646,8 +1651,8 @@ contains
           call getChildValue(value, "Records", ind)
           call getChildValue(value, "File", buffer2)
           allocate(tmpR2(4, ind))
-          open(fp, file=unquote(char(buffer2)), form="formatted", &
-              &status="old", action="read", iostat=iErr)
+          open(newunit=fp, file=unquote(char(buffer2)), form="formatted", status="old",&
+              & action="read", iostat=iErr)
           if (iErr /= 0) then
             call detailedError(value, "Could not open file '" &
                 &// trim(unquote(char(buffer2))) // "' for direct reading" )
@@ -1971,10 +1976,9 @@ contains
       call getChildValue(child, "Functional", buffer, "fll")
       select case(tolower(char(buffer)))
       case ("fll")
-        ctrl%DFTBUfunc = 1 ! change this to get value from DFTB+U module named variables to avoid
-        ! ambiguity
+        ctrl%DFTBUfunc = plusUFunctionals%fll
       case ("psic")
-        ctrl%DFTBUfunc = 2
+        ctrl%DFTBUfunc = plusUFunctionals%pSic
       case default
         call detailedError(child,"Unknown orbital functional :"// char(buffer))
       end select
@@ -2079,10 +2083,6 @@ contains
 
     end if
 
-    if (ctrl%tDFTBU .and. .not. ctrl%tSpin) then
-      call error("DFTB+U only supported for spin polarised calculations.")
-    end if
-
     ! Dispersion
     call getChildValue(node, "Dispersion", value, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true.)
@@ -2175,6 +2175,44 @@ contains
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
 
   end subroutine readDFTBHam
+
+
+  !> Options for truncation of the SK data sets at a fixed distance
+  subroutine SKTruncations(node, truncationCutOff, skInterMeth)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> This is the resulting cutoff distance
+    real(dp), intent(out) :: truncationCutOff
+
+    !> Method of the sk interpolation
+    integer, intent(in) :: skInterMeth
+
+    logical :: tHardCutOff
+    type(fnode), pointer :: field
+    type(string) :: modifier
+
+    ! Artificially truncate the SK table
+    call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+
+    call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
+    if (tHardCutOff) then
+      ! Adjust by the length of the tail appended to the cutoff
+      select case(skInterMeth)
+      case(skEqGridOld)
+        truncationCutOff = truncationCutOff - distFudgeOld
+      case(skEqGridNew)
+        truncationCutOff = truncationCutOff - distFudge
+      end select
+    end if
+    if (truncationCutOff < epsilon(0.0_dp)) then
+      call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
+          & goes to 0")
+    end if
+
+  end subroutine SKTruncations
 
 
   !> Reads inital charges
@@ -2334,11 +2372,74 @@ contains
   end subroutine readDifferentiation
 
 
+  !> Reads the H corrections (H5, Damp)
+  subroutine readHCorrection(node, geo, ctrl)
+
+    !> Node containing the h-bond correction sub-block.
+    type(fnode), pointer, intent(in) :: node
+
+    !> Geometry.
+    type(TGeometry), intent(in) :: geo
+
+    !> Control structure
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: value, child, child2
+    type(string) :: buffer
+    real(dp) :: h5ScalingDef
+    integer :: iSp
+
+    ! X-H interaction corrections including H5 and damping
+    ctrl%tDampH = .false.
+    ctrl%h5SwitchedOn = .false.
+    call getChildValue(node, "HCorrection", value, "None", child=child)
+    call getNodeName(value, buffer)
+    select case (char(buffer))
+    case ("none")
+      ! nothing to do
+    case ("damping")
+      ! Switch the correction on
+      ctrl%tDampH = .true.
+      call getChildValue(value, "Exponent", ctrl%dampExp)
+    case ("h5")
+      ! Switch the correction on
+      ctrl%h5SwitchedOn = .true.
+
+      call getChildValue(value, "RScaling", ctrl%h5RScale, 0.714_dp)
+      call getChildValue(value, "WScaling", ctrl%h5WScale, 0.25_dp)
+
+      allocate(ctrl%h5ElementPara(geo%nSpecies))
+      call getChild(value, "H5Scaling", child2, requested=.false.)
+      if (.not. associated(child2)) then
+        call setChild(value, "H5scaling", child2)
+      end if
+      do iSp = 1, geo%nSpecies
+        select case (geo%speciesNames(iSp))
+        case ("O")
+          h5ScalingDef = 0.06_dp
+        case ("N")
+          h5ScalingDef = 0.18_dp
+        case ("S")
+          h5ScalingDef = 0.21_dp
+        case default
+          ! Default value is -1, this indicates that the element should be ignored
+          h5ScalingDef = -1.0_dp
+        end select
+        call getChildValue(child2, geo%speciesNames(iSp), ctrl%h5ElementPara(iSp), h5ScalingDef)
+      end do
+    case default
+      call getNodeHSDName(value, buffer)
+      call detailedError(child, "Invalid HCorrection '" // char(buffer) // "'")
+    end select
+
+  end subroutine readHCorrection
+
 
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
-  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly)
+  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
+      & truncationCutOff)
 
     !> List of SK file names to read in for every interaction
     type(ListCharLc), intent(inout) :: skFiles(:,:)
@@ -2365,7 +2466,10 @@ contains
     !> is this a polynomial or spline repulsive?
     logical, intent(in) :: repPoly(:,:)
 
-    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInt, iSh1
+    !> Distances to artificially truncate tables of SK integrals
+    real(dp), intent(in), optional :: truncationCutOff
+
+    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
     logical :: readRep, readAtomic
     character(lc) :: fileName
@@ -2377,6 +2481,9 @@ contains
     type(TRepPolyIn) :: repPolyIn1, repPolyIn2
     type(ORepSpline), allocatable :: pRepSpline
     type(ORepPoly), allocatable :: pRepPoly
+
+    ! if artificially cutting the SK tables
+    integer :: nEntries
 
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
@@ -2476,30 +2583,36 @@ contains
         end if
 
         ! Create full H/S table for all interactions of iSp1-iSp2
-        nInt = getNSKIntegrals(iSp1, iSp2, orb)
-        allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
-        allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
+        nInteract = getNSKIntegrals(iSp1, iSp2, orb)
+        allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
+        allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
         call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1), &
             &angShells(iSp2))
 
         ! Add H/S tables to the containers for iSp1-iSp2
         dist = skData12(1,1)%dist
+        if (present(truncationCutOff)) then
+          nEntries = floor(truncationCutOff / dist)
+          nEntries = min(nEntries, size(skData12(1,1)%skHam, dim=1))
+        else
+          nEntries = size(skData12(1,1)%skHam, dim=1)
+        end if
         allocate(pSlakoEqGrid1, pSlakoEqGrid2)
-        call init(pSlakoEqGrid1, dist, skHam, skInterMeth)
-        call init(pSlakoEqGrid2, dist, skOver, skInterMeth)
+        call init(pSlakoEqGrid1, dist, skHam(:nEntries,:), skInterMeth)
+        call init(pSlakoEqGrid2, dist, skOver(:nEntries,:), skInterMeth)
         call addTable(slako%skHamCont, pSlakoEqGrid1, iSp1, iSp2)
         call addTable(slako%skOverCont, pSlakoEqGrid2, iSp1, iSp2)
         deallocate(skHam)
         deallocate(skOver)
         if (iSp1 /= iSp2) then
           ! Heteronuclear interactions: the same for the reverse interaction
-          allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInt))
-          allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInt))
+          allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
+          allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
           call getFullTable(skHam, skOver, skData21, skData12, angShells(iSp2),&
               &angShells(iSp1))
           allocate(pSlakoEqGrid1, pSlakoEqGrid2)
-          call init(pSlakoEqGrid1, dist, skHam, skInterMeth)
-          call init(pSlakoEqGrid2, dist, skOver, skInterMeth)
+          call init(pSlakoEqGrid1, dist, skHam(:nEntries,:), skInterMeth)
+          call init(pSlakoEqGrid2, dist, skOver(:nEntries,:), skInterMeth)
           call addTable(slako%skHamCont, pSlakoEqGrid1, iSp2, iSp1)
           call addTable(slako%skOverCont, pSlakoEqGrid2, iSp2, iSp1)
           deallocate(skHam)
@@ -2688,7 +2801,7 @@ contains
 
   !> Returns the nr. of Slater-Koster integrals necessary to describe the interactions between two
   !> species
-  pure function getNSKIntegrals(sp1, sp2, orb) result(nInt)
+  pure function getNSKIntegrals(sp1, sp2, orb) result(nInteract)
 
     !> Index of the first species
     integer, intent(in) :: sp1
@@ -2700,14 +2813,14 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Nr. of Slater-Koster interactions
-    integer :: nInt
+    integer :: nInteract
 
     integer :: iSh1, iSh2
 
-    nInt = 0
+    nInteract = 0
     do iSh1 = 1, orb%nShell(sp1)
       do iSh2 = 1, orb%nShell(sp2)
-        nInt = nInt + min(orb%angShell(iSh2, sp2), orb%angShell(iSh1, sp1)) + 1
+        nInteract = nInteract + min(orb%angShell(iSh2, sp2), orb%angShell(iSh1, sp1)) + 1
       end do
     end do
 
@@ -2913,7 +3026,7 @@ contains
     real(dp), allocatable :: coords(:,:)
     integer, allocatable :: img2CentCell(:), iCellVec(:)
     integer :: nAllAtom
-    type(TNeighborList) :: neighs
+    type(TNeighbourList) :: neighs
 
     allocate(tmpR2(3, geo%nAtom))
     allocate(input%polar(geo%nAtom))
@@ -2981,14 +3094,14 @@ contains
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighborList(coords, img2CentCell, iCellVec, neighs, &
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, &
           &nAllAtom, geo%coords, mCutoff, rCellVec)
       allocate(nNeighs(geo%nAtom))
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
-        do iNeigh = 1, neighs%nNeighbor(iAt1)
-          iAt2f = img2CentCell(neighs%iNeighbor(iNeigh, iAt1))
+        do iNeigh = 1, neighs%nNeighbourSK(iAt1)
+          iAt2f = img2CentCell(neighs%iNeighbour(iNeigh, iAt1))
           iSp2 = geo%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)
           if (neighs%neighDist2(iNeigh, iAt1) <= rTmp**2) then
@@ -3105,8 +3218,7 @@ contains
       call getChildValue(childval, "alpha6", input%alpha6, default=14.0_dp)
     case default
       call getNodeHSDName(childval, buffer)
-      call detailedError(child, "Invalid damping method '" // char(buffer) &
-          & // "'")
+      call detailedError(child, "Invalid damping method '" // char(buffer) // "'")
     end select
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8, default=0.5883_dp)
@@ -3117,6 +3229,9 @@ contains
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCN)
     call getChildValue(node, "threebody", input%threebody, default=.false.)
+    ! D3H5 - additional H-H repulsion
+    call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
+
     input%numgrad = .false.
 
   end subroutine readDispDFTD3
@@ -3324,6 +3439,10 @@ contains
       call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
       call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
 
+      if (ctrl%tForces .or. ctrl%tPrintForces) then
+        call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
+      end if
+
     end if
 
   #:endif
@@ -3415,27 +3534,30 @@ contains
       if (associated(child2)) then
         allocate(ctrl%pipekMezeyInp)
         associate(inp => ctrl%pipekMezeyInp)
-          call getChildValue(child2, "Tollerance", inp%tolerance, 1.0E-4_dp)
           call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
+          tPipekDense = .true.
           if (.not. geo%tPeriodic) then
             call getChildValue(child2, "Dense", tPipekDense, .false.)
             if (.not. tPipekDense) then
               call init(lr1)
-              call getChild(child2, "SparseTollerances", child=child3, requested=.false.)
+              call getChild(child2, "SparseTolerances", child=child3, requested=.false.)
               if (associated(child3)) then
                 call getChildValue(child3, "", 1, lr1)
                 if (len(lr1) < 1) then
-                  call detailedError(child2, "Missing values of tollerances.")
+                  call detailedError(child2, "Missing values of tolerances.")
                 end if
                 allocate(inp%sparseTols(len(lr1)))
                 call asVector(lr1, inp%sparseTols)
               else
                 allocate(inp%sparseTols(4))
                 inp%sparseTols = [0.1_dp, 0.01_dp, 1.0E-6_dp, 1.0E-12_dp]
-                call setChildValue(child2, "Tollerances", inp%sparseTols)
+                call setChildValue(child2, "SparseTolerances", inp%sparseTols)
               end if
               call destruct(lr1)
             end if
+          end if
+          if (tPipekDense) then
+            call getChildValue(child2, "Tolerance", inp%tolerance, 1.0E-4_dp)
           end if
         end associate
       else

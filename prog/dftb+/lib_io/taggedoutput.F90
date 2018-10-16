@@ -68,6 +68,9 @@ module taggedoutput
   !> Gibbs free energy for finite pressure periodic systems
   character(*), parameter, public :: tag_Gibbsfree = 'gibbs_energy'
 
+  !> Gross atomic charges
+  character(*), parameter, public :: tag_qOutAtGross  = 'gross_atomic_charges'
+
   !> numerically calculated second derivatives matrix
   character(*), parameter, public :: tag_HessianNum = 'hessian_numerical'
 
@@ -88,6 +91,12 @@ module taggedoutput
 
   !> total projected DOS vector
   character(*), parameter, public :: tag_ldos = 'total_localdos'  
+
+  !> total internal energy
+  character(*), parameter, public :: tag_egyTotal   = 'total_energy'
+
+  !> total internal energy extrapolated to 0 K
+  character(*), parameter, public :: tag_egy0Total   = 'extrapolated0_energy'
 
   !> Internal electric field
   character(*), parameter, public :: tag_internfield = 'internal_efield'

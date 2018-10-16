@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+'''Tool for setting the version numbers in the project'''
+
+import sys
+import re
+import os
+import argparse
+
+_DESCRIPTION = '''Set all version numbers in the project to a given value.
+The list of files, where the project number is changed, is hardcoded in the
+script.'''
+
+_VERSION_PATTERN = r'\d+\.\d+(?:\.\d+)?(?:-\w+)?'
+
+_FILES_AND_PATTERNS = [
+    #
+    ('doc/dftb+/doxygen/Doxyfile',
+     r'^PROJECT_NUMBER\s*=\s*{}\s*$'.format(_VERSION_PATTERN),
+     "PROJECT_NUMBER = {version}"),
+    #
+    ('doc/dftb+/manual/manual.tex',
+     r'Version[ ]*{}'.format(_VERSION_PATTERN),
+     'Version {shortversion}'),
+    #
+    ('doc/dptools/api/conf.py',
+     r'version\s*=\s*([\'"]){}\1'.format(_VERSION_PATTERN),
+     "version = '{shortversion}'"),
+    #
+    ('doc/dptools/api/conf.py',
+     r'release\s*=\s*([\'"]){}\1'.format(_VERSION_PATTERN),
+     "release = '{version}'"),
+    #
+    ('tools/dptools/setup.py',
+     r'version\s*=\s*([\'"]){}\1'.format(_VERSION_PATTERN),
+     "version='{version}'"),
+]
+
+
+def main():
+    'Main script executable.'
+
+    args = _parse_arguments()
+    version = args.version
+    shortversion = _get_short_version(version)
+    rootdir = os.path.join(os.path.dirname(sys.argv[0]), '../../')
+
+    _replace_in_registered_files(rootdir, version, shortversion)
+    _replace_in_changelog(rootdir, version)
+
+
+def _parse_arguments():
+    '''Returns parsed command line arguments.'''
+
+    parser = argparse.ArgumentParser(description=_DESCRIPTION)
+    msg = 'Version to set'
+    parser.add_argument('version', help=msg)
+    args = parser.parse_args()
+
+    match = re.match(r'^{}$'.format(_VERSION_PATTERN), args.version)
+    if match is None:
+        parser.error("Invalid version string")
+
+    return args
+
+
+def _get_short_version(version):
+    '''Returns the short version (without patch number).'''
+
+    return '.'.join(version.split('.')[0:2])
+
+
+def _replace_in_registered_files(rootdir, version, shortversion):
+    '''Replaces the version number in various (registered) files.'''
+
+    for fname, regexp, repl in _FILES_AND_PATTERNS:
+        fname = os.path.join(rootdir, fname)
+        print("Replacments in '{}': ".format(fname), end='')
+        fp = open(fname, 'r')
+        txt = fp.read()
+        fp.close()
+        replacement = repl.format(version=version, shortversion=shortversion)
+        newtxt, nsub = re.subn(regexp, replacement, txt, flags=re.MULTILINE)
+        print(nsub)
+        fp = open(fname, 'w')
+        fp.write(newtxt)
+        fp.close()
+
+
+def _replace_in_changelog(rootdir, version):
+    '''Replace version number in Change Log and adapt decoration below.'''
+
+    fname = os.path.join(rootdir, 'CHANGELOG.rst')
+    print("Replacments in '{}': ".format(fname), end='')
+    fp = open(fname, 'r')
+    txt = fp.read()
+    fp.close()
+    decoration = '=' * len(version)
+    newtxt, nsub = re.subn(
+        r'^Unreleased\s*\n=+', version + '\n' + decoration, txt,
+        count=1, flags=re.MULTILINE)
+    print(nsub)
+    fp = open(fname, 'w')
+    fp.write(newtxt)
+    fp.close()
+
+
+if __name__ == '__main__':
+    main()

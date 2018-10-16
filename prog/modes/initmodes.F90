@@ -8,31 +8,29 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising modes.
-module InitModes
+module initmodes
   use assert
   use io
-  use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
-  use XMLUtils
-  use HSDUtils
-  use HSDUtils2
+  use hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use xmlutils
+  use hsdutils
+  use hsdutils2
   use flib_dom
   use linkedlist
-  use CharManip
-  use Accuracy
-  use Constants
-  use TypeGeometryHSD
-  use Message
-  use FileId
-  use UnitConversion
-  use OldSKData
+  use charmanip
+  use accuracy
+  use constants
+  use typegeometryhsd
+  use message
+  use fileid
+  use unitconversion
+  use oldskdata
   implicit none
-
   private
-  save
 
 
   !> program version
-  character(len=*), parameter :: version =  "0.01"
+  character(len=*), parameter :: version =  "0.02"
 
   !> root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
@@ -86,6 +84,12 @@ module InitModes
   !> use xmakemol dialect xyz
   logical, public :: tXmakeMol
 
+  !> Remove translation modes
+  logical, public :: tRemoveTranslate
+
+  !> Remove rotation modes
+  logical, public :: tRemoveRotate
+
   !> modes to produce xyz file for
   integer, allocatable, public :: modesToPlot(:)
 
@@ -103,6 +107,9 @@ module InitModes
 
   !> list of atoms in dynamical matrix
   integer, allocatable, public :: iMovedAtoms(:)
+
+  !> Number of derivatives
+  integer, public :: nDerivs
 
   !! Locally created variables
 
@@ -125,7 +132,6 @@ contains
     type(listCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
-    integer :: nDerivs
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
 
     !! Write header
@@ -152,6 +158,9 @@ contains
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
+
+    call getChildValue(root, "RemoveTranslation", tRemoveTranslate, .false.)
+    call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
     call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
@@ -319,4 +328,4 @@ contains
 
   end subroutine readGeometry
 
-end module InitModes
+end module initmodes

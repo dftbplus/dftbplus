@@ -168,7 +168,10 @@ module inputdata_module
     logical :: tProjEigenvecs = .false.
 
     !> Evaluate forces
-    logical :: tForces     = .false.
+    logical :: tForces = .false.
+
+    !> Evaluate force contributions from the excited state if required and (tForces)
+    logical :: tCasidaForces = .false.
 
     !> force evaluation method
     integer :: forceType
@@ -357,6 +360,16 @@ module inputdata_module
     !> H short range damping
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
+
+
+    ! H5 correction
+    !> H5 correction On/Off(default) flag
+    logical ::h5SwitchedOn = .false.
+    !> Global parameters - set to -1 to identify they were not initialized
+    real(dp) :: h5RScale = -1.0_dp
+    real(dp) :: h5WScale = -1.0_dp
+    real(dp), allocatable :: h5ElementPara(:)
+    ! H5 correction end
 
 
     !> Old repulsive

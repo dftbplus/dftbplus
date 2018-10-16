@@ -57,7 +57,7 @@ module coulomb
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
-  !> Chunk size to use when obtaining neighbors dynamically via an iterator
+  !> Chunk size to use when obtaining neighbours dynamically via an iterator
   integer, parameter :: iterChunkSize = 1000
 
 
@@ -275,7 +275,7 @@ contains
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coord(:,:)
 
-    !> Neighbor list for the real space summation of the Ewald.
+    !> Neighbour list for the real space summation of the Ewald.
     type(TDynNeighList), intent(in) :: neighList
 
     !> Contains the points included in the reciprocal sum.  The set should not include the origin or
@@ -296,6 +296,9 @@ contains
   #:endif
 
     @:ASSERT(volume > 0.0_dp)
+
+    ! Somewhat redundant test, but stops compiler complaints as for serial case nAtom not referenced
+    @:ASSERT(size(coord,dim=2) >= nAtom)
 
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc == -1) then
@@ -327,7 +330,7 @@ contains
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coord(:,:)
 
-    !> Neighbor list for the real space summation of the Ewald.
+    !> Neighbour list for the real space summation of the Ewald.
     type(TDynNeighList), target, intent(in) :: neighList
 
     !> Contains the points included in the reciprocal sum.  The set should not include the origin or
@@ -364,7 +367,7 @@ contains
       call TNeighIterator_init(neighIter, pNeighList, iAt1)
       nNeigh = iterChunkSize
       do while (nNeigh == iterChunkSize)
-        call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+        call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
         do iNeigh = 1, nNeigh
           iAt2f = neighImages(iNeigh)
           call scalafx_islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
@@ -420,7 +423,7 @@ contains
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coord(:,:)
 
-    !> Neighbor list for the real space summation of the Ewald.
+    !> Neighbour list for the real space summation of the Ewald.
     type(TDynNeighList), target, intent(in) :: neighList
 
     !> Contains the points included in the reciprocal sum.  The set should not include the origin or
@@ -449,7 +452,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      call addNeighborContribsIS(iAt1, pNeighList, coord, alpha, invRMat)
+      call addNeighbourContribsIS(iAt1, pNeighList, coord, alpha, invRMat)
     end do
     !$OMP END PARALLEL DO
 
@@ -475,8 +478,8 @@ contains
 
   end subroutine invRPeriodicSerial
 
-  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-  subroutine addNeighborContribsIS(iAt1, pNeighList, coords, alpha, invRMat)
+  !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighbourContribsIS(iAt1, pNeighList, coords, alpha, invRMat)
     integer, intent(in) :: iAt1
     type(TDynNeighList), pointer, intent(in) :: pNeighList
     real(dp), intent(in) :: coords(:,:)
@@ -491,7 +494,7 @@ contains
     call TNeighIterator_init(neighIter, pNeighList, iAt1)
     nNeigh = iterChunkSize
     do while (nNeigh == iterChunkSize)
-      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
       do iNeigh = 1, nNeigh
         iAt2f = neighImages(iNeigh)
         invRMat(iAt2f, iAt1) = invRMat(iAt2f, iAt1)&
@@ -499,7 +502,7 @@ contains
       end do
     end do
 
-  end subroutine addNeighborContribsIS
+  end subroutine addNeighbourContribsIS
 
 #:endif
 
@@ -801,7 +804,7 @@ contains
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coord(:,:)
 
-    !> Dynamic neighbor list to be used in the real part of Ewald
+    !> Dynamic neighbour list to be used in the real part of Ewald
     type(TDynNeighList), target, intent(in) :: neighList
 
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
@@ -836,7 +839,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
-      call addNeighborContribsInvRP(iAtom1, pNeighList, coord, deltaQAtom, alpha, localDeriv)
+      call addNeighbourContribsInvRP(iAtom1, pNeighList, coord, deltaQAtom, alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
@@ -860,8 +863,8 @@ contains
 
   end subroutine addInvRPrimePeriodic
 
-  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-  subroutine addNeighborContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
+  !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighbourContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
     integer, intent(in) :: iAtom1
     type(TDynNeighList), pointer, intent(in) :: pNeighList
     real(dp), intent(in) :: coords(:,:)
@@ -878,7 +881,7 @@ contains
     call TNeighIterator_init(neighIter, pNeighList, iAtom1)
     nNeigh = iterChunkSize
     do while (nNeigh == iterChunkSize)
-      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
       do iNeigh = 1, nNeigh
         iAtom2f = neighImages(iNeigh)
         if (iAtom2f /= iAtom1) then
@@ -891,7 +894,7 @@ contains
       end do
     end do
 
-  end subroutine addNeighborContribsInvRP
+  end subroutine addNeighbourContribsInvRP
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
@@ -907,7 +910,7 @@ contains
     !> coordinates of atoms
     real(dp), intent(in) :: coord(:,:)
 
-    !> Dynamic neighbor list to be used in the real part of Ewald
+    !> Dynamic neighbour list to be used in the real part of Ewald
     type(TDynNeighList), target, intent(in) :: neighList
 
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
@@ -945,7 +948,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAt1 = iAtFirst, iAtLast
-      call addNeighborContribsXl(iAt1, pNeighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
+      call addNeighbourContribsXl(iAt1, pNeighList, coord, dQInAtom, dQOutAtom, alpha, localDeriv)
     end do
     !$OMP END PARALLEL DO
 
@@ -969,8 +972,8 @@ contains
 
   end subroutine addInvRPrimeXlbomdPeriodic
 
-  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-  subroutine addNeighborContribsXl(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
+  !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighbourContribsXl(iAt1, pNeighList, coords, dQInAtom, dQOutAtom, alpha, deriv)
     integer, intent(in) :: iAt1
     type(TDynNeighList), pointer, intent(in) :: pNeighList
     real(dp), intent(in) :: coords(:,:)
@@ -989,7 +992,7 @@ contains
     call TNeighIterator_init(neighIter, pNeighList, iAt1)
     nNeigh = iterChunkSize
     do while (nNeigh == iterChunkSize)
-      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
       do iNeigh = 1, nNeigh
         iAt2f = neighImages(iNeigh)
         if (iAt2f == iAt1) then
@@ -1004,7 +1007,7 @@ contains
       end do
     end do
 
-  end subroutine addNeighborContribsXl
+  end subroutine addNeighbourContribsXl
 
 
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
@@ -1671,7 +1674,7 @@ contains
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coord(:,:)
 
-    !> Dynamic neighbor list to be used in the real part of Ewald
+    !> Dynamic neighbour list to be used in the real part of Ewald
     type(TDynNeighList), target, intent(in) :: neighList
 
     !> Contains the points included in the reciprocal sum. The set should not include the origin or
@@ -1741,7 +1744,7 @@ contains
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME)
     do iAtom1 = iFirst, iLast
-      call addNeighborContribsStress(iAtom1, pNeighList, coord, alpha, Q, localStress)
+      call addNeighbourContribsStress(iAtom1, pNeighList, coord, alpha, Q, localStress)
     end do
     !$OMP END PARALLEL DO
 
@@ -1752,8 +1755,8 @@ contains
 
   end subroutine invRStress
 
-  !> Neighbor summation with local scope for predictable OMP <= 4.0 behaviour
-  subroutine addNeighborContribsStress(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
+  !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
+  subroutine addNeighbourContribsStress(iAtom1, pNeighList, coords, alpha, dQAtom, stress)
     integer, intent(in) :: iAtom1
     type(TDynNeighList), pointer, intent(in) :: pNeighList
     real(dp), intent(in) :: coords(:,:)
@@ -1770,7 +1773,7 @@ contains
     call TNeighIterator_init(neighIter, pNeighList, iAtom1)
     nNeigh = iterChunkSize
     do while (nNeigh == iterChunkSize)
-      call neighIter%getNextNeighbors(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
       do iNeigh = 1, nNeigh
         iAtom2f = neighImages(iNeigh)
         r(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
@@ -1791,7 +1794,7 @@ contains
       end do
     end do
 
-  end subroutine addNeighborContribsStress
+  end subroutine addNeighbourContribsStress
 
 
 

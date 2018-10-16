@@ -13,11 +13,6 @@ dynneighlist.o = dynneighlist.o $(_mod_message) $(_mod_assert) $(common.fypp) $(
 _mod_dynneighlist: dynneighlist.o
 _mod_dynneighlist = $(dynneighlist.o)
 
-fifo.o: _mod_accuracy common.fypp _mod_assert _mod_fileid
-fifo.o = fifo.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_fileid)
-_mod_fifo: fifo.o
-_mod_fifo = $(fifo.o)
-
 latpointiter.o: _mod_assert common.fypp _mod_accuracy
 latpointiter.o = latpointiter.o $(_mod_assert) $(common.fypp) $(_mod_accuracy)
 _mod_latpointiter: latpointiter.o
@@ -68,8 +63,8 @@ linkedlists0.o = linkedlists0.o $(_mod_xmlf90) $(linkedlist.fypp) $(_mod_assert)
 _mod_linkedlists0: linkedlists0.o
 _mod_linkedlists0 = $(linkedlists0.o)
 
-oldskdata.o: common.fypp _mod_fileid _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
-oldskdata.o = oldskdata.o $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
+oldskdata.o: common.fypp _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
+oldskdata.o = oldskdata.o $(common.fypp) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
 _mod_oldskdata: oldskdata.o
 _mod_oldskdata = $(oldskdata.o)
 
