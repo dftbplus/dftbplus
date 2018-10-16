@@ -297,7 +297,7 @@ contains
     !> Cell vector for the translated cells to consider.
     real(dp), intent(in) :: rCellVec(:,:)
 
-    call updateNeighborList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
+    call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
         &coord0, cutoff, rCellVec)
 
     if (size(species) /= nAllAtom) then

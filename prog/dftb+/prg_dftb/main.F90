@@ -328,7 +328,7 @@ contains
         call transformHam(ham, iHam)
 
         ! Compute Density Matrix
-        call getDensity(env, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
+        call getDensity(env, iSCCIter, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
             & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
             & tempElec, nEl, parallelKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband, TS, E0,&
@@ -375,7 +375,7 @@ contains
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -727,7 +727,7 @@ contains
 
     if (tTunn) then
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
-          & neighbourList%iNeighbour, nNeighbourSSKK, densedesc%iAtomStart, iSparseStart, img2CentCell,&
+          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart, img2CentCell,&
           & iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos, leadCurrents, &
           & writeTunn, writeLDOS, mu)
     end if
@@ -1779,7 +1779,7 @@ contains
   !> Hamiltonian or the full (unpacked) density matrix, must also invoked from within this routine,
   !> as those unpacked quantities do not exist elsewhere.
   !>
-  subroutine getDensity(env, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
+  subroutine getDensity(env, iSCC, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
@@ -2813,7 +2813,7 @@ contains
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
       & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2874,6 +2874,9 @@ contains
 
     !> potentials acting
     type(TPotentials), intent(in) :: potential
+
+    !> energy contributions
+    type(TEnergies), intent(inout) :: energy
 
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
@@ -3721,7 +3724,7 @@ contains
   !>
   subroutine getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS,&
-      & ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+      & ham, over, parallelKS, solver, iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4253,7 +4256,7 @@ contains
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-      & chrgForces, dispersion)
+      & chrgForces, dispersion, tPoisson)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4398,7 +4401,7 @@ contains
             call sccCalc%addForceDcXlbomd(env, species, orb, neighbourList%iNeighbour, img2CentCell,&
                 & qOutput, q0, derivs)
           else
-            call sccCalc%addForceDc(env, derivs, species, neighborList%iNeighbour, img2CentCell)
+            call sccCalc%addForceDc(env, derivs, species, neighbourList%iNeighbour, img2CentCell)
 
           end if
         endif
@@ -4426,7 +4429,6 @@ contains
       call dispersion%addGradients(derivs)
     end if
 
-    allocate(tmpDerivs(3, nAtom))
     call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell)
     derivs(:,:) = derivs + tmpDerivs
