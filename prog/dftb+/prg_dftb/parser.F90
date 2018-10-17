@@ -1763,10 +1763,11 @@ contains
     ctrl%tFixEf = associated(child2)
     if (ctrl%tFixEf) then
       if (ctrl%tSpin .and. .not.ctrl%t2Component) then
-        call getChildValue(child2, "", ctrl%Ef(:2), modifier=modifier, child=child3)
+        allocate(ctrl%Ef(2))
       else
-        call getChildValue(child2, "", ctrl%Ef(:1), modifier=modifier, child=child3)
+        allocate(ctrl%Ef(1))
       end if
+      call getChildValue(child2, "", ctrl%Ef, modifier=modifier, child=child3)
       call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
     end if
 
