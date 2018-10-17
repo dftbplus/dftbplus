@@ -1759,20 +1759,15 @@ contains
       end if
     end if
 
-    call getChild(value, "FixedFermiLevel", child=child2, modifier=modifier, &
-        & requested=.false.)
-    if (associated(child2)) then
+    call getChild(value, "FixedFermiLevel", child=child2, modifier=modifier, requested=.false.)
+    ctrl%tFixEf = associated(child2)
+    if (ctrl%tFixEf) then
       if (ctrl%tSpin .and. .not.ctrl%t2Component) then
-        call getChildValue(child2, "", ctrl%Ef(:2), &
-            & modifier=modifier, child=child3)
+        call getChildValue(child2, "", ctrl%Ef(:2), modifier=modifier, child=child3)
       else
-        call getChildValue(child2, "", ctrl%Ef(:1), &
-            & modifier=modifier, child=child3)
+        call getChildValue(child2, "", ctrl%Ef(:1), modifier=modifier, child=child3)
       end if
       call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
-      ctrl%tFixEf = .true.
-    else
-      ctrl%tFixEf = .false.
     end if
 
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then

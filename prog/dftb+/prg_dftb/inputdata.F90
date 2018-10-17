@@ -257,7 +257,7 @@ module inputdata_module
 
     real(dp) :: tempElec      = 0.0_dp
     logical :: tFixEf        = .false.
-    real(dp) :: Ef(2)         = 0.0_dp
+    real(dp), allocatable :: Ef(:)
     logical :: tFillKSep     = .false.
     integer :: iDistribFn    = 0
     real(dp) :: wvScale       = 0.0_dp

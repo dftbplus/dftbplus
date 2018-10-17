@@ -341,7 +341,7 @@ module initprogram
   logical :: tFixEf
 
   !> Fermi energy per spin
-  real(dp) :: Ef(2)
+  real(dp), allocatable :: Ef(:)
 
   !> Filling temp updated by MD.
   logical :: tSetFillingTemp
@@ -1341,8 +1341,10 @@ contains
 
     if (nSpin == 4) then
       allocate(nEl(1))
+      allocate(Ef(1))
     else
       allocate(nEl(nSpin))
+      allocate(Ef(nSpin))
     end if
 
     nEl0 = 0.0_dp
@@ -1370,10 +1372,10 @@ contains
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
     tFixEf = input%ctrl%tFixEf
-    if (tFixEf) then
-      Ef = input%ctrl%Ef
+    if (allocated(input%ctrl%Ef)) then
+      Ef(:) = input%ctrl%Ef
     else
-      Ef = 0.0_dp
+      Ef(:) = 0.0_dp
     end if
     tSetFillingTemp = input%ctrl%tSetFillingTemp
     tFillKSep = input%ctrl%tFillKSep

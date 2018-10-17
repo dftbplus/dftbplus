@@ -1608,12 +1608,14 @@ contains
         end if
         call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
         call poiss_getshift(shellPot(:,:,1))
-        if (.not.allocated(shellPotBk)) allocate(shellPotBk(orb%mShell, nAtom))
+        if (.not.allocated(shellPotBk)) then
+          allocate(shellPotBk(orb%mShell, nAtom))
+        end if
         shellPotBk = shellPot(:,:,1)
       else
         shellPot(:,:,1) = shellPotBk
       end if
-      atomPot = 0.0_dp
+      atomPot(:,:) = 0.0_dp
       call sccCalc%setShiftPerAtom(atomPot(:,1))
       call sccCalc%setShiftPerL(shellPot(:,:,1))
     #:else
