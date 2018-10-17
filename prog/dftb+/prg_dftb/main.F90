@@ -221,12 +221,14 @@ contains
         call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, repCutoff,&
             & skCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
             & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbourSK,&
-            & nNeighbourRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
+            & nNeighbourRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart,&
+            & tPoisson)
       end if
 
     #:if WITH_TRANSPORT
       if (tNegf) then
-        call initNegfStuff(denseDesc, transpar, ginfo, neighbourList, nNeighbourSK, img2CentCell, orb)
+        call initNegfStuff(denseDesc, transpar, ginfo, neighbourList, nNeighbourSK, img2CentCell,&
+            & orb)
       end if
     #:endif
 
@@ -328,12 +330,12 @@ contains
         call transformHam(ham, iHam)
 
         ! Compute Density Matrix
-        call getDensity(env, iSCCIter, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver, tRealHS,&
-            & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
-            & tempElec, nEl, parallelKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband, TS, E0,&
-            & iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-            & eigvecsCplx, rhoSqrReal)
+        call getDensity(env, iSCCIter, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, solver,&
+            & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
+            & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, eigen, filling, rhoPrim,&
+            & Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
+            & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal)
 
         if (tWriteBandDat) then
           call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -365,7 +367,7 @@ contains
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
               & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
               & tPoissonTwice, tUpload, shiftPerLUp)
-          
+
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
@@ -464,8 +466,8 @@ contains
         call writeXYZFormat("supercell.xyz", coord, species, speciesName)
         write(stdOut,*) " <<< supercell.xyz written on file"
         call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
-            & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
-            & iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
+            & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
       end if
     #:endif
 
@@ -497,8 +499,8 @@ contains
         call env%globalTimer%startTimer(globalTimers%forceCalc)
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-            & tRealHS, ham, over, parallelKS, solver, iSCCIter, mu, ERhoPrim, eigvecsReal, SSqrReal, &
-            & eigvecsCplx, SSqrCplx)
+            & tRealHS, ham, over, parallelKS, solver, iSCCIter, mu, ERhoPrim, eigvecsReal,&
+            & SSqrReal, eigvecsCplx, SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
@@ -614,7 +616,7 @@ contains
               tCoordStep = .false.
             end if
           else
-            call getNextLatticeOptStep(pGeoLatOpt, energy%EGibbs, constrLatDerivs, origLatVec,&
+            call getNextLatticeOptStep(pGeoLatOpt, energy, constrLatDerivs, origLatVec,&
                 & tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0,&
                 & diffGeo, tGeomEnd)
             iLatGeoStep = iLatGeoStep + 1
@@ -727,9 +729,9 @@ contains
 
     if (tTunn) then
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
-          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos, leadCurrents, &
-          & writeTunn, writeLDOS, mu)
+          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
+          & leadCurrents, writeTunn, writeLDOS, mu)
     end if
   #:endif
 
@@ -1036,7 +1038,7 @@ contains
 
     call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
         & nAllAtom, coord0Fold, species0, mCutOff, rCellVec)
-    
+
     nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, skCutOff)
 
@@ -1075,7 +1077,8 @@ contains
 #:if WITH_TRANSPORT
 
   !> Initialise transport
-  subroutine initNegfStuff(denseDescr, transpar, ginfo, neighbourList, nNeighbour, img2CentCell, orb)
+  subroutine initNegfStuff(denseDescr, transpar, ginfo, neighbourList, nNeighbour, img2CentCell,&
+      & orb)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDescr
@@ -1099,7 +1102,8 @@ contains
     integer, intent(in) :: nNeighbour(:)
 
     ! known issue about the PLs: We need an automatic partitioning
-    call negf_init_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbour, img2CentCell, orb)
+    call negf_init_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbour, img2CentCell,&
+        & orb)
 
     call negf_init_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour, nNeighbour,&
         & img2CentCell)
@@ -1243,7 +1247,8 @@ contains
     !> atoms in the central cell (or device region if transport)
     integer, intent(in), allocatable :: iAtInCentralRegion(:)
 
-    call getERep(Eatom, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont, img2CentCell)
+    call getERep(Eatom, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
+        & img2CentCell)
     if (allocated(iAtInCentralRegion)) then
       Etotal = sum(Eatom(iAtInCentralRegion))
     else
@@ -1937,8 +1942,8 @@ contains
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
       call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
-          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
+          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
 
       call ud2qm(rhoPrim)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
@@ -3811,8 +3816,8 @@ contains
   #:if WITH_TRANSPORT
     if (solver == solverGF) then
       call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
-          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
+          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       return
     end if
   #:endif
@@ -4398,8 +4403,8 @@ contains
           end if
         else if (tSccCalc) then
           if (tXlbomd) then
-            call sccCalc%addForceDcXlbomd(env, species, orb, neighbourList%iNeighbour, img2CentCell,&
-                & qOutput, q0, derivs)
+            call sccCalc%addForceDcXlbomd(env, species, orb, neighbourList%iNeighbour,&
+                & img2CentCell, qOutput, q0, derivs)
           else
             call sccCalc%addForceDc(env, derivs, species, neighbourList%iNeighbour, img2CentCell)
 
@@ -4830,14 +4835,14 @@ contains
 
 
   !> Returns the coordinates and lattice vectors for the next lattice optimisation step.
-  subroutine getNextLatticeOptStep(pGeoLatOpt, EGibbs, constrLatDerivs, origLatVec, tLatOptFixAng,&
+  subroutine getNextLatticeOptStep(pGeoLatOpt, energy, constrLatDerivs, origLatVec, tLatOptFixAng,&
       & tLatOptFixLen, tLatOptIsotropic, indMovedAtom, latVec, coord0, diffGeo, tGeomEnd)
 
     !> lattice vector optimising object
     type(OGeoOpt), intent(inout) :: pGeoLatOpt
 
-    !> Gibbs free energy (U -TS_elec + pV)
-    real(dp), intent(in) :: EGibbs
+    !> Energy contributions and total
+    type(TEnergies), intent(inout) :: energy
 
     !> lattice vectors returned by the optimizer
     real(dp), intent(in) :: constrLatDerivs(:)
@@ -4871,7 +4876,7 @@ contains
 
     real(dp) :: newLatVecsFlat(9), newLatVecs(3, 3), oldMovedCoords(3, size(indMovedAtom))
 
-    call next(pGeoLatOpt, EGibbs, constrLatDerivs, newLatVecsFlat,tGeomEnd)
+    call next(pGeoLatOpt, energy%EGibbs, constrLatDerivs, newLatVecsFlat,tGeomEnd)
     call unconstrainLatticeVectors(newLatVecsFlat, origLatVec, tLatOptFixAng, tLatOptFixLen,&
         & tLatOptIsotropic, newLatVecs)
     oldMovedCoords(:,:) = coord0(:, indMovedAtom)
