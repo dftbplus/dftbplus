@@ -1280,14 +1280,14 @@ module negf_int
   !----------------------------------------------------------------------------
   !   utility to allocate and sum partial results
   !----------------------------------------------------------------------------
-  subroutine add_partial_results(mpicomm, pMat, pTot, pSKRes, iK, nK)
+  subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
     type(mpifx_comm), intent(in) :: mpicomm
-    real(dp), pointer :: pMat(:,:)
-    real(dp), allocatable :: pTot(:,:)
-    real(dp), allocatable :: pSKRes(:,:,:)
+    real(dp), intent(in), pointer :: pMat(:,:)
+    real(dp), allocatable :: matTot(:,:)
+    real(dp), allocatable :: matSKRes(:,:,:)
     integer, intent(in) :: iK, nK
-    real(dp), allocatable :: tmpMat(:,:)
 
+    real(dp), allocatable :: tmpMat(:,:)
     integer :: err
 
     if (associated(pMat)) then
@@ -1299,38 +1299,42 @@ module negf_int
 
       tmpMat = pMat
       call mpifx_allreduceip(mpicomm, tmpMat, MPI_SUM)
-      if(.not.allocated(pTot)) then
-        allocate(pTot(size(pMat,1), size(pMat,2)), stat=err)
+
+      if(.not.allocated(matTot)) then
+        allocate(matTot(size(pMat,1), size(pMat,2)), stat=err)
 
         if (err /= 0) then
           call error('Allocation error (tunnTot)')
         end if
 
-        pTot = 0.0_dp
+        matTot = 0.0_dp
       end if
-      pTot = pTot + tmpMat
+      matTot = matTot + tmpMat
 
       if (nK > 1) then
-        if(.not.allocated(pSKRes)) then
-          allocate(pSKRes(size(pMat,1), size(pMat,2), nK), stat=err)
+        if (.not.allocated(matSKRes)) then
+          allocate(matSKRes(size(pMat,1), size(pMat,2), nK), stat=err)
 
           if (err/=0) then
             call error('Allocation error (tunnSKRes)')
           end if
 
-          pSKRes = 0.0_dp
+          matSKRes = 0.0_dp
         endif
-        pSKRes(:,:,iK) = tmpMat(:,:)
+        matSKRes(:,:,iK) = tmpMat(:,:)
       end if
+
       deallocate(tmpMat)
+
     end if
+
   end subroutine add_partial_results
 
   !> utility to write tunneling or ldos on files
-  subroutine write_file(negf, pTot, pSKRes, filename, groupKS, kpoints, kWeights)
+  subroutine write_file(negf, matTot, matSKRes, filename, groupKS, kpoints, kWeights)
     type(TNegf) :: negf
-    real(dp), intent(in) :: pTot(:,:)
-    real(dp), intent(in) :: pSKRes(:,:,:)
+    real(dp), intent(in), allocatable :: matTot(:,:)
+    real(dp), intent(in), allocatable :: matSKRes(:,:,:)
     character(*), intent(in) :: filename
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: kPoints(:,:)
@@ -1346,10 +1350,10 @@ module negf_int
     nS = nKS/nK
 
     open(newunit=fdUnit, file=trim(filename)//'.dat')
-    do ii=1,size(pTot,1)
+    do ii=1,size(matTot,1)
       write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-      do jj=1,size(pTot,2)
-        write(fdUnit,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
+      do jj=1,size(matTot,2)
+        write(fdUnit,'(es20.8)',ADVANCE='NO') matTot(ii,jj)
       enddo
       write(fdUnit,*)
     enddo
@@ -1368,15 +1372,17 @@ module negf_int
         write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
       end do
       write(fdUnit,*)
-      do ii=1,size(pSKRes(:,:,1),1)
-        write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-        do jj=1,size(pSKRes(:,:,1),2)
-          do iKS = 1,nKS
-            write(fdUnit,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iKS)
+      if (allocated(matSKRes)) then
+        do ii=1,size(matSKRes(:,:,1),1)
+          write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
+          do jj=1,size(matSKRes(:,:,1),2)
+            do iKS = 1,nKS
+              write(fdUnit,'(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
+            enddo
+            write(fdUnit,*)
           enddo
-          write(fdUnit,*)
         enddo
-      enddo
+      end if  
       close(fdUnit)
     end if
 
