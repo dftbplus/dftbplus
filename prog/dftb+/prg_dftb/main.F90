@@ -377,7 +377,7 @@ contains
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tEField, tXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion)
+            & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -2820,10 +2820,10 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
-      & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion)
+  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd, tDftbU,&
+      & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
+      & cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ,&
+      & nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2918,7 +2918,15 @@ contains
     !> Atoms over which to sum the total energies
     integer, intent(in), allocatable :: iAtInCentralRegion(:)
 
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
     integer :: nSpin
+    real(dp) :: nEl(2)
 
     nSpin = size(rhoPrim, dim=2)
 
@@ -3009,6 +3017,23 @@ contains
     ! extrapolated to 0 K
     energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
     energy%EGibbs = energy%EMermin + cellVol * extPressure
+
+    energy%EForceRelated = energy%EGibbs
+    if (tFixEf) then
+      if (nSpin == 2) then
+        nEl(:) = sum(sum(chargePerShell(:,:,:),dim=1),dim=1)
+        nEl(1) = 0.5_dp * ( nEl(1) + nEl(2) )
+        nEl(2) = nEl(1) - nEl(2)
+        ! negative sign due to electron charge
+        energy%EForceRelated = energy%EForceRelated  - sum(nEl(:2) * Ef(:2))
+      else
+        nEl = 0.0_dp
+        nEl(1) = sum(chargePerShell(:,:,1))
+        ! negative sign due to electron charge
+        energy%EForceRelated = energy%EForceRelated  - nEl(1) * Ef(1)
+      end if
+    end if
+
 
   end subroutine getEnergies
 
@@ -4827,10 +4852,10 @@ contains
 
     derivssMoved(:) = reshape(derivss(:, indMovedAtom), [3 * size(indMovedAtom)])
     if (tRemoveExcitation) then
-      call next(pGeoCoordOpt, energy%EMermin - energy%Eexcited, derivssMoved, newCoordsMoved,&
-          & tCoordEnd)
+      call next(pGeoCoordOpt, energy%EForceRelated, derivssMoved, newCoordsMoved, tCoordEnd)
     else
-      call next(pGeoCoordOpt, energy%EMermin, derivssMoved, newCoordsMoved, tCoordEnd)
+      call next(pGeoCoordOpt, energy%EForceRelated + energy%Eexcited, derivssMoved, newCoordsMoved,&
+          & tCoordEnd)
     end if
     pNewCoordsMoved(1:3, 1:size(indMovedAtom)) => newCoordsMoved(1 : 3 * size(indMovedAtom))
     diffGeo = maxval(abs(pNewCoordsMoved - coords0(:, indMovedAtom)))
@@ -4881,7 +4906,7 @@ contains
 
     real(dp) :: newLatVecsFlat(9), newLatVecs(3, 3), oldMovedCoords(3, size(indMovedAtom))
 
-    call next(pGeoLatOpt, energy%EGibbs, constrLatDerivs, newLatVecsFlat,tGeomEnd)
+    call next(pGeoLatOpt, energy%EForceRelated, constrLatDerivs, newLatVecsFlat,tGeomEnd)
     call unconstrainLatticeVectors(newLatVecsFlat, origLatVec, tLatOptFixAng, tLatOptFixLen,&
         & tLatOptIsotropic, newLatVecs)
     oldMovedCoords(:,:) = coord0(:, indMovedAtom)
@@ -4976,6 +5001,7 @@ contains
     call evalkT(pMdFrame, tempIon, movedVelo, movedMass(1,:))
     energy%EMerminKin = energy%EMermin + energy%Ekin
     energy%EGibbsKin = energy%EGibbs + energy%Ekin
+    energy%EForceRelated = energy%EForceRelated + energy%Ekin
 
     if (tStress) then
       ! contribution from kinetic energy in MD, now that velocities for this geometry step are

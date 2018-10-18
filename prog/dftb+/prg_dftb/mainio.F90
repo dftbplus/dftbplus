@@ -2061,6 +2061,9 @@ contains
     ! extrapolated zero temperature energy
     call writeTagged(fd, tag_egy0Total, energy%Ezero)
 
+    ! energy connected to the evaluated force/stress (differs for various free energies)
+    call writeTagged(fd, tag_egyforcerelated, energy%EForceRelated)
+
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
     end if
