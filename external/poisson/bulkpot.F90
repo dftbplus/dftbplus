@@ -333,6 +333,7 @@ Subroutine readbulk_pot(phi_bulk)
       c.ne.phi_bulk(m)%iparm(16)) then
       if(id0) write(*,*) 'Warning: incompatible BulkPot: will be recomputed'   
       ReadBulk = .false.
+      close(fp)
       return
     endif
     
