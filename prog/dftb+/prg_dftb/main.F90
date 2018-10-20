@@ -3021,19 +3021,18 @@ contains
     energy%EForceRelated = energy%EGibbs
     if (tFixEf) then
       if (nSpin == 2) then
-        nEl(:) = sum(sum(chargePerShell(:,:,:),dim=1),dim=1)
+        nEl(:) = sum(sum(qOrb(:,iAtInCentralRegion(:),:),dim=1),dim=1)
         nEl(1) = 0.5_dp * ( nEl(1) + nEl(2) )
         nEl(2) = nEl(1) - nEl(2)
         ! negative sign due to electron charge
         energy%EForceRelated = energy%EForceRelated  - sum(nEl(:2) * Ef(:2))
       else
         nEl = 0.0_dp
-        nEl(1) = sum(chargePerShell(:,:,1))
+        nEl(1) = sum(qOrb(:,iAtInCentralRegion(:),1))
         ! negative sign due to electron charge
         energy%EForceRelated = energy%EForceRelated  - nEl(1) * Ef(1)
       end if
     end if
-
 
   end subroutine getEnergies
 

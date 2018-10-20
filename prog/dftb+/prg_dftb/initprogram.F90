@@ -2254,14 +2254,12 @@ contains
   #:if WITH_TRANSPORT
     call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, species0, orb,&
         & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
-    if (tNegf) then
-      ! can be generalised later for more exotic geometries:
-      allocate(iAtInCentralRegion(transpar%idxdevice(2)))
-      do iAt = 1, transpar%idxdevice(2)
-        iAtInCentralRegion(iAt) = iAt
-      end do
-    end if
   #:endif
+    ! atoms in central cell/device region/all atoms depending on boundary conditions
+    allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+    do iAt = 1, transpar%idxdevice(2)
+      iAtInCentralRegion(iAt) = iAt
+    end do
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
