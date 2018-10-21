@@ -2254,10 +2254,12 @@ contains
   #:if WITH_TRANSPORT
     call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, species0, orb,&
         & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
+    allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+  #:else
+    allocate(iAtInCentralRegion(nAtom))
   #:endif
     ! atoms in central cell/device region/all atoms depending on boundary conditions
-    allocate(iAtInCentralRegion(transpar%idxdevice(2)))
-    do iAt = 1, transpar%idxdevice(2)
+    do iAt = 1, size(iAtInCentralRegion)
       iAtInCentralRegion(iAt) = iAt
     end do
 
