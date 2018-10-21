@@ -48,17 +48,17 @@ def parse_cmdline_args(cmdlineargs=None):
     msg = 'output file to store the resulting geometry'
     parser.add_argument('-o', '--output', action='store', default='-', help=msg)
     msg = 'input file name'
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
     msg = 'repetition along the first lattice vector'
-    parser.add_argument('N1', type=int, help=msg)
+    parser.add_argument('n1', type=int, metavar="N1", help=msg)
     msg = 'repetition along the second lattice vector'
-    parser.add_argument('N2', type=int, help=msg)
+    parser.add_argument('n2', type=int, metavar="N2", help=msg)
     msg = 'repetition along the third lattice vector'
-    parser.add_argument('N3', type=int, help=msg)
+    parser.add_argument('n3', type=int, metavar="N3", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
-    if not (args.N1 > 0 and args.N2 > 0 and args.N3 > 0):
+    if not (args.n1 > 0 and args.n2 > 0 and args.n3 > 0):
         raise ScriptError('Repetition numbers must be greater than zero')
 
     return args
@@ -70,8 +70,8 @@ def repeatgen(args):
     Args:
         args: Namespace of command line arguments
     '''
-    infile = args.INPUT
-    repeats = [args.N1, args.N2, args.N3]
+    infile = args.infile
+    repeats = [args.n1, args.n2, args.n3]
 
     try:
         gen = Gen.fromfile(infile)

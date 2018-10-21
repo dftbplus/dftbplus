@@ -55,9 +55,9 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_argument("-c", "--component", action="store", dest="component",
                         type=str, default='I', help=msg)
     msg = "input file name"
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
     msg = "strain to apply as positive or negative percentage"
-    parser.add_argument("STRAIN", type=float, help=msg)
+    parser.add_argument("strain", type=float, metavar="STRAIN", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -65,7 +65,7 @@ def parse_cmdline_args(cmdlineargs=None):
         msg = "Invalid strain component '" + args.component + "'"
         raise ScriptError(msg)
 
-    strain = args.STRAIN
+    strain = args.strain
 
     if args.component.lower() in ('xx', 'yy', 'zz', 'i') and strain <= -100:
         raise ScriptError("Compressive strain cannot exceed 100%")
@@ -80,7 +80,7 @@ def straingen(args, strain):
         args: Namespace of command line arguments
         strain: Strain to apply
     '''
-    infile = args.INPUT
+    infile = args.infile
     try:
         gen = Gen.fromfile(infile)
     except OSError:

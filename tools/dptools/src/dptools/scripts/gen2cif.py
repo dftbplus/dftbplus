@@ -50,7 +50,7 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_argument("-c", "--cellsize", action="store", dest="cellsize",
                         type=float, default=100.0, help=msg)
     msg = "input file name"
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -62,7 +62,7 @@ def gen2cif(args):
     Args:
         args: Namespace of command line arguments
     '''
-    infile = args.INPUT
+    infile = args.infile
     try:
         gen = Gen.fromfile(infile)
     except OSError:

@@ -90,7 +90,7 @@ def parse_arguments(cmdlineargs=None):
     parser.add_argument("-o", "--mporder", type=int, dest="mporder", help=msg)
 
     msg = "broadening width sigma (default: gauss {:.2f}, fermi {:.2f}, "\
-          "mp{:.2f})".format(DEFAULT_WIDTHS[GAUSS_BROADENING],
+          "mp {:.2f})".format(DEFAULT_WIDTHS[GAUSS_BROADENING],
                              DEFAULT_WIDTHS[FERMI_BROADENING],
                              DEFAULT_WIDTHS[MP_BROADENING])
     parser.add_argument("-b", "--broadening-width", type=float, metavar="WIDTH",
@@ -109,10 +109,10 @@ def parse_arguments(cmdlineargs=None):
                         default=False, help=msg)
 
     msg = "input file name"
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
 
     msg = "output file name"
-    parser.add_argument("OUTPUT", help=msg)
+    parser.add_argument("outfile", metavar="OUTPUT", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -123,8 +123,8 @@ def parse_arguments(cmdlineargs=None):
         if args.mporder < 1:
             raise ScriptError(msg)
 
-    infile = args.INPUT
-    outfile = args.OUTPUT
+    infile = args.infile
+    outfile = args.outfile
     broadening = args.broadening
 
     if args.broadwidth < 0.0:

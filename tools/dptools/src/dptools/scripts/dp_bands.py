@@ -48,9 +48,9 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_argument("-s", "--separate-spins", action="store_true",
                         default=False, dest="spinsep", help=msg)
     msg = "input file name"
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
     msg = "output prefix"
-    parser.add_argument("OUTPREFIX", help=msg)
+    parser.add_argument("outprefix", metavar="OUTPREFIX", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -63,8 +63,8 @@ def dp_bands(args):
     Args:
         args: Namespace of command line arguments
     '''
-    infile = args.INPUT
-    outprefix = args.OUTPREFIX
+    infile = args.infile
+    outprefix = args.outprefix
 
     try:
         bandout = BandOut.fromfile(infile)

@@ -51,7 +51,7 @@ def parse_cmdline_args(cmdlineargs=None):
                         help="store coordinate in fractional format instead of "
                         "absolute coordinates")
     msg = "input file name"
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -63,7 +63,7 @@ def xyz2gen(args):
     Args:
         args: Namespace of command line arguments
     '''
-    infile = args.INPUT
+    infile = args.infile
     try:
         xyz = Xyz.fromfile(infile)
     except OSError:

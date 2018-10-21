@@ -49,7 +49,7 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_argument("-c", "--comment", action="store", dest="comment",
                         default="", help=msg)
     msg = "input file name"
-    parser.add_argument("INPUT", help=msg)
+    parser.add_argument("infile", metavar="INPUT", help=msg)
 
     args = parser.parse_args(cmdlineargs)
 
@@ -61,7 +61,7 @@ def gen2xyz(args):
     Args:
         args: Namespace of command line arguments
     '''
-    infile = args.INPUT
+    infile = args.infile
     try:
         gen = Gen.fromfile(infile)
     except OSError:
