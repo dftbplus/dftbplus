@@ -143,12 +143,19 @@ module poisson
  end subroutine poiss_setparameters
 
  ! -----------------------------------------------------------------------------
- subroutine init_poissbox
+ subroutine init_poissbox(iErr)
+
+  !> Error code, 0 if no problems
+  integer, intent(out), optional :: iErr
 
   integer :: i,m,s,f
   real(kind=dp) :: bound(MAXNCONT) 
   real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
+
+  if (present(iErr)) then
+    iErr = 0
+  end if
 
   !*******************************************************************************
   ! 1. Set Poisson Box 
@@ -188,6 +195,9 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
+         if (present(iErr)) then
+           iErr = -1
+         end if
          exit
        end if  
      else                          
@@ -197,6 +207,9 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
+         if (present(iErr)) then
+           iErr = -1
+         end if
          exit
        end if  
      end if
@@ -217,6 +230,9 @@ module poisson
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
            write(stdOut,*) 'ERROR: contacts in the same direction must be aligned'
+           if (present(iErr)) then
+             iErr = -2
+           end if
            STOP    
         endif
      enddo
@@ -281,6 +297,9 @@ module poisson
         write(stdOut,*) "----------------------------------------------------"
         write(stdOut,*) "ERROR: PoissBox negative !                          "
         write(stdOut,*) "----------------------------------------------------"
+        if (present(iErr)) then
+          iErr = -3
+        end if
         stop
      end if
   enddo
