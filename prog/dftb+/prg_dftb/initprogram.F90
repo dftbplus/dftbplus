@@ -1508,7 +1508,7 @@ contains
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField .or. tFixEf
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
