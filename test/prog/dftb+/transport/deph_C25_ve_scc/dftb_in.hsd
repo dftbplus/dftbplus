@@ -42,6 +42,9 @@ Hamiltonian = DFTB {
   Eigensolver = GreensFunction {}
 }
 
+# ************************************
+# NOTE: Dephasing is not working yet
+# ************************************ 
 Dephasing = {
   VibronicElastic{ 
     AtomBlock = Yes

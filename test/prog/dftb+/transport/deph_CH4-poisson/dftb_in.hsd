@@ -46,7 +46,10 @@ Hamiltonian = DFTB {
   }
   
 } 
-  
+ 
+# ************************************
+# NOTE: Dephasing is not working yet
+# ************************************  
 Dephasing {
   BuettikerProbes = DephasingProbes{
     Coupling [eV] = constant{ 0.5 }

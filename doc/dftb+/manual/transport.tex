@@ -55,7 +55,7 @@ Rules to build a valid input structure:
   calculations.
 \end{enumerate}
 
-Note: Currently the code makes only a consistency check on the definition of the
+{\bf Note}: Currently the code makes a consistency check on the definition of the
 two PLs (rule~\ref{rule4}), namely it checks whether the two contact PLs are
 really shifted copies of each other.  The code does not check if the device
 regions are consistently defined (rules~\ref{rule1} and \ref{rule6}), if the PL
@@ -73,18 +73,19 @@ accuracy that can be set by the user (see below).
 
 Please take your time to build up structures and cross-check them. Also consider
 to look at the examples distributed with the code. The input structure is often
-the first suspect when there's some problem in the calculation.
+the first suspect when there are problems in the calculation.
 
 
 \htsection{Transport}
 
 \dftbp{} allows for NEGF calculations on different levels. It is possible to
 calculate linear response transmission within the Landauer formalism, charge
-density out of equilibrium with self-consistent schemes, local currents etc. The
-Transport section groups the information needed whenever open boundary
+density out of equilibrium with self-consistent schemes, local currents or
+non-equilibrium forces. 
+The Transport section groups the information needed whenever open boundary
 conditions are used. It contains the description of the partitioning of the
 system into {\em device} and {\em contact} regions and additional contact
-information needed to calculate the associated Self Energies. The transport
+information needed to calculate the associated self-energies. The transport
 block contains the following properties:
 \begin{ptable}
   \kw{Device} &p& & - & \pref{Device} \\
@@ -137,7 +138,7 @@ The Device blocks contains the following properties:
   way that all the atoms within each layer are contiguous and adjacent layers
   are placed next to each other. This ensures that the constructed Hamiltonian
   and Overlap are block tri-diagonal. Refer to~\cite{Pecchia_NJP} for a
-  description of the iterative algorithm.
+  description of the iterative Green's function algorithm.
 
 \end{description}
 
@@ -456,14 +457,20 @@ Eigensolver = GreensFunction {
 \end{verbatim}
 
 
-\textbf{Note:} in order to solve the self-consistent NEGF transport problem, the
-Green's function solver must be used. However, the \iscb{TunelingAndDos} section
-can be used to calculate the transmission coefficients according to Landauer
-formula in a non self-consistent manner. In this case an eigensolver is not
-needed as the charge density doesn't need to be calculated.  To run such a
-calculation, \is{Eigensolver = TransportOnly} must be set and no electrostatics
-must be calculated (i.e.\ the \is{Electrostatics = Poisson} should not be
-declared).
+\section{Eigensolver = TransportOnly} 
+The \is{GreensFunction} block is used to solve the self-consistent NEGF 
+transport problem. However, the block \iscb{TunnelingAndDos} within the 
+\is{Analysis} block (see below),  
+can be used to calculate the transmission function according to the Landauer
+formula also in the case of non self-consistent calculations. 
+In non SCC calculations the density matrix and charge densities are not computed,
+hence the eigensolver block is not needed. Similarly, also the electrostatics block
+should be omitted (i.e.\ the \is{Electrostatics = Poisson}).
+The keyword \is{Eigensolver = TransportOnly} is used to jump straight to the 
+post-SCF analysis.
+\bf{Note:} This option cannot be used together with geometry relaxations or md 
+calculations.
+
 
 
 \section{Contour integration}
@@ -941,80 +948,84 @@ defined in \is{Transport} (see p.\pref{Transport}).
 
 \end{description}
 
-\section{Scattering and Dephasing}
+% ============================================================================
+% NOTE: The scattering part is still under development
+% ============================================================================
+%
+%\section{Scattering and Dephasing}
 
-An elastic dephasing model has been implemented in the current
-version of dftb+/libNEGF. B\"uttiker probes are also under development.
-A \kw{Dephasing} block must be specified (outside the Hamiltonian block).
-The dephasing block is common to the Green's functions for the computation
-of the Density Matrix and Tunneling calculations.
-Example:
-
-   \begin{verbatim}
-   Dephasing {
-     Orthonormal = Yes|No
-     OrthonormalDevice = Yes|No
-     VibronicElastic{
-       AtomBlock = Yes|No
-       Coupling [eV] = Constant { 0.1 }
-       MaxSCBAIterations = 100
-     }
-   }
-   \end{verbatim}
-
-\begin{ptable}
-  \kw{Orthonormal} & l &  & No &  \\
-  \kw{OrthonormalDevice} & l &  & No &  \\
-  \kw{VibronicElastic} & p & &  &  \\
-  %\kw{ButtikerProbes} & p & &  &  \\
-  \hline
-\end{ptable}
-
-\begin{description}
-
-\item[\is{Orthonormal}] L\"owdin transformation applied to the whole system.
-\item[\is{OrthonormalDevice}] L\"owdin transformation applied to the device region.
-\item[\iscb{VibronicElastic}] \label{elastic} Block used to specify the type of
-            model based on NEGF elastic scattering (energy conserving).
-%\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing
-%  model based on B\"uttiker probes.
-
-\end{description}
-
-The \iscb{VibronicElastic} model computes the NEGF self-energies. Currently only the \is{Local}
-implementation is available. This means that the self-energies are non-zero on the diagonal
-matrix-elements or atomic blocks of the Density Matrix.
-More precisely, if \is{AtomBlock=No} the self-energies are
-strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagonal.
-%if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.
-
-\begin{description}
-\item[\is{AtomBlock}] if \is{Yes} then self-energies are computed on the atomic blocks.
-%\item[\is{SemiLocal}] if Yes then self-energies are computed on atomic and non-zero overlap blocks	
-\item[\is{Coupling}] sets the electron-phonon coupling energy.
-\item[\iscb{Constant}] sets the same coupling constant for all atoms.
-\item[\iscb{AtomCoupling}] can be used to define electron-phonon coupling on each atom.
-\item[\iscb{AllOrbitals}] accepts a list of numbers to sets couplings for each orbital.
-\item[\is{MaxSCBAIterations}] sets the maximum number of self-consitent Born iterations to be performed.	
-\end{description}
-
-  \begin{verbatim}
-  VibronicElastic = local {
-    Coupling [eV] = AtomCoupling {
-      AtomList { Atoms = 1
-                 Value = 0.1
-      }
-      AtomList { Atoms = 2 3
-                 Value = 0.01
-      }
-      AtomList { Atoms = 4 5
-                 Value = 0.03
-      }
-    }
-  }
-  \end{verbatim}
-
-
+%An elastic dephasing model has been implemented in the current
+%version of dftb+/libNEGF. B\"uttiker probes are also under development.
+%A \kw{Dephasing} block must be specified (outside the Hamiltonian block).
+%The dephasing block is common to the Green's functions for the computation
+%of the Density Matrix and Tunneling calculations.
+%Example:
+%
+%   \begin{verbatim}
+%   Dephasing {
+%     Orthonormal = Yes|No
+%     OrthonormalDevice = Yes|No
+%     VibronicElastic{
+%       AtomBlock = Yes|No
+%       Coupling [eV] = Constant { 0.1 }
+%       MaxSCBAIterations = 100
+%     }
+%   }
+%   \end{verbatim}
+%
+%\begin{ptable}
+%  \kw{Orthonormal} & l &  & No &  \\
+%  \kw{OrthonormalDevice} & l &  & No &  \\
+%  \kw{VibronicElastic} & p & &  &  \\
+%  %\kw{ButtikerProbes} & p & &  &  \\
+%  \hline
+%\end{ptable}
+%
+%\begin{description}
+%
+%\item[\is{Orthonormal}] L\"owdin transformation applied to the whole system.
+%\item[\is{OrthonormalDevice}] L\"owdin transformation applied to the device region.
+%\item[\iscb{VibronicElastic}] \label{elastic} Block used to specify the type of
+%            model based on NEGF elastic scattering (energy conserving).
+%%\item[\iscb{BuettikerProbes}] \label{Buttiker} Block used to specify dephasing
+%%  model based on B\"uttiker probes.
+%
+%\end{description}
+%
+%The \iscb{VibronicElastic} model computes the NEGF self-energies. Currently only the \is{Local}
+%implementation is available. This means that the self-energies are non-zero on the diagonal
+%matrix-elements or atomic blocks of the Density Matrix.
+%More precisely, if \is{AtomBlock=No} the self-energies are
+%strictly diagonal; if \is{AtomBlock=Yes} then the self-energies are block-diagonal.
+%%if \is{SemiLocal=Yes} the self energies are non-zero on non-zero overlap and Hamiltonian matrix-elements.
+%
+%\begin{description}
+%\item[\is{AtomBlock}] if \is{Yes} then self-energies are computed on the atomic blocks.
+%%\item[\is{SemiLocal}] if Yes then self-energies are computed on atomic and non-zero overlap blocks	
+%\item[\is{Coupling}] sets the electron-phonon coupling energy.
+%\item[\iscb{Constant}] sets the same coupling constant for all atoms.
+%\item[\iscb{AtomCoupling}] can be used to define electron-phonon coupling on each atom.
+%\item[\iscb{AllOrbitals}] accepts a list of numbers to sets couplings for each orbital.
+%\item[\is{MaxSCBAIterations}] sets the maximum number of self-consitent Born iterations to be performed.	
+%\end{description}
+%
+%  \begin{verbatim}
+%  VibronicElastic = local {
+%    Coupling [eV] = AtomCoupling {
+%      AtomList { Atoms = 1
+%                 Value = 0.1
+%      }
+%      AtomList { Atoms = 2 3
+%                 Value = 0.01
+%      }
+%      AtomList { Atoms = 4 5
+%                 Value = 0.03
+%      }
+%    }
+%  }
+%  \end{verbatim}
+%
+%
 %The \is{BuettikerProbes} key can be used to select a dephasing model based on the B\"uttiker Probes theory.
 %B\"uttiker probes are local by construction, however probes can be defined on atomic blocks using
 %the \is{AtomBlock} logical flag.

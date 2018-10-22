@@ -60,7 +60,10 @@ Hamiltonian = DFTB {
   #  MixingParameter = 0.02
   #}
 }
-  
+
+# ************************************
+# NOTE: Dephasing is not working yet
+# ************************************  
 Dephasing{ 
  VibronicElastic {
    Coupling [eV] = Constant { 0.5 }
