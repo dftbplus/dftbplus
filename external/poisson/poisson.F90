@@ -188,7 +188,7 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
-         exit
+         stop
        end if  
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
@@ -197,7 +197,7 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
-         exit
+         stop
        end if  
      end if
   end do
