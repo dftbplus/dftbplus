@@ -289,9 +289,6 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%scc)
 
-      !--------------------------------------------------------------------------------------------+
-      !!  SCC LOOP STARTS HERE
-      !--------------------------------------------------------------------------------------------+
       lpSCC: do iSccIter = 1, maxSccIter
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
@@ -424,9 +421,6 @@ contains
         end if
 
       end do lpSCC
-      !--------------------------------------------------------------------------------------------+
-      !!  SCC LOOP END
-      !--------------------------------------------------------------------------------------------+
 
       call env%globalTimer%stopTimer(globalTimers%scc)
 
