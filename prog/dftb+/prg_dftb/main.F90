@@ -1881,7 +1881,7 @@ contains
     real(dp), intent(inout) :: Ef(:)
 
     !> Electrochemical potentials (contact, spin)
-    real(dp), intent(in) :: mu(:,:)
+    real(dp), allocatable, intent(in) :: mu(:,:)
 
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: energy
@@ -3797,7 +3797,7 @@ contains
     integer, intent(in) :: iSCC
 
     !> Electrochemical potentials per contact and spin
-    real(dp), intent(in) :: mu(:,:)
+    real(dp), allocatable, intent(in) :: mu(:,:)
 
     !> Energy weighted sparse matrix
     real(dp), intent(out) :: ERhoPrim(:)
