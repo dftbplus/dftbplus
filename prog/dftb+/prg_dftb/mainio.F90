@@ -2006,7 +2006,7 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, TS, derivs, chrgForces, tStress,&
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress,&
       & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> Name of output file
@@ -2014,9 +2014,6 @@ contains
 
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2414,14 +2411,13 @@ contains
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
-    integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
+    integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
     integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
     logical :: tSpin
 
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
-    nLevel = size(eigen, dim=1)
     nKPoint = size(eigen, dim=2)
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
@@ -3513,7 +3509,7 @@ contains
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
 
-    integer :: fdHS, cont, nAtom, nSpin, iSpin
+    integer :: fdHS, nAtom, nSpin
 
     nSpin = size(shiftPerL,3)
     nAtom = size(shiftPerL,2)
@@ -3562,7 +3558,7 @@ contains
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
     !Locals
-    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt
     integer, allocatable :: nOrbAtom(:)
 
     shiftPerL = 0.0_dp
@@ -3579,9 +3575,7 @@ contains
 
     allocate(nOrbAtom(nAtomSt))
     read(fdH, *) nOrbAtom
-    !do ii = 1, nAtomSt
-      read(fdH, *) shiftPerL !(:,:,:)
-    !end do
+    read(fdH, *) shiftPerL !(:,:,:)
     close(fdH)
 
     if (any(nOrbAtom /= orb%nOrbAtom(:))) then
@@ -3809,13 +3803,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS)
+  subroutine printEnergies(energy)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
