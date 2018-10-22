@@ -271,8 +271,10 @@ contains
 
       ! For non-scc calculations with transport only, jump out of geometry loop
       if (solver == solverOnlyTransport) then
-        ! we open detailedout here since we jump out lpGeomOpt
-        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+        if (tWriteDetailedOut) then
+          ! Open detailed.out before jumping out of lpGeomOpt
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, 1)
+        end if
         ! We need to define hamltonian by adding the potential
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
@@ -407,7 +409,8 @@ contains
         end if
 
         if (tWriteDetailedOut) then
-          call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
+          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps,&
               & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut,&

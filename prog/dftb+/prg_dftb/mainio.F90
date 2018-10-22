@@ -2245,8 +2245,9 @@ contains
 
   end subroutine writeHessianOut
 
+
   !> Open file detailed.out
-  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
     !> File  ID
     integer, intent(in) :: fd
 
@@ -2256,14 +2257,24 @@ contains
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
 
-    if (.not. tAppendDetailedOut) then
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Which scc step is occuring
+    integer, intent(in) :: iSccIter
+
+    if (iGeoStep == 0 .and. iSccIter == 1) then
+      open(fd, file=fileName, status="replace", action="write")
+    elseif (.not. tAppendDetailedOut) then
+      close(fd)
       open(fd, file=fileName, status="replace", action="write")
     end if
 
   end subroutine openDetailedOut
 
+
   !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
+  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep,&
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
@@ -2272,12 +2283,6 @@ contains
 
     !> File ID
     integer, intent(in) :: fd
-
-    !> Name of file to write to
-    character(*), intent(in) :: fileName
-
-    !> Append to the end of the file or overwrite
-    logical, intent(in) :: tAppendDetailedOut
 
     !> Electron distribution choice
     integer, intent(in) :: iDistribFn
@@ -2303,7 +2308,7 @@ contains
     !> Which step of lattice optimisation is occuring
     integer, intent(in) :: iLatGeoStep
 
-    !> Whic scc step is occuring
+    !> Which scc step is occuring
     integer, intent(in) :: iSccIter
 
     !> Energy terms in the system
@@ -2429,13 +2434,6 @@ contains
     if (allocated(qBlockOut)) then
       qBlockOutUpDown = qBlockOut
       call qm2ud(qBlockOutUpDown)
-    end if
-
-    if (iGeoStep == 0 .and. iSccIter == 1) then
-      open(fd, file=fileName, status="replace", action="write")
-    elseif (.not. tAppendDetailedOut) then
-      close(fd)
-      open(fd, file=fileName, status="replace", action="write")
     end if
 
     select case(iDistribFn)
