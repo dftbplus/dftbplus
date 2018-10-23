@@ -46,7 +46,9 @@ module main
   use orbitalequiv
   use parser
   use sparse2dense
+#:if not WITH_SCALAPACK
   use blasroutines, only : symm, hemm
+#:endif
   use hsdutils
   use charmanip
   use shift
@@ -70,7 +72,6 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
-  use elstatpot, only : TElStatPotentials
 
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
@@ -271,8 +272,10 @@ contains
 
       ! For non-scc calculations with transport only, jump out of geometry loop
       if (solver == solverOnlyTransport) then
-        ! we open detailedout here since we jump out lpGeomOpt
-        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut)
+        if (tWriteDetailedOut) then
+          ! Open detailed.out before jumping out of lpGeomOpt
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, 1)
+        end if
         ! We need to define hamltonian by adding the potential
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
@@ -286,9 +289,6 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%scc)
 
-      !--------------------------------------------------------------------------------------------+
-      !!  SCC LOOP STARTS HERE
-      !--------------------------------------------------------------------------------------------+
       lpSCC: do iSccIter = 1, maxSccIter
 
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
@@ -407,7 +407,8 @@ contains
         end if
 
         if (tWriteDetailedOut) then
-          call writeDetailedOut1(fdDetailedOut, userOut, tAppendDetailedOut, iDistribFn, nGeoSteps,&
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
+          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps,&
               & iGeoStep, tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy,&
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut,&
@@ -420,9 +421,6 @@ contains
         end if
 
       end do lpSCC
-      !--------------------------------------------------------------------------------------------+
-      !!  SCC LOOP END
-      !--------------------------------------------------------------------------------------------+
 
       call env%globalTimer%stopTimer(globalTimers%scc)
 
@@ -493,7 +491,7 @@ contains
             & nSpin, qOutput, velocities)
       end if
 
-      call printEnergies(energy, TS)
+      call printEnergies(energy)
 
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
@@ -760,7 +758,7 @@ contains
           & tunneling, ldos)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(resultsTag, energy, TS, derivs, chrgForces, tStress, totalStress,&
+      call writeResultsTag(resultsTag, energy, derivs, chrgForces, tStress, totalStress,&
           & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
     end if
     if (tWriteDetailedXML) then
@@ -1572,7 +1570,7 @@ contains
     real(dp), allocatable :: shellPot(:,:,:)
     real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin, iAt
+    integer :: nAtom, nSpin
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -1881,7 +1879,7 @@ contains
     real(dp), intent(inout) :: Ef(:)
 
     !> Electrochemical potentials (contact, spin)
-    real(dp), intent(in) :: mu(:,:)
+    real(dp), allocatable, intent(in) :: mu(:,:)
 
     !> Energy contributions and total
     type(TEnergies), intent(inout) :: energy
@@ -2550,13 +2548,12 @@ contains
 
 
     real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
-    integer :: nKPoint, nAtom
+    integer :: nAtom
     integer :: iKS, iK
     logical :: tImHam
 
     nAtom = size(orb%nOrbAtom)
     tImHam = allocated(iRhoPrim)
-    nKPoint = size(kWeight)
 
     rhoPrim(:,:) = 0.0_dp
     if (allocated(iRhoPrim)) then
@@ -3797,7 +3794,7 @@ contains
     integer, intent(in) :: iSCC
 
     !> Electrochemical potentials per contact and spin
-    real(dp), intent(in) :: mu(:,:)
+    real(dp), allocatable, intent(in) :: mu(:,:)
 
     !> Energy weighted sparse matrix
     real(dp), intent(out) :: ERhoPrim(:)
@@ -3902,13 +3899,11 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     real(dp), allocatable :: work2(:,:)
-    integer :: nSpin, nLocalRows, nLocalCols, nOrb
+    integer :: nLocalRows, nLocalCols
     integer :: iKS, iS
 
-    nSpin = size(eigen, dim=3)
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
-    nOrb = denseDesc%iAtomStart(size(denseDesc%iAtomStart)) - 1
     if (forceType == forceDynT0 .or. forceType == forceDynT) then
       allocate(work2(nLocalRows, nLocalCols))
     end if
@@ -4068,12 +4063,11 @@ contains
     real(dp), intent(out) :: ERhoPrim(:)
 
     complex(dp), allocatable :: work2(:,:)
-    integer :: nLocalRows, nLocalCols, nOrb
+    integer :: nLocalRows, nLocalCols
     integer :: iKS, iS, iK
 
     nLocalRows = size(eigvecsCplx, dim=1)
     nLocalCols = size(eigvecsCplx, dim=2)
-    nOrb = denseDesc%iAtomStart(size(denseDesc%iAtomStart)) - 1
 
     if (forceType == forceDynT0 .or. forceType == forceDynT) then
       allocate(work2(nLocalRows, nLocalCols))
@@ -4823,7 +4817,6 @@ contains
     real(dp) :: derivssMoved(3 * size(indMovedAtom))
     real(dp), target :: newCoordsMoved(3 * size(indMovedAtom))
     real(dp), pointer :: pNewCoordsMoved(:,:)
-    integer :: ll
 
     derivssMoved(:) = reshape(derivss(:, indMovedAtom), [3 * size(indMovedAtom)])
     if (tRemoveExcitation) then

@@ -53,27 +53,27 @@ module libnegf_vars
     character(mc) :: name
 
     !> Accuracy of rigid layer shift
-    real(dp) :: shiftAccuracy = 0.0
+    real(dp) :: shiftAccuracy = 0.0_dp
 
     integer :: dir = 0
 
-    real(dp) :: length = 0.0
+    real(dp) :: length = 0.0_dp
 
     !> Lattice vectors
     real(dp) :: lattice(3)
 
-    real(dp) :: potential = 0.0
+    real(dp) :: potential = 0.0_dp
 
     !> for colinear spin we may need two Fermi levels (up and down)
     real(dp) :: eFermi(2) = [0.0_dp, 0.0_dp]
 
     !> contact temperature
-    real(dp) :: kbT = 0.0
+    real(dp) :: kbT = 0.0_dp
 
     ! Is it a contact in the wide band approximation?
     logical :: wideBand = .false.
 
-    real(dp) :: wideBandDos = 0.0
+    real(dp) :: wideBandDos = 0.0_dp
 
     !> Filename for contact infos (shiftcont_) TO BE MOVED?
     character(lc) :: output

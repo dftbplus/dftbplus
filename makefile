@@ -24,9 +24,19 @@ check: check_dptools
 
 include make.config
 
+################################################################################
+# Sanity checks
+################################################################################
+
 # Check whether DEBUG level is correct
 ifeq ($(filter 0 1 2,$(strip $(DEBUG))),)
   $(error 'Invalid value $(DEBUG) for DEBUG (must be 0, 1 or 2)')
+endif
+
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  ifneq ($(strip $(WITH_MPI)),1)
+    $(error 'Transport can only be included when code is built with MPI')
+  endif
 endif
 
 ################################################################################
@@ -57,12 +67,13 @@ ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
 endif
 ifeq ($(strip $(WITH_MPI)),1)
   dftb+: external_mpifx external_scalapackfx
-  ifeq ($(strip $(WITH_TRANSPORT)),1)
-    dftb+: external_libnegf external_poisson
-    external_libnegf: external_mpifx
-    external_poisson: external_mpifx external_libnegf
-  endif
 endif
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  dftb+: external_libnegf external_poisson
+  external_libnegf: external_mpifx
+  external_poisson: external_mpifx external_libnegf
+endif
+
 modes: external_xmlf90
 waveplot: external_xmlf90
 

@@ -2006,7 +2006,7 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, TS, derivs, chrgForces, tStress,&
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress,&
       & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> Name of output file
@@ -2014,9 +2014,6 @@ contains
 
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2245,8 +2242,9 @@ contains
 
   end subroutine writeHessianOut
 
+
   !> Open file detailed.out
-  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut)
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
     !> File  ID
     integer, intent(in) :: fd
 
@@ -2256,14 +2254,24 @@ contains
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
 
-    if (.not. tAppendDetailedOut) then
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Which scc step is occuring
+    integer, intent(in) :: iSccIter
+
+    if (iGeoStep == 0 .and. iSccIter == 1) then
+      open(fd, file=fileName, status="replace", action="write")
+    elseif (.not. tAppendDetailedOut) then
+      close(fd)
       open(fd, file=fileName, status="replace", action="write")
     end if
 
   end subroutine openDetailedOut
 
+
   !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
+  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep,&
       & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
@@ -2272,12 +2280,6 @@ contains
 
     !> File ID
     integer, intent(in) :: fd
-
-    !> Name of file to write to
-    character(*), intent(in) :: fileName
-
-    !> Append to the end of the file or overwrite
-    logical, intent(in) :: tAppendDetailedOut
 
     !> Electron distribution choice
     integer, intent(in) :: iDistribFn
@@ -2303,7 +2305,7 @@ contains
     !> Which step of lattice optimisation is occuring
     integer, intent(in) :: iLatGeoStep
 
-    !> Whic scc step is occuring
+    !> Which scc step is occuring
     integer, intent(in) :: iSccIter
 
     !> Energy terms in the system
@@ -2409,14 +2411,13 @@ contains
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
-    integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
+    integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
     integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
     logical :: tSpin
 
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
-    nLevel = size(eigen, dim=1)
     nKPoint = size(eigen, dim=2)
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
@@ -2429,13 +2430,6 @@ contains
     if (allocated(qBlockOut)) then
       qBlockOutUpDown = qBlockOut
       call qm2ud(qBlockOutUpDown)
-    end if
-
-    if (iGeoStep == 0 .and. iSccIter == 1) then
-      open(fd, file=fileName, status="replace", action="write")
-    elseif (.not. tAppendDetailedOut) then
-      close(fd)
-      open(fd, file=fileName, status="replace", action="write")
     end if
 
     select case(iDistribFn)
@@ -3515,7 +3509,7 @@ contains
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
 
-    integer :: fdHS, cont, nAtom, nSpin, iSpin
+    integer :: fdHS, nAtom, nSpin
 
     nSpin = size(shiftPerL,3)
     nAtom = size(shiftPerL,2)
@@ -3564,7 +3558,7 @@ contains
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
     !Locals
-    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt
     integer, allocatable :: nOrbAtom(:)
 
     shiftPerL = 0.0_dp
@@ -3581,9 +3575,7 @@ contains
 
     allocate(nOrbAtom(nAtomSt))
     read(fdH, *) nOrbAtom
-    !do ii = 1, nAtomSt
-      read(fdH, *) shiftPerL !(:,:,:)
-    !end do
+    read(fdH, *) shiftPerL !(:,:,:)
     close(fdH)
 
     if (any(nOrbAtom /= orb%nOrbAtom(:))) then
@@ -3811,13 +3803,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS)
+  subroutine printEnergies(energy)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"

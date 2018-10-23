@@ -467,7 +467,7 @@ contains
         nsh = lmax(izp(i))+1
         orb=0
         do l = 1, nsh
-          Qtmp = 0.d0
+          Qtmp = 0.0_dp
           do o= 1,2*l-1
             orb = orb + 1
             ! - is for negative electron charge density
