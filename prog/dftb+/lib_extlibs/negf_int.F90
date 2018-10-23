@@ -35,6 +35,8 @@ module negf_int
   private
 
   type(TNegf), target, public :: negf
+  ! Workaround: ifort 17, ifort 16
+  ! Passing negf for pointer dummy arguments fails despite target attribute, so pointer is needed
   type(TNegf), pointer :: pNegf
 
   !> general library initializations
@@ -98,6 +100,8 @@ module negf_int
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
 
+    ! Workaround: ifort 16
+    ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
     call negf_mpi_init(mpicomm)
 
