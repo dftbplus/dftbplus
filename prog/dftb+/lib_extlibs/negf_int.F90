@@ -34,7 +34,8 @@ module negf_int
   implicit none
   private
 
-  Type(Tnegf), target, public :: negf
+  type(TNegf), target, public :: negf
+  type(TNegf), pointer :: pNegf => negf
 
   !> general library initializations
   public :: negf_init
@@ -758,7 +759,7 @@ module negf_int
 
     call destroy_matrices(negf)
 
-    call associate_ldos(negf, ledos)
+    call associate_ldos(pNegf, ledos)
 
   end subroutine negf_ldos
 
@@ -851,11 +852,11 @@ module negf_int
     call compute_current(negf)
 
     ! Associate internal negf arrays to local pointers
-    call associate_ldos(negf, ledos)
-    call associate_transmission(negf, tunn)
-    call associate_current(negf, curr)
+    call associate_ldos(pNegf, ledos)
+    call associate_transmission(pNegf, tunn)
+    call associate_current(pNegf, curr)
 
-    call associate_lead_currents(negf, currents)
+    call associate_lead_currents(pNegf, currents)
     if (.not.associated(currents)) then
       call error('Internal error: currVec not associated')
     end if
