@@ -35,7 +35,7 @@ module negf_int
   private
 
   type(TNegf), target, public :: negf
-  type(TNegf), pointer :: pNegf => negf
+  type(TNegf), pointer :: pNegf
 
   !> general library initializations
   public :: negf_init
@@ -98,6 +98,7 @@ module negf_int
     integer, allocatable :: sizes(:)
     type(lnParams) :: params
 
+    pNegf => negf
     call negf_mpi_init(mpicomm)
 
     if (transpar%defined) then
