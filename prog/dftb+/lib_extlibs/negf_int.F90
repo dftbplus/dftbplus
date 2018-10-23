@@ -13,8 +13,8 @@ module negf_int
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
   use libnegf, only : z_CSR
-  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission, associate_current 
-  use libnegf, only : compute_current, compute_density_dft, compute_ldos 
+  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission, associate_current
+  use libnegf, only : compute_current, compute_density_dft, compute_ldos
   use libnegf, only : create, create_scratch, destroy
   use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
   use libnegf, only : init_negf, init_structure, log_deallocatep, pass_hs, set_bp_dephasing
@@ -139,7 +139,7 @@ module negf_int
     ! This parameter is used to set the averall drop threshold in libnegf
     ! It affects especially transmission that is not accurate more than
     ! this value.
-    call set_drop(1.d-20)
+    call set_drop(1.0e-20_dp)
 
 
     ! ------------------------------------------------------------------------------
@@ -222,8 +222,8 @@ module negf_int
       write(stdOut,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
       write(stdOut,*)
       deallocate(pot)
-      
-    else  
+
+    else
       params%mu(1) = greendens%oneFermi(1)
     end if
 
@@ -235,13 +235,13 @@ module negf_int
       params%Np_n(1:2) = greendens%nP(1:2)  ! contour npoints
       params%n_kt = greendens%nkt           ! n*kT for Fermi
 
-      ! Real-axis points. 
+      ! Real-axis points.
       ! Override to 0 if bias is 0.0
       params%Np_real = 0
       if (ncont > 0) then
-        if (any(abs(params%mu(2:ncont)-params%mu(1)) > 1.0d-10)) then
+        if (any(abs(params%mu(2:ncont)-params%mu(1)) > 1.0e-10_dp)) then
            params%Np_real = greendens%nP(3)  ! real axis points
-        end if   
+        end if
       end if
 
       !Read G.F. from very first iter
@@ -265,7 +265,7 @@ module negf_int
       if(all(params%kbT_dm.eq.0)) then
         params%n_poles = 0
       end if
-      
+
       write(stdOut,*) 'Density Matrix Parameters'
       if (.not.transpar%defined) then
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
@@ -532,7 +532,7 @@ module negf_int
 
     if (transpar%defined .and. ncont.gt.0) then
 
-      if(.not.transpar%tNoGeometry) then 
+      if(.not.transpar%tNoGeometry) then
 
        ! For each PL finds the min atom index among the atoms in each contact
        ! At the end the array minv(iPL,iCont) can have only one value != 0
@@ -569,7 +569,7 @@ module negf_int
            write(stdOut,*) 'WARNING: contact',j1,' does no interact with any PL '
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            minv(1,j1) = j1
-         end if     
+         end if
 
          if (count(minv(:,j1).eq.j1).gt.1) then
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
@@ -833,7 +833,7 @@ module negf_int
     integer, intent(in) :: kpoint        ! kp index
     real(dp), intent(in) :: wght      ! kp weight
     real(dp), dimension(:,:), pointer :: tunn
-    real(dp), dimension(:,:), pointer :: curr 
+    real(dp), dimension(:,:), pointer :: curr
     real(dp), dimension(:,:), pointer :: ledos
     real(dp), dimension(:), pointer :: currents
 
@@ -1212,10 +1212,10 @@ module negf_int
       !GUIDE: tunnPMat libNEGF output stores Transmission, T(iE, i->j)
       !       tunnPMat is MPI distributed on energy points (0.0 on other nodes)
       !       tunnMat MPI gather partial results and accumulate k-summation
-      !       currPMat stores contact current I_i(iE) 
+      !       currPMat stores contact current I_i(iE)
       !       tunnSKRes stores tunneling for all k-points and spin: T(iE, i->j, iSK)
       call add_partial_results(mpicomm, tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
-      
+
       call add_partial_results(mpicomm, currPMat, currMat, currSKRes, iKS, nKS)
 
       call add_partial_results(mpicomm, ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
@@ -1238,7 +1238,7 @@ module negf_int
     ! Write Total transmission, T(E), on a separate file (optional)
     if (allocated(tunnMat)) then
       filename = 'transmission'
-      if (tIOProc .and. writeTunn) then 
+      if (tIOProc .and. writeTunn) then
         call write_file(negf, tunnMat, tunnSKRes, filename, groupKS, kpoints, kWeights)
       end if
       if (allocated(tunnSKRes)) then
@@ -1248,17 +1248,17 @@ module negf_int
       ! needed to avoid some segfault
       allocate(tunnMat(0,0))
     end if
-    
+
     ! Write Total lead current, I_i(E), on a separate file (optional)
     if (allocated(currMat)) then
       filename = 'current'
-      if (tIOProc .and. writeTunn) then 
+      if (tIOProc .and. writeTunn) then
         call write_file(negf, currMat, currSKRes, filename, groupKS, kpoints, kWeights)
       end if
       if (allocated(currSKRes)) then
         deallocate(currSKRes)
       end if
-    else   
+    else
       ! needed to avoid some segfault
       allocate(currMat(0,0))
     endif
@@ -1383,7 +1383,7 @@ module negf_int
             write(fdUnit,*)
           enddo
         enddo
-      end if  
+      end if
       close(fdUnit)
     end if
 
@@ -1506,7 +1506,7 @@ module negf_int
             enddo
           enddo
           ! pi-factor  comes from  Gn = rho * pi
-          write(fdUnit,'(I5,ES17.8)',advance='NO') n, 2.d0*params%g_spin*pi*eovh*Im(inn)
+          write(fdUnit,'(I5,ES17.8)',advance='NO') n, 2.0_dp*params%g_spin*pi*eovh*Im(inn)
 
         enddo
 
@@ -1695,7 +1695,7 @@ module negf_int
     nnz=0
     do i=1,NumStates
       do j=1,NumStates
-        if ((i.eq.j).or.(abs(H_all(i,j)).gt.0.00001)) then
+        if ((i.eq.j).or.(abs(H_all(i,j)).gt.0.00001_dp)) then
           nnz = nnz+1
         end if
       end do
@@ -1711,7 +1711,7 @@ module negf_int
     do i=1,NumStates
        k=0
        do j=1,NumStates
-          if((i.eq.j).or.(abs(H_all(i,j)).gt.0.00001)) then
+          if((i.eq.j).or.(abs(H_all(i,j)).gt.0.00001_dp)) then
              k=k+1
              nnz=nnz+1
              if(i.eq.j) then
