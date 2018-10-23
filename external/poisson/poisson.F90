@@ -143,12 +143,19 @@ module poisson
  end subroutine poiss_setparameters
 
  ! -----------------------------------------------------------------------------
- subroutine init_poissbox
+ subroutine init_poissbox(iErr)
+
+  !> Error code, 0 if no problems
+  integer, intent(out), optional :: iErr
 
   integer :: i,m,s,f
   real(kind=dp) :: bound(MAXNCONT) 
   real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
+
+  if (present(iErr)) then
+    iErr = 0
+  end if
 
   !*******************************************************************************
   ! 1. Set Poisson Box 
@@ -188,7 +195,11 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
-         stop
+         if (present(iErr)) then
+           iErr = -1
+         else
+           stop
+         end if
        end if  
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
@@ -197,7 +208,11 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
-         stop
+         if (present(iErr)) then
+           iErr = -1
+         else
+           stop
+         end if
        end if  
      end if
   end do
@@ -217,7 +232,11 @@ module poisson
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
            write(stdOut,*) 'ERROR: contacts in the same direction must be aligned'
-           STOP    
+           if (present(iErr)) then
+             iErr = -2
+           else
+             stop
+           end if
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -281,7 +300,11 @@ module poisson
         write(stdOut,*) "----------------------------------------------------"
         write(stdOut,*) "ERROR: PoissBox negative !                          "
         write(stdOut,*) "----------------------------------------------------"
-        stop
+        if (present(iErr)) then
+          iErr = -3
+        else
+          stop
+        end if
      end if
   enddo
 
@@ -295,6 +318,11 @@ module poisson
         write(stdOut,*) "----------------------------------------------------"
         write(stdOut,*) "WARNING: Gate Distance too large!                   "
         write(stdOut,*) "----------------------------------------------------"
+        if (present(iErr)) then
+          iErr = -4
+        else
+          stop
+        end if
      end if
   endif
   
@@ -306,20 +334,28 @@ module poisson
         write(stdOut,*) "------------------------------------------"
         write(stdOut,*) "Gate insulator is longer than Poisson box!"
         write(stdOut,*) "------------------------------------------"
+        if (present(iErr)) then
+          iErr = -5
+        else
+          stop
+        end if
      end if
      
      do i = 1,3
         if (i.eq.biasdir) then
-           cycle
+          cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
            write(stdOut,*) "----------------------------------------------------"
            write(stdOut,*) "Gate transversal section is bigger than Poisson box!"
            write(stdOut,*) "----------------------------------------------------"
-           exit
+           if (present(iErr)) then
+             iErr = -6
+           else
+             stop
+           end if
         end if
      end do
-     
   end if
 
   !---------------------------------------

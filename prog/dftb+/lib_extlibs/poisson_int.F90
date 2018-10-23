@@ -342,7 +342,7 @@ contains
       eps_r = poissoninfo%eps_r
       dr_eps = poissoninfo%dr_eps
 
-      ! Use fixed analytical renormalization (approximate) or numerical 
+      ! Use fixed analytical renormalization (approximate) or numerical
       fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
@@ -418,7 +418,10 @@ contains
           write(stdOut,*) '                       SOLVING POISSON EQUATION         '
           write(stdOut,'(80("="))')
         end if
-        call init_PoissBox
+        call init_PoissBox(iErr)
+        if (iErr /= 0) then
+          call error("Failure during initialisation of the Poisson box")
+        end if
         call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
       case(1)
         call mudpack_drv(PoissFlag,V_L_atm,grad_V)
