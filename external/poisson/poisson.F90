@@ -197,8 +197,9 @@ module poisson
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
          if (present(iErr)) then
            iErr = -1
+         else
+           stop
          end if
-         exit
        end if  
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
@@ -209,8 +210,9 @@ module poisson
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
          if (present(iErr)) then
            iErr = -1
+         else
+           stop
          end if
-         exit
        end if  
      end if
   end do
@@ -232,8 +234,9 @@ module poisson
            write(stdOut,*) 'ERROR: contacts in the same direction must be aligned'
            if (present(iErr)) then
              iErr = -2
+           else
+             stop
            end if
-           STOP    
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -299,8 +302,9 @@ module poisson
         write(stdOut,*) "----------------------------------------------------"
         if (present(iErr)) then
           iErr = -3
+        else
+          stop
         end if
-        stop
      end if
   enddo
 
@@ -314,6 +318,11 @@ module poisson
         write(stdOut,*) "----------------------------------------------------"
         write(stdOut,*) "WARNING: Gate Distance too large!                   "
         write(stdOut,*) "----------------------------------------------------"
+        if (present(iErr)) then
+          iErr = -4
+        else
+          stop
+        end if
      end if
   endif
   
@@ -325,20 +334,28 @@ module poisson
         write(stdOut,*) "------------------------------------------"
         write(stdOut,*) "Gate insulator is longer than Poisson box!"
         write(stdOut,*) "------------------------------------------"
+        if (present(iErr)) then
+          iErr = -5
+        else
+          stop
+        end if
      end if
      
      do i = 1,3
         if (i.eq.biasdir) then
-           cycle
+          cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
            write(stdOut,*) "----------------------------------------------------"
            write(stdOut,*) "Gate transversal section is bigger than Poisson box!"
            write(stdOut,*) "----------------------------------------------------"
-           exit
+           if (present(iErr)) then
+             iErr = -6
+           else
+             stop
+           end if
         end if
      end do
-     
   end if
 
   !---------------------------------------
