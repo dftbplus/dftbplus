@@ -2061,8 +2061,10 @@ contains
     ! extrapolated zero temperature energy
     call writeTagged(fd, tag_egy0Total, energy%Ezero)
 
-    ! energy connected to the evaluated force/stress (differs for various free energies)
-    call writeTagged(fd, tag_egyforcerelated, energy%EForceRelated)
+    if (energy%EForceRelated /= 0.0_dp) then
+      ! energy connected to the evaluated force/stress (differs for various free energies)
+      call writeTagged(fd, tag_egyforcerelated, energy%EForceRelated)
+    end if
 
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
@@ -2724,6 +2726,10 @@ contains
     write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
     write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
         & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    if (energy%EForceRelated /= 0.0_dp) then
+      write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
       write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
           & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
@@ -3827,6 +3833,10 @@ contains
     write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", energy%Ezero, "eV"
     write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
         & Hartree__eV * energy%EMermin," eV"
+    if (energy%EForceRelated /= 0.0_dp) then
+      write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
 
   end subroutine printEnergies
 

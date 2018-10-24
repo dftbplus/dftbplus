@@ -1755,8 +1755,11 @@ options:
   system. For collinear spin polarisation, values for up and down spin channels
   are required. Otherwise only a single global chemical potential is
   required. If this option is present, the total charge and the total spin of
-  the system are not conserved. (Settings in the options \is{Charge} and
-  \is{UnpairedElectrons} will be ignored.)
+  the system are not conserved (settings in the options \is{Charge} and
+  \is{UnpairedElectrons} will be ignored). If a fixed chemical potential is
+  used, the output {\em force related energy} includes the contribution to the
+  free energy, $- N \mu$, hence if differentiated will give the forces and
+  stresses (if periodic).
 \end{description}
 
 \subsubsection{Fermi\{\}}
