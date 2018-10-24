@@ -3632,9 +3632,10 @@ contains
 
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", energy%Ezero, "eV"
+    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+        & "eV"
     write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-        & Hartree__eV * energy%EMermin," eV"
+        & Hartree__eV * energy%EMermin,"eV"
 
   end subroutine printEnergies
 
