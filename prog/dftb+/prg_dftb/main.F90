@@ -346,6 +346,13 @@ contains
               & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
         end if
 
+        #:if WITH_TRANSPORT
+          ! Override charges with uploaded contact charges
+          if (tUpload) then
+            call overrideContactCharges(qOutput, chargeUp, transpar)
+          end if
+        #:endif
+
         ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
         if (tDualSpinOrbit) then
           call getLDual(orbitalL, qiBlockOut, orb, species)
@@ -356,13 +363,6 @@ contains
         if (tSccCalc .and. .not. tXlbomd) then
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
-
-        #:if WITH_TRANSPORT
-          ! Overrides input charges with uploaded contact charges
-          if (tUpload) then
-            call overrideContactCharges(qOutput, chargeUp, transpar)
-          end if
-        #:endif
 
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
               & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
