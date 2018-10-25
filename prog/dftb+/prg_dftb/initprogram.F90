@@ -1508,7 +1508,7 @@ contains
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField .or. tFixEf
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -2254,14 +2254,14 @@ contains
   #:if WITH_TRANSPORT
     call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, species0, orb,&
         & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
-    if (tNegf) then
-      ! can be generalised later for more exotic geometries:
-      allocate(iAtInCentralRegion(transpar%idxdevice(2)))
-      do iAt = 1, transpar%idxdevice(2)
-        iAtInCentralRegion(iAt) = iAt
-      end do
-    end if
+    allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+  #:else
+    allocate(iAtInCentralRegion(nAtom))
   #:endif
+    ! atoms in central cell/device region/all atoms depending on boundary conditions
+    do iAt = 1, size(iAtInCentralRegion)
+      iAtInCentralRegion(iAt) = iAt
+    end do
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
