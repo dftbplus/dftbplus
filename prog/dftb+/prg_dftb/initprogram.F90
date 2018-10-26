@@ -1545,6 +1545,19 @@ contains
       end select
     end if
 
+  #:if WITH_TRANSPORT
+    ! whether tunneling is computed
+    tTunn = input%ginfo%tundos%defined
+
+    ! Do we use any part of negf (solver, tunnelling etc.)?
+    tNegf = (solver .eq. solverGF) .or. tTunn
+  #:else
+
+    tTunn = .false.
+    tNegf = .false.
+
+  #:endif
+
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
     tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
@@ -1983,19 +1996,6 @@ contains
     tWriteShifts = input%ctrl%tWriteShifts
 
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
-
-  #:if WITH_TRANSPORT
-    ! whether tunneling is computed
-    tTunn = input%ginfo%tundos%defined
-
-    ! Do we use any part of negf (solver, tunn etc.)?
-    tNegf = (solver .eq. solverGF) .or. tTunn
-  #:else
-
-    tTunn = .false.
-    tNegf = .false.
-
-  #:endif
 
     if (tReadChrg) then
       tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
