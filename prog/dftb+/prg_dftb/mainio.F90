@@ -3335,8 +3335,8 @@ contains
 
 
   !> Writes Hamiltonian and overlap matrices and stops program execution.
-  subroutine writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList, nNeighbourSK,&
-      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+  subroutine writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
+      & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
