@@ -1551,6 +1551,11 @@ contains
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
     tNegf = (solver .eq. solverGF) .or. tTunn
+
+    if (tNegf .and. env%mpi%nGroup > 1) then
+      call error("At the moment NEGF solvers cannot be used for multiple processor groups")
+    end if
+
   #:else
 
     tTunn = .false.
