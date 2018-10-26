@@ -2281,7 +2281,7 @@ contains
       & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
       & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
       & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, tNegf, &
-      & invLatVec, kPoints)
+      & invLatVec, kPoints, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2412,12 +2412,14 @@ contains
     !> K-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
     integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
     logical :: tSpin
 
     character(lc) :: strTmp
@@ -2497,10 +2499,12 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
+          & - qOutput(:, iAtInCentralRegion(:), 1))
       write(fd, "(/,A)") " Atomic gross charges (e)"
       write(fd, "(A5, 1X, A16)")" Atom", " Charge"
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
@@ -2515,17 +2519,20 @@ contains
     if (nSpin == 4) then
       if (tPrintMulliken) then
         do iSpin = 1, 4
+
           write(fd,"(3A, F16.8)") 'Nr. of electrons (', quaternionName(iSpin), '):',&
-              & sum(qOutput(:,:, iSpin))
+              & sum(qOutput(:, iAtInCentralRegion(:), iSpin))
           write(fd, *)
           write(fd, "(/, 3A)") 'Atom populations (', quaternionName(iSpin), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             write(fd, "(1X, I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
           end do
           write(fd, "(/, 3A)") 'l-shell populations (', quaternionName(iSpin), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.", "  l", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
@@ -2536,7 +2543,8 @@ contains
           write(fd, "(/, 3A)") 'Orbital populations (', quaternionName(iSpin) ,')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.","  l","  m",&
               & " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
@@ -2553,7 +2561,8 @@ contains
       if (tDFTBU) then
         do iSpin = 1, 4
           write(fd, "(3A)") 'Block populations (', quaternionName(iSpin), ')'
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
@@ -2568,7 +2577,8 @@ contains
         write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
             write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
@@ -2581,7 +2591,8 @@ contains
         write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
             write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
@@ -2595,7 +2606,8 @@ contains
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
             write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
@@ -2616,17 +2628,19 @@ contains
       lpSpinPrint2: do iSpin = 1, nSpin
         if (tPrintMulliken) then
           write(fd, "(3A, F16.8)") 'Nr. of electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qOutputUpDown(:, :, iSpin))
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
           write(fd, "(3A)") 'Atom populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutputUpDown(:, iAt, iSpin))
           end do
           write(fd, *)
           write(fd, "(3A)") 'l-shell populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
@@ -2638,7 +2652,8 @@ contains
           write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", "  m", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
@@ -2652,7 +2667,8 @@ contains
         end if
         if (tDFTBU) then
           write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
@@ -2677,10 +2693,12 @@ contains
       if (tPrintMulliken) then
         if (nSpin == 2) then
           write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
+              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         else
           write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
-              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
+              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         end if
       end if
       write(fd, *)
@@ -2732,20 +2750,23 @@ contains
 
     if (tAtomicEnergy) then
       write(fd, "(A)") 'Atom resolved electronic energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
             & Hartree__eV * energy%atomElec(iAt), ' eV'
       end do
       write(fd, *)
 
       write(fd, "(A)") 'Atom resolved repulsive energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
             & Hartree__eV * energy%atomRep(iAt), ' eV'
       end do
       write(fd, *)
       write(fd, "(A)") 'Atom resolved total energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do

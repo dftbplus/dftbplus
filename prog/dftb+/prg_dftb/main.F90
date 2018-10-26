@@ -413,7 +413,8 @@ contains
               & diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling,&
               & orb, species, tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut,&
               & Ef, Eband, TS, E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
-              & tPeriodic, nSpin, tSpinOrbit, tSccCalc, tNegf, invLatVec, kPoint)
+              & tPeriodic, nSpin, tSpinOrbit, tSccCalc, tNegf, invLatVec, kPoint,&
+              & iAtInCentralRegion)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -452,7 +453,7 @@ contains
       end if
 
       if (tDipole) then
-        call getDipoleMoment(qOutput, q0, coord, dipoleMoment)
+        call getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
       #:call DEBUG_CODE
         call checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
             & nNeighbourSK, species, iSparseStart, img2CentCell)
@@ -1243,15 +1244,11 @@ contains
     real(dp), intent(out) :: Etotal
 
     !> atoms in the central cell (or device region if transport)
-    integer, intent(in), allocatable :: iAtInCentralRegion(:)
+    integer, intent(in) :: iAtInCentralRegion(:)
 
     call getERep(Eatom, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell)
-    if (allocated(iAtInCentralRegion)) then
-      Etotal = sum(Eatom(iAtInCentralRegion))
-    else
-      Etotal = sum(Eatom)
-    end if
+    Etotal = sum(Eatom(iAtInCentralRegion))
 
   end subroutine calcRepulsiveEnergy
 
@@ -1269,14 +1266,10 @@ contains
     real(dp), intent(out) :: Etotal
 
     !> atoms in the central cell (or device region if transport)
-    integer, intent(in), allocatable :: iAtInCentralRegion(:)
+    integer, intent(in) :: iAtInCentralRegion(:)
 
     call dispersion%getEnergies(Eatom)
-    if (allocated(iAtInCentralRegion)) then
-      Etotal = sum(Eatom(iAtInCentralRegion))
-    else
-      Etotal = sum(Eatom)
-    end if
+    Etotal = sum(Eatom(iAtInCentralRegion))
 
   end subroutine calcDispersionEnergy
 
@@ -2913,7 +2906,7 @@ contains
     real(dp), intent(in), allocatable :: xi(:,:)
 
     !> Atoms over which to sum the total energies
-    integer, intent(in), allocatable :: iAtInCentralRegion(:)
+    integer, intent(in) :: iAtInCentralRegion(:)
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
@@ -2931,19 +2924,11 @@ contains
     energy%atomNonSCC(:) = 0.0_dp
     call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour, nNeighbourSK,&
         & img2CentCell, iSparseStart)
-    if (allocated(iAtInCentralRegion)) then
-      energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
-    else
-      energy%EnonSCC = sum(energy%atomNonSCC)
-    end if
+    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
 
     if (tEfield) then
       energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
-      if (allocated(iAtInCentralRegion)) then
-        energy%Eext = sum(energy%atomExt(iAtInCentralRegion(:)))
-      else
-        energy%Eext = sum(energy%atomExt)
-      end if
+      energy%Eext = sum(energy%atomExt(iAtInCentralRegion(:)))
     end if
 
     if (allocated(sccCalc)) then
@@ -2952,19 +2937,11 @@ contains
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
-      if (allocated(iAtInCentralRegion)) then
-        energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
-      else
-        energy%Escc = sum(energy%atomSCC)
-      end if
+      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
-        if (allocated(iAtInCentralRegion)) then
-          energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
-        else
-          energy%Espin = sum(energy%atomSpin)
-        end if
+        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
       end if
     end if
     if (allocated(thirdOrd)) then
@@ -2973,11 +2950,7 @@ contains
       else
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
       end if
-      if (allocated(iAtInCentralRegion)) then
-        energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
-      else
-        energy%e3rd = sum(energy%atom3rd)
-      end if
+      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
     end if
 
     if (tDftbU) then
@@ -2987,21 +2960,13 @@ contains
       else
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
       end if
-      if (allocated(iAtInCentralRegion)) then
-        energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
-      else
-        energy%Edftbu = sum(energy%atomDftbu)
-      end if
+      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
     end if
 
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
       call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
-      if (allocated(iAtInCentralRegion)) then
-        energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
-      else
-        energy%ELS = sum(energy%atomLS)
-      end if
+      energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
@@ -3653,7 +3618,7 @@ contains
 
 
   !> Calculates dipole moment.
-  subroutine getDipoleMoment(qOutput, q0, coord, dipoleMoment)
+  subroutine getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
 
     !> electrons in orbitals
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -3667,11 +3632,15 @@ contains
     !> resulting dipole moment
     real(dp), intent(out) :: dipoleMoment(:)
 
-    integer :: nAtom, iAtom
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    integer :: nAtom, ii, iAtom
 
     nAtom = size(qOutput, dim=2)
     dipoleMoment(:) = 0.0_dp
-    do iAtom = 1, nAtom
+    do ii = 1, size(iAtInCentralRegion)
+      iAtom = iAtInCentralRegion(ii)
       dipoleMoment(:) = dipoleMoment(:)&
           & + sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * coord(:,iAtom)
     end do
