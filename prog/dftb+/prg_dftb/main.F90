@@ -530,7 +530,7 @@ contains
       if (tWriteDetailedOut) then
         call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd, tLinResp, tGeoOpt,&
             & tMD, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs,&
-            & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile)
+            & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile, iAtInCentralRegion)
       end if
 
       if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then

@@ -2849,7 +2849,7 @@ contains
   !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
-      & indMovedAtom, cellVol, cellPressure, geoOutFile)
+      & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2908,6 +2908,9 @@ contains
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
     integer :: iAt, ii
 
     if (tScc) then
@@ -2940,8 +2943,9 @@ contains
 
     if (tPrintForces) then
       write(fd, "(A)") 'Total Forces'
-      do iAt = 1, size(derivs, dim=2)
-        write(fd, "(3F20.12)") -derivs(:, iAt)
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, 3F20.12)")iAt, -derivs(:, iAt)
       end do
       write(fd, *)
       if (tStress .and. .not. tMd) then
@@ -2957,7 +2961,8 @@ contains
         write(fd, *)
       end if
 
-      write(fd, format1Ue) "Maximal derivative component", maxval(abs(derivs)), 'au'
+      write(fd, format1Ue) "Maximal derivative component",&
+          & maxval(abs(derivs(:,iAtInCentralRegion(:)))), 'au'
       if (size(indMovedAtom) > 0) then
         write(fd, format1Ue) "Max force for moved atoms:",&
             & maxval(abs(derivs(:, indMovedAtom))), 'au'
