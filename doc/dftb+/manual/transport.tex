@@ -427,7 +427,7 @@ states.
 
 \item[\is{LocalCurrents}] if set to Yes, local bond-currents are computed using
   the non-equilibrium density matrix.  This task is currently limited to
-  \bf{non-periodic} systems. The output is placed in a file
+  \textbf{non-periodic} systems. The output is placed in a file
   \verb|lcurrent_u.dat| (or \verb|lcurrent_d.dat| depending on spin).  The files
   are arranged in a table in order of increasing neighbour distance,
 
@@ -457,18 +457,17 @@ Eigensolver = GreensFunction {
 
 
 \section{Eigensolver = TransportOnly} 
-The \is{GreensFunction} block is used to solve the self-consistent NEGF 
-transport problem. However, the block \iscb{TunnelingAndDos} within the 
-\is{Analysis} block (see below),  
-can be used to calculate the transmission function according to the Landauer
-formula also in the case of non self-consistent calculations. 
-In non SCC calculations the density matrix and charge densities are not computed,
-hence the eigensolver block is not needed. Similarly, also the electrostatics block
-should be omitted (i.e.\ the \is{Electrostatics = Poisson}).
-The keyword \is{Eigensolver = TransportOnly} is used to jump straight to the 
-post-SCF analysis.
-\bf{Note:} This option cannot be used together with geometry relaxations or md 
-calculations.
+The \is{GreensFunction} block is used to solve the self-consistent NEGF
+transport problem. However, the block \iscb{TunnelingAndDos} within the
+\is{Analysis} block (see below), can be used to calculate the transmission
+function according to the Landauer formula also in the case of non
+self-consistent calculations.  In non SCC calculations the density matrix and
+charge densities are not computed, hence the eigensolver block is not
+needed. Similarly, also the electrostatics block should be omitted (i.e.\ the
+\is{Electrostatics = Poisson}).  The keyword \is{Eigensolver = TransportOnly} is
+used to jump straight to the post-SCF analysis.  \textbf{Note:} This option
+cannot be used together with calculations which require forces, including
+geometry relaxations or md calculations.
 
 
 
@@ -864,21 +863,23 @@ link against threaded mkl, rather than sequential. Numerical experiments show
 that best performance on multicore CPUs is generally obtained by running
 independent MPI processes on physical sockets, exploiting OpenMP multithreading
 on each socket. For instance NEGF can exploit threaded matrix-matrix
-products. The user can experiment by setting the environment variable
+products. The user can experiment by setting the environment variable\\
 OMP\_NUM\_THREADS.
 
 The Poisson solver has not been parallelized yet. However the efficient
 multigrid solver does not typically represent a bottleneck. Currently the
 assembly of the charge density on the real-space grid and the projection of the
-potential onto the atoms have been parallelized. Since gather of the charge
-density on each node can easily hit communication bottlenecks the user can use
-the parameter \kw{MaxParallelNodes} to control distributions of these
+potential onto the atoms have been parallelized. Since the gathering of the
+charge density on each node can easily hit communication bottlenecks, the user
+can use the parameter \kw{MaxParallelNodes} to control distributions of these
 calculations. The default is \kw{MaxParallelNodes}=1, that can be increased
 until speedups are observed.
 \begin{ptable}
  \kw{MaxParallelNodes} & i & & 1 &  \\
 \end{ptable}
 
+\textbf{Note:} At the moment, calculations with more than one process group (see
+section~\ref{sec:dftbp.Parallel}) are not supported.
 
 \section{Analysis}
 \label{sec:transport.Analysis}
