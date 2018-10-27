@@ -214,7 +214,7 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
-    call readParallel(root, input%ctrl%parallelOpts)
+    call readParallel(root, input)
 
     ! input data strucutre has been initialised
     input%tInitialized = .true.
@@ -4833,8 +4833,7 @@ contains
         else if ( len(fermiBuffer) .eq. 2) then
           call asArray(fermiBuffer, contacts(ii)%eFermi)
         else
-          call detailedError(pNode, &
-            & "FermiLevel accepts 1 or 2 (for collinear spin) values")
+          call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
         end if
         call destruct(fermiBuffer)
         call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
@@ -5029,15 +5028,15 @@ contains
 
 
   !> Reads the parallel block.
-  subroutine readParallel(root, parallelOpts)
+  subroutine readParallel(root, input)
 
     !> Root node eventually containing the current block
     type(fnode), pointer, intent(in) :: root
 
-    !> Parallel settings
-    type(TParallelOpts), allocatable, intent(out) :: parallelOpts
+    !> Input structure to be filled
+    type(inputData), intent(inout) :: input
 
-    type(fnode), pointer :: node
+    type(fnode), pointer :: node, pTmp
 
     call getChild(root, "Parallel", child=node, requested=.false.)
     if (withMpi .and. .not. associated(node)) then
@@ -5048,10 +5047,16 @@ contains
         call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
             & support)")
       end if
-      allocate(parallelOpts)
-      call getChildValue(node, "Groups", parallelOpts%nGroup, 1)
-      call getChildValue(node, "UseOmpThreads", parallelOpts%tOmpThreads, .not. withMpi)
-      call readBlacs(node, parallelOpts%blacsOpts)
+      allocate(input%ctrl%parallelOpts)
+      call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
+    #:if WITH_TRANSPORT
+      if (input%transpar%ncont == 0 .and. input%ctrl%parallelOpts%nGroup > 1) then
+        call detailedError(pTmp, "Multiple processor groups are currently incompatible with&
+            & transport.")
+      end if
+    #:endif
+      call getChildValue(node, "UseOmpThreads", input%ctrl%parallelOpts%tOmpThreads, .not. withMpi)
+      call readBlacs(node, input%ctrl%parallelOpts%blacsOpts)
     end if
 
   end subroutine readParallel
