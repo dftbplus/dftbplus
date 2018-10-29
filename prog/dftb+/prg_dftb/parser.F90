@@ -4058,7 +4058,7 @@ contains
     end if
     poisson%foundBox = needsPoissonBox
     call getChildValue(pNode, "MinimalGrid", poisson%poissGrid, &
-        & [ 0.5_dp, 0.5_dp, 0.5_dp ], modifier=modif, child=field)
+        & [ 0.3_dp, 0.3_dp, 0.3_dp ], modifier=modif, child=field)
     call convertByMul(char(modif), lengthUnits, field, &
         & poisson%poissGrid)
     call getChildValue(pNode, "NumericalNorm", poisson%numericNorm, .false.)
