@@ -50,6 +50,7 @@ Analysis {
    #     Atoms = 2:4
    #   }
    #}
+   CalculateForces = Yes
 }
 
 Parallel{
@@ -60,11 +61,10 @@ Parallel{
 }
 
 Options = {
-  CalculateForces = Yes
   WriteAutotestTag = Yes
 }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 6
   WriteXMLInput = Yes
 }

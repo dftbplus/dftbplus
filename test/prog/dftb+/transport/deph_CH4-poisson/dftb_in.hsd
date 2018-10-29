@@ -67,14 +67,16 @@ Parallel{
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
- 
+
+Analysis = {
+  CalculateForces = Yes
+}
 
 Options = {
-  CalculateForces = Yes
   WriteAutotestTag = Yes
   ReadChargesAsText = Yes
 }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 6
 }

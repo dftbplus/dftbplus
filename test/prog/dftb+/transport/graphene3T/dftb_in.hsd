@@ -275,22 +275,12 @@ Analysis {
     #DumpHS = No
     #WriteTunneling = Yes 
   }
+  CalculateForces = Yes
 }
 
 Options = {
-  CalculateForces = Yes
-  WriteEigenvectors = No
-  WriteDetailedXML = No
   WriteAutotestTag = Yes
-  WriteResultsTag = No 
   WriteDetailedOut = Yes
-  WriteBandOut = No
-  AtomResolvedEnergies = No
-  RestartFrequency = 20
-  RandomSeed = 0
-  WriteHS = No
-  WriteRealHS = No
-  MinimiseMemoryUsage = No
   ReadChargesAsText = Yes
 }
 
@@ -304,6 +294,6 @@ ParserOptions = {
   WriteHSDInput = Yes
   WriteXMLInput = No
   StopAfterParsing = No
-  ParserVersion = 3
+  ParserVersion = 6
   IgnoreUnprocessedNodes = No
 }

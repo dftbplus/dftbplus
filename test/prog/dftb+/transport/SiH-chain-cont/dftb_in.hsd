@@ -57,5 +57,5 @@ Options = {
 }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 6
 }

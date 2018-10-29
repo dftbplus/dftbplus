@@ -54,11 +54,14 @@ Parallel{
   UseOmpThreads = Yes
 }
 
-Options = {
+Analysis = {
   CalculateForces = Yes
+}
+
+Options = {
   WriteAutotestTag = Yes
 }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 6
 }

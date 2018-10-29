@@ -86,7 +86,6 @@ Analysis{
 }
 
 Options = {
-  #MullikenAnalysis = Yes
   WriteAutotestTag = Yes
 }
 
@@ -97,5 +96,5 @@ Parallel = {
 }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 6
 }

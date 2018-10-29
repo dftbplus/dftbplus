@@ -99,6 +99,6 @@ options = {
 }
 
 parseroptions = {
-  parserversion = 3
+  parserversion = 6
 }
  
