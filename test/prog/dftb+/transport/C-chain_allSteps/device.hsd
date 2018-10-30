@@ -54,6 +54,7 @@ Hamiltonian = DFTB {
 
 Analysis = {
     AtomResolvedEnergies = Yes
+    CalculateForces = Yes
 }
 
 Options = {
