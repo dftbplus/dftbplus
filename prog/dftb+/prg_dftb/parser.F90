@@ -5050,7 +5050,7 @@ contains
       allocate(input%ctrl%parallelOpts)
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
     #:if WITH_TRANSPORT
-      if (input%transpar%ncont == 0 .and. input%ctrl%parallelOpts%nGroup > 1) then
+      if (input%transpar%ncont > 0 .and. input%ctrl%parallelOpts%nGroup > 1) then
         call detailedError(pTmp, "Multiple processor groups are currently incompatible with&
             & transport.")
       end if
