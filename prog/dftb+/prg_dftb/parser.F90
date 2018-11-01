@@ -3939,14 +3939,14 @@ contains
       if (.not.associated(pTmp)) then
         call setChildValue(pNode, "FirstLayerAtoms", greendens%PL)
       end if
-      call getChild(pNode, "ContactPLs", pTmp, requested=.false.)
-      if (associated(pTmp)) then
-        call init(li)
-        call getChildValue(pTmp, "", li)
-        allocate(transpar%cblk(len(li)))
-        call asArray(li,transpar%cblk)
-        call destruct(li)
-      end if
+      !call getChild(pNode, "ContactPLs", pTmp, requested=.false.)
+      !if (associated(pTmp)) then
+      !  call init(li)
+      !  call getChildValue(pTmp, "", li)
+      !  allocate(transpar%cblk(len(li)))
+      !  call asArray(li,transpar%cblk)
+      !  call destruct(li)
+      !end if
       allocate(greendens%kbT(1))
       greendens%kbT(:) = tempElec
     else
