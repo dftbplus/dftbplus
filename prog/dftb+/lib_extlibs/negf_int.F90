@@ -13,8 +13,8 @@ module negf_int
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
   use libnegf, only : z_CSR
-  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission, associate_current
-  use libnegf, only : compute_current, compute_density_dft, compute_ldos
+  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
+  use libnegf, only : associate_current, compute_current, compute_density_dft, compute_ldos
   use libnegf, only : create, create_scratch, destroy
   use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
   use libnegf, only : init_negf, init_structure, log_deallocatep, pass_hs, set_bp_dephasing
@@ -482,6 +482,7 @@ module negf_int
     integer, allocatable :: minv(:,:)
     Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
     integer :: i, m, i1, j1, info
+    integer, allocatable :: inRegion(:)
 
     iatm2 = transpar%idxdevice(2)
     ncont = transpar%ncont
@@ -543,7 +544,7 @@ module negf_int
        ! At the end the array minv(iPL,iCont) can have only one value != 0
        ! for each contact and this is the interacting PL
        ! NOTE: the algorithm works with the asymmetric neighbor-map of dftb+
-       !       because contacts have larger indeces than device
+       !       because atoms in contacts have larger indices than in the device
        do m = 1, transpar%nPLs
           ! Loop over all PL atoms
           do i = atomst(m), atomst(m+1)-1
@@ -619,7 +620,7 @@ module negf_int
   end subroutine negf_init_str
 
   !------------------------------------------------------------------------------
-  ! Subroutine to check the PLs definition
+  ! Subroutine to check the PL definitions
   !------------------------------------------------------------------------------
   subroutine check_pls(transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
     Type(TTranspar), intent(in) :: transpar
@@ -1099,8 +1100,8 @@ module negf_int
 
   !> Calculate the current
   subroutine calc_current(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
-      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat, currLead,&
-      & writeTunn, writeLDOS, mu)
+      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
+      & currLead, writeTunn, writeLDOS, mu)
 
     integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
