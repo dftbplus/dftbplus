@@ -4806,18 +4806,18 @@ contains
       end if
 
       if (upload) then
-        call getChildValue(pNode, 'potential', contacts(ii)%potential, 0.0_dp, modifier=modif,&
+        call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modif,&
             & child=field)
         call convertByMul(char(modif), energyUnits, field, contacts(ii)%potential)
 
-        call getChildValue(pNode, "wideBand", contacts(ii)%wideBand, .false.)
+        call getChildValue(pNode, "WideBand", contacts(ii)%wideBand, .false.)
 
         if (contacts(ii)%wideBand) then
 
           ! WideBandApproximation is defined as energy spacing between levels of the contact. In the
           ! code the inverse value (Density of states) is used. Convert the negf input
           ! value. Default is 20 / e eV.
-          call getChildValue(pNode, 'LevelSpacing', contacts(ii)%wideBandDos, 0.735_dp,&
+          call getChildValue(pNode, "LevelSpacing", contacts(ii)%wideBandDos, 0.735_dp,&
               & modifier=modif, child=field)
           call convertByMul(char(modif), energyUnits, field, contacts(ii)%wideBandDos)
           contacts(ii)%wideBandDos = 1.d0 / contacts(ii)%wideBandDos
