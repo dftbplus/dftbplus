@@ -2,78 +2,94 @@
 \chapter{Transport calculations}
 \label{app:transp}
 
-Non-equilibrium Green's function calculations are now possible with
+Non-equilibrium Green's function (NEGF) calculations are now available with
 {\dftbp}. Within this formalism it is possible to treat quantum mechanical
-systems with open boundary conditions and therefore quantum transport.  A
-specific new \kwcb{Transport} block has been added to control the transport
-problem.  The NEGF solver parameters can be controlled within the
-\kw{Eigensolver} section, using the keyword \kwcb{GreensFunction}. Finally the
-real-space Poisson solver parameters have been organised within a new section,
-\kw{Electrostatics}, using the keyword \kwcb{Poisson}. The default value for the
-electrostatic calculations is the usual $\gamma$-functional which contains the
-Hartree and local XC potential.
+systems with open boundary conditions, i.e.\ systems connected to external
+reservoirs and therefore quantum transport.  A new specific \kwcb{Transport}
+block has been added to specify the geometry of such transport problems.
+Additional solvers have been added to the \kw{Eigensolver} section to either
+fully solve the open boundary problem (using the keyword \kwcb{GreensFunction})
+or the transmission through the system (\kw{TransportOnly}). Finally a
+real-space Poisson solver is available for self consistent charge calculations
+and electrostatic gates (within a new section, \kw{Electrostatics}, using the
+keyword \kwcb{Poisson}).
 
 \section{Definition of the geometry}
 
-The input geometry for transport calculations is a little tricky. In comparison
-to cluster or supercell calculations the geometry for transport calculation must
-also contain information about the contacts. The contacting leads are actually
-semi-infinite structures, supporting travelling waves. No stationary current is
-possible in a finite structure, as travelling waves can only exist in open
-systems.  The structure is partitioned into a device region and two or more
-contact regions.
+The input geometry for transport calculations can be a little tricky. In
+comparison to cluster or supercell boundary conditions, the geometry for
+transport calculation must also contain information about the contacts (external
+reservoirs). The contacting leads (or surfaces) are actually semi-infinite
+structures, supporting travelling waves. Unlike finite structures, where mo
+stationary current is possible, travelling waves can only exist in such open
+systems.  The simulation is therefore partitioned into a device region and two
+or more contact regions.
 
-Rules to build a valid input structure:
+Rules to build a valid input geometry:
 \begin{enumerate}
-\item \label{rule1} All device atoms must come first.
-\item \label{rule2} Each contact must comprise two subsequent unit cells called
-  principal layers (PLs). The two PLs together give all information about the
-  contact structure and in the following are referred generally as ``contact''.
+\item \label{rule1} All device atoms must come first in the structure.
+\item \label{rule2} Each contact must comprise of two subsequent unit cells,
+  called principal layers (PLs). The two PLs together give all information about
+  the contact structure and in the following are referred generally as a
+  ``contact''.
 \item \label{rule3} A PL is a unit cell of the contacting lead that has
-  interactions only with nearest neighbour PLs in tight-binding terms.
-\item \label{rule4} The ordering of the atoms within the two PLs must be
-  consistent in the sense that the two PLs must be exact periodic replica of each
-  other: If each PL comprise N atoms, atom M in the first PL must have a
-  corresponding identical atom in the second PL at position M+N.
-\item \label{rule5} The first PL should be always the one closer to the device
-  region.
+  interactions only with its nearest neighbour PLs in tight-binding terms
+  (i.e.\ the Slater-Koster interactions only extend into immediately neighbouring
+  PLs).
+\item \label{rule4} The ordering of the atoms within the two PLs of a contact
+  must be consistent, in the sense that the two PLs must be exact periodic
+  replicas of each other: If each PL comprise $N$ atoms, the $i^\mathrm{th}$
+  atom in the first PL must have a corresponding identical atom, $i+N$, in the
+  second PL which is related by translation to the position of atom $i$.
+\item \label{rule5} The first PL in a contact should be always the one which is
+  closer to the device region.
 \item \label{rule6} All blocks should be contiguous in the structure and each
   atom must belong to one and only one region.
 \item \label{rule7} The geometry can be defined as a cluster or a supercell. In
-  the first case is it understood that the contacts are just one-dimensional
-  wire leads.
-\item \label{rule8} If a structure is defined as {\em supercell}, only the
-  lattice vectors transverse to the transport direction are meaningful. The
-  periodicity specified along the transport direction is dummy.
+  the first case is it understood that the contacts are one-dimensional wire
+  leads.
+\item \label{rule8} If a structure is defined as being a {\em supercell}, only
+  the lattice vectors that are transverse to the transport direction are
+  meaningful. The periodicity specified along the transport direction is treated
+  as a dummy vector (but must be present).
 \item \label{rule9} For each contact the periodicity along the transport
-  direction is deduced from the separation between the two PLs (as the
-  coordinate difference $\mathbf{r}(M+N)-\mathbf{r}(M)$). We refer to this as
-  {\em contact direction}.
-\item \label{rule10} All lattice vectors (including the periodicity vector of
-  the contacts) must be aligned to one of the Cartesian axes x, y or z. In
-  practice only rectangular cells are currently allowed in transport
-  calculations.
+  direction is actually deduced from the separation between the two PLs (using
+  the coordinate difference $\mathbf{r}(i+N)-\mathbf{r}(i)$). We refer to this
+  vector as aligned along the {\em contact direction}.
+\item \label{rule10} All lattice vectors (including the contact direction
+  vector) must be aligned parallel to one of the Cartesian axes $x$, $y$ or
+  $z$. In practice only rectangular cells are allowed in transport calculations
+  at present.
 \end{enumerate}
+An example of a non-periodic device with contacts attached is shown in
+Figure~\ref{fig:device}.
 
-{\bf Note}: Currently the code makes a consistency check on the definition of the
-two PLs (rule~\ref{rule4}), namely it checks whether the two contact PLs are
-really shifted copies of each other.  The code does not check if the device
-regions are consistently defined (rules~\ref{rule1} and \ref{rule6}), if the PL
-defined are really PLs (rule~\ref{rule3}) and does not check if the first PL
-defined is really the one closest to the device (rule~\ref{rule5}).  The code
-checks rules \ref{rule8}, \ref{rule9} and \ref{rule10}. The check is performed
-    on the atomic coordinates, such that
+\begin{figure}[!h]
+  \begin{center}
+    \includegraphics[width=0.8\textwidth]{Fig_device.pdf}
+  \end{center}
+  \caption{ \label{fig:device} Example of a valid 3 contact device with
+    principal layers marked.}
+\end{figure}
+
+{\bf Note}:\\ The code {\em does not} currently check: if the device regions are
+consistently defined (rules~\ref{rule1} and \ref{rule6}); if the PL defined are
+really PLs (rule~\ref{rule3}); or if the first PL defined is really the one
+closest to the device (rule~\ref{rule5}).\\ The code {\em does} check rules
+\ref{rule4}, \ref{rule8}, \ref{rule9} and \ref{rule10}. The check for
+rules~\ref{rule4} and \ref{rule9} is performed on the atomic coordinates, such
+that
 \begin{equation}
  \mathbf{R}^2_{i+N} = \mathbf{R}^1_i + \mathbf{v}\qquad\forall i \in PL
 \end{equation}
-where $\mathbf{R}^2_i$ are atomic coordinates of atoms in the second PL,
-$\mathbf{R}^1_i$ are atomic coordinates of atoms in the first PL and
+where $\mathbf{R}^2_i$ are atomic coordinates of atoms in the second PL of the
+contact, $\mathbf{R}^1_i$ are atomic coordinates of atoms in the first PL and
 $\mathbf{v}$ is the contact lattice vector. The equality is verified within an
-accuracy that can be set by the user (see below).
+accuracy that can be set by the user (see below for \ls{ShiftAccuracy}).
 
-Please take your time to build up structures and cross-check them. Also consider
-to look at the examples distributed with the code. The input structure is often
-the first suspect when there are problems in the calculation.
+Please take care when building structures and to cross-check them. Also consider
+looking at the examples distributed with the code. The input structure is often
+the first suspect when there are problems in transport calculations.
 
 
 \htsection{Transport}
