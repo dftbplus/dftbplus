@@ -18,8 +18,8 @@
    viewBox="3134 713 16174.962 9705.9034"
    version="1.1"
    id="svg1574"
-   sodipodi:docname="Fig_device.svg"
-   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)">
+   sodipodi:docname="Fig_device.pdf"
+   inkscape:version="0.48.4 r9939">
   <metadata
      id="metadata1580">
     <rdf:RDF>
@@ -28,7 +28,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -76,21 +76,6 @@
          style="fill-rule:evenodd;stroke:#7f7f7f;stroke-width:1pt;stroke-opacity:1;fill:#7f7f7f;fill-opacity:1"
          d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
          id="path5680" />
-    </marker>
-    <marker
-       inkscape:stockid="Arrow1Mend"
-       orient="auto"
-       refY="0.0"
-       refX="0.0"
-       id="marker5342"
-       style="overflow:visible;"
-       inkscape:isstock="true"
-       inkscape:collect="always">
-      <path
-         id="path1752"
-         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
-         style="fill-rule:evenodd;stroke:#7f7f7f;stroke-width:1pt;stroke-opacity:1;fill:#7f7f7f;fill-opacity:1"
-         transform="scale(0.4) rotate(180) translate(10,0)" />
     </marker>
     <marker
        inkscape:stockid="Arrow1Mstart"
@@ -426,15 +411,15 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="3200"
-     inkscape:window-height="1739"
+     inkscape:window-width="1080"
+     inkscape:window-height="1896"
      id="namedview1576"
      showgrid="false"
-     inkscape:zoom="1.7861693"
-     inkscape:cx="390.62582"
-     inkscape:cy="344.69571"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
+     inkscape:zoom="0.76211529"
+     inkscape:cx="406.10654"
+     inkscape:cy="382.36508"
+     inkscape:window-x="1920"
+     inkscape:window-y="24"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1574"
      fit-margin-top="0"
@@ -5669,8 +5654,8 @@
    style="font-size:64.99999762%;text-align:center;baseline-shift:super;text-anchor:middle"
    id="tspan1697">rd</tspan> PL</tspan></text>
   <path
-     style="opacity:1;fill:none;fill-opacity:1;stroke:#7f7f7f;stroke-width:29.75473022;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4.0999999;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker-start:url(#Arrow1Mstart);marker-mid:url(#EmptyDiamondSend);marker-end:url(#marker5342)"
-     d="m 10246.44,2667.6568 19.618,1863.1871"
+     style="fill:none;stroke:#7f7f7f;stroke-width:29.75473022;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4.0999999;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-start:url(#Arrow1Mstart);marker-mid:url(#EmptyDiamondSend);marker-end:none"
+     d="m 10246.44,2642.2661 19.618,1939.3592"
      id="path1703"
      inkscape:connector-curvature="0"
      sodipodi:nodetypes="cc" />
@@ -5688,7 +5673,7 @@
      inkscape:connector-curvature="0" />
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:476.07565308px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:11.90189075"
+     style="font-size:476.07565308px;font-style:normal;font-weight:normal;text-align:center;line-height:1.25;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:sans-serif"
      x="15974.074"
      y="9833.9697"
      id="text5654"><tspan
@@ -5696,18 +5681,18 @@
        id="tspan5650"
        x="15974.074"
        y="9833.9697"
-       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1;stroke-width:11.90189075">Contact</tspan><tspan
+       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1">Contact</tspan><tspan
        sodipodi:role="line"
        x="15974.074"
-       y="10429.064"
-       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1;stroke-width:11.90189075"
-       id="tspan5652">direction</tspan></text>
+       y="10310.045"
+       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1"
+       id="tspan5652">vector v</tspan></text>
   <path
      sodipodi:nodetypes="cc"
      inkscape:connector-curvature="0"
      id="path5674"
-     d="m 17054.535,9454.1213 -2172.637,19.618"
-     style="opacity:1;fill:none;fill-opacity:1;stroke:#7f7f7f;stroke-width:29.75473022;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4.0999999;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker-start:url(#marker5682);marker-mid:url(#marker5836);marker-end:url(#marker5996)" />
+     d="m 17079.926,9454.1213 -2248.809,19.618"
+     style="fill:none;stroke:#7f7f7f;stroke-width:29.75790215;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4.0999999;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-start:url(#marker2395);marker-mid:url(#marker5836);marker-end:none" />
   <path
      sodipodi:nodetypes="cc"
      style="fill:none;stroke:#7f7f7f;stroke-width:13.09208107;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:13.09208065, 13.09208065;stroke-dashoffset:0;stroke-opacity:1"
@@ -5753,21 +5738,23 @@
        x="13158.828"
        y="2274.3337"
        style="text-align:center;text-anchor:middle;stroke-width:11.90189075"
-       id="tspan2072">2nd PL</tspan></text>
+       id="tspan2072">2<tspan
+   style="font-size:309.38570422px;baseline-shift:super"
+   id="tspan3924">nd</tspan> PL</tspan></text>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:476.07565308px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:11.90189075"
+     style="font-size:476.07565308px;font-style:normal;font-weight:normal;text-align:center;line-height:1.25;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:sans-serif"
      x="9264.6025"
      y="3428.8501"
      id="text1929"><tspan
        sodipodi:role="line"
        x="9264.6025"
        y="3428.8501"
-       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1;stroke-width:11.90189075"
+       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1"
        id="tspan1927">Contact</tspan><tspan
        sodipodi:role="line"
        x="9264.6025"
-       y="4023.9446"
-       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1;stroke-width:11.90189075"
-       id="tspan1914">direction</tspan></text>
+       y="3904.9258"
+       style="font-size:380.86053467px;text-align:center;text-anchor:middle;fill:#7f7f7f;fill-opacity:1"
+       id="tspan1914">vector v</tspan></text>
 </svg>
