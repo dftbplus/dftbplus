@@ -8,20 +8,10 @@ Transport {
         FirstLayerAtoms = 1 5
     }
     Contact {
-        Id = "source"
-        AtomRange = 9 16
-        FermiLevel = -0.20689969722771545
-        # <<+ "Fermi.source"
-        # Id = "source"
-        # AtomRange = 9 16
+        <<+ "Contact.source"
     }
     Contact {
-        Id = "drain"
-        AtomRange = 17 24
-        FermiLevel = -0.20689969722771773
-        # <<+ Fermi.drain
-        # Id = "drain"
-        # AtomRange = 17 24
+        <<+ "Contact.drain"
     }
 }
 

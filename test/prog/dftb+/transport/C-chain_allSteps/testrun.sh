@@ -9,7 +9,14 @@ do
     cp $contact.hsd dftb_in.hsd
     $DFTBPLUS_CMD
     Ef=$(grep Fermi shiftcont_$contact.dat | sed 's/.*: *//g' | sed 's/ .*//g')
-    echo -e "FermiLevel = $Ef" > Fermi.$contact
+    if [ "$contact" ==  "source" ];
+    then
+	echo 'AtomRange = 9 16' > Contact.$contact
+    else
+	echo 'AtomRange = 17 24' > Contact.$contact
+    fi
+    echo "Id = $contact" >> Contact.$contact
+    echo "FermiLevel = $Ef" >> Contact.$contact
 done
 
 # calculate the actual device
