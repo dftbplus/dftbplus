@@ -3507,14 +3507,14 @@ contains
     ! locals
     integer :: fdHS, nSpin, nAtom, ii, jj
 
-    nSpin = size(shiftPerL,3)
-    nAtom = size(shiftPerL,2)
+    nSpin = size(shiftPerL, dim=3)
+    nAtom = size(shiftPerL, dim=2)
 
-    if (size(shiftPerL,1) /= orb%mShell ) then
+    if (size(shiftPerL, dim=1) /= orb%mShell ) then
       call error("Internal error in writeshift: size(shiftPerL,1)")
     endif
 
-    if (size(shiftPerL,2) /= size(orb%nOrbAtom) ) then
+    if (size(shiftPerL, dim=2) /= size(orb%nOrbAtom) ) then
       call error("Internal error in writeshift size(shiftPerL,2)")
     endif
 
@@ -3593,10 +3593,10 @@ contains
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
     !Locals
-    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
     integer, allocatable :: nOrbAtom(:)
 
-    shiftPerL = 0.0_dp
+    shiftPerL(:,:,:) = 0.0_dp
 
     open(newunit=fdH, file=fShifts, form="formatted")
     read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
@@ -3609,11 +3609,13 @@ contains
     end if
 
     allocate(nOrbAtom(nAtomSt))
-    read(fdH, *) nOrbAtom
-    read(fdH, *) shiftPerL !(:,:,:)
+    do ii = 1, nAtom
+      read(fdH, *) nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+    end do
+
     close(fdH)
 
-    if (any(nOrbAtom /= orb%nOrbAtom(:))) then
+    if (any(nOrbAtom(:) /= orb%nOrbAtom(:))) then
       call error("Incompatible orbitals in the upload file!")
     end if
 
