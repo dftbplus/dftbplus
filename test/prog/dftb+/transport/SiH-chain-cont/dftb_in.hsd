@@ -9,12 +9,12 @@ Transport {
     Contact {
       Id = "source"
       AtomRange = 5 8
-      ShiftAccuracy = 1e-6
+      PLShiftTolerance = 1e-6
     }
     Contact {
       Id = "drain"
       AtomRange = 9 12
-      ShiftAccuracy = 1e-6
+      PLShiftTolerance = 1e-6
     }
   Task = ContactHamiltonian {
     ContactId = "source"

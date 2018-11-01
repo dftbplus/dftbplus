@@ -182,21 +182,21 @@ Transport = {
     Contact = {
       Id = "drain"
       AtomRange = {69 108}
-      ShiftAccuracy = 1.000000000000000E-008
+      PLShiftTolerance = 1.000000000000000E-008
       FermiLevel = -0.220836613440231
       potential = 0.0
     }
     Contact = {
       Id = "extra"
       AtomRange = {109 132 }
-      ShiftAccuracy = 1.000000000000000E-008
+      PLShiftTolerance = 1.000000000000000E-008
       FermiLevel = -0.241593366923318
       potential = 0.0
     }
     Contact = {
       Id = "source"
       AtomRange = {133 172}
-      ShiftAccuracy = 1.000000000000000E-008
+      PLShiftTolerance = 1.000000000000000E-008
       FermiLevel = -0.220836613440231
       potential = 0.0
     }

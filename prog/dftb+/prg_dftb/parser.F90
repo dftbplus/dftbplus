@@ -4786,7 +4786,7 @@ contains
             &//  "' already in use")
       end if
 
-      call getChildValue(pNode, "ShiftAccuracy", contactLayerTol, 1e-5_dp, modifier=modif,&
+      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
           & child=field)
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
