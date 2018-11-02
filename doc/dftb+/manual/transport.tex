@@ -409,16 +409,15 @@ layers whose fundamental property is to interact with nearest-neighbour layers
 only (see section~\ref{sec:transport.geometry}).
 
 \begin{description}
-\item[\is{Delta}]\modif{\modtype{energy}}\modif{\modtype{energy}} A small
-  positive imaginary delta used in the GF definition and required for the
- x contour integration.
+\item[\is{Delta}]\modif{\modtype{energy}} A small positive imaginary delta used
+  in the GF definition and required for the x contour integration.
 \item[\is{ContourPoints}] The number of points along the complex contour
   integration of the GF along the segments $\mathcal{C}$ and $\mathcal{L}$ (see
   contour integration in section~\ref{sec:transport.contourint}).
-\item[\is{LowestEnergy}]\modif{\modtype{energy}}\modif{\modtype{energy}} The
-  initial energy from which the integration starts. It should be low enough to
-  ensure that all the electronic states are correctly included in the
-  integration. The default is -2.0 Hartree (see contour integration).
+\item[\is{LowestEnergy}]\modif{\modtype{energy}} The initial energy from which
+  the integration starts. It should be low enough to ensure that all the
+  electronic states are correctly included in the integration. The default is
+  -2.0 Hartree (see contour integration).
 \item[\is{FermiCutoff}] Integer number setting the Fermi distribution cutoff in
   units of $kT$. It is read only if the Fermi distribution temperature is
   greater than 0 (see contour integration).
