@@ -9,12 +9,14 @@ program buildwire
   integer, ALLOCATABLE, DIMENSION (:) :: n_atm,typ_atm
   real(8), ALLOCATABLE, DIMENSION (:) :: X,Y,Z      
   character(100) :: arg
+  logical :: do_super
 
   if (iargc() < 3) then
-    write(*,*) 'buildwire pl.gen dir npls'
+    write(*,*) 'buildwire pl.gen dir npls [-s]'
     write(*,*) 'pl.gen: gen file with PL definition (supercell)'
     write(*,*) 'dir: 1=x, 2=y, 3=z'
     write(*,*) 'npls: Number of pls in the scattering region'
+    write(*,*) '-s: (optional) makes a supercell structure'
     stop
   end if 
 
@@ -26,6 +28,14 @@ program buildwire
   d(k) = 1
   call getarg(3, arg)
   read(arg,*) num_pl
+
+  do_super = .false.
+  if (iargc() == 4) then
+     call getarg(4, arg)
+     if (trim(arg) == "-s") then
+        do_super = .true.
+     end if   
+  end if
 
   open(30,file=trim(gen_file))
   
@@ -65,7 +75,11 @@ program buildwire
 
   open(30,file='Ordered_'//trim(gen_file))
 
-  write(30,'(I5,A4)') tot_atm,period
+  if (.not.do_super) then
+     period = "C"
+  end if
+
+  write(30,'(I5,A4)') tot_atm, period
   write(30,'(A)') trim(atm_spec)
   do k = 1,num_pl
      do i = 1,pl_atm
@@ -96,13 +110,14 @@ program buildwire
      end do
   enddo
 
-
-  write(30,'(A)') cell_centre
-  do i = 1,3
-      if(d(1).eq.1) write(30,*) cell(i,1)*(num_pl+4)*d(1),cell(i,2),cell(i,3)
-      if(d(2).eq.1) write(30,*) cell(i,1),cell(i,2)*(num_pl+4)*d(2),cell(i,3)
-      if(d(3).eq.1) write(30,*) cell(i,1),cell(i,2),cell(i,3)*(num_pl+4)*d(3)
-  end do
+  if (do_super) then
+    write(30,'(A)') cell_centre
+    do i = 1,3
+        if(d(1).eq.1) write(30,*) cell(i,1)*(num_pl+4)*d(1),cell(i,2),cell(i,3)
+        if(d(2).eq.1) write(30,*) cell(i,1),cell(i,2)*(num_pl+4)*d(2),cell(i,3)
+        if(d(3).eq.1) write(30,*) cell(i,1),cell(i,2),cell(i,3)*(num_pl+4)*d(3)
+    end do
+  end if
 
   close(30)
 
