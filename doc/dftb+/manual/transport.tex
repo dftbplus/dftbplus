@@ -1,4 +1,3 @@
-
 \chapter{Transport calculations}
 \label{app:transp}
 
@@ -147,11 +146,11 @@ The Device blocks contains the following properties:
 \item[\is{FirstLayerAtoms}] defines the first atom of PLs in the device
   region. By default there is only one layer (the entire device
   region). Alternatively the user can manually reorder and group the atoms in
-  the structure into distinc layers for more efficient Green's function
+  the structure into distinct layers for more efficient Green's function
   calculations.
 
   The device layers, unlike the contact PLs, do not need to represent unit cell
-  repetitions. If the device geometry has specified princpal layers, these must
+  repetitions. If the device geometry has specified principal layers, these must
   be ordered in such a way that all the atoms within each of the layer are
   contiguous in space and adjacent layers must be placed next to each other in
   the structure. This ensures that the constructed hamiltonian and overlap are
@@ -165,7 +164,7 @@ The Device blocks contains the following properties:
 \begin{ptable}
   \kw{Id} & s &  & &  \\
   \kw{AtomRange} &2i& &  &  \\
-  \kw{PLShiftTolerance} & r & & 1e-5 & \\
+  \kw{PLShiftTolerance} & r & & 1E-5 & \\
   \kw{FermiLevel} &r& &  &  \\
   \kw{Potential} & r &  & 0.0 & \\
   \kw{WideBand} & l & & No & \\
@@ -197,9 +196,9 @@ PLs (tolerance for rule~\ref{rule4} of structures, i.e.\ that accuracy to which
   it should not be modified.
 \item[\is{FermiLevel}]\modif{\modtype{energy}} Specifies the Fermi level of the
   contact.
-\item[\is{Potential}]\modif{\modtype{energy}} Specifies any electrostatic
-  potential applied to the contact. The natural units of this quantity are a
-  potential energy.
+\item[\is{Potential}]\modif{\modtype{energy}} Specifies any additional
+  electrostatic potential applied to the contact. The natural units of this
+  quantity are a potential energy.
 \item[\is{WideBand}] Use the wide band approximation for the contact. If set to
   \is{Yes}, the surface Green's function of the contact is not explicitly
   calculated but is instead assumed to be local and constant according to a
@@ -207,7 +206,7 @@ PLs (tolerance for rule~\ref{rule4} of structures, i.e.\ that accuracy to which
 \item[\is{LevelSpacing}]\modif{\modtype{energy}} Specifies the inverse of the
   density of states (DOS) per atom to be used for the Wide Band
   approximation. As an example, the DOS of gold at the Fermi level is
-  0.05~ev$^{-1}$atom$^{-1}$, which corresponds to an energy spacing of 20~eV
+  0.05~eV$^{-1}$atom$^{-1}$, which corresponds to an energy spacing of 20~eV
   $\approx$0.735~Hartree (the default value).
 %\item[\is{WriteSelfEnergy}] Write the contact's self energy to a binary file
 %  matching its \is{contactId} and called \verb|contactId-SelfEnergy.mgf|.
@@ -357,9 +356,16 @@ Transport {
 {\bf Note:} During the transport calculation you will not need to set up the
 k-point integration when the structure is defined as a cluster, just as in a
 regular \dftbp{} calculation. For supercell calculations, integration
-perpendicular to the transport direction should be accurate, but the grid can
-have only a single value in the transport direction.
-
+perpendicular to the transport direction will need to be accurate, but the
+sampling grid can in the transport direction itself can have only a single
+value.  In the special case where your device is a supercell but also wire-like,
+with a vacuum region lateral to its transport direction, the Gamma-point can be
+chosen:
+\begin{verbatim}
+  KPointsAndWeights = {
+    0 0 0  1.0
+  }
+\end{verbatim}
 
 \htsection{GreensFunction}
 
@@ -380,12 +386,12 @@ self-consistent calculations can be driven using the GF solver.
 
 The following table gives the important parameters of the solver:
 \begin{ptableh}
-  \kw{Delta} & r  &  & 1e-5 & \\
+  \kw{Delta} & r  &  & 1E-5 & \\
   \kw{ContourPoints} & 2i &  & 20 20 &  \\
   \kw{LowestEnergy}  & r  &  & -2.0 & \\
   \kw{FermiCutoff}  & i & & 10 & \\
   \kw{EnclosedPoles} & i & & 3 & \\
-  \kw{RealAxisStep} & r & RealAxisPoints=undefined & 6.65e-4 & \\
+  \kw{RealAxisStep} & r & RealAxisPoints=undefined & 6.65E-4 & \\
   \kw{RealAxisPoints} & r & RealAxisStep=undefined &  & \\
   \kw{SaveSurfaceGFs} & l & & Yes & \\
   \kw{ReadSurfaceGFs} & l & & No & \\
@@ -401,10 +407,10 @@ only (see section~\ref{sec:transport.geometry}).
 \begin{description}
 \item[\is{Delta}]\modif{\modtype{energy}}\modif{\modtype{energy}} A small
   positive imaginary delta used in the GF definition and required for the
-  contour integration.
-  \item[\is{ContourPoints}] The number of points along the complex contour
-    integration of the GF along the segments $\mathcal{C}$ and $\mathcal{L}$
-    (see contour integration in section~\ref{sec:transport.contourint}).
+ x contour integration.
+\item[\is{ContourPoints}] The number of points along the complex contour
+  integration of the GF along the segments $\mathcal{C}$ and $\mathcal{L}$ (see
+  contour integration in section~\ref{sec:transport.contourint}).
 \item[\is{LowestEnergy}]\modif{\modtype{energy}}\modif{\modtype{energy}} The
   initial energy from which the integration starts. It should be low enough to
   ensure that all the electronic states are correctly included in the
@@ -470,7 +476,7 @@ GreensFunction section example:
 \begin{verbatim}
 Eigensolver = GreensFunction {
   FirstLayerAtoms = 1 61 92 145
-  Delta [eV] = 1e-4
+  Delta [eV] = 1E-4
   ContourPoints = 20 20
   RealPoints = 55
   LowestEnergy [eV] = -60.0
@@ -523,7 +529,7 @@ $2 \pi k_B T$, where $k_B$ is Boltzmann's constant.  At $T=300$~K this
 corresponds to a separation of 156~meV. It should be noted that, as the
 temperature decreases, the separation between poles reduces. This makes the
 contour integration harder as it needs to walk across two singularities. At very
-low temperatures, $T=10$~K, the separation is 5.2 meV. Below this temperature,
+low temperatures, $T=10$~K, the separation is 5.2~meV. Below this temperature,
 the contour integration is treated as $T=0$ in order to avoid numerical
 inaccuracies. The integration along the segment $\mathcal{L}$ extends up to
 $Re\left[ z \right] = E_F + n k_B T$, where $n$ is an integer number specified
@@ -562,31 +568,32 @@ undergoing debugging and testing.
 
 \section{Poisson solver}
 
-The Poisson solver is a fundamental part of the non-equilibrium transport
-calculations and must be declared whenever a NEGF calculation is performed using
-\is{Electrostatics = Poisson}. Under non-equilibrium conditions the
-self-consistent potential of the KS equations cannot be solved using the
-efficient $\gamma$-functional, but requires the definition of appropriate
-boundary conditions for the potentials imposed on the contacts. However, since
-the $\gamma$-functional is formally identical to a pure Hartree potential, it
-can be obtained in real space by solving a Poisson solver.  The Poisson equation
-is solved in a {\em box} with hexahedral prism shape. This restriction is
-imposed by the solver employed. This restricts calculations of supercell
-structures to orthorhombic super-lattices.  An additional restriction is that
-the box sides must be aligned with the Cartesian axes, x, y, z.
+The Poisson solver is a fundamental part of charge self-consistent
+non-equilibrium transport calculations and must be declared whenever an SCC NEGF
+calculation is performed using \is{Electrostatics = Poisson}. Under
+non-equilibrium conditions the self-consistent potential of the KS equations
+cannot be solved using the efficient $\gamma$-functional, but instead requires
+the definition of appropriate boundary conditions for the potentials imposed by
+the contacts. However, since the $\gamma$-functional is functionally related to
+a pure Hartree potential, it can be obtained in real space by solving a Poisson
+solver.  The Poisson equation is solved in a {\em box} with hexahedral prism
+shape. This restriction is imposed by the Poisson solver being employed. This
+restricts calculations of supercell structures to orthorhombic super-lattices.
+An additional restriction is that the box sides must be aligned with the
+Cartesian axes, $x$, $y$, $z$.
 
 \begin{ptableh}
   \kw{Verbosity} & i & & 51 & \\
   \kw{PoissonBox} & 3r & &  &  \\
   \kw{BoxExtension} & r &  & 0.0 &  \\
   \kw{MinimalGrid} & 3r  &  & 0.5 0.5 0.5 & \\
-  \kw{PoissonAccuracy} & r &  & 1e-7 &  \\
-  \kw{AtomDensityTolerance}  & r  &  & 1e-6 & \\
+  \kw{PoissonAccuracy} & r &  & 1E-7 &  \\
+  \kw{AtomDensityTolerance}  & r  &  & 1E-6 & \\
   \kw{AtomDensityCutoff}  & r  &  & 14.0 & \\
   \kw{CutoffCheck} & l & & Yes & \\
   \kw{NumericalNorm}  & l  &  & No & \\
   \kw{SavePotential} & l & & No & \\
-  \kw{PoissonAccuracy} & r & & 1e-6 & \\
+  \kw{PoissonAccuracy} & r & & 1E-6 & \\
   \kw{MaxPoissonIterations} & i & & 60 & \\
   \kw{BuildBulkPotential} & l & & Yes & \pref{Boundary Conditions}\\
   \kw{ReadOldBulkPotential} & l & & Yes & \pref{Boundary Conditions} \\
@@ -594,74 +601,76 @@ the box sides must be aligned with the Cartesian axes, x, y, z.
   \kw{OverrideBulkBC} & m & & none\{\} & \pref{Boundary Conditions}\\
   \kw{BoundaryRegion} & m & & global\{\} &  \pref{Boundary Conditions} \\
   \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\
-  \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelizations} \\
+  \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelisations} \\
   \kw{RecomputeAfterDensity} & l & & No & \\
 \end{ptableh}
 
 
 \begin{description}
-\item[\is{Verbosity}] This parameter controls the amount of output messages
-  and takes values ranging from 1 to 100.
+\item[\is{Verbosity}] This parameter controls the level and amount of output
+  messages and takes values ranging from 1 to 100.
 \item[\is{PoissonBox}]\modif{\modtype{length}} Dimension of the Poisson box
-  along directions x, y and z.
-\item[\is{BoxExtension}]\modif{\modtype{length}} With this value it is possible 
-  to tune the position of the box interface between the device and contacts.
-  By default (\is{BoxExtension}=0.0) the boundary is placed on the midpoint
-  between the last device atom and the first contact atom.
+  along the directions $x$, $y$ and $z$.
+
+  
+\item[\is{BoxExtension}]\modif{\modtype{length}} With this value it is possible
+  to tune the position of the box interface between the device and contacts.  By
+  default (\is{BoxExtension}=0.0) the boundary is placed at the midpoint between
+  the last device atom and the first contact atom.
 \item[\is{MinimalGrid}]\modif{\modtype{length}} The minimal requested grid
-  spacing along x, y and z. The actual grid spacing chosen by the multigrid will
-  be lower than this.
+  spacing along $x$, $y$ and $z$. The actual grid spacing chosen by the
+  multigrid solver will be lower than this.
 \item[\is{AtomDensityTolerance}] In order to calculate the potential, the
-  Mulliken charges are projected on the real space grid. This parameter
-  defines the cutoff after which the charge is considered vanish (i.e., the
-  space extension of the projected charge). The default is 1e-6. Note that the
-  contacts must be at least twice the length of the extent of a projected
-  Mulliken charge. If this conditions is not fulfilled and is set to Yes, the
-  code will exit with an error message. Setting this parameter to a lower
-  value could allow to define shorter contacts in some cases. However this
-  could lead to relevant error in the potential hence to spurious reflections,
-  therefore it should be left to default value or changed very carefully.
-\item[\is{AtomDensityCutoff}]\modif{\modtype{length}}  Defines the atomic radius
-  cutoff. This is alternative to \is{AtomDensityTolerance}.
-\item[\is{CutoffCheck}] If set to No, consistency between contact length and
-  charge extension is not verified (see above section). The default is No. As
-  for AtomDensityTolerance, this parameter shouldn't be touched unless you
+  Mulliken charges are projected on the real space grid. This parameter defines
+  the cutoff after which the charge is considered to vanish (i.e., the spatial
+  extension of the projected charge). The default is 1E-6~e. Note that the
+  contacts must be at least twice the length over which a projected Mulliken
+  charge extends. If this conditions is not fulfilled and \is{CutoffCheck} is
+  set to \is{Yes}, the code will exit with an error message. Setting this
+  parameter to a lower value could allow shorter contacts to be defined in some
+  cases. However this could lead to error in the potential and hence to spurious
+  reflections, therefore it should be left at its default value (or changed very
+  carefully).
+\item[\is{AtomDensityCutoff}]\modif{\modtype{length}} Defines the atomic radius
+  cutoff. This is an alternative to \is{AtomDensityTolerance} and directly
+  specifies the distance over which charge density associated with an atom is
+  considered to vanish.
+\item[\is{CutoffCheck}] If set to \is{No}, consistency between contact length
+  and charge extension is not verified (see \is{AtomDensityTolerance} and/or
+  \is{AtomDensityCutoff}). The default is \is{Yes}. As with
+  \is{AtomDensityTolerance}, this parameter should not be changed unless you
   know exactly what you're doing.
-\item[\is{SavePotential}] Save the potential to the file \verb|potential.dat| and 
-	the charge density to \verb|charge_density.dat|.
-  Additional files \verb|Xvector.dat|, \verb|Yvector.dat|, \verb|Zvector.dat| and
-  \verb|box.dat| are created. These files can be converted to a cube file that
-  can be visualised in jmol. See section on transport tools.
+\item[\is{SavePotential}] Save the electrostatic potential to the file
+  \verb|potential.dat| and the charge density to \verb|charge_density.dat|.
+  Additional files \verb|Xvector.dat|, \verb|Yvector.dat|, \verb|Zvector.dat|
+  and \verb|box.dat| are also created. These files can be converted to a cube
+  file that can be visualised in jmol. See section~\ref{sec:transport.tools}
+  about transport tools.
 \item[\is{PoissonAccuracy}] Defines the accuracy for the approximate solution of
   the Poisson equation (default value 10$^{-6}$).
-\item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
-  the solver.
-\item[\is{MaxPoissonIterations}] Defines the maximum amounts of iterations for
-  the solver.
-\item[\is{RecomputeAfterDensity}] When set to Yes the poisson solver is solved
-  again after the Density Matrix in order to make the electrostatic energy 
-  consistent with the newly updated charges. 
-  In transport calculations it is set to No by default in order to avoid 
-  the extra time spent on the Poisson step. This does not affect the SCC loop
-  nor other calculations beside the electronic energy.
+\item[\is{MaxPoissonIterations}] Defines the maximum number of iterations allowed
+  for the solver.
+\item[\is{RecomputeAfterDensity}] When set to \is{Yes}, Poisson's equation is
+  solved again after the density matrix is created in order to make the
+  electrostatic energy consistent with the newly updated charges.  In transport
+  calculations it is set to \is{No} by default in order to avoid the extra time
+  spent on the Poisson step. This does not affect the SCC loop or other
+  calculations apart from the electronic energy and forces.
 \end{description}
 
-{\bf Note}: The Poisson Box can be specified using the keyword
-\verb|PoissonBox|. In calculations in which the two contacts face each other
-along the same axis, setting the box-size along this axis has no effect because
-the code needs to adjust the correct size internally.  This keyword is redundant
-(and should not be specified) when the system is periodic, since in this case
-the Poisson box is taken from the supercell lattice vectors.
+{\bf Note}: The Poisson box can be specified using the keyword
+\verb|PoissonBox|. In calculations where two contacts face each other along the
+same axis, setting the box-size along this axis will has no effect (the code
+adjusts to the correct size internally). The \is{PoissonBox} keyword is
+redundant (and should not be specified) when the system is periodic, since in
+this case the box geometry is taken from the supercell lattice vectors.
 
 Numerical error in the potential will results in spurious discontinuities at the
-contact-device interfaces. The default tolerances should do the job in most
-cases.
+contact-device interfaces. The default tolerances should be sufficient to avoid
+this in most cases.
 
-This is a typical example of the whole Poisson block specification. Some of the
-keywords are described in the next subsections.
-
-Example:
-
+Below is a a typical example of the whole Poisson block specification. Some of
+the keywords are described in the next subsections.
 \begin{verbatim}
  Electrostatics = Poisson {
   PoissonBox [Angstrom] = 20.0 20.0 20.0
@@ -670,7 +679,7 @@ Example:
   BuildBulkPotential = Yes
   ReadOldBulkPotential = No
   BoundaryRegion = Global {}
-  PoissonAccuracy = 1e-7
+  PoissonAccuracy = 1E-7
   Gate = Planar{
       GateLength_l [Angstrom] = 10.0
       GateLength_t [Angstrom] = 20.0
@@ -682,42 +691,43 @@ Example:
 
 \htsubsection{Boundary Conditions}
 
-The Poisson equation is solved imposing special boundary conditions (BC) on the
-six faces of the Poisson Box. In basic transport calculations, comprising two
-contacts placed along the same axis, the BCs are chosen as follows:
-
-\begin{description}
-\item[Dirichlet] Fixed potentials on the two contact faces with values defined
-  by the applied potentials (see \is{UploadContacts}, \is{ContactPotentials}).
-\item[Neumann] Zero normal field on the remaining 4 lateral box faces.
-\end{description}
+The Poisson equation is solved imposing boundary conditions (BC) on the
+potential at the six faces of the Poisson Box. In transport calculations for
+non-supercell geometries comprising two contacts placed along the same axis, the
+BCs are chosen as follows:
+\begin{itemize}
+\item[Dirichlet] fixed potentials on the two contact faces with values defined
+  by the applied potentials (see \is{UploadContacts}).
+\item[Neumann] zero normal field on the remaining 4 lateral box faces
+\end{itemize}
 In periodic supercells the BCs are: {\bf Dirichlet} (fixed potentials) on the
 two contact faces with values defined by the applied potentials (see
-\is{UploadContacts}, \is{ContactPotentials}) and {\bf Periodic} on the remaining
-4 lateral box faces.
+\is{UploadContacts}) and {\bf Periodic} on the remaining 4 lateral box faces.
 
 In some specific cases Neumann BCs can be set on one contact. In order to do so
-it is necessary to use \verb|OverrideDefaultBC| (see below).
+it is necessary to use \is{OverrideDefaultBC} (see below).
 
-Device and contact potentials should smoothly join at the interface. In order to
-reach this goal the code computes the Bulk potential of each contact and uses
-the result as a BC on the contact face of the Poisson box. This is useful when
-the contact potential is not uniform due to charge rearrangements. The external
-applied contact potential is added to the bulk potential.  The user can
-deactivate this calculation with the keyword \kw{BuildBulkPotential}.
+The device and contact potentials should smoothly join at the interface. In
+order to achieve this the code computes the bulk potential of each contact and
+uses the result as a BC on the contact face of the Poisson box. This is useful
+when the contact potential is not uniform due to charge rearrangements. Any
+externally applied contact potential (\kw{Potential}) is added to the bulk
+potential.  The user can deactivate this calculation by setting the keyword
+\kw{BuildBulkPotential} to \is{No}.
 
 {\bf Note}: The bulk potential is computed on a special box that has ``lateral''
 sizes copied from the device box, and has the size of one PL along the contact
-direction. The BCs are --so to speak-- inherited from the device region. In
+direction. The BCs are---so to speak---inherited from the device region. In
 particular:
 \begin{enumerate}
-\item Along the contact direction periodic BCs are imposed.
-\item On the other four faces the BCs are copied from the device region.
+\item Along the contact direction periodic BCs are imposed on both faces.
+\item On the other four faces the BCs are copied from the device region
+  (supercell or cluster).
 \item The user can override this setting using \verb|OverrideBulkBC| (see
   below).
 \item When all four faces inherit Neumann BC (default for the device region),
-  these are ALL internally changed to Dirichlet, because the solver cannot
-  handle this situation that gives rise to a singular matrix.
+  these are {\em ALL} internally changed to Dirichlet, because the solver cannot
+  handle this situation as it gives rise to a singular matrix.
 \end{enumerate}
 
 \begin{description}
@@ -730,11 +740,10 @@ particular:
 \item[\is{BoundaryRegion}] Specifies how the Dirichlet boundary conditions are
   treated on each contact face of the Poisson box. It can be \kw{Global},
   \kw{Square} or \kw{Circle}. \kw{Global} means that the BC is applied to the
-  entire face of the box, whereas the other keywords imply that the Dirichlet
-  BC are applied on a cross-section projected on the contact face. This is
-  useful for instance when handling nanowire contacts, for which it is not
-  really consistent to impose a constant potential on the whole face of the
-  Poisson box.
+  entire face of the box, whereas the other keywords imply that the Dirichlet BC
+  are applied on a cross-section projected on the contact face. This is useful
+  for instance when handling nanowire contacts, for which it is not really
+  correct to impose a constant potential on the whole face of the Poisson box.
 \item[\is{BufferLength}]\modif{\modtype{length}} can be used to set the size of
   the boundary region beyond the atomistic size which is determined as the
   minimal circle or square containing all atoms of the contact cross-section.
@@ -751,8 +760,8 @@ BoundaryRegion = Circle {
 }
 \end{verbatim}
 
-In some special case it might be necessary to override the default BCs applied
-by the code on the Poisson equation. Currently this can be done using the
+In some special cases it might be necessary to override the default BCs applied
+by the code to the Poisson equation. Currently this can be done using the
 keywords: \verb|OverrideDefaultBC| and \verb|OverrideBulkBC|.
 
 \begin{description}
@@ -760,8 +769,8 @@ keywords: \verb|OverrideDefaultBC| and \verb|OverrideBulkBC|.
   above. It can be used to force Dirichlet or Neumann BCs along some specified
   directions or on one of the four lateral faces of the Poisson box.
 \item[\is{Boundaries}] is used to specify on which face different BCs must be
-  imposed. Assuming contacts along z, the keyword can be set any of xmin, xmax,
-  x, ymin, ymax, y.
+  imposed. Assuming contacts are aligned along $z$, the keyword can be set to be
+  any of \is{xmin}, \is{xmax}, \is{x}, \is{ymin}, \is{ymax} or \is{y}.
 \end{description}
 
 \begin{verbatim}
@@ -770,16 +779,16 @@ OverrideDefaultBC = Dirichlet {
 }
 \end{verbatim}
 
-For instance setting Dirichlet BC on \verb|Boundaries = xmin| imposes
-$\phi(x,y,z)=0$ on the face placed at $x=x_{\text{min}}$,
-\verb|boundaries = xmax| imposes $\phi(x,y,z)=0$ on the face placed at
-$x=x_{\text{max}}$. When Dirichlet needs to be forced on both faces, it is
+For instance, setting a Dirichlet BC on \verb|Boundaries = xmin| imposes
+$\phi(x,y,z)=0$ on the face placed at $x=x_{\text{min}}$, while
+\verb|boundaries = xmax| would impose $\phi(x,y,z)=0$ on the face placed at
+$x=x_{\text{max}}$. When Dirichlet needs to be forced on both faces it is
 possible to use either \verb|boundaries = xmin,xmax| or simply
 \verb|boundaries = x|. The same syntax can be used to impose conditions on more
 faces, using \verb|boundaries = x,y| or \verb|boundaries = x,ymin|.
 
 A similar strategy can be used to impose different boundary conditions on the
-contacts. For instance, a Neumann BC can be set on one contact face using
+contacts. For instance, a Neumann BC can be set on one contact face by using
 
 \begin{verbatim}
 OverrideDefaultBC = Neumann {
@@ -789,10 +798,11 @@ OverrideDefaultBC = Neumann {
 
 {\bf Note} that the user should know which face of the Poisson Box corresponds
 to the desired contact. Furthermore, if the user sets Neumann at all contacts
-the Poisson solver will not converge (singular matrix) unless Dirichlet is
-imposed somewhere else (e.g., a gate potential is present).
+the Poisson solver will not converge (singular matrix) unless the Dirichlet
+condition is imposed somewhere else (e.g., a gate potential is present).
 
-It is also possible to override default BCs when computing the bulk potential.
+It is also possible to override the default BCs when computing the bulk
+potential.
 
 \begin{description}
 \item[\is{OverrideBulkBC}] block is used to override bulk BC usually copied from
@@ -801,7 +811,7 @@ It is also possible to override default BCs when computing the bulk potential.
   \verb|OverrideDefaultBC|.
 \end{description}
 
-
+For example by choosing
 \begin{verbatim}
 OverrideBulkBC = Neumann {
       Boundaries = x, y
@@ -813,13 +823,13 @@ OverrideBulkBC = Neumann {
 \htsubsection{Electrostatic Gates}
 
 The option \kw{Gate} can be used to specify an electrostatic gate. Currently the
-gate type \kw{Planar} and \kw{Cylindrical} are allowed.  Restrictions. The
-planar gate must be placed with its face parallel to the x-z plane, i.e., the
-gate direction must be along y. At the same time the transport direction should
-be placed along the z-axis. The latter is not really a restriction but it gives
-meaning to ``longitudinal'' and ``transverse'' in the geometrical definitions of
-the gate lengths.  Example:
-
+available gate types are \kw{Planar} and \kw{Cylindrical}.  There are some
+restrictions as the planar gate must be placed with its face parallel to the x-z
+plane, i.e., the gate direction must be along y. At the same time the transport
+direction should be along the z-axis (i.e.\ perpendicular to the gate). The
+latter is not really a restriction but it gives meaning to ``longitudinal'' (l)
+and ``transverse'' (t) in the geometrical definitions of the gate
+lengths. Example:
 \begin{verbatim}
 Gate = Planar {
     GateLength_l [Angstrom] = 20.0
@@ -838,16 +848,16 @@ Gate = Cylindrical {
 The various options for the gates have the following meanings:
 \begin{description}
 \item[\is{GateLength\_l}]\modif{\modtype{length}} Sets the gate length along the
-  transport direction (assumed to be z). The gate is centred in the device
-  region.
-\item[\is{GateLength\_t}]\modif{\modtype{length}} Sets the gate transverse to
-  the transport direction (assumed to be x). The gate is centred in the device
-  region.
+  transport direction (always assumed to be $z$). The gate is centred in the
+  middle of the device region.
+\item[\is{GateLength\_t}]\modif{\modtype{length}} Sets the gate extent
+  transverse to the transport direction (assumed to be $x$). The gate is centred
+  in the middle of the device region.
 \item[\is{GateDistance}]\modif{\modtype{length}} Sets the distance of the gate
   from the centre axis of the device region.
 \item[\is{GatePotential}]\modif{\modtype{energy}} Sets the potential applied to
   the gate.
-\item[\is{GateRadius}]\modif{\modtype{length}} For cylindrical gate, sets the
+\item[\is{GateRadius}]\modif{\modtype{length}} For a cylindrical gate, sets the
   distance of the gate from the centre axis or gate radius.
 \end{description}
 
@@ -860,45 +870,44 @@ The various options for the gates have the following meanings:
 \end{ptableh}
 
 Note that the gate option has not be tested thoroughly and may still contain
-bugs.  Please report to the developers any problem encountered.
+bugs.  Please report any problems you encounter to the developers.
 
-Developments. In forthcoming releases also double gates will be possible.
+%Developments. In forthcoming releases also double gates will be possible.
 
-Similarly to a usual \dftbp{} calculation, the output from a Transport calculation
-will be generated in the \verb|detailed.out| and \verb|detailed.xml|. These
-files are self-documenting, i.e. you will find a human-readable description of
-the output data in the files themselves. After a transport calculation, the
-files will contain the transmission coefficient for every energy point and for
-every k point and the local density of states for every energy point and
-projection ranges specified in input. They will also contain the total current
-and the partial current for every k point. In a multi-terminal calculation, this
-data will be written for every terminal couple.
+%Similarly to a usual \dftbp{} calculation, the output from a Transport calculation
+%will be present in the \verb|detailed.out| and \verb|detailed.xml|. These
+%files are self-documenting, i.e. you will find a human-readable description of
+%the output data in the files themselves. After a transport calculation, the
+%files will contain the transmission coefficient for every energy point and for
+%every k point and the local density of states for every energy point and
+%projection ranges specified in input. They will also contain the total current
+%and the partial current for every k point. In a multi-terminal calculation, this
+%data will be written for every terminal couple.
 
-\htsection{Parallelizations}
+\htsection{Parallelisations}
 
 The code has been parallelised in two main parts. The Non-equilibrium Green's
 functions are computed by distributing the energy points along the contour and
 real axis calculations. Contour and real axis integrations are independent and
-separately distributed. Load balancing has to be taken care by the user. For
-instance if ContourPoints = \{20 20\} and RealAxisPoints = 60, by setting 10 MPI
-nodes, each node will handle 4 points along the contour and 6 points along the
-real axis.
+separately distributed. Load balancing has to be taken care of by the user. For
+instance if ContourPoints = \{20 20\} (i.e. 40 in total) and RealAxisPoints =
+60, by setting 10 MPI nodes, each node will handle 4 points along the contour
+and 6 points along the real axis.
 
-Mixed OpenMP/MPI calculations are possible. When compiling dftb+ the user should
-link against threaded mkl, rather than sequential. Numerical experiments show
-that best performance on multicore CPUs is generally obtained by running
-independent MPI processes on physical sockets, exploiting OpenMP multithreading
-on each socket. For instance NEGF can exploit threaded matrix-matrix
-products. The user can experiment by setting the environment variable\\
-OMP\_NUM\_THREADS.
+Mixed OpenMP/MPI calculations are possible. When compiling \dftbp{} the user
+should link against threaded BLAS/MKL, rather than sequential. Numerical
+experiments show that best performance on multicore CPUs is generally obtained
+by running independent MPI processes on physical sockets and exploiting OpenMP
+multithreading within each socket. For instance NEGF can exploit threaded
+matrix-matrix products. The user can experiment by setting the environment
+variable\\ {\tt OMP\_NUM\_THREADS}.
 
-The Poisson solver has not been parallelized yet. However the efficient
-multigrid solver does not typically represent a bottleneck. Currently the
-assembly of the charge density on the real-space grid and the projection of the
-potential onto the atoms have been parallelized. Since the gathering of the
-charge density on each node can easily hit communication bottlenecks, the user
-can use the parameter \kw{MaxParallelNodes} to control distributions of these
-calculations. The default is \kw{MaxParallelNodes}=1, that can be increased
+The Poisson solver itself has not been parallelised yet. Currently the assembly
+of the charge density on the real-space grid and the projection of the potential
+onto the atoms has been parallelised. Since the gathering of the charge density
+on each node can easily hit communication bottlenecks, the user can use the
+parameter \kw{MaxParallelNodes} to control distributions of these
+calculations. The default is \kw{MaxParallelNodes}=1, this can be increased
 until speedups are observed.
 \begin{ptable}
  \kw{MaxParallelNodes} & i & & 1 &  \\
@@ -910,8 +919,8 @@ section~\ref{sec:dftbp.Parallel}) are not supported.
 \section{Analysis}
 \label{sec:transport.Analysis}
 
-The \kw{Analyis} block is used to specify post-scf calculations such as
-tunneling or projected DOS.
+The \kw{Analysis} block is used to specify post-scf calculations such as
+tunnelling or projected DOS.
 
 \begin{verbatim}
 Analysis{
@@ -926,11 +935,10 @@ Analysis{
 \htsection{TunnelingAndDos}
 
 This method block can be specified in \is{Analysis} \pref{sec:dftbp.Analysis}
-and it is used to calculate the transmission by means of Caroli formula, the
-current by means of Landauer formula and the Density of States from the spectral
-function. This block can only be specified if an open boundary system has been
-defined in \is{Transport} (see p.\pref{Transport}).
-
+and it is used to calculate the transmission by means of the Caroli formula, the
+current by means of the Landauer formula and the density of states from the
+spectral function. This block can only be specified if an open boundary
+conditions system has been defined in \is{Transport} (see p.\pref{Transport}).
 \begin{ptable}
   \kw{EnergyRange} & 2r &  & &  \\
   \kw{EnergyStep} & r & &  &  \\
@@ -946,30 +954,30 @@ defined in \is{Transport} (see p.\pref{Transport}).
 
 \item[\is{EnergyRange}]\modif{\modtype{energy}} Contains the energy range over
   which the transmission function and local density of states are computed.
-\item[\is{EnergyStep}]\modif{\modtype{energy}} Is the energy sampling step.
-\item[\iscb{TerminalCurrents}] in multiterminal configurations is used to define
+\item[\is{EnergyStep}]\modif{\modtype{energy}} Is the energy sampling step for
+  evaluating properties.
+\item[\iscb{TerminalCurrents}] in multi-terminal configurations is used to define
   the terminal across which current must be computed. The terminal pairs are
-  defined by using the keyword \is{EmitterCollector}. example:
-
+  defined by using the keyword \is{EmitterCollector}, for example:
    \begin{verbatim}
     TerminalCurrents{
        EmitterCollector = {"source" "drain"}
        EmitterCollector = {"source" "gate"}
     }
   \end{verbatim}
-
   The block \is{TerminalCurrents} may be omitted since the code automatically
   sets all possible independent combinations for the terminal currents. For
-  example in a 4-contact calculations the currents are 1-2, 1-3, 1-4, 2-3, 2-4,
-  3-4.
+  example in a 4-contact calculations the currents are 1--2, 1--3, 1--4, 2--3,
+  2--4 and 3--4.
 \item[\iscb{Region}] \label{Region} This block defines atomic ranges or orbitals
-  where the local density of states is calculated projected. The definition in
-  the block follow the same syntax as a \dftbp{} calculation without transport.
+  on to which the local density of states is projected. The definition in the
+  block follow the same syntax as a \dftbp{} calculation without transport (see
+  section~\ref{sec:dftbp.ProjectStates}).
 \item[\is{WriteTunn}] The transmission coefficients are written also to a
-  separate file for quick reference. If set to No, the transmission coefficient
-  are only written to \dftbp{} output files (detailed.out and detailed.xml,
-  autotest.tag).
-\item[\is{WriteLDOS}] same as above, for the density of states.
+  separate file for quick reference. If set to \is{No}, the transmission
+  coefficient are only written to \dftbp{} output files (detailed.out and
+  detailed.xml, autotest.tag).
+\item[\is{WriteLDOS}] same as above, but for the density of states.
 
 \end{description}
 
@@ -1071,54 +1079,59 @@ defined in \is{Transport} (see p.\pref{Transport}).
 %   }
 %   \end{verbatim}
 
-\section{Troubleshooting}
+\section{Troubleshooting transport}
 
-\dftbp{} transport machinery is designed to calculate transport in structures
-with a large number of atoms. To take full advantage of the iterative algorithm,
-be sure that the system is correclty partitioned in Principal Layers, as
-described in Transport and Green's solver sections. Be aware that a wrong
-partitioning will lead to wrong results. If you're not completely confident, you
-can run a calculation on a test system with and without partitioning and the
-results should be the same.
+The \dftbp{} transport machinery is designed to calculate transport in
+structures with a large number of atoms. To take full advantage of the iterative
+algorithm, be sure that the system is correctly partitioned into Principal
+Layers, as described in section~\ref{sec:dftbp.ProjectStates}. Be aware that an
+incorrect partitioning will lead to wrong results. If you are not completely
+confident, you can run a calculation on a test system with and without principal
+layer partitioning in the device region and the results {\em should} be the
+same.
 
 
 On some systems, a \verb|Segmentation Fault| error could occur while running
-relatively large structures. This could happen because the stack memory limit
-has been exceeded. You can troubleshoot this setting a higher limit for the
-stack memory. In bash you can remove stack memory limitation with the command
-line \verb|ulimit -s unlimited|.
+relatively large structures. This can happen because the stack memory limit on
+your system has been exceeded (the Intel compiler for example can show this
+behaviour). You can troubleshoot this by setting a higher limit for the stack
+memory. In bash you can remove the stack memory limitation with the command line
+\verb|ulimit -s unlimited|.
 
 \section{Transport Tools}
+\label{sec:transport.tools}
 
-Some tools useful for transport calculations can be found in tools/misc/transport.
+Some tools useful for transport calculations can be found in
+tools/misc/transport.
 
 \verb|buildwire|
 
-This tool can be used to create a one-dimensional nanowire, ready for transport 
-calculations. A Principal Layer must be defined in a gen file complete with 
-supercell information. 
-The code needs as input the number of PLs in the device region. Additionally,
-2 PLs for each contact are added.
+This tool can be used to create a one-dimensional nanowire, ready for transport
+calculations. A Principal Layer must be defined as a gen file, complete with
+supercell information.  The code needs as input the number of PLs in the device
+region and the direction of the device. The resulting geometry will include 2
+PLs for each contact and the specified number of PL repeats in the device
+region.
 
 
 \verb|flux|
 
-Can be used to visualize local bond currents in a junctions. The code reads the
-output files lcurrents.dat and writes out a script for jmol with arrows of
-different length/thickness. 
+This can be used to visualise the local bond currents in a junctions. The code
+reads the output files lcurrents.dat and writes out a script for jmol with
+arrows of different length/thickness for the currents.
 
 
 \verb|makecube|
 
 This program can be used to convert the real-space \verb|potential.dat| or
-\verb|charge_density.dat| files computed on the poisson box to a cube file that
+\verb|charge_density.dat| files computed on the Poisson box to a cube file that
 can be plotted using jmol.
 
 \begin{verbatim}
  makecube potential.dat [-r refpot] [-b boxfile xfile yfile zfile]
 \end{verbatim}
 
-Optionals:
+Options:
 
  -r  refpot provides a reference potential that is subtracted from potential.dat
      For instance it is possible to subtract the equilibrium potential from the
@@ -1127,7 +1140,7 @@ Optionals:
  -b  The code reads by default the files box.dat, X,Y,Zvector.dat, but 
      different filenames can be given with this flag
 
-Once the cube file has been created it can be read into jmol and visualized
+Once the cube file has been created it can be read into jmol and visualised
 using the following script,
 \begin{verbatim}
 script colormap128.jmol
@@ -1135,7 +1148,7 @@ load "structure.xyz"
 isosurface pl1 fullplane plane {-1.2 0.8 0 0} color range all colorscheme 'user' 'potential.cube'
 \end{verbatim}
 
-Notice that the 128 palette colormap is provided in the tool folder.
-Also note that the structure should be converted to xyz to be read into jmol.
+Notice that a 128 palette colour map is provided in the tool folder. Also note
+that the structure should be converted to xyz to be read into jmol.
 
 
