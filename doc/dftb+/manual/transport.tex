@@ -166,6 +166,7 @@ The Device blocks contains the following properties:
   \kw{Id} & s &  & &  \\
   \kw{AtomRange} &2i& &  &  \\
   \kw{PLShiftTolerance} & r & & 1e-5 & \\
+  \kw{Temperature} & r & & 0.0 & \\
   \kw{FermiLevel} &r& &  &  \\
   \kw{Potential} & r &  & 0.0 & \\
   \kw{WideBand} & l & & No & \\
@@ -195,6 +196,9 @@ PLs (tolerance for rule~\ref{rule4} of structures, i.e.\ that accuracy to which
   default is $10^{-5}$ atomic units. Please be aware that using a large values
   may hide errors due to an inconsistent definition of the contacts, therefore
   it should not be modified.
+\item[\is{Temperature}]\modif{\modtype{energy}} Specifies the electronic
+  temperature of the contact (see a more detailed discussion after the section 
+  \"Analysis\").
 \item[\is{FermiLevel}]\modif{\modtype{energy}} Specifies the Fermi level of the
   contact.
 \item[\is{Potential}]\modif{\modtype{energy}} Specifies any electrostatic
@@ -933,6 +937,7 @@ defined in \is{Transport} (see p.\pref{Transport}).
   \kw{EnergyRange} & 2r &  & &  \\
   \kw{EnergyStep} & r & &  &  \\
   \kw{TerminalCurrents} &p& & & \\
+  \kw{ContactTemperature} & Nr& & T$_{elec}$ & \\
   \kw{Region} & p & & & \pref{Region} \\
   \kw{WriteTunn} & l & & Yes & \\
   \kw{WriteLDOS} & l & & Yes & \\
@@ -960,6 +965,9 @@ defined in \is{Transport} (see p.\pref{Transport}).
   sets all possible independent combinations for the terminal currents. For
   example in a 4-contact calculations the currents are 1-2, 1-3, 1-4, 2-3, 2-4,
   3-4.
+\item[\is{ContactTemperature}]\modif{\modtype{energy}} Specifies the electronic
+  temperature of the contacts for the calculation of currents. It expects an
+  array of reals, one value per contact following the order given in \is{Transport}.
 \item[\iscb{Region}] \label{Region} This block defines atomic ranges or orbitals
   where the local density of states is calculated projected. The definition in
   the block follow the same syntax as a \dftbp{} calculation without transport.
@@ -970,6 +978,30 @@ defined in \is{Transport} (see p.\pref{Transport}).
 \item[\is{WriteLDOS}] same as above, for the density of states.
 
 \end{description}
+
+\section{Setting electronic temperature}
+
+In the current state of the code the electronic temperature of the system 
+can be set in different places. One place is within the Hamiltonian block
+in the \is{Filling} section. The Temperature specified here is effective 
+for the whole device and applies to contact calculations as well. 
+Note that during contact calculations the temperature is read from 
+the \is{Filling} section and *not* from the contact section. 
+During contact calculations only Fermi filling make sense.
+
+When a temperature is specified in the \is{Contact} section of the \is{Transport} 
+block, it overrides the system temperature specified in \is{filling}.
+
+\bf{Note} that the current behaviour is going to be changed soon. 
+
+It is also possible to specify a (different) temperature in the section
+\is{TunnelingAndDOS}, within the block \is{Analysis}. The latter applies only 
+in the calculation of currents (integration of the transmission function).
+
+Although slightly inconsistent, in some cases it is useful to set a somewhat 
+larger temperature in the calculation of the density as it helps convergence 
+of the self-consistent loop, but compute currents with a different temperature.
+
 
 % ============================================================================
 % NOTE: The scattering part is still under development
