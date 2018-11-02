@@ -1,0 +1,70 @@
+Geometry = GenFormat {
+5  C
+ C H
+ 1  1  0.000000000000000  0.000000000000000  0.000000000000000
+ 2  2  0.000000000000000  0.000000000000000  1.100000000000000
+ 3  2  1.131370849898476  0.000000000000000 -0.200000000000000
+ 4  2 -0.565685424949238  0.879795897113271 -0.400000000000000
+ 5  2 -0.465685424949238 -0.979795897113271 -0.400000000000000
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-8       # Extremely small
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+  } 
+  Filling = Fermi { 
+	Temperature [K] = 300
+  } 
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Eigensolver = GreensFunction {
+    FermiLevel [eV] = -1.1323467421881201
+    Delta = 1.0e-5
+    ContourPoints = { 40 100 }
+    EnclosedPoles = 6 
+    LowestEnergy = -2.0
+    FermiCutoff = 35
+    Verbosity = 66 
+  }
+ 
+} 
+
+Analysis {
+   #LDOS {
+   #   EnergyRange [eV] = -3.0 -1.0
+   #   EnergyStep [eV] = 0.02 
+   #   Delta = 1.0e-2   
+   #   # add delta in transportinfo%delta
+   #   Region{
+   #     Atoms = 1
+   #   }
+   #   Region{
+   #     Atoms = 2:4
+   #   }
+   #}
+   CalculateForces = Yes
+}
+
+Parallel{
+  Blacs{BlockSize = 2}
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes  
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+  WriteXMLInput = Yes
+}

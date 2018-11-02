@@ -67,6 +67,7 @@ scc/GaAs_2                             #? MPI_PROCS <= 1
 scc/GaAs_2_customU                     #? MPI_PROCS <= 1
 spinorbit/Fe2_dual                     #? MPI_PROCS <= 2
 spinorbit/Fe2_dual_field               #? MPI_PROCS <= 2
+spinorbit/Fe2_dual_Fermi               #? MPI_PROCS <= 2
 spinorbit/Si_2                         #? MPI_PROCS <= 1
 dispersion/DNA_uff                     #? MPI_PROCS <= 4
 
@@ -86,6 +87,7 @@ spinorbit/Fe2                          #? MPI_PROCS <= 2
 analysis/Fe2_antiferromagnetic         #? MPI_PROCS <= 2
 non-scc/10-0Ctube_Efield               #? MPI_PROCS <= 4
 non-scc/10-10Ctube                     #? MPI_PROCS <= 4
+non-scc/Ctube_Fermi                    #? MPI_PROCS <= 4
 analysis/10-0Ctube_ESP                 #? MPI_PROCS <= 4
 md/H2O-extfield                        #? MPI_PROCS <= 1
 non-scc/10-0Ctube                      #? MPI_PROCS <= 4
@@ -183,3 +185,19 @@ geoopt/Vsi+O_lbfgs                     #? MPI_PROCS <= 4
 geoopt/Vsi+O                           #? MPI_PROCS <= 4
 scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0
 scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
+
+transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
+transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2
+transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-sheet                      #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-3conts                     #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/SiH-chain                    #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/SiH-chain-cont               #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/SiH-cont-poiss               #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/graphene_x                   #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/graphene3T                   #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/Au-chain                     #? WITH_TRANSPORT and MPI_PROCS <= 4
