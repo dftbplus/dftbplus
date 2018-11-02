@@ -1563,6 +1563,10 @@ contains
 
   #:endif
 
+    if (tNegf .and. tSpin) then
+      call error("Spin polarization currently disabled for transport calculations.")
+    end if
+
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
     tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
