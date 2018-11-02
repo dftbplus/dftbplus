@@ -501,65 +501,67 @@ which require forces, including geometry relaxations or md calculations.
 \section{Contour integration}
 \label{sec:transport.contourint}
 
-Much of the computational work is in the integration of the energy resolved
-density matrix, represented via the NEGF matrix. The integration is efficiently
-performed with a complex contour integration and a real axis integration, as
-shown in Figure~\ref{fig:contour} and discussed in
+Much of the computational work for transport is in the integration of the energy
+resolved density matrix, as represented via the NEGF matrix. The integration is
+efficiently performed with a complex contour integration and a real axis
+integration, as shown in Figure~\ref{fig:contour} and discussed in
 references~\cite{Pecchia_spring, Pecchia_RPP, Pecchia_NJP}.
 \begin{figure}[!h]
-\begin{center}
-\includegraphics[width=8.0cm]{Fig_integration.png}
-\caption{ \label{fig:contour} Contour integration in the complex plane for the
-  Green's functions. The crosses represent poles of either $G^r$ or the Fermi
-  function.}
-\end{center}
+  \begin{center}
+    \includegraphics[width=8.0cm]{Fig_integration.png}
+    \caption{ \label{fig:contour} Contour integration in the complex plane for
+      the Green's functions. The crosses represent poles of either $G^r$ or the
+      Fermi function.}
+  \end{center}
 \end{figure}
 All integrations are performed with Gaussian quadratures and the number of
 points must be specified manually. The complex contour integration is subdivided
-into two sections: the first section is an arc of circle, $\mathcal{C}$, that
-can be computed with few integration points (default 20); the second section is
-a line that intersects the contour and runs parallel to the real axis at a
-distance that depends on the number of poles of the Fermi function enclosed
-within the contour. Usually a good choice for the number of poles is between 3
-and 5 (the default is 3). The poles are placed at the complex points $z_m = E_F
-+ i (2m+1) \pi k T$ and, therefore, are separated from each other by $2 \pi k
-T$.  At $T=300$~K this corresponds to a separation of 156~meV. It should be
-noted that, as the temperature decreases, the separation between poles
-reduces. This makes the contour integration harder as it needs to walk across
-two singularities. At very low temperatures, $T=10$~K, the separation is 5.2
-meV. Below this temperature the contour integration is treated as $T=0$ in order
-to avoid numerical inaccuracies. The integration along the segment $\mathcal{L}$
-extends up to $Re\left[ z \right]=E_F+nkT$, where $n$ is an integer number
-specified by the keyword \kw{FermiCutoff} and has a default value of 10.  In the
-limit $T=0$~K the poles collapse into a non-analytic cut and the contour needs
+into two sections: the first section is the arc of a circle, $\mathcal{C}$, that
+can be computed with a few integration points (default 20); the second section
+is a line that intersects the contour and runs parallel to the real axis at a
+distance that depends on the number of poles of the Fermi function that are
+enclosed within the contour. Usually a good choice for the number of poles is
+between 3 and 5 (the default is 3). The poles are placed at the complex points
+$z_m = E_F + i (2m+1) \pi k_B T$ and therefore are separated from each other by
+$2 \pi k_B T$, where $k_B$ is Boltzmann's constant.  At $T=300$~K this
+corresponds to a separation of 156~meV. It should be noted that, as the
+temperature decreases, the separation between poles reduces. This makes the
+contour integration harder as it needs to walk across two singularities. At very
+low temperatures, $T=10$~K, the separation is 5.2 meV. Below this temperature,
+the contour integration is treated as $T=0$ in order to avoid numerical
+inaccuracies. The integration along the segment $\mathcal{L}$ extends up to
+$Re\left[ z \right] = E_F + n k_B T$, where $n$ is an integer number specified
+by the keyword \kw{FermiCutoff} and has a default value of 10.  In the limit
+$T=0$~K the poles collapse into a non-analytic branch cut and the contour needs
 to be changed such that the second section of the complex contour becomes the
 arc of circle closing on the real axis.  Finally, the real axis integration
 extends between the lowest and highest chemical potentials. The number of
 quadrature points should depend on the bias itself and can be set using
-\kw{RealAxisPoints} or \kw{RealAxisStep}. The default value is
-$1\text{~pt}/0.018\text{~eV}$ (actually $1500\text{~pt}/1\text{~H}$). In finite
+\kw{RealAxisPoints} or \kw{RealAxisStep}. The default value is $1\text{~pt} /
+0.018\text{~eV}$ (actually $1500\text{~pt} / 1\text{~Hartree}$). In finite
 temperature calculations the segment is extended to include the Fermi cutoff by
-$nkT$ on both sides ($\mu_1-nkT, \mu_2+nkT$). In this case the number of
-quadrature points are increased by assuming the same point density defined in
-the range ($\mu_1, \mu_2$).  Example: for a bias of 0.2 V, the default number of
-points is $0.2\cdot1500/27.21139=11$. At $T=300$~K the interval is increased by
-0.26~eV on both sides, therefore $0.26\cdot1500/27.21139=14.33$ which is
-truncated to 14 points, leading to a total of 38 points along the real axis. The
-use of the keyword \kw{RealAxisStep} is usually more convenient because it
-ensures a consistent real axis integrations during, for example, a bias sweep.
+$n k_B T$ on both sides ($\mu_1 - n k_B T, \mu_2 + n k_B T$). In this case the
+number of quadrature points are increased by assuming the same point density
+defined in the range ($\mu_1, \mu_2$).  Example: for a bias of 0.2~V, the
+default number of points is $0.2 \cdot 1500 / 27.21139 = 11$. At $T=300$~K the
+interval is increased by 0.26~eV on both sides, therefore $0.26 \cdot 1500 /
+27.21139 = 14.33$ which is truncated to 14 points, leading to a total of 38
+points along the real axis. The use of the keyword \kw{RealAxisStep} is usually
+more convenient because it ensures a consistent real axis integrations during,
+for example, a bias sweep.
 
 Note: The GF solver can be used also for calculations other than the transport
-context. In case the position of the Fermi Energy is known with good accuracy
-the density matrix solver based on the GF can be used to compute the electronic
-properties of clusters and supercells. The recursive algorithm may be an
-efficient solution to large problem and could be efficient for systems having an
-elongated 1D shape.
+context. In cases where the position of the Fermi Energy is known with good
+accuracy, the density matrix solver based on the GF can be used to compute the
+electronic properties of clusters and supercells. The recursive algorithm may be
+an efficient solution to large problems having an elongated one dimensional
+shape.
 
 \section{Spin-polarised transport}
 
-Spin-polarised transport is not available yet. In fact collinear spin transport will be available
-soon, as all the needed machinery has been implemented and is under debugging and testing.
-
+Spin-polarised transport is not available yet. Collinear spin transport will be
+available soon, as all the needed machinery has been implemented and is
+undergoing debugging and testing.
 
 
 \section{Poisson solver}

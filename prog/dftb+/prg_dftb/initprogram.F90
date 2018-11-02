@@ -1563,9 +1563,20 @@ contains
 
   #:endif
 
-    if (tNegf .and. tSpin) then
-      call error("Spin polarization currently disabled for transport calculations.")
+    ! temporary disables for various issues with NEGF
+    if (tNegf) then
+      if (tSpin) then
+        call error("Spin polarization temporarily disabled for transport calculations.")
+      end if
+      if (tDFTBU) then
+        call error("Orbital potentials temporarily disabled for transport calculations.")
+      end if
+      if (tExtChrg) then
+        call error("External charges temporarily disabled for transport calculations&
+            & (electrostatic gates are available).")
+      end if
     end if
+
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
