@@ -217,9 +217,9 @@ contains
       ! spin channels share common overlap, no k-points, purely real calculation
       allocate(electronicSolver%tCholeskiiDecomposed(1))
     else
+      ! Labels for the local parts of the overlap matrix
       allocate(electronicSolver%tCholeskiiDecomposed(parallelKS%nLocalKS))
     end if
-    electronicSolver%tCholeskiiDecomposed = .false.
   #:endif
 
     ! Main geometry loop
@@ -229,7 +229,7 @@ contains
 
     #:if WITH_SCALAPACK
       ! prompt eigenvecs routines to store Choleskii factors
-      electronicSolver%tCholeskiiDecomposed = .false.
+      electronicSolver%tCholeskiiDecomposed(:) = .false.
     #:endif
 
     #:if WITH_ELSI
@@ -375,6 +375,25 @@ contains
 
         ! All potentials are added up into intBlock
         potential%intBlock = potential%intBlock + potential%extBlock
+
+      #:if  WITH_ELSI
+        if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
+          ! update Delta V ranges here for PEXSI
+          if (tSccCalc) then
+            electronicSolver%ELSI_PEXSI_DeltaVmin =&
+                & minval(electronicSolver%ELSI_PEXSI_VOld&
+                & -reshape(potential%intBlock(:,:,:,1)+potential%extBlock(:,:,:,1),&
+                & [size(potential%extBlock(:,:,:,1))]))
+            electronicSolver%ELSI_PEXSI_DeltaVmax =&
+                & maxval(electronicSolver%ELSI_PEXSI_VOld&
+                & -reshape(potential%intBlock(:,:,:,1)+potential%extBlock(:,:,:,1),&
+                & [size(potential%extBlock(:,:,:,1))]))
+            electronicSolver%ELSI_PEXSI_VOld = reshape( &
+                & potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+                & [size(potential%extBlock(:,:,:,1))] )
+          end if
+        end if
+      #:endif
 
         ! Compute the SCC Hamiltonian
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
@@ -2066,7 +2085,6 @@ contains
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-      ! libOMM, PEXSI, NTPoly
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
