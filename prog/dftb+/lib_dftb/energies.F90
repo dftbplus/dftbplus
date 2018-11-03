@@ -75,6 +75,10 @@ module energies
     !> Gibbs free energy including kinetic energy
     real(dp) :: EGibbsKin = 0.0_dp
 
+    !> Energy or free energy which is related to the forces via the Helmann-Feynman theorem. This is
+    !> used for example in geometry optimisation or energetic comparisions.
+    real(dp) :: EForceRelated = 0.0_dp
+
     !> atom resolved repulsive
     real(dp), allocatable :: atomRep(:)
 

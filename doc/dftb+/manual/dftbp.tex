@@ -1864,8 +1864,11 @@ options:
   system. For collinear spin polarisation, values for up and down spin channels
   are required. Otherwise only a single global chemical potential is
   required. If this option is present, the total charge and the total spin of
-  the system are not conserved. (Settings in the options \is{Charge} and
-  \is{UnpairedElectrons} will be ignored.)
+  the system are not conserved (settings in the options \is{Charge} and
+  \is{UnpairedElectrons} will be ignored). If a fixed chemical potential is
+  used, the output {\em force related energy} includes the contribution to the
+  free energy, $- N \mu$, hence if differentiated will give the forces and
+  stresses (if periodic).
 \end{description}
 
 \subsubsection{Fermi\{\}}
@@ -3311,7 +3314,9 @@ the code. They only take effect, if the code was compiled with MPI-support.
   different process groups are working on different k-points and spins at the
   same time. The number of process groups must be a divisor of the total number
   of MPI-processes. Default: 1 (all processes work at the same k-point and spin
-  at a given time).
+  at a given time). Note that transport calculations between contacts are
+  currently incompatible with multiple process groups (see
+  section~\ref{app:transp}).
 
 \item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
   MPI/OpenMP-parallelisation). In order to prevent you from accidently running

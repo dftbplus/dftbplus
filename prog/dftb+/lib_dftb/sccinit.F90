@@ -20,7 +20,6 @@ module sccinit
 
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
 
-
   !> Used to return runtime diagnostics
   character(len=120) :: error_string
 

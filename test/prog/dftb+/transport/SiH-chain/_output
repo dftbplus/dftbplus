@@ -1,0 +1,234 @@
+================================================================================
+==
+==   Density Functional based Tight Binding with a lot of extensions (DFTB+)    
+==
+==                          Unofficial release (r3289)
+==
+==                            (ParserVersion = 3)
+==
+================================================================================
+
+
+********************************************************************************
+** Parsing and initializing
+********************************************************************************
+
+Interpreting input file 'dftb_in.hsd'
+--------------------------------------------------------------------------------
+
+
+Processed input in HSD format written to 'dftb_pin.hsd'
+
+Starting initialization...
+--------------------------------------------------------------------------------
+ Contact Upload = T
+ Contact Calculation = F
+ Use GF solver = T
+ Use Poisson solver = T
+ N. of contacts=           2
+ Initializing gdftb library...
+=========================================================================
+                             READ PAR.IN
+=========================================================================
+ Conversion factor Ang/a.u.  0.529177249000000     
+ Conversion factor eV/a.u.   27.2113845000000     
+ Machine accuracy  2.220446049250313E-016
+ Temperature for electronic distribution=  0.000000000000000E+000
+ Np=  40  40  25  20
+ Contour parameters: LmbMax=  0.500000000000000      N_omega=          35
+ Delta for Green's function=  1.000000000000000E-004
+ ReadOldSGF= F
+ Bias=  0.000000000000000E+000 BiasDir=           3
+ DoPoisson= T
+ Input PoissonBox=
+   20.0000000000000       0.000000000000000E+000  0.000000000000000E+000
+  0.000000000000000E+000   20.0000000000000       0.000000000000000E+000
+  0.000000000000000E+000  0.000000000000000E+000   1.00000000000000     
+ MinPoissonGrid (x direction)=  0.300000000000000     
+ MinPoissonGrid (y direction)=  0.300000000000000     
+ MinPoissonGrid (z direction)=  0.300000000000000     
+ PoissAcc=  1.000000000000000E-007
+ BulkBoundaryPot= T
+ Atomic orbital radius=   7.05000000000000     
+ PoissPlane=  0.000000000000000E+000  0.000000000000000E+000
+ MaxSCCiter=          30
+ BroydenMix=  0.200000000000000     
+=========================================================================
+ DEVICE SECTION
+ atoms =           1           8
+ CONTACT #  1
+ Atom start =      9
+ Atom end =     24
+ direction:  3
+ ncdim=          16
+ Fermi Level=  -8.35865800000000      eV
+ mu=  0.000000000000000E+000 V
+ CONTACT #  2
+ Atom start =     25
+ Atom end =     40
+ direction: -3
+ ncdim=          16
+ Fermi Level=  -8.35865800000000      eV
+ mu=  0.000000000000000E+000 V
+ MOLECULE
+ Atom start =      1
+ Atom end =      8
+ nmdim=           8
+  
+=========================================================================
+Mode:                        Static calculation
+Self consistent charges:     Yes
+SCC-tolerance:                 0.100000E-07
+Max. scc iterations:                    100
+Spin polarisation:           No
+Nr. of up electrons:            20.000000
+Nr. of down electrons:          20.000000
+Periodic boundaries:         No
+Diagonalizer:                Relativel robust (version 2)
+Mixer:                       Broyden mixer
+Mixing parameter:                  0.200000
+Maximal SCC-cycles:                     100
+Nr. of chrg. vec. in memory:            100
+Electronic temperature:        0.100000E-07
+Initial charges:             Set automatically (system chrg:   0.000E+00)
+Included shells:             Si:  S
+                              H:  S
+Extra options:
+--------------------------------------------------------------------------------
+ 
+
+********************************************************************************
+** Geometry step: 0
+********************************************************************************
+
+         iSCC Total electronic   Diff electronic      SCC error    
+-------------------------------------------------------------------------
+ Poisson Box internally adjusted:
+x range=   -10.00000    10.00000  F
+y range=    -9.25000    10.75000  F
+z range=    -3.35000    10.40000  F
+ Mesh details:
+ Lx=    20.000  nx= 129   dlx=  0.15625
+ Ly=    20.000  ny= 129   dly=  0.15625
+ Lz=    13.750  nz=  65   dlz=  0.21484
+-------------------------------------------------------------------------
+ Memory required for Poisson:   127.686192000000      Mb
+ Memory required for bulk potential   8.78644800000000      Mb
+Compute bulk potential ...............................   13.72080     sec
+Building charge density ..............................   1.080900     sec
+Solving Poisson equation .............................   3.466700     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  9.421629605208780E-008
+ number of cycles executed =  8/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.4457000     sec
+scfsum:    1   -0.30701603E+01    0.00000000E+00    0.58055951E+00
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.664700     sec
+Building charge density ..............................  0.9430000     sec
+Solving Poisson equation .............................   3.494800     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  2.441335035052621E-008
+ number of cycles executed =  8/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.7747000     sec
+scfsum:    2   -0.30398603E+01    0.30299999E-01    0.36749024E+00
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.846000     sec
+Building charge density ..............................   1.097100     sec
+Solving Poisson equation .............................   3.398400     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  4.001117143529770E-008
+ number of cycles executed =  8/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.8085000     sec
+scfsum:    3   -0.29745115E+01    0.65348813E-01    0.13819138E+00
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.531000     sec
+Building charge density ..............................  0.9383000     sec
+Solving Poisson equation .............................   4.294700     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  5.591905112474801E-008
+ number of cycles executed =  8/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.5791000     sec
+scfsum:    4   -0.30415387E+01   -0.67027195E-01    0.39960674E+00
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.973800     sec
+Building charge density ..............................  0.8239000     sec
+Solving Poisson equation .............................   3.415300     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  3.881918396988928E-008
+ number of cycles executed =  8/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.5379000     sec
+scfsum:    5   -0.29916185E+01    0.49920192E-01    0.90941847E-02
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.940500     sec
+Building charge density ..............................  0.9549000     sec
+Solving Poisson equation .............................   2.735100     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  3.466602702279955E-008
+ number of cycles executed =  5/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.7107000     sec
+scfsum:    6   -0.29917289E+01   -0.11036956E-03    0.89426599E-02
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.815300     sec
+Building charge density ..............................   1.040300     sec
+Solving Poisson equation .............................   2.578200     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  3.218142459271648E-008
+ number of cycles executed =  6/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.5230000     sec
+scfsum:    7   -0.29907688E+01    0.96013499E-03    0.57832848E-03
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.876800     sec
+Building charge density ..............................  0.8838000     sec
+Solving Poisson equation .............................   1.915000     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  8.664275763112828E-008
+ number of cycles executed =  4/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.6411000     sec
+scfsum:    8   -0.29908364E+01   -0.67656188E-04    0.58988577E-04
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.833200     sec
+Building charge density ..............................  0.7348000     sec
+Solving Poisson equation .............................   1.461900     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  4.426001371102188E-008
+ number of cycles executed =  3/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.4263000     sec
+scfsum:    9   -0.29908351E+01    0.13351962E-05    0.22208668E-04
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   1.433400     sec
+Building charge density ..............................   1.025000     sec
+Solving Poisson equation .............................   1.546100     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  3.153285518153163E-008
+ number of cycles executed =  3/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.5394000     sec
+scfsum:   10   -0.29908376E+01   -0.25587340E-05    0.15711790E-07
+ Memory required for bulk potential   8.78644800000000      Mb
+Read bulk potential ..................................   2.249000     sec
+Building charge density ..............................  0.8343000     sec
+Solving Poisson equation .............................  0.5805000     sec
+ -------------------------------------------------------------------------
+ relative error obtained =  1.229326243298984E-008
+ number of cycles executed =  1/ 40
+ -------------------------------------------------------------------------
+Computing Hamiltonian shifts .........................  0.5901000     sec
+scfsum:   11   -0.29908376E+01   -0.10029222E-08    0.65858914E-08
+>> Charges saved for restart in charges.bin
+ 
+ Total Energy:                          -2.956526
+ Total Mermin free energy:              -2.956526
+ ni=           1
+ nf=           2
+ contacts:  1  2;  bias=   0.00000E+00 V;  current:   0.00000E+00 A
+   peak memory allocated:   145.28 Mb
+current memory allocated:    17.32 Mb

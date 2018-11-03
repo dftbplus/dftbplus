@@ -169,17 +169,21 @@ module solvers
     integer :: qr
     integer :: divideandconquer
     integer :: relativelyrobust
+    ! elsi provided solvers
     integer :: elpa
     integer :: omm
     integer :: pexsi
     integer :: dummy1
     integer :: dummy2
     integer :: ntpoly
+    ! transport related
+    integer :: gf
+    integer :: onlyTransport
   end type electronicSolverTypesEnum
 
   !> Actual values for electronicSolverTypes.
   type(electronicSolverTypesEnum), parameter :: electronicSolverTypes =&
-      & electronicSolverTypesEnum(1, 2, 3, 4, 5, 6, 7, 8, 9)
+      & electronicSolverTypesEnum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
 
 contains
 

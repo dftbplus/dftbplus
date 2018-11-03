@@ -14,6 +14,7 @@ module eigenvects
   use accuracy
   use eigensolver
   use message
+  use solvertypes
 #:if WITH_SCALAPACK
   use scalapackfx
 #:if WITH_ELSI
@@ -74,11 +75,11 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
     select case(electronicSolver%iSolver)
-    case(1)
+    case(electronicSolverTypes%QR)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(2)
+    case(electronicSolverTypes%divideandconquer)
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(3)
+    case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
@@ -114,11 +115,11 @@ contains
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
     select case(electronicSolver%iSolver)
-    case(1)
+    case(electronicSolverTypes%QR)
       call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(2)
+    case(electronicSolverTypes%divideandconquer)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(3)
+    case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
@@ -172,16 +173,16 @@ contains
     end if
 
     select case(electronicSolver%iSolver)
-    case(1)
+    case(electronicSolverTypes%QR)
       call scalafx_psygv(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
           & jobz=jobz, skipchol=electronicSolver%tCholeskiiDecomposed(1))
-    case(2)
+    case(electronicSolverTypes%divideandconquer)
       call scalafx_psygvd(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
           & jobz="V", allocfix=.true., skipchol=electronicSolver%tCholeskiiDecomposed(1))
-    case(3)
+    case(electronicSolverTypes%relativelyrobust)
       call scalafx_psygvr(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
           & jobz="V", skipchol=electronicSolver%tCholeskiiDecomposed(1))
-    case(4)
+    case(electronicSolverTypes%elpa)
     #:if WITH_ELSI
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
@@ -189,12 +190,6 @@ contains
     #:else
       call error('Requires the ELSI library')
     #:endif
-    case(5)
-      ! libOMM, does not return eigenstates
-      call error("Currently missing")
-    case(6)
-      ! PEXSI, does not return eigenstates
-      call error("Currently missing")
     case default
       call error('Unknown eigensolver')
     end select
@@ -244,7 +239,7 @@ contains
 
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-        ! if this is the first call, allocate space
+    ! if this is the first call, allocate space
     if (.not.allocated(ssqrTmp)) then
       allocate(ssqrTmp(size(ssqr,dim=1), size(ssqr,dim=2), parallelKS%nLocalKS))
     end if
@@ -257,16 +252,16 @@ contains
     end if
 
     select case(electronicSolver%iSolver)
-    case(1)
+    case(electronicSolverTypes%QR)
       call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz, &
           & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
-    case(2)
+    case(electronicSolverTypes%divideandconquer)
       call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
           & allocfix=.true., skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
-    case(3)
+    case(electronicSolverTypes%relativelyrobust)
       call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
           & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
-    case(4)
+    case(electronicSolverTypes%elpa)
   #:if WITH_ELSI
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
@@ -274,12 +269,6 @@ contains
   #:else
       call error('Requires the ELSI library')
   #:endif
-    case(5)
-      ! libOMM, does not return eigenstates
-      call error("Currently missing")
-    case(6)
-      ! PEXSI, does not return eigenstates
-      call error("Currently missing")
     case default
       call error('Unknown eigensolver')
     end select

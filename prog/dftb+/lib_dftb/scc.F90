@@ -230,6 +230,7 @@ module scc
     procedure :: updateCoords
     procedure :: updateLatVecs
     procedure :: updateCharges
+    procedure :: updateShifts
     procedure :: getAtomicGammaMatrix
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
@@ -237,6 +238,8 @@ module scc
     procedure :: addStressDc
     procedure :: getShiftPerAtom
     procedure :: getShiftPerL
+    procedure :: setShiftPerAtom
+    procedure :: setShiftPerL
     procedure :: getOrbitalEquiv
     procedure :: addForceDcXlbomd
     procedure :: getInternalElStatPotential
@@ -568,7 +571,7 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species, iNeighbour, img2CentCell)
+  subroutine updateCharges(this, env, qOrbital, q0, orb, species)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -588,17 +591,38 @@ contains
     !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
 
-    !> Neighbour indexes
-    integer, intent(in) :: iNeighbour(0:,:)
+    @:ASSERT(this%tInitialised)
+
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
+        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+
+  end subroutine updateCharges
+
+  !> Update potential shifts. Call after updateCharges
+  subroutine updateShifts(this, env, orb, species, iNeighbor, img2CentCell)
+
+    !> Resulting module variables
+    class(TScc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of the atoms (should not change during run)
+    integer, intent(in) :: species(:)
+
+    !> Neighbor indexes
+    integer, intent(in) :: iNeighbor(0:,:)
 
     !> Mapping on atoms in the central cell
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
-        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
-    call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
+    call buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
+
     if (this%tChrgConstr) then
       call buildShift(this%chrgConstr, this%deltaQAtom)
     end if
@@ -606,8 +630,7 @@ contains
       call buildShift(this%thirdOrder, this%deltaQAtom)
     end if
 
-  end subroutine updateCharges
-
+  end subroutine updateShifts
 
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
@@ -660,6 +683,7 @@ contains
 
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
+
     if (this%tExtChrg) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
@@ -848,6 +872,7 @@ contains
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift = this%shiftPerAtom
+
     if (this%tExtChrg) then
       call this%extCharge%addShiftPerAtom(shift)
     end if
@@ -874,11 +899,43 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    shift = 0.0_dp
+    
     shift = this%shiftPerL
 
   end subroutine getShiftPerL
 
+  !> set electrostatic shifts (e.g. Poisson solver)
+  subroutine setShiftPerAtom(this, shift)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Contains the input shifts: shift(atom).
+    real(dp), intent(in) :: shift(:)
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
+    
+    this%shiftPerAtom = shift
+
+  end subroutine setShiftPerAtom
+
+  !> set the shifts from outside (e.g. Poisson solver)
+  subroutine setShiftPerL(this, shift)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Contains the input shifts (shell, Atom) 
+    real(dp), intent(in) :: shift(:,:)
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
+    @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
+    
+    this%shiftPerL = shift
+
+  end subroutine setShiftPerL
 
   !> Returns the equivalency relations between orbitals of the atoms. If transfering charge between
   !> the orbitals does not change the electrostatic energy, they are considered equivalent.
@@ -1131,13 +1188,17 @@ contains
   #:if WITH_SCALAPACK
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
   #:endif
+   
+    integer :: ll
 
     this%shiftPerAtom(:) = 0.0_dp
 
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc /= -1) then
-      deltaQAtom2D(1:1, 1:size(this%deltaQAtom)) => this%deltaQAtom
-      shiftPerAtom2D(1:1, 1:size(this%shiftPerAtom)) => this%shiftPerAtom
+      ll = size(this%deltaQAtom)    
+      deltaQAtom2D(1:1, 1:ll) => this%deltaQAtom
+      ll = size(this%shiftPerAtom)    
+      shiftPerAtom2D(1:1, 1:ll) => this%shiftPerAtom
       call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, this%descQVec, 1, 1, this%qGlobal)
       call pblasfx_psymv(this%invRMat, this%descInvRMat, this%qGlobal, this%descQVec,&
           & this%shiftPerAtomGlobal, this%descQVec)
