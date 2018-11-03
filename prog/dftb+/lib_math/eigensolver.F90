@@ -2088,7 +2088,7 @@ contains
     integer n, info, iitype
    
     integer :: ngpus
-    integer :: ldm, nwarp,i,i0    
+    integer :: ldm, nwarp, i, i0    
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2107,7 +2107,7 @@ contains
     nwarp = 32      
     ldm   = nwarp* ((n+nwarp-1)/nwarp)
     allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error(' CPU alloc error in  real_magma_ssygvd. Exiting')
+    if (info.ne.0) call  error('CPU alloc error in real_magma_ssygvd. Exiting')
     
     !> Convert nxn matrices to 1D arrays
     i0=1
@@ -2176,7 +2176,7 @@ contains
     integer n, info, iitype
    
     integer :: ngpus
-    integer :: ldm, nwarp,i,i0    
+    integer :: ldm, nwarp, i, i0    
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2195,7 +2195,7 @@ contains
     nwarp = 32      
     ldm   = nwarp* ((n+nwarp-1)/nwarp)
     allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error(' CPU alloc error in  dble_magma_dsygvd. Exiting')
+    if (info.ne.0) call  error('CPU alloc error in dble_magma_dsygvd. Exiting')
     
     !> Convert nxn matrices to 1D arrays
     i0=1
@@ -2266,7 +2266,7 @@ contains
     integer n, info, iitype
    
     integer :: ngpus
-    integer :: ldm, nwarp,i,i0    
+    integer :: ldm, nwarp, i, i0    
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2285,7 +2285,7 @@ contains
     nwarp = 32      
     ldm   = nwarp* ((n+nwarp-1)/nwarp)
     allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error(' CPU alloc error in  real_magma_chegvd. Exiting')
+    if (info.ne.0) call  error('CPU alloc error in cmplx_magma_chegvd. Exiting')
     
     !> Convert nxn matrices to 1D arrays
     i0=1
@@ -2358,7 +2358,7 @@ contains
     integer n, info, iitype
    
     integer :: ngpus
-    integer :: ldm, nwarp,i,i0    
+    integer :: ldm, nwarp, i, i0    
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2377,7 +2377,7 @@ contains
     nwarp = 32      
     ldm   = nwarp* ((n+nwarp-1)/nwarp)
     allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error(' CPU alloc error in  real_magma_chegvd. Exiting')
+    if (info.ne.0) call  error('CPU alloc error in cmplx_magma_zhegvd. Exiting')
     
     !> Convert nxn matrices to 1D arrays
     i0=1
