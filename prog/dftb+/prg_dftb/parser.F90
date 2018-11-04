@@ -1736,6 +1736,53 @@ contains
       end do
     end if
 
+    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
+    ! thermostat.)
+    call getChildValue(node, "Filling", value, "Fermi", child=child)
+    call getNodeName(value, buffer)
+
+    select case (char(buffer))
+    case ("fermi")
+      ctrl%iDistribFn = 0 ! Fermi function
+    case ("methfesselpaxton")
+      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2
+      call getChildValue(value, "Order", ctrl%iDistribFn, 2)
+      if (ctrl%iDistribFn < 1) then
+        call getNodeHSDName(value, buffer)
+        write(errorStr, "(A,A,A,I4)")"Unsuported filling mode for '", &
+            & char(buffer),"' :",ctrl%iDistribFn
+        call detailedError(child, errorStr)
+      end if
+    case default
+      call getNodeHSDName(value, buffer)
+      call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
+    end select
+
+    if (.not. ctrl%tSetFillingTemp) then
+      call getChildValue(value, "Temperature", ctrl%tempElec, 0.0_dp, &
+          &modifier=modifier, child=field)
+      call convertByMul(char(modifier), energyUnits, field, ctrl%tempElec)
+      if (ctrl%tempElec < minTemp) then
+        ctrl%tempElec = minTemp
+      end if
+    end if
+
+    call getChild(value, "FixedFermiLevel", child=child2, modifier=modifier, requested=.false.)
+    ctrl%tFixEf = associated(child2)
+    if (ctrl%tFixEf) then
+      if (ctrl%tSpin .and. .not.ctrl%t2Component) then
+        allocate(ctrl%Ef(2))
+      else
+        allocate(ctrl%Ef(1))
+      end if
+      call getChildValue(child2, "", ctrl%Ef, modifier=modifier, child=child3)
+      call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
+    end if
+
+    if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
+      call getChildValue(value, "IndependentKFilling", ctrl%tFillKSep, .false.)
+    end if
+
     ! Electronic solver
     call getChildValue(node, "Eigensolver", value, "RelativelyRobust")
     call getNodeName(value, buffer)
@@ -1843,53 +1890,6 @@ contains
       end if
     end if
   #:endif
-
-    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-    ! thermostat.)
-    call getChildValue(node, "Filling", value, "Fermi", child=child)
-    call getNodeName(value, buffer)
-
-    select case (char(buffer))
-    case ("fermi")
-      ctrl%iDistribFn = 0 ! Fermi function
-    case ("methfesselpaxton")
-      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2
-      call getChildValue(value, "Order", ctrl%iDistribFn, 2)
-      if (ctrl%iDistribFn < 1) then
-        call getNodeHSDName(value, buffer)
-        write(errorStr, "(A,A,A,I4)")"Unsuported filling mode for '", &
-            & char(buffer),"' :",ctrl%iDistribFn
-        call detailedError(child, errorStr)
-      end if
-    case default
-      call getNodeHSDName(value, buffer)
-      call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
-    end select
-
-    if (.not. ctrl%tSetFillingTemp) then
-      call getChildValue(value, "Temperature", ctrl%tempElec, 0.0_dp, &
-          &modifier=modifier, child=field)
-      call convertByMul(char(modifier), energyUnits, field, ctrl%tempElec)
-      if (ctrl%tempElec < minTemp) then
-        ctrl%tempElec = minTemp
-      end if
-    end if
-
-    call getChild(value, "FixedFermiLevel", child=child2, modifier=modifier, requested=.false.)
-    ctrl%tFixEf = associated(child2)
-    if (ctrl%tFixEf) then
-      if (ctrl%tSpin .and. .not.ctrl%t2Component) then
-        allocate(ctrl%Ef(2))
-      else
-        allocate(ctrl%Ef(1))
-      end if
-      call getChildValue(child2, "", ctrl%Ef, modifier=modifier, child=child3)
-      call convertByMul(char(modifier), energyUnits, child3, ctrl%Ef)
-    end if
-
-    if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
-      call getChildValue(value, "IndependentKFilling", ctrl%tFillKSep, .false.)
-    end if
 
   #:if WITH_TRANSPORT
     if (all(ctrl%solver%isolver /= [electronicSolverTypes%GF,electronicSolverTypes%OnlyTransport])&
