@@ -248,9 +248,12 @@ contains
       this%ELSI_n_state = nBasisFn
     end select
 
+    tWriteDetailedOutBands = .false.
     ! bands only available for solvers up to ELPA in the list
-    if (this%iSolver > electronicSolverTypes%elpa) then
-      tWriteDetailedOutBands = .false.
+    if (any(this%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa])) then
+      tWriteDetailedOutBands = .true.
     end if
 
     ! parallelism with multiple processes
@@ -439,7 +442,9 @@ contains
 
     end select
 
-    if (this%iSolver > electronicSolverTypes%elpa) then
+    if (any(this%iSolver == [electronicSolverTypes%omm,&
+        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+      ! density matrix build needs to know the number of spin channels to normalize against
       select case(this%ELSI_n_spin)
       case(1)
         call elsi_set_spin(this%elsiHandle, 1, iSpin)

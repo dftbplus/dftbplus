@@ -1095,11 +1095,10 @@ contains
 
     electronicSolver%iSolver = input%ctrl%solver%iSolver
 
-    if (electronicSolver%iSolver >= electronicSolverTypes%elpa .and.&
-        & electronicSolver%iSolver <= electronicSolverTypes%ntpoly) then
-      if (.not.withELSI) then
-        call error("This binary was not compiled with ELSI support enabled")
-      end if
+    if (.not.withELSI .and. any(electronicSolver%iSolver == [electronicSolverTypes%elpa,&
+        & electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly]))&
+        & then
+      call error("This binary was not compiled with ELSI support enabled")
     end if
 
     if (electronicSolver%iSolver == electronicSolverTypes%ntpoly) then
@@ -1111,8 +1110,8 @@ contains
       end if
     end if
 
-    if (electronicSolver%iSolver > electronicSolverTypes%elpa .and.&
-        & electronicSolver%iSolver <= electronicSolverTypes%pexsi) then
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+        & electronicSolverTypes%ntpoly])) then
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
         call error("This solver requires as many parallel processor groups as there are independent&
             & spin and k-point combinations")
@@ -1414,8 +1413,8 @@ contains
       call error("Less than 0 electrons!")
     end if
 
-    if (electronicSolver%iSolver >= electronicSolverTypes%elpa .and.&
-        & electronicSolver%iSolver <= electronicSolverTypes%ntpoly) then
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%elpa, electronicSolverTypes%omm,&
+        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
 
     #:if WITH_ELSI
 
@@ -2274,8 +2273,10 @@ contains
     tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat&
-        & .and. (electronicSolver%iSolver <= electronicSolverTypes%elpa) .and. .not.tNegf
+    tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalMaster .and.&
+        & any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa] )
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
 
@@ -2294,8 +2295,7 @@ contains
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
   #:if WITH_TRANSPORT
-    if (tLatOpt .and. (electronicSolver%iSolver == electronicSolverTypes%GF .or.&
-        & electronicSolver%iSolver == electronicSolverTypes%OnlyTransport)) then
+    if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
     call initTransport(env, input)
@@ -2677,8 +2677,8 @@ contains
       if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
         call error("PEXSI solver not available with multiple openMP threads")
       end if
-      if (electronicSolver%iSolver >= electronicSolverTypes%elpa .and.&
-          & electronicSolver%iSolver <= electronicSolverTypes%ntpoly) then
+      if (any(electronicSolver%iSolver == [electronicSolverTypes%elpa, electronicSolverTypes%omm,&
+          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
         call warning("ELSI solvers not tested with multiple openMP threads")
       end if
     end if
@@ -3508,7 +3508,9 @@ contains
     E0 = 0.0_dp
     Eband = 0.0_dp
 
-    if (electronicSolver%iSolver <= electronicSolverTypes%elpa) then
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa] )) then
       allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
       allocate(filling(sqrHamSize, nKpoint, nSpinHams))
     else

@@ -1865,24 +1865,24 @@ contains
       call detailedError(value, "Unknown electronic solver")
     end select
 
-    if ((ctrl%solver%isolver > electronicSolverTypes%elpa .and.&
-        & ctrl%solver%isolver <= electronicSolverTypes%ntpoly ) .and. .not.ctrl%tSpinSharedEf&
+    if ((ctrl%solver%isolver == electronicSolverTypes%omm .or.&
+        & ctrl%solver%isolver == electronicSolverTypes%pexsi ) .and. .not.ctrl%tSpinSharedEf&
         & .and. ctrl%tSpin .and. .not. ctrl%t2Component) then
       call detailedError(value, "This solver currently requires spin values to be relaxed")
     end if
     if (ctrl%solver%isolver == electronicSolverTypes%pexsi .and. .not.withPEXSI) then
       call error("Not compiled with PEXSI support via ELSI")
     end if
-    if (ctrl%solver%isolver >= electronicSolverTypes%elpa .and.&
-        & ctrl%solver%isolver <= electronicSolverTypes%ntpoly) then
+    if (any(ctrl%solver%isolver == [electronicSolverTypes%elpa, electronicSolverTypes%omm,&
+        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
       if (.not.withELSI) then
         call error("Not compiled with ELSI supported solvers")
       end if
     end if
 
   #:if WITH_ELSI
-    if (ctrl%solver%isolver > electronicSolverTypes%elpa .and.&
-        & ctrl%solver%isolver <= electronicSolverTypes%ntpoly) then
+    if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+        & electronicSolverTypes%ntpoly])) then
       call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
       if (ctrl%t2Component) then
         call detailedError(value,"Two-component hamiltonians currently cannot be used with sparse&

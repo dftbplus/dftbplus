@@ -2689,15 +2689,16 @@ contains
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
       write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
-      if (electronicSolver%iSolver /= electronicSolverTypes%pexsi) then
+      if (all(electronicSolver%iSolver /= [electronicSolverTypes%pexsi,&
+          & electronicSolverTypes%GF, electronicSolverTypes%OnlyTransport])) then
         write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
       end if
-      if (electronicSolver%iSolver <= electronicSolverTypes%elpa) then
+      if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+          & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+          & electronicSolverTypes%elpa])) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
         write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
             & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
-      end if
-      if (electronicSolver%iSolver <= electronicSolverTypes%elpa) then
         write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       end if
       if (tPrintMulliken) then
@@ -2745,7 +2746,9 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    if (electronicSolver%iSolver <= electronicSolverTypes%elpa) then
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa])) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
       write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
           & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'

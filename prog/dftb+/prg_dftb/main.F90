@@ -2035,6 +2035,9 @@ contains
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
       return
     end if
+    if (electronicSolver%iSolver == electronicSolverTypes%onlyTransport) then
+      call error("OnlyTransport solver cannot calculate the density matrix")
+    end if
 #:endif
 
     select case(electronicSolver%iSolver)
@@ -4111,12 +4114,17 @@ contains
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       return
     end if
+    if (electronicSolver%iSolver == electronicSolverTypes%onlyTransport) then
+      call error("OnlyTransport solver cannot calculate the energy weighted density matrix")
+    end if
   #:endif
 
     nSpin = size(ham, dim=2)
 
     if (nSpin == 4) then
-      if (electronicSolver%iSolver < 5) then
+      if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+          & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+          & electronicSolverTypes%elpa])) then
         call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
             & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
@@ -4141,7 +4149,8 @@ contains
       #:endif
       end if
     else if (tRealHS) then
-      if (electronicSolver%iSolver >= 5) then
+      if (any(electronicSolver%iSolver == [electronicSolverTypes%omm,&
+          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
     #:if WITH_ELSI
         if (electronicSolver%ELSI_CSR) then
           call getEDensityRealElsi(sparseIndexing, electronicSolver,&
@@ -4164,7 +4173,9 @@ contains
             & HSqrReal, SSqrReal, ERhoPrim)
       end if
     else ! k-points case
-      if (electronicSolver%iSolver < 5) then
+      if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+          & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+          & electronicSolverTypes%elpa])) then
         call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
             & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
             & cellVec, ham, over, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
