@@ -128,9 +128,9 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts parametrizations for the tests.'''
 
-    url = 'https://github.com/dftbplus/testparams/archive/dftbplus-18.2.tar.gz'
+    url = 'https://github.com/dftbplus/testparams/archive/160160987b84bd9e15fc3cc89d71aeb8e69793d3.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
-    unpackname = os.path.join(destdir, 'testparams-dftbplus-18.2')
+    unpackname = os.path.join(destdir, 'testparams-160160987b84bd9e15fc3cc89d71aeb8e69793d3')
     targetname = os.path.join(destdir, 'origin')
     if os.path.exists(unpackname):
         shutil.rmtree(unpackname)

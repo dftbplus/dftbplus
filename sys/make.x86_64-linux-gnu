@@ -35,7 +35,7 @@ LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
 LIB_LAPACK = -llapack -lblas
 
 # Any other libraries to be linked
-OTHERLIBS =
+OTHERLIBS = -lgomp -lpthread
 
 # M4 preprocessor settings
 M4 = m4
@@ -117,7 +117,11 @@ ifeq ($(strip $(DEBUG)),1)
 endif
 
 ifeq ($(strip $(DEBUG)),2)
+
+
     OTHERLIBS = 
     FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT += -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized 
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
+
 endif

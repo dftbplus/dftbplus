@@ -1,0 +1,33 @@
+
+vpath % $(SRCDIR)
+
+TARGET = libmudpack.a
+
+# When using gfortran the flag -std=f2003 breaks
+# f77 compatibility. If present, we remove it
+# F95OPT = $(filter-out -std=f2003,$(FXXOPT))
+
+%.o: %.f
+	$(FXX) $(FXXOPT) -o $@ -c $<
+
+
+# SINGLE/DOUBLE PRECISION POISSON
+ifeq ($(POISSON_SP),1)
+   SOURCES = mud3.f muh3.f mud3ln.f mud3pn.f mud3sp.f mudcom.f
+else
+   SOURCES = dmud3.f dmuh3.f dmud3ln.f dmud3pn.f dmud3sp.f dmudcom.f
+endif
+
+OBJS = $(SOURCES:.f=.o)
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	rm -f $(TARGET)
+	ar cq $(TARGET) $(OBJS)
+
+.PHONY: clean distclean
+
+clean:
+	rm -f *.o *__genmod*
+

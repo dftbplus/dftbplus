@@ -59,6 +59,7 @@ module mainio
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
+  public :: openDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
@@ -66,9 +67,11 @@ module mainio
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
+  public :: writeShifts, writeContShifts
+  public :: uploadShiftPerL
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
-  public :: printMdInfo
+  public :: printMdInfo, printBlankLine
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -233,7 +236,7 @@ contains
     real(dp), intent(inout) :: eigvecsReal(:,:,:)
 
     !> Storage for dense real overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(inout) :: SSqrReal(:,:)
 
     !> optional alternative file prefix, to appear as "fileName".bin or "fileName".out
     character(len=*), intent(in), optional :: fileName
@@ -313,7 +316,7 @@ contains
     complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
 
     !> Storage for dense complex overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
 
     !> optional alternative file prefix, to appear as "fileName".bin or "fileName".out
     character(len=*), intent(in), optional :: fileName
@@ -1875,7 +1878,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp)
+      & gibbsFree, endCoords, tLocalise, localisation, esp, tunneling, ldos)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1928,6 +1931,13 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    !> tunneling array
+    real(dp), allocatable, intent(in) :: tunneling(:,:)
+
+    !> local projected DOS array
+    real(dp), allocatable, intent(in) :: ldos(:,:)
+
+
     !> Object holding the potentials and their locations
     type(TElStatPotentials), allocatable, intent(in) :: esp
 
@@ -1968,19 +1978,35 @@ contains
     if (tLocalise) then
       call writeTagged(fd, tag_pmlocalise, localisation)
     end if
+
+
     if (allocated(esp)) then
       call writeTagged(fd, tag_internfield, -esp%intPotential)
       if (allocated(esp%extPotential)) then
         call writeTagged(fd, tag_externfield, -esp%extPotential)
       end if
     end if
+
+
+    if (allocated(tunneling)) then
+      if (size(tunneling, dim=1) > 0) then
+        call writeTagged(fd, tag_tunn, tunneling)
+      end if
+    end if
+
+    if (allocated(ldos)) then
+      if (size(ldos,1) > 0) then
+        call writeTagged(fd, tag_ldos, ldos)
+      end if
+    end if
+
     close(fd)
 
   end subroutine writeAutotestTag
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, TS, derivs, chrgForces, tStress,&
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress,&
       & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> Name of output file
@@ -1988,9 +2014,6 @@ contains
 
     !> Energy contributions and total
     type(TEnergies), intent(in) :: energy
-
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2034,6 +2057,11 @@ contains
 
     ! extrapolated zero temperature energy
     call writeTagged(fd, tag_egy0Total, energy%Ezero)
+
+    if (energy%EForceRelated /= 0.0_dp) then
+      ! energy connected to the evaluated force/stress (differs for various free energies)
+      call writeTagged(fd, tag_egyforcerelated, energy%EForceRelated)
+    end if
 
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
@@ -2114,7 +2142,7 @@ contains
 
     type(xmlf_t) :: xf
     real(dp), allocatable :: bufferRealR2(:,:)
-    integer :: ii, jj
+    integer :: ii, jj, ll
     real(dp), pointer :: pOccNatural(:,:)
 
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
@@ -2151,7 +2179,9 @@ contains
     if (allocated(occNatural)) then
       call xml_NewElement(xf, "excitedoccupations")
       call xml_NewElement(xf, "spin" // i2c(1))
-      pOccNatural(1:size(occNatural), 1:1) => occNatural
+      !pOccNatural(1:size(occNatural), 1:1) => occNatural
+      ll = size(occNatural)
+      pOccNatural(1:ll, 1:1) => occNatural
       call writeChildValue(xf, "k" // i2c(1), pOccNatural)
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")
@@ -2217,15 +2247,10 @@ contains
 
   end subroutine writeHessianOut
 
-  !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
-      & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
-      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
-      & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, tOnSite,&
-      & invLatVec, kPoints)
 
-    !> File ID
+  !> Open file detailed.out
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
+    !> File  ID
     integer, intent(in) :: fd
 
     !> Name of file to write to
@@ -2233,6 +2258,32 @@ contains
 
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Which scc step is occuring
+    integer, intent(in) :: iSccIter
+
+    if (iGeoStep == 0 .and. iSccIter == 1) then
+      open(fd, file=fileName, status="replace", action="write")
+    elseif (.not. tAppendDetailedOut) then
+      close(fd)
+      open(fd, file=fileName, status="replace", action="write")
+    end if
+
+  end subroutine openDetailedOut
+
+  !> First group of data to go to detailed.out
+  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep,&
+      & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
+      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
+      & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
+      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, tOnSite, tNegf, &
+      & invLatVec, kPoints, iAtInCentralRegion)
+
+    !> File ID
+    integer, intent(in) :: fd
 
     !> Electron distribution choice
     integer, intent(in) :: iDistribFn
@@ -2258,7 +2309,7 @@ contains
     !> Which step of lattice optimisation is occuring
     integer, intent(in) :: iLatGeoStep
 
-    !> Whic scc step is occuring
+    !> Which scc step is occuring
     integer, intent(in) :: iSccIter
 
     !> Energy terms in the system
@@ -2285,10 +2336,10 @@ contains
     !> Output atomic charges (if SCC)
     real(dp), intent(in) :: qOutput(:,:,:)
 
-    !> Eigenvalues/single particle states
+    !> Eigenvalues/single particle states (level, kpoint, spin)
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> Occupation numbers
+    !> Occupation numbers (level, kpoint, spin)
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Type containing atomic orbital information
@@ -2354,23 +2405,28 @@ contains
     !> Are on-site corrections being used?
     logical, intent(in) :: tOnSite
 
+    !> whether we solve NEGF
+    logical, intent(in) :: tNegf
+
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
     !> K-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
-    integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
+    integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
     logical :: tSpin
 
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
-    nLevel = size(eigen, dim=1)
     nKPoint = size(eigen, dim=2)
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
@@ -2383,13 +2439,6 @@ contains
     if (allocated(qBlockOut)) then
       qBlockOutUpDown = qBlockOut
       call qm2ud(qBlockOutUpDown)
-    end if
-
-    if (iGeoStep == 0 .and. iSccIter == 1) then
-      open(fd, file=fileName, status="replace", action="write")
-    elseif (.not. tAppendDetailedOut) then
-      close(fd)
-      open(fd, file=fileName, status="replace", action="write")
     end if
 
     select case(iDistribFn)
@@ -2452,31 +2501,40 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
+          & - qOutput(:, iAtInCentralRegion(:), 1))
       write(fd, "(/,A)") " Atomic gross charges (e)"
       write(fd, "(A5, 1X, A16)")" Atom", " Charge"
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
     end if
 
-    call writeDetailedOutEigenvalues(fd, eigen, filling)
+
+    if (.not.tNegf) then
+      call writeDetailedOutEigenvalues(fd, eigen, filling)
+    end if
+
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
         do iSpin = 1, 4
+
           write(fd,"(3A, F16.8)") 'Nr. of electrons (', quaternionName(iSpin), '):',&
-              & sum(qOutput(:,:, iSpin))
+              & sum(qOutput(:, iAtInCentralRegion(:), iSpin))
           write(fd, *)
           write(fd, "(/, 3A)") 'Atom populations (', quaternionName(iSpin), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             write(fd, "(1X, I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
           end do
           write(fd, "(/, 3A)") 'l-shell populations (', quaternionName(iSpin), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.", "  l", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
@@ -2487,7 +2545,8 @@ contains
           write(fd, "(/, 3A)") 'Orbital populations (', quaternionName(iSpin) ,')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.","  l","  m",&
               & " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
@@ -2504,7 +2563,8 @@ contains
       if (tDFTBU) then
         do iSpin = 1, 4
           write(fd, "(3A)") 'Block populations (', quaternionName(iSpin), ')'
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
@@ -2519,7 +2579,8 @@ contains
         write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
             write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
@@ -2532,7 +2593,8 @@ contains
         write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
             write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
@@ -2546,7 +2608,8 @@ contains
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
             write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
@@ -2567,17 +2630,19 @@ contains
       lpSpinPrint2: do iSpin = 1, nSpin
         if (tPrintMulliken) then
           write(fd, "(3A, F16.8)") 'Nr. of electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qOutputUpDown(:, :, iSpin))
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
           write(fd, "(3A)") 'Atom populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutputUpDown(:, iAt, iSpin))
           end do
           write(fd, *)
           write(fd, "(3A)") 'l-shell populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
@@ -2589,7 +2654,8 @@ contains
           write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", "  m", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
@@ -2603,7 +2669,8 @@ contains
         end if
         if (tDFTBU) then
           write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
@@ -2627,11 +2694,13 @@ contains
       write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       if (tPrintMulliken) then
         if (nSpin == 2) then
-          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
+          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
+              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         else
-          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
-              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
+          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
+              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         end if
       end if
       write(fd, *)
@@ -2673,6 +2742,10 @@ contains
     write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
     write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
         & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    if (energy%EForceRelated /= 0.0_dp) then
+      write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
       write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
           & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
@@ -2681,20 +2754,23 @@ contains
 
     if (tAtomicEnergy) then
       write(fd, "(A)") 'Atom resolved electronic energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
             & Hartree__eV * energy%atomElec(iAt), ' eV'
       end do
       write(fd, *)
 
       write(fd, "(A)") 'Atom resolved repulsive energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
             & Hartree__eV * energy%atomRep(iAt), ' eV'
       end do
       write(fd, *)
       write(fd, "(A)") 'Atom resolved total energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do
@@ -2777,7 +2853,7 @@ contains
   !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
-      & indMovedAtom, cellVol, cellPressure, geoOutFile)
+      & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2836,6 +2912,9 @@ contains
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
     integer :: iAt, ii
 
     if (tScc) then
@@ -2868,8 +2947,9 @@ contains
 
     if (tPrintForces) then
       write(fd, "(A)") 'Total Forces'
-      do iAt = 1, size(derivs, dim=2)
-        write(fd, "(3F20.12)") -derivs(:, iAt)
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, 3F20.12)")iAt, -derivs(:, iAt)
       end do
       write(fd, *)
       if (tStress .and. .not. tMd) then
@@ -2885,7 +2965,8 @@ contains
         write(fd, *)
       end if
 
-      write(fd, format1Ue) "Maximal derivative component", maxval(abs(derivs)), 'au'
+      write(fd, format1Ue) "Maximal derivative component",&
+          & maxval(abs(derivs(:,iAtInCentralRegion(:)))), 'au'
       if (size(indMovedAtom) > 0) then
         write(fd, format1Ue) "Max force for moved atoms:",&
             & maxval(abs(derivs(:, indMovedAtom))), 'au'
@@ -3258,8 +3339,8 @@ contains
 
 
   !> Writes Hamiltonian and overlap matrices and stops program execution.
-  subroutine writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList, nNeighbourSK,&
-      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+  subroutine writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
+      & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3414,6 +3495,139 @@ contains
     end if
 
   end subroutine writeHS
+
+
+  !> Write the Hamiltonian self consistent shifts to file
+  subroutine writeShifts(fShifts, orb, shiftPerL)
+    !> filename where shifts are stored
+    character(*), intent(in) :: fShifts
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> shifts organized per (shell , atom,  spin)
+    real(dp), intent(in) :: shiftPerL(:,:,:)
+
+    ! locals
+    integer :: fdHS, nSpin, nAtom, ii, jj
+
+    nSpin = size(shiftPerL, dim=3)
+    nAtom = size(shiftPerL, dim=2)
+
+    if (size(shiftPerL, dim=1) /= orb%mShell ) then
+      call error("Internal error in writeshift: size(shiftPerL,1)")
+    endif
+
+    if (size(shiftPerL, dim=2) /= size(orb%nOrbAtom) ) then
+      call error("Internal error in writeshift size(shiftPerL,2)")
+    endif
+
+    open(newunit=fdHS, file=trim(fShifts), form="formatted")
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    do ii = 1, nAtom
+      write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+    end do
+
+    close(fdHS)
+
+    write(stdOut,*) ">> Shifts saved for restart in shifts.dat"
+
+  end subroutine writeShifts
+
+
+  !> Writes the contact potential shifts per shell (for transport)
+  subroutine writeContShifts(filename, orb, shiftPerL, charges, Ef)
+    !> filename where shifts are written
+    character(*), intent(in) :: filename
+    !> orbital structure
+    type(TOrbitals), intent(in) :: orb
+    !> array of shifts per shell and spin
+    real(dp), intent(in) :: shiftPerL(:,:,:)
+    !> array of charges per shell and spin
+    real(dp), intent(in) :: charges(:,:,:)
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    integer :: fdHS, nAtom, nSpin
+
+    nSpin = size(shiftPerL,3)
+    nAtom = size(shiftPerL,2)
+
+    if (size(shiftPerL,1) /= orb%mShell) then
+      call error("Internal error in writeContShifts: size(shiftPerL,1)")
+    endif
+
+    if (size(orb%nOrbAtom) /= nAtom) then
+      call error("Internal error in writeContShifts: size(shiftPerL,2)")
+    endif
+
+    if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
+      call error("Internal error in writeContShift: shape(charges)")
+    endif
+
+    open(newunit=fdHS, file=trim(filename), form="formatted")
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    write(fdHS, *) orb%nOrbAtom
+    write(fdHS, *) shiftPerL
+    write(fdHS, *) charges
+    if (nSpin == 2) then
+      write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+      write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
+    else
+      write(fdHS, *) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+    end if
+
+    close(fdHS)
+
+  end subroutine writeContShifts
+
+
+  !> Read the potential shifts from file
+  subroutine uploadShiftPerL(fShifts, orb, nAtom, nSpin, shiftPerL)
+    !> filename where shifts are stored
+    character(*), intent(in) :: fShifts
+
+    !> orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> number of atoms and spin blocks
+    integer, intent(in) :: nAtom, nSpin
+
+    !> potential shifts (shell,atom,spin) charge/mag is used
+    real(dp), intent(inout) :: shiftPerL(:,:,:)
+
+    !Locals
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
+    integer, allocatable :: nOrbAtom(:)
+
+    shiftPerL(:,:,:) = 0.0_dp
+
+    open(newunit=fdH, file=fShifts, form="formatted")
+    read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+
+    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell .or. mOrbSt /= orb%mOrb) then
+      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+    end if
+    if (nSpin /= nSpinSt) then
+      call error("Shift upload error: Mismatch in number of spin channels.")
+    end if
+
+    allocate(nOrbAtom(nAtomSt))
+    do ii = 1, nAtom
+      read(fdH, *) nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+    end do
+
+    close(fdH)
+
+    if (any(nOrbAtom(:) /= orb%nOrbAtom(:))) then
+      call error("Incompatible orbitals in the upload file!")
+    end if
+
+    deallocate(nOrbAtom)
+
+  end subroutine uploadShiftPerL
+
+
 
 
   !> Write current geometry to disc
@@ -3598,6 +3812,9 @@ contains
 
   end subroutine printSccHeader
 
+  subroutine printBlankLine()
+    write(stdOut,*)
+  end subroutine printBlankLine
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
@@ -3627,19 +3844,21 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS)
+  subroutine printEnergies(energy)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
 
-    !> Electron entropy times temperature
-    real(dp), intent(in) :: TS(:)
-
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", energy%Ezero, "eV"
+    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+        & "eV"
     write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-        & Hartree__eV * energy%EMermin," eV"
+        & Hartree__eV * energy%EMermin, "eV"
+    if (energy%EForceRelated /= 0.0_dp) then
+      write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
 
   end subroutine printEnergies
 
