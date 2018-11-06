@@ -611,7 +611,7 @@ module initprogram
   type(ThirdOrder), allocatable :: thirdOrd
 
   !> Correction to energy from on-site matrix elements
-  real(dp), allocatable :: onSiteElements(:,:)
+  real(dp), allocatable :: onSiteElements(:,:,:,:)
 
   !> Correction to dipole momements on-site matrix elements
   real(dp), allocatable :: onSiteDipole(:,:)
@@ -1159,8 +1159,8 @@ contains
 
     ! on-site corrections
     if (allocated(input%ctrl%onSiteElements)) then
-      allocate(onSiteElements(nType, 10))
-      onSiteElements(:,:) = input%ctrl%onSiteElements(:,:)
+      allocate(onSiteElements(orb%mShell, orb%mShell, 2, nType))
+      onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
     end if
 
     if (allocated(onSiteElements)) then
@@ -1449,10 +1449,8 @@ contains
       end if
 
       if (allocated(onSiteElements)) then
-        if (nspin > 2) then
-          call error("onsite correction does not work with non-colinear spin polarization yet")
-        elseif (.not. tRealHS) then
-          call error("onsite correction only works with real Hamiltonian so far")
+       if (tImHam) then
+          call error("onsite correction does not work with spin orbit yet")
         elseif (tDFTBU) then
           call error("onsite correction does not work with LDA+U yet")
         end if

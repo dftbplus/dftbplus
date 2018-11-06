@@ -13,8 +13,14 @@ Hamiltonian = DFTB {
         Temperature [Kelvin] = 1
     }
     OnSiteCorrection= {
-        O = {0.08672 0.14969 -0.00523 0.03834 0 0 0  0 0 0}
-        H = {0 0 0 0 0 0 0 0 0 0}
+        # ss' sp
+        # ps  pp'
+        Ouu = {0        0.08672
+               0.08672 -0.00523}
+        Oud = {0        0.14969
+               0.14969  0.03834}
+        Huu = {0}
+        Hud = {0}
     }
     SlaterKosterFiles = Type2FileNames {
         Separator = "-"

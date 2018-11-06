@@ -313,7 +313,7 @@ contains
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
           if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
-            call addOnsShift(potential%intBlock, qBlockIn, orb, onSiteElements, species, q0)
+            call addOnsShift(potential%intBlock, qBlockIn, q0, onSiteElements, species, orb)
           end if
 
         end if
@@ -377,7 +377,7 @@ contains
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
           if (allocated(onSiteElements)) then
-            call addOnsShift(potential%intBlock, qBlockOut, orb, onSiteElements, species, q0)
+            call addOnsShift(potential%intBlock, qBlockOut, q0, onSiteElements, species, orb)
           end if
 
           potential%intBlock = potential%intBlock + potential%extBlock
@@ -514,7 +514,7 @@ contains
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-            & iRhoPrim, thirdOrd, chrgForces, dispersion, onSiteElements, qBlockOut, tPoisson)
+            & iRhoPrim, thirdOrd, chrgForces, dispersion, qBlockOut, tPoisson)
         if (tCasidaForces) then
           derivs(:,:) = derivs + excitedDerivs
         end if
@@ -2926,7 +2926,7 @@ contains
     real(dp), intent(inout) :: Ef(:)
 
     !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:)
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     integer :: nSpin
     real(dp) :: nEl(2)
@@ -2967,7 +2967,7 @@ contains
     end if
 
     if (allocated(onSiteElements)) then
-      call getEons(energy%atomOnSite, qBlock, qOrb, q0, orb, onSiteElements, species)
+      call getEons(energy%atomOnSite, qBlock, q0, onSiteElements, species, orb)
       energy%eOnSite = sum(energy%atomOnSite)
     end if
 
@@ -4295,7 +4295,7 @@ contains
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-      & chrgForces, dispersion, onSiteElements, qBlockOut, tPoisson)
+      & chrgForces, dispersion, qBlockOut, tPoisson)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4377,9 +4377,6 @@ contains
 
     !> dispersion interactions
     class(DispersionIface), intent(inout), allocatable :: dispersion
-
-    !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:)
 
     !> Dual output charges
     real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
