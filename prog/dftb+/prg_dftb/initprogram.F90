@@ -977,9 +977,6 @@ contains
     !> First guess for nr. of neighbours.
     integer, parameter :: nInitNeighbour = 40
 
-    integer, external :: omp_get_thread_num, omp_get_num_threads
-    integer, external :: omp_get_thread_limit, omp_get_max_threads
-
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
 
@@ -1049,21 +1046,13 @@ contains
       tRealHS = .false.
     end if
 
-  #:if WITH_MPI
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
-  #:endif
+    #:if WITH_MPI
+      call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    #:endif
 
-    !$OMP PARALLEL
-    if (omp_get_thread_num().eq.0) then
-      write(stdOut,"('OMP THREADS: ',I0)") omp_get_num_threads()
-      write(stdOut,"('OMP MAX THREADS: ',I0)") omp_get_max_threads()
-      !write(stdOut,"('OMP THREADS LIMIT: ',I0)") omp_get_thread_limit()
-    end if
-    !$OMP END PARALLEL
-
-  #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
-  #:endif
+    #:if WITH_SCALAPACK
+      call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
+    #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
@@ -2956,7 +2945,7 @@ contains
     type(inputData), intent(in) :: input
 
     !> Whether transport has been initialized
-    logical :: tInitialized
+    logical :: tInitialized, tAtomsOutside
     integer :: iSpin, isz
     integer :: nSpinChannels
 
@@ -3039,10 +3028,9 @@ contains
       ginfo = input%ginfo
 
       if (allocated(input%ctrl%indMovedAtom)) then
-        if ((input%ctrl%tGeoOpt .or. input%ctrl%tMD .or. input%ctrl%tDerivs .or.&
-            & allocated(input%ctrl%socketInput)) .and. ( any&
-            & (input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
-            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
+        tAtomsOutside = any(input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
+            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2))
+        if (tAtomsOutside) then
           call error("There are moving atoms specified outside of the device region")
         end if
       end if
