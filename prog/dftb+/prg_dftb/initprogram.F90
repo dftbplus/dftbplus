@@ -565,6 +565,8 @@ module initprogram
   !> Orbital equivalency for orbital blocks with spin-orbit
   integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
 
+  !> Equivalences for onsite block corrections if needed with spin orbit
+  integer, allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
 
   ! External charges
@@ -1449,9 +1451,7 @@ contains
       end if
 
       if (allocated(onSiteElements)) then
-       if (tImHam) then
-          call error("onsite correction does not work with spin orbit yet")
-        elseif (tDFTBU) then
+        if (tDFTBU) then
           call error("onsite correction does not work with LDA+U yet")
         end if
 
@@ -1466,8 +1466,14 @@ contains
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
         allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        call Ons_blockIndx(iEqBlockOnSite, nIneqOrb, orb)
+        if (tImHam) then
+          allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        end if
+        call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
         nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
+        if (allocated(iEqBlockOnSiteLS)) then
+          nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
+        end if
       end if
 
     else
@@ -2229,7 +2235,7 @@ contains
         else
           call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
           if (tImHam) then
-            call AppendBlock_reduce(qiBlockIn, iEqBlockOnSite, orb, qInpRed, skew=.true. )
+            call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
           end if
         end if
       end if
