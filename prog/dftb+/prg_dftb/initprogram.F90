@@ -2956,7 +2956,7 @@ contains
     type(inputData), intent(in) :: input
 
     !> Whether transport has been initialized
-    logical :: tInitialized
+    logical :: tInitialized, tAtomsOutside
     integer :: iSpin, isz
     integer :: nSpinChannels
 
@@ -3039,10 +3039,9 @@ contains
       ginfo = input%ginfo
 
       if (allocated(input%ctrl%indMovedAtom)) then
-        if ((input%ctrl%tGeoOpt .or. input%ctrl%tMD .or. input%ctrl%tDerivs .or.&
-            & allocated(input%ctrl%socketInput)) .and. ( any&
-            & (input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
-            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
+        tAtomsOutside = any(input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
+            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2))
+        if (tAtomsOutside) then
           call error("There are moving atoms specified outside of the device region")
         end if
       end if
