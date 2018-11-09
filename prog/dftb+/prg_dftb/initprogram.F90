@@ -2580,7 +2580,7 @@ contains
       case(forceDynT)
         strTmp = "Dynamics, finite electronic temp."
       end select
-      write(stdOut, "(A,':',T30,A)") "Force evaluation method", strTmp
+      write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
     end if
 
     tFirst = .true.
