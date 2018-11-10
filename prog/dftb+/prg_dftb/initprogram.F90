@@ -2263,6 +2263,8 @@ contains
         & movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
+    ! note, this has the side effect of setting up module variable transpar as copy of
+    ! input%transpar
     call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
         & shiftPerLUp, chargeUp, poissonDerivs)
     if (tContCalc) then
