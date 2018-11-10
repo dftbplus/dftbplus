@@ -2263,9 +2263,14 @@ contains
         & movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
-    call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, species0, orb,&
-        & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
-    allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
+        & shiftPerLUp, chargeUp, poissonDerivs)
+    if (tContCalc) then
+      ! geometry is reduced to contacts only
+      allocate(iAtInCentralRegion(nAtom))
+    else
+      allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+    end if
   #:else
     allocate(iAtInCentralRegion(nAtom))
   #:endif
@@ -2965,7 +2970,7 @@ contains
     end if
 
     ! contact calculation (complementary to Upload)
-    tContcalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
+    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
     ! whether local currents are computed
     tLocalCurrents = input%ginfo%greendens%doLocalCurr
 
@@ -3392,10 +3397,10 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, transpar, species0, orb,&
+  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb,&
       & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
 
-    logical, intent(in) :: tNegf, tUpload, tPoisson, tContCalc
+    logical, intent(in) :: tUpload, tPoisson
     type(TTransPar), intent(in) :: transpar
     integer, intent(in) :: species0(:)
     type(TOrbitals), intent(in) :: orb
