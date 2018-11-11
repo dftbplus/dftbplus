@@ -303,6 +303,19 @@ contains
         & iSparseStart, img2CentCell, self%colStartLocal, self%colEndLocal, self%colPtrLocal,&
         & HnzValLocal)
 
+    if (electronicSolver%ELSI_tWriteHS) then
+      ! set up for sparse matrix writing
+      call elsi_set_rw_csc(electronicSolver%ELSI_rwHandle, self%nnzGlobal, self%nnzLocal,&
+          & self%numColLocal)
+
+      call elsi_write_mat_real_sparse(electronicSolver%ELSI_rwHandle, "ELSI_HrealSparse.bin",&
+          & self%rowIndLocal, self%colPtrLocal, HnzValLocal)
+      call elsi_write_mat_real_sparse(electronicSolver%ELSI_rwHandle, "ELSI_SrealSparse.bin",&
+          & self%rowIndLocal, self%colPtrLocal, SnzValLocal)
+      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      call cleanShutdown("Finished matrix write")
+    end if
+
     ! Load the matrix into ELSI and solve DM
     call elsi_dm_real_sparse(electronicSolver%elsiHandle, HnzValLocal, SnzValLocal, DMnzValLocal,&
         & Eband(iS))
@@ -453,6 +466,19 @@ contains
     call pack2elsi_cmplx(self, ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
         & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal,&
         & self%colEndLocal, self%colPtrLocal, HnzValLocal)
+
+    if (electronicSolver%ELSI_tWriteHS) then
+      ! set up for sparse matrix writing
+      call elsi_set_rw_csc(electronicSolver%ELSI_rwHandle, self%nnzGlobal, self%nnzLocal,&
+          & self%numColLocal)
+
+      call elsi_write_mat_complex_sparse(electronicSolver%ELSI_rwHandle, "ELSI_HcmplxSparse.bin",&
+          & self%rowIndLocal, self%colPtrLocal, HnzValLocal)
+      call elsi_write_mat_complex_sparse(electronicSolver%ELSI_rwHandle, "ELSI_ScmplxSparse.bin",&
+          & self%rowIndLocal, self%colPtrLocal, SnzValLocal)
+      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      call cleanShutdown("Finished matrix write")
+    end if
 
     ! Load the matrix into ELSI and solve DM
     call elsi_dm_complex_sparse(electronicSolver%elsiHandle, HnzValLocal, SnzValLocal,&

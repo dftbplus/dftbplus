@@ -1114,6 +1114,8 @@ contains
       maxSccIter = 1
     end if
 
+    tWriteHS = input%ctrl%tWriteHS
+    tWriteRealHS = input%ctrl%tWriteRealHS
 
     if (tPeriodic) then
       tLatticeChanged = .true.
@@ -1406,6 +1408,8 @@ contains
     if (any(electronicSolver%iSolver == [electronicSolverTypes%elpa, electronicSolverTypes%omm,&
         & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
 
+      ! Would be using the ELSI matrix writing mechanism, so set this as always false
+      tWriteHS = .false.
     #:if WITH_ELSI
 
       nAllOrb = nOrb
@@ -1414,7 +1418,7 @@ contains
       end if
 
       call init(input%ctrl%solver, electronicSolver, env, nAllOrb, nEl, iDistribFn,&
-          & tWriteDetailedOutBands, nSpin, nKpoint)
+          & tWriteDetailedOutBands, nSpin, nKpoint, input%ctrl%tWriteHS)
 
     #:endif
 
@@ -2267,8 +2271,6 @@ contains
         & any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
         & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
         & electronicSolverTypes%elpa] )
-    tWriteHS = input%ctrl%tWriteHS
-    tWriteRealHS = input%ctrl%tWriteRealHS
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)

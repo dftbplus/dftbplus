@@ -184,6 +184,12 @@ contains
           & jobz="V", skipchol=electronicSolver%tCholeskiiDecomposed(1))
     case(electronicSolverTypes%elpa)
     #:if WITH_ELSI
+      if (electronicSolver%ELSI_tWriteHS) then
+        call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Hreal.bin", HSqr)
+        call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Sreal.bin", SSqr)
+        call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+        call cleanShutdown("Finished dense matrix write")
+      end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
       call elsi_ev_real(electronicSolver%elsiHandle, HSqr, SSqrTmp, eigenVals, eigenVecs)
@@ -263,6 +269,12 @@ contains
           & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
     case(electronicSolverTypes%elpa)
   #:if WITH_ELSI
+      if (electronicSolver%ELSI_tWriteHS) then
+        call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Hcmplx.bin", HSqr)
+        call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Scmplx.bin", SSqr)
+        call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+        call cleanShutdown("Finished dense matrix write")
+      end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
       call elsi_ev_complex(electronicSolver%elsiHandle, HSqr, SSqr, eigenVals, eigenVecs)

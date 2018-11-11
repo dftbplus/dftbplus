@@ -399,7 +399,9 @@ contains
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
 
-        if (tWriteRealHS .or. tWriteHS) then
+        if (tWriteRealHS .or. tWriteHS .and. any(electronicSolver%iSolver ==&
+            & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+            & electronicSolverTypes%relativelyrobust])) then
           call writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec,&
               & cellVec, ham, iHam)
@@ -2134,6 +2136,12 @@ contains
             end if
             allocate(rhosqrreal(size(HSqrReal,dim=1),size(HSqrReal,dim=2),1))
             Eband(iSp) = 0.0_dp
+            if (electronicSolver%ELSI_tWriteHS) then
+              call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Hreal.bin", HSqrReal)
+              call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Sreal.bin", SSqrReal)
+              call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+              call cleanShutdown("Finished dense matrix write")
+            end if
             call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal(:,:,1),&
                 & Eband(iSp))
             call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal(:,:,1),&
@@ -2164,6 +2172,14 @@ contains
             end if
             allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
             rhoSqrCplx = 0.0_dp
+            if (electronicSolver%ELSI_tWriteHS) then
+              call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Hcmplex.bin",&
+                  & HSqrCplx)
+              call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Scmplx.bin",&
+                  & SSqrCplx)
+              call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+              call cleanShutdown("Finished dense matrix write")
+            end if
             call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
                 & Eband(iSp))
             call packRhoCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
@@ -2222,6 +2238,14 @@ contains
           end if
           allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
           rhoSqrCplx = 0.0_dp
+          if (electronicSolver%ELSI_tWriteHS) then
+            call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Hcmplex.bin",&
+                & HSqrCplx)
+            call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Scmplx.bin",&
+                & SSqrCplx)
+            call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+            call cleanShutdown("Finished dense matrix write")
+          end if
           call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
               & Eband(iSp))
           if (tSpinOrbit .and. .not. tDualSpinOrbit) then

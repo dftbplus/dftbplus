@@ -103,6 +103,12 @@ module solvers
     !> level of output from solver
     integer :: ELSI_OutputLevel
 
+    !> should the code write matrices and stop
+    logical :: ELSI_tWriteHS
+
+    !> handle for matrix IO
+    type(elsi_rw_handle) :: ELSI_rwHandle
+
     !> parallelisation strategy
     integer :: ELSI_parallel
 
@@ -191,7 +197,7 @@ contains
 
   !> Initialise extra settings relevant to ELSI in the solver data structure
   subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands,&
-      & nSpin, nKPoint)
+      & nSpin, nKPoint, tWriteHS)
 
     !> input structure for ELSI
     type(TElectronicSolverInp), intent(in) :: inp
@@ -219,6 +225,9 @@ contains
 
     !> total number of k-points
     integer, intent(in) :: nKPoint
+
+    !> Should the matrices be written out
+    logical, intent(in) :: tWriteHS
 
     ! use of ELSI to solve electronic states
     this%tUsingELSI = .true.
@@ -264,6 +273,9 @@ contains
 
     ! number of electrons in the problem
     this%ELSI_n_electron = sum(nEl)
+
+    ! should the code write the hamiltonian and overlap and stop
+    this%ELSI_tWriteHS = tWriteHS
 
     if (nSpin == 2) then
       this%ELSI_spin_degeneracy = nEl(1) - nEl(2)
@@ -369,6 +381,20 @@ contains
       call elsi_set_csc_blk(this%elsiHandle, this%ELSI_CSR_blockSize)
     end if
     call elsi_set_blacs(this%elsiHandle, this%ELSI_my_BLACS_Ctxt, this%ELSI_BLACS_blockSize)
+
+    if (this%ELSI_tWriteHS) then
+      ! setup to write a matrix
+      call elsi_init_rw(this%ELSI_rwHandle, 1, this%ELSI_parallel, this%ELSI_n_basis,&
+          & this%ELSI_n_electron)
+      ! MPI comm
+      call elsi_set_rw_mpi(this%ELSI_rwHandle, this%ELSI_MPI_COMM_WORLD)
+      if (.not.this%ELSI_CSR) then
+        ! dense matrices
+        call elsi_set_rw_blacs(this%ELSI_rwHandle, this%ELSI_my_BLACS_Ctxt,&
+            & this%ELSI_BLACS_blockSize)
+      end if
+    end if
+
 
     call elsi_set_mu_broaden_scheme(this%elsiHandle, this%ELSI_mu_broaden_scheme)
     if (this%ELSI_mu_broaden_scheme == 2) then
