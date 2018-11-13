@@ -993,9 +993,6 @@ contains
     !> First guess for nr. of neighbours.
     integer, parameter :: nInitNeighbour = 40
 
-    integer, external :: omp_get_thread_num, omp_get_num_threads
-    integer, external :: omp_get_thread_limit, omp_get_max_threads
-
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
 
@@ -1065,21 +1062,13 @@ contains
       tRealHS = .false.
     end if
 
-  #:if WITH_MPI
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
-  #:endif
+    #:if WITH_MPI
+      call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    #:endif
 
-    !$OMP PARALLEL
-    if (omp_get_thread_num().eq.0) then
-      write(stdOut,"('OMP THREADS: ',I0)") omp_get_num_threads()
-      write(stdOut,"('OMP MAX THREADS: ',I0)") omp_get_max_threads()
-      !write(stdOut,"('OMP THREADS LIMIT: ',I0)") omp_get_thread_limit()
-    end if
-    !$OMP END PARALLEL
-
-  #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
-  #:endif
+    #:if WITH_SCALAPACK
+      call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
+    #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
@@ -2337,9 +2326,16 @@ contains
         & movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
-    call initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, input%transpar, species0, orb,&
-        & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
-    allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+    ! note, this has the side effect of setting up module variable transpar as copy of
+    ! input%transpar
+    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
+        & shiftPerLUp, chargeUp, poissonDerivs)
+    if (tContCalc) then
+      ! geometry is reduced to contacts only
+      allocate(iAtInCentralRegion(nAtom))
+    else
+      allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+    end if
   #:else
     allocate(iAtInCentralRegion(nAtom))
   #:endif
@@ -2646,7 +2642,7 @@ contains
       case(forceDynT)
         strTmp = "Dynamics, finite electronic temp."
       end select
-      write(stdOut, "(A,':',T30,A)") "Force evaluation method", strTmp
+      write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
     end if
 
     tFirst = .true.
@@ -3022,7 +3018,7 @@ contains
     type(inputData), intent(in) :: input
 
     !> Whether transport has been initialized
-    logical :: tInitialized
+    logical :: tInitialized, tAtomsOutside
     integer :: iSpin, isz
     integer :: nSpinChannels
 
@@ -3042,7 +3038,7 @@ contains
     end if
 
     ! contact calculation (complementary to Upload)
-    tContcalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
+    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
     ! whether local currents are computed
     tLocalCurrents = input%ginfo%greendens%doLocalCurr
 
@@ -3105,10 +3101,9 @@ contains
       ginfo = input%ginfo
 
       if (allocated(input%ctrl%indMovedAtom)) then
-        if ((input%ctrl%tGeoOpt .or. input%ctrl%tMD .or. input%ctrl%tDerivs .or.&
-            & allocated(input%ctrl%socketInput)) .and. ( any&
-            & (input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
-            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2)) )) then
+        tAtomsOutside = any(input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
+            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2))
+        if (tAtomsOutside) then
           call error("There are moving atoms specified outside of the device region")
         end if
       end if
@@ -3470,10 +3465,10 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initTransportArrays(tNegf, tUpload, tPoisson, tContCalc, transpar, species0, orb,&
+  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb,&
       & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
 
-    logical, intent(in) :: tNegf, tUpload, tPoisson, tContCalc
+    logical, intent(in) :: tUpload, tPoisson
     type(TTransPar), intent(in) :: transpar
     integer, intent(in) :: species0(:)
     type(TOrbitals), intent(in) :: orb
