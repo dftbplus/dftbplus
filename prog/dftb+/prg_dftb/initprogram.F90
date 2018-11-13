@@ -1888,7 +1888,7 @@ contains
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces)
+      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
 
     end if
 

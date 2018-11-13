@@ -17,7 +17,7 @@ module onsitecorrection
   implicit none
   private
 
-  public :: addOnsShift, getEOns
+  public :: addOnsShift, getEOns, getOnsME
   public :: ons_getOrbitalEquiv, ons_blockIndx, onsBlock_reduce, onsBlock_expand
 
 contains
@@ -64,26 +64,8 @@ contains
     do iAt = 1, nAt
       iSp = species(iAt)
       nOrb = orb%nOrbAtom(iAt)
-      tmpME(:,:,:) = 0.0_dp
 
-      ! prepare matrix elements between atomic orbitals for this species
-      do ud = 1,2
-        ! loop running over same spin and different spin
-        do iSh = 1, orb%nShell(iSp)
-          do jSh = 1, orb%nShell(iSp)
-            if (iSh == jSh .and. orb%angShell(jSh, iSp) == 0) then
-              ! ss' on same shell
-              cycle
-            end if
-            tmpME(orb%posShell(jSh, iSp) : orb%posShell(jSh + 1, iSp) - 1,&
-                & orb%posShell(iSh, iSp) : orb%posShell(iSh + 1, iSp) - 1, ud) =&
-                & onsMEs(jSh, iSh, ud, iSp)
-          end do
-        end do
-        ! make symmetric just in case
-        tmpME(:nOrb, :nOrb, ud) = 0.5_dp * (tmpME(:nOrb, :nOrb, ud)&
-            & + transpose(tmpME(:nOrb, :nOrb, ud)))
-      end do
+      call getOnsME(orb, iSp, onsMEs, nOrb, tmpME)
 
       do iSpin = 1, nSpin
         tmpBlock(:,:) = 0.0_dp
@@ -140,6 +122,52 @@ contains
 
   end subroutine addOnsShift
 
+
+  !> Evaluate an atomic block of on-site correction matrix elements
+  subroutine getOnsME(orb, iSp, onsMEs, nOrb, blockME)
+
+    !> Information about the orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> species of atom
+    integer, intent(in) :: iSp
+
+    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    real(dp), intent(in) :: onsMEs(:,:,:,:)
+
+    !> orbital information
+    integer, intent(in) :: nOrb
+
+    !> resulting block of elements
+    real(dp), intent(out) :: blockME(:,:,:)
+
+    integer :: ud, iSh, jSh
+
+    blockME(:,:,:) = 0.0_dp
+    do ud = 1,2
+      ! loop running over same spin and different spin
+
+      do iSh = 1, orb%nShell(iSp)
+        do jSh = 1, orb%nShell(iSp)
+
+          if (iSh == jSh .and. orb%angShell(jSh, iSp) == 0) then
+            ! ss' on same shell
+            cycle
+          end if
+
+          blockME(orb%posShell(jSh, iSp) : orb%posShell(jSh + 1, iSp) - 1,&
+              & orb%posShell(iSh, iSp) : orb%posShell(iSh + 1, iSp) - 1, ud) =&
+              & onsMEs(jSh, iSh, ud, iSp)
+
+        end do
+      end do
+
+      ! make symmetric just in case
+      blockME(:nOrb, :nOrb, ud) = 0.5_dp * (blockME(:nOrb, :nOrb, ud)&
+          & + transpose(blockME(:nOrb, :nOrb, ud)))
+    end do
+
+  end subroutine getOnsME
 
   !> get the onsite energy correction
   subroutine getEons(Eons, qBlock, qiBlock, q0, onsMEs, species, orb)
