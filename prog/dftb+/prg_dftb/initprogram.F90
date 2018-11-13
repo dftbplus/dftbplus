@@ -2878,6 +2878,14 @@ contains
        call error("Electron dynamics does not work with MPI yet")
      end if
 
+     if (tFixEf) then
+       call error("Electron dynamics does not work with fixed Fermi levels yet")
+     end if
+
+     if (tSpinSharedEf) then
+       call error("Electron dynamics does not work with spin shared Fermi levels yet")
+     end if
+
      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, tWriteAutotest, autotestTag)
 
    end if
