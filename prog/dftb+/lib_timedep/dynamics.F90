@@ -42,6 +42,7 @@ module timeprop_module
   use timer
   use taggedoutput
   use hamiltonian
+  use solvertypes
   implicit none
   private
 
@@ -206,7 +207,8 @@ contains
   !> Driver of time dependent propagation to calculate wither spectrum or laser
   subroutine runDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
-      & env, tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam)
+      & env, tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+      & iAtInCentralRegion, tFixEf, Ef)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -298,6 +300,16 @@ contains
     !> Imaginary part of sparse hamiltonian storage
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
     integer :: iPol
     logical :: tWriteAutotest
 
@@ -319,12 +331,14 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-            & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam)
+            & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+            & iAtInCentralRegion, tFixEf, Ef)
       end do
     else
       call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
-          & xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam)
+          & xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+          & iAtInCentralRegion, tFixEf, Ef)
     end if
 
   end subroutine runDynamics
@@ -333,7 +347,8 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-      & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam)
+      & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+      & iAtInCentralRegion, tFixEf, Ef)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -422,6 +437,16 @@ contains
     !> Imaginary part of sparse hamiltonian storage
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
     complex(dp) :: H1(this%nOrbs,this%nOrbs,this%nSpin), T1(this%nOrbs,this%nOrbs)
@@ -487,7 +512,7 @@ contains
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
         & .false., tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -525,7 +550,7 @@ contains
       call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
           & .false., tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
           & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
       do iSpin = 1, this%nSpin
         call scal(H1(:,:,iSpin), imag)
@@ -662,6 +687,9 @@ contains
     integer :: iAtom, iSpin
     logical :: tDFTBU, tImHam
 
+    ! left over from Poisson shift upload from transport being messy
+    real(dp), allocatable :: dummy(:,:)
+
     ham = 0.0_dp
     if (this%nSpin == 2) then
       call ud2qm(qq)
@@ -681,7 +709,7 @@ contains
 
     call getChargePerShell(qq, orb, species, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, species,&
-        & neighbourList, img2CentCell, spinW, thirdOrd, potential)
+        & neighbourList, img2CentCell, spinW, thirdOrd, potential, gammaf, .false., .false., dummy)
     call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
         & nUJ, iUJ, niUJ, potential)
 

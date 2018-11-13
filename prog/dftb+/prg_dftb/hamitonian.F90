@@ -22,6 +22,11 @@ module hamiltonian
   use thirdorder_module, only : ThirdOrder
   use environment, only : TEnvironment
   use scc, only : TScc
+  use solvertypes
+
+#:if WITH_TRANSPORT
+  use poisson_init
+#:endif
 
   implicit none
 
@@ -261,7 +266,8 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, thirdOrd, potential)
+      & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
+      & tUpload, shiftPerLUp)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -299,8 +305,22 @@ contains
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
+    !> electrostatic solver (poisson or gamma-functional)
+    integer, intent(in) :: electrostatics
+
+    !> whether Poisson is solved (used with tPoissonTwice)
+    logical, intent(in) :: tPoisson
+
+    !> whether contacts are uploaded
+    logical, intent(in) :: tUpload
+
+    !> uploded potential per shell per atom
+    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
+
+    ! local variables
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
+    real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
 
@@ -311,10 +331,49 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call sccCalc%updateCharges(env, qInput, q0, orb, species, neighbourList%iNeighbour,&
-        & img2CentCell)
-    call sccCalc%getShiftPerAtom(atomPot(:,1))
-    call sccCalc%getShiftPerL(shellPot(:,:,1))
+    call sccCalc%updateCharges(env, qInput, q0, orb, species)
+
+    select case(electrostatics)
+
+    case(gammaf)
+
+      call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
+      call sccCalc%getShiftPerAtom(atomPot(:,1))
+      call sccCalc%getShiftPerL(shellPot(:,:,1))
+
+    case(poisson)
+
+    #:if WITH_TRANSPORT
+      ! NOTE: charge-magnetization representation is used
+      !       iSpin=1 stores total charge
+      ! Logic of calls order:
+      ! shiftPerLUp      is 0.0 on the device region,
+      ! poiss_getshift() updates only the device region
+      if (tPoisson) then
+        if (tUpload) then
+          shellPot(:,:,1) = shiftPerLUp
+        else
+          ! Potentials for non-existing angular momenta must be 0 for later summations
+          shellPot(:,:,1) = 0.0_dp
+        end if
+        call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
+        call poiss_getshift(shellPot(:,:,1))
+        if (.not.allocated(shellPotBk)) then
+          allocate(shellPotBk(orb%mShell, nAtom))
+        end if
+        shellPotBk = shellPot(:,:,1)
+      else
+        shellPot(:,:,1) = shellPotBk
+      end if
+      atomPot(:,:) = 0.0_dp
+      call sccCalc%setShiftPerAtom(atomPot(:,1))
+      call sccCalc%setShiftPerL(shellPot(:,:,1))
+    #:else
+      call error("poisson solver used without transport modules")
+    #:endif
+
+    end select
+
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
 
@@ -328,7 +387,7 @@ contains
     if (nSpin /= 1 .and. allocated(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
-   end if
+    end if
 
     call total_shift(potential%intShell, potential%intAtom, orb, species)
     call total_shift(potential%intBlock, potential%intShell, orb, species)

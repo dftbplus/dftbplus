@@ -1,0 +1,15 @@
+draw l1 line {0 0 0}{50 0 0}
+draw l2 line {0 0 0}{0 50 0}
+draw l3 line {0 0 0}{0 0 50}
+draw l4 line {50 0 0}{50 0 50}
+draw l5 line {0 50 0}{50 50 0}
+draw l6 line {0 0 50}{0 50 50}
+
+draw l7 line {50 50 0}{50 50 50}
+draw l8 line {50 0 50}{50 50 50}
+draw l9 line {0 50 50}{50 50 50}
+
+draw l10 line {0 50 0}{50 50 50}
+draw l11 line {0 0 50}{50 0 50}
+draw l12 line {50 0 0}{50 50 0}
+

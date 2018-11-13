@@ -600,7 +600,7 @@ contains
   end subroutine AppendBlock_reduce
 
 
-  !> Extract DFTB+U blocks blocks from the end of a 1D vector
+  !> Extract DFTB+U blocks from the end of a 1D vector
   subroutine Block_expand(input, blockEquiv, orb, output, species, nUJ, niUJ, iUJ, orbEquiv, skew)
 
     !> 1D array of packed data

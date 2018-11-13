@@ -34,11 +34,11 @@ module evaluateenergies
 
 contains
 
-  !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd,&
-      & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+    !> Calculates various energy contribution that can potentially update for the same geometry
+  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd, tDftbU,&
+      & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
+      & cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ,&
+      & nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -130,7 +130,18 @@ contains
     !> Spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
     integer :: nSpin
+    real(dp) :: nEl(2)
 
     nSpin = size(rhoPrim, dim=2)
 
@@ -138,11 +149,11 @@ contains
     energy%atomNonSCC(:) = 0.0_dp
     call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour, nNeighbourSK,&
         & img2CentCell, iSparseStart)
-    energy%EnonSCC =  sum(energy%atomNonSCC)
+    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
 
     if (tEfield) then
       energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
-      energy%Eext = sum(energy%atomExt)
+      energy%Eext = sum(energy%atomExt(iAtInCentralRegion(:)))
     end if
 
     if (allocated(sccCalc)) then
@@ -151,11 +162,11 @@ contains
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
-      energy%Escc = sum(energy%atomSCC)
+      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
-        energy%Espin = sum(energy%atomSpin)
+        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
       end if
     end if
     if (allocated(thirdOrd)) then
@@ -164,7 +175,7 @@ contains
       else
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
       end if
-      energy%e3rd = sum(energy%atom3rd)
+      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
     end if
 
     if (tDftbU) then
@@ -174,13 +185,13 @@ contains
       else
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
       end if
-      energy%Edftbu = sum(energy%atomDftbu)
+      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
     end if
 
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
       call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
-      energy%ELS = sum(energy%atomLS)
+      energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
@@ -190,7 +201,25 @@ contains
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
     energy%EMermin = energy%Etotal - sum(TS)
+    ! extrapolated to 0 K
+    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
     energy%EGibbs = energy%EMermin + cellVol * extPressure
+
+    energy%EForceRelated = energy%EGibbs
+    if (tFixEf) then
+      if (nSpin == 2) then
+        nEl(:) = sum(sum(qOrb(:,iAtInCentralRegion(:),:),dim=1),dim=1)
+        nEl(1) = 0.5_dp * ( nEl(1) + nEl(2) )
+        nEl(2) = nEl(1) - nEl(2)
+        ! negative sign due to electron charge
+        energy%EForceRelated = energy%EForceRelated  - sum(nEl(:2) * Ef(:2))
+      else
+        nEl = 0.0_dp
+        nEl(1) = sum(qOrb(:,iAtInCentralRegion(:),1))
+        ! negative sign due to electron charge
+        energy%EForceRelated = energy%EForceRelated  - nEl(1) * Ef(1)
+      end if
+    end if
 
   end subroutine getEnergies
 
