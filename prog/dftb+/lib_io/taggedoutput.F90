@@ -86,6 +86,15 @@ module taggedoutput
   !> total stress tensor for periodic geometries
   character(*), parameter, public :: tag_stressTot = 'stress'
 
+  !> final energy components after real-time propagation
+  character(*), parameter, public :: tag_tdenergy = 'final_energy'
+
+  !> final dipole moment vector after real-time propagation
+  character(*), parameter, public :: tag_tddipole = 'final_dipole_moment'
+
+  !> final negative gross atomic Mulliken charges after real-time propagation
+  character(*), parameter, public :: tag_tdcharges = 'final_td_charges'
+
   !> total tunneling vector
   character(*), parameter, public :: tag_tunn = 'total_tunneling'
 

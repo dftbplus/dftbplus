@@ -37,6 +37,7 @@ module parser
   use reppoly
   use commontypes
   use oldskdata
+  use timeprop_module
   use xmlf90
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
@@ -3602,6 +3603,12 @@ contains
     call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
+    call getChild(node, "ElectronDynamics", child=child, requested=.false.)
+    if (associated(child)) then
+       allocate(ctrl%elecDynInp)
+       call readElecDynamics(child, ctrl%elecDynInp)
+    end if
+
   #:if WITH_TRANSPORT
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
     if (associated(child)) then
@@ -3614,6 +3621,7 @@ contains
       call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
     endif
   #:endif
+
 
   end subroutine readAnalysis
 
@@ -3719,6 +3727,116 @@ contains
     end if
 
   end subroutine readCustomisedHubbards
+
+
+  !> Reads the electron dynamics block
+  subroutine readElecDynamics(node, input)
+
+    !> input data to parse
+    type(fnode), pointer :: node
+
+    !> ElecDynamicsInp instance
+    type(TElecDynamicsInp), intent(inout) :: input
+
+    type(fnode), pointer :: value, value2, child, child2
+    type(string) :: buffer, buffer2, modifier
+
+  #:if WITH_MPI
+    if (associated(node)) then
+       call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
+            & electron dynamics are currently not supported.')
+    end if
+  #:endif
+
+
+    call getChildValue(node, "Steps", input%steps)
+    call getChildValue(node, "TimeStep", input%dt, modifier=modifier, &
+         & child=child)
+    call convertByMul(char(modifier), timeUnits, child, input%Dt)
+
+    call getChildValue(node, "FieldStrength", input%tdField, modifier=modifier, child=child)
+    call convertByMul(char(modifier), EFieldUnits, child, input%tdField)
+
+    call getChildValue(node, "Populations", input%tPopulations, .false.)
+    call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
+    call getChildValue(node, "Restart", input%tRestart, .false.)
+    call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
+    call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
+
+    !! Different perturbation types
+    call getChildValue(node, "Perturbation", value, "None", child=child)
+    call getNodeName(value, buffer)
+    select case(char(buffer))
+
+    case ("kick")
+       input%pertType = iKick
+       call getChildValue(value, "PolarizationDirection", input%polDir)
+       if (input%polDir < 1 .or. input%polDir > 4) then
+          call detailedError(child, "Wrong specified polarization direction")
+       end if
+
+       call getChildValue(value, "SpinType", buffer2, "Singlet")
+
+       select case(unquote(char(buffer2)))
+       case ("singlet", "Singlet")
+          input%spType = iTDSinglet
+       case ("triplet", "Triplet")
+          input%spType = iTDTriplet
+       case default
+          call detailedError(value, "Unknown spectrum spin type " // char(buffer2))
+       end select
+
+    case ("laser")
+       input%pertType = iLaser
+       call getChildValue(value, "PolarizationDirection", input%reFieldPolVec)
+       call getChildValue(value, "ImagPolarizationDirection", input%imFieldPolVec, &
+            & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
+       call getChildValue(value, "LaserEnergy", input%omega, modifier=modifier, child=child)
+       call convertByMul(char(modifier), energyUnits, child, input%Omega)
+       call getChildValue(value, "Phase", input%phase, 0.0_dp)
+
+    case ("none")
+       input%pertType = iNoTDPert
+
+    case default
+       call detailedError(child, "Unknown perturbation type " // char(buffer))
+    end select
+
+    !! Different envelope functions
+    call getChildValue(node, "EnvelopeShape", value, "Constant")
+    call getNodeName(value, buffer)
+    select case(char(buffer))
+
+    case("constant")
+       input%envType = iTDConstant
+
+    case("gaussian")
+       input%envType = iTDGaussian
+       call getChildValue(value, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time0)
+
+       call getChildValue(value, "Time1", input%time1, modifier=modifier, child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time1)
+
+    case("sin2")
+       input%envType = iTDSin2
+       call getChildValue(value, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time0)
+
+       call getChildValue(value, "Time1", input%time1, modifier=modifier, child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time1)
+
+    case("fromfile")
+       input%envType = iTDFromFile
+       call getChildValue(value, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%Time0)
+
+    case default
+       call detailedError(value, "Unknown envelope shape " // char(buffer))
+    end select
+
+  end subroutine readElecDynamics
+
 
 #:if WITH_TRANSPORT
   !> Read geometry information for transport calculation

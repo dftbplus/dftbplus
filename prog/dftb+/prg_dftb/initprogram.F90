@@ -69,6 +69,7 @@ module initprogram
   use sorting, only : heap_sort
   use linkedlist
   use xlbomd_module
+  use timeprop_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
   use mainio, only : receiveGeometryFromSocket
@@ -478,14 +479,11 @@ module initprogram
   !> File containing output geometry
   character(lc) :: geoOutFile
 
-
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-
   !> Only use converged forces if SCC
   logical :: tUseConvergedForces
-
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -496,10 +494,8 @@ module initprogram
   !> Geometry optimizer for lattice consts
   type(OGeoOpt), allocatable :: pGeoLatOpt
 
-
   !> Charge mixer
   type(OMixer), allocatable :: pChrgMixer
-
 
   !> MD Framework
   type(OMDCommon), allocatable :: pMDFrame
@@ -696,6 +692,9 @@ module initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
+  !> First guess for nr. of neighbors.
+  integer, parameter :: nInitNeighbor = 40
+
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
 
@@ -803,6 +802,10 @@ module initprogram
 
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
+
+  !> Electron dynamics
+  type(TElecDynamics) :: elecDyn
+  logical :: tElectronDynamics
 
   private :: createRandomGenerators
 
@@ -1890,6 +1893,7 @@ contains
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
 
+
     ! MD stuff
     if (tMD) then
       ! Create MD framework.
@@ -2922,7 +2926,35 @@ contains
         call error("Linear response does not support k-points")
       end if
 
+   end if
+
+   ! Electron dynamics stuff
+   tElectronDynamics = allocated(input%ctrl%elecDynInp)
+   if (tElectronDynamics) then
+
+     if (t2Component) then
+       call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
+     end if
+
+     if (.not.tRealHS) then
+       call error("Electron dynamics does not support k-points")
     end if
+
+     if (withMpi) then
+       call error("Electron dynamics does not work with MPI yet")
+     end if
+
+     if (tFixEf) then
+       call error("Electron dynamics does not work with fixed Fermi levels yet")
+     end if
+
+     if (tSpinSharedEf) then
+       call error("Electron dynamics does not work with spin shared Fermi levels yet")
+     end if
+
+     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, tWriteAutotest, autotestTag)
+
+   end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
 

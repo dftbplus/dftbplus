@@ -2872,6 +2872,7 @@ calculation and/or calculate properties.
   \kw{EigenvectorsAsTxt} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
+  \kw{ElectronDynamics} & m & & \cb & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
 \end{ptable}
 
@@ -3002,6 +3003,142 @@ method which {\em may} have better scaling properties.
 
 \end{description}
 
+\subsection{ElectronDynamics} 
+
+\label{sec:dftbp.ElectronDynamics} 
+
+Calculate the real-time propagation of the electronic state of the system in the presence of an external time-dependent perturbation and time-dependent properties.
+\begin{ptable}
+  \kw{Steps} &i &  & - & \\
+  \kw{TimeStep} & r & & - & \\
+  \kw{FieldStrength} & r & & - & \\
+  \kw{Perturbation} & m & & None & \pref{sec:dftbp.tdpert} \\
+  \kw{EnvelopeShape} & m & Perturbation = Laser\{\} & Constant & \pref{sec:dftbp.envelope} \\
+  \kw{Populations} & l & & No & \\
+  \kw{Restart} & l & & No & \\
+  \kw{WriteRestart} & l & & Yes & \\
+  \kw{WriteFrequency} & i & & 50 & \\  
+  \kw{RestartFrequency} & i & & Steps/10 & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Steps}] Number of propagation steps to perform.
+
+\item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
+  electronic propagation steps.
+
+\item[\is{FieldStrength}]\modif{\modtype{Electric field strength}} Peak intensity of the applied time-dependent electric field.
+
+\item[\is{Populations}] If time-dependent (ground state) molecular orbital populations should be calculated. This is done by projecting the electronic state onto the ground state molecular orbitals. If Yes, they are saved every \is{WriteFrequency} steps to \verb|molPopul1.dat| (and \verb|molPopul2.dat| is the calculation is collinearly spin polarised).
+
+\item[\is{Restart}] If calculation should be restarted. The restart file \verb|tddump.bin| must in the working directory.
+
+\item[\is{WriteRestart}] If restart file \verb|tddump.bin| should be written.
+
+\item[\is{RestartFrequency}] Number of steps every which the system's state should be writen to restart file.
+
+\item[\is{WriteFrequency}] Number of steps every which the atomic charges and molecular orbital populations (if \is{Populations} = Yes) are written to file.
+\end{description}
+
+\subsubsection{Perturbation\{\}}
+\label{sec:dftbp.tdpert}
+
+Determines the type of perturbation that is applied.
+
+\paragraph{\iscb{None}}
+No time-dependent pertuzzrbation is included, free dynamics are calculated.
+
+\paragraph{Kick\{\}}
+Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
+
+\begin{ptable}
+  \kw{PolarizationDirection} & i &  & - & \\
+  \kw{SpinType} & s & SpinPolarisation = Colinear \{\} & Singlet & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{PolarizationDirection}] Number to indicate the cartesian axis for the kick where $1=x$, $2=y$ and $3=z$. If set to 4, calculates the three directions $x,y,z$ consecutively. For polarization direction 1,2,3 the dipole moment output file will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|, respectively.
+ 
+ \item[\is{SpinType}] Must be eiher ``Singlet'' or ``Triplet'' for singlet or triplet spectra, respectively. Only implemented for collinear spin polarisation.
+\end{description}
+
+\paragraph{Laser\{\}}
+Apply time-dependent sinusoidal perturbation to the system.
+
+\begin{ptable}
+  \kw{PolarizationDirection} & 3r &  & - & \\
+  \kw{ImagPolarizationDirection} & 3r & & 0 0 0 & \\
+  \kw{LaserEnergy} & r & & & \\
+  \kw{Phase} & r & & 0 & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{PolarizationDirection}] Vector along which the electric field is polarized.
+ 
+ \item[\is{ImagPolarizationDirection}] Imaginary part of the polarization vector. Useful for circularly polarized fields.
+ 
+ \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar \omega$ of the laser.
+ 
+ \item[\is{Phase}] Optional initial phase of laser field in radians, such that sinusoidal component of the field is described by $\sin(\omega t + \phi)$.
+
+\end{description}
+
+
+\subsubsection{EnvelopeShape\{\}}
+\label{sec:dftbp.envelope}
+
+Determines the envelope $f(t)$ of the laser, such that the laser field is $E(t) = E_0 f(t) \sin(\omega t + \phi) $
+
+\paragraph{Constant\{\}}
+
+Constant envelope and equal to $f(t) = 1$. Produces continuous wave laser.
+
+\paragraph{Gaussian\{\}}
+
+Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 / \beta^2)$, where $t_m$ is the time at which the pulse is centered and $\beta = \tau / 2\sqrt{\pi}$, $\tau$ being the duration of the pulse.
+
+\begin{ptable}
+  \kw{Time0} & r &  & 0 & \\
+  \kw{Time1} & r & & - & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{Time0}] Time at which the pulse starts.
+ \item[\is{Time1}] Time at which the pulse ends. Is equal to Time0 + $\tau$.
+\end{description}
+
+
+\paragraph{Sin2\{\}}
+
+Applies a sin$^2$ envelope function:
+
+$$ f(t) = 
+ \begin{cases}
+    \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
+    0 & t < t_0 \text{  or  } t > t_0 + \tau \\
+  \end{cases} $$
+
+The properties of this method are the same as for the Gaussian (\kw{Time0}, \kw{Time1}) and have the same meaning.
+
+  Example:\invparskip
+\begin{verbatim}
+  ElectronDynamics = {
+    Steps = 40000
+    TimeStep = 0.1
+    # Total time will be then 4000 a.u. = 96.8 fs
+    FieldStrength [v/a] = 0.01
+    Perturbation = Laser {
+      PolarizationDirection = 0.5 0.5 0
+      LaserEnergy [ev] = 2.55
+    }
+    EnvelopeShape = Sin2 {
+      Time1 [fs] = 30.0
+    }
+    Populations = Yes
+  }
+\end{verbatim}
+
+
 \subsubsection{ElectrostaticPotential}
 \label{sec:dftbp.ESP}
 
@@ -3051,6 +3188,54 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
+\subsubsection{ElectrostaticPotential}
+\label{sec:dftbp.ESP}
+
+Evaluates the electrostatic potential at specified points in space for SCC
+calculations. This data is accumulated in a specified text file.
+
+\begin{ptable}
+  \kw{OutputFile} & s  &  & "ESP.dat" & \\
+  \kw{AppendFile} & l  & MD or geometry optimisation & No & \\
+  \kw{Softening}  & r     & & 1E-6 & \\
+  \kw{Points}     & (3r)+ & \is{Grid} not set & \cb  & \\
+  \kw{Grid}       & m     & \is{Points} not set & \cb  & \\
+\end{ptable}
+\begin{description}
+\item[\is{OutputFile}] Text file to store the potential. If external electric
+  fields are present, an additional column gives their values. See
+  p.~\pref{sec:dftbp.esp} for a description of the file.
+\item[\is{AppendFile}] If running calculations with multiple geometries, should
+  the \is{OutputFile} be appended or only contain the last potential
+  information?
+\item[\is{Softening}] \modif{\modtype{length}} Modifies the plotted potential to
+  remove the $r=0$ divergence of $\sfrac{1}{r}$, by setting $\epsilon$ and
+  instead plotting $\sfrac{1}{\sqrt{r^2 +\epsilon^2}}$. Internal potential
+  calculations are unaffected, only the exported data.
+\item[\is{Points}] \modif{\modtype{length}} List of cartesian points at which to
+  evaluate the electrostatic field. In the case Periodic = Yes, the modifier "F"
+  may instead be used to specify the points as fractions of the lattice vectors.
+\item[\is{Grid}] \modif{\modtype{length}} Specification of a regular 1, 2 or 3
+  dimensional grid of points. In the case Periodic = Yes, the modifier "F" may
+  instead be used to specify the points as fractions of the lattice vectors.
+  \begin{ptable}
+    \kw{GridPoints} & 3i  &  & & \\
+    \kw{Origin} & 3r  &  & & \\
+    \kw{Spacing} & 3r  &  & & \\
+    \kw{Directions} & 9r  & Modifier not F & 1 0 0\ \  0 1 0\ \  0 0 1& \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{Spacing}] Separation between points in each direction. This
+      inherits the modifier for \is{Grid}.
+  \item[\is{Origin}] Location of first point in the grid. This inherits the
+    modifier for \is{Grid}.
+  \item[\is{GridPoints}] Number of points in each of the three direction of the
+    grid (a value of 1 places all points at the \is{Origin} of that direction).
+  \item[\is{Directions}] Set of 3 cartesian vectors along which the grid will
+    become aligned. This can rotate, skew, {\it etc.}\ the grid. The vectors are
+    internally normalised, but must be independent.
+  \end{description}
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
@@ -3675,6 +3860,52 @@ energy (in Hartree)\\
 \index{XREST.DAT}
 
 Net dipole moment of the specified excited state in units of Debye.
+
+\section{Electron dynamics results files}
+\label{sec:tddftb_rt}
+
+Real-time dynamics simulations produce the following output files:
+
+\subsection{energyvst.dat}
+\index{energyvst.dat}
+
+Time-dependent energy components in Hartree. The column order is the following:
+
+time (in fs), total energy, non-SCC energy, SCC energy, spin energy, external field energy, repulsive energy
+
+\subsection{qsvst.dat}
+\index{qsvst.dat}
+
+Net atomic charges in electrons (negative atomic populations) as a function of time, written every \kw{WriteFrequency} steps, with the following column order:
+
+time (in fs), net total charge, charge (atom 1), charge (atom 2), ..., charge (atom N)
+
+where N is the number of atoms, and the net total charge should always be zero (up to numerical presicion) for a neutral system.
+
+\subsection{mu.dat/mux.dat/muy.dat/muz.dat}
+\index{mu.dat}
+
+Dipole moment cartesian components $\mu_i$ as a function of time. The name depends on the type or perturbation: for kicks the polarization direction of the Dirac-delta field is indicated in the name of the file; for lasers and pulses, the name is always mu.dat. The column order for a spin unpolarised calculation is the following:
+
+time (in fs), $\mu_x$, $\mu_y$, $\mu_z$
+
+For (collinear) spin polarised calculations, the dipole components are also spin-dependent:
+
+Time (in fs), $\mu_x$ (up), $\mu_y$ (up), $\mu_z$ (up), $\mu_x$ (down), $\mu_y$ (down), $\mu_z$ (down).
+
+\subsection{laser.dat}
+\index{laser.dat}
+
+Created if \kw{Perturbation} = Laser\{\} (see \label{sec:dftbp.tdpert}). Laser field components $E_i$ (in V/\AA) as a function of time, in the following order:
+
+time (in fs), $E_x$, $E_y$, $E_z$
+
+\subsection{molPopul1.dat/molPopul2.dat}
+
+Created if \kw{Populations} = Yes. The number $i$ in molPopul$i$.dat indicates the spin channel for spin polarised calculations (if spin unpolarised, only molPopul1.dat is written). It contains the populations projected onto the ground state molecular orbitals (GSMO), written every \kw{WriteFrequency} steps. The projection is done by calculating first the change of basis matrix $\Lambda$ from the coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then projecting the time-dependent density matrix of the system in the atomic orbital basis: 
+$$\rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger} $$
+The diagonal elements of $\rho^{GSMO}$ are the seeked populations. The first column is the time (in fs), and from the second one the populations starting from the lowest lying orbital.
+
 
 %%% Local Variables:
 %%% mode: latex
