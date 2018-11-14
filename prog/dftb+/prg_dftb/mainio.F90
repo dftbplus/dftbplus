@@ -2276,12 +2276,11 @@ contains
 
 
   !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep,&
-      & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
-      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
-      & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc, tNegf, &
-      & invLatVec, kPoints, iAtInCentralRegion)
+  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+      & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
+      & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
+      & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
+      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tNegf, invLatVec, kPoints, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2397,6 +2396,9 @@ contains
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
+    !> is this a spin polarized calculation?
+    logical :: tSpin
+
     !> Are spin orbit interactions present
     logical, intent(in) :: tSpinOrbit
 
@@ -2420,7 +2422,6 @@ contains
     integer :: ang
     integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
     integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
-    logical :: tSpin
 
     character(lc) :: strTmp
 
@@ -2428,7 +2429,6 @@ contains
     nKPoint = size(eigen, dim=2)
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
-    tSpin = (nSpin == 2 .or. nSpin == 4)
 
     qInputUpDown = qInput
     call qm2ud(qInputUpDown)
