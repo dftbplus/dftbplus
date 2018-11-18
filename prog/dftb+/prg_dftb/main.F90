@@ -190,6 +190,8 @@ contains
     !> All of the excited energies actuall solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
 
+    logical, parameter :: tGrndOnsite = .true.
+
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -316,7 +318,7 @@ contains
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-          if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
+          if (allocated(onSiteElements) .and. tGrndOnsite .and. (iSCCIter > 1 .or. tReadChrg)) then
             call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn, q0,&
                 & onSiteElements, species, orb)
           end if
@@ -381,7 +383,7 @@ contains
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-          if (allocated(onSiteElements)) then
+          if (allocated(onSiteElements) .and. tGrndOnsite) then
             call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
                 & q0, onSiteElements, species, orb)
           end if
@@ -737,8 +739,8 @@ contains
     if (tElectronDynamics) then
       call runDynamics(elecDyn, eigvecsReal, ham, H0, species, q0, over, filling, neighbourList,&
           & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW,&
-          & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, qBlockOut, qiBlockOut,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+          & iHam, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
     end if
 
 

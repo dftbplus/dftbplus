@@ -208,7 +208,7 @@ contains
   !> Driver of time dependent propagation to calculate wither spectrum or laser
   subroutine runDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
-      & env, tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+      & env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
       & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
@@ -277,12 +277,6 @@ contains
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
-    !> block (dual) atomic populations
-    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
-
-    !> Imaginary part of block atomic populations
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
     !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
 
@@ -336,14 +330,14 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-            & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+            & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
             & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
       end do
     else
       call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
-          & xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-          & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam, iAtInCentralRegion, tFixEf, Ef,&
+          & onSiteElements)
     end if
 
   end subroutine runDynamics
@@ -352,8 +346,8 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-      & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-      & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam, iAtInCentralRegion,&
+      & tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -412,12 +406,6 @@ contains
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
 
-    !> block (dual) atomic populations
-    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
-
-    !> Imaginary part of block atomic populations
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
     !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
 
@@ -469,8 +457,14 @@ contains
     type(TEnergies) :: energy
     type(TTimer) :: loopTime
     real(dp) :: TS(this%nSpin)
+    real(dp), allocatable :: qBlock(:,:,:,:), qiBlock(:,:,:,:)
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
+
+    if (allocated(UJ) .or. allocated(onSiteElements)) then
+      allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
+    end if
+
     if (this%tRestart) then
       call readRestart(rho, rhoOld, Ssqr, coord, startTime)
     end if
@@ -490,7 +484,27 @@ contains
 
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
-    call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
+    rhoPrim(:,:) = 0.0_dp
+    do iSpin = 1, this%nSpin
+      call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+    end do
+
+    !call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
+    if (allocated(qBlock)) then
+      qBlock(:,:,:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+            & nNeighbourSK, img2CentCell, iSparseStart)
+      end do
+    end if
+    qq(:,:,:) = 0.0_dp
+    do iSpin = 1, this%nSpin
+      call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+          & nNeighbourSK, img2CentCell, iSparseStart)
+    end do
+    deltaQ(:,:) = sum((qq - q0), dim=1)
+    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
     call updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
@@ -537,7 +551,27 @@ contains
         call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
       end if
 
-      call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
+      rhoPrim(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      end do
+
+      !call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
+      if (allocated(qBlock)) then
+        qBlock(:,:,:,:) = 0.0_dp
+        do iSpin = 1, this%nSpin
+          call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+            & nNeighbourSK, img2CentCell, iSparseStart)
+        end do
+      end if
+      qq(:,:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+            & nNeighbourSK, img2CentCell, iSparseStart)
+      end do
+      deltaQ(:,:) = sum((qq - q0), dim=1)
+      dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
       call updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
@@ -720,8 +754,10 @@ contains
     call getChargePerShell(qq, orb, species, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, species,&
         & neighbourList, img2CentCell, spinW, thirdOrd, potential, gammaf, .false., .false., dummy)
-    call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
-        & nUJ, iUJ, niUJ, potential)
+    if (allocated(UJ)) then
+      call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
+          & nUJ, iUJ, niUJ, potential)
+    end if
 
     if (allocated(onSiteElements)) then
       call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
