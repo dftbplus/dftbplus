@@ -449,7 +449,7 @@ contains
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
-    real(dp), allocatable :: rhoPrim(:,:)
+    real(dp), allocatable :: rhoPrim(:,:), iRhoPrim(:,:)
     real(dp) :: time, startTime = 0.0_dp, timeElec = 0.0_dp
     integer :: dipoleDat, qDat, energyDat, populDat(2)
     integer :: iStep = 0, iSpin
@@ -461,9 +461,6 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
-    if (allocated(UJ) .or. allocated(onSiteElements)) then
-      allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
-    end if
 
     if (this%tRestart) then
       call readRestart(rho, rhoOld, Ssqr, coord, startTime)
@@ -477,6 +474,12 @@ contains
         & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
         & img2CentCell, Eiginv, EiginvAdj, energy)
 
+    if (allocated(UJ) .or. allocated(onSiteElements)) then
+      allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
+      allocate(qiBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
+      allocate(iRhoPrim(size(rhoPrim,dim=1), size(rhoPrim,dim=2)))
+    end if
+
     ! Calculate repulsive energy
     call getERep(energy%atomRep, coord, nNeighbourSK, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell)
@@ -485,17 +488,28 @@ contains
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     rhoPrim(:,:) = 0.0_dp
-    do iSpin = 1, this%nSpin
-      call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-          & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-    end do
+    if (allocated(iRhoPrim)) then
+      iRhoPrim(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call packHS(rhoPrim(:,iSpin), iRhoPrim(:,iSpin), rho(:,:,iSpin), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      end do
+    else
+      do iSpin = 1, this%nSpin
+        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      end do
+    end if
 
     !call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
+      qiBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, this%nSpin
         call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
             & nNeighbourSK, img2CentCell, iSparseStart)
+        call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
     end if
     qq(:,:,:) = 0.0_dp
@@ -525,10 +539,18 @@ contains
     end if
 
     rhoPrim(:,:) = 0.0_dp
-    do iSpin = 1, this%nSpin
-      call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-          & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-    end do
+    if (allocated(iRhoPrim)) then
+      iRhoPrim(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call packHS(rhoPrim(:,iSpin), iRhoPrim(:,iSpin), rho(:,:,iSpin), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      end do
+    else
+      do iSpin = 1, this%nSpin
+        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      end do
+    end if
 
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
@@ -552,17 +574,29 @@ contains
       end if
 
       rhoPrim(:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      end do
+      if (allocated(iRhoPrim)) then
+        iRhoPrim(:,:) = 0.0_dp
+        do iSpin = 1, this%nSpin
+          call packHS(rhoPrim(:,iSpin), iRhoPrim(:,iSpin), rho(:,:,iSpin),&
+              & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare, iSparseStart,&
+              & img2CentCell)
+        end do
+      else
+        do iSpin = 1, this%nSpin
+          call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+        end do
+      end if
 
       !call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
       if (allocated(qBlock)) then
         qBlock(:,:,:,:) = 0.0_dp
+        qiBlock(:,:,:,:) = 0.0_dp
         do iSpin = 1, this%nSpin
           call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-            & nNeighbourSK, img2CentCell, iSparseStart)
+              & nNeighbourSK, img2CentCell, iSparseStart)
+          call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
+              & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
         end do
       end if
       qq(:,:,:) = 0.0_dp
@@ -583,10 +617,19 @@ contains
       end if
 
       rhoPrim(:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      end do
+      if (allocated(iRhoPrim)) then
+        iRhoPrim(:,:) = 0.0_dp
+        do iSpin = 1, this%nSpin
+          call packHS(rhoPrim(:,iSpin), iRhoPrim(:,iSpin), rho(:,:,iSpin),&
+              & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare, iSparseStart,&
+              & img2CentCell)
+        end do
+      else
+        do iSpin = 1, this%nSpin
+          call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+        end do
+      end if
 
       TS = 0.0_dp
       call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&

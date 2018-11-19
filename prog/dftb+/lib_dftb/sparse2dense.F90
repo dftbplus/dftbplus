@@ -48,6 +48,7 @@ module sparse2dense
     module procedure packHS_cmplx
     module procedure packHSPauli
     module procedure packHSPauli_kpts
+    module procedure packHS_hermitian
   end interface packHS
 
 
@@ -1123,6 +1124,74 @@ contains
     end do
 
   end subroutine packHSPauliImag_kpts
+
+
+  !> Pack squared matrix in the sparse form (real version).
+  subroutine packHS_hermitian(prim, iPrim, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+      & iPair, img2CentCell)
+
+    !> Sparse matrix, real part
+    real(dp), intent(inout) :: prim(:)
+
+    !> Sparse matrix, imaginary part
+    real(dp), intent(inout) :: iPrim(:)
+
+    !> Hermitian matrix
+    complex(dp), intent(in) :: square(:, :)
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Maximal number of orbitals on an atom.
+    integer, intent(in) :: mOrb
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: nAtom
+    integer :: iOrig, ii, jj, kk
+    integer :: iNeigh
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    complex(dp) :: tmpSqr(mOrb, mOrb)
+
+    nAtom = size(iNeighbour, dim=2)
+
+    do iAtom1 = 1, nAtom
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f + 1) - jj
+        tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
+
+        ! Hermitian symmetrise the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
+          end do
+        end if
+
+        prim(iOrig : iOrig + nOrb1*nOrb2 - 1) = prim(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(real(tmpSqr(1:nOrb2, 1:nOrb1),dp), [nOrb1 * nOrb2])
+        iPrim(iOrig : iOrig + nOrb1*nOrb2 - 1) = iPrim(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(aimag(tmpSqr(1:nOrb2, 1:nOrb1)), [nOrb1 * nOrb2])
+      end do
+    end do
+
+  end subroutine packHS_hermitian
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
