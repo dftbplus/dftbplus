@@ -525,7 +525,7 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      if (iStep > 0) then
+      if (.not. this%tRestart .or. iStep > 0) then
         call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
       end if
 
