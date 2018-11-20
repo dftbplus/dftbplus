@@ -747,10 +747,10 @@ contains
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> block (dual) atomic populations
-    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
     !> Imaginary part of block atomic populations
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+    real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
@@ -803,8 +803,12 @@ contains
     end if
 
     if (allocated(onSiteElements)) then
+      call ud2qm(qBlock)
+      call ud2qm(qiBlock)
       call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
           & onSiteElements, species, orb)
+      call qm2ud(qBlock)
+      call qm2ud(qiBlock)
     end if
 
     ! Add time dependent field if necessary
