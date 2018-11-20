@@ -190,8 +190,6 @@ contains
     !> All of the excited energies actuall solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
 
-    logical, parameter :: tGrndOnsite = .true.
-
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -318,7 +316,7 @@ contains
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-          if (allocated(onSiteElements) .and. tGrndOnsite .and. (iSCCIter > 1 .or. tReadChrg)) then
+          if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
             call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn, q0,&
                 & onSiteElements, species, orb)
           end if
@@ -383,7 +381,7 @@ contains
           call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-          if (allocated(onSiteElements) .and. tGrndOnsite) then
+          if (allocated(onSiteElements)) then
             call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
                 & q0, onSiteElements, species, orb)
           end if
