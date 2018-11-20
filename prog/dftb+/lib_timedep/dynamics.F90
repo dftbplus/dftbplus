@@ -287,11 +287,11 @@ contains
         ! Make sure only last component enters autotest
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour,&
-            & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
+            & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env, tWriteAutotest)
       end do
     else
       call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour,&
-          & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
+          & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env, tWriteAutotest)
     end if
 
   end subroutine runDynamics
@@ -299,7 +299,7 @@ contains
 
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbour, &
-      & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
+      & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env, tWriteAutotest)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -352,6 +352,8 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+    !> Should autotest data be written?
+    logical, intent(in) :: tWriteAutotest
 
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: Rho(this%nOrbs,this%nOrbs,this%nSpin), Rhoold(this%nOrbs,this%nOrbs,this%nSpin)
@@ -446,7 +448,7 @@ contains
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
-    if (this%tWriteAutotest) then
+    if (tWriteAutotest) then
       call writeTDAutotest(this, dipole, energy, deltaQ)
     end if
 
