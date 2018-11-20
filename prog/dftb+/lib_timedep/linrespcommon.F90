@@ -742,12 +742,12 @@ contains
           end if
           do iSpin = 1, 2
             otmp(:nOrb, :nOrb, iAt, iSpin) = otmp(:nOrb, :nOrb, iAt, iSpin) + qq_ij(:nOrb, :nOrb)&
-                & * sqrt(wnij(ia)) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
+                & * wnij(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
           end do
         else
           ! closed shell
           otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + 0.5_dp &
-              & * qq_ij(:nOrb, :nOrb) * sqrt(wnij(ia)) * vin(ia)&
+              & * qq_ij(:nOrb, :nOrb) * wnij(ia) * vin(ia)&
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
       end do
@@ -777,7 +777,7 @@ contains
       do iAt = 1, nAtom
         nOrb = orb%nOrbAtom(iAt)
         call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
-        vout(ia) = vout(ia) + 8.0_dp * sqrt(wnij(ia)) *&
+        vout(ia) = vout(ia) + 4.0_dp * wnij(ia) *&
             & sum(qq_ij(:nOrb, :nOrb) * otmp(:nOrb, :nOrb, iAt, ss))
       end do
     end do
