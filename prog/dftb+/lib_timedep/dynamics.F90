@@ -797,18 +797,20 @@ contains
     call getChargePerShell(qq, orb, species, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, species,&
         & neighbourList, img2CentCell, spinW, thirdOrd, potential, gammaf, .false., .false., dummy)
+
+    if (allocated(UJ) .or. allocated(onSiteElements)) then
+      ! convert to qm representation
+      call ud2qm(qBlock)
+      call ud2qm(qiBlock)
+    end if
+
     if (allocated(UJ)) then
       call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
           & nUJ, iUJ, niUJ, potential)
     end if
-
     if (allocated(onSiteElements)) then
-      call ud2qm(qBlock)
-      call ud2qm(qiBlock)
       call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
           & onSiteElements, species, orb)
-      call qm2ud(qBlock)
-      call qm2ud(qiBlock)
     end if
 
     ! Add time dependent field if necessary
