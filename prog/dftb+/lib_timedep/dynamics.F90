@@ -332,13 +332,13 @@ contains
         call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
             & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-            & iAtInCentralRegion, tFixEf, Ef)
+            & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
       end do
     else
       call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
           & xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-          & iAtInCentralRegion, tFixEf, Ef)
+          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
     end if
 
   end subroutine runDynamics
@@ -348,7 +348,7 @@ contains
   subroutine doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
       & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-      & iAtInCentralRegion, tFixEf, Ef)
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -446,6 +446,10 @@ contains
     !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
+    
+    !> Should autotest data be written?
+    logical, intent(in) :: tWriteAutotest
+
 
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
@@ -574,7 +578,7 @@ contains
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
-    if (this%tWriteAutotest) then
+    if (tWriteAutotest) then
       call writeTDAutotest(this, dipole, energy, deltaQ)
     end if
 
