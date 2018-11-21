@@ -35,6 +35,7 @@ module mat_conv
     module procedure createEmptyCSR_cplx
     module procedure createEquivCSR_real
     module procedure createEquivCSR_cplx
+    module procedure createEquivCSR_pauli
     module procedure cloneSparsityMap_real_real
     module procedure cloneSparsityMap_cplx_cplx
     module procedure cloneSparsityMap_real_cplx
@@ -51,6 +52,7 @@ module mat_conv
   interface foldToCSR
     module procedure foldToCSR_real
     module procedure foldToCSR_cplx
+    module procedure foldToCSR_pauli
   end interface foldToCSR
 
   !> Unfolds from Compressed Sparse Row format into internal sparse storage.
@@ -507,6 +509,36 @@ contains
 
   end subroutine createEquivCSR_cplx
 
+
+  subroutine createEquivCSR_pauli(csr, iAtomStart, iNeighbor, nNeighbor, &
+      &img2CentCell, orb, tDualSpinOrbit)
+    
+    !> Resulting CSR matrix.
+    type(z_CSR), intent(out) :: csr
+
+    !> Starting position of the atoms in the square H/S.
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Neighborlist for each atom.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> Number of neighbors for each atom.
+    integer, intent(in) :: nNeighbor(:)
+
+    !> Folded image in the central cell for each atom.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> orbital definition structure
+    type(TOrbitals), intent(in) :: orb
+
+    !> enables dual spin-orbit coupling
+    logical, intent(in) :: tDualSpinOrbit
+  
+     
+
+
+
+  end subroutine createEquivCSR_pauli  
 
 
   !> Folds the internal sparse formatted matrix to the compressed sparse row format (complex
