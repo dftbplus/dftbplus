@@ -996,6 +996,8 @@ contains
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
 
+    integer :: iSpin
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1875,6 +1877,11 @@ contains
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
+
+      if (allocated(onSiteElements) .and. tLinRespZVect) then
+        call error("Excited state property evaluation currently incompatible with onsite&
+            & corrections")
+      end if
 
       call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
 
@@ -2836,6 +2843,15 @@ contains
     if (tPrintForces .and. .not. (tMD .or. tGeoOpt .or. tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
+    select case (forceType)
+    case(forceOrig)
+      write(stdOut, "(A,T30,A)") "Force type", "original"
+    case(forceDynT0)
+      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+    case(forceDynT)
+      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+    end select
     if (tPrintEigVecs) then
       write(stdOut, "(T30,A)") "Eigenvector printing"
     end if
@@ -2869,18 +2885,34 @@ contains
           end do
         end if
       end do
-
     end if
 
-    select case (forceType)
-    case(forceOrig)
-      write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceDynT0)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceDynT)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
-    end select
+    tFirst = .true.
+    if (allocated(onSiteElements)) then
+      do iSp = 1, nType
+        do iSpin = 1, 2
+          if (iSpin == 1) then
+            write(strTmp2, "(A,':')") "uu"
+          else
+            write(strTmp2, "(A,':')") "ud"
+          end if
+          do jj = 1, orb%nShell(iSp)
+            do kk = 1, orb%nShell(iSp)
+              if (tFirst) then
+                write(strTmp, "(A,':')") "On-site coupling constants"
+                tFirst = .false.
+              else
+                write(strTmp, "(A)") ""
+              end if
+              write(stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
+                  & trim(speciesName(iSp))//trim(strTmp2), jj,&
+                  & orbitalNames(orb%angShell(jj, iSp)+1), kk,&
+                  & orbitalNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
+            end do
+          end do
+        end do
+      end do
+    end if
 
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
