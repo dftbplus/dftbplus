@@ -3222,11 +3222,13 @@ contains
       qBlockUpDown = qBlock
       call qm2ud(qBlockUpDown)
       if (allocated(iEqBlockOnSite)) then
+        ! all blocks are full of unique elements
         call onsBlock_reduce(qBlockUpDown, iEqBlockOnSite, orb, qRed)
         if (allocated(qiBlock)) then
           call onsBlock_reduce(qiBlock, iEqBlockOnSiteLS, orb, qRed, skew=.true.)
         end if
       else
+        ! only a subset of blocks are covered in +U type operations
         call appendBlock_reduce(qBlockUpDown, iEqBlockDFTBU, orb, qRed)
         if (allocated(qiBlock)) then
           call appendBlock_reduce(qiBlock, iEqBlockDFTBULS, orb, qRed, skew=.true.)
@@ -3301,11 +3303,13 @@ contains
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       if (allocated(iEqBlockOnSite)) then
+        ! all blocks are full of unique elements
         call Onsblock_expand(qRed, iEqBlockOnSite, orb, qBlock, orbEquiv=iEqOrbitals)
         if (allocated(qiBlock)) then
           call Onsblock_expand(qRed, iEqBlockOnSiteLS, orb, qiBlock, skew=.true.)
         end if
       else
+        ! only a subset of blocks are covered in +U type operations
         call Block_expand(qRed, iEqBlockDftbu, orb, qBlock, species0, nUJ, niUJ, iUJ,&
             & orbEquiv=iEqOrbitals)
         if (allocated(qiBlock)) then

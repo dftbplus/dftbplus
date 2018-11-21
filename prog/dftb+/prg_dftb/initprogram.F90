@@ -1412,6 +1412,7 @@ contains
       deallocate(iEqOrbSCC)
       nIneqOrb = maxval(iEqOrbitals)
       nMixElements = nIneqOrb
+
       if (tDFTBU) then
         allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
         allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
@@ -1421,7 +1422,34 @@ contains
         nIneqOrb = maxval(iEqOrbitals)
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
+      end if
 
+      if (allocated(onSiteElements)) then
+        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+        iEqOrbSpin(:,:,:) = 0.0_dp
+        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+        iEqOrbDFTBU(:,:,:) = 0.0_dp
+        call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
+        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+        nIneqOrb = maxval(iEqOrbitals)
+        deallocate(iEqOrbSpin)
+        deallocate(iEqOrbDFTBU)
+      end if
+
+      if (allocated(onSiteElements)) then
+        ! all onsite blocks are full of unique elements
+        allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        if (tImHam) then
+          allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        end if
+        call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
+        nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
+        if (allocated(iEqBlockOnSiteLS)) then
+          nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
+        end if
+      else if (tDFTBU) then
+        ! only a sub-set of onsite blocks are reduced/expanded
         allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
         call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
         nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
@@ -1435,32 +1463,6 @@ contains
         end if
       end if
 
-      if (allocated(onSiteElements)) then
-        if (tDFTBU) then
-          call error("onsite correction does not work with LDA+U yet")
-        end if
-
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        iEqOrbSpin(:,:,:) = 0.0_dp
-        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
-        iEqOrbDFTBU(:,:,:) = 0.0_dp
-        call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
-        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
-        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
-        nIneqOrb = maxval(iEqOrbitals)
-        deallocate(iEqOrbSpin)
-        deallocate(iEqOrbDFTBU)
-
-        allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        if (tImHam) then
-          allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        end if
-        call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
-        nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
-        if (allocated(iEqBlockOnSiteLS)) then
-          nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
-        end if
-      end if
 
     else
       nIneqOrb = nOrb
@@ -2212,17 +2214,16 @@ contains
       end if
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-      if (tMixBlockCharges) then
-        if (tDFTBU) then
-          call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
-          if (tImHam) then
-            call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
-          end if
-        else
-          call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
-          if (tImHam) then
-            call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
-          end if
+
+      if (allocated(onSiteElements)) then
+        call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
+        if (tImHam) then
+          call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
+        end if
+      else if (tDFTBU) then
+        call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
+        if (tImHam) then
+          call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
         end if
       end if
 
