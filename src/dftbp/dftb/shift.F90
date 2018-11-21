@@ -248,7 +248,7 @@ contains
     !> Mapping from image atom to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom,1:iSpin)
     real(dp), intent(in) :: shift(:,:,:,:)
 
     !> Whether array 'ham' is zero everywhere on input

@@ -463,6 +463,8 @@ scc/SiC64+V_dynforce                   #? (MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/GaAs_soc                     #? WITH_TRANSPORT and MPI_PROCS <= 4
+#!transport/GaAs-sheet                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
 poisson/CH4-poisson                    #? WITH_POISSON and MPI_PROCS <= 4
 poisson/CH4-selShell                   #? WITH_POISSON and not WITH_MPI

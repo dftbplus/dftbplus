@@ -1933,9 +1933,8 @@ contains
         call error ("Dispersion interactions are not currently available for transport&
             & calculations")
       end if
-      if (this%nSpin > 2) then
-        call error("Non-collinear spin polarization disabled for transport calculations at the&
-            & moment.")
+      if (this%nSpin > 2 .and. .not.this%tDualSpinOrbit) then
+        call error("non-collinear transport calculations only work with dual SOC")
       end if
       if (this%tExtChrg) then
         call error("External charges temporarily disabled for transport calculations&
@@ -1952,6 +1951,9 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
+    ! Stress is not computed with Green's function approaches.
+    ! Even in bulk calculations stress does not come out right. Issue under investigation
+    ! If Poisson solver is active, lattice relaxations are currently not possible
     this%tStress = (this%tPeriodic .and. this%tForces .and. .not.this%tNegf .and. this%tStress)
 
     this%nMovedAtom = input%ctrl%nrMoved
@@ -2693,9 +2695,6 @@ contains
       end if
       if (this%isLinResp) then
         call error("Linear response is not compatible with transport calculations")
-      end if
-      if (this%nSpin > 2) then
-        call error("Non-colinear spin not currently compatible with transport calculations")
       end if
       if (allocated(this%solvation)) then
         call error("Solvation is currently not available with transport calculations")
@@ -4563,7 +4562,6 @@ contains
     end associate
 
     if (tNegf) then
-      write(stdOut,*) 'init negf'
 
       ! Some checks and initialization of GDFTB/NEGF
       call TNegfInt_init(negfInt, input%transpar, env, input%ginfo%greendens,&

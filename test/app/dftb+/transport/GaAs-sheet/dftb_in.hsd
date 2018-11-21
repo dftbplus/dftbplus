@@ -1,0 +1,96 @@
+Geometry = GenFormat {
+ <<< str.gen
+}
+
+Transport{
+  Device{
+    AtomRange = 1 32
+    FirstLayerAtoms = 1 9 17 25
+  }
+  Contact{
+    Id = "source"
+    AtomRange = 33 48
+    Potential [eV] = 0.0
+    FermiLevel [eV] = -1.336578
+  }
+  Contact{
+    Id = "drain"
+    AtomRange = 49 64
+    Potential [eV] = 0.0
+    FermiLevel [eV] = -1.336578
+  }
+  #Task= contactHamiltonian{
+  #  contactId = "drain"
+  #}
+}
+
+Driver = {}
+Hamiltonian = DFTB {
+  SCC = No
+  MaxAngularMomentum = {
+    Ga = "d"
+    As = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 0
+  }
+  SlaterKosterFiles = {
+    Ga-Ga = "./Ga-Ga.skf"
+    Ga-As = "./Ga-As.skf"
+    As-Ga = "./As-Ga.skf"
+    As-As = "./As-As.skf"
+  }
+
+  SpinOrbit = {
+    Ga [eV] = {0.0 0.12 0.0} # s p d shells
+    As [eV] = {0.0 0.32703} # s p shells
+  }
+
+  KPointsAndWeights [relative] = KLines{
+     1 0.0 0.0 0.0
+  }
+
+  #KPointsAndWeights = SupercellFolding {
+  #  1 0 0
+  #  0 3 0
+  #  0 0 3
+  #  0.0 0.5 0.5
+  #}
+
+  #Eigensolver = GreensFunction {
+  #  Verbosity = 66
+  #  FermiLevel [eV] = -0.44169724507331348
+  # FirstLayerAtoms = { 1 }
+  #  Delta [eV] = 1.0e-6
+  #  ContourPoints = { 20 20 }
+  #  LowestEnergy [eV] = -40.0
+  #  FermiCutoff = 10
+  #}
+
+  Solver = TransportOnly{}
+}
+
+Analysis{
+
+  TunnelingAndDOS{
+    Verbosity = 100
+    EnergyRange [eV] = -4.1  -3.5
+    EnergyStep [eV] = 0.01
+  }
+
+}
+
+Parallel{
+  Blacs{BlockSize=2}
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 13
+}
