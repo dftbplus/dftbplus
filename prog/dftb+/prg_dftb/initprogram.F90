@@ -1966,8 +1966,8 @@ contains
         call error("XLBOMD does not work with thermostats yet")
       elseif (tBarostat) then
         call error("XLBOMD does not work with barostats yet")
-      elseif (nSpin /= 1 .or. tDFTBU) then
-        call error("XLBOMD does not work for spin or DFTB+U yet")
+      elseif (nSpin /= 1 .or. tDFTBU .or. allocated(onSiteElements)) then
+        call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
       elseif (forceType /= forceDynT0 .and. forceType /= forceDynT) then
         call error("Force evaluation method incompatible with XLBOMD")
       elseif (iDistribFn /= Fermi) then
