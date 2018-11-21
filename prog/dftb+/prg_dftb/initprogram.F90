@@ -553,7 +553,7 @@ module initprogram
   integer :: nIneqOrb
 
   !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
-  !> (if tDFTBU)
+  !> (if tDFTBU or onsite corrections)
   integer :: nMixElements
 
   !> Orbital equivalency for orbital blocks
@@ -1154,12 +1154,7 @@ contains
       onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
     end if
 
-    if (allocated(onSiteElements)) then
-      tMixBlockCharges = .true.
-    else
-      tMixBlockCharges = .false.
-    end if
-    tMixBlockCharges = tMixBlockCharges .or. tDFTBU
+    tMixBlockCharges = tDFTBU .or. allocated(onSiteElements)
 
     ! DFTB+U parameters
     if (tDFTBU) then
@@ -1426,6 +1421,7 @@ contains
         nIneqOrb = maxval(iEqOrbitals)
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
+
         allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
         call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
         nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
@@ -1454,6 +1450,7 @@ contains
         nIneqOrb = maxval(iEqOrbitals)
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
+
         allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
         if (tImHam) then
           allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
