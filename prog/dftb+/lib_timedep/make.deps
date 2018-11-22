@@ -15,8 +15,8 @@ _mod_linresp_module: linresp.o
 _mod_linresp_module = $(linresp.o)
 #:endif
 
-linrespcommon.o: _mod_commontypes common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_accuracy
-linrespcommon.o = linrespcommon.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy)
+linrespcommon.o: _mod_onsitecorrection _mod_commontypes common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_accuracy
+linrespcommon.o = linrespcommon.o $(_mod_onsitecorrection) $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy)
 _mod_linrespcommon: linrespcommon.o
 _mod_linrespcommon = $(linrespcommon.o)
 
