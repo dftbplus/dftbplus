@@ -426,7 +426,8 @@ contains
           & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
 
       do iSpin = 1, this%nSpin
-        call scal(H1(:,:,iSpin), imag)
+        !The following is commented for the fast popagate that considers a real H
+        !call scal(H1(:,:,iSpin), imag)
         call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, T1,&
             & 2.0_dp * this%dt)
         call swap(rhoOld(:,:,iSpin), rho(:,:,iSpin))
@@ -1012,7 +1013,8 @@ contains
 
     do iSpin=1,this%nSpin
       T1 = 0.0_dp
-      H1(:,:,iSpin) = imag * H1(:,:,iSpin)
+      ! The following line is commented to make the fast propagate work since it needs a real H
+      !H1(:,:,iSpin) = imag * H1(:,:,iSpin)
       call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, T1, step)
     end do
 
