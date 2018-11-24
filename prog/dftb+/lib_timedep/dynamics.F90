@@ -1065,9 +1065,39 @@ contains
     !> Time step in atomic units
     real(dp), intent(in) :: step
 
-    call gemm(T1, Sinv, H1)
-    call gemm(rhoOld, T1, rho, cmplx(-step, 0, dp), cmplx(1, 0, dp))
-    call gemm(rhoOld, rho, T1, cmplx(-step, 0, dp), cmplx(1, 0, dp), 'N', 'C')
+    real(dp) :: T1R(this%nOrbs,this%nOrbs),T2R(this%nOrbs,this%nOrbs)
+    real(dp) :: T3R(this%nOrbs,this%nOrbs),T4R(this%nOrbs,this%nOrbs),T5R(this%nOrbs,this%nOrbs)
+    integer :: i,j
+
+    ! Original code, calculates (Sinv*H1*rho-rho*H1*Sinv)
+    ! multiplies Sinv*H1 only once and uses the transponse flag in gemm to get the factor right in the second term
+    ! call gemm(T1, Sinv, H1)
+    ! call gemm(rhoOld, T1, rho, cmplx(-step, 0, dp), cmplx(1, 0, dp))
+    ! call gemm(rhoOld, rho, T1, cmplx(-step, 0, dp), cmplx(1, 0, dp), 'N', 'C')
+
+    ! The code below takes into account that Sinv and H1 are real, this is twice as fast as the original above
+    ! the original is left to make it easier to understand the code below
+
+    ! get the real part of Sinv and H1
+    T1R = real(H1)
+    T2R = real(Sinv)
+    call gemm(T3R,T2R,T1R)
+
+    ! calculate the first term products for the real and imaginary parts independently
+    T1R = real(rho)
+    T2R = aimag(rho)
+    call gemm(T4R,T3R,T1R)
+    call gemm(T5R,T3R,T2R)
+
+    ! build the commutator combining the real and imaginary parts of the previous result
+    !$omp parallel do private(i,j)
+    do i=1,this%nOrbs
+      do j=1,this%nOrbs
+        rhoOld(i,j) = rhoOld(i,j) + cmplx(0, -step, dp) * (T4R(i,j) + cmplx(0,1,dp) * T5R(i,j)) &
+                      + cmplx(0, step, dp) * conjg(T4R(j,i) + cmplx(0,1,dp) * T5R(j,i))
+      enddo
+    enddo
+    !$omp end parallel do
 
   end subroutine propagateRho
 
