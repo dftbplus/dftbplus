@@ -1100,8 +1100,8 @@ contains
       end if
     end if
 
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
-        & electronicSolverTypes%ntpoly])) then
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%elpa, electronicSolverTypes%omm,&
+        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
         call error("This solver requires as many parallel processor groups as there are independent&
             & spin and k-point combinations")
