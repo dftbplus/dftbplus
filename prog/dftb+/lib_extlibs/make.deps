@@ -8,11 +8,6 @@ blas.o = blas.o $(_mod_dftbp_accuracy)
 _mod_dftbp_blas: blas.o
 _mod_dftbp_blas = $(blas.o)
 
-cuda.o: common.fypp _mod_iso_c_binding
-cuda.o = cuda.o $(common.fypp) $(_mod_iso_c_binding)
-_mod_dftbp_cuda: cuda.o
-_mod_dftbp_cuda = $(cuda.o)
-
 dftd3.o: _mod_dftd3_api
 dftd3.o = dftd3.o $(_mod_dftd3_api)
 _mod_dftbp_dftd3_module: dftd3.o

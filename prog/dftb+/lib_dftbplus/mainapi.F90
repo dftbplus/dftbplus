@@ -9,17 +9,18 @@
 
 module dftbp_mainapi
   use dftbp_environment, only : TEnvironment
-  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_main, only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
       & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
-      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces
+      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot
+  use dftbp_assert
+  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   implicit none
   private
 
   public :: initProgramVariables, destructProgramVariables
-  public :: setGeometry, setExternalPotential, setExternalCharges
+  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
   public :: nrOfAtoms
 
@@ -29,7 +30,7 @@ contains
   subroutine setGeometry(coords, latVecs)
     real(dp), intent(in) :: coords(:,:)
     real(dp), intent(in), optional :: latVecs(:,:)
-    
+
     coord0(:,:) = coords
     tCoordsChanged = .true.
     if (present(latVecs)) then
@@ -48,7 +49,7 @@ contains
 
     call recalcGeometry(env)
     merminEnergy = energy%EMermin
-    
+
   end subroutine getEnergy
 
 
@@ -58,7 +59,7 @@ contains
 
     call recalcGeometry(env)
     gradients(:,:) = derivs
-    
+
   end subroutine getGradients
 
 
@@ -66,11 +67,11 @@ contains
     real(dp), intent(out) :: atomCharges(:)
 
     atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
-    
+
   end subroutine getGrossCharges
 
 
-  !> Sets up an external electrostatic potential.
+  !> Sets up an external population independent electrostatic potential.
   !>
   !> Sign convention: charge of electron is considered to be negative.
   !>
@@ -113,6 +114,17 @@ contains
   end subroutine setExternalPotential
 
 
+  !> Sets up a generator for external population dependant potentials
+  subroutine setQDepExtPotProxy(extPotProxy)
+
+    !> Generator for the external population dependant potential
+    type(TQDepExtPotProxy), intent(in) :: extPotProxy
+
+    qDepExtPot = extPotProxy
+
+  end subroutine setQDepExtPotProxy
+
+
   !> Sets up external point charges
   subroutine setExternalCharges(chargeCoords, chargeQs, blurWidths)
 
@@ -132,7 +144,7 @@ contains
       end if
     end if
     call sccCalc%setExternalCharges(chargeCoords, chargeQs)
-    
+
   end subroutine setExternalCharges
 
 
@@ -145,7 +157,7 @@ contains
     @:ASSERT(tForces .and. allocated(chrgForces))
 
     chargeGradients(:,:) = chrgForces
-    
+
   end subroutine getExtChargeGradients
 
 
@@ -160,12 +172,12 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
+
   subroutine recalcGeometry(env)
     type(TEnvironment), intent(inout) :: env
 
     logical :: tStopDriver, tStopScc
-    
+
     if (tLatticeChanged .or. tCoordsChanged) then
       call processGeometry(env, 1, 1, .false., tStopDriver, tStopScc)
       tLatticeChanged = .false.
@@ -174,5 +186,5 @@ contains
 
   end subroutine recalcGeometry
 
-  
+
 end module dftbp_mainapi

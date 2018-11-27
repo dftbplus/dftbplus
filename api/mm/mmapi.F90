@@ -18,16 +18,19 @@ module dftbp_mmapi
   use dftbp_hsdutils
   use dftbp_inputdata_module
   use dftbp_xmlf90
+  use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
+  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
   implicit none
   private
 
   public :: TDftbPlus
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
+  public :: TQDepExtPotGen
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
-  integer :: nDftbPlusCalc = 0
 
+  integer :: nDftbPlusCalc = 0
 
   type :: TDftbPlusInput
     type(fnode), pointer :: hsdTree => null()
@@ -35,7 +38,7 @@ module dftbp_mmapi
     procedure :: getRootNode => TDftbPlusInput_getRootNode
   end type TDftbPlusInput
 
-  
+
   type :: TDftbPlus
     private
     type(TEnvironment) :: env
@@ -46,6 +49,7 @@ module dftbp_mmapi
     procedure, nopass :: setGeometry => TDftbPlus_setGeometry
     procedure, nopass :: setExternalPotential => TDftbPlus_setExternalPotential
     procedure, nopass :: setExternalCharges => TDftbPlus_setExternalCharges
+    procedure, nopass :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
     procedure :: getEnergy => TDftbPlus_getEnergy
     procedure :: getGradients => TDftbPlus_getGradients
     procedure, nopass :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
@@ -73,7 +77,7 @@ contains
     call getChild(this%hsdTree, rootTag, root)
 
   end subroutine TDftbPlusInput_getRootNode
-    
+
 
   !> Initalises an DFTB+ instance.
   !>
@@ -150,7 +154,7 @@ contains
     input%hsdTree => createDocumentNode()
     root => createElement(rootTag)
     dummy => appendChild(input%hsdTree, root)
-    
+
   end subroutine TDftbPlus_getEmptyInput
 
 
@@ -211,8 +215,24 @@ contains
     real(dp), intent(in), optional :: blurWidths(:)
 
     call setExternalCharges(chargeCoords, chargeQs, blurWidths)
-    
+
   end subroutine TDftbPlus_setExternalCharges
+
+
+  !> Sets the generator for the population dependant external potential.
+  subroutine TDftbPlus_setQDepExtPotGen(extPotGen)
+
+    !> Population dependant external potential generator
+    class(TQDepExtPotGen), intent(in) :: extPotGen
+
+    type(TQDepExtPotGenWrapper) :: extPotGenWrapper
+    type(TQDepExtPotProxy) :: extPotProxy
+
+    allocate(extPotGenWrapper%instance, source=extPotGen)
+    call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
+    call setQDepExtPotProxy(extPotProxy)
+
+  end subroutine TDftbPlus_setQDepExtPotGen
 
 
   !> Return the energy of the current system.
@@ -225,7 +245,7 @@ contains
     real(dp), intent(out) :: merminEnergy
 
     call getEnergy(this%env, merminEnergy)
-    
+
   end subroutine TDftbPlus_getEnergy
 
 
@@ -239,7 +259,7 @@ contains
     real(dp), intent(out) :: gradients(:,:)
 
     call getGradients(this%env, gradients)
-    
+
   end subroutine TDftbPlus_getGradients
 
 
@@ -319,7 +339,7 @@ contains
     integer, allocatable :: uniqueTypeNumbers(:)
     integer :: nAtom, nSpecies
     integer :: iAt, iSp, curType
-    
+
     nAtom = size(typeNumbers)
 
     allocate(uniqueTypeNumbers(nAtom))

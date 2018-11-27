@@ -1,3 +1,10 @@
+/**************************************************************************************************/
+/*  DFTB+: general package for performing fast atomistic simulations                              */
+/*  Copyright (C) 2018  DFTB+ developers group                                                    */
+/*                                                                                                */
+/*  See the LICENSE file for terms of usage and distribution.                                     */
+/**************************************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "dftbplus.h"
@@ -26,11 +33,11 @@ int main()
   double mermin_energy;
   double *gradients;
 
-  dftbp_init(&calculator);
+  dftbp_init(&calculator, NULL);
   dftbp_get_input_from_file(&calculator, "dftb_in.hsd", &input);
-  dftbp_setup_calculator(&calculator, &input);
+  dftbp_process_input(&calculator, &input);
 
-  dftbp_set_coords_and_latvecs(&calculator, coords, latvecs);
+  dftbp_set_coords_and_lattice_vecs(&calculator, coords, latvecs);
 
   dftbp_get_energy(&calculator, &mermin_energy);
   printf("Expected Mermin-energy: %15.10f\n", -2.5933460731);
@@ -43,7 +50,7 @@ int main()
   printf("Obtained gradient of atom 1: %15.10f %15.10f %15.10f\n", gradients[0], gradients[1],
          gradients[2]);
 
-  dftbp_destruct(&calculator);
+  dftbp_final(&calculator);
 
   return 0;
 }

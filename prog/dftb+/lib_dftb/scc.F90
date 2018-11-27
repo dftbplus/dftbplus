@@ -358,6 +358,9 @@ contains
 
     ! Initialise external charges
     if (allocated(inp%extCharges)) then
+      print *, "EXTCOORDS"
+      print *, inp%extCharges(1:3,:)
+      print *, inp%extCharges(4,:)
       call this%setExternalCharges(inp%extCharges(1:3,:), inp%extCharges(4,:),&
           & blurWidths=inp%blurWidths)
     end if
@@ -631,13 +634,22 @@ contains
     !> The SCC contribution to the energy
     real(dp), intent(out) :: eScc(:)
 
+    real(dp), allocatable :: eSccTmp(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(eScc) == this%nAtom)
 
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom &
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
     if (allocated(this%extCharge)) then
-      call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
+      eSccTmp = eScc
+      eSccTmp(:) = 0.0_dp
+      call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eSccTmp)
+      print *, "DELTAQATOM:"
+      print *, this%deltaQAtom
+      print *, "ENERGY PER ATOM"
+      print *, eSccTmp
+      eScc = eScc + eSccTmp
     end if
     if (this%tChrgConstr) then
       call addEnergyPerAtom(this%chrgConstr, eScc, this%deltaQAtom)
@@ -820,12 +832,19 @@ contains
     !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:)
 
+    real(dp), allocatable :: tmpShift(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift = this%shiftPerAtom
     if (allocated(this%extCharge)) then
-      call this%extCharge%addShiftPerAtom(shift)
+      tmpShift = shift
+      tmpShift(:) = 0.0_dp
+      call this%extCharge%addShiftPerAtom(tmpShift)
+      print *, "SHIFT ATOM:"
+      print *, tmpShift
+      shift = shift + tmpShift
     end if
     if (this%tChrgConstr) then
       call addShiftPerAtom(this%chrgConstr, shift)

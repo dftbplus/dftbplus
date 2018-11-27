@@ -5,13 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-program test_cluster
+program test_fileinit
   use dftbplus
   use dftbp_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
-  
+
   real(dp), parameter :: initialCoords(3, 2) = reshape([&
       & 0.0000000000000000_dp, 0.0000000000000000_dp, 0.0000000000000000_dp,&
       & 2.5639291987021915_dp, 2.5639291987021915_dp, 2.5639291987021915_dp], [3, 2])
@@ -58,7 +58,7 @@ program test_cluster
   print "(A,3F15.10)", 'Expected gradient of atom 1:', 0.021290612216_dp, -0.010269102833_dp,&
       & -0.017111497265_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
-  
+
   call TDftbPlus_destruct(dftbp)
-  
-end program test_cluster
+
+end program test_fileinit

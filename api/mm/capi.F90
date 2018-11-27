@@ -1,135 +1,185 @@
-!> Contains the C-API to DFTB+
+!> Contains the C-API of DFTB+.
 module dftbp_capi
   use, intrinsic :: iso_c_binding
+  use, intrinsic :: iso_fortran_env
   use dftbp_accuracy, only : dp
-  use dftbp_mmapi
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput
+  use dftbp_qdepextpotgenc, only :&
+      & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   implicit none
   private
 
-  type, bind(C) :: TDftbPlusInputC
-    type(c_ptr) :: pDftbPlusInput
-  end type TDftbPlusInputC
 
-  type, bind(C) :: TDftbPlusC
-    type(c_ptr) :: pDftbPlus
+  type, bind(C) :: c_DftbPlusInput
+    type(c_ptr) :: pDftbPlusInput
+  end type c_DftbPlusInput
+
+  type, bind(C) :: c_DftbPlus
+    type(c_ptr) :: instance
+  end type c_DftbPlus
+
+
+  !> Simple extension around the TDftbPlus with some additional variables for the C-API.
+  type, extends(TDftbPlus) :: TDftbPlusC
+    private
+    integer :: outputUnit
+    logical :: tOutputOpened
   end type TDftbPlusC
-  
+
 
 contains
 
-  subroutine TDftbPlusC_init(wrapper) bind(C, name='dftbp_init')
-    type(TDftbPlusC), intent(out) :: wrapper
 
-    type(TDftbPlus), pointer :: pDftbPlus
+  subroutine c_DftbPlus_init(handler, outputFileName) bind(C, name='dftbp_init')
+    type(c_DftbPlus), intent(out) :: handler
+    type(c_ptr), value, intent(in) :: outputFileName
 
-    allocate(pDftbPlus)
-    call TDftbPlus_init(pDftbPlus)
-    wrapper%pDftbPlus = c_loc(pDftbPlus)
+    type(TDftbPlusC), pointer :: instance
+    character(c_char), pointer :: pOutputFileName
+    character(:), allocatable :: fortranFileName
+    integer :: fileUnit
 
-  end subroutine TDftbPlusC_init
+    allocate(instance)
+    if (c_associated(outputFileName)) then
+      call c_f_pointer(outputFileName, pOutputFileName)
+      fortranFileName = fortranChar(pOutputFileName)
+      open(newunit=instance%outputUnit, file=fortranFileName, action="write")
+      instance%tOutputOpened = .true.
+    else
+      instance%outputUnit = output_unit
+      instance%tOutputOpened = .false.
+    end if
+    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit)
+    handler%instance = c_loc(instance)
 
-  
-  subroutine TDftbPlusC_destruct(wrapper) bind(C, name='dftbp_destruct')
-    type(TDftbPlusC), intent(inout) :: wrapper
-
-    type(TDftbPlus), pointer :: pDftbPlus
-
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    call TDftbPlus_destruct(pDftbPlus)
-    deallocate(pDftbPlus)
-    wrapper%pDftbPlus = c_null_ptr
-    
-  end subroutine TDftbPlusC_destruct
+  end subroutine c_DftbPlus_init
 
 
-  subroutine TDftbPlusC_getInputFromFile(wrapper, fileName, inputWrapper)&
+  subroutine c_DftbPlus_final(handler) bind(C, name='dftbp_final')
+    type(c_DftbPlus), intent(inout) :: handler
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    call TDftbPlus_destruct(instance%TDftbPlus)
+    if (instance%tOutputOpened) then
+      close(instance%outputUnit)
+    end if
+    deallocate(instance)
+    handler%instance = c_null_ptr
+
+  end subroutine c_DftbPlus_final
+
+
+  subroutine c_DftbPlus_getInputFromFile(handler, fileName, inputHandler)&
       & bind(C, name='dftbp_get_input_from_file')
-    type(TDftbPlusC), intent(inout) :: wrapper
+    type(c_DftbPlus), intent(inout) :: handler
     character(c_char), intent(in) :: fileName(*)
-    type(TDftbPlusInputC), intent(out) :: inputWrapper
+    type(c_DftbPlusInput), intent(out) :: inputHandler
 
-    type(TDftbPlus), pointer :: pDftbPlus
+    type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
     character(:), allocatable :: fortranFileName
 
     allocate(pDftbPlusInput)
     fortranFileName = fortranChar(fileName)
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    call pDftbPlus%getInputFromFile(fortranFileName, pDftbPlusInput)
-    inputWrapper%pDftbPlusInput = c_loc(pDftbPlusInput)
-    
-  end subroutine TDftbPlusC_getInputFromFile
+    call c_f_pointer(handler%instance, instance)
+    call instance%getInputFromFile(fortranFileName, pDftbPlusInput)
+    inputHandler%pDftbPlusInput = c_loc(pDftbPlusInput)
+
+  end subroutine c_DftbPlus_getInputFromFile
 
 
-  subroutine TDftbPlusC_setupCalculator(wrapper, inputWrapper)&
-      & bind(C, name='dftbp_setup_calculator')
-    type(TDftbPlusC), intent(inout) :: wrapper
-    type(TDftbPlusInputC), intent(inout) :: inputWrapper
+  subroutine c_DftbPlus_processInput(handler, inputHandler)&
+      & bind(C, name='dftbp_process_input')
+    type(c_DftbPlus), intent(inout) :: handler
+    type(c_DftbPlusInput), intent(inout) :: inputHandler
 
-    type(TDftbPlus), pointer :: pDftbPlus
+    type(TDftbPlusC), pointer :: instance
     type(TDftbPlusInput), pointer :: pDftbPlusInput
 
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    call c_f_pointer(inputWrapper%pDftbPlusInput, pDftbPlusInput)
-    call pDftbPlus%setupCalculator(pDftbPlusInput)
-    
-  end subroutine TDftbPlusC_setupCalculator
+    call c_f_pointer(handler%instance, instance)
+    call c_f_pointer(inputHandler%pDftbPlusInput, pDftbPlusInput)
+    call instance%setupCalculator(pDftbPlusInput)
+
+  end subroutine c_DftbPlus_processInput
 
 
-  subroutine TDftbPlusC_setCoords(wrapper, coords) bind(C, name='dftbp_set_coords')
-    type(TDftbPlusC), intent(inout) :: wrapper
+  subroutine c_DftbPlus_registerExtPotGenerator(handler, refPtr, extPotFunc, extPotGradFunc)&
+      & bind(C, name='dftbp_register_ext_pot_generator')
+    type(c_DftbPlus), intent(inout) :: handler
+    type(c_ptr), value, intent(in) :: refPtr
+    type(c_funptr), value, intent(in) :: extPotFunc
+    type(c_funptr), value, intent(in) :: extPotGradFunc
+
+    type(TDftbPlusC), pointer :: instance
+    type(TQDepExtPotGenC) :: extPotGenC
+    procedure(getExtPotIfaceC), pointer :: pExtPotFunc
+    procedure(getExtPotGradIfaceC), pointer :: pExtPotGradFunc
+
+    call c_f_procpointer(extPotFunc, pExtPotFunc)
+    call c_f_procpointer(extPotGradFunc, pExtPotGradFunc)
+    call c_f_pointer(handler%instance, instance)
+    call TQDepExtPotGenC_init(extPotGenC, refPtr, pExtPotFunc, pExtPotGradFunc)
+    call instance%setQDepExtPotGen(extPotGenC)
+
+  end subroutine c_DftbPlus_registerExtPotGenerator
+
+
+  subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
+    type(c_DftbPlus), intent(inout) :: handler
     real(c_double), intent(in) :: coords(3,*)
 
-    type(TDftbPlus), pointer :: pDftbPlus
+    type(TDftbPlusC), pointer :: instance
     integer :: nAtom
 
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    nAtom = pDftbPlus%nrOfAtoms()
-    call pDftbPlus%setGeometry(coords(:, 1:nAtom))
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%setGeometry(coords(:, 1:nAtom))
 
-  end subroutine TDftbPlusC_setCoords
+  end subroutine c_DftbPlus_setCoords
 
 
-  subroutine TDftbPlusC_setCoordsAndLatVecs(wrapper, coords, latVecs)&
-      & bind(C, name='dftbp_set_coords_and_latvecs')
-    type(TDftbPlusC), intent(inout) :: wrapper
+  subroutine c_DftbPlus_setCoordsAndLatticeVecs(handler, coords, latVecs)&
+      & bind(C, name='dftbp_set_coords_and_lattice_vecs')
+    type(c_DftbPlus), intent(inout) :: handler
     real(c_double), intent(in) :: coords(3,*)
     real(c_double), intent(in) :: latvecs(3, *)
 
-    type(TDftbPlus), pointer :: pDftbPlus
+    type(TDftbPlusC), pointer :: instance
     integer :: nAtom
 
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    nAtom = pDftbPlus%nrOfAtoms()
-    call pDftbPlus%setGeometry(coords(:, 1:nAtom), latVecs(:, 1:3))
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%setGeometry(coords(:, 1:nAtom), latVecs(:, 1:3))
 
-  end subroutine TDftbPlusC_setCoordsAndLatVecs
+  end subroutine c_DftbPlus_setCoordsAndLatticeVecs
 
 
-  subroutine TDftbPlusC_getEnergy(wrapper, merminEnergy) bind(C, name='dftbp_get_energy')
-    type(TDftbPlusC), intent(inout) :: wrapper
+  subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')
+    type(c_DftbPlus), intent(inout) :: handler
     real(c_double), intent(out) :: merminEnergy
 
-    type(TDftbPlus), pointer :: pDftbPlus
+    type(TDftbPlusC), pointer :: instance
 
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    call pDftbPlus%getEnergy(merminEnergy)
+    call c_f_pointer(handler%instance, instance)
+    call instance%getEnergy(merminEnergy)
 
-  end subroutine TDftbPlusC_getEnergy
+  end subroutine c_DftbPlus_getEnergy
 
 
-  subroutine TDftbPlusC_getGradients(wrapper, gradients) bind(C, name='dftbp_get_gradients')
-    type(TDftbPlusC), intent(inout) :: wrapper
+  subroutine c_DftbPlus_getGradients(handler, gradients) bind(C, name='dftbp_get_gradients')
+    type(c_DftbPlus), intent(inout) :: handler
     real(c_double), intent(out) :: gradients(3, *)
 
-    type(TDftbPlus), pointer :: pDftbPlus
+    type(TDftbPlusC), pointer :: instance
     integer :: nAtom
 
-    call c_f_pointer(wrapper%pDftbPlus, pDftbPlus)
-    nAtom = pDftbPlus%nrOfAtoms()
-    call pDftbPlus%getGradients(gradients(:, 1:nAtom))
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getGradients(gradients(:, 1:nAtom))
 
-  end subroutine TDftbPlusC_getGradients
+  end subroutine c_DftbPlus_getGradients
 
 
   !> Converts a 0-char terminated C-type string into a Fortran string.
@@ -159,8 +209,8 @@ contains
     end do
     allocate(character(ii - 1) :: fortranChar)
     fortranChar = transfer(cstring(1 : ii - 1), fortranChar)
-    
+
   end function fortranChar
 
-  
+
 end module dftbp_capi

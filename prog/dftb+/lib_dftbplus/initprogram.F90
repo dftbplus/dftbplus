@@ -79,6 +79,7 @@ module dftbp_initprogram
   use dftbp_potentials
   use dftbp_taggedoutput
   use dftbp_formatout
+  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   implicit none
 
 
@@ -267,6 +268,9 @@ module dftbp_initprogram
 
   !> Charge per atomic shell (shell, atom, spin channel)
   real(dp), allocatable :: chargePerShell(:,:,:)
+
+  !> Charge par atom (atom, spin channel)
+  real(dp), allocatable :: chargePerAtom(:,:)
 
   !> sparse overlap
   real(dp), allocatable :: over(:)
@@ -750,6 +754,9 @@ module dftbp_initprogram
 
   !> Reference external potential (usual provided via API)
   type(TRefExtPot) :: refExtPot
+
+  !> Proxy for querying population dependant external potenials
+  type(TQDepExtPotProxy), allocatable :: qDepExtPot
 
   !> Energy derivative with respect to atomic positions
   real(dp), allocatable :: derivs(:,:)

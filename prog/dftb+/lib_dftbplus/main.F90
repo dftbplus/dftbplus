@@ -18,7 +18,7 @@ module dftbp_main
 #:endif
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketComm
-#:endif  
+#:endif
   use dftbp_assert
   use dftbp_constants
   use dftbp_globalenv
@@ -76,6 +76,7 @@ module dftbp_main
   use dftbp_tempprofile
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_initprogram, only : TRefExtPot
+  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   implicit none
   private
 
@@ -179,7 +180,7 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%postSCC)
     end do geoOpt
-    
+
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
   #:if WITH_SOCKETS
@@ -349,6 +350,16 @@ contains
             & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
       end if
       potential%intBlock = potential%intBlock + potential%extBlock
+      if (allocated(qDepExtPot)) then
+        ! TEMPORARY HACK, should be removed with a proper container for charges
+        block
+          real(dp), allocatable :: dQ(:,:,:)
+          allocate(dQ(orb%mShell, nAtom, nSpin))
+          call getChargePerShell(qInput, orb, species, dQ, qRef=q0)
+          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+              & potential%intBlock)
+        end block
+      end if
 
       call getSccHamiltonian(H0, over, nNeighbor, neighborList, species, orb, iSparseStart,&
           & img2CentCell, potential, ham, iHam)
@@ -395,11 +406,21 @@ contains
             & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
         potential%intBlock = potential%intBlock + potential%extBlock
       end if
+      if (allocated(qDepExtPot)) then
+        ! TEMPORARY HACK, should be removed with a proper container for charges
+        block
+          real(dp), allocatable :: dQ(:,:,:)
+          allocate(dQ(orb%mShell, nAtom, nSpin))
+          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+              & potential%intBlock)
+        end block
+      end if
 
       call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
           & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
-          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlockOut,&
-          & qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qDepExtPot, &
+          & qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
       tStopScc = hasStopFile(fStopScc)
 
@@ -497,7 +518,8 @@ contains
       call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
       call getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
           & q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species, img2CentCell,&
-          & iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces, dispersion)
+          & iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, qDepExtPot,&
+          & chrgForces, dispersion)
       if (tLinResp) then
         derivs(:,:) = derivs + excitedDerivs
       end if
@@ -559,7 +581,7 @@ contains
 
     !> Derivative of total energy with respect to lattice vectors
     real(dp) :: totalLatDerivs(:,:)
-    
+
     !> derivative of cell volume wrt to lattice vectors, needed for pV term
     real(dp), intent(in) :: extLatDerivs(:,:)
 
@@ -708,7 +730,7 @@ contains
     end if
 
   end subroutine getNextGeometry
-  
+
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
@@ -1122,7 +1144,6 @@ contains
     else
       potential%extGrad(:,:) = 0.0_dp
     end if
-    
 
   end subroutine resetExternalPotentials
 
@@ -2532,8 +2553,8 @@ contains
   !> Calculates various energy contributions
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, tXlbomd,&
       & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighborList, nNeighbor, img2CentCell,&
-      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
+      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd,&
+      & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -2601,6 +2622,9 @@ contains
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
+    !> Proxy for querying Q-dependant external potentials
+    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
+
     !> block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
@@ -2635,10 +2659,15 @@ contains
         & img2CentCell, iSparseStart)
     energy%EnonSCC =  sum(energy%atomNonSCC)
 
+    energy%atomExt(:) = 0.0_dp
     if (tExtField) then
-      energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
-      energy%Eext = sum(energy%atomExt)
+      energy%atomExt(:) = energy%atomExt&
+          & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
     end if
+    if (allocated(qDepExtPot)) then
+      call qDepExtPot%addEnergy(energy%atomExt)
+    end if
+    energy%Eext = sum(energy%atomExt)
 
     if (allocated(sccCalc)) then
       if (tXlbomd) then
@@ -2653,6 +2682,7 @@ contains
         energy%Espin = sum(energy%atomSpin)
       end if
     end if
+
     if (allocated(thirdOrd)) then
       if (tXlbomd) then
         call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
@@ -3906,8 +3936,8 @@ contains
   !> Calculates the gradients
   subroutine getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighborList, nNeighbor, species,&
-      & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, chrgForces,&
-      & dispersion)
+      & img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, qDepExtPot,&
+      & chrgForces, dispersion)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3978,6 +4008,9 @@ contains
     !> Is 3rd order SCC being used
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
+    !> Population dependant external potential
+    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
+
     !> forces on external charges
     real(dp), intent(inout), allocatable :: chrgForces(:,:)
 
@@ -4042,6 +4075,18 @@ contains
         else
           call thirdOrd%addGradientDc(neighborList, species, coord, img2CentCell, derivs)
         end if
+      end if
+
+      if (allocated(qDepExtPot)) then
+        ! TEMPORARY HACK, should be removed with a proper container for charges
+        block
+          real(dp), allocatable :: dQ(:,:,:)
+          integer :: nSpin
+          nSpin = size(qOutput, dim=3)
+          allocate(dQ(orb%mShell, nAtom, nSpin))
+          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+          call qDepExtPot%addGradientDc(sum(dQ(:,:,1), dim=1), dQ(:,:,1), derivs)
+        end block
       end if
 
       if (tExtField) then
@@ -4744,14 +4789,14 @@ contains
 
   end subroutine calcPipekMezeyLocalisation
 
-  
+
   subroutine printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtoms)
     real(dp), intent(in) :: derivs(:,:)
     real(dp), intent(in) :: constrLatDerivs(:)
     logical, intent(in) :: tCoordOpt
     logical, intent(in) :: tLatOpt
     integer, intent(in) :: indMovedAtoms(:)
-  
+
     if (tCoordOpt) then
       call printMaxForce(maxval(abs(derivs(:, indMovedAtoms))))
     end if
@@ -4763,7 +4808,7 @@ contains
 
 
 #:if WITH_SOCKETS
-  
+
   subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
     type(TEnvironment), intent(in) :: env
     type(IpiSocketComm), intent(inout) :: socket
@@ -4781,5 +4826,5 @@ contains
   end subroutine sendEnergyAndForces
 
 #:endif
-    
+
 end module dftbp_main
