@@ -1,0 +1,42 @@
+Geometry = GenFormat {
+   <<< 'cnt_4pl.gen'
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = No 
+  MaxAngularMomentum = {
+    C = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 0
+  }
+  SlaterKosterFiles = {
+    C-C = "./C-C.skf"
+  }
+  Eigensolver = GreensFunction {
+    FermiLevel = -0.2046032882
+    FirstLayerAtoms = 1 41 81 121  
+    ContourPoints = 40 400
+  }
+
+}
+
+Analysis{
+  MullikenAnalysis = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+Parallel{
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}
