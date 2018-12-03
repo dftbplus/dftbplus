@@ -14,7 +14,7 @@ CC = gcc
 
 # Compiler options
 FXXOPT = -O2 -funroll-all-loops -fopenmp
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+CCOPT = -O2 -funroll-all-loops
 
 # Linker
 LN = $(FXX)
@@ -50,7 +50,7 @@ CC = gcc
 
 # Compiler options
 FXXOPT = -O2 -funroll-all-loops -fopenmp
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+CCOPT = -O2 -funroll-all-loops
 
 # Linker
 LN = $(FXX)
@@ -86,7 +86,7 @@ FYPPOPT =
 LIBOPT =
 
 # Additional libraries needed to be linked when linking C-executables
-OTHERLIBS_C = -lgfortran -lm
+OTHERLIBS_C = -lgfortran -lm -lgomp
 
 ############################################################################
 # Developer settings
@@ -96,11 +96,11 @@ OTHERLIBS_C = -lgfortran -lm
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS = 
     FXXOPT = -fopenmp -g -Wall -pedantic #-std=f2008 
-    CCOPT = -g -Wall -pedantic -fall-intrinsics
+    CCOPT = -g -Wall -pedantic
 endif
 
 ifeq ($(strip $(DEBUG)),2)
     OTHERLIBS = 
     FXXOPT = -fopenmp -g -Wall -pedantic -fbounds-check #-std=f2008
-    CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
+    CCOPT = -g -Wall -pedantic -fbounds-check
 endif

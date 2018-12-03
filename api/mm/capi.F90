@@ -37,7 +37,6 @@ contains
     type(TDftbPlusC), pointer :: instance
     character(c_char), pointer :: pOutputFileName
     character(:), allocatable :: fortranFileName
-    integer :: fileUnit
 
     allocate(instance)
     if (c_associated(outputFileName)) then
