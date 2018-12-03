@@ -21,6 +21,68 @@
 #define NR_MM_ATOMS 2
 
 /**
+ * Dummy helper for distance calculation
+ */
+double distance(const double *aa, const double *bb)
+{
+  return sqrt((aa[0] - bb[0]) * (aa[0] - bb[0])
+              + (aa[1] - bb[1]) * (aa[1] - bb[1])
+              + (aa[2] - bb[2]) * (aa[2] - bb[2]));
+}
+
+/**
+ * Dummy helper to calculate an external potential caused by MM-charges.
+ */
+void calc_external_potential(int qmatoms, const double *qmcoords, int mmatoms,
+                             const double *mmcoords, const double *mmcharges, double *extpot)
+{
+  const double *qmpos, *mmpos;
+  double mmcharge, dist;
+  int iatqm, iatmm;
+
+  for (iatqm = 0; iatqm < qmatoms; ++iatqm) {
+    extpot[iatqm] = 0.0;
+    qmpos = &(qmcoords[3 * iatqm]);
+    for (iatmm = 0; iatmm < mmatoms; ++iatmm) {
+      mmpos = &(mmcoords[3 * iatmm]);
+      mmcharge = mmcharges[iatmm];
+      dist = distance(qmpos, mmpos);
+      extpot[iatqm] += -mmcharge / dist;
+    }
+  }
+}
+
+
+/**
+   Dummy helper routine to calculate the gradient of an external potential caused by MM-charges.
+*/
+void calc_external_potential_grad(int qmatoms, const double *qmcoords, int mmatoms,
+                                  const double *mmcoords, const double *mmcharges,
+                                  double *extpotgrad)
+{
+  const double *qmpos, *mmpos;
+  double mmcharge, dist, dist3;
+  int iatqm, iatmm;
+
+  for (iatqm = 0; iatqm < qmatoms; ++iatqm) {
+    qmpos = &(qmcoords[3 * iatqm]);
+    extpotgrad[3 * iatqm + 0] = 0.0;
+    extpotgrad[3 * iatqm + 1] = 0.0;
+    extpotgrad[3 * iatqm + 2] = 0.0;
+    for (iatmm = 0; iatmm < mmatoms; ++iatmm) {
+      mmpos = &(mmcoords[3 * iatmm]);
+      mmcharge = mmcharges[iatmm];
+      dist = distance(qmpos, mmpos);
+      dist3 = dist * dist * dist;
+      extpotgrad[3 * iatqm + 0] += -mmcharge * (mmpos[0] - qmpos[0]) / dist3;
+      extpotgrad[3 * iatqm + 1] += -mmcharge * (mmpos[1] - qmpos[1]) / dist3;
+      extpotgrad[3 * iatqm + 2] += -mmcharge * (mmpos[2] - qmpos[2]) / dist3;
+    }
+  }
+}
+
+
+/**
  * Structure containing all the simulation data
  */
 typedef struct {
@@ -29,18 +91,9 @@ typedef struct {
   double *mmcoords;
   double *mmcharges;
   double *qmcoords;
+  double *extpot;
+  double *extpotgrad;
 } Context;
-
-
-/**
- * Dummy helper for distance calculation
- */
-double distance(double *aa, double *bb)
-{
-  return sqrt((aa[0] - bb[0]) * (aa[0] - bb[0])
-              + (aa[1] - bb[1]) * (aa[1] - bb[1])
-              + (aa[2] - bb[2]) * (aa[2] - bb[2]));
-}
 
 
 /**
@@ -59,21 +112,10 @@ double distance(double *aa, double *bb)
 void get_external_potential(void *refptr, double *dqatom, double *extpotatom)
 {
   Context *cont;
-  double *qmpos, *mmpos;
-  double mmcharge, dist;
-  int iatqm, iatmm;
 
   cont = (Context *) refptr;
-  for (iatqm = 0; iatqm < cont->qmatoms; ++iatqm) {
-    extpotatom[iatqm] = 0.0;
-    qmpos = &(cont->qmcoords[3 * iatqm]);
-    for (iatmm = 0; iatmm < cont->mmatoms; ++iatmm) {
-      mmpos = &(cont->mmcoords[3 * iatmm]);
-      mmcharge = cont->mmcharges[iatmm];
-      dist = distance(qmpos, mmpos);
-      extpotatom[iatqm] += -mmcharge / dist;
-    }
-  }
+  calc_external_potential(cont->qmatoms, cont->qmcoords, cont->mmatoms, cont->mmcoords,
+                          cont->mmcharges, extpotatom);
 }
 
 
@@ -93,26 +135,10 @@ void get_external_potential(void *refptr, double *dqatom, double *extpotatom)
 void get_external_potential_grad(void *refptr, double *dqatom, double *extpotgrad)
 {
   Context *cont;
-  double *qmpos, *mmpos;
-  double mmcharge, dist, dist3;
-  int iatqm, iatmm;
 
   cont = (Context *) refptr;
-  for (iatqm = 0; iatqm < cont->qmatoms; ++iatqm) {
-    qmpos = &(cont->qmcoords[3 * iatqm]);
-    extpotgrad[3 * iatqm + 0] = 0.0;
-    extpotgrad[3 * iatqm + 1] = 0.0;
-    extpotgrad[3 * iatqm + 2] = 0.0;
-    for (iatmm = 0; iatmm < cont->mmatoms; ++iatmm) {
-      mmpos = &(cont->mmcoords[3 * iatmm]);
-      mmcharge = cont->mmcharges[iatmm];
-      dist = distance(qmpos, mmpos);
-      dist3 = dist * dist * dist;
-      extpotgrad[3 * iatqm + 0] += -mmcharge * (mmpos[0] - qmpos[0]) / dist3;
-      extpotgrad[3 * iatqm + 1] += -mmcharge * (mmpos[1] - qmpos[1]) / dist3;
-      extpotgrad[3 * iatqm + 2] += -mmcharge * (mmpos[2] - qmpos[2]) / dist3;
-    }
-  }
+  calc_external_potential_grad(cont->qmatoms, cont->qmcoords, cont->mmatoms, cont->mmcoords,
+                               cont->mmcharges, extpotgrad);
 }
 
 
@@ -137,11 +163,26 @@ void initialize_context(Context *cont)
     0.0000000000000000,  0.0000000000000000, -1.4797763915205659
   };
 
-  cont->mmatoms = NR_MM_ATOMS;
+  /* The potential of the first external charge will be calculated via the population-dependant
+     potential generator (for demonstration purposes), while the second one will be stored and set
+     as a simple static external potential.
+  */
+  cont->mmatoms = 1;
   cont->mmcoords = (double *) malloc(3 * cont->mmatoms * sizeof(double));
   memcpy(cont->mmcoords, MM_COORDS, 3 * cont->mmatoms * sizeof(double));
   cont->mmcharges = (double *) malloc(cont->mmatoms * sizeof(double));
   memcpy(cont->mmcharges, MM_CHARGES, cont->mmatoms * sizeof(double));
+
+  cont->extpot = (double *) malloc(NR_QM_ATOMS * sizeof(double));
+  calc_external_potential(
+      NR_QM_ATOMS, QM_COORDS, (NR_MM_ATOMS - cont->mmatoms), MM_COORDS + 3 * cont->mmatoms,
+      MM_CHARGES + cont->mmatoms, cont->extpot);
+
+  cont->extpotgrad = (double *) malloc(3 * NR_QM_ATOMS * sizeof(double));
+  calc_external_potential_grad(
+      NR_QM_ATOMS, QM_COORDS, (NR_MM_ATOMS - cont->mmatoms), MM_COORDS + 3 * cont->mmatoms,
+      MM_CHARGES + cont->mmatoms, cont->extpotgrad);
+
   cont->qmatoms = NR_QM_ATOMS;
   cont->qmcoords = (double *) malloc(3 * cont->qmatoms * sizeof(double));
   memcpy(cont->qmcoords, QM_COORDS, 3 * cont->qmatoms * sizeof(double));
@@ -156,6 +197,8 @@ void finalize_context(Context *cont)
   free(cont->qmcoords);
   free(cont->mmcharges);
   free(cont->mmcoords);
+  free(cont->extpot);
+  free(cont->extpotgrad);
 }
 
 
@@ -168,12 +211,13 @@ int main()
   double mermin_energy;
   double *gradients;
 
+  printf("HELLO\n");
   /* Fill up the context with all the relevant data */
   initialize_context(&cont);
 
   /* Initialize the calculator */
-  /*dftbp_init(&calculator, NULL);*/
-  dftbp_init(&calculator, "/dev/null");
+  dftbp_init(&calculator, NULL);
+  /*dftbp_init(&calculator, "/dev/null");*/
 
   /* Parse the input file and store the input-tree */
   dftbp_get_input_from_file(&calculator, "dftb_in.hsd", &input);
@@ -181,12 +225,15 @@ int main()
   /* Set up the calculator by processing the input tree */
   dftbp_process_input(&calculator, &input);
 
-  /* Register the callback functions which calculate the external potential and its gradient */
+  /* Register the callback functions calculating population dependent external potential */
   dftbp_register_ext_pot_generator(&calculator, &cont, get_external_potential,
                                    get_external_potential_grad);
 
   /* Send the current coordinates to deal with */
   dftbp_set_coords(&calculator, cont.qmcoords);
+
+  /* Set current population-independent external field */
+  dftbp_set_external_potential(&calculator, cont.extpot, cont.extpotgrad);
 
   /* Query the Mermin energy of the system */
   dftbp_get_energy(&calculator, &mermin_energy);

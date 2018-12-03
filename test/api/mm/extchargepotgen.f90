@@ -52,7 +52,7 @@ contains
     real(dp), intent(out) :: extPotAtom(:)
     real(dp), intent(out) :: extPotShell(:,:)
 
-    call getPointChargePotential(this%extChargeCoords, -this%extCharges, this%atomCoords,&
+    call getPointChargePotential(this%extChargeCoords, this%extCharges, this%atomCoords,&
         & extPotAtom, this%extPotGrad)
     extPotShell(:,:) = 0.0_dp
 

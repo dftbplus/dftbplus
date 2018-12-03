@@ -52,7 +52,7 @@ test_extcharges: test_extcharges.o
 test_qdepextpot: test_qdepextpot.o extchargepotgen.o extchargepot.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
 
-test_qdepextpot.o: extchargepotgen.o
+test_qdepextpot.o: extchargepotgen.o extchargepot.o
 
 test_qdepextpotc: test_qdepextpotc.o
 	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS) $(OTHERLIBS_C)

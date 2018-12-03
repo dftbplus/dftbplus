@@ -73,7 +73,7 @@ contains
 
   !> Sets up an external population independent electrostatic potential.
   !>
-  !> Sign convention: charge of electron is considered to be negative.
+  !> Sign convention: charge of electron is considered to be positive.
   !>
   subroutine setExternalPotential(atomPot, shellPot, potGrad)
 
@@ -93,21 +93,21 @@ contains
         allocate(refExtPot%atomPot(nAtom, nSpin))
       end if
       @:ASSERT(all(shape(atomPot) == [nAtom]))
-      refExtPot%atomPot(:,1) = -atomPot
+      refExtPot%atomPot(:,1) = atomPot
     end if
     if (present(shellPot)) then
       if (.not. allocated(refExtPot%shellPot)) then
         allocate(refExtPot%shellPot(orb%mShell, nAtom, nSpin))
       end if
       @:ASSERT(all(shape(shellPot) == [orb%mShell, nAtom]))
-      refExtPot%shellPot(:,:,1) = -shellPot
+      refExtPot%shellPot(:,:,1) = shellPot
     end if
     if (present(potGrad)) then
       if (.not. allocated(refExtPot%potGrad)) then
         allocate(refExtPot%potGrad(3, nAtom))
       end if
       @:ASSERT(all(shape(potGrad) == [3, nAtom]))
-      refExtPot%potGrad(:,:) = -potGrad
+      refExtPot%potGrad(:,:) = potGrad
     end if
     tExtField = .true.
 

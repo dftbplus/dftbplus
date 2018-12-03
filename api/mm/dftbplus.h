@@ -66,9 +66,9 @@ typedef void (*ExtPotFunc)(void *refptr, double *dqatom, double *extpotatom);
  *     neutral atom). Shape: [natom]. Note: Population means electrons, so a positive number
  *     indicates electron excess.
  *
- * \param extpotatomgrad[out] Potential gradient at the position of each qm-atom. Shape: [natom, 3]
- *     (row-major). Note: It should be the gradient of the potential as felt by an electron
- *     (negative potential value means attraction for an electron). Unit: Hartree/Bohr.
+ * \param extpotatomgrad[out] Potential gradient at the position of each qm-atom. Shape: [natom,
+ *     3]. Note: It should be the gradient of the potential as felt by an electron (negative
+ *     potential value means attraction for an electron). Unit: Hartree/Bohr.
  */
 typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomgrad);
 
@@ -117,6 +117,20 @@ void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input);
 
 
 /**
+ * Sets a constant (charge independent) external potential.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] extpot External potential at the position of each atom. Shape: [natom]. Unit: Hartree.
+ *
+ * \param[in] extpotgrad Gradient of the external potential at each atom. Shape: [natom, 3].  Unit:
+ *     Hartree/Bohr. This parameter is optional, you can pass NULL if you did not ask DFTB+ to
+ *     calculate forces.
+ */
+void dftbp_set_external_potential(DftbPlus *instance, double *extpot, double *extpotgrad);
+
+
+/**
  * Registers callback functions for population dependant external potential calculation.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -141,7 +155,7 @@ void dftbp_register_ext_pot_generator(DftbPlus *instance, void *refptr, ExtPotFu
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[in] coords Coordinates of the atoms. Shape: [natom, 3] (row-major). Unit: Bohr.
+ * \param[in] coords Coordinates of the atoms. Shape: [natom, 3]. Unit: Bohr.
  */
 void dftbp_set_coords(DftbPlus *instance, double *coords);
 
@@ -151,10 +165,9 @@ void dftbp_set_coords(DftbPlus *instance, double *coords);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[in] coords Coordinates of the atoms in atomic units. Shape: [natom, 3] (row-major). Unit:
- *     Bohr.
+ * \param[in] coords Coordinates of the atoms in atomic units. Shape: [natom, 3]. Unit: Bohr.
  *
- * \param[in] latvecs Lattice vectors Shape: [3, 3] (row-major). Unit: Bohr.
+ * \param[in] latvecs Lattice vectors Shape: [3, 3]. Unit: Bohr.
  */
 void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, double *coords, double *latvecs);
 
@@ -174,8 +187,7 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
- * \param[out] gradients Gradients (not forces!) on each atom. Shape [natom, 3] (row-major): Unit:
- *     Hartree/Bohr.
+ * \param[out] gradients Gradients (not forces!) on each atom. Shape [natom, 3]. Unit: Hartree/Bohr.
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
 

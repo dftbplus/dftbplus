@@ -105,6 +105,29 @@ contains
   end subroutine c_DftbPlus_processInput
 
 
+  subroutine c_DftbPlus_setExternalPotential(handler, extPot, extPotGrad)&
+      & bind(C, name='dftbp_set_external_potential')
+    type(c_DftbPlus), intent(inout) :: handler
+    real(c_double), intent(in) :: extPot(*)
+    type(c_ptr), value, intent(in) :: extPotGrad
+
+    type(TDftbPlusC), pointer :: instance
+    real(c_double), pointer :: pExtPotGrad(:,:)
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+
+    if (c_associated(extPotGrad)) then
+      call c_f_pointer(extPotGrad, pExtPotGrad, [3, nAtom])
+    else
+      pExtPotGrad => null()
+    end if
+    call instance%setExternalPotential(extPot(1:nAtom), pExtPotGrad)
+
+  end subroutine c_DftbPlus_setExternalPotential
+
+
   subroutine c_DftbPlus_registerExtPotGenerator(handler, refPtr, extPotFunc, extPotGradFunc)&
       & bind(C, name='dftbp_register_ext_pot_generator')
     type(c_DftbPlus), intent(inout) :: handler
