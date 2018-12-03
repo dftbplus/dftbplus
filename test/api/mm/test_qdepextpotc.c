@@ -209,7 +209,7 @@ int main()
 
   Context cont;
   double mermin_energy;
-  double *gradients;
+  double *gradients, *charges;
 
   printf("HELLO\n");
   /* Fill up the context with all the relevant data */
@@ -248,6 +248,15 @@ int main()
   printf("Obtained gradient of atom 1: %15.10f %15.10f %15.10f\n", gradients[0], gradients[1],
          gradients[2]);
   free(gradients);
+
+  /* Query the charges (electron population) on the atoms */
+  charges = (double *) malloc(NR_QM_ATOMS * sizeof(double));
+  dftbp_get_gross_charges(&calculator, charges);
+  printf("Expected gross atom charges: %15.10f %15.10f %15.10f\n", -0.4943983279018598,
+         0.264172212777779, 0.23022611512408198);
+  printf("Obtained gross atom charges: %15.10f %15.10f %15.10f\n", charges[0], charges[1],
+         charges[2]);
+
 
   /* Finalize the calculator */
   dftbp_final(&calculator);

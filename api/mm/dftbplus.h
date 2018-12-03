@@ -191,6 +191,17 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
 
+
+/**
+ * Queries the net populations on the atoms.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] charges Net charges on each atom.  Shape [natom]. Sign convention: Electron has
+ *     negative charge, so negative values indicate electron excess.
+ */
+void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
+
 #ifdef __cplusplus
 }
 #endif

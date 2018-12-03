@@ -205,6 +205,21 @@ contains
   end subroutine c_DftbPlus_getGradients
 
 
+  subroutine c_DftbPlus_getGrossCharges(handler, atomCharges)&
+      & bind(C, name='dftbp_get_gross_charges')
+    type(c_DftbPlus), intent(inout) :: handler
+    real(c_double), intent(out) :: atomCharges(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%getGrossCharges(atomCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getGrossCharges
+
+
   !> Converts a 0-char terminated C-type string into a Fortran string.
   function fortranChar(cstring, maxlen)
 
