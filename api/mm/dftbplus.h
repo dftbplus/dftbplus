@@ -119,6 +119,9 @@ void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input);
 /**
  * Sets a constant (charge independent) external potential.
  *
+ * Note: It should be the potential as felt by an electron (negative potential value means
+ *     attraction for an electron).
+ *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
  * \param[in] extpot External potential at the position of each atom. Shape: [natom]. Unit: Hartree.
@@ -127,7 +130,8 @@ void dftbp_process_input(DftbPlus *instance, DftbPlusInput *input);
  *     Hartree/Bohr. This parameter is optional, you can pass NULL if you did not ask DFTB+ to
  *     calculate forces.
  */
-void dftbp_set_external_potential(DftbPlus *instance, double *extpot, double *extpotgrad);
+void dftbp_set_external_potential(DftbPlus *instance, const double *extpot,
+                                  const double *extpotgrad);
 
 
 /**
@@ -146,7 +150,7 @@ void dftbp_set_external_potential(DftbPlus *instance, double *extpot, double *ex
  * \param[in] extpotgrad Function pointer to the call-back function which DFTB+ should call,
  *     whenever the gradient of the population dependant external potential should be calculated.
  */
-void dftbp_register_ext_pot_generator(DftbPlus *instance, void *refptr, ExtPotFunc extpot,
+void dftbp_register_ext_pot_generator(DftbPlus *instance, const void *refptr, ExtPotFunc extpot,
                                       ExtPotGradFunc extpotgrad);
 
 
@@ -157,7 +161,7 @@ void dftbp_register_ext_pot_generator(DftbPlus *instance, void *refptr, ExtPotFu
  *
  * \param[in] coords Coordinates of the atoms. Shape: [natom, 3]. Unit: Bohr.
  */
-void dftbp_set_coords(DftbPlus *instance, double *coords);
+void dftbp_set_coords(DftbPlus *instance, const double *coords);
 
 
 /**
@@ -169,7 +173,8 @@ void dftbp_set_coords(DftbPlus *instance, double *coords);
  *
  * \param[in] latvecs Lattice vectors Shape: [3, 3]. Unit: Bohr.
  */
-void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, double *coords, double *latvecs);
+void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, const double *coords,
+                                       const double *latvecs);
 
 
 /**
