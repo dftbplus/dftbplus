@@ -26,7 +26,7 @@ module dftbp_qdepextpotgenc
     end subroutine getExtPotIfaceC
 
 
-    subroutine getExtPotGradIfaceC(refPtr, dQAtom, extPotAtomGrad)
+    subroutine getExtPotGradIfaceC(refPtr, dQAtom, extPotAtomGrad) bind(C)
       import :: c_double, c_ptr
 
       !> Reference pointer
@@ -36,7 +36,7 @@ module dftbp_qdepextpotgenc
       real(c_double), intent(in) :: dQAtom(*)
 
       !> Gradient of the potential on each atom (note: positive number means electron repulsion)
-      real(c_double), intent(out) :: extPotAtomGrad(*)
+      real(c_double), intent(out) :: extPotAtomGrad(3, *)
 
     end subroutine getExtPotGradIfaceC
 

@@ -34,7 +34,7 @@ program test_qdepextpot
 
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
-  type(TExtChargePotGen) :: extChargePotGen
+  type(TExtChargePotGen) :: potGen
 
   real(dp), allocatable :: extPot(:), extPotGrad(:,:)
   real(dp) :: merminEnergy
@@ -43,14 +43,14 @@ program test_qdepextpot
 
   ! Pass 1st external charge to dynamic potential generator, while 2nd will be set as
   ! constant electrostatic potential
-  call TExtChargePotGen_init(extChargePotGen, coords, extChargeCoords(:,1:1), extCharges(1:1))
+  call TExtChargePotGen_init(potGen, coords, extChargeCoords(:,1:1), extCharges(1:1))
 
   open(newunit=devNull, file="/dev/null", action="write")
   !call TDftbPlus_init(dftbp, outputUnit=devNull)
   call TDftbPlus_init(dftbp)
   call dftbp%getInputFromFile("dftb_in.hsd", input)
   call dftbp%setupCalculator(input)
-  call dftbp%setQDepExtPotGen(extChargePotGen)
+  call dftbp%setQDepExtPotGen(potGen)
 
   allocate(extPot(nQmAtom))
   allocate(extPotGrad(3, nQmAtom))

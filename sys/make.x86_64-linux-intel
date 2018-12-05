@@ -75,12 +75,19 @@ endif
 # General settings
 ############################################################################
 
+# Linker for c executables
+LN_C = $(LN)
+LNOPT_C = -nofor_main
+
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT =
 
 # Library options in general
 LIBOPT = 
+
+# Additional libraries needed to be linked when linking C-executables
+OTHERLIBS_C =
 
 ############################################################################
 # Developer settings
@@ -89,9 +96,9 @@ LIBOPT =
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -diag-error-limit 1 -traceback
-    CCOPT = -g -warn all
+    CCOPT = -g
 endif
 ifeq ($(strip $(DEBUG)),2)
     FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
-    CCOPT = -g -warn all -check
+    CCOPT = -g
 endif
