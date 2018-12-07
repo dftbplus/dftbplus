@@ -291,7 +291,9 @@ contains
 
       lpSCC: do iSccIter = 1, maxSccIter
 
-        call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+        call resetInternalPotentials(potential)
+
+        call addSpinOrbitPotential(tDualSpinOrbit, xi, orb, species, potential)
 
         if (tSccCalc) then
 
@@ -361,8 +363,11 @@ contains
         ! Note: if XLBOMD is active, potential created with input charges is needed later,
         ! therefore it should not be overwritten here.
         if (tSccCalc .and. .not. tXlbomd) then
-          call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
           call getChargePerShell(qOutput, orb, species, chargePerShell)
+          
+          call resetInternalPotentials(potential)
+
+          call addSpinOrbitPotential(tDualSpinOrbit, xi, orb, species, potential)
 
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
               & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
@@ -1452,33 +1457,17 @@ contains
 
 
   !> Reset internal potential related quantities
-  subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-
-    !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
-
-    !> Spin orbit constants if required
-    real(dp), allocatable, intent(in) :: xi(:,:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> chemical species
-    integer, intent(in) :: species(:)
+  subroutine resetInternalPotentials(potential)
 
     !> potentials in the system
     type(TPotentials), intent(inout) :: potential
 
-    @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
 
     potential%intAtom(:,:) = 0.0_dp
     potential%intShell(:,:,:) = 0.0_dp
     potential%intBlock(:,:,:,:) = 0.0_dp
     potential%orbitalBlock(:,:,:,:) = 0.0_dp
     potential%iOrbitalBlock(:,:,:,:) = 0.0_dp
-    if (tDualSpinOrbit) then
-      call getDualSpinOrbitShift(potential%iOrbitalBlock, xi, orb, species)
-    end if
 
   end subroutine resetInternalPotentials
 
@@ -1690,6 +1679,32 @@ contains
 
   end subroutine addBlockChargePotentials
 
+
+  !> Add spin-orbit coupling treated as a potential (goes with the dual) 
+  subroutine addSpinOrbitPotential(tDualSpinOrbit, xi, orb, species, potential)
+
+    !> Is dual spin orbit being used (block potentials)
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> Spin orbit constants if required
+    real(dp), allocatable, intent(in) :: xi(:,:)
+
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> chemical species
+    integer, intent(in) :: species(:)
+    
+    !> potentials acting in system
+    type(TPotentials), intent(inout) :: potential
+
+    @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
+
+    if (tDualSpinOrbit) then
+      call getDualSpinOrbitShift(potential%iOrbitalBlock, xi, orb, species)
+    end if
+
+  end subroutine addSpinOrbitPotential
 
 
   !> Returns the Hamiltonian for the given scc iteration

@@ -59,6 +59,7 @@ module mat_conv
   interface unfoldFromCSR
     module procedure unfoldFromCSR_real
     module procedure unfoldFromCSR_cplx
+    !module procedure unfoldFromCSR_pauli
   end interface unfoldFromCSR
 
 contains
@@ -418,10 +419,12 @@ contains
       nOrb1 = orb%nOrbAtom(iAt1)
       do iNeigh = 0, nNeighbor(iAt1)
         iAt2f = img2CentCell(iNeighbor(iNeigh,iAt1))
+        ! Do not count twice atoms in the central cell
         if (zero(iAt2f)) then
           nColAtom(iAt1) = nColAtom(iAt1) + orb%nOrbAtom(iAt2f)
           zero(iAt2f) = .false.
-          if (iAt1 /= iAt2f) then
+          ! We need this count because the nMap is not symmetric
+          if (iAt2f /= iAt1) then
             nColAtom(iAt2f) = nColAtom(iAt2f) + nOrb1
           end if
         end if
@@ -510,6 +513,12 @@ contains
   end subroutine createEquivCSR_cplx
 
 
+  !> Creates a Compressed Sparse Row matrix with a sparsity structure in accordance with current
+  !> geometry.
+  !>
+  !> Note: The subroutine only creates the structure of the CSR matrix, but does not fill up the
+  !> nonzero values with anything usefull. The resulting CSR matrix has storage for both triangles
+  !> of the square matrix.
   subroutine createEquivCSR_pauli(csr, iAtomStart, iNeighbor, nNeighbor, &
       &img2CentCell, orb, tDualSpinOrbit)
     
@@ -535,8 +544,121 @@ contains
     logical, intent(in) :: tDualSpinOrbit
   
      
+    integer, allocatable :: nColAtom(:), nCols(:), iNonZero(:)
+    integer, allocatable :: iAtomStart2(:), rowpnt(:)
+    logical, allocatable :: zero(:)
+    integer :: nAtom, nNonZero
+    integer :: iOrb1, iOrb2, nOrb1, nOrb2, iAt1, iAt2f, iNeigh
+    integer :: iRow, iCol, ind, nrow
+    integer :: ii, jj
 
 
+    nAtom = size(orb%nOrbAtom)
+
+    ! Count nr. of nonzero columns in the square (folded) form for each atom
+    ! Nr. of nonzero columns for each atom. 
+    allocate(nColAtom(nAtom))
+    allocate(zero(nAtom))
+    allocate(iAtomStart2(nAtom+1))
+
+    nColAtom(:) = 0
+    do iAt1 = 1, nAtom
+      zero(:) = .true.
+      ! Compute the atom indexes of the 2x2 Hamiltonian
+      iAtomStart2(iAt1) = 2*iAtomStart(iAt1) - 1
+      nOrb1 = orb%nOrbAtom(iAt1)
+      do iNeigh = 0, nNeighbor(iAt1)
+        iAt2f = img2CentCell(iNeighbor(iNeigh,iAt1))
+        ! Do not count twice atoms in the central cell
+        if (zero(iAt2f)) then
+          nColAtom(iAt1) = nColAtom(iAt1) + 2*orb%nOrbAtom(iAt2f)
+          zero(iAt2f) = .false.
+          ! We need this count because the nMap is not symmetric
+          if (iAt2f /= iAt1) then
+            nColAtom(iAt2f) = nColAtom(iAt2f) + 2*nOrb1
+          end if
+        end if
+      end do
+    end do
+
+    nrow = iAtomStart2(nAtom+1) - 1
+    allocate(rowpnt(nrow+1) )
+    ! Calculate CSR row pointers:
+    ! A row for a certain orbital of a certain atom is as long, as the
+    ! nr. of columns determined previously for the atom.
+    rowpnt(1) = 1
+    ind = 1
+    do iAt1 = 1, nAtom
+      nOrb1 = 2*orb%nOrbAtom(iAt1)
+      do iOrb1 = 1, nOrb1
+        rowpnt(ind+iOrb1) = rowpnt(ind) + iOrb1 * nColAtom(iAt1)
+      end do
+      ind = ind + nOrb1
+    end do
+    deallocate(nColAtom)
+
+    call create(csr, nrow, nrow, rowpnt(nrow + 1) - 1)
+    csr%rowpnt = rowpnt
+    deallocate(rowpnt)
+
+    ! Nr. of CSR columns already filled
+    allocate(nCols(csr%nRow))
+    nCols(:) = 0
+    ! Index of the nonzero blocks
+    allocate(iNonZero(nAtom))
+
+    ! Loop over all atoms (over all atomic columns in the rectangular picture)
+    lpAt1: do iAt1 = 1, nAtom
+      iCol = iAtomStart2(iAt1)
+      nOrb1 = 2*orb%nOrbAtom(iAt1)         ! Width of the atomic column
+
+      ! Mark nonzero blocks in the folded matrix for the current atom
+      nNonZero = 0
+      zero(:) = .true.
+      do iNeigh = 0, nNeighbor(iAt1)
+        iAt2f = img2CentCell(iNeighbor(iNeigh,iAt1))
+        if (zero(iAt2f)) then
+          zero(iAt2f) = .false.
+          nNonZero = nNonZero + 1
+          iNonzero(nNonzero) = iAt2f
+        end if
+      end do
+
+      ! Initialise CSR internal pointers according the non-zero blocks
+      lpNonZero: do ii = 1, nNonZero
+        iAt2f = iNonZero(ii)
+        nOrb2 = 2*orb%nOrbAtom(iAt2f)
+        iRow = iAtomStart2(iAt2f)
+
+        ! Correspond rows of the current atomic block column to the appropriate
+        ! partial rows in the lower triangle of the CSR matrix.
+        do iOrb2 = 0, nOrb2 - 1
+          jj = iRow + iOrb2
+          ind = csr%rowpnt(jj) + nCols(jj)
+          do iOrb1 = 0, nOrb1 - 1
+            csr%colind(ind+iOrb1) = iCol + iOrb1
+          end do
+          nCols(jj) = nCols(jj) + nOrb1
+        end do
+
+        ! Correspond the columns of the current block to appropriate
+        ! partial rows in the upper triangle of the CSR matrix.
+        if (iAt2f /= iAt1) then
+          do iOrb1 = 0, nOrb1 - 1
+            jj = iCol + iOrb1
+            ind = csr%rowpnt(jj) + nCols(jj)
+            do iOrb2 = 0, nOrb2 - 1
+              csr%colind(ind+iOrb2) = iRow + iOrb2
+            end do
+            nCols(jj) = nCols(jj) + nOrb2
+          end do
+        end if
+      end do lpNonZero
+    end do lpAt1
+
+    deallocate(zero)
+    deallocate(nCols)
+    deallocate(iNonZero)
 
   end subroutine createEquivCSR_pauli  
 
@@ -583,12 +705,14 @@ contains
     !> orb  Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
+
     integer, allocatable :: nCols(:)
     complex(dp), allocatable :: tmpCol(:,:), phases(:)
     integer :: nAtom, nCellVec
     integer :: iOrb1, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
     integer :: iRow, iCol, iVal, ind
     integer :: ii, jj, kk
+
 
     nAtom = size(orb%nOrbAtom)
     nCellVec = size(cellVec, dim=2)
@@ -611,7 +735,7 @@ contains
         nOrb2 = orb%nOrbAtom(iAt2f)
         iRow = iAtomStart(iAt2f)
         tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1) = tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1)&
-            & + phases(iCellVec(iAt2)) * reshape(sparse(ind:ind+nOrb2*nOrb1-1), (/ nOrb2, nOrb1 /))
+            & + phases(iCellVec(iAt2)) * reshape(sparse(ind:ind+nOrb2*nOrb1-1), [nOrb2, nOrb1])
       end do
 
       ! Copy every column into the appropriate row in the upper triangle of
@@ -648,6 +772,217 @@ contains
 
   end subroutine foldToCSR_cplx
 
+
+  !> Folds the internal sparse matrix to the compressed sparse row format 
+  !> (Spin up-down representation from Pauli matrices).
+  !>
+  !> Note: In the resulting CSR format both triangles of the matrix are set.
+  !> Caveat The routine should only applied on CSR matrixes created by the createEquiv_cplx
+  !> subroutine, since it exploits the ordering of the column indexes.
+  subroutine foldToCSR_Pauli(csr, sparse, kPoint, iAtomStart, iPair, iNeighbor, nNeighbor,&
+      & img2CentCell, iCellVec, cellVec, orb, iHam)
+
+    !> Resulting CSR matrix.
+    type(z_CSR), intent(inout) :: csr
+
+    !> The internal sparse matrix to fold (4 blocks)
+    real(dp), intent(in) :: sparse(:,:)
+
+    !> Current k-point
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Starting positions of the atoms in the square matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> iPair Starting position of atom-neighbor interaction in the sparse matrix.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> iNeighbor Index of neighbors.
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> nNeighbor Number of neighbors.
+    integer, intent(in) :: nNeighbor(:)
+
+    !> img2CentCell Image of the atoms in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for cells atomic images are sited in
+    integer, intent(in) :: iCellVec(:)
+
+    !> vectors to crystal unit cells
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> orb  Orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    !> imaginary part of sparse hamiltonian
+    real(dp), intent(in), optional :: iHam(:, :)
+
+
+    integer, allocatable :: nCols(:), iAtomStart2(:)
+    complex(dp), allocatable :: tmpCol(:,:), tmpMat(:,:), phases(:)
+    integer :: nAtom, nCellVec
+    integer :: iOrb1, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
+    integer :: iRow, iCol, iVal, ind
+    integer :: ii, jj, kk
+
+
+    nAtom = size(orb%nOrbAtom)
+    nCellVec = size(cellVec, dim=2)
+
+    ! Create necessary phase factors
+    allocate(phases(nCellVec))
+    do ii = 1, nCellVec
+      phases(ii) = exp(2.0_dp * pi * (0.0_dp, 1.0_dp) * dot_product(kPoint, cellVec(:,ii)))
+    end do
+    
+    allocate(iAtomStart2(nAtom+1))
+    do iAt1 = 1, nAtom
+      iAtomStart2(iAt1) = 2*iAtomStart(iAt1) - 1
+    end do
+
+    allocate(tmpCol(csr%nRow, 2*orb%mOrb))   ! One atomic block column.
+    allocate(tmpMat(2*orb%mOrb, 2*orb%mOrb))
+
+    lpAt1: do iAt1 = 1, nAtom
+      ! Unfold the columns for the current atom from the sparse matrix.
+      nOrb1 = 2*orb%nOrbAtom(iAt1)
+      tmpCol(:,:) = 0.0_dp
+      do iNeigh = 0, nNeighbor(iAt1)
+        ind = iPair(iNeigh,iAt1) + 1
+        iAt2 = iNeighbor(iNeigh,iAt1)
+        iAt2f = img2CentCell(iAt2)
+        nOrb2 = 2*orb%nOrbAtom(iAt2f)
+        iRow = iAtomStart2(iAt2f)
+        call getPauliBlock(sparse, ind, tmpMat, nOrb2/2, nOrb1/2, iHam)
+        tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1) = tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1)&
+            & + phases(iCellVec(iAt2)) * tmpMat(1:nOrb2, 1:nOrb1) 
+      end do
+
+      ! Copy every column into the appropriate row in the upper triangle of
+      ! the CSR matrix (the copy is masked by the sparsity structure stored
+      ! in the CSR matrix)
+      nOrb1 = 2*orb%nOrbAtom(iAt1)
+      iCol = iAtomStart2(iAt1)
+      do iOrb1 = 1, nOrb1
+        ii = csr%rowpnt(iCol + iOrb1 - 1)
+        jj = csr%rowpnt(iCol + iOrb1) - 1
+        do kk=ii,jj
+          csr%nzval(kk) = conjg(tmpCol(csr%colind(kk), iOrb1))
+        enddo
+      end do
+    end do lpAt1
+    deallocate(tmpCol)
+    deallocate(phases)
+
+    ! Fill the lower triangle of the CSR matrix
+    allocate(nCols(csr%nRow))
+    nCols(:) = 0
+    do iRow = 1, csr%nRow
+      ! Starting from the tail of the matrix row
+      iVal = csr%rowpnt(iRow + 1) - 1
+      iCol = csr%colind(iVal)
+      do while (iVal >= csr%rowpnt(iRow) .and. iCol > iRow)
+        csr%nzval(csr%rowpnt(iCol)+nCols(iCol)) = conjg(csr%nzval(iVal))
+        nCols(iCol) = nCols(iCol) + 1
+        iVal = iVal - 1
+        iCol = csr%colind(iVal)
+      end do
+    end do
+    deallocate(nCols)
+
+  end subroutine foldToCSR_Pauli
+
+
+
+  subroutine getPauliBlock(ham, ind, tmpMat, nOrb2, nOrb1, iHam)
+
+    !> sparse hamiltonian
+    real(dp), intent(in) :: ham(:, :)
+
+    !> start index of atom block in sparse matrix
+    integer, intent(in) :: ind
+
+    !> dense atom block
+    complex(dp), intent(out) :: tmpMat(:, :)
+
+    !> number of orbitals along rows
+    integer, intent(in) :: nOrb2
+
+    !> number of orbitals along cols
+    integer, intent(in) :: nOrb1
+
+    !> imaginary part of sparse hamiltonian
+    real(dp), intent(in), optional :: iHam(:, :)
+
+
+    real(dp), allocatable :: work(:, :)
+
+    ! 1 0 charge part
+    ! 0 1
+    work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 1), [nOrb2, nOrb1])
+    tmpMat(1:nOrb2, 1:nOrb1) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
+    tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
+
+    if (present(iHam)) then
+      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 1), [nOrb2, nOrb1])
+      tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2,1:nOrb1) &
+          &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+      tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) &
+          &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+    end if
+
+    ! 0 1 x part
+    ! 1 0
+    work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 2), [nOrb2, nOrb1])
+    tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+         & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
+    tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+         & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
+
+    ! 0 -i y part
+    ! i  0
+    work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 3), [nOrb2, nOrb1])
+    tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+         & + 0.5_dp * cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+    tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+         & - 0.5_dp * cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+
+    ! 1  0 z part
+    ! 0 -1
+    work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 4), [nOrb2, nOrb1])
+    tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2, 1:nOrb1) &
+         & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
+    tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+         & - 0.5_dp * work(1:nOrb2, 1:nOrb1)
+
+    ! iHam(:,2:4) = (Im{L+}, -Re{L+}, Im{Lz})
+    ! iHam(:,2:4) = (Im{L-}, +Re{L-}, Im{Lz})
+    ! => L+ = i* iHam(:,2) - iHam(:,3)  
+    ! => L- = i* iHam(:,2) + iHam(:,3) 
+    ! (Lz L-)
+    ! (L+ Lz) 
+    if (present(iHam)) then
+      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 2), [nOrb2, nOrb1])
+      tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+          & + 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+      tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+          & + 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+
+      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 3), [nOrb2, nOrb1])
+      tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+          & - 0.5_dp * work(1:nOrb2, 1:nOrb1)
+      tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+          & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
+ 
+      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 4), [nOrb2, nOrb1])
+      tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2,1:nOrb1) &
+          &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+      tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) &
+          &- 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
+    end if
+
+  end subroutine getPauliBlock
 
 
   !> Unfolds a matrix from the CSR form into the internal sparse representation (real version).

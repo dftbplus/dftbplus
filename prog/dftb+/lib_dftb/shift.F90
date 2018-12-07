@@ -65,10 +65,12 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
 
-    !> Shift to add at atom sites
+    !> Periodic images to central cell mapping 
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add at atom sites
     real(dp), intent(in) :: shift(:,:)
+
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iNeigh, iSpin, nSpin
@@ -135,9 +137,10 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
 
-    !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
+    !> Periodic images to central cell mapping 
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
     real(dp), intent(in) :: shift(:,:,:)
 
     integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
@@ -214,9 +217,10 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
 
-    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    !> Periodic images to central cell mapping 
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom,1:iSpin)
     real(dp), intent(in) :: shift(:,:,:,:)
 
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
