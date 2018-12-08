@@ -85,6 +85,7 @@ module eigensolver
   end interface
 
 #:if WITH_GPU
+  !> Divide and conquer MAGMA GPU eigensolver
   interface gpu_gvd
     module procedure real_magma_ssygvd
     module procedure dble_magma_dsygvd
@@ -2054,21 +2055,25 @@ contains
 
   end subroutine dblecmplx_zhbgv
 
+
 #:if WITH_GPU
 
-  subroutine real_magma_ssygvd(ngpus, a, b, w, uplo, jobz, itype)
+#:for DTYPE, NAME in [('real', 's'), ('dble', 'd')]
+  !> real eigensolution on GPU(s)
+  subroutine ${DTYPE}$_magma_${NAME}$sygvd(ngpus, a, b, w, uplo, jobz, itype)
+
+    !> Number of GPUs to use
+    integer, intent(in) :: ngpus
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
-    real(rsp), intent(inout) :: a(:,:)
-    real(rsp), allocatable :: H(:)
+    real(r${NAME}$p), intent(inout) :: a(:,:)
 
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    real(rsp), intent(inout) :: b(:,:)
-    real(rsp), allocatable :: S(:)
+    real(r${NAME}$p), intent(inout) :: b(:,:)
 
     !> eigenvalues
-    real(rsp), intent(out) :: w(:)
+    real(r${NAME}$p), intent(out) :: w(:)
 
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
@@ -2080,15 +2085,12 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
-    real(rsp), allocatable :: work(:)
-    integer :: lwork
+    real(rsp), allocatable :: H(:), S(:), work(:)
+    integer :: lwork, liwork, n, info, iitype, ldm
     integer, allocatable :: iwork(:)
-    integer :: liwork
 
-    integer n, info, iitype
-   
-    integer :: ngpus
-    integer :: ldm, nwarp, i, i0    
+    ! Padding for shared memory to avoid bank conflicts, 32-bit mode
+    integer, parameter :: nwarp = 32
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2103,60 +2105,60 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
 
-    !> Padding for shared memory to avoid bank conflicts, 32-bit mode
-    nwarp = 32      
-    ldm   = nwarp* ((n+nwarp-1)/nwarp)
-    allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error('CPU alloc error in real_magma_ssygvd. Exiting')
+    ldm = nwarp * ((n+nwarp-1)/nwarp)
+    allocate(H(ldm*ldm), S(ldm*ldm), stat=info)
+    if (info.ne.0) then
+      call error('CPU allocation error in real_magma_ssygvd. Exiting')
+    end if
     
-    !> Convert nxn matrices to 1D arrays
-    i0=1
-    do i=1,n 
-      call scopy(n,a(1,i),1,H(i0),1)
-      call scopy(n,b(1,i),1,S(i0),1)
-      i0 =  i0 + ldm
-    enddo 
-    
-    !> Workspace query
+    ! Convert nxn matrices to 1D arrays
+    H(:) = reshape(A(:n, :n), [n*n])
+    S(:) = reshape(B(:n, :n), [n*n])
+
+    ! Workspace query
     allocate(work(1),iwork(1))
 
-    call magmaf_ssygvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,-1,iwork,-1,info)
+    call magmaf_${NAME}$sygvd_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, -1, iwork,&
+        & -1, info)
     if (info/=0) then
-      call error("Failue in MAGMA_SSYGVD to determine optimum workspace")
+      call error("Failue in MAGMA_${NAME}$SYGVD to determine optimum workspace")
     endif
 
-    !> Optimal workspace allocation
+    ! Optimal workspace allocation
     lwork = floor(work(1))
     liwork = int(iwork(1))
-    deallocate(work) ;  allocate(work(lwork))
-    deallocate(iwork) ; allocate(iwork(liwork))
+    deallocate(work)
+    allocate(work(lwork))
+    deallocate(iwork)
+    allocate(iwork(liwork))
     
-    !> MAGMA Diagonalization
-    call magmaf_ssygvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,lwork,iwork,liwork,info)
+    ! MAGMA Diagonalization
+    call magmaf_${NAME}$sygvd_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, lwork,&
+        & iwork, liwork, info)
 
-    i0=1
-    do i=1,n 
-      call scopy(n,H(i0),1,a(1,i),1) 
-      call scopy(n,S(i0),1,b(1,i),1) 
-      i0 =  i0 + ldm
-    enddo 
+    a(:n,:n) = reshape(H, [n, n])
+    b(:n,:n) = reshape(S, [n, n])
 
-  end subroutine real_magma_ssygvd
+  end subroutine ${DTYPE}$_magma_${NAME}$sygvd
 
+#:endfor
 
-  subroutine dble_magma_dsygvd(ngpus, a, b, w, uplo, jobz, itype)
+#:for DTYPE, NAME, VTYPE in [('cmplx', 'c', 's'), ('dblecmplx', 'z', 'd')]
+  !> complex eigensolution on GPU(s)
+  subroutine ${DTYPE}$_magma_${NAME}$hegvd(ngpus, a, b, w, uplo, jobz, itype)
+
+    !> Number of GPUs to use
+    integer, intent(in) :: ngpus
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
-    real(rdp), intent(inout) :: a(:,:)
-    real(rdp), allocatable :: H(:)
+    complex(r${VTYPE}$p), intent(inout) :: a(:,:)
 
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    real(rdp), intent(inout) :: b(:,:)
-    real(rdp), allocatable :: S(:)
+    complex(r${VTYPE}$p), intent(inout) :: b(:,:)
 
     !> eigenvalues
-    real(rdp), intent(out) :: w(:)
+    real(r${VTYPE}$p), intent(out) :: w(:)
 
     !> upper or lower triangle of the matrix
     character, intent(in) :: uplo
@@ -2168,15 +2170,13 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
-    real(rdp), allocatable :: work(:)
-    integer :: lwork
+    complex(r${VTYPE}$p), allocatable :: H(:), S(:), work(:)
     integer, allocatable :: iwork(:)
-    integer :: liwork
+    real(r${VTYPE}$p), allocatable :: rwork(:)
+    integer :: lwork, liwork, lrwork, n, info, iitype, ldm
 
-    integer n, info, iitype
-   
-    integer :: ngpus
-    integer :: ldm, nwarp, i, i0    
+    ! Padding for shared memory to avoid bank conflicts, 32-bit mode
+    integer, parameter :: nwarp = 32
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2191,119 +2191,26 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
 
-    !> Padding for shared memory to avoid bank conflicts, 32-bit mode
-    nwarp = 32      
-    ldm   = nwarp* ((n+nwarp-1)/nwarp)
+    ldm = nwarp * ((n+nwarp-1)/nwarp)
     allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error('CPU alloc error in dble_magma_dsygvd. Exiting')
-    
-    !> Convert nxn matrices to 1D arrays
-    i0=1
-    do i=1,n 
-      call dcopy(n,a(1,i),1,H(i0),1)
-      call dcopy(n,b(1,i),1,S(i0),1)
-      i0 =  i0 + ldm
-    enddo 
-    
-    !> Workspace query
-    allocate(work(1),iwork(1))
-
-    call magmaf_dsygvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,-1,iwork,-1,info)
-    if (info/=0) then
-      call error("Failue in MAGMA_DSYGVD to determine optimum workspace")
-    endif
-
-    !> Optimal workspace allocation
-    lwork = floor(work(1))
-    liwork = int(iwork(1))
-    deallocate(work) ;  allocate(work(lwork))
-    deallocate(iwork) ; allocate(iwork(liwork))
-    
-    !> MAGMA Diagonalization
-    call magmaf_dsygvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,lwork,iwork,liwork,info)
-
-    i0=1
-    do i=1,n 
-      call dcopy(n,H(i0),1,a(1,i),1) 
-      call dcopy(n,S(i0),1,b(1,i),1) 
-      i0 =  i0 + ldm
-    enddo 
-
-  end subroutine dble_magma_dsygvd
-
- 
-  subroutine cmplx_magma_chegvd(ngpus, a, b, w, uplo, jobz, itype)
-
-    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
-    !> overwritten on return anyway)
-    complex(rsp), intent(inout) :: a(:,:)
-    complex(rsp), allocatable :: H(:)
-
-    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    complex(rsp), intent(inout) :: b(:,:)
-    complex(rsp), allocatable :: S(:)
-
-    !> eigenvalues
-    real(rsp), intent(out) :: w(:)
-
-    !> upper or lower triangle of the matrix
-    character, intent(in) :: uplo
-
-    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-    character, intent(in) :: jobz
-
-    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
-    !> 3:B*A*x=(lambda)*x default is 1
-    integer, optional, intent(in) :: itype
-
-    complex(rsp), allocatable :: work(:)
-    integer :: lwork
-    integer, allocatable :: iwork(:)
-    integer :: liwork
-    real(rsp), allocatable :: rwork(:)
-    integer :: lrwork
-
-    integer n, info, iitype
-   
-    integer :: ngpus
-    integer :: ldm, nwarp, i, i0    
-
-    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    @:ASSERT(all(shape(a)==shape(b)))
-    @:ASSERT(all(shape(a)==size(w,dim=1)))
-    n=size(a,dim=1)
-    @:ASSERT(n>0)
-    if (present(itype)) then
-      iitype = itype
-    else
-      iitype = 1
+    if (info.ne.0) then
+      call  error('CPU alloc error in cmplx_magma_chegvd. Exiting')
     end if
-    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
+    
+    ! Convert nxn matrices to 1D arrays
+    H(:) = reshape(A(:n, :n), [n*n])
+    S(:) = reshape(B(:n, :n), [n*n])
 
-    !> Padding for shared memory to avoid bank conflicts, 32-bit mode
-    nwarp = 32      
-    ldm   = nwarp* ((n+nwarp-1)/nwarp)
-    allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error('CPU alloc error in cmplx_magma_chegvd. Exiting')
-    
-    !> Convert nxn matrices to 1D arrays
-    i0=1
-    do i=1,n 
-      call ccopy(n,a(1,i),1,H(i0),1)
-      call ccopy(n,b(1,i),1,S(i0),1)
-      i0 =  i0 + ldm
-    enddo 
-    
-    !> Workspace query
+    ! Workspace query
     allocate(work(1), rwork(1), iwork(1))
 
-    call magmaf_chegvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,-1,rwork,-1,iwork,-1,info)
+    call magmaf_${NAME}$hegvd_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, -1, rwork,&
+        & -1, iwork, -1, info)
     if (info/=0) then
       call error("Failue in MAGMA_CHEGVD to determine optimum workspace")
     endif
 
-    !> Optimal workspace allocation
+    ! Optimal workspace allocation
     lwork = floor(real(work(1)))
     lrwork = floor(rwork(1))
     liwork = int(iwork(1))
@@ -2311,109 +2218,16 @@ contains
     deallocate(rwork) ;  allocate(rwork(lrwork))
     deallocate(iwork) ; allocate(iwork(liwork))
     
-    !> MAGMA Diagonalization
-    call magmaf_chegvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,lwork,rwork,lrwork,iwork,liwork,info)
+    ! MAGMA Diagonalization
+    call magmaf_${NAME}$hegvd_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, lwork,&
+        & rwork, lrwork, iwork, liwork, info)
 
-    i0=1
-    do i=1,n 
-      call ccopy(n,H(i0),1,a(1,i),1) 
-      call ccopy(n,S(i0),1,b(1,i),1) 
-      i0 =  i0 + ldm
-    enddo 
+    a(:n,:n) = reshape(H, [n, n])
+    b(:n,:n) = reshape(S, [n, n])
 
-  end subroutine cmplx_magma_chegvd
+  end subroutine ${DTYPE}$_magma_${NAME}$hegvd
 
-
-  subroutine dblecmplx_magma_zhegvd(ngpus, a, b, w, uplo, jobz, itype)
-
-    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
-    !> overwritten on return anyway)
-    complex(rdp), intent(inout) :: a(:,:)
-    complex(rdp), allocatable :: H(:)
-
-    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    complex(rdp), intent(inout) :: b(:,:)
-    complex(rdp), allocatable :: S(:)
-
-    !> eigenvalues
-    real(rdp), intent(out) :: w(:)
-
-    !> upper or lower triangle of the matrix
-    character, intent(in) :: uplo
-
-    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-    character, intent(in) :: jobz
-
-    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
-    !> 3:B*A*x=(lambda)*x default is 1
-    integer, optional, intent(in) :: itype
-
-    complex(rdp), allocatable :: work(:)
-    integer :: lwork
-    integer, allocatable :: iwork(:)
-    integer :: liwork
-    real(rdp), allocatable :: rwork(:)
-    integer :: lrwork
-
-    integer n, info, iitype
-   
-    integer :: ngpus
-    integer :: ldm, nwarp, i, i0    
-
-    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    @:ASSERT(all(shape(a)==shape(b)))
-    @:ASSERT(all(shape(a)==size(w,dim=1)))
-    n=size(a,dim=1)
-    @:ASSERT(n>0)
-    if (present(itype)) then
-      iitype = itype
-    else
-      iitype = 1
-    end if
-    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-
-    !> Padding for shared memory to avoid bank conflicts, 32-bit mode
-    nwarp = 32      
-    ldm   = nwarp* ((n+nwarp-1)/nwarp)
-    allocate(H(ldm*ldm), S(ldm*ldm),stat=info) 
-    if (info.ne.0) call  error('CPU alloc error in cmplx_magma_zhegvd. Exiting')
-    
-    !> Convert nxn matrices to 1D arrays
-    i0=1
-    do i=1,n 
-      call zcopy(n,a(1,i),1,H(i0),1)
-      call zcopy(n,b(1,i),1,S(i0),1)
-      i0 =  i0 + ldm
-    enddo 
-    
-    !> Workspace query
-    allocate(work(1), rwork(1), iwork(1))
-
-    call magmaf_zhegvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,-1,rwork,-1,iwork,-1,info)
-    if (info/=0) then
-      call error("Failue in MAGMA_ZHEGVD to determine optimum workspace")
-    endif
-
-    !> Optimal workspace allocation
-    lwork = floor(real(work(1)))
-    lrwork = floor(rwork(1))
-    liwork = int(iwork(1))
-    deallocate(work) ;  allocate(work(lwork))
-    deallocate(rwork) ;  allocate(rwork(lrwork))
-    deallocate(iwork) ; allocate(iwork(liwork))
-    
-    !> MAGMA Diagonalization
-    call magmaf_zhegvd_m(ngpus,iitype,jobz,uplo,n,H,ldm,S,ldm,w,work,lwork,rwork,lrwork,iwork,liwork,info)
-
-    i0=1
-    do i=1,n 
-      call zcopy(n,H(i0),1,a(1,i),1) 
-      call zcopy(n,S(i0),1,b(1,i),1) 
-      i0 =  i0 + ldm
-    enddo 
-
-  end subroutine dblecmplx_magma_zhegvd 
+#:endfor
 
 #:endif
 
