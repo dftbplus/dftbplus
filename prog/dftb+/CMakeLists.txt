@@ -54,6 +54,14 @@ if(WITH_DFTD3)
   list(APPEND OTHERLIBS dftd3)
 endif()
 
+if(WITH_MPI)
+  target_include_directories(dftbplus INTERFACE
+    $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_include_directories(dftbplus INTERFACE
+    $<TARGET_PROPERTY:scalapackfx,INTERFACE_INCLUDE_DIRECTORIES>)
+  list(APPEND OTHERLIBS mpifx scalapackfx ${SCALAPACK_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+endif()
+
 target_link_libraries(dftbplus ${OTHERLIBS})
 
 _register_install_target(dftbplus)

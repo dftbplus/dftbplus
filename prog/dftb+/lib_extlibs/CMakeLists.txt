@@ -22,6 +22,12 @@ if(WITH_SOCKETS)
     ${CURDIR}/fsockets.F90)
 endif(WITH_SOCKETS)
 
+if(WITH_MPI)
+  set(SOURCES-FPP ${SOURCES-FPP}
+    ${CURDIR}/mpifx.f90
+    ${CURDIR}/scalapackfx.f90)
+endif()
+
 if(WITH_TRANSPORT)
   set(SOURCES-FPP ${SOURCES-FPP}
     ${CURDIR}/libnegf_vars.F90

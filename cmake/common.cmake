@@ -62,7 +62,7 @@ function (_get_fypp_defines fyppdefines)
   endif()
 
   if(WITH_MPI)
-    list(APPEND _fyppdefines -DWITH_MPI)
+    list(APPEND _fyppdefines -DWITH_MPI -DWITH_SCALAPACK)
   endif(WITH_MPI)
 
   if(WITH_SOCKETS)

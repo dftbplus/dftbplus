@@ -18,12 +18,20 @@ _log_settings(${SETTINGS_LOG} WITH_DFTD3)
 set(WITH_ARPACK FALSE CACHE BOOL "Whether the ARPACK library should be included")
 _log_settings(${SETTINGS_LOG} WITH_ARPACK)
 
+set(SCALAPACK_LIBRARIES "scalapack" CACHE STRING "ScaLAPACK library to link")
+_log_settings(${SETTINGS_LOG} SCALAPACK_LIBRARIES)
+
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 
 find_package(LAPACK REQUIRED)
 _log_settings(${SETTINGS_LOG} LAPACK_LIBRARIES)
 
-if (WITH_ARPACK)
+if(WITH_MPI)
+  find_package(MPI REQUIRED)
+  include_directories(SYSTEM ${MPI_Fortran_INCLUDE_PATH})
+endif()
+
+if(WITH_ARPACK)
   find_package(ARPACK REQUIRED)
   _log_settings(${SETTINGS_LOG} ARPACK_LIBRARIES)
 endif()
@@ -52,6 +60,11 @@ endif()
 
 if(WITH_DFTD3)
   add_subdirectory(external/dftd3/origin EXCLUDE_FROM_ALL)
+endif()
+
+if(WITH_MPI)
+  add_subdirectory(external/mpifx/origin EXCLUDE_FROM_ALL)
+  add_subdirectory(external/scalapackfx/origin EXCLUDE_FROM_ALL)
 endif()
 
 
