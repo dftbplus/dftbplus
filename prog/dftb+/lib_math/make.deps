@@ -32,10 +32,17 @@ _mod_determinant: determinant.o
 _mod_determinant = $(determinant.o)
 #:endif
 
+#:if WITH_GPU
+eigensolver.o: common.fypp _mod_message _mod_lapack _mod_assert _mod_blas _mod_accuracy _mod_magma
+eigensolver.o = eigensolver.o $(common.fypp) $(_mod_message) $(_mod_lapack) $(_mod_assert) $(_mod_blas) $(_mod_accuracy) $(_mod_magma)
+_mod_eigensolver: eigensolver.o
+_mod_eigensolver = $(eigensolver.o)
+#:else
 eigensolver.o: common.fypp _mod_message _mod_lapack _mod_assert _mod_blas _mod_accuracy
 eigensolver.o = eigensolver.o $(common.fypp) $(_mod_message) $(_mod_lapack) $(_mod_assert) $(_mod_blas) $(_mod_accuracy)
 _mod_eigensolver: eigensolver.o
 _mod_eigensolver = $(eigensolver.o)
+#:endif
 
 erfcalc.o: _mod_accuracy
 erfcalc.o = erfcalc.o $(_mod_accuracy)

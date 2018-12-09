@@ -88,7 +88,7 @@ _mod_%:
 #
 #  Technique: If any requisite occurs as _extlib_<library name> the according
 #  library will be linked. It must be already compiled at that point.
-#  Dependency of an object file on a library must be set in the 
+#  Dependency of an object file on a library must be set in the
 #  <sourcedir of object file >/make.extdeps as
 #    <name of object file>: _extlib_<library name>
 #    <name of object file> += _extlib_<library name>
@@ -159,8 +159,15 @@ ifeq ($(strip $(WITH_MPI)),1)
 else ifeq ($(strip $(WITH_GPU)),1)
   #
   # GPU-Settings
-  # 
+  #
   FYPPOPT += -DWITH_GPU
+
+  # extra helper routines
+  COMPILED_EXTERNALS += _extlib_magmahelper
+  LIB_MAGMAHELPER = -L$(BUILDROOT)/external/magmahelper -lCountDevice
+  INC_MAGMAHELPER = -I$(BUILDROOT)/external/magmahelper
+  L_LIBS += $(if $(filter _extlib_magmahelper, $^), $(LIB_MAGMAHELPER))
+  L_INCS += $(INC_MAGMAHELPER)
 
   # LAPACK/BLAS
   PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
@@ -204,7 +211,7 @@ $(PRESENT_EXTERNALS):
 #  Targets
 ############################################################################
 
-clean: 
+clean:
 	-rm -f *.o *.f90 _mod_* $(FXXCLEAN) _dependencies _extlib_*
 
 ############################################################################
