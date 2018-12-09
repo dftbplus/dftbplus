@@ -18,7 +18,6 @@ module eigensolver
   use lapack
 #:if WITH_GPU
   use magma
-  use iso_c_binding, only :  c_int
 #:endif
 
   !implicit none
@@ -2066,7 +2065,7 @@ contains
   subroutine ${DTYPE}$_magma_${NAME}$(ngpus, a, b, w, uplo, jobz, itype)
 
     !> Number of GPUs to use
-    integer(c_int), intent(in) :: ngpus
+    integer, intent(in) :: ngpus
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)

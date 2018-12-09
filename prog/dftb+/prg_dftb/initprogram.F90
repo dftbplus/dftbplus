@@ -80,15 +80,14 @@ module initprogram
   use formatout
   use magmahelper
 #:if WITH_GPU
-  use iso_c_binding, only :  c_int
   use device_info
 #:endif
 
   implicit none
 
 #:if WITH_GPU
-  integer (c_int) :: ngpus
-  integer (c_int) :: req_ngpus
+  integer :: ngpus
+  integer :: req_ngpus
 #:endif
 
   !> Tagged output files (machine readable)
