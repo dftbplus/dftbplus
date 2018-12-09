@@ -2,9 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(dftbplus VERSION 18.2 LANGUAGES Fortran C)
 
-set(USER_CMAKE_DIR ${CMAKE_SOURCE_DIR}/cmake)
-set(CMAKE_MODULE_PATH ${USER_CMAKE_DIR})
-include(${USER_CMAKE_DIR}/common.cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+include(dftbpCommon)
 
 set(SETTINGS_LOG "${CMAKE_BINARY_DIR}/dftbplus-settings.cmake")
 _reset_file(${SETTINGS_LOG})
