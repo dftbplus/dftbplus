@@ -56,7 +56,7 @@ FXX = ifort
 CC = icc
 
 # Compile options 
-FXXOPT = -O2 -qopenmp -ip -standard-semantics -heap-arrays 10
+FXXOPT = -O2 -ip -standard-semantics -heap-arrays 10
 CCOPT = -O2 -ip
 
 # Linker

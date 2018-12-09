@@ -17,6 +17,7 @@ module initprogram
   use scalapackfx
   use inputdata_module
   use densedescr
+  use solvertypes
   use constants
   use periodic
   use accuracy
@@ -82,7 +83,11 @@ module initprogram
 #:if WITH_GPU
   use device_info
 #:endif
-
+#:if WITH_TRANSPORT
+  use libnegf_vars
+  use negf_int
+  use poisson_init
+#:endif
   implicit none
 
 #:if WITH_GPU
@@ -117,6 +122,8 @@ module initprogram
   !> file to stop code during scc cycle
   character(*), parameter :: fStopSCC = "stop_scc"
 
+  !> file name for shift data
+  character(*), parameter :: fShifts = "shifts.dat"
 
   !> Is the calculation SCC?
   logical :: tSccCalc
@@ -150,7 +157,7 @@ module initprogram
   integer, allocatable :: species(:)
 
   !> type of the atoms (nAtom)
-  integer, allocatable :: species0(:)
+  integer, allocatable, target :: species0(:)
 
   !> Coords of the atoms (3, nAllAtom)
   real(dp), allocatable :: coord(:,:)
@@ -342,9 +349,8 @@ module initprogram
   !> Fix Fermi energy at specified value
   logical :: tFixEf
 
-  !> Fermi energy
-  real(dp) :: Ef(2)
-
+  !> Fermi energy per spin
+  real(dp), allocatable :: Ef(:)
 
   !> Filling temp updated by MD.
   logical :: tSetFillingTemp
@@ -623,6 +629,12 @@ module initprogram
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
+  !> Whether potential shifts are read from file
+  logical :: tReadShifts
+
+  !> Whether potential shifts are read from file
+  logical :: tWriteShifts
+
   !> should charges written to disc be in ascii or binary format?
   logical :: tWriteChrgAscii
 
@@ -787,6 +799,70 @@ module initprogram
 
   private :: createRandomGenerators
 
+#:if WITH_TRANSPORT
+  !> Transport variables
+  !> Container for the atomistic structure for poisson
+  type(TPoissonStructure) :: poissStr
+  type(TTransPar) :: transpar
+  type(TNEGFInfo) :: ginfo
+
+#:endif
+
+  !> Whether contact Hamiltonians are uploaded
+  !> Synonym for G.F. calculation of density
+  logical :: tUpload
+
+  !> Whether contact Hamiltonians are computed
+  logical :: tContCalc
+
+  !> Whether Poisson solver is invoked
+  logical :: tPoisson
+
+  !> Whether recompute Poisson after every SCC
+  logical :: tPoissonTwice
+
+  !> Calculate terminal tunneling and current
+  logical :: tTunn
+
+  !> True if we use any part of Negf (green solver, landauer etc.)
+  logical :: tNegf
+
+  !> Whether local currents are computed
+  logical :: tLocalCurrents
+
+  !> True if LDOS is stored on separate files for k-points
+  logical :: writeLDOS
+
+  !> True if Tunneling is stored on separate files
+  logical :: writeTunn
+
+  !> Holds spin-dependent electrochemical potentials of contacts
+  !> This is because libNEGF is not spin-aware
+  real(dp), allocatable :: mu(:,:)
+
+  !> Variables for Transport NEGF/Poisson solver
+  !> Tunneling, local DOS and current
+  real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
+  real(dp), allocatable :: leadCurrents(:)
+
+  !> Poisson Derivatives (forces)
+  real(dp), allocatable :: poissonDerivs(:,:)
+
+  !> Shell-resolved Potential shifts uploaded from contacts
+  real(dp), allocatable :: shiftPerLUp(:,:)
+
+  !> Orbital-resolved charges uploaded from contacts
+  real(dp), allocatable :: chargeUp(:,:,:)
+
+  !> Details of energy interval for tunneling used in output
+  real(dp) :: Emin, Emax, Estep
+
+  !> Electrostatics type (either gammafunctional or poisson)
+  integer :: electrostatics
+
+  !> list of atoms in the central cell (or device region if transport)
+  integer, allocatable :: iAtInCentralRegion(:)
+
 contains
 
 
@@ -910,6 +986,8 @@ contains
     !> First guess for nr. of neighbours.
     integer, parameter :: nInitNeighbour = 40
 
+    !> Is the check-sum for charges read externally be used?
+    logical :: tSkipChrgChecksum
 
     @:ASSERT(input%tInitialized)
 
@@ -928,6 +1006,8 @@ contains
     else
       nSpin = 1
     end if
+    nIndepHam = nSpin
+
     tSpinSharedEf = input%ctrl%tSpinSharedEf
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
@@ -936,9 +1016,8 @@ contains
     if (t2Component) then
       nSpin = 4
       nIndepHam = 1
-    else
-      nIndepHam = nSpin
     end if
+
     if (nSpin /= 2 .and. tSpinSharedEf) then
       call error("Colinear spin polarization required for shared Ef over spin channels")
     end if
@@ -976,12 +1055,13 @@ contains
       tRealHS = .false.
     end if
 
-  #:if WITH_MPI
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
-  #:endif
-  #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
-  #:endif
+    #:if WITH_MPI
+      call env%initMpi(input%ctrl%parallelOpts%nGroup)
+    #:endif
+
+    #:if WITH_SCALAPACK
+      call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
+    #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
@@ -997,6 +1077,7 @@ contains
     else
       maxSccIter = 1
     end if
+
 
     if (tPeriodic) then
       tLatticeChanged = .true.
@@ -1258,8 +1339,10 @@ contains
 
     if (nSpin == 4) then
       allocate(nEl(1))
+      allocate(Ef(1))
     else
       allocate(nEl(nSpin))
+      allocate(Ef(nSpin))
     end if
 
     nEl0 = 0.0_dp
@@ -1287,10 +1370,10 @@ contains
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
     tFixEf = input%ctrl%tFixEf
-    if (tFixEf) then
-      Ef = input%ctrl%Ef
+    if (allocated(input%ctrl%Ef)) then
+      Ef(:) = input%ctrl%Ef
     else
-      Ef = 0.0_dp
+      Ef(:) = 0.0_dp
     end if
     tSetFillingTemp = input%ctrl%tSetFillingTemp
     tFillKSep = input%ctrl%tFillKSep
@@ -1349,11 +1432,11 @@ contains
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
       select case (iMixer)
-      case (1)
+      case (mixerSimple)
         allocate(pSimplemixer)
         call init(pSimpleMixer, mixParam)
         call init(pChrgMixer, pSimpleMixer)
-      case (2)
+      case (mixerAnderson)
         allocate(pAndersonMixer)
         if (input%ctrl%andersonNrDynMix > 0) then
           call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
@@ -1363,12 +1446,12 @@ contains
               & omega0=input%ctrl%andersonOmega0)
         end if
         call init(pChrgMixer, pAndersonMixer)
-      case (3)
+      case (mixerBroyden)
         allocate(pBroydenMixer)
         call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
-      case(4)
+      case(mixerDIIS)
         allocate(pDIISMixer)
         call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
         call init(pChrgMixer, pDIISMixer)
@@ -1403,7 +1486,7 @@ contains
     tBarostat = input%ctrl%tBarostat
     BarostatStrength = input%ctrl%BarostatStrength
 
-#:if WITH_SOCKETS
+  #:if WITH_SOCKETS
     tSocket = allocated(input%ctrl%socketInput)
     if (tSocket) then
       input%ctrl%socketInput%nAtom = nAtom
@@ -1413,9 +1496,9 @@ contains
       tGeoOpt = .false.
       tMD = .false.
     end if
-#:else
+  #:else
     tSocket = .false.
-#:endif
+  #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
     tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
@@ -1423,7 +1506,7 @@ contains
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tEField .or. tFixEf
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1438,11 +1521,11 @@ contains
     if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
-      if (input%ctrl%forceType /= 0) then
+      if (input%ctrl%forceType /= forceOrig) then
         call error("Invalid force evaluation method for non-SCC calculations.")
       end if
     end if
-    if (forceType == 2 .and. tempElec > minTemp) then
+    if (forceType == forceDynT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
     end if
     if (tForces) then
@@ -1460,9 +1543,42 @@ contains
       end select
     end if
 
+  #:if WITH_TRANSPORT
+    ! whether tunneling is computed
+    tTunn = input%ginfo%tundos%defined
+
+    ! Do we use any part of negf (solver, tunnelling etc.)?
+    tNegf = (solver .eq. solverGF) .or. tTunn
+
+    if (tNegf .and. env%mpi%nGroup > 1) then
+      call error("At the moment NEGF solvers cannot be used for multiple processor groups")
+    end if
+
+  #:else
+
+    tTunn = .false.
+    tNegf = .false.
+
+  #:endif
+
+    ! temporary disables for various issues with NEGF
+    if (tNegf) then
+      if (tSpin) then
+        call error("Spin polarization temporarily disabled for transport calculations.")
+      end if
+      if (tDFTBU) then
+        call error("Orbital potentials temporarily disabled for transport calculations.")
+      end if
+      if (tExtChrg) then
+        call error("External charges temporarily disabled for transport calculations&
+            & (electrostatic gates are available).")
+      end if
+    end if
+
+
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = ((tPeriodic .and. tForces).and.tStress)
+    tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
@@ -1487,25 +1603,25 @@ contains
       allocate(tmpCoords(nMovedCoord))
       tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), (/ nMovedCoord /))
       select case (input%ctrl%iGeoOpt)
-      case(1)
+      case(optSD)
         allocate(tmpWeight(nMovedCoord))
         tmpWeight(1:nMovedCoord) = 0.5_dp * deltaT**2 / reshape(spread(mass(indMovedAtom), 1, 3),&
             & (/nMovedCoord/))
         allocate(pSteepDesc)
-        call init(pSteepDesc, size(tmpCoords), input%ctrl%maxForce,&
-            & input%ctrl%maxAtomDisp,tmpWeight)
+        call init(pSteepDesc, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp,&
+            & tmpWeight )
         deallocate(tmpWeight)
         call init(pGeoCoordOpt, pSteepDesc)
-      case (2)
+      case (optCG)
         allocate(pConjGrad)
         call init(pConjGrad, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp)
         call init(pGeoCoordOpt, pConjGrad)
-      case (3)
+      case (optDIIS)
         allocate(pDIIS)
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, input%ctrl%deltaGeoOpt,&
             & input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
-      case (4)
+      case (optLBFGS)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
             & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
@@ -1517,14 +1633,14 @@ contains
     allocate(pGeoLatOpt)
     if (tLatOpt) then
       select case (input%ctrl%iGeoOpt)
-      case(1)
+      case(optSD)
         allocate(tmpWeight(9))
         tmpWeight = 1.0_dp
         allocate(pSteepDescLat)
-        call init(pSteepDescLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp, tmpWeight )
+        call init(pSteepDescLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp, tmpWeight)
         deallocate(tmpWeight)
         call init(pGeoLatOpt, pSteepDescLat)
-      case(2,3) ! use CG lattice for both DIIS and CG
+      case(optCG, optDIIS) ! use CG lattice for both DIIS and CG
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp)
         call init(pGeoLatOpt, pConjGradLat)
@@ -1534,8 +1650,8 @@ contains
             & input%ctrl%lbfgsInp%memory)
         call init(pGeoLatOpt, pLbfgsLat)
       end select
-      ! optimization uses scaling factor of unit cell
       if (tLatOptIsotropic ) then
+        ! optimization uses scaling factor of unit cell
         call reset(pGeoLatOpt, (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
       else if (tLatOptFixAng) then
         ! optimization uses scaling factor of lattice vectors
@@ -1806,7 +1922,7 @@ contains
         call error("XLBOMD does not work with barostats yet")
       elseif (nSpin /= 1 .or. tDFTBU) then
         call error("XLBOMD does not work for spin or DFTB+U yet")
-      elseif (forceType /= 2 .and. forceType /= 3) then
+      elseif (forceType /= forceDynT0 .and. forceType /= forceDynT) then
         call error("Force evaluation method incompatible with XLBOMD")
       elseif (iDistribFn /= Fermi) then
         call error("Filling function incompatible with XLBOMD")
@@ -1892,7 +2008,21 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+
+    tReadShifts = input%ctrl%tReadShifts
+    tWriteShifts = input%ctrl%tWriteShifts
+    ! Both temporarily removed until debugged:
+    @:ASSERT(.not. tReadShifts)
+    @:ASSERT(.not. tWriteShifts)
+
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
+
+    if (tReadChrg) then
+      tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
+    else
+      tSkipChrgChecksum = .false.
+    end if
+
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -1996,6 +2126,7 @@ contains
             if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then
               call error("Incorrect shape initialSpins array!")
             end if
+            ! Rescaling to ensure correct number of electrons in the system
             if (.not. input%ctrl%tSkipChrgChecksum) then
               do ii = 1, nAtom
                 do jj = 1, 3
@@ -2089,12 +2220,42 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
+    call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
+
+  #:if WITH_TRANSPORT
+    if (tLatOpt .and. ( solver == solverGF .or. solver == solverOnlyTransport)) then
+      call error("Lattice optimisation currently incompatible with transport calculations")
+    end if
+    call initTransport(env, input)
+  #:else
+    tPoisson = .false.
+    tNegf = .false.
+  #:endif
+
+    tWriteBandDat = tWriteBandDat .and. .not. tNegf
+
+    if (tNegf) then
+      if (tDispersion) then
+        call error("Dispersion not currently avalable with transport calculations")
+      end if
+      if (tLinResp) then
+        call error("Linear response is not compatible with transport calculations")
+      end if
+      if (nSpin > 2) then
+        call error("Non-colinear spin not currently compatible with transport calculations")
+      end if
+    end if
+
     if (env%tGlobalMaster) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
     end if
 
-    call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
+    if (tPoisson) then
+      electrostatics = poisson
+    else
+      electrostatics = gammaf
+    end if
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
@@ -2109,6 +2270,25 @@ contains
         & eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx,&
         & HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities,&
         & movedVelo, movedAccel, movedMass, dipoleMoment)
+
+  #:if WITH_TRANSPORT
+    ! note, this has the side effect of setting up module variable transpar as copy of
+    ! input%transpar
+    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
+        & shiftPerLUp, chargeUp, poissonDerivs)
+    if (tContCalc) then
+      ! geometry is reduced to contacts only
+      allocate(iAtInCentralRegion(nAtom))
+    else
+      allocate(iAtInCentralRegion(transpar%idxdevice(2)))
+    end if
+  #:else
+    allocate(iAtInCentralRegion(nAtom))
+  #:endif
+    ! atoms in central cell/device region/all atoms depending on boundary conditions
+    do iAt = 1, size(iAtInCentralRegion)
+      iAtInCentralRegion(iAt) = iAt
+    end do
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -2283,7 +2463,7 @@ contains
         strTmp = ""
       end if
       select case (input%ctrl%iGeoOpt)
-      case (1)
+      case (optSD)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
       case (2)
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
@@ -2305,9 +2485,14 @@ contains
     end if
 
     if (tSccCalc) then
-      write(stdOut, "(A,':',T30,A)")"Self consistent charges", "Yes"
-      write(stdOut, "(A,':',T30,E14.6)")"SCC-tolerance", sccTol
-      write(stdOut, "(A,':',T30,I14)")"Max. scc iterations", maxSccIter
+      write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
+      write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
+      write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
+      if (input%ctrl%tOrbResolved) then
+         write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
+      else
+         write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
+      end if
       if (tDFTBU) then
         write(stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
         write(stdOut, "(A,':',T30,A)")"Orbital functional", trim(plusUFunctionals%names(nDFTBUfunc))
@@ -2341,18 +2526,18 @@ contains
     end if
 
     select case (solver)
-    case(1)
+    case(solverQR)
       write (strTmp, "(A)") "Standard"
-    case(2)
+    case(solverDAC)
       write (strTmp, "(A)") "Divide and Conquer"
-    case(3)
-      write (strTmp, "(A)") "Relatively robust (version 1)"
-    !case(4)
-    !  write (strTmp, "(A)") "Relativel robust (version 2)"
-#:if WITH_GPU
-    case(4)
+    case(solverRR)
+      write (strTmp, "(A)") "Relatively robust"
+    case(solverGF)
+      write (strTmp, "(A)") "Green's functions"
+    case(solverOnlyTransport)
+      write (strTmp, "(A)") "Transport Only (no energies)"
+    case(solverGPU)
       write (strTmp, "(A)") "Divide and Conquer (MAGMA GPU version)"
-#:endif    
     case default
       call error("Unknown eigensolver!")
     end select
@@ -2373,24 +2558,24 @@ contains
 
     if (tSccCalc) then
       select case (iMixer)
-      case(1)
+      case(mixerSimple)
         write (strTmp, "(A)") "Simple"
-      case(2)
+      case(mixerAnderson)
         write (strTmp, "(A)") "Anderson"
-      case(3)
+      case(mixerBroyden)
         write (strTmp, "(A)") "Broyden"
-      case(4)
+      case(mixerDIIS)
         write (strTmp, "(A)") "DIIS"
       end select
       write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
       write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
       write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
       select case (iMixer)
-      case(2)
+      case(mixerAnderson)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-      case(3)
+      case(mixerBroyden)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
-      case(4)
+      case(mixerDIIS)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       end select
     end if
@@ -2401,21 +2586,21 @@ contains
     if (tGeoOpt) then
       write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
-      if (input%ctrl%iGeoOpt == 1) then
+      if (input%ctrl%iGeoOpt == optSD) then
         write(stdOut, "(A,':',T30,E14.6)") "Step size", deltaT
       end if
     end if
 
     if (tForces) then
       select case (forceType)
-      case(0)
+      case(forceOrig)
         strTmp = "Traditional"
-      case(2)
+      case(forceDynT0)
         strTmp = "Dynamics, zero electronic temp."
-      case(3)
+      case(forceDynT)
         strTmp = "Dynamics, finite electronic temp."
       end select
-      write(stdOut, "(A,':',T30,A)") "Force evaluation method", strTmp
+      write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
     end if
 
     tFirst = .true.
@@ -2648,13 +2833,12 @@ contains
     end if
 
     select case (forceType)
-    case(0)
+    case(forceOrig)
       write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(1)
+    case(forceDynT0)
       write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-    case(2)
       write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(3)
+    case(forceDynT)
       write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
 
@@ -2784,6 +2968,118 @@ contains
         & tLatticeChanged, tDummy)
 
   end subroutine initSocket
+#:endif
+
+#:if WITH_TRANSPORT
+  subroutine initTransport(env, input)
+    type(TEnvironment), intent(in) :: env
+    type(inputData), intent(in) :: input
+
+    !> Whether transport has been initialized
+    logical :: tInitialized, tAtomsOutside
+    integer :: iSpin, isz
+    integer :: nSpinChannels
+
+    ! These two checks are redundant, I check if they are equal
+    if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
+      call error("Mismatch in ctrl and ginfo fields")
+    end if
+    tPoisson = input%poisson%defined
+    tPoissonTwice = input%poisson%solveTwice
+
+    tUpload = input%transpar%taskUpload
+    ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
+    !       introducing 'TransportOnly' option the logic is bit more
+    !       involved: Contacts are not uploded in case of non-scc calculations
+    if (solver == solverOnlyTransport .and. .not.tSccCalc) then
+      tUpload = .false.
+    end if
+
+    ! contact calculation (complementary to Upload)
+    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
+    ! whether local currents are computed
+    tLocalCurrents = input%ginfo%greendens%doLocalCurr
+
+    if (nSpin <=2) then
+      nSpinChannels = nSpin
+    else
+      nSpinChannels = 1
+    endif
+
+    associate(transpar=>input%transpar, greendens=>input%ginfo%greendens)
+      ! Non colinear spin not yet supported
+      ! Include the built-in potential as in negf init, but the whole
+      ! scc only works for
+      ! calculation without spin (poisson does not support spin dependent
+      ! built in potentials)
+      if (transpar%ncont > 0) then
+        allocate(mu(transpar%ncont, nSpinChannels))
+        mu = 0.0_dp
+        do iSpin = 1, nSpinChannels
+          mu(1:transpar%ncont, iSpin) = minval(transpar%contacts(1:transpar%ncont)%eFermi(iSpin))&
+               & - transpar%contacts(1:transpar%ncont)%potential
+        end do
+      else
+        allocate(mu(1, nSpinChannels))
+        mu(1,1:nSpinChannels) = greendens%oneFermi(1:nSpinChannels)
+      end if
+
+    end associate
+
+    if (tPoisson) then
+      poissStr%nAtom = nAtom
+      poissStr%nSpecies = nType
+      poissStr%specie0 => species0
+      poissStr%x0 => coord0
+      poissStr%nel = nEl0
+      poissStr%isPeriodic = tPeriodic
+      if (tPeriodic) then
+        poissStr%latVecs(:,:) = latVec(:,:)
+      else
+        poissStr%latVecs(:,:) = 0.0_dp
+      end if
+      poissStr%tempElec = tempElec
+      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
+          & tInitialized)
+      if (.not. tInitialized) then
+        call error("Poisson solver not initialized")
+      end if
+    end if
+
+    if (tNegf) then
+      write(stdOut,*) 'init negf'
+      if (size(DenseDesc%iAtomStart) /= nAtom+1) then
+        call error('Internal error: DenseDesc not created')
+      end if
+
+      ! Some sanity checks and initialization of GDFTB/NEGF
+      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
+          & tempElec, solver)
+
+      ginfo = input%ginfo
+
+      if (allocated(input%ctrl%indMovedAtom)) then
+        tAtomsOutside = any(input%ctrl%indMovedAtom < input%transpar%idxdevice(1))&
+            & .or. any(input%ctrl%indMovedAtom > input%transpar%idxdevice(2))
+        if (tAtomsOutside) then
+          call error("There are moving atoms specified outside of the device region")
+        end if
+      end if
+
+      if (input%ctrl%tLatOpt) then
+        call error("Lattice optimization is not currently possible with transport")
+      end if
+
+    end if
+
+    transpar = input%transpar
+
+    !Write Dos and tunneling on separate files?
+    writeTunn = ginfo%tundos%writeTunn
+    writeLDOS = ginfo%tundos%writeLDOS
+
+  end subroutine initTransport
+
 #:endif
 
   !> Initialises (clears) output files.
@@ -3073,6 +3369,11 @@ contains
     allocate(Eband(nSpinHams))
     allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
     allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+    TS = 0.0_dp
+    E0 = 0.0_dp
+    Eband = 0.0_dp
+    eigen = 0.0_dp
+    filling = 0.0_dp
 
     allocate(coord0Fold(3, nAtom))
 
@@ -3117,6 +3418,115 @@ contains
     end if
 
   end subroutine initArrays
+
+
+#:if WITH_TRANSPORT
+
+  !> initialize arrays for tranpsport
+  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb,&
+      & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
+
+    logical, intent(in) :: tUpload, tPoisson
+    type(TTransPar), intent(in) :: transpar
+    integer, intent(in) :: species0(:)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: nAtom
+    integer, intent(in) :: nSpin
+    real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
+    real(dp), allocatable, intent(out) :: chargeUp(:,:,:)
+    real(dp), allocatable, intent(out) :: poissonDerivs(:,:)
+
+    if (tUpload) then
+      allocate(shiftPerLUp(orb%mShell, nAtom))
+      allocate(chargeUp(orb%mOrb, nAtom, nSpin))
+      call uploadContShiftPerL(shiftPerLUp, chargeUp, transpar, orb, species0)
+    end if
+    if (tPoisson) then
+      allocate(poissonDerivs(3,nAtom))
+    end if
+
+  end subroutine initTransportArrays
+
+  !> Read contact potential shifts from file
+  subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
+    real(dp), intent(out) :: shiftPerL(:,:)
+    real(dp), intent(out) :: charges(:,:,:)
+    type(TTransPar), intent(in) :: tp
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+
+    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
+    integer, allocatable :: nOrbAtom(:)
+    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
+    integer :: iCont, iStart, iEnd, ii
+    integer :: fdH
+    character(lc) :: strTmp
+    logical :: iexist
+
+    nSpin = size(charges, dim=3)
+
+    if (size(shiftPerL,dim=2) /= size(charges, dim=2)) then
+      call error("Mismatch between array charges and shifts")
+    endif
+
+    shiftPerL = 0.0_dp
+    charges = 0.0_dp
+
+    do iCont = 1, tp%ncont
+      inquire(file="shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat", exist = iexist)
+      if (.not.iexist) then
+        call error("Contact shift file shiftcont_"// trim(tp%contacts(iCont)%name) &
+            &  // ".dat is missing"//new_line('a')//"Run ContactHamiltonian calculations first.")
+      end if
+
+      open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
+          & form="formatted", status="OLD", action="READ")
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      iStart = tp%contacts(iCont)%idxrange(1)
+      iEnd = tp%contacts(iCont)%idxrange(2)
+      nContAtom = iEnd - iStart + 1
+
+      if (nAtomSt /= nContAtom) then
+        call error("Upload Contacts: Mismatch in number of atoms.")
+      end if
+      if (mShellSt /= orb%mShell) then
+        call error("Upload Contacts: Mismatch in max shell per atom.")
+      end if
+      if (mOrbSt /= orb%mOrb) then
+        call error("Upload Contacts: Mismatch in orbitals per atom.")
+      end if
+      if (nSpin /= nSpinSt) then
+        write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
+        call error(trim(strTmp))
+      end if
+
+      allocate(nOrbAtom(nAtomSt))
+      read(fdH, *) nOrbAtom
+      allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
+      read(fdH, *) shiftPerLSt(:,:,:)
+      allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+      read(fdH, *) chargesSt
+      close(fdH)
+
+      if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
+        call error("Incompatible orbitals in the upload file!")
+      end if
+
+      !if (nSpin == 1) then
+      shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
+      !else
+      !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
+      !endif
+
+      charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
+      deallocate(nOrbAtom)
+      deallocate(shiftPerLSt)
+      deallocate(chargesSt)
+    end do
+
+  end subroutine uploadContShiftPerL
+
+#:endif
 
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
@@ -3274,7 +3684,6 @@ contains
     end if
 
   end subroutine getDenseDescCommon
-
 
 
 end module initprogram

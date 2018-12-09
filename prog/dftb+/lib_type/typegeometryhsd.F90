@@ -34,6 +34,9 @@ module typegeometryhsd
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
 
+  !> makes public subroutines from typegeometry
+  public :: reduce, setlattice
+
 contains
 
 
