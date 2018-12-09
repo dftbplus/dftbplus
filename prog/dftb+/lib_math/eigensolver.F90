@@ -2059,11 +2059,11 @@ contains
 
 #:if WITH_GPU
 
-#: for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'sygvd'),&
-  & ('dble', 'd', 'real', 'sygvd'), ('cmplx', 's', 'complex', 'hegvd'),&
-  & ('dblecmplx', 'd', 'complex', 'hegvd')]
+#: for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
+  & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&
+  & ('dblecmplx', 'd', 'complex', 'zhegvd')]
   !> Generalised eigensolution for symmetric/hermitian matrices on GPU(s)
-  subroutine ${VTYPE}$_magma_${VPREC}$${NAME}$(ngpus, a, b, w, uplo, jobz, itype)
+  subroutine ${DTYPE}$_magma_${NAME}$(ngpus, a, b, w, uplo, jobz, itype)
 
     !> Number of GPUs to use
     integer(c_int), intent(in) :: ngpus
@@ -2115,11 +2115,10 @@ contains
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
 
     ldm = nwarp * ((n+nwarp-1)/nwarp)
-  #:for VAR FROM in [('H', 'A'), ('S', 'B')]
+  #:for VAR, FROM in [('H', 'A'), ('S', 'B')]
     allocate(${VAR}$(ldm*ldm), stat=info)
     if (info /= 0) then
-      call  error('CPU memory alloc error for ${VAR}$ in ${DTYPE}$_magma_${VTYPE}$${NAME}$.&
-          & Exiting')
+      call  error('CPU memory alloc error for ${VAR}$ in ${DTYPE}$_magma_${NAME}$. Exiting')
     end if
 
     ! Convert nxn matrix to 1D arrays
@@ -2133,14 +2132,14 @@ contains
     allocate(rwork(1))
   #:endif
 
-    call magmaf_${VTYPE}$${NAME}$_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, -1,&
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, -1,&
       #:if VTYPE == 'complex'
         & rwork, -1,&
       #:endif
         & iwork, -1, info)
 
     if (info /= 0) then
-      call error("Failure in MAGMA_${VTYPE}$${NAME}$ to determine optimum workspace")
+      call error("Failure in MAGMA_${NAME}$ to determine optimum workspace")
     endif
 
     ! Optimal workspace allocation
@@ -2157,7 +2156,7 @@ contains
   #:endif
 
     ! MAGMA Diagonalization
-    call magmaf_${VTYPE}$${NAME}$_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, lwork,&
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, lwork,&
       #:if VTYPE == 'complex'
         & rwork, lrwork,&
       #:endif
@@ -2166,26 +2165,26 @@ contains
     ! test for errors
     if (info /= 0) then
       if (info < 0) then
-        write(error_string, "('Failure in diagonalisation routine magmaf_${VTYPE}$${NAME}$_m,&
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
             & illegal argument at position ',i6)") info
         call error(error_string)
       else if (info <= n) then
-        write(error_string, "('Failure in diagonalisation routine magmaf_${VTYPE}$${NAME}$_m,&
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
             & diagonal element ',i6,' did not converge to zero.')") info
         call error(error_string)
       else
-        write(error_string, "('Failure in diagonalisation routine magmaf_${VTYPE}$${NAME}$_m,&
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
             & non-positive definite overlap! ',i6)") info - n
         call error(error_string)
       endif
     endif
 
     ! Copy 1D array back to nxn matrix
-  #:for VAR FROM in [('A', 'H'), ('B', 'S')]
+  #:for VAR, FROM in [('A', 'H'), ('B', 'S')]
     ${VAR}$(:n,:n) = reshape(${FROM}$(:), [n, n])
   #:endfor
 
-  end subroutine ${VTYPE}$_magma_${VPREC}$${NAME}$
+  end subroutine ${DTYPE}$_magma_${NAME}$
 
 #:endfor
 

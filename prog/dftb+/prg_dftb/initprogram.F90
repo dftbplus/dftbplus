@@ -78,6 +78,7 @@ module initprogram
   use potentials
   use taggedoutput
   use formatout
+  use magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
   use device_info

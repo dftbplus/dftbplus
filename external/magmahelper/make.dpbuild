@@ -12,8 +12,8 @@
 
 include $(ROOT)/make.config
 
-OBJDIR := $(BUILDROOT)/external/magmahelpers
-SRCDIR := $(ROOT)/external/magmahelpers
+OBJDIR := $(BUILDROOT)/external/magmahelper
+SRCDIR := $(ROOT)/external/magmahelper
 STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
 
 vpath % $(SRCDIR)
