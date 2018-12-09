@@ -36,7 +36,7 @@ clean:
 	$(FXX) $(FXXOPT) -o $@ -c $<
 
 %.o: %.cpp
-	$(CC) $(CCOPT) $(L_INCS) -o $@ -c $<
+	$(CC) $(CCOPT) -I$(MAGMA)/include -I$(CUDADIR)/include -o $@ -c $<
 
 _mod_%:
 	@[ -f $< ] && touch $@
