@@ -156,6 +156,10 @@ ifeq ($(strip $(WITH_MPI)),1)
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
   L_LIBS += $(L_LIBS_LAPACKBLAS)
 
+  ifeq ($(strip $(WITH_GPU)),1)
+    $(error 'GPU use currently not supported with MPI code')
+  endif
+
 else ifeq ($(strip $(WITH_GPU)),1)
   #
   # GPU-Settings
