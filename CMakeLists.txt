@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+enable_testing()
 
 project(dftbplus VERSION 18.2 LANGUAGES Fortran C)
 
@@ -21,6 +22,10 @@ set(SCALAPACK_LIBRARIES "scalapack" CACHE STRING "ScaLAPACK library to link")
 _log_settings(${SETTINGS_LOG} SCALAPACK_LIBRARIES)
 
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
+
+set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
+
+set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
 
 find_package(LAPACK REQUIRED)
 _log_settings(${SETTINGS_LOG} LAPACK_LIBRARIES)
@@ -73,3 +78,5 @@ endif()
 add_subdirectory(prog/dftb+)
 add_subdirectory(prog/modes)
 add_subdirectory(prog/waveplot)
+
+add_subdirectory(test)
