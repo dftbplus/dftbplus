@@ -5,9 +5,13 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> MAGMA GPU interface library
 module magmahelper
+#:if WITH_GPU
   use device_info
+#:endif
   implicit none
 
 #:if WITH_GPU
