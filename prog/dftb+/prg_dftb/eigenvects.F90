@@ -80,10 +80,12 @@ contains
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(solverRR)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
-#:if WITH_GPU
-    case(4)
+    case(solverGPU)
+  #:if WITH_GPU
       call gpu_gvd(ngpus,HSqrReal,SSqrReal,eigen,'L',jobz)
-#:endif 
+  #:else
+      call error("This binary is compiled without GPU support")
+  #:endif
     case default
       call error('Unknown eigensolver')
     end select
@@ -124,10 +126,12 @@ contains
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(solverRR)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-#:if WITH_GPU
-    case(4)
+    case(solverGPU)
+  #:if WITH_GPU
       call gpu_gvd(ngpus,HSqrCplx,SSqrCplx,eigen,'L',jobz)
-#:endif
+  #:else
+      call error("This binary is compiled without GPU support")
+  #:endif
     case default
       call error('Unknown eigensolver')
     end select
