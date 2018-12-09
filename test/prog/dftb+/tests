@@ -5,6 +5,7 @@
 #:include 'common.fypp'
 
 non-scc/Si_384_GPU                     #? WITH_GPU and MPI_PROCS <= 1
+scc/SiC_512                            #? WITH_GPU and MPI_PROCS <= 1
 
 derivatives/Si_2_Delta                 #? MPI_PROCS <= 1
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
