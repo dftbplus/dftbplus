@@ -166,8 +166,8 @@ else ifeq ($(strip $(WITH_GPU)),1)
   COMPILED_EXTERNALS += _extlib_magmahelper
   LIB_MAGMAHELPER = -L$(BUILDROOT)/external/magmahelper -lCountDevice
   INC_MAGMAHELPER = -I$(BUILDROOT)/external/magmahelper
-  L_LIBS += $(if $(filter _extlib_magmahelper, $^), $(LIB_MAGMAHELPER))
-  L_INCS += $(INC_MAGMAHELPER)
+  L_LIBS += $(LIB_MAGMAHELPER)
+  L_INCS += $(INC_MAGMAHELPER) 
 
   # LAPACK/BLAS
   PRESENT_EXTERNALS += _extlib_lapack _extlib_blas

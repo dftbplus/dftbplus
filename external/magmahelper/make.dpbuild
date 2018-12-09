@@ -8,7 +8,7 @@
 ############################################################################
 
 .SUFFIXES:
-.SUFFIXES: .f90 .c .o
+.SUFFIXES: .f90 .cpp .o
 
 include $(ROOT)/make.config
 
@@ -18,9 +18,9 @@ STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
 
 vpath % $(SRCDIR)
 
-CSRC = $(notdir $(wildcard $(SRCDIR)/*.c))
+CSRC = $(notdir $(wildcard $(SRCDIR)/*.cpp))
 F90SRC = $(notdir $(wildcard $(SRCDIR)/*.f90))
-MAGMAOBJS = $(patsubst %.c,%.o,$(CSRC)) $(patsubst %.f90,%.o,$(F90SRC))
+MAGMAOBJS = $(patsubst %.cpp,%.o,$(CSRC)) $(patsubst %.f90,%.o,$(F90SRC))
 
 all: libCountDevice.a
 	touch -r $< $(STAMPFILE)
@@ -35,8 +35,8 @@ clean:
 %.o: %.f90
 	$(FXX) $(FXXOPT) -o $@ -c $<
 
-%.o: %c
-	$(CC) $(CCOPT) -o $@ -c $<
+%.o: %.cpp
+	$(CC) $(CCOPT) $(L_INCS) -o $@ -c $<
 
 _mod_%:
 	@[ -f $< ] && touch $@
