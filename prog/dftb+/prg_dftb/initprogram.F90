@@ -2544,7 +2544,7 @@ contains
     write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
 
 #:if WITH_GPU
-    if (solver.eq.4) then
+    if (solver == solverGPU) then
       call  gpu_avail(ngpus)
       call  gpu_req(req_ngpus)
       write(*,*) "Number of GPUs requested:",req_ngpus
