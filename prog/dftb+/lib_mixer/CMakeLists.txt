@@ -1,10 +1,10 @@
-set(CURDIR "lib_mixer")
+set(curdir "lib_mixer")
 
-set(SOURCES-FPP
-  ${CURDIR}/andersonmixer.F90
-  ${CURDIR}/broydenmixer.F90
-  ${CURDIR}/diismixer.F90
-  ${CURDIR}/mixer.F90
-  ${CURDIR}/simplemixer.F90)
+set(sources-fpp
+  ${curdir}/andersonmixer.F90
+  ${curdir}/broydenmixer.F90
+  ${curdir}/diismixer.F90
+  ${curdir}/mixer.F90
+  ${curdir}/simplemixer.F90)
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

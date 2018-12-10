@@ -63,11 +63,11 @@ function (_get_fypp_defines fyppdefines)
 
   if(WITH_MPI)
     list(APPEND _fyppdefines -DWITH_MPI -DWITH_SCALAPACK)
-  endif(WITH_MPI)
+  endif()
 
   if(WITH_SOCKETS)
     list(APPEND _fyppdefines -DWITH_SOCKETS)
-  endif(WITH_SOCKETS)
+  endif()
 
   set(${fyppdefines} ${_fyppdefines} PARENT_SCOPE)
 

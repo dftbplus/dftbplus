@@ -1,16 +1,16 @@
-set(SOURCES-FPP
+set(sources-fpp
   gridcache.F90
   initwaveplot.F90
   molorb.F90
   slater.F90
   waveplot.F90)
 
-set(FYPP-OPTS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
+set(fypp-opts -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
 
 _register_custom_preprocessing(
-  "${FYPP}" "${FYPP-OPTS}" "F90" "f90" "${SOURCES-FPP}" SOURCES-F90-PREPROC)
+  "${FYPP}" "${fypp-opts}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
 
-add_executable("waveplot" ${SOURCES-F90-PREPROC})
+add_executable("waveplot" ${sources-f90-preproc})
 
 target_link_libraries(waveplot dftbplus ${LAPACK_LIBRARIES})
 

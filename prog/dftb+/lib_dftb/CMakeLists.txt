@@ -1,52 +1,51 @@
-set(CURDIR "lib_dftb")
+set(curdir "lib_dftb")
 
-set(SOURCES-FPP
-  ${CURDIR}/chargeconstr.F90
-  ${CURDIR}/charges.F90
-  ${CURDIR}/coulomb.F90
-  ${CURDIR}/densitymatrix.F90
-  ${CURDIR}/dftbplusu.F90
-  ${CURDIR}/dispcommon.F90
-  ${CURDIR}/dispersions.F90
-  ${CURDIR}/dispiface.F90
-  ${CURDIR}/dispslaterkirkw.F90
-  ${CURDIR}/dispuff.F90
-  ${CURDIR}/dispuffdata.F90
-  ${CURDIR}/elecconstraints.F90
-  ${CURDIR}/elstatpot.F90
-  #${CURDIR}/emfields.F90
-  ${CURDIR}/energies.F90
-  ${CURDIR}/etemp.F90
-  ${CURDIR}/externalcharges.F90
-  ${CURDIR}/forces.F90
-  ${CURDIR}/h5correction.F90
-  ${CURDIR}/nonscc.F90
-  ${CURDIR}/orbitalequiv.F90
-  ${CURDIR}/periodic.F90
-  ${CURDIR}/pmlocalisation.F90
-  ${CURDIR}/populations.F90
-  ${CURDIR}/potentials.F90
-  ${CURDIR}/repcont.F90
-  ${CURDIR}/reppoly.F90
-  ${CURDIR}/repspline.F90
-  ${CURDIR}/repulsive.F90
-  ${CURDIR}/scc.F90
-  ${CURDIR}/sccinit.F90
-  ${CURDIR}/shift.F90
-  ${CURDIR}/shortgamma.F90
-  ${CURDIR}/sk.F90
-  ${CURDIR}/slakocont.F90
-  ${CURDIR}/slakoeqgrid.F90
-  ${CURDIR}/sparse2dense.F90
-  ${CURDIR}/spin.F90
-  ${CURDIR}/spinorbit.F90
-  ${CURDIR}/stress.F90
-  ${CURDIR}/thirdorder.F90
-  ${CURDIR}/vdwdata.F90)
+set(sources-fpp
+  ${curdir}/chargeconstr.F90
+  ${curdir}/charges.F90
+  ${curdir}/coulomb.F90
+  ${curdir}/densitymatrix.F90
+  ${curdir}/dftbplusu.F90
+  ${curdir}/dispcommon.F90
+  ${curdir}/dispersions.F90
+  ${curdir}/dispiface.F90
+  ${curdir}/dispslaterkirkw.F90
+  ${curdir}/dispuff.F90
+  ${curdir}/dispuffdata.F90
+  ${curdir}/elecconstraints.F90
+  ${curdir}/elstatpot.F90
+  #${curdir}/emfields.F90
+  ${curdir}/energies.F90
+  ${curdir}/etemp.F90
+  ${curdir}/externalcharges.F90
+  ${curdir}/forces.F90
+  ${curdir}/h5correction.F90
+  ${curdir}/nonscc.F90
+  ${curdir}/orbitalequiv.F90
+  ${curdir}/periodic.F90
+  ${curdir}/pmlocalisation.F90
+  ${curdir}/populations.F90
+  ${curdir}/potentials.F90
+  ${curdir}/repcont.F90
+  ${curdir}/reppoly.F90
+  ${curdir}/repspline.F90
+  ${curdir}/repulsive.F90
+  ${curdir}/scc.F90
+  ${curdir}/sccinit.F90
+  ${curdir}/shift.F90
+  ${curdir}/shortgamma.F90
+  ${curdir}/sk.F90
+  ${curdir}/slakocont.F90
+  ${curdir}/slakoeqgrid.F90
+  ${curdir}/sparse2dense.F90
+  ${curdir}/spin.F90
+  ${curdir}/spinorbit.F90
+  ${curdir}/stress.F90
+  ${curdir}/thirdorder.F90
+  ${curdir}/vdwdata.F90)
 
 if(WITH_DFTD3)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/dispdftd3.F90)
+  list(APPEND sources-fpp ${curdir}/dispdftd3.F90)
 endif(WITH_DFTD3)
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

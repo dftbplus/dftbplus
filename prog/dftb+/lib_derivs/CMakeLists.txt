@@ -1,6 +1,6 @@
-set(CURDIR "lib_derivs")
+set(curdir "lib_derivs")
 
-set(SOURCES-FPP
-  ${CURDIR}/numderivs2.F90)
+set(sources-fpp
+  ${curdir}/numderivs2.F90)
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

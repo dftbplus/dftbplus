@@ -1,15 +1,15 @@
-set(CURDIR "prg_dftb")
+set(curdir "prg_dftb")
 
-set(SOURCES-FPP
-  ${CURDIR}/dftbplus.F90
-  ${CURDIR}/eigenvects.F90
-  ${CURDIR}/initprogram.F90
-  ${CURDIR}/inputconversion.F90
-  ${CURDIR}/inputdata.F90
-  ${CURDIR}/main.F90
-  ${CURDIR}/mainio.F90
-  ${CURDIR}/oldcompat.F90
-  ${CURDIR}/parser.F90
-  ${CURDIR}/solvertypes.F90)
+set(sources-fpp
+  ${curdir}/dftbplus.F90
+  ${curdir}/eigenvects.F90
+  ${curdir}/initprogram.F90
+  ${curdir}/inputconversion.F90
+  ${curdir}/inputdata.F90
+  ${curdir}/main.F90
+  ${curdir}/mainio.F90
+  ${curdir}/oldcompat.F90
+  ${curdir}/parser.F90
+  ${curdir}/solvertypes.F90)
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

@@ -1,23 +1,22 @@
-set(CURDIR "lib_io")
+set(curdir "lib_io")
 
-set(SOURCES-FPP
-  ${CURDIR}/charmanip.F90
-  ${CURDIR}/fileid.F90
-  ${CURDIR}/formatout.F90
-  ${CURDIR}/hsdparser.F90
-  ${CURDIR}/hsdutils.F90
-  ${CURDIR}/hsdutils2.F90
-  ${CURDIR}/intrinsicpr.F90
-  ${CURDIR}/io.F90
-  ${CURDIR}/logger.F90
-  ${CURDIR}/message.F90
-  ${CURDIR}/taggedoutput.F90
-  ${CURDIR}/tokenreader.F90
-  ${CURDIR}/xmlutils.F90)
+set(sources-fpp
+  ${curdir}/charmanip.F90
+  ${curdir}/fileid.F90
+  ${curdir}/formatout.F90
+  ${curdir}/hsdparser.F90
+  ${curdir}/hsdutils.F90
+  ${curdir}/hsdutils2.F90
+  ${curdir}/intrinsicpr.F90
+  ${curdir}/io.F90
+  ${curdir}/logger.F90
+  ${curdir}/message.F90
+  ${curdir}/taggedoutput.F90
+  ${curdir}/tokenreader.F90
+  ${curdir}/xmlutils.F90)
 
 if(WITH_SOCKETS)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/ipisocket.F90)
-endif(WITH_SOCKETS)
+  list(APPEND sources-fpp ${curdir}/ipisocket.F90)
+endif()
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

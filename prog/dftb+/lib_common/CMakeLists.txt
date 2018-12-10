@@ -1,24 +1,24 @@
-set(CURDIR "lib_common")
+set(curdir "lib_common")
 
-set(SOURCES-FPP
-  ${CURDIR}/accuracy.F90
-  ${CURDIR}/assert.F90
-  ${CURDIR}/constants.F90
-  ${CURDIR}/environment.F90
-  ${CURDIR}/fileregistry.F90
-  ${CURDIR}/globalenv.F90
-  ${CURDIR}/memman.F90
-  ${CURDIR}/optarg.F90
-  ${CURDIR}/schedule.F90
-  ${CURDIR}/timer.F90
-  ${CURDIR}/timerarray.F90
-  ${CURDIR}/unitconversion.F90)
+set(sources-fpp
+  ${curdir}/accuracy.F90
+  ${curdir}/assert.F90
+  ${curdir}/constants.F90
+  ${curdir}/environment.F90
+  ${curdir}/fileregistry.F90
+  ${curdir}/globalenv.F90
+  ${curdir}/memman.F90
+  ${curdir}/optarg.F90
+  ${curdir}/schedule.F90
+  ${curdir}/timer.F90
+  ${curdir}/timerarray.F90
+  ${curdir}/unitconversion.F90)
 
 if(WITH_MPI)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/blacsenv.F90
-    ${CURDIR}/mpienv.F90)
-endif(WITH_MPI)
+  set(sources-fpp ${sources-fpp}
+    ${curdir}/blacsenv.F90
+    ${curdir}/mpienv.F90)
+endif()
 
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

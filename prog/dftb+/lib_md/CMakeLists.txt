@@ -1,16 +1,16 @@
-set(CURDIR "lib_md")
+set(curdir "lib_md")
 
-set(SOURCES-FPP
-  ${CURDIR}/andersentherm.F90
-  ${CURDIR}/berendsentherm.F90
-  ${CURDIR}/dummytherm.F90
-  ${CURDIR}/extlagrangian.F90
-  ${CURDIR}/mdcommon.F90
-  ${CURDIR}/mdintegrator.F90
-  ${CURDIR}/nhctherm.F90
-  ${CURDIR}/tempprofile.F90
-  ${CURDIR}/thermostat.F90
-  ${CURDIR}/velocityverlet.F90
-  ${CURDIR}/xlbomd.F90)
+set(sources-fpp
+  ${curdir}/andersentherm.F90
+  ${curdir}/berendsentherm.F90
+  ${curdir}/dummytherm.F90
+  ${curdir}/extlagrangian.F90
+  ${curdir}/mdcommon.F90
+  ${curdir}/mdintegrator.F90
+  ${curdir}/nhctherm.F90
+  ${curdir}/tempprofile.F90
+  ${curdir}/thermostat.F90
+  ${curdir}/velocityverlet.F90
+  ${curdir}/xlbomd.F90)
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

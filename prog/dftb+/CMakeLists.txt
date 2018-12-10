@@ -2,8 +2,8 @@
 # General options for all targets
 #
 
-_get_fypp_defines(FYPP-OPTS)
-list(APPEND FYPP-OPTS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
+_get_fypp_defines(fypp-opts)
+list(APPEND fypp-opts -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
 
 #
@@ -26,32 +26,32 @@ add_subdirectory(lib_timedep)
 add_subdirectory(lib_type)
 
 _register_custom_preprocessing(
-  "${FYPP}" "${FYPP-OPTS}" "F90" "f90" "${ALL-SOURCES-FPP}" ALL-SOURCES-F90-PREPROC)
+  "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 add_library(dftbplus
   ${ALL-SOURCES-F90}
-  ${ALL-SOURCES-F90-PREPROC})
+  ${all-sources-f90-preproc})
 
-set(INCLUDEDIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${INCLUDEDIR})
+set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
 
 target_include_directories(dftbplus INTERFACE
   $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
-  ${INCLUDEDIR})
+  ${includedir})
 
-set(OTHERLIBS xmlf90)
+set(otherlibs xmlf90)
 
 if (WITH_SOCKETS)
   target_include_directories(dftbplus INTERFACE
     $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND OTHERLIBS fsockets)
+  list(APPEND otherlibs fsockets)
 endif()
 
 if(WITH_DFTD3)
   target_include_directories(dftbplus INTERFACE
     $<TARGET_PROPERTY:dftd3,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND OTHERLIBS dftd3)
+  list(APPEND otherlibs dftd3)
 endif()
 
 if(WITH_MPI)
@@ -59,13 +59,13 @@ if(WITH_MPI)
     $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
   target_include_directories(dftbplus INTERFACE
     $<TARGET_PROPERTY:scalapackfx,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND OTHERLIBS mpifx scalapackfx ${SCALAPACK_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+  list(APPEND otherlibs mpifx scalapackfx ${SCALAPACK_LIBRARIES} ${MPI_Fortran_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus ${OTHERLIBS})
+target_link_libraries(dftbplus ${otherlibs})
 
 _register_install_target(dftbplus)
-_register_install_modfile_dirs(${INCLUDEDIR})
+_register_install_modfile_dirs(${includedir})
 
 get_target_property(moddirs xmlf90 INTERFACE_INCLUDE_DIRECTORIES)
 _register_install_modfile_dirs(${moddirs})
@@ -91,9 +91,9 @@ set(ALL-SOURCES-FPP)
 add_subdirectory(prg_dftb)
 
 _register_custom_preprocessing(
-  "${FYPP}" "${FYPP-OPTS}" "F90" "f90" "${ALL-SOURCES-FPP}" ALL-SOURCES-F90-PREPROC)
+  "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
-add_executable("dftb+" ${ALL-SOURCES-F90} ${ALL-SOURCES-F90-PREPROC})
+add_executable("dftb+" ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 target_link_libraries(dftb+ dftbplus ${LAPACK_LIBRARIES} ${ARPACK_LIBRARIES})
 

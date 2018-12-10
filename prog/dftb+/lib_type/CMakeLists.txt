@@ -1,24 +1,24 @@
-set(CURDIR "lib_type")
+set(curdir "lib_type")
 
-set(SOURCES-FPP
-  ${CURDIR}/commontypes.F90
-  ${CURDIR}/densedescr.F90
-  ${CURDIR}/dynneighlist.F90
-  ${CURDIR}/latpointiter.F90
-  ${CURDIR}/linkedlist.F90
-  ${CURDIR}/linkedlisti0.F90
-  ${CURDIR}/linkedlisti1.F90
-  ${CURDIR}/linkedlistlc0.F90
-  ${CURDIR}/linkedlistmc0.F90
-  ${CURDIR}/linkedlistr0.F90
-  ${CURDIR}/linkedlistr1.F90
-  ${CURDIR}/linkedlistr2.F90
-  ${CURDIR}/linkedlists0.F90
-  ${CURDIR}/oldskdata.F90
-  ${CURDIR}/orbitals.F90
-  ${CURDIR}/parallelks.F90
-  ${CURDIR}/typegeometry.F90
-  ${CURDIR}/typegeometryhsd.F90
-  ${CURDIR}/wrapped_intrinsics.F90)
+set(sources-fpp
+  ${curdir}/commontypes.F90
+  ${curdir}/densedescr.F90
+  ${curdir}/dynneighlist.F90
+  ${curdir}/latpointiter.F90
+  ${curdir}/linkedlist.F90
+  ${curdir}/linkedlisti0.F90
+  ${curdir}/linkedlisti1.F90
+  ${curdir}/linkedlistlc0.F90
+  ${curdir}/linkedlistmc0.F90
+  ${curdir}/linkedlistr0.F90
+  ${curdir}/linkedlistr1.F90
+  ${curdir}/linkedlistr2.F90
+  ${curdir}/linkedlists0.F90
+  ${curdir}/oldskdata.F90
+  ${curdir}/orbitals.F90
+  ${curdir}/parallelks.F90
+  ${curdir}/typegeometry.F90
+  ${curdir}/typegeometryhsd.F90
+  ${curdir}/wrapped_intrinsics.F90)
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

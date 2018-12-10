@@ -1,39 +1,36 @@
-set(CURDIR "lib_extlibs")
+set(curdir "lib_extlibs")
 
-set(SOURCES-FPP
-  ${CURDIR}/blas.F90
-  ${CURDIR}/lapack.F90
-  ${CURDIR}/mpifx.F90
-  ${CURDIR}/scalapackfx.F90
-  ${CURDIR}/xmlf90.F90)
+set(sources-fpp
+  ${curdir}/blas.F90
+  ${curdir}/lapack.F90
+  ${curdir}/mpifx.F90
+  ${curdir}/scalapackfx.F90
+  ${curdir}/xmlf90.F90)
 
 if(WITH_ARPACK)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/arpack.F90)
-endif(WITH_ARPACK)
+  list(APPEND sources-fpp ${curdir}/arpack.F90)
+endif()
 
 if(WITH_DFTD3)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/dftd3.F90)
-endif(WITH_DFTD3)
+  list(APPEND sources-fpp ${curdir}/dftd3.F90)
+endif()
 
 if(WITH_SOCKETS)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/fsockets.F90)
+  list(APPEND sources-fpp ${curdir}/fsockets.F90)
 endif(WITH_SOCKETS)
 
 if(WITH_MPI)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/mpifx.f90
-    ${CURDIR}/scalapackfx.f90)
+  list(APPEND sources-fpp
+    ${curdir}/mpifx.f90
+    ${curdir}/scalapackfx.f90)
 endif()
 
 if(WITH_TRANSPORT)
-  set(SOURCES-FPP ${SOURCES-FPP}
-    ${CURDIR}/libnegf_vars.F90
-    ${CURDIR}/mat_conv.F90
-    ${CURDIR}/negf_int.F90
-    ${CURDIR}/poisson_int.F90)
-endif(WITH_TRANSPORT)
+  list(APPEND sources-fpp
+    ${curdir}/libnegf_vars.F90
+    ${curdir}/mat_conv.F90
+    ${curdir}/negf_int.F90
+    ${curdir}/poisson_int.F90)
+endif()
 
-set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${SOURCES-FPP} PARENT_SCOPE)
+set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
