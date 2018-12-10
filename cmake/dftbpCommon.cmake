@@ -100,9 +100,9 @@ endfunction(_get_release_name)
 function (_log_settings file variables)
 
   foreach (var ${variables})
-    set(msg "SET(${var} ${${var}})")
-    string(REPLACE ";" " " msgstr "${msg}")
-    file(APPEND ${file} "${msgstr}\n")
+    set(msg "SET(${var} \"${${var}}\")")
+    #string(REPLACE ";" " " msgstr "${msg}")
+    file(APPEND ${file} "${msg}\n")
   endforeach()
 
 endfunction(_log_settings)

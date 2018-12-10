@@ -1,20 +1,36 @@
-set(BUILDDIR ${CMAKE_CURRENT_BINARY_DIR})
-set(SRCDIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(builddir ${CMAKE_CURRENT_BINARY_DIR})
+set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
-_get_fypp_defines(FYPP-OPTS)
-list(APPEND FYPP-OPTS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include -DRELEASE="'${RELEASE}'")
+_get_fypp_defines(fypp-opts)
 
-add_custom_command(
-  OUTPUT _dftbplus_tests
-  COMMAND ${CMAKE_SOURCE_DIR}/utils/test/testlist_to_fypp < ${SRCDIR}/tests > ${BUILDDIR}/_dftbplus_tests.fypp
-  COMMAND ${FYPP} ${FYPP-OPTS} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS} ${BUILDDIR}/tests.fypp > ${BUILDDIR}/_dftbplus_tests
-  BYPRODUCTS _dftbplus_tests.fypp
-  DEPENDS ${SRCDIR}/tests)
+# execute_process is verbatim, therefore ";" must be replaced with " "
+string(REGEX REPLACE ";" " " releasename "${RELEASE}")
 
-add_custom_target(dftbplus_tests ALL DEPENDS _dftbplus_tests)
+list(APPEND fypp-opts -I${CMAKE_SOURCE_DIR}/prog/dftb+/include -DRELEASE="'${releasename}'")
 
-add_test(
-  NAME test_dftb+
-  COMMAND cmake -E echo "Hello")
+execute_process(
+  COMMAND ${CMAKE_SOURCE_DIR}/utils/test/testlist_to_fypp
+  INPUT_FILE ${srcdir}/tests
+  OUTPUT_FILE ${builddir}/_dftbplus_tests.fypp)
 
-set_tests_properties(test_dftb+ PROPERTIES DEPENDS _dftbplus_tests)
+execute_process(
+  COMMAND ${FYPP} ${fypp-opts} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
+  INPUT_FILE ${builddir}/_dftbplus_tests.fypp
+  OUTPUT_FILE ${builddir}/_dftbplus_tests)
+
+file(STRINGS ${builddir}/_dftbplus_tests dftbplus_tests_raw)
+foreach(testname_raw ${dftbplus_tests_raw})
+  string(STRIP "${testname_raw}" testname)
+  if(NOT "${testname}" STREQUAL "")
+    list(APPEND tests ${testname})
+  endif()
+endforeach()
+
+foreach(test ${tests})
+  add_test(
+    NAME dftb+_${test}
+    COMMAND ${srcdir}/bin/autotest2
+        -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
+        -P "${TEST_RUNNER}" -p "$<TARGET_FILE:dftb+>"
+        -s P,R,C,S ${test})
+endforeach()

@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.5)
-enable_testing()
 
 project(dftbplus VERSION 18.2 LANGUAGES Fortran C)
 
@@ -27,6 +26,13 @@ set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
 
 set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
 
+if(WITH_MPI)
+  set(TEST_RUNNER "env OMP_NUM_THREADS=${TEST_OMP_THREADS} mpiexec -n ${TEST_MPI_PROCS}")
+else()
+  set(TEST_RUNNER "env OMP_NUM_THREADS=${TEST_OMP_THREADS}")
+endif()
+_log_settings(${SETTINGS_LOG} TEST_RUNNER)
+
 find_package(LAPACK REQUIRED)
 _log_settings(${SETTINGS_LOG} LAPACK_LIBRARIES)
 
@@ -41,9 +47,9 @@ if(WITH_ARPACK)
 endif()
 
 find_package(OpenMP REQUIRED)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_Fortran_FLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+list(APPEND CMAKE_C_FLAGS ${OpenMP_C_FLAGS})
+list(APPEND CMAKE_Fortran_FLAGS ${OpenMP_Fortran_FLAGS})
+list(APPEND CMAKE_EXE_LINKER_FLAGS ${OpenMP_EXE_LINKER_FLAGS})
 
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
@@ -75,8 +81,10 @@ endif()
 #
 # Add internal components
 #
+
 add_subdirectory(prog/dftb+)
 add_subdirectory(prog/modes)
 add_subdirectory(prog/waveplot)
 
+enable_testing()
 add_subdirectory(test)
