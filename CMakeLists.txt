@@ -26,6 +26,9 @@ set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
 
 set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
 
+set(PYTHON_INTERPRETER "python" CACHE STRING
+  "Python interpreter to use for installing and test python components")
+
 if(WITH_MPI)
   set(TEST_RUNNER "env OMP_NUM_THREADS=${TEST_OMP_THREADS} mpiexec -n ${TEST_MPI_PROCS}")
 else()
@@ -81,10 +84,8 @@ endif()
 #
 # Add internal components
 #
-
-add_subdirectory(prog/dftb+)
-add_subdirectory(prog/modes)
-add_subdirectory(prog/waveplot)
+add_subdirectory(prog)
+add_subdirectory(tools/dptools)
 
 enable_testing()
 add_subdirectory(test)
