@@ -1635,7 +1635,7 @@ contains
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp)
         call init(pGeoLatOpt, pConjGradLat)
-      case (4)
+      case (optLBFGS)
         allocate(pLbfgsLat)
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
             & input%ctrl%lbfgsInp%memory)
@@ -2456,11 +2456,11 @@ contains
       select case (input%ctrl%iGeoOpt)
       case (optSD)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
-      case (2)
+      case (optCG)
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
-      case (3)
+      case (optDIIS)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
-      case (4)
+      case (optLBFGS)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
