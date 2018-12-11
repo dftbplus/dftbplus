@@ -114,9 +114,9 @@ ARPACK_NEEDS_LAPACK := 0
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -diag-error-limit 1 -traceback
-    CCOPT = -g -warn all
+    CCOPT = -g -Wall
 endif
 ifeq ($(strip $(DEBUG)),2)
     FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
-    CCOPT = -g -warn all -check
+    CCOPT = -g -Wall -check
 endif
