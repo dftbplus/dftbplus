@@ -1360,6 +1360,8 @@ contains
         call getNodeHSDName(value, buffer)
         call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
       end select
+    else
+      ctrl%tRangeSep = .false.
     end if
 
     if (.not. ctrl%tRangeSep) then
