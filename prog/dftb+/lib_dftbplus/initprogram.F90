@@ -88,6 +88,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
+  use dftbp_osutils
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
@@ -2550,6 +2551,7 @@ contains
       end do
     end if
 
+    write(stdOut, "('Host name:',T30,A)") getHostName()
   #:if WITH_MPI
     if (env%mpi%nGroup > 1) then
       write(stdOut, "('MPI processes: ',T30,I0,' (split into ',I0,' groups)')")&

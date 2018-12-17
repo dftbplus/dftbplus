@@ -1,0 +1,5 @@
+osutils.o: _mod_iso_c_binding
+osutils.o = osutils.o $(_mod_iso_c_binding)
+_mod_dftbp_osutils: osutils.o
+_mod_dftbp_osutils = $(osutils.o)
+
