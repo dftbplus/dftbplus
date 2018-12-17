@@ -2,7 +2,7 @@
 # General options for all targets
 #
 
-_get_fypp_defines(fypp-opts)
+dftbp_get_fypp_defines(fypp-opts)
 list(APPEND fypp-opts -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
 
@@ -25,7 +25,7 @@ add_subdirectory(lib_mixer)
 add_subdirectory(lib_timedep)
 add_subdirectory(lib_type)
 
-_register_custom_preprocessing(
+dftbp_register_preprocessing(
   "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 add_library(dftbplus
@@ -64,20 +64,20 @@ endif()
 
 target_link_libraries(dftbplus ${otherlibs})
 
-_register_install_target(dftbplus)
-_register_install_modfile_dirs(${includedir})
+dftbp_register_install_target(dftbplus)
+dftbp_register_install_mod_dirs(${includedir})
 
 get_target_property(moddirs xmlf90 INTERFACE_INCLUDE_DIRECTORIES)
-_register_install_modfile_dirs(${moddirs})
+dftbp_register_install_mod_dirs(${moddirs})
 
 if (WITH_SOCKETS)
   get_target_property(moddirs fsockets INTERFACE_INCLUDE_DIRECTORIES)
-  _register_install_modfile_dirs(${moddirs})
+  dftbp_register_install_mod_dirs(${moddirs})
 endif()
 
 if (WITH_DFTD3)
   get_target_property(moddirs dftd3 INTERFACE_INCLUDE_DIRECTORIES)
-  _register_install_modfile_dirs(${moddirs})
+  dftbp_register_install_mod_dirs(${moddirs})
 endif()
 
 
@@ -90,11 +90,11 @@ set(ALL-SOURCES-FPP)
 
 add_subdirectory(prg_dftb)
 
-_register_custom_preprocessing(
+dftbp_register_preprocessing(
   "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 add_executable("dftb+" ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 target_link_libraries(dftb+ dftbplus ${LAPACK_LIBRARIES} ${ARPACK_LIBRARIES})
 
-_register_install_target(dftb+)
+dftbp_register_install_target(dftb+)

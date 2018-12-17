@@ -1,31 +1,51 @@
 # Replaces the extension of a given file
-function(_replace_extension oldext newext fname newfname)
+#
+# Args:
+#     oldext [in]: Old extension
+#     newext [in]: New extension
+#     fname [in]: File name in which extension should be replaced.
+#     newfname [out]: File name after extension replacement.
+#
+function(dftbp_replace_extension oldext newext fname newfname)
 
   string(REGEX REPLACE "\\.${oldext}$" ".${newext}" _newfname ${fname})
   set(${newfname} ${_newfname} PARENT_SCOPE)
 
-endfunction(_replace_extension)
+endfunction()
 
 
 # Registers files for preprocessing
-function(_register_custom_preprocessing prep prepopts oldext newext oldfiles newfiles)
+#
+# Args:
+#     preproc [in]: Preprocessor to use
+#     preprocopts [in]:  Preprocessor command line arguments (but not in/out file)
+#     oldext [in]: Extension of the unpreprocessed files.
+#     newext [in]: Extension of the preprocessed files.
+#     oldfiles [in]: List of unpreprocessed file names.
+#     newfiles [out]: List of preprocessed file names.
+#
+function(dftbp_register_preprocessing preproc preprocopts oldext newext oldfiles newfiles)
 
   set(_newfiles)
-  foreach(oldfile ${oldfiles})
-    _replace_extension(${oldext} ${newext} ${oldfile} newfile)
+  foreach(oldfile IN LISTS oldfiles)
+    dftbp_replace_extension(${oldext} ${newext} ${oldfile} newfile)
     add_custom_command(
       OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
-      COMMAND ${prep} ${prepopts} ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile} ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
+      COMMAND ${preproc} ${preprocopts} ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile} ${CMAKE_CURRENT_BINARY_DIR}/${newfile}
       MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${oldfile})
     list(APPEND _newfiles ${CMAKE_CURRENT_BINARY_DIR}/${newfile})
   endforeach()
   set(${newfiles} ${_newfiles} PARENT_SCOPE)
 
-endfunction(_register_custom_preprocessing)
+endfunction()
 
 
-# Registers a target as to be installed.
-function(_register_install_target target)
+# Registers a target as install target with default install directory locations
+#
+# Args:
+#     target [in]: Target to register for installation
+#
+function(dftbp_register_install_target target)
 
   install(TARGETS ${target}
     RUNTIME DESTINATION ${INSTALL_BIN_DIR}
@@ -33,23 +53,27 @@ function(_register_install_target target)
     ARCHIVE DESTINATION ${INSTALL_LIB_DIR}
     INCLUDES DESTINATION ${INSTALL_INC_DIR})
 
-endfunction(_register_install_target)
+endfunction()
 
 
 # Registers a directory with modfiles for installation
-function(_register_install_modfile_dirs moddirs)
+function(dftbp_register_install_mod_dirs moddirs)
 
-  foreach(moddir ${moddirs})
+  foreach(moddir IN LISTS moddirs)
     install(
       DIRECTORY "${moddir}/"
       DESTINATION "${INSTALL_MOD_DIR}")
   endforeach()
 
-endfunction(_register_install_modfile_dirs)
+endfunction()
 
 
-# Build Fypp -D command line arguments based on current settings
-function (_get_fypp_defines fyppdefines)
+# Build -D command line arguments for Fypp preprocessor based on current settings
+#
+# Args:
+#     fyppdefines [out]: Command line option with -D defines
+#
+function (dftbp_get_fypp_defines fyppdefines)
 
   set(_fyppdefines)
 
@@ -71,20 +95,24 @@ function (_get_fypp_defines fyppdefines)
 
   set(${fyppdefines} ${_fyppdefines} PARENT_SCOPE)
 
-endfunction(_get_fypp_defines)
+endfunction()
 
 
-# Gets the release information
-function(_get_release_name release)
+# Gets DFTB+ release information.
+#
+# Args:
+#   release [out]: Release string.
+#
+function(dftbp_get_release_name release)
 
-  if (NOT EXISTS ${CMAKE_BINARY_DIR}/RELEASE)
+  if(NOT EXISTS ${CMAKE_BINARY_DIR}/RELEASE)
     if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
       file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
     else()
       execute_process(
 	COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
 	RESULT_VARIABLE exitcode)
-      if(NOT exitcode EQUAL "0")
+      if(NOT exitcode EQUAL 0)
 	file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
       endif()
     endif()
@@ -93,21 +121,30 @@ function(_get_release_name release)
   separate_arguments(_release)
   set(${release} "${_release}" PARENT_SCOPE)
 
-endfunction(_get_release_name)
+endfunction()
 
 
-# Logs settings
-function (_log_settings file variables)
+# Logs settings to file
+#
+# Args:
+#     file [in]: Name of the file to write the log to.
+#     * [in]: Any variable name, for which name and value should be logged
+#
+function (dftbp_log_settings file)
 
-  foreach (var ${variables})
+  foreach(var IN LISTS ARGN)
     set(msg "SET(${var} \"${${var}}\")")
-    #string(REPLACE ";" " " msgstr "${msg}")
     file(APPEND ${file} "${msg}\n")
   endforeach()
 
-endfunction(_log_settings)
+endfunction()
 
 
-function (_reset_file file)
+# Resets a file to have empty content
+#
+# Args:
+#     file [in]: Name of the file to reset.
+#
+function (dftbp_reset_file file)
   file(WRITE ${file} "")
-endfunction (_reset_file)
+endfunction()

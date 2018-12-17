@@ -5,11 +5,11 @@ set(sources-fpp
 
 set(fypp-opts -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
 
-_register_custom_preprocessing(
+dftbp_register_preprocessing(
   "${FYPP}" "${fypp-opts}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
 
 add_executable("modes" ${sources-f90-preproc})
 
 target_link_libraries(modes dftbplus ${LAPACK_LIBRARIES})
 
-_register_install_target(modes)
+dftbp_register_install_target(modes)

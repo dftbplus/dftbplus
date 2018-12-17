@@ -6,19 +6,19 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpCommon)
 
 set(SETTINGS_LOG "${CMAKE_BINARY_DIR}/dftbplus-settings.cmake")
-_reset_file(${SETTINGS_LOG})
+dftbp_reset_file(${SETTINGS_LOG})
 
-set(WITH_SOCKETS FALSE CACHE BOOL "Whether socket communication should allowed for")
-_log_settings(${SETTINGS_LOG} WITH_SOCKETS)
+option(WITH_SOCKETS "Whether socket communication should allowed for" FALSE)
+dftbp_log_settings(${SETTINGS_LOG} WITH_SOCKETS)
 
-set(WITH_DFTD3 FALSE CACHE BOOL "Whether the DFTD3 library should be included")
-_log_settings(${SETTINGS_LOG} WITH_DFTD3)
+option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
+dftbp_log_settings(${SETTINGS_LOG} WITH_DFTD3)
 
-set(WITH_ARPACK FALSE CACHE BOOL "Whether the ARPACK library should be included")
-_log_settings(${SETTINGS_LOG} WITH_ARPACK)
+option(WITH_ARPACK "Whether the ARPACK library should be included" FALSE)
+dftbp_log_settings(${SETTINGS_LOG} WITH_ARPACK)
 
 set(SCALAPACK_LIBRARIES "scalapack" CACHE STRING "ScaLAPACK library to link")
-_log_settings(${SETTINGS_LOG} SCALAPACK_LIBRARIES)
+dftbp_log_settings(${SETTINGS_LOG} SCALAPACK_LIBRARIES)
 
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 
@@ -34,19 +34,19 @@ if(WITH_MPI)
 else()
   set(TEST_RUNNER "env OMP_NUM_THREADS=${TEST_OMP_THREADS}")
 endif()
-_log_settings(${SETTINGS_LOG} TEST_RUNNER)
+dftbp_log_settings(${SETTINGS_LOG} TEST_RUNNER)
 
 find_package(LAPACK REQUIRED)
-_log_settings(${SETTINGS_LOG} LAPACK_LIBRARIES)
+dftbp_log_settings(${SETTINGS_LOG} LAPACK_LIBRARIES)
 
 if(WITH_MPI)
   find_package(MPI REQUIRED)
-  include_directories(SYSTEM ${MPI_Fortran_INCLUDE_PATH})
+  #include_directories(SYSTEM ${MPI_Fortran_INCLUDE_PATH})
 endif()
 
 if(WITH_ARPACK)
   find_package(ARPACK REQUIRED)
-  _log_settings(${SETTINGS_LOG} ARPACK_LIBRARIES)
+  dftbp_log_settings(${SETTINGS_LOG} ARPACK_LIBRARIES)
 endif()
 
 find_package(OpenMP REQUIRED)
@@ -59,7 +59,7 @@ set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include")
 set(INSTALL_MOD_DIR "${CMAKE_INSTALL_PREFIX}/include")
 
-_get_release_name(RELEASE)
+dftbp_get_release_name(RELEASE)
 
 
 #

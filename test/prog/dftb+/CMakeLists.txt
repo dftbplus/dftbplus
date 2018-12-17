@@ -1,7 +1,7 @@
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
-_get_fypp_defines(fypp-opts)
+dftbp_get_fypp_defines(fypp-opts)
 
 # execute_process is verbatim, therefore ";" must be replaced with " "
 string(REGEX REPLACE ";" " " releasename "${RELEASE}")
@@ -19,14 +19,14 @@ execute_process(
   OUTPUT_FILE ${builddir}/_dftbplus_tests)
 
 file(STRINGS ${builddir}/_dftbplus_tests dftbplus_tests_raw)
-foreach(testname_raw ${dftbplus_tests_raw})
+foreach(testname_raw IN LISTS dftbplus_tests_raw)
   string(STRIP "${testname_raw}" testname)
   if(NOT "${testname}" STREQUAL "")
     list(APPEND tests ${testname})
   endif()
 endforeach()
 
-foreach(test ${tests})
+foreach(test IN LISTS tests)
   add_test(
     NAME dftb+_${test}
     COMMAND ${srcdir}/bin/autotest2
