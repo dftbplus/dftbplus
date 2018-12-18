@@ -1193,13 +1193,13 @@ following properties:
   \verb|charges.bin| or \verb|charges.dat| (depending on the option
   \is{WriteChargesAsText}, see section\ref{sec:dftbp.Options}).
 
-\item[\is{InitialCharges}] Specifies initial net charges, either for
-  all atoms or for only selected ones. In order to specify it for all
-  atoms, use the keyword \kw{AllAtomCharges} and supply the net charge
-  for every atom as a list of real values:
+\item[\is{InitialCharges}] Specifies initial charges, either for all atoms or
+  for only selected ones. In order to specify it for all atoms, use the keyword
+  \kw{AllAtomCharges} and supply the charge for every atom as a list of real
+  values:
 \begin{verbatim}
   InitialCharges = {
-    AllAtomCharges = { # Specifies net charge for each atom in an H2O molecule
+    AllAtomCharges = { # Specifies charge for each atom in an H2O molecule
        -0.88081627     # charge for atom 1 (O)
         0.44040813     # charge for atom 2 (H1)
         0.44040813     # charge for atom 3 (H2)
@@ -1208,8 +1208,8 @@ following properties:
 \end{verbatim}
   Alternatively you can specify charges individually on atoms or
   species using the \kw{AtomCharge} keyword. For every \is{AtomCharge}
-  declaration you must provide a net charge and the list of atoms,
-  which should be initialised to that net charge. (You can use the
+  declaration you must provide a charge and the list of atoms,
+  which should be initialised to that charge. (You can use the
   same format for the list of atoms, as described at the
   \is{MovedAtoms} keyword in the section for \isl{SteepestDescent}{sec:dftbp.SteepestDescent}):
 \begin{verbatim}
@@ -1224,7 +1224,7 @@ following properties:
     }
   }
 \end{verbatim}
-  Net charge on atoms not appearing in any \is{AtomCharge}
+  Charge on atoms not appearing in any \is{AtomCharge}
   specification is set to be zero.
 
 
@@ -3101,7 +3101,7 @@ fractional occupations. The specifications for this block have the following pro
     spectrum at the uncoupled DFTB level (i.e.\ the single-particle excitations).
 
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT are created. The
-    former contains atom-resolved Mulliken (net) charges for the excited state of interest, the
+    former contains atom-resolved Mulliken (gross) charges for the excited state of interest, the
     latter the excited-state dipole moment of the state.
 
   \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is created. This file contains
@@ -3613,10 +3613,10 @@ Example:\\
 \subsection{XCH.DAT}
 \index{XCH.DAT}
 
-Net charges on atoms in the specified excited state. The top line contains the
+Charges on atoms in the specified excited state. The top line contains the
 symmetry (Singlet or Triplet) and the number of the excited state. The next line
 is the number of atoms in the structure followed by some header text. Then on
-subsequent lines the number of each atom in the structure and its net charge are
+subsequent lines the number of each atom in the structure and its charge are
 printed.
 
 \subsection{XplusY.DAT}
@@ -3639,7 +3639,7 @@ energy (in Hartree)\\
 \subsection{XREST.DAT}
 \index{XREST.DAT}
 
-Net dipole moment of the specified excited state in units of Debye.
+Dipole moment of the specified excited state in units of Debye.
 
 %%% Local Variables:
 %%% mode: latex
